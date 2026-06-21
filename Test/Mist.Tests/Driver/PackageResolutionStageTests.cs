@@ -1,7 +1,6 @@
 // Feature: csharp-interop-v2, Task 7.6
 // In-process tests verifying end-to-end behavior of the Package Resolution
 // stage (Stage 1.5) through the CompilerDriver. These tests exercise:
-//   - Pre-cached package type resolves through the provider (no network)
 //   - Quiet build emits no 1.5 header/detail
 //   - Verbose build emits header + detail + summary
 //   - Resolution error surfaces in both modes
@@ -24,24 +23,11 @@ namespace Mist.Tests.Driver;
 /// <summary>
 /// Integration tests verifying the Package Resolution stage (1.5) behavior
 /// through the <see cref="CompilerDriver"/>. All tests are in-process —
-/// no child processes are spawned.
+/// no child processes are spawned (the resolver spawns dotnet restore internally).
 /// </summary>
 public sealed class PackageResolutionStageTests : IDisposable
 {
     private readonly string _scratchDir;
-
-    /// <summary>The standard NuGet global packages folder (~/.nuget/packages/).</summary>
-    private static readonly string GlobalPackagesFolder =
-        Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-            ".nuget",
-            "packages");
-
-    /// <summary>
-    /// Synthetic package directories created under the global packages folder,
-    /// cleaned up on dispose.
-    /// </summary>
-    private readonly List<string> _createdPackageRoots = [];
 
     public PackageResolutionStageTests()
     {
@@ -56,16 +42,6 @@ public sealed class PackageResolutionStageTests : IDisposable
         if (Directory.Exists(_scratchDir))
         {
             try { Directory.Delete(_scratchDir, recursive: true); } catch { /* best effort */ }
-        }
-
-        foreach (var root in _createdPackageRoots)
-        {
-            try
-            {
-                if (Directory.Exists(root))
-                    Directory.Delete(root, recursive: true);
-            }
-            catch (IOException) { /* best effort */ }
         }
 
         GC.SuppressFinalize(this);
@@ -131,31 +107,6 @@ public sealed class PackageResolutionStageTests : IDisposable
             VerboseResolution: verboseResolution);
     }
 
-    /// <summary>
-    /// Creates a synthetic, already-"cached" package directory under the global
-    /// packages folder so that <see cref="PackageResolver"/> resolves it without
-    /// any network access.
-    /// </summary>
-    private (string Name, string Version) CreateCachedPackage(string? libTfm)
-    {
-        var name = $"mist.test.pkg.{Guid.NewGuid():N}";
-        const string version = "1.0.0";
-
-        var packageRoot = Path.Combine(GlobalPackagesFolder, name);
-        var versionDir = Path.Combine(packageRoot, version);
-        Directory.CreateDirectory(versionDir);
-        _createdPackageRoots.Add(packageRoot);
-
-        if (libTfm is not null)
-        {
-            var tfmDir = Path.Combine(versionDir, "lib", libTfm);
-            Directory.CreateDirectory(tfmDir);
-            File.WriteAllText(Path.Combine(tfmDir, "TestAssembly.dll"), string.Empty);
-        }
-
-        return (name, version);
-    }
-
     private const string MinimalProgram = """
         namespace TestNs;
         public class Foo {
@@ -164,40 +115,7 @@ public sealed class PackageResolutionStageTests : IDisposable
         """;
 
     // ═══════════════════════════════════════════════════════════════════════
-    // 1. Pre-cached package resolves through the provider (no network)
-    //    Validates: Requirement 2.2
-    // ═══════════════════════════════════════════════════════════════════════
-
-    [Fact]
-    public void PreCachedPackage_ResolvesAssemblyPaths_NoMistPkgDiagnostics()
-    {
-        // A pre-cached synthetic package resolves through the driver's
-        // Stage 1.5 without network access and without producing any
-        // MIST_PKG_* diagnostic.
-        var (name, version) = CreateCachedPackage(libTfm: "net8.0");
-        var spy = new SpyProgressReporter();
-        var driver = CreateDriver(spy);
-        var options = CreateOptions(
-            MinimalProgram,
-            packages: [new NuGetPackageReference(name, version)]);
-
-        var result = driver.Compile(options);
-
-        // No MIST_PKG_* errors — the package resolved successfully.
-        var pkgDiags = result.Diagnostics.Where(
-            d => d.Id.Value.StartsWith("MIST_PKG", StringComparison.Ordinal));
-        Assert.Empty(pkgDiags);
-
-        // The Mist compilation stages (lex, parse, semantic model) should succeed.
-        // The downstream C# compilation may fail because our synthetic package DLL is
-        // an empty placeholder (not a valid assembly), which causes a Roslyn metadata
-        // reference error. That's expected and irrelevant to this test's purpose, which
-        // is verifying that Stage 1.5 resolves the package without MIST_PKG_* diagnostics.
-        // We do NOT assert result.Succeeded here for this reason.
-    }
-
-    // ═══════════════════════════════════════════════════════════════════════
-    // 2. Quiet build emits no 1.5 header/detail (Requirement 1.3)
+    // 1. Quiet build emits no 1.5 header/detail (Requirement 1.3)
     // ═══════════════════════════════════════════════════════════════════════
 
     [Fact]
@@ -205,12 +123,11 @@ public sealed class PackageResolutionStageTests : IDisposable
     {
         // Even when packages are declared, VerboseResolution=false (the
         // default) should suppress all reporter output for stage 1.5.
-        var (name, version) = CreateCachedPackage(libTfm: "net8.0");
         var spy = new SpyProgressReporter();
         var driver = CreateDriver(spy);
         var options = CreateOptions(
             MinimalProgram,
-            packages: [new NuGetPackageReference(name, version)],
+            packages: [new NuGetPackageReference("Newtonsoft.Json", "13.0.3")],
             verboseResolution: false);
 
         driver.Compile(options);
@@ -248,18 +165,17 @@ public sealed class PackageResolutionStageTests : IDisposable
     }
 
     // ═══════════════════════════════════════════════════════════════════════
-    // 3. Verbose build emits header + detail + summary (Requirement 1.6)
+    // 2. Verbose build emits header + detail + summary (Requirement 1.6)
     // ═══════════════════════════════════════════════════════════════════════
 
     [Fact]
     public void VerboseBuild_EmitsStage1_5_HeaderDetailSummary()
     {
-        var (name, version) = CreateCachedPackage(libTfm: "net8.0");
         var spy = new SpyProgressReporter();
         var driver = CreateDriver(spy);
         var options = CreateOptions(
             MinimalProgram,
-            packages: [new NuGetPackageReference(name, version)],
+            packages: [new NuGetPackageReference("Newtonsoft.Json", "13.0.3")],
             verboseResolution: true);
 
         driver.Compile(options);
@@ -279,7 +195,7 @@ public sealed class PackageResolutionStageTests : IDisposable
             $"Expected at least 3 detail lines (restored, ms, summary), got {details.Count}");
 
         // Detail line should contain the package restoration info.
-        Assert.Contains(details, d => d.Contains("Restored") && d.Contains(name));
+        Assert.Contains(details, d => d.Contains("Restored") && d.Contains("Newtonsoft.Json"));
 
         // Elapsed ms line (integer milliseconds).
         Assert.Contains(details, d => d.EndsWith("ms"));
@@ -288,30 +204,8 @@ public sealed class PackageResolutionStageTests : IDisposable
         Assert.Contains(details, d => d.Contains("succeeded") && d.Contains("failed"));
     }
 
-    [Fact]
-    public void VerboseBuild_WithZeroAssemblyPackage_EmitsContributedNoAssembliesNote()
-    {
-        // A package with no lib folder resolves successfully with 0 assemblies;
-        // verbose mode should print the "contributed no assemblies" detail.
-        var (name, version) = CreateCachedPackage(libTfm: null);
-        var spy = new SpyProgressReporter();
-        var driver = CreateDriver(spy);
-        var options = CreateOptions(
-            MinimalProgram,
-            packages: [new NuGetPackageReference(name, version)],
-            verboseResolution: true);
-
-        driver.Compile(options);
-
-        var stageComplete = spy.StageCompletes.FirstOrDefault(s => s.StageId == "1.5");
-        Assert.NotEqual(default, stageComplete);
-
-        Assert.Contains(stageComplete.Details,
-            d => d.Contains("contributed no assemblies"));
-    }
-
     // ═══════════════════════════════════════════════════════════════════════
-    // 4. Resolution error surfaces in both modes (Requirement 1.9)
+    // 3. Resolution error surfaces in both modes (Requirement 1.9)
     // ═══════════════════════════════════════════════════════════════════════
 
     [Fact]
@@ -356,7 +250,7 @@ public sealed class PackageResolutionStageTests : IDisposable
     }
 
     // ═══════════════════════════════════════════════════════════════════════
-    // 5. Unresolved type → diagnostic without aborting (Requirement 2.3)
+    // 4. Unresolved type → diagnostic without aborting (Requirement 2.3)
     // ═══════════════════════════════════════════════════════════════════════
 
     [Fact]

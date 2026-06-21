@@ -267,9 +267,10 @@ public sealed class CompilerDriver : ICompilerDriver
 
             var resolutionDiagnostics = new DiagnosticBag();
 
-            // Resolve NuGet packages
+            // Resolve NuGet packages (passes framework references for deduplication
+            // against framework-provided assemblies to prevent duplicate loading)
             var packageResult = PackageResolver.ResolvePackages(
-                options.Packages, options.TargetFramework, resolutionDiagnostics);
+                options.Packages, options.FrameworkReferences, options.TargetFramework, resolutionDiagnostics);
 
             // Resolve framework references
             var frameworkResult = FrameworkReferenceResolver.Resolve(

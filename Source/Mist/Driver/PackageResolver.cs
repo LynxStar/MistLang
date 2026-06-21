@@ -1,20 +1,18 @@
 using System.Collections.Immutable;
+using System.Diagnostics;
+using System.Text;
+using System.Text.Json;
 using Mist.Common.Diagnostics;
 using Mist.Driver.Contracts;
-using NuGet.Common;
-using NuGet.Frameworks;
-using NuGet.Packaging;
-using NuGet.Packaging.Core;
-using NuGet.Protocol;
-using NuGet.Protocol.Core.Types;
 using NuGet.Versioning;
 
 namespace Mist.Driver;
 
 /// <summary>
-/// Resolves NuGet package references to assembly file paths.
-/// Downloads packages not in the local cache, resolves transitive dependencies,
-/// and selects the nearest compatible TFM for each package.
+/// Resolves NuGet package references to assembly file paths by delegating to
+/// <c>dotnet restore</c> and parsing the resulting <c>project.assets.json</c>.
+/// This approach inherits the SDK's certificate trust, TFM fallback, runtime-
+/// package skipping, and transitive dependency resolution automatically.
 /// </summary>
 public static class PackageResolver
 {
@@ -25,44 +23,13 @@ public static class PackageResolver
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".nuget", "packages");
 
     /// <summary>
-    /// TFM preference order for selecting the best compatible framework from a package.
-    /// Higher index = lower preference.
+    /// Maximum time allowed for the <c>dotnet restore</c> process to complete.
     /// </summary>
-    internal static readonly NuGetFramework[] TfmPreferenceOrder =
-    [
-        NuGetFramework.Parse("net10.0"),
-        NuGetFramework.Parse("net9.0"),
-        NuGetFramework.Parse("net8.0"),
-        NuGetFramework.Parse("netstandard2.1"),
-        NuGetFramework.Parse("netstandard2.0"),
-    ];
+    private static readonly TimeSpan RestoreTimeout = TimeSpan.FromSeconds(120);
 
     /// <summary>
-    /// The configured NuGet feeds searched when restoring packages. Reported in
-    /// <c>MIST_PKG_002</c> diagnostics so the user can see exactly which feeds
-    /// were consulted.
-    /// </summary>
-    private static readonly ImmutableArray<string> ConfiguredFeeds =
-        ["https://api.nuget.org/v3/index.json"];
-
-    /// <summary>
-    /// Upper bound on restoring a single package (download + extract). When a
-    /// restore exceeds this bound a <c>MIST_PKG_003</c> restore-timeout
-    /// diagnostic is emitted. This single 100-second bound replaces the former
-    /// 60-second download timeout.
-    /// </summary>
-    private static readonly TimeSpan RestoreTimeout = TimeSpan.FromSeconds(100);
-
-    /// <summary>
-    /// The configured feeds rendered as a comma-separated list for diagnostics.
-    /// </summary>
-    private static string FeedList => string.Join(", ", ConfiguredFeeds);
-
-    /// <summary>
-    /// Resolves all package references to assembly paths.
-    /// Downloads packages not in the local cache.
-    /// Resolves transitive dependencies.
-    /// Selects nearest compatible TFM for each package.
+    /// Resolves all package references to assembly paths by generating a temporary
+    /// .csproj, running <c>dotnet restore</c>, and parsing <c>project.assets.json</c>.
     /// </summary>
     /// <param name="packages">The declared package references from mist.toml.</param>
     /// <param name="targetFramework">The project's target framework (e.g., "net10.0").</param>
@@ -77,38 +44,52 @@ public static class PackageResolver
         string targetFramework,
         DiagnosticBag diagnostics)
     {
+        return ResolvePackages(packages, default, targetFramework, diagnostics);
+    }
+
+    /// <summary>
+    /// Resolves all package references to assembly paths, deduplicating against
+    /// assemblies already provided by the specified shared framework references.
+    /// </summary>
+    /// <param name="packages">The declared package references from mist.toml.</param>
+    /// <param name="frameworkReferences">
+    /// Shared framework references (e.g., Microsoft.AspNetCore.App) whose assemblies
+    /// should be excluded from the package resolution output to prevent duplicate
+    /// assembly loading in MetadataLoadContext.
+    /// </param>
+    /// <param name="targetFramework">The project's target framework (e.g., "net10.0").</param>
+    /// <param name="diagnostics">Diagnostic bag for reporting errors.</param>
+    /// <returns>
+    /// A <see cref="PackageResolutionResult"/> carrying the flattened assembly
+    /// paths (excluding framework-provided assemblies), a per-declared-package
+    /// summary, and the count of declared packages that failed to resolve.
+    /// </returns>
+    public static PackageResolutionResult ResolvePackages(
+        ImmutableArray<NuGetPackageReference> packages,
+        ImmutableArray<FrameworkReference> frameworkReferences,
+        string targetFramework,
+        DiagnosticBag diagnostics)
+    {
         if (packages.IsDefaultOrEmpty)
             return new PackageResolutionResult(
                 ImmutableArray<string>.Empty,
                 ImmutableArray<ResolvedPackageInfo>.Empty,
                 FailureCount: 0);
 
-        var assemblyPaths = ImmutableArray.CreateBuilder<string>();
-        var resolvedInfos = ImmutableArray.CreateBuilder<ResolvedPackageInfo>();
-        var resolvedPackages = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        // Validate version strings up-front (same behavior as before — invalid
+        // versions produce MIST_PKG_002 without hitting the network).
+        var validPackages = ImmutableArray.CreateBuilder<NuGetPackageReference>();
         var failureCount = 0;
-
-        var repository = Repository.Factory.GetCoreV3(ConfiguredFeeds[0]);
-        var cache = new SourceCacheContext();
-        var logger = NullLogger.Instance;
-
-        var projectFramework = NuGetFramework.Parse(targetFramework);
-
-        // Resolve each declared package and its transitive dependencies.
-        // The IsDirect flag distinguishes declared packages (recorded as
-        // ResolvedPackageInfo / counted as failures) from transitive
-        // dependencies (which only contribute assembly paths).
-        var queue = new Queue<(PackageIdentity Identity, bool IsDirect)>();
 
         foreach (var pkg in packages)
         {
-            if (!NuGetVersion.TryParse(pkg.Version, out var version))
+            if (!NuGetVersion.TryParse(pkg.Version, out _))
             {
                 diagnostics.Add(new Diagnostic(
                     DiagnosticId.PackageNotFound,
                     DiagnosticSeverity.Error,
                     PipelineStage.Driver,
-                    $"Package '{pkg.Name}' version '{pkg.Version}' could not be found on any configured NuGet feed ({FeedList}); the version string is not a valid NuGet version.",
+                    $"Package '{pkg.Name}' version '{pkg.Version}' could not be found on any configured NuGet feed (https://api.nuget.org/v3/index.json); the version string is not a valid NuGet version.",
                     Location: default,
                     CompilationUnitPath: string.Empty,
                     AnalyzerName: null));
@@ -116,332 +97,568 @@ public static class PackageResolver
                 continue;
             }
 
-            queue.Enqueue((new PackageIdentity(pkg.Name, version), true));
+            validPackages.Add(pkg);
         }
 
-        while (queue.Count > 0)
+        if (validPackages.Count == 0)
         {
-            var (identity, isDirect) = queue.Dequeue();
-            var packageKey = $"{identity.Id}/{identity.Version}";
+            return new PackageResolutionResult(
+                ImmutableArray<string>.Empty,
+                ImmutableArray<ResolvedPackageInfo>.Empty,
+                FailureCount: failureCount);
+        }
 
-            if (!resolvedPackages.Add(packageKey))
-                continue;
+        // Generate a temporary .csproj and run dotnet restore
+        var tempDir = Path.Combine(Path.GetTempPath(), $"mist-restore-{Guid.NewGuid():N}");
 
-            // Try to resolve the package (download if not cached)
-            var packagePath = ResolvePackage(identity, repository, cache, logger, diagnostics);
-            if (packagePath is null)
+        try
+        {
+            Directory.CreateDirectory(tempDir);
+
+            var csprojPath = GenerateCsproj(tempDir, validPackages.ToImmutable(), frameworkReferences, targetFramework);
+            var (restoreExitCode, restoreStdout, restoreStderr) = RunDotnetRestore(csprojPath, tempDir);
+
+            if (restoreExitCode != 0)
             {
-                if (isDirect)
-                    failureCount++;
-                continue;
+                // Parse the restore output to identify which packages failed
+                return HandleRestoreFailure(
+                    validPackages.ToImmutable(), restoreStdout, restoreStderr,
+                    failureCount, diagnostics);
             }
 
-            // Find compatible assemblies for the target framework
-            var (assemblies, selectedTfm, hadError) =
-                GetCompatibleAssemblies(identity, packagePath, projectFramework, targetFramework, diagnostics);
-            assemblyPaths.AddRange(assemblies);
-
-            if (isDirect)
+            // Parse project.assets.json to extract resolved assembly paths
+            var assetsPath = Path.Combine(tempDir, "obj", "project.assets.json");
+            if (!File.Exists(assetsPath))
             {
-                if (hadError)
+                diagnostics.Add(new Diagnostic(
+                    DiagnosticId.PackageNetworkError,
+                    DiagnosticSeverity.Error,
+                    PipelineStage.Driver,
+                    "Package restore completed but project.assets.json was not generated.",
+                    Location: default,
+                    CompilationUnitPath: string.Empty,
+                    AnalyzerName: null));
+                return new PackageResolutionResult(
+                    ImmutableArray<string>.Empty,
+                    ImmutableArray<ResolvedPackageInfo>.Empty,
+                    FailureCount: failureCount + validPackages.Count);
+            }
+
+            return ParseAssetsFile(assetsPath, validPackages.ToImmutable(), frameworkReferences,
+                targetFramework, failureCount, diagnostics);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            diagnostics.Add(new Diagnostic(
+                DiagnosticId.PackageNetworkError,
+                DiagnosticSeverity.Error,
+                PipelineStage.Driver,
+                $"Failed to create temporary restore project: {ex.Message}",
+                Location: default,
+                CompilationUnitPath: string.Empty,
+                AnalyzerName: null));
+            return new PackageResolutionResult(
+                ImmutableArray<string>.Empty,
+                ImmutableArray<ResolvedPackageInfo>.Empty,
+                FailureCount: failureCount + validPackages.Count);
+        }
+        finally
+        {
+            // Clean up temp directory
+            try
+            {
+                if (Directory.Exists(tempDir))
+                    Directory.Delete(tempDir, recursive: true);
+            }
+            catch
+            {
+                // Best effort cleanup
+            }
+        }
+    }
+
+    /// <summary>
+    /// Generates a minimal .csproj file with the declared package references.
+    /// </summary>
+    private static string GenerateCsproj(
+        string directory,
+        ImmutableArray<NuGetPackageReference> packages,
+        ImmutableArray<FrameworkReference> frameworkReferences,
+        string targetFramework)
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine("<Project Sdk=\"Microsoft.NET.Sdk\">");
+        sb.AppendLine("  <PropertyGroup>");
+        sb.AppendLine($"    <TargetFramework>{targetFramework}</TargetFramework>");
+        // Suppress all warnings and informational output from the restore
+        sb.AppendLine("    <NoWarn>$(NoWarn);NU1701;NU1603</NoWarn>");
+        sb.AppendLine("  </PropertyGroup>");
+
+        sb.AppendLine("  <ItemGroup>");
+        foreach (var pkg in packages)
+        {
+            sb.AppendLine($"    <PackageReference Include=\"{pkg.Name}\" Version=\"{pkg.Version}\" />");
+        }
+        sb.AppendLine("  </ItemGroup>");
+
+        if (!frameworkReferences.IsDefaultOrEmpty)
+        {
+            sb.AppendLine("  <ItemGroup>");
+            foreach (var fw in frameworkReferences)
+            {
+                sb.AppendLine($"    <FrameworkReference Include=\"{fw.Name}\" />");
+            }
+            sb.AppendLine("  </ItemGroup>");
+        }
+
+        sb.AppendLine("</Project>");
+
+        var csprojPath = Path.Combine(directory, "_MistRestore.csproj");
+        File.WriteAllText(csprojPath, sb.ToString());
+        return csprojPath;
+    }
+
+    /// <summary>
+    /// Runs <c>dotnet restore</c> on the generated .csproj.
+    /// </summary>
+    private static (int ExitCode, string Stdout, string Stderr) RunDotnetRestore(
+        string csprojPath, string workingDirectory)
+    {
+        var psi = new ProcessStartInfo
+        {
+            FileName = "dotnet",
+            Arguments = $"restore \"{csprojPath}\" --verbosity quiet",
+            WorkingDirectory = workingDirectory,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            StandardOutputEncoding = Encoding.UTF8,
+            StandardErrorEncoding = Encoding.UTF8,
+            UseShellExecute = false,
+            CreateNoWindow = true,
+        };
+
+        using var process = new Process { StartInfo = psi };
+
+        var stdoutBuilder = new StringBuilder();
+        var stderrBuilder = new StringBuilder();
+
+        process.OutputDataReceived += (_, e) =>
+        {
+            if (e.Data is not null)
+                stdoutBuilder.AppendLine(e.Data);
+        };
+        process.ErrorDataReceived += (_, e) =>
+        {
+            if (e.Data is not null)
+                stderrBuilder.AppendLine(e.Data);
+        };
+
+        process.Start();
+        process.BeginOutputReadLine();
+        process.BeginErrorReadLine();
+
+        var completed = process.WaitForExit((int)RestoreTimeout.TotalMilliseconds);
+
+        if (!completed)
+        {
+            try { process.Kill(entireProcessTree: true); } catch { /* best effort */ }
+            return (-1, stdoutBuilder.ToString(), "Restore timed out after 120 seconds.");
+        }
+
+        return (process.ExitCode, stdoutBuilder.ToString(), stderrBuilder.ToString());
+    }
+
+    /// <summary>
+    /// Handles a failed <c>dotnet restore</c> by parsing the error output to
+    /// determine which packages failed and emitting appropriate diagnostics.
+    /// </summary>
+    private static PackageResolutionResult HandleRestoreFailure(
+        ImmutableArray<NuGetPackageReference> validPackages,
+        string stdout,
+        string stderr,
+        int priorFailureCount,
+        DiagnosticBag diagnostics)
+    {
+        var combinedOutput = $"{stdout}\n{stderr}";
+        var packageFailures = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        // Try to identify specific package failures from the output
+        foreach (var pkg in validPackages)
+        {
+            if (combinedOutput.Contains(pkg.Name, StringComparison.OrdinalIgnoreCase))
+            {
+                packageFailures.Add(pkg.Name);
+            }
+        }
+
+        // If we can't identify specific failures, report all as failed
+        if (packageFailures.Count == 0)
+        {
+            // Check if it's a network/connection issue
+            if (combinedOutput.Contains("Unable to load the service index", StringComparison.OrdinalIgnoreCase)
+                || combinedOutput.Contains("network", StringComparison.OrdinalIgnoreCase)
+                || combinedOutput.Contains("timeout", StringComparison.OrdinalIgnoreCase)
+                || combinedOutput.Contains("connection", StringComparison.OrdinalIgnoreCase)
+                || combinedOutput.Contains("certificate", StringComparison.OrdinalIgnoreCase)
+                || combinedOutput.Contains("signature", StringComparison.OrdinalIgnoreCase))
+            {
+                diagnostics.Add(new Diagnostic(
+                    DiagnosticId.PackageNetworkError,
+                    DiagnosticSeverity.Error,
+                    PipelineStage.Driver,
+                    $"Connection or network failure while restoring packages: {stderr.Trim()}",
+                    Location: default,
+                    CompilationUnitPath: string.Empty,
+                    AnalyzerName: null));
+            }
+            else
+            {
+                // Generic failure — report each package individually
+                foreach (var pkg in validPackages)
                 {
-                    failureCount++;
-                }
-                else
-                {
-                    // Record the per-package outcome. A package that resolves to
-                    // zero compatible assemblies but produces no error is recorded
-                    // with AssemblyCount == 0 so the verbose stage and `mist
-                    // restore` can print the "contributed no assemblies" note.
-                    resolvedInfos.Add(new ResolvedPackageInfo(
-                        identity.Id,
-                        identity.Version.ToNormalizedString(),
-                        selectedTfm ?? string.Empty,
-                        assemblies.Length));
+                    diagnostics.Add(new Diagnostic(
+                        DiagnosticId.PackageNotFound,
+                        DiagnosticSeverity.Error,
+                        PipelineStage.Driver,
+                        $"Package '{pkg.Name}' version '{pkg.Version}' was not found on any configured NuGet feed. Searched: https://api.nuget.org/v3/index.json.",
+                        Location: default,
+                        CompilationUnitPath: string.Empty,
+                        AnalyzerName: null));
                 }
             }
 
-            // Resolve transitive dependencies
-            var dependencies = GetDependencies(identity, packagePath, projectFramework);
-            foreach (var dep in dependencies)
+            return new PackageResolutionResult(
+                ImmutableArray<string>.Empty,
+                ImmutableArray<ResolvedPackageInfo>.Empty,
+                FailureCount: priorFailureCount + validPackages.Length);
+        }
+
+        // Report individual package failures
+        var resolvedInfos = ImmutableArray.CreateBuilder<ResolvedPackageInfo>();
+        var newFailures = 0;
+
+        foreach (var pkg in validPackages)
+        {
+            if (packageFailures.Contains(pkg.Name))
             {
-                var depKey = $"{dep.Id}/{dep.Version}";
-                if (!resolvedPackages.Contains(depKey))
-                    queue.Enqueue((dep, false));
+                diagnostics.Add(new Diagnostic(
+                    DiagnosticId.PackageNotFound,
+                    DiagnosticSeverity.Error,
+                    PipelineStage.Driver,
+                    $"Package '{pkg.Name}' version '{pkg.Version}' was not found on any configured NuGet feed. Searched: https://api.nuget.org/v3/index.json.",
+                    Location: default,
+                    CompilationUnitPath: string.Empty,
+                    AnalyzerName: null));
+                newFailures++;
             }
         }
 
         return new PackageResolutionResult(
-            assemblyPaths.ToImmutable(),
+            ImmutableArray<string>.Empty,
             resolvedInfos.ToImmutable(),
-            failureCount);
+            FailureCount: priorFailureCount + newFailures);
     }
 
     /// <summary>
-    /// Resolves a single package, downloading it if not present in the local cache.
-    /// Returns the package directory path, or null on failure.
+    /// Parses <c>project.assets.json</c> to extract resolved assembly paths for
+    /// the target framework. Deduplicates against assemblies provided by referenced
+    /// shared frameworks to prevent duplicate assembly loading.
     /// </summary>
-    private static string? ResolvePackage(
-        PackageIdentity identity,
-        SourceRepository repository,
-        SourceCacheContext cache,
-        ILogger logger,
-        DiagnosticBag diagnostics)
-    {
-        var packageDir = Path.Combine(
-            GlobalPackagesFolder,
-            identity.Id.ToLowerInvariant(),
-            identity.Version.ToNormalizedString().ToLowerInvariant());
-
-        // Check local cache first
-        if (Directory.Exists(packageDir))
-            return packageDir;
-
-        // Download the package
-        try
-        {
-            using var cts = new CancellationTokenSource(RestoreTimeout);
-
-            var findResource = repository.GetResourceAsync<FindPackageByIdResource>(cts.Token)
-                .GetAwaiter().GetResult();
-
-            // Check if the package version exists
-            var versions = findResource.GetAllVersionsAsync(identity.Id, cache, logger, cts.Token)
-                .GetAwaiter().GetResult();
-
-            if (versions is null || !versions.Contains(identity.Version))
-            {
-                diagnostics.Add(new Diagnostic(
-                    DiagnosticId.PackageNotFound,
-                    DiagnosticSeverity.Error,
-                    PipelineStage.Driver,
-                    $"Package '{identity.Id}' version '{identity.Version}' was not found on any configured NuGet feed. Searched: {FeedList}.",
-                    Location: default,
-                    CompilationUnitPath: string.Empty,
-                    AnalyzerName: null));
-                return null;
-            }
-
-            // Download and extract
-            Directory.CreateDirectory(packageDir);
-
-            using var packageStream = new MemoryStream();
-            var downloaded = findResource.CopyNupkgToStreamAsync(
-                identity.Id, identity.Version, packageStream, cache, logger, cts.Token)
-                .GetAwaiter().GetResult();
-
-            if (!downloaded)
-            {
-                diagnostics.Add(new Diagnostic(
-                    DiagnosticId.PackageNotFound,
-                    DiagnosticSeverity.Error,
-                    PipelineStage.Driver,
-                    $"Failed to download package '{identity.Id}' version '{identity.Version}' from any configured NuGet feed. Searched: {FeedList}.",
-                    Location: default,
-                    CompilationUnitPath: string.Empty,
-                    AnalyzerName: null));
-                return null;
-            }
-
-            packageStream.Position = 0;
-            using var reader = new PackageArchiveReader(packageStream);
-            var files = reader.GetFiles();
-
-            foreach (var file in files)
-            {
-                var targetPath = Path.Combine(packageDir, file);
-                var targetDir = Path.GetDirectoryName(targetPath);
-                if (targetDir is not null)
-                    Directory.CreateDirectory(targetDir);
-
-                using var fileStream = reader.GetStream(file);
-                using var outputStream = File.Create(targetPath);
-                fileStream.CopyTo(outputStream);
-            }
-
-            return packageDir;
-        }
-        catch (OperationCanceledException)
-        {
-            diagnostics.Add(new Diagnostic(
-                DiagnosticId.PackageNetworkError,
-                DiagnosticSeverity.Error,
-                PipelineStage.Driver,
-                $"Restore timeout: restoring package '{identity.Id}' version '{identity.Version}' did not complete within 100 seconds.",
-                Location: default,
-                CompilationUnitPath: string.Empty,
-                AnalyzerName: null));
-            return null;
-        }
-        catch (Exception ex) when (ex is HttpRequestException or FatalProtocolException or InvalidOperationException)
-        {
-            diagnostics.Add(new Diagnostic(
-                DiagnosticId.PackageNetworkError,
-                DiagnosticSeverity.Error,
-                PipelineStage.Driver,
-                $"Connection or network failure while restoring package '{identity.Id}' version '{identity.Version}': {ex.Message}",
-                Location: default,
-                CompilationUnitPath: string.Empty,
-                AnalyzerName: null));
-            return null;
-        }
-    }
-
-    /// <summary>
-    /// Gets the assembly DLL paths from a package directory that are compatible
-    /// with the target framework, using the TFM preference order.
-    /// </summary>
-    /// <returns>
-    /// A tuple of the compatible assembly paths, the selected <c>lib/</c> TFM
-    /// directory name (null when none was selected), and whether an
-    /// error-severity diagnostic was emitted. A package with no <c>lib/</c>
-    /// directory or no TFM subdirectories yields zero assemblies without an
-    /// error (a "contributed no assemblies" outcome).
-    /// </returns>
-    private static (ImmutableArray<string> Assemblies, string? SelectedTfm, bool HadError) GetCompatibleAssemblies(
-        PackageIdentity identity,
-        string packageDir,
-        NuGetFramework projectFramework,
+    private static PackageResolutionResult ParseAssetsFile(
+        string assetsPath,
+        ImmutableArray<NuGetPackageReference> declaredPackages,
+        ImmutableArray<FrameworkReference> frameworkReferences,
         string targetFramework,
+        int priorFailureCount,
         DiagnosticBag diagnostics)
     {
-        var libDir = Path.Combine(packageDir, "lib");
-        if (!Directory.Exists(libDir))
-            return (ImmutableArray<string>.Empty, null, false);
-
-        var tfmDirs = Directory.GetDirectories(libDir);
-        if (tfmDirs.Length == 0)
-            return (ImmutableArray<string>.Empty, null, false);
-
-        // Find the best matching TFM directory using our preference order
-        string? bestTfmDir = null;
-        var bestPreferenceIndex = int.MaxValue;
-
-        foreach (var tfmDir in tfmDirs)
+        JsonDocument doc;
+        try
         {
-            var tfmName = Path.GetFileName(tfmDir);
-            var packageFramework = NuGetFramework.Parse(tfmName);
-
-            // Check if this TFM is compatible with the project framework
-            var compat = DefaultCompatibilityProvider.Instance;
-            if (!compat.IsCompatible(projectFramework, packageFramework))
-                continue;
-
-            // Find the preference index for this TFM
-            var preferenceIndex = GetTfmPreferenceIndex(packageFramework);
-            if (preferenceIndex < bestPreferenceIndex)
-            {
-                bestPreferenceIndex = preferenceIndex;
-                bestTfmDir = tfmDir;
-            }
+            var json = File.ReadAllText(assetsPath);
+            doc = JsonDocument.Parse(json);
         }
-
-        if (bestTfmDir is null)
+        catch (Exception ex) when (ex is JsonException or IOException)
         {
-            var availableTfms = tfmDirs
-                .Select(Path.GetFileName)
-                .Where(n => n is not null);
-
             diagnostics.Add(new Diagnostic(
-                DiagnosticId.PackageNoCompatibleTfm,
+                DiagnosticId.PackageNetworkError,
                 DiagnosticSeverity.Error,
                 PipelineStage.Driver,
-                $"Package '{identity.Id}' version '{identity.Version}' does not support {targetFramework}. The package provides these framework targets: {string.Join(", ", availableTfms)}.",
+                $"Failed to parse project.assets.json: {ex.Message}",
                 Location: default,
                 CompilationUnitPath: string.Empty,
                 AnalyzerName: null));
-            return (ImmutableArray<string>.Empty, null, true);
+            return new PackageResolutionResult(
+                ImmutableArray<string>.Empty,
+                ImmutableArray<ResolvedPackageInfo>.Empty,
+                FailureCount: priorFailureCount + declaredPackages.Length);
         }
 
-        var dlls = Directory.GetFiles(bestTfmDir, "*.dll");
-        return ([.. dlls], Path.GetFileName(bestTfmDir), false);
+        using (doc)
+        {
+            var assemblyPaths = ImmutableArray.CreateBuilder<string>();
+            var resolvedInfos = ImmutableArray.CreateBuilder<ResolvedPackageInfo>();
+            var failureCount = priorFailureCount;
+
+            // Build set of framework-provided assembly names for deduplication (issue 3).
+            var frameworkAssemblyNames = BuildFrameworkAssemblySet(doc, targetFramework);
+
+            // Track which declared packages we successfully resolved
+            var declaredPackageSet = new Dictionary<string, NuGetPackageReference>(
+                StringComparer.OrdinalIgnoreCase);
+            foreach (var pkg in declaredPackages)
+                declaredPackageSet[pkg.Name] = pkg;
+
+            var resolvedDeclaredPackages = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            // Parse the "targets" section to get resolved libraries and their assemblies.
+            // The target key is the TFM (e.g., "net10.0" or ".NETCoreApp,Version=v10.0").
+            if (doc.RootElement.TryGetProperty("targets", out var targets))
+            {
+                // Find the target entry that matches our framework
+                JsonElement? targetEntry = null;
+                foreach (var target in targets.EnumerateObject())
+                {
+                    // The key can be either short form (net10.0) or long form
+                    // (.NETCoreApp,Version=v10.0). Check both.
+                    if (target.Name.Contains(targetFramework, StringComparison.OrdinalIgnoreCase)
+                        || target.Name.Contains(GetLongFrameworkName(targetFramework), StringComparison.OrdinalIgnoreCase))
+                    {
+                        targetEntry = target.Value;
+                        break;
+                    }
+                }
+
+                // If we didn't find an exact match, take the first (there's usually only one)
+                if (targetEntry is null)
+                {
+                    foreach (var target in targets.EnumerateObject())
+                    {
+                        targetEntry = target.Value;
+                        break;
+                    }
+                }
+
+                if (targetEntry.HasValue)
+                {
+                    foreach (var library in targetEntry.Value.EnumerateObject())
+                    {
+                        // Library key format: "PackageName/Version"
+                        var parts = library.Name.Split('/');
+                        if (parts.Length != 2)
+                            continue;
+
+                        var packageName = parts[0];
+                        var packageVersion = parts[1];
+
+                        // Skip if this is a "project" type (not a package)
+                        if (library.Value.TryGetProperty("type", out var typeElement)
+                            && typeElement.GetString() == "project")
+                            continue;
+
+                        // Extract compile-time assemblies from "compile" property
+                        string? selectedTfm = null;
+                        var packageAssemblies = ImmutableArray.CreateBuilder<string>();
+
+                        if (library.Value.TryGetProperty("compile", out var compileSection))
+                        {
+                            foreach (var assembly in compileSection.EnumerateObject())
+                            {
+                                var assemblyRelPath = assembly.Name;
+
+                                // Skip placeholder "_._" entries (runtime-provided packages)
+                                if (assemblyRelPath.EndsWith("_._", StringComparison.Ordinal))
+                                    continue;
+
+                                // Extract TFM from path (e.g., "lib/net8.0/Assembly.dll")
+                                var pathParts = assemblyRelPath.Split('/');
+                                if (pathParts.Length >= 3 && pathParts[0] == "lib")
+                                    selectedTfm = pathParts[1];
+
+                                var assemblyName = Path.GetFileNameWithoutExtension(
+                                    Path.GetFileName(assemblyRelPath));
+
+                                // Deduplicate against framework-provided assemblies (issue 3)
+                                if (frameworkAssemblyNames.Contains(assemblyName))
+                                    continue;
+
+                                // Resolve to full path in global packages folder
+                                var fullPath = Path.Combine(
+                                    GlobalPackagesFolder,
+                                    packageName.ToLowerInvariant(),
+                                    packageVersion.ToLowerInvariant(),
+                                    assemblyRelPath.Replace('/', Path.DirectorySeparatorChar));
+
+                                if (File.Exists(fullPath))
+                                {
+                                    packageAssemblies.Add(fullPath);
+                                }
+                            }
+                        }
+
+                        // Also check "runtime" assemblies as fallback (some packages
+                        // only specify runtime, not compile)
+                        if (packageAssemblies.Count == 0
+                            && library.Value.TryGetProperty("runtime", out var runtimeSection))
+                        {
+                            foreach (var assembly in runtimeSection.EnumerateObject())
+                            {
+                                var assemblyRelPath = assembly.Name;
+
+                                if (assemblyRelPath.EndsWith("_._", StringComparison.Ordinal))
+                                    continue;
+
+                                var pathParts = assemblyRelPath.Split('/');
+                                if (pathParts.Length >= 3 && pathParts[0] == "lib")
+                                    selectedTfm = pathParts[1];
+
+                                var assemblyName = Path.GetFileNameWithoutExtension(
+                                    Path.GetFileName(assemblyRelPath));
+
+                                if (frameworkAssemblyNames.Contains(assemblyName))
+                                    continue;
+
+                                var fullPath = Path.Combine(
+                                    GlobalPackagesFolder,
+                                    packageName.ToLowerInvariant(),
+                                    packageVersion.ToLowerInvariant(),
+                                    assemblyRelPath.Replace('/', Path.DirectorySeparatorChar));
+
+                                if (File.Exists(fullPath))
+                                {
+                                    packageAssemblies.Add(fullPath);
+                                }
+                            }
+                        }
+
+                        assemblyPaths.AddRange(packageAssemblies);
+
+                        // Record info for declared (direct) packages
+                        if (declaredPackageSet.ContainsKey(packageName))
+                        {
+                            resolvedDeclaredPackages.Add(packageName);
+                            resolvedInfos.Add(new ResolvedPackageInfo(
+                                packageName,
+                                packageVersion,
+                                selectedTfm ?? string.Empty,
+                                packageAssemblies.Count));
+                        }
+                    }
+                }
+            }
+
+            // Check for declared packages that didn't appear in the assets file
+            foreach (var pkg in declaredPackages)
+            {
+                if (!resolvedDeclaredPackages.Contains(pkg.Name))
+                {
+                    diagnostics.Add(new Diagnostic(
+                        DiagnosticId.PackageNotFound,
+                        DiagnosticSeverity.Error,
+                        PipelineStage.Driver,
+                        $"Package '{pkg.Name}' version '{pkg.Version}' was not found on any configured NuGet feed. Searched: https://api.nuget.org/v3/index.json.",
+                        Location: default,
+                        CompilationUnitPath: string.Empty,
+                        AnalyzerName: null));
+                    failureCount++;
+                }
+            }
+
+            return new PackageResolutionResult(
+                assemblyPaths.ToImmutable(),
+                resolvedInfos.ToImmutable(),
+                failureCount);
+        }
     }
 
     /// <summary>
-    /// Gets the preference index for a framework. Lower index = higher preference.
-    /// Frameworks not in the preference list get int.MaxValue (lowest preference but still valid).
+    /// Builds a set of assembly names that are provided by the referenced shared
+    /// frameworks. Uses the "frameworkAssemblies" section of project.assets.json
+    /// when available, falling back to the "frameworkReferences" in the target's
+    /// libraries.
     /// </summary>
-    internal static int GetTfmPreferenceIndex(NuGetFramework framework)
+    private static HashSet<string> BuildFrameworkAssemblySet(
+        JsonDocument doc,
+        string targetFramework)
     {
-        for (var i = 0; i < TfmPreferenceOrder.Length; i++)
+        var frameworkAssemblies = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        // Try "project" → "frameworks" → tfm → "frameworkAssemblies" in assets file
+        if (doc.RootElement.TryGetProperty("project", out var project)
+            && project.TryGetProperty("frameworks", out var frameworks))
         {
-            if (TfmPreferenceOrder[i].Equals(framework))
-                return i;
+            foreach (var fw in frameworks.EnumerateObject())
+            {
+                if (fw.Value.TryGetProperty("frameworkAssemblies", out var fwAssemblies))
+                {
+                    foreach (var asm in fwAssemblies.EnumerateObject())
+                    {
+                        frameworkAssemblies.Add(asm.Name);
+                    }
+                }
+            }
         }
 
-        // For frameworks not in our explicit list, use the NuGet framework
-        // reducer to determine compatibility ordering. Frameworks compatible
-        // with our project but not in the preference list get lowest priority.
-        return int.MaxValue;
+        // Also scan the targets for libraries with type "package" that have only
+        // "_._" compile entries — these are runtime-provided and should be excluded
+        if (doc.RootElement.TryGetProperty("targets", out var targets))
+        {
+            foreach (var target in targets.EnumerateObject())
+            {
+                if (!target.Name.Contains(targetFramework, StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                foreach (var library in target.Value.EnumerateObject())
+                {
+                    if (!library.Value.TryGetProperty("compile", out var compile))
+                        continue;
+
+                    var allPlaceholders = true;
+                    var hasAny = false;
+
+                    foreach (var entry in compile.EnumerateObject())
+                    {
+                        hasAny = true;
+                        if (!entry.Name.EndsWith("_._", StringComparison.Ordinal))
+                        {
+                            allPlaceholders = false;
+                            break;
+                        }
+                    }
+
+                    // If all compile entries are "_._" placeholders, this package
+                    // is runtime-provided. Add its name to the exclusion set.
+                    if (hasAny && allPlaceholders)
+                    {
+                        var libParts = library.Name.Split('/');
+                        if (libParts.Length == 2)
+                        {
+                            // The package name itself (not assembly name) is what
+                            // we track here — but typically the assembly name matches
+                            // the package name for System.* packages.
+                            frameworkAssemblies.Add(libParts[0]);
+                        }
+                    }
+                }
+            }
+        }
+
+        return frameworkAssemblies;
     }
 
     /// <summary>
-    /// Gets the preference index for a framework specified by its short name (e.g., "net10.0").
-    /// Lower index = higher preference. Frameworks not in the preference list get int.MaxValue.
+    /// Converts a short TFM name (e.g., "net10.0") to the long-form NuGet target
+    /// name (e.g., ".NETCoreApp,Version=v10.0") for matching in assets.json.
     /// </summary>
-    internal static int GetTfmPreferenceIndex(string frameworkShortName)
+    private static string GetLongFrameworkName(string shortTfm)
     {
-        var framework = NuGetFramework.Parse(frameworkShortName);
-        return GetTfmPreferenceIndex(framework);
-    }
-
-    /// <summary>
-    /// Gets the transitive dependencies of a package for the target framework.
-    /// Selects the highest compatible version for each dependency.
-    /// </summary>
-    private static ImmutableArray<PackageIdentity> GetDependencies(
-        PackageIdentity identity,
-        string packageDir,
-        NuGetFramework projectFramework)
-    {
-        var nuspecPath = Path.Combine(packageDir, $"{identity.Id}.nuspec");
-        if (!File.Exists(nuspecPath))
+        // net10.0 → .NETCoreApp,Version=v10.0
+        if (shortTfm.StartsWith("net", StringComparison.Ordinal) && shortTfm.Contains('.'))
         {
-            // Try lowercase
-            nuspecPath = Path.Combine(packageDir, $"{identity.Id.ToLowerInvariant()}.nuspec");
-            if (!File.Exists(nuspecPath))
-                return ImmutableArray<PackageIdentity>.Empty;
+            var versionPart = shortTfm[3..]; // "10.0"
+            return $".NETCoreApp,Version=v{versionPart}";
         }
 
-        NuspecReader nuspec;
-        try
-        {
-            using var stream = File.OpenRead(nuspecPath);
-            nuspec = new NuspecReader(stream);
-        }
-        catch
-        {
-            return ImmutableArray<PackageIdentity>.Empty;
-        }
-
-        var dependencyGroups = nuspec.GetDependencyGroups().ToList();
-        if (dependencyGroups.Count == 0)
-            return ImmutableArray<PackageIdentity>.Empty;
-
-        // Find the best matching dependency group for our target framework
-        var reducer = new FrameworkReducer();
-        var nearest = reducer.GetNearest(
-            projectFramework,
-            dependencyGroups.Select(g => g.TargetFramework));
-
-        if (nearest is null)
-            return ImmutableArray<PackageIdentity>.Empty;
-
-        var group = dependencyGroups.First(g => g.TargetFramework.Equals(nearest));
-        var result = ImmutableArray.CreateBuilder<PackageIdentity>();
-
-        foreach (var dep in group.Packages)
-        {
-            // Enforce exact version matching: use the minimum version from the range
-            // (which for exact versions like [1.0.0] is the version itself,
-            // and for ranges like >= 1.0.0 is the lower bound)
-            var version = dep.VersionRange.MinVersion;
-            if (version is null)
-                continue;
-
-            result.Add(new PackageIdentity(dep.Id, version));
-        }
-
-        return result.ToImmutable();
+        return shortTfm;
     }
 }

@@ -1618,4 +1618,23 @@ SumSpan=179
   assign: Point(9, 10)
   field: Point(0, 0)
   generic: Pair(1, 2)
+=== As Operator ===
+--- Identity ---
+  identity: Rex
+--- Widening (class) ---
+  widened: Buddy
+--- Widening (struct) ---
+  widened: (1, 2)
+--- Narrowing (class) ---
+  narrowed dog: Fido, Beagle
+  not a dog: void
+--- Union narrowing ---
+  union->int: 42
+  union->int failed: void
+--- Unknown narrowing ---
+  unknown->int: 99
+  unknown->int failed: void
+--- Compose with ?? ---
+  fallback: Default, Unknown
+Done!
 === Done! ===

@@ -64,3 +64,4 @@ DefiniteAssignment = { path = "../DefiniteAssignment" }
 StackOnlyTypes = { path = "../StackOnlyTypes" }
 DependentTypeRefinementConstraints = { path = "../DependentTypeRefinementConstraints" }
 TargetTypedNew = { path = "../TargetTypedNew" }
+AsOperator = { path = "../AsOperator" }

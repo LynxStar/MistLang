@@ -134,4 +134,20 @@ public interface ISemanticModel
     /// not marked as an implicit-clone site.
     /// </summary>
     IType? GetImplicitCloneDestination(Storm.Runtime.SyntaxNode source);
+
+    /// <summary>
+    /// Records the conversion classification for an <c>as</c> expression node. Called by
+    /// the type checker after it determines whether the conversion is provable (identity,
+    /// widening) or non-provable (narrowing, union extraction, unknown narrowing). The
+    /// emitter reads this via <see cref="GetAsConversionKind"/> to decide whether to emit
+    /// a direct conversion or a runtime check.
+    /// </summary>
+    void RecordAsConversionKind(Storm.Runtime.SyntaxNode node, AsConversionKind kind);
+
+    /// <summary>
+    /// Returns the conversion classification previously recorded for the given <c>as</c>
+    /// expression node by <see cref="RecordAsConversionKind"/>, or <c>null</c> if no
+    /// classification has been recorded for that node.
+    /// </summary>
+    AsConversionKind? GetAsConversionKind(Storm.Runtime.SyntaxNode node);
 }

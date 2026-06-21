@@ -1,0 +1,155 @@
+using Standard;
+
+namespace AsOperator;
+
+public class Animal
+{
+    public string Name;
+
+    public Animal(string name)
+    {
+        Name = name;
+    }
+}
+
+public class Dog : Animal
+{
+    public string Breed;
+
+    public Dog(string name, string breed) : base(name)
+    {
+        Breed = breed;
+    }
+}
+
+public class Cat : Animal
+{
+    public int Lives;
+
+    public Cat(string name, int lives) : base(name)
+    {
+        Lives = lives;
+    }
+}
+
+public struct Point
+{
+    public int X;
+    public int Y;
+
+    public Point(int x, int y)
+    {
+        X = x;
+        Y = y;
+    }
+}
+
+public struct Point3D : Point
+{
+    public int Z;
+
+    public Point3D(int x, int y, int z) : base(x, y)
+    {
+        Z = z;
+    }
+}
+
+public class Program
+{
+    public static void RunDemo()
+    {
+        Console.WriteLine("=== As Operator ===");
+
+        // PROOF: Identity conversion — as with same type yields T (not T?)
+        Console.WriteLine("--- Identity ---");
+        var dog1 = new Dog("Rex", "Labrador");
+        Dog identityDog = dog1 as Dog;
+        Console.WriteLine($"  identity: {identityDog.Name}");
+
+        // PROOF: Widening (class) — derived as base yields T (bare, not optional)
+        Console.WriteLine("--- Widening (class) ---");
+        var dog2 = new Dog("Buddy", "Poodle");
+        Animal widened = dog2 as Animal;
+        Console.WriteLine($"  widened: {widened.Name}");
+
+        // PROOF: Widening (struct) — derived struct as base struct yields T
+        Console.WriteLine("--- Widening (struct) ---");
+        var p3d = new Point3D(1, 2, 3);
+        Point widenedPoint = p3d as Point;
+        Console.WriteLine($"  widened: ({widenedPoint.X}, {widenedPoint.Y})");
+
+        // PROOF: Narrowing (class) — base as derived yields T? (runtime check)
+        Console.WriteLine("--- Narrowing (class) ---");
+        Animal animal1 = new Dog("Fido", "Beagle");
+        Dog? maybeDog = animal1 as Dog;
+        if (maybeDog is Dog d)
+        {
+            Console.WriteLine($"  narrowed dog: {d.Name}, {d.Breed}");
+        }
+
+        Animal animal2 = new Cat("Whiskers", 9);
+        Dog? notADog = animal2 as Dog;
+        if (notADog is Dog _)
+        {
+            Console.WriteLine($"  ERROR: should not reach here");
+        }
+        else
+        {
+            Console.WriteLine($"  not a dog: void");
+        }
+
+        // PROOF: Union narrowing — union as constituent yields T?
+        Console.WriteLine("--- Union narrowing ---");
+        int | string union1 = 42;
+        int? maybeInt = union1 as int;
+        if (maybeInt is int n)
+        {
+            Console.WriteLine($"  union->int: {n}");
+        }
+
+        int | string union2 = "hello";
+        int? notInt = union2 as int;
+        if (notInt is int _)
+        {
+            Console.WriteLine($"  ERROR: should not reach here");
+        }
+        else
+        {
+            Console.WriteLine($"  union->int failed: void");
+        }
+
+        // PROOF: Unknown narrowing — unknown as T yields T?
+        Console.WriteLine("--- Unknown narrowing ---");
+        unknown box = 99;
+        int? fromUnknown = box as int;
+        if (fromUnknown is int u)
+        {
+            Console.WriteLine($"  unknown->int: {u}");
+        }
+
+        unknown box2 = "surprise";
+        int? notFromUnknown = box2 as int;
+        if (notFromUnknown is int _)
+        {
+            Console.WriteLine($"  ERROR: should not reach here");
+        }
+        else
+        {
+            Console.WriteLine($"  unknown->int failed: void");
+        }
+
+        // PROOF: Composing as with ?? (void coalescing)
+        Console.WriteLine("--- Compose with ?? ---");
+        Animal animal3 = new Cat("Luna", 7);
+        Dog? attempt = animal3 as Dog;
+        var fallback = attempt ?? new Dog("Default", "Unknown");
+        Console.WriteLine($"  fallback: {fallback.Name}, {fallback.Breed}");
+
+        Console.WriteLine("Done!");
+    }
+
+    public static void Main(string[] args)
+    {
+        RunDemo();
+    }
+}

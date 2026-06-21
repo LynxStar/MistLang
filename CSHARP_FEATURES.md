@@ -343,7 +343,7 @@ Legend: ✅ Implemented | 🔲 Remaining | ⛔ Skipped
 | Ternary conditional (`? :`) | 🔲 | |
 | Null-coalescing (`??`) | 🔲 | |
 | `is` type check | 🔲 | |
-| `as` type cast | 🔲 | |
+| `as` operator (safe type conversion) | ✅ | |
 | Cast expressions (`(T)expr`) | ✅ | |
 | Lambda expressions (`=>`) | ✅ | Expression and block bodies, static, async |
 | Anonymous methods (`delegate { }`) | ⛔ | Superseded by lambdas |
@@ -926,7 +926,7 @@ Features introduced by Mist that don't map directly to a single C# feature. Thes
 | Expressions — Assignment | 1 | 4 | 0 |
 | Expressions — Member Access | 4 | 3 | 0 |
 | Expressions — Object Creation | 3 | 4 | 0 |
-| Expressions — Other | 5 | 11 | 2 |
+| Expressions — Other | 6 | 10 | 2 |
 | Inheritance | 3 | 8 | 0 |
 | Structural Typing — Traits | 5 | 0 | 0 |
 | Structural Typing — Matching | 5 | 0 | 0 |

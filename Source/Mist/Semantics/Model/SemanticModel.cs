@@ -20,6 +20,7 @@ public sealed class SemanticModel : ISemanticModel
     private Dictionary<Storm.Runtime.SyntaxNode, List<DiscardedTaskInfo>> _discardedTasksByScope;
     private readonly Dictionary<Storm.Runtime.SyntaxNode, IReadOnlyList<IType>> _inferredTypeArguments = new();
     private readonly Dictionary<Storm.Runtime.SyntaxNode, IType> _implicitCloneSites = new();
+    private readonly Dictionary<Storm.Runtime.SyntaxNode, AsConversionKind> _asConversionKinds = new();
 
     internal SemanticModel(
         MistCompilation compilation,
@@ -317,5 +318,17 @@ public sealed class SemanticModel : ISemanticModel
     public IType? GetImplicitCloneDestination(Storm.Runtime.SyntaxNode source)
     {
         return _implicitCloneSites.TryGetValue(source, out var destinationType) ? destinationType : null;
+    }
+
+    /// <inheritdoc />
+    public void RecordAsConversionKind(Storm.Runtime.SyntaxNode node, AsConversionKind kind)
+    {
+        _asConversionKinds[node] = kind;
+    }
+
+    /// <inheritdoc />
+    public AsConversionKind? GetAsConversionKind(Storm.Runtime.SyntaxNode node)
+    {
+        return _asConversionKinds.TryGetValue(node, out var kind) ? kind : null;
     }
 }

@@ -1,0 +1,21 @@
+using Standard;
+
+namespace Snippet;
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        int | string value = 42;
+        int? maybeInt = value as int;  // union narrowing — result type is int?
+
+        if (maybeInt is int n)
+        {
+            Console.WriteLine($"Got int: {n}");
+        }
+        else
+        {
+            Console.WriteLine("Not an int");
+        }
+    }
+}

@@ -1,0 +1,23 @@
+using Standard;
+
+namespace Snippet;
+
+public class Dog
+{
+    public string Name;
+
+    public Dog(string name)
+    {
+        Name = name;
+    }
+}
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        var dog = new Dog("Rex");
+        Dog same = dog as Dog;  // identity — result type is Dog (not Dog?)
+        Console.WriteLine(same.Name);
+    }
+}

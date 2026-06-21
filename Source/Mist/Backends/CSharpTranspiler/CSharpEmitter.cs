@@ -1,5 +1,6 @@
 using System.Collections.Immutable;
 using System.Text;
+using Mist.Analysis.Builtin;
 using Mist.Backends.CSharpTranspiler.Intrinsics;
 using Mist.Common.Diagnostics;
 using Mist.Generated;
@@ -410,6 +411,12 @@ internal sealed class CSharpSourceWriter
     /// (<c>new Array&lt;T, Size&gt;(fn)</c>) that are lifted to locals.
     /// </summary>
     private int _arrayInitCounter;
+
+    /// <summary>
+    /// Counter for generating unique temp variable names in non-provable <c>as</c>
+    /// expression emissions (<c>__as_tmp_0</c>, <c>__as_tmp_1</c>, etc.).
+    /// </summary>
+    private int _asExprCounter;
 
     /// <summary>
     /// Pending statements emitted by array initializer construction lowering.
@@ -1431,6 +1438,11 @@ internal sealed class CSharpSourceWriter
             case IsExpressionRelationalNode isExpr:
                 // Only scan the left additive — patterns contain no method calls
                 ScanAdditiveForValueReturningCalls(isExpr.Left, voidMethodNames, isValueContext);
+                break;
+
+            case AsExpressionRelationalNode asExpr:
+                // Only scan the left additive — target type contains no method calls
+                ScanAdditiveForValueReturningCalls(asExpr.Left, voidMethodNames, isValueContext);
                 break;
         }
     }
@@ -9983,9 +9995,126 @@ internal sealed class CSharpSourceWriter
                 return $"{left} is {pattern}";
             }
 
+            case AsExpressionRelationalNode asExpr:
+                return EmitAsExpression(asExpr);
+
             default:
                 return "";
         }
+    }
+
+    // ─── As Expression Emission ──────────────────────────────────────────
+
+    /// <summary>
+    /// Emits C# code for a Mist <c>as</c> expression. Dispatches based on the
+    /// conversion kind recorded by the type checker:
+    /// <list type="bullet">
+    /// <item>Provable: identity (no-op), struct widening (cast triggers implicit operator),
+    /// class/interface widening (upcast).</item>
+    /// <item>NonProvable: reference-type narrowing (C# <c>as</c>), value-type narrowing
+    /// (is-pattern), union extraction (tag check).</item>
+    /// </list>
+    /// </summary>
+    private string EmitAsExpression(AsExpressionRelationalNode asExpr)
+    {
+        var operand = EmitAdditive(asExpr.Left);
+        var targetTypeName = EmitTypeReference(asExpr.TargetType);
+        var conversionKind = _model.GetAsConversionKind(asExpr);
+        var sourceType = _model.GetTypeOf(asExpr.Left);
+        var resolvedTargetType = _model.GetTypeOf(asExpr.TargetType);
+
+        switch (conversionKind)
+        {
+            case AsConversionKind.Provable:
+                return EmitProvableAsConversion(operand, sourceType, resolvedTargetType, targetTypeName);
+
+            case AsConversionKind.NonProvable:
+                return EmitNonProvableAsConversion(operand, sourceType, resolvedTargetType, targetTypeName);
+
+            default:
+                // Should not reach — type checker rejects invalid conversions.
+                return operand;
+        }
+    }
+
+    /// <summary>
+    /// Emits a provable (always-succeeds) <c>as</c> conversion. Identity yields
+    /// the operand unchanged; widening yields a cast expression.
+    /// </summary>
+    private static string EmitProvableAsConversion(
+        string operand, IType? sourceType, IType? targetType, string emittedTargetType)
+    {
+        // Identity — no cast needed (same type on both sides).
+        if (sourceType is not null && targetType is not null
+            && TypeCheckerAnalyzer.TypesEqual(sourceType, targetType))
+        {
+            return operand;
+        }
+
+        // All widening cases (struct→base struct, class→base class, class→interface)
+        // emit a cast that the C# compiler resolves to the appropriate conversion.
+        return $"(({emittedTargetType}){operand})";
+    }
+
+    /// <summary>
+    /// Emits a non-provable (runtime-checked) <c>as</c> conversion. The result is
+    /// a <c>T | void</c> value: either the extracted target value or void/null.
+    /// </summary>
+    private string EmitNonProvableAsConversion(
+        string operand, IType? sourceType, IType? targetType, string emittedTargetType)
+    {
+        // Union source: emit union tag-based extraction (Is{T} / As{T}).
+        if (sourceType is UnionType sourceUnion && targetType is not null)
+        {
+            return EmitUnionAsExtraction(operand, sourceUnion, targetType, emittedTargetType);
+        }
+
+        // Reference type target (class, interface, trait): C#'s `as` operator
+        // produces null on failure, and the T|void union (emitted as nullable
+        // reference or Nullable<T>) maps null → void naturally.
+        if (targetType is not null && !CSharpTypeMap.IsValueType(targetType))
+        {
+            return $"({operand} as {emittedTargetType})";
+        }
+
+        // Value type target (struct, enum) from unknown or class source:
+        // Use C#'s `is` pattern to extract or produce null for Nullable<T>.
+        var tmpName = $"__as_tmp_{_asExprCounter++}";
+        return $"({operand} is {emittedTargetType} {tmpName} ? {tmpName} : default({emittedTargetType}?))";
+    }
+
+    /// <summary>
+    /// Emits union extraction for <c>unionExpr as T</c>. Uses the union helper's
+    /// <c>Is{T}</c> / <c>As{T}</c> properties to check and extract the constituent.
+    /// For reference-type constituents, produces null on failure (maps to void).
+    /// For value-type constituents, produces <c>Nullable&lt;T&gt;</c>.
+    /// </summary>
+    private string EmitUnionAsExtraction(
+        string operand, UnionType sourceUnion, IType targetType, string emittedTargetType)
+    {
+        var constituentName = FindConstituentName(targetType, sourceUnion);
+        if (constituentName is not null)
+        {
+            // Direct constituent: emit ternary using Is{T}/As{T} properties.
+            // The result type is T|void, which for value types is Nullable<T>
+            // and for reference types is just T (with null representing void).
+            if (CSharpTypeMap.IsValueType(targetType))
+            {
+                return $"({operand}.Is{constituentName} ? ({emittedTargetType}?){operand}.As{constituentName} : default({emittedTargetType}?))";
+            }
+
+            return $"({operand}.Is{constituentName} ? {operand}.As{constituentName} : null)";
+        }
+
+        // Target is related to a constituent but not an exact match (e.g., narrowing
+        // from a constituent's base type). Fall back to is-pattern on the boxed value.
+        var tmpName = $"__as_tmp_{_asExprCounter++}";
+        if (!CSharpTypeMap.IsValueType(targetType))
+        {
+            return $"({operand} is {emittedTargetType} {tmpName} ? {tmpName} : null)";
+        }
+
+        return $"({operand} is {emittedTargetType} {tmpName} ? {tmpName} : default({emittedTargetType}?))";
     }
 
     // ─── Union Pattern Matching ──────────────────────────────────────────
@@ -10003,6 +10132,12 @@ internal sealed class CSharpSourceWriter
     /// </summary>
     private string? TryEmitUnionPatternMatch(PatternNode pattern, UnionType unionType, string scrutineeExpr)
     {
+        // Optional unions (T | void) are emitted as C# nullable types (T? for value types,
+        // plain T for reference types with null representing void). They do NOT use union
+        // helper structs, so standard C# `is` pattern emission handles them correctly.
+        if (CSharpTypeMap.IsOptionalUnion(unionType))
+            return null;
+
         // Navigate the pattern chain: Pattern → OrPattern → AndPattern → UnaryPattern → PrimaryPattern
         // Only handle simple (non-compound) patterns for union emission.
         var orPattern = pattern.OrPattern;

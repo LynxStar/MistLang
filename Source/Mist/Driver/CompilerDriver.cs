@@ -575,6 +575,12 @@ public sealed class CompilerDriver : ICompilerDriver
             {
                 PatchCsprojWithReferences(options.OutputDirectory, projectName, options.Packages, options.FrameworkReferences);
             }
+
+            // Patch the emitted .csproj with user-declared MSBuild properties from [csproj_properties].
+            if (backendResult.Succeeded)
+            {
+                PatchCsprojWithProperties(options.OutputDirectory, projectName, options.CsprojProperties);
+            }
         }
         else
         {
@@ -611,6 +617,49 @@ public sealed class CompilerDriver : ICompilerDriver
             backendResult.PrimaryArtifactPath,
             allDiagnostics.ToImmutableArray(),
             emittedFiles);
+    }
+
+    /// <summary>
+    /// Patches the emitted .csproj file with a custom <c>&lt;PropertyGroup&gt;</c> containing
+    /// user-declared MSBuild properties from the <c>[csproj_properties]</c> table. The new
+    /// PropertyGroup is inserted immediately after the first <c>&lt;/PropertyGroup&gt;</c> tag
+    /// (i.e., after the hardcoded compiler-managed PropertyGroup, before any ItemGroups).
+    /// Values are XML-escaped via <see cref="System.Security.SecurityElement.Escape"/>.
+    /// </summary>
+    private static void PatchCsprojWithProperties(
+        string outputDirectory,
+        string projectName,
+        ImmutableArray<CsprojProperty> csprojProperties)
+    {
+        if (csprojProperties.IsDefaultOrEmpty)
+            return;
+
+        var csprojPath = Path.Combine(outputDirectory, $"{projectName}.csproj");
+        if (!File.Exists(csprojPath))
+            return;
+
+        var content = File.ReadAllText(csprojPath);
+
+        // Build the custom PropertyGroup fragment.
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine();
+        sb.AppendLine("  <PropertyGroup>");
+        foreach (var prop in csprojProperties)
+        {
+            var escapedValue = System.Security.SecurityElement.Escape(prop.Value) ?? prop.Value;
+            sb.AppendLine($"    <{prop.Key}>{escapedValue}</{prop.Key}>");
+        }
+        sb.AppendLine("  </PropertyGroup>");
+
+        // Insert after the first </PropertyGroup> tag.
+        const string marker = "</PropertyGroup>";
+        var insertionPoint = content.IndexOf(marker, StringComparison.Ordinal);
+        if (insertionPoint >= 0)
+        {
+            insertionPoint += marker.Length;
+            content = content.Insert(insertionPoint, sb.ToString());
+            File.WriteAllText(csprojPath, content);
+        }
     }
 
     /// <summary>

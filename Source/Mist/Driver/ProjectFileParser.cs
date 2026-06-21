@@ -22,6 +22,20 @@ public static partial class ProjectFileParser
     /// </summary>
     public const int MaxFrameworkReferenceNameLength = 256;
 
+    /// <summary>
+    /// Property names that are managed by the compiler and emitted in the hardcoded
+    /// PropertyGroup. Users may override them, but a warning is emitted.
+    /// </summary>
+    private static readonly HashSet<string> CompilerManagedProperties = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "OutputType",
+        "TargetFramework",
+        "ImplicitUsings",
+        "Nullable",
+        "Deterministic",
+        "EnableNETAnalyzers"
+    };
+
     [GeneratedRegex(@"^[a-zA-Z0-9\-_\.]+$")]
     private static partial Regex ValidNamePattern();
 
@@ -640,6 +654,124 @@ public static partial class ProjectFileParser
             }
         }
 
-        return new ProjectConfiguration(name, namespaceRoot, references.ToImmutable(), entryPoint, globalUsings, packages, frameworkReferences, targetFramework);
+        // 14. Read [csproj_properties] table (optional)
+        var csprojProperties = ImmutableArray<CsprojProperty>.Empty;
+
+        if (model.TryGetValue("csproj_properties", out var csprojPropsObj))
+        {
+            if (csprojPropsObj is not TomlTable csprojPropsTable)
+            {
+                diagnostics.Add(new Diagnostic(
+                    new DiagnosticId("MIST_CSPROJ_PROP_TABLE_EXPECTED"),
+                    DiagnosticSeverity.Error,
+                    PipelineStage.Driver,
+                    $"The 'csproj_properties' field in '{filePath}' must be a table ([csproj_properties]).",
+                    Location: default,
+                    CompilationUnitPath: filePath,
+                    AnalyzerName: null));
+            }
+            else
+            {
+                var csprojPropBuilder = ImmutableArray.CreateBuilder<CsprojProperty>();
+
+                foreach (var (rawKey, propValue) in csprojPropsTable)
+                {
+                    // 14a. Validate key: empty/whitespace
+                    if (string.IsNullOrWhiteSpace(rawKey))
+                    {
+                        diagnostics.Add(new Diagnostic(
+                            new DiagnosticId("MIST_CSPROJ_PROP_EMPTY_KEY"),
+                            DiagnosticSeverity.Error,
+                            PipelineStage.Driver,
+                            $"Property key in '[csproj_properties]' of '{filePath}' must not be empty or whitespace.",
+                            Location: default,
+                            CompilationUnitPath: filePath,
+                            AnalyzerName: null));
+                        continue;
+                    }
+
+                    // 14b. Validate key: character pattern
+                    if (!ValidNamePattern().IsMatch(rawKey))
+                    {
+                        var invalidChars = rawKey
+                            .Where(c => !char.IsLetterOrDigit(c) && c != '-' && c != '_' && c != '.')
+                            .Distinct()
+                            .OrderBy(c => c);
+                        var invalidList = string.Join(", ", invalidChars.Select(c => $"'{c}'"));
+
+                        diagnostics.Add(new Diagnostic(
+                            new DiagnosticId("MIST_CSPROJ_PROP_INVALID_KEY"),
+                            DiagnosticSeverity.Error,
+                            PipelineStage.Driver,
+                            $"Property key '{rawKey}' in '[csproj_properties]' of '{filePath}' contains invalid characters: {invalidList}.",
+                            Location: default,
+                            CompilationUnitPath: filePath,
+                            AnalyzerName: null));
+                        continue;
+                    }
+
+                    // 14c. Validate key: length check
+                    if (rawKey.Length > MaxNameLength)
+                    {
+                        diagnostics.Add(new Diagnostic(
+                            new DiagnosticId("MIST_CSPROJ_PROP_KEY_TOO_LONG"),
+                            DiagnosticSeverity.Error,
+                            PipelineStage.Driver,
+                            $"Property key '{rawKey[..32]}...' in '[csproj_properties]' of '{filePath}' exceeds the maximum length of {MaxNameLength} characters (got {rawKey.Length}).",
+                            Location: default,
+                            CompilationUnitPath: filePath,
+                            AnalyzerName: null));
+                        continue;
+                    }
+
+                    // 14d. Validate value: must be a string
+                    if (propValue is not string valueStr)
+                    {
+                        diagnostics.Add(new Diagnostic(
+                            new DiagnosticId("MIST_CSPROJ_PROP_INVALID_VALUE"),
+                            DiagnosticSeverity.Error,
+                            PipelineStage.Driver,
+                            $"Property '{rawKey}' in '[csproj_properties]' of '{filePath}' must have a string value.",
+                            Location: default,
+                            CompilationUnitPath: filePath,
+                            AnalyzerName: null));
+                        continue;
+                    }
+
+                    // 14e. Validate value: non-empty/non-whitespace
+                    if (string.IsNullOrWhiteSpace(valueStr))
+                    {
+                        diagnostics.Add(new Diagnostic(
+                            new DiagnosticId("MIST_CSPROJ_PROP_EMPTY_VALUE"),
+                            DiagnosticSeverity.Error,
+                            PipelineStage.Driver,
+                            $"Property '{rawKey}' in '[csproj_properties]' of '{filePath}' has an empty or whitespace value.",
+                            Location: default,
+                            CompilationUnitPath: filePath,
+                            AnalyzerName: null));
+                        continue;
+                    }
+
+                    // 14f. Warn if key shadows a compiler-managed property
+                    if (CompilerManagedProperties.Contains(rawKey))
+                    {
+                        diagnostics.Add(new Diagnostic(
+                            new DiagnosticId("MIST_CSPROJ_PROP_MANAGED_OVERRIDE"),
+                            DiagnosticSeverity.Warning,
+                            PipelineStage.Driver,
+                            $"Property '{rawKey}' in '[csproj_properties]' of '{filePath}' overrides a compiler-managed property. This may cause unexpected build behavior.",
+                            Location: default,
+                            CompilationUnitPath: filePath,
+                            AnalyzerName: null));
+                    }
+
+                    csprojPropBuilder.Add(new CsprojProperty(rawKey, valueStr));
+                }
+
+                csprojProperties = csprojPropBuilder.ToImmutable();
+            }
+        }
+
+        return new ProjectConfiguration(name, namespaceRoot, references.ToImmutable(), entryPoint, globalUsings, packages, frameworkReferences, targetFramework, csprojProperties);
     }
 }

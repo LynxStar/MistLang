@@ -261,7 +261,8 @@ internal class Program
             Packages: config.Packages,
             FrameworkReferences: config.FrameworkReferences,
             TargetFramework: config.TargetFramework,
-            VerboseResolution: cliArgs.Verbose);
+            VerboseResolution: cliArgs.Verbose,
+            CsprojProperties: config.CsprojProperties);
 
         // Construct the compiler pipeline
         var lexer = new MistLexer();

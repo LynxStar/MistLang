@@ -44,6 +44,12 @@ namespace Mist.Driver.Contracts;
 /// the optional <c>target_framework</c> field in <c>mist.toml</c>, defaulting to
 /// <c>"net10.0"</c> when not specified.
 /// </param>
+/// <param name="CsprojProperties">
+/// The list of arbitrary MSBuild property key-value pairs parsed from the
+/// <c>[csproj_properties]</c> table in <c>mist.toml</c>. These are emitted into
+/// a dedicated <c>&lt;PropertyGroup&gt;</c> in the generated <c>.csproj</c> file.
+/// Defaults to an empty array when no <c>[csproj_properties]</c> section is present.
+/// </param>
 public sealed record ProjectConfiguration(
     string Name,
     string NamespaceRoot,
@@ -52,4 +58,5 @@ public sealed record ProjectConfiguration(
     ImmutableArray<string> GlobalUsings = default,
     ImmutableArray<NuGetPackageReference> Packages = default,
     ImmutableArray<FrameworkReference> FrameworkReferences = default,
-    string TargetFramework = "net10.0");
+    string TargetFramework = "net10.0",
+    ImmutableArray<CsprojProperty> CsprojProperties = default);

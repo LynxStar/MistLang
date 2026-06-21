@@ -582,7 +582,6 @@ public sealed class MistPrettyPrinter
             PublicModifierModifierNode => "public ",
             PrivateModifierModifierNode => "private ",
             StaticModifierModifierNode => "static ",
-            OverrideModifierModifierNode => "override ",
             _ => "",
         };
     }
@@ -2399,9 +2398,6 @@ public sealed class MistPrettyPrinter
                     break;
                 case RefModifierModifierNode:
                     parts.Add("ref");
-                    break;
-                case OverrideModifierModifierNode:
-                    parts.Add("override");
                     break;
             }
         }

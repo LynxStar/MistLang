@@ -9,7 +9,7 @@ class Point
         Y = y;
     }
 
-    public override string ToString()
+    public string Describe()
     {
         return $"Point({X}, {Y})";
     }
@@ -21,6 +21,6 @@ class Program
     {
         // Target-typed new: the type is inferred from the declaration
         Point p = new(3, 4);
-        Console.WriteLine(p);
+        Console.WriteLine(p.Describe());
     }
 }

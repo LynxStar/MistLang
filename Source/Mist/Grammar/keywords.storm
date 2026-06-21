@@ -112,5 +112,4 @@ token AWAIT = "await";
 // Stack allocation keyword
 token STACKALLOC = "stackalloc";
 
-// Override keyword
-token OVERRIDE = "override";
+

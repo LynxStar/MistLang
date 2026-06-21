@@ -5511,7 +5511,6 @@ internal sealed class CSharpSourceWriter
             PublicModifierModifierNode => "public ",
             PrivateModifierModifierNode => "private ",
             StaticModifierModifierNode => "static ",
-            OverrideModifierModifierNode => "override ",
             _ => "",
         };
     }
@@ -12865,9 +12864,6 @@ internal sealed class CSharpSourceWriter
                     break;
                 case StaticModifierModifierNode:
                     parts.Add("static");
-                    break;
-                case OverrideModifierModifierNode:
-                    parts.Add("override");
                     break;
             }
         }

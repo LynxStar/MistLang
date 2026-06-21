@@ -1053,7 +1053,7 @@ public sealed class MistPrettyPrinter
 
         if (member.Value is not null)
         {
-            return $"{prefix}{name}: {EmitExpression(member.Value)}";
+            return $"{prefix}{name} = {EmitExpression(member.Value)}";
         }
 
         return $"{prefix}{name}";

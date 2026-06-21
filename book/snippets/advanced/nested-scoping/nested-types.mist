@@ -7,8 +7,8 @@ public class Outer
 
     public enum Status : string
     {
-        Active: "active",
-        Inactive: "inactive"
+        Active = "active",
+        Inactive = "inactive"
     }
 
     public static void Demo()

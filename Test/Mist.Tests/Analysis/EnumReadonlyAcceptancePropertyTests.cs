@@ -179,7 +179,7 @@ public sealed class EnumReadonlyAcceptancePropertyTests
         string enumName, string structName, string[] memberNames)
     {
         var members = string.Join(",\n    ",
-            memberNames.Select(m => $"{m}: new {structName}(0)"));
+            memberNames.Select(m => $"{m} = new {structName}(0)"));
 
         return $$"""
             public readonly struct {{structName}} {
@@ -206,7 +206,7 @@ public sealed class EnumReadonlyAcceptancePropertyTests
         string enumName, string className, string[] memberNames)
     {
         var members = string.Join(",\n    ",
-            memberNames.Select(m => $"{m}: new {className}(0)"));
+            memberNames.Select(m => $"{m} = new {className}(0)"));
 
         return $$"""
             public readonly class {{className}} {
@@ -233,7 +233,7 @@ public sealed class EnumReadonlyAcceptancePropertyTests
         string enumName, string interfaceName, string implName, string[] memberNames)
     {
         var members = string.Join(",\n    ",
-            memberNames.Select(m => $"{m}: new {implName}(0)"));
+            memberNames.Select(m => $"{m} = new {implName}(0)"));
 
         return $$"""
             public readonly interface {{interfaceName}} {
@@ -269,7 +269,7 @@ public sealed class EnumReadonlyAcceptancePropertyTests
         string enumName, string traitName, string implName, string[] memberNames)
     {
         var members = string.Join(",\n    ",
-            memberNames.Select(m => $"{m}: new {implName}(0)"));
+            memberNames.Select(m => $"{m} = new {implName}(0)"));
 
         return $$"""
             readonly trait {{traitName}} {

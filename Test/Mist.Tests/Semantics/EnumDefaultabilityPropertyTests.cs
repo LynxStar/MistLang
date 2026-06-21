@@ -193,7 +193,7 @@ public class EnumDefaultabilityPropertyTests
             var value = backingType == "string"
                 ? $"\"{variantNames[i]}\""
                 : i.ToString();
-            members.Add($"    {prefix}{variantNames[i]}: {value}");
+            members.Add($"    {prefix}{variantNames[i]} = {value}");
         }
 
         return $@"namespace TestProgram;

@@ -295,7 +295,7 @@ rule EnumDeclaration = modifiers:Modifier* ENUM name:IDENTIFIER
 
 rule EnumMemberList = EnumMember (COMMA EnumMember)* COMMA?;
 
-rule EnumMember = isDefault:DEFAULT? name:IDENTIFIER value:(COLON Expression)?;
+rule EnumMember = isDefault:DEFAULT? name:IDENTIFIER value:(EQUAL Expression)?;
 
 // ─── Parser Rules — With Declarations ────────────────────────────────────────
 

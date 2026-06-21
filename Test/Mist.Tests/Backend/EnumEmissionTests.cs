@@ -107,8 +107,8 @@ public sealed class EnumEmissionTests
     {
         var mistSource = """
             enum Result : int | string {
-                Ok: 42,
-                Error: "failed"
+                Ok = 42,
+                Error = "failed"
             }
             class Program {
                 static void Main() {
@@ -142,8 +142,8 @@ public sealed class EnumEmissionTests
     {
         var mistSource = """
             enum Direction : int {
-                North: 0,
-                South: 1
+                North = 0,
+                South = 1
             }
             class Program {
                 static void Main() {
@@ -177,8 +177,8 @@ public sealed class EnumEmissionTests
         var modifierPrefix = string.IsNullOrEmpty(modifier) ? "" : $"{modifier} ";
         var mistSource = modifierPrefix + """
             enum Status : int {
-                Active: 1,
-                Inactive: 0
+                Active = 1,
+                Inactive = 0
             }
             class Program {
                 static void Main() {
@@ -207,8 +207,8 @@ public sealed class EnumEmissionTests
     {
         var mistSource = """
             public enum Color : string {
-                Red: "red",
-                Blue: "blue"
+                Red = "red",
+                Blue = "blue"
             }
             class Program {
                 static void Main() {
@@ -231,8 +231,8 @@ public sealed class EnumEmissionTests
     {
         var mistSource = """
             private enum Priority : int {
-                High: 1,
-                Low: 0
+                High = 1,
+                Low = 0
             }
             class Program {
                 static void Main() {

@@ -97,7 +97,7 @@ public sealed class EnumEmissionPropertyTests
                    .Select(m => m.Take(memberCount).ToArray())
                from typeAnnotation in Gen.Elements(IntTypeAnnotations)
                let memberList = string.Join(",\n    ",
-                   members.Select((m, i) => $"{m}: {i}"))
+                   members.Select((m, i) => $"{m} = {i}"))
                let source = $"public enum {name} : {typeAnnotation} {{\n    {memberList}\n}}\nclass Program {{\n    static void Main() {{\n    }}\n}}"
                select new EnumEmissionScenario(
                    source,
@@ -118,7 +118,7 @@ public sealed class EnumEmissionPropertyTests
                    .Select(m => m.Take(memberCount).ToArray())
                from typeAnnotation in Gen.Elements(IntTypeAnnotations)
                let memberList = string.Join(",\n    ",
-                   members.Select((m, i) => $"{m}: {i}"))
+                   members.Select((m, i) => $"{m} = {i}"))
                let source = $"private enum {name} : {typeAnnotation} {{\n    {memberList}\n}}\nclass Program {{\n    static void Main() {{\n    }}\n}}"
                select new EnumEmissionScenario(
                    source,
@@ -139,7 +139,7 @@ public sealed class EnumEmissionPropertyTests
                    .Select(m => m.Take(memberCount).ToArray())
                from typeAnnotation in Gen.Elements(IntTypeAnnotations)
                let memberList = string.Join(",\n    ",
-                   members.Select((m, i) => $"{m}: {i}"))
+                   members.Select((m, i) => $"{m} = {i}"))
                let source = $"enum {name} : {typeAnnotation} {{\n    {memberList}\n}}\nclass Program {{\n    static void Main() {{\n    }}\n}}"
                select new EnumEmissionScenario(
                    source,
@@ -181,7 +181,7 @@ public sealed class EnumEmissionPropertyTests
                from members in Gen.Shuffle(MemberNamePool)
                    .Select(m => m.Take(memberCount).ToArray())
                let memberList = string.Join(",\n    ",
-                   members.Select(m => $"{m}: \"{m.ToLowerInvariant()}\""))
+                   members.Select(m => $"{m} = \"{m.ToLowerInvariant()}\""))
                let source = $"{modifier}enum {name} : string {{\n    {memberList}\n}}\nclass Program {{\n    static void Main() {{\n    }}\n}}"
                let expectedMod = modifier.TrimEnd()
                select new EnumEmissionScenario(

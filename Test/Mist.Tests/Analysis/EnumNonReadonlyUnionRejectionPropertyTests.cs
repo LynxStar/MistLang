@@ -240,7 +240,7 @@ public sealed class EnumNonReadonlyUnionRejectionPropertyTests
             memberNames.Select((m, i) =>
             {
                 var typeName = allTypes[i % allTypes.Length];
-                return $"{m}: new {typeName}({i})";
+                return $"{m} = new {typeName}({i})";
             }));
 
         return $$"""
@@ -272,7 +272,7 @@ public sealed class EnumNonReadonlyUnionRejectionPropertyTests
             memberNames.Select((m, i) =>
             {
                 var typeName = i % 2 == 0 ? name1 : name2;
-                return $"{m}: new {typeName}({i})";
+                return $"{m} = new {typeName}({i})";
             }));
 
         return $$"""
@@ -320,7 +320,7 @@ public sealed class EnumNonReadonlyUnionRejectionPropertyTests
             memberNames.Select((m, i) =>
             {
                 var typeName = allTypes[i % allTypes.Length];
-                return $"{m}: new {typeName}({i})";
+                return $"{m} = new {typeName}({i})";
             }));
 
         return $$"""

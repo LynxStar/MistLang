@@ -1,9 +1,9 @@
 public enum Direction : string
 {
-    default North: "N",
-    South: "S",
-    East: "E",
-    West: "W"
+    default North = "N",
+    South = "S",
+    East = "E",
+    West = "W"
 }
 
 public class Program

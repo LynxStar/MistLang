@@ -56,10 +56,10 @@ public class Point
 // PROOF: The default modifier is a variant-level annotation, not a separate block
 public enum Direction : string
 {
-    default North: "N",
-    South: "S",
-    East: "E",
-    West: "W"
+    default North = "N",
+    South = "S",
+    East = "E",
+    West = "W"
 }
 
 // ─── Enum without default variant: non-defaultable ───────────────────────────
@@ -67,9 +67,9 @@ public enum Direction : string
 // PROOF: Must be explicitly constructed by naming a variant
 public enum Priority : int
 {
-    Low: 1,
-    Medium: 2,
-    High: 3
+    Low = 1,
+    Medium = 2,
+    High = 3
 }
 
 // ─── Generic function with default constraint ────────────────────────────────

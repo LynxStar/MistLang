@@ -11,9 +11,9 @@ public enum Permission : string
 
 public enum Environment : string
 {
-    Development: "dev",
+    Development = "dev",
     Staging,
-    Production: "prod"
+    Production = "prod"
 }
 
 public class Program

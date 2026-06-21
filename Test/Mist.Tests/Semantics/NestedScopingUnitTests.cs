@@ -212,9 +212,9 @@ public sealed class NestedScopingUnitTests
         var source = """
             class Container {
                 enum Status : int {
-                    Active: 1,
-                    Inactive: 0,
-                    Pending: 2
+                    Active = 1,
+                    Inactive = 0,
+                    Pending = 2
                 }
             }
             class Program {

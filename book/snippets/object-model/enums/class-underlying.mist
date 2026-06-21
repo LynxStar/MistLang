@@ -17,7 +17,7 @@ public readonly class Label
 
 public enum Severity : Label
 {
-    Critical: new Label("CRITICAL", 1),
-    Warning: new Label("WARNING", 2),
-    Info: new Label("INFO", 3)
+    Critical = new Label("CRITICAL", 1),
+    Warning = new Label("WARNING", 2),
+    Info = new Label("INFO", 3)
 }

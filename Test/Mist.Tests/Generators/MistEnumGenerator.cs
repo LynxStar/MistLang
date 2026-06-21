@@ -74,17 +74,17 @@ public static class MistEnumGenerator
     private static Gen<string> GenNameOnlyMember() =>
         Gen.Elements(MemberNames);
 
-    /// <summary>Generates a valued enum member with an integer value (e.g., "North: 0").</summary>
+    /// <summary>Generates a valued enum member with an integer value (e.g., "North = 0").</summary>
     private static Gen<string> GenIntValuedMember() =>
         from name in Gen.Elements(MemberNames)
         from value in GenIntValue()
-        select $"{name}: {value}";
+        select $"{name} = {value}";
 
-    /// <summary>Generates a valued enum member with a string value (e.g., "North: \"N\"").</summary>
+    /// <summary>Generates a valued enum member with a string value (e.g., "North = \"N\"").</summary>
     private static Gen<string> GenStringValuedMember() =>
         from name in Gen.Elements(MemberNames)
         from value in GenStringValue()
-        select $"{name}: {value}";
+        select $"{name} = {value}";
 
     // ─── Enum declaration generators ────────────────────────────────────────
 
@@ -122,7 +122,7 @@ public static class MistEnumGenerator
 
     /// <summary>
     /// Generates an enum with integer-valued members:
-    /// <c>enum Priority : int { High: 1, Medium: 2, Low: 3 }</c>
+    /// <c>enum Priority : int { High = 1, Medium = 2, Low = 3 }</c>
     /// </summary>
     public static Gen<EnumSourceScenario> GenIntValuedEnum()
     {
@@ -142,7 +142,7 @@ public static class MistEnumGenerator
 
     /// <summary>
     /// Generates an enum with string-valued members:
-    /// <c>enum Direction : string { North: "N", South: "S" }</c>
+    /// <c>enum Direction : string { North = "N", South = "S" }</c>
     /// </summary>
     public static Gen<EnumSourceScenario> GenStringValuedEnum()
     {

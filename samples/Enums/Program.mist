@@ -29,10 +29,10 @@ namespace Enums;
 
 // --- 1. Explicit type annotation ---
 public enum Direction : string {
-    North: "N",
-    South: "S",
-    East: "E",
-    West: "W"
+    North = "N",
+    South = "S",
+    East = "E",
+    West = "W"
 }
 
 // --- 20. String-backed enum with auto-inferred variant names ---
@@ -46,16 +46,16 @@ public enum Permission : string {
 // --- 21. String-backed enum with mixed explicit/inferred values ---
 // Some variants have explicit values, others auto-infer from name.
 public enum Environment : string {
-    Development: "dev",
+    Development = "dev",
     Staging,
-    Production: "prod"
+    Production = "prod"
 }
 
 // --- 2. Inferred underlying type (all members are int) ---
 public enum Priority : int {
-    High: 1,
-    Medium: 2,
-    Low: 3
+    High = 1,
+    Medium = 2,
+    Low = 3
 }
 
 // --- 3. Name-only enum (auto-assigned byte values starting from 0) ---
@@ -67,32 +67,32 @@ public enum Color {
 
 // --- 4. Mixed explicit/implicit values ---
 public enum HttpStatus : int {
-    Ok: 200,
-    Created: 201,
-    BadRequest: 400,
+    Ok = 200,
+    Created = 201,
+    BadRequest = 400,
     NotFound,
-    InternalError: 500
+    InternalError = 500
 }
 
 // --- 5. Union underlying type ---
 public enum MixedResult : int | string {
-    Success: 0,
-    ErrorMsg: "error"
+    Success = 0,
+    ErrorMsg = "error"
 }
 
 // --- 14. Default (internal) visibility ---
 enum LogLevel : int {
-    Info: 0,
-    Warn: 1,
-    Error: 2
+    Info = 0,
+    Warn = 1,
+    Error = 2
 }
 
 // --- 15. Trailing comma usage ---
 public enum Season : int {
-    Spring: 1,
-    Summer: 2,
-    Autumn: 3,
-    Winter: 4,
+    Spring = 1,
+    Summer = 2,
+    Autumn = 3,
+    Winter = 4,
 }
 
 // --- 16. Enum with user-defined struct underlying type ---
@@ -113,10 +113,10 @@ public readonly struct Vec2 {
 }
 
 public enum CardinalDir : Vec2 {
-    Up: new Vec2(0, 1),
-    Down: new Vec2(0, -1),
-    Left: new Vec2(-1, 0),
-    Right: new Vec2(1, 0)
+    Up = new Vec2(0, 1),
+    Down = new Vec2(0, -1),
+    Left = new Vec2(-1, 0),
+    Right = new Vec2(1, 0)
 }
 
 // --- 17. Enum with user-defined class underlying type ---
@@ -137,9 +137,9 @@ public readonly class Label {
 }
 
 public enum Severity : Label {
-    Critical: new Label("CRITICAL", 1),
-    Warning: new Label("WARNING", 2),
-    Info: new Label("INFO", 3)
+    Critical = new Label("CRITICAL", 1),
+    Warning = new Label("WARNING", 2),
+    Info = new Label("INFO", 3)
 }
 
 // --- 18/19. Interface and trait underlying types ---
@@ -183,9 +183,9 @@ public readonly class Animal {
 }
 
 public enum Pet : Animal {
-    Dog: new Animal("Dog"),
-    Cat: new Animal("Cat"),
-    Fish: new Animal("Fish")
+    Dog = new Animal("Dog"),
+    Cat = new Animal("Cat"),
+    Fish = new Animal("Fish")
 }
 
 // --- Helper class demonstrating enum as field type (10) ---

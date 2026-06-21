@@ -145,7 +145,7 @@ public sealed class EnumPatternMatchingPropertyTests : IDisposable
             for (var i = 0; i < members.Count; i++)
             {
                 var comma = i < members.Count - 1 ? "," : "";
-                sb.AppendLine($"    {members[i].Name}: {members[i].Value}{comma}");
+                sb.AppendLine($"    {members[i].Name} = {members[i].Value}{comma}");
             }
             sb.AppendLine("}");
             sb.AppendLine();

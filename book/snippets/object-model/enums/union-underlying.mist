@@ -1,5 +1,5 @@
 public enum MixedResult : int | string
 {
-    Success: 0,
-    ErrorMsg: "error"
+    Success = 0,
+    ErrorMsg = "error"
 }

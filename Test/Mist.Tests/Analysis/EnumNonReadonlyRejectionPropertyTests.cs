@@ -132,7 +132,7 @@ public sealed class EnumNonReadonlyRejectionPropertyTests
         string enumName, string structName, string[] memberNames)
     {
         var members = string.Join(",\n    ",
-            memberNames.Select(m => $"{m}: new {structName}(0)"));
+            memberNames.Select(m => $"{m} = new {structName}(0)"));
 
         return $$"""
             public struct {{structName}} {
@@ -159,7 +159,7 @@ public sealed class EnumNonReadonlyRejectionPropertyTests
         string enumName, string className, string[] memberNames)
     {
         var members = string.Join(",\n    ",
-            memberNames.Select(m => $"{m}: new {className}(0)"));
+            memberNames.Select(m => $"{m} = new {className}(0)"));
 
         return $$"""
             public class {{className}} {

@@ -173,7 +173,7 @@ public sealed class EnumReadonlyUnionAcceptancePropertyTests
             memberNames.Select((m, i) =>
             {
                 var typeName = typeNames[i % typeNames.Length];
-                return $"{m}: new {typeName}({i})";
+                return $"{m} = new {typeName}({i})";
             }));
 
         return $$"""
@@ -217,7 +217,7 @@ public sealed class EnumReadonlyUnionAcceptancePropertyTests
                     memberNames.Select((m, i) =>
                     {
                         var typeName = i % 2 == 0 ? structName : className;
-                        return $"{m}: new {typeName}({i})";
+                        return $"{m} = new {typeName}({i})";
                     }))}}
             }
 

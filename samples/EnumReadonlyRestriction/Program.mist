@@ -19,26 +19,26 @@ namespace EnumReadonlyRestriction;
 // --- 1. Enum with primitive base type (int) ---
 // Int32 is a readonly struct in the standard library, so this is accepted.
 public enum StatusCode : int {
-    Ok: 200,
-    NotFound: 404,
-    ServerError: 500
+    Ok = 200,
+    NotFound = 404,
+    ServerError = 500
 }
 
 // --- 2. Enum with primitive base type (string) ---
 // String is a readonly struct in the standard library, so this is accepted.
 public enum Planet : string {
-    Mercury: "Mercury",
-    Venus: "Venus",
-    Earth: "Earth",
-    Mars: "Mars"
+    Mercury = "Mercury",
+    Venus = "Venus",
+    Earth = "Earth",
+    Mars = "Mars"
 }
 
 // --- 3. Enum with primitive base type (byte) ---
 // Byte is a readonly struct in the standard library, so this is accepted.
 public enum Rank : byte {
-    Private: 1,
-    Corporal: 2,
-    Sergeant: 3
+    Private = 1,
+    Corporal = 2,
+    Sergeant = 3
 }
 
 // --- 4. Enum with readonly struct base type ---
@@ -57,10 +57,10 @@ public readonly struct Coordinate {
 }
 
 public enum Corner : Coordinate {
-    TopLeft: new Coordinate(0, 10),
-    TopRight: new Coordinate(10, 10),
-    BottomLeft: new Coordinate(0, 0),
-    BottomRight: new Coordinate(10, 0)
+    TopLeft = new Coordinate(0, 10),
+    TopRight = new Coordinate(10, 10),
+    BottomLeft = new Coordinate(0, 0),
+    BottomRight = new Coordinate(10, 0)
 }
 
 // --- 5. Enum with readonly class base type ---
@@ -83,9 +83,9 @@ public readonly class Color {
 }
 
 public enum Palette : Color {
-    Red: new Color(255, 0, 0),
-    Green: new Color(0, 255, 0),
-    Blue: new Color(0, 0, 255)
+    Red = new Color(255, 0, 0),
+    Green = new Color(0, 255, 0),
+    Blue = new Color(0, 0, 255)
 }
 
 // --- 6. Name-only enum (inferred byte) ---
@@ -100,8 +100,8 @@ public enum Suit {
 // --- 7. Enum with union of readonly types ---
 // Both int and string are readonly, so the union is accepted.
 public enum Token : int | string {
-    NumericId: 42,
-    TextId: "abc"
+    NumericId = 42,
+    TextId = "abc"
 }
 
 public class Program

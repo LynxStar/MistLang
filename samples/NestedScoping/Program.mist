@@ -60,9 +60,9 @@ public class Outer
 
     public enum Status : string
     {
-        Active: "active",
-        Inactive: "inactive",
-        Pending: "pending"
+        Active = "active",
+        Inactive = "inactive",
+        Pending = "pending"
     }
 
     // Static methods that exercise nested types from within the parent scope
@@ -163,9 +163,9 @@ public class Registry
 
     public enum Category : string
     {
-        System: "system",
-        User: "user",
-        Plugin: "plugin"
+        System = "system",
+        User = "user",
+        Plugin = "plugin"
     }
 
     public static string DemoSiblings()

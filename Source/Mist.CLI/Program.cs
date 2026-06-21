@@ -417,6 +417,7 @@ internal class Program
         var packageDiagnostics = new DiagnosticBag();
         var packageResult = PackageResolver.ResolvePackages(
             config.Packages,
+            config.FrameworkReferences,
             config.TargetFramework,
             packageDiagnostics);
 
@@ -468,6 +469,7 @@ internal class Program
         var packageDiagnostics = new DiagnosticBag();
         var packageResult = PackageResolver.ResolvePackages(
             config.Packages,
+            config.FrameworkReferences,
             config.TargetFramework,
             packageDiagnostics);
 

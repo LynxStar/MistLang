@@ -920,20 +920,20 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // Pass 1b: Resolve base types for class inheritance.
         // This runs after all types are registered so that forward references
         // to base classes are supported.
-        Pass1_ResolveBaseTypes(asts, globalScope, symbolTable, compilation, diagnostics);
+        Pass1_ResolveBaseTypes(asts, globalScope, symbolTable, compilation, diagnostics, ambientTypeResolver);
 
         // Pass 1b (cont.): Resolve struct base types for struct inheritance.
         // Mirrors the class base type resolution above. Checks if the first
         // entry in a struct's interface list resolves to a StructType and, if
         // so, sets it as the struct's BaseType.
-        Pass1_ResolveStructBaseTypes(symbolTable, asts, globalScope, compilation, diagnostics);
+        Pass1_ResolveStructBaseTypes(symbolTable, asts, globalScope, compilation, diagnostics, ambientTypeResolver);
 
         // Pass 1b (cont.): Resolve interface lists on classes, structs, and interfaces.
         // After base types are resolved, resolve interface names on all types.
         // For classes, the first name in the base clause may be a base class
         // (already resolved above) or an interface; this pass handles the
         // interface case and any additional interface names.
-        Pass1_ResolveInterfaceLists(symbolTable, asts, globalScope, compilation, diagnostics);
+        Pass1_ResolveInterfaceLists(symbolTable, asts, globalScope, compilation, diagnostics, ambientTypeResolver);
 
         // Pass 1b (cont.): Resolve constraint clauses on type/method declarations.
         // After base types and interface lists are resolved, resolve constraint
@@ -5153,7 +5153,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         ImmutableArray<Storm.Runtime.SyntaxNode> asts,
         Scope globalScope,
         SymbolTable symbolTable,
-        MistCompilation compilation)
+        MistCompilation compilation,
+        IAmbientTypeResolver? ambientTypeResolver = null)
     {
         // 1. Normal scope chain lookup.
         var result = parentScope.Lookup(name);
@@ -5222,6 +5223,58 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             }
         }
 
+        // 4. Fall back to the ambient type resolver (CLR types from SDK/NuGet assemblies).
+        // This enables inheriting from CLR types (e.g., DbContext, Exception, Stream)
+        // and implementing CLR interfaces in base type positions.
+        if (ambientTypeResolver is not null)
+        {
+            // Collect imported namespaces from using directives.
+            var importedNamespaces = new List<string>();
+            foreach (var usingDecl in containingCu.Usings)
+            {
+                var usingName = ExtractQualifiedName(usingDecl.Name, sourceText);
+                if (!string.IsNullOrEmpty(usingName))
+                    importedNamespaces.Add(usingName);
+            }
+            foreach (var item in containingCu.Items)
+            {
+                if (item is UsingItemTopLevelItemNode usingItem)
+                {
+                    var usingName = ExtractQualifiedName(usingItem.UsingDeclaration.Name, sourceText);
+                    if (!string.IsNullOrEmpty(usingName))
+                        importedNamespaces.Add(usingName);
+                }
+            }
+            // Also include global usings from the compilation unit.
+            if (containingCuIndex < compilation.Units.Length)
+            {
+                foreach (var globalNs in compilation.Units[containingCuIndex].GlobalUsings)
+                {
+                    if (!string.IsNullOrEmpty(globalNs))
+                        importedNamespaces.Add(globalNs);
+                }
+            }
+
+            foreach (var ns in importedNamespaces)
+            {
+                var resolvedType = ambientTypeResolver.ResolveType(ns, name);
+                if (resolvedType is not null)
+                {
+                    // Create a symbol for the resolved ambient type. We intentionally
+                    // do NOT call RegisterAmbientTypeInScope here because Pass 1 runs
+                    // before the stdlib provider is upgraded — populating members now
+                    // would produce incorrect type references. Pass 2's ResolveNamedType
+                    // will handle full registration when the type is encountered in
+                    // expression/type-annotation contexts.
+                    var kind = resolvedType is ClassType ? SymbolKind.Class
+                        : resolvedType is InterfaceType ? SymbolKind.Interface
+                        : resolvedType is StructType ? SymbolKind.Struct
+                        : SymbolKind.Class;
+                    return new Symbol(name, kind, SymbolOrigin.Backend, globalScope, resolvedType, declarationSpan: null);
+                }
+            }
+        }
+
         return null;
     }
 
@@ -5235,7 +5288,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         Scope globalScope,
         SymbolTable symbolTable,
         MistCompilation compilation,
-        DiagnosticBag diagnostics)
+        DiagnosticBag diagnostics,
+        IAmbientTypeResolver? ambientTypeResolver = null)
     {
         // Walk all registered symbols to find class types and their AST nodes.
         foreach (var symbol in symbolTable.AllSymbols)
@@ -5263,7 +5317,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             // Look up the base class name in the parent scope, falling back to
             // imported namespace scopes from the file's using directives.
             var resolvedSymbol = LookupWithUsings(
-                baseClassName, parentScope, classDecl, asts, globalScope, symbolTable, compilation);
+                baseClassName, parentScope, classDecl, asts, globalScope, symbolTable, compilation, ambientTypeResolver);
 
             if (resolvedSymbol is null)
             {
@@ -5310,10 +5364,25 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             }
             else if (resolvedSymbol.DeclaredType is ClassType resolvedClassType)
             {
-                var typeArgs = classDecl.BaseList.First.TypeArgs;
-                classType.BaseType = ResolveGenericTypeReference(
-                    resolvedClassType, typeArgs, baseClassName,
-                    classType, classDecl, asts, compilation, diagnostics);
+                // Check if the resolved base type is sealed — sealed types cannot be inherited.
+                if (resolvedClassType.IsSealed)
+                {
+                    var sourceText = GetSourceTextFromOrigin(classDecl);
+
+                    diagnostics.Add(MakeDiagnosticWithLocation(
+                        "MIST_SEALED_INHERITANCE",
+                        DiagnosticSeverity.Error,
+                        $"Class '{classType.DisplayName}' cannot inherit from '{baseClassName}' because it is sealed.",
+                        classDecl,
+                        sourceText));
+                }
+                else
+                {
+                    var typeArgs = classDecl.BaseList.First.TypeArgs;
+                    classType.BaseType = ResolveGenericTypeReference(
+                        resolvedClassType, typeArgs, baseClassName,
+                        classType, classDecl, asts, compilation, diagnostics);
+                }
             }
         }
     }
@@ -5332,7 +5401,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         ImmutableArray<Storm.Runtime.SyntaxNode> asts,
         Scope globalScope,
         MistCompilation compilation,
-        DiagnosticBag diagnostics)
+        DiagnosticBag diagnostics,
+        IAmbientTypeResolver? ambientTypeResolver = null)
     {
         foreach (var symbol in symbolTable.AllSymbols)
         {
@@ -5357,7 +5427,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
             var parentScope = symbol.ContainingScope;
             var resolvedSymbol = LookupWithUsings(
-                firstName, parentScope, structDecl, asts, globalScope, symbolTable, compilation);
+                firstName, parentScope, structDecl, asts, globalScope, symbolTable, compilation, ambientTypeResolver);
 
             if (resolvedSymbol?.DeclaredType is StructType resolvedStructType)
             {
@@ -6119,22 +6189,23 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         ImmutableArray<Storm.Runtime.SyntaxNode> asts,
         Scope globalScope,
         MistCompilation compilation,
-        DiagnosticBag diagnostics)
+        DiagnosticBag diagnostics,
+        IAmbientTypeResolver? ambientTypeResolver = null)
     {
         foreach (var symbol in symbolTable.AllSymbols)
         {
             switch (symbol.Kind)
             {
                 case SymbolKind.Class when symbol.DeclaredType is ClassType classType:
-                    ResolveClassInterfaceList(symbol, classType, symbolTable, asts, globalScope, compilation, diagnostics);
+                    ResolveClassInterfaceList(symbol, classType, symbolTable, asts, globalScope, compilation, diagnostics, ambientTypeResolver);
                     break;
 
                 case SymbolKind.Struct when symbol.DeclaredType is StructType structType:
-                    ResolveStructInterfaceList(symbol, structType, symbolTable, asts, globalScope, compilation, diagnostics);
+                    ResolveStructInterfaceList(symbol, structType, symbolTable, asts, globalScope, compilation, diagnostics, ambientTypeResolver);
                     break;
 
                 case SymbolKind.Interface when symbol.DeclaredType is InterfaceType interfaceType:
-                    ResolveInterfaceInterfaceList(symbol, interfaceType, symbolTable, asts, globalScope, compilation, diagnostics);
+                    ResolveInterfaceInterfaceList(symbol, interfaceType, symbolTable, asts, globalScope, compilation, diagnostics, ambientTypeResolver);
                     break;
             }
         }
@@ -6154,7 +6225,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         ImmutableArray<Storm.Runtime.SyntaxNode> asts,
         Scope globalScope,
         MistCompilation compilation,
-        DiagnosticBag diagnostics)
+        DiagnosticBag diagnostics,
+        IAmbientTypeResolver? ambientTypeResolver = null)
     {
         var declaringNode = symbolTable.GetDeclaringNode(classSymbol);
         if (declaringNode is not ClassDeclarationNode classDecl)
@@ -6185,7 +6257,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
             var parentScope = classSymbol.ContainingScope;
             var resolvedSymbol = LookupWithUsings(
-                firstName, parentScope, classDecl, asts, globalScope, symbolTable, compilation);
+                firstName, parentScope, classDecl, asts, globalScope, symbolTable, compilation, ambientTypeResolver);
 
             if (resolvedSymbol is null)
             {
@@ -6230,7 +6302,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 classType,
                 classDecl,
                 symbolTable, asts, globalScope, compilation, diagnostics,
-                findPathForSymbol: classSymbol);
+                findPathForSymbol: classSymbol,
+                ambientTypeResolver: ambientTypeResolver);
 
             if (additionalInterfaces.Count > 0)
             {
@@ -6255,7 +6328,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         ImmutableArray<Storm.Runtime.SyntaxNode> asts,
         Scope globalScope,
         MistCompilation compilation,
-        DiagnosticBag diagnostics)
+        DiagnosticBag diagnostics,
+        IAmbientTypeResolver? ambientTypeResolver = null)
     {
         var declaringNode = symbolTable.GetDeclaringNode(structSymbol);
         if (declaringNode is not StructDeclarationNode structDecl)
@@ -6280,7 +6354,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 continue;
 
             var resolvedSymbol = LookupWithUsings(
-                name, parentScope, structDecl, asts, globalScope, symbolTable, compilation);
+                name, parentScope, structDecl, asts, globalScope, symbolTable, compilation, ambientTypeResolver);
             if (resolvedSymbol?.DeclaredType is StructType)
             {
                 var sourceText = GetSourceTextForSymbol(structSymbol, symbolTable);
@@ -6302,7 +6376,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             structType,
             structDecl,
             symbolTable, asts, globalScope, compilation, diagnostics,
-            findPathForSymbol: structSymbol);
+            findPathForSymbol: structSymbol,
+            ambientTypeResolver: ambientTypeResolver);
 
         if (resolvedInterfaces.Count > 0)
         {
@@ -6320,7 +6395,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         ImmutableArray<Storm.Runtime.SyntaxNode> asts,
         Scope globalScope,
         MistCompilation compilation,
-        DiagnosticBag diagnostics)
+        DiagnosticBag diagnostics,
+        IAmbientTypeResolver? ambientTypeResolver = null)
     {
         var declaringNode = symbolTable.GetDeclaringNode(interfaceSymbol);
         if (declaringNode is not InterfaceDeclarationNode interfaceDecl)
@@ -6340,7 +6416,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             interfaceType,
             interfaceDecl,
             symbolTable, asts, globalScope, compilation, diagnostics,
-            findPathForSymbol: interfaceSymbol);
+            findPathForSymbol: interfaceSymbol,
+            ambientTypeResolver: ambientTypeResolver);
 
         if (resolvedInterfaces.Count > 0)
         {
@@ -6454,7 +6531,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         Scope globalScope,
         MistCompilation compilation,
         DiagnosticBag diagnostics,
-        ISymbol findPathForSymbol)
+        ISymbol findPathForSymbol,
+        IAmbientTypeResolver? ambientTypeResolver = null)
     {
         var resolved = new List<IType>();
 
@@ -6465,7 +6543,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 continue;
 
             var resolvedSymbol = LookupWithUsings(
-                name, parentScope, declaringNode, asts, globalScope, symbolTable, compilation);
+                name, parentScope, declaringNode, asts, globalScope, symbolTable, compilation, ambientTypeResolver);
 
             if (resolvedSymbol is null)
             {

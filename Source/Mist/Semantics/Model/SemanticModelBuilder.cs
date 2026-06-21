@@ -22315,6 +22315,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 }
 
                 // Handle type arguments on method invocations (e.g., obj.Method<int>()).
+                IReadOnlyList<IType>? resolvedMethodTypeArgs = null;
+                IReadOnlyList<IType>? methodTypeParams = null;
+                ISymbol? resolvedGenericMethodSymbol = null;
                 if (methodCall.TypeArgs is not null)
                 {
                     // Look up the method symbol to check its type parameters.
@@ -22364,6 +22367,11 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                             // Substitute type parameters in the return type with
                             // the resolved type arguments.
                             memberType = SubstituteTypeParameters(memberType, sym.TypeParameters, resolvedTypeArgs);
+
+                            // Capture for parameter type substitution below (lambda inference).
+                            resolvedMethodTypeArgs = resolvedTypeArgs;
+                            methodTypeParams = sym.TypeParameters;
+                            resolvedGenericMethodSymbol = sym;
                         }
                     }
                     else if (methodSymbol is not null)
@@ -22382,7 +22390,26 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 if (methodCall.Arguments is not null)
                 {
                     // Look up the method symbol to get parameter types for lambda inference.
-                    var methodSymForParams = LookupMemberSymbol(targetType, memberName, ambientTypeResolver, fileScope, symbolTable);
+                    // When we already resolved a generic method symbol with explicit type args,
+                    // use it directly IF it has parameters. Otherwise fall back to finding
+                    // the correct overload (e.g., Entity<T>() vs Entity<T>(Action<...>)).
+                    ISymbol? methodSymForParams;
+                    if (resolvedGenericMethodSymbol is Symbol resolvedSym
+                        && resolvedSym.Parameters.Count > 0)
+                    {
+                        methodSymForParams = resolvedGenericMethodSymbol;
+                    }
+                    else if (methodTypeParams is not null && methodCall.TypeArgs is not null)
+                    {
+                        // The resolved generic symbol has no params but the call has args.
+                        // Look for an overload with the same type arg count that DOES have params.
+                        var providedArity = CountTypeArgs(methodCall.TypeArgs);
+                        methodSymForParams = LookupGenericMemberSymbolWithParams(targetType, memberName, providedArity, ambientTypeResolver, fileScope, symbolTable);
+                    }
+                    else
+                    {
+                        methodSymForParams = LookupMemberSymbol(targetType, memberName, ambientTypeResolver, fileScope, symbolTable);
+                    }
 
                     // If not found on the type itself, check extension methods.
                     if (methodSymForParams is null && _extensionRegistryContext is not null)
@@ -22450,6 +22477,27 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                                 if (anyChanged)
                                     methodParamTypes = substituted;
                             }
+                        }
+
+                        // If the method itself is generic and explicit type arguments were
+                        // provided (e.g., Entity<Request>), substitute the method's type
+                        // parameters in the parameter types so that lambda target types
+                        // use concrete types (e.g., Action<EntityTypeBuilder<Request>>
+                        // instead of Action<EntityTypeBuilder<T>>).
+                        if (methodParamTypes.Count > 0
+                            && resolvedMethodTypeArgs is not null
+                            && methodTypeParams is not null)
+                        {
+                            var substituted = new IType[methodParamTypes.Count];
+                            var anyChanged = false;
+                            for (var pi = 0; pi < methodParamTypes.Count; pi++)
+                            {
+                                substituted[pi] = SubstituteTypeInMember(methodParamTypes[pi], methodTypeParams, resolvedMethodTypeArgs);
+                                if (!ReferenceEquals(substituted[pi], methodParamTypes[pi]))
+                                    anyChanged = true;
+                            }
+                            if (anyChanged)
+                                methodParamTypes = substituted;
                         }
                     }
                     ResolveArgumentListWithParameterTypes(methodCall.Arguments, methodParamTypes, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
@@ -25362,6 +25410,48 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         return s;
                 }
                 return allMembers[0];
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Looks up a generic method symbol by name and type argument count, preferring an
+    /// overload that has parameters (i.e., is not parameterless). Used when the initial
+    /// generic member lookup found a parameterless overload but the call site has arguments,
+    /// indicating a different overload is needed for lambda target type inference.
+    /// </summary>
+    private static ISymbol? LookupGenericMemberSymbolWithParams(
+        IType targetType,
+        string memberName,
+        int typeArgCount,
+        IAmbientTypeResolver? ambientTypeResolver,
+        Scope fileScope,
+        SymbolTable symbolTable)
+    {
+        if (targetType is ErrorType or NamespaceReferenceType)
+            return null;
+
+        if (targetType is ConstructedType ct)
+            targetType = ct.GenericDefinition;
+
+        if (targetType is ClassType classTarget)
+        {
+            ClassType? current = classTarget;
+            while (current is not null)
+            {
+                foreach (var m in current.MemberScope.Members)
+                {
+                    if (m.Name == memberName
+                        && m is Symbol s
+                        && s.TypeParameters.Count == typeArgCount
+                        && s.Parameters.Count > 0)
+                    {
+                        return s;
+                    }
+                }
+                current = current.BaseType as ClassType;
             }
         }
 

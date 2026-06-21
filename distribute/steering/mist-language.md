@@ -6,6 +6,23 @@ Mist compiles to C# and is deliberately C#-like. **Assume every language feature
 
 If something isn't mentioned here, write it the way you would in C#.
 
+## Coding Style
+
+Mist uses **Allman-style braces** (C# standard) — the opening brace goes on its own line. Do NOT use K&R / Java-style braces where the opening brace trails the declaration.
+
+```mist
+public class Player
+{
+    public void Attack()
+    {
+        if (Health > 0)
+        {
+            DealDamage();
+        }
+    }
+}
+```
+
 ## Companion Steering Files
 
 This file is always loaded. Deeper references live in separate manual-inclusion files in `.kiro/steering/`. Pull the relevant one into context (the user can reference it with `#`, or you can read the file directly) when a task touches its topic:

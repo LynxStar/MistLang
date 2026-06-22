@@ -65,3 +65,40 @@ numbers[7] = 10;   // compiles; throws System.IndexOutOfRangeException at runtim
 4. Ensure `NewtypeType` cycle detection handles this case.
 
 **Not part of:** the `unified-type-resolution` bugfix spec — this is a new feature.
+
+---
+
+## 🟡 Add `ResolvedType` non-nullable accessor to Symbol for post-construction consumers
+
+**Severity: medium (architectural hygiene)** — `Symbol.DeclaredType` is `IType?` because the symbol exists before its type is resolved (Phase 1 creates the shell, Phase 4 fills the type). This nullable property is used by both construction-phase code (which legitimately reads null to check "is this resolved yet?") and post-construction code (Pass 2+, which should never see null).
+
+**Problem:** Post-construction consumers (Pass 2, type checker, emitter) do null checks on `DeclaredType` and take silent fallback paths when it's null. This hides bugs where Phase 4 missed a symbol — the user gets wrong inference instead of a crash with a stack trace.
+
+**Proposed fix:** Add a phase-gated accessor that separates the two use cases:
+
+```csharp
+// Construction API — used by Phases 1–4b. Nullable. No crash.
+public IType? DeclaredType { get; internal set; }
+
+// Post-construction API — used by Pass 2+. Non-nullable. Throws if null.
+/// <summary>
+/// Returns the resolved type for this symbol. This accessor is intended for
+/// post-construction consumers (Pass 2 and later). If this throws, it means
+/// Phase 4 failed to resolve this symbol's type — that is a compiler bug in
+/// the resolution pipeline, not something to work around with a null check.
+/// </summary>
+public IType ResolvedType => DeclaredType
+    ?? throw new InvalidOperationException(
+        $"Symbol '{Name}' ({Kind}) has no resolved type. " +
+        $"Phase 4 (Pass1_5_ResolveExplicitMemberTypes) should have set DeclaredType before Pass 2 runs.");
+```
+
+**Migration:**
+1. Add `ResolvedType` to `Symbol`.
+2. In Pass 2 and all downstream consumers, replace `symbol.DeclaredType` reads with `symbol.ResolvedType`. Remove null checks — they become dead code since `ResolvedType` is non-nullable.
+3. Phase 4 and earlier phases continue using `DeclaredType` (nullable) since they're doing the writing and need to read partially-constructed state.
+4. Any remaining `DeclaredType is not null` checks in Phase 4 are legitimate "skip if already resolved" guards — but ideally Phase 4's iteration should be fixed to visit each symbol exactly once, eliminating those too.
+
+**Why not just make `DeclaredType` non-nullable?** Because construction-phase code legitimately reads it before it's set. The two-accessor pattern lets construction code and consumption code have different contracts on the same underlying storage.
+
+**Why not `Debug.Assert`?** It only fires in debug builds. A null `DeclaredType` in production causes silent wrong compilation. The throw fires always, giving a clear error message pointing at the phase that should have resolved it.

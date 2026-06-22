@@ -15319,10 +15319,6 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         var typeScope = (Scope)interfaceType.MemberScope;
         var interfaceFileScope = CreateTypeParameterScope(typeScope, fileScope);
 
-        // Use a temporary diagnostic bag — Pass 2's ResolveInterfaceDeclaration
-        // will emit the canonical diagnostics when it re-resolves these types.
-        var tempDiagnostics = new DiagnosticBag();
-
         foreach (var member in interfaceDecl.Members)
         {
             switch (member)
@@ -15333,7 +15329,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     var methodSymbol = symbolTable.GetDeclaredSymbol(methodDecl) as Symbol;
                     if (methodSymbol is null || methodSymbol.DeclaredType is not null) break;
 
-                    var returnType = ResolveTypeReference(methodDecl.ReturnType, interfaceFileScope, ambientTypeResolver, symbolTable, sourceText, tempDiagnostics);
+                    var returnType = ResolveTypeReference(methodDecl.ReturnType, interfaceFileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
                     methodSymbol.DeclaredType = returnType;
 
                     if (methodDecl.ReturnOwnership is RefSpecifierOwnershipSpecifierNode)
@@ -15351,11 +15347,12 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         methodSymbol.OwnershipTier = MapOwnershipSpecifier(methodDecl.ReturnOwnership);
                     }
 
-                    // Resolve parameter types using temp diagnostics to avoid duplicates.
+                    // Resolve parameter types — Phase 4 is the sole owner for
+                    // interface parameters since interfaces have no body resolution in Pass 2.
                     if (methodDecl.Parameters is not null)
                     {
                         var methodScope = new Scope(parent: interfaceFileScope);
-                        RegisterParameters(methodDecl.Parameters, methodScope, interfaceFileScope, symbolTable, ambientTypeResolver, sourceText, tempDiagnostics);
+                        RegisterParameters(methodDecl.Parameters, methodScope, interfaceFileScope, symbolTable, ambientTypeResolver, sourceText, diagnostics);
                     }
                     break;
                 }
@@ -15365,7 +15362,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     var propSymbol = symbolTable.GetDeclaredSymbol(propDecl) as Symbol;
                     if (propSymbol is null || propSymbol.DeclaredType is not null) break;
 
-                    var propType = ResolveTypeReference(propDecl.Type, interfaceFileScope, ambientTypeResolver, symbolTable, sourceText, tempDiagnostics);
+                    var propType = ResolveTypeReference(propDecl.Type, interfaceFileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
                     propSymbol.DeclaredType = propType;
                     break;
                 }
@@ -15390,10 +15387,6 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         var typeScope = (Scope)traitType.MemberScope;
         var resolutionScope = CreateTypeParameterScope(typeScope, fileScope);
 
-        // Use a temporary diagnostic bag — Pass 2's ResolveTraitDeclaration
-        // will emit the canonical diagnostics when it re-resolves these types.
-        var tempDiagnostics = new DiagnosticBag();
-
         foreach (var member in traitDecl.Members)
         {
             switch (member)
@@ -15404,7 +15397,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     var fieldSymbol = symbolTable.GetDeclaredSymbol(fieldDecl) as Symbol;
                     if (fieldSymbol is null || fieldSymbol.DeclaredType is not null) break;
 
-                    var fieldType = ResolveTypeReference(fieldDecl.Type, resolutionScope, ambientTypeResolver, symbolTable, sourceText, tempDiagnostics);
+                    var fieldType = ResolveTypeReference(fieldDecl.Type, resolutionScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
                     fieldSymbol.DeclaredType = fieldType;
                     break;
                 }
@@ -15414,7 +15407,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     var methodSymbol = symbolTable.GetDeclaredSymbol(methodDecl) as Symbol;
                     if (methodSymbol is null || methodSymbol.DeclaredType is not null) break;
 
-                    var returnType = ResolveTypeReference(methodDecl.ReturnType, resolutionScope, ambientTypeResolver, symbolTable, sourceText, tempDiagnostics);
+                    var returnType = ResolveTypeReference(methodDecl.ReturnType, resolutionScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
                     methodSymbol.DeclaredType = returnType;
 
                     if (methodDecl.ReturnOwnership is RefSpecifierOwnershipSpecifierNode)
@@ -15432,11 +15425,12 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         methodSymbol.OwnershipTier = MapOwnershipSpecifier(methodDecl.ReturnOwnership);
                     }
 
-                    // Resolve parameter types using temp diagnostics.
+                    // Resolve parameter types — Phase 4 is the sole owner for
+                    // trait parameters since traits have no body resolution in Pass 2.
                     if (methodDecl.Parameters is not null)
                     {
                         var methodScope = new Scope(parent: resolutionScope);
-                        RegisterParameters(methodDecl.Parameters, methodScope, resolutionScope, symbolTable, ambientTypeResolver, sourceText, tempDiagnostics);
+                        RegisterParameters(methodDecl.Parameters, methodScope, resolutionScope, symbolTable, ambientTypeResolver, sourceText, diagnostics);
                     }
                     break;
                 }
@@ -15446,7 +15440,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     var propSymbol = symbolTable.GetDeclaredSymbol(propDecl) as Symbol;
                     if (propSymbol is null || propSymbol.DeclaredType is not null) break;
 
-                    var propType = ResolveTypeReference(propDecl.Type, resolutionScope, ambientTypeResolver, symbolTable, sourceText, tempDiagnostics);
+                    var propType = ResolveTypeReference(propDecl.Type, resolutionScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
                     propSymbol.DeclaredType = propType;
                     break;
                 }
@@ -15463,9 +15457,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// resolved here — parameter types are resolved in Pass 2 when body
     /// resolution creates method scopes.
     /// <para>
-    /// Diagnostics from type resolution are suppressed (routed to a temporary bag)
-    /// because Pass 2 will re-resolve these same types and emit the canonical
-    /// diagnostics. The purpose of Phase 4 is solely to populate DeclaredType.
+    /// Phase 4 is the SOLE owner of explicit member type resolution. Diagnostics
+    /// are emitted directly to the real diagnostic bag, and <see cref="Symbol.DeclaredType"/>
+    /// is ALWAYS set (to the resolved type on success, or to <see cref="ErrorType.Instance"/>
+    /// on failure). Pass 2 never attempts type resolution — it reads DeclaredType directly.
     /// </para>
     /// </summary>
     private static void ResolveExplicitMemberTypeAnnotation(
@@ -15477,13 +15472,6 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         SourceText? sourceText,
         DiagnosticBag diagnostics)
     {
-        // Use a temporary diagnostic bag to detect resolution errors.
-        // If resolution succeeds (no errors), we set DeclaredType so Pass 2
-        // can skip re-resolution via idempotency guards.
-        // If resolution fails (has errors), we leave DeclaredType as null so
-        // Pass 2 re-resolves and emits the canonical diagnostics.
-        var tempDiagnostics = new DiagnosticBag();
-
         switch (memberDecl)
         {
             case FieldMemberMemberDeclarationNode fieldMember:
@@ -15492,15 +15480,14 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 var fieldSymbol = symbolTable.GetDeclaredSymbol(fieldDecl) as Symbol;
                 if (fieldSymbol is null || fieldSymbol.DeclaredType is not null) break;
 
-                var fieldType = ResolveTypeReference(fieldDecl.Type, fileScope, ambientTypeResolver, symbolTable, sourceText, tempDiagnostics);
-                if (!tempDiagnostics.HasErrors)
-                    fieldSymbol.DeclaredType = fieldType;
+                var fieldType = ResolveTypeReference(fieldDecl.Type, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+                fieldSymbol.DeclaredType = fieldType;
                 break;
             }
             case MethodMemberMemberDeclarationNode methodMember:
             {
                 // Use PreResolveMethodSignature which already has an idempotency guard
-                // and resolves return type + parameters with a temp diagnostic bag for params.
+                // and always sets DeclaredType (resolves return type + parameters).
                 PreResolveMethodSignature(methodMember.Method, typeScope, fileScope, symbolTable, ambientTypeResolver, sourceText, diagnostics);
                 break;
             }
@@ -15513,17 +15500,14 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         var propSymbol = symbolTable.GetDeclaredSymbol(blockProp) as Symbol;
                         if (propSymbol is null || propSymbol.DeclaredType is not null) break;
 
-                        var propType = ResolveTypeReference(blockProp.Type, fileScope, ambientTypeResolver, symbolTable, sourceText, tempDiagnostics);
-                        if (!tempDiagnostics.HasErrors)
-                        {
-                            propSymbol.DeclaredType = propType;
+                        var propType = ResolveTypeReference(blockProp.Type, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+                        propSymbol.DeclaredType = propType;
 
-                            // Also update the backing field's declared type if present.
-                            var propInfo = propSymbol.PropertyMetadata;
-                            if (propInfo?.BackingField is Symbol backingField)
-                            {
-                                backingField.DeclaredType = propType;
-                            }
+                        // Also update the backing field's declared type if present.
+                        var propInfo = propSymbol.PropertyMetadata;
+                        if (propInfo?.BackingField is Symbol backingField)
+                        {
+                            backingField.DeclaredType = propType;
                         }
                         break;
                     }
@@ -15532,9 +15516,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         var propSymbol = symbolTable.GetDeclaredSymbol(exprProp) as Symbol;
                         if (propSymbol is null || propSymbol.DeclaredType is not null) break;
 
-                        var propType = ResolveTypeReference(exprProp.Type, fileScope, ambientTypeResolver, symbolTable, sourceText, tempDiagnostics);
-                        if (!tempDiagnostics.HasErrors)
-                            propSymbol.DeclaredType = propType;
+                        var propType = ResolveTypeReference(exprProp.Type, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+                        propSymbol.DeclaredType = propType;
                         break;
                     }
                 }
@@ -15546,9 +15529,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 var indexerSymbol = symbolTable.GetDeclaredSymbol(indexerDecl) as Symbol;
                 if (indexerSymbol is null || indexerSymbol.DeclaredType is not null) break;
 
-                var indexerType = ResolveTypeReference(indexerDecl.Type, fileScope, ambientTypeResolver, symbolTable, sourceText, tempDiagnostics);
-                if (!tempDiagnostics.HasErrors)
-                    indexerSymbol.DeclaredType = indexerType;
+                var indexerType = ResolveTypeReference(indexerDecl.Type, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+                indexerSymbol.DeclaredType = indexerType;
                 break;
             }
             case OperatorMemberMemberDeclarationNode operatorMember:
@@ -15557,9 +15539,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 var opSymbol = symbolTable.GetDeclaredSymbol(opDecl) as Symbol;
                 if (opSymbol is null || opSymbol.DeclaredType is not null) break;
 
-                var returnType = ResolveTypeReference(opDecl.ReturnType, fileScope, ambientTypeResolver, symbolTable, sourceText, tempDiagnostics);
-                if (!tempDiagnostics.HasErrors)
-                    opSymbol.DeclaredType = returnType;
+                var returnType = ResolveTypeReference(opDecl.ReturnType, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+                opSymbol.DeclaredType = returnType;
                 break;
             }
             case CastOperatorMemberMemberDeclarationNode castOpMember:
@@ -15568,9 +15549,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 var castOpSymbol = symbolTable.GetDeclaredSymbol(castOpDecl) as Symbol;
                 if (castOpSymbol is null || castOpSymbol.DeclaredType is not null) break;
 
-                var targetType = ResolveTypeReference(castOpDecl.TargetType, fileScope, ambientTypeResolver, symbolTable, sourceText, tempDiagnostics);
-                if (!tempDiagnostics.HasErrors)
-                    castOpSymbol.DeclaredType = targetType;
+                var targetType = ResolveTypeReference(castOpDecl.TargetType, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+                castOpSymbol.DeclaredType = targetType;
                 break;
             }
         }
@@ -16250,16 +16230,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // from a different generic class in the same file.
         var classFileScope = CreateTypeParameterScope(typeScope, fileScope);
 
-        // Pre-pass: resolve all method signatures (return types + parameters) before
-        // resolving bodies. This ensures forward references within the same class can
-        // access parameter types for lambda target-type propagation.
-        foreach (var memberDecl in classDecl.Members)
-        {
-            if (memberDecl is MethodMemberMemberDeclarationNode methodMember)
-            {
-                PreResolveMethodSignature(methodMember.Method, typeScope, classFileScope, symbolTable, ambientTypeResolver, sourceText, diagnostics);
-            }
-        }
+        // Phase 4 already resolved all method signatures globally via
+        // PreResolveMethodSignature — no per-class pre-pass needed here.
 
         foreach (var memberDecl in classDecl.Members)
         {
@@ -16322,61 +16294,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // Generate implicit properties for dependent type parameters.
         GenerateDependentTypeProperties(interfaceType.TypeParameters, typeScope, interfaceType, sourceText, diagnostics);
 
-        var interfaceFileScope = CreateTypeParameterScope(typeScope, fileScope);
-
-        // Resolve return types and parameter types for each interface member.
-        foreach (var member in interfaceDecl.Members)
-        {
-            switch (member)
-            {
-                case InterfaceMethodMemberInterfaceMemberDeclarationNode methodMember:
-                {
-                    var methodDecl = methodMember.Method;
-                    var returnType = ResolveTypeReference(methodDecl.ReturnType, interfaceFileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
-                    var methodSymbol = symbolTable.GetDeclaredSymbol(methodDecl) as Symbol;
-                    if (methodSymbol is not null)
-                    {
-                        methodSymbol.DeclaredType = returnType;
-
-                        // Interpret RefSpecifier / ReadonlyRefSpecifier as ref return.
-                        if (methodDecl.ReturnOwnership is RefSpecifierOwnershipSpecifierNode)
-                        {
-                            methodSymbol.ReturnRefKind = RefKind.Ref;
-                            methodSymbol.OwnershipTier = OwnershipTier.Unrestricted;
-                        }
-                        else if (methodDecl.ReturnOwnership is ReadonlyRefSpecifierOwnershipSpecifierNode)
-                        {
-                            methodSymbol.ReturnRefKind = RefKind.RefReadonly;
-                            methodSymbol.OwnershipTier = OwnershipTier.Unrestricted;
-                        }
-                        else
-                        {
-                            methodSymbol.OwnershipTier = MapOwnershipSpecifier(methodDecl.ReturnOwnership);
-                        }
-                    }
-
-                    // Register parameters so ParameterSignature.Extract can resolve
-                    // parameter types for overload duplicate-signature detection.
-                    if (methodDecl.Parameters is not null)
-                    {
-                        var methodScope = new Scope(parent: interfaceFileScope);
-                        RegisterParameters(methodDecl.Parameters, methodScope, interfaceFileScope, symbolTable, ambientTypeResolver, sourceText, diagnostics);
-                    }
-                    break;
-                }
-                case InterfacePropertyMemberInterfaceMemberDeclarationNode propertyMember:
-                {
-                    var propDecl = propertyMember.Property;
-                    var propType = ResolveTypeReference(propDecl.Type, interfaceFileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
-                    var propSymbol = symbolTable.GetDeclaredSymbol(propDecl) as Symbol;
-                    if (propSymbol is not null)
-                    {
-                        propSymbol.DeclaredType = propType;
-                    }
-                    break;
-                }
-            }
-        }
+        // Phase 4 already resolved all interface member types (return types,
+        // property types, parameter types). Nothing else to do here — interfaces
+        // have no bodies to resolve.
     }
 
     private static void ResolveTraitDeclaration(
@@ -16392,15 +16312,13 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
         // Create a resolution scope that includes the trait's type parameters
         // while still having access to the file scope's imported namespaces.
-        // We use the trait's type scope directly since its parent is the
-        // namespace scope (set up in RegisterTraitDeclaration).
         var typeScope = (Scope)traitType.MemberScope;
-        var resolutionScope = typeScope;
 
         // Generate implicit properties for dependent type parameters.
         GenerateDependentTypeProperties(traitType.TypeParameters, typeScope, traitType, sourceText, diagnostics);
 
-        // Resolve types for each trait member.
+        // Phase 4 already resolved all trait member types. Only perform
+        // storage-ban checks here (semantic validation, not type resolution).
         foreach (var member in traitDecl.Members)
         {
             switch (member)
@@ -16408,7 +16326,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 case TraitFieldMemberTraitMemberDeclarationNode fieldMember:
                 {
                     var fieldDecl = fieldMember.Field;
-                    var fieldType = ResolveTypeReference(fieldDecl.Type, resolutionScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+                    var fieldSymbol = symbolTable.GetDeclaredSymbol(fieldDecl) as Symbol;
+                    var fieldType = fieldSymbol?.DeclaredType ?? ErrorType.Instance;
 
                     // Storage-ban check for trait fields (unknown-type
                     // feature, Task 27.4, Requirement 12.4). Trait fields
@@ -16425,57 +16344,6 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                             $"Field '{traitType.DisplayName}.{fieldDecl.Name.Lexeme}' of type '{fieldType.DisplayName}' cannot have 'unknown' in its declared type: 'unknown' is not permitted as the type of writable storage.",
                             fieldDecl,
                             sourceText));
-                    }
-
-                    var fieldSymbol = symbolTable.GetDeclaredSymbol(fieldDecl) as Symbol;
-                    if (fieldSymbol is not null)
-                    {
-                        fieldSymbol.DeclaredType = fieldType;
-                    }
-                    break;
-                }
-                case TraitMethodMemberTraitMemberDeclarationNode methodMember:
-                {
-                    var methodDecl = methodMember.Method;
-                    var returnType = ResolveTypeReference(methodDecl.ReturnType, resolutionScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
-                    var methodSymbol = symbolTable.GetDeclaredSymbol(methodDecl) as Symbol;
-                    if (methodSymbol is not null)
-                    {
-                        methodSymbol.DeclaredType = returnType;
-
-                        // Interpret RefSpecifier / ReadonlyRefSpecifier as ref return.
-                        if (methodDecl.ReturnOwnership is RefSpecifierOwnershipSpecifierNode)
-                        {
-                            methodSymbol.ReturnRefKind = RefKind.Ref;
-                            methodSymbol.OwnershipTier = OwnershipTier.Unrestricted;
-                        }
-                        else if (methodDecl.ReturnOwnership is ReadonlyRefSpecifierOwnershipSpecifierNode)
-                        {
-                            methodSymbol.ReturnRefKind = RefKind.RefReadonly;
-                            methodSymbol.OwnershipTier = OwnershipTier.Unrestricted;
-                        }
-                        else
-                        {
-                            methodSymbol.OwnershipTier = MapOwnershipSpecifier(methodDecl.ReturnOwnership);
-                        }
-                    }
-
-                    // Register parameters so parameter types can be resolved.
-                    if (methodDecl.Parameters is not null)
-                    {
-                        var methodScope = new Scope(parent: resolutionScope);
-                        RegisterParameters(methodDecl.Parameters, methodScope, resolutionScope, symbolTable, ambientTypeResolver, sourceText, diagnostics);
-                    }
-                    break;
-                }
-                case TraitPropertyMemberTraitMemberDeclarationNode propertyMember:
-                {
-                    var propDecl = propertyMember.Property;
-                    var propType = ResolveTypeReference(propDecl.Type, resolutionScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
-                    var propSymbol = symbolTable.GetDeclaredSymbol(propDecl) as Symbol;
-                    if (propSymbol is not null)
-                    {
-                        propSymbol.DeclaredType = propType;
                     }
                     break;
                 }
@@ -16537,31 +16405,16 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         SourceText? sourceText,
         DiagnosticBag diagnostics)
     {
-        // Idempotency guard: if Phase 4 already resolved the field type, skip
-        // type resolution but still perform storage-ban checks below.
+        // Phase 4 is the sole owner of field type resolution — DeclaredType is
+        // always set before Pass 2 runs. Read it directly.
         var fieldSymbol = symbolTable.GetDeclaredSymbol(fieldDecl) as Symbol;
-        IType fieldType;
-        if (fieldSymbol?.DeclaredType is not null)
-        {
-            fieldType = fieldSymbol.DeclaredType;
-        }
-        else
-        {
-            fieldType = ResolveTypeReference(fieldDecl.Type, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
-
-            // Update the field symbol's declared type.
-            if (fieldSymbol is not null)
-            {
-                fieldSymbol.DeclaredType = fieldType;
-            }
-        }
+        var fieldType = fieldSymbol?.DeclaredType ?? ErrorType.Instance;
 
         // Storage-ban check (unknown-type feature, Task 11.1, Requirements
         // 5.1, 7.5, 7.6, 16.1). Emitted BEFORE the symbol's declared type is
         // updated so downstream passes still see the banned type on the
         // symbol — the design note for Task 11 is explicit that we do not
         // substitute ErrorType here. Only the diagnostic is emitted.
-        // Runs regardless of whether Phase 4 or Pass 2 resolved the type.
         if (TypeContainment.IsStorageBanned(fieldType))
         {
             diagnostics.Add(MakeDiagnosticWithLocation(
@@ -16626,10 +16479,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         SourceText? sourceText,
         DiagnosticBag diagnostics)
     {
-        // Idempotency guard: if Phase 4 already resolved the constructor's
-        // parameter types (indicated by DeclaredType being set), skip re-resolution.
-        var ctorSymbol = symbolTable.GetDeclaredSymbol(ctorDecl) as Symbol;
-        if (ctorSymbol?.DeclaredType is not null) return;
+        // Constructors don't have an explicit return type (they implicitly return
+        // the enclosing type). Phase 4 does not set DeclaredType for constructors.
+        // Pass 2 only needs to register parameters and resolve the body.
 
         // Create a method scope for the constructor body.
         var methodScope = new Scope(parent: typeScope);
@@ -16677,10 +16529,12 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
     /// <summary>
     /// Pre-resolves a method's signature (return type + parameters) without resolving
-    /// the body. This ensures that forward references within the same class can access
-    /// parameter types for lambda target-type propagation during body resolution.
-    /// Diagnostics from parameter type resolution are suppressed (they will be emitted
-    /// during the full ResolveMethodDeclaration pass).
+    /// the body. Called by Phase 4 to populate DeclaredType for all methods globally.
+    /// This ensures cross-file references can access parameter types for lambda
+    /// target-type propagation during body resolution.
+    /// Return type diagnostics are emitted to the real diagnostic bag (Phase 4 owns
+    /// return type resolution). Parameter type diagnostics use a temp bag because
+    /// Pass 2's RegisterParameters is the canonical source for parameter diagnostics.
     /// </summary>
     private static void PreResolveMethodSignature(
         MethodDeclarationNode methodDecl,
@@ -16719,8 +16573,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // Resolve parameter types and store them on the method symbol's Parameters
         // collection so that ParameterSignature.Extract can find them during body
         // resolution of other methods in the same class. Use a temporary diagnostic
-        // bag to suppress duplicate diagnostics (the real resolution happens in
-        // ResolveMethodDeclaration).
+        // bag — the canonical parameter diagnostics are emitted by RegisterParameters
+        // in Pass 2 when body scope symbols are created.
         if (methodDecl.Parameters is not null)
         {
             var tempDiagnostics = new DiagnosticBag();
@@ -16749,39 +16603,12 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         SourceText? sourceText,
         DiagnosticBag diagnostics)
     {
-        // Resolve the return type and update the method symbol.
-        // Skip return type resolution if already done by the signature pre-pass,
-        // but always process ownership/ref modifiers.
+        // Phase 4 (via PreResolveMethodSignature) is the sole owner of method
+        // return type resolution — DeclaredType is always set before Pass 2 runs.
+        // Read it directly.
         var methodSymbol = symbolTable.GetDeclaredSymbol(methodDecl) as Symbol;
-        IType returnType;
-        if (methodSymbol is not null && methodSymbol.DeclaredType is not null)
-        {
-            // Already resolved by pre-pass — use the stored return type.
-            returnType = methodSymbol.DeclaredReturnType ?? methodSymbol.DeclaredType;
-        }
-        else
-        {
-            returnType = ResolveTypeReference(methodDecl.ReturnType, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
-            if (methodSymbol is not null)
-            {
-                // Detect async modifier and wrap return type in Task<T>.
-                var isAsync = methodDecl.Modifiers.Any(m => m is AsyncModifierModifierNode);
-                if (isAsync)
-                {
-                    methodSymbol.IsAsync = true;
-                    methodSymbol.DeclaredReturnType = returnType;
-                    var effectiveReturnType = ConstructTaskType(returnType, fileScope, symbolTable);
-                    methodSymbol.EffectiveReturnType = effectiveReturnType;
-                    methodSymbol.DeclaredType = effectiveReturnType;
-                }
-                else
-                {
-                    methodSymbol.DeclaredReturnType = returnType;
-                    methodSymbol.EffectiveReturnType = returnType;
-                    methodSymbol.DeclaredType = returnType;
-                }
-            }
-        }
+        var returnType = methodSymbol?.DeclaredReturnType ?? methodSymbol?.DeclaredType ?? ErrorType.Instance;
+
         if (methodSymbol is not null)
         {
             // When the parser sees "public owned Foo Method(...)", it may parse "owned"
@@ -16849,7 +16676,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             RegisterMethodDependentParameters(methodSymbol.TypeParameters, methodScope, enclosingType, sourceText, diagnostics);
         }
 
-        // Register parameters.
+        // Register parameters into the body scope for name resolution.
+        // This is the canonical point for parameter-related diagnostics
+        // (duplicate names, ref/ownership conflicts, type resolution errors).
         if (methodDecl.Parameters is not null)
         {
             RegisterParameters(methodDecl.Parameters, methodScope, fileScope, symbolTable, ambientTypeResolver, sourceText, diagnostics);
@@ -16931,19 +16760,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         SourceText? sourceText,
         DiagnosticBag diagnostics)
     {
-        // Idempotency guard: if Phase 4 already resolved the operator return type,
-        // skip type resolution but still resolve parameters and body.
+        // Phase 4 is the sole owner of operator return type resolution — DeclaredType
+        // is always set before Pass 2 runs. Read it directly.
         var opSymbol = symbolTable.GetDeclaredSymbol(opDecl) as Symbol;
-        if (opSymbol?.DeclaredType is null)
-        {
-            // Resolve the return type and update the operator symbol.
-            var returnType = ResolveTypeReference(opDecl.ReturnType, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
-            if (opSymbol is not null)
-            {
-                opSymbol.DeclaredType = returnType;
-            }
-        }
-
         var resolvedReturnType = opSymbol?.DeclaredType;
 
         // Create a method scope for parameters and the optional body.
@@ -16991,19 +16810,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         SourceText? sourceText,
         DiagnosticBag diagnostics)
     {
-        // Idempotency guard: if Phase 4 already resolved the cast operator target type,
-        // skip type resolution but still resolve parameters and body.
+        // Phase 4 is the sole owner of cast operator target type resolution —
+        // DeclaredType is always set before Pass 2 runs. Read it directly.
         var castOpSymbol = symbolTable.GetDeclaredSymbol(castOpDecl) as Symbol;
-        if (castOpSymbol?.DeclaredType is null)
-        {
-            // Resolve the target type reference and set it as the symbol's DeclaredType (return type).
-            var targetType = ResolveTypeReference(castOpDecl.TargetType, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
-            if (castOpSymbol is not null)
-            {
-                castOpSymbol.DeclaredType = targetType;
-            }
-        }
-
         var resolvedTargetType = castOpSymbol?.DeclaredType;
 
         // Create a method scope for parameters and the optional body.
@@ -17063,36 +16872,14 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         SourceText? sourceText,
         DiagnosticBag diagnostics)
     {
-        // Idempotency guard: if Phase 4 already resolved the property type, skip
-        // type resolution but still perform storage-ban checks below.
+        // Phase 4 is the sole owner of property type resolution — DeclaredType is
+        // always set before Pass 2 runs. Read it directly.
         var propSymbol = symbolTable.GetDeclaredSymbol(blockProp) as Symbol;
-        IType propType;
-        if (propSymbol?.DeclaredType is not null)
-        {
-            propType = propSymbol.DeclaredType;
-        }
-        else
-        {
-            // Resolve the property type and update the property symbol.
-            propType = ResolveTypeReference(blockProp.Type, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
-
-            if (propSymbol is not null)
-            {
-                propSymbol.DeclaredType = propType;
-            }
-
-            // Also update the backing field's declared type if present.
-            var propInfo2 = propSymbol?.PropertyMetadata;
-            if (propInfo2?.BackingField is Symbol backingField)
-            {
-                backingField.DeclaredType = propType;
-            }
-        }
+        var propType = propSymbol?.DeclaredType ?? ErrorType.Instance;
 
         // Storage-ban check (unknown-type feature, Task 11.2, Requirements
         // 5.2, 7.5, 7.6, 16.1). See ResolveFieldDeclaration for the
         // "do not substitute ErrorType" rationale.
-        // Runs regardless of whether Phase 4 or Pass 2 resolved the type.
         if (TypeContainment.IsStorageBanned(propType))
         {
             diagnostics.Add(MakeDiagnosticWithLocation(
@@ -17130,31 +16917,16 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         SourceText? sourceText,
         DiagnosticBag diagnostics)
     {
-        // Idempotency guard: if Phase 4 already resolved the property type, skip
-        // type resolution but still perform storage-ban checks below.
+        // Phase 4 is the sole owner of property type resolution — DeclaredType is
+        // always set before Pass 2 runs. Read it directly.
         var propSymbol = symbolTable.GetDeclaredSymbol(exprProp) as Symbol;
-        IType propType;
-        if (propSymbol?.DeclaredType is not null)
-        {
-            propType = propSymbol.DeclaredType;
-        }
-        else
-        {
-            // Resolve the property type and update the property symbol.
-            propType = ResolveTypeReference(exprProp.Type, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
-
-            if (propSymbol is not null)
-            {
-                propSymbol.DeclaredType = propType;
-            }
-        }
+        var propType = propSymbol?.DeclaredType ?? ErrorType.Instance;
 
         // Storage-ban check (unknown-type feature, Task 11.2, Requirements
         // 5.2, 7.5, 7.6, 16.1). Expression-bodied properties have no
         // backing field per se, but Requirement 5.2 bans `unknown` as the
         // type of any property declaration regardless of how it is
         // implemented — the ban is a declaration-site rule.
-        // Runs regardless of whether Phase 4 or Pass 2 resolved the type.
         if (TypeContainment.IsStorageBanned(propType))
         {
             diagnostics.Add(MakeDiagnosticWithLocation(
@@ -17265,21 +17037,14 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         SourceText? sourceText,
         DiagnosticBag diagnostics)
     {
-        // Idempotency guard: check if Phase 4 already resolved the indexer type.
+        // Phase 4 is the sole owner of indexer type resolution — DeclaredType
+        // is always set before Pass 2 runs. Read it directly.
         var indexerSymbol = symbolTable.GetDeclaredSymbol(indexerDecl) as Symbol;
+        var indexerType = indexerSymbol?.DeclaredType ?? ErrorType.Instance;
 
         if (indexerDecl.Body is not BlockIndexerBodyIndexerBodyNode blockBody2)
         {
-            // Intrinsic indexer — resolve the type only if not already resolved.
-            if (indexerSymbol?.DeclaredType is null)
-            {
-                var intrinsicIndexerType = ResolveTypeReference(indexerDecl.Type, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
-                if (indexerSymbol is not null)
-                {
-                    indexerSymbol.DeclaredType = intrinsicIndexerType;
-                }
-            }
-            // Register indexer parameters.
+            // Intrinsic indexer — register parameters only.
             if (indexerDecl.Parameters is not null)
             {
                 var intrinsicIndexerScope = new Scope(parent: typeScope);
@@ -17288,28 +17053,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             return;
         }
 
-        // Resolve the indexer return type and update the indexer symbol, unless
-        // Phase 4 already resolved it.
-        IType indexerType;
-        if (indexerSymbol?.DeclaredType is not null)
-        {
-            indexerType = indexerSymbol.DeclaredType;
-        }
-        else
-        {
-            indexerType = ResolveTypeReference(indexerDecl.Type, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
-
-            if (indexerSymbol is not null)
-            {
-                indexerSymbol.DeclaredType = indexerType;
-            }
-        }
-
         // Storage-ban check (unknown-type feature, Task 11.3, Requirements
         // 5.3, 7.5, 7.6, 16.1). Applies to the indexer's element type — the
         // type yielded by a get and consumed by a set — which is the
         // storage-shaped position per Requirement 5.3.
-        // Runs regardless of whether Phase 4 or Pass 2 resolved the type.
         if (TypeContainment.IsStorageBanned(indexerType))
         {
             diagnostics.Add(MakeDiagnosticWithLocation(

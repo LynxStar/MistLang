@@ -22464,23 +22464,41 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     }
 
                     // If not found on the type itself, check extension methods.
+                    var isExtensionMethod = false;
                     if (methodSymForParams is null && _extensionRegistryContext is not null)
                     {
                         var extLookupType = targetType;
                         if (extLookupType is ConstructedType extCt)
                             extLookupType = extCt.GenericDefinition;
                         var extensions = _extensionRegistryContext.GetApplicableExtensions(targetType);
+                        var argCount = methodCall.Arguments.GetAllExpressions().Length;
+                        ISymbol? firstExtMatch = null;
                         foreach (var ext in extensions)
                         {
                             foreach (var m in ext.MemberScope.Members)
                             {
                                 if (m.Name == memberName && m.Kind == SymbolKind.Method)
                                 {
-                                    methodSymForParams = m;
-                                    break;
+                                    firstExtMatch ??= m;
+                                    // For backend (ambient) extension methods with populated Parameters,
+                                    // prefer the overload whose param count (minus receiver) matches
+                                    // the argument count at the call site.
+                                    if (m is Symbol extSym && extSym.Parameters.Count > 0
+                                        && extSym.Parameters.Count - 1 == argCount)
+                                    {
+                                        methodSymForParams = m;
+                                        isExtensionMethod = true;
+                                        break;
+                                    }
                                 }
                             }
                             if (methodSymForParams is not null) break;
+                        }
+                        // Fallback: use first match if no exact param count match.
+                        if (methodSymForParams is null && firstExtMatch is not null)
+                        {
+                            methodSymForParams = firstExtMatch;
+                            isExtensionMethod = true;
                         }
                     }
 
@@ -22508,6 +22526,17 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     if (methodSymForParams is not null)
                     {
                         methodParamTypes = ParameterSignature.Extract(methodSymForParams, symbolTable);
+
+                        // Extension methods from CLR assemblies include the 'this' receiver
+                        // as the first parameter in Symbol.Parameters. Skip it so argument
+                        // indices align with parameter indices correctly.
+                        // Mist-defined extensions don't have this issue (AST-based extraction
+                        // already excludes the receiver).
+                        if (isExtensionMethod && methodParamTypes.Count > 0
+                            && methodSymForParams is Symbol { Origin: SymbolOrigin.Backend })
+                        {
+                            methodParamTypes = methodParamTypes.Skip(1).ToList();
+                        }
 
                         // If the target is a constructed generic type (e.g., List<int>),
                         // substitute type parameters in the extracted parameter types so that

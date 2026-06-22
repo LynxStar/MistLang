@@ -43,18 +43,22 @@ The lambda param `e` in `HasForeignKey` is typed as the raw type parameter `TRel
 - `nav.WithOne()` — resolves, member access on result works (`.Metadata.PrincipalEntityType.Name`) ✓
 - `rel.HasForeignKey(e => e.ReqId)` — FAILS: `TRelatedEntity` not substituted ✗
 
-### Root Cause
-`HasForeignKey` is likely declared on a non-generic or differently-parameterized base class of `ReferenceNavigationBuilder<TEntity, TRelatedEntity>`. When `LookupMemberType` resolves `HasForeignKey` through the base class chain, the type parameters at the base level have different names/ordinals than the ones at the `ReferenceNavigationBuilder` level, so the ConstructedType substitution doesn't reach them.
+### Root Cause (Confirmed via tracing)
+The `TypeArgumentInferenceEngine.TryInfer` fails when trying to infer `TRelatedEntity` from the resolved lambda type. Specifically:
 
-This is a CLR base class type parameter forwarding problem: when `ClassA<T1, T2> : ClassB<T2>`, calling a method on `ClassA<Req, WI>` that's defined on `ClassB<TDependentEntity>` needs `TDependentEntity → WI` (mapping through the intermediate inheritance).
+- **Param type**: `Expression<Func<TEntity, IEnumerable<TRelatedEntity>>> | void`
+- **Arg type**: `Func<Req10, List<WI10> | Void>`
 
-### Impact
-Relationship configuration via fluent API chains is blocked:
-- `HasMany(...).WithOne(...).HasForeignKey(...)` ✗
-- Individual calls that don't depend on type param forwarding through base classes work ✓
+The inference engine's `Unify` method cannot:
+1. **Unwrap `Expression<T>`** — it doesn't know that `Expression<Func<...>>` wraps a `Func`
+2. **Match `List<WI10>` against `IEnumerable<TRelatedEntity>`** — it requires `ReferenceEquals(GenericDefinition)` but `List` ≠ `IEnumerable`; it doesn't handle interface implementation (List implements IEnumerable)
+3. **Handle nullable unions** — `List<WI10> | Void` doesn't unify against `IEnumerable<TRelatedEntity>`
 
-### Potential Fix Direction
-In `LookupMemberType`, when walking the base type chain of a ConstructedType, substitute the type arguments at each level through the base type's type argument mapping. E.g., if `ReferenceNavigationBuilder<TEntity, TRelatedEntity>` extends `ReferenceNavigationBuilder<TRelatedEntity>` (forwarding the second type arg as the first arg to the base), the substitution chain needs to carry `TRelatedEntity → WI10` from the derived level down into the base's member scope.
+### Fix Direction
+Extend `TypeArgumentInferenceEngine.Unify` (in `TypeArgumentInferenceEngine.cs`) to handle:
+- Expression<T> unwrapping before unification
+- Interface implementation: when arg is `List<T>` and param is `IEnumerable<T>`, find the matching interface and unify type args
+- Nullable union unwrapping: strip `| Void` before unification
 
 ---
 

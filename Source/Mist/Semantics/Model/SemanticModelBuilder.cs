@@ -21409,18 +21409,36 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 for (var pi = 0; pi < paramTypes.Count; pi++)
                     funcTypeArgs[pi] = paramTypes[pi];
 
-                // For CLR Action, return type is Void. Look up stdlib Void.
                 try
                 {
                     var globalScope = FindGlobalScope(fileScope) ?? fileScope;
-                    var voidType = LookupQualifiedStdlibType(globalScope, symbolTable, "Standard.Void");
-                    funcTypeArgs[^1] = voidType;
+
+                    if (isClrAction)
+                    {
+                        // CLR Action: return type is Void.
+                        var voidType = LookupQualifiedStdlibType(globalScope, symbolTable, "Standard.Void");
+                        funcTypeArgs[^1] = voidType;
+                    }
+                    else
+                    {
+                        // CLR Func: infer return type from lambda body.
+                        var inferredReturn = InferLambdaBodyReturnType(lambda, expressionTypes, fileScope, symbolTable, false);
+                        if (inferredReturn is not null && inferredReturn is not ErrorType && inferredReturn is not UnknownType)
+                        {
+                            funcTypeArgs[^1] = inferredReturn;
+                        }
+                        else
+                        {
+                            // Fallback to the target Func's last type arg (may contain type params).
+                            funcTypeArgs[^1] = returnType;
+                        }
+                    }
+
                     var funcDefinition = LookupQualifiedStdlibType(globalScope, symbolTable, "Standard.Func", funcArity);
                     return new ConstructedType(funcDefinition, funcTypeArgs);
                 }
                 catch (StdlibMissingException)
                 {
-                    // Fallback to the CLR type if stdlib isn't available.
                     return funcCt;
                 }
             }

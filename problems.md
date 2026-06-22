@@ -1,13 +1,36 @@
 # Findings: Interop Blockers for EF Core DbContext Implementation
 
-## Status: ALL ISSUES RESOLVED
+## Status: ALL ISSUES RESOLVED (Issues 1–14)
 
 ## Task
 3.1 — Implement EF Core DbContext and entity configurations
 
 ## Summary
 
-All interop blockers are resolved. The full EF Core DbContext pattern — including derivation, implicit override, Fluent API configuration with generic lambdas, nested lambdas, Expression<Func<T>> parameters, chained fluent API with type argument inference through interface implementations, and CRTP-based types — works end-to-end.
+All 14 interop blockers are resolved. The full EF Core DbContext Fluent API pattern works end-to-end including relationships, owned types, type conversions, indexes, and EnableRetryOnFailure.
+
+---
+
+## What Now Compiles ✅
+
+```mist
+void OnModelCreating(ModelBuilder modelBuilder)
+{
+    modelBuilder.Entity<Request>(entity =>
+    {
+        entity.HasKey(e => e.RequestId);
+        entity.Property(e => e.RequestId).ValueGeneratedOnAdd();
+        entity.Property(e => e.Type).HasConversion<string>();
+        entity.HasIndex(e => e.State);
+        entity.HasMany(e => e.WorkItems).WithOne().HasForeignKey(e => e.RequestId);
+        entity.OwnsOne(e => e.QualityTier, qt =>
+        {
+            qt.Property("Resolution").HasConversion<int>();
+        });
+        entity.ToTable("Requests");
+    });
+}
+```
 
 ---
 
@@ -26,22 +49,6 @@ All interop blockers are resolved. The full EF Core DbContext pattern — includ
 | 9 | HasMany/OwnsOne lambda inference | LookupMemberSymbolByParamCount + lambda-compatible preference |
 | 10 | Chained fluent API type propagation | TypeArgumentInferenceEngine: Expression unwrapping, interface implementation unification, nullable union unwrapping |
 | 11 | CRTP stack overflow | Cycle detection in ImplementsConstructedInterface |
-
----
-
-## What Now Compiles ✅
-
-```mist
-void OnModelCreating(ModelBuilder modelBuilder)
-{
-    modelBuilder.Entity<Request>(entity =>
-    {
-        entity.HasKey(e => e.RequestId);
-        entity.Property(e => e.RequestId).ValueGeneratedOnAdd();
-        entity.Property(e => e.Type).HasConversion<string>();
-        entity.HasIndex(e => e.State);
-        entity.HasMany(e => e.WorkItems).WithOne().HasForeignKey(e => e.RequestId);
-        entity.ToTable("Requests");
-    });
-}
-```
+| 12 | HasForeignKey lambda — TRelatedEntity | Already fixed by Issue 10's inference engine extensions |
+| 13 | OwnsOne nested builder lambda | Already fixed by Issue 10's inference engine extensions |
+| 14 | HasConversion<T> type arg count ambiguity | Filter overload candidates by type parameter arity mismatch |

@@ -11479,6 +11479,18 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                                 UninferrableTypeParameters: null,
                                 Conflicts: null);
                         }
+                        else if (candidates[i] is Symbol mismatchSym
+                            && mismatchSym.TypeParameters.Count > 0
+                            && mismatchSym.TypeParameters.Count != resolvedExplicitTypeArgs.Count)
+                        {
+                            // Mark generic candidates with wrong arity as failed
+                            // so the overload resolver excludes them.
+                            inferenceResults[i] = new InferenceResult(
+                                Success: false,
+                                InferredTypeArguments: null,
+                                UninferrableTypeParameters: new[] { "arity mismatch" },
+                                Conflicts: null);
+                        }
                     }
                 }
             }

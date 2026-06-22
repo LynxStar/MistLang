@@ -23340,14 +23340,24 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         if (ambientLookupType is ClassType or StructType or InterfaceType)
                         {
                             var ambientMembers = ambientTypeResolver.GetMembers(ambientLookupType);
+                            var argCount = methodCall.Arguments.GetAllExpressions().Length;
+                            ISymbol? firstAmbientMatch = null;
+                            ISymbol? lambdaAmbientMatch = null;
                             foreach (var m in ambientMembers)
                             {
                                 if (m.Name == memberName && m.Kind == SymbolKind.Method)
                                 {
-                                    methodSymForParams = m;
-                                    break;
+                                    firstAmbientMatch ??= m;
+                                    // Prefer the overload with lambda-compatible params and matching param count.
+                                    if (m is Symbol ambSym && ambSym.Parameters.Count == argCount
+                                        && HasLambdaCompatibleParameter(ambSym))
+                                    {
+                                        lambdaAmbientMatch = m;
+                                        break;
+                                    }
                                 }
                             }
+                            methodSymForParams = lambdaAmbientMatch ?? firstAmbientMatch;
                         }
                     }
 

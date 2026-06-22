@@ -20578,6 +20578,31 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
             // The lambda's type is the equivalent Func type (even when targeting a DelegateType,
             // the lambda is typed as func<...> — conversion to the delegate happens at the call site).
+            // When funcCt came from a CLR Action/Func ClassType (not stdlib Func), construct
+            // the proper stdlib Func type so the overload resolver can match it.
+            if (!IsFuncType(funcCt))
+            {
+                // Construct stdlib Func<paramTypes..., returnType> from the extracted types.
+                var funcArity = paramTypes.Count + 1;
+                var funcTypeArgs = new IType[funcArity];
+                for (var pi = 0; pi < paramTypes.Count; pi++)
+                    funcTypeArgs[pi] = paramTypes[pi];
+
+                // For CLR Action, return type is Void. Look up stdlib Void.
+                try
+                {
+                    var globalScope = FindGlobalScope(fileScope) ?? fileScope;
+                    var voidType = LookupQualifiedStdlibType(globalScope, symbolTable, "Standard.Void");
+                    funcTypeArgs[^1] = voidType;
+                    var funcDefinition = LookupQualifiedStdlibType(globalScope, symbolTable, "Standard.Func", funcArity);
+                    return new ConstructedType(funcDefinition, funcTypeArgs);
+                }
+                catch (StdlibMissingException)
+                {
+                    // Fallback to the CLR type if stdlib isn't available.
+                    return funcCt;
+                }
+            }
             return funcCt;
         }
 

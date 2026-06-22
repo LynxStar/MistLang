@@ -11459,6 +11459,29 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     // null entry means non-generic candidate — passes through unchanged.
                 }
             }
+            else
+            {
+                // Explicit type arguments provided: create synthetic inference results
+                // so the overload resolver substitutes the method's type parameters
+                // into parameter types before the assignability check.
+                var resolvedExplicitTypeArgs = ResolveTypeArgumentsFromAst(methodCall.TypeArgs, model);
+                if (resolvedExplicitTypeArgs.Count > 0)
+                {
+                    inferenceResults = new InferenceResult?[candidates.Count];
+                    for (var i = 0; i < candidates.Count; i++)
+                    {
+                        if (candidates[i] is Symbol candidateSym
+                            && candidateSym.TypeParameters.Count == resolvedExplicitTypeArgs.Count)
+                        {
+                            inferenceResults[i] = new InferenceResult(
+                                Success: true,
+                                InferredTypeArguments: resolvedExplicitTypeArgs.ToArray(),
+                                UninferrableTypeParameters: null,
+                                Conflicts: null);
+                        }
+                    }
+                }
+            }
 
             var result = OverloadResolver.Resolve(candidates, argTypes, model,
                 argumentRefKinds: argRefKinds, inferenceResults: inferenceResults);
@@ -19903,6 +19926,24 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 && (type.DisplayName == refinement.BaseType.DisplayName
                     || ArePrimitiveEquivalent(type, refinement.BaseType)))
                 return true;
+            // Cross-representation delegate compatibility: a stdlib Func<T1, ..., Void>
+            // is assignable to a CLR Action<T1, ...> constituent when the parameter
+            // counts match. This handles the case where the lambda resolves to stdlib
+            // Func but the method parameter was projected as CLR Action. The type
+            // checker already validated parameter type compatibility during lambda
+            // inference, so arg-count matching is sufficient here.
+            if (SemanticModelBuilder.IsFuncType(type) && type is ConstructedType funcCt
+                && constituent is ConstructedType ctConstituent
+                && !SemanticModelBuilder.IsFuncType(constituent)
+                && constituent.DisplayName != "Void" && !constituent.IsVoid())
+            {
+                var funcArgs = funcCt.TypeArguments;
+                var lastFuncArg = funcArgs.Count > 0 ? funcArgs[funcArgs.Count - 1] : null;
+                var isVoidReturn = lastFuncArg is not null && lastFuncArg.IsVoid();
+
+                if (isVoidReturn && funcArgs.Count - 1 == ctConstituent.TypeArguments.Count)
+                    return true;
+            }
         }
         return false;
     }

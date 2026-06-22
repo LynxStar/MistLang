@@ -1,103 +1,120 @@
 # Findings: Interop Blockers for EF Core DbContext Implementation
 
-## Status: ALL ISSUES RESOLVED
+## Status: PARTIALLY BLOCKED
 
 ## Task
 3.1 — Implement EF Core DbContext and entity configurations
 
 ## Summary
 
-All five original interop blockers are resolved. Additionally, three follow-on issues discovered during testing (constructed generic member resolution, extension method ambiguity, and Expression<Func<T>> unwrapping for nested lambdas) are also fixed. The full EF Core DbContext pattern works end-to-end.
+Three issues block the full Fluent API configuration. Keys, auto-generation, enum conversions, and indexes all work. Relationships, owned types, and `EnableRetryOnFailure` are blocked.
 
 ---
 
-## Issue 1: `protected` Access Modifier — RESOLVED
+## Issue 9: Extension Method Lambda Inference for HasMany/OwnsOne
 
-Mist's `private` (no access modifier) already behaves like C#'s `protected`. The emitter maps Mist private → C# `protected` when emitting an implicit override.
-
----
-
-## Issue 2: `override` Emits Wrong Access Level — RESOLVED
-
-Implicit override detection in the C# emitter. When a Mist class inherits from a CLR base and defines a method matching a virtual/abstract slot, the emitter emits `protected override` (or `public override`) automatically with an info diagnostic.
-
----
-
-## Issue 3: Generic Method Lambda Parameter Type Inference — RESOLVED
-
-Full pipeline fix across semantic model builder, type checker, and overload resolver:
-
-1. Method-level type arguments are substituted into parameter types before lambda target type inference
-2. CLR Action/Func types projected as ClassType (not stdlib Func) are detected and used as lambda targets
-3. Lambda resolves to proper stdlib Func type for overload matching
-4. Explicit type args passed as synthetic inference results to the overload resolver
-5. Cross-representation delegate compatibility: stdlib `Func<T, Void>` matches CLR `Action<T>` in union constituents
-
----
-
-## Issue 4: Extension Method Nested Lambda Type Inference — RESOLVED
-
-Fixed by: correct overload selection for ambient extension methods (prefer matching param count), receiver parameter offset for backend extensions (skip `this` param), and Expression<Func<T>> unwrapping for nested lambdas.
-
----
-
-## Issue 5: Generic Constructor Parameter Type Resolution — RESOLVED
-
-ConstructedType → non-generic base class subtype checking in `IsAssignable`, plus union constituent subtype fallback for nullable-projected CLR parameters.
-
----
-
-## Additional Fixes (discovered during testing)
-
-- **Constructed generic member resolution**: `EntityTypeBuilder<Request>` member scope was empty (disconnected shell). Fixed by resolving the generic definition through the type provider when it's a disconnected shell inside a ConstructedType.
-
-- **Extension method ambiguity**: `EntityTypeBuilder<T>` extensions vs `EntityTypeBuilder` extensions. Fixed by handling ConstructedType in `IsReceiverAssignableTo` base chain walking.
-
-- **Expression<Func<T>> unwrapping**: `HasKey(Expression<Func<TEntity, object?>>)` — the lambda target type detection now unwraps `Expression<T>` to get the inner Func for parameter inference.
-
----
-
-## Current Working State
-
-The full EF Core pattern compiles and produces correct C#:
+### Symptom
 ```mist
-using Microsoft.EntityFrameworkCore;
+entity.HasMany(e => e.WorkItems)
+```
+Error: `'EntityTypeBuilder<Request>' does not contain a definition for 'WorkItems'.`
 
-public class Request
+The lambda parameter `e` is being resolved as `EntityTypeBuilder<Request>` (the receiver type) instead of `Request` (the `TEntity` generic argument).
+
+### Root Cause
+`HasMany` is an extension method on `EntityTypeBuilder<TEntity>` with signature:
+```csharp
+CollectionNavigationBuilder<TEntity, TRelated> HasMany<TRelated>(
+    Expression<Func<TEntity, IEnumerable<TRelated>?>> navigationExpression)
+```
+
+The type inference needs to:
+1. Resolve `TEntity` from the receiver (`EntityTypeBuilder<Request>` → `TEntity = Request`)
+2. Use `TEntity` as the lambda parameter type in `Expression<Func<TEntity, ...>>`
+
+Step (2) fails — the lambda parameter type defaults to the receiver type rather than extracting the generic argument.
+
+### Same Issue Affects
+- `entity.HasMany(e => e.WorkItems)` — `e` typed as `EntityTypeBuilder<Request>`
+- `entity.OwnsOne(e => e.QualityTier, ...)` — `e` typed as `EntityTypeBuilder<DownloadAttempt>`
+
+### Contrast With Working Pattern
+`entity.HasKey(e => e.RequestId)` works because `HasKey` is a direct instance method on `EntityTypeBuilder<TEntity>` (not an extension method) where the lambda target type `Expression<Func<TEntity, object?>>` is directly resolved from the class's own type parameter.
+
+### Expected Behavior
+For extension methods on `EntityTypeBuilder<TEntity>`, the `TEntity` should be extracted from the constructed receiver type and substituted into the extension method's parameter types before lambda target type inference.
+
+---
+
+## Issue 10: Chained Fluent API Lambda Return-Type Propagation
+
+### Symptom
+```mist
+entity.HasMany(e => e.WorkItems).WithOne(e => e.Request).HasForeignKey(e => e.RequestId)
+```
+Errors on `WithOne` and `HasForeignKey` lambdas — the return types of the chained methods aren't providing correct lambda parameter types.
+
+### Root Cause
+Even if Issue 9 were fixed, the return type of `HasMany(...)` is `CollectionNavigationBuilder<TEntity, TRelated>`. The subsequent `.WithOne(...)` method needs to infer its lambda parameter type from the `TRelated` generic argument of that return type. This is a multi-hop inference chain.
+
+### Expected Behavior
+Each method in the fluent chain should produce a correctly-typed generic return value, and the next method's lambda parameters should be inferred from that return type's generic arguments.
+
+---
+
+## Issue 11: NpgsqlDbContextOptionsBuilder Stack Overflow in Type Checker
+
+### Symptom
+Using `NpgsqlDbContextOptionsBuilder` as a lambda parameter type annotation causes the compiler to stack overflow:
+```mist
+options.UseNpgsql(
+    connectionString,
+    (NpgsqlDbContextOptionsBuilder npgsqlOptions) => npgsqlOptions.EnableRetryOnFailure(3)
+);
+```
+
+Stack trace shows infinite recursion:
+```
+Repeated 3916 times:
+  at TypeCheckerAnalyzer.IsAssignable(IType, IType, ISemanticModel)
+  at TypeCheckerAnalyzer.IsAssignable(IType, IType)
+  at TypeCheckerAnalyzer.ImplementsConstructedInterface(IType, ConstructedType)
+```
+
+### Root Cause
+`NpgsqlDbContextOptionsBuilder` extends `RelationalDbContextOptionsBuilder<NpgsqlDbContextOptionsBuilder, NpgsqlOptionsExtension>` — a **Curiously Recurring Template Pattern (CRTP)**. The `IsAssignable` check enters infinite recursion when walking the type's interface/base chain because the type refers back to itself as a generic argument.
+
+### Expected Behavior
+CRTP patterns in CLR types should be handled with cycle detection in `IsAssignable`/`ImplementsConstructedInterface`.
+
+---
+
+## What Currently Compiles ✅
+
+```mist
+void OnModelCreating(ModelBuilder modelBuilder)
 {
-    public int RequestId { get; set; }
-}
-
-public class PendragonDbContext : DbContext
-{
-    public PendragonDbContext(DbContextOptions<PendragonDbContext> options) : base(options)
+    modelBuilder.Entity<Request>(entity =>
     {
-    }
-
-    public DbSet<Request>? Requests { get; set; }
-
-    void OnModelCreating(ModelBuilder modelBuilder)
-    {
-        modelBuilder.Entity<Request>(entity =>
-        {
-            entity.HasKey(e => e.RequestId);
-            entity.ToTable("Requests");
-        });
-    }
+        entity.HasKey(e => e.RequestId);
+        entity.Property(e => e.RequestId).ValueGeneratedOnAdd();
+        entity.Property(e => e.Type).HasConversion<string>();
+        entity.HasIndex(e => e.State);
+    });
 }
 ```
+
+## What's Missing (blocked):
+- Relationships: `HasMany(...).WithOne(...).HasForeignKey(...)` — Issues 9 + 10
+- Owned types: `OwnsOne(e => e.QualityTier, qt => { ... })` — Issue 9
+- EnableRetryOnFailure: `npgsqlOptions.EnableRetryOnFailure(3)` — Issue 11
 
 ---
 
 ## Priority Assessment
 
-| Issue | Status |
-|-------|--------|
-| Issue 1 (protected keyword) | ✅ RESOLVED |
-| Issue 2 (override access level) | ✅ RESOLVED |
-| Issue 3 (generic lambda inference) | ✅ RESOLVED |
-| Issue 4 (nested lambda inference) | ✅ RESOLVED |
-| Issue 5 (generic ctor param) | ✅ RESOLVED |
-| Constructed generic member resolution | ✅ RESOLVED |
-| Extension method ambiguity | ✅ RESOLVED |
-| Expression<Func<T>> unwrapping | ✅ RESOLVED |
+| Issue | Severity | Suggested Fix |
+|-------|----------|---------------|
+| **Issue 9** | High | Extract `TEntity` from constructed receiver type for extension method lambda inference |
+| **Issue 10** | High | May auto-resolve with Issue 9; otherwise needs return-type generic arg propagation |
+| **Issue 11** | Medium | Add cycle detection in `IsAssignable`/`ImplementsConstructedInterface` for CRTP |

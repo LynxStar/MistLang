@@ -22501,11 +22501,15 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     }
                     else
                     {
-                        methodSymForParams = LookupMemberSymbol(targetType, memberName, ambientTypeResolver, fileScope, symbolTable);
+                        // For non-generic methods, prefer the overload whose param count
+                        // matches the argument count (handles HasMany(string) vs HasMany(Expression<...>)).
+                        var argCount = methodCall.Arguments.GetAllExpressions().Length;
+                        methodSymForParams = LookupMemberSymbolByParamCount(targetType, memberName, argCount, ambientTypeResolver, fileScope, symbolTable);
                     }
 
                     // If not found on the type itself, check extension methods.
                     var isExtensionMethod = false;
+                    IReadOnlyList<TypeParameterType>? extensionTypeParams = null;
                     if (methodSymForParams is null && _extensionRegistryContext is not null)
                     {
                         var extLookupType = targetType;
@@ -22514,6 +22518,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         var extensions = _extensionRegistryContext.GetApplicableExtensions(targetType);
                         var argCount = methodCall.Arguments.GetAllExpressions().Length;
                         ISymbol? firstExtMatch = null;
+                        ExtensionBlockInfo? matchedExtBlock = null;
                         foreach (var ext in extensions)
                         {
                             foreach (var m in ext.MemberScope.Members)
@@ -22521,6 +22526,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                                 if (m.Name == memberName && m.Kind == SymbolKind.Method)
                                 {
                                     firstExtMatch ??= m;
+                                    matchedExtBlock ??= ext;
                                     // For backend (ambient) extension methods with populated Parameters,
                                     // prefer the overload whose param count (minus receiver) matches
                                     // the argument count at the call site.
@@ -22529,6 +22535,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                                     {
                                         methodSymForParams = m;
                                         isExtensionMethod = true;
+                                        extensionTypeParams = ext.TypeParameters;
                                         break;
                                     }
                                 }
@@ -22540,6 +22547,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         {
                             methodSymForParams = firstExtMatch;
                             isExtensionMethod = true;
+                            extensionTypeParams = matchedExtBlock?.TypeParameters;
                         }
                     }
 
@@ -22593,6 +22601,33 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                                 for (var pi = 0; pi < methodParamTypes.Count; pi++)
                                 {
                                     substituted[pi] = SubstituteTypeInMember(methodParamTypes[pi], typeParams, ctForSubst.TypeArguments);
+                                    if (!ReferenceEquals(substituted[pi], methodParamTypes[pi]))
+                                        anyChanged = true;
+                                }
+                                if (anyChanged)
+                                    methodParamTypes = substituted;
+                            }
+                        }
+
+                        // For extension methods on generic receivers, substitute the extension's
+                        // receiver type parameters with the target's type arguments.
+                        // E.g., HasMany on EntityTypeBuilder<TEntity> with target EntityTypeBuilder<Request>
+                        // needs TEntity → Request substituted into the extension's parameter types.
+                        if (isExtensionMethod && methodParamTypes.Count > 0
+                            && extensionTypeParams is { Count: > 0 }
+                            && targetType is ConstructedType extTargetCt)
+                        {
+                            // The extension's type params correspond to the receiver's generic args.
+                            // Map them to the target's concrete type arguments.
+                            if (extensionTypeParams.Count <= extTargetCt.TypeArguments.Count)
+                            {
+                                var extTypeParamsAsIType = extensionTypeParams.Cast<IType>().ToList();
+                                var substituted = new IType[methodParamTypes.Count];
+                                var anyChanged = false;
+                                for (var pi = 0; pi < methodParamTypes.Count; pi++)
+                                {
+                                    substituted[pi] = SubstituteTypeInMember(
+                                        methodParamTypes[pi], extTypeParamsAsIType, extTargetCt.TypeArguments);
                                     if (!ReferenceEquals(substituted[pi], methodParamTypes[pi]))
                                         anyChanged = true;
                                 }
@@ -25601,6 +25636,111 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// Looks up a method symbol by name, preferring an overload whose parameter count
+    /// matches the provided argument count. Falls back to the first name match.
+    /// Used for lambda target type inference when multiple overloads exist
+    /// (e.g., HasMany(string) vs HasMany(Expression&lt;Func&lt;...&gt;&gt;)).
+    /// </summary>
+    private static ISymbol? LookupMemberSymbolByParamCount(
+        IType targetType,
+        string memberName,
+        int argCount,
+        IAmbientTypeResolver? ambientTypeResolver,
+        Scope fileScope,
+        SymbolTable symbolTable)
+    {
+        if (targetType is ErrorType or NamespaceReferenceType)
+            return null;
+
+        if (targetType is ConstructedType ct)
+            targetType = ct.GenericDefinition;
+
+        if (targetType is ClassType classTarget)
+        {
+            ClassType? current = classTarget;
+            ISymbol? firstMatch = null;
+            ISymbol? lambdaCompatibleMatch = null;
+            while (current is not null)
+            {
+                foreach (var m in current.MemberScope.Members)
+                {
+                    if (m.Name == memberName && m.Kind == SymbolKind.Method)
+                    {
+                        firstMatch ??= m;
+                        if (m is Symbol s && s.Parameters.Count == argCount)
+                        {
+                            // Prefer overloads with Expression/Func/Action/delegate params
+                            // (lambda-compatible) over plain value params.
+                            if (HasLambdaCompatibleParameter(s))
+                            {
+                                lambdaCompatibleMatch = s;
+                            }
+                            else
+                            {
+                                firstMatch = s; // At least param count matches
+                            }
+                        }
+                    }
+                }
+                if (lambdaCompatibleMatch is not null)
+                    return lambdaCompatibleMatch;
+                current = current.BaseType as ClassType;
+            }
+            return firstMatch;
+        }
+
+        // Fallback to standard lookup for non-class types.
+        return LookupMemberSymbol(targetType, memberName, ambientTypeResolver, fileScope, symbolTable);
+    }
+
+    /// <summary>
+    /// Checks whether a method symbol has at least one parameter whose type is
+    /// lambda-compatible (Func, Action, Expression, DelegateType, or a ConstructedType
+    /// wrapping any of those). Used to prefer lambda-accepting overloads during
+    /// lambda target type inference.
+    /// </summary>
+    private static bool HasLambdaCompatibleParameter(Symbol symbol)
+    {
+        foreach (var param in symbol.Parameters)
+        {
+            var paramType = param.DeclaredType;
+            if (paramType is null) continue;
+
+            // Unwrap nullable unions (T | void) to check the inner type.
+            if (paramType is UnionType union)
+            {
+                foreach (var c in union.Constituents)
+                {
+                    if (IsLambdaCompatibleType(c)) return true;
+                }
+            }
+            else if (IsLambdaCompatibleType(paramType))
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// Determines if a type represents a lambda-compatible delegate/func/expression type.
+    /// </summary>
+    private static bool IsLambdaCompatibleType(IType type)
+    {
+        if (IsFuncType(type)) return true;
+        if (type is DelegateType) return true;
+        if (TryUnwrapExpressionFunc(type) is not null) return true;
+        // CLR Action/Func projected as ClassType.
+        if (type is ConstructedType ct
+            && ct.GenericDefinition is ClassType { ContainingNamespace: "System" } cls
+            && (cls.DisplayName.StartsWith("Action", StringComparison.Ordinal)
+                || cls.DisplayName.StartsWith("Func", StringComparison.Ordinal)
+                || cls.DisplayName == "Expression"))
+            return true;
+        return false;
     }
 
     /// <summary>

@@ -22658,6 +22658,36 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         }
                     }
                     ResolveArgumentListWithParameterTypes(methodCall.Arguments, methodParamTypes, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+
+                    // Post-resolution type argument inference: when the method is generic
+                    // and no explicit type args were provided, infer type args from the
+                    // resolved argument types and substitute into the return type.
+                    // This handles cases like HasMany<TRelated>(e => e.WorkItems) where
+                    // TRelated is inferred as WI10 from the lambda's return type.
+                    if (resolvedMethodTypeArgs is null && methodSymForParams is Symbol methodSymForInference
+                        && methodSymForInference.TypeParameters.Count > 0
+                        && ContainsTypeParameter(memberType))
+                    {
+                        var resolvedArgTypes = CollectResolvedArgumentTypes(methodCall.Arguments, expressionTypes);
+                        if (resolvedArgTypes.Count > 0)
+                        {
+                            var inferParamTypes = ParameterSignature.Extract(methodSymForInference, symbolTable);
+                            // Skip receiver param for extension methods.
+                            if (isExtensionMethod && inferParamTypes.Count > 0
+                                && methodSymForInference.Origin == SymbolOrigin.Backend)
+                            {
+                                inferParamTypes = inferParamTypes.Skip(1).ToList();
+                            }
+
+                            var inferenceResult = TypeArgumentInferenceEngine.TryInfer(
+                                methodSymForInference.TypeParameters, inferParamTypes, resolvedArgTypes);
+                            if (inferenceResult.Success && inferenceResult.InferredTypeArguments is not null)
+                            {
+                                memberType = SubstituteTypeInMember(
+                                    memberType, methodSymForInference.TypeParameters, inferenceResult.InferredTypeArguments);
+                            }
+                        }
+                    }
                 }
 
                 // Auto-unwrap: in a sync context, if the invoked method is async,
@@ -25768,6 +25798,30 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         IReadOnlyList<IType>? parameterTypes = null)
     {
         ResolveArgumentListWithParameterTypes(argList, parameterTypes, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+    }
+
+    /// <summary>
+    /// Collects the resolved types of arguments from the expression types dictionary.
+    /// Used for post-resolution type argument inference on generic methods.
+    /// </summary>
+    private static List<IType> CollectResolvedArgumentTypes(
+        ArgumentListNode argList,
+        Dictionary<Storm.Runtime.SyntaxNode, IType> expressionTypes)
+    {
+        var result = new List<IType>();
+        var argExprs = argList.GetAllExpressions();
+        foreach (var expr in argExprs)
+        {
+            if (expressionTypes.TryGetValue(expr, out var resolvedType))
+            {
+                result.Add(resolvedType);
+            }
+            else
+            {
+                result.Add(UnknownType.Instance);
+            }
+        }
+        return result;
     }
 
     /// <summary>

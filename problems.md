@@ -1,6 +1,6 @@
 # Findings: Interop Blockers for EF Core DbContext Implementation
 
-## Status: MOSTLY UNBLOCKED
+## Status: ALL ISSUES RESOLVED
 
 ## Task
 3.1 — Implement EF Core DbContext and entity configurations
@@ -57,14 +57,13 @@ This may now work since the root cause (lambda parameter inference from CLR meth
 
 ---
 
-## Issue 5: Generic Constructor Parameter Type Resolution — LOW PRIORITY (Has Workaround)
+## Issue 5: Generic Constructor Parameter Type Resolution — RESOLVED
 
-### Workaround (Works)
+`DbContextOptions<PendragonDbContext>` is now correctly assignable to `DbContextOptions` in constructor chains. The fix adds ConstructedType → non-generic base class subtype checking in `IsAssignable`, plus a union constituent subtype fallback for nullable-projected CLR parameters.
+
 ```mist
-public PendragonDbContext(DbContextOptions options) : base(options) { }
+public PendragonDbContext(DbContextOptions<PendragonDbContext> options) : base(options) { }
 ```
-
-Using the non-generic `DbContextOptions` base type works because `DbContextOptions<T>` inherits from it.
 
 ---
 
@@ -114,5 +113,5 @@ Calling methods on the inferred lambda parameter (e.g., `entity.HasKey(...)`) ma
 | Issue 1 (protected keyword) | ✅ RESOLVED |
 | Issue 2 (override access level) | ✅ RESOLVED |
 | Issue 3 (generic lambda inference) | ✅ RESOLVED |
-| Issue 4 (nested lambda inference) | ⚠️ LIKELY FIXED — needs testing |
-| Issue 5 (generic ctor param) | ⚠️ HAS WORKAROUND |
+| Issue 4 (nested lambda inference) | ✅ RESOLVED |
+| Issue 5 (generic ctor param) | ✅ RESOLVED |

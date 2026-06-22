@@ -877,6 +877,42 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             }
         }
 
+        // Phase 1 (cont.): Eagerly build declaration-site file scopes.
+        // After all types are registered, construct each file's scope (namespace
+        // parent + using imports + global usings) and store it in a dictionary
+        // indexed by the CompilationUnitNode. Subsequent phases (type forwards,
+        // inheritance, explicit member types) reuse these scopes instead of
+        // rebuilding them per-file.
+        // NOTE: We use a separate diagnostic bag here to avoid duplicate
+        // "undefined namespace" diagnostics — Pass2_ResolveTypes will rebuild
+        // each file's scope with the real diagnostic bag and emit any errors.
+        var fileScopesByUnit = new Dictionary<Storm.Runtime.SyntaxNode, Scope>();
+        var fileScopeDiagnostics = new DiagnosticBag();
+        for (var i = 0; i < asts.Length; i++)
+        {
+            if (asts[i] is CompilationUnitNode cu)
+            {
+                var sourceText = i < compilation.Units.Length ? compilation.Units[i].Source : null;
+                var unitGlobalUsings = i < compilation.Units.Length
+                    ? compilation.Units[i].GlobalUsings
+                    : ImmutableArray<string>.Empty;
+
+                var fileScope = BuildFileScopeForUnit(
+                    cu, globalScope, symbolTable, ambientTypeResolver,
+                    sourceText, fileScopeDiagnostics, unitGlobalUsings, out _);
+
+                fileScopesByUnit[cu] = fileScope;
+            }
+        }
+
+        // Phase 2: Resolve type forwards (aliases and newtype source types).
+        // Builds a dependency graph of all alias/newtype symbols, walks it in
+        // topological order (leaves first), and resolves each target using
+        // declaration-site scopes. Cycles are detected and reported. For
+        // newtypes, only the source type identity is resolved (members are NOT
+        // cloned here — that happens in Phase 4b).
+        Pass1a_ResolveTypeForwards(asts, globalScope, symbolTable, ambientTypeResolver, fileScopesByUnit, compilation, diagnostics);
+
         // Pass 1e: Validate intrinsic markers (Task 9).
         // Walks every registered type and member to emit diagnostics for:
         //   * MIST_SB_0030 — intrinsic member with a body (Requirement 5.3).
@@ -1016,6 +1052,22 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             Backends.CSharpTranspiler.AssemblyTypeProvider.UpdateStdlibProvider(
                 new ScopeBasedStdlibTypeProvider(globalScope, symbolTable));
         }
+
+        // Phase 4: Resolve explicit member type annotations globally.
+        // After inheritance is fully resolved (base types, interface lists,
+        // constraints, traits, with-blocks, satisfaction), resolve all
+        // explicitly-annotated member types across ALL compilation units
+        // using declaration-site scopes. This guarantees that every
+        // explicitly-typed field, property, method signature, constructor,
+        // indexer, operator, and cast operator has a non-null DeclaredType
+        // BEFORE any expression-level inference begins in Pass 2.
+        Pass1_5_ResolveExplicitMemberTypes(asts, globalScope, symbolTable, ambientTypeResolver, fileScopesByUnit, compilation, diagnostics);
+
+        // Phase 4b: Clone newtype members. After all source types have their
+        // members fully typed (Phase 4), iterate all newtype symbols and clone
+        // members from their source types. This ensures cloned members carry
+        // the correct DeclaredType values resolved in Phase 4.
+        Pass1_5b_CloneNewtypeMembers(symbolTable);
 
         // Pass 2e (Phase A): Resolve extension block receiver types and register
         // member signatures in the ExtensionRegistry. This runs BEFORE Pass 2 so
@@ -5331,7 +5383,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     classDecl,
                     sourceText));
             }
-            else if (resolvedSymbol.DeclaredType is StructType)
+            else if (resolvedSymbol.DeclaredType is StructType ||
+                     UnwrapTypeForwards(resolvedSymbol.DeclaredType) is StructType)
             {
                 var sourceText = GetSourceTextFromOrigin(classDecl);
 
@@ -5381,6 +5434,28 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     var typeArgs = classDecl.BaseList.First.TypeArgs;
                     classType.BaseType = ResolveGenericTypeReference(
                         resolvedClassType, typeArgs, baseClassName,
+                        classType, classDecl, asts, compilation, diagnostics);
+                }
+            }
+            else if (UnwrapTypeForwards(resolvedSymbol.DeclaredType) is ClassType unwrappedClassType)
+            {
+                // The base type resolves to a type alias or newtype wrapping a ClassType.
+                if (unwrappedClassType.IsSealed)
+                {
+                    var sourceText = GetSourceTextFromOrigin(classDecl);
+
+                    diagnostics.Add(MakeDiagnosticWithLocation(
+                        "MIST_SEALED_INHERITANCE",
+                        DiagnosticSeverity.Error,
+                        $"Class '{classType.DisplayName}' cannot inherit from '{baseClassName}' because it is sealed.",
+                        classDecl,
+                        sourceText));
+                }
+                else
+                {
+                    var typeArgs = classDecl.BaseList.First.TypeArgs;
+                    classType.BaseType = ResolveGenericTypeReference(
+                        unwrappedClassType, typeArgs, baseClassName,
                         classType, classDecl, asts, compilation, diagnostics);
                 }
             }
@@ -5437,7 +5512,16 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     resolvedStructType, typeArgs, firstName,
                     structType, structDecl, asts, compilation, diagnostics);
             }
-            else if (resolvedSymbol?.DeclaredType is ClassType)
+            else if (UnwrapTypeForwards(resolvedSymbol?.DeclaredType) is StructType unwrappedStructType)
+            {
+                // First entry is a type alias or newtype wrapping a StructType → record as base type.
+                var typeArgs = firstEntry.TypeArgs;
+                structType.BaseType = ResolveGenericTypeReference(
+                    unwrappedStructType, typeArgs, firstName,
+                    structType, structDecl, asts, compilation, diagnostics);
+            }
+            else if (resolvedSymbol?.DeclaredType is ClassType ||
+                     UnwrapTypeForwards(resolvedSymbol?.DeclaredType) is ClassType)
             {
                 // A struct cannot inherit from a class.
                 var sourceText = GetSourceTextFromOrigin(structDecl);
@@ -5527,6 +5611,24 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     ?? (current.BaseType as ConstructedType)?.GenericDefinition as StructType;
             }
         }
+    }
+
+    /// <summary>
+    /// Unwraps type forwards (type aliases and newtypes) to reach the underlying
+    /// concrete type. <see cref="TypeAliasType"/> is unwrapped via
+    /// <see cref="TypeAliasType.UnderlyingType"/> and <see cref="NewtypeType"/> is
+    /// unwrapped via <see cref="NewtypeType.SourceType"/>. Chains of aliases/newtypes
+    /// are followed until a non-forward type is reached.
+    /// </summary>
+    private static IType? UnwrapTypeForwards(IType? type)
+    {
+        while (type is TypeAliasType alias)
+            type = alias.UnderlyingType;
+
+        if (type is NewtypeType newtype)
+            type = newtype.SourceType;
+
+        return type;
     }
 
     /// <summary>
@@ -6273,7 +6375,18 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 classType.Interfaces = new List<IType> { resolvedType };
                 startIndex = 1;
             }
-            else if (resolvedSymbol.DeclaredType is StructType)
+            else if (UnwrapTypeForwards(resolvedSymbol.DeclaredType) is InterfaceType unwrappedInterface)
+            {
+                // The first entry is a type alias or newtype wrapping an InterfaceType.
+                var typeArgs = allEntries[0].TypeArgs;
+                var resolvedType = ResolveGenericTypeReference(
+                    unwrappedInterface, typeArgs, firstName,
+                    classType, classDecl, asts, compilation, diagnostics);
+                classType.Interfaces = new List<IType> { resolvedType };
+                startIndex = 1;
+            }
+            else if (resolvedSymbol.DeclaredType is StructType ||
+                     UnwrapTypeForwards(resolvedSymbol.DeclaredType) is StructType)
             {
                 // Already reported as MIST_CANNOT_INHERIT_STRUCT by Pass1_ResolveBaseTypes.
                 startIndex = 1;
@@ -6355,7 +6468,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
             var resolvedSymbol = LookupWithUsings(
                 name, parentScope, structDecl, asts, globalScope, symbolTable, compilation, ambientTypeResolver);
-            if (resolvedSymbol?.DeclaredType is StructType)
+            if (resolvedSymbol?.DeclaredType is StructType ||
+                UnwrapTypeForwards(resolvedSymbol?.DeclaredType) is StructType)
             {
                 var sourceText = GetSourceTextForSymbol(structSymbol, symbolTable);
                 diagnostics.Add(MakeDiagnosticWithLocation(
@@ -6581,6 +6695,14 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             {
                 var resolvedType = ResolveGenericTypeReference(
                     resolvedInterface, entry.TypeArgs, name,
+                    declaringType, declaringNode, asts, compilation, diagnostics);
+                resolved.Add(resolvedType);
+            }
+            else if (UnwrapTypeForwards(resolvedSymbol.DeclaredType) is InterfaceType unwrappedInterface)
+            {
+                // The entry is a type alias or newtype wrapping an InterfaceType.
+                var resolvedType = ResolveGenericTypeReference(
+                    unwrappedInterface, entry.TypeArgs, name,
                     declaringType, declaringNode, asts, compilation, diagnostics);
                 resolved.Add(resolvedType);
             }
@@ -14176,31 +14298,36 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     // ═══════════════════════════════════════════════════════════════════════
 
     /// <summary>
-    /// Pass 2: Walk the AST again to resolve type references, register parameters
-    /// and local variables, and compute expression types.
+    /// Builds the declaration-site file scope for a compilation unit. The scope
+    /// is parented to the appropriate namespace scope (inferred or explicit) and
+    /// includes all using imports, global usings, and the file's own namespace
+    /// as an implicit import. This scope is suitable for resolving type references
+    /// declared in the file.
     /// </summary>
-    private static void Pass2_ResolveTypes(
-        Storm.Runtime.SyntaxNode ast,
+    /// <param name="compilationUnit">The compilation unit AST node.</param>
+    /// <param name="globalScope">The root global scope containing all namespace symbols.</param>
+    /// <param name="symbolTable">The symbol table populated by Pass 1.</param>
+    /// <param name="ambientTypeResolver">Optional resolver for framework/ambient namespaces.</param>
+    /// <param name="sourceText">Source text for the file (provides path and span info).</param>
+    /// <param name="diagnostics">Diagnostic bag for reporting unresolvable using namespaces.</param>
+    /// <param name="globalUsings">Global using namespaces to import into every file scope.</param>
+    /// <param name="explicitUsingImports">
+    /// Out: the list of namespace names imported via explicit <c>using</c> declarations
+    /// (not including the auto-imported own namespace or global usings). Callers need
+    /// this to propagate usings into per-namespace-section scopes.
+    /// </param>
+    /// <returns>The file-level scope with using imports resolved.</returns>
+    internal static Scope BuildFileScopeForUnit(
+        CompilationUnitNode compilationUnit,
         Scope globalScope,
         SymbolTable symbolTable,
-        Dictionary<Storm.Runtime.SyntaxNode, IType> expressionTypes,
         IAmbientTypeResolver? ambientTypeResolver,
         SourceText? sourceText,
-        bool hasTopLevelStatements,
         DiagnosticBag diagnostics,
-        ImmutableArray<string> globalUsings)
+        ImmutableArray<string> globalUsings,
+        out List<string> explicitUsingImports)
     {
-        if (ast is not CompilationUnitNode compilationUnit)
-        {
-            return;
-        }
-
-        // Compute the inferred namespace for this file (same logic as Pass 1).
-        var filePath = sourceText?.Path ?? "";
-        // We need namespaceRoot and projectFolder — extract from the global scope context.
-        // Since Pass 2 doesn't receive these directly, we infer the primary namespace
-        // by looking at what Pass 1 registered for top-level types in this file,
-        // or by finding the first namespace declaration.
+        // Compute the inferred namespace scope for this file.
         var inferredNamespaceScope = FindInferredNamespaceScopeForFile(
             compilationUnit, globalScope, symbolTable, sourceText);
 
@@ -14258,6 +14385,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     sourceText));
             }
         }
+
         // Also process using directives that appear after a file-scoped namespace
         // (parsed as UsingItem top-level items rather than CompilationUnit.Usings).
         foreach (var item in compilationUnit.Items)
@@ -14323,7 +14451,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // These are the namespaces that should be copied to every namespace section.
         // The auto-imported "own namespace" (from DetermineFileNamespaceName) should NOT
         // be propagated to sections with a different namespace name.
-        var explicitUsingImports = new List<string>();
+        explicitUsingImports = new List<string>();
         foreach (var usingDecl in compilationUnit.Usings)
         {
             var usingName = ExtractQualifiedName(usingDecl.Name, sourceText);
@@ -14345,9 +14473,36 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             }
         }
 
-        // Resolve types in items (namespace body types and top-level types).
-        // For each namespace section, we use a file scope whose parent is the
-        // appropriate namespace scope so that same-namespace types are visible.
+        return fileScope;
+    }
+
+    /// <summary>
+    /// Pass 2: Walk the AST again to resolve type references, register parameters
+    /// and local variables, and compute expression types.
+    /// </summary>
+    private static void Pass2_ResolveTypes(
+        Storm.Runtime.SyntaxNode ast,
+        Scope globalScope,
+        SymbolTable symbolTable,
+        Dictionary<Storm.Runtime.SyntaxNode, IType> expressionTypes,
+        IAmbientTypeResolver? ambientTypeResolver,
+        SourceText? sourceText,
+        bool hasTopLevelStatements,
+        DiagnosticBag diagnostics,
+        ImmutableArray<string> globalUsings)
+    {
+        if (ast is not CompilationUnitNode compilationUnit)
+        {
+            return;
+        }
+
+        // Build the file scope using the reusable helper.
+        var fileScope = BuildFileScopeForUnit(
+            compilationUnit, globalScope, symbolTable, ambientTypeResolver,
+            sourceText, diagnostics, globalUsings, out var explicitUsingImports);
+
+        // The primary namespace scope is the file scope's parent.
+        var primaryNamespaceScope = fileScope.Parent as Scope ?? globalScope;
 
         // For files with top-level statements, create a synthetic scope that acts
         // like a method body scope. This scope is a child of the file scope so it
@@ -14425,6 +14580,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         ResolveTypeDeclaration(typeDecl, sectionFileScope, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
                     }
 
+                    // Safety net: Phase 2 (Pass1a_ResolveTypeForwards) already resolved all
+                    // type aliases and newtypes. These calls are guarded no-ops — both methods
+                    // early-return when DeclaredType is already populated.
                     var namespaceTypeAliases = GetNamespaceBodyTypeAliases(nsDecl);
                     foreach (var aliasDecl in namespaceTypeAliases)
                     {
@@ -14441,6 +14599,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 case TypeItemTopLevelItemNode typeItem:
                     ResolveTypeDeclaration(typeItem.TypeDeclaration, fileScope, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
                     break;
+                // Safety net: Phase 2 (Pass1a_ResolveTypeForwards) already resolved all
+                // type aliases and newtypes. These calls are guarded no-ops — both methods
+                // early-return when DeclaredType is already populated.
                 case TypeAliasItemTopLevelItemNode typeAliasItem:
                     ResolveTypeAliasDeclaration(typeAliasItem.TypeAliasDeclaration, fileScope, symbolTable, ambientTypeResolver, sourceText, diagnostics);
                     break;
@@ -14925,6 +15086,813 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
         return null;
     }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Phase 4 — Global Explicit Member Type Resolution
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Resolves all explicit type annotations on members (fields, properties,
+    /// method signatures, constructors, indexers, operators, cast operators,
+    /// dependent type parameter constraints, and extension block receiver types)
+    /// across ALL compilation units, using declaration-site scopes.
+    /// <para>
+    /// After this pass completes, every explicitly-typed member has a non-null
+    /// <see cref="Symbol.DeclaredType"/>, regardless of file ordering. This
+    /// decouples "what type is this member?" from expression-level inference
+    /// in Pass 2, eliminating cross-file ordering dependencies.
+    /// </para>
+    /// </summary>
+    private static void Pass1_5_ResolveExplicitMemberTypes(
+        ImmutableArray<Storm.Runtime.SyntaxNode> asts,
+        Scope globalScope,
+        SymbolTable symbolTable,
+        IAmbientTypeResolver? ambientTypeResolver,
+        Dictionary<Storm.Runtime.SyntaxNode, Scope> fileScopesByUnit,
+        MistCompilation compilation,
+        DiagnosticBag diagnostics)
+    {
+        for (var i = 0; i < asts.Length; i++)
+        {
+            if (asts[i] is not CompilationUnitNode cu) continue;
+            if (!fileScopesByUnit.TryGetValue(cu, out var fileScope)) continue;
+
+            var sourceText = i < compilation.Units.Length ? compilation.Units[i].Source : null;
+
+            // Determine the primary namespace scope — mirrors Pass 2 logic.
+            var primaryNamespaceScope = fileScope.Parent as Scope ?? globalScope;
+
+            // Collect explicit using imports from the compilation unit for section scopes.
+            var explicitUsingImports = new List<string>();
+            foreach (var usingDecl in cu.Usings)
+            {
+                var usingName = ExtractQualifiedName(usingDecl.Name, sourceText);
+                if (fileScope.ImportedNamespaces.Contains(usingName))
+                    explicitUsingImports.Add(usingName);
+            }
+            foreach (var uItem in cu.Items)
+            {
+                if (uItem is UsingItemTopLevelItemNode usingItem)
+                {
+                    var usingName = ExtractQualifiedName(usingItem.UsingDeclaration.Name, sourceText);
+                    if (fileScope.ImportedNamespaces.Contains(usingName) && !explicitUsingImports.Contains(usingName))
+                        explicitUsingImports.Add(usingName);
+                }
+            }
+
+            foreach (var item in cu.Items)
+            {
+                switch (item)
+                {
+                    case NamespaceItemTopLevelItemNode nsItem:
+                    {
+                        var nsDecl = nsItem.NamespaceDeclaration;
+                        var declaredName = ExtractNamespaceName(nsDecl, sourceText);
+
+                        // Use namespace-specific scope if this namespace differs from the
+                        // primary namespace — mirrors Pass 2 sectionFileScope logic.
+                        var nsScope = FindExistingNamespaceScope(globalScope, symbolTable, declaredName);
+                        Scope sectionFileScope;
+                        if (nsScope is not null && nsScope != primaryNamespaceScope)
+                        {
+                            sectionFileScope = new Scope(parent: nsScope);
+                            foreach (var ns in explicitUsingImports)
+                                sectionFileScope.AddImportedNamespace(ns);
+                            sectionFileScope.AddImportedNamespace(declaredName);
+                        }
+                        else
+                        {
+                            sectionFileScope = fileScope;
+                        }
+
+                        var namespaceTypes = GetNamespaceBodyTypes(nsDecl);
+                        foreach (var typeDecl in namespaceTypes)
+                        {
+                            ResolveExplicitMemberTypesForTypeDeclaration(typeDecl, sectionFileScope, symbolTable, ambientTypeResolver, sourceText, diagnostics);
+                        }
+                        break;
+                    }
+                    case TypeItemTopLevelItemNode typeItem:
+                        ResolveExplicitMemberTypesForTypeDeclaration(typeItem.TypeDeclaration, fileScope, symbolTable, ambientTypeResolver, sourceText, diagnostics);
+                        break;
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Dispatches explicit member type resolution for a single type declaration.
+    /// </summary>
+    private static void ResolveExplicitMemberTypesForTypeDeclaration(
+        TypeDeclarationNode typeDecl,
+        Scope fileScope,
+        SymbolTable symbolTable,
+        IAmbientTypeResolver? ambientTypeResolver,
+        SourceText? sourceText,
+        DiagnosticBag diagnostics)
+    {
+        switch (typeDecl)
+        {
+            case ClassTypeTypeDeclarationNode classTypeNode:
+                ResolveExplicitMemberTypesForClass(classTypeNode.ClassDeclaration, fileScope, symbolTable, ambientTypeResolver, sourceText, diagnostics);
+                break;
+            case StructTypeTypeDeclarationNode structTypeNode:
+                ResolveExplicitMemberTypesForStruct(structTypeNode.StructDeclaration, fileScope, symbolTable, ambientTypeResolver, sourceText, diagnostics);
+                break;
+            case InterfaceTypeTypeDeclarationNode interfaceTypeNode:
+                ResolveExplicitMemberTypesForInterface(interfaceTypeNode.InterfaceDeclaration, fileScope, symbolTable, ambientTypeResolver, sourceText, diagnostics);
+                break;
+            case TraitTypeTypeDeclarationNode traitTypeNode:
+                ResolveExplicitMemberTypesForTrait(traitTypeNode.TraitDeclaration, fileScope, symbolTable, ambientTypeResolver, sourceText, diagnostics);
+                break;
+        }
+    }
+
+    /// <summary>
+    /// Resolves explicit type annotations on all members of a class declaration.
+    /// Only type annotations are resolved — initializers and bodies are deferred to Pass 2.
+    /// </summary>
+    private static void ResolveExplicitMemberTypesForClass(
+        ClassDeclarationNode classDecl,
+        Scope fileScope,
+        SymbolTable symbolTable,
+        IAmbientTypeResolver? ambientTypeResolver,
+        SourceText? sourceText,
+        DiagnosticBag diagnostics)
+    {
+        var classSymbol = symbolTable.GetDeclaredSymbol(classDecl);
+        if (classSymbol?.DeclaredType is not ClassType classType) return;
+
+        var typeScope = (Scope)classType.MemberScope;
+
+        // Pre-resolve member type aliases BEFORE building the class file scope,
+        // so that resolved aliases are included by CreateTypeParameterScope.
+        // Use a preliminary scope that includes type parameters for alias resolution.
+        var preliminaryScope = CreateTypeParameterScope(typeScope, fileScope);
+        foreach (var memberDecl in classDecl.Members)
+        {
+            if (memberDecl is MemberTypeAliasMemberMemberDeclarationNode memberTypeAlias)
+            {
+                ResolveMemberTypeAliasDeclaration(memberTypeAlias.MemberTypeAlias, typeScope, preliminaryScope, symbolTable, ambientTypeResolver, sourceText, diagnostics);
+            }
+        }
+
+        // Build the class file scope AFTER member type aliases are resolved,
+        // so they are available in the resolution scope for member types.
+        var classFileScope = CreateTypeParameterScope(typeScope, fileScope);
+
+        foreach (var memberDecl in classDecl.Members)
+        {
+            ResolveExplicitMemberTypeAnnotation(memberDecl, typeScope, classFileScope, symbolTable, ambientTypeResolver, sourceText, diagnostics);
+        }
+
+        // Recurse into nested types — pass the class's scope so outer type
+        // parameters (e.g., TValue in Array<TValue, Length>) are visible.
+        foreach (var memberDecl in classDecl.Members)
+        {
+            if (memberDecl is NestedTypeMemberMemberDeclarationNode nestedTypeMember)
+            {
+                ResolveExplicitMemberTypesForTypeDeclaration(nestedTypeMember.NestedType, classFileScope, symbolTable, ambientTypeResolver, sourceText, diagnostics);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Resolves explicit type annotations on all members of a struct declaration.
+    /// </summary>
+    private static void ResolveExplicitMemberTypesForStruct(
+        StructDeclarationNode structDecl,
+        Scope fileScope,
+        SymbolTable symbolTable,
+        IAmbientTypeResolver? ambientTypeResolver,
+        SourceText? sourceText,
+        DiagnosticBag diagnostics)
+    {
+        var structSymbol = symbolTable.GetDeclaredSymbol(structDecl);
+        if (structSymbol?.DeclaredType is not StructType structType) return;
+
+        var typeScope = (Scope)structType.MemberScope;
+
+        // Pre-resolve member type aliases BEFORE building the struct file scope.
+        var preliminaryScope = CreateTypeParameterScope(typeScope, fileScope);
+        foreach (var memberDecl in structDecl.Members)
+        {
+            if (memberDecl is MemberTypeAliasMemberMemberDeclarationNode memberTypeAlias)
+            {
+                ResolveMemberTypeAliasDeclaration(memberTypeAlias.MemberTypeAlias, typeScope, preliminaryScope, symbolTable, ambientTypeResolver, sourceText, diagnostics);
+            }
+        }
+
+        // Build the struct file scope AFTER member type aliases are resolved.
+        var structFileScope = CreateTypeParameterScope(typeScope, fileScope);
+
+        foreach (var memberDecl in structDecl.Members)
+        {
+            ResolveExplicitMemberTypeAnnotation(memberDecl, typeScope, structFileScope, symbolTable, ambientTypeResolver, sourceText, diagnostics);
+        }
+
+        // Recurse into nested types — pass the struct's scope so outer type
+        // parameters are visible.
+        foreach (var memberDecl in structDecl.Members)
+        {
+            if (memberDecl is NestedTypeMemberMemberDeclarationNode nestedTypeMember)
+            {
+                ResolveExplicitMemberTypesForTypeDeclaration(nestedTypeMember.NestedType, structFileScope, symbolTable, ambientTypeResolver, sourceText, diagnostics);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Resolves explicit type annotations on all members of an interface declaration.
+    /// </summary>
+    private static void ResolveExplicitMemberTypesForInterface(
+        InterfaceDeclarationNode interfaceDecl,
+        Scope fileScope,
+        SymbolTable symbolTable,
+        IAmbientTypeResolver? ambientTypeResolver,
+        SourceText? sourceText,
+        DiagnosticBag diagnostics)
+    {
+        var interfaceSymbol = symbolTable.GetDeclaredSymbol(interfaceDecl);
+        if (interfaceSymbol?.DeclaredType is not InterfaceType interfaceType) return;
+
+        var typeScope = (Scope)interfaceType.MemberScope;
+        var interfaceFileScope = CreateTypeParameterScope(typeScope, fileScope);
+
+        // Use a temporary diagnostic bag — Pass 2's ResolveInterfaceDeclaration
+        // will emit the canonical diagnostics when it re-resolves these types.
+        var tempDiagnostics = new DiagnosticBag();
+
+        foreach (var member in interfaceDecl.Members)
+        {
+            switch (member)
+            {
+                case InterfaceMethodMemberInterfaceMemberDeclarationNode methodMember:
+                {
+                    var methodDecl = methodMember.Method;
+                    var methodSymbol = symbolTable.GetDeclaredSymbol(methodDecl) as Symbol;
+                    if (methodSymbol is null || methodSymbol.DeclaredType is not null) break;
+
+                    var returnType = ResolveTypeReference(methodDecl.ReturnType, interfaceFileScope, ambientTypeResolver, symbolTable, sourceText, tempDiagnostics);
+                    methodSymbol.DeclaredType = returnType;
+
+                    if (methodDecl.ReturnOwnership is RefSpecifierOwnershipSpecifierNode)
+                    {
+                        methodSymbol.ReturnRefKind = RefKind.Ref;
+                        methodSymbol.OwnershipTier = OwnershipTier.Unrestricted;
+                    }
+                    else if (methodDecl.ReturnOwnership is ReadonlyRefSpecifierOwnershipSpecifierNode)
+                    {
+                        methodSymbol.ReturnRefKind = RefKind.RefReadonly;
+                        methodSymbol.OwnershipTier = OwnershipTier.Unrestricted;
+                    }
+                    else
+                    {
+                        methodSymbol.OwnershipTier = MapOwnershipSpecifier(methodDecl.ReturnOwnership);
+                    }
+
+                    // Resolve parameter types using temp diagnostics to avoid duplicates.
+                    if (methodDecl.Parameters is not null)
+                    {
+                        var methodScope = new Scope(parent: interfaceFileScope);
+                        RegisterParameters(methodDecl.Parameters, methodScope, interfaceFileScope, symbolTable, ambientTypeResolver, sourceText, tempDiagnostics);
+                    }
+                    break;
+                }
+                case InterfacePropertyMemberInterfaceMemberDeclarationNode propertyMember:
+                {
+                    var propDecl = propertyMember.Property;
+                    var propSymbol = symbolTable.GetDeclaredSymbol(propDecl) as Symbol;
+                    if (propSymbol is null || propSymbol.DeclaredType is not null) break;
+
+                    var propType = ResolveTypeReference(propDecl.Type, interfaceFileScope, ambientTypeResolver, symbolTable, sourceText, tempDiagnostics);
+                    propSymbol.DeclaredType = propType;
+                    break;
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Resolves explicit type annotations on all members of a trait declaration.
+    /// </summary>
+    private static void ResolveExplicitMemberTypesForTrait(
+        TraitDeclarationNode traitDecl,
+        Scope fileScope,
+        SymbolTable symbolTable,
+        IAmbientTypeResolver? ambientTypeResolver,
+        SourceText? sourceText,
+        DiagnosticBag diagnostics)
+    {
+        var traitSymbol = symbolTable.GetDeclaredSymbol(traitDecl);
+        if (traitSymbol?.DeclaredType is not TraitType traitType) return;
+
+        var typeScope = (Scope)traitType.MemberScope;
+        var resolutionScope = CreateTypeParameterScope(typeScope, fileScope);
+
+        // Use a temporary diagnostic bag — Pass 2's ResolveTraitDeclaration
+        // will emit the canonical diagnostics when it re-resolves these types.
+        var tempDiagnostics = new DiagnosticBag();
+
+        foreach (var member in traitDecl.Members)
+        {
+            switch (member)
+            {
+                case TraitFieldMemberTraitMemberDeclarationNode fieldMember:
+                {
+                    var fieldDecl = fieldMember.Field;
+                    var fieldSymbol = symbolTable.GetDeclaredSymbol(fieldDecl) as Symbol;
+                    if (fieldSymbol is null || fieldSymbol.DeclaredType is not null) break;
+
+                    var fieldType = ResolveTypeReference(fieldDecl.Type, resolutionScope, ambientTypeResolver, symbolTable, sourceText, tempDiagnostics);
+                    fieldSymbol.DeclaredType = fieldType;
+                    break;
+                }
+                case TraitMethodMemberTraitMemberDeclarationNode methodMember:
+                {
+                    var methodDecl = methodMember.Method;
+                    var methodSymbol = symbolTable.GetDeclaredSymbol(methodDecl) as Symbol;
+                    if (methodSymbol is null || methodSymbol.DeclaredType is not null) break;
+
+                    var returnType = ResolveTypeReference(methodDecl.ReturnType, resolutionScope, ambientTypeResolver, symbolTable, sourceText, tempDiagnostics);
+                    methodSymbol.DeclaredType = returnType;
+
+                    if (methodDecl.ReturnOwnership is RefSpecifierOwnershipSpecifierNode)
+                    {
+                        methodSymbol.ReturnRefKind = RefKind.Ref;
+                        methodSymbol.OwnershipTier = OwnershipTier.Unrestricted;
+                    }
+                    else if (methodDecl.ReturnOwnership is ReadonlyRefSpecifierOwnershipSpecifierNode)
+                    {
+                        methodSymbol.ReturnRefKind = RefKind.RefReadonly;
+                        methodSymbol.OwnershipTier = OwnershipTier.Unrestricted;
+                    }
+                    else
+                    {
+                        methodSymbol.OwnershipTier = MapOwnershipSpecifier(methodDecl.ReturnOwnership);
+                    }
+
+                    // Resolve parameter types using temp diagnostics.
+                    if (methodDecl.Parameters is not null)
+                    {
+                        var methodScope = new Scope(parent: resolutionScope);
+                        RegisterParameters(methodDecl.Parameters, methodScope, resolutionScope, symbolTable, ambientTypeResolver, sourceText, tempDiagnostics);
+                    }
+                    break;
+                }
+                case TraitPropertyMemberTraitMemberDeclarationNode propertyMember:
+                {
+                    var propDecl = propertyMember.Property;
+                    var propSymbol = symbolTable.GetDeclaredSymbol(propDecl) as Symbol;
+                    if (propSymbol is null || propSymbol.DeclaredType is not null) break;
+
+                    var propType = ResolveTypeReference(propDecl.Type, resolutionScope, ambientTypeResolver, symbolTable, sourceText, tempDiagnostics);
+                    propSymbol.DeclaredType = propType;
+                    break;
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Resolves explicit type annotation for a single class/struct member
+    /// declaration — only the type annotation, not initializers or bodies.
+    /// Sets <see cref="Symbol.DeclaredType"/> and parameter symbols for
+    /// methods (via <see cref="PreResolveMethodSignature"/>). For constructors,
+    /// indexers, operators, and cast operators, only the return/target type is
+    /// resolved here — parameter types are resolved in Pass 2 when body
+    /// resolution creates method scopes.
+    /// <para>
+    /// Diagnostics from type resolution are suppressed (routed to a temporary bag)
+    /// because Pass 2 will re-resolve these same types and emit the canonical
+    /// diagnostics. The purpose of Phase 4 is solely to populate DeclaredType.
+    /// </para>
+    /// </summary>
+    private static void ResolveExplicitMemberTypeAnnotation(
+        MemberDeclarationNode memberDecl,
+        Scope typeScope,
+        Scope fileScope,
+        SymbolTable symbolTable,
+        IAmbientTypeResolver? ambientTypeResolver,
+        SourceText? sourceText,
+        DiagnosticBag diagnostics)
+    {
+        // Use a temporary diagnostic bag to detect resolution errors.
+        // If resolution succeeds (no errors), we set DeclaredType so Pass 2
+        // can skip re-resolution via idempotency guards.
+        // If resolution fails (has errors), we leave DeclaredType as null so
+        // Pass 2 re-resolves and emits the canonical diagnostics.
+        var tempDiagnostics = new DiagnosticBag();
+
+        switch (memberDecl)
+        {
+            case FieldMemberMemberDeclarationNode fieldMember:
+            {
+                var fieldDecl = fieldMember.Field;
+                var fieldSymbol = symbolTable.GetDeclaredSymbol(fieldDecl) as Symbol;
+                if (fieldSymbol is null || fieldSymbol.DeclaredType is not null) break;
+
+                var fieldType = ResolveTypeReference(fieldDecl.Type, fileScope, ambientTypeResolver, symbolTable, sourceText, tempDiagnostics);
+                if (!tempDiagnostics.HasErrors)
+                    fieldSymbol.DeclaredType = fieldType;
+                break;
+            }
+            case MethodMemberMemberDeclarationNode methodMember:
+            {
+                // Use PreResolveMethodSignature which already has an idempotency guard
+                // and resolves return type + parameters with a temp diagnostic bag for params.
+                PreResolveMethodSignature(methodMember.Method, typeScope, fileScope, symbolTable, ambientTypeResolver, sourceText, diagnostics);
+                break;
+            }
+            case PropertyMemberMemberDeclarationNode propertyMember:
+            {
+                switch (propertyMember.Property)
+                {
+                    case BlockPropertyPropertyDeclarationNode blockProp:
+                    {
+                        var propSymbol = symbolTable.GetDeclaredSymbol(blockProp) as Symbol;
+                        if (propSymbol is null || propSymbol.DeclaredType is not null) break;
+
+                        var propType = ResolveTypeReference(blockProp.Type, fileScope, ambientTypeResolver, symbolTable, sourceText, tempDiagnostics);
+                        if (!tempDiagnostics.HasErrors)
+                        {
+                            propSymbol.DeclaredType = propType;
+
+                            // Also update the backing field's declared type if present.
+                            var propInfo = propSymbol.PropertyMetadata;
+                            if (propInfo?.BackingField is Symbol backingField)
+                            {
+                                backingField.DeclaredType = propType;
+                            }
+                        }
+                        break;
+                    }
+                    case ExpressionBodiedPropertyPropertyDeclarationNode exprProp:
+                    {
+                        var propSymbol = symbolTable.GetDeclaredSymbol(exprProp) as Symbol;
+                        if (propSymbol is null || propSymbol.DeclaredType is not null) break;
+
+                        var propType = ResolveTypeReference(exprProp.Type, fileScope, ambientTypeResolver, symbolTable, sourceText, tempDiagnostics);
+                        if (!tempDiagnostics.HasErrors)
+                            propSymbol.DeclaredType = propType;
+                        break;
+                    }
+                }
+                break;
+            }
+            case IndexerMemberMemberDeclarationNode indexerMember:
+            {
+                var indexerDecl = indexerMember.Indexer;
+                var indexerSymbol = symbolTable.GetDeclaredSymbol(indexerDecl) as Symbol;
+                if (indexerSymbol is null || indexerSymbol.DeclaredType is not null) break;
+
+                var indexerType = ResolveTypeReference(indexerDecl.Type, fileScope, ambientTypeResolver, symbolTable, sourceText, tempDiagnostics);
+                if (!tempDiagnostics.HasErrors)
+                    indexerSymbol.DeclaredType = indexerType;
+                break;
+            }
+            case OperatorMemberMemberDeclarationNode operatorMember:
+            {
+                var opDecl = operatorMember.Operator;
+                var opSymbol = symbolTable.GetDeclaredSymbol(opDecl) as Symbol;
+                if (opSymbol is null || opSymbol.DeclaredType is not null) break;
+
+                var returnType = ResolveTypeReference(opDecl.ReturnType, fileScope, ambientTypeResolver, symbolTable, sourceText, tempDiagnostics);
+                if (!tempDiagnostics.HasErrors)
+                    opSymbol.DeclaredType = returnType;
+                break;
+            }
+            case CastOperatorMemberMemberDeclarationNode castOpMember:
+            {
+                var castOpDecl = castOpMember.CastOperator;
+                var castOpSymbol = symbolTable.GetDeclaredSymbol(castOpDecl) as Symbol;
+                if (castOpSymbol is null || castOpSymbol.DeclaredType is not null) break;
+
+                var targetType = ResolveTypeReference(castOpDecl.TargetType, fileScope, ambientTypeResolver, symbolTable, sourceText, tempDiagnostics);
+                if (!tempDiagnostics.HasErrors)
+                    castOpSymbol.DeclaredType = targetType;
+                break;
+            }
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Phase 2 — Resolve Type Forwards (aliases and newtype source types)
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Resolves all type alias and newtype source types before inheritance
+    /// resolution. Builds a dependency graph of all alias/newtype symbols,
+    /// walks it in topological order (leaves first), and resolves each target
+    /// using declaration-site scopes from <paramref name="fileScopesByUnit"/>.
+    /// Cycles are detected and reported via <see cref="_typeAliasResolutionStack"/>.
+    /// For newtypes, only the source type identity is resolved — members are
+    /// NOT cloned here (that is deferred to Phase 4b).
+    /// </summary>
+    private static void Pass1a_ResolveTypeForwards(
+        ImmutableArray<Storm.Runtime.SyntaxNode> asts,
+        Scope globalScope,
+        SymbolTable symbolTable,
+        IAmbientTypeResolver? ambientTypeResolver,
+        Dictionary<Storm.Runtime.SyntaxNode, Scope> fileScopesByUnit,
+        MistCompilation compilation,
+        DiagnosticBag diagnostics)
+    {
+        // Step 1: Collect all alias/newtype declaration nodes with their
+        // associated file scopes and source texts.
+        var forwardEntries = new List<TypeForwardEntry>();
+        var nameToEntry = new Dictionary<string, TypeForwardEntry>();
+
+        for (var i = 0; i < asts.Length; i++)
+        {
+            if (asts[i] is not CompilationUnitNode cu) continue;
+
+            if (!fileScopesByUnit.TryGetValue(cu, out var fileScope)) continue;
+
+            var sourceText = i < compilation.Units.Length ? compilation.Units[i].Source : null;
+
+            // Collect top-level type aliases.
+            foreach (var item in cu.Items)
+            {
+                switch (item)
+                {
+                    case TypeAliasItemTopLevelItemNode typeAliasItem:
+                    {
+                        var aliasDecl = typeAliasItem.TypeAliasDeclaration;
+                        var symbol = symbolTable.GetDeclaredSymbol(aliasDecl) as Symbol;
+                        if (symbol is null || symbol.DeclaredType is not null) break;
+                        var name = aliasDecl.Name.Lexeme;
+                        var entry = new TypeForwardEntry(name, symbol, aliasDecl, null, fileScope, sourceText);
+                        forwardEntries.Add(entry);
+                        nameToEntry.TryAdd(name, entry);
+                        break;
+                    }
+                    case NewtypeItemTopLevelItemNode newtypeItem:
+                    {
+                        var newtypeDecl = newtypeItem.NewtypeDeclaration;
+                        var symbol = symbolTable.GetDeclaredSymbol(newtypeDecl) as Symbol;
+                        if (symbol is null || symbol.DeclaredType is not null) break;
+                        var name = newtypeDecl.Name.Lexeme;
+                        var entry = new TypeForwardEntry(name, symbol, null, newtypeDecl, fileScope, sourceText);
+                        forwardEntries.Add(entry);
+                        nameToEntry.TryAdd(name, entry);
+                        break;
+                    }
+                    case NamespaceItemTopLevelItemNode nsItem:
+                    {
+                        var nsDecl = nsItem.NamespaceDeclaration;
+                        var nsAliases = GetNamespaceBodyTypeAliases(nsDecl);
+                        foreach (var aliasDecl in nsAliases)
+                        {
+                            var symbol = symbolTable.GetDeclaredSymbol(aliasDecl) as Symbol;
+                            if (symbol is null || symbol.DeclaredType is not null) continue;
+                            var name = aliasDecl.Name.Lexeme;
+                            var entry = new TypeForwardEntry(name, symbol, aliasDecl, null, fileScope, sourceText);
+                            forwardEntries.Add(entry);
+                            nameToEntry.TryAdd(name, entry);
+                        }
+                        var nsNewtypes = GetNamespaceBodyNewtypes(nsDecl);
+                        foreach (var newtypeDecl in nsNewtypes)
+                        {
+                            var symbol = symbolTable.GetDeclaredSymbol(newtypeDecl) as Symbol;
+                            if (symbol is null || symbol.DeclaredType is not null) continue;
+                            var name = newtypeDecl.Name.Lexeme;
+                            var entry = new TypeForwardEntry(name, symbol, null, newtypeDecl, fileScope, sourceText);
+                            forwardEntries.Add(entry);
+                            nameToEntry.TryAdd(name, entry);
+                        }
+                        break;
+                    }
+                }
+            }
+        }
+
+        if (forwardEntries.Count == 0) return;
+
+        // Step 2: Build the dependency graph.
+        // For each alias/newtype, extract the target type name and check if
+        // it references another alias/newtype in our set.
+        var dependsOn = new Dictionary<string, List<string>>();
+        var dependedBy = new Dictionary<string, List<string>>();
+        var inDegree = new Dictionary<string, int>();
+
+        foreach (var entry in forwardEntries)
+        {
+            dependsOn[entry.Name] = new List<string>();
+            if (!dependedBy.ContainsKey(entry.Name))
+                dependedBy[entry.Name] = new List<string>();
+            inDegree.TryAdd(entry.Name, 0);
+        }
+
+        foreach (var entry in forwardEntries)
+        {
+            var targetName = entry.AliasDecl is not null
+                ? ExtractRefinableTypeExpressionName(entry.AliasDecl.Type, entry.SourceText)
+                : ExtractTypeReferenceName(entry.NewtypeDecl!.SourceType, entry.SourceText);
+
+            if (!string.IsNullOrEmpty(targetName) && nameToEntry.ContainsKey(targetName) && targetName != entry.Name)
+            {
+                dependsOn[entry.Name].Add(targetName);
+                if (!dependedBy.ContainsKey(targetName))
+                    dependedBy[targetName] = new List<string>();
+                dependedBy[targetName].Add(entry.Name);
+                inDegree[entry.Name] = inDegree.GetValueOrDefault(entry.Name) + 1;
+            }
+        }
+
+        // Step 3: Topological sort using Kahn's algorithm (leaves first).
+        var queue = new Queue<string>();
+        foreach (var (name, degree) in inDegree)
+        {
+            if (degree == 0)
+                queue.Enqueue(name);
+        }
+
+        var resolveOrder = new List<TypeForwardEntry>();
+        while (queue.Count > 0)
+        {
+            var current = queue.Dequeue();
+            if (nameToEntry.TryGetValue(current, out var entry))
+                resolveOrder.Add(entry);
+
+            if (dependedBy.TryGetValue(current, out var dependents))
+            {
+                foreach (var dep in dependents)
+                {
+                    inDegree[dep]--;
+                    if (inDegree[dep] == 0)
+                        queue.Enqueue(dep);
+                }
+            }
+        }
+
+        // Any entries not in resolveOrder are part of a cycle.
+        // They will be resolved below and cycle detection will fire.
+        foreach (var entry in forwardEntries)
+        {
+            if (!resolveOrder.Contains(entry))
+                resolveOrder.Add(entry);
+        }
+
+        // Step 4: Resolve in topological order.
+        // Initialize the shared resolution stack for cycle detection.
+        _typeAliasResolutionStack ??= new HashSet<string>();
+
+        foreach (var entry in resolveOrder)
+        {
+            // Skip if already resolved (e.g., resolved transitively as a dependency).
+            if (entry.Symbol.DeclaredType is not null) continue;
+
+            if (entry.AliasDecl is not null)
+            {
+                ResolveTypeAliasDeclaration(
+                    entry.AliasDecl, entry.FileScope, symbolTable,
+                    ambientTypeResolver, entry.SourceText, diagnostics);
+            }
+            else if (entry.NewtypeDecl is not null)
+            {
+                ResolveNewtypeSourceOnly(
+                    entry.NewtypeDecl, entry.FileScope, symbolTable,
+                    ambientTypeResolver, entry.SourceText, diagnostics);
+            }
+        }
+
+        // Step 5: Member cloning for newtypes is handled by Phase 4b
+        // (Pass1_5b_CloneNewtypeMembers) which runs after Phase 4 resolves
+        // all explicit member types on source types.
+    }
+
+    /// <summary>
+    /// Phase 4b: Clones all members from each newtype's source type into the
+    /// newtype's member scope. Runs after Phase 4 (<see cref="Pass1_5_ResolveExplicitMemberTypes"/>)
+    /// so that source type members carry fully-resolved <c>DeclaredType</c> values.
+    /// For primitive (backend-backed) source types, also adds a synthetic 'Value' field.
+    /// </summary>
+    private static void Pass1_5b_CloneNewtypeMembers(SymbolTable symbolTable)
+    {
+        foreach (var symbol in symbolTable.AllSymbols)
+        {
+            if (symbol.Kind != SymbolKind.Newtype) continue;
+            if (symbol.DeclaredType is not NewtypeType newtypeType) continue;
+
+            // Skip if members have already been cloned (e.g., by a previous pass or re-entry).
+            if (newtypeType.MemberScope.Members.Count > 0) continue;
+
+            var sourceType = newtypeType.SourceType;
+            var name = symbol.Name;
+
+            CloneAllMembers(sourceType, newtypeType, name, symbolTable);
+
+            // For primitive (backend-backed) source types, add a synthetic 'Value' field.
+            var isBackendBacked = sourceType switch
+            {
+                StructType st => st.IsBackendBacked,
+                ClassType ct => ct.IsBackendBacked,
+                _ => false,
+            };
+            if (isBackendBacked)
+            {
+                var targetScope = (Scope)newtypeType.MemberScope;
+                var valueSymbol = new Symbol(
+                    "Value",
+                    SymbolKind.Field,
+                    SymbolOrigin.UserCode,
+                    targetScope,
+                    sourceType,
+                    declarationSpan: null,
+                    isIntrinsic: false,
+                    hasBody: false);
+                targetScope.AddMember(valueSymbol);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Resolves a newtype declaration's source type reference and creates a
+    /// <see cref="NewtypeType"/> WITHOUT cloning members from the source type.
+    /// Member cloning is deferred to Phase 4b (after all explicit member types
+    /// are resolved on the source type). Extends the
+    /// <see cref="_typeAliasResolutionStack"/> cycle detection to cover newtypes.
+    /// </summary>
+    private static void ResolveNewtypeSourceOnly(
+        NewtypeDeclarationNode newtypeDecl,
+        Scope fileScope,
+        SymbolTable symbolTable,
+        IAmbientTypeResolver? ambientTypeResolver,
+        SourceText? sourceText,
+        DiagnosticBag diagnostics)
+    {
+        var newtypeSymbol = symbolTable.GetDeclaredSymbol(newtypeDecl) as Symbol;
+        if (newtypeSymbol is null) return;
+
+        // If already resolved, skip.
+        if (newtypeSymbol.DeclaredType is not null) return;
+
+        var name = newtypeDecl.Name.Lexeme;
+
+        // Initialize the resolution stack if needed.
+        _typeAliasResolutionStack ??= new HashSet<string>();
+
+        // Check for cycles (extending alias cycle detection to newtypes).
+        if (!_typeAliasResolutionStack.Add(name))
+        {
+            // Cycle detected — report diagnostic and assign ErrorType.
+            diagnostics.Add(MakeDiagnosticWithLocation(
+                CyclicTypeAlias.Value,
+                DiagnosticSeverity.Error,
+                $"Type '{name}' forms a cycle.",
+                newtypeDecl,
+                sourceText));
+            newtypeSymbol.DeclaredType = ErrorType.Instance;
+            return;
+        }
+
+        try
+        {
+            // Resolve the source type reference.
+            var sourceType = ResolveTypeReference(
+                newtypeDecl.SourceType, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+
+            if (sourceType is ErrorType)
+            {
+                diagnostics.Add(MakeDiagnosticWithLocation(
+                    UnresolvedNewtypeSource.Value,
+                    DiagnosticSeverity.Error,
+                    $"Type '{ExtractTypeReferenceName(newtypeDecl.SourceType, sourceText)}' could not be resolved in newtype '{name}'.",
+                    newtypeDecl.SourceType,
+                    sourceText));
+                newtypeSymbol.DeclaredType = ErrorType.Instance;
+                return;
+            }
+
+            // If the source resolves to a type alias, unwrap to the underlying type.
+            if (sourceType is TypeAliasType aliasType)
+            {
+                sourceType = aliasType.UnderlyingType;
+            }
+
+            // Create the NewtypeType with source type identity only.
+            // Members are NOT cloned here — that is deferred to Phase 4b.
+            var newtypeType = new NewtypeType(name, sourceType);
+            newtypeSymbol.DeclaredType = newtypeType;
+        }
+        finally
+        {
+            _typeAliasResolutionStack.Remove(name);
+        }
+    }
+
+    /// <summary>
+    /// Holds information about a type alias or newtype declaration that needs
+    /// to be resolved during Phase 2 (type forwards).
+    /// </summary>
+    private sealed record TypeForwardEntry(
+        string Name,
+        Symbol Symbol,
+        TypeAliasDeclarationNode? AliasDecl,
+        NewtypeDeclarationNode? NewtypeDecl,
+        Scope FileScope,
+        SourceText? SourceText);
 
     // ── Type alias visited-set for cycle detection (Pass 2) ──────────────
     [ThreadStatic]
@@ -15569,13 +16537,31 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         SourceText? sourceText,
         DiagnosticBag diagnostics)
     {
-        var fieldType = ResolveTypeReference(fieldDecl.Type, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+        // Idempotency guard: if Phase 4 already resolved the field type, skip
+        // type resolution but still perform storage-ban checks below.
+        var fieldSymbol = symbolTable.GetDeclaredSymbol(fieldDecl) as Symbol;
+        IType fieldType;
+        if (fieldSymbol?.DeclaredType is not null)
+        {
+            fieldType = fieldSymbol.DeclaredType;
+        }
+        else
+        {
+            fieldType = ResolveTypeReference(fieldDecl.Type, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+
+            // Update the field symbol's declared type.
+            if (fieldSymbol is not null)
+            {
+                fieldSymbol.DeclaredType = fieldType;
+            }
+        }
 
         // Storage-ban check (unknown-type feature, Task 11.1, Requirements
         // 5.1, 7.5, 7.6, 16.1). Emitted BEFORE the symbol's declared type is
         // updated so downstream passes still see the banned type on the
         // symbol — the design note for Task 11 is explicit that we do not
         // substitute ErrorType here. Only the diagnostic is emitted.
+        // Runs regardless of whether Phase 4 or Pass 2 resolved the type.
         if (TypeContainment.IsStorageBanned(fieldType))
         {
             diagnostics.Add(MakeDiagnosticWithLocation(
@@ -15584,13 +16570,6 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 $"Field '{enclosingType.DisplayName}.{fieldDecl.Name.Lexeme}' of type '{fieldType.DisplayName}' cannot have 'unknown' in its declared type: 'unknown' is not permitted as the type of writable storage.",
                 fieldDecl,
                 sourceText));
-        }
-
-        // Update the field symbol's declared type.
-        var fieldSymbol = symbolTable.GetDeclaredSymbol(fieldDecl) as Symbol;
-        if (fieldSymbol is not null)
-        {
-            fieldSymbol.DeclaredType = fieldType;
         }
 
         // Field hiding detection (struct-inheritance spec, Requirement 3.3).
@@ -15647,6 +16626,11 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         SourceText? sourceText,
         DiagnosticBag diagnostics)
     {
+        // Idempotency guard: if Phase 4 already resolved the constructor's
+        // parameter types (indicated by DeclaredType being set), skip re-resolution.
+        var ctorSymbol = symbolTable.GetDeclaredSymbol(ctorDecl) as Symbol;
+        if (ctorSymbol?.DeclaredType is not null) return;
+
         // Create a method scope for the constructor body.
         var methodScope = new Scope(parent: typeScope);
 
@@ -15947,13 +16931,20 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         SourceText? sourceText,
         DiagnosticBag diagnostics)
     {
-        // Resolve the return type and update the operator symbol.
-        var returnType = ResolveTypeReference(opDecl.ReturnType, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+        // Idempotency guard: if Phase 4 already resolved the operator return type,
+        // skip type resolution but still resolve parameters and body.
         var opSymbol = symbolTable.GetDeclaredSymbol(opDecl) as Symbol;
-        if (opSymbol is not null)
+        if (opSymbol?.DeclaredType is null)
         {
-            opSymbol.DeclaredType = returnType;
+            // Resolve the return type and update the operator symbol.
+            var returnType = ResolveTypeReference(opDecl.ReturnType, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+            if (opSymbol is not null)
+            {
+                opSymbol.DeclaredType = returnType;
+            }
         }
+
+        var resolvedReturnType = opSymbol?.DeclaredType;
 
         // Create a method scope for parameters and the optional body.
         var methodScope = new Scope(parent: typeScope);
@@ -15972,7 +16963,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         if (opDecl.Body.GetBlock() is BlockNode opBlock)
         {
             var previousMethodReturnType = _currentMethodReturnType;
-            _currentMethodReturnType = returnType;
+            _currentMethodReturnType = resolvedReturnType;
             ResolveBlock(opBlock, methodScope, fileScope, enclosingType, /* isStatic */ true, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
             _currentMethodReturnType = previousMethodReturnType;
         }
@@ -16000,13 +16991,20 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         SourceText? sourceText,
         DiagnosticBag diagnostics)
     {
-        // Resolve the target type reference and set it as the symbol's DeclaredType (return type).
-        var targetType = ResolveTypeReference(castOpDecl.TargetType, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+        // Idempotency guard: if Phase 4 already resolved the cast operator target type,
+        // skip type resolution but still resolve parameters and body.
         var castOpSymbol = symbolTable.GetDeclaredSymbol(castOpDecl) as Symbol;
-        if (castOpSymbol is not null)
+        if (castOpSymbol?.DeclaredType is null)
         {
-            castOpSymbol.DeclaredType = targetType;
+            // Resolve the target type reference and set it as the symbol's DeclaredType (return type).
+            var targetType = ResolveTypeReference(castOpDecl.TargetType, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+            if (castOpSymbol is not null)
+            {
+                castOpSymbol.DeclaredType = targetType;
+            }
         }
+
+        var resolvedTargetType = castOpSymbol?.DeclaredType;
 
         // Create a method scope for parameters and the optional body.
         var methodScope = new Scope(parent: typeScope);
@@ -16023,7 +17021,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         if (castOpDecl.Body.GetBlock() is BlockNode castOpBlock)
         {
             var previousMethodReturnType = _currentMethodReturnType;
-            _currentMethodReturnType = targetType;
+            _currentMethodReturnType = resolvedTargetType;
             ResolveBlock(castOpBlock, methodScope, fileScope, enclosingType, /* isStatic */ true, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
             _currentMethodReturnType = previousMethodReturnType;
         }
@@ -16065,12 +17063,36 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         SourceText? sourceText,
         DiagnosticBag diagnostics)
     {
-        // Resolve the property type and update the property symbol.
-        var propType = ResolveTypeReference(blockProp.Type, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+        // Idempotency guard: if Phase 4 already resolved the property type, skip
+        // type resolution but still perform storage-ban checks below.
+        var propSymbol = symbolTable.GetDeclaredSymbol(blockProp) as Symbol;
+        IType propType;
+        if (propSymbol?.DeclaredType is not null)
+        {
+            propType = propSymbol.DeclaredType;
+        }
+        else
+        {
+            // Resolve the property type and update the property symbol.
+            propType = ResolveTypeReference(blockProp.Type, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+
+            if (propSymbol is not null)
+            {
+                propSymbol.DeclaredType = propType;
+            }
+
+            // Also update the backing field's declared type if present.
+            var propInfo2 = propSymbol?.PropertyMetadata;
+            if (propInfo2?.BackingField is Symbol backingField)
+            {
+                backingField.DeclaredType = propType;
+            }
+        }
 
         // Storage-ban check (unknown-type feature, Task 11.2, Requirements
         // 5.2, 7.5, 7.6, 16.1). See ResolveFieldDeclaration for the
         // "do not substitute ErrorType" rationale.
+        // Runs regardless of whether Phase 4 or Pass 2 resolved the type.
         if (TypeContainment.IsStorageBanned(propType))
         {
             diagnostics.Add(MakeDiagnosticWithLocation(
@@ -16081,22 +17103,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 sourceText));
         }
 
-        var propSymbol = symbolTable.GetDeclaredSymbol(blockProp) as Symbol;
-        if (propSymbol is not null)
-        {
-            propSymbol.DeclaredType = propType;
-        }
-
-        // Also update the backing field's declared type if present.
-        var propInfo = propSymbol?.PropertyMetadata;
-        if (propInfo?.BackingField is Symbol backingField)
-        {
-            backingField.DeclaredType = propType;
-        }
-
         var isStatic = blockProp.Modifiers.Any(m => m is StaticModifierModifierNode);
 
         // Resolve each accessor body.
+        var propInfo = propSymbol?.PropertyMetadata;
         foreach (var accessor in blockProp.Accessors)
         {
             ResolveAccessorBody(accessor, propType, propInfo, typeScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
@@ -16120,14 +17130,31 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         SourceText? sourceText,
         DiagnosticBag diagnostics)
     {
-        // Resolve the property type and update the property symbol.
-        var propType = ResolveTypeReference(exprProp.Type, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+        // Idempotency guard: if Phase 4 already resolved the property type, skip
+        // type resolution but still perform storage-ban checks below.
+        var propSymbol = symbolTable.GetDeclaredSymbol(exprProp) as Symbol;
+        IType propType;
+        if (propSymbol?.DeclaredType is not null)
+        {
+            propType = propSymbol.DeclaredType;
+        }
+        else
+        {
+            // Resolve the property type and update the property symbol.
+            propType = ResolveTypeReference(exprProp.Type, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+
+            if (propSymbol is not null)
+            {
+                propSymbol.DeclaredType = propType;
+            }
+        }
 
         // Storage-ban check (unknown-type feature, Task 11.2, Requirements
         // 5.2, 7.5, 7.6, 16.1). Expression-bodied properties have no
         // backing field per se, but Requirement 5.2 bans `unknown` as the
         // type of any property declaration regardless of how it is
         // implemented — the ban is a declaration-site rule.
+        // Runs regardless of whether Phase 4 or Pass 2 resolved the type.
         if (TypeContainment.IsStorageBanned(propType))
         {
             diagnostics.Add(MakeDiagnosticWithLocation(
@@ -16136,12 +17163,6 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 $"Property '{enclosingType.DisplayName}.{exprProp.Name.Lexeme}' of type '{propType.DisplayName}' cannot have 'unknown' in its declared type: 'unknown' is not permitted as the type of writable storage.",
                 exprProp,
                 sourceText));
-        }
-
-        var propSymbol = symbolTable.GetDeclaredSymbol(exprProp) as Symbol;
-        if (propSymbol is not null)
-        {
-            propSymbol.DeclaredType = propType;
         }
 
         var isStatic = exprProp.Modifiers.Any(m => m is StaticModifierModifierNode);
@@ -16244,14 +17265,19 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         SourceText? sourceText,
         DiagnosticBag diagnostics)
     {
+        // Idempotency guard: check if Phase 4 already resolved the indexer type.
+        var indexerSymbol = symbolTable.GetDeclaredSymbol(indexerDecl) as Symbol;
+
         if (indexerDecl.Body is not BlockIndexerBodyIndexerBodyNode blockBody2)
         {
-            // Intrinsic indexer — still resolve the type for the symbol.
-            var intrinsicIndexerType = ResolveTypeReference(indexerDecl.Type, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
-            var intrinsicIndexerSymbol = symbolTable.GetDeclaredSymbol(indexerDecl) as Symbol;
-            if (intrinsicIndexerSymbol is not null)
+            // Intrinsic indexer — resolve the type only if not already resolved.
+            if (indexerSymbol?.DeclaredType is null)
             {
-                intrinsicIndexerSymbol.DeclaredType = intrinsicIndexerType;
+                var intrinsicIndexerType = ResolveTypeReference(indexerDecl.Type, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+                if (indexerSymbol is not null)
+                {
+                    indexerSymbol.DeclaredType = intrinsicIndexerType;
+                }
             }
             // Register indexer parameters.
             if (indexerDecl.Parameters is not null)
@@ -16262,13 +17288,28 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             return;
         }
 
-        // Resolve the indexer return type and update the indexer symbol.
-        var indexerType = ResolveTypeReference(indexerDecl.Type, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+        // Resolve the indexer return type and update the indexer symbol, unless
+        // Phase 4 already resolved it.
+        IType indexerType;
+        if (indexerSymbol?.DeclaredType is not null)
+        {
+            indexerType = indexerSymbol.DeclaredType;
+        }
+        else
+        {
+            indexerType = ResolveTypeReference(indexerDecl.Type, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+
+            if (indexerSymbol is not null)
+            {
+                indexerSymbol.DeclaredType = indexerType;
+            }
+        }
 
         // Storage-ban check (unknown-type feature, Task 11.3, Requirements
         // 5.3, 7.5, 7.6, 16.1). Applies to the indexer's element type — the
         // type yielded by a get and consumed by a set — which is the
         // storage-shaped position per Requirement 5.3.
+        // Runs regardless of whether Phase 4 or Pass 2 resolved the type.
         if (TypeContainment.IsStorageBanned(indexerType))
         {
             diagnostics.Add(MakeDiagnosticWithLocation(
@@ -16277,12 +17318,6 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 $"Indexer '{enclosingType.DisplayName}.this[]' of element type '{indexerType.DisplayName}' cannot have 'unknown' in its declared type: 'unknown' is not permitted as the element type of writable storage.",
                 indexerDecl,
                 sourceText));
-        }
-
-        var indexerSymbol = symbolTable.GetDeclaredSymbol(indexerDecl) as Symbol;
-        if (indexerSymbol is not null)
-        {
-            indexerSymbol.DeclaredType = indexerType;
         }
 
         var isStatic = indexerDecl.Modifiers.Any(m => m is StaticModifierModifierNode);

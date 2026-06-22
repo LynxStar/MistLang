@@ -17089,7 +17089,21 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             // target rule and handles CLR reference-type parameters projected as T?.
             if (!source.IsVoid() && targetUnion.Constituents.Any(c => c is UnknownType))
                 return true;
-            return IsConstituentOf(source, targetUnion);
+            if (IsConstituentOf(source, targetUnion))
+                return true;
+
+            // Subtype fallback: if the source is assignable to any non-void constituent
+            // via inheritance (e.g., ConstructedType<T> assignable to its non-generic base),
+            // accept the assignment. This avoids infinite recursion by only checking
+            // constituents that are class/struct types (not other unions or error types).
+            foreach (var constituent in targetUnion.Constituents)
+            {
+                if (constituent.IsVoid() || constituent is UnionType || constituent is ErrorType)
+                    continue;
+                if (IsAssignable(source, constituent, model))
+                    return true;
+            }
+            return false;
         }
         if (source is UnionType)
         {
@@ -17350,6 +17364,32 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             var baseType = GetSubstitutedBaseType(sourceStructConst);
             if (baseType is not null && IsAssignable(baseType, target))
                 return true;
+        }
+
+        // ConstructedType (class) to plain ClassType assignability:
+        // When source is a ConstructedType wrapping a ClassType (e.g., DbContextOptions<MyContext>),
+        // check if the generic definition IS the target or has the target in its base chain.
+        // This handles the CLR pattern where a generic type inherits from a non-generic base
+        // (e.g., DbContextOptions<T> : DbContextOptions).
+        if (source is ConstructedType sourceClassConst
+            && sourceClassConst.GenericDefinition is ClassType sourceClassDef
+            && target is ClassType targetClassType
+            && target is not ConstructedType)
+        {
+            // Check if the generic definition itself is the target.
+            if (ReferenceEquals(sourceClassDef, targetClassType)
+                || sourceClassDef.DisplayName == targetClassType.DisplayName)
+                return true;
+
+            // Walk the generic definition's base type chain.
+            var ancestor = sourceClassDef.BaseType as ClassType;
+            while (ancestor is not null)
+            {
+                if (ReferenceEquals(ancestor, targetClassType)
+                    || ancestor.DisplayName == targetClassType.DisplayName)
+                    return true;
+                ancestor = ancestor.BaseType as ClassType;
+            }
         }
 
         // ConstructedType to constructed interface assignability.

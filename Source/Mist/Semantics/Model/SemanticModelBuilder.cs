@@ -20471,16 +20471,43 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         {
             funcCt = directFuncCt;
         }
+        else if (targetType is not null && targetType is ConstructedType clrDelegateCt
+            && clrDelegateCt.GenericDefinition is ClassType { ContainingNamespace: "System" } clrDelegateClass
+            && (clrDelegateClass.DisplayName.StartsWith("Action", StringComparison.Ordinal)
+                || clrDelegateClass.DisplayName.StartsWith("Func", StringComparison.Ordinal)))
+        {
+            // CLR Action<T>/Func<T> types that were projected as plain ClassType rather than
+            // stdlib Func (due to projection ordering). Treat type arguments as parameter types
+            // (for Action, all args are params; for Func, last arg is return type).
+            funcCt = clrDelegateCt;
+        }
 
         if (funcCt is not null)
         {
-            // Target-type-driven inference: extract parameter types from the Func
-            // type arguments (all but the last, which is the return type).
+            // Target-type-driven inference: extract parameter types from the Func/Action
+            // type arguments. For Standard.Func, all but the last are params (last is return type).
+            // For raw CLR Action (projected as ClassType), ALL type args are params.
             var typeArgs = funcCt.TypeArguments;
-            var paramTypes = typeArgs.Count > 1
-                ? typeArgs.Take(typeArgs.Count - 1).ToList()
-                : new List<IType>();
-            var returnType = GetFuncReturnType(funcCt);
+            List<IType> paramTypes;
+            IType returnType;
+
+            var isClrAction = funcCt.GenericDefinition is ClassType { ContainingNamespace: "System" } clrActionClass
+                && clrActionClass.DisplayName.StartsWith("Action", StringComparison.Ordinal);
+
+            if (isClrAction)
+            {
+                // CLR Action<T1, ..., TN>: all type args are parameter types, return is void.
+                paramTypes = typeArgs.ToList();
+                returnType = UnknownType.Instance; // void-like
+            }
+            else
+            {
+                // Standard.Func<T1, ..., TN, TResult>: all but last are params, last is return.
+                paramTypes = typeArgs.Count > 1
+                    ? typeArgs.Take(typeArgs.Count - 1).ToList()
+                    : new List<IType>();
+                returnType = GetFuncReturnType(funcCt);
+            }
 
             // Create a child scope for the lambda body.
             var lambdaScope = new Scope(parent: currentScope);
@@ -25541,6 +25568,18 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                             break;
                         }
                         if (constituent is DelegateType)
+                        {
+                            _lambdaTargetType = constituent;
+                            break;
+                        }
+                        // Also detect CLR Action<T>/Func<T> types that were projected as
+                        // plain ClassType (not stdlib Func) due to projection ordering.
+                        // These are ConstructedTypes whose GenericDefinition has a name
+                        // like "Action" or "Func" in the "System" namespace.
+                        if (constituent is ConstructedType ctConstituent
+                            && ctConstituent.GenericDefinition is ClassType { ContainingNamespace: "System" } ctClass
+                            && (ctClass.DisplayName.StartsWith("Action", StringComparison.Ordinal)
+                                || ctClass.DisplayName.StartsWith("Func", StringComparison.Ordinal)))
                         {
                             _lambdaTargetType = constituent;
                             break;

@@ -19088,6 +19088,47 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     }
 
     /// <summary>
+    /// If the type is <c>Expression&lt;Func&lt;...&gt;&gt;</c> (from System.Linq.Expressions),
+    /// unwraps it and returns the inner Func/delegate type argument for lambda inference.
+    /// Returns null if the type is not an Expression wrapper.
+    /// </summary>
+    private static IType? TryUnwrapExpressionFunc(IType type)
+    {
+        if (type is not ConstructedType ct)
+            return null;
+
+        // Check if the generic definition is "Expression" from System.Linq.Expressions.
+        if (ct.GenericDefinition is not ClassType classDef)
+            return null;
+
+        if (classDef.DisplayName != "Expression"
+            || (classDef.ContainingNamespace != "System.Linq.Expressions"
+                && classDef.ContainingNamespace != "System"))
+            return null;
+
+        // Expression<T> has exactly one type argument — the delegate type.
+        if (ct.TypeArguments.Count != 1)
+            return null;
+
+        var inner = ct.TypeArguments[0];
+
+        // The inner type should be a Func-like type (stdlib Func or CLR Func/Action).
+        if (IsFuncType(inner))
+            return inner;
+
+        // Also accept CLR Func/Action projected as ClassType.
+        if (inner is ConstructedType innerCt
+            && innerCt.GenericDefinition is ClassType { ContainingNamespace: "System" } innerClass
+            && (innerClass.DisplayName.StartsWith("Func", StringComparison.Ordinal)
+                || innerClass.DisplayName.StartsWith("Action", StringComparison.Ordinal)))
+        {
+            return inner;
+        }
+
+        return null;
+    }
+
+    /// <summary>
     /// Extracts the return type from a <c>Standard.Func&lt;T1, ..., TN, TResult&gt;</c>
     /// constructed type. The return type is always the last type argument.
     /// </summary>
@@ -24817,6 +24858,29 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             }
         }
 
+        // Check ConstructedType: walk the generic definition's base chain.
+        // E.g., EntityTypeBuilder<T> (ConstructedType) → EntityTypeBuilder (ClassType base).
+        if (source is ConstructedType sourceCt && sourceCt.GenericDefinition is ClassType sourceCtClass)
+        {
+            // The source ConstructedType is assignable to its own generic definition.
+            if (ReferenceEquals(sourceCtClass, target) || sourceCtClass.DisplayName == target.DisplayName)
+                return true;
+
+            // Walk the base type chain of the generic definition.
+            var current = sourceCtClass.BaseType;
+            while (current is not null)
+            {
+                if (ReferenceEquals(current, target) || current.DisplayName == target.DisplayName)
+                    return true;
+                current = (current as ClassType)?.BaseType;
+            }
+        }
+
+        // Check plain ClassType assignable to a ConstructedType's generic definition.
+        // E.g., EntityTypeBuilder (ClassType) IS assignable to EntityTypeBuilder<T> (ConstructedType)
+        // only if it's the same type or a base — but a non-generic base is NOT assignable to
+        // a more-specific generic derived type. So this direction is false (correctly not handled).
+
         return false;
     }
 
@@ -25610,6 +25674,11 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 {
                     _lambdaTargetType = paramType;
                 }
+                else if (TryUnwrapExpressionFunc(paramType) is { } expressionFunc)
+                {
+                    // Expression<Func<T, R>> — unwrap to the inner Func for lambda inference.
+                    _lambdaTargetType = expressionFunc;
+                }
                 else if (paramType is UnionType unionParam)
                 {
                     // Check if the union contains a Func or DelegateType constituent
@@ -25636,6 +25705,12 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                                 || ctClass.DisplayName.StartsWith("Func", StringComparison.Ordinal)))
                         {
                             _lambdaTargetType = constituent;
+                            break;
+                        }
+                        // Expression<Func<...>> inside a nullable union.
+                        if (TryUnwrapExpressionFunc(constituent) is { } innerFunc)
+                        {
+                            _lambdaTargetType = innerFunc;
                             break;
                         }
                     }

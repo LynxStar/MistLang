@@ -128,6 +128,100 @@ public static class TypeArgumentInferenceEngine
             return;
         }
 
-        // Case 5: No bindings produced from this pair — skip silently.
+        // Case 5: Argument type is a UnionType (e.g., List<WI10> | void from nullable projection).
+        // Unwrap to non-void constituent before unification.
+        if (argumentType is UnionType argumentUnion)
+        {
+            foreach (var constituent in argumentUnion.Constituents)
+            {
+                if (constituent.IsVoid())
+                    continue;
+                Unify(declaredParamType, constituent, context);
+                return;
+            }
+            return;
+        }
+
+        // Case 6: Expression<T> unwrapping — when the declared param type is
+        // Expression<Func<...>> (a CLR Expression tree type), unwrap to the inner
+        // Func type and unify against the argument. This enables type inference from
+        // lambdas passed to Expression<Func<TEntity, TResult>> parameters.
+        if (declaredParamType is ConstructedType exprCt
+            && exprCt.GenericDefinition is ClassType { DisplayName: "Expression" } exprClass
+            && (exprClass.ContainingNamespace == "System.Linq.Expressions" || exprClass.ContainingNamespace == "System")
+            && exprCt.TypeArguments.Count == 1)
+        {
+            Unify(exprCt.TypeArguments[0], argumentType, context);
+            return;
+        }
+
+        // Case 7: Interface implementation unification — when the declared param type
+        // is an interface (e.g., IEnumerable<TRelated>) and the argument type is a class
+        // that implements that interface (e.g., List<WI10>), find the matching interface
+        // implementation and unify type arguments.
+        if (declaredParamType is ConstructedType declaredIfaceCt
+            && declaredIfaceCt.GenericDefinition is InterfaceType declaredIface
+            && argumentType is ConstructedType argumentClassCt
+            && argumentClassCt.GenericDefinition is ClassType argumentClassDef)
+        {
+            // Search the argument class's interfaces for one that matches the declared interface.
+            foreach (var iface in argumentClassDef.Interfaces)
+            {
+                if (iface is ConstructedType ifaceCt
+                    && ReferenceEquals(ifaceCt.GenericDefinition, declaredIface))
+                {
+                    // Found matching interface — substitute the class's type args
+                    // into the interface's type args, then unify against the declared params.
+                    var substitutedIfaceArgs = new IType[ifaceCt.TypeArguments.Count];
+                    for (var i = 0; i < ifaceCt.TypeArguments.Count; i++)
+                    {
+                        var ifaceArg = ifaceCt.TypeArguments[i];
+                        if (ifaceArg is TypeParameterType ifaceTpt
+                            && argumentClassDef.TypeParameters.Count > 0)
+                        {
+                            // Map the class's type param to the concrete type arg.
+                            for (var j = 0; j < argumentClassDef.TypeParameters.Count; j++)
+                            {
+                                if (argumentClassDef.TypeParameters[j] is TypeParameterType classTP
+                                    && classTP.Name == ifaceTpt.Name && classTP.Ordinal == ifaceTpt.Ordinal)
+                                {
+                                    ifaceArg = j < argumentClassCt.TypeArguments.Count
+                                        ? argumentClassCt.TypeArguments[j]
+                                        : ifaceArg;
+                                    break;
+                                }
+                            }
+                        }
+                        substitutedIfaceArgs[i] = ifaceArg;
+                    }
+
+                    // Unify declared interface type args against the resolved interface type args.
+                    var count = Math.Min(declaredIfaceCt.TypeArguments.Count, substitutedIfaceArgs.Length);
+                    for (var i = 0; i < count; i++)
+                    {
+                        Unify(declaredIfaceCt.TypeArguments[i], substitutedIfaceArgs[i], context);
+                    }
+                    return;
+                }
+            }
+        }
+
+        // Case 8: ConstructedType with different GenericDefinitions but same display name.
+        // This handles cases where the same CLR type is projected through different paths
+        // (e.g., Func from stdlib vs Func from CLR projection).
+        if (declaredParamType is ConstructedType declaredCt2
+            && argumentType is ConstructedType argumentCt2
+            && !ReferenceEquals(declaredCt2.GenericDefinition, argumentCt2.GenericDefinition)
+            && declaredCt2.GenericDefinition.DisplayName == argumentCt2.GenericDefinition.DisplayName
+            && declaredCt2.TypeArguments.Count == argumentCt2.TypeArguments.Count)
+        {
+            for (var i = 0; i < declaredCt2.TypeArguments.Count; i++)
+            {
+                Unify(declaredCt2.TypeArguments[i], argumentCt2.TypeArguments[i], context);
+            }
+            return;
+        }
+
+        // Case 9: No bindings produced from this pair — skip silently.
     }
 }

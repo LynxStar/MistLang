@@ -19879,13 +19879,11 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         if (type is not ConstructedType ct)
             return null;
 
-        // Check if the generic definition is "Expression" from System.Linq.Expressions.
+        // Check if the generic definition is "Expression" (from System.Linq.Expressions).
         if (ct.GenericDefinition is not ClassType classDef)
             return null;
 
-        if (classDef.DisplayName != "Expression"
-            || (classDef.ContainingNamespace != "System.Linq.Expressions"
-                && classDef.ContainingNamespace != "System"))
+        if (classDef.DisplayName != "Expression")
             return null;
 
         // Expression<T> has exactly one type argument — the delegate type.

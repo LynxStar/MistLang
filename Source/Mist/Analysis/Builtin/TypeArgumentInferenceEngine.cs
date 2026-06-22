@@ -147,8 +147,7 @@ public static class TypeArgumentInferenceEngine
         // Func type and unify against the argument. This enables type inference from
         // lambdas passed to Expression<Func<TEntity, TResult>> parameters.
         if (declaredParamType is ConstructedType exprCt
-            && exprCt.GenericDefinition is ClassType { DisplayName: "Expression" } exprClass
-            && (exprClass.ContainingNamespace == "System.Linq.Expressions" || exprClass.ContainingNamespace == "System")
+            && exprCt.GenericDefinition is ClassType { DisplayName: "Expression" }
             && exprCt.TypeArguments.Count == 1)
         {
             Unify(exprCt.TypeArguments[0], argumentType, context);

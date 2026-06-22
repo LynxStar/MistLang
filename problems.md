@@ -7,7 +7,7 @@
 
 ## Summary
 
-Issues 1, 2, and 3 are resolved. The core DbContext pattern (derive, override OnModelCreating, use Fluent API with generic lambda inference) now works end-to-end. Issue 4 may also be fixed (same root cause as 3). Issue 5 has a workaround.
+All five original interop blockers are resolved. Additionally, three follow-on issues discovered during testing (constructed generic member resolution, extension method ambiguity, and Expression<Func<T>> unwrapping for nested lambdas) are also fixed. The full EF Core DbContext pattern works end-to-end.
 
 ---
 
@@ -33,43 +33,33 @@ Full pipeline fix across semantic model builder, type checker, and overload reso
 4. Explicit type args passed as synthetic inference results to the overload resolver
 5. Cross-representation delegate compatibility: stdlib `Func<T, Void>` matches CLR `Action<T>` in union constituents
 
-**Working example:**
-```mist
-void OnModelCreating(ModelBuilder modelBuilder)
-{
-    modelBuilder.Entity<Request>(entity =>
-    {
-        Console.WriteLine("configuring entity");
-    });
-}
-```
-
 ---
 
-## Issue 4: Extension Method Nested Lambda Type Inference — NEEDS TESTING
+## Issue 4: Extension Method Nested Lambda Type Inference — RESOLVED
 
-### Original Problem
-```mist
-options.UseNpgsql(connectionString, npgsqlOptions => npgsqlOptions.EnableRetryOnFailure(3));
-```
-
-This may now work since the root cause (lambda parameter inference from CLR method signatures) was the same as Issue 3. Needs verification once the full DbContext sample is wired up.
+Fixed by: correct overload selection for ambient extension methods (prefer matching param count), receiver parameter offset for backend extensions (skip `this` param), and Expression<Func<T>> unwrapping for nested lambdas.
 
 ---
 
 ## Issue 5: Generic Constructor Parameter Type Resolution — RESOLVED
 
-`DbContextOptions<PendragonDbContext>` is now correctly assignable to `DbContextOptions` in constructor chains. The fix adds ConstructedType → non-generic base class subtype checking in `IsAssignable`, plus a union constituent subtype fallback for nullable-projected CLR parameters.
+ConstructedType → non-generic base class subtype checking in `IsAssignable`, plus union constituent subtype fallback for nullable-projected CLR parameters.
 
-```mist
-public PendragonDbContext(DbContextOptions<PendragonDbContext> options) : base(options) { }
-```
+---
+
+## Additional Fixes (discovered during testing)
+
+- **Constructed generic member resolution**: `EntityTypeBuilder<Request>` member scope was empty (disconnected shell). Fixed by resolving the generic definition through the type provider when it's a disconnected shell inside a ConstructedType.
+
+- **Extension method ambiguity**: `EntityTypeBuilder<T>` extensions vs `EntityTypeBuilder` extensions. Fixed by handling ConstructedType in `IsReceiverAssignableTo` base chain walking.
+
+- **Expression<Func<T>> unwrapping**: `HasKey(Expression<Func<TEntity, object?>>)` — the lambda target type detection now unwraps `Expression<T>` to get the inner Func for parameter inference.
 
 ---
 
 ## Current Working State
 
-The following compiles and produces correct C#:
+The full EF Core pattern compiles and produces correct C#:
 ```mist
 using Microsoft.EntityFrameworkCore;
 
@@ -80,7 +70,7 @@ public class Request
 
 public class PendragonDbContext : DbContext
 {
-    public PendragonDbContext(DbContextOptions options) : base(options)
+    public PendragonDbContext(DbContextOptions<PendragonDbContext> options) : base(options)
     {
     }
 
@@ -88,21 +78,14 @@ public class PendragonDbContext : DbContext
 
     void OnModelCreating(ModelBuilder modelBuilder)
     {
-        // Emits: protected override void OnModelCreating(ModelBuilder modelBuilder)
         modelBuilder.Entity<Request>(entity =>
         {
-            // Lambda param 'entity' correctly typed as EntityTypeBuilder<Request>
-            Console.WriteLine("configuring Request");
+            entity.HasKey(e => e.RequestId);
+            entity.ToTable("Requests");
         });
     }
 }
 ```
-
----
-
-## Remaining Known Limitation
-
-Calling methods on the inferred lambda parameter (e.g., `entity.HasKey(...)`) may still fail due to member resolution on `EntityTypeBuilder<Request>` (constructed generic type member lookup). This is a separate issue from lambda inference — it's about how generic type member scopes propagate through type argument substitution.
 
 ---
 
@@ -115,3 +98,6 @@ Calling methods on the inferred lambda parameter (e.g., `entity.HasKey(...)`) ma
 | Issue 3 (generic lambda inference) | ✅ RESOLVED |
 | Issue 4 (nested lambda inference) | ✅ RESOLVED |
 | Issue 5 (generic ctor param) | ✅ RESOLVED |
+| Constructed generic member resolution | ✅ RESOLVED |
+| Extension method ambiguity | ✅ RESOLVED |
+| Expression<Func<T>> unwrapping | ✅ RESOLVED |

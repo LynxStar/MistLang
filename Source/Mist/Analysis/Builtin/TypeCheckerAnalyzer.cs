@@ -11459,6 +11459,29 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     // null entry means non-generic candidate — passes through unchanged.
                 }
             }
+            else
+            {
+                // Explicit type arguments provided: create synthetic inference results
+                // so the overload resolver substitutes the method's type parameters
+                // into parameter types before the assignability check.
+                var resolvedExplicitTypeArgs = ResolveTypeArgumentsFromAst(methodCall.TypeArgs, model);
+                if (resolvedExplicitTypeArgs.Count > 0)
+                {
+                    inferenceResults = new InferenceResult?[candidates.Count];
+                    for (var i = 0; i < candidates.Count; i++)
+                    {
+                        if (candidates[i] is Symbol candidateSym
+                            && candidateSym.TypeParameters.Count == resolvedExplicitTypeArgs.Count)
+                        {
+                            inferenceResults[i] = new InferenceResult(
+                                Success: true,
+                                InferredTypeArguments: resolvedExplicitTypeArgs.ToArray(),
+                                UninferrableTypeParameters: null,
+                                Conflicts: null);
+                        }
+                    }
+                }
+            }
 
             var result = OverloadResolver.Resolve(candidates, argTypes, model,
                 argumentRefKinds: argRefKinds, inferenceResults: inferenceResults);
@@ -17066,7 +17089,21 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             // target rule and handles CLR reference-type parameters projected as T?.
             if (!source.IsVoid() && targetUnion.Constituents.Any(c => c is UnknownType))
                 return true;
-            return IsConstituentOf(source, targetUnion);
+            if (IsConstituentOf(source, targetUnion))
+                return true;
+
+            // Subtype fallback: if the source is assignable to any non-void constituent
+            // via inheritance (e.g., ConstructedType<T> assignable to its non-generic base),
+            // accept the assignment. This avoids infinite recursion by only checking
+            // constituents that are class/struct types (not other unions or error types).
+            foreach (var constituent in targetUnion.Constituents)
+            {
+                if (constituent.IsVoid() || constituent is UnionType || constituent is ErrorType)
+                    continue;
+                if (IsAssignable(source, constituent, model))
+                    return true;
+            }
+            return false;
         }
         if (source is UnionType)
         {
@@ -17327,6 +17364,32 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             var baseType = GetSubstitutedBaseType(sourceStructConst);
             if (baseType is not null && IsAssignable(baseType, target))
                 return true;
+        }
+
+        // ConstructedType (class) to plain ClassType assignability:
+        // When source is a ConstructedType wrapping a ClassType (e.g., DbContextOptions<MyContext>),
+        // check if the generic definition IS the target or has the target in its base chain.
+        // This handles the CLR pattern where a generic type inherits from a non-generic base
+        // (e.g., DbContextOptions<T> : DbContextOptions).
+        if (source is ConstructedType sourceClassConst
+            && sourceClassConst.GenericDefinition is ClassType sourceClassDef
+            && target is ClassType targetClassType
+            && target is not ConstructedType)
+        {
+            // Check if the generic definition itself is the target.
+            if (ReferenceEquals(sourceClassDef, targetClassType)
+                || sourceClassDef.DisplayName == targetClassType.DisplayName)
+                return true;
+
+            // Walk the generic definition's base type chain.
+            var ancestor = sourceClassDef.BaseType as ClassType;
+            while (ancestor is not null)
+            {
+                if (ReferenceEquals(ancestor, targetClassType)
+                    || ancestor.DisplayName == targetClassType.DisplayName)
+                    return true;
+                ancestor = ancestor.BaseType as ClassType;
+            }
         }
 
         // ConstructedType to constructed interface assignability.
@@ -19903,6 +19966,24 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 && (type.DisplayName == refinement.BaseType.DisplayName
                     || ArePrimitiveEquivalent(type, refinement.BaseType)))
                 return true;
+            // Cross-representation delegate compatibility: a stdlib Func<T1, ..., Void>
+            // is assignable to a CLR Action<T1, ...> constituent when the parameter
+            // counts match. This handles the case where the lambda resolves to stdlib
+            // Func but the method parameter was projected as CLR Action. The type
+            // checker already validated parameter type compatibility during lambda
+            // inference, so arg-count matching is sufficient here.
+            if (SemanticModelBuilder.IsFuncType(type) && type is ConstructedType funcCt
+                && constituent is ConstructedType ctConstituent
+                && !SemanticModelBuilder.IsFuncType(constituent)
+                && constituent.DisplayName != "Void" && !constituent.IsVoid())
+            {
+                var funcArgs = funcCt.TypeArguments;
+                var lastFuncArg = funcArgs.Count > 0 ? funcArgs[funcArgs.Count - 1] : null;
+                var isVoidReturn = lastFuncArg is not null && lastFuncArg.IsVoid();
+
+                if (isVoidReturn && funcArgs.Count - 1 == ctConstituent.TypeArguments.Count)
+                    return true;
+            }
         }
         return false;
     }

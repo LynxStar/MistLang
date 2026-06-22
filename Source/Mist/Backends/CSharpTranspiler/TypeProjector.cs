@@ -2386,6 +2386,26 @@ internal sealed class TypeProjector
             }
         }
 
+        // For constructed generic types (e.g., EntityTypeBuilder<TEntity>), check if
+        // the generic definition inside the ConstructedType is a disconnected shell.
+        // If so, attempt a full resolve of the generic definition to get its members.
+        if (_typeReferenceResolver is not null
+            && projected is ConstructedType projectedCt
+            && IsDisconnectedShell(projectedCt.GenericDefinition)
+            && clrType.IsConstructedGenericType)
+        {
+            var genericDef = clrType.GetGenericTypeDefinition();
+            if (genericDef.Namespace is not null)
+            {
+                var resolvedDef = _typeReferenceResolver(genericDef);
+                if (resolvedDef is not null)
+                {
+                    // Reconstruct the ConstructedType with the fully-populated definition.
+                    projected = new ConstructedType(resolvedDef, projectedCt.TypeArguments);
+                }
+            }
+        }
+
         return projected;
     }
 

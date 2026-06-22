@@ -20471,16 +20471,43 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         {
             funcCt = directFuncCt;
         }
+        else if (targetType is not null && targetType is ConstructedType clrDelegateCt
+            && clrDelegateCt.GenericDefinition is ClassType { ContainingNamespace: "System" } clrDelegateClass
+            && (clrDelegateClass.DisplayName.StartsWith("Action", StringComparison.Ordinal)
+                || clrDelegateClass.DisplayName.StartsWith("Func", StringComparison.Ordinal)))
+        {
+            // CLR Action<T>/Func<T> types that were projected as plain ClassType rather than
+            // stdlib Func (due to projection ordering). Treat type arguments as parameter types
+            // (for Action, all args are params; for Func, last arg is return type).
+            funcCt = clrDelegateCt;
+        }
 
         if (funcCt is not null)
         {
-            // Target-type-driven inference: extract parameter types from the Func
-            // type arguments (all but the last, which is the return type).
+            // Target-type-driven inference: extract parameter types from the Func/Action
+            // type arguments. For Standard.Func, all but the last are params (last is return type).
+            // For raw CLR Action (projected as ClassType), ALL type args are params.
             var typeArgs = funcCt.TypeArguments;
-            var paramTypes = typeArgs.Count > 1
-                ? typeArgs.Take(typeArgs.Count - 1).ToList()
-                : new List<IType>();
-            var returnType = GetFuncReturnType(funcCt);
+            List<IType> paramTypes;
+            IType returnType;
+
+            var isClrAction = funcCt.GenericDefinition is ClassType { ContainingNamespace: "System" } clrActionClass
+                && clrActionClass.DisplayName.StartsWith("Action", StringComparison.Ordinal);
+
+            if (isClrAction)
+            {
+                // CLR Action<T1, ..., TN>: all type args are parameter types, return is void.
+                paramTypes = typeArgs.ToList();
+                returnType = UnknownType.Instance; // void-like
+            }
+            else
+            {
+                // Standard.Func<T1, ..., TN, TResult>: all but last are params, last is return.
+                paramTypes = typeArgs.Count > 1
+                    ? typeArgs.Take(typeArgs.Count - 1).ToList()
+                    : new List<IType>();
+                returnType = GetFuncReturnType(funcCt);
+            }
 
             // Create a child scope for the lambda body.
             var lambdaScope = new Scope(parent: currentScope);
@@ -20551,6 +20578,31 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
             // The lambda's type is the equivalent Func type (even when targeting a DelegateType,
             // the lambda is typed as func<...> — conversion to the delegate happens at the call site).
+            // When funcCt came from a CLR Action/Func ClassType (not stdlib Func), construct
+            // the proper stdlib Func type so the overload resolver can match it.
+            if (!IsFuncType(funcCt))
+            {
+                // Construct stdlib Func<paramTypes..., returnType> from the extracted types.
+                var funcArity = paramTypes.Count + 1;
+                var funcTypeArgs = new IType[funcArity];
+                for (var pi = 0; pi < paramTypes.Count; pi++)
+                    funcTypeArgs[pi] = paramTypes[pi];
+
+                // For CLR Action, return type is Void. Look up stdlib Void.
+                try
+                {
+                    var globalScope = FindGlobalScope(fileScope) ?? fileScope;
+                    var voidType = LookupQualifiedStdlibType(globalScope, symbolTable, "Standard.Void");
+                    funcTypeArgs[^1] = voidType;
+                    var funcDefinition = LookupQualifiedStdlibType(globalScope, symbolTable, "Standard.Func", funcArity);
+                    return new ConstructedType(funcDefinition, funcTypeArgs);
+                }
+                catch (StdlibMissingException)
+                {
+                    // Fallback to the CLR type if stdlib isn't available.
+                    return funcCt;
+                }
+            }
             return funcCt;
         }
 
@@ -22315,6 +22367,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 }
 
                 // Handle type arguments on method invocations (e.g., obj.Method<int>()).
+                IReadOnlyList<IType>? resolvedMethodTypeArgs = null;
+                IReadOnlyList<IType>? methodTypeParams = null;
+                ISymbol? resolvedGenericMethodSymbol = null;
                 if (methodCall.TypeArgs is not null)
                 {
                     // Look up the method symbol to check its type parameters.
@@ -22364,6 +22419,11 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                             // Substitute type parameters in the return type with
                             // the resolved type arguments.
                             memberType = SubstituteTypeParameters(memberType, sym.TypeParameters, resolvedTypeArgs);
+
+                            // Capture for parameter type substitution below (lambda inference).
+                            resolvedMethodTypeArgs = resolvedTypeArgs;
+                            methodTypeParams = sym.TypeParameters;
+                            resolvedGenericMethodSymbol = sym;
                         }
                     }
                     else if (methodSymbol is not null)
@@ -22382,26 +22442,63 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 if (methodCall.Arguments is not null)
                 {
                     // Look up the method symbol to get parameter types for lambda inference.
-                    var methodSymForParams = LookupMemberSymbol(targetType, memberName, ambientTypeResolver, fileScope, symbolTable);
+                    // When we already resolved a generic method symbol with explicit type args,
+                    // use it directly IF it has parameters. Otherwise fall back to finding
+                    // the correct overload (e.g., Entity<T>() vs Entity<T>(Action<...>)).
+                    ISymbol? methodSymForParams;
+                    if (resolvedGenericMethodSymbol is Symbol resolvedSym
+                        && resolvedSym.Parameters.Count > 0)
+                    {
+                        methodSymForParams = resolvedGenericMethodSymbol;
+                    }
+                    else if (methodTypeParams is not null && methodCall.TypeArgs is not null)
+                    {
+                        // The resolved generic symbol has no params but the call has args.
+                        // Look for an overload with the same type arg count that DOES have params.
+                        var providedArity = CountTypeArgs(methodCall.TypeArgs);
+                        methodSymForParams = LookupGenericMemberSymbolWithParams(targetType, memberName, providedArity, ambientTypeResolver, fileScope, symbolTable);
+                    }
+                    else
+                    {
+                        methodSymForParams = LookupMemberSymbol(targetType, memberName, ambientTypeResolver, fileScope, symbolTable);
+                    }
 
                     // If not found on the type itself, check extension methods.
+                    var isExtensionMethod = false;
                     if (methodSymForParams is null && _extensionRegistryContext is not null)
                     {
                         var extLookupType = targetType;
                         if (extLookupType is ConstructedType extCt)
                             extLookupType = extCt.GenericDefinition;
                         var extensions = _extensionRegistryContext.GetApplicableExtensions(targetType);
+                        var argCount = methodCall.Arguments.GetAllExpressions().Length;
+                        ISymbol? firstExtMatch = null;
                         foreach (var ext in extensions)
                         {
                             foreach (var m in ext.MemberScope.Members)
                             {
                                 if (m.Name == memberName && m.Kind == SymbolKind.Method)
                                 {
-                                    methodSymForParams = m;
-                                    break;
+                                    firstExtMatch ??= m;
+                                    // For backend (ambient) extension methods with populated Parameters,
+                                    // prefer the overload whose param count (minus receiver) matches
+                                    // the argument count at the call site.
+                                    if (m is Symbol extSym && extSym.Parameters.Count > 0
+                                        && extSym.Parameters.Count - 1 == argCount)
+                                    {
+                                        methodSymForParams = m;
+                                        isExtensionMethod = true;
+                                        break;
+                                    }
                                 }
                             }
                             if (methodSymForParams is not null) break;
+                        }
+                        // Fallback: use first match if no exact param count match.
+                        if (methodSymForParams is null && firstExtMatch is not null)
+                        {
+                            methodSymForParams = firstExtMatch;
+                            isExtensionMethod = true;
                         }
                     }
 
@@ -22430,6 +22527,17 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     {
                         methodParamTypes = ParameterSignature.Extract(methodSymForParams, symbolTable);
 
+                        // Extension methods from CLR assemblies include the 'this' receiver
+                        // as the first parameter in Symbol.Parameters. Skip it so argument
+                        // indices align with parameter indices correctly.
+                        // Mist-defined extensions don't have this issue (AST-based extraction
+                        // already excludes the receiver).
+                        if (isExtensionMethod && methodParamTypes.Count > 0
+                            && methodSymForParams is Symbol { Origin: SymbolOrigin.Backend })
+                        {
+                            methodParamTypes = methodParamTypes.Skip(1).ToList();
+                        }
+
                         // If the target is a constructed generic type (e.g., List<int>),
                         // substitute type parameters in the extracted parameter types so that
                         // lambda target types use concrete types (e.g., Func<int, void>
@@ -22450,6 +22558,27 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                                 if (anyChanged)
                                     methodParamTypes = substituted;
                             }
+                        }
+
+                        // If the method itself is generic and explicit type arguments were
+                        // provided (e.g., Entity<Request>), substitute the method's type
+                        // parameters in the parameter types so that lambda target types
+                        // use concrete types (e.g., Action<EntityTypeBuilder<Request>>
+                        // instead of Action<EntityTypeBuilder<T>>).
+                        if (methodParamTypes.Count > 0
+                            && resolvedMethodTypeArgs is not null
+                            && methodTypeParams is not null)
+                        {
+                            var substituted = new IType[methodParamTypes.Count];
+                            var anyChanged = false;
+                            for (var pi = 0; pi < methodParamTypes.Count; pi++)
+                            {
+                                substituted[pi] = SubstituteTypeInMember(methodParamTypes[pi], methodTypeParams, resolvedMethodTypeArgs);
+                                if (!ReferenceEquals(substituted[pi], methodParamTypes[pi]))
+                                    anyChanged = true;
+                            }
+                            if (anyChanged)
+                                methodParamTypes = substituted;
                         }
                     }
                     ResolveArgumentListWithParameterTypes(methodCall.Arguments, methodParamTypes, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
@@ -25369,6 +25498,48 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     }
 
     /// <summary>
+    /// Looks up a generic method symbol by name and type argument count, preferring an
+    /// overload that has parameters (i.e., is not parameterless). Used when the initial
+    /// generic member lookup found a parameterless overload but the call site has arguments,
+    /// indicating a different overload is needed for lambda target type inference.
+    /// </summary>
+    private static ISymbol? LookupGenericMemberSymbolWithParams(
+        IType targetType,
+        string memberName,
+        int typeArgCount,
+        IAmbientTypeResolver? ambientTypeResolver,
+        Scope fileScope,
+        SymbolTable symbolTable)
+    {
+        if (targetType is ErrorType or NamespaceReferenceType)
+            return null;
+
+        if (targetType is ConstructedType ct)
+            targetType = ct.GenericDefinition;
+
+        if (targetType is ClassType classTarget)
+        {
+            ClassType? current = classTarget;
+            while (current is not null)
+            {
+                foreach (var m in current.MemberScope.Members)
+                {
+                    if (m.Name == memberName
+                        && m is Symbol s
+                        && s.TypeParameters.Count == typeArgCount
+                        && s.Parameters.Count > 0)
+                    {
+                        return s;
+                    }
+                }
+                current = current.BaseType as ClassType;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
     /// Counts the number of type arguments in a <see cref="TypeArgumentListNode"/>.
     /// </summary>
     private static int CountTypeArgs(TypeArgumentListNode typeArgList)
@@ -25451,6 +25622,18 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                             break;
                         }
                         if (constituent is DelegateType)
+                        {
+                            _lambdaTargetType = constituent;
+                            break;
+                        }
+                        // Also detect CLR Action<T>/Func<T> types that were projected as
+                        // plain ClassType (not stdlib Func) due to projection ordering.
+                        // These are ConstructedTypes whose GenericDefinition has a name
+                        // like "Action" or "Func" in the "System" namespace.
+                        if (constituent is ConstructedType ctConstituent
+                            && ctConstituent.GenericDefinition is ClassType { ContainingNamespace: "System" } ctClass
+                            && (ctClass.DisplayName.StartsWith("Action", StringComparison.Ordinal)
+                                || ctClass.DisplayName.StartsWith("Func", StringComparison.Ordinal)))
                         {
                             _lambdaTargetType = constituent;
                             break;

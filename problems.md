@@ -1,13 +1,13 @@
 # Findings: Interop Blockers for EF Core DbContext Implementation
 
-## Status: ONE ISSUE REMAINING
+## Status: ALL ISSUES RESOLVED
 
 ## Task
 3.1 — Implement EF Core DbContext and entity configurations
 
 ## Summary
 
-All original issues (1–5) plus follow-on issues (6–9, 11) are resolved. Issue 10 (chained fluent API type parameter propagation through CLR base class hierarchies) remains as the only blocker for relationship configuration.
+All interop blockers are resolved. The full EF Core DbContext pattern — including derivation, implicit override, Fluent API configuration with generic lambdas, nested lambdas, Expression<Func<T>> parameters, chained fluent API with type argument inference through interface implementations, and CRTP-based types — works end-to-end.
 
 ---
 
@@ -24,45 +24,12 @@ All original issues (1–5) plus follow-on issues (6–9, 11) are resolved. Issu
 | 7 | Extension method ambiguity | ConstructedType base chain in IsReceiverAssignableTo |
 | 8 | Expression<Func<T>> unwrapping | TryUnwrapExpressionFunc for nested lambda targets |
 | 9 | HasMany/OwnsOne lambda inference | LookupMemberSymbolByParamCount + lambda-compatible preference |
+| 10 | Chained fluent API type propagation | TypeArgumentInferenceEngine: Expression unwrapping, interface implementation unification, nullable union unwrapping |
 | 11 | CRTP stack overflow | Cycle detection in ImplementsConstructedInterface |
 
 ---
 
-## Issue 10: Chained Fluent API Type Parameter Propagation — REMAINING
-
-### Symptom
-```mist
-entity.HasMany(e => e.WorkItems).WithOne().HasForeignKey(e => e.ReqId);
-```
-Error: `'TRelatedEntity' does not contain a definition for 'ReqId'`
-
-The lambda param `e` in `HasForeignKey` is typed as the raw type parameter `TRelatedEntity` instead of the concrete `WI10`.
-
-### What Works
-- `entity.HasMany(e => e.WorkItems)` — lambda inference correct, return type correctly inferred as `CollectionNavigationBuilder<Req10, WI10>` ✓
-- `nav.WithOne()` — resolves, member access on result works (`.Metadata.PrincipalEntityType.Name`) ✓
-- `rel.HasForeignKey(e => e.ReqId)` — FAILS: `TRelatedEntity` not substituted ✗
-
-### Root Cause (Confirmed via tracing)
-The `TypeArgumentInferenceEngine.TryInfer` fails when trying to infer `TRelatedEntity` from the resolved lambda type. Specifically:
-
-- **Param type**: `Expression<Func<TEntity, IEnumerable<TRelatedEntity>>> | void`
-- **Arg type**: `Func<Req10, List<WI10> | Void>`
-
-The inference engine's `Unify` method cannot:
-1. **Unwrap `Expression<T>`** — it doesn't know that `Expression<Func<...>>` wraps a `Func`
-2. **Match `List<WI10>` against `IEnumerable<TRelatedEntity>`** — it requires `ReferenceEquals(GenericDefinition)` but `List` ≠ `IEnumerable`; it doesn't handle interface implementation (List implements IEnumerable)
-3. **Handle nullable unions** — `List<WI10> | Void` doesn't unify against `IEnumerable<TRelatedEntity>`
-
-### Fix Direction
-Extend `TypeArgumentInferenceEngine.Unify` (in `TypeArgumentInferenceEngine.cs`) to handle:
-- Expression<T> unwrapping before unification
-- Interface implementation: when arg is `List<T>` and param is `IEnumerable<T>`, find the matching interface and unify type args
-- Nullable union unwrapping: strip `| Void` before unification
-
----
-
-## What Currently Compiles ✅
+## What Now Compiles ✅
 
 ```mist
 void OnModelCreating(ModelBuilder modelBuilder)
@@ -73,11 +40,8 @@ void OnModelCreating(ModelBuilder modelBuilder)
         entity.Property(e => e.RequestId).ValueGeneratedOnAdd();
         entity.Property(e => e.Type).HasConversion<string>();
         entity.HasIndex(e => e.State);
-        entity.HasMany(e => e.WorkItems);
+        entity.HasMany(e => e.WorkItems).WithOne().HasForeignKey(e => e.RequestId);
         entity.ToTable("Requests");
     });
 }
 ```
-
-### What's Blocked
-- `entity.HasMany(e => e.WorkItems).WithOne().HasForeignKey(e => e.ReqId)` — Issue 10

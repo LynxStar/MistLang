@@ -1,8 +1,8 @@
 using System;
 
-namespace Snippet;
+namespace Standard;
 
-interface IGenericContainer<T>
+interface IClonable<T>
 {
-    T GetItem();
+    T Clone();
 }

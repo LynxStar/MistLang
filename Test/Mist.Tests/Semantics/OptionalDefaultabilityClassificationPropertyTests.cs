@@ -167,14 +167,9 @@ public class OptionalDefaultabilityClassificationPropertyTests
         return new StructTypeTypeDeclarationNode { StructDeclaration = structDecl };
     }
 
-    private static TypeDeclarationNode WrapInterface(InterfaceDeclarationNode interfaceDecl)
+    private static TypeDeclarationNode WrapAbstract(AbstractDeclarationNode abstractDecl)
     {
-        return new InterfaceTypeTypeDeclarationNode { InterfaceDeclaration = interfaceDecl };
-    }
-
-    private static TypeDeclarationNode WrapTrait(TraitDeclarationNode traitDecl)
-    {
-        return new TraitTypeTypeDeclarationNode { TraitDeclaration = traitDecl };
+        return new AbstractTypeTypeDeclarationNode { AbstractDeclaration = abstractDecl };
     }
 
     // ─── Scenario records ────────────────────────────────────────────────
@@ -359,18 +354,18 @@ public class OptionalDefaultabilityClassificationPropertyTests
             TypeDeclarationNode nonDefaultableDecl;
             if (InterfaceNames.Contains(scenario.NonDefaultableTypeName))
             {
-                nonDefaultableDecl = WrapInterface(new InterfaceDeclarationNode
+                nonDefaultableDecl = WrapAbstract(new AbstractDeclarationNode
                 {
                     Name = MakeToken(scenario.NonDefaultableTypeName),
-                    Members = ImmutableArray<InterfaceMemberDeclarationNode>.Empty,
+                    Members = ImmutableArray<AbstractMemberDeclarationNode>.Empty,
                 });
             }
             else
             {
-                nonDefaultableDecl = WrapTrait(new TraitDeclarationNode
+                nonDefaultableDecl = WrapAbstract(new AbstractDeclarationNode
                 {
                     Name = MakeToken(scenario.NonDefaultableTypeName),
-                    Members = ImmutableArray<TraitMemberDeclarationNode>.Empty,
+                    Members = ImmutableArray<AbstractMemberDeclarationNode>.Empty,
                 });
             }
 
@@ -404,15 +399,15 @@ public class OptionalDefaultabilityClassificationPropertyTests
         // Declare the non-defaultable type
         TypeDeclarationNode nonDefaultableDecl = scenario.FieldKind switch
         {
-            NonDefaultableKind.Interface => WrapInterface(new InterfaceDeclarationNode
+            NonDefaultableKind.Interface => WrapAbstract(new AbstractDeclarationNode
             {
                 Name = MakeToken(scenario.NonDefaultableTypeName),
-                Members = ImmutableArray<InterfaceMemberDeclarationNode>.Empty,
+                Members = ImmutableArray<AbstractMemberDeclarationNode>.Empty,
             }),
-            NonDefaultableKind.Trait => WrapTrait(new TraitDeclarationNode
+            NonDefaultableKind.Trait => WrapAbstract(new AbstractDeclarationNode
             {
                 Name = MakeToken(scenario.NonDefaultableTypeName),
-                Members = ImmutableArray<TraitMemberDeclarationNode>.Empty,
+                Members = ImmutableArray<AbstractMemberDeclarationNode>.Empty,
             }),
             _ => throw new InvalidOperationException(),
         };

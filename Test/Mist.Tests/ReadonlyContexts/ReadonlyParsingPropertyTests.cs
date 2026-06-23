@@ -166,15 +166,15 @@ public static class ReadonlyParsingGenerators
     {
         return from ifaceName in Gen.Elements(InterfaceNames)
                from access in Gen.Elements(AccessModifiers)
-               let source = $"{access}readonly interface {ifaceName} {{\n}}"
+               let source = $"{access}readonly abstract {ifaceName} {{\n}}"
                select new ReadonlyModifierScenario(source, "interface", $"readonly interface: {ifaceName}");
     }
 
-    /// <summary>Generates a readonly trait declaration.</summary>
+    /// <summary>Generates a readonly abstract declaration.</summary>
     public static Gen<ReadonlyModifierScenario> GenReadonlyTrait()
     {
         return from traitName in Gen.Elements(TraitNames)
-               let source = $"readonly trait {traitName} {{\n}}"
+               let source = $"readonly abstract {traitName} {{\n}}"
                select new ReadonlyModifierScenario(source, "trait", $"readonly trait: {traitName}");
     }
 

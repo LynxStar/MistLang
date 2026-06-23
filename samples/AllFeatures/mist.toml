@@ -14,7 +14,6 @@ Tuples = { path = "../Tuples" }
 TypeUnions = { path = "../TypeUnions" }
 ExtensionMethods = { path = "../ExtensionMethods" }
 TypeAliases = { path = "../TypeAliases" }
-Traits = { path = "../Traits" }
 Enums = { path = "../Enums" }
 Inheritance = { path = "../Inheritance" }
 Properties = { path = "../Properties" }
@@ -65,3 +64,4 @@ StackOnlyTypes = { path = "../StackOnlyTypes" }
 DependentTypeRefinementConstraints = { path = "../DependentTypeRefinementConstraints" }
 TargetTypedNew = { path = "../TargetTypedNew" }
 AsOperator = { path = "../AsOperator" }
+AbstractTypes = { path = "../AbstractTypes" }

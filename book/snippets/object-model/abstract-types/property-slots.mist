@@ -1,0 +1,7 @@
+abstract ILabeled
+{
+    string Label { get; }
+    int Id { get; }
+    string Describe();
+}
+

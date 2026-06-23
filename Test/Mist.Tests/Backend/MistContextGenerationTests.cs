@@ -168,10 +168,10 @@ public sealed class MistContextGenerationTests
     [Fact]
     public void MistContextFile_NotGenerated_WhenOnlyTraitWithBlockUsed()
     {
-        // A program using only trait-with blocks (not structured context) should NOT
+        // A program using only abstract-with blocks (not structured context) should NOT
         // generate MistContext.g.cs.
         var source = """
-            trait Printable {
+            abstract Printable {
                 void Print();
             }
             class Foo {
@@ -188,7 +188,7 @@ public sealed class MistContextGenerationTests
         var files = CompileToFiles(source);
 
         Assert.False(files.ContainsKey("MistContext.g.cs"),
-            "MistContext.g.cs should NOT be generated when only trait-with blocks are used");
+            "MistContext.g.cs should NOT be generated when only abstract-with blocks are used");
     }
 
     [Fact]

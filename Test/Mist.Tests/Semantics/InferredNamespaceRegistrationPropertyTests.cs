@@ -220,15 +220,15 @@ public sealed class InferredNamespaceRegistrationPropertyTests
         var expectedNs = SemanticModelBuilder.ComputeInferredNamespace(
             nsRoot.Value, projectFolder, filePath);
 
-        var ifaceDecl = new InterfaceDeclarationNode
+        var ifaceDecl = new AbstractDeclarationNode
         {
             Name = MakeToken(ifaceName.Value),
-            Members = ImmutableArray<InterfaceMemberDeclarationNode>.Empty,
+            Members = ImmutableArray<AbstractMemberDeclarationNode>.Empty,
         };
         var ast = new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new InterfaceTypeTypeDeclarationNode { InterfaceDeclaration = ifaceDecl }).AsTopLevelItems(),
+                new AbstractTypeTypeDeclarationNode { AbstractDeclaration = ifaceDecl }).AsTopLevelItems(),
         };
 
         var model = BuildModelForFile(ast, nsRoot.Value, projectFolder, filePath);
@@ -237,7 +237,7 @@ public sealed class InferredNamespaceRegistrationPropertyTests
             s => s.Name == ifaceName.Value && s.Kind == SymbolKind.Interface);
         if (symbol is null) return false;
 
-        var ifaceType = symbol.DeclaredType as InterfaceType;
+        var ifaceType = symbol.DeclaredType as AbstractType;
         return ifaceType is not null && ifaceType.ContainingNamespace == expectedNs;
     }
 
@@ -271,10 +271,10 @@ public sealed class InferredNamespaceRegistrationPropertyTests
             Name = MakeToken("Beta"),
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
         };
-        var ifaceDecl = new InterfaceDeclarationNode
+        var ifaceDecl = new AbstractDeclarationNode
         {
             Name = MakeToken("IGamma"),
-            Members = ImmutableArray<InterfaceMemberDeclarationNode>.Empty,
+            Members = ImmutableArray<AbstractMemberDeclarationNode>.Empty,
         };
 
         var ast = new CompilationUnitNode
@@ -290,7 +290,7 @@ public sealed class InferredNamespaceRegistrationPropertyTests
                 },
                 new TypeItemTopLevelItemNode
                 {
-                    TypeDeclaration = new InterfaceTypeTypeDeclarationNode { InterfaceDeclaration = ifaceDecl }
+                    TypeDeclaration = new AbstractTypeTypeDeclarationNode { AbstractDeclaration = ifaceDecl }
                 }),
         };
 
@@ -304,7 +304,7 @@ public sealed class InferredNamespaceRegistrationPropertyTests
             ?.DeclaredType as StructType;
         var ifaceType = model.AllSymbols
             .FirstOrDefault(s => s.Name == "IGamma" && s.Kind == SymbolKind.Interface)
-            ?.DeclaredType as InterfaceType;
+            ?.DeclaredType as AbstractType;
 
         return classType?.ContainingNamespace == expectedNs
             && structType?.ContainingNamespace == expectedNs

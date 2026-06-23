@@ -1,0 +1,45 @@
+using Standard;
+
+namespace HidingDemo;
+
+public class Base
+{
+    public string Speak()
+    {
+        return "base";
+    }
+}
+
+public class Derived : Base
+{
+    // PROOF: new keyword required for intentional hiding
+    new public string Speak()
+    {
+        return "derived";
+    }
+}
+
+public class Program
+{
+    private static void AcceptBase(Base b)
+    {
+        // PROOF: base behavior preserved when viewed through base type
+        Console.WriteLine($"  via Base: {b.Speak()}");
+    }
+
+    public static void RunDemo()
+    {
+        var d = new Derived();
+
+        // PROOF: derived type sees its own method
+        Console.WriteLine($"via Derived: {d.Speak()}");
+
+        // PROOF: same object, but viewed as Base, calls Base.Speak()
+        AcceptBase(d);
+    }
+
+    public static void Main(string[] args)
+    {
+        RunDemo();
+    }
+}

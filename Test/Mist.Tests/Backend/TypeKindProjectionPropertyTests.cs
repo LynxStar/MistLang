@@ -12,7 +12,7 @@ namespace Mist.Tests.Backend;
 /// For any public CLR type that is not excluded by the visibility filter,
 /// the TypeProjector SHALL produce a Mist type whose kind matches the CLR
 /// type's classification: classes → ClassType, structs → StructType,
-/// interfaces → InterfaceType, enums → EnumType.
+/// interfaces → AbstractType, enums → EnumType.
 ///
 /// **Validates: Requirements 4.1, 4.2, 4.3, 4.4**
 /// </summary>
@@ -79,7 +79,7 @@ public sealed class TypeKindProjectionPropertyTests
     private static Type ExpectedMistTypeKind(Type clrType)
     {
         if (clrType.IsEnum) return typeof(EnumType);
-        if (clrType.IsInterface) return typeof(InterfaceType);
+        if (clrType.IsInterface) return typeof(AbstractType);
         if (clrType.IsValueType) return typeof(StructType);
         return typeof(ClassType);
     }

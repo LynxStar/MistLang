@@ -407,7 +407,7 @@ public sealed class DependentTypeEmitterTests
     [Fact]
     public void EmitsDependentTypeAttributeOnInterface()
     {
-        var source = "interface IBuffer<Size:int> { }";
+        var source = "abstract IBuffer<Size:int> { }";
         var files = CompileToFiles(source);
         var content = GetMainFile(files);
 
@@ -704,7 +704,7 @@ public sealed class DependentTypeEmitterTests
     [Fact]
     public void EmitsInterfaceWithDependentParam()
     {
-        var source = "interface IFixedCollection<Size:int> { }";
+        var source = "abstract IFixedCollection<Size:int> { }";
         var files = CompileToFiles(source);
         var content = GetMainFile(files);
 

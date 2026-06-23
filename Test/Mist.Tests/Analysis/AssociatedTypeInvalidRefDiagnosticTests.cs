@@ -51,7 +51,7 @@ public class AssociatedTypeInvalidRefDiagnosticTests
     {
         // T is constrained by IContainer which declares "Element" but NOT "Foo"
         var source = @"
-interface IContainer {
+abstract IContainer {
     type Element;
 }
 
@@ -73,7 +73,7 @@ class TestClass {
     {
         // T is constrained by IFactory which declares "Product" but NOT "Widget"
         var source = @"
-interface IFactory {
+abstract IFactory {
     type Product;
 }
 
@@ -95,7 +95,7 @@ class TestClass {
     {
         // T is constrained by IContainer which declares "Element" but NOT "Value"
         var source = @"
-interface IContainer {
+abstract IContainer {
     type Element;
 }
 
@@ -136,7 +136,7 @@ class TestClass {
     {
         // T is constrained by IContainer which declares "Element" — T.Element is valid
         var source = @"
-interface IContainer {
+abstract IContainer {
     type Element;
 }
 
@@ -158,11 +158,11 @@ class TestClass {
         // IContainer declares "Element", IFactory declares "Product".
         // T.Unknown should emit MIST_AT_0004 since neither declares "Unknown".
         var source = @"
-interface IContainer {
+abstract IContainer {
     type Element;
 }
 
-interface IFactory {
+abstract IFactory {
     type Product;
 }
 
@@ -184,11 +184,11 @@ class TestClass {
         // T is constrained by both IContainer and IFactory.
         // T.Product should resolve from IFactory — no MIST_AT_0004.
         var source = @"
-interface IContainer {
+abstract IContainer {
     type Element;
 }
 
-interface IFactory {
+abstract IFactory {
     type Product;
 }
 
@@ -207,7 +207,7 @@ class TestClass {
     public void DiagnosticMessage_FollowsExpectedFormat()
     {
         var source = @"
-interface IMyInterface {
+abstract IMyInterface {
     type Output;
 }
 

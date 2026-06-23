@@ -221,7 +221,7 @@ public sealed class ConstraintCombinationPropertyTests
         {
             NonSubstructuralConstraint.Class => ("", "class"),
             NonSubstructuralConstraint.Struct => ("", "struct"),
-            NonSubstructuralConstraint.Interface => ("interface IMarker { }\n", "IMarker"),
+            NonSubstructuralConstraint.Interface => ("abstract IMarker { }\n", "IMarker"),
             NonSubstructuralConstraint.New => ("", "new()"),
             NonSubstructuralConstraint.Owned => ("", "owned"),
             NonSubstructuralConstraint.Readonly => ("", "readonly"),

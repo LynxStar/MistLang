@@ -2,20 +2,9 @@ using System;
 
 namespace Snippet;
 
-interface IStringable
-{
-    string Stringify();
-}
-interface IProducer<TOutput>
-    where TOutput : IStringable
-{
-    TOutput CreateOutput(string msg);
-}
 class Helpers
 {
-    public static string Describe<T, TOutput>(T producer)
-        where T : IProducer<TOutput>
-        where TOutput : IStringable
+    public static string Describe<T>(T producer)
     {
         T.Output output = producer.CreateOutput("test");
         return output.Stringify();

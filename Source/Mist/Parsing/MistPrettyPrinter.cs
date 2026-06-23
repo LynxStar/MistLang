@@ -99,6 +99,14 @@ public sealed class MistPrettyPrinter
                 case StatementItemTopLevelItemNode stmtItem:
                     EmitStatement(stmtItem.Statement);
                     break;
+                case RemovedInterfaceItemTopLevelItemNode removedInterfaceItem:
+                    // Error recovery: emit the interface declaration as-is for round-trip fidelity.
+                    EmitInterfaceDeclaration(removedInterfaceItem.RemovedInterface);
+                    break;
+                case RemovedTraitItemTopLevelItemNode removedTraitItem:
+                    // Error recovery: emit the trait declaration as-is for round-trip fidelity.
+                    EmitTraitDeclaration(removedTraitItem.RemovedTrait);
+                    break;
             }
         }
     }
@@ -236,11 +244,8 @@ public sealed class MistPrettyPrinter
             case StructTypeTypeDeclarationNode structType:
                 EmitStructDeclaration(structType.StructDeclaration);
                 break;
-            case InterfaceTypeTypeDeclarationNode interfaceType:
-                EmitInterfaceDeclaration(interfaceType.InterfaceDeclaration);
-                break;
-            case TraitTypeTypeDeclarationNode traitType:
-                EmitTraitDeclaration(traitType.TraitDeclaration);
+            case AbstractTypeTypeDeclarationNode abstractType:
+                EmitAbstractDeclaration(abstractType.AbstractDeclaration);
                 break;
             case EnumTypeTypeDeclarationNode enumType:
                 EmitEnumDeclaration(enumType.EnumDeclaration);
@@ -308,6 +313,69 @@ public sealed class MistPrettyPrinter
 
         _indentLevel--;
         AppendLine("}");
+    }
+
+    private void EmitAbstractDeclaration(AbstractDeclarationNode abstractDecl)
+    {
+        var modifiers = EmitModifiers(abstractDecl.Modifiers);
+        var name = abstractDecl.Name.Lexeme;
+        var typeParams = EmitTypeParameterList(abstractDecl.TypeParams);
+        var parentClause = "";
+        if (abstractDecl.Parents is not null)
+        {
+            parentClause = $" : {EmitBaseList(abstractDecl.Parents)}";
+        }
+        var constraints = EmitConstraintClauses(abstractDecl.Constraints);
+        AppendLine($"{modifiers}abstract {name}{typeParams}{parentClause}{constraints} {{");
+        _indentLevel++;
+
+        for (var i = 0; i < abstractDecl.Members.Length; i++)
+        {
+            EmitAbstractMemberDeclaration(abstractDecl.Members[i]);
+        }
+
+        _indentLevel--;
+        AppendLine("}");
+    }
+
+    private void EmitAbstractMemberDeclaration(AbstractMemberDeclarationNode memberDecl)
+    {
+        switch (memberDecl)
+        {
+            case AbstractMethodMemberAbstractMemberDeclarationNode methodMember:
+                EmitAbstractMethodDeclaration(methodMember.Method);
+                break;
+            case AbstractPropertyMemberAbstractMemberDeclarationNode propertyMember:
+                EmitInterfacePropertyDeclaration(propertyMember.Property);
+                break;
+            case AbstractDefaultMethodMemberAbstractMemberDeclarationNode defaultMethodMember:
+                EmitMethodDeclaration(defaultMethodMember.DefaultMethod);
+                break;
+            case AbstractAssociatedTypeMemberAbstractMemberDeclarationNode associatedTypeMember:
+                EmitAssociatedTypeSlotDeclaration(associatedTypeMember.AssociatedType);
+                break;
+            case AbstractUnconstrainedAssociatedTypeMemberAbstractMemberDeclarationNode unconstrainedMember:
+                EmitUnconstrainedAssociatedTypeSlotDeclaration(unconstrainedMember.UnconstrainedAssociatedType);
+                break;
+            case AbstractModifiedAssociatedTypeMemberAbstractMemberDeclarationNode modifiedMember:
+                EmitModifiedAssociatedTypeSlotDeclaration(modifiedMember.ModifiedAssociatedType);
+                break;
+            case AbstractNestedTypeMemberAbstractMemberDeclarationNode nestedTypeMember:
+                EmitTypeDeclaration(nestedTypeMember.NestedType);
+                break;
+        }
+    }
+
+    private void EmitAbstractMethodDeclaration(AbstractMethodDeclarationNode methodDecl)
+    {
+        var returnOwnership = EmitOwnershipSpecifier(methodDecl.ReturnOwnership);
+        var returnType = EmitTypeReference(methodDecl.ReturnType);
+        var name = methodDecl.Name.Lexeme;
+        var typeParams = EmitTypeParameterList(methodDecl.TypeParams);
+        var parameters = EmitParameterList(methodDecl.Parameters);
+        var withClauses = EmitWithClauses(methodDecl.WithClauses);
+        var constraints = EmitConstraintClauses(methodDecl.Constraints);
+        AppendLine($"{returnOwnership}{returnType} {name}{typeParams}({parameters}){withClauses}{constraints};");
     }
 
     private void EmitInterfaceMethodDeclaration(InterfaceMethodDeclarationNode methodDecl)
@@ -1064,8 +1132,8 @@ public sealed class MistPrettyPrinter
     private void EmitWithDeclaration(WithDeclarationNode withDecl)
     {
         var typeName = withDecl.TypeName.Lexeme;
-        var traitName = withDecl.TraitName.Lexeme;
-        var traitTypeArgs = EmitTypeArgumentList(withDecl.TraitTypeArgs);
+        var traitName = withDecl.AbstractName.Lexeme;
+        var traitTypeArgs = EmitTypeArgumentList(withDecl.AbstractTypeArgs);
         AppendLine($"with {typeName} : {traitName}{traitTypeArgs} {{");
         _indentLevel++;
 

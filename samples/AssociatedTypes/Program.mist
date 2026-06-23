@@ -16,11 +16,11 @@ namespace AssociatedTypes;
 
 // ─── Supporting interfaces ───────────────────────────────────────────────────
 
-interface IStringable {
+abstract IStringable {
     string Stringify();
 }
 
-interface IResettable {
+abstract IResettable {
     string GetState();
 }
 
@@ -31,7 +31,7 @@ interface IResettable {
 // participates in the contract.
 // ═══════════════════════════════════════════════════════════════════════════════
 
-interface IProducer {
+abstract IProducer {
     type Output : IStringable;
     Output Produce(string value);
 }
@@ -53,13 +53,13 @@ class MessageProducer : IProducer {
 // a return type and parameter type in its method signatures.
 // ═══════════════════════════════════════════════════════════════════════════════
 
-trait Consumable {
+abstract Consumable {
     type Input : IStringable;
     Input Accept(string data);
     string Describe(Input item);
 }
 
-class StringConsumer {
+class StringConsumer : Consumable {
     public class Input : IStringable {
         public string Data;
         public Input(string data) { Data = data; }
@@ -79,7 +79,7 @@ class StringConsumer {
 // The interface uses Cursor as both return and parameter type.
 // ═══════════════════════════════════════════════════════════════════════════════
 
-interface IIterator {
+abstract IIterator {
     type Cursor : struct;
     Cursor Start();
     Cursor Advance(Cursor current);
@@ -104,7 +104,7 @@ class RangeIterator : IIterator {
 // The interface uses Product as a return type.
 // ═══════════════════════════════════════════════════════════════════════════════
 
-interface IFactory {
+abstract IFactory {
     type Product : class;
     Product Create(string name, int weight);
 }
@@ -126,7 +126,7 @@ class WidgetFactory : IFactory {
 // The interface uses State as a return type.
 // ═══════════════════════════════════════════════════════════════════════════════
 
-interface IStatefulProducer {
+abstract IStatefulProducer {
     type State : IStringable, IResettable;
     State CreateState(int initial);
 }
@@ -150,7 +150,7 @@ class CounterProducer : IStatefulProducer {
 // TIn as a parameter, proving both coexist correctly.
 // ═══════════════════════════════════════════════════════════════════════════════
 
-interface IMapper<TIn> {
+abstract IMapper<TIn> {
     type Mapped : IStringable;
     Mapped Map(TIn value);
     TIn GetDefault();
@@ -190,7 +190,7 @@ class StringMapper : IMapper<string> {
 // The interface uses Element as a return type.
 // ═══════════════════════════════════════════════════════════════════════════════
 
-interface IContainer {
+abstract IContainer {
     type Element;
     Element Get(int index);
     int GetSize();
@@ -215,7 +215,7 @@ class IntContainer : IContainer {
 // The interface uses Value as a return type.
 // ═══════════════════════════════════════════════════════════════════════════════
 
-interface IValueProducer {
+abstract IValueProducer {
     type Value : class, IStringable;
     Value Create(int x, int y);
 }
@@ -238,7 +238,7 @@ class PointProducer : IValueProducer {
 // constraints. The interface uses both Key and Value in its method signatures.
 // ═══════════════════════════════════════════════════════════════════════════════
 
-interface IKeyValueStore {
+abstract IKeyValueStore {
     type Key : struct;
     type Value : class;
     Key MakeKey(int id);
@@ -268,12 +268,12 @@ class StringStore : IKeyValueStore {
 // slots. Each interface uses its slot in a method signature.
 // ═══════════════════════════════════════════════════════════════════════════════
 
-interface IReadable {
+abstract IReadable {
     type Reader : struct;
     Reader OpenReader(int offset);
 }
 
-interface IWritable {
+abstract IWritable {
     type Writer : class;
     Writer OpenWriter(int bufferSize);
 }
@@ -304,11 +304,11 @@ class FileStream : IReadable, IWritable {
 // inside slot constraint type arguments.
 // ═══════════════════════════════════════════════════════════════════════════════
 
-interface IWrapper<T> {
+abstract IWrapper<T> {
     T Unwrap();
 }
 
-interface IBoxFactory<T> {
+abstract IBoxFactory<T> {
     type Boxed : IWrapper<T>;
     Boxed Wrap(T value);
 }
@@ -343,11 +343,11 @@ class StringBoxFactory : IBoxFactory<string> {
 // interface in the C# output since C# lacks higher-kinded types.
 // ═══════════════════════════════════════════════════════════════════════════════
 
-interface ITransform<TIn, TOut> {
+abstract ITransform<TIn, TOut> {
     TOut Transform(TIn input);
 }
 
-interface IConverter<TIn> {
+abstract IConverter<TIn> {
     type Converted<TOut> : ITransform<TIn, TOut>;
     Converted<string> ConvertToString(TIn input);
     Converted<int> ConvertToInt(TIn input);

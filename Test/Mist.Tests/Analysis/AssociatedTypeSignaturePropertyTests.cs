@@ -183,7 +183,7 @@ public sealed class AssociatedTypeSignaturePropertyTests : IDisposable
         };
 
         return $@"
-interface {scenario.InterfaceName} {{
+abstract {scenario.InterfaceName} {{
     type {scenario.SlotName};
 {interfaceMethod}
 }}
@@ -226,7 +226,7 @@ class Program {{
         };
 
         return $@"
-interface {scenario.InterfaceName} {{
+abstract {scenario.InterfaceName} {{
     type {scenario.SlotName};
 {interfaceMethod}
 }}

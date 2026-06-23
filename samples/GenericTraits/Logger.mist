@@ -1,18 +1,13 @@
 namespace GenericTraits;
 
-// Type satisfying Writable via with-block mapping
-public class Logger
+// Type satisfying Writable via direct conformance
+public class Logger : Writable
 {
     public Logger()
     {
     }
 
-    public void Log(string data)
+    public void Write(string data)
     {
     }
-}
-
-with Logger : Writable
-{
-    Log as Write;
 }

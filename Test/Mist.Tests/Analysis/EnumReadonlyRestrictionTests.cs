@@ -116,8 +116,7 @@ public sealed class EnumReadonlyRestrictionTests
         {
             StructType st => st.IsReadonly,
             ClassType ct => ct.IsReadonly,
-            InterfaceType it => it.IsReadonly,
-            TraitType tt => tt.IsReadonly,
+            AbstractType at => at.IsReadonly,
             _ => false,
         };
     }

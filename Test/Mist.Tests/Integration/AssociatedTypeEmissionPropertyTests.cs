@@ -223,7 +223,7 @@ public sealed class AssociatedTypeEmissionPropertyTests : IDisposable
 
         // Emit shared type declarations (one per scenario kind)
         sb.AppendLine("// --- Unconstrained slot ---");
-        sb.AppendLine("interface IHolder {");
+        sb.AppendLine("abstract IHolder {");
         sb.AppendLine("    type Element;");
         sb.AppendLine("    int GetValue();");
         sb.AppendLine("}");
@@ -240,7 +240,7 @@ public sealed class AssociatedTypeEmissionPropertyTests : IDisposable
         sb.AppendLine();
 
         sb.AppendLine("// --- Struct-constrained slot ---");
-        sb.AppendLine("interface IContainer {");
+        sb.AppendLine("abstract IContainer {");
         sb.AppendLine("    type Item : struct;");
         sb.AppendLine("    int GetData();");
         sb.AppendLine("}");
@@ -257,11 +257,11 @@ public sealed class AssociatedTypeEmissionPropertyTests : IDisposable
         sb.AppendLine();
 
         sb.AppendLine("// --- Interface-constrained slot ---");
-        sb.AppendLine("interface IStringable {");
+        sb.AppendLine("abstract IStringable {");
         sb.AppendLine("    string GetStr();");
         sb.AppendLine("}");
         sb.AppendLine();
-        sb.AppendLine("interface IFactory {");
+        sb.AppendLine("abstract IFactory {");
         sb.AppendLine("    type Product : IStringable;");
         sb.AppendLine("    string Produce();");
         sb.AppendLine("}");

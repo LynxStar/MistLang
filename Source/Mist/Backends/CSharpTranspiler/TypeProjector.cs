@@ -20,7 +20,7 @@ namespace Mist.Backends.CSharpTranspiler;
 /// <list type="bullet">
 ///   <item>CLR class → <see cref="ClassType"/> (with ContainingNamespace, BaseType, Interfaces, TypeParameters)</item>
 ///   <item>CLR struct (non-ref) → <see cref="StructType"/></item>
-///   <item>CLR interface → <see cref="InterfaceType"/></item>
+///   <item>CLR interface → <see cref="AbstractType"/> (with all members as required slots)</item>
 ///   <item>CLR enum → <see cref="EnumType"/> (with Members, UnderlyingType)</item>
 ///   <item>Generic type → type with TypeParameters list populated</item>
 ///   <item>Generic arity suffix (e.g., <c>`2</c>) stripped from DisplayName</item>
@@ -220,7 +220,9 @@ internal sealed class TypeProjector
     }
 
     /// <summary>
-    /// Projects a CLR interface into a Mist <see cref="InterfaceType"/>.
+    /// Projects a CLR interface into a Mist <see cref="AbstractType"/>.
+    /// All interface members become required slots (no defaults — CLR interfaces
+    /// don't have default implementations in this context).
     /// </summary>
     private (IType Type, ImmutableArray<ISymbol> Members) ProjectInterface(
         Type clrType,
@@ -229,21 +231,21 @@ internal sealed class TypeProjector
         IStdlibTypeProvider stdlib)
     {
         var memberScope = new Scope(null);
-        var interfaceType = new InterfaceType(displayName, memberScope, containingNamespace);
+        var abstractType = new AbstractType(displayName, memberScope, containingNamespace);
 
         // Project type parameters for generic interfaces
         if (clrType.IsGenericTypeDefinition)
         {
-            interfaceType.TypeParameters = ProjectTypeParameters(clrType, stdlib);
+            abstractType.TypeParameters = ProjectTypeParameters(clrType, stdlib);
         }
 
-        // Project implemented interfaces
-        interfaceType.Interfaces = ProjectInterfaces(clrType, stdlib);
+        // Project parent abstract types (interface inheritance)
+        abstractType.ParentAbstractTypes = ProjectInterfaces(clrType, stdlib);
 
         // Synthesize Enumerator associated type slots for IEnumerable<T> implementations
-        SynthesizeEnumeratorSlots(clrType, interfaceType, stdlib);
+        SynthesizeEnumeratorSlots(clrType, abstractType, stdlib);
 
-        return (interfaceType, ImmutableArray<ISymbol>.Empty);
+        return (abstractType, ImmutableArray<ISymbol>.Empty);
     }
 
     /// <summary>
@@ -546,7 +548,7 @@ internal sealed class TypeProjector
                 + ">",
             ClassType c => (c.ContainingNamespace ?? string.Empty) + "." + c.DisplayName,
             StructType s => (s.ContainingNamespace ?? string.Empty) + "." + s.DisplayName,
-            InterfaceType it => (it.ContainingNamespace ?? string.Empty) + "." + it.DisplayName,
+            AbstractType at => (at.ContainingNamespace ?? string.Empty) + "." + at.DisplayName,
             _ => type.Kind + ":" + type.DisplayName,
         };
     }
@@ -667,7 +669,7 @@ internal sealed class TypeProjector
         {
             ClassType ct => (ct.MemberScope as Scope, ct.ContainingNamespace),
             StructType st => (st.MemberScope as Scope, st.ContainingNamespace),
-            InterfaceType it => (it.MemberScope as Scope, it.ContainingNamespace),
+            AbstractType at => (at.MemberScope as Scope, at.ContainingNamespace),
             _ => (null, (string?)null),
         };
 
@@ -786,8 +788,7 @@ internal sealed class TypeProjector
             _ => (IReadOnlyList<IType>)Array.Empty<IType>(),
         };
         if (existingInterfaces.Any(i => i is ConstructedType ci
-            && ci.GenericDefinition is InterfaceType iface
-            && iface.DisplayName == "IEnumerable"))
+            && ci.GenericDefinition is AbstractType abIface && abIface.DisplayName == "IEnumerable"))
             return;
 
         // Look for a public parameterless GetEnumerator() method
@@ -1644,7 +1645,7 @@ internal sealed class TypeProjector
         {
             // Already projecting this type — return a minimal shell to break the cycle.
             if (clrType.IsInterface)
-                return new InterfaceType(displayName, new Scope(null), containingNamespace);
+                return new AbstractType(displayName, new Scope(null), containingNamespace);
             if (clrType.IsValueType)
                 return new StructType(displayName, new Scope(null), containingNamespace);
             return new ClassType(displayName, new Scope(null), containingNamespace);
@@ -1654,9 +1655,9 @@ internal sealed class TypeProjector
         {
             if (clrType.IsInterface)
             {
-                var iface = new InterfaceType(displayName, new Scope(null), containingNamespace);
-                iface.TypeParameters = ProjectTypeParameters(clrType, stdlib);
-                return iface;
+                var abstractType = new AbstractType(displayName, new Scope(null), containingNamespace);
+                abstractType.TypeParameters = ProjectTypeParameters(clrType, stdlib);
+                return abstractType;
             }
 
             if (clrType.IsValueType)
@@ -1687,7 +1688,7 @@ internal sealed class TypeProjector
 
         if (clrType.IsInterface)
         {
-            return new InterfaceType(displayName, new Scope(null), containingNamespace);
+            return new AbstractType(displayName, new Scope(null), containingNamespace);
         }
 
         if (clrType.IsEnum)
@@ -2420,7 +2421,7 @@ internal sealed class TypeProjector
         {
             ClassType ct => ct.MemberScope.Members.Count == 0,
             StructType st => st.MemberScope.Members.Count == 0,
-            InterfaceType it => it.MemberScope.Members.Count == 0,
+            AbstractType at => at.MemberScope.Members.Count == 0,
             _ => false
         };
     }
@@ -2455,7 +2456,7 @@ internal sealed class TypeProjector
         {
             ClassType ct => ct.MemberScope as Scope,
             StructType st => st.MemberScope as Scope,
-            InterfaceType it => it.MemberScope as Scope,
+            AbstractType at => at.MemberScope as Scope,
             EnumType et => et.MemberScope as Scope,
             DelegateType dt => dt.MemberScope as Scope,
             _ => null,

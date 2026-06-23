@@ -74,6 +74,14 @@ public sealed class MistParser : IParser
         // continues (no node is produced for the malformed expression).
         DetectStackallocSizeErrors(tokens, diagnostics);
 
+        // Requirement 1.10: detect property slots with bodies inside abstract
+        // type declarations. The grammar's InterfacePropertyDeclaration only
+        // matches `Type Name { get; }` / `Type Name { get; set; }`. If someone
+        // writes `Type Name { ... }` where the braced content is NOT get/set
+        // accessors, the PEG parser backtracks and produces a generic error.
+        // We detect this shape and emit a targeted diagnostic.
+        DetectAbstractPropertyWithBodyErrors(tokens, diagnostics);
+
         // Assign ParsedOrigin to every node in the tree so diagnostics
         // can resolve source locations without span-containment heuristics.
         if (root is not null)
@@ -191,6 +199,347 @@ public sealed class MistParser : IParser
             Location: location,
             CompilationUnitPath: sourcePath,
             AnalyzerName: null));
+    }
+
+    /// <summary>
+    /// Scans the token stream for property-like members with braced bodies inside
+    /// abstract type declarations. The grammar's <c>InterfacePropertyDeclaration</c>
+    /// only matches <c>Type Name { get; }</c> / <c>Type Name { get; set; }</c>.
+    /// If someone writes <c>Type Name { ... }</c> where the braced content is not
+    /// accessor declarations (get/set followed by semicolons), this emits a targeted
+    /// diagnostic: "Property slots cannot have default implementations. Only methods
+    /// can have defaults."
+    /// </summary>
+    /// <remarks>
+    /// Detection strategy: find <c>ABSTRACT IDENTIFIER ... LEFT_BRACE</c> (the abstract
+    /// type body), then inside that body look for <c>TypeRef IDENTIFIER LEFT_BRACE</c>
+    /// where the token immediately after the inner <c>LEFT_BRACE</c> is NOT <c>GET</c>
+    /// or <c>SET</c>. This distinguishes a property-with-body attempt from a valid
+    /// property slot declaration.
+    /// </remarks>
+    private static void DetectAbstractPropertyWithBodyErrors(TokenStream tokens, DiagnosticBag diagnostics)
+    {
+        var defaultTokens = tokens.DefaultChannelTokens;
+        var abstractKind = (int)Mist.Generated.TokenKind.ABSTRACT;
+        var identifierKind = (int)Mist.Generated.TokenKind.IDENTIFIER;
+        var leftBraceKind = (int)Mist.Generated.TokenKind.LEFT_BRACE;
+        var rightBraceKind = (int)Mist.Generated.TokenKind.RIGHT_BRACE;
+        var leftParenKind = (int)Mist.Generated.TokenKind.LEFT_PARENTHESIS;
+        var getKind = (int)Mist.Generated.TokenKind.GET;
+        var setKind = (int)Mist.Generated.TokenKind.SET;
+        var semicolonKind = (int)Mist.Generated.TokenKind.SEMICOLON;
+        var initKind = (int)Mist.Generated.TokenKind.INIT;
+
+        for (var i = 0; i < defaultTokens.Length; i++)
+        {
+            if (defaultTokens[i].Kind != abstractKind)
+            {
+                continue;
+            }
+
+            // Skip to the opening brace of the abstract type body.
+            // Pattern: ABSTRACT IDENTIFIER [type params] [: bases] [where clauses] LEFT_BRACE
+            var bodyStart = FindAbstractBodyStart(defaultTokens, i + 1);
+            if (bodyStart is null)
+            {
+                continue;
+            }
+
+            var pos = bodyStart.Value;
+            var braceDepth = 1; // We are inside the abstract body.
+
+            while (pos < defaultTokens.Length && braceDepth > 0)
+            {
+                var tok = defaultTokens[pos];
+
+                if (tok.Kind == rightBraceKind)
+                {
+                    braceDepth--;
+                    pos++;
+                    continue;
+                }
+
+                if (tok.Kind == leftBraceKind)
+                {
+                    braceDepth++;
+                    pos++;
+                    continue;
+                }
+
+                // Only look for property-with-body patterns at the top level of
+                // the abstract body (braceDepth == 1).
+                if (braceDepth != 1)
+                {
+                    pos++;
+                    continue;
+                }
+
+                // Look for: TypeRef IDENTIFIER LEFT_BRACE !(GET|SET|INIT)
+                // A TypeRef starts with a primitive keyword, IDENTIFIER, or UNKNOWN.
+                if (!IsTypeRefStart(tok.Kind))
+                {
+                    pos++;
+                    continue;
+                }
+
+                // Skip the type reference tokens.
+                var afterType = SkipTypeRef(defaultTokens, pos);
+                if (afterType is null || afterType.Value >= defaultTokens.Length)
+                {
+                    pos++;
+                    continue;
+                }
+
+                var namePos = afterType.Value;
+
+                // Next must be IDENTIFIER (the property/member name).
+                if (namePos >= defaultTokens.Length || defaultTokens[namePos].Kind != identifierKind)
+                {
+                    pos++;
+                    continue;
+                }
+
+                var afterName = namePos + 1;
+
+                // If next is LEFT_PARENTHESIS, this is a method — skip it entirely.
+                if (afterName < defaultTokens.Length && defaultTokens[afterName].Kind == leftParenKind)
+                {
+                    pos++;
+                    continue;
+                }
+
+                // Next must be LEFT_BRACE (the property body/accessor block).
+                if (afterName >= defaultTokens.Length || defaultTokens[afterName].Kind != leftBraceKind)
+                {
+                    pos++;
+                    continue;
+                }
+
+                // Check what's inside the brace: if it starts with GET, SET, or INIT
+                // followed by SEMICOLON, this is a valid property slot (accessor declaration).
+                var insideBrace = afterName + 1;
+                if (insideBrace < defaultTokens.Length)
+                {
+                    var firstInside = defaultTokens[insideBrace].Kind;
+                    if (firstInside == getKind || firstInside == setKind || firstInside == initKind)
+                    {
+                        // Check if the accessor is followed by semicolon (valid slot)
+                        // or by a block brace (accessor with body — invalid for abstract).
+                        var afterAccessorKeyword = insideBrace + 1;
+                        if (afterAccessorKeyword < defaultTokens.Length
+                            && defaultTokens[afterAccessorKeyword].Kind == semicolonKind)
+                        {
+                            // Valid property slot: `Type Name { get; }` — skip.
+                            pos++;
+                            continue;
+                        }
+
+                        // Accessor keyword followed by something other than semicolon
+                        // (e.g., `get { return ...; }`) — this is a property with a body.
+                    }
+                    else
+                    {
+                        // Content after `{` is not an accessor keyword at all
+                        // (e.g., `string Name { return "hello"; }`) — property with body.
+                    }
+                }
+
+                // Emit the diagnostic pointing at the property name token.
+                var nameToken = defaultTokens[namePos];
+                var location = (nameToken.Start.Line > 0 && nameToken.Start.Column > 0)
+                    ? new LinePositionSpan(
+                        new LinePosition(nameToken.Start.Line, nameToken.Start.Column),
+                        new LinePosition(nameToken.End.Line, nameToken.End.Column))
+                    : default;
+
+                diagnostics.Add(new Diagnostic(
+                    new DiagnosticId("MIST_PARSE_PROPERTY_DEFAULT"),
+                    DiagnosticSeverity.Error,
+                    PipelineStage.Parsing,
+                    "Property slots cannot have default implementations. Only methods can have defaults.",
+                    Location: location,
+                    CompilationUnitPath: tokens.Source.Path,
+                    AnalyzerName: null));
+
+                // Skip past the braced body to continue scanning.
+                pos = SkipBracedBlock(defaultTokens, afterName);
+            }
+
+            // Advance past the abstract declaration for the outer loop.
+            i = pos > 0 ? pos - 1 : i;
+        }
+    }
+
+    /// <summary>
+    /// Starting after the ABSTRACT token, skips the name, type parameters, base clause,
+    /// and where clauses to find the opening LEFT_BRACE of the abstract type body.
+    /// Returns the index of the first token AFTER the LEFT_BRACE, or null if not found.
+    /// </summary>
+    private static int? FindAbstractBodyStart(
+        ImmutableArray<Storm.Runtime.Token> tokens,
+        int start)
+    {
+        var leftBraceKind = (int)Mist.Generated.TokenKind.LEFT_BRACE;
+        var eofKind = (int)Mist.Generated.TokenKind.EndOfFile;
+
+        // The abstract body starts with the first LEFT_BRACE at brace depth 0.
+        // We track angle brackets and parentheses to skip type parameter lists.
+        var angleDepth = 0;
+        var parenDepth = 0;
+
+        for (var pos = start; pos < tokens.Length; pos++)
+        {
+            var kind = tokens[pos].Kind;
+
+            if (kind == eofKind)
+            {
+                return null;
+            }
+
+            if (kind == (int)Mist.Generated.TokenKind.LESS_THAN)
+            {
+                angleDepth++;
+                continue;
+            }
+
+            if (kind == (int)Mist.Generated.TokenKind.GREATER_THAN && angleDepth > 0)
+            {
+                angleDepth--;
+                continue;
+            }
+
+            if (kind == (int)Mist.Generated.TokenKind.LEFT_PARENTHESIS)
+            {
+                parenDepth++;
+                continue;
+            }
+
+            if (kind == (int)Mist.Generated.TokenKind.RIGHT_PARENTHESIS && parenDepth > 0)
+            {
+                parenDepth--;
+                continue;
+            }
+
+            if (kind == leftBraceKind && angleDepth == 0 && parenDepth == 0)
+            {
+                return pos + 1; // Return index after the opening brace.
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Returns true if the given token kind can begin a type reference (a primitive
+    /// type keyword, IDENTIFIER, or UNKNOWN).
+    /// </summary>
+    private static bool IsTypeRefStart(int kind) =>
+        kind == (int)Mist.Generated.TokenKind.IDENTIFIER
+        || IsPrimitiveTypeKind(kind)
+        || kind == (int)Mist.Generated.TokenKind.UNKNOWN
+        || kind == (int)Mist.Generated.TokenKind.VOID;
+
+    /// <summary>
+    /// Skips a type reference starting at the given position and returns the index
+    /// of the first token after the type reference, or null if unrecognizable.
+    /// Handles: primitives, IDENTIFIER, qualified identifiers with dots, and generic
+    /// type argument lists.
+    /// </summary>
+    private static int? SkipTypeRef(
+        ImmutableArray<Storm.Runtime.Token> tokens,
+        int start)
+    {
+        if (start >= tokens.Length)
+        {
+            return null;
+        }
+
+        var kind = tokens[start].Kind;
+
+        if (IsPrimitiveTypeKind(kind)
+            || kind == (int)Mist.Generated.TokenKind.UNKNOWN
+            || kind == (int)Mist.Generated.TokenKind.VOID)
+        {
+            var pos = start + 1;
+            // Check for nullable `?` suffix.
+            if (pos < tokens.Length && tokens[pos].Kind == (int)Mist.Generated.TokenKind.QUESTION)
+            {
+                pos++;
+            }
+
+            return pos;
+        }
+
+        if (kind == (int)Mist.Generated.TokenKind.IDENTIFIER)
+        {
+            var pos = start + 1;
+
+            // QualifiedIdentifier: IDENTIFIER (DOT IDENTIFIER)*
+            while (pos + 1 < tokens.Length
+                && tokens[pos].Kind == (int)Mist.Generated.TokenKind.DOT
+                && tokens[pos + 1].Kind == (int)Mist.Generated.TokenKind.IDENTIFIER)
+            {
+                pos += 2;
+            }
+
+            // Optional TypeArgumentList: LESS_THAN ... GREATER_THAN (balanced).
+            if (pos < tokens.Length && tokens[pos].Kind == (int)Mist.Generated.TokenKind.LESS_THAN)
+            {
+                var afterAngles = SkipBalancedAngles(tokens, pos);
+                if (afterAngles is not null)
+                {
+                    pos = afterAngles.Value;
+                }
+            }
+
+            // Check for nullable `?` suffix.
+            if (pos < tokens.Length && tokens[pos].Kind == (int)Mist.Generated.TokenKind.QUESTION)
+            {
+                pos++;
+            }
+
+            return pos;
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Skips a balanced braced block starting at the LEFT_BRACE at position
+    /// <paramref name="openBrace"/> and returns the index after the matching
+    /// RIGHT_BRACE.
+    /// </summary>
+    private static int SkipBracedBlock(
+        ImmutableArray<Storm.Runtime.Token> tokens,
+        int openBrace)
+    {
+        var leftBraceKind = (int)Mist.Generated.TokenKind.LEFT_BRACE;
+        var rightBraceKind = (int)Mist.Generated.TokenKind.RIGHT_BRACE;
+        var eofKind = (int)Mist.Generated.TokenKind.EndOfFile;
+        var depth = 0;
+
+        for (var pos = openBrace; pos < tokens.Length; pos++)
+        {
+            var kind = tokens[pos].Kind;
+            if (kind == leftBraceKind)
+            {
+                depth++;
+            }
+            else if (kind == rightBraceKind)
+            {
+                depth--;
+                if (depth == 0)
+                {
+                    return pos + 1;
+                }
+            }
+            else if (kind == eofKind)
+            {
+                return pos;
+            }
+        }
+
+        return tokens.Length;
     }
 
     /// <summary>

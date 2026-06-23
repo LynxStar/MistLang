@@ -175,7 +175,7 @@ public sealed class AsExpressionTypeClassificationTests
     public void Provable_InterfaceWidening_ResultTypeIsT()
     {
         const string source = """
-            interface IAnimal {
+            abstract IAnimal {
                 string Speak();
             }
             class Dog : IAnimal {
@@ -190,7 +190,7 @@ public sealed class AsExpressionTypeClassificationTests
             """;
 
         var diagnostics = CompileAndGetDiagnostics(source);
-        AssertNoDiagnosticErrors(diagnostics, "interface widening: dog as IAnimal → IAnimal");
+        AssertNoDiagnosticErrors(diagnostics, "abstract widening: dog as IAnimal → IAnimal");
     }
 
     /// <summary>
@@ -323,7 +323,7 @@ public sealed class AsExpressionTypeClassificationTests
     public void NonProvable_ClassToUnprovenInterface_ResultTypeIsTOptional()
     {
         const string source = """
-            interface ISwimmable {
+            abstract ISwimmable {
                 void Swim();
             }
             class Animal { }

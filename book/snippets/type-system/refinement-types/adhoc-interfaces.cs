@@ -2,10 +2,6 @@ using System;
 
 namespace Snippet;
 
-interface IStrictProcessor
-{
-    string Process(int x);
-}
 class WeakerProcessor : IStrictProcessor
 {
     public string Process(int x)

@@ -97,7 +97,7 @@ public class StructInheritanceRoundTripTests
     public void RoundTrip_BaseStructPlusInterfaces()
     {
         const string source = """
-            interface IComparable {
+            abstract IComparable {
             }
             struct Point {
                 int X;
@@ -157,7 +157,7 @@ public class StructInheritanceRoundTripTests
     public void RoundTrip_BaseStructWithGenericInterface()
     {
         const string source = """
-            interface IEquatable<T> {
+            abstract IEquatable<T> {
             }
             struct Point {
                 int X;

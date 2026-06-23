@@ -98,7 +98,7 @@ public sealed class DefiniteAssignmentEdgeCaseTests
         const string source = """
             namespace TestProgram;
 
-            public interface IService
+            public abstract IService
             {
             }
 
@@ -139,7 +139,7 @@ public sealed class DefiniteAssignmentEdgeCaseTests
         const string source = """
             namespace TestProgram;
 
-            public interface IService
+            public abstract IService
             {
             }
 
@@ -181,7 +181,7 @@ public sealed class DefiniteAssignmentEdgeCaseTests
         const string source = """
             namespace TestProgram;
 
-            public interface IService
+            public abstract IService
             {
             }
 
@@ -215,7 +215,7 @@ public sealed class DefiniteAssignmentEdgeCaseTests
         const string source = """
             namespace TestProgram;
 
-            public interface IService
+            public abstract IService
             {
             }
 
@@ -315,7 +315,7 @@ public sealed class DefiniteAssignmentEdgeCaseTests
         const string source = """
             namespace TestProgram;
 
-            public interface IService
+            public abstract IService
             {
             }
 

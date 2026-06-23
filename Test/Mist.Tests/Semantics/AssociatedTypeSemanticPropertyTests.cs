@@ -76,7 +76,7 @@ public sealed class SemanticRegistrationScenario
     public override string ToString()
     {
         var slotDescs = string.Join("; ", Slots.Select(s => s.ToString()));
-        return $"interface {InterfaceName} {{ {slotDescs} }}";
+        return $"abstract {InterfaceName} {{ {slotDescs} }}";
     }
 }
 
@@ -267,14 +267,14 @@ public sealed class AssociatedTypeSemanticPropertyTests : IDisposable
 
         foreach (var iface in referencedInterfaces)
         {
-            sb.AppendLine($"interface {iface} {{ }}");
+            sb.AppendLine($"abstract {iface} {{ }}");
         }
 
         if (referencedInterfaces.Count > 0)
             sb.AppendLine();
 
         // Emit the main interface with associated type slots
-        sb.AppendLine($"interface {ifaceName} {{");
+        sb.AppendLine($"abstract {ifaceName} {{");
         foreach (var slot in slots)
         {
             var constraintList = BuildConstraintList(slot);
@@ -363,9 +363,9 @@ public sealed class AssociatedTypeSemanticPropertyTests : IDisposable
             return false.ToProperty()
                 .Label($"Interface '{scenario.InterfaceName}' not found in semantic model.\nSource:\n{scenario.Source}");
 
-        if (ifaceSymbol.DeclaredType is not InterfaceType ifaceType)
+        if (ifaceSymbol.DeclaredType is not AbstractType ifaceType)
             return false.ToProperty()
-                .Label($"Interface '{scenario.InterfaceName}' DeclaredType is not InterfaceType (got {ifaceSymbol.DeclaredType?.GetType().Name ?? "null"}).\nSource:\n{scenario.Source}");
+                .Label($"Interface '{scenario.InterfaceName}' DeclaredType is not AbstractType (got {ifaceSymbol.DeclaredType?.GetType().Name ?? "null"}).\nSource:\n{scenario.Source}");
 
         // Verify each slot is discoverable and has correct constraints
         foreach (var expectedSlot in scenario.Slots)

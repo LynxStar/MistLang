@@ -154,7 +154,7 @@ public sealed class EnumReadonlyAcceptancePropertyTests
     }
 
     /// <summary>
-    /// Generates a scenario with a readonly trait as the enum base type.
+    /// Generates a scenario with a readonly abstract as the enum base type.
     /// A readonly struct satisfying the trait is used for member values.
     /// </summary>
     private static Gen<EnumReadonlyAcceptanceScenario> GenTraitBaseScenario()
@@ -236,7 +236,7 @@ public sealed class EnumReadonlyAcceptancePropertyTests
             memberNames.Select(m => $"{m} = new {implName}(0)"));
 
         return $$"""
-            public readonly interface {{interfaceName}} {
+            public readonly abstract {{interfaceName}} {
                 int GetValue();
             }
 
@@ -272,7 +272,7 @@ public sealed class EnumReadonlyAcceptancePropertyTests
             memberNames.Select(m => $"{m} = new {implName}(0)"));
 
         return $$"""
-            readonly trait {{traitName}} {
+            readonly abstract {{traitName}} {
                 int GetValue();
             }
 

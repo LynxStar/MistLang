@@ -4,14 +4,14 @@ using Standard;
 
 namespace ShapeInterfaces;
 
-interface IShape
+abstract IShape
 {
     string Name { get; }
     string Describe();
     int Area();
 }
 
-interface IResizable : IShape
+abstract IResizable : IShape
 {
     int Scale { get; set; }
     int ResizedArea(int factor);

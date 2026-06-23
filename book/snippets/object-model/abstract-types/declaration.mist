@@ -1,0 +1,6 @@
+abstract IDescribable
+{
+    string Describe();
+    int Priority();
+}
+

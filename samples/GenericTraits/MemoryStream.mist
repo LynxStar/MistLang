@@ -1,7 +1,7 @@
 namespace GenericTraits;
 
-// Type structurally satisfying non-generic traits
-public class MemoryStream
+// Type satisfying non-generic abstract types with explicit conformance
+public class MemoryStream : Readable, Writable, ReadWriteStream
 {
     public MemoryStream()
     {

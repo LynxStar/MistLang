@@ -14,7 +14,7 @@ class Point
         Y = y;
     }
 
-    public override string ToString()
+    public string Describe()
     {
         return $"Point({X}, {Y})";
     }
@@ -32,7 +32,7 @@ class Program
 
     public static void PrintPoint(Point p)
     {
-        System.Console.WriteLine(p);
+        System.Console.WriteLine(p.Describe());
     }
 
     public static void Main(string[] args)

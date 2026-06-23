@@ -2,12 +2,8 @@ using System;
 
 namespace Snippet;
 
-interface IPrintable
-{
-    string Print();
-}
 class PrintableCreator<T>
-    where T : class, IPrintable, new()
+    where T : class, new()
 {
     public T CreateNew()
     {

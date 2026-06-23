@@ -51,7 +51,7 @@ public class AssociatedTypeGenericResolutionTests
     {
         // T.Element used as a parameter type in a generic method
         var source = @"
-interface IContainer {
+abstract IContainer {
     type Element;
 }
 
@@ -74,7 +74,7 @@ class TestClass {
     {
         // T.Product used as a return type in a generic method
         var source = @"
-interface IFactory {
+abstract IFactory {
     type Product;
 }
 
@@ -97,7 +97,7 @@ class TestClass {
     {
         // T.Element used as a local variable type
         var source = @"
-interface IContainer {
+abstract IContainer {
     type Element;
 }
 
@@ -121,11 +121,11 @@ class TestClass {
     {
         // Member access on a value of type T.Element where Element : IStringable
         var source = @"
-interface IStringable {
+abstract IStringable {
     int Length();
 }
 
-interface IContainer {
+abstract IContainer {
     type Element : IStringable;
 }
 

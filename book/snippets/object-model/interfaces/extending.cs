@@ -1,12 +1,8 @@
 using System;
 
-namespace Snippet;
+namespace Standard;
 
-interface IDescribable
+interface IClonable<T>
 {
-    string Describe();
-}
-interface IFullyDescribable : IDescribable
-{
-    string DetailedDescribe();
+    T Clone();
 }

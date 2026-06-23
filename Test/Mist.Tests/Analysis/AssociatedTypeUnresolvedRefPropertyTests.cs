@@ -152,7 +152,7 @@ public class AssociatedTypeUnresolvedRefPropertyTests
         if (scenario.HasConstraint)
         {
             // Emit the interface with declared slots
-            sb.AppendLine($"interface {scenario.InterfaceName} {{");
+            sb.AppendLine($"abstract {scenario.InterfaceName} {{");
             foreach (var slot in scenario.DeclaredSlots)
             {
                 sb.AppendLine($"    type {slot};");

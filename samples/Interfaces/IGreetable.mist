@@ -2,7 +2,7 @@ using Standard;
 
 namespace Interfaces;
 
-interface IGreetable
+abstract IGreetable
 {
     string Greet();
 }

@@ -3,12 +3,7 @@ using System.Text.RegularExpressions;
 
 namespace Snippet;
 
-interface Printable
-{
-    string Name { get; }
-    int Id { get; }
-}
-public class Product : Printable
+public class Product
 {
     public string Title { get; set; }
 
@@ -19,8 +14,4 @@ public class Product : Printable
         this.Title = title;
         this.Sku = sku;
     }
-
-    string Printable.Name => this.Title;
-
-    int Printable.Id => this.Sku;
 }

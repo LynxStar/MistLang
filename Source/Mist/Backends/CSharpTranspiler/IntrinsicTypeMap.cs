@@ -189,11 +189,11 @@ internal sealed class IntrinsicTypeMap
                 return GetMistTypeName(qualifiedName);
             }
 
-            case InterfaceType it:
+            case AbstractType at:
             {
-                var qualifiedName = it.ContainingNamespace is not null
-                    ? $"{it.ContainingNamespace}.{it.DisplayName}"
-                    : it.DisplayName;
+                var qualifiedName = at.ContainingNamespace is not null
+                    ? $"{at.ContainingNamespace}.{at.DisplayName}"
+                    : at.DisplayName;
                 return GetMistTypeName(qualifiedName);
             }
 

@@ -168,7 +168,7 @@ class Program {{
         return from ifaceName in Gen.Elements(InterfaceNames)
                from implName in Gen.Elements("Impl", "Concrete", "Real")
                select new ConstraintSatisfactionScenario(
-                   $@"interface {ifaceName} {{ }}
+                   $@"abstract {ifaceName} {{ }}
 class {implName} : {ifaceName} {{ }}
 class Container<T> where T : {ifaceName} {{ }}
 class Program {{
@@ -176,7 +176,7 @@ class Program {{
         Container<{implName}> c = new Container<{implName}>();
     }}
 }}",
-                   $"interface constraint {ifaceName} satisfied by {implName}",
+                   $"abstract constraint {ifaceName} satisfied by {implName}",
                    shouldAccept: true);
     }
 
@@ -186,7 +186,7 @@ class Program {{
         return from ifaceName in Gen.Elements(InterfaceNames)
                from nonImplName in Gen.Elements("Unrelated", "Other", "Wrong")
                select new ConstraintSatisfactionScenario(
-                   $@"interface {ifaceName} {{ }}
+                   $@"abstract {ifaceName} {{ }}
 class {nonImplName} {{ }}
 class Container<T> where T : {ifaceName} {{ }}
 class Program {{
@@ -194,7 +194,7 @@ class Program {{
         Container<{nonImplName}> c = new Container<{nonImplName}>();
     }}
 }}",
-                   $"interface constraint {ifaceName} violated by {nonImplName}",
+                   $"abstract constraint {ifaceName} violated by {nonImplName}",
                    shouldAccept: false);
     }
 

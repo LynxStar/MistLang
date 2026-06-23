@@ -1,12 +1,8 @@
 using System;
 
-namespace Snippet;
+namespace Standard;
 
-interface Comparable<T>
+interface IClonable<T>
 {
-    int CompareTo(T other);
-}
-interface Converter<TIn, TOut>
-{
-    TOut Convert(TIn input);
+    T Clone();
 }

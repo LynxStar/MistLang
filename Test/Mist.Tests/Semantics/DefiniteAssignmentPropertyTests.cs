@@ -257,7 +257,7 @@ public sealed class DefiniteAssignmentPropertyTests
         return $$"""
             namespace TestProgram;
 
-            public interface {{interfaceName}}
+            public abstract {{interfaceName}}
             {
             }
 
@@ -303,7 +303,7 @@ public sealed class DefiniteAssignmentPropertyTests
         return $$"""
             namespace TestProgram;
 
-            public interface {{interfaceName}}
+            public abstract {{interfaceName}}
             {
             }
 
@@ -356,7 +356,7 @@ public sealed class DefiniteAssignmentPropertyTests
         return $$"""
             namespace TestProgram;
 
-            public interface {{interfaceName}}
+            public abstract {{interfaceName}}
             {
             }
 

@@ -189,12 +189,12 @@ public class NonGenericTypeArgumentPropertyTests
             }
             case NonGenericDeclKind.Interface:
             {
-                var interfaceDecl = new InterfaceDeclarationNode
+                var interfaceDecl = new AbstractDeclarationNode
                 {
                     Name = MakeToken(scenario.NonGenericTypeName),
-                    Members = ImmutableArray<InterfaceMemberDeclarationNode>.Empty,
+                    Members = ImmutableArray<AbstractMemberDeclarationNode>.Empty,
                 };
-                nonGenericTypeDecl = new InterfaceTypeTypeDeclarationNode { InterfaceDeclaration = interfaceDecl };
+                nonGenericTypeDecl = new AbstractTypeTypeDeclarationNode { AbstractDeclaration = interfaceDecl };
                 break;
             }
             default:
@@ -298,12 +298,12 @@ public class NonGenericTypeArgumentPropertyTests
     [Fact]
     public void NonGenericInterface_WithTypeArgs_EmitsNotGeneric()
     {
-        // interface ISimple { }
+        // abstract ISimple { }
         // class Holder { ISimple<int> field; }
-        var interfaceDecl = new InterfaceDeclarationNode
+        var interfaceDecl = new AbstractDeclarationNode
         {
             Name = MakeToken("ISimple"),
-            Members = ImmutableArray<InterfaceMemberDeclarationNode>.Empty,
+            Members = ImmutableArray<AbstractMemberDeclarationNode>.Empty,
         };
 
         var typeArgList = MakeTypeArgList([MakePrimitiveTypeRef("int")]);
@@ -317,7 +317,7 @@ public class NonGenericTypeArgumentPropertyTests
         };
 
         var ast = MakeCompilationUnit(
-            new InterfaceTypeTypeDeclarationNode { InterfaceDeclaration = interfaceDecl },
+            new AbstractTypeTypeDeclarationNode { AbstractDeclaration = interfaceDecl },
             new ClassTypeTypeDeclarationNode { ClassDeclaration = holderClassDecl });
 
         var (_, diagnostics) = BuildModelWithDiagnostics(ast);

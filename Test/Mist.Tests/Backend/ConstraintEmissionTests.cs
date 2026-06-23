@@ -119,7 +119,7 @@ class Program {
     public void InterfaceConstraint_EmitsInterfaceName()
     {
         var source = @"
-interface IFoo { }
+abstract IFoo { }
 class Container<T> where T : IFoo { }
 class Program {
     public static void Main() { }
@@ -145,7 +145,7 @@ class Program {
     public void TraitConstraint_EmitsTraitAsInterface()
     {
         var source = @"
-trait Printable {
+abstract Printable {
     string Print();
 }
 class Container<T> where T : Printable { }
@@ -153,7 +153,7 @@ class Program {
     public static void Main() { }
 }";
         var cs = CompileAndEmit(source);
-        // Traits are lowered to interfaces in C#
+        // Abstract types are lowered to interfaces in C#
         Assert.Contains("where T : Printable", cs);
     }
 
@@ -270,7 +270,7 @@ class Program {
     public void ConstraintOrdering_NewFirst_EmitsNewLast()
     {
         var source = @"
-interface IFoo { }
+abstract IFoo { }
 class Container<T> where T : new(), IFoo, class { }
 class Program {
     public static void Main() { }
@@ -289,7 +289,7 @@ class Program {
     public void ConstraintOrdering_BaseClassAfterInterface_EmitsBaseClassBeforeInterface()
     {
         var source = @"
-interface IFoo { }
+abstract IFoo { }
 class Animal { }
 class Container<T> where T : IFoo, Animal, new() { }
 class Program {
@@ -324,7 +324,7 @@ class Program {
     public void MethodConstraints_EmitsWhereClauseOnMethod()
     {
         var source = @"
-interface IFoo { }
+abstract IFoo { }
 class Program {
     public static void DoWork<T>(T item) where T : IFoo { }
     public static void Main() { }

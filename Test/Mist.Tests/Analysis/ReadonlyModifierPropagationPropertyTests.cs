@@ -102,7 +102,7 @@ public static class ReadonlyPropagationGenerators
                from access in Gen.Elements(AccessModifiers)
                from isReadonly in Gen.Elements(true, false)
                let readonlyMod = isReadonly ? "readonly " : ""
-               let source = $"{access}{readonlyMod}interface {name} {{\n}}"
+               let source = $"{access}{readonlyMod}abstract {name} {{\n}}"
                select new ReadonlyPropagationScenario(name, "interface", isReadonly, source);
     }
 
@@ -112,7 +112,7 @@ public static class ReadonlyPropagationGenerators
         return from name in Gen.Elements(TraitNames)
                from isReadonly in Gen.Elements(true, false)
                let readonlyMod = isReadonly ? "readonly " : ""
-               let source = $"{readonlyMod}trait {name} {{\n}}"
+               let source = $"{readonlyMod}abstract {name} {{\n}}"
                select new ReadonlyPropagationScenario(name, "trait", isReadonly, source);
     }
 
@@ -203,8 +203,7 @@ public class ReadonlyModifierPropagationPropertyTests
         {
             StructType st => st.IsReadonly,
             ClassType ct => ct.IsReadonly,
-            InterfaceType it => it.IsReadonly,
-            TraitType tt => tt.IsReadonly,
+            AbstractType at => at.IsReadonly,
             _ => null,
         };
     }

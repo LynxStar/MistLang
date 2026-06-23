@@ -279,29 +279,29 @@ public class ParameterSignatureTests
     [Fact]
     public void Extract_InterfaceMethodWithParameter_ReturnsParameterType()
     {
-        // interface I { void M(int x); }
+        // abstract I { void M(int x); }
         // The SemanticModelBuilder registers parameters for interface methods
         // so that ParameterSignature.Extract can resolve parameter types for
         // overload duplicate-signature detection.
         var param = MakeParameter("int", "x");
-        var interfaceMethod = new InterfaceMethodDeclarationNode
+        var interfaceMethod = new AbstractMethodDeclarationNode
         {
             Name = MakeToken("M"),
             ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = new ParameterListNode { Parameter = param },
         };
 
-        var interfaceDecl = new InterfaceDeclarationNode
+        var interfaceDecl = new AbstractDeclarationNode
         {
             Name = MakeToken("I"),
-            Members = ImmutableArray.Create<InterfaceMemberDeclarationNode>(
-                new InterfaceMethodMemberInterfaceMemberDeclarationNode { Method = interfaceMethod }),
+            Members = ImmutableArray.Create<AbstractMemberDeclarationNode>(
+                new AbstractMethodMemberAbstractMemberDeclarationNode { Method = interfaceMethod }),
         };
 
         var ast = new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new InterfaceTypeTypeDeclarationNode { InterfaceDeclaration = interfaceDecl }).AsTopLevelItems(),
+                new AbstractTypeTypeDeclarationNode { AbstractDeclaration = interfaceDecl }).AsTopLevelItems(),
         };
 
         var model = BuildModel(ast);

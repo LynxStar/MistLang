@@ -53,14 +53,14 @@ public class TypeProjectorTests
     }
 
     [Fact]
-    public void ProjectType_SimpleInterface_ProducesInterfaceType()
+    public void ProjectType_SimpleInterface_ProducesAbstractType()
     {
         var (type, _) = _projector.ProjectType(typeof(ISimpleInterface), _stdlib);
 
-        Assert.IsType<InterfaceType>(type);
+        Assert.IsType<AbstractType>(type);
         Assert.Equal("ISimpleInterface", type.DisplayName);
-        var interfaceType = (InterfaceType)type;
-        Assert.Equal("Mist.Tests.InteropFixtures", interfaceType.ContainingNamespace);
+        var abstractType = (AbstractType)type;
+        Assert.Equal("Mist.Tests.InteropFixtures", abstractType.ContainingNamespace);
     }
 
     [Fact]

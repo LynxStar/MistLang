@@ -200,9 +200,9 @@ public class DefaultValueComputationPropertyTests
         return new StructTypeTypeDeclarationNode { StructDeclaration = structDecl };
     }
 
-    private static TypeDeclarationNode WrapInterface(InterfaceDeclarationNode interfaceDecl)
+    private static TypeDeclarationNode WrapAbstract(AbstractDeclarationNode abstractDecl)
     {
-        return new InterfaceTypeTypeDeclarationNode { InterfaceDeclaration = interfaceDecl };
+        return new AbstractTypeTypeDeclarationNode { AbstractDeclaration = abstractDecl };
     }
 
     // ─── Expression helpers ──────────────────────────────────────────────
@@ -604,11 +604,11 @@ public class DefaultValueComputationPropertyTests
     /// </summary>
     private static CompilationUnitNode BuildTypeBindingAst(TypeBindingScenario scenario)
     {
-        // 1. Declare the interface
-        var interfaceDecl = new InterfaceDeclarationNode
+        // 1. Declare the abstract type
+        var interfaceDecl = new AbstractDeclarationNode
         {
             Name = MakeToken(scenario.InterfaceName),
-            Members = ImmutableArray<InterfaceMemberDeclarationNode>.Empty,
+            Members = ImmutableArray<AbstractMemberDeclarationNode>.Empty,
         };
 
         // 2. Declare the concrete class with int fields
@@ -644,7 +644,7 @@ public class DefaultValueComputationPropertyTests
         var mainClassDecl = MakeClassDecl(scenario.TypeName, mainMembers);
 
         return MakeCompilationUnit(
-            WrapInterface(interfaceDecl),
+            WrapAbstract(interfaceDecl),
             WrapClass(concreteClassDecl),
             WrapClass(mainClassDecl));
     }

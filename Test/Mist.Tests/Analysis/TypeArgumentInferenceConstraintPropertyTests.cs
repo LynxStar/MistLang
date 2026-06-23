@@ -197,14 +197,14 @@ public sealed class TypeArgumentInferenceConstraintPropertyTests : IDisposable
     /// <summary>
     /// Generates a scenario where a method has an interface constraint on T,
     /// but a type that does not implement the interface is used.
-    /// We define an interface IMarker and pass int which does not implement it.
+    /// We define an abstract IMarker and pass int which does not implement it.
     /// </summary>
     private static Gen<ConstraintDiagnosticScenario> GenInterfaceConstraintViolation()
     {
         return from methodName in Gen.Elements(MethodNames)
                from paramName in Gen.Elements(ParamNames)
                let explicitSource = $$"""
-                   interface IMarker {
+                   abstract IMarker {
                        void Mark();
                    }
                    class Helpers {
@@ -219,7 +219,7 @@ public sealed class TypeArgumentInferenceConstraintPropertyTests : IDisposable
                    }
                    """
                let inferredSource = $$"""
-                   interface IMarker {
+                   abstract IMarker {
                        void Mark();
                    }
                    class Helpers {
@@ -234,7 +234,7 @@ public sealed class TypeArgumentInferenceConstraintPropertyTests : IDisposable
                    }
                    """
                select new ConstraintDiagnosticScenario(explicitSource, inferredSource,
-                   $"interface constraint IMarker on {methodName}<T>(T) violated by int");
+                   $"abstract constraint IMarker on {methodName}<T>(T) violated by int");
     }
 
     /// <summary>
@@ -247,7 +247,7 @@ public sealed class TypeArgumentInferenceConstraintPropertyTests : IDisposable
         return from methodName in Gen.Elements(MethodNames)
                from paramName in Gen.Elements(ParamNames)
                let explicitSource = $$"""
-                   interface IMarker {
+                   abstract IMarker {
                        void Mark();
                    }
                    class Helpers {
@@ -262,7 +262,7 @@ public sealed class TypeArgumentInferenceConstraintPropertyTests : IDisposable
                    }
                    """
                let inferredSource = $$"""
-                   interface IMarker {
+                   abstract IMarker {
                        void Mark();
                    }
                    class Helpers {

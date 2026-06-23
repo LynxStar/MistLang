@@ -216,17 +216,17 @@ public class WithStatementParsingTests
     }
 
     [Fact]
-    public void InterfaceMethodWithClause_ParsesCorrectly()
+    public void AbstractMethodWithClause_ParsesCorrectly()
     {
-        var source = "interface I { void M() with MyType ctx; }";
+        var source = "abstract I { void M() with MyType ctx; }";
         var result = ParseSource(source);
 
         Assert.Empty(result.Diagnostics);
         if (result.Root is CompilationUnitNode cu)
         {
-            var typeDecl = Assert.IsType<InterfaceTypeTypeDeclarationNode>(cu.GetTypes()[0]);
-            var methodMember = Assert.IsType<InterfaceMethodMemberInterfaceMemberDeclarationNode>(
-                typeDecl.InterfaceDeclaration.Members[0]);
+            var typeDecl = Assert.IsType<AbstractTypeTypeDeclarationNode>(cu.GetTypes()[0]);
+            var methodMember = Assert.IsType<AbstractMethodMemberAbstractMemberDeclarationNode>(
+                typeDecl.AbstractDeclaration.Members[0]);
             var method = methodMember.Method;
 
             Assert.Single(method.WithClauses);
@@ -235,17 +235,17 @@ public class WithStatementParsingTests
     }
 
     [Fact]
-    public void TraitMethodWithClause_ParsesCorrectly()
+    public void AbstractMethodWithClause_FormerTrait_ParsesCorrectly()
     {
-        var source = "trait T { void M() with MyType ctx; }";
+        var source = "abstract T { void M() with MyType ctx; }";
         var result = ParseSource(source);
 
         Assert.Empty(result.Diagnostics);
         if (result.Root is CompilationUnitNode cu)
         {
-            var typeDecl = Assert.IsType<TraitTypeTypeDeclarationNode>(cu.GetTypes()[0]);
-            var methodMember = Assert.IsType<TraitMethodMemberTraitMemberDeclarationNode>(
-                typeDecl.TraitDeclaration.Members[0]);
+            var typeDecl = Assert.IsType<AbstractTypeTypeDeclarationNode>(cu.GetTypes()[0]);
+            var methodMember = Assert.IsType<AbstractMethodMemberAbstractMemberDeclarationNode>(
+                typeDecl.AbstractDeclaration.Members[0]);
             var method = methodMember.Method;
 
             Assert.Single(method.WithClauses);
@@ -298,7 +298,7 @@ with Widget : Printable {
             var withItem = cu.Items.OfType<WithItemTopLevelItemNode>().FirstOrDefault();
             Assert.NotNull(withItem);
             Assert.Equal("Widget", withItem!.WithDeclaration.TypeName.Lexeme);
-            Assert.Equal("Printable", withItem.WithDeclaration.TraitName.Lexeme);
+            Assert.Equal("Printable", withItem.WithDeclaration.AbstractName.Lexeme);
             Assert.Single(withItem.WithDeclaration.Mappings);
             Assert.Equal("label", withItem.WithDeclaration.Mappings[0].SourceName.Lexeme);
             Assert.Equal("name", withItem.WithDeclaration.Mappings[0].TargetName.Lexeme);
@@ -308,10 +308,10 @@ with Widget : Printable {
     [Fact]
     public void TraitWithBlock_CoexistsWithContextStatements()
     {
-        // Verify that both trait-with blocks and context statements can coexist
+        // Verify that both abstract-with blocks and context statements can coexist
         var source = @"
-trait Printable {
-    string name;
+abstract Printable {
+    string Name();
 }
 
 class Widget {
@@ -323,14 +323,14 @@ class Widget {
 }
 
 with Widget : Printable {
-    label as name;
+    label as Name;
 }";
         var result = ParseSource(source);
 
         Assert.Empty(result.Diagnostics);
         if (result.Root is CompilationUnitNode cu)
         {
-            // Verify trait-with block is still parsed correctly
+            // Verify abstract-with block is still parsed correctly
             var withItem = cu.Items.OfType<WithItemTopLevelItemNode>().FirstOrDefault();
             Assert.NotNull(withItem);
             Assert.Equal("Widget", withItem!.WithDeclaration.TypeName.Lexeme);

@@ -342,7 +342,7 @@ public sealed class MoveBoundarySoleGatePropertyTests : IDisposable
         //   Gadget — non-owned, NOT clonable (interface-typed field blocks derivation).
         //   Vault  — an owned type.
         sb.Append("public class Widget\n{\n    public int Value;\n    public string Label;\n}\n\n");
-        sb.Append("public interface ISignal\n{\n}\n\n");
+        sb.Append("public abstract ISignal\n{\n}\n\n");
         sb.Append("public class Gadget\n{\n    public ISignal signal;\n}\n\n");
         sb.Append("owned class Vault\n{\n    public int Code;\n}\n\n");
 

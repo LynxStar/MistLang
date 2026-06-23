@@ -100,7 +100,7 @@ public class AssociatedTypeDisambiguationPropertyTests
     /// </summary>
     private static string BuildAssociatedTypeSlotSource(string name, string constraint)
     {
-        return $"interface ITest {{ type {name} : {constraint}; }}";
+        return $"abstract ITest {{ type {name} : {constraint}; }}";
     }
 
     /// <summary>
@@ -112,17 +112,17 @@ public class AssociatedTypeDisambiguationPropertyTests
     }
 
     /// <summary>
-    /// Extracts the first interface member declaration from a parsed interface.
+    /// Extracts the first abstract member declaration from a parsed abstract type.
     /// </summary>
-    private static InterfaceMemberDeclarationNode? ExtractInterfaceMember(CompilationUnitNode cu)
+    private static AbstractMemberDeclarationNode? ExtractAbstractMember(CompilationUnitNode cu)
     {
         var typeItem = cu.Items.FirstOrDefault() as TypeItemTopLevelItemNode;
         if (typeItem is null) return null;
 
-        var interfaceDecl = typeItem.TypeDeclaration as InterfaceTypeTypeDeclarationNode;
-        if (interfaceDecl is null) return null;
+        var abstractDecl = typeItem.TypeDeclaration as AbstractTypeTypeDeclarationNode;
+        if (abstractDecl is null) return null;
 
-        return interfaceDecl.InterfaceDeclaration.Members.FirstOrDefault();
+        return abstractDecl.AbstractDeclaration.Members.FirstOrDefault();
     }
 
     /// <summary>
@@ -140,7 +140,7 @@ public class AssociatedTypeDisambiguationPropertyTests
     //
     // For any valid type name and constraint, parsing `type Name : Constraint;`
     // inside an interface body SHALL produce an
-    // InterfaceAssociatedTypeMemberInterfaceMemberDeclarationNode containing
+    // AbstractAssociatedTypeMemberAbstractMemberDeclarationNode containing
     // an AssociatedTypeSlotDeclarationNode.
     // ═════════════════════════════════════════════════════════════════════════
 
@@ -155,15 +155,15 @@ public class AssociatedTypeDisambiguationPropertyTests
         if (root is null)
             return false.ToProperty().Label($"Failed to parse: {source}");
 
-        var member = ExtractInterfaceMember(root);
+        var member = ExtractAbstractMember(root);
         if (member is null)
-            return false.ToProperty().Label($"Could not extract interface member from: {source}");
+            return false.ToProperty().Label($"Could not extract abstract member from: {source}");
 
-        var isAssociatedTypeSlot = member is InterfaceAssociatedTypeMemberInterfaceMemberDeclarationNode;
+        var isAssociatedTypeSlot = member is AbstractAssociatedTypeMemberAbstractMemberDeclarationNode;
 
         return isAssociatedTypeSlot
             .ToProperty()
-            .Label($"Expected InterfaceAssociatedTypeMemberInterfaceMemberDeclarationNode but got {member.GetType().Name} for: {source}");
+            .Label($"Expected AbstractAssociatedTypeMemberAbstractMemberDeclarationNode but got {member.GetType().Name} for: {source}");
     }
 
     // ═════════════════════════════════════════════════════════════════════════
@@ -216,16 +216,16 @@ public class AssociatedTypeDisambiguationPropertyTests
         if (aliasRoot is null)
             return false.ToProperty().Label($"Failed to parse alias source: {aliasSource}");
 
-        var member = ExtractInterfaceMember(slotRoot);
+        var member = ExtractAbstractMember(slotRoot);
         if (member is null)
-            return false.ToProperty().Label($"Could not extract interface member from: {slotSource}");
+            return false.ToProperty().Label($"Could not extract abstract member from: {slotSource}");
 
         var aliasDecl = ExtractTypeAlias(aliasRoot);
         if (aliasDecl is null)
             return false.ToProperty().Label($"Could not extract type alias from: {aliasSource}");
 
         // Extract the inner declaration node from the interface member
-        var slotMember = member as InterfaceAssociatedTypeMemberInterfaceMemberDeclarationNode;
+        var slotMember = member as AbstractAssociatedTypeMemberAbstractMemberDeclarationNode;
         if (slotMember is null)
             return false.ToProperty().Label($"Interface member is not an associated type slot: {member.GetType().Name}");
 

@@ -101,7 +101,7 @@ public class BoundedRange
 
 // ─── 11. Method with both generic constraint and parameter refinement ────────
 
-interface IDisplayable
+abstract IDisplayable
 {
     string Display();
 }
@@ -146,7 +146,7 @@ public class Wrapper<N:int> : FixedArray<string, N> where N >= 0 { }
 
 // ─── 15. Interface with parameter refinement — same constraint (Liskov) ──────
 
-interface IValidator
+abstract IValidator
 {
     string Validate(int value) where value >= 0;
 }
@@ -173,7 +173,7 @@ class LenientValidator : IValidator
 
 // ─── 17. Interface with parameter refinement — weaker constraint (Liskov) ────
 
-interface IStrictProcessor
+abstract IStrictProcessor
 {
     string Process(int x) where x >= 10 and <= 100;
 }

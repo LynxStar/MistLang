@@ -157,7 +157,7 @@ internal static class CSharpTypeMap
     /// </remarks>
     public static string GetTypeName(IType type, bool isValueContext = false)
     {
-        // Defensive null check: type arguments in ConstructedTraitType or
+        // Defensive null check: type arguments in ConstructedAbstractType or
         // ConstructedType may be null if resolution failed upstream.
         if (type is null)
             return "object";
@@ -269,10 +269,9 @@ internal static class CSharpTypeMap
         NewtypeType nt => nt.Name,
         ClassType c => c.DisplayName,
         StructType s => GetKeywordOrDisplayName(s),
-        InterfaceType i when i.ContainingNamespace == "Standard" && TryGetMappedName($"Standard.{i.DisplayName}") is { } mapped => mapped,
-        InterfaceType i => i.DisplayName,
-        ConstructedTraitType ctt => $"{ctt.GenericTraitDefinition.DisplayName}<{string.Join(", ", ctt.TypeArguments.Select(t => GetTypeName(t, isValueContext)))}>",
-        TraitType t => t.DisplayName,
+        ConstructedAbstractType ctt => $"{ctt.GenericAbstractDefinition.DisplayName}<{string.Join(", ", ctt.TypeArguments.Select(t => GetTypeName(t, isValueContext)))}>",
+        AbstractType a when a.ContainingNamespace == "Standard" && TryGetMappedName($"Standard.{a.DisplayName}") is { } mapped => mapped,
+        AbstractType a => a.DisplayName,
         _ => throw new ArgumentException($"Cannot map type to C#: {type.DisplayName}"),
         };
     }

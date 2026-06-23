@@ -1,6 +1,6 @@
 namespace Standard;
 
-interface IClonable<T>
+abstract IClonable<T>
 {
     owned T Clone();
 }

@@ -2,10 +2,6 @@ using System;
 
 namespace Snippet;
 
-interface IDescribable
-{
-    string Describe();
-}
 public class Person : IDescribable
 {
     private string name;

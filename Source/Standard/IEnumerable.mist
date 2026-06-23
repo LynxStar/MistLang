@@ -1,6 +1,6 @@
 namespace Standard;
 
-interface IEnumerable<TElement>
+abstract IEnumerable<TElement>
 {
     type Enumerator : IEnumerator<TElement>;
     Enumerator GetEnumerator();

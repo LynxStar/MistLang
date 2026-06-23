@@ -436,7 +436,7 @@ public class RefTypeCheckerDiagnosticsPropertyTests
                 }
                 """
             select new RefInterfaceTraitScenario(source,
-                $"trait requires ref {typeName} but {className}.{methodName} has non-ref");
+                $"abstract requires ref {typeName} but {className}.{methodName} has non-ref");
 
         return traitGen.ToArbitrary();
     }

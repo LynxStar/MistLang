@@ -7,15 +7,15 @@ namespace GenericConstraints;
 
 // ─── Supporting types ────────────────────────────────────────────────────
 
-interface IOrderable {
+abstract IOrderable {
     int GetOrder();
 }
 
-interface IPrintable {
+abstract IPrintable {
     string Print();
 }
 
-trait Describable {
+abstract Describable {
     string Describe();
 }
 
@@ -46,7 +46,7 @@ struct Point {
     }
 }
 
-class Widget : IPrintable {
+class Widget : IPrintable, Describable {
     public int Id;
     public Widget() {
         Id = 0;
@@ -234,7 +234,7 @@ class AnyPosition<T> where T : new(int), IOrderable, class {
 
 // ─── 14. interface declaration with constraint ───────────────────────────
 
-interface IRepository<T> where T : class, new() {
+abstract IRepository<T> where T : class, new() {
     T GetById(int id);
     void Save(T item);
 }
@@ -257,7 +257,7 @@ struct Holder<T> where T : IPrintable {
 
 // ─── 16. generic trait with constraint ───────────────────────────────────
 
-trait Transformable<T> where T : new() {
+abstract Transformable<T> where T : new() {
     T Transform(T input);
     T CreateDefault();
 }
@@ -273,7 +273,7 @@ class Doubler : Transformable<Widget> {
 
 // ─── 17. generic trait with constraint that structurally matches ───────────────────────────────────
 
-class Tripler
+class Tripler : Transformable<Widget>
 {
     public Widget Transform(Widget input) 
     {

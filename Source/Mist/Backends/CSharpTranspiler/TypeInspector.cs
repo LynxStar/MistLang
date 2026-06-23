@@ -85,6 +85,7 @@ public static class TypeInspector
             TypeKind.Class => "class",
             TypeKind.Struct => "struct",
             TypeKind.Interface => "interface",
+            TypeKind.Abstract => "interface",
             TypeKind.Enum => "enum",
             _ => "class",
         };

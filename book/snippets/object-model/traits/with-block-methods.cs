@@ -2,11 +2,7 @@ using System;
 
 namespace Snippet;
 
-interface Writable
-{
-    void Write(string data);
-}
-public class Logger : Writable
+public class Logger
 {
     public Logger()
     {
@@ -15,6 +11,4 @@ public class Logger : Writable
     public void Log(string data)
     {
     }
-
-    void Writable.Write(string data) => this.Log(data);
 }

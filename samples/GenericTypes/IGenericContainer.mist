@@ -4,7 +4,7 @@ using Standard;
 
 namespace GenericTypes;
 
-interface IGenericContainer<T>
+abstract IGenericContainer<T>
 {
     T GetItem();
 }

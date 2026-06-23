@@ -25,8 +25,8 @@ public sealed class ValidatedMemberMapping
 /// <summary>
 /// Stores validated <c>with</c> block mappings, keyed by (IType, IType) pairs.
 /// Populated by <c>Pass1_ResolveWithBlocks</c> and consumed by the trait satisfaction pass.
-/// The trait key is <see cref="IType"/> to support both <see cref="TraitType"/>
-/// (non-generic) and <see cref="ConstructedTraitType"/> (generic).
+/// The trait key is <see cref="IType"/> to support both <see cref="AbstractType"/>
+/// (non-generic) and <see cref="ConstructedAbstractType"/> (generic).
 /// </summary>
 public sealed class WithBlockRegistry
 {

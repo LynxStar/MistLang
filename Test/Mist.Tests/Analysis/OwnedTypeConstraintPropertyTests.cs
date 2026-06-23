@@ -192,7 +192,7 @@ public class OwnedTypeConstraintPropertyTests
         return from typeName in Gen.Elements(TypeNames)
                from ifaceName in Gen.Elements(InterfaceNames)
                let source = $$"""
-                   interface {{ifaceName}} {
+                   abstract {{ifaceName}} {
                        void DoWork();
                    }
                    owned class {{typeName}} : {{ifaceName}} {

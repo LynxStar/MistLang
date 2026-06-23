@@ -170,7 +170,7 @@ public sealed class ConstraintEmissionOrderingPropertyTests : IDisposable
         return Gen.Elements(InterfaceNames)
             .SelectMany(iface => Gen.Constant(new ConstraintEmissionOrderingScenario(
                 $@"
-interface {iface} {{ }}
+abstract {iface} {{ }}
 class Container<T> where T : new(), {iface}, class {{ }}
 class Program {{
     public static void Main() {{ }}
@@ -184,7 +184,7 @@ class Program {{
         return Gen.Elements(InterfaceNames)
             .SelectMany(iface => Gen.Constant(new ConstraintEmissionOrderingScenario(
                 $@"
-interface {iface} {{ }}
+abstract {iface} {{ }}
 class Container<T> where T : {iface}, struct {{ }}
 class Program {{
     public static void Main() {{ }}
@@ -199,7 +199,7 @@ class Program {{
             .SelectMany(baseClass => Gen.Elements(InterfaceNames)
                 .SelectMany(iface => Gen.Constant(new ConstraintEmissionOrderingScenario(
                     $@"
-interface {iface} {{ }}
+abstract {iface} {{ }}
 class {baseClass} {{ }}
 class Container<T> where T : new(), {iface}, {baseClass} {{ }}
 class Program {{
@@ -213,9 +213,9 @@ class Program {{
     {
         return Gen.Constant(new ConstraintEmissionOrderingScenario(
             @"
-interface IAlpha { }
-interface IBeta { }
-interface IGamma { }
+abstract IAlpha { }
+abstract IBeta { }
+abstract IGamma { }
 class Container<T> where T : new(), IGamma, IAlpha, IBeta, class { }
 class Program {
     public static void Main() { }
@@ -229,7 +229,7 @@ class Program {
         return Gen.Elements(InterfaceNames)
             .SelectMany(iface => Gen.Constant(new ConstraintEmissionOrderingScenario(
                 $@"
-interface {iface} {{ }}
+abstract {iface} {{ }}
 class Program {{
     public static void DoWork<T>(T item) where T : new(), {iface}, class {{ }}
     public static void Main() {{ }}
@@ -244,7 +244,7 @@ class Program {{
             .SelectMany(baseClass => Gen.Elements(InterfaceNames)
                 .SelectMany(iface => Gen.Constant(new ConstraintEmissionOrderingScenario(
                     $@"
-interface {iface} {{ }}
+abstract {iface} {{ }}
 class {baseClass} {{ }}
 class Container<T> where T : {baseClass}, new(), {iface} {{ }}
 class Program {{

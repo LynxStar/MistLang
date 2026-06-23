@@ -92,13 +92,13 @@ public class TypeParameterRegistrationPropertyTests
         };
     }
 
-    private static InterfaceDeclarationNode MakeGenericInterface(string name, string[] typeParamNames)
+    private static AbstractDeclarationNode MakeGenericAbstract(string name, string[] typeParamNames)
     {
-        return new InterfaceDeclarationNode
+        return new AbstractDeclarationNode
         {
             Name = MakeToken(name),
             TypeParams = MakeTypeParamList(typeParamNames),
-            Members = ImmutableArray<InterfaceMemberDeclarationNode>.Empty,
+            Members = ImmutableArray<AbstractMemberDeclarationNode>.Empty,
         };
     }
 
@@ -202,9 +202,9 @@ public class TypeParameterRegistrationPropertyTests
             {
                 StructDeclaration = MakeGenericStruct(decl.Name, decl.TypeParamNames.ToArray()),
             },
-            GenericDeclKind.Interface => new InterfaceTypeTypeDeclarationNode
+            GenericDeclKind.Interface => new AbstractTypeTypeDeclarationNode
             {
-                InterfaceDeclaration = MakeGenericInterface(decl.Name, decl.TypeParamNames.ToArray()),
+                AbstractDeclaration = MakeGenericAbstract(decl.Name, decl.TypeParamNames.ToArray()),
             },
             _ => throw new InvalidOperationException(),
         };
@@ -231,7 +231,7 @@ public class TypeParameterRegistrationPropertyTests
         {
             GenericDeclKind.Class => ((ClassType)typeSymbol.DeclaredType!).TypeParameters,
             GenericDeclKind.Struct => ((StructType)typeSymbol.DeclaredType!).TypeParameters,
-            GenericDeclKind.Interface => ((InterfaceType)typeSymbol.DeclaredType!).TypeParameters,
+            GenericDeclKind.Interface => ((AbstractType)typeSymbol.DeclaredType!).TypeParameters,
             _ => throw new InvalidOperationException(),
         };
 
@@ -258,7 +258,7 @@ public class TypeParameterRegistrationPropertyTests
         {
             GenericDeclKind.Class => ((ClassType)typeSymbol.DeclaredType!).MemberScope,
             GenericDeclKind.Struct => ((StructType)typeSymbol.DeclaredType!).MemberScope,
-            GenericDeclKind.Interface => ((InterfaceType)typeSymbol.DeclaredType!).MemberScope,
+            GenericDeclKind.Interface => ((AbstractType)typeSymbol.DeclaredType!).MemberScope,
             _ => throw new InvalidOperationException(),
         };
 
@@ -404,13 +404,13 @@ public class TypeParameterRegistrationPropertyTests
     [Fact]
     public void GenericInterface_TypeParametersRegistered()
     {
-        var interfaceDecl = MakeGenericInterface("IContainer", ["T"]);
+        var interfaceDecl = MakeGenericAbstract("IContainer", ["T"]);
         var ast = MakeCompilationUnit(
-            new InterfaceTypeTypeDeclarationNode { InterfaceDeclaration = interfaceDecl });
+            new AbstractTypeTypeDeclarationNode { AbstractDeclaration = interfaceDecl });
         var (model, _) = BuildModelWithDiagnostics(ast);
 
         var symbol = model.AllSymbols.First(s => s.Name == "IContainer" && s.Kind == SymbolKind.Interface);
-        var interfaceType = Assert.IsType<InterfaceType>(symbol.DeclaredType);
+        var interfaceType = Assert.IsType<AbstractType>(symbol.DeclaredType);
 
         Assert.Single(interfaceType.TypeParameters);
         Assert.Equal("T", interfaceType.TypeParameters[0].DisplayName);

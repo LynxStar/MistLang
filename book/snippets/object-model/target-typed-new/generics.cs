@@ -14,7 +14,7 @@ class Pair<T>
         Second = second;
     }
 
-    public override string ToString()
+    public string Describe()
     {
         return $"Pair({First}, {Second})";
     }
@@ -25,8 +25,8 @@ class Program
     {
         Pair<int> intPair = new Pair<int>(1, 2);
         Pair<string> strPair = new Pair<string>("hello", "world");
-        Console.WriteLine(intPair);
-        Console.WriteLine(strPair);
+        Console.WriteLine(intPair.Describe());
+        Console.WriteLine(strPair.Describe());
     }
 
     public static Program __CreateDefault()

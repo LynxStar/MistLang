@@ -29,6 +29,9 @@ token BASE      = "base";
 // Enum keyword
 token ENUM = "enum";
 
+// Abstract type keyword
+token ABSTRACT = "abstract";
+
 // Trait-related keywords
 token TRAIT = "trait";
 token WITH  = "with";

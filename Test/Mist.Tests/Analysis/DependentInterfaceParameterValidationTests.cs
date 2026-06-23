@@ -64,7 +64,7 @@ public class DependentInterfaceParameterValidationTests
     public void InterfaceWithDependentParam_ConcreteValue_NoDiagnostics()
     {
         const string source = """
-            interface IFixedCollection<Size:int> {
+            abstract IFixedCollection<Size:int> {
             }
             class SmallBuffer : IFixedCollection<16> {
             }
@@ -88,7 +88,7 @@ public class DependentInterfaceParameterValidationTests
     public void InterfaceWithDependentParam_MultipleConcrete_NoDiagnostics()
     {
         const string source = """
-            interface IMatrix<Rows:int, Cols:int> {
+            abstract IMatrix<Rows:int, Cols:int> {
             }
             class SmallMatrix : IMatrix<3, 4> {
             }
@@ -112,7 +112,7 @@ public class DependentInterfaceParameterValidationTests
     public void InterfaceWithDependentParam_BoolValue_NoDiagnostics()
     {
         const string source = """
-            interface IToggleable<Enabled:bool> {
+            abstract IToggleable<Enabled:bool> {
             }
             class AlwaysOn : IToggleable<true> {
             }
@@ -140,7 +140,7 @@ public class DependentInterfaceParameterValidationTests
     public void InterfaceWithDependentParam_ForwardedFromClass_NoDiagnostics()
     {
         const string source = """
-            interface IFixedCollection<Size:int> {
+            abstract IFixedCollection<Size:int> {
             }
             class Buffer<N:int> : IFixedCollection<N> {
             }
@@ -164,7 +164,7 @@ public class DependentInterfaceParameterValidationTests
     public void InterfaceWithDependentParam_ForwardedMultiple_NoDiagnostics()
     {
         const string source = """
-            interface IMatrix<Rows:int, Cols:int> {
+            abstract IMatrix<Rows:int, Cols:int> {
             }
             class FlexMatrix<R:int, C:int> : IMatrix<R, C> {
             }
@@ -189,7 +189,7 @@ public class DependentInterfaceParameterValidationTests
     {
         // Forwarding long -> int is a narrowing violation (MIST_DT_0004).
         const string source = """
-            interface IFixedCollection<Size:int> {
+            abstract IFixedCollection<Size:int> {
             }
             class Buffer<N:long> : IFixedCollection<N> {
             }
@@ -217,7 +217,7 @@ public class DependentInterfaceParameterValidationTests
     public void InterfaceWithDependentParam_PropertyAccess_NoDiagnostics()
     {
         const string source = """
-            interface IFixedCollection<Size:int> {
+            abstract IFixedCollection<Size:int> {
             }
             class Program {
                 public static void Main() {
@@ -245,7 +245,7 @@ public class DependentInterfaceParameterValidationTests
     public void InterfaceWithMixedParams_ConcreteValue_NoDiagnostics()
     {
         const string source = """
-            interface ITypedCollection<T, Size:int> {
+            abstract ITypedCollection<T, Size:int> {
             }
             class IntBuffer : ITypedCollection<int, 32> {
             }
@@ -269,7 +269,7 @@ public class DependentInterfaceParameterValidationTests
     public void InterfaceWithMixedParams_ForwardedDependent_NoDiagnostics()
     {
         const string source = """
-            interface ITypedCollection<T, Size:int> {
+            abstract ITypedCollection<T, Size:int> {
             }
             class GenericBuffer<T, N:int> : ITypedCollection<T, N> {
             }

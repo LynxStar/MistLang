@@ -189,14 +189,14 @@ public class DuplicateTypeParameterPropertyTests
             }
             case DuplicateDeclKind.Interface:
             {
-                var interfaceDecl = new InterfaceDeclarationNode
+                var interfaceDecl = new AbstractDeclarationNode
                 {
                     Name = MakeToken(decl.DeclName),
                     TypeParams = MakeTypeParamList(decl.TypeParamNames.ToArray()),
-                    Members = ImmutableArray<InterfaceMemberDeclarationNode>.Empty,
+                    Members = ImmutableArray<AbstractMemberDeclarationNode>.Empty,
                 };
                 ast = MakeCompilationUnit(
-                    new InterfaceTypeTypeDeclarationNode { InterfaceDeclaration = interfaceDecl });
+                    new AbstractTypeTypeDeclarationNode { AbstractDeclaration = interfaceDecl });
                 break;
             }
             case DuplicateDeclKind.Method:

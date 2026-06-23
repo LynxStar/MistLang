@@ -24,16 +24,16 @@ public sealed class TraitSatisfaction
 }
 
 /// <summary>
-/// Records which types satisfy which traits, and how (structural vs with-block).
-/// Populated by <c>Pass1_ResolveTraitSatisfaction</c> and consumed by the type
+/// Records which types satisfy which traits, and how (nominal declaration or with-block).
+/// Populated by <c>Pass1_ValidateAbstractSatisfaction</c> and consumed by the type
 /// checker and emitter.
 /// </summary>
 public sealed class TraitSatisfactionMap
 {
     /// <summary>
     /// Key: (implementingType, trait). Value: the satisfaction record.
-    /// The trait key is <see cref="IType"/> to support both <see cref="TraitType"/>
-    /// (non-generic) and <see cref="ConstructedTraitType"/> (generic).
+    /// The trait key is <see cref="IType"/> to support both <see cref="AbstractType"/>
+    /// (non-generic) and <see cref="ConstructedAbstractType"/> (generic).
     /// </summary>
     private readonly Dictionary<(IType, IType), TraitSatisfaction> _satisfactions = new();
 
@@ -45,19 +45,19 @@ public sealed class TraitSatisfactionMap
         if (_satisfactions.ContainsKey((type, trait)))
             return true;
 
-        // Structural equality fallback for ConstructedTraitType:
-        // Pass 2 type resolution creates new ConstructedTraitType instances
+        // Structural equality fallback for ConstructedAbstractType:
+        // Pass 2 type resolution creates new ConstructedAbstractType instances
         // that are not reference-equal to the ones registered during Pass 1.
-        // Fall back to structural comparison (same GenericTraitDefinition +
+        // Fall back to structural comparison (same GenericAbstractDefinition +
         // same type arguments by DisplayName).
-        if (trait is ConstructedTraitType queryCtt)
+        if (trait is ConstructedAbstractType queryCtt)
         {
             foreach (var key in _satisfactions.Keys)
             {
                 if (!ReferenceEquals(key.Item1, type))
                     continue;
-                if (key.Item2 is ConstructedTraitType registeredCtt
-                    && ReferenceEquals(registeredCtt.GenericTraitDefinition, queryCtt.GenericTraitDefinition)
+                if (key.Item2 is ConstructedAbstractType registeredCtt
+                    && ReferenceEquals(registeredCtt.GenericAbstractDefinition, queryCtt.GenericAbstractDefinition)
                     && registeredCtt.TypeArguments.Count == queryCtt.TypeArguments.Count)
                 {
                     var allMatch = true;
@@ -85,15 +85,15 @@ public sealed class TraitSatisfactionMap
         if (_satisfactions.TryGetValue((type, trait), out var satisfaction))
             return satisfaction;
 
-        // Structural equality fallback for ConstructedTraitType (same as Satisfies).
-        if (trait is ConstructedTraitType queryCtt)
+        // Structural equality fallback for ConstructedAbstractType (same as Satisfies).
+        if (trait is ConstructedAbstractType queryCtt)
         {
             foreach (var kvp in _satisfactions)
             {
                 if (!ReferenceEquals(kvp.Key.Item1, type))
                     continue;
-                if (kvp.Key.Item2 is ConstructedTraitType registeredCtt
-                    && ReferenceEquals(registeredCtt.GenericTraitDefinition, queryCtt.GenericTraitDefinition)
+                if (kvp.Key.Item2 is ConstructedAbstractType registeredCtt
+                    && ReferenceEquals(registeredCtt.GenericAbstractDefinition, queryCtt.GenericAbstractDefinition)
                     && registeredCtt.TypeArguments.Count == queryCtt.TypeArguments.Count)
                 {
                     var allMatch = true;

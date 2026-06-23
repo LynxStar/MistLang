@@ -248,7 +248,7 @@ public sealed class MoveBoundaryNotClonablePropertyTests : IDisposable
             NonClonableKind.InterfaceField => $$"""
                 namespace Gen;
 
-                public interface ISignal
+                public abstract ISignal
                 {
                 }
 

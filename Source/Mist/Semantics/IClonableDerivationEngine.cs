@@ -289,8 +289,8 @@ public static class IClonableDerivationEngine
         return type switch
         {
             ConstructedType constructed => IsIClonableInterface(constructed.GenericDefinition),
-            InterfaceType iface => iface.DisplayName == IClonableName,
-            _ => type.DisplayName == IClonableName && type.Kind == TypeKind.Interface,
+            AbstractType at => at.DisplayName == IClonableName,
+            _ => type.DisplayName == IClonableName && type.Kind == TypeKind.Abstract,
         };
     }
 

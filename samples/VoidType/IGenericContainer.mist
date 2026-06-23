@@ -4,7 +4,7 @@ using Standard;
 
 namespace VoidType;
 
-interface IGenericContainer<T>
+abstract IGenericContainer<T>
 {
     T GetItem();
 }

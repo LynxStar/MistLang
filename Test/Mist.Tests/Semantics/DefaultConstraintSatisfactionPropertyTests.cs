@@ -188,7 +188,7 @@ public class DefaultConstraintSatisfactionPropertyTests
 
         var interfaceGen =
             from ifaceName in Gen.Elements(InterfaceNames)
-            let decl = $"public interface {ifaceName}\n{{\n}}"
+            let decl = $"public abstract {ifaceName}\n{{\n}}"
             select new NonDefaultableTypeArgScenario(
                 TypeArgName: ifaceName,
                 TypeArgDeclaration: decl,
@@ -196,7 +196,7 @@ public class DefaultConstraintSatisfactionPropertyTests
 
         var traitGen =
             from traitName in Gen.Elements(TraitNames)
-            let decl = $"public trait {traitName}\n{{\n}}"
+            let decl = $"public abstract {traitName}\n{{\n}}"
             select new NonDefaultableTypeArgScenario(
                 TypeArgName: traitName,
                 TypeArgDeclaration: decl,

@@ -246,17 +246,6 @@ intBox.value=42 strBox.value=Mist
 boxInt=Box(7) boxStr=Box(world)
 boxInt.value=7 boxStr.value=world
 Done!
-=== Structural trait satisfaction ===
-User created: Alice, id 42
-=== With-block trait satisfaction ===
-Product created: Widget, sku 1001
-=== Trait-typed variables ===
-  Assigned User to Printable: Name=Bob, Id=7
-  Assigned Product to Printable: Name=Gadget, Id=2002
-=== Passing to trait-typed parameter ===
-  Name: Alice, Id: 42
-  Name: Widget, Id: 1001
-Done!
 === Generic Traits Demo ===
 --- 1. Type parameter as method parameter (Comparable<T>) ---
   IntComparer(10).CompareTo(5) = 5
@@ -268,15 +257,38 @@ Done!
   NameProvider via Provider<string>.Provide() = hello
 --- 5. Multiple type parameters (Converter<TIn, TOut>) ---
   IntToString via Converter<int,string>.Convert(7) = converted
---- 6. Non-generic trait inheritance ---
-  trait ReadWriteStream : Readable, Writable { void Flush(); }
---- 7. Structural satisfaction of non-generic trait ---
+--- 6. Non-generic abstract type inheritance ---
+  abstract ReadWriteStream : Readable, Writable { void Flush(); }
+--- 7. Nominal satisfaction of non-generic abstract type ---
   MemoryStream.Read() via Readable = data from memory
---- 8. With-block mapping for non-generic trait ---
+--- 8. With-block mapping for non-generic abstract type ---
   Logger.Write() via Writable called successfully
---- 9. Passing to trait-typed parameter ---
+--- 9. Passing to abstract-typed parameter ---
   PrintReadable: data from memory
 === Generic Traits Demo Complete ===
+=== Abstract type with slots only ===
+Person: Alice, age 30
+=== Property slot filled ===
+  Label: person
+=== Default implementation taken (Rust-style) ===
+Hello, I am Alice
+=== Default implementation overridden ===
+Beep boop, I am T-800
+=== Polymorphic variable assignment ===
+  Person: Alice, age 30
+=== Transitive interface assignability ===
+  Robot: T-800
+=== Polymorphic parameter passing ===
+  Person: Alice, age 30
+  Robot: T-800
+=== Default via abstract-typed reference ===
+Hello, I am Alice
+=== Late binding via direct conformance ===
+  SystemLogger
+=== Direct conformance overrides default ===
+  Tag: widget-tag
+  DisplayTag: <Widget>
+Done!
 === UnknownType Sample (AllFeatures) ===
 --- Unknown local ---
 narrowed int: 123

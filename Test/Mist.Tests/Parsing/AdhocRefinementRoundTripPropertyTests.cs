@@ -171,16 +171,16 @@ public class AdhocRefinementRoundTripPropertyTests
 
     /// <summary>
     /// Generates an interface with adhoc refinement constraints.
-    /// Example: interface ISized&lt;Size:int&gt; where Size >= 0 { }
+    /// Example: abstract ISized&lt;Size:int&gt; where Size >= 0 { }
     /// </summary>
     private static Gen<AdhocRefinementRoundTripScenario> GenInterfaceConstraint()
     {
         return from name in Gen.Elements(InterfaceNames)
                from depParam in Gen.Elements(DependentParamNames)
                from predicate in GenPredicate()
-               let source = $"interface {name}<{depParam}:int> where {depParam} {predicate} {{\n}}"
+               let source = $"abstract {name}<{depParam}:int> where {depParam} {predicate} {{\n}}"
                select new AdhocRefinementRoundTripScenario(source,
-                   $"interface constraint: {name}");
+                   $"abstract constraint: {name}");
     }
 
     /// <summary>
@@ -192,9 +192,9 @@ public class AdhocRefinementRoundTripPropertyTests
         return from name in Gen.Elements(TraitNames)
                from depParam in Gen.Elements(DependentParamNames)
                from predicate in GenPredicate()
-               let source = $"trait {name}<{depParam}:int> where {depParam} {predicate} {{\n}}"
+               let source = $"abstract {name}<{depParam}:int> where {depParam} {predicate} {{\n}}"
                select new AdhocRefinementRoundTripScenario(source,
-                   $"trait constraint: {name}");
+                   $"abstract constraint: {name}");
     }
 
     /// <summary>

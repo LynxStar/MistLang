@@ -3,11 +3,6 @@ using System.Text.RegularExpressions;
 
 namespace Snippet;
 
-interface Printable
-{
-    string Name { get; }
-    int Id { get; }
-}
 public class User
 {
     public string Name { get; set; }

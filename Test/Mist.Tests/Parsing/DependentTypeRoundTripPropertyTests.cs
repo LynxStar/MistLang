@@ -375,20 +375,20 @@ public class DependentTypeRoundTripPropertyTests
         string ifaceName,
         TypeParameterListNode typeParams)
     {
-        var interfaceDecl = new InterfaceDeclarationNode
+        var interfaceDecl = new AbstractDeclarationNode
         {
             Name = Tok(ifaceName),
             TypeParams = typeParams,
-            Members = ImmutableArray<InterfaceMemberDeclarationNode>.Empty,
+            Members = ImmutableArray<AbstractMemberDeclarationNode>.Empty,
         };
 
         var cu = new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new InterfaceTypeTypeDeclarationNode { InterfaceDeclaration = interfaceDecl }).AsTopLevelItems(),
+                new AbstractTypeTypeDeclarationNode { AbstractDeclaration = interfaceDecl }).AsTopLevelItems(),
         };
 
-        return new DependentTypeRoundTripTestCase($"interface {ifaceName}<...dependent...>", cu);
+        return new DependentTypeRoundTripTestCase($"abstract {ifaceName}<...dependent...>", cu);
     }
 
     // ═══════════════════════════════════════════════════════════════════════

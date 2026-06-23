@@ -530,12 +530,12 @@ public static class MistPropertyGenerator
         ImmutableArray<InterfacePropertyDeclarationNode> properties)
     {
         var members = properties.Select(p =>
-            (InterfaceMemberDeclarationNode)new InterfacePropertyMemberInterfaceMemberDeclarationNode
+            (AbstractMemberDeclarationNode)new AbstractPropertyMemberAbstractMemberDeclarationNode
             {
                 Property = p,
             }).ToImmutableArray();
 
-        var interfaceDecl = new InterfaceDeclarationNode
+        var interfaceDecl = new AbstractDeclarationNode
         {
             Name = Tok(interfaceName),
             Members = members,
@@ -544,7 +544,7 @@ public static class MistPropertyGenerator
         return new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new InterfaceTypeTypeDeclarationNode { InterfaceDeclaration = interfaceDecl }).AsTopLevelItems(),
+                new AbstractTypeTypeDeclarationNode { AbstractDeclaration = interfaceDecl }).AsTopLevelItems(),
         };
     }
 

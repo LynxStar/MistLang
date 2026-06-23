@@ -39,7 +39,7 @@ public struct FixedSpan<Length:int>
 
 // ─── 6. Dependent types on interfaces ────────────────────────────────────────
 
-interface IFixedCollection<Size:int>
+abstract IFixedCollection<Size:int>
 {
     int GetSize();
     string GetInfo();
@@ -66,12 +66,12 @@ public class FlexCollection<N:int> : IFixedCollection<N>
 
 // ─── 8. Dependent types on traits ────────────────────────────────────────────
 
-trait ISized<N:int>
+abstract ISized<N:int>
 {
     int GetCapacity();
 }
 
-public class SizedBox<N:int>
+public class SizedBox<N:int> : ISized<N>
 {
     public int GetCapacity() { return N; }
 }

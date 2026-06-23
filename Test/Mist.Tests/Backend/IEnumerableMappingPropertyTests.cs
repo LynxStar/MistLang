@@ -59,10 +59,10 @@ public sealed class IEnumerableMappingPropertyTests
     /// </summary>
     private sealed class EnumerableTestStdlibTypeProvider : IStdlibTypeProvider
     {
-        private static readonly InterfaceType IEnumeratorType =
+        private static readonly AbstractType IEnumeratorType =
             new("IEnumerator", new Scope(null), "Standard");
 
-        private static readonly InterfaceType IEnumerableType =
+        private static readonly AbstractType IEnumerableType =
             new("IEnumerable", new Scope(null), "Standard");
 
         private static readonly IStdlibTypeProvider Fallback = FallbackStdlibTypeProvider.Instance;
@@ -166,7 +166,7 @@ public sealed class IEnumerableMappingPropertyTests
             {
                 ClassType ct => ct.Interfaces,
                 StructType st => st.Interfaces,
-                InterfaceType it => it.Interfaces,
+                AbstractType at => at.ParentAbstractTypes,
                 _ => Array.Empty<IType>(),
             };
 
@@ -188,7 +188,7 @@ public sealed class IEnumerableMappingPropertyTests
                     // The generic definition should be Standard.IEnumerable
                     var def = ct.GenericDefinition;
                     return def.DisplayName == "IEnumerable" &&
-                           def is InterfaceType { ContainingNamespace: "Standard" };
+                           def is AbstractType { ContainingNamespace: "Standard" };
                 }
                 return false;
             });
@@ -220,14 +220,14 @@ public sealed class IEnumerableMappingPropertyTests
             {
                 ClassType ct => ct.Interfaces,
                 StructType st => st.Interfaces,
-                InterfaceType it => it.Interfaces,
+                AbstractType at => at.ParentAbstractTypes,
                 _ => Array.Empty<IType>(),
             };
 
             // The non-generic IEnumerable (System.Collections.IEnumerable) should NOT be present
             var hasNonGenericIEnumerable = interfaces.Any(iface =>
             {
-                if (iface is InterfaceType { DisplayName: "IEnumerable", ContainingNamespace: "System.Collections" })
+                if (iface is AbstractType { DisplayName: "IEnumerable", ContainingNamespace: "System.Collections" })
                     return true;
                 return false;
             });
@@ -261,7 +261,7 @@ public sealed class IEnumerableMappingPropertyTests
             {
                 ClassType ct => ct.MemberScope,
                 StructType st => st.MemberScope,
-                InterfaceType it => it.MemberScope,
+                AbstractType it => it.MemberScope,
                 _ => null,
             };
 
@@ -303,7 +303,7 @@ public sealed class IEnumerableMappingPropertyTests
             {
                 ClassType ct => ct.MemberScope,
                 StructType st => st.MemberScope,
-                InterfaceType it => it.MemberScope,
+                AbstractType it => it.MemberScope,
                 _ => null,
             };
 
@@ -325,7 +325,7 @@ public sealed class IEnumerableMappingPropertyTests
                 .OfType<ConstructedType>()
                 .FirstOrDefault(ct =>
                     ct.GenericDefinition.DisplayName == "IEnumerator" &&
-                    ct.GenericDefinition is InterfaceType { ContainingNamespace: "Standard" });
+                    ct.GenericDefinition is AbstractType { ContainingNamespace: "Standard" });
 
             Assert.True(iEnumeratorConstraint is not null,
                 $"Enumerator slot for '{clrType.FullName}' should have an IEnumerator<TElement> " +

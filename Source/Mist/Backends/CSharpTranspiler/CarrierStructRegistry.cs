@@ -156,11 +156,11 @@ internal sealed class CarrierStructRegistry
                 foreach (var member in st.MemberScope.Members)
                     CollectFromType(member.DeclaredType, registry);
             }
-            else if (symbol.DeclaredType is InterfaceType it)
+            else if (symbol.DeclaredType is AbstractType at)
             {
-                foreach (var iface in it.Interfaces)
+                foreach (var iface in at.ParentAbstractTypes)
                     CollectFromType(iface, registry);
-                foreach (var member in it.MemberScope.Members)
+                foreach (var member in at.MemberScope.Members)
                     CollectFromType(member.DeclaredType, registry);
             }
         }

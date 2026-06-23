@@ -63,7 +63,7 @@ namespace Mist.Tests.Semantics;
 /// <para>
 /// Additional negative tests lock in that <c>MIST_SB_0054</c> is not
 /// erroneously emitted on legitimate inheritance (<c>class Foo : Bar</c>,
-/// <c>struct S : I</c>, <c>interface I : J</c>, <c>trait T { }</c>).
+/// <c>struct S : I</c>, <c>abstract I : J</c>, <c>trait T { }</c>).
 /// This catches the guard over-triggering if a future refactor
 /// introduces a new symbol whose <c>DeclaredType</c> is accidentally
 /// <see cref="UnknownType"/>.
@@ -181,7 +181,7 @@ public class UnknownInheritanceProhibitionTests
     [Fact]
     public void StructInterfaceListWithUnknown_FailsToParse()
     {
-        // Valid analog: `interface I { } struct S : I { }` — a struct
+        // Valid analog: `abstract I { } struct S : I { }` — a struct
         // with an interface list of one interface. If `unknown` could
         // be an identifier, `struct S : unknown { }` would parse to an
         // equivalent shape.
@@ -189,7 +189,7 @@ public class UnknownInheritanceProhibitionTests
         Assert.NotNull(cuInvalid);
         Assert.Empty(cuInvalid!.GetTypes());
 
-        var (cuValid, _) = ParseSource("interface I { } struct S : I { }");
+        var (cuValid, _) = ParseSource("abstract I { } struct S : I { }");
         Assert.NotNull(cuValid);
         Assert.Equal(2, cuValid!.GetTypes().Length);
     }
@@ -197,26 +197,26 @@ public class UnknownInheritanceProhibitionTests
     [Fact]
     public void StructInterfaceListWithUnknown_DoesNotEmit_MIST_SB_0054_ErroneouslyOnBenignStruct()
     {
-        const string source = "interface I { } struct S : I { }";
+        const string source = "abstract I { } struct S : I { }";
 
         var diagnostics = BuildAndCollectDiagnostics(source);
         Assert.Empty(WithId(diagnostics, "MIST_SB_0054"));
     }
 
     // ═══════════════════════════════════════════════════════════════════════
-    // `interface I : unknown { }` — Requirement 6.3.
+    // `abstract I : unknown { }` — Requirement 6.3.
     // ═══════════════════════════════════════════════════════════════════════
 
     [Fact]
     public void InterfaceBaseListWithUnknown_FailsToParse()
     {
-        // Valid analog: `interface J { } interface I : J { }` — an
+        // Valid analog: `interface J { } abstract I : J { }` — an
         // interface whose base interface list has one entry.
-        var (cuInvalid, _) = ParseSource("interface I : unknown { }");
+        var (cuInvalid, _) = ParseSource("abstract I : unknown { }");
         Assert.NotNull(cuInvalid);
         Assert.Empty(cuInvalid!.GetTypes());
 
-        var (cuValid, _) = ParseSource("interface J { } interface I : J { }");
+        var (cuValid, _) = ParseSource("abstract J { } abstract I : J { }");
         Assert.NotNull(cuValid);
         Assert.Equal(2, cuValid!.GetTypes().Length);
     }
@@ -224,7 +224,7 @@ public class UnknownInheritanceProhibitionTests
     [Fact]
     public void InterfaceBaseListWithUnknown_DoesNotEmit_MIST_SB_0054_ErroneouslyOnBenignInterface()
     {
-        const string source = "interface J { } interface I : J { }";
+        const string source = "abstract J { } abstract I : J { }";
 
         var diagnostics = BuildAndCollectDiagnostics(source);
         Assert.Empty(WithId(diagnostics, "MIST_SB_0054"));
@@ -244,13 +244,13 @@ public class UnknownInheritanceProhibitionTests
     [Fact]
     public void TraitBaseClauseWithUnknown_FailsToParse()
     {
-        // Valid analog: `trait T { }` — produces a TraitTypeTypeDeclarationNode
+        // Valid analog: `trait T { }` — produces a AbstractTypeTypeDeclarationNode
         // with no base clause (the grammar does not allow one).
-        var (cuInvalid, _) = ParseSource("trait T : unknown { }");
+        var (cuInvalid, _) = ParseSource("abstract T : unknown { }");
         Assert.NotNull(cuInvalid);
         Assert.Empty(cuInvalid!.GetTypes());
 
-        var (cuValid, _) = ParseSource("trait T { }");
+        var (cuValid, _) = ParseSource("abstract T { }");
         Assert.NotNull(cuValid);
         Assert.Single(cuValid!.GetTypes());
     }
@@ -258,7 +258,7 @@ public class UnknownInheritanceProhibitionTests
     [Fact]
     public void TraitBaseClauseWithUnknown_DoesNotEmit_MIST_SB_0054_ErroneouslyOnBenignTrait()
     {
-        const string source = "trait T { }";
+        const string source = "abstract T { }";
 
         var diagnostics = BuildAndCollectDiagnostics(source);
         Assert.Empty(WithId(diagnostics, "MIST_SB_0054"));

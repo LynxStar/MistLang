@@ -163,6 +163,17 @@ public readonly record struct DiagnosticId(string Value)
     /// <summary>A trait inheritance chain contains a cycle.</summary>
     public static readonly DiagnosticId TraitInheritanceCycle = new("MIST_TRAIT_INHERITANCE_CYCLE");
 
+    // ── Abstract type inheritance diagnostics ────────────────────────────
+
+    /// <summary>A parent reference in an abstract type's inheritance clause does not resolve to an abstract type.</summary>
+    public static readonly DiagnosticId AbstractParentNotAbstract = new("MIST_ABSTRACT_PARENT_NOT_ABSTRACT");
+
+    /// <summary>An abstract type lists the same parent abstract type more than once in its inheritance clause.</summary>
+    public static readonly DiagnosticId AbstractDuplicateParent = new("MIST_ABSTRACT_DUPLICATE_PARENT");
+
+    /// <summary>An abstract type inheritance chain contains a cycle.</summary>
+    public static readonly DiagnosticId AbstractInheritanceCycle = new("MIST_ABSTRACT_INHERITANCE_CYCLE");
+
     // ── Entry point diagnostics ──────────────────────────────────────────
 
     /// <summary>Multiple files contain top-level statements in the same project.</summary>

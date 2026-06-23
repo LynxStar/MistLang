@@ -62,11 +62,11 @@ public interface ISemanticModel
     ImmutableArray<ISymbol> AllSymbols { get; }
 
     /// <summary>
-    /// The trait satisfaction map recording which types satisfy which traits
-    /// (structurally or via <c>with</c> blocks). Populated during
-    /// <c>Pass1_ResolveTraitSatisfaction</c>.
+    /// The conformance map recording which types conform to which abstract types
+    /// or traits (nominally via base clause or via <c>with</c> blocks). Populated during
+    /// <c>Pass1_ValidateAbstractSatisfaction</c>.
     /// </summary>
-    TraitSatisfactionMap TraitSatisfactionMap { get; }
+    ConformanceMap ConformanceMap { get; }
 
 
 

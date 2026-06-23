@@ -80,7 +80,7 @@ public class StringHolder
 }
 
 // Interface with with-clause on method
-interface IContextConsumer
+abstract IContextConsumer
 {
     string Consume() with Config cfg;
 }
@@ -95,13 +95,13 @@ public class ConsumerImpl : IContextConsumer
 }
 
 // Trait with with-clause on method
-trait ContextReader
+abstract ContextReader
 {
     string ReadContext() with int count;
 }
 
-// Class structurally satisfying ContextReader trait (has matching method with same with-clause)
-public class CountReader
+// Class satisfying ContextReader (has matching method with same with-clause)
+public class CountReader : ContextReader
 {
     public string ReadContext() with int count
     {

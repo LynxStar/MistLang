@@ -236,8 +236,8 @@ public sealed class DependentTypeEmitterPropertyTests : IDisposable
                let uniqueImpl = $"Impl{ifaceName.Substring(1)}{idx}"
                select new DependentTypeScenario
                {
-                   Description = $"interface {uniqueIface}<Cap:int> implemented with {value}",
-                   MistSource = "interface " + uniqueIface + "<Cap:int> { }\n" +
+                   Description = $"abstract {uniqueIface}<Cap:int> implemented with {value}",
+                   MistSource = "abstract " + uniqueIface + "<Cap:int> { }\n" +
                                 "class " + uniqueImpl + " : " + uniqueIface + "<" + value + "> { }\n" +
                                 "class Program { public static void Main() { } }",
                    ExpectedPatterns = ["IConstInt", uniqueIface, uniqueImpl],

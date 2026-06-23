@@ -1,7 +1,7 @@
 namespace GenericTraits;
 
 // Class satisfying Converter<int, string> — string Convert(int) matches TOut Convert(TIn) with TIn=int, TOut=string
-public class IntToString
+public class IntToString : Converter<int, string>
 {
     public IntToString()
     {
@@ -11,9 +11,4 @@ public class IntToString
     {
         return "converted";
     }
-}
-
-with IntToString : Converter<int, string>
-{
-    Convert as Convert;
 }

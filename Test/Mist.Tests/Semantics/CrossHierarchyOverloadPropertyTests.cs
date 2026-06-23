@@ -278,18 +278,20 @@ public class CrossHierarchyOverloadPropertyTests
     }
 
     // ═══════════════════════════════════════════════════════════════════════
-    // Property 11: Cross-hierarchy same-signature is a redeclaration error
+    // Property 11: Cross-hierarchy same-signature is member hiding (not error)
     // ═══════════════════════════════════════════════════════════════════════
 
     /// <summary>
     /// Property 11: For any class hierarchy where a derived class declares a method
     /// with the same name and identical parameter signature as a base class method,
-    /// a redeclaration diagnostic is emitted.
+    /// this is treated as member hiding (Requirement 10.1–10.3). The semantic model
+    /// does NOT emit a MIST_MEMBER_REDECLARATION error — the emitter handles the
+    /// hiding warning (MIST0400) during the backend phase.
     ///
-    /// **Validates: Requirements 5.2**
+    /// **Validates: Requirements 10.1, 10.2, 10.3**
     /// </summary>
     [Property(Arbitrary = new[] { typeof(CrossHierarchyOverloadPropertyTests) }, MaxTest = 20)]
-    public bool CrossHierarchySameSignature_EmitsRedeclarationDiagnostic(CrossHierarchySameSignatureScenario scenario)
+    public bool CrossHierarchySameSignature_IsAllowedAsHiding(CrossHierarchySameSignatureScenario scenario)
     {
         // Arrange: base class with M(paramType), derived class with M(paramType)
         var baseMethod = MakeMethod("M", scenario.ParamType);
@@ -312,8 +314,8 @@ public class CrossHierarchyOverloadPropertyTests
         // Act
         var (_, diagnostics) = BuildModelWithDiagnostics(ast);
 
-        // Assert: at least one MIST_MEMBER_REDECLARATION diagnostic is emitted
-        // mentioning the derived class and the method name
+        // Assert: no MIST_MEMBER_REDECLARATION diagnostic for method hiding
+        // (the emitter handles the warning instead)
         var allDiagnostics = diagnostics.ToImmutableArray();
         var redeclDiags = allDiagnostics
             .Where(d => d.Id.Value == "MIST_MEMBER_REDECLARATION"
@@ -321,6 +323,6 @@ public class CrossHierarchyOverloadPropertyTests
                         && d.Message.Contains("M"))
             .ToList();
 
-        return redeclDiags.Count >= 1;
+        return redeclDiags.Count == 0;
     }
 }

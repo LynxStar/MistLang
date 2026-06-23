@@ -284,7 +284,7 @@ public class WithStatementPrettyPrinterTests
     [Fact]
     public void InterfaceMethodWithClause_PrettyPrintsCorrectly()
     {
-        const string source = "interface I { void M() with MyType ctx; }";
+        const string source = "abstract I { void M() with MyType ctx; }";
 
         var printed = PrettyPrint(source);
 
@@ -294,7 +294,7 @@ public class WithStatementPrettyPrinterTests
     [Fact]
     public void InterfaceMethodWithClause_RoundTripIsStable()
     {
-        const string source = "interface I { void M() with MyType ctx; }";
+        const string source = "abstract I { void M() with MyType ctx; }";
 
         var ast1 = ParseOrFail(source);
         var printed1 = MistPrettyPrinter.Print(ast1, source);
@@ -308,7 +308,7 @@ public class WithStatementPrettyPrinterTests
     [Fact]
     public void TraitMethodWithClause_PrettyPrintsCorrectly()
     {
-        const string source = "trait T { void M() with MyType ctx; }";
+        const string source = "abstract T { void M() with MyType ctx; }";
 
         var printed = PrettyPrint(source);
 
@@ -318,7 +318,7 @@ public class WithStatementPrettyPrinterTests
     [Fact]
     public void TraitMethodWithClause_RoundTripIsStable()
     {
-        const string source = "trait T { void M() with MyType ctx; }";
+        const string source = "abstract T { void M() with MyType ctx; }";
 
         var ast1 = ParseOrFail(source);
         var printed1 = MistPrettyPrinter.Print(ast1, source);

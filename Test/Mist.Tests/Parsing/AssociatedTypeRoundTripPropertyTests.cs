@@ -225,9 +225,9 @@ public class AssociatedTypeRoundTripPropertyTests
                from slotCount in Gen.Choose(1, 3)
                from slots in Gen.ArrayOf(GenSlotDeclaration(), slotCount)
                let body = string.Join("\n", slots)
-               let source = $"interface {name} {{\n{body}\n}}"
+               let source = $"abstract {name} {{\n{body}\n}}"
                select new AssociatedTypeRoundTripScenario(source,
-                   $"interface {name} with {slotCount} slot(s)");
+                   $"abstract {name} with {slotCount} slot(s)");
     }
 
     /// <summary>
@@ -239,9 +239,9 @@ public class AssociatedTypeRoundTripPropertyTests
                from slotCount in Gen.Choose(1, 2)
                from slots in Gen.ArrayOf(GenSlotDeclaration(), slotCount)
                let body = string.Join("\n", slots)
-               let source = $"interface {name}<T> {{\n{body}\n}}"
+               let source = $"abstract {name}<T> {{\n{body}\n}}"
                select new AssociatedTypeRoundTripScenario(source,
-                   $"generic interface {name}<T> with {slotCount} slot(s)");
+                   $"generic abstract {name}<T> with {slotCount} slot(s)");
     }
 
     /// <summary>
@@ -253,9 +253,9 @@ public class AssociatedTypeRoundTripPropertyTests
                from slotCount in Gen.Choose(1, 3)
                from slots in Gen.ArrayOf(GenSlotDeclaration(), slotCount)
                let body = string.Join("\n", slots)
-               let source = $"trait {name} {{\n{body}\n}}"
+               let source = $"abstract {name} {{\n{body}\n}}"
                select new AssociatedTypeRoundTripScenario(source,
-                   $"trait {name} with {slotCount} slot(s)");
+                   $"abstract {name} with {slotCount} slot(s)");
     }
 
     /// <summary>
@@ -267,7 +267,7 @@ public class AssociatedTypeRoundTripPropertyTests
                from slotCount in Gen.Choose(1, 2)
                from slots in Gen.ArrayOf(GenSlotDeclaration(), slotCount)
                let body = string.Join("\n", slots)
-               let source = $"trait {name}<T> {{\n{body}\n}}"
+               let source = $"abstract {name}<T> {{\n{body}\n}}"
                select new AssociatedTypeRoundTripScenario(source,
                    $"generic trait {name}<T> with {slotCount} slot(s)");
     }

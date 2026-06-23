@@ -182,14 +182,14 @@ public class AssociatedTypeGenericContextPropertyTests
         // If the slot has a constraint interface, declare it
         if (scenario.HasSlotConstraint)
         {
-            sb.AppendLine($"interface {scenario.SlotConstraintInterfaceName} {{");
+            sb.AppendLine($"abstract {scenario.SlotConstraintInterfaceName} {{");
             sb.AppendLine($"    int {scenario.SlotConstraintMethodName}();");
             sb.AppendLine("}");
             sb.AppendLine();
         }
 
         // Declare the interface with the associated type slot
-        sb.AppendLine($"interface {scenario.InterfaceName} {{");
+        sb.AppendLine($"abstract {scenario.InterfaceName} {{");
         if (scenario.HasSlotConstraint)
         {
             sb.AppendLine($"    type {scenario.SlotName} : {scenario.SlotConstraintInterfaceName};");
@@ -328,13 +328,13 @@ public class AssociatedTypeGenericContextPropertyTests
         var slot = $"{tp}.{scenario.SlotName}";
 
         // Declare the constraint interface
-        sb.AppendLine($"interface {scenario.SlotConstraintInterfaceName} {{");
+        sb.AppendLine($"abstract {scenario.SlotConstraintInterfaceName} {{");
         sb.AppendLine($"    int {scenario.SlotConstraintMethodName}();");
         sb.AppendLine("}");
         sb.AppendLine();
 
         // Declare the interface with the constrained associated type slot
-        sb.AppendLine($"interface {scenario.InterfaceName} {{");
+        sb.AppendLine($"abstract {scenario.InterfaceName} {{");
         sb.AppendLine($"    type {scenario.SlotName} : {scenario.SlotConstraintInterfaceName};");
         sb.AppendLine("}");
         sb.AppendLine();

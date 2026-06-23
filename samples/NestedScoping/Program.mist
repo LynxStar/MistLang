@@ -44,14 +44,14 @@ public class Outer
 
     // ─── 3. Interface nested inside a class ──────────────────────────────
 
-    public interface IAction
+    public abstract IAction
     {
         string Execute();
     }
 
     // ─── 4. Trait nested inside a class ──────────────────────────────────
 
-    public trait Describable
+    public abstract Describable
     {
         string Describe();
     }

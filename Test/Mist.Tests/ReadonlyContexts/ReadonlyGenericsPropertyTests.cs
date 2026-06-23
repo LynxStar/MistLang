@@ -324,7 +324,7 @@ class {className} {{
         return from className in Gen.Elements(ClassNames)
                from methodName in Gen.Elements(MethodNames)
                from fieldName in Gen.Elements(FieldNames)
-               let source = $@"readonly interface IReadable {{
+               let source = $@"readonly abstract IReadable {{
     int {methodName}();
 }}
 class {className} : IReadable {{
@@ -346,7 +346,7 @@ class {className} : IReadable {{
         return from className in Gen.Elements(ClassNames)
                from methodName in Gen.Elements(MethodNames)
                from fieldName in Gen.Elements(FieldNames)
-               let source = $@"readonly interface IReadable {{
+               let source = $@"readonly abstract IReadable {{
     int {methodName}();
 }}
 class {className} : IReadable {{

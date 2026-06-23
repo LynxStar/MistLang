@@ -1147,10 +1147,12 @@ public class SemanticModelBuilderUnitTests
     }
 
     [Fact]
-    public void MemberRedeclaration_MethodInDerived_SameAsMethodInBase_ProducesDiagnostic()
+    public void MemberRedeclaration_MethodInDerived_SameAsMethodInBase_IsAllowedAsHiding()
     {
         // class Base { void DoWork() { } }
         // class Derived : Base { void DoWork() { } }
+        // Per Requirement 10.1–10.3, method hiding is NOT a semantic model error.
+        // The emitter (backend phase) will emit a warning (MIST0400) if `new` is missing.
         var baseDecl = MakeClassDeclWithMembers("Base", null,
             ImmutableArray.Create(MakeMethodMember("DoWork")));
         var derivedDecl = MakeClassDeclWithMembers("Derived", "Base",
@@ -1165,11 +1167,11 @@ public class SemanticModelBuilderUnitTests
 
         var (_, diagnostics) = BuildModelWithDiagnostics(ast);
 
-        Assert.Contains(diagnostics, d =>
+        // No MIST_MEMBER_REDECLARATION error — hiding is allowed at semantic level
+        Assert.DoesNotContain(diagnostics, d =>
             d.Id.Value == "MIST_MEMBER_REDECLARATION"
             && d.Message.Contains("Derived")
-            && d.Message.Contains("DoWork")
-            && d.Message.Contains("Base"));
+            && d.Message.Contains("DoWork"));
     }
 
     [Fact]
@@ -1365,14 +1367,14 @@ public class SemanticModelBuilderUnitTests
     public void WithClause_OnInterfaceMethod_ResolvesTypeAndStoresOnSymbol()
     {
         // class MyCtx { }
-        // interface I { void M() with MyCtx ctx; }
+        // abstract I { void M() with MyCtx ctx; }
         var ctxClassDecl = new ClassDeclarationNode
         {
             Name = MakeToken("MyCtx"),
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
         };
 
-        var ifaceMethodDecl = new InterfaceMethodDeclarationNode
+        var ifaceMethodDecl = new AbstractMethodDeclarationNode
         {
             Name = MakeToken("M"),
             ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
@@ -1391,18 +1393,18 @@ public class SemanticModelBuilderUnitTests
             }),
         };
 
-        var ifaceDecl = new InterfaceDeclarationNode
+        var ifaceDecl = new AbstractDeclarationNode
         {
             Name = MakeToken("I"),
-            Members = ImmutableArray.Create<InterfaceMemberDeclarationNode>(
-                new InterfaceMethodMemberInterfaceMemberDeclarationNode { Method = ifaceMethodDecl }),
+            Members = ImmutableArray.Create<AbstractMemberDeclarationNode>(
+                new AbstractMethodMemberAbstractMemberDeclarationNode { Method = ifaceMethodDecl }),
         };
 
         var ast = new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
                 new ClassTypeTypeDeclarationNode { ClassDeclaration = ctxClassDecl },
-                new InterfaceTypeTypeDeclarationNode { InterfaceDeclaration = ifaceDecl }).AsTopLevelItems(),
+                new AbstractTypeTypeDeclarationNode { AbstractDeclaration = ifaceDecl }).AsTopLevelItems(),
         };
 
         var (model, diagnostics) = BuildModelWithDiagnostics(ast);
@@ -1429,7 +1431,7 @@ public class SemanticModelBuilderUnitTests
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
         };
 
-        var traitMethodDecl = new TraitMethodDeclarationNode
+        var traitMethodDecl = new AbstractMethodDeclarationNode
         {
             Name = MakeToken("M"),
             ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
@@ -1448,18 +1450,18 @@ public class SemanticModelBuilderUnitTests
             }),
         };
 
-        var traitDecl = new TraitDeclarationNode
+        var traitDecl = new AbstractDeclarationNode
         {
             Name = MakeToken("T"),
-            Members = ImmutableArray.Create<TraitMemberDeclarationNode>(
-                new TraitMethodMemberTraitMemberDeclarationNode { Method = traitMethodDecl }),
+            Members = ImmutableArray.Create<AbstractMemberDeclarationNode>(
+                new AbstractMethodMemberAbstractMemberDeclarationNode { Method = traitMethodDecl }),
         };
 
         var ast = new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
                 new ClassTypeTypeDeclarationNode { ClassDeclaration = ctxClassDecl },
-                new TraitTypeTypeDeclarationNode { TraitDeclaration = traitDecl }).AsTopLevelItems(),
+                new AbstractTypeTypeDeclarationNode { AbstractDeclaration = traitDecl }).AsTopLevelItems(),
         };
 
         var (model, diagnostics) = BuildModelWithDiagnostics(ast);

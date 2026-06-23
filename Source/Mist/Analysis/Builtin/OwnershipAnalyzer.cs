@@ -2755,7 +2755,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
 
     /// <summary>
     /// Validates ownership signature matching for interface implementations and
-    /// structural trait satisfaction. Also rejects non-owned specifiers on return types.
+    /// trait conformance. Also rejects non-owned specifiers on return types.
     /// </summary>
     private static void ValidateSignatureMatching(ISemanticModel model, DiagnosticBag diagnostics)
     {
@@ -2765,7 +2765,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         // 2. Check interface method implementation ownership matching.
         ValidateInterfaceOwnershipMatching(model, diagnostics);
 
-        // 3. Check structural trait matching ownership consistency.
+        // 3. Check trait ownership matching consistency.
         ValidateTraitOwnershipMatching(model, diagnostics);
     }
 
@@ -2841,7 +2841,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
             if (memberScope is null)
                 continue;
 
-            var visited = new HashSet<InterfaceType>(ReferenceEqualityComparer.Instance);
+            var visited = new HashSet<AbstractType>(ReferenceEqualityComparer.Instance);
             CheckInterfaceOwnershipContracts(symbol, interfaces, memberScope, model, diagnostics, visited);
         }
     }
@@ -2855,11 +2855,11 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         IScope memberScope,
         ISemanticModel model,
         DiagnosticBag diagnostics,
-        HashSet<InterfaceType> visited)
+        HashSet<AbstractType> visited)
     {
         foreach (var ifaceType in interfaces)
         {
-            if (ifaceType is not InterfaceType iface)
+            if (ifaceType is not AbstractType iface)
                 continue;
 
             if (!visited.Add(iface))
@@ -2879,26 +2879,26 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                     typeSymbol, ifaceMember, implMember, iface.DisplayName, model, diagnostics);
             }
 
-            // Recurse into parent interfaces.
-            if (iface.Interfaces.Count > 0)
+            // Recurse into parent abstract types.
+            if (iface.ParentAbstractTypes.Count > 0)
             {
-                CheckInterfaceOwnershipContracts(typeSymbol, iface.Interfaces, memberScope, model, diagnostics, visited);
+                CheckInterfaceOwnershipContracts(typeSymbol, iface.ParentAbstractTypes, memberScope, model, diagnostics, visited);
             }
         }
     }
 
     /// <summary>
-    /// Checks ownership specifier matching for structural trait satisfaction
+    /// Checks ownership specifier matching for trait/abstract type conformance
     /// (Requirement 9.3).
     /// </summary>
     private static void ValidateTraitOwnershipMatching(ISemanticModel model, DiagnosticBag diagnostics)
     {
-        foreach (var (satisfiedType, trait, satisfaction) in model.TraitSatisfactionMap.All())
+        foreach (var (satisfiedType, trait, conformance) in model.ConformanceMap.All())
         {
             var traitType = trait switch
             {
-                TraitType tt => tt,
-                ConstructedTraitType ctt => ctt.GenericTraitDefinition,
+                AbstractType at => at,
+                ConstructedAbstractType ctt => ctt.GenericAbstractDefinition,
                 _ => null,
             };
 
@@ -2934,11 +2934,11 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                 if (traitMember.DeclaredType is TypeParameterType)
                     continue;
 
-                // Find the implementing member via the satisfaction map.
+                // Find the implementing member via the conformance record.
                 ISymbol? implMember = null;
-                if (satisfaction.StructuralMatches.TryGetValue(traitMember.Name, out var structMatch))
+                if (conformance.FilledSlots.TryGetValue(traitMember.Name, out var structMatch))
                     implMember = structMatch;
-                else if (satisfaction.WithMappings.TryGetValue(traitMember.Name, out var withMatch))
+                else if (conformance.WithMappings.TryGetValue(traitMember.Name, out var withMatch))
                     implMember = withMatch;
 
                 if (implMember is null || implMember.Kind != SymbolKind.Method)

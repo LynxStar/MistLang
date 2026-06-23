@@ -14,7 +14,7 @@ namespace NestedScoping;
 
 // ─── 7. Class nested inside an interface ─────────────────────────────────────
 
-public interface IFactory
+public abstract IFactory
 {
     public class DefaultProduct
     {
@@ -24,7 +24,7 @@ public interface IFactory
 
 // ─── 8. Class nested inside a trait ──────────────────────────────────────────
 
-public trait SerializableTrait
+public abstract SerializableTrait
 {
     public class Config
     {

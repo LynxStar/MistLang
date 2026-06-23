@@ -409,11 +409,11 @@ public class GenericInheritanceResolutionPropertyTests
     public bool GenericInterface_ResolvesToConstructedTypeWithCorrectArgs(GenericInterfaceScenario scenario)
     {
         // Build AST: generic interface + class implementing it
-        var interfaceDecl = new InterfaceDeclarationNode
+        var interfaceDecl = new AbstractDeclarationNode
         {
             Name = MakeToken(scenario.InterfaceName),
             TypeParams = MakeTypeParamList(scenario.TypeParamNames.ToArray()),
-            Members = ImmutableArray<InterfaceMemberDeclarationNode>.Empty,
+            Members = ImmutableArray<AbstractMemberDeclarationNode>.Empty,
         };
 
         TypeArgumentListNode typeArgList;
@@ -458,7 +458,7 @@ public class GenericInheritanceResolutionPropertyTests
         }
 
         var ast = MakeCompilationUnit(
-            new InterfaceTypeTypeDeclarationNode { InterfaceDeclaration = interfaceDecl },
+            new AbstractTypeTypeDeclarationNode { AbstractDeclaration = interfaceDecl },
             new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl });
 
         var (model, diagnostics) = BuildModelWithDiagnostics(ast);
@@ -486,7 +486,7 @@ public class GenericInheritanceResolutionPropertyTests
             return false;
 
         // GenericDefinition should be the interface
-        if (constructedInterface.GenericDefinition is not InterfaceType resolvedInterface)
+        if (constructedInterface.GenericDefinition is not AbstractType resolvedInterface)
             return false;
         if (resolvedInterface.DisplayName != scenario.InterfaceName)
             return false;
@@ -602,13 +602,13 @@ public class GenericInheritanceResolutionPropertyTests
     [Fact]
     public void GenericInterfaceImplementation_ResolvesToConstructedType()
     {
-        // interface IContainer<T> { }
+        // abstract IContainer<T> { }
         // class Box<T> : IContainer<T> { }
-        var interfaceDecl = new InterfaceDeclarationNode
+        var interfaceDecl = new AbstractDeclarationNode
         {
             Name = MakeToken("IContainer"),
             TypeParams = MakeTypeParamList(["T"]),
-            Members = ImmutableArray<InterfaceMemberDeclarationNode>.Empty,
+            Members = ImmutableArray<AbstractMemberDeclarationNode>.Empty,
         };
 
         var typeArgList = MakeTypeArgList([MakeNamedTypeRef("T")]);
@@ -624,7 +624,7 @@ public class GenericInheritanceResolutionPropertyTests
         };
 
         var ast = MakeCompilationUnit(
-            new InterfaceTypeTypeDeclarationNode { InterfaceDeclaration = interfaceDecl },
+            new AbstractTypeTypeDeclarationNode { AbstractDeclaration = interfaceDecl },
             new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl });
 
         var (model, _) = BuildModelWithDiagnostics(ast);
@@ -634,7 +634,7 @@ public class GenericInheritanceResolutionPropertyTests
 
         Assert.Single(classType.Interfaces);
         var constructedInterface = Assert.IsType<ConstructedType>(classType.Interfaces[0]);
-        Assert.Equal("IContainer", ((InterfaceType)constructedInterface.GenericDefinition).DisplayName);
+        Assert.Equal("IContainer", ((AbstractType)constructedInterface.GenericDefinition).DisplayName);
         Assert.Single(constructedInterface.TypeArguments);
         var tpt = Assert.IsType<TypeParameterType>(constructedInterface.TypeArguments[0]);
         Assert.Equal("T", tpt.Name);

@@ -240,10 +240,10 @@ public sealed class GenericConstraintTranslationPropertyTests
                     Assert.NotNull(projectedConstraint);
                     // The projected constraint should be an interface type or constructed type
                     Assert.True(
-                        projectedConstraint is InterfaceType or ConstructedType,
+                        projectedConstraint is AbstractType or ConstructedType,
                         $"CLR type '{clrType.Name}' param '{clrParam.Name}' has interface constraint " +
                         $"'{clrInterfaceConstraints[i].Name}' but projected constraint is " +
-                        $"{projectedConstraint.GetType().Name} instead of InterfaceType/ConstructedType");
+                        $"{projectedConstraint.GetType().Name} instead of AbstractType/ConstructedType");
                 }
             }
             else
@@ -338,7 +338,7 @@ public sealed class GenericConstraintTranslationPropertyTests
         {
             ClassType ct => ct.TypeParameters,
             StructType st => st.TypeParameters,
-            InterfaceType it => it.TypeParameters,
+            AbstractType at => at.TypeParameters,
             _ => throw new InvalidOperationException(
                 $"Unexpected projected type kind: {projectedType.GetType().Name}")
         };

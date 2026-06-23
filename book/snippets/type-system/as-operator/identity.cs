@@ -16,7 +16,7 @@ public class Program
     public static void Main(string[] args)
     {
         var dog = new Dog("Rex");
-        Dog same = ((Dog)dog);
+        Dog same = dog;
         System.Console.WriteLine(same.Name);
     }
 

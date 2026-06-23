@@ -165,9 +165,9 @@ public class DefaultabilityPropertyTests
         return new StructTypeTypeDeclarationNode { StructDeclaration = structDecl };
     }
 
-    private static TypeDeclarationNode WrapInterface(InterfaceDeclarationNode interfaceDecl)
+    private static TypeDeclarationNode WrapAbstract(AbstractDeclarationNode abstractDecl)
     {
-        return new InterfaceTypeTypeDeclarationNode { InterfaceDeclaration = interfaceDecl };
+        return new AbstractTypeTypeDeclarationNode { AbstractDeclaration = abstractDecl };
     }
 
     // ─── Scenario records ────────────────────────────────────────────────
@@ -219,7 +219,7 @@ public class DefaultabilityPropertyTests
         {
             var kind = IsStruct ? "struct" : "class";
             var fields = string.Join(", ", Fields.Select(f =>
-                $"{(f.IsInterface ? "interface " : "")}{f.FieldType} {f.FieldName}"));
+                $"{(f.IsInterface ? "abstract " : "")}{f.FieldType} {f.FieldName}"));
             return $"{kind} {TypeName} {{ {fields} }}";
         }
     }
@@ -388,14 +388,14 @@ public class DefaultabilityPropertyTests
             ? WrapStruct(MakeStructDecl(scenario.TypeName, members))
             : WrapClass(MakeClassDecl(scenario.TypeName, members));
 
-        // Declare the interface so the type reference resolves
-        var interfaceDecl = new InterfaceDeclarationNode
+        // Declare the abstract type so the type reference resolves
+        var abstractDecl = new AbstractDeclarationNode
         {
             Name = MakeToken(scenario.InterfaceName),
-            Members = ImmutableArray<InterfaceMemberDeclarationNode>.Empty,
+            Members = ImmutableArray<AbstractMemberDeclarationNode>.Empty,
         };
 
-        return MakeCompilationUnit(WrapInterface(interfaceDecl), typeDecl);
+        return MakeCompilationUnit(WrapAbstract(abstractDecl), typeDecl);
     }
 
     // ─── Expression helper ───────────────────────────────────────────────

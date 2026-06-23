@@ -348,26 +348,26 @@ public sealed class RefStructParsingPropertyTests
         var interfaceGen =
             from name in GenValidIdentifier()
             let source = $$"""
-                ref interface {{name}} {
+                ref abstract {{name}} {
                 }
                 class Program {
                     public static void Main() {
                     }
                 }
                 """
-            select new RefOnNonStructScenario(source, $"ref interface {name}");
+            select new RefOnNonStructScenario(source, $"ref abstract {name}");
 
         var traitGen =
             from name in GenValidIdentifier()
             let source = $$"""
-                ref trait {{name}} {
+                ref abstract {{name}} {
                 }
                 class Program {
                     public static void Main() {
                     }
                 }
                 """
-            select new RefOnNonStructScenario(source, $"ref trait {name}");
+            select new RefOnNonStructScenario(source, $"ref abstract {name}");
 
         var enumGen =
             from name in GenValidIdentifier()

@@ -172,7 +172,7 @@ public class SpanHeapEscapeParityPropertyTests
             }
             """,
         HeapEscapePosition.InterfaceBoxing => $$"""
-            interface IFoo {
+            abstract IFoo {
             }
             class Program {
                 static void Take(IFoo f) {}
@@ -251,7 +251,7 @@ public class SpanHeapEscapeParityPropertyTests
             public ref struct MyRefStruct {
                 public int value;
             }
-            interface IFoo {
+            abstract IFoo {
             }
             class Program {
                 static void Take(IFoo f) {}

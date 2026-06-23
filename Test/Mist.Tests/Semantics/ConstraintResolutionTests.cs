@@ -84,8 +84,8 @@ public class ConstraintResolutionTests
             return classType.TypeParameters.OfType<TypeParameterType>().FirstOrDefault(tp => tp.Name == typeParamName);
         if (typeSymbol?.DeclaredType is StructType structType)
             return structType.TypeParameters.OfType<TypeParameterType>().FirstOrDefault(tp => tp.Name == typeParamName);
-        if (typeSymbol?.DeclaredType is InterfaceType interfaceType)
-            return interfaceType.TypeParameters.OfType<TypeParameterType>().FirstOrDefault(tp => tp.Name == typeParamName);
+        if (typeSymbol?.DeclaredType is AbstractType abstractType)
+            return abstractType.TypeParameters.OfType<TypeParameterType>().FirstOrDefault(tp => tp.Name == typeParamName);
         return null;
     }
 
@@ -169,7 +169,7 @@ public class ConstraintResolutionTests
     public void InterfaceConstraint_PopulatesInterfaceConstraints()
     {
         var source = @"
-interface IComparable { }
+abstract IComparable { }
 class Sorter<T> where T : IComparable { }
 ";
         var model = BuildWithoutErrors(source);
@@ -201,7 +201,7 @@ class Zoo<T> where T : Animal { }
     public void TraitConstraint_PopulatesTraitConstraints()
     {
         var source = @"
-trait Printable {
+abstract Printable {
     void Print();
 }
 class Printer<T> where T : Printable { }
@@ -211,8 +211,9 @@ class Printer<T> where T : Printable { }
         var tp = FindTypeParameter(model, "Printer", "T");
         Assert.NotNull(tp);
         Assert.NotNull(tp!.Constraints);
-        Assert.Single(tp.Constraints!.TraitConstraints);
-        Assert.Equal("Printable", tp.Constraints.TraitConstraints[0].DisplayName);
+        // Abstract types are classified as interface constraints in the unified model
+        Assert.Single(tp.Constraints!.InterfaceConstraints);
+        Assert.Equal("Printable", tp.Constraints.InterfaceConstraints[0].DisplayName);
     }
 
     [Fact]
@@ -240,7 +241,7 @@ class Printer<T> where T : Printable { }
     public void MultipleConstraintKinds_AllResolved()
     {
         var source = @"
-interface IFoo { }
+abstract IFoo { }
 class Container<T> where T : class, IFoo, new() { }
 ";
         var model = BuildWithoutErrors(source);
@@ -439,7 +440,7 @@ class Container<T> where T : Animal, struct { }
     [Fact]
     public void UnconstrainedGenericInterface_NoDiagnostics()
     {
-        var source = "interface IReadable<T> { }";
+        var source = "abstract IReadable<T> { }";
         var (model, diagnostics) = BuildModel(source);
 
         var errors = diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error).ToArray();
@@ -486,7 +487,7 @@ class Container<T> where T : Animal, struct { }
     public void InterfaceConstraint_MembersAccessible()
     {
         var source = @"
-interface IGreetable {
+abstract IGreetable {
     string Greet();
 }
 class Greeter<T> where T : IGreetable {
@@ -511,7 +512,7 @@ class Greeter<T> where T : IGreetable {
     public void TraitConstraint_MembersAccessible()
     {
         var source = @"
-trait Printable {
+abstract Printable {
     void Print();
 }
 class Printer<T> where T : Printable {
@@ -559,7 +560,7 @@ class Zoo<T> where T : Animal {
     public void ConstraintsOnStruct_ResolvedCorrectly()
     {
         var source = @"
-interface IFoo { }
+abstract IFoo { }
 struct Wrapper<T> where T : IFoo { }
 ";
         var model = BuildWithoutErrors(source);
@@ -574,8 +575,8 @@ struct Wrapper<T> where T : IFoo { }
     public void ConstraintsOnInterface_ResolvedCorrectly()
     {
         var source = @"
-interface IFoo { }
-interface IRepository<T> where T : IFoo { }
+abstract IFoo { }
+abstract IRepository<T> where T : IFoo { }
 ";
         var model = BuildWithoutErrors(source);
 
@@ -589,7 +590,7 @@ interface IRepository<T> where T : IFoo { }
     public void MultipleTypeParams_EachConstrainedIndependently()
     {
         var source = @"
-interface IFoo { }
+abstract IFoo { }
 class Pair<K, V> where K : class where V : IFoo { }
 ";
         var model = BuildWithoutErrors(source);
@@ -622,7 +623,7 @@ class Pair<K, V> where K : class where V : IFoo { }
     public void ValidConstraints_NoDiagnostics()
     {
         var source = @"
-interface IComparable { }
+abstract IComparable { }
 class Sorter<T> where T : class, IComparable, new() { }
 ";
         var (_, diagnostics) = BuildModel(source);

@@ -2,7 +2,7 @@ using Standard;
 
 namespace Interfaces;
 
-interface IFullyDescribable : IDescribable
+abstract IFullyDescribable : IDescribable
 {
     string DetailedDescribe();
 }

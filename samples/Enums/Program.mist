@@ -150,7 +150,7 @@ public enum Severity : Label {
 // support modifiers on interface/trait declarations). Now that the parser
 // correctly handles them, the emitter issues are exposed.
 
-interface IMessage {
+abstract IMessage {
     string GetText();
 }
 

@@ -125,7 +125,7 @@ public sealed class FileScopedNamespaceAssociationPropertyTests
         {
             ClassType ct => ct.ContainingNamespace,
             StructType st => st.ContainingNamespace,
-            InterfaceType it => it.ContainingNamespace,
+            AbstractType at => at.ContainingNamespace,
             _ => null
         };
     }

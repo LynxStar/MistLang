@@ -2,9 +2,9 @@ using System;
 
 namespace Snippet;
 
-class Countdown : System.Collections.Generic.IEnumerable<int>
+class Countdown : IEnumerable<int>
 {
-    public struct Enumerator : System.Collections.Generic.IEnumerator<int>
+    public struct Enumerator : IEnumerator<int>, IEnumerator<int>
     {
         private int current;
 

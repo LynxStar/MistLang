@@ -68,7 +68,7 @@ public static class MistMultiNamespaceGenerator
     private static Gen<string> GenInterfaceDecl()
     {
         return from name in GenIdentifier()
-               select $"interface I{name} {{ }}";
+               select $"abstract I{name} {{ }}";
     }
 
     /// <summary>

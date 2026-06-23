@@ -172,7 +172,7 @@ public class ConstraintClauseRoundTripPropertyTests
                let typeParams = TypeParamNames.Take(paramCount).ToArray()
                let typeParamStr = string.Join(", ", typeParams)
                from whereClauses in GenWhereClauses(typeParams)
-               let source = $"interface {name}<{typeParamStr}>{whereClauses} {{\n}}"
+               let source = $"abstract {name}<{typeParamStr}>{whereClauses} {{\n}}"
                select new ConstraintClauseRoundTripScenario(source, $"interface: {name}<{typeParamStr}>");
     }
 

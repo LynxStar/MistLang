@@ -1,13 +1,8 @@
 using System;
 
-namespace Snippet;
+namespace Standard;
 
-interface IStringable
+interface IClonable<T>
 {
-    string Stringify();
-}
-interface IProducer<TOutput>
-    where TOutput : IStringable
-{
-    TOutput CreateOutput(string msg);
+    T Clone();
 }

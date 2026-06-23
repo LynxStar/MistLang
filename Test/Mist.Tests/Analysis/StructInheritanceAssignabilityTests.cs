@@ -227,12 +227,12 @@ public class StructInheritanceAssignabilityTests
         return decl;
     }
 
-    private static InterfaceDeclarationNode MakeInterfaceDecl(string name)
+    private static AbstractDeclarationNode MakeInterfaceDecl(string name)
     {
-        return new InterfaceDeclarationNode
+        return new AbstractDeclarationNode
         {
             Name = MakeToken(name),
-            Members = ImmutableArray<InterfaceMemberDeclarationNode>.Empty,
+            Members = ImmutableArray<AbstractMemberDeclarationNode>.Empty,
         };
     }
 
@@ -263,8 +263,8 @@ public class StructInheritanceAssignabilityTests
     private static TypeDeclarationNode WrapClass(ClassDeclarationNode decl) =>
         new ClassTypeTypeDeclarationNode { ClassDeclaration = decl };
 
-    private static TypeDeclarationNode WrapInterface(InterfaceDeclarationNode decl) =>
-        new InterfaceTypeTypeDeclarationNode { InterfaceDeclaration = decl };
+    private static TypeDeclarationNode WrapInterface(AbstractDeclarationNode decl) =>
+        new AbstractTypeTypeDeclarationNode { AbstractDeclaration = decl };
 
     // ─── Tests ───────────────────────────────────────────────────────────
 
@@ -462,7 +462,7 @@ public class StructInheritanceAssignabilityTests
 
     /// <summary>
     /// Interface implementability is inherited through the struct ancestor chain.
-    /// interface IFoo { }
+    /// abstract IFoo { }
     /// struct Base : IFoo { }
     /// struct Derived : Base { }
     /// class Program { static void Main() { IFoo f = new Derived(); } }
@@ -472,7 +472,7 @@ public class StructInheritanceAssignabilityTests
     [Fact]
     public void InterfaceImplementability_ThroughAncestorChain()
     {
-        // interface IFoo { }
+        // abstract IFoo { }
         var interfaceDecl = MakeInterfaceDecl("IFoo");
 
         // struct Base : IFoo { }

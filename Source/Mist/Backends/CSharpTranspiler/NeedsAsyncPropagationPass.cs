@@ -375,7 +375,7 @@ internal static class NeedsAsyncPropagationPass
         {
             ClassType ct => ct.MemberScope,
             StructType st => st.MemberScope,
-            InterfaceType it => it.MemberScope,
+            AbstractType at => at.MemberScope,
             ConstructedType constructed => GetMemberScope(constructed.GenericDefinition),
             _ => null,
         };

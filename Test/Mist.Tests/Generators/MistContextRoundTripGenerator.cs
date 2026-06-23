@@ -233,9 +233,9 @@ public static class MistContextRoundTripGenerator
                from methodCount in Gen.Choose(1, 3)
                from methods in Gen.ArrayOf(GenInterfaceMethodWithClauses(), methodCount)
                let members = string.Join("\n", methods)
-               let source = $"interface {ifaceName} {{\n{members}\n}}\n"
+               let source = $"abstract {ifaceName} {{\n{members}\n}}\n"
                select new ContextRoundTripScenario(source,
-                   $"interface {ifaceName} with {methodCount} with-clause methods");
+                   $"abstract {ifaceName} with {methodCount} with-clause methods");
     }
 
     /// <summary>Generates an interface method with with-clauses.</summary>
@@ -258,9 +258,9 @@ public static class MistContextRoundTripGenerator
                from methodCount in Gen.Choose(1, 3)
                from methods in Gen.ArrayOf(GenTraitMethodWithClauses(), methodCount)
                let members = string.Join("\n", methods)
-               let source = $"trait {traitName} {{\n{members}\n}}\n"
+               let source = $"abstract {traitName} {{\n{members}\n}}\n"
                select new ContextRoundTripScenario(source,
-                   $"trait {traitName} with {methodCount} with-clause methods");
+                   $"abstract {traitName} with {methodCount} with-clause methods");
     }
 
     /// <summary>Generates a trait method with with-clauses.</summary>
@@ -287,11 +287,11 @@ public static class MistContextRoundTripGenerator
                from method in GenMethodWithContextBody()
                from ctor in GenConstructorWithClauses(className)
                from ifaceMethod in GenInterfaceMethodWithClauses()
-               let ifaceBlock = $"interface {ifaceName} {{\n{ifaceMethod}\n}}\n"
+               let ifaceBlock = $"abstract {ifaceName} {{\n{ifaceMethod}\n}}\n"
                let classBlock = $"class {className} {{\n{ctor}\n\n{method}\n}}\n"
                let source = $"{ifaceBlock}\n{classBlock}"
                select new ContextRoundTripScenario(source,
-                   $"mixed: interface {ifaceName} + class {className}");
+                   $"mixed: abstract {ifaceName} + class {className}");
     }
 
     /// <summary>

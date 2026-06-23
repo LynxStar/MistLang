@@ -82,7 +82,7 @@ public sealed class ContextCheckerContractTests
         var source = """
             class MyCtx { }
 
-            interface IService {
+            abstract IService {
                 void DoWork() with MyCtx ctx;
             }
 
@@ -113,7 +113,7 @@ public sealed class ContextCheckerContractTests
         var source = """
             class MyCtx { }
 
-            interface IService {
+            abstract IService {
                 void DoWork() with MyCtx ctx;
             }
 
@@ -141,7 +141,7 @@ public sealed class ContextCheckerContractTests
             class CtxA { }
             class CtxB { }
 
-            interface IService {
+            abstract IService {
                 void DoWork() with CtxA a with CtxB b;
             }
 
@@ -171,7 +171,7 @@ public sealed class ContextCheckerContractTests
             class CtxA { }
             class CtxB { }
 
-            interface IService {
+            abstract IService {
                 void DoWork() with CtxA a with CtxB b;
             }
 
@@ -198,7 +198,7 @@ public sealed class ContextCheckerContractTests
         var source = """
             class MyCtx { }
 
-            interface IService {
+            abstract IService {
                 void DoWork() with MyCtx ctx;
             }
 
@@ -226,7 +226,7 @@ public sealed class ContextCheckerContractTests
         // An interface method without with-clauses should not trigger any
         // contract diagnostics.
         var source = """
-            interface IService {
+            abstract IService {
                 void DoWork();
             }
 
@@ -257,7 +257,7 @@ public sealed class ContextCheckerContractTests
         var source = """
             class MyCtx { }
 
-            trait Workable {
+            abstract Workable {
                 void DoWork() with MyCtx ctx;
             }
 
@@ -292,7 +292,7 @@ public sealed class ContextCheckerContractTests
         var source = """
             class MyCtx { }
 
-            trait Workable {
+            abstract Workable {
                 void DoWork() with MyCtx ctx;
             }
 
@@ -329,7 +329,7 @@ public sealed class ContextCheckerContractTests
         var source = """
             class MyCtx { }
 
-            trait Workable {
+            abstract Workable {
                 void DoWork() with MyCtx ctx;
                 void Helper();
             }
@@ -370,7 +370,7 @@ public sealed class ContextCheckerContractTests
         var source = """
             class MyCtx { }
 
-            trait Workable {
+            abstract Workable {
                 void DoWork() with MyCtx ctx;
             }
 
@@ -409,7 +409,7 @@ public sealed class ContextCheckerContractTests
         var source = """
             class MyCtx { }
 
-            interface IService {
+            abstract IService {
                 void DoWork() with MyCtx ctx;
             }
 
@@ -442,7 +442,7 @@ public sealed class ContextCheckerContractTests
         var source = """
             class MyCtx { }
 
-            interface IService {
+            abstract IService {
                 void DoWork() with MyCtx ctx;
             }
 

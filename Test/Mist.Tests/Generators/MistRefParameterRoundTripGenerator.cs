@@ -280,7 +280,7 @@ public static class MistRefParameterRoundTripGenerator
 
     /// <summary>
     /// Generates an interface with a ref return method:
-    /// <c>interface IFoo { ref int Get(); }</c>
+    /// <c>abstract IFoo { ref int Get(); }</c>
     /// </summary>
     private static Gen<RefParameterRoundTripScenario> GenInterfaceRefMethod()
     {
@@ -292,7 +292,7 @@ public static class MistRefParameterRoundTripGenerator
                from hasRefReturn in Gen.Elements(true, false)
                let refReturn = hasRefReturn ? "ref " : ""
                let paramDecl = hasRefParam ? $"ref {typeName} {paramName}" : $"{typeName} {paramName}"
-               let source = $"interface {ifaceName} {{\n    {refReturn}{typeName} {methodName}({paramDecl});\n}}"
+               let source = $"abstract {ifaceName} {{\n    {refReturn}{typeName} {methodName}({paramDecl});\n}}"
                select new RefParameterRoundTripScenario(source,
                    $"interface-ref: {ifaceName}.{methodName}");
     }
@@ -311,7 +311,7 @@ public static class MistRefParameterRoundTripGenerator
                from hasRefReturn in Gen.Elements(true, false)
                let refReturn = hasRefReturn ? "ref " : ""
                let paramDecl = hasRefParam ? $"ref {typeName} {paramName}" : $"{typeName} {paramName}"
-               let source = $"trait {traitName} {{\n    {refReturn}{typeName} {methodName}({paramDecl});\n}}"
+               let source = $"abstract {traitName} {{\n    {refReturn}{typeName} {methodName}({paramDecl});\n}}"
                select new RefParameterRoundTripScenario(source,
                    $"trait-ref: {traitName}.{methodName}");
     }

@@ -1,0 +1,31 @@
+abstract INamed
+{
+    string Name();
+}
+
+public class Logger
+{
+    public string GetLabel()
+    {
+        return "SystemLogger";
+    }
+}
+
+// Retroactive conformance: map Logger's GetLabel to INamed's Name
+with Logger : INamed
+{
+    GetLabel as Name;
+}
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        var logger = new Logger();
+
+        // Logger now satisfies INamed via the with block
+        INamed named = logger;
+        Console.WriteLine(named.Name());
+    }
+}
+

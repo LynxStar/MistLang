@@ -424,7 +424,7 @@ public sealed class AdhocRefinementGuardEmissionTests
     public void GenericConstraintAndParameterRefinement_GenericConstraintEmitted()
     {
         const string source = """
-            interface IItem { }
+            abstract IItem { }
             class Program {
                 public static void Main(string[] args) {
                     Program.DoWork(5);

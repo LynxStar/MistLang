@@ -1,0 +1,197 @@
+using Standard;
+
+namespace AbstractTypes;
+
+// PROOF: abstract keyword parses as a type declaration
+// PROOF: members without bodies are slots (must be filled)
+abstract IDescribable
+{
+    string Describe();
+}
+
+// PROOF: abstract type inheritance works
+abstract IFullyDescribable : IDescribable
+{
+    string DetailedDescribe();
+}
+
+// PROOF: property slots on abstract types
+abstract ILabeled
+{
+    string Label { get; }
+}
+
+// PROOF: abstract type with default implementation
+abstract IGreeting
+{
+    string Name();
+
+    // PROOF: default implementation has a body
+    string Greet()
+    {
+        return $"Hello, I am {this.Name()}";
+    }
+}
+
+// PROOF: concrete type fills required slots including property slot
+public class Person : IDescribable, IGreeting, ILabeled
+{
+    private string name;
+    private int age;
+
+    public Person(string name, int age)
+    {
+        this.name = name;
+        this.age = age;
+    }
+
+    public string Describe()
+    {
+        return $"Person: {this.name}, age {this.age}";
+    }
+
+    // PROOF: fills the Name() slot required by IGreeting
+    public string Name()
+    {
+        return this.name;
+    }
+
+    // PROOF: fills the property slot from ILabeled
+    public string Label { get; } = "person";
+
+    // PROOF: does NOT provide Greet() — takes the default
+}
+
+// PROOF: concrete type that overrides a default
+public class Robot : IFullyDescribable, IGreeting
+{
+    private string model;
+
+    public Robot(string model)
+    {
+        this.model = model;
+    }
+
+    public string Describe()
+    {
+        return $"Robot: {this.model}";
+    }
+
+    public string DetailedDescribe()
+    {
+        return $"Robot model {this.model}, fully operational";
+    }
+
+    public string Name()
+    {
+        return this.model;
+    }
+
+    // PROOF: overrides the default Greet() with custom implementation
+    public string Greet()
+    {
+        return $"Beep boop, I am {this.model}";
+    }
+}
+
+// PROOF: late binding via direct conformance (explicit nomination)
+public class Logger : INamed
+{
+    public string Name()
+    {
+        return "SystemLogger";
+    }
+}
+
+abstract INamed
+{
+    string Name();
+}
+
+// PROOF: direct conformance filling a slot that has a default
+abstract ITaggable
+{
+    string Tag();
+
+    string DisplayTag()
+    {
+        return $"[{this.Tag()}]";
+    }
+}
+
+public class Widget : ITaggable
+{
+    public string Tag()
+    {
+        return "widget-tag";
+    }
+
+    public string DisplayTag()
+    {
+        return "<Widget>";
+    }
+}
+
+public class Program
+{
+    // PROOF: abstract type as parameter type (polymorphism)
+    private static void PrintDescription(IDescribable item)
+    {
+        Console.WriteLine($"  {item.Describe()}");
+    }
+
+    public static void RunDemo()
+    {
+        Console.WriteLine("=== Abstract type with slots only ===");
+        var person = new Person("Alice", 30);
+        Console.WriteLine(person.Describe());
+
+        Console.WriteLine("=== Property slot filled ===");
+        // PROOF: property slot accessible on concrete type
+        Console.WriteLine($"  Label: {person.Label}");
+
+        Console.WriteLine("=== Default implementation taken (Rust-style) ===");
+        // PROOF: Greet() is callable directly on Person (no cast needed)
+        Console.WriteLine(person.Greet());
+
+        Console.WriteLine("=== Default implementation overridden ===");
+        var robot = new Robot("T-800");
+        Console.WriteLine(robot.Greet());
+
+        Console.WriteLine("=== Polymorphic variable assignment ===");
+        IDescribable describable = person;
+        Console.WriteLine($"  {describable.Describe()}");
+
+        Console.WriteLine("=== Transitive interface assignability ===");
+        IDescribable robotAsDescribable = robot;
+        Console.WriteLine($"  {robotAsDescribable.Describe()}");
+
+        Console.WriteLine("=== Polymorphic parameter passing ===");
+        PrintDescription(person);
+        PrintDescription(robot);
+
+        Console.WriteLine("=== Default via abstract-typed reference ===");
+        // PROOF: same result whether called on concrete type or abstract reference
+        IGreeting greetingRef = person;
+        Console.WriteLine(greetingRef.Greet());
+
+        Console.WriteLine("=== Late binding via direct conformance ===");
+        var logger = new Logger();
+        INamed named = logger;
+        Console.WriteLine($"  {named.Name()}");
+
+        Console.WriteLine("=== Direct conformance overrides default ===");
+        // PROOF: DisplayTag is overridden by Widget's direct implementation
+        var widget = new Widget();
+        ITaggable taggable = widget;
+        Console.WriteLine($"  Tag: {taggable.Tag()}");
+        Console.WriteLine($"  DisplayTag: {taggable.DisplayTag()}");
+
+        Console.WriteLine("Done!");
+    }
+
+    public static void Main(string[] args)
+    {
+        RunDemo();
+    }
+}

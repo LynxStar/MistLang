@@ -10,6 +10,7 @@ public enum TypeKind
     Struct,
     Interface,
     Trait,
+    Abstract,
     Enum,
 
     /// <summary>

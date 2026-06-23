@@ -101,6 +101,8 @@ rule TopLevelItem
     | withDeclaration:WithDeclaration            as WithItem
     | extensionDeclaration:ExtensionBlockDeclaration as ExtensionItem
     | usingDeclaration:UsingDeclaration          as UsingItem
+    | removedInterface:InterfaceDeclaration      as RemovedInterfaceItem
+    | removedTrait:TraitDeclaration              as RemovedTraitItem
     | statement:Statement                        as StatementItem
     ;
 
@@ -114,6 +116,8 @@ rule NamespaceBodyItem
     | typeAliasDeclaration:TypeAliasDeclaration    as NamespaceTypeAliasItem
     | extensionDeclaration:ExtensionBlockDeclaration as NamespaceExtensionItem
     | namespaceDeclaration:NamespaceDeclaration    as NamespaceNamespaceItem
+    | removedInterface:InterfaceDeclaration        as NamespaceRemovedInterfaceItem
+    | removedTrait:TraitDeclaration                as NamespaceRemovedTraitItem
     ;
 
 rule NamespaceDeclaration
@@ -124,8 +128,7 @@ rule NamespaceDeclaration
 rule TypeDeclaration
     = classDeclaration:ClassDeclaration           as ClassType
     | structDeclaration:StructDeclaration         as StructType
-    | interfaceDeclaration:InterfaceDeclaration   as InterfaceType
-    | traitDeclaration:TraitDeclaration           as TraitType
+    | abstractDeclaration:AbstractDeclaration     as AbstractType
     | enumDeclaration:EnumDeclaration             as EnumType
     ;
 
@@ -242,6 +245,31 @@ rule InterfaceAccessorDeclaration
     | SET SEMICOLON   as InterfaceSetAccessor
     ;
 
+// ─── Parser Rules — Abstract Type Declarations ──────────────────────────────
+
+rule AbstractDeclaration = modifiers:Modifier* ABSTRACT name:IDENTIFIER
+    typeParams:TypeParameterList?
+    parentAbstracts:(COLON parents:BaseList)?
+    constraints:WhereClause*
+    LEFT_BRACE members:AbstractMemberDeclaration* RIGHT_BRACE;
+
+rule AbstractMemberDeclaration
+    = method:AbstractMethodDeclaration           as AbstractMethodMember
+    | property:InterfacePropertyDeclaration      as AbstractPropertyMember
+    | defaultMethod:MethodDeclaration            as AbstractDefaultMethodMember
+    | associatedType:AssociatedTypeSlotDeclaration as AbstractAssociatedTypeMember
+    | unconstrainedAssociatedType:UnconstrainedAssociatedTypeSlotDeclaration as AbstractUnconstrainedAssociatedTypeMember
+    | modifiedAssociatedType:ModifiedAssociatedTypeSlotDeclaration as AbstractModifiedAssociatedTypeMember
+    | nestedType:TypeDeclaration                  as AbstractNestedTypeMember
+    ;
+
+rule AbstractMethodDeclaration = returnOwnership:OwnershipSpecifier? returnType:TypeReference name:IDENTIFIER
+    typeParams:TypeParameterList?
+    LEFT_PARENTHESIS parameters:ParameterList? RIGHT_PARENTHESIS
+    withClauses:WithClause*
+    constraints:WhereClause*
+    SEMICOLON;
+
 // ─── Parser Rules — Associated Type Slot Declarations ────────────────────────
 
 rule AssociatedTypeSlotDeclaration = TYPE name:IDENTIFIER
@@ -299,7 +327,7 @@ rule EnumMember = isDefault:DEFAULT? name:IDENTIFIER value:(EQUAL Expression)?;
 
 // ─── Parser Rules — With Declarations ────────────────────────────────────────
 
-rule WithDeclaration = WITH typeName:IDENTIFIER COLON traitName:IDENTIFIER traitTypeArgs:TypeArgumentList?
+rule WithDeclaration = WITH typeName:IDENTIFIER COLON abstractName:IDENTIFIER abstractTypeArgs:TypeArgumentList?
     LEFT_BRACE mappings:MemberMapping+ RIGHT_BRACE;
 
 rule MemberMapping = sourceName:IDENTIFIER AS targetName:IDENTIFIER SEMICOLON;
@@ -329,6 +357,7 @@ rule Modifier
     | RELEVANT  as RelevantModifier
     | ASYNC     as AsyncModifier
     | REF       as RefModifier
+    | NEW       as NewModifier
     ;
 
 // ─── Parser Rules — Ownership Specifiers ─────────────────────────────────────

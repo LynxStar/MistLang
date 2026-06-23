@@ -237,8 +237,8 @@ public sealed class FieldTypeRestrictionVerifier
         return type switch
         {
             ConstructedType constructed => IsIClonableInterface(constructed.GenericDefinition),
-            InterfaceType iface => iface.DisplayName == "IClonable",
-            _ => type.DisplayName == "IClonable" && type.Kind == TypeKind.Interface,
+            AbstractType at => at.DisplayName == "IClonable",
+            _ => type.DisplayName == "IClonable" && type.Kind == TypeKind.Abstract,
         };
     }
 

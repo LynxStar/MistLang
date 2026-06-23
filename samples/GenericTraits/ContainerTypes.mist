@@ -1,17 +1,12 @@
 namespace GenericTraits;
 
 // Class satisfying Container<int> — int Data matches T Data with T=int
-public class IntBox
+public class IntBox : Container<int>
 {
-    public int Data;
+    public int Data { get; }
 
     public IntBox(int v)
     {
         Data = v;
     }
-}
-
-with IntBox : Container<int>
-{
-    Data as Data;
 }

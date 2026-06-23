@@ -18,14 +18,14 @@ public enum NestableTypeKind
 }
 
 /// <summary>
-/// Represents any of the five type kinds in the Mist language.
+/// Represents any of the four type kinds in the Mist language.
+/// (Interface and Trait have been unified into Abstract.)
 /// </summary>
 public enum AllTypeKind
 {
     Class,
     Struct,
-    Interface,
-    Trait,
+    Abstract,
     Enum,
 }
 
@@ -91,8 +91,7 @@ public static class MistNestedScopingGenerator
     [
         AllTypeKind.Class,
         AllTypeKind.Struct,
-        AllTypeKind.Interface,
-        AllTypeKind.Trait,
+        AllTypeKind.Abstract,
         AllTypeKind.Enum,
     ];
 
@@ -145,8 +144,7 @@ public static class MistNestedScopingGenerator
     {
         AllTypeKind.Class => "class",
         AllTypeKind.Struct => "struct",
-        AllTypeKind.Interface => "interface",
-        AllTypeKind.Trait => "trait",
+        AllTypeKind.Abstract => "abstract",
         AllTypeKind.Enum => "enum",
         _ => "class"
     };
@@ -268,7 +266,7 @@ public static class MistNestedScopingGenerator
                from len in Gen.Choose(2, 5)
                from rest in Gen.ArrayOf(Gen.Elements('a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z'), len)
                let name = upper + new string(rest)
-               where name != "Class" && name != "Struct" && name != "Interface" && name != "Trait"
+               where name != "Class" && name != "Struct" && name != "Abstract"
                   && name != "Enum" && name != "Namespace" && name != "Public" && name != "Private"
                   && name != "Static" && name != "True" && name != "False" && name != "Null"
                select name;
@@ -701,7 +699,7 @@ public static class MistNestedScopingGenerator
                from segments in Gen.ArrayOf(Gen.Elements(NsSegmentPool), segmentCount)
                from typeName in Gen.Elements(TypeNamePool)
                from typeKind in Gen.Elements(AllTypeKind.Class, AllTypeKind.Struct,
-                   AllTypeKind.Interface, AllTypeKind.Trait, AllTypeKind.Enum)
+                   AllTypeKind.Abstract, AllTypeKind.Enum)
                let nsPath = string.Join(".", segments)
                let source = BuildTypeInNamespaceSource(style, nsPath, typeName, typeKind)
                let expectedFqn = nsPath + "." + typeName
@@ -788,7 +786,7 @@ public static class MistNestedScopingGenerator
 
         return from containerKind in Gen.Elements(containerKinds)
                from nestedKind in Gen.Elements(AllTypeKind.Class, AllTypeKind.Struct,
-                   AllTypeKind.Interface, AllTypeKind.Trait, AllTypeKind.Enum)
+                   AllTypeKind.Abstract, AllTypeKind.Enum)
                let containerKeyword = AllTypeKindKeyword(containerKind)
                let nestedKeyword = AllTypeKindKeyword(nestedKind)
                let nestedBody = nestedKind == AllTypeKind.Enum ? "{ A, B }" : "{ }"
@@ -809,7 +807,7 @@ public static class MistNestedScopingGenerator
 
         return from containerKind in Gen.Elements(containerKinds)
                from nestedKind in Gen.Elements(AllTypeKind.Class, AllTypeKind.Struct,
-                   AllTypeKind.Interface, AllTypeKind.Trait, AllTypeKind.Enum)
+                   AllTypeKind.Abstract, AllTypeKind.Enum)
                from parentParamCount in Gen.Choose(1, 3)
                from hasNestedParams in Gen.Elements(true, false)
                // Enums cannot have type parameters

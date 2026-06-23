@@ -65,8 +65,7 @@ public sealed class ReadonlyInferenceEngine
         {
             ClassType ct => ct.MemberScope,
             StructType st => st.MemberScope,
-            InterfaceType it => it.MemberScope,
-            TraitType tt => tt.MemberScope,
+            AbstractType at => at.MemberScope,
             _ => null,
         };
     }
@@ -752,8 +751,7 @@ public sealed class ReadonlyInferenceEngine
         {
             ClassType ct => ct.IsReadonly,
             StructType st => st.IsReadonly,
-            InterfaceType it => it.IsReadonly,
-            TraitType tt => tt.IsReadonly,
+            AbstractType at => at.IsReadonly,
             _ => false,
         };
     }

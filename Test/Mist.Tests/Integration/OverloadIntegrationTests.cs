@@ -137,7 +137,7 @@ public sealed class OverloadIntegrationTests : IDisposable
     public void OverloadedInterfaceMethods_FullPipeline_SuccessfulCompilation()
     {
         var source = """
-            interface IProcessor {
+            abstract IProcessor {
                 int Process(int x);
                 bool Process(bool b);
             }

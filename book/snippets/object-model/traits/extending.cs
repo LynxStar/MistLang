@@ -1,16 +1,8 @@
 using System;
 
-namespace Snippet;
+namespace Standard;
 
-interface Readable
+interface IClonable<T>
 {
-    string Read();
-}
-interface Writable
-{
-    void Write(string data);
-}
-interface ReadWriteStream : Readable, Writable
-{
-    void Flush();
+    T Clone();
 }

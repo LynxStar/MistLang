@@ -1,12 +1,8 @@
 using System;
 
-namespace Snippet;
+namespace Standard;
 
-interface ITransform<TIn, TOut>
+interface IClonable<T>
 {
-    TOut Transform(TIn input);
-}
-interface IMapper<TIn>
-{
-    ITransform<TIn, TOut> GetMapper<TOut>();
+    T Clone();
 }

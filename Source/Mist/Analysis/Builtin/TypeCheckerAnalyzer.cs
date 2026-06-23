@@ -1364,7 +1364,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     // ═══════════════════════════════════════════════════════════════════════
 
     /// <summary>
-    /// Finds the declaring type (ClassType, StructType, or InterfaceType) that contains the given
+    /// Finds the declaring type (ClassType, StructType, or AbstractType) that contains the given
     /// method or constructor symbol by walking up the scope chain.
     /// </summary>
     private static IType? FindDeclaringType(ISymbol memberSymbol)
@@ -1379,14 +1379,14 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         foreach (var member in parentScope.Members)
         {
             if (member.Kind is SymbolKind.Class or SymbolKind.Struct or SymbolKind.Interface
-                && member.DeclaredType is ClassType or StructType or InterfaceType)
+                && member.DeclaredType is ClassType or StructType or AbstractType)
             {
                 // Check if this type's MemberScope is the same as the member's ContainingScope.
                 var memberScope = member.DeclaredType switch
                 {
                     ClassType ct => ct.MemberScope,
                     StructType st => st.MemberScope,
-                    InterfaceType it => it.MemberScope,
+                    AbstractType at => at.MemberScope,
                     _ => null,
                 };
                 if (ReferenceEquals(memberScope, typeScope))
@@ -2094,7 +2094,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         // ConstructedType to constructed interface assignability.
-        if (target is ConstructedType targetConst && targetConst.GenericDefinition is InterfaceType)
+        if (target is ConstructedType targetConst && targetConst.GenericDefinition is AbstractType)
         {
             if (ImplementsConstructedInterface(source, targetConst))
                 return true;
@@ -2107,7 +2107,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // intentionally does NOT check implicit cast operators.
 
         // Interface assignability.
-        if (target is InterfaceType targetInterface)
+        if (target is AbstractType targetInterface)
         {
             if (ImplementsInterface(source, targetInterface))
                 return true;
@@ -2156,9 +2156,17 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         // Trait assignability.
-        if (target is TraitType targetTrait && model is not null)
+        if (target is AbstractType targetTrait && model is not null)
         {
             if (SatisfiesTrait(source, targetTrait, model))
+                return true;
+        }
+
+        // ── abstract-type-unification: AbstractType assignability (Req 9.1, 9.2, 9.4) ──
+        // A class/struct is assignable to an AbstractType only via nominal conformance.
+        if (target is AbstractType targetAbstractType && model is not null)
+        {
+            if (SatisfiesTrait(source, targetAbstractType, model))
                 return true;
         }
 
@@ -2169,7 +2177,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             return true;
 
         // Constructed trait assignability.
-        if (target is ConstructedTraitType targetConstructedTrait && model is not null)
+        if (target is ConstructedAbstractType targetConstructedTrait && model is not null)
         {
             if (SatisfiesTrait(source, targetConstructedTrait, model))
                 return true;
@@ -4122,21 +4130,32 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             {
                 ClassType ct => ct.Interfaces,
                 StructType st => st.Interfaces,
-                InterfaceType it => it.Interfaces,
+                AbstractType at => at.ParentAbstractTypes,
                 _ => Array.Empty<IType>()
             };
 
             foreach (var iface in interfaces)
             {
-                if (iface is not ConstructedType ifaceConstructed)
+                IReadOnlyList<IType>? ifaceTypeParams = null;
+                IReadOnlyList<IType>? ifaceTypeArgs = null;
+                string? genericName = null;
+
+                if (iface is ConstructedType ifaceConstructed)
+                {
+                    ifaceTypeParams = GetTypeParameters(ifaceConstructed.GenericDefinition);
+                    ifaceTypeArgs = ifaceConstructed.TypeArguments;
+                    genericName = ifaceConstructed.GenericDefinition.DisplayName;
+                }
+                else if (iface is ConstructedAbstractType ifaceConstructedAbstract)
+                {
+                    ifaceTypeParams = ifaceConstructedAbstract.DefinitionTypeParameters;
+                    ifaceTypeArgs = ifaceConstructedAbstract.TypeArguments;
+                    genericName = ifaceConstructedAbstract.GenericAbstractDefinition.DisplayName;
+                }
+
+                if (ifaceTypeParams is null || ifaceTypeArgs is null || genericName is null)
                     continue;
 
-                var ifaceTypeParams = GetTypeParameters(ifaceConstructed.GenericDefinition);
-                if (ifaceTypeParams is null)
-                    continue;
-
-                var ifaceTypeArgs = ifaceConstructed.TypeArguments;
-                var genericName = ifaceConstructed.GenericDefinition.DisplayName;
                 for (var i = 0; i < ifaceTypeParams.Count && i < ifaceTypeArgs.Count; i++)
                 {
                     if (ifaceTypeArgs[i] is TypeParameterType derivedTypeParam)
@@ -4369,7 +4388,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 continue;
 
             // Check each interface's property requirements.
-            var visited = new HashSet<InterfaceType>(ReferenceEqualityComparer.Instance);
+            var visited = new HashSet<AbstractType>(ReferenceEqualityComparer.Instance);
             CheckInterfacePropertyRequirements(symbol, interfaces, memberScope, type as ClassType, model, diagnostics, visited);
         }
     }
@@ -4381,11 +4400,11 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         ClassType? classType,
         ISemanticModel model,
         DiagnosticBag diagnostics,
-        HashSet<InterfaceType> visited)
+        HashSet<AbstractType> visited)
     {
         foreach (var ifaceType in interfaces)
         {
-            if (ifaceType is not InterfaceType iface)
+            if (ifaceType is not AbstractType iface)
                 continue;
 
             if (!visited.Add(iface))
@@ -4450,9 +4469,9 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             }
 
             // Recurse into parent interfaces.
-            if (iface.Interfaces.Count > 0)
+            if (iface.ParentAbstractTypes.Count > 0)
             {
-                CheckInterfacePropertyRequirements(typeSymbol, iface.Interfaces, memberScope, classType, model, diagnostics, visited);
+                CheckInterfacePropertyRequirements(typeSymbol, iface.ParentAbstractTypes, memberScope, classType, model, diagnostics, visited);
             }
         }
     }
@@ -4529,7 +4548,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 CheckReadonlyInterfaceContracts(symbol, interfaces, memberScope, model, diagnostics);
             }
 
-            // Check trait contracts via the TraitSatisfactionMap.
+            // Check trait contracts via the ConformanceMap.
             if (memberScope is not null)
             {
                 CheckReadonlyTraitContracts(symbol, type!, memberScope, model, diagnostics);
@@ -4550,7 +4569,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     {
         foreach (var ifaceType in interfaces)
         {
-            if (ifaceType is not InterfaceType iface)
+            if (ifaceType is not AbstractType iface)
                 continue;
 
             // Only check readonly interfaces (all members are implicitly readonly).
@@ -4579,9 +4598,9 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             }
 
             // Recurse into parent interfaces.
-            if (iface.Interfaces.Count > 0)
+            if (iface.ParentAbstractTypes.Count > 0)
             {
-                CheckReadonlyInterfaceContracts(typeSymbol, iface.Interfaces, memberScope, model, diagnostics);
+                CheckReadonlyInterfaceContracts(typeSymbol, iface.ParentAbstractTypes, memberScope, model, diagnostics);
             }
         }
     }
@@ -4591,7 +4610,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     private static void CheckReadonlyMembersOfInterface(
         ISymbol typeSymbol,
-        InterfaceType iface,
+        AbstractType iface,
         IScope memberScope,
         ISemanticModel model,
         DiagnosticBag diagnostics)
@@ -4616,11 +4635,11 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         // Recurse into parent interfaces.
-        if (iface.Interfaces.Count > 0)
+        if (iface.ParentAbstractTypes.Count > 0)
         {
-            foreach (var parentIface in iface.Interfaces)
+            foreach (var parentIface in iface.ParentAbstractTypes)
             {
-                if (parentIface is InterfaceType parentIfaceType)
+                if (parentIface is AbstractType parentIfaceType)
                 {
                     if (parentIfaceType.IsReadonly)
                     {
@@ -4646,25 +4665,33 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         ISemanticModel model,
         DiagnosticBag diagnostics)
     {
-        foreach (var (satisfiedType, trait, satisfaction) in model.TraitSatisfactionMap.All())
+        foreach (var (satisfiedType, trait, conformance) in model.ConformanceMap.All())
         {
             if (!ReferenceEquals(satisfiedType, type))
                 continue;
 
-            var traitType = trait as TraitType;
-            if (traitType is null)
+            var traitType = trait as AbstractType;
+            var abstractType = trait as AbstractType;
+            if (traitType is null && abstractType is null)
                 continue;
 
+            var isReadonly = traitType?.IsReadonly ?? abstractType!.IsReadonly;
+            var traitMemberScope = traitType?.MemberScope ?? abstractType!.MemberScope;
+            var traitDisplayName = traitType?.DisplayName ?? abstractType!.DisplayName;
+
             // Only check readonly traits (all members are implicitly readonly).
-            if (!traitType.IsReadonly)
+            if (!isReadonly)
             {
                 // Check individual readonly members of non-readonly traits.
-                CheckReadonlyMembersOfTrait(typeSymbol, traitType, satisfaction, memberScope, model, diagnostics);
+                if (traitType is not null)
+                    CheckReadonlyMembersOfTrait(typeSymbol, traitType, conformance, memberScope, model, diagnostics);
+                else
+                    CheckReadonlyMembersOfAbstractType(typeSymbol, abstractType!, conformance, memberScope, model, diagnostics);
                 continue;
             }
 
-            // The trait is readonly — all its members are implicitly readonly.
-            foreach (var traitMember in traitType.MemberScope.Members)
+            // The trait/abstract type is readonly — all its members are implicitly readonly.
+            foreach (var traitMember in traitMemberScope.Members)
             {
                 if (traitMember.Kind is not (SymbolKind.Method or SymbolKind.Property or SymbolKind.Indexer or SymbolKind.Field))
                     continue;
@@ -4673,14 +4700,14 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 if (traitMember.DeclaredType is TypeParameterType)
                     continue;
 
-                // Find the implementing member via the satisfaction map or scope lookup.
-                var implMember = FindTraitImplementingMember(traitMember, satisfaction, memberScope);
+                // Find the implementing member via the conformance record or scope lookup.
+                var implMember = FindTraitImplementingMember(traitMember, conformance, memberScope);
                 if (implMember is null)
                     continue;
 
                 if (!IsMemberReadonly(implMember))
                 {
-                    EmitReadonlyContractViolation(typeSymbol, implMember, traitMember, traitType.DisplayName, model, diagnostics);
+                    EmitReadonlyContractViolation(typeSymbol, implMember, traitMember, traitDisplayName, model, diagnostics);
                 }
             }
         }
@@ -4691,8 +4718,8 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     private static void CheckReadonlyMembersOfTrait(
         ISymbol typeSymbol,
-        TraitType traitType,
-        TraitSatisfaction satisfaction,
+        AbstractType traitType,
+        ConformanceRecord conformance,
         IScope memberScope,
         ISemanticModel model,
         DiagnosticBag diagnostics)
@@ -4709,7 +4736,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             if (!IsMemberReadonly(traitMember))
                 continue;
 
-            var implMember = FindTraitImplementingMember(traitMember, satisfaction, memberScope);
+            var implMember = FindTraitImplementingMember(traitMember, conformance, memberScope);
             if (implMember is null)
                 continue;
 
@@ -4721,19 +4748,53 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     }
 
     /// <summary>
+    /// Checks individual readonly members of a non-readonly abstract type.
+    /// </summary>
+    private static void CheckReadonlyMembersOfAbstractType(
+        ISymbol typeSymbol,
+        AbstractType abstractType,
+        ConformanceRecord conformance,
+        IScope memberScope,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        foreach (var abstractMember in abstractType.MemberScope.Members)
+        {
+            if (abstractMember.Kind is not (SymbolKind.Method or SymbolKind.Property or SymbolKind.Indexer or SymbolKind.Field))
+                continue;
+
+            // Skip type parameter symbols.
+            if (abstractMember.DeclaredType is TypeParameterType)
+                continue;
+
+            if (!IsMemberReadonly(abstractMember))
+                continue;
+
+            var implMember = FindTraitImplementingMember(abstractMember, conformance, memberScope);
+            if (implMember is null)
+                continue;
+
+            if (!IsMemberReadonly(implMember))
+            {
+                EmitReadonlyContractViolation(typeSymbol, implMember, abstractMember, abstractType.DisplayName, model, diagnostics);
+            }
+        }
+    }
+
+    /// <summary>
     /// Finds the implementing member for a trait member, first checking the
-    /// satisfaction map (structural matches and with-mappings), then falling
+    /// conformance record (filled slots and with-mappings), then falling
     /// back to a scope lookup.
     /// </summary>
     private static ISymbol? FindTraitImplementingMember(
         ISymbol traitMember,
-        TraitSatisfaction satisfaction,
+        ConformanceRecord conformance,
         IScope memberScope)
     {
-        if (satisfaction.StructuralMatches.TryGetValue(traitMember.Name, out var structMatch))
+        if (conformance.FilledSlots.TryGetValue(traitMember.Name, out var structMatch))
             return structMatch;
 
-        if (satisfaction.WithMappings.TryGetValue(traitMember.Name, out var withMatch))
+        if (conformance.WithMappings.TryGetValue(traitMember.Name, out var withMatch))
             return withMatch;
 
         return FindMemberInScope(traitMember.Name, traitMember.Kind, memberScope);
@@ -6648,8 +6709,8 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     typeParams = structDef.TypeParameters;
                     typeArgs = sourceCt.TypeArguments;
                     break;
-                case InterfaceType ifaceDef:
-                    interfaces = ifaceDef.Interfaces;
+                case AbstractType ifaceDef:
+                    interfaces = ifaceDef.ParentAbstractTypes;
                     typeParams = ifaceDef.TypeParameters;
                     typeArgs = sourceCt.TypeArguments;
                     break;
@@ -6690,7 +6751,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 : iface;
 
             if (substitutedIface is ConstructedType constructedIface &&
-                constructedIface.GenericDefinition is InterfaceType ifaceDefinition &&
+                constructedIface.GenericDefinition is AbstractType ifaceDefinition &&
                 ifaceDefinition.DisplayName == "IEnumerable" &&
                 ifaceDefinition.ContainingNamespace == "Standard" &&
                 constructedIface.TypeArguments.Count > 0)
@@ -7860,7 +7921,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         {
             ClassType ct2 => ct2.MemberScope,
             StructType st => st.MemberScope,
-            InterfaceType it => it.MemberScope,
+            AbstractType at => at.MemberScope,
             _ => null,
         };
 
@@ -8330,8 +8391,8 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         if (SharesTypeHierarchy(sourceType, targetType))
             return AsConversionClassification.NonProvable;
 
-        // 6. Non-provable: target is an interface/trait that source MIGHT implement
-        if (targetType.Kind is TypeKind.Interface or TypeKind.Trait)
+        // 6. Non-provable: target is an abstract type that source MIGHT implement
+        if (targetType.Kind is TypeKind.Interface or TypeKind.Abstract)
         {
             if (sourceType.Kind is TypeKind.Class or TypeKind.Struct)
                 return AsConversionClassification.NonProvable;
@@ -10527,7 +10588,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
     /// <summary>
     /// Substitutes type parameters in a member's type when the target is a <see cref="ConstructedType"/>
-    /// or a <see cref="ConstructedTraitType"/>.
+    /// or a <see cref="ConstructedAbstractType"/>.
     /// For example, if the member type is <c>T</c> and the target is <c>Box&lt;int&gt;</c>,
     /// the result is <c>int</c>.
     /// </summary>
@@ -10545,10 +10606,10 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             return SubstituteType(memberType, typeParams, ct.TypeArguments);
         }
 
-        // Task 10.2: Substitute type parameters for ConstructedTraitType member access.
-        if (targetType is ConstructedTraitType ctt)
+        // Task 10.2: Substitute type parameters for ConstructedAbstractType member access.
+        if (targetType is ConstructedAbstractType ctt)
         {
-            var typeParams = ctt.GenericTraitDefinition.TypeParameters;
+            var typeParams = ctt.DefinitionTypeParameters;
             if (typeParams.Count == 0)
                 return memberType;
 
@@ -10976,18 +11037,10 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         switch (resolvedType)
         {
-            case InterfaceType:
-                diagnostics.Add(MakeDiagnostic(
-                    DiagnosticId.DefaultOnInterface.Value,
-                    $"The 'default' operator is not supported on interface type '{resolvedType.DisplayName}'. Only concrete types (classes and structs) support 'default'.",
-                    node,
-                    model));
-                return;
-
-            case TraitType:
+            case AbstractType:
                 diagnostics.Add(MakeDiagnostic(
                     DiagnosticId.DefaultOnTrait.Value,
-                    $"The 'default' operator is not supported on trait type '{resolvedType.DisplayName}'. Only concrete types (classes and structs) support 'default'.",
+                    $"The 'default' operator is not supported on abstract type '{resolvedType.DisplayName}'. Only concrete types (classes and structs) support 'default'.",
                     node,
                     model));
                 return;
@@ -11361,7 +11414,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         {
             // Determine type parameter substitution context.
             // 1. If the target is a ConstructedType, substitute the enclosing type's type params.
-            // 2. If the target is a ConstructedTraitType, substitute the trait's type params (Task 10.2).
+            // 2. If the target is a ConstructedAbstractType, substitute the trait's type params (Task 10.2).
             // 3. If the method has its own type arguments, substitute those as well.
             IReadOnlyList<IType>? enclosingTypeParams = null;
             IReadOnlyList<IType>? enclosingTypeArgs = null;
@@ -11370,10 +11423,10 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 enclosingTypeParams = GetTypeParameters(targetCt.GenericDefinition);
                 enclosingTypeArgs = targetCt.TypeArguments;
             }
-            else if (targetType is ConstructedTraitType targetCtt)
+            else if (targetType is ConstructedAbstractType targetCtt)
             {
-                enclosingTypeParams = targetCtt.GenericTraitDefinition.TypeParameters.Count > 0
-                    ? targetCtt.GenericTraitDefinition.TypeParameters
+                enclosingTypeParams = targetCtt.DefinitionTypeParameters.Count > 0
+                    ? targetCtt.DefinitionTypeParameters
                     : null;
                 enclosingTypeArgs = targetCtt.TypeArguments;
             }
@@ -12707,7 +12760,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     }
 
     /// <summary>
-    /// Gets the type parameters from a type definition (ClassType, StructType, or InterfaceType).
+    /// Gets the type parameters from a type definition (ClassType, StructType, or AbstractType).
     /// </summary>
     private static IReadOnlyList<IType>? GetTypeParameters(IType type)
     {
@@ -12715,7 +12768,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         {
             ClassType ct => ct.TypeParameters.Count > 0 ? ct.TypeParameters : null,
             StructType st => st.TypeParameters.Count > 0 ? st.TypeParameters : null,
-            InterfaceType it => it.TypeParameters.Count > 0 ? it.TypeParameters : null,
+            AbstractType at => at.TypeParameters.Count > 0 ? at.TypeParameters : null,
             _ => null,
         };
     }
@@ -12873,7 +12926,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
     /// <summary>
     /// Returns true if the given type is marked as readonly (has <c>IsReadonly == true</c>).
-    /// Checks ClassType, StructType, InterfaceType, and TraitType.
+    /// Checks ClassType, StructType, AbstractType, and AbstractType.
     /// </summary>
     private static bool IsTypeReadonly(IType type)
     {
@@ -12881,8 +12934,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         {
             ClassType ct => ct.IsReadonly,
             StructType st => st.IsReadonly,
-            InterfaceType it => it.IsReadonly,
-            TraitType tt => tt.IsReadonly,
+            AbstractType at => at.IsReadonly,
             _ => false,
         };
     }
@@ -12968,8 +13020,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             UnionType ut => ut.Constituents.Any(c => c.IsVoid()),
             ConstructedType constructed => IsTypeDefaultable(constructed.GenericDefinition),
             TypeParameterType tp => tp.Constraints?.HasDefaultConstraint == true,
-            InterfaceType => false,
-            TraitType => false,
+            AbstractType => false,
             _ => false,
         };
     }
@@ -13686,7 +13737,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             {
                 ClassType ct => ct.MemberScope,
                 StructType st => st.MemberScope,
-                InterfaceType it => it.MemberScope,
+                AbstractType at => at.MemberScope,
                 _ => null,
             };
 
@@ -14807,8 +14858,10 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     private static bool IsTraitTargetType(IType type)
     {
-        return type is TraitType
-            || (type is ConstructedType ct && ct.GenericDefinition is TraitType);
+        return type is AbstractType
+            || type is AbstractType
+            || type is ConstructedAbstractType
+            || (type is ConstructedType ct && ct.GenericDefinition is AbstractType);
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -15391,7 +15444,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         {
             ClassType ct2 => ct2.MemberScope,
             StructType st => st.MemberScope,
-            InterfaceType it => it.MemberScope,
+            AbstractType at => at.MemberScope,
             EnumType et => et.MemberScope,
             _ => null,
         };
@@ -16377,7 +16430,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// <summary>
     /// Checks if <paramref name="source"/> is assignable to <paramref name="target"/>.
     /// Emits MIST_TC_0001 if not, or MIST_TRAIT_UNSATISFIED when the target is a
-    /// <see cref="TraitType"/> and the source does not satisfy it.
+    /// <see cref="AbstractType"/> and the source does not satisfy it.
     /// </summary>
     private static void CheckAssignability(IType source, IType target, SyntaxNode node, DiagnosticBag diagnostics, ISemanticModel model)
     {
@@ -16438,8 +16491,8 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             if (TryEmitDelegateAssignabilityDiagnostic(source, target, node, diagnostics, model))
                 return;
 
-            // Emit a trait-specific diagnostic when the target is a TraitType.
-            if (target is TraitType targetTrait)
+            // Emit a trait-specific diagnostic when the target is a AbstractType.
+            if (target is AbstractType targetTrait)
             {
                 var unsatisfiedMembers = GetUnsatisfiedTraitMembers(source, targetTrait, model);
                 var memberList = unsatisfiedMembers.Count > 0
@@ -16456,7 +16509,18 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                         model));
                 }
             }
-            else if (target is ConstructedTraitType targetConstructedTrait)
+            else if (target is AbstractType targetAbstractType)
+            {
+                // ── abstract-type-unification (Req 3.3, 3.4, 9.1, 9.2) ──
+                // Nominal-only conformance: the source type must declare `: AbstractType`
+                // or have a `with` block. No structural matching is attempted.
+                diagnostics.Add(MakeDiagnostic(
+                    "MIST_ABSTRACT_UNSATISFIED",
+                    $"Cannot assign type '{source.DisplayName}' to '{targetAbstractType.DisplayName}': type does not implement the abstract type",
+                    node,
+                    model));
+            }
+            else if (target is ConstructedAbstractType targetConstructedTrait)
             {
                 var unsatisfiedMembers = GetUnsatisfiedTraitMembers(source, targetConstructedTrait, model);
                 var memberList = unsatisfiedMembers.Count > 0
@@ -16467,8 +16531,8 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 if (!EmitTraitRefKindMismatchDiagnostics(source, targetConstructedTrait, node, diagnostics, model))
                 {
                     diagnostics.Add(MakeDiagnostic(
-                        "MIST_TRAIT_UNSATISFIED",
-                        $"Type '{source.DisplayName}' does not satisfy trait '{targetConstructedTrait.DisplayName}'. Missing members: {memberList}.",
+                        "MIST_ABSTRACT_UNSATISFIED",
+                        $"Cannot assign type '{source.DisplayName}' to '{targetConstructedTrait.DisplayName}': type does not implement the abstract type",
                         node,
                         model));
                 }
@@ -16574,12 +16638,12 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     private static List<string> GetUnsatisfiedTraitMembers(IType source, IType trait, ISemanticModel model)
     {
         var unsatisfied = new List<string>();
-        var satisfaction = model.TraitSatisfactionMap.GetSatisfaction(source, trait);
+        var satisfaction = model.ConformanceMap.GetConformance(source, trait);
 
         var traitMemberScope = trait switch
         {
-            TraitType tt => tt.MemberScope,
-            ConstructedTraitType ctt => ctt.MemberScope,
+            AbstractType at => at.MemberScope,
+            ConstructedAbstractType ctt => ctt.MemberScope,
             _ => null,
         };
 
@@ -16599,8 +16663,8 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             var name = member.Name;
             if (satisfaction is not null)
             {
-                // If there's a partial satisfaction record, check which members are covered.
-                if (satisfaction.StructuralMatches.ContainsKey(name))
+                // If there's a partial conformance record, check which members are covered.
+                if (satisfaction.FilledSlots.ContainsKey(name))
                     continue;
                 if (satisfaction.WithMappings.ContainsKey(name))
                     continue;
@@ -16623,8 +16687,8 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     {
         var traitMemberScope = trait switch
         {
-            TraitType tt => tt.MemberScope,
-            ConstructedTraitType ctt => ctt.MemberScope,
+            AbstractType at => at.MemberScope,
+            ConstructedAbstractType ctt => ctt.MemberScope,
             _ => null,
         };
 
@@ -16635,10 +16699,10 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         // Build type parameter substitution map for constructed traits.
         Dictionary<string, IType>? typeSubstitutions = null;
-        if (trait is ConstructedTraitType constructedTrait)
+        if (trait is ConstructedAbstractType constructedTrait)
         {
             typeSubstitutions = new Dictionary<string, IType>(StringComparer.Ordinal);
-            var typeParams = constructedTrait.GenericTraitDefinition.TypeParameters;
+            var typeParams = constructedTrait.DefinitionTypeParameters;
             var typeArgs = constructedTrait.TypeArguments;
             for (var i = 0; i < typeParams.Count && i < typeArgs.Count; i++)
             {
@@ -16846,7 +16910,8 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         {
             ClassType ct => ct.MemberScope,
             StructType st => st.MemberScope,
-            InterfaceType it => it.MemberScope,
+            AbstractType at => at.MemberScope,
+            ConstructedAbstractType cat => cat.MemberScope,
             ConstructedType cst => cst.MemberScope,
             EnumType et => et.MemberScope,
             NewtypeType nt => nt.MemberScope,
@@ -16960,7 +17025,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// <summary>
     /// Returns true if <paramref name="source"/> is assignable to <paramref name="target"/>.
     /// When <paramref name="model"/> is provided, also checks trait assignability via
-    /// the <see cref="TraitSatisfactionMap"/>.
+    /// the <see cref="ConformanceMap"/>.
     /// </summary>
     internal static bool IsAssignable(IType source, IType target, ISemanticModel? model)
     {
@@ -17393,7 +17458,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         // ConstructedType to constructed interface assignability.
-        if (target is ConstructedType targetConst && targetConst.GenericDefinition is InterfaceType)
+        if (target is ConstructedType targetConst && targetConst.GenericDefinition is AbstractType)
         {
             if (ImplementsConstructedInterface(source, targetConst))
                 return true;
@@ -17416,7 +17481,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // Interface assignability:
         // A class/struct implementing an interface (directly or transitively) is assignable to that interface.
         // An interface is assignable to any interface it inherits from (directly or transitively).
-        if (target is InterfaceType targetInterface)
+        if (target is AbstractType targetInterface)
         {
             if (ImplementsInterface(source, targetInterface))
                 return true;
@@ -17472,9 +17537,22 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // Trait assignability:
         // A class/struct satisfying a trait (structurally or via with block)
         // is assignable to that trait.
-        if (target is TraitType targetTrait && model is not null)
+        if (target is AbstractType targetTrait && model is not null)
         {
             if (SatisfiesTrait(source, targetTrait, model))
+                return true;
+        }
+
+        // ── abstract-type-unification: AbstractType assignability (Req 9.1, 9.2, 9.4) ──
+        // A class/struct is assignable to an AbstractType only via nominal conformance:
+        // the source must declare `: AbstractType` in its base clause or have a `with`
+        // block establishing conformance. No structural matching.
+        // Transitive assignability is handled by SatisfiesTrait — if IChild : IParent
+        // and source implements IChild, the source's SatisfiedTraits list already
+        // contains IParent (registered by RegisterTransitiveAbstractParentSatisfaction).
+        if (target is AbstractType targetAbstractType && model is not null)
+        {
+            if (SatisfiesTrait(source, targetAbstractType, model))
                 return true;
         }
 
@@ -17489,8 +17567,8 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // A class/struct satisfying a constructed trait (e.g., Comparable<int>)
         // is assignable to that constructed trait. Comparable<int> and
         // Comparable<string> are distinct non-assignable types because they
-        // are different keys in the TraitSatisfactionMap.
-        if (target is ConstructedTraitType targetConstructedTrait && model is not null)
+        // are different keys in the ConformanceMap.
+        if (target is ConstructedAbstractType targetConstructedTrait && model is not null)
         {
             if (SatisfiesTrait(source, targetConstructedTrait, model))
                 return true;
@@ -17507,30 +17585,57 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// <summary>
     /// Checks whether <paramref name="source"/> satisfies the given <paramref name="trait"/>.
     /// Uses a lazy evaluation model:
-    /// 1. Check the type's SatisfiedTraits list (populated by with-blocks and prior call-site checks)
-    /// 2. Check the TraitSatisfactionMap (backward compat)
-    /// 3. Perform on-demand structural matching
-    /// 4. If structural matching succeeds, upsert into the type's SatisfiedTraits list and the map
+    /// 1. Check the type's SatisfiedTraits list (populated by with-blocks and prior checks)
+    /// 2. Check the ConformanceMap
     /// </summary>
     private static bool SatisfiesTrait(IType source, IType trait, ISemanticModel model)
     {
         // 1. Check the type's SatisfiedTraits list.
-        var satisfiedTraits = source switch
+        IReadOnlyList<IType>? satisfiedTraits = null;
+        IReadOnlyList<IType>? sourceTypeParams = null;
+        IReadOnlyList<IType>? sourceTypeArgs = null;
+
+        switch (source)
         {
-            ClassType ct => ct.SatisfiedTraits,
-            StructType st => st.SatisfiedTraits,
-            _ => null,
-        };
+            case ClassType ct:
+                satisfiedTraits = ct.SatisfiedTraits;
+                break;
+            case StructType st:
+                satisfiedTraits = st.SatisfiedTraits;
+                break;
+            case ConstructedType ctSource:
+                // For constructed types (e.g., GenericBox<int>), check the generic
+                // definition's satisfied traits with type parameter substitution.
+                switch (ctSource.GenericDefinition)
+                {
+                    case ClassType ctDef:
+                        satisfiedTraits = ctDef.SatisfiedTraits;
+                        sourceTypeParams = ctDef.TypeParameters;
+                        sourceTypeArgs = ctSource.TypeArguments;
+                        break;
+                    case StructType stDef:
+                        satisfiedTraits = stDef.SatisfiedTraits;
+                        sourceTypeParams = stDef.TypeParameters;
+                        sourceTypeArgs = ctSource.TypeArguments;
+                        break;
+                }
+                break;
+        }
 
         if (satisfiedTraits is not null)
         {
             foreach (var satisfied in satisfiedTraits)
             {
-                if (ReferenceEquals(satisfied, trait))
+                // Apply type parameter substitution if source is a constructed type.
+                var effectiveSatisfied = (sourceTypeParams is not null && sourceTypeArgs is not null)
+                    ? SubstituteType(satisfied, sourceTypeParams, sourceTypeArgs)
+                    : satisfied;
+
+                if (ReferenceEquals(effectiveSatisfied, trait))
                     return true;
-                // Structural equality fallback for ConstructedTraitType.
-                if (satisfied is ConstructedTraitType sCtt && trait is ConstructedTraitType tCtt
-                    && ReferenceEquals(sCtt.GenericTraitDefinition, tCtt.GenericTraitDefinition)
+                // Structural equality fallback for ConstructedAbstractType.
+                if (effectiveSatisfied is ConstructedAbstractType sCtt && trait is ConstructedAbstractType tCtt
+                    && ReferenceEquals(sCtt.GenericAbstractDefinition, tCtt.GenericAbstractDefinition)
                     && sCtt.TypeArguments.Count == tCtt.TypeArguments.Count)
                 {
                     var allMatch = true;
@@ -17545,193 +17650,43 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     if (allMatch)
                         return true;
                 }
+
+                // Cross-type structural equality: ConstructedType (from Pass 1 base-list)
+                // vs ConstructedAbstractType (from Pass 2 type resolution).
+                // Both represent the same generic abstract type with concrete type arguments.
+                if (effectiveSatisfied is ConstructedType sCt && sCt.GenericDefinition is AbstractType sGenDef
+                    && trait is ConstructedAbstractType tCat
+                    && sCt.TypeArguments.Count == tCat.TypeArguments.Count)
+                {
+                    // Compare generic definitions by identity or by name+namespace.
+                    if (ReferenceEquals(sGenDef, tCat.GenericAbstractDefinition)
+                        || (sGenDef.DisplayName == tCat.GenericAbstractDefinition.DisplayName
+                            && sGenDef.ContainingNamespace == tCat.GenericAbstractDefinition.ContainingNamespace))
+                    {
+                        var allMatch = true;
+                        for (var i = 0; i < sCt.TypeArguments.Count; i++)
+                        {
+                            if (!TypesEqual(sCt.TypeArguments[i], tCat.TypeArguments[i])
+                                && !ArePrimitiveEquivalent(sCt.TypeArguments[i], tCat.TypeArguments[i]))
+                            {
+                                allMatch = false;
+                                break;
+                            }
+                        }
+                        if (allMatch)
+                            return true;
+                    }
+                }
             }
         }
 
-        // 2. Check the TraitSatisfactionMap (covers with-block registrations).
-        if (model.TraitSatisfactionMap.Satisfies(source, trait))
+        // 2. Check the ConformanceMap (covers with-block and explicit declaration registrations).
+        if (model.ConformanceMap.Conforms(source, trait))
             return true;
 
-        // 3. On-demand structural matching: check if all trait members are
-        //    present and public on the source type.
-        var traitMemberScope = trait switch
-        {
-            TraitType tt => tt.MemberScope,
-            ConstructedTraitType ctt => ctt.MemberScope,
-            _ => null,
-        };
-
-        var sourceMemberScope = GetMemberScope(source);
-
-        if (traitMemberScope is null || sourceMemberScope is null)
-            return false;
-
-        // Build type parameter substitution map for constructed traits.
-        Dictionary<string, IType>? typeSubstitutions = null;
-        if (trait is ConstructedTraitType constructedTrait)
-        {
-            typeSubstitutions = new Dictionary<string, IType>(StringComparer.Ordinal);
-            var typeParams = constructedTrait.GenericTraitDefinition.TypeParameters;
-            var typeArgs = constructedTrait.TypeArguments;
-            for (var i = 0; i < typeParams.Count && i < typeArgs.Count; i++)
-            {
-                typeSubstitutions[typeParams[i].DisplayName] = typeArgs[i];
-            }
-        }
-
-        var structuralMatches = new Dictionary<string, ISymbol>();
-        foreach (var traitMember in traitMemberScope.Members)
-        {
-            // Skip type parameter symbols (registered in the trait's scope but
-            // not actual trait members that need structural matching).
-            if (traitMember.Kind is SymbolKind.Class or SymbolKind.Struct
-                && traitMember.DeclaredType is TypeParameterType)
-                continue;
-
-            // Skip dependent type parameter symbols (e.g., Max:int in trait Bounded<Max:int>).
-            if (traitMember.DeclaredType is DependentTypeParameterType)
-                continue;
-
-            var matched = TryLazyStructuralMatch(traitMember, sourceMemberScope, model, typeSubstitutions);
-            if (matched is null)
-                return false; // Structural matching failed — not satisfied.
-            structuralMatches[traitMember.Name] = matched;
-        }
-
-        // 4. Structural matching succeeded — upsert into the type's SatisfiedTraits
-        //    list and the TraitSatisfactionMap.
-        satisfiedTraits?.Add(trait);
-        model.TraitSatisfactionMap.Register(source, trait, new TraitSatisfaction
-        {
-            StructuralMatches = structuralMatches,
-            WithMappings = new Dictionary<string, ISymbol>(),
-        });
-
-        return true;
-    }
-
-    /// <summary>
-    /// Performs a simplified structural match for a single trait member against
-    /// the type's public members. Used for lazy/on-demand trait satisfaction
-    /// at call sites. Returns the matching symbol or null.
-    /// <para>
-    /// For methods, checks name, visibility, return type compatibility, and
-    /// parameter count/type compatibility. For fields/properties, checks name,
-    /// visibility, and type compatibility.
-    /// </para>
-    /// </summary>
-    private static ISymbol? TryLazyStructuralMatch(
-        ISymbol traitMember, IScope typeMemberScope, ISemanticModel model,
-        Dictionary<string, IType>? typeSubstitutions)
-    {
-        var traitMemberName = traitMember.Name;
-
-        foreach (var member in typeMemberScope.Members)
-        {
-            if (member.Name != traitMemberName)
-                continue;
-
-            // Kind compatibility: trait fields can be matched by fields or properties;
-            // trait methods must be matched by methods; trait properties by properties or fields.
-            var kindCompatible = traitMember.Kind switch
-            {
-                SymbolKind.Field => member.Kind is SymbolKind.Field or SymbolKind.Property,
-                SymbolKind.Method => member.Kind is SymbolKind.Method,
-                SymbolKind.Property => member.Kind is SymbolKind.Property or SymbolKind.Field,
-                _ => member.Kind == traitMember.Kind,
-            };
-
-            if (!kindCompatible)
-                continue;
-
-            // Check visibility: must be public.
-            if (!IsMemberPublicViaModel(member, model))
-                continue;
-
-            // For methods, check signature compatibility (return type + parameters).
-            if (traitMember.Kind == SymbolKind.Method)
-            {
-                if (!MethodSignaturesCompatible(traitMember, member, model, typeSubstitutions))
-                    continue;
-            }
-            else
-            {
-                // For fields/properties, check type compatibility.
-                if (!MemberTypesCompatible(traitMember, member, typeSubstitutions))
-                    continue;
-            }
-
-            return member;
-        }
-
-        return null;
-    }
-
-    /// <summary>
-    /// Checks whether a type member's method signature is compatible with a trait
-    /// method's signature (return type + parameter types).
-    /// </summary>
-    private static bool MethodSignaturesCompatible(
-        ISymbol traitMethod, ISymbol implMethod, ISemanticModel model,
-        Dictionary<string, IType>? typeSubstitutions)
-    {
-        SyntaxNode traitNode;
-        SyntaxNode implNode;
-        try
-        {
-            traitNode = model.GetDeclaringNode(traitMethod);
-            implNode = model.GetDeclaringNode(implMethod);
-        }
-        catch
-        {
-            return false;
-        }
-
-        // Get parameter counts.
-        var traitParams = traitNode switch
-        {
-            TraitMethodDeclarationNode tm => tm.Parameters,
-            _ => null,
-        };
-        var implParams = implNode switch
-        {
-            MethodDeclarationNode m => m.Parameters,
-            _ => null,
-        };
-
-        var traitParamCount = CountParameters(traitParams);
-        var implParamCount = CountParameters(implParams);
-
-        if (traitParamCount != implParamCount)
-            return false;
-
-        // Check return type compatibility.
-        // DeclaredType on method symbols is the resolved return type.
-        var traitReturnType = traitMethod.DeclaredType;
-        var implReturnType = implMethod.DeclaredType;
-
-        if (traitReturnType is not null && implReturnType is not null)
-        {
-            // Apply type substitution to the trait return type.
-            var effectiveTraitReturn = SubstituteType(traitReturnType, typeSubstitutions);
-            if (!ReturnTypeCompatibleForTrait(effectiveTraitReturn, implReturnType))
-                return false;
-        }
-        else if (traitReturnType is not null && implReturnType is null)
-        {
-            // Trait expects a return type but impl has none (void) — not compatible
-            // unless trait return is void too.
-            return false;
-        }
-
-        // Check parameter types (exact match required).
-        if (traitParamCount > 0 && traitParams is not null && implParams is not null)
-        {
-            if (!ParameterTypesCompatible(traitParams, implParams, model, typeSubstitutions))
-                return false;
-        }
-
-        return true;
+        // No structural matching — conformance requires explicit declaration
+        // (: AbstractType) or a with block.
+        return false;
     }
 
     /// <summary>
@@ -17778,81 +17733,6 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         return false;
     }
 
-    /// <summary>
-    /// Checks parameter type compatibility between trait method and impl method.
-    /// Parameter matching is exact (no widening).
-    /// </summary>
-    private static bool ParameterTypesCompatible(
-        ParameterListNode traitParams, ParameterListNode implParams, ISemanticModel model,
-        Dictionary<string, IType>? typeSubstitutions)
-    {
-        // Collect all parameter nodes from both lists.
-        var traitParamNodes = new List<ParameterNode>();
-        var implParamNodes = new List<ParameterNode>();
-
-        foreach (var child in traitParams.Children())
-        {
-            if (child is ParameterNode pn)
-                traitParamNodes.Add(pn);
-        }
-        foreach (var child in implParams.Children())
-        {
-            if (child is ParameterNode pn)
-                implParamNodes.Add(pn);
-        }
-
-        if (traitParamNodes.Count != implParamNodes.Count)
-            return false;
-
-        for (var i = 0; i < traitParamNodes.Count; i++)
-        {
-            var traitParamSym = model.GetDeclaredSymbol(traitParamNodes[i]);
-            var implParamSym = model.GetDeclaredSymbol(implParamNodes[i]);
-
-            if (traitParamSym?.DeclaredType is null || implParamSym?.DeclaredType is null)
-                continue; // Can't verify — accept (best effort).
-
-            var effectiveTraitParamType = SubstituteType(traitParamSym.DeclaredType, typeSubstitutions);
-            if (effectiveTraitParamType.DisplayName != implParamSym.DeclaredType.DisplayName)
-                return false;
-
-            // Check RefKind match (Requirement 7.6).
-            var traitRefKind = (traitParamSym as Symbol)?.RefKind ?? RefKind.None;
-            var implRefKind = (implParamSym as Symbol)?.RefKind ?? RefKind.None;
-            if (traitRefKind != implRefKind)
-                return false;
-        }
-
-        return true;
-    }
-
-    /// <summary>
-    /// Checks type compatibility for field/property trait members.
-    /// </summary>
-    private static bool MemberTypesCompatible(ISymbol traitMember, ISymbol implMember,
-        Dictionary<string, IType>? typeSubstitutions)
-    {
-        var traitType = traitMember.DeclaredType;
-        var implType = implMember.DeclaredType;
-
-        if (traitType is null || implType is null)
-            return true; // If types aren't resolved, accept (best effort).
-
-        // Apply type substitution to the trait member type.
-        var effectiveTraitType = SubstituteType(traitType, typeSubstitutions);
-
-        if (ReferenceEquals(effectiveTraitType, implType))
-            return true;
-
-        if (effectiveTraitType.DisplayName == implType.DisplayName)
-            return true;
-
-        // Unknown widening for return/field position.
-        if (effectiveTraitType is UnknownType)
-            return true;
-
-        return false;
-    }
 
     /// <summary>
     /// Substitutes a type parameter with its concrete type argument using the
@@ -18177,11 +18057,11 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                         if (structBaseType is not null && ImplementsConstructedInterface(structBaseType, targetConstructedInterface))
                             return true;
                         break;
-                    case InterfaceType ifaceDef:
+                    case AbstractType ifaceDef:
                         // Check if the source interface itself matches the target.
                         if (IsAssignable(source, targetConstructedInterface))
                             return true;
-                        interfaces = ifaceDef.Interfaces;
+                        interfaces = ifaceDef.ParentAbstractTypes;
                         typeParams = ifaceDef.TypeParameters;
                         typeArgs = sourceCt.TypeArguments;
                         break;
@@ -18229,8 +18109,8 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                         break;
                 }
                 break;
-            case InterfaceType ifaceType:
-                interfaces = ifaceType.Interfaces;
+            case AbstractType ifaceType:
+                interfaces = ifaceType.ParentAbstractTypes;
                 break;
         }
 
@@ -18248,6 +18128,13 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             {
                 if (IsAssignable(substitutedCt, targetConstructedInterface))
                     return true;
+
+                // Structural fallback: when the GenericDefinition instances are different
+                // references but represent the same abstract type, and type arguments are
+                // primitively equivalent (e.g., "int" vs "Int32"), treat as a match.
+                if (ConstructedTypesStructurallyMatch(substitutedCt, targetConstructedInterface))
+                    return true;
+
                 // Transitively check the interface's own inherited interfaces.
                 if (ImplementsConstructedInterface(substitutedCt, targetConstructedInterface))
                     return true;
@@ -18255,6 +18142,62 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         return false;
+    }
+
+    /// <summary>
+    /// Structural comparison of two ConstructedType instances that handles the
+    /// primitive type naming mismatch (e.g., "int" vs "Int32") between Pass 1
+    /// (LegacyPrimitiveTypes) and Pass 2 (stdlib types).
+    /// </summary>
+    private static bool ConstructedTypesStructurallyMatch(ConstructedType a, ConstructedType b)
+    {
+        // GenericDefinition must represent the same type (by DisplayName + namespace).
+        if (!GenericDefinitionsStructurallyEqual(a.GenericDefinition, b.GenericDefinition))
+            return false;
+
+        // Type argument count must match.
+        if (a.TypeArguments.Count != b.TypeArguments.Count)
+            return false;
+
+        // Each type argument must be equivalent (handles primitive name variants).
+        for (var i = 0; i < a.TypeArguments.Count; i++)
+        {
+            var argA = a.TypeArguments[i];
+            var argB = b.TypeArguments[i];
+            if (!TypesEqual(argA, argB) && !ArePrimitiveEquivalent(argA, argB))
+                return false;
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// Checks if two generic definitions represent the same type by comparing
+    /// DisplayName and ContainingNamespace.
+    /// </summary>
+    private static bool GenericDefinitionsStructurallyEqual(IType a, IType b)
+    {
+        if (ReferenceEquals(a, b))
+            return true;
+        if (a.DisplayName != b.DisplayName)
+            return false;
+
+        var nsA = a switch
+        {
+            ClassType ct => ct.ContainingNamespace,
+            StructType st => st.ContainingNamespace,
+            AbstractType at => at.ContainingNamespace,
+            _ => null,
+        };
+        var nsB = b switch
+        {
+            ClassType ct => ct.ContainingNamespace,
+            StructType st => st.ContainingNamespace,
+            AbstractType at => at.ContainingNamespace,
+            _ => null,
+        };
+
+        return nsA == nsB;
     }
 
     /// <summary>
@@ -18336,7 +18279,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// Checks whether <paramref name="source"/> implements <paramref name="targetInterface"/>
     /// directly or transitively.
     /// </summary>
-    private static bool ImplementsInterface(IType source, InterfaceType targetInterface)
+    private static bool ImplementsInterface(IType source, AbstractType targetInterface)
     {
         switch (source)
         {
@@ -18368,12 +18311,12 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 }
                 return false;
 
-            case InterfaceType sourceInterface:
-                // An interface is assignable to itself or any interface it inherits from.
-                if (ReferenceEquals(sourceInterface, targetInterface)
-                    || sourceInterface.DisplayName == targetInterface.DisplayName)
+            case AbstractType sourceAbstract:
+                // An abstract type is assignable to itself or any abstract type it inherits from.
+                if (ReferenceEquals(sourceAbstract, targetInterface)
+                    || sourceAbstract.DisplayName == targetInterface.DisplayName)
                     return true;
-                return InterfaceListContains(sourceInterface.Interfaces, targetInterface);
+                return InterfaceListContains(sourceAbstract.ParentAbstractTypes, targetInterface);
 
             default:
                 return false;
@@ -18387,22 +18330,22 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     private static bool InterfaceListContains(
         IReadOnlyList<IType> interfaces,
-        InterfaceType target,
-        HashSet<InterfaceType>? visited = null)
+        AbstractType target,
+        HashSet<AbstractType>? visited = null)
     {
         foreach (var ifaceType in interfaces)
         {
-            if (ifaceType is not InterfaceType iface)
+            if (ifaceType is not AbstractType iface)
                 continue;
 
             if (ReferenceEquals(iface, target) || iface.DisplayName == target.DisplayName)
                 return true;
 
             // Recursively check inherited interfaces, guarding against cycles.
-            visited ??= new HashSet<InterfaceType>(ReferenceEqualityComparer.Instance);
+            visited ??= new HashSet<AbstractType>(ReferenceEqualityComparer.Instance);
             if (visited.Add(iface))
             {
-                if (InterfaceListContains(iface.Interfaces, target, visited))
+                if (InterfaceListContains(iface.ParentAbstractTypes, target, visited))
                     return true;
             }
         }
@@ -18654,14 +18597,16 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
     /// <summary>
     /// Returns true if the given type is an interface type (assignment target
-    /// that would require boxing a ref struct). Handles both plain <see cref="InterfaceType"/>
+    /// that would require boxing a ref struct). Handles both plain <see cref="AbstractType"/>
     /// and <see cref="ConstructedType"/> whose generic definition is an interface
     /// (e.g., IEnumerable&lt;int&gt;).
     /// </summary>
     private static bool IsInterfaceTargetType(IType type)
     {
-        return type is InterfaceType
-            || (type is ConstructedType ct && ct.GenericDefinition is InterfaceType);
+        return type is AbstractType
+            || type is AbstractType
+            || type is ConstructedAbstractType
+            || (type is ConstructedType ct && ct.GenericDefinition is AbstractType);
     }
 
     // ── delegate-func-conversion: assignability helpers ─────────────────
@@ -18893,7 +18838,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         {
             ClassType ct => ct.MemberScope,
             StructType st => st.MemberScope,
-            InterfaceType it => it.MemberScope,
+            AbstractType at => at.MemberScope,
             _ => null,
         };
 
@@ -18907,6 +18852,9 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         // Walk the base type chain to collect inherited methods (less-derived levels).
+        // When a derived class declares a method with the same name and signature as a
+        // base class method (hiding via `new`), the base method is hidden and should NOT
+        // appear as a candidate — this implements C# hiding semantics.
         if (targetType is ClassType classType)
         {
             var baseType = classType.BaseType as ClassType;
@@ -18916,13 +18864,49 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 foreach (var member in baseScope.Members)
                 {
                     if (member.Kind == SymbolKind.Method && member.Name == methodName)
+                    {
+                        // Check if a more-derived method already in results hides this one.
+                        // A base method is hidden if a derived method with the same name exists
+                        // in the results and has the same parameter arity (Mist-source hiding).
+                        if (IsHiddenByDerivedMethod(member, results))
+                            continue;
+
                         AddIfNotDuplicate(member);
+                    }
                 }
                 baseType = baseType.BaseType as ClassType;
             }
         }
 
         return results;
+    }
+
+    /// <summary>
+    /// Determines whether a base class method is hidden by a more-derived method already
+    /// collected in the results list. Hiding occurs when a derived class declares a method
+    /// with the same name as a base class method (using the <c>new</c> keyword in Mist source).
+    /// For Mist-source methods, name-based hiding applies (a derived method with the same name
+    /// hides base methods with the same name that are not virtual/abstract CLR slots).
+    /// </summary>
+    private static bool IsHiddenByDerivedMethod(ISymbol baseMember, List<ISymbol> derivedResults)
+    {
+        if (derivedResults.Count == 0)
+            return false;
+
+        // Backend methods are handled by the signature key deduplication separately.
+        if (baseMember.Origin == SymbolOrigin.Backend)
+            return false;
+
+        // For Mist-source methods: if we already collected a Mist-source method with the
+        // same name from a more-derived class, the base method is hidden. This matches
+        // C# hiding semantics where a `new` member shadows the base member of the same name.
+        foreach (var derived in derivedResults)
+        {
+            if (derived.Origin != SymbolOrigin.Backend && derived.Name == baseMember.Name)
+                return true;
+        }
+
+        return false;
     }
 
     /// <summary>
@@ -19347,7 +19331,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         {
             ClassType ct => ct.MemberScope,
             StructType st => st.MemberScope,
-            InterfaceType it => it.MemberScope,
+            AbstractType at => at.MemberScope,
             ConstructedType cst => cst.MemberScope,
             _ => null,
         };
@@ -20548,11 +20532,19 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // Check trait constraints: type argument must satisfy each trait.
         foreach (var trait in constraints.TraitConstraints)
         {
-            if (trait is TraitType traitType && !SatisfiesTrait(typeArgument, traitType, model))
+            if (trait is ConstructedAbstractType constructedAbstractType && !SatisfiesTrait(typeArgument, constructedAbstractType, model))
             {
                 diagnostics.Add(MakeDiagnostic(
                     ConstraintTraitNotSatisfied.Value,
-                    $"Type '{typeArgument.DisplayName}' does not satisfy trait '{trait.DisplayName}' required by type parameter '{typeParameter.Name}' of '{genericTypeName}'.",
+                    $"Type '{typeArgument.DisplayName}' does not satisfy abstract type '{trait.DisplayName}' required by type parameter '{typeParameter.Name}' of '{genericTypeName}'.",
+                    node,
+                    model));
+            }
+            else if (trait is AbstractType abstractTraitType && !SatisfiesTrait(typeArgument, abstractTraitType, model))
+            {
+                diagnostics.Add(MakeDiagnostic(
+                    ConstraintTraitNotSatisfied.Value,
+                    $"Type '{typeArgument.DisplayName}' does not satisfy abstract type '{trait.DisplayName}' required by type parameter '{typeParameter.Name}' of '{genericTypeName}'.",
                     node,
                     model));
             }
@@ -20810,21 +20802,37 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
     /// <summary>
     /// Checks whether a type argument implements the specified interface constraint.
-    /// Handles both <see cref="InterfaceType"/> and <see cref="ConstructedType"/>
+    /// Handles both <see cref="AbstractType"/> and <see cref="ConstructedType"/>
     /// (for generic interface constraints like <c>IComparable&lt;T&gt;</c>).
     /// </summary>
     private static bool ImplementsInterfaceConstraint(IType typeArgument, IType interfaceConstraint)
     {
-        // If the constraint is a plain InterfaceType, use the existing helper.
-        if (interfaceConstraint is InterfaceType ifaceType)
+        // If the constraint is a plain AbstractType, use the existing helper.
+        if (interfaceConstraint is AbstractType ifaceType)
             return ImplementsInterface(typeArgument, ifaceType);
 
         // For ConstructedType interface constraints (e.g., IComparable<int>),
         // check if the type argument implements a matching constructed interface.
         if (interfaceConstraint is ConstructedType constructedIface
-            && constructedIface.GenericDefinition is InterfaceType)
+            && constructedIface.GenericDefinition is AbstractType)
         {
             return ImplementsConstructedInterface(typeArgument, constructedIface);
+        }
+
+        // AbstractType constraints: check if the type argument's interface list
+        // contains the abstract type (named subtyping).
+        if (interfaceConstraint is AbstractType abstractConstraint)
+        {
+            var interfaces = GetStaticInterfaceList(typeArgument);
+            return interfaces.Any(i => ReferenceEquals(i, abstractConstraint)
+                || i.DisplayName == abstractConstraint.DisplayName);
+        }
+
+        // ConstructedAbstractType constraints (e.g., IComparable<int>)
+        if (interfaceConstraint is ConstructedAbstractType constructedAbstract)
+        {
+            var interfaces = GetStaticInterfaceList(typeArgument);
+            return interfaces.Any(i => i.DisplayName == constructedAbstract.DisplayName);
         }
 
         // Fallback: display name comparison.
@@ -20833,7 +20841,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     }
 
     /// <summary>
-    /// Gets the interface list from a type (ClassType, StructType, or InterfaceType).
+    /// Gets the interface list from a type (ClassType, StructType, or AbstractType).
     /// Static version used by constraint checking where the model is not needed.
     /// </summary>
     private static IReadOnlyList<IType> GetStaticInterfaceList(IType type)
@@ -20842,13 +20850,13 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         {
             ClassType ct => ct.Interfaces,
             StructType st => st.Interfaces,
-            InterfaceType it => it.Interfaces,
+            AbstractType at => at.ParentAbstractTypes,
             _ => Array.Empty<IType>(),
         };
     }
 
     /// <summary>
-    /// Gets the interface list from a type (ClassType, StructType, or InterfaceType).
+    /// Gets the interface list from a type (ClassType, StructType, or AbstractType).
     /// For dedicated intrinsic types (<see cref="ArrayType"/> and <see cref="SpanType"/>),
     /// bridges to the registered declaration's interface list.
     /// </summary>
@@ -20872,7 +20880,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         {
             ClassType ct => ct.Interfaces,
             StructType st => st.Interfaces,
-            InterfaceType it => it.Interfaces,
+            AbstractType at => at.ParentAbstractTypes,
             _ => Array.Empty<IType>(),
         };
     }
@@ -21399,7 +21407,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                             return true;
 
                         // If it resolved to a concrete type, it's not a constant in a dependent position.
-                        if (resolvedType is ClassType or StructType or InterfaceType
+                        if (resolvedType is ClassType or StructType or AbstractType
                             or TypeAliasType or TypeParameterType)
                         {
                             return false;
@@ -21802,8 +21810,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         {
             ClassType classType => classType.TypeParameters,
             StructType structType => structType.TypeParameters,
-            InterfaceType interfaceType => interfaceType.TypeParameters,
-            TraitType traitType => traitType.TypeParameters,
+            AbstractType abstractType => abstractType.TypeParameters,
             _ => symbol is Symbol s && s.TypeParameters.Count > 0 ? s.TypeParameters : null,
         };
     }

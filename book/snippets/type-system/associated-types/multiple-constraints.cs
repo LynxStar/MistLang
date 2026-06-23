@@ -1,17 +1,8 @@
 using System;
 
-namespace Snippet;
+namespace Standard;
 
-interface IStringable
+interface IClonable<T>
 {
-    string Stringify();
-}
-interface IResettable
-{
-    string GetState();
-}
-interface IStatefulProducer<TState>
-    where TState : IStringable, IResettable
-{
-    string GetProducerName();
+    T Clone();
 }

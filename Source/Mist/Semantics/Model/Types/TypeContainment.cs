@@ -44,7 +44,7 @@ namespace Mist.Semantics.Model.Types;
 /// <description>
 /// Reference equality (<see cref="object.ReferenceEquals(object?, object?)"/>):
 /// handles singletons such as <see cref="UnknownType.Instance"/> and the
-/// <c>ClassType</c>/<c>StructType</c>/<c>InterfaceType</c>/<c>TraitType</c>
+/// <c>ClassType</c>/<c>StructType</c>/<c>AbstractType</c>
 /// instances the <c>SemanticModelBuilder</c> uniques.
 /// </description>
 /// </item>
@@ -175,7 +175,7 @@ public static class TypeContainment
     /// <summary>
     /// Equality for the structural walk. Reference equality handles every
     /// singleton (<see cref="UnknownType"/>, user-defined <c>ClassType</c> /
-    /// <c>StructType</c> / <c>InterfaceType</c> / <c>TraitType</c>
+    /// <c>StructType</c> / <c>AbstractType</c>
     /// instances). <see cref="TypeParameterType"/> is compared by
     /// <c>(Name, Ordinal)</c> to stay consistent with the Type Checker's
     /// <c>TypesEqual</c> helper.

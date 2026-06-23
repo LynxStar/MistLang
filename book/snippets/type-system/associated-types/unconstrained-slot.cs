@@ -1,8 +1,8 @@
 using System;
 
-namespace Snippet;
+namespace Standard;
 
-interface Container<TElement>
+interface IClonable<T>
 {
-    TElement Get(int index);
+    T Clone();
 }

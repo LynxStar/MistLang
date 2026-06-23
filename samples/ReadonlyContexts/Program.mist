@@ -392,7 +392,7 @@ public readonly class AllocDemo
 
 // ─── 15. Readonly interface contract enforcement ─────────────────────────
 
-public readonly interface IReadable
+public readonly abstract IReadable
 {
     string Read();
     int GetLength();

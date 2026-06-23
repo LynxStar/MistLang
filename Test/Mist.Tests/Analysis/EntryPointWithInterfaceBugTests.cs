@@ -93,7 +93,7 @@ public sealed class EntryPointWithInterfaceBugTests : IDisposable
     {
         var source = """
             namespace Test;
-            public interface IFoo {
+            public abstract IFoo {
                 string GetName();
             }
             public class Program {
@@ -115,7 +115,7 @@ public sealed class EntryPointWithInterfaceBugTests : IDisposable
     {
         var source = """
             namespace Test;
-            public interface IFoo {
+            public abstract IFoo {
                 string GetName();
             }
             public class Program {
@@ -205,10 +205,10 @@ public sealed class EntryPointWithInterfaceBugTests : IDisposable
     {
         var source = """
             namespace Test;
-            public interface IFoo {
+            public abstract IFoo {
                 string GetName();
             }
-            public interface IBar {
+            public abstract IBar {
                 int GetCount();
             }
             public class Program {

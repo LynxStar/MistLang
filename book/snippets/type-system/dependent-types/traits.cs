@@ -2,11 +2,6 @@ using System;
 
 namespace Snippet;
 
-interface ISized<TN>
-    where TN : IConstInt
-{
-    int GetCapacity();
-}
 [DependentType("N", typeof(int))]
 public class SizedBox<TN>
     where TN : IConstInt

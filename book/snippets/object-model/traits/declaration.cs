@@ -1,9 +1,8 @@
 using System;
 
-namespace Snippet;
+namespace Standard;
 
-interface Printable
+interface IClonable<T>
 {
-    string Name { get; }
-    int Id { get; }
+    T Clone();
 }

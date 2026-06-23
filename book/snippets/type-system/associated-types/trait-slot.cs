@@ -1,13 +1,8 @@
 using System;
 
-namespace Snippet;
+namespace Standard;
 
-interface IStringable
+interface IClonable<T>
 {
-    string Stringify();
-}
-interface Consumable<TInput>
-    where TInput : IStringable
-{
-    string GetLabel();
+    T Clone();
 }

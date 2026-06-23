@@ -2,12 +2,7 @@ using System;
 
 namespace Snippet;
 
-interface Describable
-{
-    string Describe();
-}
 class Describer<T>
-    where T : Describable
 {
     public T Item;
 

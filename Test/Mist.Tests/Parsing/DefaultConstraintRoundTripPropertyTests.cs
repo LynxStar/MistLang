@@ -170,7 +170,7 @@ public class DefaultConstraintRoundTripPropertyTests
                let typeParams = TypeParamNames.Take(paramCount).ToArray()
                let typeParamStr = string.Join(", ", typeParams)
                from whereClauses in GenWhereClausesWithDefault(typeParams)
-               let source = $"interface {name}<{typeParamStr}>{whereClauses} {{\n}}"
+               let source = $"abstract {name}<{typeParamStr}>{whereClauses} {{\n}}"
                select new DefaultConstraintRoundTripScenario(source,
                    $"interface: {name}<{typeParamStr}>");
     }

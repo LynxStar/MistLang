@@ -1,0 +1,27 @@
+abstract IGreeting
+{
+    string Name();
+
+    string Greet()
+    {
+        return $"Hello, I am {this.Name()}";
+    }
+}
+
+public class Person : IGreeting
+{
+    private string name;
+
+    public Person(string name)
+    {
+        this.name = name;
+    }
+
+    public string Name()
+    {
+        return this.name;
+    }
+
+    // Does not provide Greet() — takes the default
+}
+

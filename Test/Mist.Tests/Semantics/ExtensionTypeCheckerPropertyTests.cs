@@ -782,24 +782,24 @@ public class ExtensionTypeCheckerPropertyTests
     /// **Validates: Requirements 14.1, 14.2, 14.3, 15.1, 15.2**
     /// </summary>
     [Property(Arbitrary = new[] { typeof(ExtensionTypeCheckerPropertyTests) }, MaxTest = 100)]
-    public bool TraitInterfaceExclusion_ExtensionsNotDiscoverableOnTraitTypedVars(FallbackScenario scenario)
+    public bool TraitInterfaceExclusion_ExtensionsNotDiscoverableOnAbstractTypedVars(FallbackScenario scenario)
     {
         // Build: trait MyTrait { int OtherMethod(); }
         //        class ClassName { int OtherMethod() { return 0; } }
         //        extension(ClassName self) { int MethodName() { return 0; } }
         //        class Caller { void Probe() { MyTrait t = new ClassName(); t.MethodName(); } }
-        var traitMethodDecl = new TraitMethodMemberTraitMemberDeclarationNode
+        var traitMethodDecl = new AbstractMethodMemberAbstractMemberDeclarationNode
         {
-            Method = new TraitMethodDeclarationNode
+            Method = new AbstractMethodDeclarationNode
             {
                 Name = Tok("OtherMethod"),
                 ReturnType = MakeReturnTypeRef("int"),
             },
         };
-        var traitDecl = new TraitDeclarationNode
+        var traitDecl = new AbstractDeclarationNode
         {
             Name = Tok("MyTrait"),
-            Members = ImmutableArray.Create<TraitMemberDeclarationNode>(traitMethodDecl),
+            Members = ImmutableArray.Create<AbstractMemberDeclarationNode>(traitMethodDecl),
         };
 
         // Class that satisfies the trait structurally
@@ -833,7 +833,7 @@ public class ExtensionTypeCheckerPropertyTests
         var ast = new CompilationUnitNode
         {
             Items = ImmutableArray.Create(
-                (new TraitTypeTypeDeclarationNode { TraitDeclaration = traitDecl }).AsTopLevelItem(),
+                (new AbstractTypeTypeDeclarationNode { AbstractDeclaration = traitDecl }).AsTopLevelItem(),
                 MakeClassTopLevelItem(classDecl),
                 MakeExtensionTopLevelItem(extBlock),
                 MakeClassTopLevelItem(callerClass)),

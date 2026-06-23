@@ -14,7 +14,7 @@ class Point
         Y = y;
     }
 
-    public override string ToString()
+    public string Describe()
     {
         return $"Point({X}, {Y})";
     }
@@ -24,7 +24,7 @@ class Program
     public static void Main(string[] args)
     {
         Point p = new Point(3, 4);
-        Console.WriteLine(p);
+        Console.WriteLine(p.Describe());
     }
 
     public static Program __CreateDefault()

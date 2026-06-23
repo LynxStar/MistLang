@@ -1,0 +1,57 @@
+abstract IDescribable
+{
+    string Describe();
+}
+
+public class Person : IDescribable
+{
+    private string name;
+
+    public Person(string name)
+    {
+        this.name = name;
+    }
+
+    public string Describe()
+    {
+        return $"Person: {this.name}";
+    }
+}
+
+public class Robot : IDescribable
+{
+    private string model;
+
+    public Robot(string model)
+    {
+        this.model = model;
+    }
+
+    public string Describe()
+    {
+        return $"Robot: {this.model}";
+    }
+}
+
+public class Program
+{
+    private static void PrintDescription(IDescribable item)
+    {
+        Console.WriteLine(item.Describe());
+    }
+
+    public static void Main(string[] args)
+    {
+        var person = new Person("Alice");
+        var robot = new Robot("T-800");
+
+        // Abstract-typed variable
+        IDescribable describable = person;
+        Console.WriteLine(describable.Describe());
+
+        // Pass implementing types to abstract-typed parameter
+        PrintDescription(person);
+        PrintDescription(robot);
+    }
+}
+

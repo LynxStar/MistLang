@@ -78,7 +78,7 @@ public class ConstraintDiagnosticsTests
     public void MIST_CONSTRAINT_0009_InterfaceNotImplemented()
     {
         var source = @"
-interface IComparable { }
+abstract IComparable { }
 class Unrelated { }
 class Sorter<T> where T : IComparable { }
 class Program {
@@ -107,7 +107,7 @@ class Program {
     public void MIST_CONSTRAINT_0010_TraitNotSatisfied()
     {
         var source = @"
-trait Printable {
+abstract Printable {
     void Print();
 }
 class NoPrint { }
@@ -334,7 +334,7 @@ class Derived<T> : Base<T> { }";
     public void MIST_CONSTRAINT_0017_PropagationInsufficient_InterfaceConstraint()
     {
         var source = @"
-interface IFoo { }
+abstract IFoo { }
 class Base<T> where T : IFoo { }
 class Derived<T> : Base<T> { }";
         var diagnostics = CompileAndGetDiagnostics(source);
@@ -436,7 +436,7 @@ class Factory<T> where T : new(), new(int), new(bool) {
     public void GenericMethod_ConstraintSatisfied()
     {
         var source = @"
-interface IFoo { }
+abstract IFoo { }
 class FooImpl : IFoo { }
 class Service {
     public static void Process<T>(T item) where T : IFoo { }
@@ -458,7 +458,7 @@ class Service {
         // Test constraint checking on generic method via a generic type instantiation
         // since direct method call constraint checking depends on symbol resolution
         var source = @"
-interface IFoo { }
+abstract IFoo { }
 class Unrelated { }
 class Wrapper<T> where T : IFoo { }
 class Program {
@@ -502,9 +502,9 @@ class Program {
     public void PropagationError_InterfaceInheritance()
     {
         var source = @"
-interface IFoo { }
-interface IBase<T> where T : IFoo { }
-interface IDerived<T> : IBase<T> { }";
+abstract IFoo { }
+abstract IBase<T> where T : IFoo { }
+abstract IDerived<T> : IBase<T> { }";
         var diagnostics = CompileAndGetDiagnostics(source);
         var diags = WithId(diagnostics, "MIST_CONSTRAINT_0017");
 
@@ -530,7 +530,7 @@ class Derived<T> : Base<T> { }";
     public void PropagationSuccess_DerivedMoreRestrictive()
     {
         var source = @"
-interface IFoo { }
+abstract IFoo { }
 class Base<T> where T : class { }
 class Derived<T> : Base<T> where T : class, IFoo { }";
         var diagnostics = CompileAndGetDiagnostics(source);
@@ -543,7 +543,7 @@ class Derived<T> : Base<T> where T : class, IFoo { }";
     public void PropagationSuccess_SameConstraints()
     {
         var source = @"
-interface IFoo { }
+abstract IFoo { }
 class Base<T> where T : class, IFoo, new() { }
 class Derived<T> : Base<T> where T : class, IFoo, new() { }";
         var diagnostics = CompileAndGetDiagnostics(source);
@@ -560,7 +560,7 @@ class Derived<T> : Base<T> where T : class, IFoo, new() { }";
     public void ValidConstraintSatisfaction_NoDiagnostics()
     {
         var source = @"
-interface IComparable { }
+abstract IComparable { }
 class MyClass : IComparable {
     public MyClass() { }
     public MyClass(int x) { }

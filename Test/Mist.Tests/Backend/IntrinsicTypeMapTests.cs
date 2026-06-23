@@ -24,7 +24,7 @@ public class IntrinsicTypeMapTests
     private static ClassType MakeClrClass(string displayName, string ns) =>
         new(displayName, new Scope(parent: null), containingNamespace: ns);
 
-    private static InterfaceType MakeClrInterface(string displayName, string ns) =>
+    private static AbstractType MakeClrInterface(string displayName, string ns) =>
         new(displayName, new Scope(parent: null), containingNamespace: ns);
 
     private static ClassType MakeGenericClass(string displayName, string ns, int arity)

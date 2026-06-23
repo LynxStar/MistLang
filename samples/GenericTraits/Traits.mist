@@ -1,42 +1,42 @@
 namespace GenericTraits;
 
-// Generic trait with type parameter used as method parameter type
-trait Comparable<T>
+// Generic abstract type with type parameter used as method parameter type
+abstract Comparable<T>
 {
     int CompareTo(T other);
 }
 
-// Generic trait with type parameter used as a field type
-trait Container<T>
+// Generic abstract type with type parameter used as a property type
+abstract Container<T>
 {
-    T Data;
+    T Data { get; }
 }
 
-// Generic trait with type parameter used as a return type
-trait Provider<T>
+// Generic abstract type with type parameter used as a return type
+abstract Provider<T>
 {
     T Provide();
 }
 
-// Generic trait with multiple type parameters used in different positions
-trait Converter<TIn, TOut>
+// Generic abstract type with multiple type parameters used in different positions
+abstract Converter<TIn, TOut>
 {
     TOut Convert(TIn input);
 }
 
-// Non-generic traits
-trait Readable
+// Non-generic abstract types
+abstract Readable
 {
     string Read();
 }
 
-trait Writable
+abstract Writable
 {
     void Write(string data);
 }
 
-// Trait extending multiple non-generic parent traits
-trait ReadWriteStream : Readable, Writable
+// Abstract type extending multiple non-generic parent abstract types
+abstract ReadWriteStream : Readable, Writable
 {
     void Flush();
 }

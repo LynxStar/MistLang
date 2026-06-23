@@ -161,7 +161,7 @@ public sealed class TargetTypedNewDiagnosticTests : IDisposable
     public void InterfaceTarget_EmitsTargetNewInterfaceDiagnostic()
     {
         var source = """
-            interface IFoo
+            abstract IFoo
             {
                 void DoThing();
             }
@@ -185,14 +185,14 @@ public sealed class TargetTypedNewDiagnosticTests : IDisposable
     }
 
     // ═══════════════════════════════════════════════════════════════════════
-    // MIST_TARGET_NEW_TRAIT — trait target (Requirement 4.5)
+    // MIST_TARGET_NEW_INTERFACE — abstract type target (Requirement 4.5)
     // ═══════════════════════════════════════════════════════════════════════
 
     [Fact]
     public void TraitTarget_EmitsTargetNewTraitDiagnostic()
     {
         var source = """
-            trait Printable
+            abstract Printable
             {
                 void Print();
             }
@@ -207,12 +207,11 @@ public sealed class TargetTypedNewDiagnosticTests : IDisposable
             """;
 
         var diagnostics = CompileAndGetDiagnostics(source);
-        var targetDiags = WithId(diagnostics, "MIST_TARGET_NEW_TRAIT");
+        var targetDiags = WithId(diagnostics, "MIST_TARGET_NEW_INTERFACE");
 
         Assert.Single(targetDiags);
         Assert.Equal(DiagnosticSeverity.Error, targetDiags[0].Severity);
         Assert.Contains("Printable", targetDiags[0].Message);
-        Assert.Contains("trait", targetDiags[0].Message);
     }
 
     // ═══════════════════════════════════════════════════════════════════════

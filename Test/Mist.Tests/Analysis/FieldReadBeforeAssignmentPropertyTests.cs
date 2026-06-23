@@ -267,7 +267,7 @@ public sealed class FieldReadBeforeAssignmentPropertyTests
         return $$"""
             namespace TestProgram;
 
-            public interface {{interfaceName}}
+            public abstract {{interfaceName}}
             {
             }
 

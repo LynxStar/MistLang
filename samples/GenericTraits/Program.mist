@@ -46,25 +46,25 @@ public class Program
         Converter<int, string> converter = conv;
         Console.WriteLine($"  IntToString via Converter<int,string>.Convert(7) = {converter.Convert(7)}");
 
-        // 6. Non-generic trait inheritance
-        Console.WriteLine("--- 6. Non-generic trait inheritance ---");
-        Console.WriteLine("  trait ReadWriteStream : Readable, Writable { void Flush(); }");
+        // 6. Non-generic abstract type inheritance
+        Console.WriteLine("--- 6. Non-generic abstract type inheritance ---");
+        Console.WriteLine("  abstract ReadWriteStream : Readable, Writable { void Flush(); }");
 
-        // 7. Structural satisfaction of non-generic trait
-        Console.WriteLine("--- 7. Structural satisfaction of non-generic trait ---");
+        // 7. Nominal satisfaction of non-generic abstract type
+        Console.WriteLine("--- 7. Nominal satisfaction of non-generic abstract type ---");
         var stream = new MemoryStream();
         Readable r = stream;
         Console.WriteLine($"  MemoryStream.Read() via Readable = {r.Read()}");
 
-        // 8. With-block mapping for non-generic trait
-        Console.WriteLine("--- 8. With-block mapping for non-generic trait ---");
+        // 8. With-block mapping for non-generic abstract type
+        Console.WriteLine("--- 8. With-block mapping for non-generic abstract type ---");
         var logger = new Logger();
         Writable w = logger;
         w.Write("hello");
         Console.WriteLine("  Logger.Write() via Writable called successfully");
 
-        // 9. Passing to trait-typed parameter
-        Console.WriteLine("--- 9. Passing to trait-typed parameter ---");
+        // 9. Passing to abstract-typed parameter
+        Console.WriteLine("--- 9. Passing to abstract-typed parameter ---");
         PrintReadable(stream);
 
         Console.WriteLine("=== Generic Traits Demo Complete ===");

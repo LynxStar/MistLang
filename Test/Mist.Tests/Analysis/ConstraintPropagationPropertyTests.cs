@@ -156,7 +156,7 @@ class {derivedName}<T> : {baseName}<T> {{ }}",
                from derivedName in Gen.Elements("Derived", "Child", "Sub")
                from ifaceName in Gen.Elements("IFoo", "IBar", "IBaz")
                select new ConstraintPropagationScenario(
-                   $@"interface {ifaceName} {{ }}
+                   $@"abstract {ifaceName} {{ }}
 class {baseName}<T> where T : {ifaceName} {{ }}
 class {derivedName}<T> : {baseName}<T> where T : {ifaceName} {{ }}",
                    $"{derivedName}<T> : {baseName}<T> — both have {ifaceName} constraint",
@@ -172,7 +172,7 @@ class {derivedName}<T> : {baseName}<T> where T : {ifaceName} {{ }}",
                from derivedName in Gen.Elements("Derived", "Child", "Sub")
                from ifaceName in Gen.Elements("IFoo", "IBar", "IBaz")
                select new ConstraintPropagationScenario(
-                   $@"interface {ifaceName} {{ }}
+                   $@"abstract {ifaceName} {{ }}
 class {baseName}<T> where T : {ifaceName} {{ }}
 class {derivedName}<T> : {baseName}<T> {{ }}",
                    $"{derivedName}<T> : {baseName}<T> — derived missing {ifaceName} constraint",
@@ -189,7 +189,7 @@ class {derivedName}<T> : {baseName}<T> {{ }}",
                from derivedName in Gen.Elements("Derived", "Child", "Sub")
                from ifaceName in Gen.Elements("IFoo", "IBar", "IBaz")
                select new ConstraintPropagationScenario(
-                   $@"interface {ifaceName} {{ }}
+                   $@"abstract {ifaceName} {{ }}
 class {baseName}<T> where T : class {{ }}
 class {derivedName}<T> : {baseName}<T> where T : class, {ifaceName} {{ }}",
                    $"{derivedName}<T> : {baseName}<T> — derived is more restrictive (class + {ifaceName})",
@@ -233,9 +233,9 @@ class {derivedName}<T> : {baseName}<T> {{ }}",
                from derivedIfaceName in Gen.Elements("IDerived", "IChild", "ISub")
                from constraintIface in Gen.Elements("IFoo", "IBar", "IBaz")
                select new ConstraintPropagationScenario(
-                   $@"interface {constraintIface} {{ }}
-interface {baseIfaceName}<T> where T : {constraintIface} {{ }}
-interface {derivedIfaceName}<T> : {baseIfaceName}<T> where T : {constraintIface} {{ }}",
+                   $@"abstract {constraintIface} {{ }}
+abstract {baseIfaceName}<T> where T : {constraintIface} {{ }}
+abstract {derivedIfaceName}<T> : {baseIfaceName}<T> where T : {constraintIface} {{ }}",
                    $"{derivedIfaceName}<T> : {baseIfaceName}<T> — interface inheritance with {constraintIface}",
                    shouldAccept: true);
     }

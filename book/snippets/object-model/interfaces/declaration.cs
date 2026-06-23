@@ -1,10 +1,8 @@
 using System;
 
-namespace Snippet;
+namespace Standard;
 
-interface IShape
+interface IClonable<T>
 {
-    string Name { get; }
-    string Describe();
-    int Area();
+    T Clone();
 }

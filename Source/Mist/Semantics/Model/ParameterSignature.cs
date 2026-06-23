@@ -298,6 +298,7 @@ public static class ParameterSignature
             MethodDeclarationNode method => method.Parameters,
             ConstructorDeclarationNode ctor => ctor.Parameters,
             InterfaceMethodDeclarationNode interfaceMethod => interfaceMethod.Parameters,
+            AbstractMethodDeclarationNode abstractMethod => abstractMethod.Parameters,
             OperatorDeclarationNode op => op.Parameters,
             CastOperatorDeclarationNode castOp => castOp.Parameters,
             _ => null,

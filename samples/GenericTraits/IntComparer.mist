@@ -1,7 +1,7 @@
 namespace GenericTraits;
 
 // Class satisfying Comparable<int> — CompareTo(int) matches CompareTo(T) with T=int
-public class IntComparer
+public class IntComparer : Comparable<int>
 {
     private int value;
 
@@ -14,9 +14,4 @@ public class IntComparer
     {
         return value - other;
     }
-}
-
-with IntComparer : Comparable<int>
-{
-    CompareTo as CompareTo;
 }

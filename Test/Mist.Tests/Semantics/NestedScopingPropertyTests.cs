@@ -66,8 +66,7 @@ public sealed class NestedScopingPropertyTests
     {
         AllTypeKind.Class => "class",
         AllTypeKind.Struct => "struct",
-        AllTypeKind.Interface => "interface",
-        AllTypeKind.Trait => "trait",
+        AllTypeKind.Abstract => "abstract",
         AllTypeKind.Enum => "enum",
         _ => "class"
     };
@@ -136,8 +135,7 @@ public sealed class NestedScopingPropertyTests
         {
             ClassTypeTypeDeclarationNode ct => ct.ClassDeclaration.Modifiers,
             StructTypeTypeDeclarationNode st => st.StructDeclaration.Modifiers,
-            InterfaceTypeTypeDeclarationNode it => it.InterfaceDeclaration.Modifiers,
-            TraitTypeTypeDeclarationNode tt => tt.TraitDeclaration.Modifiers,
+            AbstractTypeTypeDeclarationNode at => at.AbstractDeclaration.Modifiers,
             EnumTypeTypeDeclarationNode et => et.EnumDeclaration.Modifiers,
             _ => ImmutableArray<ModifierNode>.Empty
         };
@@ -194,8 +192,7 @@ public sealed class NestedScopingPropertyTests
         {
             AllTypeKind.Class,
             AllTypeKind.Struct,
-            AllTypeKind.Interface,
-            AllTypeKind.Trait,
+            AllTypeKind.Abstract,
             AllTypeKind.Enum,
         };
 
@@ -470,7 +467,7 @@ public sealed class NestedScopingPropertyTests
             s.Name == input.TypeName &&
             s.Origin == SymbolOrigin.UserCode &&
             s.Kind is SymbolKind.Class or SymbolKind.Struct or SymbolKind.Interface
-                or SymbolKind.Trait or SymbolKind.Enum);
+                or SymbolKind.Enum);
 
         if (typeSymbol is null)
             return false;
@@ -500,8 +497,7 @@ public sealed class NestedScopingPropertyTests
         {
             ClassType ct => ct.ContainingNamespace,
             StructType st => st.ContainingNamespace,
-            InterfaceType it => it.ContainingNamespace,
-            TraitType tt => tt.ContainingNamespace,
+            AbstractType at => at.ContainingNamespace,
             EnumType et => et.ContainingNamespace,
             _ => null,
         };
@@ -766,7 +762,7 @@ public sealed class NestedScopingPropertyTests
         {
             ClassType ct => ct.TypeParameters.Count,
             StructType st => st.TypeParameters.Count,
-            InterfaceType it => it.TypeParameters.Count,
+            AbstractType at => at.TypeParameters.Count,
             _ => 0,
         };
     }
@@ -1047,14 +1043,13 @@ public sealed class NestedScopingPropertyTests
     /// <summary>
     /// Returns the C# keyword for a given Mist type kind.
     /// Mist enums emit as record classes in C#.
-    /// Mist traits emit as interfaces in C#.
+    /// Mist abstract types emit as interfaces in C#.
     /// </summary>
     private static string GetCSharpKeyword(AllTypeKind kind) => kind switch
     {
         AllTypeKind.Class => "class",
         AllTypeKind.Struct => "struct",
-        AllTypeKind.Interface => "interface",
-        AllTypeKind.Trait => "interface",
+        AllTypeKind.Abstract => "interface",
         AllTypeKind.Enum => "record class",
         _ => "class"
     };

@@ -209,3 +209,6 @@ out
 
 # Mist Language Book build output
 book/output/
+
+# Symlinked external projects for testing
+Pendragon

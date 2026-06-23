@@ -23465,7 +23465,19 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                                 methodParamTypes = substituted;
                         }
                     }
-                    ResolveArgumentListWithParameterTypes(methodCall.Arguments, methodParamTypes, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+
+                    // When the method is generic and no explicit type args were provided,
+                    // pass the method's type parameters to enable incremental inference.
+                    // This allows multi-lambda patterns like OwnsOne(e => e.QualityTier, qt => {...})
+                    // where the second lambda's parameter type depends on inference from the first.
+                    IReadOnlyList<IType>? incrementalTypeParams = null;
+                    if (resolvedMethodTypeArgs is null && methodSymForParams is Symbol symForIncremental
+                        && symForIncremental.TypeParameters.Count > 0)
+                    {
+                        incrementalTypeParams = symForIncremental.TypeParameters;
+                    }
+
+                    ResolveArgumentListWithParameterTypes(methodCall.Arguments, methodParamTypes, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics, incrementalTypeParams);
 
                     // Post-resolution type argument inference: when the method is generic
                     // and no explicit type args were provided, infer type args from the
@@ -26649,23 +26661,37 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         Dictionary<Storm.Runtime.SyntaxNode, IType> expressionTypes,
         IAmbientTypeResolver? ambientTypeResolver,
         SourceText? sourceText,
-        DiagnosticBag diagnostics)
+        DiagnosticBag diagnostics,
+        IReadOnlyList<IType>? methodTypeParameters = null)
     {
         // The ArgumentListNode has Argument (first) and Arguments (rest),
         // each wrapping an ExpressionNode.
         var argExprs = argList.GetAllExpressions();
+
+        // Mutable copy of parameter types for incremental type arg substitution.
+        IType[]? mutableParamTypes = null;
+        if (parameterTypes is not null && methodTypeParameters is not null && methodTypeParameters.Count > 0)
+        {
+            mutableParamTypes = new IType[parameterTypes.Count];
+            for (var j = 0; j < parameterTypes.Count; j++)
+                mutableParamTypes[j] = parameterTypes[j];
+        }
+
         for (var i = 0; i < argExprs.Length; i++)
         {
             var expr = argExprs[i];
+
+            // Use the potentially-substituted param types for lambda target inference.
+            var effectiveParamTypes = mutableParamTypes ?? parameterTypes;
 
             // Set lambda target type if the corresponding parameter is a Func type.
             // Also handles nullable Func types (UnionType containing a Func constituent).
             IType? previousLambdaTarget = _lambdaTargetType;
             var previousVoidTarget = _voidLiteralTargetType;
             var previousTargetNewTarget = _targetTypedNewTargetType;
-            if (parameterTypes is not null && i < parameterTypes.Count)
+            if (effectiveParamTypes is not null && i < effectiveParamTypes.Count)
             {
-                var paramType = parameterTypes[i];
+                var paramType = effectiveParamTypes[i];
                 _voidLiteralTargetType = paramType;
                 _targetTypedNewTargetType = paramType;
                 if (IsFuncType(paramType))
@@ -26725,6 +26751,43 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             _lambdaTargetType = previousLambdaTarget;
             _voidLiteralTargetType = previousVoidTarget;
             _targetTypedNewTargetType = previousTargetNewTarget;
+
+            // Incremental type argument inference: after resolving each argument,
+            // attempt to infer type args from what we have so far and substitute
+            // into remaining parameter types. This enables multi-lambda patterns
+            // like OwnsOne(e => e.QualityTier, qt => {...}) where the second
+            // lambda's parameter type depends on inference from the first.
+            if (mutableParamTypes is not null && methodTypeParameters is not null
+                && i < argExprs.Length - 1) // Only if there are remaining args
+            {
+                // Collect resolved arg types so far.
+                var resolvedSoFar = new List<IType>();
+                for (var k = 0; k <= i; k++)
+                {
+                    if (expressionTypes.TryGetValue(argExprs[k], out var resolvedType))
+                        resolvedSoFar.Add(resolvedType);
+                    else
+                        resolvedSoFar.Add(UnknownType.Instance);
+                }
+
+                // Attempt partial inference.
+                var partialParamTypes = new IType[resolvedSoFar.Count];
+                for (var k = 0; k < resolvedSoFar.Count; k++)
+                    partialParamTypes[k] = mutableParamTypes[k];
+
+                var partialResult = TypeArgumentInferenceEngine.TryInfer(
+                    methodTypeParameters, partialParamTypes, resolvedSoFar);
+
+                if (partialResult.Success && partialResult.InferredTypeArguments is not null)
+                {
+                    // Substitute inferred type args into remaining parameter types.
+                    for (var k = i + 1; k < mutableParamTypes.Length; k++)
+                    {
+                        mutableParamTypes[k] = SubstituteTypeInMember(
+                            mutableParamTypes[k], methodTypeParameters, partialResult.InferredTypeArguments);
+                    }
+                }
+            }
         }
     }
 

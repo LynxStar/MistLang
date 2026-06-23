@@ -2,338 +2,389 @@
 
 ## Overview
 
-This plan implements the unification of `interface` and `trait` keywords into a single `abstract` keyword across the entire Mist compiler pipeline. Tasks are ordered by dependency: lexer/grammar first, then semantic model, then SemanticModelBuilder passes, then emitter, then ambient type provider, then samples/book/editor. Each task is atomic and builds on prior work.
+This implementation unifies Mist's `interface` and `trait` keywords into a single `abstract` keyword across four sequential phases. Each phase gates on "all tests pass, all samples compile" before proceeding. The compiler is written in C#; generated output also targets C#.
 
 ## Tasks
 
-- [ ] 1. Lexer and Grammar Foundation
-  - [ ] 1.1 Add ABSTRACT token to keywords.storm and create AbstractDeclaration rule in Mist.storm
-    - Add `token ABSTRACT = "abstract";` to `keywords.storm`
-    - Add `AbstractDeclaration` rule with modifiers, name, type params, base clause, constraints, and braced body
-    - Add `AbstractMemberDeclaration` alternation rule (method slot, property slot, default method, associated types, nested types)
-    - Add `AbstractMethodDeclaration` rule (signature terminated by semicolon)
-    - Update `TypeDeclaration` rule to include `abstractDeclaration:AbstractDeclaration as AbstractType`
-    - Update `WithDeclaration` rule to rename `traitName` field to `abstractName`
-    - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9_
+- [ ] 1. Phase 1 — Pure Rename (interface → abstract)
 
-  - [ ] 1.2 Add error recovery for removed INTERFACE and TRAIT tokens
-    - Keep `INTERFACE` and `TRAIT` tokens in `keywords.storm` for recognition
-    - In parser error recovery (at declaration positions), detect `INTERFACE` token and emit: "The 'interface' keyword has been removed. Use 'abstract' instead."
-    - Detect `TRAIT` token and emit: "The 'trait' keyword has been removed. Use 'abstract' with nominal typing (': AbstractType') or a 'with' block for retroactive conformance."
-    - Remove `InterfaceDeclaration` and `TraitDeclaration` rules from valid productions
-    - Attempt to parse the body for maximum diagnostic coverage, but do NOT register in semantic model
-    - _Requirements: 2.1, 2.2, 2.3, 3.1, 3.2, 3.5_
+  - [ ] 1.1 Rename grammar layer (keywords.storm and Mist.storm)
+    - In `keywords.storm`: rename `INTERFACE` token to `ABSTRACT` with value `"abstract"`
+    - In `Mist.storm`: rename `InterfaceDeclaration` rule → `AbstractDeclaration`
+    - Rename `InterfaceType` variant in `TypeDeclaration` → `AbstractType`
+    - Rename `InterfaceMemberDeclaration` → `AbstractMemberDeclaration`
+    - Rename `InterfaceMethodDeclaration` → `AbstractMethodDeclaration`
+    - Rename `InterfacePropertyDeclaration` → `AbstractPropertyDeclaration`
+    - Rename `InterfaceAccessorDeclaration` → `AbstractAccessorDeclaration`
+    - Rename all member variants (`InterfaceMethodMember` → `AbstractMethodMember`, etc.)
+    - Add error diagnostic rule: when parser encounters `interface` keyword, emit error
+    - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 2.1_
 
-  - [ ] 1.3 Add parser error for property slots with bodies
-    - When a property signature in an abstract type body is followed by a braced body, emit: "Property slots cannot have default implementations. Only methods can have defaults."
-    - Treat as a slot (discard body) and continue parsing
-    - _Requirements: 1.10_
+  - [ ] 1.2 Rename semantic model layer
+    - Rename `InterfaceType.cs` → `AbstractType.cs`, class `InterfaceType` → `AbstractType`
+    - Rename `ConstructedInterfaceType` → `ConstructedAbstractType` (file and class)
+    - Update `TypeKind.Interface` → `TypeKind.Abstract`
+    - Update `SymbolKind.Interface` → `SymbolKind.Abstract` (if exists)
+    - Update all references to these types throughout the semantic model
+    - _Requirements: 2.2, 2.5_
 
-- [ ] 2. Semantic Model Types
-  - [ ] 2.1 Create AbstractType class replacing InterfaceType and TraitType
-    - Create `AbstractType : IType` with `DisplayName`, `Kind => TypeKind.Abstract`, `MemberScope`, `ContainingNamespace`, `ParentAbstractTypes`, `TypeParameters`, `IsReadonly`, `IsCyclic`
-    - Add `DefaultMethodNames` (`HashSet<string>`) for tracking which methods have defaults
-    - Add `DefaultMethods` (`Dictionary<string, SyntaxNode>`) for storing default method bodies
-    - Add `TypeKind.Abstract` to the `TypeKind` enum
-    - _Requirements: 1.1, 1.2, 1.3_
+  - [ ] 1.3 Rename SemanticModelBuilder passes
+    - Rename `RegisterInterfaceDeclaration` → `RegisterAbstractDeclaration`
+    - Rename `ResolveInterfaceDeclaration` → `ResolveAbstractDeclaration`
+    - Rename `Pass1_ValidateInterfaceSatisfaction` → `Pass1_ValidateAbstractSatisfaction`
+    - Rename `Pass1_DetectInterfaceCycles` → `Pass1_DetectAbstractCycles`
+    - Rename `Pass1_ResolveInterfaceLists` → `Pass1_ResolveAbstractLists`
+    - Rename `ResolveInterfaceInterfaceList` → `ResolveAbstractParentList`
+    - Rename `ResolveInterfaceNames` → `ResolveAbstractNames`
+    - Rename `RegisterInterfaceMethodDeclaration` → `RegisterAbstractMethodDeclaration`
+    - Rename `RegisterInterfacePropertyDeclaration` → `RegisterAbstractPropertyDeclaration`
+    - Rename all internal helper methods referencing "Interface" in the Mist-type sense
+    - _Requirements: 2.3_
 
-  - [ ] 2.2 Create ConstructedAbstractType for generic abstract types
-    - Create `ConstructedAbstractType : IType` with `GenericAbstractDefinition`, `TypeArguments`, `DisplayName`, `Kind => TypeKind.Abstract`
-    - Replace `ConstructedTraitType` usages with `ConstructedAbstractType`
-    - _Requirements: 1.5_
+  - [ ] 1.4 Rename CSharpEmitter methods
+    - Rename `EmitInterfaceDeclaration` → `EmitAbstractDeclaration`
+    - Rename `EmitInterfaceMethodDeclaration` → `EmitAbstractMethodDeclaration`
+    - Rename `EmitInterfacePropertyDeclaration` → `EmitAbstractPropertyDeclaration`
+    - Verify emitted C# output still produces `interface` keyword (unchanged output)
+    - _Requirements: 2.4_
 
-  - [ ] 2.3 Create ConformanceRecord and ConformanceMap replacing TraitSatisfactionMap
-    - Create `ConformanceRecord` with `FilledSlots`, `WithMappings`, `DefaultsUsed`
-    - Create `ConformanceMap` with `Register`, `Conforms`, `GetConformance`, `All` methods
-    - Replace `TraitSatisfactionMap` references throughout the codebase
-    - _Requirements: 4.1, 4.4, 4.5_
+  - [ ] 1.5 Rename test files and test classes
+    - Rename `InterfaceSatisfactionPropertyTests.cs` → `AbstractSatisfactionPropertyTests.cs`
+    - Rename `InterfaceSignatureMismatchPropertyTests.cs` → `AbstractSignatureMismatchPropertyTests.cs`
+    - Rename `InterfaceRoundTripPropertyTests.cs` → `AbstractRoundTripPropertyTests.cs`
+    - Update all test class names, method names, and comments referencing Mist "interface"
+    - Do NOT rename C# interface declarations (`IType`, `IBackend`, etc.)
+    - _Requirements: 2.6_
 
-- [ ] 3. SemanticModelBuilder — Registration and Resolution
-  - [ ] 3.1 Implement RegisterAbstractDeclaration replacing RegisterInterfaceDeclaration and RegisterTraitDeclaration
-    - Create `AbstractType` instance from `AbstractDeclarationNode`
-    - Register methods with bodies in `AbstractType.DefaultMethods` and `DefaultMethodNames`
-    - Register methods without bodies (semicolon-terminated) as slots
-    - Register property signatures as slots
-    - Handle associated type members
-    - Remove `RegisterInterfaceDeclaration` and `RegisterTraitDeclaration`
-    - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.8_
+  - [ ] 1.6 Migrate samples (interface → abstract keyword swap)
+    - Rename `samples/Interfaces/` → `samples/AbstractTypes/`
+    - Rename `samples/ShapeInterfaces/` → `samples/ShapeAbstracts/`
+    - Replace `interface` keyword with `abstract` in all `.mist` files in: `samples/AbstractTypes/`, `samples/ShapeAbstracts/`, `samples/GenericTypes/`, `samples/VoidType/`, `samples/Properties/`, `samples/Enums/`
+    - Replace `interface` → `abstract` in mixed samples (defer trait changes to Phase 2): `samples/GenericConstraints/`, `samples/AssociatedTypes/`, `samples/DependentTypes/`, `samples/NestedScoping/`, `samples/StructuredContext/`
+    - Update `samples/AllFeatures/Program.mist` to reflect renamed entry points
+    - Verify all migrated samples compile and produce identical output
+    - _Requirements: 3.1, 3.2, 3.3, 3.4_
 
-  - [ ] 3.2 Implement Pass1_ResolveAbstractParents and Pass1_DetectAbstractCycles
-    - Resolve parent abstract types from the base clause
-    - Merge `Pass1_ResolveTraitParents` and `Pass1_DetectInterfaceCycles` into unified logic
-    - Detect cyclic abstract type inheritance and emit: "Abstract type '{Name}' is part of a circular inheritance chain"
-    - Validate that abstract types only inherit from other abstract types
-    - Remove old `Pass1_ResolveTraitParents`, `Pass1_DetectTraitCycles`, `Pass1_DetectInterfaceCycles`
-    - _Requirements: 1.7, 4.3_
+  - [ ] 1.7 Update TextMate grammar for Phase 1
+    - Remove `interface` from declaration keyword list in `mist.tmLanguage.json`
+    - Add `abstract` to declaration keyword scope (`keyword.declaration.mist`)
+    - Update type name scope: `entity.name.type.interface.mist` → `entity.name.type.abstract.mist`
+    - Update generic declaration pattern: `class|struct|interface|trait` → `class|struct|abstract|trait`
+    - Update book's syntax highlighting files (`book/theme/highlight.js`, `book/theme/mist-lang.js`): replace `interface` with `abstract` in Mist keyword list
+    - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.5_
 
-  - [ ] 3.3 Implement Pass1_ValidateAbstractSatisfaction replacing Pass1_ValidateInterfaceSatisfaction
-    - For each concrete type declaring `: AbstractType`, verify all slots are filled or have defaults
-    - Emit error for each unfilled slot: "Type '{TypeName}' does not implement abstract member '{AbstractType}.{MemberName}({Signature})'"
-    - Handle diamond inheritance (single implementation satisfies multiple parents with same slot)
-    - Check exact signature matching (name, return type, parameter types)
-    - Methods with defaults don't require implementation but accept one (slot filling takes precedence)
-    - Remove `Pass1_ValidateInterfaceSatisfaction` and `Pass1_ResolveTraitSatisfaction`
-    - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 4.7_
+  - [ ] 1.8 Update book documentation for Phase 1
+    - Rename `book/src/object-model/interfaces.md` → `book/src/object-model/abstract-types.md`
+    - Update chapter title to "Abstract Types" and all content to use `abstract` syntax
+    - Update `book/SUMMARY.md` to reference "Abstract Types" in place of "Interfaces"
+    - Update all code examples and snippets in `book/snippets/` to use `abstract` keyword
+    - _Requirements: 5.1, 5.2, 5.3, 5.4, 5.5_
 
-  - [ ] 3.4 Remove structural matching code paths
-    - Remove `TryStructuralMatch`, `TryStructuralMatchWithSubstitution`
-    - Remove `TryMatchTraitField`, `TryMatchTraitMethod`, `TryMatchTraitProperty` (and substitution variants)
-    - Remove all auto-satisfaction logic in `Pass1_ResolveTraitSatisfaction`
-    - Ensure no code path attempts to establish conformance without explicit declaration or `with` block
-    - _Requirements: 3.3, 3.4_
+  - [ ] 1.9 Write property test: Abstract Declaration Round-Trip (Property 1)
+    - **Property 1: Abstract Declaration Round-Trip**
+    - For any valid abstract type declaration, parsing produces an AST that can be printed and re-parsed to an equivalent AST
+    - **Validates: Requirements 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7**
 
-  - [ ] 3.5 Adapt Pass1_ResolveWithBlocks for AbstractType
-    - Resolve `with` block target as `AbstractType` instead of `TraitType`
-    - Only require mappings for slots without defaults
-    - Mapping overrides defaults (if `with` block maps a member to a slot with a default, the mapping wins)
-    - Emit error if `with` block references undefined type/abstract type
-    - Emit error if member type signature is incompatible with slot
-    - Emit error if `with` block establishes redundant conformance for a type that already declares `: AbstractType`
-    - No structural pre-matching — all mappings must be explicit
-    - _Requirements: 6.1, 6.2, 6.3, 6.4, 6.5, 6.7, 6.8, 6.9_
+  - [ ] 1.10 Phase 1 verification gate — grep for "interface" remnants
+    - Run grep for "interface" (case-insensitive) across entire codebase
+    - Confirm it ONLY appears in: C# source code (C# `interface` declarations like `interface IType`), ambient type provider CLR handling, C# emission output, third-party/generated code (`obj/`, `bin/`, NuGet), spec files (`.kiro/specs/`)
+    - Confirm "interface" does NOT appear in: `.mist` files, `.storm` grammar files, TextMate grammar JSON, book markdown, book highlighting JS (Mist keyword section), test names/comments referring to the Mist concept
+    - Run full test suite — all tests must pass with zero failures
+    - Compile and run all samples — verify expected output
+    - _Requirements: 6.1, 6.2, 6.3, 6.4_
 
-  - [ ] 3.6 Implement ResolveAbstractDeclaration for Pass 2 type resolution
-    - Resolve method bodies in default methods using the abstract type's full member scope for `this`
-    - Resolve associated type constraints
-    - Merge logic from `ResolveInterfaceDeclaration` and `ResolveTraitDeclaration`
-    - Remove old resolution methods
-    - _Requirements: 5.4, 5.6_
+  - [ ] 1.11 Commit Phase 1
+    - Commit all Phase 1 changes with message: "Phase 1: Rename interface → abstract (zero semantic change)"
+    - _Gate: All tests pass, all samples produce expected output, grep verification clean_
 
-- [ ] 4. Type Checker — Assignability Rules
-  - [ ] 4.1 Update assignability rules for abstract types (nominal-only conformance)
-    - Assignment to abstract-typed variable: only types with `: AbstractType` or `with` block are assignable
-    - No structural conformance — matching public members alone is NOT sufficient
-    - Member access on abstract-typed expressions resolves against the abstract type's member scope (slots + defaults visible)
-    - Transitive assignability: if `IChild : IParent`, implementer of `IChild` is assignable to `IParent`
-    - Emit: "Cannot assign type '{SourceType}' to '{AbstractType}': type does not implement the abstract type"
-    - _Requirements: 3.3, 3.4, 9.1, 9.2, 9.3, 9.4_
+- [ ] 2. Phase 2 — Purge Traits (Pure Deletion)
 
-- [ ] 5. Checkpoint — Core pipeline compiles and passes unit tests
-  - Ensure all tests pass, ask the user if questions arise.
+  - [ ] 2.1 Delete trait grammar and add error diagnostic
+    - Remove `TRAIT` token from `keywords.storm`
+    - Remove `TraitDeclaration` rule from `Mist.storm`
+    - Remove `TraitMemberDeclaration`, `TraitFieldDeclaration`, `TraitMethodDeclaration`, `TraitPropertyDeclaration` rules
+    - Remove `TraitType` variant from `TypeDeclaration` rule
+    - Remove `WithDeclaration` rule and `MemberMapping` rule from `Mist.storm`
+    - Remove `WithItem` variant from `TopLevelItem` rule
+    - Add parser error: when `trait` keyword encountered, emit "The 'trait' keyword has been removed. Use 'abstract' with nominal typing (': AbstractType') or a 'with' block for retroactive conformance."
+    - Add parser error: when `with` in with-block position encountered, emit error diagnostic
+    - NOTE: `WITH` token, `AS` token remain in grammar (used by `WithClause` and `with` statements)
+    - _Requirements: 7.1, 7.2, 7.3, 7.4, 8.1, 8.5_
 
-- [ ] 6. Emitter — C# Code Generation
-  - [ ] 6.1 Implement EmitAbstractDeclaration replacing EmitInterfaceDeclaration and EmitTraitDeclaration
-    - Emit abstract type as C# `interface` declaration
-    - Slots (no body) → C# interface method/property signatures
-    - Default methods (with body) → C# default interface methods (DIM bodies)
-    - Emit associated types using existing mechanism
-    - Emit generic type parameters and constraints
-    - Remove `EmitInterfaceDeclaration` and `EmitTraitDeclaration`
-    - _Requirements: 7.1, 7.2, 7.3, 7.5, 7.7_
+  - [ ] 2.2 Delete trait semantic model classes
+    - Delete `TraitType.cs` (class `TraitType`)
+    - Delete `ConstructedTraitType.cs` (class `ConstructedTraitType`)
+    - Delete `TraitSatisfactionMap.cs` (classes `TraitSatisfaction`, `TraitSatisfactionMap`)
+    - Delete `WithBlockRegistry.cs` (classes `ValidatedMemberMapping`, `WithBlockRegistry`)
+    - Remove `TypeKind.Trait` from the enum
+    - Remove all references to deleted types throughout the codebase
+    - _Requirements: 7.5, 8.3_
 
-  - [ ] 6.2 Implement forwarding method emission for default implementations
-    - When a concrete type does NOT override a default method, emit a forwarding stub: `public string Default() => ((IAbstract)this).Default();`
-    - This ensures Rust-style semantics: calling via concrete type and via abstract reference produces identical behavior
-    - Only emit forwarding for methods the concrete type does not provide its own implementation for
-    - _Requirements: 5.1, 5.2, 5.3, 5.5, 7.6_
+  - [ ] 2.3 Delete trait SemanticModelBuilder passes
+    - Remove `RegisterTraitDeclaration`, `ResolveTraitDeclaration`
+    - Remove `Pass1_ResolveTraitParents`, `Pass1_DetectTraitCycles`, `DetectTraitCyclesDfsVisit`
+    - Remove `Pass1_ResolveWithBlocks` and all helper methods (`ResolveWithBlockTypeName`, `ResolveWithBlockTraitName`, `FindTraitMember`, etc.)
+    - Remove `Pass1_ResolveTraitSatisfaction` and structural matching logic (`TryStructuralMatch`, `TryStructuralMatchWithSubstitution`, `TryMatchTraitField`, `TryMatchTraitMethod`, `TryMatchTraitProperty`)
+    - Remove `ResolveExplicitMemberTypesForTrait`, `GetEffectiveMembers` (trait-specific), `CollectEffectiveMembers` (trait-specific)
+    - Remove `HasTraitInBaseList`, `HasConstructedTraitInBaseList`, `CollectConstructedTraitsFromBaseList`, `CollectConstructedTraitsFromParents`, `RegisterTransitiveParentSatisfaction`
+    - Clean up constraint system: trait constraints become abstract type constraints
+    - Remove `ConcreteTypeSatisfiesTrait` from constraint satisfaction
+    - _Requirements: 7.5, 7.6, 8.2_
 
-  - [ ] 6.3 Implement three-way emission decision logic (slot filling / CLR override / Mist hiding)
-    - Slot from abstract type in base clause → implicit interface implementation (no keyword)
-    - CLR virtual/abstract method on base class → emit `override` keyword (preserve existing `FindBaseOverrideSlot` logic)
-    - Mist concrete base class method → emit `new` keyword (hiding semantics)
-    - Emit warning if `new` is missing on a hiding member: "'{TypeName}.{MemberName}' hides inherited member '{BaseTypeName}.{MemberName}'. Use 'new' if intentional."
-    - Emit warning if `new` is on a non-hiding member: "The member '{TypeName}.{MemberName}' does not hide an inherited member. The 'new' keyword is not required."
-    - _Requirements: 8.4, 8.5, 8.6, 10.1, 10.2, 10.3, 10.4, 10.5_
+  - [ ] 2.4 Delete trait CSharpEmitter logic
+    - Remove `EmitTraitDeclaration` (and `EmitTraitMethodDeclaration`, `EmitTraitPropertyDeclaration`, `EmitTraitFieldAsProperty`)
+    - Remove `EmitExplicitTraitImplementations` (with-block emission logic)
+    - Remove all references to `TraitSatisfactionMap` and `WithBlockRegistry` from the emitter
+    - _Requirements: 7.7, 8.4_
 
-  - [ ] 6.4 Adapt EmitExplicitTraitImplementations to EmitExplicitAbstractImplementations
-    - With-block mappings emit as explicit interface implementations: `string INamed.Name() => this.GetLabel();`
-    - Handle `with` block mappings that override defaults (mapped member is used instead of default)
-    - Rename method and update all call sites
-    - _Requirements: 6.2, 6.7_
+  - [ ] 2.5 Delete trait-related test files
+    - Delete `TraitAssignabilityPropertyTests.cs`
+    - Delete `TraitMemberAccessPropertyTests.cs`
+    - Delete `TraitMemberAccessGenericPropertyTests.cs`
+    - Delete `TraitStructuralMatchSubstitutionPropertyTests.cs`
+    - Delete `TraitInheritanceValidationPropertyTests.cs`
+    - Delete `TraitInterfaceCoexistencePropertyTests.cs`
+    - Delete `WithBlockGenericTraitPropertyTests.cs`
+    - Delete any other test files whose primary purpose is testing trait behavior
+    - _Requirements: 9.2_
 
-- [ ] 7. Ambient Type Provider — CLR Interop
-  - [ ] 7.1 Update AssemblyTypeProvider to map CLR types to AbstractType
-    - CLR `interface` → `AbstractType` with all members as required slots
-    - CLR class with `abstract` methods → required slots on the Mist type representation
-    - CLR class with `virtual` methods (with body) → slots with defaults (fillable but not required)
-    - Update `IsVirtualOrAbstract` property handling to drive emitter behavior
-    - Map `TypeKind.Abstract` directly for CLR interfaces (not old `TypeKind.Interface`)
-    - _Requirements: 8.1, 8.2, 8.3, 8.4, 8.5_
+  - [ ] 2.6 Migrate and remove trait-related samples
+    - Delete `samples/Traits/` directory entirely
+    - Update `samples/GenericConstraints/` — replace `trait` with `abstract`, add `: AbstractType` to conforming types
+    - Update `samples/AssociatedTypes/` — replace `trait` with `abstract`, add `: AbstractType` conformance
+    - Update `samples/DependentTypes/` — replace `trait` with `abstract`, add `: AbstractType` conformance
+    - Update `samples/NestedScoping/` — replace `trait` with `abstract`
+    - Update `samples/StructuredContext/` — replace `trait` with `abstract`, add `: AbstractType` conformance
+    - Rename `samples/GenericTraits/` → `samples/GenericAbstracts/`, replace `trait` → `abstract`, add `: AbstractType` to types using structural satisfaction
+    - Update `samples/AllFeatures/Program.mist` — remove `Traits.Program.RunDemo()` call, reflect renamed entry points
+    - _Requirements: 9.1, 9.3, 9.4, 9.5_
 
-- [ ] 8. Checkpoint — Full compiler pipeline compiles and core tests pass
-  - Ensure all tests pass, ask the user if questions arise.
+  - [ ] 2.7 Update TextMate grammar for Phase 2
+    - Remove `trait` from declaration keyword list
+    - Update generic declaration pattern: `class|struct|abstract|trait` → `class|struct|abstract`
+    - Remove `entity.name.type.trait.mist` scope/rule
+    - Remove `trait` from book's syntax highlighting files (`book/theme/mist-lang.js`)
+    - _Requirements: 10.1, 10.2, 10.3, 10.4_
 
-- [ ] 9. Sample Application
-  - [ ] 9.1 Create samples/AbstractTypes/Program.mist with proof code
-    - Write the proof code verbatim from the requirements document (immutable — do NOT modify)
-    - Demonstrates: abstract type with slots only, property slots, default implementations, concrete types filling slots, concrete types taking defaults, overriding defaults, abstract type inheritance, polymorphic variable assignment, polymorphic parameter passing, late binding via `with` blocks, `with` block filling a slot with a default
-    - Create `samples/AbstractTypes/AbstractTypes.mistproj` project file
-    - Verify compilation and exact expected output match
-    - _Requirements: 11.1, 11.2, 11.3, 11.5_
+  - [ ] 2.8 Update book documentation for Phase 2
+    - Remove `book/src/object-model/traits.md` (or replace with brief migration note)
+    - Remove "Traits" entry from `book/SUMMARY.md`
+    - Update or remove cross-references to traits from other chapters
+    - _Requirements: 11.1, 11.2, 11.3_
 
-  - [ ] 9.2 Integrate AbstractTypes sample into AllFeatures orchestrator
-    - Add `AbstractTypes.Program.RunDemo()` call to `samples/AllFeatures/Program.mist`
-    - Verify AllFeatures compiles and runs with the new sample included
-    - _Requirements: 11.4_
+  - [ ] 2.9 Write property test: Nominal Typing Enforcement (Property 8)
+    - **Property 8: Nominal Typing Enforcement**
+    - For any type that structurally matches all members of an abstract type but does NOT declare `: AbstractType` and has no `with` block, the type SHALL NOT be assignable to the abstract type
+    - **Validates: Requirements 7.8**
 
-  - [ ] 9.3 Migrate existing samples (interface → abstract, trait → abstract with nominal conformance)
-    - Migrate `samples/Interfaces/` — `interface` → `abstract`
-    - Migrate `samples/ShapeInterfaces/` — `interface` → `abstract`
-    - Migrate `samples/GenericTypes/` — `interface` → `abstract`
-    - Migrate `samples/VoidType/` — `interface` → `abstract`
-    - Migrate `samples/Properties/` — `interface` → `abstract`
-    - Migrate `samples/GenericConstraints/` — `interface`/`trait` → `abstract` + add `: AbstractType` conformance
-    - Migrate `samples/AssociatedTypes/` — `interface`/`trait` → `abstract` + add `: AbstractType` conformance
-    - Migrate `samples/DependentTypes/` — `interface`/`trait` → `abstract` + add `: AbstractType` conformance
-    - Migrate `samples/NestedScoping/` — `interface`/`trait` → `abstract`
-    - Migrate `samples/StructuredContext/` — `interface`/`trait` → `abstract` + add `: AbstractType` conformance
-    - Migrate `samples/Enums/` — `interface` → `abstract`
-    - Migrate `samples/GenericTraits/` — `trait` → `abstract`; add `: AbstractType` or retain `with` blocks for structural cases
-    - Verify each migrated sample compiles and produces unchanged output
-    - _Requirements: 11.2 (migration plan)_
-
-  - [ ] 9.4 Remove samples/Traits/ directory
-    - Delete `samples/Traits/` entirely (structural typing sunsetted)
-    - Remove any AllFeatures reference to `Traits.Program.RunDemo()`
-    - _Requirements: 11.2 (migration plan — removal)_
-
-- [ ] 10. Checkpoint — All samples compile and run with correct output
-  - Ensure all tests pass, ask the user if questions arise.
-
-- [ ] 11. Concrete Type Hiding Semantics
-  - [ ] 11.1 Create samples/HidingDemo proof code and verify hiding behavior
-    - Write the proof code from Requirement 10 verbatim into `samples/AbstractTypes/Program.mist` or a dedicated section
-    - Verify `new` keyword required, hiding semantics preserved through base-typed reference
-    - Verify exact expected output: "via Derived: derived\n  via Base: base"
-    - _Requirements: 10.1, 10.2, 10.3, 10.4, 10.5_
-
-- [ ] 12. TextMate Grammar and Book Highlighting
-  - [ ] 12.1 Update TextMate grammar for abstract keyword
-    - Add `abstract` as a declaration keyword with scope `keyword.declaration.mist`
-    - Add pattern to highlight identifier following `abstract` as `entity.name.type.abstract.mist`
-    - Remove `trait` from keyword list
-    - Remove `interface` from keyword list
+  - [ ] 2.10 Phase 2 verification gate — grep for "trait" remnants
+    - Run grep for "trait" (case-insensitive) across entire codebase
+    - Confirm it ONLY appears in: spec files (`.kiro/specs/`), third-party/generated code (`obj/`, `bin/`, NuGet)
+    - Confirm "trait" does NOT appear in: `.mist` files, `.storm` grammar files, TextMate grammar JSON, book markdown, book highlighting JS, test file names, test class names, or any active production code paths
+    - Run full test suite — all tests must pass with zero failures
+    - Compile and run all samples — verify expected output
     - _Requirements: 12.1, 12.2, 12.3, 12.4_
 
-  - [ ] 12.2 Update book syntax highlighting files
-    - Update `book/theme/highlight.js` — add `abstract` to keyword list, remove `trait` and `interface`
-    - Update `book/theme/mist-lang.js` — add `abstract` to keyword list, remove `trait` and `interface`
-    - _Requirements: 12.5_
+  - [ ] 2.11 Commit Phase 2
+    - Commit all Phase 2 changes with message: "Phase 2: Purge traits entirely"
+    - _Gate: All tests pass, all samples produce expected output, grep verification clean_
 
-- [ ] 13. Book Documentation
-  - [ ] 13.1 Write "Abstract Types" book chapter
-    - Create chapter covering: declaration syntax, slots, default implementations, property slots, abstract type inheritance, implementation by concrete types, polymorphic usage, late binding via `with` blocks
-    - Explain Rust-style default semantics (no lens behavior)
-    - Explicitly state only methods can have defaults; properties must always be filled
-    - Include comparison table: Mist `abstract` vs C# `interface` vs Rust `trait`
-    - Document diamond inheritance behavior
-    - _Requirements: 13.1, 13.2, 13.3, 13.8, 13.9_
+- [ ] 3. Phase 3 — Default Implementations (New Functionality)
 
-  - [ ] 13.2 Create compiled snippets for book chapter
-    - Create `.mist` snippet files in `book/snippets/` for: simple abstract with slots, property slots, method defaults, concrete type filling slots, concrete type taking defaults, overriding a default, abstract type inheritance, polymorphic usage, `with` block late binding
-    - Generate corresponding `.cs` files via SnippetEmitter
-    - _Requirements: 13.4, 13.5_
+  - [ ] 3.1 Extend grammar for default implementations
+    - Extend `AbstractMemberDeclaration` rule to accept `defaultMethod:MethodDeclaration as AbstractDefaultMethodMember`
+    - Parser must distinguish slots (semicolon-terminated `AbstractMethodDeclaration`) from defaults (body-present `MethodDeclaration`)
+    - Add error diagnostic: when a property declaration has a body inside an abstract type, emit "Property slots cannot have default implementations. Only methods can have defaults."
+    - _Requirements: 13.1, 13.2, 13.3, 13.4, 13.5_
 
-  - [ ] 13.3 Update book SUMMARY.md and remove Traits chapter
-    - Add "Abstract Types" chapter reference in the Object Model section
-    - Remove or replace "Traits" chapter with a brief sunset note
-    - _Requirements: 13.6, 13.7_
+  - [ ] 3.2 Extend semantic model for default methods
+    - Add `DefaultMethods` dictionary to `AbstractType` class: `public Dictionary<string, ISymbol> DefaultMethods { get; } = new();`
+    - Extend `SemanticModelBuilder` registration pass: when processing `AbstractDefaultMethodMember` nodes, register the method symbol in both `MemberScope` and `DefaultMethods`
+    - _Requirements: 13.1, 14.3_
 
-- [ ] 14. Testing
-  - [ ]* 14.1 Write property test: Parse round-trip (Property 1)
-    - **Property 1: Abstract declaration parse round-trip**
-    - Generate random abstract type sources (varying identifiers, generic params, constraints, member combinations), verify AST structure
-    - Use in-process `CompilerDriver` — no process spawning
-    - **Validates: Requirements 1.1, 1.2, 1.3, 1.5, 1.6, 1.7**
+  - [ ] 3.3 Extend type checker for slot satisfaction with defaults
+    - Modify `Pass1_ValidateAbstractSatisfaction`: exclude members in `DefaultMethods` from required slots
+    - When a concrete type provides its own implementation matching a default method signature, accept it (filling takes precedence)
+    - When signatures don't match exactly for an override attempt, emit signature mismatch error
+    - Propagate defaults through abstract type inheritance: implementers of child abstract type are not required to fill inherited defaults
+    - Signature matching: verify name, return type, and all parameter types match exactly
+    - _Requirements: 14.1, 14.2, 14.3, 14.4, 14.5, 14.6_
 
-  - [ ]* 14.2 Write property test: No structural conformance (Property 2)
-    - **Property 2: No structural conformance**
-    - Generate types with matching members but no `: AbstractType` declaration and no `with` block, verify rejection
-    - **Validates: Requirements 3.3, 3.4**
+  - [ ] 3.4 Extend CSharpEmitter for default interface methods (DIM)
+    - For `AbstractDefaultMethodMember` nodes: emit C# default interface method (method with body on the interface)
+    - Emit forwarding stub on concrete types that do NOT override a default: `public string Greet() => ((IGreeting)this).Greet();`
+    - When a concrete type provides its own implementation, emit only the concrete implementation (no forwarding)
+    - Ensure `this` references in default bodies resolve correctly against the abstract type's full member set
+    - _Requirements: 15.1, 15.2, 15.3, 15.4, 15.5, 16.1, 16.2, 16.3, 16.4, 16.5_
 
-  - [ ]* 14.3 Write property test: Complete slot filling accepted (Property 3)
-    - **Property 3: Complete slot filling accepted**
-    - Generate valid implementations matching all slot signatures, verify acceptance
-    - **Validates: Requirements 4.1, 4.3**
+  - [ ] 3.5 Add default implementation samples
+    - Update `samples/AbstractTypes/Program.mist` to add: abstract type with default method, concrete type relying on default, concrete type overriding default, calling through both concrete and abstract references
+    - Verify Rust-style dispatch semantics: calling default through concrete type reference and abstract type reference produces identical behavior
+    - _Requirements: 15.1, 15.2, 15.3, 15.6, 29.2_
 
-  - [ ]* 14.4 Write property test: Missing slot filling rejected (Property 4)
-    - **Property 4: Missing slot filling rejected**
-    - Generate incomplete implementations, verify error diagnostics list each unfilled slot
-    - **Validates: Requirements 4.2, 4.3**
+  - [ ] 3.6 Update book documentation for Phase 3
+    - Add section to "Abstract Types" chapter covering: default implementation syntax, Rust-style semantics, restriction (only methods, not properties), overriding defaults, interaction with abstract type inheritance
+    - Include compiled snippet examples demonstrating each scenario
+    - _Requirements: 17.1, 17.2, 17.3_
 
-  - [ ]* 14.5 Write property test: Default methods do not require implementation (Property 5)
-    - **Property 5: Default methods do not require implementation**
-    - Generate types relying on defaults for all default methods, verify acceptance
-    - **Validates: Requirements 4.5, 5.1**
+  - [ ] 3.7 Write property test: Slot vs Default Classification (Property 2)
+    - **Property 2: Slot vs Default Classification by Body Presence**
+    - For any method in an abstract type body, classified as slot iff no body, default iff braced body
+    - **Validates: Requirements 13.1, 13.2, 13.5**
 
-  - [ ]* 14.6 Write property test: Slot signature matching is exact (Property 6)
-    - **Property 6: Slot signature matching is exact**
-    - Generate near-miss signatures (wrong return type, wrong parameter type), verify rejection
-    - **Validates: Requirements 4.6**
+  - [ ] 3.8 Write property test: Slot Satisfaction Completeness (Property 3)
+    - **Property 3: Slot Satisfaction Completeness**
+    - For any abstract type with N slots and M defaults, a concrete type is accepted iff it fills all N slots; M defaults are not required
+    - **Validates: Requirements 14.1, 14.2, 14.3, 28.1, 28.2**
 
-  - [ ]* 14.7 Write property test: Method dispatch is reference-type-independent (Property 7)
-    - **Property 7: Method dispatch is reference-type-independent**
-    - Batch-compile programs calling methods via concrete and abstract references, verify identical output
-    - Uses batched process spawning (1 compile, 1 run per batch)
-    - **Validates: Requirements 5.2, 5.3**
+  - [ ] 3.9 Write property test: Signature Matching Exactness (Property 4)
+    - **Property 4: Signature Matching Exactness**
+    - For any slot signature and candidate implementation, accepted iff name, return type, and all parameter types match exactly
+    - **Validates: Requirements 14.5, 28.4**
 
-  - [ ]* 14.8 Write property test: Forwarding methods emitted for defaults (Property 8)
-    - **Property 8: Forwarding methods emitted for defaults**
-    - Generate concrete types without overrides, inspect emitted C# for forwarding stubs and DIM bodies
-    - **Validates: Requirements 5.5, 7.6**
+  - [ ] 3.10 Write property test: Inherited Slot Propagation (Property 5)
+    - **Property 5: Inherited Slot Propagation**
+    - For any abstract type hierarchy, implementers fill all non-default slots from entire inheritance chain
+    - **Validates: Requirements 14.6, 28.3**
 
-  - [ ]* 14.9 Write property test: With-block establishes assignability (Property 9)
-    - **Property 9: With-block establishes assignability**
-    - Generate valid `with` blocks mapping all required slots, verify assignment acceptance
-    - **Validates: Requirements 6.1, 6.6**
+  - [ ] 3.11 Write property test: Default Dispatch Consistency (Property 6)
+    - **Property 6: Default Dispatch Consistency**
+    - Calling a default method through concrete-type ref and abstract-type ref produces identical behavior
+    - **Validates: Requirements 15.1, 15.2**
 
-  - [ ]* 14.10 Write property test: With-block emits explicit interface implementation (Property 10)
-    - **Property 10: With-block emits explicit interface implementation**
-    - Inspect emitted C# for explicit interface implementation delegates
-    - **Validates: Requirements 6.2**
+  - [ ] 3.12 Write property test: Override Takes Precedence (Property 7)
+    - **Property 7: Override Takes Precedence**
+    - When a concrete type provides its own implementation for a default, that implementation is used regardless of reference type
+    - **Validates: Requirements 15.3**
 
-  - [ ]* 14.11 Write property test: With-block defaults don't require mappings (Property 11)
-    - **Property 11: With-block defaults don't require mappings**
-    - Generate `with` blocks omitting default method mappings, verify acceptance
-    - **Validates: Requirements 6.3**
+  - [ ] 3.13 Phase 3 verification gate
+    - Run full test suite — all tests must pass with zero failures
+    - Compile and run all samples — verify expected output
+    - Verify default implementation samples: default taken as-is, default overridden, calling through both reference types produces identical results
+    - _Requirements: 18.1, 18.2, 18.3_
 
-  - [ ]* 14.12 Write property test: Abstract type emits as C# interface (Property 12)
-    - **Property 12: Abstract type emits as C# interface**
-    - Inspect emitted C# interface structure (slots as signatures, defaults as DIM)
-    - **Validates: Requirements 7.1, 7.2, 7.3, 7.5**
+  - [ ] 3.14 Commit Phase 3
+    - Commit all Phase 3 changes with message: "Phase 3: Add default implementations for abstract types"
+    - _Gate: All tests pass, all samples produce expected output_
 
-  - [ ]* 14.13 Write property test: CLR ambient type mapping (Property 13)
-    - **Property 13: CLR ambient type mapping**
-    - Load test assemblies, verify CLR interfaces become `AbstractType` with correct slot/default classification
-    - **Validates: Requirements 8.1, 8.2, 8.3**
+- [ ] 4. Phase 4 — Late Binding via With Blocks (New Functionality)
 
-  - [ ]* 14.14 Write property test: CLR slot filling emits override (Property 14)
-    - **Property 14: CLR slot filling emits override**
-    - Generate Mist types filling CLR slots, verify `override` in emitted C#
-    - **Validates: Requirements 8.4**
+  - [ ] 4.1 Re-add with block grammar
+    - Re-add `WithDeclaration` rule to `Mist.storm`: `with TypeName : AbstractType { mappings }`
+    - Re-add `MemberMapping` rule: `sourceName:IDENTIFIER AS targetName:IDENTIFIER SEMICOLON`
+    - Re-add `WithItem` variant to `TopLevelItem`
+    - The `WITH` and `AS` tokens already exist (retained in Phase 2 for with-clauses and with-statements)
+    - _Requirements: 19.1, 19.2, 19.3, 19.4, 19.5_
 
-  - [ ]* 14.15 Write property test: Unfilled CLR virtual slots emit nothing (Property 15)
-    - **Property 15: Unfilled CLR virtual slots emit nothing**
-    - Generate types not filling virtual slots, verify no method emitted for those slots
-    - **Validates: Requirements 8.5**
+  - [ ] 4.2 Implement ConformanceMap semantic model
+    - Create `ConformanceMapping` class: `SourceMember`, `TargetSlot`, `SourceName`, `TargetName`
+    - Create `ConformanceMap` class with: `Register(IType, IType, ConformanceMapping)`, `HasConformance(IType, IType)`, `GetMappings(IType, IType)`, `All()` enumeration
+    - Wire `ConformanceMap` into the semantic model (accessible from `SemanticModelBuilder` and `CSharpEmitter`)
+    - _Requirements: 20.1, 20.2_
 
-  - [ ]* 14.16 Write property test: Abstract-typed assignability (Property 16)
-    - **Property 16: Abstract-typed assignability**
-    - Generate conforming and non-conforming types, verify correct acceptance/rejection
-    - **Validates: Requirements 9.1, 9.2**
+  - [ ] 4.3 Implement with-block resolution pass in SemanticModelBuilder
+    - Add new `Pass1_ResolveWithBlocks` pass processing `WithDeclaration` nodes
+    - Resolve `typeName` to a concrete type; emit error if undefined
+    - Resolve `abstractName` to an `AbstractType`; emit error if undefined
+    - For each `MemberMapping`: find `sourceName` on concrete type, find `targetName` as slot on abstract type
+    - Validate signature compatibility (same return type, same parameter types); emit type mismatch error if incompatible
+    - Register validated mappings in `ConformanceMap`
+    - Validate all required slots (not in `DefaultMethods`) have mappings; emit error listing unmapped slots
+    - Error if type already declares `: AbstractType` in base clause (redundant conformance)
+    - Error if `typeName` resolves to a CLR/ambient type (not defined in Mist source): emit "Cannot use 'with' to establish conformance for CLR type '{TypeName}'. Only types defined in Mist source can be adapted via 'with' blocks."
+    - _Requirements: 20.1, 20.3, 20.4, 20.5, 20.6, 20.7, 20.8, 20.9_
 
-  - [ ]* 14.17 Write property test: Transitive assignability through abstract hierarchy (Property 17)
-    - **Property 17: Transitive assignability through abstract hierarchy**
-    - Generate abstract type hierarchies, verify parent-type assignment works
-    - **Validates: Requirements 9.4**
+  - [ ] 4.4 Extend type checker for with-block assignability
+    - Modify `Pass1_ValidateAbstractSatisfaction`: also consult `ConformanceMap` for assignability
+    - A type with with-block conformance is assignable to the abstract type
+    - Multiple with-blocks for different abstract types work independently
+    - _Requirements: 20.1, 20.2, 20.8, 27.1, 27.2_
 
-  - [ ]* 14.18 Write property test: Concrete class hiding requires new (Property 18)
-    - **Property 18: Concrete class hiding requires new and preserves base behavior**
-    - Generate class hierarchies with hiding, verify `new` keyword emission and hiding behavior
-    - **Validates: Requirements 10.1, 10.2, 10.3**
+  - [ ] 4.5 Implement with-block C# emission
+    - For each entry in `ConformanceMap`: add abstract type's interface name to concrete type's C# inheritance list
+    - Emit explicit interface implementations delegating to mapped source members (e.g., `string INamed.Name() => this.GetLabel();`)
+    - For default methods without mappings: emit forwarding stub (same as Phase 3)
+    - For mapped slots that have defaults: mapping takes precedence — emit explicit implementation, no forwarding
+    - _Requirements: 21.1, 21.2, 21.3, 21.4_
 
-- [ ] 15. Final Checkpoint — Full test suite green, all samples pass
-  - Ensure all tests pass, ask the user if questions arise.
+  - [ ] 4.6 Add with-block samples
+    - Update `samples/AbstractTypes/Program.mist` to add: `with` block establishing conformance, `as` mapping syntax, polymorphic usage after with-block conformance, with-block filling a slot that has a default (overriding default via mapping)
+    - Ensure final proof code from Requirement 29 is present verbatim in sample
+    - Verify sample compiles and produces exact expected output
+    - _Requirements: 29.1, 29.2, 29.3, 29.4, 29.5_
+
+  - [ ] 4.7 Update book documentation for Phase 4
+    - Add section to "Abstract Types" chapter covering: `with` block syntax, retroactive conformance, `as` mapping keyword, interaction with defaults (only required slots need mappings), multiple `with` blocks on same type
+    - Include compiled snippet examples demonstrating each scenario
+    - _Requirements: 22.1, 22.2, 22.3_
+
+  - [ ] 4.8 Write property test: With-Block Establishes Assignability (Property 9)
+    - **Property 9: With-Block Establishes Assignability**
+    - For any valid with-block where all required slot mappings have compatible signatures, the type becomes assignable to the abstract type
+    - **Validates: Requirements 20.1, 20.2**
+
+  - [ ] 4.9 Write property test: With-Block Only Requires Non-Default Slot Mappings (Property 10)
+    - **Property 10: With-Block Only Requires Non-Default Slot Mappings**
+    - A with-block is accepted iff it provides mappings for all N slots; mappings for M defaults are optional
+    - **Validates: Requirements 20.3**
+
+  - [ ] 4.10 Write property test: With-Block Signature Validation (Property 11)
+    - **Property 11: With-Block Signature Validation**
+    - If source member's type signature is incompatible with target slot, compiler emits type mismatch error
+    - **Validates: Requirements 20.6**
+
+  - [ ] 4.11 Write property test: Multiple With-Blocks Independence (Property 12)
+    - **Property 12: Multiple With-Blocks Independence**
+    - Each with-block is validated independently; type is assignable to each abstract type independently
+    - **Validates: Requirements 20.8**
+
+  - [ ] 4.12 Write property test: Abstract Type Emission as C# Interface (Property 13)
+    - **Property 13: Abstract Type Emission as C# Interface**
+    - For any abstract type, emitter produces valid C# `interface`; slots emit as signatures, defaults as DIM
+    - **Validates: Requirements 24.1, 24.2, 24.3, 24.5**
+
+  - [ ] 4.13 Write property test: Diamond Inheritance (Property 14)
+    - **Property 14: Diamond Inheritance — Single Implementation Satisfies Both**
+    - For diamond hierarchy where two parents declare same-signature slot, single implementation satisfies both
+    - **Validates: Requirements 28.5**
+
+  - [ ] 4.14 Write property test: Transitive Assignability (Property 15)
+    - **Property 15: Transitive Assignability Through Hierarchy**
+    - Implementer of child abstract type is assignable to any ancestor abstract type
+    - **Validates: Requirements 27.4**
+
+  - [ ] 4.15 Phase 4 verification gate
+    - Run full test suite — all tests must pass with zero failures
+    - Compile and run all samples — verify expected output
+    - Verify with-block samples: basic conformance, `as` mapping, polymorphic usage, interaction with defaults
+    - _Requirements: 23.1, 23.2, 23.3_
+
+  - [ ] 4.16 Commit Phase 4
+    - Commit all Phase 4 changes with message: "Phase 4: Add late binding via with blocks"
+    - _Gate: All tests pass, all samples produce expected output_
+
+- [ ] 5. Final comprehensive verification
+
+  - [ ] 5.1 Final verification gate
+    - Grep for "interface" (case-insensitive): confirm only in C# source, ambient type provider, C# emission output, third-party code, spec files
+    - Grep for "trait" (case-insensitive): confirm exists NOWHERE except spec files and third-party code
+    - Run full test suite — all tests pass with zero failures
+    - Compile and run ALL samples — verify expected output
+    - Verify `samples/AbstractTypes/Program.mist` proof code compiles and produces exact expected output from Requirement 29
+    - Verify `samples/HidingDemo/Program.mist` proof code compiles and produces exact expected output from Requirement 26
+    - _Requirements: 30.1, 30.2, 30.3, 30.4, 30.5, 30.6_
 
 ## Notes
 
-- Tasks marked with `*` are optional and can be skipped for faster MVP
-- Each task references specific requirements for traceability
-- Checkpoints ensure incremental validation
-- Property tests validate universal correctness properties using in-process compilation (no process spawning per iteration)
-- The proof code in samples is immutable — the compiler must be made to compile it, not the other way around
-- All property tests use FsCheck with minimum 100 iterations and the shared in-process `CompilerDriver`
-- Integration tests that spawn processes use batched compilation (1 compile + 1 run per sample)
+- All tasks are required
+- Each phase gates on "all tests pass, all samples compile" before proceeding to the next phase
+- Each phase ends with a commit after passing its verification gate
+- Phase 1 is zero semantic change — purely mechanical rename
+- Phase 2 is pure deletion — nothing new is added
+- Phase 3 and Phase 4 are additive — new functionality
+- The C# emitter always emits `interface` in generated C# code (Mist concept is "abstract type" but CLR interop bridge is unchanged)
+- Property tests use FsCheck with batched compilation strategy (1 compile, 1 run, N output lines)
+- Verification gates ensure no broken state persists between phases
 
 ## Task Dependency Graph
 
@@ -341,21 +392,36 @@ This plan implements the unification of `interface` and `trait` keywords into a 
 {
   "waves": [
     { "id": 0, "tasks": ["1.1"] },
-    { "id": 1, "tasks": ["1.2", "1.3", "2.1"] },
-    { "id": 2, "tasks": ["2.2", "2.3"] },
-    { "id": 3, "tasks": ["3.1", "12.1", "12.2"] },
-    { "id": 4, "tasks": ["3.2", "3.4"] },
-    { "id": 5, "tasks": ["3.3", "3.5"] },
-    { "id": 6, "tasks": ["3.6", "4.1"] },
-    { "id": 7, "tasks": ["6.1"] },
-    { "id": 8, "tasks": ["6.2", "6.4"] },
-    { "id": 9, "tasks": ["6.3", "7.1"] },
-    { "id": 10, "tasks": ["9.1", "9.3", "9.4", "11.1"] },
-    { "id": 11, "tasks": ["9.2", "13.1"] },
-    { "id": 12, "tasks": ["13.2", "13.3"] },
-    { "id": 13, "tasks": ["14.1", "14.2", "14.3", "14.4", "14.5", "14.6"] },
-    { "id": 14, "tasks": ["14.7", "14.8", "14.9", "14.10", "14.11", "14.12"] },
-    { "id": 15, "tasks": ["14.13", "14.14", "14.15", "14.16", "14.17", "14.18"] }
+    { "id": 1, "tasks": ["1.2"] },
+    { "id": 2, "tasks": ["1.3", "1.4"] },
+    { "id": 3, "tasks": ["1.5", "1.6", "1.7", "1.8"] },
+    { "id": 4, "tasks": ["1.9"] },
+    { "id": 5, "tasks": ["1.10"] },
+    { "id": 6, "tasks": ["1.11"] },
+    { "id": 7, "tasks": ["2.1"] },
+    { "id": 8, "tasks": ["2.2"] },
+    { "id": 9, "tasks": ["2.3", "2.4"] },
+    { "id": 10, "tasks": ["2.5", "2.6", "2.7", "2.8"] },
+    { "id": 11, "tasks": ["2.9"] },
+    { "id": 12, "tasks": ["2.10"] },
+    { "id": 13, "tasks": ["2.11"] },
+    { "id": 14, "tasks": ["3.1"] },
+    { "id": 15, "tasks": ["3.2"] },
+    { "id": 16, "tasks": ["3.3"] },
+    { "id": 17, "tasks": ["3.4"] },
+    { "id": 18, "tasks": ["3.5", "3.6"] },
+    { "id": 19, "tasks": ["3.7", "3.8", "3.9", "3.10", "3.11", "3.12"] },
+    { "id": 20, "tasks": ["3.13"] },
+    { "id": 21, "tasks": ["3.14"] },
+    { "id": 22, "tasks": ["4.1"] },
+    { "id": 23, "tasks": ["4.2"] },
+    { "id": 24, "tasks": ["4.3"] },
+    { "id": 25, "tasks": ["4.4", "4.5"] },
+    { "id": 26, "tasks": ["4.6", "4.7"] },
+    { "id": 27, "tasks": ["4.8", "4.9", "4.10", "4.11", "4.12", "4.13", "4.14"] },
+    { "id": 28, "tasks": ["4.15"] },
+    { "id": 29, "tasks": ["4.16"] },
+    { "id": 30, "tasks": ["5.1"] }
   ]
 }
 ```

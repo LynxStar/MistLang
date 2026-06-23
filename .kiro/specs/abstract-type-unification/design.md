@@ -2,308 +2,397 @@
 
 ## Overview
 
-This feature replaces the `interface` and `trait` keywords with a single `abstract` keyword, unifying Mist's contract mechanism under slot semantics with optional default implementations. The change touches every layer of the compiler pipeline: lexer/grammar, parser, semantic model, type checker (in the `SemanticModelBuilder`), analysis, and the C# transpiler backend.
+This design describes the unification of Mist's `interface` and `trait` keywords into a single `abstract` keyword, executed across four sequential phases. The key architectural insight is that each phase has a distinct character:
 
-**Design philosophy:** An abstract type declares a set of *slots* (holes that must be filled) and optional *defaults* (methods with bodies that serve as the implementation unless overridden). This maps cleanly to C# interfaces with default interface methods (DIM). Property slots cannot have defaults — only methods can.
+- **Phase 1** — Pure mechanical rename (zero semantic change)
+- **Phase 2** — Pure deletion (remove traits and with-blocks, nothing added)
+- **Phase 3** — Additive (default implementations on abstract types)
+- **Phase 4** — Additive (re-add with-blocks targeting abstract types)
 
-**Key decisions:**
-- The grammar adds an `ABSTRACT` keyword token and a new `AbstractDeclaration` rule, while removing `INTERFACE` and `TRAIT` tokens from valid declarations (they remain recognized for error recovery).
-- The semantic model introduces an `AbstractType` that replaces both `InterfaceType` and `TraitType`. The `TypeKind` enum gains an `Abstract` variant (replacing both `Interface` and `Trait`).
-- Structural typing is removed entirely. All conformance requires explicit nominal declaration or a `with` block.
-- Default implementations use Rust-style semantics: the default IS the implementation regardless of reference type. The emitter ensures this by emitting both a DIM on the interface and a forwarding method on concrete types that don't override.
+Each phase gates on "all tests pass, all samples compile" before proceeding.
+
+**C# Interop Invariant:** The CSharpEmitter always emits `interface` in generated C# code. The ambient type provider continues to load CLR interfaces. Mist's internal concept is "abstract type" but the interop bridge to CLR remains unchanged.
 
 ## Architecture
 
+The compiler pipeline affected by this change is:
+
 ```mermaid
-graph TD
-    subgraph "Lexer/Grammar"
-        A[keywords.storm: ABSTRACT token] --> B[Mist.storm: AbstractDeclaration rule]
-        A2[INTERFACE/TRAIT: error recovery tokens]
-    end
-    
-    subgraph "Semantic Model"
-        C[AbstractType : IType] --> D[Scope with slots + defaults]
-        E[TraitSatisfactionMap → ConformanceMap]
-        F[WithBlockRegistry unchanged]
-    end
-    
-    subgraph "SemanticModelBuilder"
-        G[RegisterAbstractDeclaration] --> C
-        H[Pass1_ResolveAbstractParents] --> C
-        I[Pass1_ValidateAbstractSatisfaction] --> C
-        J[Pass1_ResolveWithBlocks adapts to AbstractType]
-    end
-    
-    subgraph "Emitter"
-        K[EmitAbstractDeclaration] --> L[C# interface + DIM bodies]
-        M[EmitForwardingMethods] --> N[Concrete type forwarding stubs]
-        O[EmitOverrideForClrSlots] --> P[override keyword for CLR base slots]
-    end
-    
-    subgraph "Ambient Type Provider"
-        Q[CLR interfaces → AbstractType with slots]
-        R[CLR abstract methods → required slots]
-        S[CLR virtual methods → slots with defaults]
-    end
+graph LR
+    A[Grammar / Lexer] --> B[Parser]
+    B --> C[SemanticModelBuilder]
+    C --> D[Type Checker / Analyzers]
+    D --> E[CSharpEmitter]
+    F[AmbientTypeProvider] --> C
 ```
+
+Each phase modifies a specific subset of these layers:
+
+| Phase | Grammar/Lexer | Parser | SemanticModel | TypeChecker | Emitter | AmbientProvider |
+|-------|--------------|--------|---------------|-------------|---------|-----------------|
+| 1     | Rename       | Rename | Rename        | Rename      | Rename  | No change       |
+| 2     | Delete       | Delete | Delete        | Delete      | Delete  | No change       |
+| 3     | Extend       | Extend | Extend        | Extend      | Extend  | No change       |
+| 4     | Re-add       | Re-add | Re-add        | Extend      | Extend  | No change       |
 
 ## Components and Interfaces
 
-### 1. Lexer and Grammar (keywords.storm + Mist.storm)
+### Phase 1 — Pure Rename (interface → abstract)
 
-**Changes to `keywords.storm`:**
-- Add: `token ABSTRACT = "abstract";`
-- Keep `INTERFACE` and `TRAIT` tokens (for error recovery/diagnostics), but they no longer gate valid productions.
+Phase 1 is entirely mechanical: the same AST node structure, the same semantic type, the same emission logic — just with different names. No behavior changes.
 
-**Changes to `Mist.storm`:**
+#### Grammar Layer (`keywords.storm`, `Mist.storm`)
 
-A new `AbstractDeclaration` rule replaces `InterfaceDeclaration` and `TraitDeclaration`:
-
+**Before:**
+```storm
+token INTERFACE = "interface";
 ```
+
+**After:**
+```storm
+token ABSTRACT = "abstract";
+```
+
+**Parser rule rename in `Mist.storm`:**
+
+| Before | After |
+|--------|-------|
+| `InterfaceDeclaration` rule | `AbstractDeclaration` rule |
+| `InterfaceType` variant in `TypeDeclaration` | `AbstractType` variant |
+| `InterfaceMemberDeclaration` rule | `AbstractMemberDeclaration` rule |
+| `InterfaceMethodDeclaration` rule | `AbstractMethodDeclaration` rule |
+| `InterfacePropertyDeclaration` rule | `AbstractPropertyDeclaration` rule |
+| `InterfaceAccessorDeclaration` rule | `AbstractAccessorDeclaration` rule |
+| `InterfaceMethodMember` / `InterfacePropertyMember` / etc. | `AbstractMethodMember` / `AbstractPropertyMember` / etc. |
+
+The rule uses `ABSTRACT` instead of `INTERFACE`:
+```storm
 rule AbstractDeclaration = modifiers:Modifier* ABSTRACT name:IDENTIFIER
     typeParams:TypeParameterList?
-    parentAbstracts:(COLON parents:BaseList)?
+    interfaceList:(COLON interfaces:BaseList)?
     constraints:WhereClause*
     LEFT_BRACE members:AbstractMemberDeclaration* RIGHT_BRACE;
+```
 
+**Removed keyword error diagnostic:** When the parser encounters `interface`, emit: `"The 'interface' keyword has been removed. Use 'abstract' instead."`
+
+#### Semantic Model Layer
+
+| Before | After |
+|--------|-------|
+| `InterfaceType.cs` | `AbstractType.cs` |
+| `class InterfaceType : IType` | `class AbstractType : IType` |
+| `TypeKind.Interface` | `TypeKind.Abstract` |
+| `SymbolKind.Interface` (if exists) | `SymbolKind.Abstract` |
+| `ConstructedType` with `InterfaceType` | `ConstructedType` with `AbstractType` |
+
+The `AbstractType` class has the exact same fields as `InterfaceType`:
+```csharp
+public sealed class AbstractType : IType
+{
+    public string DisplayName { get; }
+    public TypeKind Kind => TypeKind.Abstract;
+    public IScope MemberScope { get; }
+    public string? ContainingNamespace { get; }
+    public IReadOnlyList<IType> Interfaces { get; internal set; } = Array.Empty<IType>();
+    public IReadOnlyList<IType> TypeParameters { get; internal set; } = Array.Empty<IType>();
+    public bool IsReadonly { get; internal set; }
+}
+```
+
+#### SemanticModelBuilder Pass Renames
+
+| Before | After |
+|--------|-------|
+| `RegisterInterfaceDeclaration` | `RegisterAbstractDeclaration` |
+| `ResolveInterfaceDeclaration` | `ResolveAbstractDeclaration` |
+| `Pass1_ValidateInterfaceSatisfaction` | `Pass1_ValidateAbstractSatisfaction` |
+| `Pass1_DetectInterfaceCycles` | `Pass1_DetectAbstractCycles` |
+| `Pass1_ResolveInterfaceLists` | `Pass1_ResolveAbstractLists` |
+| `ResolveInterfaceInterfaceList` | `ResolveAbstractParentList` |
+| `ResolveInterfaceNames` | `ResolveAbstractNames` |
+| `RegisterInterfaceMethodDeclaration` | `RegisterAbstractMethodDeclaration` |
+| `RegisterInterfacePropertyDeclaration` | `RegisterAbstractPropertyDeclaration` |
+
+Internal helper methods that reference "Interface" in the Mist-type sense are also renamed (e.g., `FindCompilationUnitPathForInterfaceType` → `FindCompilationUnitPathForAbstractType`).
+
+#### CSharpEmitter Rename
+
+| Before | After |
+|--------|-------|
+| `EmitInterfaceDeclaration(InterfaceDeclarationNode)` | `EmitAbstractDeclaration(AbstractDeclarationNode)` |
+| `EmitInterfaceMethodDeclaration` | `EmitAbstractMethodDeclaration` |
+| `EmitInterfacePropertyDeclaration` | `EmitAbstractPropertyDeclaration` |
+
+The emitted C# output is unchanged — still produces `interface` keyword in generated code.
+
+#### Ambient Type Provider
+
+No changes. CLR interfaces continue to be exposed as `AbstractType` instances (the rename propagates through `InterfaceType` → `AbstractType` naturally).
+
+#### TextMate Grammar
+
+- `interface` removed from declaration keyword list
+- `abstract` added to declaration keyword scope (`keyword.declaration.mist`)
+- `entity.name.type.interface.mist` → `entity.name.type.abstract.mist`
+- Generic declaration pattern updated: `class|struct|abstract|trait`
+
+#### Test and Sample Renames
+
+All test files referencing the Mist concept of "interface" are renamed to use "abstract" (class names, method names, file names). Sample directories `Interfaces/` → `AbstractTypes/`, `ShapeInterfaces/` → `ShapeAbstracts/`, etc. The `interface` keyword in `.mist` files is replaced with `abstract`.
+
+---
+
+### Phase 2 — Purge Traits (Pure Deletion)
+
+Phase 2 removes traits entirely. No new functionality is added.
+
+#### Grammar Layer
+
+**Deleted tokens:** `TRAIT` removed from `keywords.storm`.
+
+**Deleted rules from `Mist.storm`:**
+- `TraitDeclaration`
+- `TraitMemberDeclaration` (and all variants)
+- `TraitFieldDeclaration`
+- `TraitMethodDeclaration`
+- `TraitPropertyDeclaration`
+- `WithDeclaration`
+- `MemberMapping`
+- `TraitType` variant removed from `TypeDeclaration` rule
+- `WithItem` variant removed from `TopLevelItem` rule
+
+**Removed keyword error diagnostics:**
+- `trait` → `"The 'trait' keyword has been removed. Use 'abstract' with nominal typing (': AbstractType') or a 'with' block for retroactive conformance."`
+- `with` in with-block position → error diagnostic
+
+**Note:** The `WITH` token, `AS` token remain in the grammar because `with` is used in `WithClause` (method signature context bindings) and `with` statements. Only the `WithDeclaration` top-level rule is removed.
+
+#### Semantic Model Layer
+
+**Deleted files/classes:**
+- `TraitType.cs` — `TraitType` class
+- `ConstructedTraitType.cs` — `ConstructedTraitType` class
+- `TraitSatisfactionMap.cs` — `TraitSatisfaction` and `TraitSatisfactionMap` classes
+- `WithBlockRegistry.cs` — `ValidatedMemberMapping` and `WithBlockRegistry` classes
+- `TypeKind.Trait` variant removed from the enum
+
+#### SemanticModelBuilder Deletions
+
+All trait-related passes removed:
+- `RegisterTraitDeclaration`
+- `ResolveTraitDeclaration`
+- `Pass1_ResolveTraitParents`
+- `Pass1_DetectTraitCycles` (and `DetectTraitCyclesDfsVisit`)
+- `Pass1_ResolveWithBlocks` (and all helper methods: `ResolveWithBlockTypeName`, `ResolveWithBlockTraitName`, `FindTraitMember`, etc.)
+- `Pass1_ResolveTraitSatisfaction` (and all structural matching logic: `TryStructuralMatch`, `TryStructuralMatchWithSubstitution`, `TryMatchTraitField`, `TryMatchTraitMethod`, `TryMatchTraitProperty`, etc.)
+- `ResolveExplicitMemberTypesForTrait`
+- `GetEffectiveMembers` (trait-specific)
+- `CollectEffectiveMembers` (trait-specific)
+- `HasTraitInBaseList`, `HasConstructedTraitInBaseList`
+- `CollectConstructedTraitsFromBaseList`, `CollectConstructedTraitsFromParents`
+- `RegisterTransitiveParentSatisfaction`
+
+**Constraint system cleanup:**
+- `TraitConstraints` list in `TypeParameterConstraints` — trait constraints become abstract type constraints (which already exist as `InterfaceConstraints`/`TypeConstraint`)
+- `ConcreteTypeSatisfiesTrait` removed from constraint satisfaction
+
+#### CSharpEmitter Deletions
+
+- `EmitTraitDeclaration` (and `EmitTraitMethodDeclaration`, `EmitTraitPropertyDeclaration`, `EmitTraitFieldAsProperty`)
+- `EmitExplicitTraitImplementations` — with-block emission logic
+- All references to `TraitSatisfactionMap` and `WithBlockRegistry`
+
+#### TextMate Grammar
+
+- `trait` removed from declaration keyword list
+- Generic declaration pattern updated: `class|struct|abstract`
+- `entity.name.type.trait.mist` scope removed
+
+---
+
+### Phase 3 — Default Implementations (New Functionality)
+
+Phase 3 adds the ability for abstract type methods to have bodies (default implementations). Properties cannot have defaults.
+
+#### Grammar Layer
+
+The `AbstractDeclaration` rule's member list is extended to accept members with bodies:
+
+```storm
 rule AbstractMemberDeclaration
     = method:AbstractMethodDeclaration           as AbstractMethodMember
-    | property:InterfacePropertyDeclaration      as AbstractPropertyMember
+    | property:AbstractPropertyDeclaration       as AbstractPropertyMember
     | defaultMethod:MethodDeclaration            as AbstractDefaultMethodMember
     | associatedType:AssociatedTypeSlotDeclaration as AbstractAssociatedTypeMember
     | unconstrainedAssociatedType:UnconstrainedAssociatedTypeSlotDeclaration as AbstractUnconstrainedAssociatedTypeMember
     | modifiedAssociatedType:ModifiedAssociatedTypeSlotDeclaration as AbstractModifiedAssociatedTypeMember
     | nestedType:TypeDeclaration                  as AbstractNestedTypeMember
     ;
-
-rule AbstractMethodDeclaration = returnOwnership:OwnershipSpecifier? returnType:TypeReference name:IDENTIFIER
-    typeParams:TypeParameterList?
-    LEFT_PARENTHESIS parameters:ParameterList? RIGHT_PARENTHESIS
-    withClauses:WithClause*
-    constraints:WhereClause*
-    SEMICOLON;
 ```
 
-**Key parsing distinction:** A method with a body (block) is a default implementation; a method terminated by semicolon is a slot. Properties always use the `InterfacePropertyDeclaration` rule (get/set accessors without bodies) and cannot have defaults.
+The key addition is `defaultMethod:MethodDeclaration as AbstractDefaultMethodMember` — reusing the existing `MethodDeclaration` rule (which includes a body) to parse default methods.
 
-The `TypeDeclaration` rule becomes:
-```
-rule TypeDeclaration
-    = classDeclaration:ClassDeclaration           as ClassType
-    | structDeclaration:StructDeclaration         as StructType
-    | abstractDeclaration:AbstractDeclaration     as AbstractType
-    | enumDeclaration:EnumDeclaration             as EnumType
-    ;
-```
+**Error diagnostic:** If a property declaration has a body inside an abstract type, emit: `"Property slots cannot have default implementations. Only methods can have defaults."`
 
-The old `InterfaceDeclaration` and `TraitDeclaration` rules are removed.
+#### Semantic Model Layer
 
-**Error recovery:** The parser checks for `INTERFACE` and `TRAIT` tokens at the start of `TopLevelItem` parsing positions and emits targeted error diagnostics with migration guidance before attempting to recover.
-
-**`WithDeclaration` changes:** The rule remains structurally the same, but the field name changes from `traitName` to `abstractName` to reflect the new terminology:
-
-```
-rule WithDeclaration = WITH typeName:IDENTIFIER COLON abstractName:IDENTIFIER abstractTypeArgs:TypeArgumentList?
-    LEFT_BRACE mappings:MemberMapping+ RIGHT_BRACE;
-```
-
-### 2. Semantic Model (Semantics/Model/Types/)
-
-**New type: `AbstractType`** (replaces both `InterfaceType` and `TraitType`):
+`AbstractType` gains a new field:
 
 ```csharp
 public sealed class AbstractType : IType
 {
-    public string DisplayName { get; }
-    public TypeKind Kind => TypeKind.Abstract;
-    public IScope MemberScope { get; }
-    public string? ContainingNamespace { get; }
-    
-    /// <summary>Parent abstract types this type inherits from.</summary>
-    public IReadOnlyList<IType> ParentAbstractTypes { get; internal set; } = Array.Empty<IType>();
-    
-    /// <summary>Type parameters declared on this abstract type.</summary>
-    public IReadOnlyList<IType> TypeParameters { get; internal set; } = Array.Empty<IType>();
-    
-    /// <summary>Whether this abstract type is declared as readonly.</summary>
-    public bool IsReadonly { get; internal set; }
-    
-    /// <summary>Whether a cycle was detected in the inheritance chain.</summary>
-    public bool IsCyclic { get; internal set; }
-    
+    // ... existing fields ...
+
     /// <summary>
-    /// Method symbols that have default implementations.
-    /// Key: method name, Value: the declaring syntax node (MethodDeclarationNode).
+    /// Methods with default implementations. Key = method name.
+    /// These do NOT need to be filled by implementers.
     /// </summary>
-    public Dictionary<string, Storm.Runtime.SyntaxNode> DefaultMethods { get; } = new();
+    public Dictionary<string, ISymbol> DefaultMethods { get; } = new();
 }
 ```
 
-**TypeKind enum change:**
-- Add `Abstract`
-- Keep `Interface` and `Trait` temporarily for CLR-imported types (the ambient type provider maps CLR interfaces to `TypeKind.Abstract` directly; old enum values remain only for backward-compat during transition)
+The `SemanticModelBuilder` registration pass for abstract types is extended:
+- When processing `AbstractDefaultMethodMember` nodes, register the method symbol in both the abstract type's `MemberScope` (for resolution) and in `DefaultMethods` (to distinguish from slots).
 
-**`ConstructedAbstractType`** replaces `ConstructedTraitType` for generic abstract types.
+#### Type Checker Changes
 
-**`ConformanceMap`** replaces `TraitSatisfactionMap`:
-- Same structure but operates on `AbstractType` instead of `TraitType`
-- No structural matching — only explicit declaration + with-block mappings
-- Records which slots are filled by the implementer and which rely on defaults
+`Pass1_ValidateAbstractSatisfaction` is modified:
+1. When collecting required members from an abstract type, **exclude** members listed in `DefaultMethods`.
+2. When a concrete type provides its own implementation for a default method with a matching signature, accept it (filling takes precedence).
+3. When an abstract type inherits from another that has defaults, propagate — implementers of the child are not required to fill inherited defaults either.
+4. Signature matching remains unchanged (exact match on name, return type, parameter types).
 
-**`WithBlockRegistry`** remains structurally identical but changes internal key type from `(IType, IType)` with `TraitType` values to `(IType, IType)` with `AbstractType` values.
+#### CSharpEmitter Changes — Default Interface Methods (DIM)
 
-### 3. SemanticModelBuilder Changes
+`EmitAbstractDeclaration` is extended:
+1. For `AbstractDefaultMethodMember` nodes, emit a C# **default interface method** (method with body on the interface):
+   ```csharp
+   interface IGreeting
+   {
+       string Name();
+       string Greet() => $"Hello, I am {this.Name()}";  // DIM
+   }
+   ```
 
-The following passes are modified or replaced:
+2. **Forwarding stub emission:** When emitting a concrete type that does NOT override a default, emit a forwarding method:
+   ```csharp
+   class Person : IGreeting
+   {
+       public string Name() => "Alice";
+       // Forwarding stub — makes DIM accessible without cast
+       public string Greet() => ((IGreeting)this).Greet();
+   }
+   ```
 
-| Current Pass | New Pass | Change |
-|---|---|---|
-| `RegisterInterfaceDeclaration` | `RegisterAbstractDeclaration` | Handles new AST node, creates `AbstractType` |
-| `RegisterTraitDeclaration` | Removed | Folded into `RegisterAbstractDeclaration` |
-| `Pass1_ResolveTraitParents` | `Pass1_ResolveAbstractParents` | Resolves parent abstract types (same logic as trait parents) |
-| `Pass1_DetectTraitCycles` | `Pass1_DetectAbstractCycles` | Cycle detection on abstract type inheritance |
-| `Pass1_DetectInterfaceCycles` | Removed (merged) | Combined into `Pass1_DetectAbstractCycles` |
-| `Pass1_ResolveWithBlocks` | Modified | Resolves against `AbstractType` instead of `TraitType`; no structural matching |
-| `Pass1_ResolveTraitSatisfaction` | Removed | No structural matching; satisfaction is purely nominal |
-| `Pass1_ValidateInterfaceSatisfaction` | `Pass1_ValidateAbstractSatisfaction` | Checks all slots are filled or have defaults |
-| `ResolveInterfaceDeclaration` | `ResolveAbstractDeclaration` | Pass 2 type resolution |
-| `ResolveTraitDeclaration` | Removed | Merged into `ResolveAbstractDeclaration` |
+3. When a concrete type provides its own implementation for a default method, emit only the concrete implementation (no forwarding).
 
-**New: Default method registration.** During `RegisterAbstractDeclaration`, methods with bodies are registered in `AbstractType.DefaultMethods`. The method body is resolved during Pass 2 (type resolution) using the abstract type's full member scope for `this` resolution.
+**Design rationale:** C# DIM requires casting to the interface type to call the default. The forwarding stub ensures Rust-style semantics where the default is accessible directly on the concrete type without casting. This matches the requirement that calling through concrete type and abstract type reference produces identical behavior.
 
-**New: Slot satisfaction validation.** `Pass1_ValidateAbstractSatisfaction` checks:
-1. For each slot (method or property without default), the implementing type must have a public member with matching signature.
-2. Methods with defaults don't require an implementation but accept one (slot filling takes precedence).
-3. Diamond inheritance: if multiple parent abstract types declare the same slot, a single implementation satisfies all.
+---
 
-**Removed structural matching code paths:**
-- `TryStructuralMatch`, `TryStructuralMatchWithSubstitution`
-- `TryMatchTraitField`, `TryMatchTraitMethod`, `TryMatchTraitProperty` (and their substitution variants)
-- All auto-satisfaction logic in `Pass1_ResolveTraitSatisfaction`
+### Phase 4 — Late Binding via With Blocks (New Functionality)
 
-### 4. Type Checker (TypeCheckerAnalyzer + SemanticModelBuilder)
+Phase 4 re-adds `with` block support, now targeting abstract types instead of traits, with nominal (not structural) conformance establishment.
 
-The type checker changes focus on assignability rules:
+#### Grammar Layer
 
-- **Assignment to abstract-typed variable:** Only types that declare `: AbstractType` in their base clause OR have a `with` block establishing conformance are assignable.
-- **No structural conformance:** A type with matching public members but no explicit declaration is NOT assignable to an abstract-typed location.
-- **Member access on abstract-typed expressions:** Resolves against the abstract type's member scope (both slots and defaults are visible).
-- **Transitive assignability:** If `IChild : IParent`, an implementer of `IChild` is assignable to `IParent`-typed locations.
+Re-add to `Mist.storm`:
+```storm
+rule WithDeclaration = WITH typeName:IDENTIFIER COLON abstractName:IDENTIFIER abstractTypeArgs:TypeArgumentList?
+    LEFT_BRACE mappings:MemberMapping+ RIGHT_BRACE;
 
-### 5. Emitter Changes (CSharpTranspiler/CSharpEmitter.cs)
-
-**`EmitAbstractDeclaration`** (replaces both `EmitInterfaceDeclaration` and `EmitTraitDeclaration`):
-
-```
-// Slots (no body) → C# interface method/property signatures
-// Default methods (with body) → C# default interface methods (DIM)
-interface IAbstract {
-    string Slot();           // slot
-    string Default() {       // DIM
-        return "default";
-    }
-}
+rule MemberMapping = sourceName:IDENTIFIER AS targetName:IDENTIFIER SEMICOLON;
 ```
 
-**Forwarding methods for defaults:**
+The `WithItem` variant is re-added to `TopLevelItem`. The `WITH` and `AS` tokens already exist (they were retained in Phase 2 for with-clauses and with-statements).
 
-When a concrete type does NOT override a default method, the emitter generates a forwarding stub:
+#### Semantic Model Layer
+
+A new `ConformanceMap` replaces the old `TraitSatisfactionMap` + `WithBlockRegistry`:
 
 ```csharp
-class Concrete : IAbstract {
-    // Slot is filled by user code
-    public string Slot() => "filled";
-    
-    // Forwarding method for DIM (ensures callable without casting)
-    public string Default() => ((IAbstract)this).Default();
+/// <summary>
+/// A validated member mapping from a with-block.
+/// Maps a source member on the adapting type to a slot on the abstract type.
+/// </summary>
+public sealed class ConformanceMapping
+{
+    public required ISymbol SourceMember { get; init; }
+    public required ISymbol TargetSlot { get; init; }
+    public required string SourceName { get; init; }
+    public required string TargetName { get; init; }
+}
+
+/// <summary>
+/// Records with-block conformance registrations.
+/// Key: (concreteType, abstractType). Value: list of member mappings.
+/// </summary>
+public sealed class ConformanceMap
+{
+    private readonly Dictionary<(IType, IType), List<ConformanceMapping>> _entries = new();
+
+    public void Register(IType type, IType abstractType, ConformanceMapping mapping);
+    public bool HasConformance(IType type, IType abstractType);
+    public IReadOnlyList<ConformanceMapping> GetMappings(IType type, IType abstractType);
+    public IEnumerable<(IType Type, IType AbstractType, IReadOnlyList<ConformanceMapping>)> All();
 }
 ```
 
-This ensures Rust-style semantics: calling `concrete.Default()` and `((IAbstract)concrete).Default()` produce identical behavior.
+#### SemanticModelBuilder — New Pass
 
-**Override for CLR slots (existing `FindBaseOverrideSlot` mechanism):**
+A new `Pass1_ResolveWithBlocks` pass is added (re-implemented from scratch, simpler than the old one since there's no structural matching):
 
-The existing logic in `FindBaseOverrideSlot` already walks the CLR inheritance chain looking for `virtual`/`abstract` methods. This is preserved. When a Mist type fills a slot originating from a CLR base class, the emitter generates `override`:
+1. For each `WithDeclaration` node:
+   - Resolve `typeName` to a concrete type.
+   - Resolve `abstractName` to an `AbstractType`.
+   - For each `MemberMapping`:
+     - Find `sourceName` as a public member on the concrete type.
+     - Find `targetName` as a slot on the abstract type.
+     - Validate signature compatibility (same return type, same parameter types).
+     - Register the mapping in `ConformanceMap`.
+2. Validate that all required slots (those not in `DefaultMethods`) have mappings. Default methods without mappings are automatically satisfied.
+3. Error if the type already declares `: AbstractType` in its base clause (redundant conformance).
+4. **Error if `typeName` resolves to a CLR/ambient type** (not defined in Mist source). Since `with` blocks work by appending the interface to the target type's inheritance list and emitting explicit implementations on it, this is impossible for types we don't own. Emit: `"Cannot use 'with' to establish conformance for CLR type '{TypeName}'. Only types defined in Mist source can be adapted via 'with' blocks."`
 
-```csharp
-class MistDerived : ClrBaseClass {
-    public override void AbstractMethod() { ... }  // CLR slot → override
-}
-```
+#### Type Checker Changes
 
-**Hiding semantics for Mist concrete inheritance:**
+`Pass1_ValidateAbstractSatisfaction` extended:
+- When checking assignability, also consult `ConformanceMap` — a type with with-block conformance is assignable to the abstract type.
 
-For Mist-to-Mist concrete class inheritance (not slot filling), the existing hiding check is preserved. When a derived class declares a member matching a base class member, it must use `new`:
+#### CSharpEmitter — With Block Emission
 
-```csharp
-class Derived : Base {
-    new public string Speak() => "derived";  // hiding, not override
-}
-```
-
-**`EmitExplicitTraitImplementations` → `EmitExplicitAbstractImplementations`:**
-
-With-block mappings continue to emit explicit interface implementations:
-
-```csharp
-// with Logger : INamed { GetLabel as Name; }
-// emits:
-string INamed.Name() => this.GetLabel();
-```
-
-### 6. Ambient Type Provider Changes
-
-**`AssemblyTypeProvider.ResolveTypeCore`:**
-
-| CLR construct | Mist representation |
-|---|---|
-| C# `interface` | `AbstractType` with all members as slots |
-| C# class with `abstract` methods | `AbstractType`-like slots on the ClassType (filled via `override` emission) |
-| C# class with `virtual` methods | Slots with defaults on the ClassType (optional filling) |
-
-The `IsVirtualOrAbstract` property on ambient symbols (already tracked) drives whether the emitter generates `override` or leaves the base implementation inherited.
-
-**New behavior for virtual methods:** When the ambient type provider encounters a `virtual` method with a body, it marks the symbol as having a default. The type checker does NOT require Mist types to fill these slots (same semantics as abstract type defaults).
-
-### 7. With Block Adaptation
-
-The `with` block mechanism adapts minimally:
-
-1. **Resolves target as `AbstractType`** instead of `TraitType`
-2. **Only requires mappings for unfilled slots** — if a default method exists and no mapping is provided, the default is used
-3. **Mapping overrides defaults** — if a `with` block maps a member to a slot that has a default, the mapping wins
-4. **No structural pre-matching** — all `with` block members must be explicitly mapped; there is no auto-detection of matching names
-
-The `with` block continues to emit as explicit interface implementations in C#.
-
-### 8. Member Hiding vs Slot Filling Decision Logic
-
-The emitter must distinguish three cases:
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│ Method on concrete type matches a name in scope             │
-├─────────────────────────────────────────────────────────────┤
-│ 1. Slot from abstract type in base clause?                  │
-│    → Slot filling (implements interface member)             │
-│    → Emit: public string Method() (implicit interface impl) │
-│                                                             │
-│ 2. CLR virtual/abstract method on base class?               │
-│    → Override (FindBaseOverrideSlot returns non-null)        │
-│    → Emit: public override string Method()                  │
-│                                                             │
-│ 3. Mist concrete base class method?                         │
-│    → Hiding (requires `new` keyword)                        │
-│    → Emit: public new string Method()                       │
-│    → Warning if `new` missing                               │
-└─────────────────────────────────────────────────────────────┘
-```
-
-These three cases are mutually exclusive in their triggering conditions and do not conflict.
+For each entry in `ConformanceMap`:
+1. Add the abstract type's interface name to the concrete type's C# inheritance list.
+2. Emit explicit interface implementations that delegate to the source member:
+   ```csharp
+   class Logger : INamed  // ← added by with-block
+   {
+       public string GetLabel() => "SystemLogger";
+       // Explicit interface implementation delegating to mapped member
+       string INamed.Name() => this.GetLabel();
+   }
+   ```
+3. For default methods without mappings, emit a forwarding stub (same as Phase 3).
+4. For mapped slots that have defaults, the mapping takes precedence — emit explicit implementation for the mapped member, no forwarding for the default.
 
 ## Data Models
 
-### AbstractType
+### TypeKind Enum (Final State)
+
+```csharp
+public enum TypeKind
+{
+    Class,
+    Struct,
+    Abstract,   // was Interface; Trait removed
+    Enum,
+    Unknown,
+    AssociatedTypeSlot,
+}
+```
+
+### AbstractType (Final State — After Phase 3)
 
 ```csharp
 public sealed class AbstractType : IType
@@ -312,280 +401,222 @@ public sealed class AbstractType : IType
     public TypeKind Kind => TypeKind.Abstract;
     public IScope MemberScope { get; }
     public string? ContainingNamespace { get; }
-    public IReadOnlyList<IType> ParentAbstractTypes { get; internal set; }
-    public IReadOnlyList<IType> TypeParameters { get; internal set; }
+    public IReadOnlyList<IType> Interfaces { get; internal set; } = Array.Empty<IType>();
+    public IReadOnlyList<IType> TypeParameters { get; internal set; } = Array.Empty<IType>();
     public bool IsReadonly { get; internal set; }
     public bool IsCyclic { get; internal set; }
-    
+
     /// <summary>
-    /// Method names that have default implementation bodies.
-    /// Used by the emitter to decide whether to generate forwarding stubs.
+    /// Methods with default implementations (Phase 3+).
+    /// Key = method name. Not required to be filled by implementers.
     /// </summary>
-    public HashSet<string> DefaultMethodNames { get; } = new();
+    public Dictionary<string, ISymbol> DefaultMethods { get; } = new();
 }
 ```
 
-### ConstructedAbstractType
+### ConformanceMap (Phase 4)
 
 ```csharp
-public sealed class ConstructedAbstractType : IType
+public sealed class ConformanceMapping
 {
-    public string DisplayName { get; }
-    public TypeKind Kind => TypeKind.Abstract;
-    public AbstractType GenericAbstractDefinition { get; }
-    public IReadOnlyList<IType> TypeArguments { get; }
+    public required ISymbol SourceMember { get; init; }
+    public required ISymbol TargetSlot { get; init; }
+    public required string SourceName { get; init; }
+    public required string TargetName { get; init; }
 }
-```
 
-### ConformanceRecord (replaces TraitSatisfaction)
-
-```csharp
-public sealed class ConformanceRecord
-{
-    /// <summary>Members filled by the implementing type (name → symbol).</summary>
-    public IReadOnlyDictionary<string, ISymbol> FilledSlots { get; init; }
-    
-    /// <summary>Members filled via with-block mapping (name → source symbol).</summary>
-    public IReadOnlyDictionary<string, ISymbol> WithMappings { get; init; }
-    
-    /// <summary>Methods that use the default implementation (name → default node).</summary>
-    public IReadOnlySet<string> DefaultsUsed { get; init; }
-}
-```
-
-### ConformanceMap (replaces TraitSatisfactionMap)
-
-```csharp
 public sealed class ConformanceMap
 {
-    private readonly Dictionary<(IType, IType), ConformanceRecord> _conformances = new();
-    
-    public void Register(IType type, IType abstractType, ConformanceRecord record);
-    public bool Conforms(IType type, IType abstractType);
-    public ConformanceRecord? GetConformance(IType type, IType abstractType);
-    public IEnumerable<(IType Type, IType Abstract, ConformanceRecord Record)> All();
+    private readonly Dictionary<(IType, IType), List<ConformanceMapping>> _entries = new();
+
+    public void Register(IType type, IType abstractType, ConformanceMapping mapping) { /* ... */ }
+    public bool HasConformance(IType type, IType abstractType) => _entries.ContainsKey((type, abstractType));
+    public IReadOnlyList<ConformanceMapping> GetMappings(IType type, IType abstractType) { /* ... */ }
+    public IEnumerable<(IType Type, IType AbstractType, IReadOnlyList<ConformanceMapping> Mappings)> All() { /* ... */ }
 }
 ```
+
+
 
 ## Correctness Properties
 
 *A property is a characteristic or behavior that should hold true across all valid executions of a system — essentially, a formal statement about what the system should do. Properties serve as the bridge between human-readable specifications and machine-verifiable correctness guarantees.*
 
-### Property 1: Abstract declaration parse round-trip
+### Property 1: Abstract Declaration Round-Trip
 
-*For any* valid abstract type declaration (varying identifier names, generic parameters, constraint clauses, and member combinations of slots and defaults), parsing the source text SHALL produce an `AbstractDeclarationNode` with the correct name, type parameters, base list, and member classifications (slots vs defaults).
+*For any* valid abstract type declaration (with arbitrary name, type parameters, base clauses, constraints, and slot/default members), parsing the source text SHALL produce an abstract declaration syntax node whose structure can be printed back and re-parsed to produce an equivalent AST.
 
-**Validates: Requirements 1.1, 1.2, 1.3, 1.5, 1.6, 1.7**
+**Validates: Requirements 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7**
 
-### Property 2: No structural conformance
+### Property 2: Slot vs Default Classification by Body Presence
 
-*For any* concrete type that has public members matching all slots of an abstract type but does NOT declare `: AbstractType` in its base clause and has no `with` block, the type checker SHALL reject assignment of that type to a variable typed as the abstract type.
+*For any* method declaration inside an abstract type body, the method SHALL be classified as a slot if and only if it has no body (semicolon-terminated), and as a default implementation if and only if it has a braced body. The classification is determined solely by body presence.
 
-**Validates: Requirements 3.3, 3.4**
+**Validates: Requirements 13.1, 13.2, 13.5**
 
-### Property 3: Complete slot filling accepted
+### Property 3: Slot Satisfaction Completeness
 
-*For any* abstract type with N required slots (members without defaults) and any concrete type that declares `: AbstractType` and provides public implementations matching all N slot signatures exactly (by name, return type, and parameter types), the type checker SHALL accept the concrete type as a valid implementer.
+*For any* abstract type with N slots (members without defaults) and M default methods, a concrete type declaring `: AbstractType` SHALL be accepted by the type checker if and only if it provides public implementations matching every one of the N slot signatures. Missing any slot results in a diagnostic listing the unfilled slots. The M default methods do NOT need implementations.
 
-**Validates: Requirements 4.1, 4.3**
+**Validates: Requirements 14.1, 14.2, 14.3, 28.1, 28.2**
 
-### Property 4: Missing slot filling rejected
+### Property 4: Signature Matching Exactness
 
-*For any* abstract type with N required slots (N ≥ 1) and any concrete type that declares `: AbstractType` but is missing at least one slot implementation, the type checker SHALL emit an error diagnostic listing each unfilled slot by name and signature.
+*For any* slot signature and any candidate implementation on a concrete type, the type checker SHALL accept the implementation if and only if the name, return type, and all parameter types match exactly. Any mismatch in name, return type, or parameter type(s) SHALL result in rejection.
 
-**Validates: Requirements 4.2, 4.3**
+**Validates: Requirements 14.5, 28.4**
 
-### Property 5: Default methods do not require implementation
+### Property 5: Inherited Slot Propagation
 
-*For any* abstract type with M default methods and any concrete type that declares `: AbstractType` and fills all required slots but provides no implementation for any default method, the type checker SHALL accept the type as valid.
+*For any* abstract type hierarchy (child inheriting from parent(s)), an implementer of the child abstract type SHALL be required to fill all non-default slots from the entire inheritance chain — both the child's own slots and all ancestor slots. Default methods at any level do not require filling.
 
-**Validates: Requirements 4.5, 5.1**
+**Validates: Requirements 14.6, 28.3**
 
-### Property 6: Slot signature matching is exact
+### Property 6: Default Dispatch Consistency
 
-*For any* abstract type slot and any concrete type implementation where the name matches but either the return type or at least one parameter type differs, the type checker SHALL reject the implementation as not satisfying the slot.
+*For any* concrete type that does NOT override a default method, calling that default method through a concrete-type reference and through an abstract-type reference SHALL produce identical behavior (same return value, same side effects).
 
-**Validates: Requirements 4.6**
+**Validates: Requirements 15.1, 15.2**
 
-### Property 7: Method dispatch is reference-type-independent
+### Property 7: Override Takes Precedence
 
-*For any* concrete type that either takes a default method implementation or overrides one, calling the method through the concrete type reference and through the abstract type reference SHALL produce identical behavior (same return value and side effects).
+*For any* concrete type that provides its own implementation for a method with a default, the concrete type's implementation SHALL be invoked regardless of whether the value is accessed through the concrete type reference or the abstract type reference.
 
-**Validates: Requirements 5.2, 5.3**
+**Validates: Requirements 15.3**
 
-### Property 8: Forwarding methods emitted for defaults
+### Property 8: Nominal Typing Enforcement
 
-*For any* abstract type with default methods and any concrete type that does not provide its own implementation for those defaults, the emitter SHALL generate both a default interface method body on the C# interface AND a forwarding method on the concrete class that delegates to the DIM.
+*For any* type that structurally matches all members of an abstract type but does NOT declare `: AbstractType` in its base clause and has no `with` block establishing conformance, the type SHALL NOT be assignable to variables or parameters typed as the abstract type. Structural matching alone is insufficient.
 
-**Validates: Requirements 5.5, 7.6**
+**Validates: Requirements 7.8**
 
-### Property 9: With-block establishes assignability
+### Property 9: With-Block Establishes Assignability
 
-*For any* type and any abstract type, when a valid `with` block maps all required slots (those without defaults), the type SHALL be accepted for assignment to variables and parameters typed as the abstract type.
+*For any* valid `with TypeName : AbstractType { mappings }` declaration where all required slot mappings have compatible signatures, the declared type SHALL become assignable to variables and parameters typed as the abstract type.
 
-**Validates: Requirements 6.1, 6.6**
+**Validates: Requirements 20.1, 20.2**
 
-### Property 10: With-block emits explicit interface implementation
+### Property 10: With-Block Only Requires Non-Default Slot Mappings
 
-*For any* `with` block mapping with `SourceMember as TargetSlot`, the emitter SHALL generate an explicit interface implementation method/property that delegates to the source member.
+*For any* abstract type with N slots and M defaults, a `with` block targeting that abstract type SHALL be accepted if and only if it provides mappings for all N slots. Mappings for default methods are optional — unmapped defaults are satisfied automatically.
 
-**Validates: Requirements 6.2**
+**Validates: Requirements 20.3**
 
-### Property 11: With-block defaults don't require mappings
+### Property 11: With-Block Signature Validation
 
-*For any* abstract type with M default methods and N required slots, a `with` block SHALL only require mappings for the N required slots. Omitting mappings for default methods SHALL be accepted.
+*For any* member mapping in a `with` block, if the source member's type signature is incompatible with the target slot's declared signature, the compiler SHALL emit a type mismatch error at the mapping declaration point.
 
-**Validates: Requirements 6.3**
+**Validates: Requirements 20.6**
 
-### Property 12: Abstract type emits as C# interface
+### Property 12: Multiple With-Blocks Independence
 
-*For any* abstract type declaration, the emitter SHALL produce a C# `interface` declaration. Slots (no body) emit as signature-only members. Default methods (with body) emit as default interface method bodies.
+*For any* type with multiple `with` blocks establishing conformance to different abstract types, each `with` block SHALL be validated independently. The type SHALL be assignable to each abstract type independently.
 
-**Validates: Requirements 7.1, 7.2, 7.3, 7.5**
+**Validates: Requirements 20.8**
 
-### Property 13: CLR ambient type mapping
+### Property 13: Abstract Type Emission as C# Interface
 
-*For any* CLR interface in a referenced assembly, the ambient type provider SHALL expose it as an `AbstractType` with all interface members as required slots. *For any* CLR `abstract` method on a class, it SHALL appear as a required slot. *For any* CLR `virtual` method with an implementation, it SHALL appear as a fillable but not required slot.
+*For any* abstract type declaration, the C# emitter SHALL produce a syntactically valid C# `interface` declaration. Slot members SHALL emit as method/property signatures. Default methods (Phase 3+) SHALL emit as default interface methods with bodies.
 
-**Validates: Requirements 8.1, 8.2, 8.3**
+**Validates: Requirements 24.1, 24.2, 24.3, 24.5**
 
-### Property 14: CLR slot filling emits override
+### Property 14: Diamond Inheritance — Single Implementation Satisfies Both
 
-*For any* Mist type that fills a slot originating from a CLR `abstract` or `virtual` method on a base class, the emitter SHALL generate the C# `override` keyword on the emitted method.
+*For any* diamond abstract type hierarchy where two parent abstract types declare a slot with the same name and signature, a single implementation on the concrete type SHALL satisfy both parent slots simultaneously.
 
-**Validates: Requirements 8.4**
+**Validates: Requirements 28.5**
 
-### Property 15: Unfilled CLR virtual slots emit nothing
+### Property 15: Transitive Assignability Through Hierarchy
 
-*For any* Mist type that does NOT fill a slot originating from a CLR `virtual` method, the emitter SHALL NOT emit any method for that slot (the base class implementation is inherited normally via C# semantics).
+*For any* implementer of a child abstract type, the implementer SHALL be unconditionally assignable to a variable typed as any ancestor abstract type in the inheritance chain.
 
-**Validates: Requirements 8.5**
-
-### Property 16: Abstract-typed assignability
-
-*For any* variable, parameter, or return type declared as an abstract type, the type checker SHALL accept assignment of any concrete type that has established conformance (via `: AbstractType` or a `with` block) and SHALL reject types without conformance.
-
-**Validates: Requirements 9.1, 9.2**
-
-### Property 17: Transitive assignability through abstract hierarchy
-
-*For any* abstract type hierarchy where `IChild : IParent`, an implementer of `IChild` SHALL be assignable to a variable typed as `IParent`.
-
-**Validates: Requirements 9.4**
-
-### Property 18: Concrete class hiding requires `new` and preserves base behavior
-
-*For any* Mist concrete class hierarchy where a derived class declares a method with the same name and signature as a base class method, (a) the compiler SHALL emit a warning if `new` is missing, (b) the emitter SHALL generate `new` on the derived method, and (c) calling the method through a base-typed reference SHALL invoke the base implementation (hiding semantics, not override).
-
-**Validates: Requirements 10.1, 10.2, 10.3**
-
-
+**Validates: Requirements 27.4**
 
 ## Error Handling
 
-### Parse-time Errors
+### Phase 1 Errors
 
-| Error Condition | Diagnostic Message | Recovery |
-|---|---|---|
-| `interface` keyword encountered | "The 'interface' keyword has been removed. Use 'abstract' instead." | Skip to next `}` and continue parsing |
-| `trait` keyword encountered | "The 'trait' keyword has been removed. Use 'abstract' with nominal typing (': AbstractType') or a 'with' block for retroactive conformance." | Skip to next `}` and continue parsing |
-| Property with body in abstract type | "Property slots cannot have default implementations. Only methods can have defaults." | Treat as slot, discard body |
+| Condition | Diagnostic | Severity |
+|-----------|-----------|----------|
+| `interface` keyword encountered | "The 'interface' keyword has been removed. Use 'abstract' instead." | Error |
 
-### Semantic Errors (SemanticModelBuilder)
+### Phase 2 Errors
 
-| Error Condition | Diagnostic Message | Severity |
-|---|---|---|
-| Missing slot implementation | "Type '{TypeName}' does not implement abstract member '{AbstractType}.{MemberName}({Signature})'" | Error |
-| Signature mismatch on slot filling | "Type '{TypeName}' member '{MemberName}' has wrong signature for '{AbstractType}.{MemberName}'. Expected: {expected}. Actual: {actual}" | Error |
-| `with` block references undefined type | "Type '{TypeName}' is not defined in scope" | Error |
-| `with` block references undefined abstract type | "Abstract type '{AbstractName}' is not defined in scope" | Error |
-| `with` block member type mismatch | "Cannot map '{SourceMember}' to '{TargetSlot}': source has type '{SourceType}', slot requires '{SlotType}'" | Error |
-| `with` block for already-conforming type | "Type '{TypeName}' already declares ': {AbstractType}'. Remove the redundant 'with' block." | Error |
-| Non-conforming type assigned to abstract variable | "Cannot assign type '{SourceType}' to '{AbstractType}': type does not implement the abstract type" | Error |
-| Cyclic abstract type inheritance | "Abstract type '{Name}' is part of a circular inheritance chain" | Error |
-| Abstract type inheriting from non-abstract type | "Abstract type '{Name}' can only inherit from other abstract types, not '{BaseType}'" | Error |
+| Condition | Diagnostic | Severity |
+|-----------|-----------|----------|
+| `trait` keyword encountered | "The 'trait' keyword has been removed. Use 'abstract' with nominal typing (': AbstractType') or a 'with' block for retroactive conformance." | Error |
+| `with` in top-level with-block position | Error diagnostic (keyword temporarily unavailable) | Error |
 
-### Warnings
+### Phase 3 Errors
 
-| Warning Condition | Diagnostic Message | Severity |
-|---|---|---|
-| Concrete member hides base without `new` | "'{TypeName}.{MemberName}' hides inherited member '{BaseTypeName}.{MemberName}'. Use 'new' if intentional." | Warning |
-| `new` on non-hiding member | "The member '{TypeName}.{MemberName}' does not hide an inherited member. The 'new' keyword is not required." | Warning |
+| Condition | Diagnostic | Severity |
+|-----------|-----------|----------|
+| Property with body in abstract type | "Property slots cannot have default implementations. Only methods can have defaults." | Error |
+| Missing slot implementations | Lists each unfilled slot by name and signature | Error |
+| Signature mismatch on override | Reports expected vs actual signature | Error |
 
-### Error Recovery Strategy
+### Phase 4 Errors
 
-The parser uses a "skip to next synchronization point" strategy for removed keywords:
-1. When `interface` or `trait` is encountered at a declaration position, emit the diagnostic immediately.
-2. Attempt to parse the declaration body as if it were valid (same grammar shape as `abstract`).
-3. Do NOT register the declaration in the semantic model — it's treated as an error node.
-4. Continue parsing subsequent declarations normally.
+| Condition | Diagnostic | Severity |
+|-----------|-----------|----------|
+| Undefined type in with-block | Identifies the undefined reference | Error |
+| Signature mismatch in with-block mapping | Type mismatch error at mapping declaration | Error |
+| Redundant conformance (type already declares `: AbstractType`) | "Redundant conformance" error | Error |
+| Missing required slot mappings | Lists unmapped required slots | Error |
 
-This strategy gives users maximum diagnostic coverage (they see errors for all their old declarations, not just the first one).
+### Cross-Phase Errors (Retained from current system)
+
+| Condition | Diagnostic | Severity |
+|-----------|-----------|----------|
+| Cyclic abstract type inheritance | Cycle detection error | Error |
+| Duplicate member declarations | Redeclaration error | Error |
+| Hiding without `new` keyword | Warning about hidden member | Warning |
+| `new` on non-hiding member | Warning about unnecessary `new` | Warning |
 
 ## Testing Strategy
 
-### Property-Based Testing
+### Dual Testing Approach
 
-This feature is well-suited for property-based testing because:
-- The core logic involves type-checking rules that should hold universally across all valid/invalid inputs
-- The input space (type declarations, member signatures, conformance relationships) is large and structured
-- Pure logic properties (acceptance/rejection decisions) can be tested without process spawning
+This feature uses both unit tests and property-based tests for comprehensive coverage:
 
-**Library:** FsCheck (already available in the test project)
+- **Property-based tests (PBT):** Verify the 15 correctness properties above using generated inputs (random abstract type declarations, random slot configurations, random type hierarchies).
+- **Unit tests:** Verify specific examples, error diagnostics, edge cases (empty bodies, marker types, diamond inheritance), and integration points (C# emission, sample compilation).
 
-**Configuration:** Minimum 100 iterations per property test.
+### Property-Based Testing Configuration
 
-**Tag format:** `// Feature: abstract-type-unification, Property {N}: {description}`
+- **Library:** FsCheck (already used in the project)
+- **Minimum iterations:** 100 per property test
+- **Tag format:** `// Feature: abstract-type-unification, Property {N}: {title}`
 
-**Testing approach:** Use the in-process `CompilerDriver` and `SemanticModelBuilder` for property tests. Generate Mist source code strings, compile them in-process, and inspect the diagnostic bag for expected errors/acceptances. No process spawning for property tests.
+### Test Categories by Phase
 
-### Property Tests (from Correctness Properties)
+**Phase 1 tests (rename verification):**
+- Round-trip property test: `AbstractDeclarationRoundTripPropertyTests` (Property 1)
+- Example tests: `interface` keyword error diagnostic, empty body parsing
+- Integration: all samples compile with `abstract`
 
-Each correctness property maps to a single PBT test that generates random inputs and verifies the universal property:
+**Phase 2 tests (deletion verification):**
+- Property test: nominal typing enforcement (Property 8)
+- Example tests: `trait` keyword error diagnostic
+- Integration: all samples compile without traits
 
-1. **Parse round-trip** — Generate random abstract type sources, verify AST structure
-2. **No structural conformance** — Generate types with matching members but no declaration, verify rejection
-3. **Complete slot filling** — Generate valid implementations, verify acceptance
-4. **Missing slot filling** — Generate incomplete implementations, verify error diagnostics
-5. **Defaults not required** — Generate types relying on defaults, verify acceptance
-6. **Exact signature matching** — Generate near-miss signatures, verify rejection
-7. **Reference-type independence** — Batch-compile programs, verify identical output via both reference types
-8. **Forwarding method emission** — Generate concrete types, inspect emitted C# for forwarding stubs
-9. **With-block conformance** — Generate valid with blocks, verify assignability
-10. **With-block explicit impl emission** — Inspect emitted C# for explicit interface implementations
-11. **With-block defaults optional** — Generate with blocks omitting defaults, verify acceptance
-12. **Abstract type C# emission structure** — Inspect emitted C# interface structure
-13. **CLR ambient mapping** — Load test assemblies, verify AbstractType creation
-14. **CLR override emission** — Generate slot-filling code, verify `override` in emitted C#
-15. **CLR unfilled virtual** — Generate types not filling virtuals, verify no emission
-16. **Abstract assignability** — Generate conforming/non-conforming types, verify assignment behavior
-17. **Transitive assignability** — Generate hierarchies, verify parent-type assignment
-18. **Concrete hiding** — Generate class hierarchies with hiding, verify `new` keyword and behavior
+**Phase 3 tests (default implementations):**
+- Property tests: slot vs default classification (Property 2), slot satisfaction (Property 3), signature matching (Property 4), inherited slots (Property 5), dispatch consistency (Property 6), override precedence (Property 7)
+- Integration: default method samples compile and produce correct output
+- Batched compilation test: generate N default-implementation scenarios, compile once, run once, verify N output lines
 
-### Unit Tests (Example-Based)
+**Phase 4 tests (with-blocks):**
+- Property tests: with-block assignability (Property 9), non-default slot mappings (Property 10), signature validation (Property 11), multiple with-blocks (Property 12)
+- Property tests: emission (Property 13), diamond inheritance (Property 14), transitive assignability (Property 15)
+- Integration: with-block samples compile and produce correct output
 
-- `interface` keyword produces exact error message text
-- `trait` keyword produces exact error message text
-- Empty abstract type body (`abstract IMarker { }`) parses correctly
-- Diamond inheritance with single implementation (specific scenario)
-- `with` block filling a default method (specific runtime behavior)
-- `with` block referencing undefined type produces exact error
-- Redundant `with` block for already-conforming type produces exact error
-- `new` keyword on non-hiding member produces exact warning
+### Process Spawning Strategy
 
-### Integration Tests (Sample Execution)
+Per the Test Process Spawning Policy, tests that require compilation and execution use the **batched approach**:
+1. Generate all N scenarios upfront via FsCheck generators.
+2. Build a single Mist source program that exercises all N scenarios and prints N labeled output lines.
+3. Compile once using the shared `CompilerDriver` (in-process).
+4. Run the compiled DLL once.
+5. Compare output lines against expected results.
 
-- Compile and run `samples/AbstractTypes/Program.mist` — verify exact expected output
-- Compile and run all migrated samples — verify they produce unchanged output
-- Compile and run `samples/AllFeatures/Program.mist` — verify the full suite passes
-
-### Process Spawning Budget
-
-Property-based tests use in-process compilation (no spawning). Integration tests spawn `dotnet` once per sample (batched: compile once, run once per sample). Total spawning budget: ~15 process invocations for the full test suite.
-
-### Migration Verification
-
-Each migrated sample (from the migration table in requirements) gets a snapshot test:
-1. Record expected stdout before migration (from current passing output)
-2. After migration: compile and run, verify stdout matches snapshot
-3. This ensures zero semantic change for existing code migrated from `interface`/`trait` to `abstract`
+This ensures each property test class spawns `dotnet` at most once (for execution), keeping wall-clock time under 5 seconds per class.

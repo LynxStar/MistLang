@@ -2,9 +2,17 @@
 
 ## Introduction
 
-This feature unifies Mist's `interface` and `trait` keywords into a single `abstract` keyword, creating a coherent contract mechanism with slot semantics. Members without bodies are required slots that implementers must fill. Members with bodies provide default implementations using Rust-style semantics (the default IS the implementation, regardless of how the value is referenced). Structural typing (the trait mechanism) is sunsetted; nominal typing and late binding (`with` blocks) are preserved under the new `abstract` keyword.
+This feature unifies Mist's `interface` and `trait` keywords into a single `abstract` keyword, executed in four sequential phases. Each phase has a clear gate (everything passes) before the next begins.
 
-100% of existing `interface` behavior migrates to `abstract` with zero semantic change — this includes associated types, generic parameters, generic constraints, property signatures, and all existing interface inheritance patterns. The only change is the keyword.
+**Phase 1 — Pure Rename:** Mechanical rename of `interface` → `abstract` throughout the entire codebase. Zero semantic change — abstract types behave identically to interfaces. All compiler internals, tests, samples, book, and syntax highlighting are migrated.
+
+**Phase 2 — Purge Traits:** Complete removal of traits, structural typing, and the `with` block mechanism. Nothing new is added — this is purely deletion.
+
+**Phase 3 — Default Implementations:** Add the ability for abstract type members to have method bodies (default implementations) with Rust-style semantics.
+
+**Phase 4 — Late Binding via With Blocks:** Re-add `with` block support targeting abstract types instead of traits, with `as` mapping syntax for retroactive conformance.
+
+**C# Interop Exception:** Throughout all phases, the C# source code the compiler itself is written in may declare C# interfaces (that's fine). The ambient type provider continues to handle CLR interfaces. The C# emitter continues to emit `interface` in the generated code. Mist thinks in terms of "abstract types" but the interop layer bridges to CLR interfaces.
 
 ## Glossary
 
@@ -14,69 +22,275 @@ This feature unifies Mist's `interface` and `trait` keywords into a single `abst
 - **Compiler**: The Mist compiler pipeline including lexing, parsing, semantic analysis, and C# transpilation.
 - **Parser**: The Mist parser subsystem responsible for converting token streams into syntax tree nodes.
 - **Emitter**: The C# transpiler backend that generates C# source code from the Mist semantic model.
-- **With_Block**: A top-level declaration using `with Type : AbstractType { mappings }` syntax that establishes retroactive conformance between an existing type and an abstract type via explicit member mapping.
+- **With_Block**: A top-level declaration using `with Type : AbstractType { mappings }` syntax that establishes retroactive conformance between an existing type and an abstract type via explicit member mapping. Removed in Phase 2 and re-added in Phase 4.
 - **Nominal_Typing**: A type system where conformance is established by explicit declaration (`: AbstractType`) rather than structural member matching.
 - **Ambient_Type_Provider**: The subsystem that exposes CLR types (from referenced assemblies) as Mist types, mapping C# virtual/abstract members to fillable slots.
 - **Implementer**: A concrete class or struct that declares conformance to an abstract type via its base clause.
 - **Type_Checker**: The analysis pass that verifies all slots are filled by implementers and validates type compatibility.
 - **Slot_Filling**: The act of providing a concrete implementation for a slot, either via a method/property on the implementing type or via a `with` block mapping. Slot filling applies regardless of whether the slot has a default — filling always takes precedence over any default.
+- **Structural_Typing**: The type system mechanism (from traits) where conformance is established by matching public members rather than explicit declaration. Removed in Phase 2.
 
 ## Requirements
 
-### Requirement 1: Abstract Type Declaration Parsing
+---
 
-**User Story:** As a Mist developer, I want to declare abstract types using the `abstract` keyword, so that I can define contracts with required slots and optional default implementations.
+## Phase 1 — Pure Rename (interface → abstract)
+
+*This phase is a mechanical rename/refactor of `interface` to `abstract` throughout the entire codebase. Abstract types behave IDENTICALLY to interfaces at this stage — zero semantic change.*
+
+---
+
+### Requirement 1: Abstract Type Declaration Parsing (Phase 1)
+
+**User Story:** As a Mist developer, I want to declare abstract types using the `abstract` keyword, so that I have a clear contract mechanism for defining required slots.
 
 #### Acceptance Criteria
 
 1. WHEN the Parser encounters the `abstract` keyword followed by a type name and a braced body, THE Parser SHALL produce an abstract type declaration syntax node.
 2. WHEN an abstract type body contains a member signature without a body (no braces, terminated by semicolon), THE Parser SHALL classify that member as a slot.
-3. WHEN an abstract type body contains a method declaration with a braced body, THE Parser SHALL classify that method as a default implementation.
-4. THE Parser SHALL support method signatures and property signatures (`Type Name { get; }`, `Type Name { get; set; }`) as slot declarations within abstract type bodies. Field signatures are NOT supported — only properties.
-5. WHEN an abstract type declaration includes generic type parameters (e.g., `abstract IContainer<T>`), THE Parser SHALL parse them identically to how generic parameters are parsed on class and struct declarations.
-6. WHEN an abstract type declaration includes generic constraints (e.g., `where T : class`), THE Parser SHALL parse them identically to how they are parsed on class and struct declarations.
-7. WHEN an abstract type declaration includes a base clause with other abstract types (e.g., `abstract IChild : IParent`), THE Parser SHALL parse it as abstract type inheritance.
-8. WHEN an abstract type declaration includes associated type members (e.g., `type Output : IStringable;`), THE Parser SHALL parse them identically to how they are parsed in current interface declarations.
-9. THE Parser SHALL allow an empty abstract type body (`abstract IMarker { }`) for marker type patterns.
-10. WHEN a property signature appears with a body (attempting to provide a default for a property), THE Parser SHALL emit an error diagnostic: "Property slots cannot have default implementations. Only methods can have defaults."
+3. THE Parser SHALL support method signatures and property signatures (`Type Name { get; }`, `Type Name { get; set; }`) as slot declarations within abstract type bodies. Field signatures are NOT supported — only properties.
+4. WHEN an abstract type declaration includes generic type parameters (e.g., `abstract IContainer<T>`), THE Parser SHALL parse them identically to how generic parameters are parsed on class and struct declarations.
+5. WHEN an abstract type declaration includes generic constraints (e.g., `where T : class`), THE Parser SHALL parse them identically to how they are parsed on class and struct declarations.
+6. WHEN an abstract type declaration includes a base clause with other abstract types (e.g., `abstract IChild : IParent`), THE Parser SHALL parse it as abstract type inheritance.
+7. WHEN an abstract type declaration includes associated type members (e.g., `type Output : IStringable;`), THE Parser SHALL parse them identically to how they are parsed in current interface declarations.
+8. THE Parser SHALL allow an empty abstract type body (`abstract IMarker { }`) for marker type patterns.
+9. THE `interface` keyword SHALL be removed from valid Mist syntax. WHEN the Parser encounters the `interface` keyword, THE Compiler SHALL emit an error diagnostic with the message: "The 'interface' keyword has been removed. Use 'abstract' instead."
 
-### Requirement 2: Interface Keyword Removal
+### Requirement 2: Compiler Internals Rename (Phase 1)
 
-**User Story:** As a Mist developer, I want the `interface` keyword replaced by `abstract`, so that the language has a single unified contract mechanism.
-
-#### Acceptance Criteria
-
-1. WHEN the Parser encounters the `interface` keyword in source code, THE Compiler SHALL emit an error diagnostic indicating that `interface` has been removed.
-2. THE error diagnostic for `interface` usage SHALL include the message text: "The 'interface' keyword has been removed. Use 'abstract' instead."
-3. THE `interface` keyword SHALL NOT be valid Mist syntax. There is no deprecation period — it is a hard error.
-
-### Requirement 3: Trait Keyword Removal
-
-**User Story:** As a Mist developer, I want the `trait` keyword and structural typing to be removed, so that the language has a clear single-path contract system using nominal typing.
+**User Story:** As a compiler maintainer, I want all internal types, methods, and file names to reflect the `abstract` terminology, so that the codebase is consistent with the language surface.
 
 #### Acceptance Criteria
 
-1. WHEN the Parser encounters the `trait` keyword in source code, THE Compiler SHALL emit an error diagnostic indicating that traits have been removed.
-2. THE error diagnostic for `trait` usage SHALL include the message text: "The 'trait' keyword has been removed. Use 'abstract' with nominal typing (': AbstractType') or a 'with' block for retroactive conformance."
-3. WHEN a type has public members that match an abstract type's member signatures but does NOT explicitly declare conformance via `: AbstractType` or a `with` block, THE Type_Checker SHALL NOT automatically establish conformance.
-4. THE Compiler SHALL require explicit nominal declaration (`: AbstractType`) or a `with` block for a type to implement an abstract type.
-5. THE `trait` keyword SHALL NOT be valid Mist syntax. There is no deprecation period — it is a hard error.
+1. THE Grammar SHALL define an `ABSTRACT` token (in `keywords.storm`) and replace the `InterfaceDeclaration` rule with an `AbstractDeclaration` rule (in `Mist.storm`).
+2. THE semantic model SHALL introduce an `AbstractType` class (replacing `InterfaceType`) with `TypeKind.Abstract`.
+3. THE `SemanticModelBuilder` SHALL rename all interface-related registration and resolution passes: `RegisterInterfaceDeclaration` → `RegisterAbstractDeclaration`, `ResolveInterfaceDeclaration` → `ResolveAbstractDeclaration`, `Pass1_ValidateInterfaceSatisfaction` → `Pass1_ValidateAbstractSatisfaction`, `Pass1_DetectInterfaceCycles` → `Pass1_DetectAbstractCycles`.
+4. THE `CSharpEmitter` SHALL rename `EmitInterfaceDeclaration` → `EmitAbstractDeclaration`. The emitted C# code continues to produce `interface` declarations (unchanged output).
+5. All C# source files whose names reference "Interface" in the context of Mist interface types SHALL be renamed to use "Abstract" (e.g., `InterfaceType.cs` → `AbstractType.cs`).
+6. All test files and test classes referencing Mist "interface" concepts SHALL be renamed to use "abstract" terminology.
 
-### Requirement 4: Slot Satisfaction Checking
+#### Comprehensive Inventory of Rename Targets
 
-**User Story:** As a Mist developer, I want the compiler to verify that my concrete types fill all required slots, so that I get compile-time errors for missing implementations.
+**Grammar files:**
+- `Source/Mist/Grammar/keywords.storm`: `INTERFACE` token → `ABSTRACT` token
+- `Source/Mist/Grammar/Mist.storm`: `InterfaceDeclaration` rule → `AbstractDeclaration` rule; `InterfaceType` variant in `TypeDeclaration` → `AbstractType`; `InterfacePropertyDeclaration` and `InterfaceMemberDeclaration` rules renamed
+
+**Semantic model (Source/Mist/Semantics/):**
+- `InterfaceType.cs` → `AbstractType.cs` (class `InterfaceType` → `AbstractType`)
+- `ConstructedInterfaceType` → `ConstructedAbstractType`
+- `TypeKind.Interface` → `TypeKind.Abstract`
+- `SymbolKind.Interface` → `SymbolKind.Abstract`
+
+**SemanticModelBuilder passes:**
+- `RegisterInterfaceDeclaration` → `RegisterAbstractDeclaration`
+- `ResolveInterfaceDeclaration` → `ResolveAbstractDeclaration`
+- `Pass1_ValidateInterfaceSatisfaction` → `Pass1_ValidateAbstractSatisfaction`
+- `Pass1_DetectInterfaceCycles` → `Pass1_DetectAbstractCycles`
+- `Pass1_ResolveInterfaceParents` (if exists) → `Pass1_ResolveAbstractParents`
+
+**Emitter (Source/Mist/Backends/CSharpTranspiler/):**
+- `EmitInterfaceDeclaration` → `EmitAbstractDeclaration`
+
+**Tests (Test/Mist.Tests/):**
+- `InterfaceSatisfactionPropertyTests.cs` → `AbstractSatisfactionPropertyTests.cs`
+- `InterfaceSignatureMismatchPropertyTests.cs` → `AbstractSignatureMismatchPropertyTests.cs`
+- `InterfaceRoundTripPropertyTests.cs` → `AbstractRoundTripPropertyTests.cs`
+- All test class names, method names, and comments referencing "interface" (in the context of Mist interfaces) renamed to "abstract"
+- `TraitInterfaceCoexistencePropertyTests.cs` → repurposed or removed (coexistence no longer applies)
+
+**NOTE:** C# source code declaring actual C# interfaces (e.g., `IType`, `IBackend`, `IAnalyzer`) is NOT renamed. Only references to the Mist language concept of "interface" are renamed.
+
+### Requirement 3: Sample Migration (Phase 1)
+
+**User Story:** As a Mist developer, I want all existing samples that use the `interface` keyword migrated to `abstract`, so that the sample code reflects the current language syntax.
 
 #### Acceptance Criteria
 
-1. WHEN a concrete type declares `: AbstractType` and provides public method/property implementations matching every slot signature, THE Type_Checker SHALL accept the type as a valid implementer.
-2. WHEN a concrete type declares `: AbstractType` and is missing one or more slot implementations, THE Type_Checker SHALL emit an error diagnostic listing each unfilled slot by name and signature.
-3. WHEN an abstract type inherits from another abstract type (e.g., `abstract IChild : IParent`), THE Type_Checker SHALL require implementers of `IChild` to fill slots from both `IChild` and `IParent`.
-4. WHEN a concrete type provides an implementation for a member that has a default implementation in the abstract type, THE Type_Checker SHALL accept the concrete type's implementation and use it instead of the default (slot filling takes precedence over defaults).
-5. WHEN a concrete type does NOT provide an implementation for a method that has a default implementation, THE Type_Checker SHALL accept the type as valid (the default fills the method slot).
-6. WHEN matching slot signatures, THE Type_Checker SHALL verify name, return type, and parameter types all match exactly.
-7. WHEN an abstract type inherits from multiple parent abstract types that declare a slot with the same name and signature (diamond inheritance), THE Type_Checker SHALL require a single implementation from the implementer that satisfies both parent slots.
+1. THE following samples SHALL have `interface` keyword replaced with `abstract` (pure keyword swap, no semantic change):
+   - `samples/Interfaces/` (rename directory to `samples/AbstractTypes/` — this becomes the main sample after all phases)
+   - `samples/ShapeInterfaces/` (rename directory to `samples/ShapeAbstracts/`)
+   - `samples/GenericTypes/`
+   - `samples/VoidType/`
+   - `samples/Properties/`
+   - `samples/Enums/`
+2. THE following samples that use BOTH `interface` and `trait` SHALL have `interface` → `abstract` in Phase 1 (trait changes deferred to Phase 2):
+   - `samples/GenericConstraints/`
+   - `samples/AssociatedTypes/`
+   - `samples/DependentTypes/`
+   - `samples/NestedScoping/`
+   - `samples/StructuredContext/`
+3. `samples/AllFeatures/Program.mist` SHALL be updated to reflect any renamed sample entry points.
+4. All migrated samples SHALL compile and run producing identical output to their pre-migration versions.
 
-### Requirement 5: Default Implementation Semantics (Rust-style)
+### Requirement 4: TextMate Grammar Update — Phase 1 (Phase 1)
+
+**User Story:** As a Mist developer using VS Code, I want `abstract` declarations to be syntax-highlighted correctly, so that I get the same visual cues as other type declarations.
+
+#### Acceptance Criteria
+
+1. THE TextMate grammar SHALL recognize `abstract` as a declaration keyword (scope `keyword.declaration.mist`).
+2. THE TextMate grammar SHALL highlight the identifier following `abstract` as a type name (scope `entity.name.type.abstract.mist`).
+3. THE TextMate grammar SHALL remove `interface` from the declaration keyword list since the keyword is removed from the language.
+4. THE generic declaration pattern (`class|struct|interface|trait` + name + `<`) SHALL be updated to `class|struct|abstract|trait` + name + `<`.
+5. THE book's syntax highlighting files (`book/theme/highlight.js` and `book/theme/mist-lang.js`) SHALL replace `interface` with `abstract` in the Mist keyword list.
+
+### Requirement 5: Book Documentation — Phase 1 (Phase 1)
+
+**User Story:** As a Mist developer, I want the language book to rename the "Interfaces" chapter to "Abstract Types", so that the documentation reflects the current language syntax.
+
+#### Acceptance Criteria
+
+1. THE book SHALL rename `book/src/object-model/interfaces.md` to `book/src/object-model/abstract-types.md`.
+2. THE chapter title SHALL be "Abstract Types" and all content SHALL use `abstract` syntax instead of `interface`.
+3. THE book's `SUMMARY.md` SHALL reference "Abstract Types" in place of "Interfaces" in the Object Model section.
+4. All code examples within the chapter SHALL be updated to use `abstract` keyword.
+5. All code snippets in `book/snippets/` that demonstrate interface usage SHALL be updated to use `abstract`.
+
+### Requirement 6: Phase 1 Verification Gate (Phase 1)
+
+**User Story:** As a compiler maintainer, I want a verification step confirming that "interface" only remains in permitted locations, so that the rename is complete.
+
+#### Acceptance Criteria
+
+1. A grep of the entire codebase for the string "interface" (case-insensitive) SHALL confirm it ONLY appears in:
+   - C# source code the compiler itself is written in (C# `interface` declarations like `interface IType`)
+   - The ambient type provider's handling of CLR interfaces (loading interface metadata from assemblies)
+   - C# emission output (the emitter generates `interface` in the C# code it produces)
+   - Third-party/generated code (NuGet packages, `obj/`, `bin/`)
+   - The spec files themselves (`.kiro/specs/`)
+2. THE string "interface" SHALL NOT appear in: Mist source files (`.mist`), Storm grammar files (`.storm`), TextMate grammar JSON, book markdown, book highlighting JS (in the Mist keyword section), test names/comments referring to the Mist concept.
+3. All tests SHALL pass with zero failures.
+4. All samples SHALL compile and produce their expected output.
+
+---
+
+## Phase 2 — Purge Traits
+
+*This phase deletes traits in their entirety: grammar, lexing, parsing, semantic model, type checker logic, all tests, book content, samples. The `with` block mechanism is ALSO removed in this phase. Nothing new is added — this is purely deletion.*
+
+---
+
+### Requirement 7: Trait Keyword and Structural Typing Removal (Phase 2)
+
+**User Story:** As a Mist developer, I want the `trait` keyword, structural typing, and all associated mechanisms removed from the language, so that there is a single clear contract system using nominal typing.
+
+#### Acceptance Criteria
+
+1. THE `TRAIT` token SHALL be removed from `keywords.storm`.
+2. THE `TraitDeclaration` rule SHALL be removed from `Mist.storm`.
+3. THE `TraitType` variant SHALL be removed from the `TypeDeclaration` rule.
+4. WHEN the Parser encounters the `trait` keyword in source code, THE Compiler SHALL emit an error diagnostic with the message: "The 'trait' keyword has been removed. Use 'abstract' with nominal typing (': AbstractType') or a 'with' block for retroactive conformance."
+5. THE semantic model SHALL remove: `TraitType`, `ConstructedTraitType`, `TraitSatisfactionMap`, and all structural matching logic (`TryStructuralMatch`, `TryStructuralMatchWithSubstitution`, `TryMatchTraitField`, `TryMatchTraitMethod`, `TryMatchTraitProperty`).
+6. THE `SemanticModelBuilder` SHALL remove: `RegisterTraitDeclaration`, `ResolveTraitDeclaration`, `Pass1_ResolveTraitParents`, `Pass1_DetectTraitCycles`, `Pass1_ResolveTraitSatisfaction`.
+7. THE `CSharpEmitter` SHALL remove `EmitTraitDeclaration` and all trait-related emission logic.
+8. THE Type_Checker SHALL require explicit nominal declaration (`: AbstractType`) for a type to implement an abstract type. Structural matching SHALL NOT establish conformance.
+
+### Requirement 8: With Block Removal (Phase 2)
+
+**User Story:** As a Mist developer, I understand that `with` blocks are temporarily removed as part of the trait purge, and will be re-added in Phase 4 targeting abstract types.
+
+#### Acceptance Criteria
+
+1. THE `WITH` token, `AS` token, `WithDeclaration` rule, and `MemberMapping` rule SHALL be removed from the grammar.
+2. THE `SemanticModelBuilder` SHALL remove `Pass1_ResolveWithBlocks` and all with-block registration logic.
+3. THE `WithBlockRegistry` (or equivalent) SHALL be removed from the semantic model.
+4. THE `CSharpEmitter` SHALL remove `EmitExplicitTraitImplementations` and all with-block emission logic.
+5. WHEN the Parser encounters the `with` keyword in a with-block position, THE Compiler SHALL emit an error diagnostic. (The `with` keyword may still be valid in other positions such as `with` clauses on methods — only the top-level `with Type : Trait { }` form is removed.)
+
+### Requirement 9: Trait-Related Test and Sample Removal (Phase 2)
+
+**User Story:** As a compiler maintainer, I want all trait-related tests and samples removed, so that the test suite reflects the current language capabilities.
+
+#### Acceptance Criteria
+
+1. THE `samples/Traits/` directory SHALL be removed entirely (it exists solely to demonstrate structural typing).
+2. THE following test files SHALL be removed entirely:
+   - `TraitAssignabilityPropertyTests.cs`
+   - `TraitMemberAccessPropertyTests.cs`
+   - `TraitMemberAccessGenericPropertyTests.cs`
+   - `TraitStructuralMatchSubstitutionPropertyTests.cs`
+   - `TraitInheritanceValidationPropertyTests.cs`
+   - `TraitInterfaceCoexistencePropertyTests.cs`
+   - `WithBlockGenericTraitPropertyTests.cs`
+   - Any other test files whose primary purpose is testing trait behavior
+3. THE following samples SHALL be updated to remove trait usage and use only nominal conformance (`: AbstractType`):
+   - `samples/GenericConstraints/` — replace `trait` with `abstract`, add `: AbstractType` to conforming types
+   - `samples/AssociatedTypes/` — replace `trait` with `abstract`, add `: AbstractType` conformance
+   - `samples/DependentTypes/` — replace `trait` with `abstract`, add `: AbstractType` conformance
+   - `samples/NestedScoping/` — replace `trait` with `abstract`
+   - `samples/StructuredContext/` — replace `trait` with `abstract`, add `: AbstractType` conformance
+4. `samples/GenericTraits/` SHALL be migrated: `trait` → `abstract`, types using structural satisfaction SHALL have `: AbstractType` added to their class declarations. The directory SHALL be renamed to reflect the updated content (e.g., `samples/GenericAbstracts/`).
+5. `samples/AllFeatures/Program.mist` SHALL be updated to remove the `Traits.Program.RunDemo()` call and reflect any renamed sample entry points.
+
+### Requirement 10: TextMate Grammar Update — Phase 2 (Phase 2)
+
+**User Story:** As a Mist developer using VS Code, I want the `trait` keyword removed from syntax highlighting since it is no longer valid Mist syntax.
+
+#### Acceptance Criteria
+
+1. THE TextMate grammar SHALL remove `trait` from the declaration keyword list.
+2. THE generic declaration pattern SHALL be updated from `class|struct|abstract|trait` to `class|struct|abstract`.
+3. THE `trait`-specific name highlighting rule (scope `entity.name.type.trait.mist`) SHALL be removed.
+4. THE book's syntax highlighting files (`book/theme/mist-lang.js`) SHALL remove `trait` from the Mist keyword list.
+
+### Requirement 11: Book Documentation — Phase 2 (Phase 2)
+
+**User Story:** As a Mist developer, I want the "Traits" chapter removed from the book since the feature no longer exists.
+
+#### Acceptance Criteria
+
+1. THE book SHALL remove `book/src/object-model/traits.md` (or replace it with a brief migration note directing users to use `abstract` with nominal typing).
+2. THE book's `SUMMARY.md` SHALL remove the "Traits" entry.
+3. Any cross-references to traits from other chapters SHALL be updated or removed.
+
+### Requirement 12: Phase 2 Verification Gate (Phase 2)
+
+**User Story:** As a compiler maintainer, I want a verification step confirming that "trait" appears nowhere except spec files, so that the purge is complete.
+
+#### Acceptance Criteria
+
+1. A grep of the entire codebase for the string "trait" (case-insensitive) SHALL confirm it ONLY appears in:
+   - The spec files themselves (`.kiro/specs/`)
+   - Third-party/generated code (NuGet packages, `obj/`, `bin/`)
+   - Comments in C# source referencing the old system for historical context (if any remain, they should be minimal)
+2. THE string "trait" SHALL NOT appear in: Mist source files (`.mist`), Storm grammar files (`.storm`), TextMate grammar JSON, book markdown, book highlighting JS, test file names, test class names, or any active production code paths.
+3. All tests SHALL pass with zero failures.
+4. All samples SHALL compile and produce their expected output.
+
+---
+
+## Phase 3 — Default Implementations
+
+*This phase adds the ability for abstract type members to have method bodies (default implementations). Rust-style semantics: the default IS the implementation regardless of reference type (no lens behavior).*
+
+---
+
+### Requirement 13: Default Implementation Parsing (Phase 3)
+
+**User Story:** As a Mist developer, I want to provide default method implementations in abstract types, so that implementers don't have to repeat common behavior.
+
+#### Acceptance Criteria
+
+1. WHEN an abstract type body contains a method declaration with a braced body, THE Parser SHALL classify that method as a default implementation.
+2. THE Parser SHALL distinguish between slots (semicolon-terminated) and defaults (body-present) using the presence or absence of a method body.
+3. WHEN a property signature appears with a body (attempting to provide a default for a property), THE Parser SHALL emit an error diagnostic: "Property slots cannot have default implementations. Only methods can have defaults."
+4. THE Grammar SHALL support the `AbstractDeclaration` rule having members that are either `AbstractMethodDeclaration` (slot — no body) or `MethodDeclaration` (default — with body).
+5. THE Parser SHALL allow abstract types containing any mix of slots and defaults in any order.
+
+### Requirement 14: Slot Satisfaction with Defaults (Phase 3)
+
+**User Story:** As a Mist developer, I want the compiler to accept my concrete type even if it doesn't implement methods that have defaults, so that I only need to fill required slots.
+
+#### Acceptance Criteria
+
+1. WHEN a concrete type declares `: AbstractType` and provides public method/property implementations matching every slot signature (members without defaults), THE Type_Checker SHALL accept the type as a valid implementer.
+2. WHEN a concrete type declares `: AbstractType` and is missing one or more slot implementations (members without defaults), THE Type_Checker SHALL emit an error diagnostic listing each unfilled slot by name and signature.
+3. WHEN a concrete type does NOT provide an implementation for a method that has a default implementation, THE Type_Checker SHALL accept the type as valid (the default fills the method slot).
+4. WHEN a concrete type provides its own implementation for a member that has a default implementation in the abstract type AND the signatures match exactly, THE Type_Checker SHALL accept the concrete type's implementation and use it instead of the default (slot filling takes precedence over defaults). IF the signatures do not match exactly, THE Type_Checker SHALL reject the implementation with a signature mismatch error.
+5. WHEN matching slot signatures, THE Type_Checker SHALL verify name, return type, and parameter types all match exactly.
+6. WHEN an abstract type inherits from another abstract type that has default methods, THE Type_Checker SHALL propagate those defaults — implementers of the child abstract type are not required to fill them either.
+
+### Requirement 15: Default Implementation Semantics — Rust-style (Phase 3)
 
 **User Story:** As a Mist developer, I want default implementations to behave consistently regardless of how I reference a value, so that there is no "lens" behavior.
 
@@ -86,27 +300,117 @@ This feature unifies Mist's `interface` and `trait` keywords into a single `abst
 2. WHEN a concrete type does not provide its own implementation for a default method, calling that method through the concrete type reference and through the abstract type reference SHALL produce identical behavior.
 3. WHEN a concrete type provides its own implementation for a member with a default, THE concrete type's implementation SHALL be used regardless of whether the value is accessed through the concrete type or the abstract type reference.
 4. WHEN a default implementation body references `this`, THE Compiler SHALL resolve member access on `this` against the abstract type's full member set (its own slots/defaults plus all inherited members from parent abstract types).
-5. THE Emitter SHALL emit default implementations as C# default interface methods (DIM) in the generated interface, AND SHALL also emit a forwarding method on any concrete type that does not provide its own implementation, ensuring the method is accessible on the concrete type without casting.
-6. WHEN a default implementation calls another default method on `this`, THE Compiler SHALL resolve the call against the full abstract type hierarchy and THE Emitter SHALL emit the call correctly through the forwarding mechanism.
-7. Only methods can have default implementations. Property slots MUST always be filled by the implementer.
+5. WHEN a default implementation calls another default method on `this`, THE Compiler SHALL resolve the call against the full abstract type hierarchy and THE Emitter SHALL emit the call correctly through the forwarding mechanism.
+6. Only methods can have default implementations. Property slots MUST always be filled by the implementer.
 
-### Requirement 6: Late Binding via With Blocks
+### Requirement 16: Default Implementation C# Emission (Phase 3)
+
+**User Story:** As a Mist developer, I want default implementations to emit as C# default interface methods with forwarding stubs, so that Rust-style dispatch semantics are preserved in the generated code.
+
+#### Acceptance Criteria
+
+1. THE Emitter SHALL emit default implementations as C# default interface methods (DIM) in the generated interface.
+2. WHEN a concrete type does NOT override a default implementation, THE Emitter SHALL emit a forwarding method on the concrete type that calls the interface's default implementation (e.g., `public string Greet() => ((IGreeting)this).Greet();`).
+3. THE forwarding method SHALL ensure the default is accessible on the concrete type without casting to the interface type.
+4. WHEN a concrete type provides its own implementation for a method with a default, THE Emitter SHALL emit only the concrete type's implementation (no forwarding, no DIM invocation).
+5. THE emitted forwarding method SHALL use explicit interface casting to invoke the DIM.
+
+### Requirement 17: Book Documentation — Phase 3 (Phase 3)
+
+**User Story:** As a Mist developer, I want the Abstract Types chapter to document default implementations with compiled examples.
+
+#### Acceptance Criteria
+
+1. THE "Abstract Types" chapter SHALL be updated with a section covering: default implementation syntax, Rust-style semantics (no lens behavior), the restriction that only methods can have defaults (not properties), overriding defaults, and interaction with abstract type inheritance.
+2. THE section SHALL include compiled snippet examples demonstrating: an abstract type with a default method, a concrete type relying on the default, a concrete type overriding the default, and calling the method through both concrete and abstract references.
+3. All code examples SHALL be compiled snippets following the Book Snippet Policy.
+
+### Requirement 18: Phase 3 Verification Gate (Phase 3)
+
+**User Story:** As a compiler maintainer, I want confirmation that default implementations work correctly before proceeding to Phase 4.
+
+#### Acceptance Criteria
+
+1. All tests SHALL pass with zero failures.
+2. All samples SHALL compile and produce their expected output.
+3. The new default implementation samples SHALL demonstrate at least: a default method taken as-is, a default method overridden, and calling through both reference types producing identical results.
+
+---
+
+## Phase 4 — Late Binding via With Blocks
+
+*This phase re-adds `with` block support, now targeting abstract types instead of traits. `with Type : AbstractType { mappings }` syntax with the `as` mapping keyword.*
+
+---
+
+### Requirement 19: With Block Declaration Parsing (Phase 4)
 
 **User Story:** As a Mist developer, I want to use `with` blocks to adapt existing types to abstract types without modifying the original type, so that I can achieve retroactive conformance.
 
 #### Acceptance Criteria
 
-1. WHEN a `with` block declares `with TypeName : AbstractType { mappings }`, THE Compiler SHALL establish nominal conformance between that type and the abstract type.
-2. WHEN a `with` block maps a source member to a slot using the `as` keyword (e.g., `Log as Write;`), THE Emitter SHALL generate an explicit interface implementation that delegates to the source member.
-3. WHEN a `with` block references an abstract type that has default implementations, THE Compiler SHALL only require mappings for slots that the type does not already satisfy by name and signature. Default methods do not require mappings.
-4. IF a `with` block references an undefined type or abstract type, THEN THE Compiler SHALL emit an error diagnostic identifying the undefined reference.
-5. IF a `with` block maps a member whose type signature is incompatible with the slot's declared signature, THEN THE Compiler SHALL emit a type mismatch error diagnostic.
-6. WHEN a type has conformance established via a `with` block, THE type SHALL be assignable to variables and parameters typed as the abstract type.
-7. WHEN a `with` block maps a member to a slot that has a default implementation, THE mapping SHALL fill the slot — the mapped member is used instead of the default.
-8. A type MAY have multiple `with` blocks establishing conformance to different abstract types. Each `with` block is independent.
-9. WHEN a `with` block establishes conformance for a type that already declares `: AbstractType` in its base clause, THE Compiler SHALL emit an error diagnostic indicating redundant conformance.
+1. THE Grammar SHALL re-add the `WITH` token, `AS` token, `WithDeclaration` rule, and `MemberMapping` rule.
+2. THE `WithDeclaration` rule SHALL use the syntax: `with TypeName : AbstractType { mappings }`.
+3. WHEN a `with` block maps a source member to a slot using the `as` keyword (e.g., `GetLabel as Name;`), THE Parser SHALL produce a member mapping node.
+4. THE Parser SHALL support multiple mappings within a single `with` block.
+5. A `with` block SHALL be a top-level declaration (not nested inside a type body).
 
-### Requirement 7: C# Code Emission for Abstract Types
+### Requirement 20: With Block Conformance Establishment (Phase 4)
+
+**User Story:** As a Mist developer, I want `with` blocks to establish nominal conformance between an existing type and an abstract type, so that the type becomes assignable to abstract-typed variables.
+
+#### Acceptance Criteria
+
+1. WHEN a `with` block declares `with TypeName : AbstractType { mappings }`, THE Compiler SHALL establish nominal conformance between that type and the abstract type.
+2. WHEN a type has conformance established via a `with` block, THE type SHALL be assignable to variables and parameters typed as the abstract type.
+3. WHEN a `with` block references an abstract type that has default implementations, THE Compiler SHALL only require mappings for slots without defaults. Default methods do not require mappings.
+4. WHEN a `with` block maps a member to a slot that has a default implementation, THE mapping SHALL fill the slot — the mapped member is used instead of the default.
+5. IF a `with` block references an undefined type or abstract type, THEN THE Compiler SHALL emit an error diagnostic identifying the undefined reference.
+6. IF a `with` block maps a member whose type signature is incompatible with the slot's declared signature, THEN THE Compiler SHALL emit a type mismatch error diagnostic. THE Compiler SHALL check signature compatibility at the point of mapping declaration, not deferred to usage.
+7. WHEN a `with` block establishes conformance for a type that already declares `: AbstractType` in its base clause, THE Compiler SHALL emit an error diagnostic indicating redundant conformance.
+8. A type MAY have multiple `with` blocks establishing conformance to different abstract types. Each `with` block is independent.
+9. WHEN a `with` block references a type that originates from a CLR assembly (an ambient/imported type not defined in Mist source), THE Compiler SHALL emit an error diagnostic indicating that `with` blocks cannot target CLR types because the emitter cannot modify the type's inheritance list. THE error message SHALL be: "Cannot use 'with' to establish conformance for CLR type '{TypeName}'. Only types defined in Mist source can be adapted via 'with' blocks."
+
+### Requirement 21: With Block C# Emission (Phase 4)
+
+**User Story:** As a Mist developer, I want `with` block mappings to emit as explicit interface implementations, so that the generated C# code correctly delegates to the mapped members.
+
+#### Acceptance Criteria
+
+1. WHEN a `with` block maps `SourceMember as TargetSlot`, THE Emitter SHALL generate an explicit interface implementation method that delegates to the source member (e.g., `string INamed.Name() => this.GetLabel();`).
+2. THE Emitter SHALL include the abstract type's interface name in the concrete type's C# inheritance list when a `with` block establishes conformance. THE interface MUST appear in the inheritance list whenever explicit interface implementations are generated.
+3. WHEN a `with` block omits a mapping for a default method, THE Emitter SHALL generate a forwarding method for that default (same as direct implementation without override).
+4. WHEN a `with` block maps a member to a slot that has a default, THE mapped member's explicit implementation SHALL take precedence over the default.
+
+### Requirement 22: Book Documentation — Phase 4 (Phase 4)
+
+**User Story:** As a Mist developer, I want the Abstract Types chapter to document `with` block late binding with compiled examples.
+
+#### Acceptance Criteria
+
+1. THE "Abstract Types" chapter SHALL be updated with a section covering: `with` block syntax, retroactive conformance, `as` mapping keyword, interaction with defaults (only required slots need mappings), and multiple `with` blocks on the same type.
+2. THE section SHALL include compiled snippet examples demonstrating: a basic `with` block, a `with` block with `as` mapping, a `with` block that relies on defaults for unmapped slots, and polymorphic usage after `with` block conformance.
+3. All code examples SHALL be compiled snippets following the Book Snippet Policy.
+
+### Requirement 23: Phase 4 Verification Gate (Phase 4)
+
+**User Story:** As a compiler maintainer, I want confirmation that `with` blocks work correctly before the spec is considered complete.
+
+#### Acceptance Criteria
+
+1. All tests SHALL pass with zero failures.
+2. All samples SHALL compile and produce their expected output.
+3. The with-block samples SHALL demonstrate at least: basic `with` block conformance, `as` mapping, polymorphic usage through with-block conformance, and interaction with default methods.
+
+---
+
+## Cross-Phase Requirements
+
+*These requirements apply across all phases or represent capabilities that exist before Phase 1 and must remain working throughout.*
+
+---
+
+### Requirement 24: C# Code Emission for Abstract Types (All Phases)
 
 **User Story:** As a Mist developer, I want abstract types to emit as C# interfaces, so that the generated code interoperates with the .NET ecosystem.
 
@@ -114,13 +418,12 @@ This feature unifies Mist's `interface` and `trait` keywords into a single `abst
 
 1. THE Emitter SHALL emit each abstract type declaration as a C# `interface` declaration.
 2. WHEN an abstract type contains only slots (no defaults), THE Emitter SHALL emit a standard C# interface with method/property signatures only.
-3. WHEN an abstract type contains default implementations, THE Emitter SHALL emit a C# interface with default interface method bodies for each default.
+3. WHEN an abstract type contains default implementations (Phase 3+), THE Emitter SHALL emit a C# interface with default interface method bodies for each default.
 4. WHEN a concrete type implements an abstract type, THE Emitter SHALL include the abstract type's interface name in the concrete type's C# inheritance list.
 5. WHEN a slot is a property signature in the abstract type (e.g., `string Name { get; }`), THE Emitter SHALL emit it as a property signature on the C# interface.
-6. WHEN a concrete type does not override a default implementation, THE Emitter SHALL emit a forwarding method on the concrete type that calls the interface's default implementation, ensuring the method is accessible without casting to the interface type.
-7. WHEN an abstract type contains associated type declarations, THE Emitter SHALL emit them using the same mechanism currently used for interface associated types.
+6. WHEN an abstract type contains associated type declarations, THE Emitter SHALL emit them using the same mechanism currently used for interface associated types.
 
-### Requirement 8: CLR Interop via Ambient Type Provider
+### Requirement 25: CLR Interop via Ambient Type Provider (All Phases)
 
 **User Story:** As a Mist developer, I want C# abstract and virtual members from referenced assemblies to appear as fillable slots in Mist, so that I can use framework extension patterns naturally.
 
@@ -130,29 +433,18 @@ This feature unifies Mist's `interface` and `trait` keywords into a single `abst
 2. WHEN the Ambient_Type_Provider encounters a C# class with `abstract` methods, THE Ambient_Type_Provider SHALL expose those abstract methods as required slots on the Mist type representation.
 3. WHEN the Ambient_Type_Provider encounters a C# class with `virtual` methods that have implementations, THE Ambient_Type_Provider SHALL expose those virtual methods as slots with default implementations (fillable but not required).
 4. WHEN a Mist type fills a slot that originated from a C# `abstract` or `virtual` method on a base class, THE Emitter SHALL generate the C# `override` keyword on the emitted method.
-5. WHEN a Mist type does NOT fill a slot that originated from a C# `virtual` method, THE Emitter SHALL NOT emit any method for that slot (the base class's implementation is inherited normally).
-6. THE distinction between Req 8 (CLR interop override) and Req 10 (Mist concrete hiding) SHALL be: `override` is emitted ONLY for filling slots that originate from CLR `abstract` or `virtual` members on base classes. Mist-to-Mist concrete class inheritance always uses hiding semantics with `new`. These are two separate mechanisms that do not conflict because they apply to different inheritance relationships (CLR base class slots vs Mist concrete base members).
+5. WHEN a Mist type does NOT fill a slot that originated from a C# `virtual` method, THE Emitter SHALL NOT emit any method, keyword, or metadata for that slot (the base class's implementation is inherited normally through standard C# inheritance semantics).
+6. THE distinction between CLR interop override (this requirement) and Mist concrete hiding (Requirement 26) SHALL be: `override` is emitted ONLY for filling slots that originate from CLR `abstract` or `virtual` members on base classes. Mist-to-Mist concrete class inheritance always uses hiding semantics with `new`.
 
-### Requirement 9: Polymorphic Usage of Abstract Types
-
-**User Story:** As a Mist developer, I want to use abstract types as variable types, parameter types, and return types, so that I can write polymorphic code.
-
-#### Acceptance Criteria
-
-1. WHEN a variable is declared with an abstract type (e.g., `IDescribable item`), THE Type_Checker SHALL accept assignment of any concrete type that declares `: IDescribable` or has conformance established via a `with` block.
-2. WHEN a method parameter is typed as an abstract type, THE Type_Checker SHALL accept any argument whose type implements that abstract type.
-3. WHEN member access is performed on an abstract-typed variable, THE Compiler SHALL resolve the access against the abstract type's declared members (both slots and defaults).
-4. WHEN an abstract type inherits from another abstract type, THE Type_Checker SHALL accept assignment of an implementer of the child abstract type to a variable typed as the parent abstract type (transitive assignability).
-
-### Requirement 10: Concrete Type Hiding Semantics
+### Requirement 26: Concrete Type Hiding Semantics (All Phases)
 
 **User Story:** As a Mist developer, I want concrete type inheritance to continue using hiding semantics (not override), so that base type behavior is preserved when viewed through the base type lens.
 
 #### Acceptance Criteria
 
-1. WHEN a derived concrete type declares a method with the same name and signature as a base concrete type method, THE Compiler SHALL treat this as member hiding — the base method is still invoked when the value is accessed through the base type.
-2. WHEN a derived concrete type hides a base member intentionally, THE Compiler SHALL require the `new` keyword on the hiding member to suppress the hiding warning.
-3. IF a derived concrete type declares a member matching a base concrete type member without the `new` keyword, THEN THE Compiler SHALL emit a warning diagnostic: "'{TypeName}.{MemberName}' hides inherited member '{BaseTypeName}.{MemberName}'. Use 'new' if intentional."
+1. WHEN a derived concrete type declares a method with the same name and signature as a base concrete type method in Mist-to-Mist concrete class inheritance, THE Compiler SHALL treat this as member hiding — the base method is still invoked when the value is accessed through the base type.
+2. WHEN a derived concrete type hides a base member intentionally in Mist-to-Mist inheritance, THE Compiler SHALL require the `new` keyword on the hiding member. WHEN the `new` keyword is present, THE Compiler SHALL NOT emit a hiding warning for that member.
+3. IF a derived concrete type declares a member matching a base concrete type member without the `new` keyword in Mist-to-Mist inheritance, THEN THE Compiler SHALL emit a warning diagnostic: "'{TypeName}.{MemberName}' hides inherited member '{BaseTypeName}.{MemberName}'. Use 'new' if intentional."
 4. WHEN the `new` keyword is present on a member that does NOT hide a base member, THE Compiler SHALL emit a warning diagnostic indicating `new` is unnecessary.
 5. Hiding semantics apply ONLY to Mist-to-Mist concrete class inheritance. They do NOT apply to filling abstract type slots (which is slot-filling, not hiding) or to filling CLR virtual/abstract slots (which emits `override`).
 
@@ -212,7 +504,30 @@ via Derived: derived
   via Base: base
 ```
 
-### Requirement 11: Sample Application
+### Requirement 27: Polymorphic Usage of Abstract Types (All Phases)
+
+**User Story:** As a Mist developer, I want to use abstract types as variable types, parameter types, and return types, so that I can write polymorphic code.
+
+#### Acceptance Criteria
+
+1. WHEN a variable is declared with an abstract type (e.g., `IDescribable item`), THE Type_Checker SHALL accept assignment of any concrete type that declares `: IDescribable` or has conformance established via a `with` block (Phase 4+).
+2. WHEN a method parameter is typed as an abstract type, THE Type_Checker SHALL accept any argument whose type implements that abstract type.
+3. WHEN member access is performed on an abstract-typed variable, THE Compiler SHALL resolve the access against the abstract type's declared members (both slots and defaults).
+4. WHEN an abstract type inherits from another abstract type, THE Type_Checker SHALL unconditionally accept assignment of an implementer of the child abstract type to a variable typed as the parent abstract type (transitive assignability). This is safe because the child's implementer must fill all parent slots through the child relationship.
+
+### Requirement 28: Slot Satisfaction Checking (All Phases)
+
+**User Story:** As a Mist developer, I want the compiler to verify that my concrete types fill all required slots, so that I get compile-time errors for missing implementations.
+
+#### Acceptance Criteria
+
+1. WHEN a concrete type declares `: AbstractType` and provides public method/property implementations matching every slot signature, THE Type_Checker SHALL accept the type as a valid implementer.
+2. WHEN a concrete type declares `: AbstractType` and is missing one or more slot implementations, THE Type_Checker SHALL emit an error diagnostic listing each unfilled slot by name and signature AND SHALL halt compilation (this is a hard error, not a warning).
+3. WHEN an abstract type inherits from another abstract type (e.g., `abstract IChild : IParent`), THE Type_Checker SHALL require implementers of `IChild` to fill slots from both `IChild` and `IParent`.
+4. WHEN matching slot signatures, THE Type_Checker SHALL verify name, return type, and parameter types all match exactly.
+5. WHEN an abstract type inherits from multiple parent abstract types that declare a slot with the same name and signature (diamond inheritance), THE Type_Checker SHALL require a single implementation from the implementer that satisfies both parent slots.
+
+### Requirement 29: Sample Application (All Phases — Final State)
 
 **User Story:** As a Mist developer, I want a comprehensive sample application demonstrating abstract types, so that I can see every supported usage pattern in one place and verify correctness.
 
@@ -224,36 +539,15 @@ via Derived: derived
 4. `samples/AllFeatures/Program.mist` SHALL call `AbstractTypes.Program.RunDemo()` to include the feature in the full-suite sample run.
 5. The sample SHALL compile and run without errors using the Mist compiler.
 
-#### Sample Migration Plan
+#### Sample Build-Up Plan
 
-The following existing samples SHALL be migrated (keyword change from `interface`/`trait` to `abstract`, nominal conformance preserved):
+The sample is built incrementally across phases:
 
-| Sample | Action | Rationale |
-|---|---|---|
-| `samples/Interfaces/` | Migrate `interface` → `abstract` | Pure nominal contract usage |
-| `samples/ShapeInterfaces/` | Migrate `interface` → `abstract` | Nominal contracts with properties |
-| `samples/GenericTypes/` | Migrate `interface` → `abstract` | Generic interface declaration |
-| `samples/VoidType/` | Migrate `interface` → `abstract` | Generic interface declaration |
-| `samples/Properties/` | Migrate `interface` → `abstract` | Interface property declarations |
-| `samples/GenericConstraints/` | Migrate `interface` → `abstract`, `trait` → `abstract` + add `: AbstractType` conformance | Mixed interface/trait usage |
-| `samples/AssociatedTypes/` | Migrate `interface` → `abstract`, `trait` → `abstract` + add `: AbstractType` conformance | Associated types carry over fully |
-| `samples/DependentTypes/` | Migrate `interface` → `abstract`, `trait` → `abstract` + add `: AbstractType` conformance | Dependent type params on interfaces/traits |
-| `samples/NestedScoping/` | Migrate `interface` → `abstract`, `trait` → `abstract` | Nested types in interface/trait |
-| `samples/StructuredContext/` | Migrate `interface` → `abstract`, `trait` → `abstract` + add `: AbstractType` conformance | Interface/trait with `with`-clause methods |
-| `samples/Enums/` | Migrate `interface` → `abstract` | Interface usage in enum context |
-| `samples/GenericTraits/` | Migrate `trait` → `abstract`; types using structural satisfaction need `: AbstractType` added OR `with` block retained | Uses both structural and `with`-block conformance |
+- **After Phase 1:** The sample exists with basic abstract type usage (slots only, slot filling, polymorphic usage, abstract inheritance). This is the migrated `samples/Interfaces/` content using `abstract` syntax.
+- **After Phase 3:** The sample gains default implementation demonstrations (default taken as-is, default overridden, dispatch through both reference types).
+- **After Phase 4:** The sample gains `with` block demonstrations (retroactive conformance, `as` mapping, with-block overriding a default). This is the FINAL state shown in the proof code below.
 
-The following samples SHALL be removed:
-
-| Sample | Action | Rationale |
-|---|---|---|
-| `samples/Traits/` | Remove entirely | Exists solely to demonstrate structural typing, which is sunsetted |
-
-Notes:
-- `samples/GenericTraits/MemoryStream.mist` uses structural satisfaction (no explicit conformance declaration). It must be updated to either add `: Readable, Writable, ReadWriteStream` to the class declaration or use a `with` block.
-- All other samples not listed above that do not use `interface` or `trait` keywords remain unchanged.
-
-#### Proof Code
+#### Proof Code (Final State — After Phase 4)
 
 ```mist
 using Standard;
@@ -494,30 +788,22 @@ Hello, I am Alice
 Done!
 ```
 
-### Requirement 12: TextMate Grammar Update
+### Requirement 30: Final Verification (After All Phases)
 
-**User Story:** As a Mist developer using VS Code, I want `abstract` declarations to be syntax-highlighted correctly, so that I get the same visual cues as other type declarations.
-
-#### Acceptance Criteria
-
-1. THE TextMate grammar SHALL recognize `abstract` as a declaration keyword (scope `keyword.declaration.mist`).
-2. THE TextMate grammar SHALL highlight the identifier following `abstract` as a type name (scope `entity.name.type.abstract.mist`).
-3. THE TextMate grammar SHALL remove `trait` from the keyword list since the keyword is removed from the language.
-4. THE TextMate grammar SHALL remove `interface` from the keyword list since the keyword is removed from the language.
-5. THE book's syntax highlighting files (`book/theme/highlight.js` and `book/theme/mist-lang.js`) SHALL be updated to add `abstract` to the keyword list and remove `trait` and `interface`.
-
-### Requirement 13: Book Documentation
-
-**User Story:** As a Mist developer, I want the language book to document abstract types with slots and default implementations, so that I can learn the syntax and semantics from the official reference.
+**User Story:** As a compiler maintainer, I want a comprehensive final verification confirming the entire unification is complete and no remnants of the old system remain.
 
 #### Acceptance Criteria
 
-1. THE book SHALL include a chapter titled "Abstract Types" (replacing the current "Interfaces" chapter) covering: declaration syntax, slots, default implementations, property slots, abstract type inheritance, implementation by concrete types, polymorphic usage, and late binding via `with` blocks.
-2. THE book chapter SHALL explain the semantic difference between slots (required) and defaults (optional), and that defaults use Rust-style semantics (no lens behavior).
-3. THE book chapter SHALL explicitly state that only methods can have default implementations; property slots must always be filled by the implementer.
-4. THE book chapter SHALL include compiled snippet examples demonstrating: a simple abstract type with slots only, an abstract type with property slots, an abstract type with method defaults, a concrete type filling all slots, a concrete type taking method defaults, a concrete type overriding a method default, abstract type inheritance, polymorphic usage, and `with` block late binding.
-5. All code examples SHALL be compiled snippets following the Book Snippet Policy (`.mist` files in `book/snippets/` with corresponding `.cs` files).
-6. THE book's `SUMMARY.md` SHALL reference the new "Abstract Types" chapter in the Object Model section.
-7. THE current "Traits" chapter SHALL be removed or replaced with a brief note that structural typing has been sunsetted and will be reintroduced in a different form in the future.
-8. THE chapter SHALL include a comparison table showing how `abstract` relates to C#'s `interface` and Rust's `trait`, highlighting what Mist borrows from each.
-9. THE chapter SHALL document diamond inheritance behavior: when multiple parent abstract types declare the same slot, a single implementation from the concrete type satisfies all of them.
+1. A grep of the entire codebase for "interface" (case-insensitive) SHALL confirm it ONLY exists in:
+   - C# source code the compiler itself is written in (C# `interface` declarations)
+   - The ambient type provider's handling of CLR interfaces
+   - C# emission output (the emitter generates `interface` in generated C# code)
+   - Third-party/generated code (NuGet packages, `obj/`, `bin/`)
+   - Spec files (`.kiro/specs/`)
+2. A grep of the entire codebase for "trait" (case-insensitive) SHALL confirm it exists NOWHERE except:
+   - Spec files (`.kiro/specs/`)
+   - Third-party/generated code
+3. All tests SHALL pass with zero failures.
+4. All samples SHALL compile and produce their expected output.
+5. The `samples/AbstractTypes/Program.mist` proof code SHALL compile and produce the exact expected output listed in Requirement 29.
+6. The `samples/HidingDemo/Program.mist` (or equivalent) proof code SHALL compile and produce the exact expected output listed in Requirement 26.

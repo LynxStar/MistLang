@@ -11479,6 +11479,18 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                                 UninferrableTypeParameters: null,
                                 Conflicts: null);
                         }
+                        else if (candidates[i] is Symbol mismatchSym
+                            && mismatchSym.TypeParameters.Count > 0
+                            && mismatchSym.TypeParameters.Count != resolvedExplicitTypeArgs.Count)
+                        {
+                            // Mark generic candidates with wrong arity as failed
+                            // so the overload resolver excludes them.
+                            inferenceResults[i] = new InferenceResult(
+                                Success: false,
+                                InferredTypeArguments: null,
+                                UninferrableTypeParameters: new[] { "arity mismatch" },
+                                Conflicts: null);
+                        }
                     }
                 }
             }
@@ -18146,7 +18158,30 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// Checks whether <paramref name="source"/> implements the target constructed interface,
     /// including transitive interface inheritance.
     /// </summary>
+    [ThreadStatic] private static HashSet<string>? _interfaceCheckVisited;
+
     private static bool ImplementsConstructedInterface(IType source, ConstructedType targetConstructedInterface)
+    {
+        // Cycle detection for CRTP patterns (e.g., NpgsqlDbContextOptionsBuilder extends
+        // RelationalDbContextOptionsBuilder<NpgsqlDbContextOptionsBuilder, ...>).
+        // Without this, the recursive walk enters infinite recursion when a type
+        // refers to itself as a generic argument in its own base/interface chain.
+        _interfaceCheckVisited ??= new HashSet<string>(StringComparer.Ordinal);
+        var key = $"{source.DisplayName}→{targetConstructedInterface.DisplayName}";
+        if (!_interfaceCheckVisited.Add(key))
+            return false; // Already checking this pair — cycle detected.
+
+        try
+        {
+            return ImplementsConstructedInterfaceCore(source, targetConstructedInterface);
+        }
+        finally
+        {
+            _interfaceCheckVisited.Remove(key);
+        }
+    }
+
+    private static bool ImplementsConstructedInterfaceCore(IType source, ConstructedType targetConstructedInterface)
     {
         // Collect all interfaces from the source type.
         IReadOnlyList<IType>? interfaces = null;

@@ -27,16 +27,16 @@ Legend: ✅ Implemented | 🔲 Remaining | ⛔ Skipped
 | `char` | ✅ | |
 | `nint` / `nuint` | 🔲 | Native-sized integers (C# 9) |
 | User-defined structs | ✅ | |
-| Enums | 🔲 | |
-| Nullable value types (`int?`) | 🔲 | |
-| Tuples (`(int, string)`) | 🔲 | |
+| Enums | ✅ | |
+| Nullable value types (`int?`) | ✅ | |
+| Tuples (`(int, string)`) | ✅ | |
 
 ### Reference Types
 
 | Feature | Status | Notes |
 |---|---|---|
 | `string` | ✅ | |
-| `object` | 🔲 | |
+| `object` | ⛔ | |
 | `dynamic` | ⛔ | DLR feature, out of scope |
 | `unknown` (Mist-specific) | ✅ | Mist top type with storage prohibition + reachability-filtered widening. Distinct from C# `object` (not a direct alias) and from C# `dynamic` (not general runtime dispatch). See "Mist-specific Features" below. |
 | User-defined classes | ✅ | |
@@ -56,7 +56,7 @@ Legend: ✅ Implemented | 🔲 Remaining | ⛔ Skipped
 | Classes | ✅ | |
 | Structs | ✅ | |
 | Interfaces | ✅ | |
-| Enums | 🔲 | |
+| Enums | ✅ | |
 | Delegates | ✅ | `Func<T, TResult>` type family with `func` keyword; no `delegate` keyword |
 | Records | 🔲 | C# 9 |
 | Record structs | 🔲 | C# 10 |

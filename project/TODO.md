@@ -47,3 +47,58 @@ numbers[7] = 10;   // compiles; throws System.IndexOutOfRangeException at runtim
 2. Remove the `if (memberName == "Length")` fast-path in `LookupMemberType` for `ArrayType`/`SpanType`. The `.Length` property is already registered on the stdlib ClassType/StructType.
 3. Verify bounds checking still works — it currently uses `ArrayType.KnownLength` directly, which is orthogonal to the member-lookup path.
 4. Consider (separate spec) whether `ValidateArrayIndexRefinement` should consume the `ArrayBounds` refinement predicate from the indexer parameter declaration rather than reimplementing bounds logic.
+
+---
+
+## 🟢 Newtypes cannot be inherited from
+
+**Severity: low (follow-up feature)** — Newtypes produce `NewtypeType` rather than `ClassType`, so using a newtype in an inheritance position (`class Derived : MyNewtype { }`) does not currently work. The base type resolution logic expects a `ClassType` and rejects newtypes.
+
+**Expected behavior:** `class Derived : MyNewtype { }` should unwrap the newtype to its source class type during base type resolution, allowing inheritance through newtypes the same way type aliases are unwrapped.
+
+**Context:** The `unified-type-resolution` spec (Task 4) added unwrapping for `TypeAliasType` in `Pass1_ResolveBaseTypes`, but newtypes were intentionally left out because `NewtypeType` semantics are richer (member cloning, distinct identity). Supporting inheritance from newtypes requires deciding whether the derived class inherits from the *newtype's source class* directly or whether newtypes should carry class-like inheritance semantics of their own.
+
+**Action:**
+1. In `Pass1_ResolveBaseTypes` / `Pass1_ResolveStructBaseTypes`, add unwrapping for `NewtypeType` → `.SourceType` when the source type is a `ClassType` or `StructType`.
+2. Decide whether the derived class's base should be the newtype itself or the unwrapped source class (affects `is`/`as` casts and virtual dispatch).
+3. Add tests for single-level and chained newtype inheritance.
+4. Ensure `NewtypeType` cycle detection handles this case.
+
+**Not part of:** the `unified-type-resolution` bugfix spec — this is a new feature.
+
+---
+
+## 🟡 Add `ResolvedType` non-nullable accessor to Symbol for post-construction consumers
+
+**Severity: medium (architectural hygiene)** — `Symbol.DeclaredType` is `IType?` because the symbol exists before its type is resolved (Phase 1 creates the shell, Phase 4 fills the type). This nullable property is used by both construction-phase code (which legitimately reads null to check "is this resolved yet?") and post-construction code (Pass 2+, which should never see null).
+
+**Problem:** Post-construction consumers (Pass 2, type checker, emitter) do null checks on `DeclaredType` and take silent fallback paths when it's null. This hides bugs where Phase 4 missed a symbol — the user gets wrong inference instead of a crash with a stack trace.
+
+**Proposed fix:** Add a phase-gated accessor that separates the two use cases:
+
+```csharp
+// Construction API — used by Phases 1–4b. Nullable. No crash.
+public IType? DeclaredType { get; internal set; }
+
+// Post-construction API — used by Pass 2+. Non-nullable. Throws if null.
+/// <summary>
+/// Returns the resolved type for this symbol. This accessor is intended for
+/// post-construction consumers (Pass 2 and later). If this throws, it means
+/// Phase 4 failed to resolve this symbol's type — that is a compiler bug in
+/// the resolution pipeline, not something to work around with a null check.
+/// </summary>
+public IType ResolvedType => DeclaredType
+    ?? throw new InvalidOperationException(
+        $"Symbol '{Name}' ({Kind}) has no resolved type. " +
+        $"Phase 4 (Pass1_5_ResolveExplicitMemberTypes) should have set DeclaredType before Pass 2 runs.");
+```
+
+**Migration:**
+1. Add `ResolvedType` to `Symbol`.
+2. In Pass 2 and all downstream consumers, replace `symbol.DeclaredType` reads with `symbol.ResolvedType`. Remove null checks — they become dead code since `ResolvedType` is non-nullable.
+3. Phase 4 and earlier phases continue using `DeclaredType` (nullable) since they're doing the writing and need to read partially-constructed state.
+4. Any remaining `DeclaredType is not null` checks in Phase 4 are legitimate "skip if already resolved" guards — but ideally Phase 4's iteration should be fixed to visit each symbol exactly once, eliminating those too.
+
+**Why not just make `DeclaredType` non-nullable?** Because construction-phase code legitimately reads it before it's set. The two-accessor pattern lets construction code and consumption code have different contracts on the same underlying storage.
+
+**Why not `Debug.Assert`?** It only fires in debug builds. A null `DeclaredType` in production causes silent wrong compilation. The throw fires always, giving a clear error message pointing at the phase that should have resolved it.

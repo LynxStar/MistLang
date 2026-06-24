@@ -10,7 +10,7 @@ This implementation unifies Mist's `interface` and `trait` keywords into a singl
 
 ## Tasks
 
-- [-] 1. Phase 1 — Pure Rename (interface → abstract)
+- [ ] 1. Phase 1 — Pure Rename (interface → abstract)
 
   - [x] 1.1 Grammar: `keywords.storm`
     - Rename `INTERFACE` token → `ABSTRACT` with value `"abstract"`
@@ -430,79 +430,79 @@ This implementation unifies Mist's `interface` and `trait` keywords into a singl
 
 - [ ] 3. Phase 3 — Default Implementations (New Functionality)
 
-  - [~] 3.1 Extend grammar for default implementations
+  - [x] 3.1 Extend grammar for default implementations
     - Extend `AbstractMemberDeclaration` to accept `defaultMethod:MethodDeclaration as AbstractDefaultMethodMember`
     - Parser distinguishes slots (semicolon-terminated) from defaults (body-present)
     - Error: property with body inside abstract type
 
-  - [~] 3.2 Extend semantic model for default methods
+  - [x] 3.2 Extend semantic model for default methods
     - Add `DefaultMethods` dictionary to `AbstractType`
     - Register default method symbols in both `MemberScope` and `DefaultMethods`
 
-  - [~] 3.3 Extend type checker for slot satisfaction with defaults
+  - [x] 3.3 Extend type checker for slot satisfaction with defaults
     - Exclude `DefaultMethods` members from required slots
     - Accept concrete type override when signatures match
     - Propagate defaults through abstract type inheritance
 
-  - [~] 3.4 Extend CSharpEmitter for default interface methods (DIM)
+  - [ ] 3.4 Extend CSharpEmitter for default interface methods (DIM)
     - Emit C# default interface method for `AbstractDefaultMethodMember` nodes
     - Emit forwarding stub on concrete types that don't override
     - When concrete type overrides, emit only concrete implementation
 
-  - [~] 3.5 Add default implementation samples
+  - [ ] 3.5 Add default implementation samples
     - Update `samples/AbstractTypes/Program.mist`
     - Verify dispatch semantics
 
-  - [~] 3.6 Update book documentation for Phase 3
+  - [ ] 3.6 Update book documentation for Phase 3
 
-  - [~] 3.7 Phase 3 verification gate
+  - [ ] 3.7 Phase 3 verification gate
     - Build, test, samples all pass
 
-  - [~] 3.8 Commit Phase 3
+  - [ ] 3.8 Commit Phase 3
     - Message: "Phase 3: Add default implementations for abstract types"
 
 
 - [ ] 4. Phase 4 — Late Binding via With Blocks (New Functionality)
 
-  - [~] 4.1 Re-add with block grammar
+  - [ ] 4.1 Re-add with block grammar
     - Re-add `WithDeclaration` rule: `with TypeName : AbstractType { mappings }`
     - Re-add `MemberMapping` rule: `sourceName:IDENTIFIER AS targetName:IDENTIFIER SEMICOLON`
     - Re-add `WithItem` variant to `TopLevelItem`
 
-  - [~] 4.2 Implement ConformanceMap semantic model
+  - [ ] 4.2 Implement ConformanceMap semantic model
     - Create `ConformanceMapping` and `ConformanceMap` classes
     - Wire into semantic model
 
-  - [~] 4.3 Implement with-block resolution pass
+  - [ ] 4.3 Implement with-block resolution pass
     - Add `Pass1_ResolveWithBlocks` pass
     - Validate type/abstract references, member mappings, signature compatibility
     - Register validated mappings in `ConformanceMap`
 
-  - [~] 4.4 Extend type checker for with-block assignability
+  - [ ] 4.4 Extend type checker for with-block assignability
     - Consult `ConformanceMap` for assignability checks
 
-  - [~] 4.5 Implement with-block C# emission
+  - [ ] 4.5 Implement with-block C# emission
     - Add abstract type's interface to concrete type's C# inheritance list
     - Emit explicit interface implementations delegating to mapped members
 
-  - [~] 4.6 Add with-block samples
+  - [ ] 4.6 Add with-block samples
     - Demonstrate conformance, `as` mapping, polymorphic usage
 
-  - [~] 4.7 Update book documentation for Phase 4
+  - [ ] 4.7 Update book documentation for Phase 4
 
-  - [~] 4.8 Phase 4 verification gate
+  - [ ] 4.8 Phase 4 verification gate
     - Build, test, samples all pass
 
-  - [~] 4.9 Commit Phase 4
+  - [ ] 4.9 Commit Phase 4
     - Message: "Phase 4: Add late binding via with blocks"
 
 - [ ] 5. Final comprehensive verification
 
-  - [~] 5.1 Final grep verification
+  - [ ] 5.1 Final grep verification
     - `interface` only in: C# source `interface` declarations, ambient type provider CLR handling, C# emission output, third-party code, spec files
     - `trait` only in: spec files and third-party code
-  - [~] 5.2 Full test suite passes
-  - [~] 5.3 All samples compile and produce expected output
+  - [ ] 5.2 Full test suite passes
+  - [ ] 5.3 All samples compile and produce expected output
 
 ## Notes
 

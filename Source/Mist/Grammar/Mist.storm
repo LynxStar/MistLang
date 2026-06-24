@@ -217,6 +217,7 @@ rule AbstractDeclaration = modifiers:Modifier* ABSTRACT name:IDENTIFIER
 rule AbstractMemberDeclaration
     = method:AbstractMethodDeclaration            as AbstractMethodMember
     | property:AbstractPropertyDeclaration        as AbstractPropertyMember
+    | defaultMethod:MethodDeclaration             as AbstractDefaultMethodMember
     | associatedType:AssociatedTypeSlotDeclaration as AbstractAssociatedTypeMember
     | unconstrainedAssociatedType:UnconstrainedAssociatedTypeSlotDeclaration as AbstractUnconstrainedAssociatedTypeMember
     | modifiedAssociatedType:ModifiedAssociatedTypeSlotDeclaration as AbstractModifiedAssociatedTypeMember

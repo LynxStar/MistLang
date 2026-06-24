@@ -83,6 +83,13 @@ public sealed class MistParser : IParser
         // nominal typing or a 'with' block for retroactive conformance instead.
         DetectRemovedTraitKeyword(tokens, diagnostics);
 
+        // Abstract types may declare default METHOD implementations (methods with
+        // bodies), but properties may NOT have default implementations. A property
+        // with a body inside an abstract type body fails to parse through the
+        // grammar; detect that shape with a focused token scan and emit a clear
+        // diagnostic (Requirement 13.3).
+        DetectPropertyDefaultInAbstract(tokens, diagnostics);
+
         // Assign ParsedOrigin to every node in the tree so diagnostics
         // can resolve source locations without span-containment heuristics.
         if (root is not null)
@@ -277,6 +284,220 @@ public sealed class MistParser : IParser
                     AnalyzerName: null));
             }
         }
+    }
+
+    /// <summary>
+    /// Scans each abstract type body for property declarations that carry a body
+    /// (block accessors like <c>get { ... }</c>, expression accessors like
+    /// <c>get =&gt; ...;</c>, or an expression-bodied property like
+    /// <c>int Foo =&gt; 1;</c>) and emits a <c>MIST_ABSTRACT_PROPERTY_DEFAULT</c>
+    /// diagnostic. Only methods may have default implementations in an abstract
+    /// type; property slots must always be filled by the implementer
+    /// (Requirement 13.3).
+    /// </summary>
+    /// <remarks>
+    /// A property with a body cannot be parsed by the <c>AbstractMemberDeclaration</c>
+    /// grammar rule (its accessors are semicolon-terminated slots, and the
+    /// default-method alternative requires a parameter list), so the failure would
+    /// otherwise surface only as a generic parse error. This focused scan recognizes
+    /// the shape and reports the precise cause.
+    ///
+    /// The scan operates strictly at the direct member level of each abstract body
+    /// (brace depth 1). Members of nested types (classes, structs, enums, nested
+    /// abstract types) live at deeper brace depths and are not flagged here — a
+    /// nested abstract type is scanned independently when its own <c>abstract</c>
+    /// keyword is encountered by the outer loop.
+    /// </remarks>
+    private static void DetectPropertyDefaultInAbstract(TokenStream tokens, DiagnosticBag diagnostics)
+    {
+        var defaultTokens = tokens.DefaultChannelTokens;
+        var abstractKind = (int)Mist.Generated.TokenKind.ABSTRACT;
+        var leftBraceKind = (int)Mist.Generated.TokenKind.LEFT_BRACE;
+        var semicolonKind = (int)Mist.Generated.TokenKind.SEMICOLON;
+        var eofKind = (int)Mist.Generated.TokenKind.EndOfFile;
+
+        for (var i = 0; i < defaultTokens.Length; i++)
+        {
+            if (defaultTokens[i].Kind != abstractKind)
+            {
+                continue;
+            }
+
+            // Locate the abstract body's opening brace. Between `abstract` and the
+            // body, only `<...>` type params, `: BaseList`, and `where` clauses may
+            // appear — none of which use braces — so the first `{` is the body.
+            var open = i + 1;
+            while (open < defaultTokens.Length
+                && defaultTokens[open].Kind != leftBraceKind
+                && defaultTokens[open].Kind != semicolonKind
+                && defaultTokens[open].Kind != eofKind)
+            {
+                open++;
+            }
+
+            if (open >= defaultTokens.Length || defaultTokens[open].Kind != leftBraceKind)
+            {
+                continue;
+            }
+
+            ScanAbstractBodyForPropertyDefaults(defaultTokens, open, tokens.Source.Path, diagnostics);
+        }
+    }
+
+    /// <summary>
+    /// Scans a single abstract type body (starting at its opening brace) for
+    /// property-with-body members at the direct member level, emitting a diagnostic
+    /// for each. See <see cref="DetectPropertyDefaultInAbstract"/> for the rationale.
+    /// </summary>
+    private static void ScanAbstractBodyForPropertyDefaults(
+        System.Collections.Immutable.ImmutableArray<Storm.Runtime.Token> tokens,
+        int bodyOpenIndex,
+        string sourcePath,
+        DiagnosticBag diagnostics)
+    {
+        var leftBraceKind = (int)Mist.Generated.TokenKind.LEFT_BRACE;
+        var rightBraceKind = (int)Mist.Generated.TokenKind.RIGHT_BRACE;
+        var leftParenKind = (int)Mist.Generated.TokenKind.LEFT_PARENTHESIS;
+        var semicolonKind = (int)Mist.Generated.TokenKind.SEMICOLON;
+        var suchThatKind = (int)Mist.Generated.TokenKind.SUCH_THAT;
+
+        var depth = 0;
+
+        // Whether the current direct member (since the last member boundary) is a
+        // method or a nested type declaration — both of which legitimately introduce
+        // a brace at member level that is NOT a property accessor block.
+        var memberIsMethodOrType = false;
+
+        for (var i = bodyOpenIndex; i < tokens.Length; i++)
+        {
+            var kind = tokens[i].Kind;
+
+            if (kind == leftBraceKind)
+            {
+                if (depth == 1 && !memberIsMethodOrType
+                    && AccessorBlockHasBody(tokens, i))
+                {
+                    // `Type Name { get { ... } }` or `Type Name { get => ...; }`.
+                    AddPropertyDefaultDiagnostic(tokens[i], sourcePath, diagnostics);
+                }
+
+                depth++;
+                continue;
+            }
+
+            if (kind == rightBraceKind)
+            {
+                depth--;
+                if (depth == 0)
+                {
+                    return; // End of this abstract body.
+                }
+
+                if (depth == 1)
+                {
+                    // Returned to member level after a method body / nested type.
+                    memberIsMethodOrType = false;
+                }
+
+                continue;
+            }
+
+            if (depth != 1)
+            {
+                continue;
+            }
+
+            if (kind == leftParenKind || IsTypeDeclarationKeyword(kind))
+            {
+                // A method (has a parameter list) or a nested type declaration.
+                memberIsMethodOrType = true;
+            }
+            else if (kind == suchThatKind && !memberIsMethodOrType)
+            {
+                // `Type Name => expr;` expression-bodied property at member level.
+                AddPropertyDefaultDiagnostic(tokens[i], sourcePath, diagnostics);
+            }
+            else if (kind == semicolonKind)
+            {
+                // Member boundary; the next member starts fresh.
+                memberIsMethodOrType = false;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Given the index of a property's opening brace, returns <c>true</c> if any
+    /// accessor inside carries a body — i.e. an inner <c>{</c> (block accessor) or
+    /// <c>=&gt;</c> (expression accessor) appears at the property's top level. A
+    /// slot-only block such as <c>{ get; set; }</c> contains neither and returns
+    /// <c>false</c>.
+    /// </summary>
+    private static bool AccessorBlockHasBody(
+        System.Collections.Immutable.ImmutableArray<Storm.Runtime.Token> tokens,
+        int braceIndex)
+    {
+        var leftBraceKind = (int)Mist.Generated.TokenKind.LEFT_BRACE;
+        var rightBraceKind = (int)Mist.Generated.TokenKind.RIGHT_BRACE;
+        var suchThatKind = (int)Mist.Generated.TokenKind.SUCH_THAT;
+
+        var depth = 0;
+        for (var i = braceIndex; i < tokens.Length; i++)
+        {
+            var kind = tokens[i].Kind;
+
+            if (kind == leftBraceKind)
+            {
+                if (depth == 1)
+                {
+                    // An accessor opened its own block body: `get { ... }`.
+                    return true;
+                }
+
+                depth++;
+            }
+            else if (kind == rightBraceKind)
+            {
+                depth--;
+                if (depth == 0)
+                {
+                    return false; // Reached the matching close with no bodied accessor.
+                }
+            }
+            else if (kind == suchThatKind && depth == 1)
+            {
+                // An accessor used an expression body: `get => ...;`.
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool IsTypeDeclarationKeyword(int kind) =>
+        kind == (int)Mist.Generated.TokenKind.CLASS
+        || kind == (int)Mist.Generated.TokenKind.STRUCT
+        || kind == (int)Mist.Generated.TokenKind.ABSTRACT
+        || kind == (int)Mist.Generated.TokenKind.ENUM;
+
+    private static void AddPropertyDefaultDiagnostic(
+        Storm.Runtime.Token token,
+        string sourcePath,
+        DiagnosticBag diagnostics)
+    {
+        var location = (token.Start.Line > 0 && token.Start.Column > 0)
+            ? new LinePositionSpan(
+                new LinePosition(token.Start.Line, token.Start.Column),
+                new LinePosition(token.End.Line, token.End.Column))
+            : default;
+
+        diagnostics.Add(new Diagnostic(
+            new DiagnosticId("MIST_ABSTRACT_PROPERTY_DEFAULT"),
+            DiagnosticSeverity.Error,
+            PipelineStage.Parsing,
+            "Property slots cannot have default implementations. Only methods can have defaults.",
+            Location: location,
+            CompilationUnitPath: sourcePath,
+            AnalyzerName: null));
     }
 
     /// <summary>

@@ -1786,6 +1786,16 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 case AbstractMethodMemberAbstractMemberDeclarationNode methodMember:
                     RegisterAbstractMethodDeclaration(methodMember.Method, typeScope, symbolTable, sourceText, diagnostics);
                     break;
+                case AbstractDefaultMethodMemberAbstractMemberDeclarationNode defaultMethodMember:
+                {
+                    // A default method has a body. Register it as a normal method symbol so
+                    // member resolution works, AND record it in DefaultMethods so the type
+                    // checker can distinguish defaults (which implementers may omit) from slots.
+                    var defaultSymbol = RegisterMethodDeclaration(
+                        defaultMethodMember.DefaultMethod, typeScope, symbolTable, sourceText, diagnostics);
+                    abstractType.DefaultMethods[defaultMethodMember.DefaultMethod.Name.Lexeme] = defaultSymbol;
+                    break;
+                }
                 case AbstractPropertyMemberAbstractMemberDeclarationNode propertyMember:
                     RegisterAbstractPropertyDeclaration(propertyMember.Property, typeScope, symbolTable);
                     break;
@@ -3288,7 +3298,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         symbolTable.Register(ctorSymbol, ctorDecl);
     }
 
-    private static void RegisterMethodDeclaration(MethodDeclarationNode methodDecl, Scope typeScope, SymbolTable symbolTable, SourceText? sourceText, DiagnosticBag diagnostics)
+    private static Symbol RegisterMethodDeclaration(MethodDeclarationNode methodDecl, Scope typeScope, SymbolTable symbolTable, SourceText? sourceText, DiagnosticBag diagnostics)
     {
         var methodName = methodDecl.Name.Lexeme;
         var methodSpan = ToMistSourceSpan(methodDecl.Name.Span);
@@ -3309,6 +3319,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
         // Register method type parameters if present.
         RegisterMethodTypeParameters(methodDecl.TypeParams, methodSymbol, typeScope, sourceText, diagnostics);
+
+        return methodSymbol;
     }
 
     /// <summary>
@@ -9809,10 +9821,21 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 continue;
 
             // Add all method and property members from this abstract type.
+            // Default methods (those with bodies, recorded in DefaultMethods) are
+            // EXCLUDED from required slots — implementers may omit them because the
+            // default fills the slot. A same-named non-default overload (a true slot)
+            // is still required, so we compare by symbol identity rather than by name.
             foreach (var member in iface.MemberScope.Members)
             {
                 if (member.Kind == SymbolKind.Method)
                 {
+                    if (iface.DefaultMethods.TryGetValue(member.Name, out var defaultSymbol)
+                        && ReferenceEquals(defaultSymbol, member))
+                    {
+                        // This method has a default implementation — not a required slot.
+                        continue;
+                    }
+
                     requiredMethods.Add((iface, member));
                 }
                 else if (member.Kind == SymbolKind.Property)
@@ -22146,6 +22169,16 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
                 current = current.BaseType as ClassType;
             }
+
+            // ── Default method fallback for class types (Phase 3) ──────────────
+            // If the member was not found on the class hierarchy, search the
+            // abstract types' DefaultMethods transitively. This enables Rust-style
+            // semantics where defaults are callable directly on the concrete type.
+            var classDefaultResult = LookupDefaultMethodInAbstracts(classTarget.Abstracts, memberName);
+            if (classDefaultResult is not null)
+            {
+                return SubstituteMemberTypeIfNeeded(classDefaultResult, constructedTypeParams, constructedTypeArgs);
+            }
         }
         else if (memberScope is not null)
         {
@@ -22163,6 +22196,18 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 if (result is not null)
                 {
                     return SubstituteMemberTypeIfNeeded(result, constructedTypeParams, constructedTypeArgs);
+                }
+            }
+
+            // ── Default method fallback for struct types (Phase 3) ─────────────
+            // Same as the class case: if a struct implements abstract types with
+            // default methods, those defaults are callable directly on the struct.
+            if (targetType is StructType structTarget)
+            {
+                var structDefaultResult = LookupDefaultMethodInAbstracts(structTarget.Abstracts, memberName);
+                if (structDefaultResult is not null)
+                {
+                    return SubstituteMemberTypeIfNeeded(structDefaultResult, constructedTypeParams, constructedTypeArgs);
                 }
             }
         }
@@ -22950,6 +22995,48 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             {
                 return inherited;
             }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Searches the DefaultMethods dictionaries of a concrete type's implemented abstract
+    /// types transitively (following the abstract type inheritance chain). This enables
+    /// Rust-style semantics where default methods are callable directly on the concrete
+    /// type without requiring a cast to the abstract type reference.
+    /// </summary>
+    /// <returns>The default method's declared type if found; <c>null</c> otherwise.</returns>
+    private static IType? LookupDefaultMethodInAbstracts(
+        IReadOnlyList<IType> abstracts,
+        string memberName)
+    {
+        var visited = new HashSet<AbstractType>(ReferenceEqualityComparer.Instance);
+        return LookupDefaultMethodInAbstractsCore(abstracts, memberName, visited);
+    }
+
+    private static IType? LookupDefaultMethodInAbstractsCore(
+        IReadOnlyList<IType> abstracts,
+        string memberName,
+        HashSet<AbstractType> visited)
+    {
+        foreach (var absType in abstracts)
+        {
+            var def = absType is ConstructedType ct ? ct.GenericDefinition as AbstractType : absType as AbstractType;
+            if (def is null)
+                continue;
+
+            if (!visited.Add(def))
+                continue;
+
+            if (def.DefaultMethods.TryGetValue(memberName, out var defaultSymbol))
+            {
+                return defaultSymbol.DeclaredType ?? ErrorType.Instance;
+            }
+
+            var inherited = LookupDefaultMethodInAbstractsCore(def.Abstracts, memberName, visited);
+            if (inherited is not null)
+                return inherited;
         }
 
         return null;

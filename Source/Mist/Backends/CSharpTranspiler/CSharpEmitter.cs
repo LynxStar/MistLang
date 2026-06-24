@@ -2975,6 +2975,20 @@ internal sealed class CSharpSourceWriter
             EmitIteratorInterfaceBoilerplate(classTypeForIterator);
         }
 
+        // Emit forwarding stubs for default interface methods the class inherits but does
+        // not override, so the defaults are callable directly on the class (Rust-style).
+        if (symbol?.DeclaredType is ClassType classTypeForDefaults)
+        {
+            EmitDefaultMethodForwardingStubs(
+                classTypeForDefaults.Abstracts,
+                classDecl.Members,
+                classTypeForDefaults.MemberScope,
+                classTypeForDefaults,
+                name,
+                typeParams,
+                abstractTypeParamSubstitutions);
+        }
+
         // Emit explicit interface implementations for methods that use parameterized
         // associated type slots. The public method returns the concrete nested type,
         // and the explicit impl bridges to it with the erased constraint interface type.
@@ -3157,6 +3171,11 @@ internal sealed class CSharpSourceWriter
                 case AbstractPropertyMemberAbstractMemberDeclarationNode propertyMember:
                     EmitAbstractPropertyDeclaration(propertyMember.Property, slotSubstitutions);
                     break;
+                // Default methods (methods with bodies) emit as C# default interface methods
+                // (DIM) — a method WITH a body on the interface. Implementers may omit them.
+                case AbstractDefaultMethodMemberAbstractMemberDeclarationNode defaultMethodMember:
+                    EmitMethodDeclaration(defaultMethodMember.DefaultMethod);
+                    break;
                 // Skip associated type slot declarations — they are lifted to type parameters.
                 case AbstractAssociatedTypeMemberAbstractMemberDeclarationNode:
                 case AbstractUnconstrainedAssociatedTypeMemberAbstractMemberDeclarationNode:
@@ -3167,6 +3186,121 @@ internal sealed class CSharpSourceWriter
         _indentLevel--;
         AppendLine("}");
         _currentParameterizedSlots = previousParameterizedSlots;
+    }
+
+    /// <summary>
+    /// Emits forwarding stubs on a concrete type (class or struct) for every default
+    /// interface method (DIM) it inherits from its abstract types but does NOT override.
+    ///
+    /// C# default interface methods are only callable through an interface-typed reference
+    /// (e.g., <c>((IGreeting)x).Greet()</c>). To preserve Rust-style semantics — where the
+    /// default is callable directly on the concrete type — a forwarding stub is emitted:
+    /// <code>public string Greet() => ((IGreeting)this).Greet();</code>
+    ///
+    /// When the concrete type provides its own implementation for a default method (matched
+    /// by name + arity), no stub is emitted — the concrete implementation takes precedence.
+    /// Defaults inherited transitively through the abstract type hierarchy are also covered.
+    /// </summary>
+    private void EmitDefaultMethodForwardingStubs(
+        IReadOnlyList<IType> directAbstracts,
+        IReadOnlyList<MemberDeclarationNode> concreteMembers,
+        IScope implementorScope,
+        ClassType? implementorClassType,
+        string typeName,
+        string typeParams,
+        Dictionary<string, string>? abstractParamSubs)
+    {
+        if (directAbstracts.Count == 0) return;
+
+        // Build the transitive closure of abstract types. Each entry is the IType to cast
+        // to (a definition or a constructed instantiation). Defs are de-duplicated.
+        var closure = new List<IType>();
+        var seenDefs = new HashSet<AbstractType>();
+
+        void Visit(IType abs)
+        {
+            var def = abs is ConstructedType ct ? ct.GenericDefinition as AbstractType : abs as AbstractType;
+            if (def is null) return;
+            if (!seenDefs.Add(def)) return;
+            closure.Add(abs);
+            foreach (var parent in def.Abstracts)
+                Visit(parent);
+        }
+
+        foreach (var abs in directAbstracts)
+            Visit(abs);
+
+        // A default is considered overridden when the concrete type declares a method with
+        // the same name and parameter count. The type checker (task 3.3) guarantees that a
+        // same-name method matching a default also matches its signature exactly, so name +
+        // arity is a safe discriminator. Methods with a different arity are unrelated
+        // overloads and do not suppress the default's forwarding stub.
+        var concreteMethodKeys = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var member in concreteMembers)
+        {
+            if (member is MethodMemberMemberDeclarationNode mm)
+                concreteMethodKeys.Add($"{mm.Method.Name.Lexeme}/{CountParameters(mm.Method.Parameters)}");
+        }
+
+        // Track emitted (name + arity) keys so diamond inheritance does not produce duplicate
+        // members. The first abstract encountered in the closure wins (deterministic order).
+        var emittedKeys = new HashSet<string>(StringComparer.Ordinal);
+
+        foreach (var abs in closure)
+        {
+            var def = abs is ConstructedType ct ? ct.GenericDefinition as AbstractType : abs as AbstractType;
+            if (def is null || def.DefaultMethods.Count == 0) continue;
+
+            foreach (var entry in def.DefaultMethods.OrderBy(kvp => kvp.Key, StringComparer.Ordinal))
+            {
+                var methodName = entry.Key;
+                if (_model.GetDeclaringNode(entry.Value) is not MethodDeclarationNode node)
+                    continue;
+
+                var key = $"{methodName}/{CountParameters(node.Parameters)}";
+
+                // Concrete type overrides this default — emit only the concrete implementation.
+                if (concreteMethodKeys.Contains(key)) continue;
+                // Already forwarded via a more-derived abstract type (diamond) — skip.
+                if (!emittedKeys.Add(key)) continue;
+
+                // Emit the default method's full body on the concrete type. This duplicates
+                // the DIM body, ensuring the method is callable directly on the concrete type
+                // without interface casting (Rust-style semantics). C# DIM forwarding via
+                // ((IFace)this).Method() does not work because the concrete type's own method
+                // becomes the implicit interface implementation, causing infinite recursion.
+                // Force `public` visibility since interface members are implicitly public but
+                // the duplicated method on a class needs an explicit access modifier.
+                AppendLine();
+                var returnType = abstractParamSubs is not null
+                    ? EmitTypeReferenceWithSubstitution(node.ReturnType, abstractParamSubs)
+                    : EmitTypeReference(node.ReturnType);
+                var parameters = abstractParamSubs is not null
+                    ? EmitParameterListWithSubstitution(node.Parameters, abstractParamSubs)
+                    : EmitParameterList(node.Parameters);
+                var methodTypeParams = EmitTypeParameterList(node.TypeParams);
+
+                // Check if the node declares explicit modifiers (e.g., `public`). If not,
+                // force `public` since interface members are implicitly public.
+                var modifiers = EmitModifiers(node.Modifiers);
+                if (string.IsNullOrEmpty(modifiers))
+                    modifiers = "public ";
+
+                AppendLine($"{modifiers}{returnType} {methodName}{methodTypeParams}({parameters})");
+
+                // Emit the body.
+                if (node.Body is MethodBlockBodyMethodBodyNode blockBody)
+                {
+                    EmitMethodBlock(blockBody.Block, appendImplicitReturn: false);
+                }
+                else if (node.Body is ExpressionBodyMethodBodyNode exprBody)
+                {
+                    _indentLevel++;
+                    AppendLine($"=> {EmitExpression(exprBody.Expression)};");
+                    _indentLevel--;
+                }
+            }
+        }
     }
 
     private void EmitAbstractMethodDeclaration(AbstractMethodDeclarationNode methodDecl, Dictionary<string, string>? slotSubstitutions = null)
@@ -3710,6 +3844,20 @@ internal sealed class CSharpSourceWriter
         if (symbol?.DeclaredType is StructType structTypeForIterator)
         {
             EmitIteratorInterfaceBoilerplate(structTypeForIterator);
+        }
+
+        // Emit forwarding stubs for default interface methods the struct inherits but does
+        // not override, so the defaults are callable directly on the struct (Rust-style).
+        if (symbol?.DeclaredType is StructType structTypeForDefaults)
+        {
+            EmitDefaultMethodForwardingStubs(
+                structTypeForDefaults.Abstracts,
+                structDecl.Members,
+                structTypeForDefaults.MemberScope,
+                null,
+                name,
+                typeParams,
+                abstractParamSubs: null);
         }
 
         // Emit __CreateDefault factory method for defaultable structs.

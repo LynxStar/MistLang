@@ -15,6 +15,12 @@ public sealed class AbstractType : IType
     public IReadOnlyList<IType> TypeParameters { get; internal set; } = Array.Empty<IType>();
 
     /// <summary>
+    /// Methods with default implementations. Key = method name.
+    /// These do NOT need to be filled by implementers.
+    /// </summary>
+    public Dictionary<string, ISymbol> DefaultMethods { get; } = new();
+
+    /// <summary>
     /// Indicates whether this abstract type is declared as readonly.
     /// When true, all members are implicitly readonly.
     /// </summary>

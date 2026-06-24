@@ -391,7 +391,7 @@ This implementation unifies Mist's `interface` and `trait` keywords into a singl
     - Commit all Phase 1 changes with message: "Phase 1: Rename interface → abstract (zero semantic change)"
 
 
-- [-] 2. Phase 2 — Purge Traits (Pure Deletion)
+- [x] 2. Phase 2 — Purge Traits (Pure Deletion)
 
   > **Reference docs:**
   > - `phase2-tasks.md` — 72 detailed subtasks with verification commands
@@ -425,7 +425,7 @@ This implementation unifies Mist's `interface` and `trait` keywords into a singl
     - Full test suite passes
     - `grep -rni 'trait' --include='*.cs' --include='*.mist' --include='*.storm' --include='*.md' --include='*.json' --include='*.js' --include='*.toml' --include='*.out' --exclude-dir='.git' --exclude-dir='.kiro' --exclude-dir='node_modules' --exclude-dir='obj' --exclude-dir='bin' .` returns ONLY: third-party highlight.js (Rust/PHP), xUnit `[Trait]` attributes
     - All samples compile and produce expected output
-  - [-] 2.24 Commit Phase 2
+  - [x] 2.24 Commit Phase 2
     - Message: "Phase 2: Purge traits entirely"
 
 - [ ] 3. Phase 3 — Default Implementations (New Functionality)

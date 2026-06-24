@@ -25,7 +25,7 @@ public sealed class ReadonlyInferenceEngine
     {
         var typeSymbols = model.AllSymbols
             .Where(s => s.Kind is SymbolKind.Class or SymbolKind.Struct
-                                or SymbolKind.Interface or SymbolKind.Trait);
+                                or SymbolKind.Abstract or SymbolKind.Trait);
 
         foreach (var typeSymbol in typeSymbols)
         {
@@ -65,7 +65,7 @@ public sealed class ReadonlyInferenceEngine
         {
             ClassType ct => ct.MemberScope,
             StructType st => st.MemberScope,
-            InterfaceType it => it.MemberScope,
+            AbstractType at => at.MemberScope,
             TraitType tt => tt.MemberScope,
             _ => null,
         };
@@ -752,7 +752,7 @@ public sealed class ReadonlyInferenceEngine
         {
             ClassType ct => ct.IsReadonly,
             StructType st => st.IsReadonly,
-            InterfaceType it => it.IsReadonly,
+            AbstractType at => at.IsReadonly,
             TraitType tt => tt.IsReadonly,
             _ => false,
         };

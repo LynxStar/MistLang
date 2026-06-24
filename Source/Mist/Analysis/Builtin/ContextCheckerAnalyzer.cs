@@ -67,7 +67,7 @@ public sealed class ContextCheckerAnalyzer : IAnalyzer
         CheckCannotInferContextType(model, diagnostics);
         CheckContextBoundVariableAssignments(model, diagnostics);
         CheckContextAvailability(model, diagnostics);
-        CheckInterfaceWithClauseContracts(model, diagnostics);
+        CheckAbstractWithClauseContracts(model, diagnostics);
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -879,8 +879,8 @@ public sealed class ContextCheckerAnalyzer : IAnalyzer
             }
         }
 
-        // For interface dispatch, use the interface method's with-clauses.
-        if (receiverType is InterfaceType ifaceType)
+        // For abstract type dispatch, use the abstract type method's with-clauses.
+        if (receiverType is AbstractType ifaceType)
         {
             foreach (var member in ifaceType.MemberScope.Members)
             {
@@ -1144,7 +1144,7 @@ public sealed class ContextCheckerAnalyzer : IAnalyzer
         {
             ClassType ct => ct.MemberScope,
             StructType st => st.MemberScope,
-            InterfaceType it => it.MemberScope,
+            AbstractType it => it.MemberScope,
             TraitType tt => tt.MemberScope,
             _ => null,
         };
@@ -1161,19 +1161,19 @@ public sealed class ContextCheckerAnalyzer : IAnalyzer
     }
 
     // ═══════════════════════════════════════════════════════════════════════
-    // Interface/Trait Contract Enforcement (Task 5.3)
+    // Abstract Type/Trait Contract Enforcement (Task 5.3)
     // ═══════════════════════════════════════════════════════════════════════
 
     /// <summary>
-    /// For each interface method that declares <c>with</c> clauses, verifies that
+    /// For each abstract type method that declares <c>with</c> clauses, verifies that
     /// all implementing types' corresponding methods declare the exact same clauses
     /// (matched by resolved type, no variance). Emits <c>MIST_CTX_0006</c> for
     /// omitted or mismatched clauses.
     /// </summary>
-    private static void CheckInterfaceWithClauseContracts(ISemanticModel model, DiagnosticBag diagnostics)
+    private static void CheckAbstractWithClauseContracts(ISemanticModel model, DiagnosticBag diagnostics)
     {
-        // Step 1: Collect all interface methods that have WithClauses.
-        var interfaceMethodsWithClauses = new List<(InterfaceType Interface, Symbol Method)>();
+        // Step 1: Collect all abstract type methods that have WithClauses.
+        var abstractMethodsWithClauses = new List<(AbstractType Abstract, Symbol Method)>();
         foreach (var symbol in model.AllSymbols)
         {
             if (symbol is not Symbol sym)
@@ -1185,18 +1185,18 @@ public sealed class ContextCheckerAnalyzer : IAnalyzer
             if (sym.WithClauses.Count == 0)
                 continue;
 
-            // Check if this method belongs to an interface.
+            // Check if this method belongs to an abstract type.
             if (sym.ContainingScope is IScope scope)
             {
                 var ownerType = FindOwnerType(scope, model);
-                if (ownerType is InterfaceType ifaceType)
+                if (ownerType is AbstractType abstractType)
                 {
-                    interfaceMethodsWithClauses.Add((ifaceType, sym));
+                    abstractMethodsWithClauses.Add((abstractType, sym));
                 }
             }
         }
 
-        if (interfaceMethodsWithClauses.Count == 0)
+        if (abstractMethodsWithClauses.Count == 0)
             return;
 
         // Step 2: For each class/struct that implements an interface, check its methods.
@@ -1210,14 +1210,14 @@ public sealed class ContextCheckerAnalyzer : IAnalyzer
                 continue;
 
             var type = typeSym.DeclaredType;
-            IReadOnlyList<IType>? interfaces = type switch
+            IReadOnlyList<IType>? abstracts = type switch
             {
-                ClassType ct => ct.Interfaces,
-                StructType st => st.Interfaces,
+                ClassType ct => ct.Abstracts,
+                StructType st => st.Abstracts,
                 _ => null,
             };
 
-            if (interfaces is null || interfaces.Count == 0)
+            if (abstracts is null || abstracts.Count == 0)
                 continue;
 
             IScope? memberScope = type switch
@@ -1230,20 +1230,20 @@ public sealed class ContextCheckerAnalyzer : IAnalyzer
             if (memberScope is null)
                 continue;
 
-            // Check each interface method with with-clauses.
-            foreach (var (ifaceType, ifaceMethod) in interfaceMethodsWithClauses)
+            // Check each abstract type method with with-clauses.
+            foreach (var (abstractType, abstractMethod) in abstractMethodsWithClauses)
             {
-                if (!ImplementsInterface(interfaces, ifaceType))
+                if (!ImplementsAbstract(abstracts, abstractType))
                     continue;
 
                 // Find the implementing method on this type.
-                var implMethod = FindImplementingMethod(ifaceMethod, memberScope);
+                var implMethod = FindImplementingMethod(abstractMethod, memberScope);
                 if (implMethod is null)
                     continue; // Missing method implementation is reported by the type checker.
 
                 // Verify with-clause contract.
                 CheckWithClauseContract(
-                    ifaceMethod, implMethod, ifaceType, typeSym, model, diagnostics);
+                    abstractMethod, implMethod, abstractType, typeSym, model, diagnostics);
             }
         }
     }
@@ -1255,7 +1255,7 @@ public sealed class ContextCheckerAnalyzer : IAnalyzer
     {
         foreach (var symbol in model.AllSymbols)
         {
-            if (symbol.DeclaredType is InterfaceType it && it.MemberScope == memberScope)
+            if (symbol.DeclaredType is AbstractType it && it.MemberScope == memberScope)
                 return it;
             if (symbol.DeclaredType is ClassType ct && ct.MemberScope == memberScope)
                 return ct;
@@ -1268,19 +1268,19 @@ public sealed class ContextCheckerAnalyzer : IAnalyzer
     }
 
     /// <summary>
-    /// Checks if a type's interface list (including transitive parents) contains
-    /// the specified interface type.
+    /// Checks if a type's abstract type list (including transitive parents) contains
+    /// the specified abstract type.
     /// </summary>
-    private static bool ImplementsInterface(IReadOnlyList<IType> interfaces, InterfaceType target)
+    private static bool ImplementsAbstract(IReadOnlyList<IType> abstracts, AbstractType target)
     {
-        foreach (var iface in interfaces)
+        foreach (var abs in abstracts)
         {
-            if (iface is InterfaceType it)
+            if (abs is AbstractType at)
             {
-                if (ReferenceEquals(it, target))
+                if (ReferenceEquals(at, target))
                     return true;
-                // Check parent interfaces recursively.
-                if (it.Interfaces.Count > 0 && ImplementsInterface(it.Interfaces, target))
+                // Check parent abstract types recursively.
+                if (at.Abstracts.Count > 0 && ImplementsAbstract(at.Abstracts, target))
                     return true;
             }
         }
@@ -1307,12 +1307,12 @@ public sealed class ContextCheckerAnalyzer : IAnalyzer
 
     /// <summary>
     /// Verifies that an implementing method declares the exact same with-clauses
-    /// as the interface method. Emits MIST_CTX_0006 for each missing or mismatched clause.
+    /// as the abstract type method. Emits MIST_CTX_0006 for each missing or mismatched clause.
     /// </summary>
     private static void CheckWithClauseContract(
         Symbol ifaceMethod,
         Symbol implMethod,
-        InterfaceType ifaceType,
+        AbstractType ifaceType,
         Symbol typeSym,
         ISemanticModel model,
         DiagnosticBag diagnostics)

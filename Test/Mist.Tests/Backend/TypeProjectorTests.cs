@@ -201,7 +201,7 @@ public class TypeProjectorTests
         Assert.NotNull(typeParam.Constraints);
         // MultiConstraint<T> where T : struct, IComparable<T>
         // Should have at least one interface constraint (IComparable<T>)
-        Assert.NotEmpty(typeParam.Constraints!.InterfaceConstraints);
+        Assert.NotEmpty(typeParam.Constraints!.AbstractConstraints);
     }
 
     // ═══════════════════════════════════════════════════════════════════════

@@ -549,7 +549,7 @@ internal sealed class AssemblyTypeProvider : IAmbientTypeResolver, IDisposable
         {
             Semantics.Model.Types.ClassType ct => ct.MemberScope as Scope,
             Semantics.Model.Types.StructType st => st.MemberScope as Scope,
-            Semantics.Model.Types.InterfaceType it => it.MemberScope as Scope,
+            Semantics.Model.Types.AbstractType it => it.MemberScope as Scope,
             Semantics.Model.Types.EnumType et => et.MemberScope as Scope,
             Semantics.Model.Types.DelegateType dt => dt.MemberScope as Scope,
             Semantics.Model.Types.BaseDelegateType bdt => bdt.MemberScope as Scope,

@@ -124,7 +124,7 @@ rule NamespaceDeclaration
 rule TypeDeclaration
     = classDeclaration:ClassDeclaration           as ClassType
     | structDeclaration:StructDeclaration         as StructType
-    | interfaceDeclaration:InterfaceDeclaration   as InterfaceType
+    | abstractDeclaration:AbstractDeclaration     as AbstractType
     | traitDeclaration:TraitDeclaration           as TraitType
     | enumDeclaration:EnumDeclaration             as EnumType
     ;
@@ -206,40 +206,40 @@ rule ClassDeclaration = modifiers:Modifier* CLASS name:IDENTIFIER
 
 rule StructDeclaration = modifiers:Modifier* STRUCT name:IDENTIFIER
     typeParams:TypeParameterList?
-    interfaceList:(COLON interfaces:BaseList)?
+    abstractList:(COLON abstracts:BaseList)?
     constraints:WhereClause*
     LEFT_BRACE members:MemberDeclaration* RIGHT_BRACE;
 
-rule InterfaceDeclaration = modifiers:Modifier* INTERFACE name:IDENTIFIER
+rule AbstractDeclaration = modifiers:Modifier* ABSTRACT name:IDENTIFIER
     typeParams:TypeParameterList?
-    interfaceList:(COLON interfaces:BaseList)?
+    abstractList:(COLON abstracts:BaseList)?
     constraints:WhereClause*
-    LEFT_BRACE members:InterfaceMemberDeclaration* RIGHT_BRACE;
+    LEFT_BRACE members:AbstractMemberDeclaration* RIGHT_BRACE;
 
-rule InterfaceMemberDeclaration
-    = method:InterfaceMethodDeclaration           as InterfaceMethodMember
-    | property:InterfacePropertyDeclaration       as InterfacePropertyMember
-    | associatedType:AssociatedTypeSlotDeclaration as InterfaceAssociatedTypeMember
-    | unconstrainedAssociatedType:UnconstrainedAssociatedTypeSlotDeclaration as InterfaceUnconstrainedAssociatedTypeMember
-    | modifiedAssociatedType:ModifiedAssociatedTypeSlotDeclaration as InterfaceModifiedAssociatedTypeMember
-    | nestedType:TypeDeclaration                  as InterfaceNestedTypeMember
+rule AbstractMemberDeclaration
+    = method:AbstractMethodDeclaration            as AbstractMethodMember
+    | property:AbstractPropertyDeclaration        as AbstractPropertyMember
+    | associatedType:AssociatedTypeSlotDeclaration as AbstractAssociatedTypeMember
+    | unconstrainedAssociatedType:UnconstrainedAssociatedTypeSlotDeclaration as AbstractUnconstrainedAssociatedTypeMember
+    | modifiedAssociatedType:ModifiedAssociatedTypeSlotDeclaration as AbstractModifiedAssociatedTypeMember
+    | nestedType:TypeDeclaration                  as AbstractNestedTypeMember
     ;
 
-rule InterfaceMethodDeclaration = returnOwnership:OwnershipSpecifier? returnType:TypeReference name:IDENTIFIER
+rule AbstractMethodDeclaration = returnOwnership:OwnershipSpecifier? returnType:TypeReference name:IDENTIFIER
     typeParams:TypeParameterList?
     LEFT_PARENTHESIS parameters:ParameterList? RIGHT_PARENTHESIS
     withClauses:WithClause*
     constraints:WhereClause*
     SEMICOLON;
 
-rule InterfacePropertyDeclaration
+rule AbstractPropertyDeclaration
     = type:TypeReference name:IDENTIFIER
-      LEFT_BRACE accessors:InterfaceAccessorDeclaration+ RIGHT_BRACE
+      LEFT_BRACE accessors:AbstractAccessorDeclaration+ RIGHT_BRACE
     ;
 
-rule InterfaceAccessorDeclaration
-    = GET SEMICOLON   as InterfaceGetAccessor
-    | SET SEMICOLON   as InterfaceSetAccessor
+rule AbstractAccessorDeclaration
+    = GET SEMICOLON   as AbstractGetAccessor
+    | SET SEMICOLON   as AbstractSetAccessor
     ;
 
 // ─── Parser Rules — Associated Type Slot Declarations ────────────────────────
@@ -285,7 +285,7 @@ rule TraitMethodDeclaration = returnOwnership:OwnershipSpecifier? returnType:Typ
     SEMICOLON;
 
 rule TraitPropertyDeclaration = type:TypeReference name:IDENTIFIER
-    LEFT_BRACE accessors:InterfaceAccessorDeclaration+ RIGHT_BRACE;
+    LEFT_BRACE accessors:AbstractAccessorDeclaration+ RIGHT_BRACE;
 
 // ─── Parser Rules — Enum Declarations ────────────────────────────────────────
 

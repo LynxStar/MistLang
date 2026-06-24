@@ -26,20 +26,20 @@ public sealed class SlotSpec
     public string Name { get; }
     public bool ExpectStruct { get; }
     public bool ExpectClass { get; }
-    public IReadOnlyList<string> ExpectInterfaceConstraints { get; }
+    public IReadOnlyList<string> ExpectAbstractConstraints { get; }
     public bool ExpectConstructorConstraint { get; }
 
     public SlotSpec(
         string name,
         bool expectStruct,
         bool expectClass,
-        IReadOnlyList<string> expectInterfaceConstraints,
+        IReadOnlyList<string> expectAbstractConstraints,
         bool expectConstructorConstraint)
     {
         Name = name;
         ExpectStruct = expectStruct;
         ExpectClass = expectClass;
-        ExpectInterfaceConstraints = expectInterfaceConstraints;
+        ExpectAbstractConstraints = expectAbstractConstraints;
         ExpectConstructorConstraint = expectConstructorConstraint;
     }
 
@@ -48,7 +48,7 @@ public sealed class SlotSpec
         var parts = new List<string>();
         if (ExpectStruct) parts.Add("struct");
         if (ExpectClass) parts.Add("class");
-        foreach (var iface in ExpectInterfaceConstraints) parts.Add(iface);
+        foreach (var iface in ExpectAbstractConstraints) parts.Add(iface);
         if (ExpectConstructorConstraint) parts.Add("new()");
         return $"{Name} : {(parts.Count > 0 ? string.Join(", ", parts) : "(unconstrained)")}";
     }
@@ -155,14 +155,14 @@ public sealed class AssociatedTypeSemanticPropertyTests : IDisposable
     private static Gen<SlotSpec> GenStructOnlySlot(string name)
     {
         return Gen.Constant(new SlotSpec(name, expectStruct: true, expectClass: false,
-            expectInterfaceConstraints: Array.Empty<string>(), expectConstructorConstraint: false));
+            expectAbstractConstraints: Array.Empty<string>(), expectConstructorConstraint: false));
     }
 
     /// <summary>Generates a slot with only the class constraint.</summary>
     private static Gen<SlotSpec> GenClassOnlySlot(string name)
     {
         return Gen.Constant(new SlotSpec(name, expectStruct: false, expectClass: true,
-            expectInterfaceConstraints: Array.Empty<string>(), expectConstructorConstraint: false));
+            expectAbstractConstraints: Array.Empty<string>(), expectConstructorConstraint: false));
     }
 
     /// <summary>Generates a slot with only interface reference constraints.</summary>
@@ -173,14 +173,14 @@ public sealed class AssociatedTypeSemanticPropertyTests : IDisposable
                 .Select(ifaces => ifaces.Distinct().ToArray())
                 .Where(ifaces => ifaces.Length > 0)
                 .Select(ifaces => new SlotSpec(name, expectStruct: false, expectClass: false,
-                    expectInterfaceConstraints: ifaces, expectConstructorConstraint: false)));
+                    expectAbstractConstraints: ifaces, expectConstructorConstraint: false)));
     }
 
     /// <summary>Generates a slot with only the new() constraint.</summary>
     private static Gen<SlotSpec> GenNewOnlySlot(string name)
     {
         return Gen.Constant(new SlotSpec(name, expectStruct: false, expectClass: false,
-            expectInterfaceConstraints: Array.Empty<string>(), expectConstructorConstraint: true));
+            expectAbstractConstraints: Array.Empty<string>(), expectConstructorConstraint: true));
     }
 
     /// <summary>Generates a slot with a combination of constraints.</summary>
@@ -214,7 +214,7 @@ public sealed class AssociatedTypeSemanticPropertyTests : IDisposable
         var parts = new List<string>();
         if (slot.ExpectStruct) parts.Add("struct");
         if (slot.ExpectClass) parts.Add("class");
-        foreach (var iface in slot.ExpectInterfaceConstraints) parts.Add(iface);
+        foreach (var iface in slot.ExpectAbstractConstraints) parts.Add(iface);
         if (slot.ExpectConstructorConstraint) parts.Add("new()");
         return string.Join(", ", parts);
     }
@@ -261,7 +261,7 @@ public sealed class AssociatedTypeSemanticPropertyTests : IDisposable
 
         // Emit stub interfaces for any interface constraints referenced
         var referencedInterfaces = slots
-            .SelectMany(s => s.ExpectInterfaceConstraints)
+            .SelectMany(s => s.ExpectAbstractConstraints)
             .Distinct()
             .ToList();
 
@@ -393,17 +393,17 @@ public sealed class AssociatedTypeSemanticPropertyTests : IDisposable
                     .Label($"Slot '{expectedSlot.Name}': HasClassConstraint={constraints.HasClassConstraint}, expected={expectedSlot.ExpectClass}.\nSource:\n{scenario.Source}");
 
             // Verify interface constraints
-            var actualInterfaceNames = constraints.InterfaceConstraints
+            var actualInterfaceNames = constraints.AbstractConstraints
                 .Select(t => t.DisplayName)
                 .OrderBy(n => n)
                 .ToList();
-            var expectedInterfaceNames = expectedSlot.ExpectInterfaceConstraints
+            var expectedInterfaceNames = expectedSlot.ExpectAbstractConstraints
                 .OrderBy(n => n)
                 .ToList();
 
             if (!actualInterfaceNames.SequenceEqual(expectedInterfaceNames))
                 return false.ToProperty()
-                    .Label($"Slot '{expectedSlot.Name}': InterfaceConstraints=[{string.Join(", ", actualInterfaceNames)}], expected=[{string.Join(", ", expectedInterfaceNames)}].\nSource:\n{scenario.Source}");
+                    .Label($"Slot '{expectedSlot.Name}': AbstractConstraints=[{string.Join(", ", actualInterfaceNames)}], expected=[{string.Join(", ", expectedInterfaceNames)}].\nSource:\n{scenario.Source}");
 
             // Verify constructor constraint
             var hasConstructorConstraint = constraints.ConstructorConstraints.Count > 0;

@@ -13,7 +13,7 @@ internal enum InheritanceRelationshipKind
     BaseType,
 
     /// <summary>The omitted relationship was an implemented-interface reference.</summary>
-    Interface,
+    Abstract,
 }
 
 /// <summary>

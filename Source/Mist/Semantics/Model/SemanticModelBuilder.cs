@@ -269,8 +269,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     internal static readonly DiagnosticId UnknownInGenericConstruction = new("MIST_SB_0053");
 
     /// <summary>
-    /// A class, struct, interface, or trait declaration names
-    /// <see cref="UnknownType"/> in its base clause or interface list
+    /// A class, struct, abstract type, or trait declaration names
+    /// <see cref="UnknownType"/> in its base clause or abstract type list
     /// (Requirements 6.1, 6.2, 6.3, 6.4). <c>UnknownType</c> is the
     /// user-facing top type and is not an inheritable or implementable
     /// shape: it declares no members (Requirement 3.4) and does not
@@ -287,8 +287,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// check is retained as a defensive guard for programmatically
     /// constructed ASTs and for documentation alignment with
     /// Requirements 6.1–6.4 and 16.6. When triggered, the offending
-    /// base/interface reference is dropped from the declaring type's
-    /// base/interface list so subsequent passes see a consistent model.
+    /// base/abstract type reference is dropped from the declaring type's
+    /// base/abstract type list so subsequent passes see a consistent model.
     /// </remarks>
     internal static readonly DiagnosticId UnknownAsBaseType = new("MIST_SB_0054");
 
@@ -334,7 +334,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// violating the storage ban on freshly-materialized <c>unknown</c>
     /// values. Detection is performed by
     /// <see cref="Builtin.TypeCheckerAnalyzer"/> inside
-    /// <c>ValidateDefaultableType</c>, before the interface/trait/type-parameter
+    /// <c>ValidateDefaultableType</c>, before the abstract type/trait/type-parameter
     /// checks, so both explicit <c>default(unknown)</c> and bare
     /// <c>default</c> inferred to <c>unknown</c> fire.
     /// </summary>
@@ -654,7 +654,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
     /// <summary>
     /// An implementation method has a stronger refinement constraint on a parameter than
-    /// the interface or trait method requires, violating Liskov Substitution (Requirement 17.4).
+    /// the abstract type or trait method requires, violating Liskov Substitution (Requirement 17.4).
     /// </summary>
     internal static readonly DiagnosticId RefinementConstraintStrongerThanInterface = new("MIST_REFINEMENT_0009");
 
@@ -703,7 +703,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
     /// <summary>
     /// A struct's base list names a type that is not a struct (e.g., a class
-    /// or other non-struct/non-interface type used in the base position).
+    /// or other non-struct/non-abstract type used in the base position).
     /// </summary>
     internal static readonly DiagnosticId StructInvalidBase = new("MIST_STRUCT_INVALID_BASE");
 
@@ -723,7 +723,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
     /// <summary>
     /// The <c>ref</c> modifier was used on a non-struct type declaration
-    /// (class, interface, trait, or enum). The <c>ref</c> modifier is only
+    /// (class, abstract type, trait, or enum). The <c>ref</c> modifier is only
     /// valid on struct declarations (Requirement 1.5).
     /// </summary>
     internal static readonly DiagnosticId RefModifierOnlyValidOnStruct = new("MIST2001");
@@ -960,19 +960,19 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
         // Pass 1b (cont.): Resolve struct base types for struct inheritance.
         // Mirrors the class base type resolution above. Checks if the first
-        // entry in a struct's interface list resolves to a StructType and, if
+        // entry in a struct's abstract type list resolves to a StructType and, if
         // so, sets it as the struct's BaseType.
         Pass1_ResolveStructBaseTypes(symbolTable, asts, globalScope, compilation, diagnostics, ambientTypeResolver);
 
-        // Pass 1b (cont.): Resolve interface lists on classes, structs, and interfaces.
-        // After base types are resolved, resolve interface names on all types.
+        // Pass 1b (cont.): Resolve abstract type lists on classes, structs, and abstract types.
+        // After base types are resolved, resolve abstract type names on all types.
         // For classes, the first name in the base clause may be a base class
-        // (already resolved above) or an interface; this pass handles the
-        // interface case and any additional interface names.
-        Pass1_ResolveInterfaceLists(symbolTable, asts, globalScope, compilation, diagnostics, ambientTypeResolver);
+        // (already resolved above) or an abstract type; this pass handles the
+        // abstract type case and any additional abstract type names.
+        Pass1_ResolveAbstractLists(symbolTable, asts, globalScope, compilation, diagnostics, ambientTypeResolver);
 
         // Pass 1b (cont.): Resolve constraint clauses on type/method declarations.
-        // After base types and interface lists are resolved, resolve constraint
+        // After base types and abstract type lists are resolved, resolve constraint
         // type references and store them on TypeParameterType.Constraints.
         // Emits MIST_CONSTRAINT_0001 for undefined type parameter references,
         // MIST_CONSTRAINT_0007 for duplicate where clauses, and
@@ -987,7 +987,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         Pass1_ResolveWithClauses(symbolTable, asts, compilation, diagnostics);
 
         // Pass 1b (cont.): Resolve trait parent references.
-        // After all types are registered and interface lists are resolved,
+        // After all types are registered and abstract type lists are resolved,
         // resolve the inheritance clause on each trait declaration. This
         // validates that parents are traits, checks arity, constructs
         // ConstructedTraitType for generic parents, and detects duplicates.
@@ -1001,7 +1001,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         Pass1_DetectTraitCycles(symbolTable, asts, compilation, diagnostics);
 
         // Pass 1g: Resolve with-block declarations (Task 4.1).
-        // After all types are registered and interface lists are resolved,
+        // After all types are registered and abstract type lists are resolved,
         // validate with-block type/trait references and member mappings.
         // Stores validated mappings in a WithBlockRegistry for use by the
         // trait satisfaction pass.
@@ -1015,11 +1015,11 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         var traitSatisfactionMap = new TraitSatisfactionMap();
         Pass1_ResolveTraitSatisfaction(symbolTable, globalScope, withBlockRegistry, traitSatisfactionMap, asts, compilation, diagnostics);
 
-        // Pass 1c: Detect circular interface inheritance chains.
-        // After interface lists are resolved, walk each interface's Interfaces
+        // Pass 1c: Detect circular abstract type inheritance chains.
+        // After abstract type lists are resolved, walk each abstract type's Abstracts
         // chain to detect cycles (including self-inheritance). Cycles are
-        // broken by removing the back-edge from the Interfaces list.
-        Pass1_DetectInterfaceCycles(symbolTable, asts, compilation, diagnostics);
+        // broken by removing the back-edge from the abstract types list.
+        Pass1_DetectAbstractCycles(symbolTable, asts, compilation, diagnostics);
 
         // Pass 1c (cont.): Detect circular class inheritance chains.
         // After all base types are resolved, walk each class's BaseType chain
@@ -1027,10 +1027,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // setting BaseType = null on the class that closes the cycle.
         Pass1_DetectCycles(symbolTable, asts, compilation, diagnostics);
 
-        // Pass 1d: Validate interface satisfaction.
+        // Pass 1d: Validate abstract type satisfaction.
         // After cycles are broken, check that each class and struct
-        // implementing interfaces provides all required methods.
-        Pass1_ValidateInterfaceSatisfaction(symbolTable, asts, compilation, diagnostics);
+        // implementing abstract types provides all required methods.
+        Pass1_ValidateAbstractSatisfaction(symbolTable, asts, compilation, diagnostics);
 
         // Pass 1f: Check that base class constructor requirements are satisfied.
         // If a base class has explicit constructors that require parameters,
@@ -1054,7 +1054,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         }
 
         // Phase 4: Resolve explicit member type annotations globally.
-        // After inheritance is fully resolved (base types, interface lists,
+        // After inheritance is fully resolved (base types, abstract type lists,
         // constraints, traits, with-blocks, satisfaction), resolve all
         // explicitly-annotated member types across ALL compilation units
         // using declaration-site scopes. This guarantees that every
@@ -1181,9 +1181,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         Pass2_ResolveAdhocRefinementConstraints(symbolTable, asts, compilation, diagnostics, parameterRefinements);
 
         // Post-Pass 2: Validate refinement constraint satisfaction for
-        // interface and trait method implementations (Liskov Substitution).
+        // abstract type and trait method implementations (Liskov Substitution).
         // This runs after adhoc refinement constraints are resolved so that
-        // parameter refinement predicates are available for both interface/trait
+        // parameter refinement predicates are available for both abstract type/trait
         // methods and their implementations.
         Pass2_ValidateRefinementConstraintSatisfaction(
             symbolTable, traitSatisfactionMap, parameterRefinements, asts, compilation, diagnostics);
@@ -1637,7 +1637,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 foreach (var member in parentScope.Members)
                 {
                     if (member.Name == nestedTypeName
-                        && member.Kind is SymbolKind.Class or SymbolKind.Struct or SymbolKind.Interface or SymbolKind.Trait or SymbolKind.Enum
+                        && member.Kind is SymbolKind.Class or SymbolKind.Struct or SymbolKind.Abstract or SymbolKind.Trait or SymbolKind.Enum
                         && member.DeclaredType is not Types.TypeParameterType and not Types.DependentTypeParameterType)
                     {
                         var parent = parentTypeName ?? "<unknown>";
@@ -1661,9 +1661,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             case StructTypeTypeDeclarationNode structTypeNode:
                 RegisterStructDeclaration(structTypeNode.StructDeclaration, parentScope, symbolTable, namespaceName, sourceText, diagnostics);
                 break;
-            case InterfaceTypeTypeDeclarationNode interfaceTypeNode:
-                RegisterInterfaceDeclaration(
-                    interfaceTypeNode.InterfaceDeclaration,
+            case AbstractTypeTypeDeclarationNode abstractTypeNode:
+                RegisterAbstractDeclaration(
+                    abstractTypeNode.AbstractDeclaration,
                     parentScope, symbolTable, namespaceName, sourceText, diagnostics);
                 break;
             case TraitTypeTypeDeclarationNode traitTypeNode:
@@ -1689,7 +1689,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         {
             ClassTypeTypeDeclarationNode ct => (ct.ClassDeclaration.Name.Lexeme, ct.ClassDeclaration),
             StructTypeTypeDeclarationNode st => (st.StructDeclaration.Name.Lexeme, st.StructDeclaration),
-            InterfaceTypeTypeDeclarationNode it => (it.InterfaceDeclaration.Name.Lexeme, it.InterfaceDeclaration),
+            AbstractTypeTypeDeclarationNode it => (it.AbstractDeclaration.Name.Lexeme, it.AbstractDeclaration),
             TraitTypeTypeDeclarationNode tt => (tt.TraitDeclaration.Name.Lexeme, tt.TraitDeclaration),
             EnumTypeTypeDeclarationNode et => (et.EnumDeclaration.Name.Lexeme, et.EnumDeclaration),
             _ => (null, null),
@@ -1704,14 +1704,14 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     {
         foreach (var symbol in symbolTable.AllSymbols)
         {
-            if (symbol.Kind is not (SymbolKind.Class or SymbolKind.Struct or SymbolKind.Interface or SymbolKind.Trait or SymbolKind.Enum))
+            if (symbol.Kind is not (SymbolKind.Class or SymbolKind.Struct or SymbolKind.Abstract or SymbolKind.Trait or SymbolKind.Enum))
                 continue;
 
             var memberScope = symbol.DeclaredType switch
             {
                 ClassType ct => ct.MemberScope,
                 StructType st => st.MemberScope,
-                InterfaceType it => it.MemberScope,
+                AbstractType it => it.MemberScope,
                 TraitType tt => tt.MemberScope,
                 EnumType et => et.MemberScope,
                 _ => null,
@@ -1849,8 +1849,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         }
     }
 
-    private static void RegisterInterfaceDeclaration(
-        InterfaceDeclarationNode interfaceDecl,
+    private static void RegisterAbstractDeclaration(
+        AbstractDeclarationNode abstractDecl,
         Scope parentScope,
         SymbolTable symbolTable,
         string? namespaceName,
@@ -1858,58 +1858,58 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         DiagnosticBag diagnostics)
     {
         // MIST2001: The 'ref' modifier is only valid on struct declarations.
-        if (HasRefModifier(interfaceDecl.Modifiers))
+        if (HasRefModifier(abstractDecl.Modifiers))
         {
             diagnostics.Add(MakeDiagnosticWithLocation(
                 RefModifierOnlyValidOnStruct.Value,
                 DiagnosticSeverity.Error,
                 "The 'ref' modifier is only valid on struct declarations.",
-                interfaceDecl,
+                abstractDecl,
                 sourceText));
         }
 
-        var interfaceName = interfaceDecl.Name.Lexeme;
+        var abstractName = abstractDecl.Name.Lexeme;
         var typeScope = new Scope(parent: parentScope);
-        var interfaceType = new InterfaceType(interfaceName, typeScope, namespaceName);
+        var abstractType = new AbstractType(abstractName, typeScope, namespaceName);
 
-        var isReadonly = HasReadonlyModifier(interfaceDecl.Modifiers);
-        interfaceType.IsReadonly = isReadonly;
+        var isReadonly = HasReadonlyModifier(abstractDecl.Modifiers);
+        abstractType.IsReadonly = isReadonly;
 
-        var interfaceSpan = ToMistSourceSpan(interfaceDecl.Name.Span);
-        var interfaceSymbol = new Symbol(interfaceName, SymbolKind.Interface, SymbolOrigin.UserCode, parentScope, interfaceType, interfaceSpan);
+        var abstractSpan = ToMistSourceSpan(abstractDecl.Name.Span);
+        var abstractSymbol = new Symbol(abstractName, SymbolKind.Abstract, SymbolOrigin.UserCode, parentScope, abstractType, abstractSpan);
 
-        parentScope.AddMember(interfaceSymbol);
-        symbolTable.Register(interfaceSymbol, interfaceDecl);
+        parentScope.AddMember(abstractSymbol);
+        symbolTable.Register(abstractSymbol, abstractDecl);
 
         // Register type parameters if present.
-        RegisterTypeParameters(interfaceDecl.TypeParams, interfaceName, typeScope, interfaceType, sourceText, diagnostics);
+        RegisterTypeParameters(abstractDecl.TypeParams, abstractName, typeScope, abstractType, sourceText, diagnostics);
 
-        foreach (var member in interfaceDecl.Members)
+        foreach (var member in abstractDecl.Members)
         {
             switch (member)
             {
-                case InterfaceMethodMemberInterfaceMemberDeclarationNode methodMember:
-                    RegisterInterfaceMethodDeclaration(methodMember.Method, typeScope, symbolTable, sourceText, diagnostics);
+                case AbstractMethodMemberAbstractMemberDeclarationNode methodMember:
+                    RegisterAbstractMethodDeclaration(methodMember.Method, typeScope, symbolTable, sourceText, diagnostics);
                     break;
-                case InterfacePropertyMemberInterfaceMemberDeclarationNode propertyMember:
-                    RegisterInterfacePropertyDeclaration(propertyMember.Property, typeScope, symbolTable);
+                case AbstractPropertyMemberAbstractMemberDeclarationNode propertyMember:
+                    RegisterAbstractPropertyDeclaration(propertyMember.Property, typeScope, symbolTable);
                     break;
-                case InterfaceAssociatedTypeMemberInterfaceMemberDeclarationNode associatedTypeMember:
-                    RegisterAssociatedTypeSlotDeclaration(associatedTypeMember.AssociatedType, interfaceType, typeScope, symbolTable, sourceText, diagnostics);
+                case AbstractAssociatedTypeMemberAbstractMemberDeclarationNode associatedTypeMember:
+                    RegisterAssociatedTypeSlotDeclaration(associatedTypeMember.AssociatedType, abstractType, typeScope, symbolTable, sourceText, diagnostics);
                     break;
-                case InterfaceUnconstrainedAssociatedTypeMemberInterfaceMemberDeclarationNode unconstrainedMember:
-                    RegisterUnconstrainedAssociatedTypeSlotDeclaration(unconstrainedMember.UnconstrainedAssociatedType, interfaceType, typeScope, symbolTable, sourceText, diagnostics);
+                case AbstractUnconstrainedAssociatedTypeMemberAbstractMemberDeclarationNode unconstrainedMember:
+                    RegisterUnconstrainedAssociatedTypeSlotDeclaration(unconstrainedMember.UnconstrainedAssociatedType, abstractType, typeScope, symbolTable, sourceText, diagnostics);
                     break;
-                case InterfaceModifiedAssociatedTypeMemberInterfaceMemberDeclarationNode modifiedMember:
+                case AbstractModifiedAssociatedTypeMemberAbstractMemberDeclarationNode modifiedMember:
                     EmitModifiersOnAssociatedTypeSlotDiagnostic(modifiedMember.ModifiedAssociatedType, sourceText, diagnostics);
                     break;
             }
         }
 
         // Check for duplicate associated type slot names.
-        DetectDuplicateAssociatedTypeSlots(interfaceDecl.Members, interfaceName, sourceText, diagnostics);
+        DetectDuplicateAssociatedTypeSlots(abstractDecl.Members, abstractName, sourceText, diagnostics);
 
-        // If the interface is readonly, set all members to ImplicitReadonly.
+        // If the abstract type is readonly, set all members to ImplicitReadonly.
         if (isReadonly)
         {
             SetMembersImplicitReadonly(typeScope);
@@ -2072,7 +2072,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
         // Check for duplicate alias name in the same scope.
         // Type aliases participate in arity-based overloading: an alias may coexist
-        // with another alias or a class/struct/interface of the same name as long as
+        // with another alias or a class/struct/abstract type of the same name as long as
         // they declare a different number of type parameters (e.g., the Action family
         // `type Action = Func<void>;` through `type Action<T1, ..., T16> = ...;`, and
         // `type Task = Task<void>;` alongside `class Task<TResult>`).
@@ -2092,7 +2092,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             {
                 ClassType ct => ct.TypeParameters.Count,
                 StructType st => st.TypeParameters.Count,
-                InterfaceType it => it.TypeParameters.Count,
+                AbstractType it => it.TypeParameters.Count,
                 _ => (member as Symbol)?.TypeParameters.Count ?? 0,
             };
 
@@ -3031,8 +3031,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         }
     }
 
-    private static void RegisterInterfaceMethodDeclaration(
-        InterfaceMethodDeclarationNode methodDecl,
+    private static void RegisterAbstractMethodDeclaration(
+        AbstractMethodDeclarationNode methodDecl,
         Scope typeScope,
         SymbolTable symbolTable,
         SourceText? sourceText,
@@ -3049,11 +3049,11 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     }
 
     /// <summary>
-    /// Registers an interface property declaration as a <see cref="SymbolKind.Property"/> symbol
-    /// on the interface type scope.
+    /// Registers an abstract type property declaration as a <see cref="SymbolKind.Property"/> symbol
+    /// on the abstract type type scope.
     /// </summary>
-    private static void RegisterInterfacePropertyDeclaration(
-        InterfacePropertyDeclarationNode propertyDecl,
+    private static void RegisterAbstractPropertyDeclaration(
+        AbstractPropertyDeclarationNode propertyDecl,
         Scope typeScope,
         SymbolTable symbolTable)
     {
@@ -3069,11 +3069,11 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         {
             switch (accessor)
             {
-                case InterfaceGetAccessorInterfaceAccessorDeclarationNode:
+                case AbstractGetAccessorAbstractAccessorDeclarationNode:
                     hasGet = true;
                     getAccessor = new AccessorInfo { Kind = AccessorKind.Get, BodyKind = AccessorBodyKind.Auto, Modifier = null };
                     break;
-                case InterfaceSetAccessorInterfaceAccessorDeclarationNode:
+                case AbstractSetAccessorAbstractAccessorDeclarationNode:
                     hasSet = true;
                     setAccessor = new AccessorInfo { Kind = AccessorKind.Set, BodyKind = AccessorBodyKind.Auto, Modifier = null };
                     break;
@@ -3101,11 +3101,11 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     }
 
     /// <summary>
-    /// Checks for duplicate associated type slot names in an interface's members.
+    /// Checks for duplicate associated type slot names in an abstract type's members.
     /// Emits <c>MIST_AT_0001</c> pointing to the second (duplicate) declaration.
     /// </summary>
     private static void DetectDuplicateAssociatedTypeSlots(
-        ImmutableArray<InterfaceMemberDeclarationNode> members,
+        ImmutableArray<AbstractMemberDeclarationNode> members,
         string typeName,
         SourceText? sourceText,
         DiagnosticBag diagnostics)
@@ -3119,11 +3119,11 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
             switch (member)
             {
-                case InterfaceAssociatedTypeMemberInterfaceMemberDeclarationNode assoc:
+                case AbstractAssociatedTypeMemberAbstractMemberDeclarationNode assoc:
                     slotName = assoc.AssociatedType.Name.Lexeme;
                     declarationNode = assoc.AssociatedType;
                     break;
-                case InterfaceUnconstrainedAssociatedTypeMemberInterfaceMemberDeclarationNode unconstrained:
+                case AbstractUnconstrainedAssociatedTypeMemberAbstractMemberDeclarationNode unconstrained:
                     slotName = unconstrained.UnconstrainedAssociatedType.Name.Lexeme;
                     declarationNode = unconstrained.UnconstrainedAssociatedType;
                     break;
@@ -3136,7 +3136,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 diagnostics.Add(MakeDiagnosticWithLocation(
                     DiagnosticId.DuplicateAssociatedTypeSlot.Value,
                     DiagnosticSeverity.Error,
-                    $"Interface/trait '{typeName}' declares duplicate associated type slot '{slotName}'",
+                    $"Abstract type/trait '{typeName}' declares duplicate associated type slot '{slotName}'",
                     declarationNode,
                     sourceText));
             }
@@ -3179,7 +3179,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 diagnostics.Add(MakeDiagnosticWithLocation(
                     DiagnosticId.DuplicateAssociatedTypeSlot.Value,
                     DiagnosticSeverity.Error,
-                    $"Interface/trait '{typeName}' declares duplicate associated type slot '{slotName}'",
+                    $"Abstract type/trait '{typeName}' declares duplicate associated type slot '{slotName}'",
                     declarationNode,
                     sourceText));
             }
@@ -3220,14 +3220,14 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         diagnostics.Add(MakeDiagnosticWithTokenLocation(
             DiagnosticId.AssociatedTypeSlotInWrongContext.Value,
             DiagnosticSeverity.Error,
-            "Abstract type slots are only permitted in interfaces and traits",
+            "Abstract type slots are only permitted in abstract types and traits",
             typeKeywordToken,
             sourceText));
     }
 
     /// <summary>
     /// Registers a constrained associated type slot declaration as a symbol in the
-    /// declaring interface or trait's member scope. Creates an <see cref="AssociatedTypeSlotType"/>
+    /// declaring abstract type or trait's member scope. Creates an <see cref="AssociatedTypeSlotType"/>
     /// with empty constraints (resolved later in <see cref="Pass1_ResolveConstraints"/>)
     /// and registers any type parameters declared on the slot.
     /// </summary>
@@ -3267,7 +3267,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             memberScope: slotScope,
             containingNamespace: declaringType switch
             {
-                InterfaceType it => it.ContainingNamespace,
+                AbstractType it => it.ContainingNamespace,
                 TraitType tt => tt.ContainingNamespace,
                 _ => null
             },
@@ -3284,7 +3284,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
     /// <summary>
     /// Registers an unconstrained associated type slot declaration (e.g., <c>type Name;</c>)
-    /// as a symbol in the declaring interface or trait's member scope.
+    /// as a symbol in the declaring abstract type or trait's member scope.
     /// </summary>
     private static void RegisterUnconstrainedAssociatedTypeSlotDeclaration(
         UnconstrainedAssociatedTypeSlotDeclarationNode slotDecl,
@@ -3321,7 +3321,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             memberScope: slotScope,
             containingNamespace: declaringType switch
             {
-                InterfaceType it => it.ContainingNamespace,
+                AbstractType it => it.ContainingNamespace,
                 TraitType tt => tt.ContainingNamespace,
                 _ => null
             },
@@ -4114,7 +4114,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     }
 
     /// <summary>
-    /// Registers type parameters for a class, struct, or interface declaration.
+    /// Registers type parameters for a class, struct, or abstract type declaration.
     /// Creates <see cref="TypeParameterType"/> or <see cref="DependentTypeParameterType"/>
     /// instances, stores them on the declaring type, and registers each as a symbol
     /// in the type's member scope.
@@ -4140,8 +4140,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             case StructType structType:
                 structType.TypeParameters = typeParams;
                 break;
-            case InterfaceType interfaceType:
-                interfaceType.TypeParameters = typeParams;
+            case AbstractType abstractType:
+                abstractType.TypeParameters = typeParams;
                 break;
             case TraitType traitType:
                 traitType.TypeParameters = typeParams;
@@ -4160,7 +4160,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     }
 
     /// <summary>
-    /// Registers type parameters for a method declaration (both regular and interface methods).
+    /// Registers type parameters for a method declaration (both regular and abstract type methods).
     /// Creates <see cref="TypeParameterType"/> or <see cref="DependentTypeParameterType"/>
     /// instances, stores them on the method symbol, and registers each in the method's
     /// enclosing type scope so they can be resolved.
@@ -5319,7 +5319,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     // will handle full registration when the type is encountered in
                     // expression/type-annotation contexts.
                     var kind = resolvedType is ClassType ? SymbolKind.Class
-                        : resolvedType is InterfaceType ? SymbolKind.Interface
+                        : resolvedType is AbstractType ? SymbolKind.Abstract
                         : resolvedType is StructType ? SymbolKind.Struct
                         : SymbolKind.Class;
                     return new Symbol(name, kind, SymbolOrigin.Backend, globalScope, resolvedType, declarationSpan: null);
@@ -5466,9 +5466,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// Resolves base struct types for struct inheritance. Mirrors the class
     /// base type resolution logic in <see cref="Pass1_ResolveBaseTypes"/>.
     /// Iterates all struct symbols, checks if the first entry in the struct's
-    /// interface list resolves to a <see cref="StructType"/>, and if so sets
+    /// abstract type list resolves to a <see cref="StructType"/>, and if so sets
     /// it as <see cref="StructType.BaseType"/>. If the first entry resolves
-    /// to a <see cref="ClassType"/> or other non-struct/non-interface type,
+    /// to a <see cref="ClassType"/> or other non-struct/non-abstract type,
     /// emits <c>MIST_STRUCT_INVALID_BASE</c>.
     /// </summary>
     private static void Pass1_ResolveStructBaseTypes(
@@ -5488,10 +5488,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             if (declaringNode is not StructDeclarationNode structDecl)
                 continue;
 
-            if (structDecl.Interfaces is null)
+            if (structDecl.AbstractList is null)
                 continue;
 
-            var entries = ExtractBaseListEntries(structDecl.Interfaces);
+            var entries = ExtractBaseListEntries(structDecl.AbstractList);
             if (entries.Count == 0)
                 continue;
 
@@ -5533,8 +5533,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     structDecl,
                     sourceText));
             }
-            // If it resolves to an interface or trait, leave it for
-            // ResolveStructInterfaceList to handle normally.
+            // If it resolves to an abstract type or trait, leave it for
+            // ResolveStructAbstractList to handle normally.
         }
 
         // After all struct base types are resolved, detect cycles and
@@ -5632,7 +5632,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     }
 
     /// <summary>
-    /// Resolves a type reference in an inheritance context (base clause or interface list),
+    /// Resolves a type reference in an inheritance context (base clause or abstract type list),
     /// handling type arguments to produce a <see cref="ConstructedType"/> when appropriate.
     /// Emits diagnostics for arity mismatches, non-generic type arguments, and missing type arguments.
     /// </summary>
@@ -5951,7 +5951,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
                     // If it resolves to a type, fall through to normal resolution.
                     if (resolvedSymbol is not null
-                        && resolvedSymbol.Kind is SymbolKind.Class or SymbolKind.Struct or SymbolKind.Interface
+                        && resolvedSymbol.Kind is SymbolKind.Class or SymbolKind.Struct or SymbolKind.Abstract
                             or SymbolKind.Trait or SymbolKind.TypeAlias or SymbolKind.Enum)
                     {
                         return (null, null);
@@ -6031,7 +6031,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 // If the symbol found is not a type (e.g., a constructor with the same
                 // name as the class), skip it and look in the parent scope instead.
                 if (resolvedSymbol is not null
-                    && resolvedSymbol.Kind is not (SymbolKind.Class or SymbolKind.Struct or SymbolKind.Interface or SymbolKind.Trait or SymbolKind.TypeAlias or SymbolKind.Enum))
+                    && resolvedSymbol.Kind is not (SymbolKind.Class or SymbolKind.Struct or SymbolKind.Abstract or SymbolKind.Trait or SymbolKind.TypeAlias or SymbolKind.Enum))
                 {
                     resolvedSymbol = null;
                 }
@@ -6046,7 +6046,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 // walking further up the scope chain to find a type symbol.
                 if (resolvedSymbol is not null
                     && resolvedSymbol.DeclaredType is null
-                    && resolvedSymbol.Kind is not (SymbolKind.Class or SymbolKind.Struct or SymbolKind.Interface or SymbolKind.Trait or SymbolKind.TypeAlias or SymbolKind.Enum))
+                    && resolvedSymbol.Kind is not (SymbolKind.Class or SymbolKind.Struct or SymbolKind.Abstract or SymbolKind.Trait or SymbolKind.TypeAlias or SymbolKind.Enum))
                 {
                     // Walk up the scope chain manually to find a type symbol.
                     IScope? searchScope = memberScope?.Parent?.Parent;
@@ -6057,7 +6057,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         {
                             foreach (var m in s.Members)
                             {
-                                if (m.Name == argName && m.Kind is SymbolKind.Class or SymbolKind.Struct or SymbolKind.Interface or SymbolKind.Trait or SymbolKind.TypeAlias or SymbolKind.Enum)
+                                if (m.Name == argName && m.Kind is SymbolKind.Class or SymbolKind.Struct or SymbolKind.Abstract or SymbolKind.Trait or SymbolKind.TypeAlias or SymbolKind.Enum)
                                 {
                                     resolvedSymbol = m;
                                     break;
@@ -6160,7 +6160,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     }
 
     /// <summary>
-    /// Gets the type parameters from a type (ClassType, StructType, or InterfaceType).
+    /// Gets the type parameters from a type (ClassType, StructType, or AbstractType).
     /// Returns an empty list for types that don't have type parameters.
     /// </summary>
     private static IReadOnlyList<IType> GetTypeParameters(IType type)
@@ -6169,7 +6169,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         {
             ClassType ct => ct.TypeParameters,
             StructType st => st.TypeParameters,
-            InterfaceType it => it.TypeParameters,
+            AbstractType it => it.TypeParameters,
             TraitType tt => tt.TypeParameters,
             TypeAliasType at => at.TypeParameters,
             AssociatedTypeSlotType slot => slot.TypeParameters,
@@ -6179,7 +6179,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     }
 
     /// <summary>
-    /// Gets the member scope from a type (ClassType, StructType, or InterfaceType).
+    /// Gets the member scope from a type (ClassType, StructType, or AbstractType).
     /// Returns null for types that don't have a member scope.
     /// </summary>
     private static IScope? GetMemberScope(IType type)
@@ -6188,7 +6188,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         {
             ClassType ct => ct.MemberScope,
             StructType st => st.MemberScope,
-            InterfaceType it => it.MemberScope,
+            AbstractType it => it.MemberScope,
             TraitType tt => tt.MemberScope,
             NewtypeType nt => nt.MemberScope,
             AssociatedTypeSlotType slot => slot.MemberScope,
@@ -6262,31 +6262,31 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     }
 
     // ═══════════════════════════════════════════════════════════════════════
-    // Pass 1b (cont.) — Resolve interface lists on all types
+    // Pass 1b (cont.) — Resolve abstract type lists on all types
     // ═══════════════════════════════════════════════════════════════════════
 
     /// <summary>
     /// After all types are registered and base types are resolved, resolve
-    /// interface lists on classes, structs, and interfaces.
+    /// abstract type lists on classes, structs, and abstract types.
     ///
     /// For classes: the first name in the base clause (<c>BaseClassName</c>)
     /// may be a base class (already resolved by <see cref="Pass1_ResolveBaseTypes"/>)
-    /// or an interface. If it resolves to an <see cref="InterfaceType"/>, it is
-    /// treated as an interface (no base class). The class's <c>Interfaces</c>
+    /// or an abstract type. If it resolves to an <see cref="AbstractType"/>, it is
+    /// treated as an abstract type (no base class). The class's <c>Abstracts</c>
     /// property is set accordingly.
     ///
-    /// For structs: the first name in the interface list (<c>InterfaceName</c>)
-    /// is resolved to an <see cref="InterfaceType"/> and stored on
-    /// <c>StructType.Interfaces</c>.
+    /// For structs: the first name in the abstract type list (<c>abstractName</c>)
+    /// is resolved to an <see cref="AbstractType"/> and stored on
+    /// <c>StructType.Abstracts</c>.
     ///
-    /// For interfaces: the first name in the interface list (<c>InterfaceName</c>)
-    /// is resolved to an <see cref="InterfaceType"/> and stored on
-    /// <c>InterfaceType.Interfaces</c>.
+    /// For abstract types: the first name in the abstract type list (<c>abstractName</c>)
+    /// is resolved to an <see cref="AbstractType"/> and stored on
+    /// <c>AbstractType.Abstracts</c>.
     ///
-    /// Emits <c>MIST_UNDEFINED_INTERFACE</c> when an interface name is not found,
+    /// Emits <c>MIST_UNDEFINED_INTERFACE</c> when an abstract type name is not found,
     /// and <c>MIST_NOT_AN_INTERFACE</c> when a name resolves to a class or struct.
     /// </summary>
-    private static void Pass1_ResolveInterfaceLists(
+    private static void Pass1_ResolveAbstractLists(
         SymbolTable symbolTable,
         ImmutableArray<Storm.Runtime.SyntaxNode> asts,
         Scope globalScope,
@@ -6299,28 +6299,28 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             switch (symbol.Kind)
             {
                 case SymbolKind.Class when symbol.DeclaredType is ClassType classType:
-                    ResolveClassInterfaceList(symbol, classType, symbolTable, asts, globalScope, compilation, diagnostics, ambientTypeResolver);
+                    ResolveClassAbstractList(symbol, classType, symbolTable, asts, globalScope, compilation, diagnostics, ambientTypeResolver);
                     break;
 
                 case SymbolKind.Struct when symbol.DeclaredType is StructType structType:
-                    ResolveStructInterfaceList(symbol, structType, symbolTable, asts, globalScope, compilation, diagnostics, ambientTypeResolver);
+                    ResolveStructAbstractList(symbol, structType, symbolTable, asts, globalScope, compilation, diagnostics, ambientTypeResolver);
                     break;
 
-                case SymbolKind.Interface when symbol.DeclaredType is InterfaceType interfaceType:
-                    ResolveInterfaceInterfaceList(symbol, interfaceType, symbolTable, asts, globalScope, compilation, diagnostics, ambientTypeResolver);
+                case SymbolKind.Abstract when symbol.DeclaredType is AbstractType abstractType:
+                    ResolveAbstractParentList(symbol, abstractType, symbolTable, asts, globalScope, compilation, diagnostics, ambientTypeResolver);
                     break;
             }
         }
     }
 
     /// <summary>
-    /// Resolves the interface list for a class declaration.
+    /// Resolves the abstract type list for a class declaration.
     /// The first name in the base clause (<c>BaseClassName</c>) may be a base class
-    /// or an interface. If Pass1_ResolveBaseTypes already set <c>BaseType</c>, the
+    /// or an abstract type. If Pass1_ResolveBaseTypes already set <c>BaseType</c>, the
     /// first name is a base class and is skipped here. If <c>BaseType</c> is null
-    /// and the base clause is present, the first name is checked as an interface.
+    /// and the base clause is present, the first name is checked as an abstract type.
     /// </summary>
-    private static void ResolveClassInterfaceList(
+    private static void ResolveClassAbstractList(
         ISymbol classSymbol,
         ClassType classType,
         SymbolTable symbolTable,
@@ -6334,7 +6334,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         if (declaringNode is not ClassDeclarationNode classDecl)
             return;
 
-        // No base clause means no base class and no interfaces.
+        // No base clause means no base class and no abstract types.
         if (classDecl.BaseList is null)
             return;
 
@@ -6352,7 +6352,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
         if (startIndex == 0)
         {
-            // The first name was NOT resolved as a base class. Check if it's an interface.
+            // The first name was NOT resolved as a base class. Check if it's an abstract type.
             var firstName = allEntries[0].Name.Lexeme;
             if (string.IsNullOrEmpty(firstName))
                 return;
@@ -6366,23 +6366,23 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 // Already reported as MIST_UNDEFINED_BASE_TYPE by Pass1_ResolveBaseTypes. Skip.
                 startIndex = 1;
             }
-            else if (resolvedSymbol.DeclaredType is InterfaceType resolvedInterface)
+            else if (resolvedSymbol.DeclaredType is AbstractType resolvedAbstract)
             {
                 var typeArgs = allEntries[0].TypeArgs;
                 var resolvedType = ResolveGenericTypeReference(
-                    resolvedInterface, typeArgs, firstName,
+                    resolvedAbstract, typeArgs, firstName,
                     classType, classDecl, asts, compilation, diagnostics);
-                classType.Interfaces = new List<IType> { resolvedType };
+                classType.Abstracts = new List<IType> { resolvedType };
                 startIndex = 1;
             }
-            else if (UnwrapTypeForwards(resolvedSymbol.DeclaredType) is InterfaceType unwrappedInterface)
+            else if (UnwrapTypeForwards(resolvedSymbol.DeclaredType) is AbstractType unwrappedAbstract)
             {
-                // The first entry is a type alias or newtype wrapping an InterfaceType.
+                // The first entry is a type alias or newtype wrapping an AbstractType.
                 var typeArgs = allEntries[0].TypeArgs;
                 var resolvedType = ResolveGenericTypeReference(
-                    unwrappedInterface, typeArgs, firstName,
+                    unwrappedAbstract, typeArgs, firstName,
                     classType, classDecl, asts, compilation, diagnostics);
-                classType.Interfaces = new List<IType> { resolvedType };
+                classType.Abstracts = new List<IType> { resolvedType };
                 startIndex = 1;
             }
             else if (resolvedSymbol.DeclaredType is StructType ||
@@ -6405,11 +6405,11 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             }
         }
 
-        // Resolve remaining entries as interfaces.
+        // Resolve remaining entries as abstract types.
         if (startIndex < allEntries.Count)
         {
             var parentScope = classSymbol.ContainingScope;
-            var additionalInterfaces = ResolveInterfaceEntries(
+            var additionalAbstracts = ResolveAbstractEntries(
                 allEntries.Skip(startIndex),
                 parentScope,
                 classType,
@@ -6418,23 +6418,23 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 findPathForSymbol: classSymbol,
                 ambientTypeResolver: ambientTypeResolver);
 
-            if (additionalInterfaces.Count > 0)
+            if (additionalAbstracts.Count > 0)
             {
-                var existing = classType.Interfaces.ToList();
-                existing.AddRange(additionalInterfaces);
-                classType.Interfaces = existing;
+                var existing = classType.Abstracts.ToList();
+                existing.AddRange(additionalAbstracts);
+                classType.Abstracts = existing;
             }
         }
     }
 
     /// <summary>
-    /// Resolves the interface list for a struct declaration.
+    /// Resolves the abstract type list for a struct declaration.
     /// If <see cref="StructType.BaseType"/> is already set (consumed by
     /// <c>Pass1_ResolveStructBaseTypes</c>), the first entry is skipped.
     /// Any additional struct types in the remaining entries emit
     /// <c>MIST_STRUCT_MULTIPLE_INHERITANCE</c>.
     /// </summary>
-    private static void ResolveStructInterfaceList(
+    private static void ResolveStructAbstractList(
         ISymbol structSymbol,
         StructType structType,
         SymbolTable symbolTable,
@@ -6448,10 +6448,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         if (declaringNode is not StructDeclarationNode structDecl)
             return;
 
-        if (structDecl.Interfaces is null)
+        if (structDecl.AbstractList is null)
             return;
 
-        var entries = ExtractBaseListEntries(structDecl.Interfaces);
+        var entries = ExtractBaseListEntries(structDecl.AbstractList);
         if (entries.Count == 0)
             return;
 
@@ -6482,10 +6482,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             }
         }
 
-        // Resolve remaining entries as interfaces (existing logic).
-        var interfaceEntries = entries.Skip(startIndex);
-        var resolvedInterfaces = ResolveInterfaceEntries(
-            interfaceEntries,
+        // Resolve remaining entries as abstracts (existing logic).
+        var abstractEntries = entries.Skip(startIndex);
+        var resolvedAbstracts = ResolveAbstractEntries(
+            abstractEntries,
             parentScope,
             structType,
             structDecl,
@@ -6493,18 +6493,18 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             findPathForSymbol: structSymbol,
             ambientTypeResolver: ambientTypeResolver);
 
-        if (resolvedInterfaces.Count > 0)
+        if (resolvedAbstracts.Count > 0)
         {
-            structType.Interfaces = resolvedInterfaces;
+            structType.Abstracts = resolvedAbstracts;
         }
     }
 
     /// <summary>
-    /// Resolves the interface list for an interface declaration.
+    /// Resolves the abstract type list for an abstract type declaration.
     /// </summary>
-    private static void ResolveInterfaceInterfaceList(
-        ISymbol interfaceSymbol,
-        InterfaceType interfaceType,
+    private static void ResolveAbstractParentList(
+        ISymbol abstractSymbol,
+        AbstractType abstractType,
         SymbolTable symbolTable,
         ImmutableArray<Storm.Runtime.SyntaxNode> asts,
         Scope globalScope,
@@ -6512,39 +6512,39 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         DiagnosticBag diagnostics,
         IAmbientTypeResolver? ambientTypeResolver = null)
     {
-        var declaringNode = symbolTable.GetDeclaringNode(interfaceSymbol);
-        if (declaringNode is not InterfaceDeclarationNode interfaceDecl)
+        var declaringNode = symbolTable.GetDeclaringNode(abstractSymbol);
+        if (declaringNode is not AbstractDeclarationNode abstractDecl)
             return;
 
-        if (interfaceDecl.Interfaces is null)
+        if (abstractDecl.AbstractList is null)
             return;
 
-        var entries = ExtractBaseListEntries(interfaceDecl.Interfaces);
+        var entries = ExtractBaseListEntries(abstractDecl.AbstractList);
         if (entries.Count == 0)
             return;
 
-        var parentScope = interfaceSymbol.ContainingScope;
-        var resolvedInterfaces = ResolveInterfaceEntries(
+        var parentScope = abstractSymbol.ContainingScope;
+        var resolvedAbstracts = ResolveAbstractEntries(
             entries,
             parentScope,
-            interfaceType,
-            interfaceDecl,
+            abstractType,
+            abstractDecl,
             symbolTable, asts, globalScope, compilation, diagnostics,
-            findPathForSymbol: interfaceSymbol,
+            findPathForSymbol: abstractSymbol,
             ambientTypeResolver: ambientTypeResolver);
 
-        if (resolvedInterfaces.Count > 0)
+        if (resolvedAbstracts.Count > 0)
         {
-            interfaceType.Interfaces = resolvedInterfaces;
+            abstractType.Abstracts = resolvedAbstracts;
         }
     }
 
     /// <summary>
-    /// Resolves a set of interface names to <see cref="InterfaceType"/> instances.
-    /// Emits diagnostics for undefined names and non-interface types.
+    /// Resolves a set of abstract type names to <see cref="AbstractType"/> instances.
+    /// Emits diagnostics for undefined names and non-abstract types.
     /// </summary>
-    private static List<InterfaceType> ResolveInterfaceNames(
-        IEnumerable<string> interfaceNames,
+    private static List<AbstractType> ResolveAbstractNames(
+        IEnumerable<string> abstractNames,
         IScope parentScope,
         string declaringTypeName,
         SymbolTable symbolTable,
@@ -6553,9 +6553,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         DiagnosticBag diagnostics,
         ISymbol findPathForSymbol)
     {
-        var resolved = new List<InterfaceType>();
+        var resolved = new List<AbstractType>();
 
-        foreach (var name in interfaceNames)
+        foreach (var name in abstractNames)
         {
             var resolvedSymbol = parentScope.Lookup(name);
 
@@ -6570,7 +6570,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     diagnostics.Add(MakeDiagnosticWithLocation(
                         "MIST_UNDEFINED_INTERFACE",
                         DiagnosticSeverity.Error,
-                        $"The interface type '{name}' could not be found.",
+                        $"The abstract type '{name}' could not be found.",
                         declaringNode,
                         sourceText));
                 }
@@ -6583,7 +6583,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         new DiagnosticId("MIST_UNDEFINED_INTERFACE"),
                         DiagnosticSeverity.Error,
                         PipelineStage.SemanticModelConstruction,
-                        $"The interface type '{name}' could not be found.",
+                        $"The abstract type '{name}' could not be found.",
                         Location: default,
                         CompilationUnitPath: compilationUnitPath ?? "<unknown>",
                         AnalyzerName: null));
@@ -6591,9 +6591,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 continue;
             }
 
-            if (resolvedSymbol.DeclaredType is InterfaceType resolvedInterface)
+            if (resolvedSymbol.DeclaredType is AbstractType resolvedAbstract)
             {
-                resolved.Add(resolvedInterface);
+                resolved.Add(resolvedAbstract);
             }
             else
             {
@@ -6606,7 +6606,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     diagnostics.Add(MakeDiagnosticWithLocation(
                         "MIST_NOT_AN_INTERFACE",
                         DiagnosticSeverity.Error,
-                        $"'{name}' is not an interface; only interfaces can appear in an interface list.",
+                        $"'{name}' is not an abstract type; only abstract types can appear in an abstract type list.",
                         declaringNode,
                         sourceText));
                 }
@@ -6619,7 +6619,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         new DiagnosticId("MIST_NOT_AN_INTERFACE"),
                         DiagnosticSeverity.Error,
                         PipelineStage.SemanticModelConstruction,
-                        $"'{name}' is not an interface; only interfaces can appear in an interface list.",
+                        $"'{name}' is not an abstract type; only abstract types can appear in an abstract type list.",
                         Location: default,
                         CompilationUnitPath: compilationUnitPath ?? "<unknown>",
                         AnalyzerName: null));
@@ -6631,11 +6631,11 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     }
 
     /// <summary>
-    /// Resolves a set of <see cref="BaseTypeRefNode"/> entries to interface types,
+    /// Resolves a set of <see cref="BaseTypeRefNode"/> entries to abstract types,
     /// handling type arguments to produce <see cref="ConstructedType"/> when appropriate.
-    /// Emits diagnostics for undefined names and non-interface types.
+    /// Emits diagnostics for undefined names and non-abstract types.
     /// </summary>
-    private static List<IType> ResolveInterfaceEntries(
+    private static List<IType> ResolveAbstractEntries(
         IEnumerable<BaseTypeRefNode> entries,
         IScope parentScope,
         IType declaringType,
@@ -6670,7 +6670,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     diagnostics.Add(MakeDiagnosticWithLocation(
                         "MIST_UNDEFINED_INTERFACE",
                         DiagnosticSeverity.Error,
-                        $"The interface type '{name}' could not be found.",
+                        $"The abstract type '{name}' could not be found.",
                         declNode,
                         sourceText));
                 }
@@ -6683,7 +6683,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         new DiagnosticId("MIST_UNDEFINED_INTERFACE"),
                         DiagnosticSeverity.Error,
                         PipelineStage.SemanticModelConstruction,
-                        $"The interface type '{name}' could not be found.",
+                        $"The abstract type '{name}' could not be found.",
                         Location: default,
                         CompilationUnitPath: compilationUnitPath ?? "<unknown>",
                         AnalyzerName: null));
@@ -6691,18 +6691,18 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 continue;
             }
 
-            if (resolvedSymbol.DeclaredType is InterfaceType resolvedInterface)
+            if (resolvedSymbol.DeclaredType is AbstractType resolvedAbstract)
             {
                 var resolvedType = ResolveGenericTypeReference(
-                    resolvedInterface, entry.TypeArgs, name,
+                    resolvedAbstract, entry.TypeArgs, name,
                     declaringType, declaringNode, asts, compilation, diagnostics);
                 resolved.Add(resolvedType);
             }
-            else if (UnwrapTypeForwards(resolvedSymbol.DeclaredType) is InterfaceType unwrappedInterface)
+            else if (UnwrapTypeForwards(resolvedSymbol.DeclaredType) is AbstractType unwrappedAbstract)
             {
-                // The entry is a type alias or newtype wrapping an InterfaceType.
+                // The entry is a type alias or newtype wrapping an AbstractType.
                 var resolvedType = ResolveGenericTypeReference(
-                    unwrappedInterface, entry.TypeArgs, name,
+                    unwrappedAbstract, entry.TypeArgs, name,
                     declaringType, declaringNode, asts, compilation, diagnostics);
                 resolved.Add(resolvedType);
             }
@@ -6712,7 +6712,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 // grammar prevents `unknown` from appearing as the name
                 // of a `BaseTypeRef` because `unknown` lexes to the
                 // reserved `UNKNOWN` token rather than `IDENTIFIER`, so
-                // no parsed struct interface list or interface base
+                // no parsed struct abstract type list or abstract type base
                 // list can land here. The branch is retained so the
                 // rule is complete for programmatically-constructed
                 // ASTs and for documentation alignment with Req 6.2–6.3.
@@ -6759,7 +6759,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     diagnostics.Add(MakeDiagnosticWithLocation(
                         "MIST_NOT_AN_INTERFACE",
                         DiagnosticSeverity.Error,
-                        $"'{name}' is not an interface; only interfaces can appear in an interface list.",
+                        $"'{name}' is not an abstract type; only abstract types can appear in an abstract type list.",
                         declNode,
                         sourceText));
                 }
@@ -6772,7 +6772,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         new DiagnosticId("MIST_NOT_AN_INTERFACE"),
                         DiagnosticSeverity.Error,
                         PipelineStage.SemanticModelConstruction,
-                        $"'{name}' is not an interface; only interfaces can appear in an interface list.",
+                        $"'{name}' is not an abstract type; only abstract types can appear in an abstract type list.",
                         Location: default,
                         CompilationUnitPath: compilationUnitPath ?? "<unknown>",
                         AnalyzerName: null));
@@ -6932,7 +6932,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             {
                 ClassType ct => ct.TypeParameters,
                 StructType st => st.TypeParameters,
-                InterfaceType it => it.TypeParameters,
+                AbstractType it => it.TypeParameters,
                 TraitType tt => tt.TypeParameters,
                 _ => null,
             };
@@ -7203,7 +7203,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             FixUpDependentArgsInType(type);
         }
 
-        // Fix DependentValueArguments in symbol declared types (e.g., base types, interfaces).
+        // Fix DependentValueArguments in symbol declared types (e.g., base types, abstracts).
         foreach (var symbol in symbolTable.AllSymbols)
         {
             FixUpDependentArgsInType(symbol.DeclaredType);
@@ -7211,14 +7211,14 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             if (symbol.DeclaredType is ClassType ct)
             {
                 FixUpDependentArgsInType(ct.BaseType);
-                foreach (var iface in ct.Interfaces)
+                foreach (var iface in ct.Abstracts)
                     FixUpDependentArgsInType(iface);
                 foreach (var member in ct.MemberScope.Members)
                     FixUpDependentArgsInType(member.DeclaredType);
             }
             else if (symbol.DeclaredType is StructType st)
             {
-                foreach (var iface in st.Interfaces)
+                foreach (var iface in st.Abstracts)
                     FixUpDependentArgsInType(iface);
                 foreach (var member in st.MemberScope.Members)
                     FixUpDependentArgsInType(member.DeclaredType);
@@ -7264,7 +7264,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     {
         ClassType ct => ct.TypeParameters,
         StructType st => st.TypeParameters,
-        InterfaceType it => it.TypeParameters,
+        AbstractType it => it.TypeParameters,
         TraitType tt => tt.TypeParameters,
         _ => null,
     };
@@ -7329,20 +7329,20 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     }
 
     /// <summary>
-    /// Validates refinement constraint satisfaction for interface and trait method
+    /// Validates refinement constraint satisfaction for abstract type and trait method
     /// implementations (Liskov Substitution Principle). For each matched method pair,
     /// checks that the implementation does not impose a stronger refinement constraint
-    /// on any parameter than the interface/trait method requires.
+    /// on any parameter than the abstract type/trait method requires.
     /// </summary>
     /// <remarks>
     /// This runs after <see cref="Pass2_ResolveAdhocRefinementConstraints"/> so that
-    /// parameter refinement predicates are available for both interface/trait methods
+    /// parameter refinement predicates are available for both abstract type/trait methods
     /// and their implementations.
     ///
     /// Algorithm per parameter position:
-    /// - If interface predicate is null → skip (implementation may freely add or omit constraints)
-    /// - If interface predicate is non-null and impl predicate is null → accept (no constraint means accepts all values)
-    /// - If both are non-null → check RefinementSolver.Implies(interfacePredicate, implPredicate):
+    /// - If abstract type predicate is null → skip (implementation may freely add or omit constraints)
+    /// - If abstract type predicate is non-null and impl predicate is null → accept (no constraint means accepts all values)
+    /// - If both are non-null → check RefinementSolver.Implies(abstractPredicate, implPredicate):
     ///   - If true → accept
     ///   - If false → emit MIST_REFINEMENT_0009 diagnostic
     /// </remarks>
@@ -7354,10 +7354,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         MistCompilation compilation,
         DiagnosticBag diagnostics)
     {
-        // ─── Interface method refinement constraint satisfaction ─────────
+        // ─── abstract type method refinement constraint satisfaction ─────────
         foreach (var symbol in symbolTable.AllSymbols)
         {
-            IReadOnlyList<IType>? interfaces = null;
+            IReadOnlyList<IType>? abstracts = null;
             IScope? memberScope = null;
             ClassType? classType = null;
             string? typeName = null;
@@ -7365,9 +7365,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             switch (symbol.Kind)
             {
                 case SymbolKind.Class when symbol.DeclaredType is ClassType ct:
-                    if (ct.Interfaces.Count > 0)
+                    if (ct.Abstracts.Count > 0)
                     {
-                        interfaces = ct.Interfaces;
+                        abstracts = ct.Abstracts;
                         memberScope = ct.MemberScope;
                         classType = ct;
                         typeName = ct.DisplayName;
@@ -7375,28 +7375,28 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     break;
 
                 case SymbolKind.Struct when symbol.DeclaredType is StructType st:
-                    if (st.Interfaces.Count > 0)
+                    if (st.Abstracts.Count > 0)
                     {
-                        interfaces = st.Interfaces;
+                        abstracts = st.Abstracts;
                         memberScope = st.MemberScope;
                         typeName = st.DisplayName;
                     }
                     break;
             }
 
-            if (interfaces is null || memberScope is null || typeName is null)
+            if (abstracts is null || memberScope is null || typeName is null)
                 continue;
 
-            // Collect all required methods transitively from the interface hierarchy.
-            var requiredMethods = new List<(InterfaceType Interface, ISymbol Method)>();
-            var requiredProperties = new List<(InterfaceType Interface, ISymbol Property)>();
-            var visitedInterfaces = new HashSet<InterfaceType>();
-            CollectRequiredMembers(interfaces, requiredMethods, requiredProperties, visitedInterfaces);
+            // Collect all required methods transitively from the abstract type hierarchy.
+            var requiredMethods = new List<(AbstractType Abstract, ISymbol Method)>();
+            var requiredProperties = new List<(AbstractType Abstract, ISymbol Property)>();
+            var visitedAbstracts = new HashSet<AbstractType>();
+            CollectRequiredMembers(abstracts, requiredMethods, requiredProperties, visitedAbstracts);
 
-            foreach (var (requiredInterface, requiredMethod) in requiredMethods)
+            foreach (var (requiredAbstract, requiredMethod) in requiredMethods)
             {
                 var requiredNode = symbolTable.GetDeclaringNode(requiredMethod);
-                if (requiredNode is not InterfaceMethodDeclarationNode requiredMethodDecl)
+                if (requiredNode is not AbstractMethodDeclarationNode requiredMethodDecl)
                     continue;
 
                 // Find the matching implementation method.
@@ -7410,7 +7410,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 // Validate refinement constraints for each parameter position.
                 ValidateMethodRefinementConstraints(
                     requiredMethod, matched.ImplSymbol,
-                    requiredInterface.DisplayName, typeName,
+                    requiredAbstract.DisplayName, typeName,
                     parameterRefinements, symbolTable, asts, compilation, diagnostics);
             }
         }
@@ -7498,13 +7498,13 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     }
 
     /// <summary>
-    /// Validates refinement constraint compatibility between an interface/trait method
+    /// Validates refinement constraint compatibility between an abstract type/trait method
     /// and its implementation for each parameter position.
     /// </summary>
     private static void ValidateMethodRefinementConstraints(
-        ISymbol interfaceMethod,
+        ISymbol abstractMethod,
         ISymbol implMethod,
-        string interfaceName,
+        string abstractName,
         string typeName,
         Dictionary<ISymbol, RefinementPredicate> parameterRefinements,
         SymbolTable symbolTable,
@@ -7513,15 +7513,15 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         DiagnosticBag diagnostics)
     {
         // Get parameter nodes from both methods.
-        var interfaceNode = symbolTable.GetDeclaringNode(interfaceMethod);
+        var abstractNode = symbolTable.GetDeclaringNode(abstractMethod);
         var implNode = symbolTable.GetDeclaringNode(implMethod);
 
-        if (interfaceNode is null || implNode is null)
+        if (abstractNode is null || implNode is null)
             return;
 
-        ParameterListNode? interfaceParams = interfaceNode switch
+        ParameterListNode? abstractParams = abstractNode switch
         {
-            InterfaceMethodDeclarationNode ifaceMethodDecl => ifaceMethodDecl.Parameters,
+            AbstractMethodDeclarationNode ifaceMethodDecl => ifaceMethodDecl.Parameters,
             TraitMethodDeclarationNode traitMethodDecl => traitMethodDecl.Parameters,
             MethodDeclarationNode methodDecl => methodDecl.Parameters,
             _ => null,
@@ -7533,15 +7533,15 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             _ => null,
         };
 
-        if (interfaceParams is null || implParams is null)
+        if (abstractParams is null || implParams is null)
             return;
 
         // Collect parameter nodes from both methods.
-        var interfaceParamNodes = new List<ParameterNode>();
-        foreach (var child in interfaceParams.Children())
+        var abstractParamNodes = new List<ParameterNode>();
+        foreach (var child in abstractParams.Children())
         {
             if (child is ParameterNode param)
-                interfaceParamNodes.Add(param);
+                abstractParamNodes.Add(param);
         }
 
         var implParamNodes = new List<ParameterNode>();
@@ -7552,36 +7552,36 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         }
 
         // Validate each parameter position independently.
-        var count = Math.Min(interfaceParamNodes.Count, implParamNodes.Count);
+        var count = Math.Min(abstractParamNodes.Count, implParamNodes.Count);
         for (var i = 0; i < count; i++)
         {
-            var interfaceParamSymbol = symbolTable.GetDeclaredSymbol(interfaceParamNodes[i]);
+            var abstractParamSymbol = symbolTable.GetDeclaredSymbol(abstractParamNodes[i]);
             var implParamSymbol = symbolTable.GetDeclaredSymbol(implParamNodes[i]);
 
-            if (interfaceParamSymbol is null || implParamSymbol is null)
+            if (abstractParamSymbol is null || implParamSymbol is null)
                 continue;
 
             // Look up refinement predicates.
-            parameterRefinements.TryGetValue(interfaceParamSymbol, out var interfacePredicate);
+            parameterRefinements.TryGetValue(abstractParamSymbol, out var abstractPredicate);
             parameterRefinements.TryGetValue(implParamSymbol, out var implPredicate);
 
-            // If interface predicate is null → skip (implementation may freely add or omit constraints).
-            if (interfacePredicate is null)
+            // If abstract type predicate is null → skip (implementation may freely add or omit constraints).
+            if (abstractPredicate is null)
                 continue;
 
-            // If interface predicate is non-null and impl predicate is null → accept
+            // If abstract type predicate is non-null and impl predicate is null → accept
             // (no constraint means accepts all values).
             if (implPredicate is null)
                 continue;
 
             // Both are non-null → check implication.
-            if (!RefinementSolver.Implies(interfacePredicate, implPredicate))
+            if (!RefinementSolver.Implies(abstractPredicate, implPredicate))
             {
                 // The implementation's constraint is stronger — emit MIST_REFINEMENT_0009.
                 var paramName = implParamNodes[i].Name.Lexeme;
                 var methodName = implMethod.Name;
 
-                var message = $"Implementation of '{methodName}' on '{typeName}' has a stronger refinement constraint '{implPredicate}' on parameter '{paramName}' than the interface '{interfaceName}' requires '{interfacePredicate}'. The implementation must accept all values the interface promises to accept.";
+                var message = $"Implementation of '{methodName}' on '{typeName}' has a stronger refinement constraint '{implPredicate}' on parameter '{paramName}' than the abstract type '{abstractName}' requires '{abstractPredicate}'. The implementation must accept all values the abstract type promises to accept.";
 
                 // Get source location from the implementation method.
                 var sourceText = FindSourceTextForType(typeName, symbolTable, asts, compilation);
@@ -7611,8 +7611,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             case StructDeclarationNode structDecl when symbol.DeclaredType is StructType structType:
                 return (structDecl.Constraints, structType.TypeParameters);
 
-            case InterfaceDeclarationNode interfaceDecl when symbol.DeclaredType is InterfaceType interfaceType:
-                return (interfaceDecl.Constraints, interfaceType.TypeParameters);
+            case AbstractDeclarationNode abstractDecl when symbol.DeclaredType is AbstractType abstractType:
+                return (abstractDecl.Constraints, abstractType.TypeParameters);
 
             case TraitDeclarationNode traitDecl when symbol.DeclaredType is TraitType traitType:
                 return (traitDecl.Constraints, traitType.TypeParameters);
@@ -7620,8 +7620,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             case MethodDeclarationNode methodDecl when symbol is Symbol methodSymbol:
                 return (methodDecl.Constraints, methodSymbol.TypeParameters);
 
-            case InterfaceMethodDeclarationNode interfaceMethodDecl when symbol is Symbol ifaceMethodSymbol:
-                return (interfaceMethodDecl.Constraints, ifaceMethodSymbol.TypeParameters);
+            case AbstractMethodDeclarationNode abstractMethodDecl when symbol is Symbol ifaceMethodSymbol:
+                return (abstractMethodDecl.Constraints, ifaceMethodSymbol.TypeParameters);
 
             case TypeAliasDeclarationNode aliasDecl when symbol is Symbol aliasSymbol:
                 return (aliasDecl.Constraints, aliasSymbol.TypeParameters);
@@ -7752,7 +7752,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             MethodDeclarationNode methodDecl => methodDecl.Parameters,
             ConstructorDeclarationNode ctorDecl => ctorDecl.Parameters,
             IndexerDeclarationNode indexerDecl3 => indexerDecl3.Parameters,
-            InterfaceMethodDeclarationNode ifaceMethodDecl => ifaceMethodDecl.Parameters,
+            AbstractMethodDeclarationNode ifaceMethodDecl => ifaceMethodDecl.Parameters,
             _ => null,
         };
 
@@ -7797,7 +7797,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         var hasRelevantConstraint = false;
         var hasDefaultConstraint = false;
         IType? baseClassConstraint = null;
-        var interfaceConstraints = new List<IType>();
+        var abstractConstraints = new List<IType>();
         var traitConstraints = new List<IType>();
         var constructorConstraints = new List<IReadOnlyList<IType>>();
 
@@ -7872,7 +7872,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     // Classify the resolved type, tracking base class and struct constraints.
                     ClassifyConstraintType(
                         resolvedType, ref baseClassConstraint,
-                        interfaceConstraints, traitConstraints,
+                        abstractConstraints, traitConstraints,
                         baseClassConstraints, structTypeConstraints);
                     break;
                 }
@@ -7892,7 +7892,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             HasClassConstraint = hasClassConstraint,
             HasStructConstraint = hasStructConstraint,
             BaseClassConstraint = baseClassConstraint,
-            InterfaceConstraints = interfaceConstraints,
+            AbstractConstraints = abstractConstraints,
             TraitConstraints = traitConstraints,
             ConstructorConstraints = constructorConstraints,
             HasReadonlyConstraint = hasReadonlyConstraint,
@@ -7931,7 +7931,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         var hasRelevantConstraint = false;
         var hasDefaultConstraint = false;
         IType? baseClassConstraint = null;
-        var interfaceConstraints = new List<IType>();
+        var abstractConstraints = new List<IType>();
         var traitConstraints = new List<IType>();
         var constructorConstraints = new List<IReadOnlyList<IType>>();
 
@@ -8002,10 +8002,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         break;
                     }
 
-                    // Classify the resolved type as interface, trait, or base class constraint.
+                    // Classify the resolved type as abstract type, trait, or base class constraint.
                     ClassifyConstraintType(
                         resolvedType, ref baseClassConstraint,
-                        interfaceConstraints, traitConstraints,
+                        abstractConstraints, traitConstraints,
                         baseClassConstraints, structTypeConstraints);
                     break;
                 }
@@ -8017,7 +8017,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             HasClassConstraint = hasClassConstraint,
             HasStructConstraint = hasStructConstraint,
             BaseClassConstraint = baseClassConstraint,
-            InterfaceConstraints = interfaceConstraints,
+            AbstractConstraints = abstractConstraints,
             TraitConstraints = traitConstraints,
             ConstructorConstraints = constructorConstraints,
             HasReadonlyConstraint = hasReadonlyConstraint,
@@ -8147,13 +8147,13 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 var resolvedType = resolvedSymbol.DeclaredType;
 
                 // Handle generic type arguments if present.
-                if (namedRef.TypeArgs is not null && resolvedType is ClassType or InterfaceType or StructType)
+                if (namedRef.TypeArgs is not null && resolvedType is ClassType or AbstractType or StructType)
                 {
                     // When resolving type arguments for a constraint on an associated type slot,
                     // use the slot type itself as the declaring type. The slot's member scope
                     // contains its own type parameters (e.g., TOut in type Mapped<TOut>), and
-                    // its parent scope is the enclosing interface/trait's member scope which
-                    // contains the interface's type parameters (e.g., TIn in IMapper<TIn>).
+                    // its parent scope is the enclosing abstract type/trait's member scope which
+                    // contains the abstract type's type parameters (e.g., TIn in IMapper<TIn>).
                     // Scope.Lookup walks parent scopes, so both are found.
                     var effectiveDeclaringType = declaringSymbol.DeclaredType ?? ErrorType.Instance;
 
@@ -8187,14 +8187,14 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     }
 
     /// <summary>
-    /// Classifies a resolved constraint type as a base class, interface, or trait constraint
+    /// Classifies a resolved constraint type as a base class, abstract type, or trait constraint
     /// and adds it to the appropriate collection. Also tracks base class and struct types
     /// for validation purposes.
     /// </summary>
     private static void ClassifyConstraintType(
         IType resolvedType,
         ref IType? baseClassConstraint,
-        List<IType> interfaceConstraints,
+        List<IType> abstractConstraints,
         List<IType> traitConstraints,
         List<IType> baseClassConstraints,
         List<IType> structTypeConstraints)
@@ -8206,8 +8206,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
         switch (definitionType)
         {
-            case InterfaceType:
-                interfaceConstraints.Add(resolvedType);
+            case AbstractType:
+                abstractConstraints.Add(resolvedType);
                 break;
 
             case TraitType:
@@ -8228,13 +8228,13 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
             case TypeParameterType:
                 // A type parameter used as a constraint (e.g., where U : T).
-                // Treat as an interface-like constraint for now.
-                interfaceConstraints.Add(resolvedType);
+                // Treat as an abstract type-like constraint for now.
+                abstractConstraints.Add(resolvedType);
                 break;
 
             default:
-                // Other types used as constraints — store as interface constraint.
-                interfaceConstraints.Add(resolvedType);
+                // Other types used as constraints — store as abstract constraint.
+                abstractConstraints.Add(resolvedType);
                 break;
         }
     }
@@ -8369,7 +8369,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
     /// <summary>
     /// Checks whether a compilation unit contains the given declaring node
-    /// (class, struct, or interface declaration).
+    /// (class, struct, or abstract type declaration).
     /// </summary>
     private static bool ContainsTypeDeclarationNode(CompilationUnitNode cu, Storm.Runtime.SyntaxNode declaringNode)
     {
@@ -8425,8 +8425,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         return true;
                 }
                 return false;
-            case InterfaceTypeTypeDeclarationNode it:
-                return ReferenceEquals(it.InterfaceDeclaration, declaringNode);
+            case AbstractTypeTypeDeclarationNode it:
+                return ReferenceEquals(it.AbstractDeclaration, declaringNode);
             case TraitTypeTypeDeclarationNode tt:
                 return ReferenceEquals(tt.TraitDeclaration, declaringNode);
             default:
@@ -8467,7 +8467,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
     /// <summary>
     /// Resolves with-clause type references on method-like declarations (methods,
-    /// constructors, interface methods, trait methods) and stores the resolved
+    /// constructors, abstract type methods, trait methods) and stores the resolved
     /// <see cref="ContextClauseInfo"/> on each symbol's <see cref="Symbol.WithClauses"/>
     /// property. Uses scope-based type lookup consistent with Pass 1 constraint
     /// resolution.
@@ -8555,7 +8555,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         {
             MethodDeclarationNode methodDecl => methodDecl.WithClauses,
             ConstructorDeclarationNode ctorDecl => ctorDecl.WithClauses,
-            InterfaceMethodDeclarationNode ifaceMethodDecl => ifaceMethodDecl.WithClauses,
+            AbstractMethodDeclarationNode ifaceMethodDecl => ifaceMethodDecl.WithClauses,
             TraitMethodDeclarationNode traitMethodDecl => traitMethodDecl.WithClauses,
             _ => null,
         };
@@ -9374,7 +9374,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         foreach (var sym in symbolTable.AllSymbols)
         {
             if (sym.ContainingScope != namespaceSymbol.ContainingScope
-                && sym.Kind is SymbolKind.Class or SymbolKind.Struct or SymbolKind.Interface or SymbolKind.Trait)
+                && sym.Kind is SymbolKind.Class or SymbolKind.Struct or SymbolKind.Abstract or SymbolKind.Trait)
             {
                 // Check if this symbol's containing scope is a child of the global scope
                 // and the namespace name matches.
@@ -9401,7 +9401,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         {
             ClassType ct => ct.ContainingNamespace,
             StructType st => st.ContainingNamespace,
-            InterfaceType it => it.ContainingNamespace,
+            AbstractType it => it.ContainingNamespace,
             TraitType tt => tt.ContainingNamespace,
             _ => null,
         };
@@ -11035,10 +11035,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         {
             switch (accessor)
             {
-                case InterfaceGetAccessorInterfaceAccessorDeclarationNode:
+                case AbstractGetAccessorAbstractAccessorDeclarationNode:
                     hasGet = true;
                     break;
-                case InterfaceSetAccessorInterfaceAccessorDeclarationNode:
+                case AbstractSetAccessorAbstractAccessorDeclarationNode:
                     hasSet = true;
                     break;
             }
@@ -11048,76 +11048,76 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     }
 
     // ═══════════════════════════════════════════════════════════════════════
-    // Pass 1c — Detect circular interface inheritance chains
+    // Pass 1c — Detect circular abstract type inheritance chains
     // ═══════════════════════════════════════════════════════════════════════
 
     /// <summary>
-    /// After interface lists are resolved, walk each interface's Interfaces
+    /// After abstract type lists are resolved, walk each abstract type's Abstracts
     /// chain to detect cycles (including self-inheritance). When a cycle is
     /// found, emit a <c>MIST_CIRCULAR_INTERFACE_INHERITANCE</c> diagnostic
-    /// and break the cycle by removing the back-edge from the Interfaces list.
+    /// and break the cycle by removing the back-edge from the abstract types list.
     /// </summary>
-    private static void Pass1_DetectInterfaceCycles(
+    private static void Pass1_DetectAbstractCycles(
         SymbolTable symbolTable,
         ImmutableArray<Storm.Runtime.SyntaxNode> asts,
         MistCompilation compilation,
         DiagnosticBag diagnostics)
     {
-        // Track interfaces that have already been verified as cycle-free so
+        // Track abstracts that have already been verified as cycle-free so
         // we don't re-walk them.
-        var verified = new HashSet<InterfaceType>();
+        var verified = new HashSet<AbstractType>();
 
         foreach (var symbol in symbolTable.AllSymbols)
         {
-            if (symbol.Kind != SymbolKind.Interface || symbol.DeclaredType is not InterfaceType interfaceType)
+            if (symbol.Kind != SymbolKind.Abstract || symbol.DeclaredType is not AbstractType abstractType)
             {
                 continue;
             }
 
-            if (interfaceType.Interfaces.Count == 0 || verified.Contains(interfaceType))
+            if (abstractType.Abstracts.Count == 0 || verified.Contains(abstractType))
             {
                 continue;
             }
 
-            // Walk the Interfaces chain from this interface, tracking visited
-            // interfaces using a stack-based DFS.
-            DetectInterfaceCyclesDfs(
-                interfaceType, verified, symbolTable, asts, compilation, diagnostics);
+            // Walk the abstract types chain from this abstract type, tracking visited
+            // abstracts using a stack-based DFS.
+            DetectAbstractCyclesDfs(
+                abstractType, verified, symbolTable, asts, compilation, diagnostics);
         }
     }
 
     /// <summary>
-    /// Performs a DFS walk of the interface inheritance graph starting from
+    /// Performs a DFS walk of the abstract type inheritance graph starting from
     /// <paramref name="root"/>. If a cycle is detected, emits a diagnostic
-    /// and removes the back-edge from the parent's Interfaces list.
+    /// and removes the back-edge from the parent's Abstracts list.
     /// </summary>
-    private static void DetectInterfaceCyclesDfs(
-        InterfaceType root,
-        HashSet<InterfaceType> verified,
+    private static void DetectAbstractCyclesDfs(
+        AbstractType root,
+        HashSet<AbstractType> verified,
         SymbolTable symbolTable,
         ImmutableArray<Storm.Runtime.SyntaxNode> asts,
         MistCompilation compilation,
         DiagnosticBag diagnostics)
     {
         // path tracks the current DFS path for cycle reporting.
-        var path = new List<InterfaceType>();
+        var path = new List<AbstractType>();
         // pathSet provides O(1) lookup for cycle detection.
-        var pathSet = new HashSet<InterfaceType>();
+        var pathSet = new HashSet<AbstractType>();
 
-        DetectInterfaceCyclesDfsVisit(
+        DetectAbstractCyclesDfsVisit(
             root, parent: null, path, pathSet, verified,
             symbolTable, asts, compilation, diagnostics);
     }
 
     /// <summary>
-    /// Recursive DFS visitor for interface cycle detection.
+    /// Recursive DFS visitor for abstract type cycle detection.
     /// </summary>
-    private static void DetectInterfaceCyclesDfsVisit(
-        InterfaceType current,
-        InterfaceType? parent,
-        List<InterfaceType> path,
-        HashSet<InterfaceType> pathSet,
-        HashSet<InterfaceType> verified,
+    private static void DetectAbstractCyclesDfsVisit(
+        AbstractType current,
+        AbstractType? parent,
+        List<AbstractType> path,
+        HashSet<AbstractType> pathSet,
+        HashSet<AbstractType> verified,
         SymbolTable symbolTable,
         ImmutableArray<Storm.Runtime.SyntaxNode> asts,
         MistCompilation compilation,
@@ -11137,17 +11137,17 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             cycleMembers.Add(current.DisplayName);
             var chainStr = string.Join(" -> ", cycleMembers);
 
-            // Find the interface that has the back-edge (the parent that
-            // references current in its Interfaces list).
-            var closingInterface = path[^1];
+            // Find the abstract type that has the back-edge (the parent that
+            // references current in its Abstracts list).
+            var closingAbstract = path[^1];
 
-            // Find the symbol and source text for the closing interface.
-            var sourceText = FindSourceTextForInterfaceType(
-                closingInterface, symbolTable, asts, compilation);
+            // Find the symbol and source text for the closing abstract type.
+            var sourceText = FindSourceTextForAbstractType(
+                closingAbstract, symbolTable, asts, compilation);
             Storm.Runtime.SyntaxNode? closingNode = null;
             foreach (var sym in symbolTable.AllSymbols)
             {
-                if (sym.DeclaredType == closingInterface)
+                if (sym.DeclaredType == closingAbstract)
                 {
                     closingNode = symbolTable.GetDeclaringNode(sym);
                     break;
@@ -11159,43 +11159,43 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 diagnostics.Add(MakeDiagnosticWithLocation(
                     "MIST_CIRCULAR_INTERFACE_INHERITANCE",
                     DiagnosticSeverity.Error,
-                    $"Circular interface inheritance detected: '{chainStr}'.",
+                    $"Circular abstract type inheritance detected: '{chainStr}'.",
                     closingNode,
                     sourceText));
             }
             else
             {
-                string? compilationUnitPath = FindCompilationUnitPathForInterfaceType(
-                    closingInterface, symbolTable, asts, compilation);
+                string? compilationUnitPath = FindCompilationUnitPathForAbstractType(
+                    closingAbstract, symbolTable, asts, compilation);
 
                 diagnostics.Add(new Diagnostic(
                     new DiagnosticId("MIST_CIRCULAR_INTERFACE_INHERITANCE"),
                     DiagnosticSeverity.Error,
                     PipelineStage.SemanticModelConstruction,
-                    $"Circular interface inheritance detected: '{chainStr}'.",
+                    $"Circular abstract type inheritance detected: '{chainStr}'.",
                     Location: default,
                     CompilationUnitPath: compilationUnitPath ?? "<unknown>",
                     AnalyzerName: null));
             }
 
             // Break the cycle by removing the back-edge from the closing
-            // interface's Interfaces list.
-            var updatedInterfaces = closingInterface.Interfaces
+            // abstract type's Abstracts list.
+            var updatedAbstracts = closingAbstract.Abstracts
                 .Where(i => !ReferenceEquals(i, current))
                 .ToList();
-            closingInterface.Interfaces = updatedInterfaces;
+            closingAbstract.Abstracts = updatedAbstracts;
 
             return;
         }
 
         path.Add(current);
 
-        // Visit each interface in the current interface's Interfaces list.
+        // Visit each abstract type in the current abstract type's Abstracts list.
         // Take a snapshot of the list since it may be modified during cycle breaking.
-        var interfaces = current.Interfaces.OfType<InterfaceType>().ToList();
-        foreach (var child in interfaces)
+        var abstracts = current.Abstracts.OfType<AbstractType>().ToList();
+        foreach (var child in abstracts)
         {
-            DetectInterfaceCyclesDfsVisit(
+            DetectAbstractCyclesDfsVisit(
                 child, current, path, pathSet, verified,
                 symbolTable, asts, compilation, diagnostics);
         }
@@ -11206,18 +11206,18 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     }
 
     /// <summary>
-    /// Finds the compilation unit path for an interface type by looking up its
+    /// Finds the compilation unit path for an abstract type type by looking up its
     /// declaring node in the symbol table.
     /// </summary>
-    private static string? FindCompilationUnitPathForInterfaceType(
-        InterfaceType interfaceType,
+    private static string? FindCompilationUnitPathForAbstractType(
+        AbstractType abstractType,
         SymbolTable symbolTable,
         ImmutableArray<Storm.Runtime.SyntaxNode> asts,
         MistCompilation compilation)
     {
         foreach (var symbol in symbolTable.AllSymbols)
         {
-            if (symbol.DeclaredType == interfaceType)
+            if (symbol.DeclaredType == abstractType)
             {
                 return FindCompilationUnitPathForSymbol(symbol, symbolTable, asts, compilation);
             }
@@ -11226,18 +11226,18 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     }
 
     /// <summary>
-    /// Finds the <see cref="SourceText"/> for an interface type by looking up its
+    /// Finds the <see cref="SourceText"/> for an abstract type type by looking up its
     /// declaring node in the symbol table.
     /// </summary>
-    private static SourceText? FindSourceTextForInterfaceType(
-        InterfaceType interfaceType,
+    private static SourceText? FindSourceTextForAbstractType(
+        AbstractType abstractType,
         SymbolTable symbolTable,
         ImmutableArray<Storm.Runtime.SyntaxNode> asts,
         MistCompilation compilation)
     {
         foreach (var symbol in symbolTable.AllSymbols)
         {
-            if (symbol.DeclaredType == interfaceType)
+            if (symbol.DeclaredType == abstractType)
             {
                 return GetSourceTextForSymbol(symbol, symbolTable);
             }
@@ -11538,17 +11538,17 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     }
 
     // ═══════════════════════════════════════════════════════════════════════
-    // Pass 1d — Validate interface satisfaction
+    // Pass 1d — Validate abstract type satisfaction
     // ═══════════════════════════════════════════════════════════════════════
 
     /// <summary>
     /// After cycles are broken, check that each class and struct implementing
-    /// interfaces provides all required methods. Walks the interface hierarchy
+    /// abstracts provides all required methods. Walks the abstract type hierarchy
     /// transitively (using a visited set for diamond inheritance) to collect
     /// required methods, then searches the implementing type's member scope
     /// (and base type chain for classes) for matching methods.
     /// </summary>
-    private static void Pass1_ValidateInterfaceSatisfaction(
+    private static void Pass1_ValidateAbstractSatisfaction(
         SymbolTable symbolTable,
         ImmutableArray<Storm.Runtime.SyntaxNode> asts,
         MistCompilation compilation,
@@ -11559,19 +11559,19 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             switch (symbol.Kind)
             {
                 case SymbolKind.Class when symbol.DeclaredType is ClassType classType:
-                    if (classType.Interfaces.Count > 0)
+                    if (classType.Abstracts.Count > 0)
                     {
-                        ValidateInterfaceSatisfaction(
-                            classType.DisplayName, classType.Interfaces, classType.MemberScope,
+                        ValidateAbstractSatisfaction(
+                            classType.DisplayName, classType.Abstracts, classType.MemberScope,
                             classType, symbolTable, asts, compilation, diagnostics);
                     }
                     break;
 
                 case SymbolKind.Struct when symbol.DeclaredType is StructType structType:
-                    if (structType.Interfaces.Count > 0)
+                    if (structType.Abstracts.Count > 0)
                     {
-                        ValidateInterfaceSatisfaction(
-                            structType.DisplayName, structType.Interfaces, structType.MemberScope,
+                        ValidateAbstractSatisfaction(
+                            structType.DisplayName, structType.Abstracts, structType.MemberScope,
                             null, symbolTable, asts, compilation, diagnostics);
                     }
                     break;
@@ -11581,19 +11581,19 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
     /// <summary>
     /// Validates that the implementing type provides all methods required by
-    /// its interfaces (including transitively inherited interfaces).
+    /// its abstracts (including transitively inherited abstract types).
     /// </summary>
     /// <param name="typeName">Display name of the implementing type.</param>
-    /// <param name="interfaces">Direct interfaces of the implementing type.</param>
+    /// <param name="abstracts">direct abstract types of the implementing type.</param>
     /// <param name="memberScope">Member scope of the implementing type.</param>
     /// <param name="classType">If the implementing type is a class, its ClassType (for base chain walking). Null for structs.</param>
     /// <param name="symbolTable">The symbol table.</param>
     /// <param name="asts">The ASTs.</param>
     /// <param name="compilation">The compilation.</param>
     /// <param name="diagnostics">Diagnostic bag.</param>
-    private static void ValidateInterfaceSatisfaction(
+    private static void ValidateAbstractSatisfaction(
         string typeName,
-        IReadOnlyList<IType> interfaces,
+        IReadOnlyList<IType> abstracts,
         IScope memberScope,
         ClassType? classType,
         SymbolTable symbolTable,
@@ -11601,24 +11601,24 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         MistCompilation compilation,
         DiagnosticBag diagnostics)
     {
-        // Collect all required methods transitively from the interface hierarchy.
-        // Each entry is (interfaceType, methodSymbol) so we can report which
-        // interface requires the method.
-        var requiredMethods = new List<(InterfaceType Interface, ISymbol Method)>();
-        var requiredProperties = new List<(InterfaceType Interface, ISymbol Property)>();
-        var visitedInterfaces = new HashSet<InterfaceType>();
-        CollectRequiredMembers(interfaces, requiredMethods, requiredProperties, visitedInterfaces);
+        // Collect all required methods transitively from the abstract type hierarchy.
+        // Each entry is (AbstractType, methodSymbol) so we can report which
+        // abstract type requires the method.
+        var requiredMethods = new List<(AbstractType Abstract, ISymbol Method)>();
+        var requiredProperties = new List<(AbstractType Abstract, ISymbol Property)>();
+        var visitedAbstracts = new HashSet<AbstractType>();
+        CollectRequiredMembers(abstracts, requiredMethods, requiredProperties, visitedAbstracts);
 
         // Build a substitution map for associated type slots: maps slot names in
-        // the interface to the set of acceptable concrete type names in the implementor.
+        // the abstract type to the set of acceptable concrete type names in the implementor.
         var associatedTypeSubstitutions = BuildAssociatedTypeSubstitutionMap(
-            interfaces, memberScope, classType);
+            abstracts, memberScope, classType);
 
         // For each required method, search for a matching implementation.
-        foreach (var (requiredInterface, requiredMethod) in requiredMethods)
+        foreach (var (requiredAbstract, requiredMethod) in requiredMethods)
         {
             var requiredNode = symbolTable.GetDeclaringNode(requiredMethod);
-            if (requiredNode is not InterfaceMethodDeclarationNode requiredMethodDecl)
+            if (requiredNode is not AbstractMethodDeclarationNode requiredMethodDecl)
                 continue;
 
             // Search the implementing type's member scope for a method with the same name.
@@ -11635,9 +11635,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     // adhoc refinement constraints are resolved).
                     break;
 
-                case MethodMatchResult.SignatureMismatch when requiredInterface.TypeParameters.Count > 0:
+                case MethodMatchResult.SignatureMismatch when requiredAbstract.TypeParameters.Count > 0:
                     // A method with the same name exists but the signature doesn't match.
-                    // When the interface has type parameters (e.g., IWrapper<T> with T Unwrap()),
+                    // When the abstract type has type parameters (e.g., IWrapper<T> with T Unwrap()),
                     // the signature comparison may fail because type parameter substitution
                     // in method signatures is not fully supported in this validation path.
                     // Treat as satisfied to avoid false positives.
@@ -11646,13 +11646,13 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 case MethodMatchResult.MissingResult:
                 {
                     // No method with this name found anywhere in the type or its base chain.
-                    // Emit MIST_SM_0022 with the specific interface method signature.
+                    // Emit MIST_SM_0022 with the specific abstract type method signature.
                     var paramSig = FormatParameterTypes(requiredMethodDecl.Parameters);
                     var missingSourceText = FindSourceTextForType(
                         typeName, symbolTable, asts, compilation);
                     var missingNode = FindDeclaringNodeForType(typeName, symbolTable);
 
-                    var message = $"'{typeName}' does not implement interface method '{requiredInterface.DisplayName}.{requiredMethod.Name}({paramSig})'.";
+                    var message = $"'{typeName}' does not implement abstract type method '{requiredAbstract.DisplayName}.{requiredMethod.Name}({paramSig})'.";
 
                     if (missingNode is not null)
                     {
@@ -11683,13 +11683,13 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 case MethodMatchResult.SignatureMismatch:
                 {
                     // Method name matches but no overload has a matching parameter signature.
-                    // Emit MIST_SM_0022 with the specific interface method signature.
+                    // Emit MIST_SM_0022 with the specific abstract type method signature.
                     var paramSig = FormatParameterTypes(requiredMethodDecl.Parameters);
                     var mismatchSourceText = FindSourceTextForType(
                         typeName, symbolTable, asts, compilation);
                     var mismatchNode = FindDeclaringNodeForType(typeName, symbolTable);
 
-                    var message = $"'{typeName}' does not implement interface method '{requiredInterface.DisplayName}.{requiredMethod.Name}({paramSig})'.";
+                    var message = $"'{typeName}' does not implement abstract type method '{requiredAbstract.DisplayName}.{requiredMethod.Name}({paramSig})'.";
 
                     if (mismatchNode is not null)
                     {
@@ -11724,7 +11724,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         typeName, symbolTable, asts, compilation);
                     var refMismatchNode = FindDeclaringNodeForType(typeName, symbolTable);
 
-                    var refMessage = $"Method '{refKindMismatch.ImplMethodName}' does not match interface/trait method '{requiredInterface.DisplayName}.{refKindMismatch.InterfaceMethodName}': parameter ref kinds must match exactly";
+                    var refMessage = $"Method '{refKindMismatch.ImplMethodName}' does not match abstract type/trait method '{requiredAbstract.DisplayName}.{refKindMismatch.AbstractMethodName}': parameter ref kinds must match exactly";
 
                     if (refMismatchNode is not null)
                     {
@@ -11755,7 +11755,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         }
 
         // For each required property, search for a matching implementation.
-        foreach (var (requiredInterface, requiredProperty) in requiredProperties)
+        foreach (var (requiredAbstract, requiredProperty) in requiredProperties)
         {
             var requiredPropInfo = (requiredProperty as Symbol)?.PropertyMetadata;
             if (requiredPropInfo is null)
@@ -11773,7 +11773,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     new DiagnosticId("MIST_MISSING_INTERFACE_PROPERTY"),
                     DiagnosticSeverity.Error,
                     PipelineStage.SemanticModelConstruction,
-                    $"'{typeName}' does not implement interface property '{requiredInterface.DisplayName}.{requiredProperty.Name}'.",
+                    $"'{typeName}' does not implement abstract type property '{requiredAbstract.DisplayName}.{requiredProperty.Name}'.",
                     Location: default,
                     CompilationUnitPath: missingPath ?? "<unknown>",
                     AnalyzerName: null));
@@ -11792,7 +11792,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     new DiagnosticId("MIST_MISSING_INTERFACE_PROPERTY_ACCESSOR"),
                     DiagnosticSeverity.Error,
                     PipelineStage.SemanticModelConstruction,
-                    $"'{typeName}.{requiredProperty.Name}' does not implement 'get' accessor required by interface '{requiredInterface.DisplayName}'.",
+                    $"'{typeName}.{requiredProperty.Name}' does not implement 'get' accessor required by abstract type '{requiredAbstract.DisplayName}'.",
                     Location: default,
                     CompilationUnitPath: path ?? "<unknown>",
                     AnalyzerName: null));
@@ -11805,40 +11805,40 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     new DiagnosticId("MIST_MISSING_INTERFACE_PROPERTY_ACCESSOR"),
                     DiagnosticSeverity.Error,
                     PipelineStage.SemanticModelConstruction,
-                    $"'{typeName}.{requiredProperty.Name}' does not implement 'set' accessor required by interface '{requiredInterface.DisplayName}'.",
+                    $"'{typeName}.{requiredProperty.Name}' does not implement 'set' accessor required by abstract type '{requiredAbstract.DisplayName}'.",
                     Location: default,
                     CompilationUnitPath: path ?? "<unknown>",
                     AnalyzerName: null));
             }
         }
 
-        // For each interface, check that the implementor provides concrete type members
+        // For each abstract type, check that the implementor provides concrete type members
         // for all associated type slots.
         ValidateAssociatedTypeSlotObligations(
-            typeName, interfaces, memberScope, classType, symbolTable, asts, compilation, diagnostics);
+            typeName, abstracts, memberScope, classType, symbolTable, asts, compilation, diagnostics);
     }
 
     /// <summary>
     /// Builds a substitution map for associated type slots and type parameters from
-    /// generic interfaces: maps each slot/parameter name in the interface to the set
+    /// generic abstract types: maps each slot/parameter name in the abstract type to the set
     /// of acceptable concrete type names in the implementor.
     /// For a slot named "X":
     /// - "X" itself is always acceptable (the implementor might have a nested type named "X")
     /// - If the implementor has a type alias "type X = Y", then "Y" is also acceptable
-    /// For a type parameter "T" from a ConstructedType interface like IMapper&lt;int&gt;:
+    /// For a type parameter "T" from a ConstructedType abstract type like IMapper&lt;int&gt;:
     /// - The concrete type argument's display name (e.g., "int") is acceptable
     /// </summary>
     private static Dictionary<string, HashSet<string>> BuildAssociatedTypeSubstitutionMap(
-        IReadOnlyList<IType> interfaces,
+        IReadOnlyList<IType> abstracts,
         IScope memberScope,
         ClassType? classType)
     {
         var substitutions = new Dictionary<string, HashSet<string>>();
 
-        // Collect all associated type slots from the interface hierarchy.
-        var requiredSlots = new List<(InterfaceType Interface, ISymbol SlotSymbol, AssociatedTypeSlotType SlotType)>();
-        var visitedInterfaces = new HashSet<InterfaceType>();
-        CollectRequiredAssociatedTypeSlots(interfaces, requiredSlots, visitedInterfaces);
+        // Collect all associated type slots from the abstract type hierarchy.
+        var requiredSlots = new List<(AbstractType Abstract, ISymbol SlotSymbol, AssociatedTypeSlotType SlotType)>();
+        var visitedAbstracts = new HashSet<AbstractType>();
+        CollectRequiredAssociatedTypeSlots(abstracts, requiredSlots, visitedAbstracts);
 
         foreach (var (_, slotSymbol, slotType) in requiredSlots)
         {
@@ -11858,11 +11858,11 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             substitutions[slotName] = acceptableNames;
         }
 
-        // Add type parameter substitutions from ConstructedType interfaces.
+        // Add type parameter substitutions from ConstructedType abstract types.
         // For example, if the type implements IMapper<int>, map "T" → {"int", "Int32"}.
-        foreach (var ifaceType in interfaces)
+        foreach (var ifaceType in abstracts)
         {
-            if (ifaceType is not ConstructedType { GenericDefinition: InterfaceType genericIface } constructed)
+            if (ifaceType is not ConstructedType { GenericDefinition: AbstractType genericIface } constructed)
                 continue;
 
             var typeParams = genericIface.TypeParameters;
@@ -11997,12 +11997,12 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
     /// <summary>
     /// Validates that the implementing type provides concrete type members for all
-    /// associated type slots declared in its interfaces (transitively).
+    /// associated type slots declared in its abstracts (transitively).
     /// Emits <c>MIST_AT_0002</c> for each missing concrete type member.
     /// </summary>
     private static void ValidateAssociatedTypeSlotObligations(
         string typeName,
-        IReadOnlyList<IType> interfaces,
+        IReadOnlyList<IType> abstracts,
         IScope memberScope,
         ClassType? classType,
         SymbolTable symbolTable,
@@ -12010,12 +12010,12 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         MistCompilation compilation,
         DiagnosticBag diagnostics)
     {
-        // Collect all associated type slots from the interface hierarchy.
-        var requiredSlots = new List<(InterfaceType Interface, ISymbol SlotSymbol, AssociatedTypeSlotType SlotType)>();
-        var visitedInterfaces = new HashSet<InterfaceType>();
-        CollectRequiredAssociatedTypeSlots(interfaces, requiredSlots, visitedInterfaces);
+        // Collect all associated type slots from the abstract type hierarchy.
+        var requiredSlots = new List<(AbstractType Abstract, ISymbol SlotSymbol, AssociatedTypeSlotType SlotType)>();
+        var visitedAbstracts = new HashSet<AbstractType>();
+        CollectRequiredAssociatedTypeSlots(abstracts, requiredSlots, visitedAbstracts);
 
-        foreach (var (requiredInterface, slotSymbol, slotType) in requiredSlots)
+        foreach (var (requiredAbstract, slotSymbol, slotType) in requiredSlots)
         {
             var slotName = slotSymbol.Name;
             var slotArity = slotType.TypeParameters.Count;
@@ -12028,7 +12028,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 var sourceText = FindSourceTextForType(typeName, symbolTable, asts, compilation);
                 var declaringNode = FindDeclaringNodeForType(typeName, symbolTable);
 
-                var message = $"Type '{typeName}' does not provide a concrete type for associated type slot '{slotName}' required by '{requiredInterface.DisplayName}'";
+                var message = $"Type '{typeName}' does not provide a concrete type for associated type slot '{slotName}' required by '{requiredAbstract.DisplayName}'";
 
                 if (declaringNode is not null)
                 {
@@ -12057,7 +12057,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             {
                 // Concrete type member found — validate that it satisfies all constraints.
                 ValidateAssociatedTypeConstraints(
-                    concreteType, slotType, slotName, requiredInterface,
+                    concreteType, slotType, slotName, requiredAbstract,
                     typeName, symbolTable, asts, compilation, diagnostics);
             }
         }
@@ -12071,7 +12071,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         IType concreteType,
         AssociatedTypeSlotType slotType,
         string slotName,
-        InterfaceType requiredInterface,
+        AbstractType requiredAbstract,
         string implementorTypeName,
         SymbolTable symbolTable,
         ImmutableArray<Storm.Runtime.SyntaxNode> asts,
@@ -12083,7 +12083,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             return;
 
         var concreteTypeName = concreteType.DisplayName;
-        var interfaceName = requiredInterface.DisplayName;
+        var abstractName = requiredAbstract.DisplayName;
 
         // Check struct constraint: concrete type must be a struct.
         if (constraints.HasStructConstraint)
@@ -12091,7 +12091,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             if (concreteType.Kind != TypeKind.Struct)
             {
                 EmitUnsatisfiedConstraintDiagnostic(
-                    concreteTypeName, "struct", slotName, interfaceName,
+                    concreteTypeName, "struct", slotName, abstractName,
                     implementorTypeName, concreteTypeName, symbolTable, asts, compilation, diagnostics);
             }
         }
@@ -12102,18 +12102,18 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             if (concreteType.Kind != TypeKind.Class)
             {
                 EmitUnsatisfiedConstraintDiagnostic(
-                    concreteTypeName, "class", slotName, interfaceName,
+                    concreteTypeName, "class", slotName, abstractName,
                     implementorTypeName, concreteTypeName, symbolTable, asts, compilation, diagnostics);
             }
         }
 
-        // Check interface constraints: concrete type must implement each interface.
-        foreach (var ifaceConstraint in constraints.InterfaceConstraints)
+        // Check abstract type constraints: concrete type must implement each abstract type.
+        foreach (var ifaceConstraint in constraints.AbstractConstraints)
         {
-            if (!ConcreteTypeImplementsInterface(concreteType, ifaceConstraint))
+            if (!ConcreteTypeImplementsAbstract(concreteType, ifaceConstraint))
             {
                 EmitUnsatisfiedConstraintDiagnostic(
-                    concreteTypeName, ifaceConstraint.DisplayName, slotName, interfaceName,
+                    concreteTypeName, ifaceConstraint.DisplayName, slotName, abstractName,
                     implementorTypeName, concreteTypeName, symbolTable, asts, compilation, diagnostics);
             }
         }
@@ -12124,7 +12124,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             if (!ConcreteTypeSatisfiesTrait(concreteType, traitConstraint))
             {
                 EmitUnsatisfiedConstraintDiagnostic(
-                    concreteTypeName, traitConstraint.DisplayName, slotName, interfaceName,
+                    concreteTypeName, traitConstraint.DisplayName, slotName, abstractName,
                     implementorTypeName, concreteTypeName, symbolTable, asts, compilation, diagnostics);
             }
         }
@@ -12138,7 +12138,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 if (!HasPublicParameterlessConstructor(concreteType, symbolTable))
                 {
                     EmitUnsatisfiedConstraintDiagnostic(
-                        concreteTypeName, "new()", slotName, interfaceName,
+                        concreteTypeName, "new()", slotName, abstractName,
                         implementorTypeName, concreteTypeName, symbolTable, asts, compilation, diagnostics);
                 }
             }
@@ -12153,7 +12153,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         string concreteTypeName,
         string constraintName,
         string slotName,
-        string interfaceName,
+        string abstractName,
         string implementorTypeName,
         string concreteTypeSearchName,
         SymbolTable symbolTable,
@@ -12161,7 +12161,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         MistCompilation compilation,
         DiagnosticBag diagnostics)
     {
-        var message = $"Concrete type '{concreteTypeName}' does not satisfy constraint '{constraintName}' required by associated type slot '{slotName}' in '{interfaceName}'";
+        var message = $"Concrete type '{concreteTypeName}' does not satisfy constraint '{constraintName}' required by associated type slot '{slotName}' in '{abstractName}'";
 
         // Try to point the diagnostic at the concrete type member declaration.
         var declaringNode = FindDeclaringNodeForType(concreteTypeSearchName, symbolTable);
@@ -12199,58 +12199,58 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     }
 
     /// <summary>
-    /// Checks whether a concrete type implements a given interface constraint.
-    /// Handles both plain <see cref="InterfaceType"/> and <see cref="ConstructedType"/> constraints.
+    /// Checks whether a concrete type implements a given abstract type constraint.
+    /// Handles both plain <see cref="AbstractType"/> and <see cref="ConstructedType"/> constraints.
     /// </summary>
-    private static bool ConcreteTypeImplementsInterface(IType concreteType, IType interfaceConstraint)
+    private static bool ConcreteTypeImplementsAbstract(IType concreteType, IType abstractConstraint)
     {
-        var interfaces = concreteType switch
+        var abstracts = concreteType switch
         {
-            ClassType ct => ct.Interfaces,
-            StructType st => st.Interfaces,
+            ClassType ct => ct.Abstracts,
+            StructType st => st.Abstracts,
             _ => Array.Empty<IType>() as IReadOnlyList<IType>,
         };
 
         // Walk the class base type chain for classes.
         if (concreteType is ClassType classType)
         {
-            if (InterfaceListContainsConstraint(interfaces, interfaceConstraint))
+            if (InterfaceListContainsConstraint(abstracts, abstractConstraint))
                 return true;
 
             var ancestor = classType.BaseType as ClassType;
             while (ancestor is not null)
             {
-                if (InterfaceListContainsConstraint(ancestor.Interfaces, interfaceConstraint))
+                if (InterfaceListContainsConstraint(ancestor.Abstracts, abstractConstraint))
                     return true;
                 ancestor = ancestor.BaseType as ClassType;
             }
             return false;
         }
 
-        return InterfaceListContainsConstraint(interfaces, interfaceConstraint);
+        return InterfaceListContainsConstraint(abstracts, abstractConstraint);
     }
 
     /// <summary>
-    /// Checks whether an interface list contains a match for the given interface constraint.
-    /// Supports both plain <see cref="InterfaceType"/> and <see cref="ConstructedType"/> matching.
+    /// Checks whether an abstract type list contains a match for the given abstract type constraint.
+    /// Supports both plain <see cref="AbstractType"/> and <see cref="ConstructedType"/> matching.
     /// </summary>
     private static bool InterfaceListContainsConstraint(
-        IReadOnlyList<IType> interfaces,
+        IReadOnlyList<IType> abstracts,
         IType constraint,
         HashSet<IType>? visited = null)
     {
-        foreach (var ifaceType in interfaces)
+        foreach (var ifaceType in abstracts)
         {
             if (InterfaceMatchesConstraint(ifaceType, constraint))
                 return true;
 
-            // Recursively check inherited interfaces.
-            if (ifaceType is InterfaceType iface)
+            // Recursively check inherited abstract types.
+            if (ifaceType is AbstractType iface)
             {
                 visited ??= new HashSet<IType>(ReferenceEqualityComparer.Instance);
                 if (visited.Add(iface))
                 {
-                    if (InterfaceListContainsConstraint(iface.Interfaces, constraint, visited))
+                    if (InterfaceListContainsConstraint(iface.Abstracts, constraint, visited))
                         return true;
                 }
             }
@@ -12260,7 +12260,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     }
 
     /// <summary>
-    /// Checks whether a single interface type matches the given constraint.
+    /// Checks whether a single abstract type matches the given constraint.
     /// Handles ConstructedType matching by comparing generic definitions when
     /// the constraint contains type parameters (e.g., IEnumerator&lt;TElement&gt; matches IEnumerator&lt;int&gt;).
     /// </summary>
@@ -12273,7 +12273,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             return true;
 
         // Handle constructed type matching (e.g., IEnumerator<int> matches IEnumerator<T>).
-        if (constraint is InterfaceType plainConstraint && ifaceType is InterfaceType plainIface)
+        if (constraint is AbstractType plainConstraint && ifaceType is AbstractType plainIface)
             return ReferenceEquals(plainIface, plainConstraint) || plainIface.DisplayName == plainConstraint.DisplayName;
 
         // Handle ConstructedType vs ConstructedType: match by generic definition.
@@ -12287,14 +12287,14 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 return true;
         }
 
-        // Handle ConstructedType matching a plain InterfaceType constraint by generic definition.
-        if (constraint is ConstructedType constraintCt2 && ifaceType is InterfaceType plainIface2)
+        // Handle ConstructedType matching a plain abstractType constraint by generic definition.
+        if (constraint is ConstructedType constraintCt2 && ifaceType is AbstractType plainIface2)
         {
             if (ReferenceEquals(constraintCt2.GenericDefinition, plainIface2))
                 return true;
         }
 
-        if (constraint is InterfaceType plainConstraint2 && ifaceType is ConstructedType ifaceCt2)
+        if (constraint is AbstractType plainConstraint2 && ifaceType is ConstructedType ifaceCt2)
         {
             if (ReferenceEquals(ifaceCt2.GenericDefinition, plainConstraint2))
                 return true;
@@ -12323,15 +12323,15 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 return true;
         }
 
-        // Also check the Interfaces list (trait conformance may be recorded there).
-        var interfaces = concreteType switch
+        // Also check the abstract types list (trait conformance may be recorded there).
+        var abstracts = concreteType switch
         {
-            ClassType ct => ct.Interfaces,
-            StructType st => st.Interfaces,
+            ClassType ct => ct.Abstracts,
+            StructType st => st.Abstracts,
             _ => Array.Empty<IType>() as IReadOnlyList<IType>,
         };
 
-        foreach (var iface in interfaces)
+        foreach (var iface in abstracts)
         {
             if (iface.DisplayName == traitConstraint.DisplayName || ReferenceEquals(iface, traitConstraint))
                 return true;
@@ -12386,23 +12386,23 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     }
 
     /// <summary>
-    /// Recursively collects all associated type slots from the interface hierarchy.
-    /// Handles both raw <see cref="InterfaceType"/> and <see cref="ConstructedType"/>
-    /// (generic interfaces like <c>IEnumerable&lt;int&gt;</c>).
+    /// Recursively collects all associated type slots from the abstract type hierarchy.
+    /// Handles both raw <see cref="AbstractType"/> and <see cref="ConstructedType"/>
+    /// (generic abstract types like <c>IEnumerable&lt;int&gt;</c>).
     /// </summary>
     private static void CollectRequiredAssociatedTypeSlots(
-        IReadOnlyList<IType> interfaces,
-        List<(InterfaceType Interface, ISymbol SlotSymbol, AssociatedTypeSlotType SlotType)> requiredSlots,
-        HashSet<InterfaceType> visited)
+        IReadOnlyList<IType> abstracts,
+        List<(AbstractType Abstract, ISymbol SlotSymbol, AssociatedTypeSlotType SlotType)> requiredSlots,
+        HashSet<AbstractType> visited)
     {
-        foreach (var ifaceType in interfaces)
+        foreach (var ifaceType in abstracts)
         {
-            // Unwrap ConstructedType to get the underlying InterfaceType for generic
-            // interfaces (e.g., IEnumerable<int> is a ConstructedType wrapping InterfaceType).
-            InterfaceType? iface = ifaceType switch
+            // Unwrap ConstructedType to get the underlying AbstractType for generic
+            // abstracts (e.g., IEnumerable<int> is a ConstructedType wrapping AbstractType).
+            AbstractType? iface = ifaceType switch
             {
-                InterfaceType directIface => directIface,
-                ConstructedType { GenericDefinition: InterfaceType genericIface } => genericIface,
+                AbstractType directIface => directIface,
+                ConstructedType { GenericDefinition: AbstractType genericIface } => genericIface,
                 _ => null,
             };
 
@@ -12412,7 +12412,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             if (!visited.Add(iface))
                 continue;
 
-            // Find all associated type slot members in this interface.
+            // Find all associated type slot members in this abstract type.
             foreach (var member in iface.MemberScope.Members)
             {
                 if (member.Kind == SymbolKind.TypeAlias && member.DeclaredType is AssociatedTypeSlotType slotType)
@@ -12421,10 +12421,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 }
             }
 
-            // Recurse into parent interfaces.
-            if (iface.Interfaces.Count > 0)
+            // Recurse into parent abstract types.
+            if (iface.Abstracts.Count > 0)
             {
-                CollectRequiredAssociatedTypeSlots(iface.Interfaces, requiredSlots, visited);
+                CollectRequiredAssociatedTypeSlots(iface.Abstracts, requiredSlots, visited);
             }
         }
     }
@@ -12527,29 +12527,29 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     }
 
     /// <summary>
-    /// Recursively collects all required methods and properties from the interface hierarchy,
-    /// using a visited set to handle diamond inheritance. Handles both raw <see cref="InterfaceType"/>
-    /// and <see cref="ConstructedType"/> (generic interfaces like <c>IEnumerator&lt;int&gt;</c>).
+    /// Recursively collects all required methods and properties from the abstract type hierarchy,
+    /// using a visited set to handle diamond inheritance. Handles both raw <see cref="AbstractType"/>
+    /// and <see cref="ConstructedType"/> (generic abstract types like <c>IEnumerator&lt;int&gt;</c>).
     /// <para>
-    /// For <see cref="ConstructedType"/> interfaces, methods whose signatures reference the
-    /// interface's type parameters are still collected — the caller's substitution map
+    /// For <see cref="ConstructedType"/> abstracts, methods whose signatures reference the
+    /// abstract type's type parameters are still collected — the caller's substitution map
     /// (built by <see cref="BuildAssociatedTypeSubstitutionMap"/>) handles the matching.
     /// </para>
     /// </summary>
     private static void CollectRequiredMembers(
-        IReadOnlyList<IType> interfaces,
-        List<(InterfaceType Interface, ISymbol Method)> requiredMethods,
-        List<(InterfaceType Interface, ISymbol Property)> requiredProperties,
-        HashSet<InterfaceType> visited)
+        IReadOnlyList<IType> abstracts,
+        List<(AbstractType Abstract, ISymbol Method)> requiredMethods,
+        List<(AbstractType Abstract, ISymbol Property)> requiredProperties,
+        HashSet<AbstractType> visited)
     {
-        foreach (var ifaceType in interfaces)
+        foreach (var ifaceType in abstracts)
         {
-            // Unwrap ConstructedType to get the underlying InterfaceType for generic
-            // interfaces (e.g., IEnumerator<int> is a ConstructedType wrapping InterfaceType).
-            InterfaceType? iface = ifaceType switch
+            // Unwrap ConstructedType to get the underlying AbstractType for generic
+            // abstracts (e.g., IEnumerator<int> is a ConstructedType wrapping AbstractType).
+            AbstractType? iface = ifaceType switch
             {
-                InterfaceType directIface => directIface,
-                ConstructedType { GenericDefinition: InterfaceType genericIface } => genericIface,
+                AbstractType directIface => directIface,
+                ConstructedType { GenericDefinition: AbstractType genericIface } => genericIface,
                 _ => null,
             };
 
@@ -12559,7 +12559,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             if (!visited.Add(iface))
                 continue;
 
-            // Add all method and property members from this interface.
+            // Add all method and property members from this abstract type.
             foreach (var member in iface.MemberScope.Members)
             {
                 if (member.Kind == SymbolKind.Method)
@@ -12572,10 +12572,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 }
             }
 
-            // Recurse into parent interfaces.
-            if (iface.Interfaces.Count > 0)
+            // Recurse into parent abstract types.
+            if (iface.Abstracts.Count > 0)
             {
-                CollectRequiredMembers(iface.Interfaces, requiredMethods, requiredProperties, visited);
+                CollectRequiredMembers(iface.Abstracts, requiredMethods, requiredProperties, visited);
             }
         }
     }
@@ -12627,25 +12627,25 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         public static MethodMatchResult Mismatch(string expectedSig, string actualSig)
             => new SignatureMismatch(expectedSig, actualSig);
 
-        public static MethodMatchResult RefKindMismatch(string implMethodName, string interfaceMethodName)
-            => new RefKindMismatchResult(implMethodName, interfaceMethodName);
+        public static MethodMatchResult RefKindMismatch(string implMethodName, string abstractMethodName)
+            => new RefKindMismatchResult(implMethodName, abstractMethodName);
 
         public sealed record MatchedResult(ISymbol ImplSymbol) : MethodMatchResult;
         public sealed record MissingResult : MethodMatchResult;
         public sealed record SignatureMismatch(string ExpectedSig, string ActualSig) : MethodMatchResult;
-        public sealed record RefKindMismatchResult(string ImplMethodName, string InterfaceMethodName) : MethodMatchResult;
+        public sealed record RefKindMismatchResult(string ImplMethodName, string AbstractMethodName) : MethodMatchResult;
     }
 
     /// <summary>
     /// Searches the implementing type's member scope (and base type chain for
-    /// classes) for a method matching the required interface method.
+    /// classes) for a method matching the required abstract type method.
     /// With overloading, we must check all scopes in the chain — a matching
     /// overload might be in a base class even if the derived class has methods
     /// with the same name but different signatures.
     /// </summary>
     private static MethodMatchResult FindMatchingMethod(
         string methodName,
-        InterfaceMethodDeclarationNode requiredMethodDecl,
+        AbstractMethodDeclarationNode requiredMethodDecl,
         IScope memberScope,
         ClassType? classType,
         SymbolTable symbolTable,
@@ -12712,13 +12712,13 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
     /// <summary>
     /// Searches a single scope for a method with the given name and checks
-    /// whether any overload's signature matches the required interface method.
+    /// whether any overload's signature matches the required abstract type method.
     /// With overloading, multiple methods may share the same name — we must
     /// check all of them before concluding there is no match.
     /// </summary>
     private static MethodMatchResult SearchScopeForMethod(
         string methodName,
-        InterfaceMethodDeclarationNode requiredMethodDecl,
+        AbstractMethodDeclarationNode requiredMethodDecl,
         IScope scope,
         SymbolTable symbolTable,
         Dictionary<string, HashSet<string>>? associatedTypeSubstitutions = null)
@@ -12726,7 +12726,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         var foundAnyWithName = false;
         string? lastActualSig = null;
         string? refKindMismatchImplName = null;
-        string? refKindMismatchInterfaceName = null;
+        string? refKindMismatchAbstractName = null;
 
         foreach (var member in scope.Members)
         {
@@ -12747,7 +12747,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             if (TypesMatchButRefKindsDiffer(requiredMethodDecl, implMethodDecl, associatedTypeSubstitutions))
             {
                 refKindMismatchImplName = member.Name;
-                refKindMismatchInterfaceName = methodName;
+                refKindMismatchAbstractName = methodName;
             }
 
             // Track the last seen actual signature for diagnostic purposes.
@@ -12758,7 +12758,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         {
             // Prefer the specific RefKind mismatch result over generic signature mismatch.
             if (refKindMismatchImplName is not null)
-                return MethodMatchResult.RefKindMismatch(refKindMismatchImplName, refKindMismatchInterfaceName!);
+                return MethodMatchResult.RefKindMismatch(refKindMismatchImplName, refKindMismatchAbstractName!);
 
             // Name matches but no overload has a matching signature.
             var expectedSig = FormatInterfaceMethodSignature(requiredMethodDecl);
@@ -12770,13 +12770,13 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
     /// <summary>
     /// Checks whether an implementing method's signature matches the required
-    /// interface method's signature (return type, parameter types, and parameter ref kinds).
+    /// abstract type method's signature (return type, parameter types, and parameter ref kinds).
     /// When associated type substitutions are provided, type references to associated
-    /// type slot names in the interface signature are matched against the concrete type
+    /// type slot names in the abstract type signature are matched against the concrete type
     /// member names in the implementor's signature.
     /// </summary>
     private static bool SignaturesMatch(
-        InterfaceMethodDeclarationNode required,
+        AbstractMethodDeclarationNode required,
         MethodDeclarationNode actual,
         Dictionary<string, HashSet<string>>? associatedTypeSubstitutions = null)
     {
@@ -12810,7 +12810,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// Returns true if types match but RefKind values differ.
     /// </summary>
     private static bool TypesMatchButRefKindsDiffer(
-        InterfaceMethodDeclarationNode required,
+        AbstractMethodDeclarationNode required,
         MethodDeclarationNode actual,
         Dictionary<string, HashSet<string>>? associatedTypeSubstitutions = null)
     {
@@ -12836,7 +12836,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     }
 
     /// <summary>
-    /// Compares the RefKind values of parameters between an interface method and
+    /// Compares the RefKind values of parameters between an abstract type method and
     /// an implementing method. Returns true if all parameter RefKind values match.
     /// </summary>
     private static bool ParameterRefKindsMatch(
@@ -12985,34 +12985,34 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
     /// <summary>
     /// Compares two type references with associated type substitution support.
-    /// When the interface type reference is a named type that matches an associated
+    /// When the abstract type type reference is a named type that matches an associated
     /// type slot name, the implementor's type reference is checked against the set
     /// of acceptable concrete type names for that slot.
     /// </summary>
     private static bool TypeReferencesMatchWithAssociatedTypes(
-        TypeReferenceNode interfaceRef,
+        TypeReferenceNode abstractRef,
         TypeReferenceNode implRef,
         Dictionary<string, HashSet<string>>? associatedTypeSubstitutions)
     {
         // If no substitutions are provided, fall back to standard comparison.
         if (associatedTypeSubstitutions is null || associatedTypeSubstitutions.Count == 0)
-            return TypeReferencesMatch(interfaceRef, implRef);
+            return TypeReferencesMatch(abstractRef, implRef);
 
-        // Check if the interface type reference is a named type that matches a slot name.
-        if (interfaceRef.First is NamedSingleTypeRefSingleTypeRefNode namedInterface)
+        // Check if the abstract type reference is a named type that matches a slot name.
+        if (abstractRef.First is NamedSingleTypeRefSingleTypeRefNode namedAbstract)
         {
-            var interfaceName = namedInterface.Name.IDENTIFIER.Lexeme;
-            if (!string.IsNullOrEmpty(interfaceName)
-                && associatedTypeSubstitutions.TryGetValue(interfaceName, out var acceptableNames))
+            var abstractName = namedAbstract.Name.IDENTIFIER.Lexeme;
+            if (!string.IsNullOrEmpty(abstractName)
+                && associatedTypeSubstitutions.TryGetValue(abstractName, out var acceptableNames))
             {
-                // The interface type is an associated type slot or type parameter reference.
+                // The abstract type reference is an associated type slot or type parameter reference.
                 // The implementor must use one of the acceptable concrete type names.
                 if (implRef.First is NamedSingleTypeRefSingleTypeRefNode namedImpl)
                 {
                     var implName = namedImpl.Name.IDENTIFIER.Lexeme;
                     return !string.IsNullOrEmpty(implName)
                         && acceptableNames.Contains(implName)
-                        && (namedInterface.ArrayRank is not null) == (namedImpl.ArrayRank is not null);
+                        && (namedAbstract.ArrayRank is not null) == (namedImpl.ArrayRank is not null);
                 }
 
                 // Handle primitive type references (e.g., int, string, bool) on the impl side.
@@ -13021,7 +13021,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     var primitiveName = FormatPrimitiveType(primitiveImpl.PrimitiveType);
                     return !string.IsNullOrEmpty(primitiveName)
                         && acceptableNames.Contains(primitiveName)
-                        && (namedInterface.ArrayRank is not null) == (primitiveImpl.ArrayRank is not null);
+                        && (namedAbstract.ArrayRank is not null) == (primitiveImpl.ArrayRank is not null);
                 }
 
                 return false;
@@ -13029,7 +13029,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         }
 
         // For non-slot type references, use the standard comparison.
-        return TypeReferencesMatch(interfaceRef, implRef);
+        return TypeReferencesMatch(abstractRef, implRef);
     }
 
     /// <summary>
@@ -13452,7 +13452,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// Looks up the symbol registered for the generic definition named
     /// <paramref name="genericDefName"/> and returns <c>true</c> if it is
     /// a class (<see cref="SymbolKind.Class"/>). Returns <c>false</c>
-    /// when the symbol is a struct, an interface, or cannot be resolved.
+    /// when the symbol is a struct, an abstract type, or cannot be resolved.
     /// Used to enforce Req 8.6 (class-only covariant widening) during
     /// trait return-position matching.
     /// </summary>
@@ -13465,7 +13465,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // user-defined top-level types.
         var symbol = globalScope.Lookup(genericDefName);
         if (symbol is not null
-            && symbol.Kind is SymbolKind.Class or SymbolKind.Struct or SymbolKind.Interface)
+            && symbol.Kind is SymbolKind.Class or SymbolKind.Struct or SymbolKind.Abstract)
         {
             return symbol.Kind == SymbolKind.Class;
         }
@@ -13479,7 +13479,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             if (candidate.Name == genericDefName
                 && (candidate.Kind == SymbolKind.Class
                     || candidate.Kind == SymbolKind.Struct
-                    || candidate.Kind == SymbolKind.Interface))
+                    || candidate.Kind == SymbolKind.Abstract))
             {
                 // Skip type parameters that were registered as
                 // SymbolKind.Class by RegisterTypeParameters — their
@@ -13520,10 +13520,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     }
 
     /// <summary>
-    /// Formats an interface method signature as a string for diagnostic messages.
+    /// Formats an abstract type method signature as a string for diagnostic messages.
     /// Format: "returnType(paramType1, paramType2, ...)"
     /// </summary>
-    private static string FormatInterfaceMethodSignature(InterfaceMethodDeclarationNode methodDecl)
+    private static string FormatInterfaceMethodSignature(AbstractMethodDeclarationNode methodDecl)
     {
         var returnType = FormatTypeReference(methodDecl.ReturnType);
         var paramTypes = FormatParameterTypes(methodDecl.Parameters);
@@ -13668,7 +13668,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     {
         foreach (var symbol in symbolTable.AllSymbols)
         {
-            if ((symbol.Kind == SymbolKind.Class || symbol.Kind == SymbolKind.Struct || symbol.Kind == SymbolKind.Interface || symbol.Kind == SymbolKind.Trait || symbol.Kind == SymbolKind.Enum)
+            if ((symbol.Kind == SymbolKind.Class || symbol.Kind == SymbolKind.Struct || symbol.Kind == SymbolKind.Abstract || symbol.Kind == SymbolKind.Trait || symbol.Kind == SymbolKind.Enum)
                 && symbol.Name == typeName)
             {
                 return FindCompilationUnitPathForSymbol(symbol, symbolTable, asts, compilation);
@@ -13688,7 +13688,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     {
         foreach (var symbol in symbolTable.AllSymbols)
         {
-            if ((symbol.Kind == SymbolKind.Class || symbol.Kind == SymbolKind.Struct || symbol.Kind == SymbolKind.Interface || symbol.Kind == SymbolKind.Trait || symbol.Kind == SymbolKind.Enum)
+            if ((symbol.Kind == SymbolKind.Class || symbol.Kind == SymbolKind.Struct || symbol.Kind == SymbolKind.Abstract || symbol.Kind == SymbolKind.Trait || symbol.Kind == SymbolKind.Enum)
                 && symbol.Name == typeName)
             {
                 return GetSourceTextForSymbol(symbol, symbolTable);
@@ -13706,7 +13706,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     {
         foreach (var symbol in symbolTable.AllSymbols)
         {
-            if ((symbol.Kind == SymbolKind.Class || symbol.Kind == SymbolKind.Struct || symbol.Kind == SymbolKind.Interface || symbol.Kind == SymbolKind.Trait || symbol.Kind == SymbolKind.Enum)
+            if ((symbol.Kind == SymbolKind.Class || symbol.Kind == SymbolKind.Struct || symbol.Kind == SymbolKind.Abstract || symbol.Kind == SymbolKind.Trait || symbol.Kind == SymbolKind.Enum)
                 && symbol.Name == typeName)
             {
                 return symbolTable.GetDeclaringNode(symbol);
@@ -14171,9 +14171,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     memberScope = structType.MemberScope;
                     typeName = structType.DisplayName;
                     break;
-                case SymbolKind.Interface when symbol.DeclaredType is InterfaceType interfaceType:
-                    memberScope = interfaceType.MemberScope;
-                    typeName = interfaceType.DisplayName;
+                case SymbolKind.Abstract when symbol.DeclaredType is AbstractType abstractType:
+                    memberScope = abstractType.MemberScope;
+                    typeName = abstractType.DisplayName;
                     break;
                 default:
                     continue;
@@ -14638,7 +14638,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 {
                     ClassTypeTypeDeclarationNode ct => ct.ClassDeclaration,
                     StructTypeTypeDeclarationNode st => st.StructDeclaration,
-                    InterfaceTypeTypeDeclarationNode it => it.InterfaceDeclaration,
+                    AbstractTypeTypeDeclarationNode it => it.AbstractDeclaration,
                     _ => typeItem.TypeDeclaration
                 };
 
@@ -14721,7 +14721,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             {
                 ClassTypeTypeDeclarationNode ct => ct.ClassDeclaration,
                 StructTypeTypeDeclarationNode st => st.StructDeclaration,
-                InterfaceTypeTypeDeclarationNode it => it.InterfaceDeclaration,
+                AbstractTypeTypeDeclarationNode it => it.AbstractDeclaration,
                 _ => firstTypeDecl
             };
 
@@ -14755,7 +14755,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // the map is populated (e.g., from Pass 2 after a fresh Build() call).
         foreach (var symbol in symbolTable.AllSymbols)
         {
-            if ((symbol.Kind == SymbolKind.Class || symbol.Kind == SymbolKind.Struct || symbol.Kind == SymbolKind.Interface || symbol.Kind == SymbolKind.Trait || symbol.Kind == SymbolKind.Enum)
+            if ((symbol.Kind == SymbolKind.Class || symbol.Kind == SymbolKind.Struct || symbol.Kind == SymbolKind.Abstract || symbol.Kind == SymbolKind.Trait || symbol.Kind == SymbolKind.Enum)
                 && symbol.ContainingScope is Scope parentScope
                 && parentScope.Parent == globalScope)
             {
@@ -14768,7 +14768,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 {
                     return parentScope;
                 }
-                if (symbol.DeclaredType is InterfaceType it && it.ContainingNamespace == namespaceName)
+                if (symbol.DeclaredType is AbstractType it && it.ContainingNamespace == namespaceName)
                 {
                     return parentScope;
                 }
@@ -14803,8 +14803,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             case StructTypeTypeDeclarationNode structTypeNode:
                 ResolveStructDeclaration(structTypeNode.StructDeclaration, fileScope, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
                 break;
-            case InterfaceTypeTypeDeclarationNode interfaceTypeNode:
-                ResolveInterfaceDeclaration(interfaceTypeNode.InterfaceDeclaration, fileScope, symbolTable, ambientTypeResolver, sourceText, diagnostics);
+            case AbstractTypeTypeDeclarationNode abstractTypeNode:
+                ResolveAbstractDeclaration(abstractTypeNode.AbstractDeclaration, fileScope, symbolTable, ambientTypeResolver, sourceText, diagnostics);
                 break;
             case TraitTypeTypeDeclarationNode traitTypeNode:
                 ResolveTraitDeclaration(traitTypeNode.TraitDeclaration, fileScope, symbolTable, ambientTypeResolver, sourceText, diagnostics);
@@ -15199,8 +15199,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             case StructTypeTypeDeclarationNode structTypeNode:
                 ResolveExplicitMemberTypesForStruct(structTypeNode.StructDeclaration, fileScope, symbolTable, ambientTypeResolver, sourceText, diagnostics);
                 break;
-            case InterfaceTypeTypeDeclarationNode interfaceTypeNode:
-                ResolveExplicitMemberTypesForInterface(interfaceTypeNode.InterfaceDeclaration, fileScope, symbolTable, ambientTypeResolver, sourceText, diagnostics);
+            case AbstractTypeTypeDeclarationNode abstractTypeNode:
+                ResolveExplicitMemberTypesForAbstract(abstractTypeNode.AbstractDeclaration, fileScope, symbolTable, ambientTypeResolver, sourceText, diagnostics);
                 break;
             case TraitTypeTypeDeclarationNode traitTypeNode:
                 ResolveExplicitMemberTypesForTrait(traitTypeNode.TraitDeclaration, fileScope, symbolTable, ambientTypeResolver, sourceText, diagnostics);
@@ -15303,27 +15303,27 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     }
 
     /// <summary>
-    /// Resolves explicit type annotations on all members of an interface declaration.
+    /// Resolves explicit type annotations on all members of an abstract type declaration.
     /// </summary>
-    private static void ResolveExplicitMemberTypesForInterface(
-        InterfaceDeclarationNode interfaceDecl,
+    private static void ResolveExplicitMemberTypesForAbstract(
+        AbstractDeclarationNode abstractDecl,
         Scope fileScope,
         SymbolTable symbolTable,
         IAmbientTypeResolver? ambientTypeResolver,
         SourceText? sourceText,
         DiagnosticBag diagnostics)
     {
-        var interfaceSymbol = symbolTable.GetDeclaredSymbol(interfaceDecl);
-        if (interfaceSymbol?.DeclaredType is not InterfaceType interfaceType) return;
+        var abstractSymbol = symbolTable.GetDeclaredSymbol(abstractDecl);
+        if (abstractSymbol?.DeclaredType is not AbstractType abstractType) return;
 
-        var typeScope = (Scope)interfaceType.MemberScope;
+        var typeScope = (Scope)abstractType.MemberScope;
         var interfaceFileScope = CreateTypeParameterScope(typeScope, fileScope);
 
-        foreach (var member in interfaceDecl.Members)
+        foreach (var member in abstractDecl.Members)
         {
             switch (member)
             {
-                case InterfaceMethodMemberInterfaceMemberDeclarationNode methodMember:
+                case AbstractMethodMemberAbstractMemberDeclarationNode methodMember:
                 {
                     var methodDecl = methodMember.Method;
                     var methodSymbol = symbolTable.GetDeclaredSymbol(methodDecl) as Symbol;
@@ -15348,7 +15348,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     }
 
                     // Resolve parameter types — Phase 4 is the sole owner for
-                    // interface parameters since interfaces have no body resolution in Pass 2.
+                    // abstract type parameters since abstract types have no body resolution in Pass 2.
                     if (methodDecl.Parameters is not null)
                     {
                         var methodScope = new Scope(parent: interfaceFileScope);
@@ -15356,7 +15356,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     }
                     break;
                 }
-                case InterfacePropertyMemberInterfaceMemberDeclarationNode propertyMember:
+                case AbstractPropertyMemberAbstractMemberDeclarationNode propertyMember:
                 {
                     var propDecl = propertyMember.Property;
                     var propSymbol = symbolTable.GetDeclaredSymbol(propDecl) as Symbol;
@@ -16276,26 +16276,26 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         }
     }
 
-    private static void ResolveInterfaceDeclaration(
-        InterfaceDeclarationNode interfaceDecl,
+    private static void ResolveAbstractDeclaration(
+        AbstractDeclarationNode abstractDecl,
         Scope fileScope,
         SymbolTable symbolTable,
         IAmbientTypeResolver? ambientTypeResolver,
         SourceText? sourceText,
         DiagnosticBag diagnostics)
     {
-        var interfaceSymbol = symbolTable.GetDeclaredSymbol(interfaceDecl);
-        if (interfaceSymbol?.DeclaredType is not InterfaceType interfaceType) return;
+        var abstractSymbol = symbolTable.GetDeclaredSymbol(abstractDecl);
+        if (abstractSymbol?.DeclaredType is not AbstractType abstractType) return;
 
-        // Create a per-interface resolution scope that layers the interface's
+        // Create a per-abstract-type resolution scope that layers the abstract type's
         // type parameters on top of the file scope.
-        var typeScope = (Scope)interfaceType.MemberScope;
+        var typeScope = (Scope)abstractType.MemberScope;
 
         // Generate implicit properties for dependent type parameters.
-        GenerateDependentTypeProperties(interfaceType.TypeParameters, typeScope, interfaceType, sourceText, diagnostics);
+        GenerateDependentTypeProperties(abstractType.TypeParameters, typeScope, abstractType, sourceText, diagnostics);
 
-        // Phase 4 already resolved all interface member types (return types,
-        // property types, parameter types). Nothing else to do here — interfaces
+        // Phase 4 already resolved all abstract type member types (return types,
+        // property types, parameter types). Nothing else to do here — abstracts
         // have no bodies to resolve.
     }
 
@@ -18233,9 +18233,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             if (member?.DeclaredType is not null)
                 propertyType = member.DeclaredType;
         }
-        else if (patternType is InterfaceType interfaceType)
+        else if (patternType is AbstractType abstractType)
         {
-            var member = interfaceType.MemberScope.Lookup(propertyName);
+            var member = abstractType.MemberScope.Lookup(propertyName);
             if (member?.DeclaredType is not null)
                 propertyType = member.DeclaredType;
         }
@@ -18400,7 +18400,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// <c>Standard.IEnumerable&lt;TElement&gt;</c>) and CLR types projected by the TypeProjector.
     ///
     /// <para>For <see cref="ConstructedType"/> collections (e.g., <c>List&lt;int&gt;</c>),
-    /// substitutes the outer type arguments into the interface's type parameters to resolve
+    /// substitutes the outer type arguments into the abstract type's type parameters to resolve
     /// the concrete element type.</para>
     ///
     /// <para>When multiple <c>IEnumerable&lt;T&gt;</c> implementations exist, returns <c>null</c>
@@ -18409,8 +18409,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// <returns>The inferred element type, or <c>null</c> if inference is not possible.</returns>
     private static IType? TryInferForeachElementType(IType collectionType)
     {
-        // Get the interfaces and type parameters/arguments for substitution.
-        IReadOnlyList<IType> interfaces;
+        // Get the abstract types and type parameters/arguments for substitution.
+        IReadOnlyList<IType> abstracts;
         IReadOnlyList<IType>? typeParams = null;
         IReadOnlyList<IType>? typeArgs = null;
 
@@ -18418,31 +18418,31 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         {
             case ConstructedType ct:
             {
-                // For constructed generic types (e.g., List<int>), get interfaces from
+                // For constructed generic types (e.g., List<int>), get abstracts from
                 // the generic definition and prepare type parameter substitution.
                 var def = ct.GenericDefinition;
-                interfaces = def switch
+                abstracts = def switch
                 {
-                    ClassType c => c.Interfaces,
-                    StructType s => s.Interfaces,
-                    InterfaceType i => i.Interfaces,
+                    ClassType c => c.Abstracts,
+                    StructType s => s.Abstracts,
+                    AbstractType i => i.Abstracts,
                     _ => Array.Empty<IType>(),
                 };
                 typeParams = def switch
                 {
                     ClassType c => c.TypeParameters,
                     StructType s => s.TypeParameters,
-                    InterfaceType i => i.TypeParameters,
+                    AbstractType i => i.TypeParameters,
                     _ => null,
                 };
                 typeArgs = ct.TypeArguments;
                 break;
             }
             case ClassType ct:
-                interfaces = ct.Interfaces;
+                abstracts = ct.Abstracts;
                 break;
             case StructType st:
-                interfaces = st.Interfaces;
+                abstracts = st.Abstracts;
                 break;
             case ArrayType:
                 // Arrays implement IEnumerable<T> — the element type is the array's element type.
@@ -18454,7 +18454,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
         // Find all IEnumerable<TElement> implementations.
         var enumerableElementTypes = new List<IType>();
-        foreach (var iface in interfaces)
+        foreach (var iface in abstracts)
         {
             var extractedElementType = TryExtractIEnumerableElementType(iface, typeParams, typeArgs);
             if (extractedElementType is not null)
@@ -18463,19 +18463,19 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             }
         }
 
-        // Also check base class interfaces for ClassType.
+        // Also check base class abstract types for ClassType.
         if (collectionType is ClassType classType)
         {
             var baseClass = classType.BaseType;
             while (baseClass is not null)
             {
-                var baseInterfaces = baseClass switch
+                var baseAbstracts = baseClass switch
                 {
-                    ClassType bc => bc.Interfaces,
-                    ConstructedType bct when bct.GenericDefinition is ClassType bcc => bcc.Interfaces,
+                    ClassType bc => bc.Abstracts,
+                    ConstructedType bct when bct.GenericDefinition is ClassType bcc => bcc.Abstracts,
                     _ => Array.Empty<IType>() as IReadOnlyList<IType>,
                 };
-                foreach (var iface in baseInterfaces)
+                foreach (var iface in baseAbstracts)
                 {
                     var extractedElementType = TryExtractIEnumerableElementType(iface, null, null);
                     if (extractedElementType is not null)
@@ -18495,13 +18495,13 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             var baseClass = ctBaseDef.BaseType;
             while (baseClass is not null)
             {
-                var baseInterfaces = baseClass switch
+                var baseAbstracts = baseClass switch
                 {
-                    ClassType bc => bc.Interfaces,
-                    ConstructedType bct when bct.GenericDefinition is ClassType bcc => bcc.Interfaces,
+                    ClassType bc => bc.Abstracts,
+                    ConstructedType bct when bct.GenericDefinition is ClassType bcc => bcc.Abstracts,
                     _ => Array.Empty<IType>() as IReadOnlyList<IType>,
                 };
-                foreach (var iface in baseInterfaces)
+                foreach (var iface in baseAbstracts)
                 {
                     var extractedElementType = TryExtractIEnumerableElementType(iface, typeParams, typeArgs);
                     if (extractedElementType is not null)
@@ -18526,9 +18526,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     }
 
     /// <summary>
-    /// Attempts to extract the element type from an interface type that is
+    /// Attempts to extract the element type from an abstract type type that is
     /// <c>Standard.IEnumerable&lt;TElement&gt;</c>. Returns the element type if the
-    /// interface matches, or <c>null</c> otherwise.
+    /// abstract type matches, or <c>null</c> otherwise.
     ///
     /// <para>When <paramref name="typeParams"/> and <paramref name="typeArgs"/> are provided,
     /// substitutes type parameters in the element type with the corresponding type arguments
@@ -18540,11 +18540,11 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         IReadOnlyList<IType>? typeArgs)
     {
         // IEnumerable<TElement> is represented as a ConstructedType wrapping the
-        // Standard.IEnumerable InterfaceType with one type argument.
-        if (ifaceType is not ConstructedType { GenericDefinition: InterfaceType genericIface } constructed)
+        // Standard.IEnumerable AbstractType with one type argument.
+        if (ifaceType is not ConstructedType { GenericDefinition: AbstractType genericIface } constructed)
             return null;
 
-        // Check if this is Standard.IEnumerable (the Mist stdlib interface).
+        // Check if this is Standard.IEnumerable (the Mist stdlib abstract type).
         if (genericIface.DisplayName != "IEnumerable" || genericIface.ContainingNamespace != "Standard")
             return null;
 
@@ -19184,9 +19184,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
     /// <summary>
     /// Resolves an associated type slot name from a type parameter's constraints.
-    /// When a type parameter <c>T</c> is constrained by an interface or trait that declares
+    /// When a type parameter <c>T</c> is constrained by an abstract type or trait that declares
     /// an associated type slot with the given name, returns the <see cref="AssociatedTypeSlotType"/>.
-    /// Returns <c>null</c> if no constraining interface or trait declares a slot with that name.
+    /// Returns <c>null</c> if no constraining abstract type or trait declares a slot with that name.
     /// </summary>
     private static AssociatedTypeSlotType? ResolveAssociatedTypeSlotFromConstraints(
         TypeParameterType typeParam,
@@ -19197,12 +19197,12 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
         var constraints = typeParam.Constraints;
 
-        // Check interface constraints (may be InterfaceType or ConstructedType wrapping InterfaceType).
-        foreach (var ifaceConstraint in constraints.InterfaceConstraints)
+        // Check abstract type constraints (may be AbstractType or ConstructedType wrapping AbstractType).
+        foreach (var ifaceConstraint in constraints.AbstractConstraints)
         {
             var ifaceType = ifaceConstraint is ConstructedType ct
-                ? ct.GenericDefinition as InterfaceType
-                : ifaceConstraint as InterfaceType;
+                ? ct.GenericDefinition as AbstractType
+                : ifaceConstraint as AbstractType;
 
             if (ifaceType is not null)
             {
@@ -19338,7 +19338,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
                 // ── Associated type resolution: T.SlotName in generic contexts ──
                 // When a qualified name like "T.SlotName" is used as a type reference
-                // and the first part is a type parameter constrained by an interface
+                // and the first part is a type parameter constrained by an abstract type
                 // with associated type slots, resolve through the constraint's member scope.
                 var firstDot = typeName.IndexOf('.');
                 if (firstDot > 0 && firstDot < typeName.Length - 1)
@@ -19359,11 +19359,11 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         }
 
                         // The left part is a type parameter but the right part is not
-                        // an associated type slot of any constraining interface/trait.
+                        // an associated type slot of any constraining abstract type/trait.
                         diagnostics.Add(MakeDiagnosticWithLocation(
                             DiagnosticId.UnresolvedAssociatedTypeReference.Value,
                             DiagnosticSeverity.Error,
-                            $"Type parameter '{leftPart}' does not have an associated type '{rightPart}'; '{leftPart}' is not constrained by an interface or trait declaring '{rightPart}'.",
+                            $"Type parameter '{leftPart}' does not have an associated type '{rightPart}'; '{leftPart}' is not constrained by an abstract type or trait declaring '{rightPart}'.",
                             namedRef,
                             sourceText));
                         return ErrorType.Instance;
@@ -19672,7 +19672,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             if (member.Name != simpleName) continue;
             if (member.Kind != SymbolKind.Class
                 && member.Kind != SymbolKind.Struct
-                && member.Kind != SymbolKind.Interface)
+                && member.Kind != SymbolKind.Abstract)
             {
                 continue;
             }
@@ -19710,7 +19710,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         {
             ClassType ct => ct.TypeParameters.Count,
             StructType st => st.TypeParameters.Count,
-            InterfaceType it => it.TypeParameters.Count,
+            AbstractType it => it.TypeParameters.Count,
             _ => 0,
         };
     }
@@ -20187,7 +20187,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // 2. Search current scope → parent scopes (local → file → namespace → global).
         //    When typeArgumentCount >= 0, use arity-aware lookup to disambiguate overloads.
         var symbol = LookupTypeByArity(fileScope, typeName, typeArgumentCount);
-        if (symbol is not null && (symbol.Kind == SymbolKind.Class || symbol.Kind == SymbolKind.Struct || symbol.Kind == SymbolKind.Interface || symbol.Kind == SymbolKind.Trait || symbol.Kind == SymbolKind.TypeAlias || symbol.Kind == SymbolKind.Enum || symbol.Kind == SymbolKind.Newtype))
+        if (symbol is not null && (symbol.Kind == SymbolKind.Class || symbol.Kind == SymbolKind.Struct || symbol.Kind == SymbolKind.Abstract || symbol.Kind == SymbolKind.Trait || symbol.Kind == SymbolKind.TypeAlias || symbol.Kind == SymbolKind.Enum || symbol.Kind == SymbolKind.Newtype))
         {
             // For type aliases that haven't been resolved yet, trigger
             // recursive resolution so that cycle detection via
@@ -20390,7 +20390,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
         foreach (var candidate in candidates)
         {
-            if (candidate.Kind is not (SymbolKind.Class or SymbolKind.Struct or SymbolKind.Interface
+            if (candidate.Kind is not (SymbolKind.Class or SymbolKind.Struct or SymbolKind.Abstract
                 or SymbolKind.Trait or SymbolKind.TypeAlias or SymbolKind.Enum or SymbolKind.Newtype))
                 continue;
 
@@ -20420,7 +20420,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         {
             if (member.Name != typeName)
                 continue;
-            if (member.Kind is not (SymbolKind.Class or SymbolKind.Struct or SymbolKind.Interface
+            if (member.Kind is not (SymbolKind.Class or SymbolKind.Struct or SymbolKind.Abstract
                 or SymbolKind.Trait or SymbolKind.TypeAlias or SymbolKind.Enum or SymbolKind.Newtype))
                 continue;
 
@@ -20456,7 +20456,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         {
             ClassType ct => ct.TypeParameters.Count,
             StructType st => st.TypeParameters.Count,
-            InterfaceType it => it.TypeParameters.Count,
+            AbstractType it => it.TypeParameters.Count,
             TraitType tt => tt.TypeParameters.Count,
             TypeAliasType at => at.TypeParameters.Count,
             _ => 0,
@@ -20632,7 +20632,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         }
 
         // For generic traits, construct a ConstructedTraitType (analogous to
-        // ConstructedType for classes/structs/interfaces).
+        // ConstructedType for classes/structs/abstracts).
         if (resolvedType is TraitType traitType)
         {
             return new ConstructedTraitType(traitType, resolvedTypeArgs);
@@ -20866,8 +20866,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                             return new DependentValueArgument(argName, forwardedParam.ValueType, argName);
                         }
 
-                        // If the symbol is a type (class, struct, interface, etc.), treat as regular type arg.
-                        if (symbol.Kind is SymbolKind.Class or SymbolKind.Struct or SymbolKind.Interface
+                        // If the symbol is a type (class, struct, abstract type, etc.), treat as regular type arg.
+                        if (symbol.Kind is SymbolKind.Class or SymbolKind.Struct or SymbolKind.Abstract
                             or SymbolKind.Trait or SymbolKind.TypeAlias or SymbolKind.Enum)
                         {
                             return null; // Fall through to normal type resolution.
@@ -20904,7 +20904,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                             foreach (var member in nsScope.Members)
                             {
                                 if (member.Name == argName &&
-                                    member.Kind is SymbolKind.Class or SymbolKind.Struct or SymbolKind.Interface
+                                    member.Kind is SymbolKind.Class or SymbolKind.Struct or SymbolKind.Abstract
                                         or SymbolKind.Trait or SymbolKind.TypeAlias or SymbolKind.Enum)
                                 {
                                     return null; // It's a type from an imported namespace.
@@ -20968,7 +20968,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             if (wellKnown is null)
             {
                 var symbol = fileScope.Lookup(argName);
-                if (symbol is null || (symbol.Kind != SymbolKind.Class && symbol.Kind != SymbolKind.Struct && symbol.Kind != SymbolKind.Interface && symbol.Kind != SymbolKind.Trait && symbol.Kind != SymbolKind.TypeAlias && symbol.Kind != SymbolKind.Enum))
+                if (symbol is null || (symbol.Kind != SymbolKind.Class && symbol.Kind != SymbolKind.Struct && symbol.Kind != SymbolKind.Abstract && symbol.Kind != SymbolKind.Trait && symbol.Kind != SymbolKind.TypeAlias && symbol.Kind != SymbolKind.Enum))
                 {
                     // Check user-defined namespace scopes first.
                     var importedNamespaces = CollectImportedNamespaces(fileScope);
@@ -20986,7 +20986,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                             foreach (var member in nsScope.Members)
                             {
                                 if (member.Name == argName &&
-                                    (member.Kind == SymbolKind.Class || member.Kind == SymbolKind.Struct || member.Kind == SymbolKind.Interface || member.Kind == SymbolKind.Trait || member.Kind == SymbolKind.TypeAlias || member.Kind == SymbolKind.Enum))
+                                    (member.Kind == SymbolKind.Class || member.Kind == SymbolKind.Struct || member.Kind == SymbolKind.Abstract || member.Kind == SymbolKind.Trait || member.Kind == SymbolKind.TypeAlias || member.Kind == SymbolKind.Enum))
                                 {
                                     userResolved = true;
                                     break;
@@ -21073,7 +21073,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             {
                 hasTypeParams = true;
             }
-            else if (member.Kind == SymbolKind.Class || member.Kind == SymbolKind.Struct || member.Kind == SymbolKind.Interface || member.Kind == SymbolKind.Enum)
+            else if (member.Kind == SymbolKind.Class || member.Kind == SymbolKind.Struct || member.Kind == SymbolKind.Abstract || member.Kind == SymbolKind.Enum)
             {
                 hasNestedTypes = true;
             }
@@ -21100,7 +21100,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             {
                 scope.AddMember(member);
             }
-            else if (member.Kind == SymbolKind.Class || member.Kind == SymbolKind.Struct || member.Kind == SymbolKind.Interface || member.Kind == SymbolKind.Enum)
+            else if (member.Kind == SymbolKind.Class || member.Kind == SymbolKind.Struct || member.Kind == SymbolKind.Abstract || member.Kind == SymbolKind.Enum)
             {
                 scope.AddMember(member);
             }
@@ -21153,13 +21153,13 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     {
         // Check if already registered in the scope.
         var existing = fileScope.Lookup(typeName);
-        if (existing is not null && (existing.Kind == SymbolKind.Class || existing.Kind == SymbolKind.Struct || existing.Kind == SymbolKind.Interface || existing.Kind == SymbolKind.Trait))
+        if (existing is not null && (existing.Kind == SymbolKind.Class || existing.Kind == SymbolKind.Struct || existing.Kind == SymbolKind.Abstract || existing.Kind == SymbolKind.Trait))
         {
             return; // Already registered.
         }
 
         // Create a type symbol with SymbolOrigin.Backend.
-        var kind = type is ClassType ? SymbolKind.Class : type is InterfaceType ? SymbolKind.Interface : type is TraitType ? SymbolKind.Trait : SymbolKind.Struct;
+        var kind = type is ClassType ? SymbolKind.Class : type is AbstractType ? SymbolKind.Abstract : type is TraitType ? SymbolKind.Trait : SymbolKind.Struct;
         var typeSymbol = new Symbol(typeName, kind, SymbolOrigin.Backend, fileScope, type, declarationSpan: null);
         fileScope.AddMember(typeSymbol);
 
@@ -22691,9 +22691,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 propertyType = member.DeclaredType;
             }
         }
-        else if (patternType is InterfaceType interfaceType)
+        else if (patternType is AbstractType abstractType)
         {
-            var member = interfaceType.MemberScope.Lookup(propertyName);
+            var member = abstractType.MemberScope.Lookup(propertyName);
             if (member is not null && member.DeclaredType is not null)
             {
                 propertyType = member.DeclaredType;
@@ -23355,7 +23355,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         var ambientLookupType = targetType is ConstructedType ambCt
                             ? ambCt.GenericDefinition
                             : targetType;
-                        if (ambientLookupType is ClassType or StructType or InterfaceType)
+                        if (ambientLookupType is ClassType or StructType or AbstractType)
                         {
                             var ambientMembers = ambientTypeResolver.GetMembers(ambientLookupType);
                             var argCount = methodCall.Arguments.GetAllExpressions().Length;
@@ -23621,7 +23621,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 {
                     ClassType ct2 => ct2.MemberScope,
                     StructType st2 => st2.MemberScope,
-                    InterfaceType it2 => it2.MemberScope,
+                    abstractType it2 => it2.MemberScope,
                     _ => null,
                 };
 
@@ -24800,7 +24800,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
         // Check scope chain for type symbols (local → file → namespace → global).
         var symbol = fileScope.Lookup(name);
-        if (symbol is not null && (symbol.Kind == SymbolKind.Class || symbol.Kind == SymbolKind.Struct || symbol.Kind == SymbolKind.Interface || symbol.Kind == SymbolKind.Trait || symbol.Kind == SymbolKind.TypeAlias || symbol.Kind == SymbolKind.Enum))
+        if (symbol is not null && (symbol.Kind == SymbolKind.Class || symbol.Kind == SymbolKind.Struct || symbol.Kind == SymbolKind.Abstract || symbol.Kind == SymbolKind.Trait || symbol.Kind == SymbolKind.TypeAlias || symbol.Kind == SymbolKind.Enum))
         {
             return symbol.DeclaredType;
         }
@@ -24821,7 +24821,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 foreach (var member in nsScope.Members)
                 {
                     if (member.Name == name &&
-                        (member.Kind == SymbolKind.Class || member.Kind == SymbolKind.Struct || member.Kind == SymbolKind.Interface || member.Kind == SymbolKind.Trait || member.Kind == SymbolKind.TypeAlias || member.Kind == SymbolKind.Enum))
+                        (member.Kind == SymbolKind.Class || member.Kind == SymbolKind.Struct || member.Kind == SymbolKind.Abstract || member.Kind == SymbolKind.Trait || member.Kind == SymbolKind.TypeAlias || member.Kind == SymbolKind.Enum))
                     {
                         return member.DeclaredType;
                     }
@@ -24928,21 +24928,21 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
         // ── Constrained type parameter member access (Requirements 6.1–6.4, 6.7) ──
         // When the receiver is a TypeParameterType with constraints, look up the
-        // member in the constraint types (interfaces, traits, base class).
+        // member in the constraint types (abstract types, traits, base class).
         if (targetType is TypeParameterType typeParam && typeParam.Constraints is not null)
         {
             var constraints = typeParam.Constraints;
 
-            // Check interface constraints.
-            foreach (var ifaceConstraint in constraints.InterfaceConstraints)
+            // Check abstract type constraints.
+            foreach (var ifaceConstraint in constraints.AbstractConstraints)
             {
-                if (ifaceConstraint is InterfaceType iface)
+                if (ifaceConstraint is AbstractType iface)
                 {
                     var member = iface.MemberScope.Lookup(memberName);
                     if (member is not null)
                         return member.DeclaredType ?? ErrorType.Instance;
 
-                    // Also check inherited interfaces transitively.
+                    // Also check inherited abstract types transitively.
                     var inherited = LookupInheritedInterfaceMember(iface, memberName);
                     if (inherited is not null)
                         return inherited;
@@ -24982,7 +24982,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
         // ── Associated type slot member access (Requirements 5.1–5.3) ──
         // When the receiver is an AssociatedTypeSlotType, look up the member
-        // in the slot's constraint types (interfaces, traits, base class).
+        // in the slot's constraint types (abstract types, traits, base class).
         // This allows method calls and member access on values whose type is
         // an associated type reference (e.g., T.Enumerator).
         if (targetType is AssociatedTypeSlotType slotTarget)
@@ -24990,12 +24990,12 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             var slotConstraints = slotTarget.Constraints;
             if (slotConstraints is not null)
             {
-                // Check interface constraints.
-                foreach (var ifaceConstraint in slotConstraints.InterfaceConstraints)
+                // Check abstract type constraints.
+                foreach (var ifaceConstraint in slotConstraints.AbstractConstraints)
                 {
                     var ifaceType = ifaceConstraint is ConstructedType ctIface
-                        ? ctIface.GenericDefinition as InterfaceType
-                        : ifaceConstraint as InterfaceType;
+                        ? ctIface.GenericDefinition as AbstractType
+                        : ifaceConstraint as AbstractType;
 
                     if (ifaceType is not null)
                     {
@@ -25003,7 +25003,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         if (member is not null)
                             return member.DeclaredType ?? ErrorType.Instance;
 
-                        // Also check inherited interfaces transitively.
+                        // Also check inherited abstract types transitively.
                         var inherited = LookupInheritedInterfaceMember(ifaceType, memberName);
                         if (inherited is not null)
                             return inherited;
@@ -25080,7 +25080,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             {
                 ClassType ct2 => ct2.TypeParameters,
                 StructType st2 => st2.TypeParameters,
-                InterfaceType it2 => it2.TypeParameters,
+                abstractType it2 => it2.TypeParameters,
                 _ => null,
             };
             constructedTypeArgs = constructedTarget.TypeArguments;
@@ -25102,7 +25102,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         {
             ClassType ct => ct.MemberScope,
             StructType st => st.MemberScope,
-            InterfaceType it => it.MemberScope,
+            AbstractType it => it.MemberScope,
             TraitType tt => tt.MemberScope,
             NewtypeType nt => nt.MemberScope,
             ArrayType => null, // Arrays use special handling.
@@ -25356,10 +25356,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 return SubstituteMemberTypeIfNeeded(memberType, constructedTypeParams, constructedTypeArgs);
             }
 
-            // For interface types, walk inherited interfaces transitively.
-            if (targetType is InterfaceType interfaceTarget)
+            // For abstract types, walk inherited abstract types transitively.
+            if (targetType is AbstractType abstractTarget)
             {
-                var result = LookupInheritedInterfaceMember(interfaceTarget, memberName);
+                var result = LookupInheritedInterfaceMember(abstractTarget, memberName);
                 if (result is not null)
                 {
                     return SubstituteMemberTypeIfNeeded(result, constructedTypeParams, constructedTypeArgs);
@@ -25372,8 +25372,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // for applicable extension members matching the name.
         // Task 7.6: Do NOT fall back to extension lookup when the receiver type
         // is a trait. Extensions are orthogonal to traits and should not be
-        // discoverable on trait-typed variables. Interface-typed receivers ARE
-        // allowed because .NET extension methods targeting interfaces (e.g.,
+        // discoverable on trait-typed variables. Abstract-type receivers ARE
+        // allowed because .NET extension methods targeting abstracts (e.g.,
         // LINQ on IEnumerable, DI on IServiceCollection) are the primary API
         // consumption pattern and must resolve as instance calls.
         // Task 7.2: Collect ALL candidates and apply specificity ordering.
@@ -25456,8 +25456,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             if (candidates.Count > 1)
             {
                 // Deduplicate candidates that originate from structurally identical
-                // receiver types (e.g., the same interface projected from multiple
-                // assemblies creating separate InterfaceType instances).
+                // receiver types (e.g., the same abstract type projected from multiple
+                // assemblies creating separate AbstractType instances).
                 var deduplicated = new List<(IType ReceiverType, IType MemberType)> { candidates[0] };
                 for (var i = 1; i < candidates.Count; i++)
                 {
@@ -25697,7 +25697,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// <summary>
     /// Determines whether <paramref name="source"/> is assignable to <paramref name="target"/>
     /// for the purposes of extension receiver specificity comparison.
-    /// A type is assignable to another if it is a subtype (via base type chain or interface implementation).
+    /// A type is assignable to another if it is a subtype (via base type chain or abstract type implementation).
     /// </summary>
     private static bool IsReceiverAssignableTo(IType source, IType target)
     {
@@ -25725,18 +25725,18 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 current = (current as ClassType)?.BaseType;
             }
 
-            // Check interface implementations.
-            foreach (var iface in sourceClass.Interfaces)
+            // Check abstract type implementations.
+            foreach (var iface in sourceClass.Abstracts)
             {
                 if (ReferenceEquals(iface, target))
                     return true;
             }
         }
 
-        // Check struct interface implementations.
+        // Check struct abstract type implementations.
         if (source is StructType sourceStruct)
         {
-            foreach (var iface in sourceStruct.Interfaces)
+            foreach (var iface in sourceStruct.Abstracts)
             {
                 if (ReferenceEquals(iface, target))
                     return true;
@@ -25772,24 +25772,24 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// <summary>
     /// Determines whether two receiver types are structurally equivalent.
     /// Used to deduplicate extension candidates that originate from the same logical
-    /// interface projected as separate InterfaceType instances (e.g., from multiple assemblies).
+    /// abstract type projected as separate AbstractType instances (e.g., from multiple assemblies).
     /// </summary>
     private static bool AreStructurallyEquivalentReceivers(IType r1, IType r2)
     {
         if (ReferenceEquals(r1, r2))
             return true;
 
-        // Both plain InterfaceType: compare by name + namespace.
-        if (r1 is InterfaceType i1 && r2 is InterfaceType i2)
+        // Both plain abstractType: compare by name + namespace.
+        if (r1 is AbstractType i1 && r2 is AbstractType i2)
         {
             return i1.DisplayName == i2.DisplayName
                 && i1.ContainingNamespace == i2.ContainingNamespace;
         }
 
-        // Both ConstructedType with interface generic definitions.
+        // Both ConstructedType with abstract type generic definitions.
         if (r1 is ConstructedType ct1 && r2 is ConstructedType ct2)
         {
-            if (ct1.GenericDefinition is InterfaceType gi1 && ct2.GenericDefinition is InterfaceType gi2)
+            if (ct1.GenericDefinition is AbstractType gi1 && ct2.GenericDefinition is AbstractType gi2)
             {
                 return gi1.DisplayName == gi2.DisplayName
                     && gi1.ContainingNamespace == gi2.ContainingNamespace
@@ -25917,10 +25917,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
             // Special case: ArrayType implements IEnumerable<T>, ICollection<T>, IList<T>,
             // IReadOnlyCollection<T>, IReadOnlyList<T>. When the pattern is one of these
-            // interfaces with a single type argument, unify that argument with the array's
+            // abstracts with a single type argument, unify that argument with the array's
             // element type.
             if (actual is ArrayType actualArray &&
-                patternConstructed.GenericDefinition is InterfaceType patternIface &&
+                patternConstructed.GenericDefinition is AbstractType patternIface &&
                 patternConstructed.TypeArguments.Count == 1 &&
                 IsArrayCompatibleInterface(patternIface))
             {
@@ -25931,7 +25931,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             return false;
         }
 
-        // Case 3: The pattern is a plain type (ClassType, StructType, InterfaceType, etc.)
+        // Case 3: The pattern is a plain type (ClassType, StructType, abstractType, etc.)
         // with type parameters on it (it's a generic definition used as the receiver pattern).
         // For example, extension<T>(List<T> self) where the receiver type resolves to the
         // generic definition ClassType "List" with TypeParameters [T].
@@ -25965,13 +25965,13 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             return false;
         }
 
-        if (pattern is InterfaceType patternInterface && patternInterface.TypeParameters.Count > 0)
+        if (pattern is AbstractType patternAbstract && patternAbstract.TypeParameters.Count > 0)
         {
-            if (actual is ConstructedType actualCt && ReferenceEquals(actualCt.GenericDefinition, patternInterface))
+            if (actual is ConstructedType actualCt && ReferenceEquals(actualCt.GenericDefinition, patternAbstract))
             {
-                for (var i = 0; i < patternInterface.TypeParameters.Count && i < actualCt.TypeArguments.Count; i++)
+                for (var i = 0; i < patternAbstract.TypeParameters.Count && i < actualCt.TypeArguments.Count; i++)
                 {
-                    if (!UnifyTypes(patternInterface.TypeParameters[i], actualCt.TypeArguments[i], typeParameters, bindings))
+                    if (!UnifyTypes(patternAbstract.TypeParameters[i], actualCt.TypeArguments[i], typeParameters, bindings))
                         return false;
                 }
                 return true;
@@ -25988,9 +25988,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// IEnumerable, ICollection, IList, IReadOnlyCollection, IReadOnlyList.
     /// These all have a single type parameter corresponding to the array's element type.
     /// </summary>
-    private static bool IsArrayCompatibleInterface(InterfaceType iface)
+    private static bool IsArrayCompatibleInterface(AbstractType iface)
     {
-        // Arrays implement these generic interfaces from System.Collections.Generic:
+        // Arrays implement these generic abstract types from System.Collections.Generic:
         // IEnumerable<T>, ICollection<T>, IList<T>, IReadOnlyCollection<T>, IReadOnlyList<T>
         var name = iface.DisplayName;
         return name is "IEnumerable" or "ICollection" or "IList"
@@ -26129,27 +26129,27 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     }
 
     /// <summary>
-    /// Walks the inherited interfaces of an <see cref="InterfaceType"/> transitively
+    /// Walks the inherited abstract types of an <see cref="AbstractType"/> transitively
     /// to find a member by name. Uses a visited set to handle diamond inheritance
     /// and prevent infinite loops.
     /// </summary>
     /// <returns>The member's declared type if found; <c>null</c> otherwise.</returns>
     private static IType? LookupInheritedInterfaceMember(
-        InterfaceType interfaceType,
+        AbstractType abstractType,
         string memberName)
     {
-        var visited = new HashSet<InterfaceType>(ReferenceEqualityComparer.Instance);
-        return LookupInheritedInterfaceMemberCore(interfaceType.Interfaces, memberName, visited);
+        var visited = new HashSet<AbstractType>(ReferenceEqualityComparer.Instance);
+        return LookupInheritedInterfaceMemberCore(abstractType.Abstracts, memberName, visited);
     }
 
     private static IType? LookupInheritedInterfaceMemberCore(
-        IReadOnlyList<IType> interfaces,
+        IReadOnlyList<IType> abstracts,
         string memberName,
-        HashSet<InterfaceType> visited)
+        HashSet<AbstractType> visited)
     {
-        foreach (var ifaceType in interfaces)
+        foreach (var ifaceType in abstracts)
         {
-            if (ifaceType is not InterfaceType iface)
+            if (ifaceType is not AbstractType iface)
                 continue;
 
             if (!visited.Add(iface))
@@ -26161,7 +26161,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 return member.DeclaredType ?? ErrorType.Instance;
             }
 
-            var inherited = LookupInheritedInterfaceMemberCore(iface.Interfaces, memberName, visited);
+            var inherited = LookupInheritedInterfaceMemberCore(iface.Abstracts, memberName, visited);
             if (inherited is not null)
             {
                 return inherited;
@@ -26172,26 +26172,26 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     }
 
     /// <summary>
-    /// Looks up a member symbol by name in an interface's inherited interfaces transitively.
+    /// Looks up a member symbol by name in an abstract type's inherited abstract types transitively.
     /// Returns the <see cref="ISymbol"/> if found; <c>null</c> otherwise.
     /// Used for constrained type parameter member lookup in <see cref="LookupMemberSymbol"/>.
     /// </summary>
     private static ISymbol? LookupInheritedInterfaceMemberSymbol(
-        InterfaceType interfaceType,
+        AbstractType abstractType,
         string memberName)
     {
-        var visited = new HashSet<InterfaceType>(ReferenceEqualityComparer.Instance);
-        return LookupInheritedInterfaceMemberSymbolCore(interfaceType.Interfaces, memberName, visited);
+        var visited = new HashSet<AbstractType>(ReferenceEqualityComparer.Instance);
+        return LookupInheritedInterfaceMemberSymbolCore(abstractType.Abstracts, memberName, visited);
     }
 
     private static ISymbol? LookupInheritedInterfaceMemberSymbolCore(
-        IReadOnlyList<IType> interfaces,
+        IReadOnlyList<IType> abstracts,
         string memberName,
-        HashSet<InterfaceType> visited)
+        HashSet<AbstractType> visited)
     {
-        foreach (var ifaceType in interfaces)
+        foreach (var ifaceType in abstracts)
         {
-            if (ifaceType is not InterfaceType iface)
+            if (ifaceType is not AbstractType iface)
                 continue;
 
             if (!visited.Add(iface))
@@ -26201,7 +26201,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             if (member is not null)
                 return member;
 
-            var inherited = LookupInheritedInterfaceMemberSymbolCore(iface.Interfaces, memberName, visited);
+            var inherited = LookupInheritedInterfaceMemberSymbolCore(iface.Abstracts, memberName, visited);
             if (inherited is not null)
                 return inherited;
         }
@@ -26231,21 +26231,21 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
         // ── Constrained type parameter member access (Requirements 6.1–6.4, 6.7) ──
         // When the receiver is a TypeParameterType with constraints, look up the
-        // member in the constraint types (interfaces, traits, base class).
+        // member in the constraint types (abstract types, traits, base class).
         if (targetType is TypeParameterType typeParam && typeParam.Constraints is not null)
         {
             var constraints = typeParam.Constraints;
 
-            // Check interface constraints.
-            foreach (var ifaceConstraint in constraints.InterfaceConstraints)
+            // Check abstract type constraints.
+            foreach (var ifaceConstraint in constraints.AbstractConstraints)
             {
-                if (ifaceConstraint is InterfaceType iface)
+                if (ifaceConstraint is AbstractType iface)
                 {
                     var member = iface.MemberScope.Lookup(memberName);
                     if (member is not null)
                         return member;
 
-                    // Also check inherited interfaces transitively.
+                    // Also check inherited abstract types transitively.
                     var inherited = LookupInheritedInterfaceMemberSymbol(iface, memberName);
                     if (inherited is not null)
                         return inherited;
@@ -26290,12 +26290,12 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             var slotConstraints = slotTarget.Constraints;
             if (slotConstraints is not null)
             {
-                // Check interface constraints.
-                foreach (var ifaceConstraint in slotConstraints.InterfaceConstraints)
+                // Check abstract type constraints.
+                foreach (var ifaceConstraint in slotConstraints.AbstractConstraints)
                 {
                     var ifaceType = ifaceConstraint is ConstructedType ctIface
-                        ? ctIface.GenericDefinition as InterfaceType
-                        : ifaceConstraint as InterfaceType;
+                        ? ctIface.GenericDefinition as AbstractType
+                        : ifaceConstraint as AbstractType;
 
                     if (ifaceType is not null)
                     {
@@ -26352,7 +26352,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         {
             ClassType classType => classType.MemberScope,
             StructType structType => structType.MemberScope,
-            InterfaceType interfaceType => interfaceType.MemberScope,
+            AbstractType abstractType => abstractType.MemberScope,
             _ => null,
         };
 
@@ -26404,7 +26404,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         {
             ClassType classType => classType.MemberScope,
             StructType structType => structType.MemberScope,
-            InterfaceType interfaceType => interfaceType.MemberScope,
+            AbstractType abstractType => abstractType.MemberScope,
             _ => null,
         };
 
@@ -27547,10 +27547,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 {
                     classType.Defaultability = DefaultabilityStatus.NotDefaultable;
 
-                    // Only emit the diagnostic for interface/trait fields that need
+                    // Only emit the diagnostic for abstract type/trait fields that need
                     // a type binding. Other non-defaultable field types (type parameters,
                     // void, etc.) silently make the type not-defaultable.
-                    if (field.DeclaredType is InterfaceType or TraitType)
+                    if (field.DeclaredType is AbstractType or TraitType)
                     {
                         diagnostics.Add(new Diagnostic(
                             DiagnosticId.DefaultRequiresTypeBinding,
@@ -27622,10 +27622,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 {
                     structType.Defaultability = DefaultabilityStatus.NotDefaultable;
 
-                    // Only emit the diagnostic for interface/trait fields that need
+                    // Only emit the diagnostic for abstract type/trait fields that need
                     // a type binding. Other non-defaultable field types (type parameters,
                     // void, etc.) silently make the type not-defaultable.
-                    if (field.DeclaredType is InterfaceType or TraitType)
+                    if (field.DeclaredType is AbstractType or TraitType)
                     {
                         diagnostics.Add(new Diagnostic(
                             DiagnosticId.DefaultRequiresTypeBinding,
@@ -27653,7 +27653,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// Computes stampability for all struct types in the symbol table.
     /// A struct is stampable if and only if every instance field's declared type
     /// is transitively a primitive type or another stampable struct. Classes,
-    /// interfaces, traits, unions, arrays, and type-parameter-typed fields make
+    /// abstracts, traits, unions, arrays, and type-parameter-typed fields make
     /// a struct non-stampable. Cycles are handled via a visited set (conservative
     /// false). Invoked after field types are resolved (same timing as
     /// <see cref="ComputeDefaultability"/>).
@@ -27734,11 +27734,11 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     return false;
 
                 case ClassType:
-                case InterfaceType:
+                case AbstractType:
                 case TraitType:
                 case UnionType:
                 case ArrayType:
-                    // Reference types, interfaces, traits, unions, and arrays are
+                    // Reference types, abstracts, traits, unions, and arrays are
                     // not stampable (Req 3.2, 3.3).
                     return false;
 
@@ -28253,7 +28253,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         {
             foreach (var member in current.Members)
             {
-                if (member.Kind is SymbolKind.Class or SymbolKind.Struct or SymbolKind.Interface or SymbolKind.Trait
+                if (member.Kind is SymbolKind.Class or SymbolKind.Struct or SymbolKind.Abstract or SymbolKind.Trait
                     && member.Name == typeName
                     && member.DeclaredType is not null)
                 {

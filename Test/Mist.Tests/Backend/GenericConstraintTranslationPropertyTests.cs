@@ -231,12 +231,12 @@ public sealed class GenericConstraintTranslationPropertyTests
                 Assert.NotNull(projectedParam.Constraints);
                 Assert.Equal(
                     clrInterfaceConstraints.Length,
-                    projectedParam.Constraints!.InterfaceConstraints.Count);
+                    projectedParam.Constraints!.AbstractConstraints.Count);
 
                 // Each CLR interface constraint should have a corresponding projected Mist type
                 for (var i = 0; i < clrInterfaceConstraints.Length; i++)
                 {
-                    var projectedConstraint = projectedParam.Constraints.InterfaceConstraints[i];
+                    var projectedConstraint = projectedParam.Constraints.AbstractConstraints[i];
                     Assert.NotNull(projectedConstraint);
                     // The projected constraint should be an interface type or constructed type
                     Assert.True(
@@ -251,7 +251,7 @@ public sealed class GenericConstraintTranslationPropertyTests
                 // No interface constraints on CLR side
                 if (projectedParam.Constraints is not null)
                 {
-                    Assert.Empty(projectedParam.Constraints.InterfaceConstraints);
+                    Assert.Empty(projectedParam.Constraints.AbstractConstraints);
                 }
             }
         });

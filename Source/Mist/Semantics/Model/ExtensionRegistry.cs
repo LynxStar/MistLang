@@ -235,7 +235,7 @@ public sealed class ExtensionRegistry
             return true;
         if (extensionReceiverType is StructType s && s.TypeParameters.Count > 0)
             return true;
-        if (extensionReceiverType is InterfaceType i && i.TypeParameters.Count > 0)
+        if (extensionReceiverType is AbstractType i && i.TypeParameters.Count > 0)
             return true;
 
         // If the extension receiver is a ConstructedType containing type parameters
@@ -243,12 +243,12 @@ public sealed class ExtensionRegistry
         // type could potentially satisfy the pattern.
         if (extensionReceiverType is ConstructedType ctReceiver && ContainsTypeParameter(ctReceiver))
         {
-            // For ArrayType values, only interfaces that arrays implement are applicable.
+            // For ArrayType values, only abstract types that arrays implement are applicable.
             if (valueType is ArrayType)
             {
-                return ctReceiver.GenericDefinition is InterfaceType ifaceGenDef
+                return ctReceiver.GenericDefinition is AbstractType abstractGenDef
                     && ctReceiver.TypeArguments.Count == 1
-                    && IsArrayCompatibleInterface(ifaceGenDef);
+                    && IsArrayCompatibleAbstract(abstractGenDef);
             }
 
             // For ConstructedType values, check if the generic definitions match.
@@ -286,32 +286,32 @@ public sealed class ExtensionRegistry
                 return true;
         }
 
-        // Check interface implementations (structural matching).
+        // Check abstract type implementations (structural matching).
         if (valueType is ClassType ct)
         {
-            if (ImplementsInterfaceStructural(ct.Interfaces, extensionReceiverType))
+            if (ImplementsAbstractStructural(ct.Abstracts, extensionReceiverType))
                 return true;
         }
 
-        // Check interface implementations for struct types.
+        // Check abstract type implementations for struct types.
         if (valueType is StructType st)
         {
-            if (ImplementsInterfaceStructural(st.Interfaces, extensionReceiverType))
+            if (ImplementsAbstractStructural(st.Abstracts, extensionReceiverType))
                 return true;
         }
 
-        // Check interface-typed receivers: when the value IS an interface type,
+        // Check abstract-typed receivers: when the value IS an abstract type,
         // check if it structurally matches the extension receiver or inherits from it.
-        // This enables .NET extension methods targeting interfaces (e.g., LINQ on
-        // IEnumerable, DI on IServiceCollection) to resolve on interface-typed variables.
-        if (valueType is InterfaceType valueIface)
+        // This enables .NET extension methods targeting abstract types (e.g., LINQ on
+        // IEnumerable, DI on IServiceCollection) to resolve on abstract-typed variables.
+        if (valueType is AbstractType valueAbstract)
         {
-            if (InterfaceMatches(valueIface, extensionReceiverType))
+            if (AbstractMatches(valueAbstract, extensionReceiverType))
                 return true;
 
-            // Check inherited interfaces of the value interface.
-            if (valueIface.Interfaces.Count > 0
-                && ImplementsInterfaceStructural(valueIface.Interfaces, extensionReceiverType))
+            // Check inherited abstract types of the value abstract type.
+            if (valueAbstract.Abstracts.Count > 0
+                && ImplementsAbstractStructural(valueAbstract.Abstracts, extensionReceiverType))
                 return true;
         }
 
@@ -337,33 +337,33 @@ public sealed class ExtensionRegistry
 
     /// <summary>
     /// Recursively checks whether the given extension receiver type is implemented by any
-    /// interface in the provided list (or in any interface's own inherited interfaces).
-    /// Uses structural matching (DisplayName + ContainingNamespace for InterfaceType,
-    /// GenericDefinition + TypeArguments for ConstructedType wrapping an interface).
+    /// abstract type in the provided list (or in any abstract type's own inherited abstract types).
+    /// Uses structural matching (DisplayName + ContainingNamespace for AbstractType,
+    /// GenericDefinition + TypeArguments for ConstructedType wrapping an abstract type).
     /// </summary>
-    private static bool ImplementsInterfaceStructural(
-        IReadOnlyList<IType> interfaces,
+    private static bool ImplementsAbstractStructural(
+        IReadOnlyList<IType> abstracts,
         IType extensionReceiverType,
         HashSet<IType>? visited = null)
     {
-        foreach (var iface in interfaces)
+        foreach (var abs in abstracts)
         {
-            if (InterfaceMatches(iface, extensionReceiverType))
+            if (AbstractMatches(abs, extensionReceiverType))
                 return true;
 
-            // Recursively check inherited interfaces.
+            // Recursively check inherited abstract types.
             visited ??= new HashSet<IType>(ReferenceEqualityComparer.Instance);
-            if (!visited.Add(iface))
+            if (!visited.Add(abs))
                 continue;
 
-            var inheritedInterfaces = iface switch
+            var inheritedAbstracts = abs switch
             {
-                InterfaceType it => it.Interfaces,
-                ConstructedType ct when ct.GenericDefinition is InterfaceType itDef => itDef.Interfaces,
+                AbstractType it => it.Abstracts,
+                ConstructedType ct when ct.GenericDefinition is AbstractType itDef => itDef.Abstracts,
                 _ => null
             };
 
-            if (inheritedInterfaces is not null && ImplementsInterfaceStructural(inheritedInterfaces, extensionReceiverType, visited))
+            if (inheritedAbstracts is not null && ImplementsAbstractStructural(inheritedAbstracts, extensionReceiverType, visited))
                 return true;
         }
 
@@ -371,38 +371,38 @@ public sealed class ExtensionRegistry
     }
 
     /// <summary>
-    /// Determines whether two interface type references represent the same interface.
-    /// Handles InterfaceType (by DisplayName + ContainingNamespace) and ConstructedType
-    /// wrapping an interface (by GenericDefinition identity + TypeArguments structural equality).
+    /// Determines whether two abstract type references represent the same abstract type.
+    /// Handles AbstractType (by DisplayName + ContainingNamespace) and ConstructedType
+    /// wrapping an abstract type (by GenericDefinition identity + TypeArguments structural equality).
     /// </summary>
-    private static bool InterfaceMatches(IType iface, IType target)
+    private static bool AbstractMatches(IType abs, IType target)
     {
-        if (ReferenceEquals(iface, target))
+        if (ReferenceEquals(abs, target))
             return true;
 
-        // Both are plain InterfaceType: compare by name + namespace.
-        if (iface is InterfaceType ifaceIt && target is InterfaceType targetIt)
+        // Both are plain AbstractType: compare by name + namespace.
+        if (abs is AbstractType absIt && target is AbstractType targetIt)
         {
-            return ifaceIt.DisplayName == targetIt.DisplayName
-                && ifaceIt.ContainingNamespace == targetIt.ContainingNamespace;
+            return absIt.DisplayName == targetIt.DisplayName
+                && absIt.ContainingNamespace == targetIt.ContainingNamespace;
         }
 
-        // Both are ConstructedType wrapping an interface: compare generic definition + type args.
-        if (iface is ConstructedType ifaceCt && target is ConstructedType targetCt)
+        // Both are ConstructedType wrapping an abstract type: compare generic definition + type args.
+        if (abs is ConstructedType absCt && target is ConstructedType targetCt)
         {
-            if (ifaceCt.GenericDefinition is InterfaceType && targetCt.GenericDefinition is InterfaceType)
+            if (absCt.GenericDefinition is AbstractType && targetCt.GenericDefinition is AbstractType)
             {
-                if (ifaceCt.DisplayName == targetCt.DisplayName)
+                if (absCt.DisplayName == targetCt.DisplayName)
                     return true;
 
                 // Same generic definition + same type arguments.
-                if (InterfaceMatches(ifaceCt.GenericDefinition, targetCt.GenericDefinition)
-                    && ifaceCt.TypeArguments.Count == targetCt.TypeArguments.Count)
+                if (AbstractMatches(absCt.GenericDefinition, targetCt.GenericDefinition)
+                    && absCt.TypeArguments.Count == targetCt.TypeArguments.Count)
                 {
-                    for (var i = 0; i < ifaceCt.TypeArguments.Count; i++)
+                    for (var i = 0; i < absCt.TypeArguments.Count; i++)
                     {
-                        if (!ReferenceEquals(ifaceCt.TypeArguments[i], targetCt.TypeArguments[i])
-                            && ifaceCt.TypeArguments[i].DisplayName != targetCt.TypeArguments[i].DisplayName)
+                        if (!ReferenceEquals(absCt.TypeArguments[i], targetCt.TypeArguments[i])
+                            && absCt.TypeArguments[i].DisplayName != targetCt.TypeArguments[i].DisplayName)
                             return false;
                     }
                     return true;
@@ -410,32 +410,32 @@ public sealed class ExtensionRegistry
             }
         }
 
-        // iface is InterfaceType, target is ConstructedType with that interface as generic def (or vice versa).
-        // This handles the case where the extension is registered on a non-generic interface
+        // abs is AbstractType, target is ConstructedType with that abstract type as generic def (or vice versa).
+        // This handles the case where the extension is registered on a non-generic abstract type
         // but the implementation list has it wrapped in a constructed type, or vice versa.
-        if (iface is InterfaceType plainIface && target is ConstructedType targetCtForPlain)
+        if (abs is AbstractType plainAbs && target is ConstructedType targetCtForPlain)
         {
-            if (targetCtForPlain.GenericDefinition is InterfaceType targetGenDef)
-                return plainIface.DisplayName == targetGenDef.DisplayName
-                    && plainIface.ContainingNamespace == targetGenDef.ContainingNamespace;
+            if (targetCtForPlain.GenericDefinition is AbstractType targetGenDef)
+                return plainAbs.DisplayName == targetGenDef.DisplayName
+                    && plainAbs.ContainingNamespace == targetGenDef.ContainingNamespace;
         }
-        if (iface is ConstructedType ifaceCtForPlain && target is InterfaceType plainTarget)
+        if (abs is ConstructedType absCtForPlain && target is AbstractType plainTarget)
         {
-            if (ifaceCtForPlain.GenericDefinition is InterfaceType ifaceGenDef)
-                return ifaceGenDef.DisplayName == plainTarget.DisplayName
-                    && ifaceGenDef.ContainingNamespace == plainTarget.ContainingNamespace;
+            if (absCtForPlain.GenericDefinition is AbstractType absGenDef)
+                return absGenDef.DisplayName == plainTarget.DisplayName
+                    && absGenDef.ContainingNamespace == plainTarget.ContainingNamespace;
         }
 
         return false;
     }
 
     /// <summary>
-    /// Returns true if the given interface type is one that .NET arrays implement:
+    /// Returns true if the given abstract type is one that .NET arrays implement:
     /// IEnumerable, ICollection, IList, IReadOnlyCollection, IReadOnlyList.
     /// </summary>
-    private static bool IsArrayCompatibleInterface(InterfaceType iface)
+    private static bool IsArrayCompatibleAbstract(AbstractType abs)
     {
-        var name = iface.DisplayName;
+        var name = abs.DisplayName;
         return name is "IEnumerable" or "ICollection" or "IList"
             or "IReadOnlyCollection" or "IReadOnlyList";
     }
@@ -457,7 +457,7 @@ public sealed class ExtensionRegistry
                 ca.DisplayName == cb.DisplayName && ca.ContainingNamespace == cb.ContainingNamespace,
             (StructType sa, StructType sb) =>
                 sa.DisplayName == sb.DisplayName && sa.ContainingNamespace == sb.ContainingNamespace,
-            (InterfaceType ia, InterfaceType ib) =>
+            (AbstractType ia, AbstractType ib) =>
                 ia.DisplayName == ib.DisplayName && ia.ContainingNamespace == ib.ContainingNamespace,
             _ => false
         };

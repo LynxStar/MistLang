@@ -39,7 +39,7 @@ internal sealed class SemanticModelStdlibTypeProvider : IStdlibTypeProvider
         {
             if (symbol.Kind != SymbolKind.Class
                 && symbol.Kind != SymbolKind.Struct
-                && symbol.Kind != SymbolKind.Interface)
+                && symbol.Kind != SymbolKind.Abstract)
             {
                 continue;
             }

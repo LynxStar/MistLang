@@ -13,7 +13,7 @@ namespace Mist.Semantics;
 /// class/struct type. A type implements <c>IClonable&lt;T&gt;</c> when EITHER:
 /// </para>
 /// <list type="number">
-///   <item>it explicitly declares <c>IClonable&lt;T&gt;</c> in its interface list
+///   <item>it explicitly declares <c>IClonable&lt;T&gt;</c> in its abstract list
 ///         (the bootstrap value types and <c>String</c> are this base case), OR</item>
 ///   <item>every one of its instance fields has a type that itself implements
 ///         <c>IClonable&lt;T&gt;</c> (auto-derivation, Req 8 AC 6).</item>
@@ -41,7 +41,7 @@ namespace Mist.Semantics;
 public static class IClonableDerivationEngine
 {
     /// <summary>
-    /// The display name of the stdlib <c>IClonable&lt;T&gt;</c> interface.
+    /// The display name of the stdlib <c>IClonable&lt;T&gt;</c> abstract type.
     /// </summary>
     private const string IClonableName = "IClonable";
 
@@ -49,7 +49,7 @@ public static class IClonableDerivationEngine
     /// Fallback legacy-primitive keyword names that are clonable base cases when
     /// the stdlib is not loaded (the <see cref="LegacyPrimitiveTypes"/> singletons
     /// carry these display names and an empty member scope, so they do not declare
-    /// the interface the way the real <c>Standard.*</c> types do).
+    /// the abstract type the way the real <c>Standard.*</c> types do).
     /// </summary>
     private static readonly HashSet<string> LegacyPrimitiveNames = new(StringComparer.Ordinal)
     {
@@ -82,7 +82,7 @@ public static class IClonableDerivationEngine
 
         foreach (var type in allTypes)
         {
-            if (DeclaresIClonable(type, new HashSet<IType>()))
+            if (DeclaresIClonableInAbstracts(type, new HashSet<IType>()))
             {
                 explicitDeclarers.Add(type);
                 clonable[type] = true;
@@ -194,12 +194,12 @@ public static class IClonableDerivationEngine
 
                 // Otherwise use the current candidate assumption. A type outside
                 // the model (no entry) is conservatively treated as not clonable
-                // unless it explicitly declares the interface, which is checked
+                // unless it explicitly declares the abstract type, which is checked
                 // directly here to cover types reached only through fields.
                 if (clonable.TryGetValue(type, out var isClonable))
                     return isClonable;
 
-                return DeclaresIClonable(type, new HashSet<IType>());
+                return DeclaresIClonableInAbstracts(type, new HashSet<IType>());
 
             case EnumType:
                 // Enums wrap a primitive underlying type and have value semantics.
@@ -232,7 +232,7 @@ public static class IClonableDerivationEngine
                 return false;
 
             default:
-                // Interfaces, traits, arrays, unknown, error, etc. are not
+                // Abstract types, arrays, unknown, error, etc. are not
                 // auto-derivable clonable sources.
                 return false;
         }
@@ -240,9 +240,9 @@ public static class IClonableDerivationEngine
 
     /// <summary>
     /// Returns true when <paramref name="type"/> declares <c>IClonable&lt;T&gt;</c>
-    /// in its interface list, checked directly and transitively through base types.
+    /// in its abstract list, checked directly and transitively through base types.
     /// </summary>
-    private static bool DeclaresIClonable(IType type, HashSet<IType> visited)
+    private static bool DeclaresIClonableInAbstracts(IType type, HashSet<IType> visited)
     {
         type = Unwrap(type);
 
@@ -252,12 +252,12 @@ public static class IClonableDerivationEngine
         switch (type)
         {
             case ClassType ct:
-                return InterfaceListHasIClonable(ct.Interfaces)
-                    || (ct.BaseType is not null && DeclaresIClonable(ct.BaseType, visited));
+                return AbstractListHasIClonable(ct.Abstracts)
+                    || (ct.BaseType is not null && DeclaresIClonableInAbstracts(ct.BaseType, visited));
 
             case StructType st:
-                return InterfaceListHasIClonable(st.Interfaces)
-                    || (st.BaseType is not null && DeclaresIClonable(st.BaseType, visited));
+                return AbstractListHasIClonable(st.Abstracts)
+                    || (st.BaseType is not null && DeclaresIClonableInAbstracts(st.BaseType, visited));
 
             default:
                 return false;
@@ -265,15 +265,15 @@ public static class IClonableDerivationEngine
     }
 
     /// <summary>
-    /// Returns true when any entry in the interface list is the
-    /// <c>IClonable</c> interface (either the bare interface or a constructed
+    /// Returns true when any entry in the abstract list is the
+    /// <c>IClonable</c> abstract type (either the bare abstract type or a constructed
     /// <c>IClonable&lt;T&gt;</c>).
     /// </summary>
-    private static bool InterfaceListHasIClonable(IReadOnlyList<IType> interfaces)
+    private static bool AbstractListHasIClonable(IReadOnlyList<IType> abstracts)
     {
-        foreach (var iface in interfaces)
+        foreach (var abs in abstracts)
         {
-            if (IsIClonableInterface(iface))
+            if (IsIClonableAbstract(abs))
                 return true;
         }
         return false;
@@ -281,16 +281,16 @@ public static class IClonableDerivationEngine
 
     /// <summary>
     /// Returns true when the given type reference denotes the stdlib
-    /// <c>IClonable</c> interface, whether constructed (<c>IClonable&lt;T&gt;</c>)
+    /// <c>IClonable</c> abstract type, whether constructed (<c>IClonable&lt;T&gt;</c>)
     /// or bare.
     /// </summary>
-    private static bool IsIClonableInterface(IType type)
+    private static bool IsIClonableAbstract(IType type)
     {
         return type switch
         {
-            ConstructedType constructed => IsIClonableInterface(constructed.GenericDefinition),
-            InterfaceType iface => iface.DisplayName == IClonableName,
-            _ => type.DisplayName == IClonableName && type.Kind == TypeKind.Interface,
+            ConstructedType constructed => IsIClonableAbstract(constructed.GenericDefinition),
+            AbstractType abs => abs.DisplayName == IClonableName,
+            _ => type.DisplayName == IClonableName && type.Kind == TypeKind.Abstract,
         };
     }
 

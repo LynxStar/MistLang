@@ -27,7 +27,7 @@ public enum SymbolKind
     Namespace,
     Class,
     Struct,
-    Interface,
+    Abstract,
     Trait,
     Enum,
     TypeAlias,

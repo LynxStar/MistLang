@@ -318,10 +318,10 @@ public sealed class IEnumerableMappingPropertyTests
 
             // The slot's constraints should include IEnumerator<TElement>
             Assert.NotNull(slotType.Constraints);
-            Assert.NotEmpty(slotType.Constraints.InterfaceConstraints);
+            Assert.NotEmpty(slotType.Constraints.AbstractConstraints);
 
             // Verify the constraint is a ConstructedType with Standard.IEnumerator as definition
-            var iEnumeratorConstraint = slotType.Constraints.InterfaceConstraints
+            var iEnumeratorConstraint = slotType.Constraints.AbstractConstraints
                 .OfType<ConstructedType>()
                 .FirstOrDefault(ct =>
                     ct.GenericDefinition.DisplayName == "IEnumerator" &&
@@ -329,7 +329,7 @@ public sealed class IEnumerableMappingPropertyTests
 
             Assert.True(iEnumeratorConstraint is not null,
                 $"Enumerator slot for '{clrType.FullName}' should have an IEnumerator<TElement> " +
-                $"constraint. Actual constraints: [{string.Join(", ", slotType.Constraints.InterfaceConstraints.Select(c => c.DisplayName))}]");
+                $"constraint. Actual constraints: [{string.Join(", ", slotType.Constraints.AbstractConstraints.Select(c => c.DisplayName))}]");
         });
     }
 

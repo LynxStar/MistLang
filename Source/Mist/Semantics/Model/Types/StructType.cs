@@ -19,7 +19,7 @@ public sealed class StructType : IType
     /// </summary>
     public IType? BaseType { get; internal set; }
 
-    public IReadOnlyList<IType> Interfaces { get; internal set; } = Array.Empty<IType>();
+    public IReadOnlyList<IType> Abstracts { get; internal set; } = Array.Empty<IType>();
     public IReadOnlyList<IType> TypeParameters { get; internal set; } = Array.Empty<IType>();
 
     /// <summary>

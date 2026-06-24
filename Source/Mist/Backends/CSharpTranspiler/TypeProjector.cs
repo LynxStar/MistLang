@@ -20,7 +20,7 @@ namespace Mist.Backends.CSharpTranspiler;
 /// <list type="bullet">
 ///   <item>CLR class → <see cref="ClassType"/> (with ContainingNamespace, BaseType, Interfaces, TypeParameters)</item>
 ///   <item>CLR struct (non-ref) → <see cref="StructType"/></item>
-///   <item>CLR interface → <see cref="InterfaceType"/></item>
+///   <item>CLR interface → <see cref="AbstractType"/></item>
 ///   <item>CLR enum → <see cref="EnumType"/> (with Members, UnderlyingType)</item>
 ///   <item>Generic type → type with TypeParameters list populated</item>
 ///   <item>Generic arity suffix (e.g., <c>`2</c>) stripped from DisplayName</item>
@@ -136,7 +136,7 @@ internal sealed class TypeProjector
 
         if (clrType.IsInterface)
         {
-            return ProjectInterface(clrType, displayName, containingNamespace, stdlib);
+            return ProjectAbstract(clrType, displayName, containingNamespace, stdlib);
         }
 
         if (clrType.IsValueType)
@@ -220,30 +220,30 @@ internal sealed class TypeProjector
     }
 
     /// <summary>
-    /// Projects a CLR interface into a Mist <see cref="InterfaceType"/>.
+    /// Projects a CLR interface into a Mist <see cref="AbstractType"/>.
     /// </summary>
-    private (IType Type, ImmutableArray<ISymbol> Members) ProjectInterface(
+    private (IType Type, ImmutableArray<ISymbol> Members) ProjectAbstract(
         Type clrType,
         string displayName,
         string? containingNamespace,
         IStdlibTypeProvider stdlib)
     {
         var memberScope = new Scope(null);
-        var interfaceType = new InterfaceType(displayName, memberScope, containingNamespace);
+        var abstractType = new AbstractType(displayName, memberScope, containingNamespace);
 
         // Project type parameters for generic interfaces
         if (clrType.IsGenericTypeDefinition)
         {
-            interfaceType.TypeParameters = ProjectTypeParameters(clrType, stdlib);
+            abstractType.TypeParameters = ProjectTypeParameters(clrType, stdlib);
         }
 
         // Project implemented interfaces
-        interfaceType.Interfaces = ProjectInterfaces(clrType, stdlib);
+        abstractType.Interfaces = ProjectInterfaces(clrType, stdlib);
 
         // Synthesize Enumerator associated type slots for IEnumerable<T> implementations
-        SynthesizeEnumeratorSlots(clrType, interfaceType, stdlib);
+        SynthesizeEnumeratorSlots(clrType, abstractType, stdlib);
 
-        return (interfaceType, ImmutableArray<ISymbol>.Empty);
+        return (abstractType, ImmutableArray<ISymbol>.Empty);
     }
 
     /// <summary>
@@ -403,7 +403,7 @@ internal sealed class TypeProjector
 
         var constraints = clrParam.GetGenericParameterConstraints();
         IType? baseClassConstraint = null;
-        var interfaceConstraints = new List<IType>();
+        var abstractConstraints = new List<IType>();
 
         foreach (var constraint in constraints)
         {
@@ -415,7 +415,7 @@ internal sealed class TypeProjector
 
             if (constraint.IsInterface)
             {
-                interfaceConstraints.Add(projectedConstraint);
+                abstractConstraints.Add(projectedConstraint);
             }
             else
             {
@@ -433,7 +433,7 @@ internal sealed class TypeProjector
 
         // If no constraints at all, return null (unconstrained)
         if (!hasClassConstraint && !hasStructConstraint &&
-            baseClassConstraint is null && interfaceConstraints.Count == 0 &&
+            baseClassConstraint is null && abstractConstraints.Count == 0 &&
             constructorConstraints.Count == 0)
         {
             return null;
@@ -444,7 +444,7 @@ internal sealed class TypeProjector
             HasClassConstraint = hasClassConstraint,
             HasStructConstraint = hasStructConstraint,
             BaseClassConstraint = baseClassConstraint,
-            InterfaceConstraints = interfaceConstraints,
+            AbstractConstraints = abstractConstraints,
             ConstructorConstraints = constructorConstraints,
         };
     }
@@ -511,7 +511,7 @@ internal sealed class TypeProjector
             // the relationship is omitted (the interface is dropped from the list) and a
             // diagnostic indication is recorded (Requirement 6.6).
             var resolved = ResolveInheritanceReference(
-                iface, stdlib, InheritanceRelationshipKind.Interface, StripGenericAritySuffix(clrType.Name));
+                iface, stdlib, InheritanceRelationshipKind.Abstract, StripGenericAritySuffix(clrType.Name));
             if (resolved is null)
                 continue;
 
@@ -546,7 +546,7 @@ internal sealed class TypeProjector
                 + ">",
             ClassType c => (c.ContainingNamespace ?? string.Empty) + "." + c.DisplayName,
             StructType s => (s.ContainingNamespace ?? string.Empty) + "." + s.DisplayName,
-            InterfaceType it => (it.ContainingNamespace ?? string.Empty) + "." + it.DisplayName,
+            AbstractType it => (it.ContainingNamespace ?? string.Empty) + "." + it.DisplayName,
             _ => type.Kind + ":" + type.DisplayName,
         };
     }
@@ -667,7 +667,7 @@ internal sealed class TypeProjector
         {
             ClassType ct => (ct.MemberScope as Scope, ct.ContainingNamespace),
             StructType st => (st.MemberScope as Scope, st.ContainingNamespace),
-            InterfaceType it => (it.MemberScope as Scope, it.ContainingNamespace),
+            AbstractType it => (it.MemberScope as Scope, it.ContainingNamespace),
             _ => (null, (string?)null),
         };
 
@@ -703,7 +703,7 @@ internal sealed class TypeProjector
 
             var constraint = new TypeParameterConstraints
             {
-                InterfaceConstraints = new List<IType>
+                AbstractConstraints = new List<IType>
                 {
                     new ConstructedType(iEnumeratorStdlib, new[] { projectedElementType }),
                 },
@@ -731,7 +731,7 @@ internal sealed class TypeProjector
             // so downstream resolution can use it
             slotType.Constraints = new TypeParameterConstraints
             {
-                InterfaceConstraints = new List<IType>
+                AbstractConstraints = new List<IType>
                 {
                     new ConstructedType(iEnumeratorStdlib, new[] { projectedElementType }),
                 },
@@ -786,7 +786,7 @@ internal sealed class TypeProjector
             _ => (IReadOnlyList<IType>)Array.Empty<IType>(),
         };
         if (existingInterfaces.Any(i => i is ConstructedType ci
-            && ci.GenericDefinition is InterfaceType iface
+            && ci.GenericDefinition is AbstractType iface
             && iface.DisplayName == "IEnumerable"))
             return;
 
@@ -886,7 +886,7 @@ internal sealed class TypeProjector
 
         var constraint = new TypeParameterConstraints
         {
-            InterfaceConstraints = new List<IType>
+            AbstractConstraints = new List<IType>
             {
                 new ConstructedType(iEnumeratorStdlib, new[] { projectedElementType }),
             },
@@ -912,7 +912,7 @@ internal sealed class TypeProjector
         // Store the resolved concrete enumerator type as metadata on the slot
         slotType.Constraints = new TypeParameterConstraints
         {
-            InterfaceConstraints = new List<IType>
+            AbstractConstraints = new List<IType>
             {
                 new ConstructedType(iEnumeratorStdlib, new[] { projectedElementType }),
             },
@@ -1644,7 +1644,7 @@ internal sealed class TypeProjector
         {
             // Already projecting this type — return a minimal shell to break the cycle.
             if (clrType.IsInterface)
-                return new InterfaceType(displayName, new Scope(null), containingNamespace);
+                return new AbstractType(displayName, new Scope(null), containingNamespace);
             if (clrType.IsValueType)
                 return new StructType(displayName, new Scope(null), containingNamespace);
             return new ClassType(displayName, new Scope(null), containingNamespace);
@@ -1654,7 +1654,7 @@ internal sealed class TypeProjector
         {
             if (clrType.IsInterface)
             {
-                var iface = new InterfaceType(displayName, new Scope(null), containingNamespace);
+                var iface = new AbstractType(displayName, new Scope(null), containingNamespace);
                 iface.TypeParameters = ProjectTypeParameters(clrType, stdlib);
                 return iface;
             }
@@ -1687,7 +1687,7 @@ internal sealed class TypeProjector
 
         if (clrType.IsInterface)
         {
-            return new InterfaceType(displayName, new Scope(null), containingNamespace);
+            return new AbstractType(displayName, new Scope(null), containingNamespace);
         }
 
         if (clrType.IsEnum)
@@ -2420,7 +2420,7 @@ internal sealed class TypeProjector
         {
             ClassType ct => ct.MemberScope.Members.Count == 0,
             StructType st => st.MemberScope.Members.Count == 0,
-            InterfaceType it => it.MemberScope.Members.Count == 0,
+            AbstractType it => it.MemberScope.Members.Count == 0,
             _ => false
         };
     }
@@ -2455,7 +2455,7 @@ internal sealed class TypeProjector
         {
             ClassType ct => ct.MemberScope as Scope,
             StructType st => st.MemberScope as Scope,
-            InterfaceType it => it.MemberScope as Scope,
+            AbstractType it => it.MemberScope as Scope,
             EnumType et => et.MemberScope as Scope,
             DelegateType dt => dt.MemberScope as Scope,
             _ => null,

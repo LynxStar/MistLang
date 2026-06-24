@@ -13,7 +13,7 @@ public sealed class ClassType : IType
     public IScope MemberScope { get; }
     public string? ContainingNamespace { get; }
     public IType? BaseType { get; internal set; }
-    public IReadOnlyList<IType> Interfaces { get; internal set; } = Array.Empty<IType>();
+    public IReadOnlyList<IType> Abstracts { get; internal set; } = Array.Empty<IType>();
     public IReadOnlyList<IType> TypeParameters { get; internal set; } = Array.Empty<IType>();
 
     /// <summary>

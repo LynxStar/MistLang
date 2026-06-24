@@ -4211,7 +4211,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         // Check interface constraint propagation: derived must require each interface the base requires.
-        foreach (var baseIface in baseConstraints.InterfaceConstraints)
+        foreach (var baseIface in baseConstraints.AbstractConstraints)
         {
             if (derivedConstraints is null || !HasMatchingInterfaceConstraint(derivedConstraints, baseIface))
             {
@@ -4274,7 +4274,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     private static bool HasMatchingInterfaceConstraint(TypeParameterConstraints derivedConstraints, IType baseIface)
     {
-        foreach (var derivedIface in derivedConstraints.InterfaceConstraints)
+        foreach (var derivedIface in derivedConstraints.AbstractConstraints)
         {
             if (ImplementsInterfaceConstraint(derivedIface, baseIface))
                 return true;
@@ -20568,7 +20568,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         // Check interface constraints: type argument must implement each interface.
-        foreach (var iface in constraints.InterfaceConstraints)
+        foreach (var iface in constraints.AbstractConstraints)
         {
             if (!ImplementsInterfaceConstraint(typeArgument, iface))
             {

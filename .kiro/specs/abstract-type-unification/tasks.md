@@ -12,10 +12,10 @@ This implementation unifies Mist's `interface` and `trait` keywords into a singl
 
 - [ ] 1. Phase 1 — Pure Rename (interface → abstract)
 
-  - [ ] 1.1 Grammar: `keywords.storm`
+  - [x] 1.1 Grammar: `keywords.storm`
     - Rename `INTERFACE` token → `ABSTRACT` with value `"abstract"`
 
-  - [ ] 1.2 Grammar: `Mist.storm`
+  - [x] 1.2 Grammar: `Mist.storm`
     - Rename `InterfaceDeclaration` rule → `AbstractDeclaration`
     - Rename `InterfaceType` variant → `AbstractType`
     - Rename `InterfaceMemberDeclaration` → `AbstractMemberDeclaration`
@@ -28,30 +28,30 @@ This implementation unifies Mist's `interface` and `trait` keywords into a singl
     - Note: `TraitPropertyDeclaration` also references `InterfaceAccessorDeclaration` — update it too
 
 
-  - [ ] 1.3 Semantic model: `InterfaceType.cs` → `AbstractType.cs`
+  - [x] 1.3 Semantic model: `InterfaceType.cs` → `AbstractType.cs`
     - Rename file and class `InterfaceType` → `AbstractType`
     - Rename `TypeKind.Interface` → `TypeKind.Abstract` (property returns this)
     - Rename property `Interfaces` → `Abstracts`
 
-  - [ ] 1.4 Semantic model: `IType.cs` (TypeKind enum)
+  - [x] 1.4 Semantic model: `IType.cs` (TypeKind enum)
     - Rename `TypeKind.Interface` → `TypeKind.Abstract`
 
-  - [ ] 1.5 Semantic model: `ISymbol.cs` (SymbolKind enum)
+  - [x] 1.5 Semantic model: `ISymbol.cs` (SymbolKind enum)
     - Rename `SymbolKind.Interface` → `SymbolKind.Abstract`
 
-  - [ ] 1.6 Semantic model: `ClassType.cs`
+  - [x] 1.6 Semantic model: `ClassType.cs`
     - Rename property `Interfaces` → `Abstracts`
 
-  - [ ] 1.7 Semantic model: `StructType.cs`
+  - [x] 1.7 Semantic model: `StructType.cs`
     - Rename property `Interfaces` → `Abstracts`
 
-  - [ ] 1.8 Semantic model: `TypeParameterConstraints.cs`
+  - [x] 1.8 Semantic model: `TypeParameterConstraints.cs`
     - Rename property `InterfaceConstraints` → `AbstractConstraints`
 
-  - [ ] 1.9 Semantic model: `UnresolvedRelationship.cs`
+  - [x] 1.9 Semantic model: `UnresolvedRelationship.cs`
     - Rename enum member `Interface` → `Abstract`
 
-  - [ ] 1.10 SemanticModelBuilder: method renames
+  - [x] 1.10 SemanticModelBuilder: method renames
     - `RegisterInterfaceDeclaration` → `RegisterAbstractDeclaration`
     - `RegisterInterfaceMethodDeclaration` → `RegisterAbstractMethodDeclaration`
     - `RegisterInterfacePropertyDeclaration` → `RegisterAbstractPropertyDeclaration`
@@ -72,7 +72,7 @@ This implementation unifies Mist's `interface` and `trait` keywords into a singl
     - `CollectRequiredAssociatedTypeSlots` — update tuple field names `Interface` → `Abstract`
 
 
-  - [ ] 1.11 SemanticModelBuilder: variable/comment cleanup
+  - [x] 1.11 SemanticModelBuilder: variable/comment cleanup
     - Rename all local variables: `interfaceName` → `abstractName`, `interfaceType` → `abstractType`, `interfaceDecl` → `abstractDecl`, `interfaceSymbol` → `abstractSymbol`, `interfaceSpan` → `abstractSpan`, `visitedInterfaces` → `visitedAbstracts`, etc.
     - Update all `SymbolKind.Interface` → `SymbolKind.Abstract` references
     - Update all `InterfaceType` type references → `AbstractType`
@@ -80,29 +80,30 @@ This implementation unifies Mist's `interface` and `trait` keywords into a singl
     - Update diagnostic message strings (e.g., "Interface/trait" → "Abstract type/trait")
     - Note: Keep legitimate C# `interface` references (like `ISymbol`, `IType`) unchanged
 
-  - [ ] 1.12 SemanticModelBuilder: property access updates
+  - [x] 1.12 SemanticModelBuilder: property access updates
     - All `.Interfaces` property access → `.Abstracts`
     - All `.InterfaceList` AST property access → `.AbstractList` (generated from Storm)
 
-  - [ ] 1.13 ExtensionRegistry: method + variable renames
+  - [x] 1.13 ExtensionRegistry: method + variable renames
     - `ImplementsInterfaceStructural` → `ImplementsAbstractStructural`
     - `InterfaceMatches` → `AbstractMatches`
     - `IsArrayCompatibleInterface` → `IsArrayCompatibleAbstract`
     - Update all local variable names (`interfaces` → `abstracts`, `iface` can stay or → `abs`)
+    - Update all `InterfaceType` type references → `AbstractType`
     - Update comments
 
-  - [ ] 1.14 IClonableDerivationEngine: method + comment renames
+  - [x] 1.14 IClonableDerivationEngine: method + comment renames
     - `InterfaceListHasIClonable` → `AbstractListHasIClonable`
     - `IsIClonableInterface` → `IsIClonableAbstract`
     - Update variable names and comments
 
-  - [ ] 1.15 ReadonlyInferenceEngine
+  - [x] 1.15 ReadonlyInferenceEngine
     - Update `SymbolKind.Interface` → `SymbolKind.Abstract`
 
-  - [ ] 1.16 SemanticModelStdlibTypeProvider
+  - [x] 1.16 SemanticModelStdlibTypeProvider
     - Update `SymbolKind.Interface` → `SymbolKind.Abstract`
 
-  - [ ] 1.17 CSharpEmitter: field + method renames
+  - [x] 1.17 CSharpEmitter: field + method renames
     - Rename field `_currentInterfaceTypeParamSubs` → `_currentAbstractTypeParamSubs`
     - Rename method `EmitInterfaceDeclaration` → `EmitAbstractDeclaration`
     - Rename method `EmitInterfaceMethodDeclaration` → `EmitAbstractMethodDeclaration`
@@ -110,6 +111,9 @@ This implementation unifies Mist's `interface` and `trait` keywords into a singl
     - Rename method `EmitInterfaceWithAssociatedTypeArgs` → `EmitAbstractWithAssociatedTypeArgs`
     - Update all `InterfaceType` type references → `AbstractType`
     - Update all `SymbolKind.Interface` → `SymbolKind.Abstract`
+    - Update generated AST node type references: `InterfaceDeclarationNode` → `AbstractDeclarationNode`, `InterfaceMethodDeclarationNode` → `AbstractMethodDeclarationNode`, `InterfacePropertyDeclarationNode` → `AbstractPropertyDeclarationNode`, `InterfaceMemberDeclarationNode` → `AbstractMemberDeclarationNode`, `InterfaceTypeTypeDeclarationNode` → `AbstractTypeTypeDeclarationNode`
+    - Update generated AST node property accesses: `.InterfaceDeclaration` → `.AbstractDeclaration`, `.InterfaceList` → `.AbstractList`
+    - Update generated member variant node types (e.g., `InterfaceMethodMemberInterfaceMemberDeclarationNode` → `AbstractMethodMemberAbstractMemberDeclarationNode`)
     - Note: Keep C# emission of `interface` keyword — that's intentional CLR output
 
   - [ ] 1.17b TypeCheckerAnalyzer: type reference and method renames
@@ -127,16 +131,18 @@ This implementation unifies Mist's `interface` and `trait` keywords into a singl
   - [ ] 1.18 CSharpEmitter: variable/comment cleanup
     - Rename locals: `interfaceDecl` → `abstractDecl`, `interfaceList` → `abstractList`, `interfaceSymbol` → `abstractSymbol`, `interfaceType` → `abstractType`, etc.
     - Update `.Interfaces` property access → `.Abstracts`
+    - Update generated AST node property accesses: `.InterfaceList` → `.AbstractList`, `.InterfaceDeclaration` → `.AbstractDeclaration`
+    - Update generated member variant node type references (e.g., `InterfaceMethodMemberInterfaceMemberDeclarationNode` → `AbstractMethodMemberAbstractMemberDeclarationNode`)
     - Update comments referring to "interface" in Mist-concept sense
     - Keep comments about CLR interfaces as-is
 
 
-  - [ ] 1.19 TypeProjector: type reference renames
+  - [x] 1.19 TypeProjector: type reference renames
     - Update all `InterfaceType` references → `AbstractType`
     - Rename `ProjectInterface` method → `ProjectAbstract`
     - Update comments
 
-  - [ ] 1.20 AssemblyTypeProvider
+  - [x] 1.20 AssemblyTypeProvider
     - Update `InterfaceType` reference → `AbstractType`
 
   - [ ] 1.21 MistParser: add `interface` keyword error detection
@@ -147,6 +153,8 @@ This implementation unifies Mist's `interface` and `trait` keywords into a singl
     - Update `InterfaceType` variant handling → `AbstractType` variant
     - Rename locals (`interfaceType` → `abstractType`, `interfaceClause` → `abstractClause`, `interfaceDecl` → `abstractDecl`)
     - Update `.Interfaces` → `.Abstracts` property access
+    - Update generated AST node type references: `InterfaceDeclarationNode` → `AbstractDeclarationNode`, `InterfaceMethodDeclarationNode` → `AbstractMethodDeclarationNode`, `InterfacePropertyDeclarationNode` → `AbstractPropertyDeclarationNode`, `InterfaceMemberDeclarationNode` → `AbstractMemberDeclarationNode`
+    - Update generated AST node property accesses: `.InterfaceDeclaration` → `.AbstractDeclaration`
     - Emit `abstract` keyword instead of `interface` in pretty-printed output
 
   - [ ] 1.23 Other model files: comment updates

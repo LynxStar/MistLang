@@ -126,7 +126,7 @@ public sealed class FieldTypeRestrictionVerifier
             return true;
 
         // Interface constraint that is IClonable satisfies the restriction.
-        foreach (var iface in constraints.InterfaceConstraints)
+        foreach (var iface in constraints.AbstractConstraints)
         {
             if (IsIClonableInterface(iface))
                 return true;

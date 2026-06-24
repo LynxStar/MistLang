@@ -213,7 +213,7 @@ public sealed class CSharpEmitter
                 {
                     namespaces.Add(st.ContainingNamespace);
                 }
-                else if (symbol.DeclaredType is InterfaceType it && it.ContainingNamespace is not null)
+                else if (symbol.DeclaredType is AbstractType it && it.ContainingNamespace is not null)
                 {
                     namespaces.Add(it.ContainingNamespace);
                 }
@@ -380,23 +380,23 @@ internal sealed class CSharpSourceWriter
     /// Active associated type slot substitutions for the current method being emitted.
     /// Maps dotted names like "T.Enumerator" to synthesized type parameter names like "TEnumerator".
     /// Set during <see cref="EmitMethodDeclaration"/> when the method has type parameters
-    /// constrained by interfaces or traits with associated type slots.
+    /// constrained by abstract types or traits with associated type slots.
     /// </summary>
     private Dictionary<string, string>? _currentMethodSlotSubstitutions;
 
     /// <summary>
-    /// Parameterized associated type slots for the current interface being emitted.
+    /// Parameterized associated type slots for the current abstract type being emitted.
     /// These slots have their own type parameters and cannot be lifted to C# type parameters.
     /// Instead, references to them are erased to their constraint interface.
     /// </summary>
     private List<AssociatedTypeSlotType>? _currentParameterizedSlots;
 
     /// <summary>
-    /// Maps interface type parameter names to their concrete type arguments for the
+    /// Maps abstract type parameter names to their concrete type arguments for the
     /// current implementor class. Used during parameterized slot erasure to substitute
     /// e.g., TIn → int when emitting ITransform&lt;int, string&gt; instead of ITransform&lt;TIn, string&gt;.
     /// </summary>
-    private Dictionary<string, string>? _currentInterfaceTypeParamSubs;
+    private Dictionary<string, string>? _currentAbstractTypeParamSubs;
 
     /// <summary>
     /// Tracks linear variables that have a conditional move in an if/else statement.
@@ -1563,7 +1563,7 @@ internal sealed class CSharpSourceWriter
     /// <summary>
     /// Looks up the ContainingNamespace for a type declaration by querying the
     /// semantic model for the symbol declared by the inner declaration node
-    /// (ClassDeclaration, StructDeclaration, or InterfaceDeclaration).
+    /// (ClassDeclaration, StructDeclaration, or AbstractDeclaration).
     /// </summary>
     private string? GetTypeContainingNamespace(TypeDeclarationNode typeDecl)
     {
@@ -1571,7 +1571,7 @@ internal sealed class CSharpSourceWriter
         {
             ClassTypeTypeDeclarationNode classType => classType.ClassDeclaration,
             StructTypeTypeDeclarationNode structType => structType.StructDeclaration,
-            InterfaceTypeTypeDeclarationNode interfaceType => interfaceType.InterfaceDeclaration,
+            AbstractTypeTypeDeclarationNode abstractType => abstractType.AbstractDeclaration,
             TraitTypeTypeDeclarationNode traitType => traitType.TraitDeclaration,
             EnumTypeTypeDeclarationNode enumType => enumType.EnumDeclaration,
             _ => null,
@@ -1586,7 +1586,7 @@ internal sealed class CSharpSourceWriter
         {
             ClassType ct => ct.ContainingNamespace,
             StructType st => st.ContainingNamespace,
-            InterfaceType it => it.ContainingNamespace,
+            AbstractType it => it.ContainingNamespace,
             TraitType tt => tt.ContainingNamespace,
             EnumType et => et.ContainingNamespace,
             _ => null,
@@ -1603,7 +1603,7 @@ internal sealed class CSharpSourceWriter
         {
             ClassType ct => ct.ContainingNamespace,
             StructType st => st.ContainingNamespace,
-            InterfaceType it => it.ContainingNamespace,
+            AbstractType it => it.ContainingNamespace,
             TraitType tt => tt.ContainingNamespace,
             _ => null,
         };
@@ -1630,7 +1630,7 @@ internal sealed class CSharpSourceWriter
             {
                 ClassType ct => ct.ContainingNamespace,
                 StructType st => st.ContainingNamespace,
-                InterfaceType it => it.ContainingNamespace,
+                AbstractType it => it.ContainingNamespace,
                 TraitType tt => tt.ContainingNamespace,
                 EnumType et => et.ContainingNamespace,
                 _ => null,
@@ -1964,8 +1964,8 @@ internal sealed class CSharpSourceWriter
             case TraitTypeTypeDeclarationNode traitType:
                 EmitTraitDeclaration(traitType.TraitDeclaration);
                 break;
-            case InterfaceTypeTypeDeclarationNode interfaceType:
-                EmitInterfaceDeclaration(interfaceType.InterfaceDeclaration);
+            case AbstractTypeTypeDeclarationNode abstractType:
+                EmitAbstractDeclaration(abstractType.AbstractDeclaration);
                 break;
             case EnumTypeTypeDeclarationNode enumType:
                 EmitEnumDeclaration(enumType.EnumDeclaration);
@@ -2720,7 +2720,7 @@ internal sealed class CSharpSourceWriter
             UnknownType => "Unknown",
             ClassType ct => ct.DisplayName,
             StructType st => st.DisplayName,
-            InterfaceType it => it.DisplayName,
+            AbstractType it => it.DisplayName,
             ConstructedType constructed => GetReceiverTypeNameFromIType(constructed.GenericDefinition),
             TypeParameterType tp => tp.Name,
             _ => "Unknown"
@@ -2820,10 +2820,10 @@ internal sealed class CSharpSourceWriter
                 parts.Add(CSharpTypeMap.GetTypeName(classType.BaseType));
             }
 
-            // Interfaces — append associated type slot concrete types as additional type arguments.
-            foreach (var iface in classType.Interfaces)
+            // Abstracts — append associated type slot concrete types as additional type arguments.
+            foreach (var iface in classType.Abstracts)
             {
-                parts.Add(EmitInterfaceWithAssociatedTypeArgs(iface, classType.MemberScope, classType, name, typeParams));
+                parts.Add(EmitAbstractWithAssociatedTypeArgs(iface, classType.MemberScope, classType, name, typeParams));
             }
 
             // Trait interfaces
@@ -2884,24 +2884,24 @@ internal sealed class CSharpSourceWriter
             }
         }
 
-        // Collect parameterized associated type slots from implemented interfaces.
+        // Collect parameterized associated type slots from implemented abstract types.
         // These are needed so that method return types referencing the slot's nested type
-        // are erased to the constraint interface (matching the interface declaration).
+        // are erased to the constraint interface (matching the abstract type declaration).
         var previousParameterizedSlotsForClass = _currentParameterizedSlots;
-        Dictionary<string, string>? interfaceTypeParamSubstitutions = null;
-        var previousInterfaceTypeParamSubs = _currentInterfaceTypeParamSubs;
+        Dictionary<string, string>? abstractTypeParamSubstitutions = null;
+        var previousAbstractTypeParamSubs = _currentAbstractTypeParamSubs;
         if (symbol?.DeclaredType is ClassType classTypeForSlots)
         {
             var pSlots = new List<AssociatedTypeSlotType>();
             var subs = new Dictionary<string, string>(StringComparer.Ordinal);
 
-            // Collect from semantic model interfaces.
-            foreach (var iface in classTypeForSlots.Interfaces)
+            // Collect from semantic model abstract types.
+            foreach (var iface in classTypeForSlots.Abstracts)
             {
                 var def = iface is ConstructedType ctIface ? ctIface.GenericDefinition : iface;
                 pSlots.AddRange(CollectAssociatedTypeSlotsFromType(def).Where(s => s.TypeParameters.Count > 0));
 
-                // Build substitutions from interface type params to concrete type args.
+                // Build substitutions from abstract type params to concrete type args.
                 if (iface is ConstructedType constructed)
                 {
                     var defType = constructed.GenericDefinition;
@@ -2916,18 +2916,18 @@ internal sealed class CSharpSourceWriter
                 }
             }
 
-            // Also check the AST base list for interfaces not yet in the semantic model.
+            // Also check the AST base list for abstract types not yet in the semantic model.
             if (pSlots.Count == 0 && classDecl.BaseList is not null)
             {
-                // Try to find parameterized slots by looking up interface symbols by name.
+                // Try to find parameterized slots by looking up abstract type symbols by name.
                 var allEntries = new List<BaseTypeRefNode> { classDecl.BaseList.First };
                 allEntries.AddRange(classDecl.BaseList.BaseTypeRefs);
                 foreach (var entry in allEntries)
                 {
                     var ifaceName = entry.Name.Lexeme;
                     var ifaceSymbol = _model.AllSymbols
-                        .FirstOrDefault(s => s.Name == ifaceName && s.DeclaredType is InterfaceType);
-                    if (ifaceSymbol?.DeclaredType is InterfaceType ifaceType)
+                        .FirstOrDefault(s => s.Name == ifaceName && s.DeclaredType is AbstractType);
+                    if (ifaceSymbol?.DeclaredType is AbstractType ifaceType)
                     {
                         var slots = CollectAssociatedTypeSlotsFromType(ifaceType);
                         pSlots.AddRange(slots.Where(s => s.TypeParameters.Count > 0));
@@ -2951,9 +2951,9 @@ internal sealed class CSharpSourceWriter
             }
 
             _currentParameterizedSlots = pSlots.Count > 0 ? pSlots : null;
-            interfaceTypeParamSubstitutions = subs.Count > 0 ? subs : null;
+            abstractTypeParamSubstitutions = subs.Count > 0 ? subs : null;
         }
-        _currentInterfaceTypeParamSubs = interfaceTypeParamSubstitutions;
+        _currentAbstractTypeParamSubs = abstractTypeParamSubstitutions;
 
         // Track dependent type parameter names declared on this type so the
         // identifier emission fallback can distinguish local dep params from
@@ -2992,7 +2992,7 @@ internal sealed class CSharpSourceWriter
         _currentTypeDependentParamNames = previousTypeDependentParamNames;
         _currentClassType = previousClassType;
         _currentParameterizedSlots = previousParameterizedSlotsForClass;
-        _currentInterfaceTypeParamSubs = previousInterfaceTypeParamSubs;
+        _currentAbstractTypeParamSubs = previousAbstractTypeParamSubs;
 
         // Emit explicit interface implementations for with-mapped trait members.
         if (symbol?.DeclaredType is ClassType classTypeForTraits)
@@ -3012,14 +3012,14 @@ internal sealed class CSharpSourceWriter
         // Emit explicit interface implementations for methods that use parameterized
         // associated type slots. The public method returns the concrete nested type,
         // and the explicit impl bridges to it with the erased constraint interface type.
-        if (interfaceTypeParamSubstitutions is not null && _currentParameterizedSlots is null)
+        if (abstractTypeParamSubstitutions is not null && _currentParameterizedSlots is null)
         {
             // _currentParameterizedSlots was already restored to previous, use the local pSlots.
         }
-        if (symbol?.DeclaredType is ClassType classTypeForParamSlots && interfaceTypeParamSubstitutions is not null)
+        if (symbol?.DeclaredType is ClassType classTypeForParamSlots && abstractTypeParamSubstitutions is not null)
         {
             EmitExplicitInterfaceImplsForParameterizedSlots(
-                classTypeForParamSlots, classDecl, interfaceTypeParamSubstitutions);
+                classTypeForParamSlots, classDecl, abstractTypeParamSubstitutions);
         }
 
         // Emit parameterless constructor for defaultable classes if one doesn't already exist.
@@ -3118,35 +3118,35 @@ internal sealed class CSharpSourceWriter
         AppendLine("}");
     }
 
-    private void EmitInterfaceDeclaration(InterfaceDeclarationNode interfaceDecl)
+    private void EmitAbstractDeclaration(AbstractDeclarationNode abstractDecl)
     {
-        // Skip interfaces that map to CLR counterparts (e.g., IEnumerable → System.Collections.Generic.IEnumerable).
+        // Skip abstract types that map to CLR counterparts (e.g., IEnumerable → System.Collections.Generic.IEnumerable).
         // These are not emitted — the C# runtime provides them.
-        var interfaceSymbol2 = _model.GetDeclaredSymbol(interfaceDecl);
-        if (interfaceSymbol2?.DeclaredType is InterfaceType ifaceType
+        var abstractSymbol2 = _model.GetDeclaredSymbol(abstractDecl);
+        if (abstractSymbol2?.DeclaredType is AbstractType ifaceType
             && ifaceType.ContainingNamespace == "Standard"
             && CSharpTypeMap.TryGetMappedName($"Standard.{ifaceType.DisplayName}") is not null)
         {
             return;
         }
 
-        var name = interfaceDecl.Name.Lexeme;
-        var typeParams = EmitTypeParameterList(interfaceDecl.TypeParams);
-        var interfaceList = "";
-        if (interfaceDecl.Interfaces is not null)
+        var name = abstractDecl.Name.Lexeme;
+        var typeParams = EmitTypeParameterList(abstractDecl.TypeParams);
+        var abstractList = "";
+        if (abstractDecl.AbstractList is not null)
         {
-            interfaceList = $" : {EmitBaseListWithTypeArgs(interfaceDecl.Interfaces)}";
+            abstractList = $" : {EmitBaseListWithTypeArgs(abstractDecl.AbstractList)}";
         }
 
         // ── Associated type generic lifting ──────────────────────────────
-        // Collect associated type slots from the interface's member scope.
+        // Collect associated type slots from the abstract type's member scope.
         // Each slot becomes a synthesized type parameter (T + slot name) on
         // the emitted C# interface, since C# cannot declare abstract nested types.
         // Parameterized slots (those with their own type parameters) cannot be lifted
         // to type parameters because C# doesn't support higher-kinded types. Instead,
         // they are erased to their constraint interface in method signatures.
-        var interfaceSymbol = _model.GetDeclaredSymbol(interfaceDecl);
-        var allAssociatedTypeSlots = CollectAssociatedTypeSlots(interfaceSymbol);
+        var abstractSymbol = _model.GetDeclaredSymbol(abstractDecl);
+        var allAssociatedTypeSlots = CollectAssociatedTypeSlots(abstractSymbol);
         var associatedTypeSlots = allAssociatedTypeSlots.Where(s => s.TypeParameters.Count == 0).ToList();
         var parameterizedSlots = allAssociatedTypeSlots.Where(s => s.TypeParameters.Count > 0).ToList();
         var slotSubstitutions = BuildAssociatedTypeSubstitutions(associatedTypeSlots);
@@ -3161,19 +3161,19 @@ internal sealed class CSharpSourceWriter
         }
 
         // Emit [DependentType(...)] attributes for each dependent type parameter.
-        if (interfaceSymbol?.DeclaredType is InterfaceType interfaceTypeForAttrs)
+        if (abstractSymbol?.DeclaredType is AbstractType abstractTypeForAttrs)
         {
-            EmitDependentTypeAttributes(interfaceTypeForAttrs.TypeParameters);
+            EmitDependentTypeAttributes(abstractTypeForAttrs.TypeParameters);
         }
-        // Set parameterized slots for the duration of interface emission so that
+        // Set parameterized slots for the duration of abstract type emission so that
         // EmitTypeReferenceWithSubstitution can erase them to constraint interfaces.
         var previousParameterizedSlots = _currentParameterizedSlots;
         _currentParameterizedSlots = parameterizedSlots.Count > 0 ? parameterizedSlots : null;
-        AppendLine($"interface {name}{typeParams}{interfaceList}");
+        AppendLine($"interface {name}{typeParams}{abstractList}");
         // Emit constraint clauses (where T : ...) for constrained type parameters.
-        if (interfaceSymbol?.DeclaredType is InterfaceType interfaceTypeForConstraints)
+        if (abstractSymbol?.DeclaredType is AbstractType abstractTypeForConstraints)
         {
-            EmitConstraintClauses(interfaceTypeForConstraints.TypeParameters);
+            EmitConstraintClauses(abstractTypeForConstraints.TypeParameters);
         }
         // Emit where constraints for synthesized associated type parameters.
         EmitAssociatedTypeSlotConstraints(associatedTypeSlots);
@@ -3181,19 +3181,19 @@ internal sealed class CSharpSourceWriter
         AppendLine("{");
         _indentLevel++;
 
-        foreach (var member in interfaceDecl.Members)
+        foreach (var member in abstractDecl.Members)
         {
             switch (member)
             {
-                case InterfaceMethodMemberInterfaceMemberDeclarationNode methodMember:
-                    EmitInterfaceMethodDeclaration(methodMember.Method, slotSubstitutions);
+                case AbstractMethodMemberAbstractMemberDeclarationNode methodMember:
+                    EmitAbstractMethodDeclaration(methodMember.Method, slotSubstitutions);
                     break;
-                case InterfacePropertyMemberInterfaceMemberDeclarationNode propertyMember:
-                    EmitInterfacePropertyDeclaration(propertyMember.Property, slotSubstitutions);
+                case AbstractPropertyMemberAbstractMemberDeclarationNode propertyMember:
+                    EmitAbstractPropertyDeclaration(propertyMember.Property, slotSubstitutions);
                     break;
                 // Skip associated type slot declarations — they are lifted to type parameters.
-                case InterfaceAssociatedTypeMemberInterfaceMemberDeclarationNode:
-                case InterfaceUnconstrainedAssociatedTypeMemberInterfaceMemberDeclarationNode:
+                case AbstractAssociatedTypeMemberAbstractMemberDeclarationNode:
+                case AbstractUnconstrainedAssociatedTypeMemberAbstractMemberDeclarationNode:
                     break;
             }
         }
@@ -3203,7 +3203,7 @@ internal sealed class CSharpSourceWriter
         _currentParameterizedSlots = previousParameterizedSlots;
     }
 
-    private void EmitInterfaceMethodDeclaration(InterfaceMethodDeclarationNode methodDecl, Dictionary<string, string>? slotSubstitutions = null)
+    private void EmitAbstractMethodDeclaration(AbstractMethodDeclarationNode methodDecl, Dictionary<string, string>? slotSubstitutions = null)
     {
         var returnType = slotSubstitutions is not null
             ? EmitTypeReferenceWithSubstitution(methodDecl.ReturnType, slotSubstitutions)
@@ -3214,7 +3214,7 @@ internal sealed class CSharpSourceWriter
             ? EmitParameterListWithSubstitution(methodDecl.Parameters, slotSubstitutions)
             : EmitParameterList(methodDecl.Parameters);
 
-        // For generic interface methods with parameterized constructor constraints,
+        // For generic abstract type methods with parameterized constructor constraints,
         // append factory delegate parameters.
         var methodSymbol = _model.GetDeclaredSymbol(methodDecl) as Symbol;
         var methodTypeParams = methodSymbol?.TypeParameters ?? (IReadOnlyList<IType>)Array.Empty<IType>();
@@ -3240,7 +3240,7 @@ internal sealed class CSharpSourceWriter
             (tp is TypeParameterType tpc && tpc.Constraints is not null &&
             (tpc.Constraints.HasClassConstraint || tpc.Constraints.HasStructConstraint ||
              tpc.Constraints.BaseClassConstraint is not null ||
-             tpc.Constraints.InterfaceConstraints.Count > 0 ||
+             tpc.Constraints.AbstractConstraints.Count > 0 ||
              tpc.Constraints.TraitConstraints.Count > 0 ||
              tpc.Constraints.ConstructorConstraints.Any(c => c.Count == 0))));
 
@@ -3256,7 +3256,7 @@ internal sealed class CSharpSourceWriter
         }
     }
 
-    private void EmitInterfacePropertyDeclaration(InterfacePropertyDeclarationNode propertyDecl, Dictionary<string, string>? slotSubstitutions = null)
+    private void EmitAbstractPropertyDeclaration(AbstractPropertyDeclarationNode propertyDecl, Dictionary<string, string>? slotSubstitutions = null)
     {
         var type = slotSubstitutions is not null
             ? EmitTypeReferenceWithSubstitution(propertyDecl.Type, slotSubstitutions)
@@ -3268,10 +3268,10 @@ internal sealed class CSharpSourceWriter
         {
             switch (accessor)
             {
-                case InterfaceGetAccessorInterfaceAccessorDeclarationNode:
+                case AbstractGetAccessorAbstractAccessorDeclarationNode:
                     accessors.Add("get;");
                     break;
-                case InterfaceSetAccessorInterfaceAccessorDeclarationNode:
+                case AbstractSetAccessorAbstractAccessorDeclarationNode:
                     accessors.Add("set;");
                     break;
             }
@@ -3385,10 +3385,10 @@ internal sealed class CSharpSourceWriter
         {
             switch (accessor)
             {
-                case InterfaceGetAccessorInterfaceAccessorDeclarationNode:
+                case AbstractGetAccessorAbstractAccessorDeclarationNode:
                     accessors.Add("get;");
                     break;
-                case InterfaceSetAccessorInterfaceAccessorDeclarationNode:
+                case AbstractSetAccessorAbstractAccessorDeclarationNode:
                     accessors.Add("set;");
                     break;
             }
@@ -3498,10 +3498,10 @@ internal sealed class CSharpSourceWriter
                         {
                             switch (accessor)
                             {
-                                case InterfaceGetAccessorInterfaceAccessorDeclarationNode:
+                                case AbstractGetAccessorAbstractAccessorDeclarationNode:
                                     hasGet = true;
                                     break;
-                                case InterfaceSetAccessorInterfaceAccessorDeclarationNode:
+                                case AbstractSetAccessorAbstractAccessorDeclarationNode:
                                     hasSet = true;
                                     break;
                             }
@@ -3540,18 +3540,18 @@ internal sealed class CSharpSourceWriter
     /// </summary>
     private void EmitIteratorInterfaceBoilerplate(IType type)
     {
-        var interfaces = type switch
+        var abstracts = type switch
         {
-            ClassType ct => ct.Interfaces,
-            StructType st => st.Interfaces,
+            ClassType ct => ct.Abstracts,
+            StructType st => st.Abstracts,
             _ => null
         };
-        if (interfaces is null) return;
+        if (abstracts is null) return;
 
-        foreach (var iface in interfaces)
+        foreach (var iface in abstracts)
         {
             var definition = iface is ConstructedType ct2 ? ct2.GenericDefinition : iface;
-            if (definition is not InterfaceType ifaceType || ifaceType.ContainingNamespace != "Standard")
+            if (definition is not AbstractType ifaceType || ifaceType.ContainingNamespace != "Standard")
                 continue;
 
             if (ifaceType.DisplayName == "IEnumerator")
@@ -3591,13 +3591,13 @@ internal sealed class CSharpSourceWriter
     private void EmitExplicitInterfaceImplsForParameterizedSlots(
         ClassType classType,
         ClassDeclarationNode classDecl,
-        Dictionary<string, string> interfaceParamSubs)
+        Dictionary<string, string> abstractParamSubs)
     {
-        // Collect parameterized slots from implemented interfaces.
-        var paramSlots = new List<(InterfaceType Interface, AssociatedTypeSlotType Slot, IType ConstructedIface)>();
-        foreach (var iface in classType.Interfaces)
+        // Collect parameterized slots from implemented abstract types.
+        var paramSlots = new List<(AbstractType Interface, AssociatedTypeSlotType Slot, IType ConstructedIface)>();
+        foreach (var iface in classType.Abstracts)
         {
-            var def = iface is ConstructedType ctIface ? ctIface.GenericDefinition as InterfaceType : iface as InterfaceType;
+            var def = iface is ConstructedType ctIface ? ctIface.GenericDefinition as AbstractType : iface as AbstractType;
             if (def is null) continue;
             foreach (var slot in CollectAssociatedTypeSlotsFromType(def))
             {
@@ -3622,7 +3622,7 @@ internal sealed class CSharpSourceWriter
 
             // This method uses a parameterized slot as its return type.
             // Emit: ErasedType InterfaceName.MethodName(params) => MethodName(params);
-            var erasedReturnType = EraseParameterizedSlotToConstraint(matchingSlot.Slot, namedReturn.TypeArgs, interfaceParamSubs);
+            var erasedReturnType = EraseParameterizedSlotToConstraint(matchingSlot.Slot, namedReturn.TypeArgs, abstractParamSubs);
             if (erasedReturnType is null) continue;
 
             var methodName = methodDecl.Name.Lexeme;
@@ -3903,8 +3903,8 @@ internal sealed class CSharpSourceWriter
         var modifiers = EmitModifiers(structDecl.Modifiers);
         var name = structDecl.Name.Lexeme;
         var typeParams = EmitTypeParameterList(structDecl.TypeParams);
-        var interfaceList = "";
-        if (structDecl.Interfaces is not null)
+        var abstractList = "";
+        if (structDecl.AbstractList is not null)
         {
             // If the struct has a base struct, skip the first entry in the base list
             // (it was consumed as the base struct type, not an interface). The CLR does
@@ -3914,20 +3914,20 @@ internal sealed class CSharpSourceWriter
             var baseParts = hasBaseStruct
                 ? (implementorScope is not null
                     ? EmitBaseListSkippingFirstWithAssociatedTypeArgs(
-                        structDecl.Interfaces,
+                        structDecl.AbstractList,
                         implementorScope,
                         null,
                         name,
                         typeParams)
-                    : EmitBaseListSkippingFirst(structDecl.Interfaces))
+                    : EmitBaseListSkippingFirst(structDecl.AbstractList))
                 : (implementorScope is not null
                     ? EmitBaseListWithAssociatedTypeArgs(
-                        structDecl.Interfaces,
+                        structDecl.AbstractList,
                         implementorScope,
                         null,
                         name,
                         typeParams)
-                    : EmitBaseListWithTypeArgs(structDecl.Interfaces));
+                    : EmitBaseListWithTypeArgs(structDecl.AbstractList));
 
             // Append trait interfaces for this struct
             var traitNames = new List<string>();
@@ -3940,20 +3940,20 @@ internal sealed class CSharpSourceWriter
             }
 
             if (baseParts.Length > 0 && traitNames.Count > 0)
-                interfaceList = $" : {baseParts}, {string.Join(", ", traitNames)}";
+                abstractList = $" : {baseParts}, {string.Join(", ", traitNames)}";
             else if (baseParts.Length > 0)
-                interfaceList = $" : {baseParts}";
+                abstractList = $" : {baseParts}";
             else if (traitNames.Count > 0)
-                interfaceList = $" : {string.Join(", ", traitNames)}";
+                abstractList = $" : {string.Join(", ", traitNames)}";
         }
         else if (symbol?.DeclaredType is StructType structType)
         {
             var parts = new List<string>();
 
-            // Interfaces — append associated type slot concrete types as additional type arguments.
-            foreach (var iface in structType.Interfaces)
+            // Abstracts — append associated type slot concrete types as additional type arguments.
+            foreach (var iface in structType.Abstracts)
             {
-                parts.Add(EmitInterfaceWithAssociatedTypeArgs(iface, structType.MemberScope, null, name, typeParams));
+                parts.Add(EmitAbstractWithAssociatedTypeArgs(iface, structType.MemberScope, null, name, typeParams));
             }
 
             // Trait interfaces
@@ -3964,7 +3964,7 @@ internal sealed class CSharpSourceWriter
 
             if (parts.Count > 0)
             {
-                interfaceList = $" : {string.Join(", ", parts)}";
+                abstractList = $" : {string.Join(", ", parts)}";
             }
         }
         // Emit [DependentType(...)] attributes for each dependent type parameter.
@@ -3986,7 +3986,7 @@ internal sealed class CSharpSourceWriter
         {
             refPrefix = "ref ";
         }
-        AppendLine($"{modifiers}{readonlyPrefix}{refPrefix}struct {name}{typeParams}{interfaceList}");
+        AppendLine($"{modifiers}{readonlyPrefix}{refPrefix}struct {name}{typeParams}{abstractList}");
         // Emit constraint clauses (where T : ...) for constrained type parameters.
         if (symbol?.DeclaredType is not null)
         {
@@ -5034,7 +5034,7 @@ internal sealed class CSharpSourceWriter
         };
 
         // ── Associated type generic lifting for generic functions (Task 7.3) ──
-        // When a method's type parameters are constrained by interfaces/traits with
+        // When a method's type parameters are constrained by abstract types/traits with
         // associated type slots, synthesize additional type parameters for each slot
         // and set up substitutions so T.SlotName references resolve to the synthesized name.
         // This must be set up BEFORE emitting return type and parameters so that
@@ -6031,7 +6031,7 @@ internal sealed class CSharpSourceWriter
 
     /// <summary>
     /// Returns <c>true</c> if any type declared in the compilation unit implements or
-    /// references a Standard-namespace interface that is NOT mapped to a CLR counterpart
+    /// references a Standard-namespace abstract type that is NOT mapped to a CLR counterpart
     /// via <see cref="CSharpTypeMap"/>. When true, the emitter must retain
     /// <c>using Standard;</c> so the emitted C# can resolve the type reference.
     /// </summary>
@@ -6072,7 +6072,7 @@ internal sealed class CSharpSourceWriter
 
     /// <summary>
     /// Returns <c>true</c> if the given type declaration implements a Standard-namespace
-    /// interface that does not have a CLR mapping in <see cref="CSharpTypeMap"/>.
+    /// abstract type that does not have a CLR mapping in <see cref="CSharpTypeMap"/>.
     /// </summary>
     private bool TypeImplementsUnmappedStandardInterface(TypeDeclarationNode typeDecl)
     {
@@ -6083,20 +6083,20 @@ internal sealed class CSharpSourceWriter
             _ => null,
         };
 
-        IReadOnlyList<IType>? interfaces = symbol?.DeclaredType switch
+        IReadOnlyList<IType>? abstracts = symbol?.DeclaredType switch
         {
-            ClassType ct => ct.Interfaces,
-            StructType st => st.Interfaces,
+            ClassType ct => ct.Abstracts,
+            StructType st => st.Abstracts,
             _ => null,
         };
 
-        if (interfaces is null)
+        if (abstracts is null)
             return false;
 
-        foreach (var iface in interfaces)
+        foreach (var iface in abstracts)
         {
             var definition = iface is ConstructedType ctIface ? ctIface.GenericDefinition : iface;
-            if (definition is InterfaceType ifaceType
+            if (definition is AbstractType ifaceType
                 && ifaceType.ContainingNamespace == "Standard"
                 && CSharpTypeMap.TryGetMappedName($"Standard.{ifaceType.DisplayName}") is null)
             {
@@ -6982,7 +6982,7 @@ internal sealed class CSharpSourceWriter
                     // Check if this is a parameterized slot — erase to constraint interface.
                     if (resolvedSlot.TypeParameters.Count > 0 && namedRef.TypeArgs is not null)
                     {
-                        var erasedType = EraseParameterizedSlotToConstraint(resolvedSlot, namedRef.TypeArgs, _currentInterfaceTypeParamSubs);
+                        var erasedType = EraseParameterizedSlotToConstraint(resolvedSlot, namedRef.TypeArgs, _currentAbstractTypeParamSubs);
                         if (erasedType is not null)
                             return namedRef.ArrayRank is not null ? $"{erasedType}[]" : erasedType;
                     }
@@ -7056,7 +7056,7 @@ internal sealed class CSharpSourceWriter
                     return namedRef.ArrayRank is not null ? $"{emittedType}[]" : emittedType;
                 }
                 // Fallback: search all symbols for a type alias with this name.
-                // Only apply if no concrete type (class/struct/interface/newtype) with the
+                // Only apply if no concrete type (class/struct/abstract/newtype) with the
                 // same name exists in the current namespace — prevents cross-namespace
                 // alias collisions when a class and a type alias share the same simple
                 // name in different namespaces compiled together.
@@ -7086,7 +7086,7 @@ internal sealed class CSharpSourceWriter
                         // since NewtypeType does not carry a ContainingNamespace property.
                         var hasConcreteTypeInCurrentNamespace = _currentNamespace is not null
                             && _model.AllSymbols.Any(s => s.Name == name
-                                && s.Kind is SymbolKind.Class or SymbolKind.Struct or SymbolKind.Interface
+                                && s.Kind is SymbolKind.Class or SymbolKind.Struct or SymbolKind.Abstract
                                 && GetSymbolContainingNamespace(s) == _currentNamespace);
 
                         // Also check for newtypes: a newtype with the same name in any
@@ -7109,7 +7109,7 @@ internal sealed class CSharpSourceWriter
                     {
                         var hasConcreteTypeInCurrentNamespace = _currentNamespace is not null
                             && _model.AllSymbols.Any(s => s.Name == name
-                                && s.Kind is SymbolKind.Class or SymbolKind.Struct or SymbolKind.Interface
+                                && s.Kind is SymbolKind.Class or SymbolKind.Struct or SymbolKind.Abstract
                                 && GetSymbolContainingNamespace(s) == _currentNamespace);
                         if (!hasConcreteTypeInCurrentNamespace)
                         {
@@ -7122,7 +7122,7 @@ internal sealed class CSharpSourceWriter
                     {
                         var hasConcreteTypeInCurrentNamespace = _currentNamespace is not null
                             && _model.AllSymbols.Any(s => s.Name == name
-                                && s.Kind is SymbolKind.Class or SymbolKind.Struct or SymbolKind.Interface
+                                && s.Kind is SymbolKind.Class or SymbolKind.Struct or SymbolKind.Abstract
                                 && GetSymbolContainingNamespace(s) == _currentNamespace);
                         if (!hasConcreteTypeInCurrentNamespace)
                         {
@@ -11324,7 +11324,7 @@ internal sealed class CSharpSourceWriter
         {
             ClassType ct => ct.MemberScope,
             StructType st => st.MemberScope,
-            InterfaceType it => it.MemberScope,
+            AbstractType it => it.MemberScope,
             ConstructedType constructed => GetMemberScopeForType(constructed.GenericDefinition),
             _ => null,
         };
@@ -12478,7 +12478,7 @@ internal sealed class CSharpSourceWriter
                 // Look up the type's parameters to correctly emit carrier struct names
                 // for non-int dependent type arguments (uint, long, etc.).
                 var typeSymbol = _model.AllSymbols
-                    .FirstOrDefault(s => s.Name == type && s.Kind is SymbolKind.Class or SymbolKind.Struct or SymbolKind.Interface);
+                    .FirstOrDefault(s => s.Name == type && s.Kind is SymbolKind.Class or SymbolKind.Struct or SymbolKind.Abstract);
                 var targetTypeParams = typeSymbol is not null ? GetTypeParametersFromType(typeSymbol.DeclaredType) : null;
                 var typeArgs = EmitTypeArgumentList(objCreation.TypeArgs, targetTypeParams);
 
@@ -13116,7 +13116,7 @@ internal sealed class CSharpSourceWriter
                         // Verify it's not a known type before treating as forwarded param.
                         var isKnownType = _model.AllSymbols.Any(s =>
                             s.Name == name && s.Kind is SymbolKind.Class or SymbolKind.Struct
-                                or SymbolKind.Interface or SymbolKind.Enum or SymbolKind.TypeAlias);
+                                or SymbolKind.Abstract or SymbolKind.Enum or SymbolKind.TypeAlias);
                         if (!isKnownType)
                         {
                             return $"T{name}";
@@ -13272,7 +13272,7 @@ internal sealed class CSharpSourceWriter
     {
         foreach (var symbol in _model.AllSymbols)
         {
-            if (symbol.Name == name && symbol.Kind is SymbolKind.Class or SymbolKind.Struct or SymbolKind.Interface)
+            if (symbol.Name == name && symbol.Kind is SymbolKind.Class or SymbolKind.Struct or SymbolKind.Abstract)
             {
                 var typeParams = GetTypeParametersFromType(symbol.DeclaredType);
                 if (typeParams.Count > 0)
@@ -13356,7 +13356,7 @@ internal sealed class CSharpSourceWriter
 
     /// <summary>
     /// Emits a base list skipping the first entry (base struct type) while resolving associated
-    /// type arguments for interfaces/traits that have associated type slots.
+    /// type arguments for abstract types/traits that have associated type slots.
     /// Returns an empty string if no remaining entries exist.
     /// </summary>
     private string EmitBaseListSkippingFirstWithAssociatedTypeArgs(
@@ -13445,8 +13445,8 @@ internal sealed class CSharpSourceWriter
             if (constraints.BaseClassConstraint is not null)
                 parts.Add(CSharpTypeMap.GetTypeName(constraints.BaseClassConstraint));
 
-            // 3. Interfaces and traits
-            foreach (var iface in constraints.InterfaceConstraints)
+            // 3. Abstract types and traits
+            foreach (var iface in constraints.AbstractConstraints)
                 parts.Add(CSharpTypeMap.GetTypeName(iface));
             foreach (var trait in constraints.TraitConstraints)
                 parts.Add(CSharpTypeMap.GetTypeName(trait));
@@ -13520,29 +13520,29 @@ internal sealed class CSharpSourceWriter
             if (constraints.BaseClassConstraint is not null)
                 parts.Add(CSharpTypeMap.GetTypeName(constraints.BaseClassConstraint));
 
-            // 3. Interfaces — append synthesized type parameters for interfaces with associated type slots.
-            foreach (var iface in constraints.InterfaceConstraints)
+            // 3. Abstract types — append synthesized type parameters for abstract types with associated type slots.
+            foreach (var iface in constraints.AbstractConstraints)
             {
                 var ifaceTypeName = CSharpTypeMap.GetTypeName(iface);
 
-                // Check if this interface has associated type slots that were lifted.
+                // Check if this abstract type has associated type slots that were lifted.
                 var ifaceType = iface is ConstructedType ct
-                    ? ct.GenericDefinition as InterfaceType
-                    : iface as InterfaceType;
+                    ? ct.GenericDefinition as AbstractType
+                    : iface as AbstractType;
 
                 if (ifaceType is not null)
                 {
-                    // Collect slots from this interface that are in our associated slots list.
-                    var slotsForThisInterface = associatedSlots
+                    // Collect slots from this abstract type that are in our associated slots list.
+                    var slotsForThisAbstract = associatedSlots
                         .Where(s => s.TypeParamName == tpt.Name
                             && s.Slot.DeclaringType == ifaceType)
                         .Select(s => $"T{s.Slot.DisplayName}")
                         .ToList();
 
-                    if (slotsForThisInterface.Count > 0)
+                    if (slotsForThisAbstract.Count > 0)
                     {
-                        var synthesizedArgs = string.Join(", ", slotsForThisInterface);
-                        // Append synthesized type parameters to the interface type arguments.
+                        var synthesizedArgs = string.Join(", ", slotsForThisAbstract);
+                        // Append synthesized type parameters to the abstract type arguments.
                         if (ifaceTypeName.EndsWith(">"))
                         {
                             // Already has type args: insert before closing >.
@@ -13559,7 +13559,7 @@ internal sealed class CSharpSourceWriter
                 parts.Add(ifaceTypeName);
             }
 
-            // Traits — same logic as interfaces.
+            // Traits — same logic as abstract types.
             foreach (var trait in constraints.TraitConstraints)
             {
                 var traitTypeName = CSharpTypeMap.GetTypeName(trait);
@@ -13801,7 +13801,7 @@ internal sealed class CSharpSourceWriter
         {
             ClassType ct => ct.TypeParameters,
             StructType st => st.TypeParameters,
-            InterfaceType it => it.TypeParameters,
+            AbstractType it => it.TypeParameters,
             _ => Array.Empty<IType>()
         };
     }
@@ -13911,7 +13911,7 @@ internal sealed class CSharpSourceWriter
 
         var scope = type switch
         {
-            InterfaceType it => it.MemberScope,
+            AbstractType it => it.MemberScope,
             TraitType tt => tt.MemberScope,
             _ => null
         };
@@ -13948,7 +13948,7 @@ internal sealed class CSharpSourceWriter
     /// For each type parameter constrained by an interface or trait with associated type slots,
     /// returns the slots paired with the constraining type parameter name.
     /// Used by <see cref="EmitMethodDeclaration"/> to synthesize additional type parameters
-    /// for generic functions constrained by interfaces with associated types.
+    /// for generic functions constrained by abstract types with associated types.
     /// </summary>
     private static List<(string TypeParamName, AssociatedTypeSlotType Slot)> CollectAssociatedTypeSlotsFromMethodTypeParams(
         IReadOnlyList<IType> typeParameters)
@@ -13962,11 +13962,11 @@ internal sealed class CSharpSourceWriter
             if (tpt.Constraints is null) continue;
 
             // Check interface constraints for associated type slots.
-            foreach (var ifaceConstraint in tpt.Constraints.InterfaceConstraints)
+            foreach (var ifaceConstraint in tpt.Constraints.AbstractConstraints)
             {
                 var ifaceType = ifaceConstraint is ConstructedType ct
-                    ? ct.GenericDefinition as InterfaceType
-                    : ifaceConstraint as InterfaceType;
+                    ? ct.GenericDefinition as AbstractType
+                    : ifaceConstraint as AbstractType;
 
                 if (ifaceType is null) continue;
 
@@ -14025,8 +14025,8 @@ internal sealed class CSharpSourceWriter
             if (constraints.BaseClassConstraint is not null)
                 parts.Add(CSharpTypeMap.GetTypeName(constraints.BaseClassConstraint));
 
-            // 3. Interfaces and traits
-            foreach (var iface in constraints.InterfaceConstraints)
+            // 3. Abstract types and traits
+            foreach (var iface in constraints.AbstractConstraints)
                 parts.Add(CSharpTypeMap.GetTypeName(iface));
             foreach (var trait in constraints.TraitConstraints)
                 parts.Add(CSharpTypeMap.GetTypeName(trait));
@@ -14059,8 +14059,8 @@ internal sealed class CSharpSourceWriter
         if (constraints is null) return null;
 
         // Use the first interface constraint as the erasure target.
-        IType? constraintType = constraints.InterfaceConstraints.Count > 0
-            ? constraints.InterfaceConstraints[0]
+        IType? constraintType = constraints.AbstractConstraints.Count > 0
+            ? constraints.AbstractConstraints[0]
             : constraints.TraitConstraints.Count > 0
                 ? constraints.TraitConstraints[0]
                 : null;
@@ -14104,12 +14104,12 @@ internal sealed class CSharpSourceWriter
 
     /// <summary>
     /// Builds the C# type name for a constraint type, substituting type parameters
-    /// with their concrete values from the slot and interface mappings.
+    /// with their concrete values from the slot and abstract type mappings.
     /// </summary>
     private static string BuildErasedConstraintTypeName(
         IType constraintType,
         Dictionary<string, string> slotParamMap,
-        Dictionary<string, string>? interfaceParamMap)
+        Dictionary<string, string>? abstractParamMap)
     {
         if (constraintType is ConstructedType ct)
         {
@@ -14119,10 +14119,10 @@ internal sealed class CSharpSourceWriter
             {
                 if (arg is TypeParameterType tpt)
                 {
-                    // Check slot params first, then interface params.
+                    // Check slot params first, then abstract type params.
                     if (slotParamMap.TryGetValue(tpt.Name, out var slotSub))
                         args.Add(slotSub);
-                    else if (interfaceParamMap is not null && interfaceParamMap.TryGetValue(tpt.Name, out var ifaceSub))
+                    else if (abstractParamMap is not null && abstractParamMap.TryGetValue(tpt.Name, out var ifaceSub))
                         args.Add(ifaceSub);
                     else
                         args.Add(tpt.Name); // Keep as-is (for interface context)
@@ -14174,7 +14174,7 @@ internal sealed class CSharpSourceWriter
     {
         var baseName = baseTypeRef.Name.Lexeme;
 
-        // Resolve the base type reference to its semantic interface/trait type.
+        // Resolve the base type reference to its semantic abstract type/trait type.
         var resolvedType = ResolveBaseTypeToInterfaceOrTrait(baseName);
         if (resolvedType is null)
             return baseName + EmitTypeArgumentList(baseTypeRef.TypeArgs);
@@ -14183,7 +14183,7 @@ internal sealed class CSharpSourceWriter
         // (System.Collections.Generic.IEnumerable<T> / IEnumerator<T>) which do NOT have
         // the associated type slot lifted as an extra type parameter. Skip slot-lifting
         // and emit the mapped CLR name.
-        if (resolvedType is InterfaceType clrIface
+        if (resolvedType is AbstractType clrIface
             && clrIface.ContainingNamespace == "Standard"
             && clrIface.DisplayName is "IEnumerable" or "IEnumerator")
         {
@@ -14232,7 +14232,7 @@ internal sealed class CSharpSourceWriter
     }
 
     /// <summary>
-    /// Emits a base list with associated type arguments appended for interfaces/traits
+    /// Emits a base list with associated type arguments appended for abstract types/traits
     /// that have associated type slots.
     /// </summary>
     private string EmitBaseListWithAssociatedTypeArgs(
@@ -14252,20 +14252,20 @@ internal sealed class CSharpSourceWriter
     }
 
     /// <summary>
-    /// Resolves a base type reference name to its underlying InterfaceType or TraitType.
+    /// Resolves a base type reference name to its underlying AbstractType or TraitType.
     /// Prefers a match in the current namespace to avoid cross-namespace collisions.
-    /// Returns null if the name does not correspond to an interface or trait.
+    /// Returns null if the name does not correspond to an abstract type or trait.
     /// </summary>
     private IType? ResolveBaseTypeToInterfaceOrTrait(string name)
     {
         IType? fallback = null;
         foreach (var symbol in _model.AllSymbols)
         {
-            if (symbol.Name == name && symbol.DeclaredType is InterfaceType or TraitType)
+            if (symbol.Name == name && symbol.DeclaredType is AbstractType or TraitType)
             {
                 var containingNs = symbol.DeclaredType switch
                 {
-                    InterfaceType it => it.ContainingNamespace,
+                    AbstractType it => it.ContainingNamespace,
                     TraitType tt => tt.ContainingNamespace,
                     _ => null
                 };
@@ -14282,25 +14282,25 @@ internal sealed class CSharpSourceWriter
     }
 
     /// <summary>
-    /// Emits an interface type name with associated type slot concrete types appended as
-    /// additional type arguments. Used when the interface is obtained from the semantic model's
-    /// <c>Interfaces</c> list (not from the AST base list).
+    /// Emits an abstract type name with associated type slot concrete types appended as
+    /// additional type arguments. Used when the abstract type is obtained from the semantic model's
+    /// <c>Abstracts</c> list (not from the AST base list).
     /// </summary>
-    private static string EmitInterfaceWithAssociatedTypeArgs(
+    private static string EmitAbstractWithAssociatedTypeArgs(
         IType iface,
         IScope implementorScope,
         ClassType? implementorClassType,
         string implementorName,
         string implementorTypeParams)
     {
-        // Get the underlying interface/trait definition (unwrap ConstructedType if generic).
+        // Get the underlying abstract type/trait definition (unwrap ConstructedType if generic).
         var definition = iface is ConstructedType ct ? ct.GenericDefinition : iface;
 
         // Special case: IEnumerable and IEnumerator map directly to their CLR counterparts
         // (System.Collections.Generic.IEnumerable<T> / IEnumerator<T>) which do NOT have
         // the associated type slot lifted as an extra type parameter. Skip slot-lifting
         // for these two interfaces.
-        if (definition is InterfaceType clrIface
+        if (definition is AbstractType clrIface
             && clrIface.ContainingNamespace == "Standard"
             && clrIface.DisplayName is "IEnumerable" or "IEnumerator")
         {

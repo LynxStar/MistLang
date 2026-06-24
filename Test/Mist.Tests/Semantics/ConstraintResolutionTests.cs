@@ -177,8 +177,8 @@ class Sorter<T> where T : IComparable { }
         var tp = FindTypeParameter(model, "Sorter", "T");
         Assert.NotNull(tp);
         Assert.NotNull(tp!.Constraints);
-        Assert.Single(tp.Constraints!.InterfaceConstraints);
-        Assert.Equal("IComparable", tp.Constraints.InterfaceConstraints[0].DisplayName);
+        Assert.Single(tp.Constraints!.AbstractConstraints);
+        Assert.Equal("IComparable", tp.Constraints.AbstractConstraints[0].DisplayName);
     }
 
     [Fact]
@@ -249,8 +249,8 @@ class Container<T> where T : class, IFoo, new() { }
         Assert.NotNull(tp);
         Assert.NotNull(tp!.Constraints);
         Assert.True(tp.Constraints!.HasClassConstraint);
-        Assert.Single(tp.Constraints.InterfaceConstraints);
-        Assert.Equal("IFoo", tp.Constraints.InterfaceConstraints[0].DisplayName);
+        Assert.Single(tp.Constraints.AbstractConstraints);
+        Assert.Equal("IFoo", tp.Constraints.AbstractConstraints[0].DisplayName);
         Assert.Single(tp.Constraints.ConstructorConstraints);
         Assert.Empty(tp.Constraints.ConstructorConstraints[0]);
     }
@@ -567,7 +567,7 @@ struct Wrapper<T> where T : IFoo { }
         var tp = FindTypeParameter(model, "Wrapper", "T");
         Assert.NotNull(tp);
         Assert.NotNull(tp!.Constraints);
-        Assert.Single(tp.Constraints!.InterfaceConstraints);
+        Assert.Single(tp.Constraints!.AbstractConstraints);
     }
 
     [Fact]
@@ -582,7 +582,7 @@ interface IRepository<T> where T : IFoo { }
         var tp = FindTypeParameter(model, "IRepository", "T");
         Assert.NotNull(tp);
         Assert.NotNull(tp!.Constraints);
-        Assert.Single(tp.Constraints!.InterfaceConstraints);
+        Assert.Single(tp.Constraints!.AbstractConstraints);
     }
 
     [Fact]
@@ -598,13 +598,13 @@ class Pair<K, V> where K : class where V : IFoo { }
         Assert.NotNull(tpK);
         Assert.NotNull(tpK!.Constraints);
         Assert.True(tpK.Constraints!.HasClassConstraint);
-        Assert.Empty(tpK.Constraints.InterfaceConstraints);
+        Assert.Empty(tpK.Constraints.AbstractConstraints);
 
         var tpV = FindTypeParameter(model, "Pair", "V");
         Assert.NotNull(tpV);
         Assert.NotNull(tpV!.Constraints);
         Assert.False(tpV.Constraints!.HasClassConstraint);
-        Assert.Single(tpV.Constraints.InterfaceConstraints);
+        Assert.Single(tpV.Constraints.AbstractConstraints);
     }
 
     [Fact]

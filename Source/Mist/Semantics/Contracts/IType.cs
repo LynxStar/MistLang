@@ -8,7 +8,7 @@ public enum TypeKind
 {
     Class,
     Struct,
-    Interface,
+    Abstract,
     Trait,
     Enum,
 

@@ -393,75 +393,39 @@ This implementation unifies Mist's `interface` and `trait` keywords into a singl
 
 - [ ] 2. Phase 2 — Purge Traits (Pure Deletion)
 
-  - [~] 2.1 Delete trait grammar and add error diagnostic
-    - Remove `TRAIT` token from `keywords.storm`
-    - Remove `TraitDeclaration` rule from `Mist.storm`
-    - Remove `TraitMemberDeclaration`, `TraitFieldDeclaration`, `TraitMethodDeclaration`, `TraitPropertyDeclaration` rules
-    - Remove `TraitType` variant from `TypeDeclaration` rule
-    - Remove `WithDeclaration` rule and `MemberMapping` rule from `Mist.storm`
-    - Remove `WithItem` variant from `TopLevelItem` rule
-    - Add parser error: when `trait` keyword encountered, emit helpful error
-    - Add parser error: when `with` in with-block position encountered, emit error
-    - NOTE: `WITH` token, `AS` token remain (used by `WithClause` and `with` statements)
+  > **Reference docs:**
+  > - `phase2-tasks.md` — 72 detailed subtasks with verification commands
+  > - `trait-audit.md` — per-file breakdown (196 files, 5082 grep hits)
+  > - `trait-grep-raw.txt` — raw grep output for line-level reference
 
-  - [~] 2.2 Delete trait semantic model classes
-    - Delete `TraitType.cs`, `ConstructedTraitType.cs`
-    - Delete `TraitSatisfactionMap.cs`, `WithBlockRegistry.cs`
-    - Remove `TypeKind.Trait` from enum
-    - Remove all references to deleted types
-
-  - [~] 2.3 Delete trait SemanticModelBuilder passes
-    - Remove `RegisterTraitDeclaration`, `ResolveTraitDeclaration`
-    - Remove `Pass1_ResolveTraitParents`, `Pass1_DetectTraitCycles`, `DetectTraitCyclesDfsVisit`
-    - Remove `Pass1_ResolveWithBlocks` and all helper methods
-    - Remove `Pass1_ResolveTraitSatisfaction` and structural matching logic
-    - Remove trait-related constraint satisfaction methods
-    - Clean up: trait constraints become abstract type constraints
-
-  - [~] 2.4 Delete trait CSharpEmitter logic
-    - Remove `EmitTraitDeclaration` and related methods
-    - Remove `EmitExplicitTraitImplementations`
-    - Remove all references to `TraitSatisfactionMap` and `WithBlockRegistry`
-
-  - [~] 2.5 Delete trait-related test files
-    - Delete `TraitAssignabilityPropertyTests.cs`
-    - Delete `TraitMemberAccessPropertyTests.cs`
-    - Delete `TraitMemberAccessGenericPropertyTests.cs`
-    - Delete `TraitStructuralMatchSubstitutionPropertyTests.cs`
-    - Delete `TraitInheritanceValidationPropertyTests.cs`
-    - Delete `TraitAbstractCoexistencePropertyTests.cs` (renamed in Phase 1)
-    - Delete `WithBlockGenericTraitPropertyTests.cs`
-    - Delete any other test files whose primary purpose is testing trait behavior
-
-  - [~] 2.6 Migrate and remove trait-related samples
-    - Delete `samples/Traits/` directory
-    - Delete `samples/GenericTraits/` directory
-    - Update `samples/GenericConstraints/` — replace `trait` with `abstract`, add `: AbstractType` conformance
-    - Update `samples/AssociatedTypes/` — replace `trait` with `abstract`
-    - Update `samples/DependentTypes/` — replace `trait` with `abstract`
-    - Update `samples/NestedScoping/` — replace `trait` with `abstract`
-    - Update `samples/StructuredContext/` — replace `trait` with `abstract`
-    - Update `samples/AllFeatures/Program.mist` — remove trait demo calls
-
-
-  - [~] 2.7 Update TextMate grammar for Phase 2
-    - Remove `trait` from declaration keyword list
-    - Update generic declaration pattern: `class|struct|abstract|trait` → `class|struct|abstract`
-    - Remove `entity.name.type.trait.mist` scope/rule
-    - Remove `trait` from `book/theme/mist-lang.js`
-
-  - [~] 2.8 Update book documentation for Phase 2
-    - Remove `book/src/object-model/traits.md` (or replace with migration note)
-    - Remove "Traits" entry from `book/SUMMARY.md`
-    - Update cross-references to traits from other chapters
-
-  - [~] 2.9 Phase 2 verification gate
+  - [ ] 2.1 Delete trait grammar (keywords.storm, Mist.storm) + add error recovery
+  - [ ] 2.2 Delete trait semantic model types (TraitType.cs, ConstructedTraitType.cs, TraitSatisfactionMap.cs, WithBlockRegistry.cs)
+  - [ ] 2.3 Remove Trait from enums (SymbolKind, TypeKind) and contracts (ISemanticModel)
+  - [ ] 2.4 Remove TraitConstraints from TypeParameterConstraints, SatisfiedTraits from ClassType/StructType
+  - [ ] 2.5 Purge trait from SemanticModelBuilder.cs (883 hits — passes, registration, diagnostics, helpers)
+  - [ ] 2.6 Purge trait from TypeCheckerAnalyzer.cs (293 hits — SatisfiesTrait, IsTraitTargetType, readonly checks, assignability)
+  - [ ] 2.7 Purge trait from OwnershipAnalyzer, ContextCheckerAnalyzer, CooperationContractVerifier, ReadonlyAnalyzer
+  - [ ] 2.8 Purge trait from CSharpEmitter.cs (148 hits — EmitTraitDeclaration, ExplicitTraitImplementations, constraint loops)
+  - [ ] 2.9 Purge trait from CSharpTypeMap, DependentTypeHelpersGenerator, NeedsAsyncPropagationPass
+  - [ ] 2.10 Purge trait from DiagnosticId.cs, MistPrettyPrinter.cs, CompilerDriver.cs, SemanticModel.cs
+  - [ ] 2.11 Purge trait from misc semantics (DefaultValueKind, BindingKind, ReadonlyInferenceEngine)
+  - [ ] 2.12 Delete 24 trait-only test files (generators, parsing, semantics, analysis, backend)
+  - [ ] 2.13 Modify ~40 remaining test files to remove trait scenarios/branches
+  - [ ] 2.14 Delete samples/Traits/ and samples/GenericTraits/ directories
+  - [ ] 2.15 Migrate samples (GenericConstraints, AssociatedTypes, NestedScoping, StructuredContext, DependentTypes, Enums, AllFeatures)
+  - [ ] 2.16 Regenerate sample out/ directories, update AllFeatures.out baseline
+  - [ ] 2.17 Update Editor syntax highlighting (mist.tmLanguage.json, package.json, test files)
+  - [ ] 2.18 Delete book traits chapter + snippet files (traits.md + ~22 snippet files)
+  - [ ] 2.19 Update remaining book chapters (SUMMARY.md, introduction, type-system/*, advanced/*, tooling/*)
+  - [ ] 2.20 Update book theme (mist-lang.js, highlight.js Mist section only)
+  - [ ] 2.21 Update distribute/steering files (mist-advanced-features.md, mist-language.md, README.md)
+  - [ ] 2.22 Update project/design-notes/regions-and-lifetimes.md
+  - [ ] 2.23 Final verification gate
     - Build: zero errors, zero warnings
-    - Run full test suite: all pass
-    - Grep for "trait": only in spec files and third-party code
-    - Compile and run all samples
-
-  - [~] 2.10 Commit Phase 2
+    - Full test suite passes
+    - `grep -rni 'trait' --include='*.cs' --include='*.mist' --include='*.storm' --include='*.md' --include='*.json' --include='*.js' --include='*.toml' --include='*.out' --exclude-dir='.git' --exclude-dir='.kiro' --exclude-dir='node_modules' --exclude-dir='obj' --exclude-dir='bin' .` returns ONLY: third-party highlight.js (Rust/PHP), xUnit `[Trait]` attributes
+    - All samples compile and produce expected output
+  - [ ] 2.24 Commit Phase 2
     - Message: "Phase 2: Purge traits entirely"
 
 - [ ] 3. Phase 3 — Default Implementations (New Functionality)
@@ -571,27 +535,28 @@ This implementation unifies Mist's `interface` and `trait` keywords into a singl
     { "id": 11, "tasks": ["1.58", "1.59", "1.60"] },
     { "id": 12, "tasks": ["1.61"] },
     { "id": 13, "tasks": ["1.62"] },
-    { "id": 14, "tasks": ["2.1"] },
-    { "id": 15, "tasks": ["2.2"] },
-    { "id": 16, "tasks": ["2.3", "2.4"] },
-    { "id": 17, "tasks": ["2.5", "2.6", "2.7", "2.8"] },
-    { "id": 18, "tasks": ["2.9"] },
-    { "id": 19, "tasks": ["2.10"] },
-    { "id": 20, "tasks": ["3.1"] },
-    { "id": 21, "tasks": ["3.2"] },
-    { "id": 22, "tasks": ["3.3"] },
-    { "id": 23, "tasks": ["3.4"] },
-    { "id": 24, "tasks": ["3.5", "3.6"] },
-    { "id": 25, "tasks": ["3.7"] },
-    { "id": 26, "tasks": ["3.8"] },
-    { "id": 27, "tasks": ["4.1"] },
-    { "id": 28, "tasks": ["4.2"] },
-    { "id": 29, "tasks": ["4.3"] },
-    { "id": 30, "tasks": ["4.4", "4.5"] },
-    { "id": 31, "tasks": ["4.6", "4.7"] },
-    { "id": 32, "tasks": ["4.8"] },
-    { "id": 33, "tasks": ["4.9"] },
-    { "id": 34, "tasks": ["5.1", "5.2", "5.3"] }
+    { "id": 14, "tasks": ["2.1", "2.2", "2.3"] },
+    { "id": 15, "tasks": ["2.4", "2.5", "2.6", "2.7", "2.8", "2.9", "2.10", "2.11"] },
+    { "id": 16, "tasks": ["2.12", "2.13"] },
+    { "id": 17, "tasks": ["2.14", "2.15"] },
+    { "id": 18, "tasks": ["2.16", "2.17", "2.18", "2.19", "2.20", "2.21", "2.22"] },
+    { "id": 19, "tasks": ["2.23"] },
+    { "id": 20, "tasks": ["2.24"] },
+    { "id": 21, "tasks": ["3.1"] },
+    { "id": 22, "tasks": ["3.2"] },
+    { "id": 23, "tasks": ["3.3"] },
+    { "id": 24, "tasks": ["3.4"] },
+    { "id": 25, "tasks": ["3.5", "3.6"] },
+    { "id": 26, "tasks": ["3.7"] },
+    { "id": 27, "tasks": ["3.8"] },
+    { "id": 28, "tasks": ["4.1"] },
+    { "id": 29, "tasks": ["4.2"] },
+    { "id": 30, "tasks": ["4.3"] },
+    { "id": 31, "tasks": ["4.4", "4.5"] },
+    { "id": 32, "tasks": ["4.6", "4.7"] },
+    { "id": 33, "tasks": ["4.8"] },
+    { "id": 34, "tasks": ["4.9"] },
+    { "id": 35, "tasks": ["5.1", "5.2", "5.3"] }
   ]
 }
 ```

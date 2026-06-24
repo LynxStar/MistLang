@@ -27,7 +27,7 @@
 - [Classes vs Structs](object-model/structs.md)
 - [Readonly](object-model/readonly.md)
 - [Inheritance](object-model/inheritance.md)
-- [Interfaces](object-model/interfaces.md)
+- [Abstract Types](object-model/abstract-types.md)
 - [Traits](object-model/traits.md)
 - [Enums](object-model/enums.md)
 - [Extensions](object-model/extension-methods.md)

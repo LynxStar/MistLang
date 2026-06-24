@@ -237,8 +237,8 @@ public sealed class MoveBoundaryClonableSourcePropertyTests : IDisposable
         }
 
         // The non-owned reference source type S.
-        var iface = declaresExplicit ? " : IClonable<S>" : "";
-        sb.Append($"public class S{iface}\n{{\n");
+        var clonableClause = declaresExplicit ? " : IClonable<S>" : "";
+        sb.Append($"public class S{clonableClause}\n{{\n");
         for (var i = 0; i < fields.Count; i++)
         {
             var typeText = fields[i] switch

@@ -1,0 +1,8 @@
+using Standard;
+
+namespace AbstractTypes;
+
+abstract IGreetable
+{
+    string Greet();
+}

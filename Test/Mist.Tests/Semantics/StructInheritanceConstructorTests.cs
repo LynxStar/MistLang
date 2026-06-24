@@ -85,8 +85,8 @@ public class StructInheritanceConstructorTests
         if (baseStructName is not null)
         {
             var baseList = MakeBaseList(baseStructName);
-            decl.InterfaceList = baseList;
-            decl.Interfaces = baseList;
+            decl.AbstractList = baseList;
+            decl.Abstracts = baseList;
         }
 
         return decl;

@@ -144,21 +144,21 @@ internal sealed class CarrierStructRegistry
             if (symbol.DeclaredType is ClassType ct)
             {
                 CollectFromType(ct.BaseType, registry);
-                foreach (var iface in ct.Interfaces)
+                foreach (var iface in ct.Abstracts)
                     CollectFromType(iface, registry);
                 foreach (var member in ct.MemberScope.Members)
                     CollectFromType(member.DeclaredType, registry);
             }
             else if (symbol.DeclaredType is StructType st)
             {
-                foreach (var iface in st.Interfaces)
+                foreach (var iface in st.Abstracts)
                     CollectFromType(iface, registry);
                 foreach (var member in st.MemberScope.Members)
                     CollectFromType(member.DeclaredType, registry);
             }
-            else if (symbol.DeclaredType is InterfaceType it)
+            else if (symbol.DeclaredType is AbstractType it)
             {
-                foreach (var iface in it.Interfaces)
+                foreach (var iface in it.Abstracts)
                     CollectFromType(iface, registry);
                 foreach (var member in it.MemberScope.Members)
                     CollectFromType(member.DeclaredType, registry);

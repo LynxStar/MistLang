@@ -26,7 +26,7 @@ struct Flag<Enabled:bool> {
 //                  ^^^^ storage.type.primitive.mist
 }
 
-interface IBuffer<Cap:ulong> {
+abstract IBuffer<Cap:ulong> {
 //        ^^^^^^^ entity.name.type.mist
 //                ^^^ entity.name.type.parameter.mist
 //                   ^ punctuation.separator.annotation.mist

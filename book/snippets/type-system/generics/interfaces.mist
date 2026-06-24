@@ -1,4 +1,0 @@
-interface IGenericContainer<T>
-{
-    T GetItem();
-}

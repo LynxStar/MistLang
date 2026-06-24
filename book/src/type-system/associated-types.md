@@ -1,12 +1,12 @@
 # Associated Types
 
-Associated types let interfaces and traits declare abstract type slots — type members whose concrete definition is deferred to implementors. Where generic type parameters are chosen by the *caller* of a generic function or constructor, associated types are chosen by the *implementor* of an interface. This distinction makes associated types ideal for contracts where the implementing type determines a related type that callers shouldn't need to specify explicitly.
+Associated types let abstract types and traits declare abstract type slots — type members whose concrete definition is deferred to implementors. Where generic type parameters are chosen by the *caller* of a generic function or constructor, associated types are chosen by the *implementor* of an abstract type. This distinction makes associated types ideal for contracts where the implementing type determines a related type that callers shouldn't need to specify explicitly.
 
-The primary motivating use case is zero-allocation iteration: an `Iterable<TValue>` interface declares an associated enumerator type slot, and each collection provides its own concrete struct enumerator. Generic code iterates without knowing the specific enumerator type, yet the compiler resolves it statically — no boxing, no virtual dispatch, no heap allocation for the enumerator.
+The primary motivating use case is zero-allocation iteration: an `Iterable<TValue>` abstract type declares an associated enumerator type slot, and each collection provides its own concrete struct enumerator. Generic code iterates without knowing the specific enumerator type, yet the compiler resolves it statically — no boxing, no virtual dispatch, no heap allocation for the enumerator.
 
 ## Declaration Syntax
 
-An associated type slot is declared inside an interface or trait body using the `type Name : ConstraintList;` syntax. The colon and constraint list specify what the concrete type must satisfy, using the same constraint syntax as generic `where` clauses (see [Generic Constraints](./generic-constraints.md)).
+An associated type slot is declared inside an abstract type or trait body using the `type Name : ConstraintList;` syntax. The colon and constraint list specify what the concrete type must satisfy, using the same constraint syntax as generic `where` clauses (see [Generic Constraints](./generic-constraints.md)).
 
 {{#tabs }}
 {{#tab name="Mist" }}
@@ -59,7 +59,7 @@ A slot can require multiple constraints separated by commas. The concrete type m
 {{#endtab }}
 {{#endtabs }}
 
-The constraint list supports the same forms as generic constraints: `struct`, `class`, interface references, trait references, base class references, `new()`, and combinations thereof.
+The constraint list supports the same forms as generic constraints: `struct`, `class`, abstract type references, trait references, base class references, `new()`, and combinations thereof.
 
 ### Trait Slots
 
@@ -78,7 +78,7 @@ Traits can also declare associated type slots with the same syntax. A type struc
 {{#endtab }}
 {{#endtabs }}
 
-The emitted C# is identical in shape — traits emit as interfaces, and the associated type slot becomes a type parameter with the same constraint propagation.
+The emitted C# is identical in shape — traits emit as C# interfaces, and the associated type slot becomes a type parameter with the same constraint propagation.
 
 ### Generic Type Parameters on Slots
 
@@ -97,7 +97,7 @@ Associated type slots can declare their own type parameters and where clauses:
 {{#endtab }}
 {{#endtabs }}
 
-The slot's type parameters are independent of the enclosing interface's type parameters, though the constraint list can reference both. Here `Mapped<TOut>` is a higher-kinded slot — the implementor provides a generic type, and callers choose the type argument at each call site.
+The slot's type parameters are independent of the enclosing abstract type's type parameters, though the constraint list can reference both. Here `Mapped<TOut>` is a higher-kinded slot — the implementor provides a generic type, and callers choose the type argument at each call site.
 
 ## Implementor Satisfaction
 
@@ -106,12 +106,12 @@ A class or struct satisfies an associated type slot by providing a concrete nest
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-{{#include ../../snippets/type-system/associated-types/implementor-interface.mist}}
+{{#include ../../snippets/type-system/associated-types/implementor-abstract.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-{{#include ../../snippets/type-system/associated-types/implementor-interface.cs}}
+{{#include ../../snippets/type-system/associated-types/implementor-abstract.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -119,7 +119,7 @@ A class or struct satisfies an associated type slot by providing a concrete nest
 The compiler verifies that `MessageProducer.Output` satisfies the constraint declared on the `Output` slot:
 - It implements `IStringable` ✓
 
-If the constraint is violated, the compiler emits an error naming the unsatisfied constraint, the concrete type, and the interface requiring it.
+If the constraint is violated, the compiler emits an error naming the unsatisfied constraint, the concrete type, and the abstract type requiring it.
 
 A struct kind constraint works the same way:
 
@@ -140,15 +140,15 @@ Here the compiler verifies that `RangeIterator.Cursor` is declared as a `struct`
 
 ### What the Compiler Checks
 
-For each associated type slot in an implemented interface, the type checker verifies:
+For each associated type slot in an implemented abstract type, the type checker verifies:
 
 1. **Existence** — The implementor provides a concrete type member with the same name (and arity, if the slot has type parameters). Missing slots produce a "does not provide a concrete type" error.
 2. **Constraint satisfaction** — The concrete type satisfies every constraint in the slot's constraint list. Violations produce a "does not satisfy constraint" error identifying the specific failing constraint.
-3. **Signature consistency** — Interface methods that reference the slot name in their signatures must be implemented with the concrete type in the corresponding positions.
+3. **Signature consistency** — Abstract type methods that reference the slot name in their signatures must be implemented with the concrete type in the corresponding positions.
 
 ## Generic Context Resolution
 
-The real power of associated types emerges in generic code. When a type parameter is constrained by an interface with associated type slots, you can reference the associated type through dot notation on the type parameter:
+The real power of associated types emerges in generic code. When a type parameter is constrained by an abstract type with associated type slots, you can reference the associated type through dot notation on the type parameter:
 
 {{#tabs }}
 {{#tab name="Mist" }}
@@ -173,11 +173,11 @@ Within a generic context, `T.SlotName` behaves like a type that satisfies the sl
 
 - Declare local variables of type `T.SlotName`
 - Use `T.SlotName` as a parameter type or return type
-- Pass `T.SlotName` values to functions expecting the constraint interfaces
+- Pass `T.SlotName` values to functions expecting the constraint abstract types
 - Use `T.SlotName` as a generic type argument where the constraints are compatible
 
-If you reference a name that isn't an associated type slot of any constraining interface (e.g., `T.NonExistent`), the compiler emits an error indicating that the type parameter doesn't have an associated type with that name.
+If you reference a name that isn't an associated type slot of any constraining abstract type (e.g., `T.NonExistent`), the compiler emits an error indicating that the type parameter doesn't have an associated type with that name.
 
 ## See Also
 
-- [Generic Constraints](./generic-constraints.md) — The constraint syntax (`struct`, `class`, interface references, `new()`) used in associated type slot declarations is the same syntax used in generic `where` clauses. If you're unfamiliar with constraint syntax, start there.
+- [Generic Constraints](./generic-constraints.md) — The constraint syntax (`struct`, `class`, abstract type references, `new()`) used in associated type slot declarations is the same syntax used in generic `where` clauses. If you're unfamiliar with constraint syntax, start there.

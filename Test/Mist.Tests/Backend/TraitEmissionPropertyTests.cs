@@ -207,11 +207,11 @@ public sealed class TraitEmissionPropertyTests : IDisposable
     {
         var members = properties.Select(p =>
         {
-            var accessors = new List<InterfaceAccessorDeclarationNode>();
+            var accessors = new List<AbstractAccessorDeclarationNode>();
             if (p.hasGet)
-                accessors.Add(new InterfaceGetAccessorInterfaceAccessorDeclarationNode());
+                accessors.Add(new AbstractGetAccessorAbstractAccessorDeclarationNode());
             if (p.hasSet)
-                accessors.Add(new InterfaceSetAccessorInterfaceAccessorDeclarationNode());
+                accessors.Add(new AbstractSetAccessorAbstractAccessorDeclarationNode());
 
             return (TraitMemberDeclarationNode)new TraitPropertyMemberTraitMemberDeclarationNode
             {
@@ -632,11 +632,11 @@ public sealed class TraitEmissionPropertyTests : IDisposable
         return new TraitDeclarationNode { Name = Tok(scenario.TraitName), Members = members };
     }
 
-    private static ImmutableArray<InterfaceAccessorDeclarationNode> BuildAccessors(bool hasGet, bool hasSet)
+    private static ImmutableArray<AbstractAccessorDeclarationNode> BuildAccessors(bool hasGet, bool hasSet)
     {
-        var accessors = new List<InterfaceAccessorDeclarationNode>();
-        if (hasGet) accessors.Add(new InterfaceGetAccessorInterfaceAccessorDeclarationNode());
-        if (hasSet) accessors.Add(new InterfaceSetAccessorInterfaceAccessorDeclarationNode());
+        var accessors = new List<AbstractAccessorDeclarationNode>();
+        if (hasGet) accessors.Add(new AbstractGetAccessorAbstractAccessorDeclarationNode());
+        if (hasSet) accessors.Add(new AbstractSetAccessorAbstractAccessorDeclarationNode());
         return accessors.ToImmutableArray();
     }
 

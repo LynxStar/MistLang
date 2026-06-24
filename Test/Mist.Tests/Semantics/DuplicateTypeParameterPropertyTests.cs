@@ -81,7 +81,7 @@ public class DuplicateTypeParameterPropertyTests
     /// Represents a declaration with duplicate type parameter names.
     /// </summary>
 #pragma warning disable CA1034
-    public enum DuplicateDeclKind { Class, Struct, Interface, Method }
+    public enum DuplicateDeclKind { Class, Struct, Abstract, Method }
 
     public record DuplicateTypeParamDecl(
         DuplicateDeclKind Kind,
@@ -111,7 +111,7 @@ public class DuplicateTypeParameterPropertyTests
         return from kind in Gen.Elements(
                    DuplicateDeclKind.Class,
                    DuplicateDeclKind.Struct,
-                   DuplicateDeclKind.Interface,
+                   DuplicateDeclKind.Abstract,
                    DuplicateDeclKind.Method)
                from declName in Gen.Elements(DeclNamePool)
                from paramCount in Gen.Choose(2, 4)
@@ -187,16 +187,16 @@ public class DuplicateTypeParameterPropertyTests
                     new StructTypeTypeDeclarationNode { StructDeclaration = structDecl });
                 break;
             }
-            case DuplicateDeclKind.Interface:
+            case DuplicateDeclKind.Abstract:
             {
-                var interfaceDecl = new InterfaceDeclarationNode
+                var abstractDecl = new AbstractDeclarationNode
                 {
                     Name = MakeToken(decl.DeclName),
                     TypeParams = MakeTypeParamList(decl.TypeParamNames.ToArray()),
-                    Members = ImmutableArray<InterfaceMemberDeclarationNode>.Empty,
+                    Members = ImmutableArray<AbstractMemberDeclarationNode>.Empty,
                 };
                 ast = MakeCompilationUnit(
-                    new InterfaceTypeTypeDeclarationNode { InterfaceDeclaration = interfaceDecl });
+                    new AbstractTypeTypeDeclarationNode { AbstractDeclaration = abstractDecl });
                 break;
             }
             case DuplicateDeclKind.Method:

@@ -339,10 +339,10 @@ public sealed class MoveBoundarySoleGatePropertyTests : IDisposable
         // Fixed type fixtures spanning the clonability / ownership axes the resolver
         // classifies on:
         //   Widget — non-owned, auto-derives IClonable<T> (int + string fields).
-        //   Gadget — non-owned, NOT clonable (interface-typed field blocks derivation).
+        //   Gadget — non-owned, NOT clonable (abstract-typed field blocks derivation).
         //   Vault  — an owned type.
         sb.Append("public class Widget\n{\n    public int Value;\n    public string Label;\n}\n\n");
-        sb.Append("public interface ISignal\n{\n}\n\n");
+        sb.Append("public abstract ISignal\n{\n}\n\n");
         sb.Append("public class Gadget\n{\n    public ISignal signal;\n}\n\n");
         sb.Append("owned class Vault\n{\n    public int Code;\n}\n\n");
 

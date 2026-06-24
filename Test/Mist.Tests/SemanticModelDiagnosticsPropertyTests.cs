@@ -81,16 +81,16 @@ public class SemanticModelDiagnosticsPropertyTests
         }
     }
 
-    private static void AssertInterfaceIsImmutable(Type interfaceType)
+    private static void AssertInterfaceIsImmutable(Type abstractType)
     {
-        var properties = interfaceType.GetProperties(BindingFlags.Public | BindingFlags.Instance);
+        var properties = abstractType.GetProperties(BindingFlags.Public | BindingFlags.Instance);
 
         foreach(var prop in properties)
         {
             // No public setters
             var setter = prop.GetSetMethod();
             Assert.True(setter is null,
-                $"{interfaceType.Name}.{prop.Name} has a public setter, violating immutability.");
+                $"{abstractType.Name}.{prop.Name} has a public setter, violating immutability.");
 
             // Collection-typed properties should return IReadOnly* or Immutable* types
             var returnType = prop.PropertyType;
@@ -98,7 +98,7 @@ public class SemanticModelDiagnosticsPropertyTests
             {
                 Assert.True(
                     IsImmutableCollectionType(returnType),
-                    $"{interfaceType.Name}.{prop.Name} returns {returnType.Name} which is not an immutable collection type. " +
+                    $"{abstractType.Name}.{prop.Name} returns {returnType.Name} which is not an immutable collection type. " +
                     $"Expected IReadOnly*, ImmutableArray, or ImmutableDictionary.");
             }
         }

@@ -25,7 +25,7 @@ namespace Mist.Tests.Semantics;
 /// explicit default block, the semantic model SHALL classify the type as
 /// <see cref="DefaultabilityStatus.Explicit"/>.
 ///
-/// Property 5: For any class or struct that has at least one field with an interface
+/// Property 5: For any class or struct that has at least one field with an abstract type
 /// type and no default block providing a type binding for that field, the semantic
 /// model SHALL classify the type as <see cref="DefaultabilityStatus.NotDefaultable"/>
 /// and SHALL emit a <c>MIST_DEFAULT_REQUIRES_BINDING</c> diagnostic.
@@ -165,9 +165,9 @@ public class DefaultabilityPropertyTests
         return new StructTypeTypeDeclarationNode { StructDeclaration = structDecl };
     }
 
-    private static TypeDeclarationNode WrapInterface(InterfaceDeclarationNode interfaceDecl)
+    private static TypeDeclarationNode WrapAbstractType(AbstractDeclarationNode abstractDecl)
     {
-        return new InterfaceTypeTypeDeclarationNode { InterfaceDeclaration = interfaceDecl };
+        return new AbstractTypeTypeDeclarationNode { AbstractDeclaration = abstractDecl };
     }
 
     // ─── Scenario records ────────────────────────────────────────────────
@@ -207,19 +207,19 @@ public class DefaultabilityPropertyTests
     }
 
     /// <summary>
-    /// Scenario for Property 5: a type with at least one interface field and no default block.
+    /// Scenario for Property 5: a type with at least one abstract-typed field and no default block.
     /// </summary>
     public record NotDefaultableScenario(
         bool IsStruct,
         string TypeName,
-        ImmutableArray<(string FieldName, string FieldType, bool IsInterface)> Fields,
-        string InterfaceName)
+        ImmutableArray<(string FieldName, string FieldType, bool IsAbstractType)> Fields,
+        string AbstractName)
     {
         public override string ToString()
         {
             var kind = IsStruct ? "struct" : "class";
             var fields = string.Join(", ", Fields.Select(f =>
-                $"{(f.IsInterface ? "interface " : "")}{f.FieldType} {f.FieldName}"));
+                $"{(f.IsAbstractType ? "abstract type " : "")}{f.FieldType} {f.FieldName}"));
             return $"{kind} {TypeName} {{ {fields} }}";
         }
     }
@@ -236,7 +236,7 @@ public class DefaultabilityPropertyTests
     private static readonly string[] TypeNames =
         ["Widget", "Config", "Engine", "Sensor", "Agent", "Point", "Matrix", "Record"];
 
-    private static readonly string[] InterfaceNames =
+    private static readonly string[] AbstractNames =
         ["IRenderer", "ILogger", "IService", "IHandler", "IProcessor"];
 
     // ─── Generators ──────────────────────────────────────────────────────
@@ -268,22 +268,22 @@ public class DefaultabilityPropertyTests
     }
 
     /// <summary>
-    /// Generates a scenario with at least one interface field and no default block (→ NotDefaultable).
+    /// Generates a scenario with at least one abstract-typed field and no default block (→ NotDefaultable).
     /// </summary>
     private static Gen<NotDefaultableScenario> GenNotDefaultableScenario()
     {
         return from isStruct in Gen.Elements(true, false)
                from typeName in Gen.Elements(TypeNames)
-               from interfaceName in Gen.Elements(InterfaceNames)
+               from abstractName in Gen.Elements(AbstractNames)
                from primitiveCount in Gen.Choose(0, 3)
                from primitiveFields in GenPrimitiveFields(primitiveCount)
-               from interfaceFieldName in Gen.Elements(
+               from abstractFieldName in Gen.Elements(
                    FieldNames.Skip(primitiveCount).Take(Math.Max(1, FieldNames.Length - primitiveCount)).ToArray())
                let allFields = primitiveFields
-                   .Select(f => (f.FieldName, f.FieldType, IsInterface: false))
-                   .Append((interfaceFieldName, interfaceName, IsInterface: true))
+                   .Select(f => (f.FieldName, f.FieldType, IsAbstractType: false))
+                   .Append((abstractFieldName, abstractName, IsAbstractType: true))
                    .ToImmutableArray()
-               select new NotDefaultableScenario(isStruct, typeName, allFields, interfaceName);
+               select new NotDefaultableScenario(isStruct, typeName, allFields, abstractName);
     }
 
     private static Gen<ImmutableArray<(string FieldName, string FieldType)>> GenPrimitiveFields(int count)
@@ -369,15 +369,15 @@ public class DefaultabilityPropertyTests
     }
 
     /// <summary>
-    /// Builds an AST for a not-defaultable scenario: a type with at least one interface
-    /// field and no default block. The interface type is also declared so it resolves.
+    /// Builds an AST for a not-defaultable scenario: a type with at least one abstract-typed
+    /// field and no default block. The abstract type type is also declared so it resolves.
     /// </summary>
     private static CompilationUnitNode BuildNotDefaultableAst(NotDefaultableScenario scenario)
     {
         var members = scenario.Fields
             .Select(f =>
             {
-                FieldDeclarationNode field = f.IsInterface
+                FieldDeclarationNode field = f.IsAbstractType
                     ? MakeNamedTypeField(f.FieldName, f.FieldType)
                     : MakePrimitiveField(f.FieldName, f.FieldType);
                 return MakeFieldMember(field);
@@ -388,14 +388,14 @@ public class DefaultabilityPropertyTests
             ? WrapStruct(MakeStructDecl(scenario.TypeName, members))
             : WrapClass(MakeClassDecl(scenario.TypeName, members));
 
-        // Declare the interface so the type reference resolves
-        var interfaceDecl = new InterfaceDeclarationNode
+        // Declare the abstract type so the type reference resolves
+        var abstractDecl = new AbstractDeclarationNode
         {
-            Name = MakeToken(scenario.InterfaceName),
-            Members = ImmutableArray<InterfaceMemberDeclarationNode>.Empty,
+            Name = MakeToken(scenario.AbstractName),
+            Members = ImmutableArray<AbstractMemberDeclarationNode>.Empty,
         };
 
-        return MakeCompilationUnit(WrapInterface(interfaceDecl), typeDecl);
+        return MakeCompilationUnit(WrapAbstractType(abstractDecl), typeDecl);
     }
 
     // ─── Expression helper ───────────────────────────────────────────────
@@ -496,21 +496,21 @@ public class DefaultabilityPropertyTests
     //
     // **Validates: Requirements 5.3, 13.11**
     //
-    // For any class or struct that has at least one field with an interface
+    // For any class or struct that has at least one field with an abstract type
     // type and no default block providing a type binding for that field, the
     // semantic model SHALL classify the type as NotDefaultable and SHALL emit
     // a MIST_DEFAULT_REQUIRES_BINDING diagnostic.
     // ═══════════════════════════════════════════════════════════════════════
 
     /// <summary>
-    /// Property 5: Types with interface fields and no default block are classified
+    /// Property 5: Types with abstract type fields and no default block are classified
     /// as <see cref="DefaultabilityStatus.NotDefaultable"/> and emit
     /// <c>MIST_DEFAULT_REQUIRES_BINDING</c>.
     ///
     /// **Validates: Requirements 5.3, 13.11**
     /// </summary>
     [Property(Arbitrary = new[] { typeof(DefaultabilityPropertyTests) }, MaxTest = 50)]
-    public bool InterfaceFieldWithoutBinding_ClassifiedAsNotDefaultable_AndDiagnosticEmitted(
+    public bool AbstractFieldWithoutBinding_ClassifiedAsNotDefaultable_AndDiagnosticEmitted(
         NotDefaultableScenario scenario)
     {
         var ast = BuildNotDefaultableAst(scenario);

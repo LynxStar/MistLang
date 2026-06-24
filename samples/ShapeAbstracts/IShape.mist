@@ -1,0 +1,18 @@
+// IShape — Demonstrates abstract type declarations, abstract type inheritance, and abstract type properties.
+
+using Standard;
+
+namespace ShapeAbstracts;
+
+abstract IShape
+{
+    string Name { get; }
+    string Describe();
+    int Area();
+}
+
+abstract IResizable : IShape
+{
+    int Scale { get; set; }
+    int ResizedArea(int factor);
+}

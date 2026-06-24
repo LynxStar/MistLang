@@ -1,4 +1,4 @@
-interface IStringable
+abstract IStringable
 {
     string Stringify();
 }

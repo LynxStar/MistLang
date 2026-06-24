@@ -333,7 +333,7 @@ public sealed class InheritanceChainProjectionPropertyTests
                 // (exact count may differ due to filtering of non-generic IEnumerable, etc.)
                 // We verify that the projected interfaces list is populated
                 // when the CLR type has public interfaces
-                var hasProjectedInterfaces = classType.Interfaces.Count > 0;
+                var hasProjectedInterfaces = classType.Abstracts.Count > 0;
                 var hasPublicGenericInterfaces = clrInterfaces.Any(i =>
                     i.IsGenericType || !typeof(System.Collections.IEnumerable).IsAssignableFrom(i) ||
                     i == typeof(System.Collections.IEnumerable));

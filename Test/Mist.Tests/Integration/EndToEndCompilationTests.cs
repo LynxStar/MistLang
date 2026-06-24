@@ -1036,7 +1036,7 @@ public sealed class EndToEndCompilationTests : IDisposable
     }
 
     // ═══════════════════════════════════════════════════════════════════════
-    // Section 4: AllFeatures interface dispatch integration tests
+    // Section 4: AllFeatures abstract type dispatch integration tests
     // ═══════════════════════════════════════════════════════════════════════
 
     [Fact]
@@ -1083,7 +1083,7 @@ public sealed class EndToEndCompilationTests : IDisposable
     }
 
     [Fact]
-    public void AllFeatures_InterfaceDispatch_ProducesExpectedOutput()
+    public void AllFeatures_AbstractDispatch_ProducesExpectedOutput()
     {
         // Compile the samples/AllFeatures/ directory and run the output
         var repoRoot = FindRepoRoot();
@@ -1131,23 +1131,23 @@ public sealed class EndToEndCompilationTests : IDisposable
         Assert.True(process.HasExited, "Process did not exit within timeout");
         Assert.Equal(0, process.ExitCode);
 
-        // Verify interface dispatch output lines from section 25 of Program.mist
+        // Verify abstract type dispatch output lines from section 25 of Program.mist
 
         // Concrete type method calls
         Assert.Contains("circle=Circle(radius=5) area=25", stdout);
         Assert.Contains("rect=Rectangle(width=3, height=4) area=12", stdout);
 
-        // Interface-typed variable dispatch (IShape)
+        // Abstract-typed variable dispatch (IShape)
         Assert.Contains("shape1=Circle(radius=5) area=25", stdout);
         Assert.Contains("shape2=Rectangle(width=3, height=4) area=12", stdout);
 
-        // Child interface dispatch (IResizable)
+        // Child abstract type dispatch (IResizable)
         Assert.Contains("resizable area=", stdout);
 
-        // Inherited interface member dispatch: IShape.Describe called through IResizable reference
+        // Inherited abstract type member dispatch: IShape.Describe called through IResizable reference
         Assert.Contains("resizable desc=Rectangle(width=3, height=4)", stdout);
 
-        // Interface-typed parameter dispatch via static helper
+        // Abstract-typed parameter dispatch via static helper
         Assert.Contains("helper circle:", stdout);
         Assert.Contains("helper rect:", stdout);
 
@@ -1339,11 +1339,11 @@ public sealed class EndToEndCompilationTests : IDisposable
     }
 
     [Fact]
-    public void BackwardCompat_Interfaces_CompilesAndRuns()
+    public void BackwardCompat_AbstractTypes_CompilesAndRuns()
     {
-        // Interfaces has explicit namespace declarations in all files.
+        // AbstractTypes has explicit namespace declarations in all files.
         // Requirement 12.2: files with existing single namespace declarations continue to work identically.
-        CompileAndRunSample("Interfaces", minSourceFiles: 5);
+        CompileAndRunSample("AbstractTypes", minSourceFiles: 5);
     }
 
     [Fact]

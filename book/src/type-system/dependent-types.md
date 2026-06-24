@@ -23,7 +23,7 @@ A dependent type parameter uses the `Name:ValueType` syntax inside the type para
 {{#endtab }}
 {{#endtabs }}
 
-In the emitted C#, the dependent parameter `Size:int` becomes a generic type parameter `TSize` constrained to an `IConstInt` interface. The compiler generates a static property `Size` that retrieves the constant value through the carrier type. This encoding preserves type safety at the .NET level while giving Mist the ability to treat the value as a compile-time constant.
+In the emitted C#, the dependent parameter `Size:int` becomes a generic type parameter `TSize` constrained to an `IConstInt` abstract type. The compiler generates a static property `Size` that retrieves the constant value through the carrier type. This encoding preserves type safety at the .NET level while giving Mist the ability to treat the value as a compile-time constant.
 
 ## Allowed Value Types
 
@@ -47,7 +47,7 @@ Dependent parameters support all integral types, `bool`, and `char`. These are t
 {{#endtab }}
 {{#endtabs }}
 
-Each value type gets its own const-carrier interface (`IConstInt`, `IConstBool`, `IConstChar`, etc.). The compiler only emits interfaces for the value types actually used in the program.
+Each value type gets its own const-carrier abstract type (`IConstInt`, `IConstBool`, `IConstChar`, etc.). The compiler only emits abstract types for the value types actually used in the program.
 
 ## Using Dependent Parameters as Values
 
@@ -106,24 +106,24 @@ Structs support dependent type parameters with the same syntax and semantics as 
 
 Since structs are value types, a `FixedSpan<3>` carries no heap allocation. The dependent value is accessed through the static property, adding zero per-instance overhead.
 
-## Dependent Types on Interfaces
+## Dependent Types on Abstract Types
 
-Interfaces can declare dependent type parameters to define contracts that depend on a constant value.
+Abstract types can declare dependent type parameters to define contracts that depend on a constant value.
 
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-{{#include ../../snippets/type-system/dependent-types/interfaces.mist}}
+{{#include ../../snippets/type-system/dependent-types/abstracts.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-{{#include ../../snippets/type-system/dependent-types/interfaces.cs}}
+{{#include ../../snippets/type-system/dependent-types/abstracts.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
 
-When a class implements an interface with a dependent parameter, it supplies a concrete value (here `8`). The compiler emits the corresponding carrier struct (`Const_Int_8`) as the type argument.
+When a class implements an abstract type with a dependent parameter, it supplies a concrete value (here `8`). The compiler emits the corresponding carrier struct (`Const_Int_8`) as the type argument.
 
 ## Dependent Types on Traits
 

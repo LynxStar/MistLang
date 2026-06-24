@@ -18,15 +18,15 @@ namespace Mist.Tests.Analysis;
 
 /// <summary>
 /// Property-based tests verifying that the type checker correctly validates
-/// implementor method signatures against interface methods that reference
+/// implementor method signatures against abstract type methods that reference
 /// associated type slot names.
 ///
 /// <list type="bullet">
-///   <item><b>Property 8</b>: For any interface method whose signature references an
+///   <item><b>Property 8</b>: For any abstract type method whose signature references an
 ///   associated type slot name (as return type, parameter type, or generic type argument),
-///   and any implementor of that interface, the type checker SHALL accept the implementor's
+///   and any implementor of that abstract type, the type checker SHALL accept the implementor's
 ///   method only if its signature uses the corresponding concrete type member in every
-///   position where the interface signature uses the slot name. Using any other type in
+///   position where the abstract type signature uses the slot name. Using any other type in
 ///   those positions SHALL produce a diagnostic error.</item>
 /// </list>
 ///
@@ -84,7 +84,7 @@ public sealed class AssociatedTypeSignaturePropertyTests : IDisposable
     // ─── Shared name pools ───────────────────────────────────────────────
 
     private static readonly string[] SlotNames = ["Output", "Element", "Result", "Item", "Node"];
-    private static readonly string[] InterfaceNames = ["IProducer", "IContainer", "IProcessor", "IFactory"];
+    private static readonly string[] AbstractNames = ["IProducer", "IContainer", "IProcessor", "IFactory"];
     private static readonly string[] MethodNames = ["Create", "Process", "Transform", "Get", "Make"];
     private static readonly string[] ClassNames = ["MyProducer", "MyContainer", "MyProcessor", "MyFactory"];
 
@@ -102,7 +102,7 @@ public sealed class AssociatedTypeSignaturePropertyTests : IDisposable
 
     /// <summary>Describes a correct substitution scenario (should compile without signature errors).</summary>
     public record CorrectSubstitutionScenario(
-        string InterfaceName,
+        string AbstractName,
         string SlotName,
         string MethodName,
         string ClassName,
@@ -114,7 +114,7 @@ public sealed class AssociatedTypeSignaturePropertyTests : IDisposable
 
     /// <summary>Describes an incorrect substitution scenario (should produce a diagnostic).</summary>
     public record IncorrectSubstitutionScenario(
-        string InterfaceName,
+        string AbstractName,
         string SlotName,
         string MethodName,
         string ClassName,
@@ -130,24 +130,24 @@ public sealed class AssociatedTypeSignaturePropertyTests : IDisposable
 
     private static Gen<CorrectSubstitutionScenario> GenCorrectSubstitutionScenario()
     {
-        return from interfaceName in Gen.Elements(InterfaceNames)
+        return from abstractName in Gen.Elements(AbstractNames)
                from slotName in Gen.Elements(SlotNames)
                from methodName in Gen.Elements(MethodNames)
                from className in Gen.Elements(ClassNames)
                from position in Gen.Elements(SlotPosition.ReturnType, SlotPosition.ParameterType, SlotPosition.Both)
-               let desc = $"{className} : {interfaceName} (slot={slotName}, method={methodName}, pos={position})"
-               select new CorrectSubstitutionScenario(interfaceName, slotName, methodName, className, position, desc);
+               let desc = $"{className} : {abstractName} (slot={slotName}, method={methodName}, pos={position})"
+               select new CorrectSubstitutionScenario(abstractName, slotName, methodName, className, position, desc);
     }
 
     private static Gen<IncorrectSubstitutionScenario> GenIncorrectSubstitutionScenario()
     {
-        return from interfaceName in Gen.Elements(InterfaceNames)
+        return from abstractName in Gen.Elements(AbstractNames)
                from slotName in Gen.Elements(SlotNames)
                from methodName in Gen.Elements(MethodNames)
                from className in Gen.Elements(ClassNames)
                from position in Gen.Elements(SlotPosition.ReturnType, SlotPosition.ParameterType, SlotPosition.Both)
-               let desc = $"{className} : {interfaceName} (slot={slotName}, method={methodName}, pos={position}, wrong=int)"
-               select new IncorrectSubstitutionScenario(interfaceName, slotName, methodName, className, position, desc);
+               let desc = $"{className} : {abstractName} (slot={slotName}, method={methodName}, pos={position}, wrong=int)"
+               select new IncorrectSubstitutionScenario(abstractName, slotName, methodName, className, position, desc);
     }
 
     public static Arbitrary<CorrectSubstitutionScenario> ArbitraryCorrectSubstitutionScenario() =>
@@ -164,7 +164,7 @@ public sealed class AssociatedTypeSignaturePropertyTests : IDisposable
     /// </summary>
     private static string BuildCorrectSource(CorrectSubstitutionScenario scenario)
     {
-        var interfaceMethod = scenario.Position switch
+        var abstractMethod = scenario.Position switch
         {
             SlotPosition.ReturnType => $"    {scenario.SlotName} {scenario.MethodName}();",
             SlotPosition.ParameterType => $"    void {scenario.MethodName}({scenario.SlotName} input);",
@@ -183,12 +183,12 @@ public sealed class AssociatedTypeSignaturePropertyTests : IDisposable
         };
 
         return $@"
-interface {scenario.InterfaceName} {{
+abstract {scenario.AbstractName} {{
     type {scenario.SlotName};
-{interfaceMethod}
+{abstractMethod}
 }}
 
-class {scenario.ClassName} : {scenario.InterfaceName} {{
+class {scenario.ClassName} : {scenario.AbstractName} {{
     public class {scenario.SlotName} {{
     }}
 {implMethod}
@@ -207,7 +207,7 @@ class Program {{
     /// </summary>
     private static string BuildIncorrectSource(IncorrectSubstitutionScenario scenario)
     {
-        var interfaceMethod = scenario.Position switch
+        var abstractMethod = scenario.Position switch
         {
             SlotPosition.ReturnType => $"    {scenario.SlotName} {scenario.MethodName}();",
             SlotPosition.ParameterType => $"    void {scenario.MethodName}({scenario.SlotName} input);",
@@ -226,12 +226,12 @@ class Program {{
         };
 
         return $@"
-interface {scenario.InterfaceName} {{
+abstract {scenario.AbstractName} {{
     type {scenario.SlotName};
-{interfaceMethod}
+{abstractMethod}
 }}
 
-class {scenario.ClassName} : {scenario.InterfaceName} {{
+class {scenario.ClassName} : {scenario.AbstractName} {{
     public class {scenario.SlotName} {{
     }}
 {implMethod}
@@ -249,7 +249,7 @@ class Program {{
     //
     // **Validates: Requirements 4.1, 4.2, 4.3**
     //
-    // For any interface method whose signature references an associated type
+    // For any abstract type method whose signature references an associated type
     // slot name, and any implementor that uses the corresponding concrete
     // type member in every position, the type checker SHALL accept the
     // implementor's method without emitting MIST_SM_0022.
@@ -261,7 +261,7 @@ class Program {{
         var source = BuildCorrectSource(scenario);
         var diagnostics = CompileSource(source);
 
-        // Filter for interface satisfaction diagnostics that mention the method name
+        // Filter for abstract type satisfaction diagnostics that mention the method name
         var signatureMismatch = diagnostics.Where(d =>
             d.Id.Value == "MIST_SM_0022" &&
             d.Message.Contains(scenario.MethodName)).ToList();
@@ -280,7 +280,7 @@ class Program {{
     //
     // **Validates: Requirements 4.3, 4.4**
     //
-    // For any interface method whose signature references an associated type
+    // For any abstract type method whose signature references an associated type
     // slot name, and any implementor that uses a different type (not the
     // concrete type member) in those positions, the type checker SHALL emit
     // a diagnostic error (MIST_SM_0022).
@@ -293,7 +293,7 @@ class Program {{
         var diagnostics = CompileSource(source);
 
         // The type checker should emit MIST_SM_0022 because the implementor's
-        // method signature uses the wrong type where the interface uses the slot name.
+        // method signature uses the wrong type where the abstract type uses the slot name.
         var signatureMismatch = diagnostics.Where(d =>
             d.Id.Value == "MIST_SM_0022" &&
             d.Message.Contains(scenario.MethodName)).ToList();

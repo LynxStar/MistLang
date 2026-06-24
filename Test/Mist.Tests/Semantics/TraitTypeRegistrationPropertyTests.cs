@@ -312,8 +312,8 @@ public class TraitTypeRegistrationPropertyTests
                     PrimitiveType = new StringTypePrimitiveTypeNode(),
                 } },
                 Name = MistTypeGenerator.MakeToken("Title"),
-                Accessors = ImmutableArray.Create<InterfaceAccessorDeclarationNode>(
-                    new InterfaceGetAccessorInterfaceAccessorDeclarationNode()),
+                Accessors = ImmutableArray.Create<AbstractAccessorDeclarationNode>(
+                    new AbstractGetAccessorAbstractAccessorDeclarationNode()),
             },
         };
 
@@ -369,9 +369,9 @@ public class TraitTypeRegistrationPropertyTests
                     PrimitiveType = new StringTypePrimitiveTypeNode(),
                 } },
                 Name = MistTypeGenerator.MakeToken("Name"),
-                Accessors = ImmutableArray.Create<InterfaceAccessorDeclarationNode>(
-                    new InterfaceGetAccessorInterfaceAccessorDeclarationNode(),
-                    new InterfaceSetAccessorInterfaceAccessorDeclarationNode()),
+                Accessors = ImmutableArray.Create<AbstractAccessorDeclarationNode>(
+                    new AbstractGetAccessorAbstractAccessorDeclarationNode(),
+                    new AbstractSetAccessorAbstractAccessorDeclarationNode()),
             },
         };
 

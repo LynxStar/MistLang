@@ -18,7 +18,7 @@ namespace Mist.Tests.Semantics;
 /// 1. Constraint resolution — verify TypeParameterType.Constraints is correctly populated
 /// 2. Validation diagnostics — verify each validation rule emits the correct diagnostic
 /// 3. Backward compatibility — unconstrained generics still work without diagnostics
-/// 4. Constrained member access — members from constrained interfaces/traits/base classes are accessible
+/// 4. Constrained member access — members from constrained abstract types/traits/base classes are accessible
 ///
 /// Requirements: 3.9, 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 4.7, 10.9, 10.10
 /// </summary>
@@ -84,8 +84,8 @@ public class ConstraintResolutionTests
             return classType.TypeParameters.OfType<TypeParameterType>().FirstOrDefault(tp => tp.Name == typeParamName);
         if (typeSymbol?.DeclaredType is StructType structType)
             return structType.TypeParameters.OfType<TypeParameterType>().FirstOrDefault(tp => tp.Name == typeParamName);
-        if (typeSymbol?.DeclaredType is InterfaceType interfaceType)
-            return interfaceType.TypeParameters.OfType<TypeParameterType>().FirstOrDefault(tp => tp.Name == typeParamName);
+        if (typeSymbol?.DeclaredType is AbstractType abstractType)
+            return abstractType.TypeParameters.OfType<TypeParameterType>().FirstOrDefault(tp => tp.Name == typeParamName);
         return null;
     }
 
@@ -166,10 +166,10 @@ public class ConstraintResolutionTests
     }
 
     [Fact]
-    public void InterfaceConstraint_PopulatesInterfaceConstraints()
+    public void AbstractConstraint_PopulatesAbstractConstraints()
     {
         var source = @"
-interface IComparable { }
+abstract IComparable { }
 class Sorter<T> where T : IComparable { }
 ";
         var model = BuildWithoutErrors(source);
@@ -240,7 +240,7 @@ class Printer<T> where T : Printable { }
     public void MultipleConstraintKinds_AllResolved()
     {
         var source = @"
-interface IFoo { }
+abstract IFoo { }
 class Container<T> where T : class, IFoo, new() { }
 ";
         var model = BuildWithoutErrors(source);
@@ -437,9 +437,9 @@ class Container<T> where T : Animal, struct { }
     }
 
     [Fact]
-    public void UnconstrainedGenericInterface_NoDiagnostics()
+    public void UnconstrainedGenericAbstract_NoDiagnostics()
     {
-        var source = "interface IReadable<T> { }";
+        var source = "abstract IReadable<T> { }";
         var (model, diagnostics) = BuildModel(source);
 
         var errors = diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error).ToArray();
@@ -483,10 +483,10 @@ class Container<T> where T : Animal, struct { }
     // ═══════════════════════════════════════════════════════════════════════
 
     [Fact]
-    public void InterfaceConstraint_MembersAccessible()
+    public void AbstractConstraint_MembersAccessible()
     {
         var source = @"
-interface IGreetable {
+abstract IGreetable {
     string Greet();
 }
 class Greeter<T> where T : IGreetable {
@@ -559,7 +559,7 @@ class Zoo<T> where T : Animal {
     public void ConstraintsOnStruct_ResolvedCorrectly()
     {
         var source = @"
-interface IFoo { }
+abstract IFoo { }
 struct Wrapper<T> where T : IFoo { }
 ";
         var model = BuildWithoutErrors(source);
@@ -571,11 +571,11 @@ struct Wrapper<T> where T : IFoo { }
     }
 
     [Fact]
-    public void ConstraintsOnInterface_ResolvedCorrectly()
+    public void ConstraintsOnAbstract_ResolvedCorrectly()
     {
         var source = @"
-interface IFoo { }
-interface IRepository<T> where T : IFoo { }
+abstract IFoo { }
+abstract IRepository<T> where T : IFoo { }
 ";
         var model = BuildWithoutErrors(source);
 
@@ -589,7 +589,7 @@ interface IRepository<T> where T : IFoo { }
     public void MultipleTypeParams_EachConstrainedIndependently()
     {
         var source = @"
-interface IFoo { }
+abstract IFoo { }
 class Pair<K, V> where K : class where V : IFoo { }
 ";
         var model = BuildWithoutErrors(source);
@@ -622,7 +622,7 @@ class Pair<K, V> where K : class where V : IFoo { }
     public void ValidConstraints_NoDiagnostics()
     {
         var source = @"
-interface IComparable { }
+abstract IComparable { }
 class Sorter<T> where T : class, IComparable, new() { }
 ";
         var (_, diagnostics) = BuildModel(source);

@@ -236,8 +236,8 @@ public sealed class MistPrettyPrinter
             case StructTypeTypeDeclarationNode structType:
                 EmitStructDeclaration(structType.StructDeclaration);
                 break;
-            case InterfaceTypeTypeDeclarationNode interfaceType:
-                EmitInterfaceDeclaration(interfaceType.InterfaceDeclaration);
+            case AbstractTypeTypeDeclarationNode abstractType:
+                EmitAbstractDeclaration(abstractType.AbstractDeclaration);
                 break;
             case TraitTypeTypeDeclarationNode traitType:
                 EmitTraitDeclaration(traitType.TraitDeclaration);
@@ -273,13 +273,13 @@ public sealed class MistPrettyPrinter
         var modifiers = EmitModifiers(structDecl.Modifiers);
         var name = structDecl.Name.Lexeme;
         var typeParams = EmitTypeParameterList(structDecl.TypeParams);
-        var interfaceClause = "";
-        if (structDecl.Interfaces is not null)
+        var abstractClause = "";
+        if (structDecl.Abstracts is not null)
         {
-            interfaceClause = $" : {EmitBaseList(structDecl.Interfaces)}";
+            abstractClause = $" : {EmitBaseList(structDecl.Abstracts)}";
         }
         var constraints = EmitConstraintClauses(structDecl.Constraints);
-        AppendLine($"{modifiers}struct {name}{typeParams}{interfaceClause}{constraints} {{");
+        AppendLine($"{modifiers}struct {name}{typeParams}{abstractClause}{constraints} {{");
         _indentLevel++;
 
         EmitMembers(structDecl.Members);
@@ -288,29 +288,29 @@ public sealed class MistPrettyPrinter
         AppendLine("}");
     }
 
-    private void EmitInterfaceDeclaration(InterfaceDeclarationNode interfaceDecl)
+    private void EmitAbstractDeclaration(AbstractDeclarationNode abstractDecl)
     {
-        var name = interfaceDecl.Name.Lexeme;
-        var typeParams = EmitTypeParameterList(interfaceDecl.TypeParams);
-        var interfaceClause = "";
-        if (interfaceDecl.Interfaces is not null)
+        var name = abstractDecl.Name.Lexeme;
+        var typeParams = EmitTypeParameterList(abstractDecl.TypeParams);
+        var abstractClause = "";
+        if (abstractDecl.Abstracts is not null)
         {
-            interfaceClause = $" : {EmitBaseList(interfaceDecl.Interfaces)}";
+            abstractClause = $" : {EmitBaseList(abstractDecl.Abstracts)}";
         }
-        var constraints = EmitConstraintClauses(interfaceDecl.Constraints);
-        AppendLine($"interface {name}{typeParams}{interfaceClause}{constraints} {{");
+        var constraints = EmitConstraintClauses(abstractDecl.Constraints);
+        AppendLine($"abstract {name}{typeParams}{abstractClause}{constraints} {{");
         _indentLevel++;
 
-        for (var i = 0; i < interfaceDecl.Members.Length; i++)
+        for (var i = 0; i < abstractDecl.Members.Length; i++)
         {
-            EmitInterfaceMemberDeclaration(interfaceDecl.Members[i]);
+            EmitAbstractMemberDeclaration(abstractDecl.Members[i]);
         }
 
         _indentLevel--;
         AppendLine("}");
     }
 
-    private void EmitInterfaceMethodDeclaration(InterfaceMethodDeclarationNode methodDecl)
+    private void EmitAbstractMethodDeclaration(AbstractMethodDeclarationNode methodDecl)
     {
         var returnOwnership = EmitOwnershipSpecifier(methodDecl.ReturnOwnership);
         var returnType = EmitTypeReference(methodDecl.ReturnType);
@@ -817,31 +817,31 @@ public sealed class MistPrettyPrinter
         AppendLine("}");
     }
 
-    // ─── Interface Property Declarations ─────────────────────────────────
+    // ─── Abstract Property Declarations ─────────────────────────────────
 
-    private void EmitInterfaceMemberDeclaration(InterfaceMemberDeclarationNode memberDecl)
+    private void EmitAbstractMemberDeclaration(AbstractMemberDeclarationNode memberDecl)
     {
         switch (memberDecl)
         {
-            case InterfaceMethodMemberInterfaceMemberDeclarationNode methodMember:
-                EmitInterfaceMethodDeclaration(methodMember.Method);
+            case AbstractMethodMemberAbstractMemberDeclarationNode methodMember:
+                EmitAbstractMethodDeclaration(methodMember.Method);
                 break;
-            case InterfacePropertyMemberInterfaceMemberDeclarationNode propertyMember:
-                EmitInterfacePropertyDeclaration(propertyMember.Property);
+            case AbstractPropertyMemberAbstractMemberDeclarationNode propertyMember:
+                EmitAbstractPropertyDeclaration(propertyMember.Property);
                 break;
-            case InterfaceAssociatedTypeMemberInterfaceMemberDeclarationNode associatedTypeMember:
+            case AbstractAssociatedTypeMemberAbstractMemberDeclarationNode associatedTypeMember:
                 EmitAssociatedTypeSlotDeclaration(associatedTypeMember.AssociatedType);
                 break;
-            case InterfaceUnconstrainedAssociatedTypeMemberInterfaceMemberDeclarationNode unconstrainedMember:
+            case AbstractUnconstrainedAssociatedTypeMemberAbstractMemberDeclarationNode unconstrainedMember:
                 EmitUnconstrainedAssociatedTypeSlotDeclaration(unconstrainedMember.UnconstrainedAssociatedType);
                 break;
-            case InterfaceModifiedAssociatedTypeMemberInterfaceMemberDeclarationNode modifiedMember:
+            case AbstractModifiedAssociatedTypeMemberAbstractMemberDeclarationNode modifiedMember:
                 EmitModifiedAssociatedTypeSlotDeclaration(modifiedMember.ModifiedAssociatedType);
                 break;
         }
     }
 
-    private void EmitInterfacePropertyDeclaration(InterfacePropertyDeclarationNode propertyDecl)
+    private void EmitAbstractPropertyDeclaration(AbstractPropertyDeclarationNode propertyDecl)
     {
         var type = EmitTypeReference(propertyDecl.Type);
         var name = propertyDecl.Name.Lexeme;
@@ -851,10 +851,10 @@ public sealed class MistPrettyPrinter
         {
             switch (accessor)
             {
-                case InterfaceGetAccessorInterfaceAccessorDeclarationNode:
+                case AbstractGetAccessorAbstractAccessorDeclarationNode:
                     accessors.Add("get;");
                     break;
-                case InterfaceSetAccessorInterfaceAccessorDeclarationNode:
+                case AbstractSetAccessorAbstractAccessorDeclarationNode:
                     accessors.Add("set;");
                     break;
             }
@@ -974,10 +974,10 @@ public sealed class MistPrettyPrinter
         {
             switch (accessor)
             {
-                case InterfaceGetAccessorInterfaceAccessorDeclarationNode:
+                case AbstractGetAccessorAbstractAccessorDeclarationNode:
                     accessors.Add("get;");
                     break;
-                case InterfaceSetAccessorInterfaceAccessorDeclarationNode:
+                case AbstractSetAccessorAbstractAccessorDeclarationNode:
                     accessors.Add("set;");
                     break;
             }
@@ -2408,7 +2408,7 @@ public sealed class MistPrettyPrinter
     // ─── Utilities ───────────────────────────────────────────────────────
 
     /// <summary>
-    /// Emits a base list (base types / interface list) as a comma-separated string.
+    /// Emits a base list (base types / abstract list) as a comma-separated string.
     /// Each entry is a type name with optional type arguments.
     /// </summary>
     private string EmitBaseList(BaseListNode baseList)

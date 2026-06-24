@@ -297,8 +297,8 @@ public sealed class IClonableDerivationPropertyTests : IDisposable
         {
             var t = types[i];
             var keyword = t.IsStruct ? "struct" : "class";
-            var iface = t.DeclaresIClonable ? $" : IClonable<T{i}>" : "";
-            sb.Append($"public {keyword} T{i}{iface}\n{{\n");
+            var clonableClause = t.DeclaresIClonable ? $" : IClonable<T{i}>" : "";
+            sb.Append($"public {keyword} T{i}{clonableClause}\n{{\n");
 
             for (var f = 0; f < t.Fields.Count; f++)
             {

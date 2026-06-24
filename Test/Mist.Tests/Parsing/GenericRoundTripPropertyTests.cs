@@ -18,10 +18,10 @@ namespace Mist.Tests.Parsing;
 /// 3.1, 3.2, 3.3, 3.4, 3.5, 4.1, 4.2, 4.3, 4.4, 5.1, 5.2, 5.3, 5.4, 5.5, 5.6,
 /// 5.7, 5.8, 5.9, 5.10**
 ///
-/// For any valid Mist AST containing generic declarations (classes, structs, interfaces,
+/// For any valid Mist AST containing generic declarations (classes, structs, abstract types,
 /// and methods with type parameter lists), type references with type argument lists
 /// (including nested generics), object creation expressions with type arguments, method
-/// invocations with type arguments, and generic inheritance/interface clauses,
+/// invocations with type arguments, and generic inheritance/abstract type clauses,
 /// pretty-printing the AST and then parsing the result and pretty-printing again
 /// SHALL produce identical output.
 /// </summary>
@@ -53,7 +53,7 @@ public class GenericRoundTripPropertyTests
     private static readonly string[] TypeParamNames = ["T", "U", "V", "W"];
     private static readonly string[] ClassNames = ["Box", "Pair", "Container", "Wrapper"];
     private static readonly string[] StructNames = ["ValueHolder", "Entry", "Cell"];
-    private static readonly string[] InterfaceNames = ["IContainer", "IReadable", "IWritable"];
+    private static readonly string[] AbstractNames = ["IContainer", "IReadable", "IWritable"];
     private static readonly string[] MethodNames = ["Identity", "Transform", "Convert"];
     private static readonly string[] FieldNames = ["value", "item", "data"];
 
@@ -114,7 +114,7 @@ public class GenericRoundTripPropertyTests
                };
     }
 
-    private static Gen<BaseListNode> GenInterfaceBaseList()
+    private static Gen<BaseListNode> GenAbstractBaseList()
     {
         var genEntry = from name in Gen.Elements("IFoo", "IBar", "IBaz")
                        from hasTypeArgs in Gen.Elements(true, false)
@@ -184,19 +184,19 @@ public class GenericRoundTripPropertyTests
     {
         return from name in Gen.Elements(StructNames)
                from typeParams in GenTypeParameterList()
-               from hasInterfaces in Gen.Elements(true, false)
-               from interfaces in hasInterfaces
-                   ? GenInterfaceBaseList().Select(b => (BaseListNode?)b)
+               from hasAbstracts in Gen.Elements(true, false)
+               from abstracts in hasAbstracts
+                   ? GenAbstractBaseList().Select(b => (BaseListNode?)b)
                    : Gen.Constant((BaseListNode?)null)
                from memberCount in Gen.Choose(0, 1)
                from members in GenMemberList(memberCount)
-               select MakeGenericStruct(name, typeParams, interfaces, members);
+               select MakeGenericStruct(name, typeParams, abstracts, members);
     }
 
     private static StructDeclarationNode MakeGenericStruct(
         string name,
         TypeParameterListNode typeParams,
-        BaseListNode? interfaces,
+        BaseListNode? abstracts,
         ImmutableArray<MemberDeclarationNode> members)
     {
         var structDecl = new StructDeclarationNode
@@ -206,48 +206,48 @@ public class GenericRoundTripPropertyTests
             Members = members,
         };
 
-        if (interfaces is not null)
+        if (abstracts is not null)
         {
-            structDecl.Interfaces = interfaces;
+            structDecl.Abstracts = abstracts;
         }
 
         return structDecl;
     }
 
-    // ─── Generic interface declaration generator ─────────────────────────
+    // ─── Generic abstract type declaration generator ─────────────────────────
 
-    private static Gen<InterfaceDeclarationNode> GenGenericInterfaceDecl()
+    private static Gen<AbstractDeclarationNode> GenGenericAbstractDecl()
     {
-        return from name in Gen.Elements(InterfaceNames)
+        return from name in Gen.Elements(AbstractNames)
                from typeParams in GenTypeParameterList()
-               from hasInterfaces in Gen.Elements(true, false)
-               from interfaces in hasInterfaces
-                   ? GenInterfaceBaseList().Select(b => (BaseListNode?)b)
+               from hasAbstracts in Gen.Elements(true, false)
+               from abstracts in hasAbstracts
+                   ? GenAbstractBaseList().Select(b => (BaseListNode?)b)
                    : Gen.Constant((BaseListNode?)null)
                from methodCount in Gen.Choose(0, 2)
-               from methods in GenInterfaceMethodList(methodCount)
-               select MakeGenericInterface(name, typeParams, interfaces, methods);
+               from methods in GenAbstractMethodList(methodCount)
+               select MakeGenericAbstract(name, typeParams, abstracts, methods);
     }
 
-    private static InterfaceDeclarationNode MakeGenericInterface(
+    private static AbstractDeclarationNode MakeGenericAbstract(
         string name,
         TypeParameterListNode typeParams,
-        BaseListNode? interfaces,
-        ImmutableArray<InterfaceMemberDeclarationNode> members)
+        BaseListNode? abstracts,
+        ImmutableArray<AbstractMemberDeclarationNode> members)
     {
-        var interfaceDecl = new InterfaceDeclarationNode
+        var abstractDecl = new AbstractDeclarationNode
         {
             Name = Tok(name),
             TypeParams = typeParams,
             Members = members,
         };
 
-        if (interfaces is not null)
+        if (abstracts is not null)
         {
-            interfaceDecl.Interfaces = interfaces;
+            abstractDecl.Abstracts = abstracts;
         }
 
-        return interfaceDecl;
+        return abstractDecl;
     }
 
     // ─── Generic method declaration generator ────────────────────────────
@@ -280,9 +280,9 @@ public class GenericRoundTripPropertyTests
                };
     }
 
-    // ─── Interface method declaration generator ──────────────────────────
+    // ─── Abstract type method declaration generator ──────────────────────────
 
-    private static Gen<InterfaceMethodDeclarationNode> GenGenericInterfaceMethodDecl()
+    private static Gen<AbstractMethodDeclarationNode> GenGenericAbstractMethodDecl()
     {
         return from methodName in Gen.Elements(MethodNames)
                from hasMethodTypeParams in Gen.Elements(true, false)
@@ -290,7 +290,7 @@ public class GenericRoundTripPropertyTests
                    ? GenTypeParameterList().Select(tp => (TypeParameterListNode?)tp)
                    : Gen.Constant((TypeParameterListNode?)null)
                from returnType in MistTypeGenerator.GenReturnTypeRef()
-               select new InterfaceMethodDeclarationNode
+               select new AbstractMethodDeclarationNode
                {
                    Name = Tok(methodName),
                    TypeParams = methodTypeParams,
@@ -330,13 +330,13 @@ public class GenericRoundTripPropertyTests
                };
     }
 
-    private static Gen<ImmutableArray<InterfaceMemberDeclarationNode>> GenInterfaceMethodList(int count)
+    private static Gen<ImmutableArray<AbstractMemberDeclarationNode>> GenAbstractMethodList(int count)
     {
         if (count == 0)
-            return Gen.Constant(ImmutableArray<InterfaceMemberDeclarationNode>.Empty);
+            return Gen.Constant(ImmutableArray<AbstractMemberDeclarationNode>.Empty);
 
-        var methodGen = GenGenericInterfaceMethodDecl().Select(m =>
-            (InterfaceMemberDeclarationNode)new InterfaceMethodMemberInterfaceMemberDeclarationNode { Method = m });
+        var methodGen = GenGenericAbstractMethodDecl().Select(m =>
+            (AbstractMemberDeclarationNode)new AbstractMethodMemberAbstractMemberDeclarationNode { Method = m });
 
         return Gen.ArrayOf(methodGen, count)
             .Select(members => members.ToImmutableArray());
@@ -411,16 +411,16 @@ public class GenericRoundTripPropertyTests
         });
     }
 
-    private static Gen<GenericRoundTripTestCase> GenGenericInterfaceTestCase()
+    private static Gen<GenericRoundTripTestCase> GenGenericAbstractTestCase()
     {
-        return GenGenericInterfaceDecl().Select(interfaceDecl =>
+        return GenGenericAbstractDecl().Select(abstractDecl =>
         {
             var cu = new CompilationUnitNode
             {
                 Items = ImmutableArray.Create<TypeDeclarationNode>(
-                    new InterfaceTypeTypeDeclarationNode { InterfaceDeclaration = interfaceDecl }).AsTopLevelItems(),
+                    new AbstractTypeTypeDeclarationNode { AbstractDeclaration = abstractDecl }).AsTopLevelItems(),
             };
-            var desc = $"interface {interfaceDecl.Name.Lexeme}<...>";
+            var desc = $"abstract {abstractDecl.Name.Lexeme}<...>";
             return new GenericRoundTripTestCase(desc, cu);
         });
     }
@@ -475,7 +475,7 @@ public class GenericRoundTripPropertyTests
         return Gen.OneOf(
             GenGenericClassTestCase(),
             GenGenericStructTestCase(),
-            GenGenericInterfaceTestCase(),
+            GenGenericAbstractTestCase(),
             GenGenericMethodCallTestCase());
     }
 

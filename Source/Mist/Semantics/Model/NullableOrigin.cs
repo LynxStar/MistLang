@@ -9,6 +9,6 @@ public enum NullableOrigin
     /// <summary>Originated from <c>Nullable&lt;T&gt;</c> (value type wrapper).</summary>
     NullableValueType,
 
-    /// <summary>Originated from a reference type (class, interface, string, array, delegate).</summary>
+    /// <summary>Originated from a reference type (class, abstract type, string, array, delegate).</summary>
     ReferenceType,
 }

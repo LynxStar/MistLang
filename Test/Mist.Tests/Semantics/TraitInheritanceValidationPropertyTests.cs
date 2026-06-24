@@ -18,7 +18,7 @@ namespace Mist.Tests.Semantics;
 /// **Validates: Requirements 3.2, 3.5, 3.6, 17.6, 17.7, 17.8**
 ///
 /// For any trait declaration whose inheritance clause references a name that resolves
-/// to a class, struct, or interface (not a trait), the semantic model builder SHALL
+/// to a class, struct, or abstract type (not a trait), the semantic model builder SHALL
 /// emit a MIST_TRAIT_PARENT_NOT_TRAIT diagnostic. For any trait inheritance graph
 /// containing a cycle, the semantic model builder SHALL emit a
 /// MIST_TRAIT_INHERITANCE_CYCLE diagnostic for each trait involved. For any trait
@@ -103,16 +103,16 @@ public class TraitInheritanceValidationPropertyTests
         };
     }
 
-    private static TopLevelItemNode MakeInterfaceItem(string name)
+    private static TopLevelItemNode MakeAbstractItem(string name)
     {
         return new TypeItemTopLevelItemNode
         {
-            TypeDeclaration = new InterfaceTypeTypeDeclarationNode
+            TypeDeclaration = new AbstractTypeTypeDeclarationNode
             {
-                InterfaceDeclaration = new InterfaceDeclarationNode
+                AbstractDeclaration = new AbstractDeclarationNode
                 {
                     Name = Tok(name),
-                    Members = ImmutableArray<InterfaceMemberDeclarationNode>.Empty,
+                    Members = ImmutableArray<AbstractMemberDeclarationNode>.Empty,
                 },
             },
         };
@@ -161,7 +161,7 @@ public class TraitInheritanceValidationPropertyTests
     // Property 3a: MIST_TRAIT_PARENT_NOT_TRAIT
     //
     // When a trait's inheritance clause references a name that resolves to a
-    // class, struct, or interface (not a trait), the semantic model builder
+    // class, struct, or abstract type (not a trait), the semantic model builder
     // SHALL emit MIST_TRAIT_PARENT_NOT_TRAIT.
     //
     // **Validates: Requirements 3.2, 17.6**
@@ -170,7 +170,7 @@ public class TraitInheritanceValidationPropertyTests
     [Theory]
     [InlineData("class")]
     [InlineData("struct")]
-    [InlineData("interface")]
+    [InlineData("abstract")]
     public void ParentNotTrait_EmitsDiagnostic(string parentKind)
     {
         // Arrange: declare a non-trait type and a trait that tries to extend it
@@ -179,7 +179,7 @@ public class TraitInheritanceValidationPropertyTests
         {
             "class" => MakeClassItem(parentName),
             "struct" => MakeStructItem(parentName),
-            "interface" => MakeInterfaceItem(parentName),
+            "abstract" => MakeAbstractItem(parentName),
             _ => throw new ArgumentException($"Unknown kind: {parentKind}"),
         };
 
@@ -201,10 +201,10 @@ public class TraitInheritanceValidationPropertyTests
     [Fact]
     public void ParentNotTrait_MultipleNonTraitParents_EmitsDiagnosticForEach()
     {
-        // Arrange: trait extends both a class and an interface
+        // Arrange: trait extends both a class and an abstract type
         var ast = MakeCompilationUnit(
             MakeClassItem("MyClass"),
-            MakeInterfaceItem("MyInterface"),
+            MakeAbstractItem("MyInterface"),
             MakeTraitItem(MakeSimpleTrait("MyTrait", MakeBaseList("MyClass", "MyInterface"))));
 
         // Act

@@ -21,7 +21,7 @@ Some properties of Mist:
     - **Class** - Reference type. Pass by reference. It's alias is a pointer to it's location.
     - **Enum** - A reaonly named list of objects associated to a nominal type. The enum is a type itself and has a nominal parent. This is significantly more powerful than it's C# cousin.
   - **Abstract Types** -
-    - **Interface** - Nominal types that provide a contract an implement is guarenteed to have met.
+    - **Abstract** - Nominal types that provide a contract an implementer is guaranteed to have met.
     - **Trait** - Structural types that provide a shape that an implementer has met. This is not the same as it's Rust counterpart. 
 
 Significant Features
@@ -33,7 +33,7 @@ Significant Features
 - **Refinement Types** — Types constrained by predicates (e.g., `int where > 0`) that are enforced at compile time and runtime boundaries.
 - **Dependent Types** — Types parameterized by a compile-time constant value rather than another type (e.g., `FixedBuffer<Size:int>`), creating a family of distinct types indexed by that value. A `FixedBuffer<5>` and a `FixedBuffer<10>` are incompatible types, giving compile-time guarantees about dimensions and capacities.
 - **Null Removed** — Mist eliminates null entirely. Every type must have a well-defined default value (0 for numerics, `""` for strings, a fully-initialized instance for classes and structs). The `default` keyword and optional `default` blocks let types specify their zero-state, removing null-reference errors by construction.
-- **Associated Types** — Abstract type slots declared inside interfaces and traits whose concrete definition is provided by implementors. Where generic type parameters are chosen by the caller, associated types are chosen by the implementor — enabling patterns like zero-allocation iteration where the compiler resolves the concrete enumerator struct statically, eliminating boxing and virtual dispatch.
+- **Associated Types** — Abstract type slots declared inside abstract types and traits whose concrete definition is provided by implementors. Where generic type parameters are chosen by the caller, associated types are chosen by the implementor — enabling patterns like zero-allocation iteration where the compiler resolves the concrete enumerator struct statically, eliminating boxing and virtual dispatch.
 - **Structured Context** — A mechanism for passing values through a call chain without threading them as explicit parameters, using a per-type context stack and `with` clauses. The compiler statically verifies that every required context value is available at each call site, giving the ergonomics of dependency injection with compile-time safety.
 
 ## Target Audience
@@ -67,7 +67,7 @@ The book is organized into seven parts, each building on the previous:
 
 - **Getting Started** — Install the toolchain, write your first program, and understand project layout.
 - **Basics** — Built-in types, variables, namespaces, control flow, methods, arrays, tuples, and regex literals.
-- **Object Model** — Classes, inheritance, structs, properties, interfaces, traits, enums, overloading, and extension methods.
+- **Object Model** — Classes, inheritance, structs, properties, abstract types, traits, enums, overloading, and extension methods.
 - **Type System** — Generics, constraints, type unions, aliases, newtypes, pattern matching, switch expressions, cast operators, refinement types, and dependent types.
 - **Advanced Features** — Ownership tiers, ref parameters, readonly contexts, structured context, the unknown type, default values, and nested scoping.
 - **Standard Library** — An overview of the modules and types available out of the box.

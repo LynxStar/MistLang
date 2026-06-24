@@ -166,14 +166,14 @@ public class CSharpTypeMapTests
         Assert.Equal("Vector3", CSharpTypeMap.GetTypeName(userStruct));
     }
 
-    // ── InterfaceType ────────────────────────────────────────────────────
+    // ── AbstractType ────────────────────────────────────────────────────
 
     [Fact]
-    public void GetTypeName_InterfaceType_ReturnsDisplayName()
+    public void GetTypeName_AbstractType_ReturnsDisplayName()
     {
         var scope = new Scope(parent: null);
-        var iface = new InterfaceType("IDrawable", scope, containingNamespace: "UserNs");
-        Assert.Equal("IDrawable", CSharpTypeMap.GetTypeName(iface));
+        var abs = new AbstractType("IDrawable", scope, containingNamespace: "UserNs");
+        Assert.Equal("IDrawable", CSharpTypeMap.GetTypeName(abs));
     }
 
     // ── TypeType ─────────────────────────────────────────────────────────

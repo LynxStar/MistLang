@@ -271,7 +271,7 @@ public class StorageBanNewDefaultTests
         // `default(unknown)` — the type reference resolves to
         // `UnknownType.Instance` via `ResolveTypeReference`, and
         // `ValidateDefaultableType` emits the diagnostic before the
-        // generic interface/trait/type-parameter rejections.
+        // generic abstract/trait/type-parameter rejections.
         const string source =
             "class Foo { public void M() { var x = default(unknown); } }";
 

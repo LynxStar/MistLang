@@ -53,7 +53,7 @@ public class AdhocRefinementRoundTripPropertyTests
 
     private static readonly string[] ClassNames = ["Array", "Matrix", "Buffer", "Container"];
     private static readonly string[] StructNames = ["Cell", "Entry", "Slot", "Wrapper"];
-    private static readonly string[] InterfaceNames = ["ISized", "IBounded", "ICapacity"];
+    private static readonly string[] AbstractNames = ["ISized", "IBounded", "ICapacity"];
     private static readonly string[] TraitNames = ["Bounded", "Sized", "Capped"];
     private static readonly string[] AliasNames = ["FixedSize", "BoundedInt", "LimitedCount"];
     private static readonly string[] MethodNames = ["Process", "Validate", "Compute", "Transform"];
@@ -170,17 +170,17 @@ public class AdhocRefinementRoundTripPropertyTests
     }
 
     /// <summary>
-    /// Generates an interface with adhoc refinement constraints.
-    /// Example: interface ISized&lt;Size:int&gt; where Size >= 0 { }
+    /// Generates an abstract type with adhoc refinement constraints.
+    /// Example: abstract ISized&lt;Size:int&gt; where Size >= 0 { }
     /// </summary>
-    private static Gen<AdhocRefinementRoundTripScenario> GenInterfaceConstraint()
+    private static Gen<AdhocRefinementRoundTripScenario> GenAbstractConstraint()
     {
-        return from name in Gen.Elements(InterfaceNames)
+        return from name in Gen.Elements(AbstractNames)
                from depParam in Gen.Elements(DependentParamNames)
                from predicate in GenPredicate()
-               let source = $"interface {name}<{depParam}:int> where {depParam} {predicate} {{\n}}"
+               let source = $"abstract {name}<{depParam}:int> where {depParam} {predicate} {{\n}}"
                select new AdhocRefinementRoundTripScenario(source,
-                   $"interface constraint: {name}");
+                   $"abstract type constraint: {name}");
     }
 
     /// <summary>
@@ -305,7 +305,7 @@ public class AdhocRefinementRoundTripPropertyTests
             GenClassMultipleConstraints(),
             GenClassMixedConstraints(),
             GenStructConstraint(),
-            GenInterfaceConstraint(),
+            GenAbstractConstraint(),
             GenTraitConstraint(),
             GenTypeAliasConstraint(),
             GenMethodSingleConstraint(),

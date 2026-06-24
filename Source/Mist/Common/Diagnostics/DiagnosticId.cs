@@ -113,8 +113,8 @@ public readonly record struct DiagnosticId(string Value)
     /// <summary><c>default(T)</c> where T cannot be resolved to a known type.</summary>
     public static readonly DiagnosticId DefaultUndefinedType = new("MIST_DEFAULT_UNDEFINED_TYPE");
 
-    /// <summary><c>default(T)</c> where T is an interface type.</summary>
-    public static readonly DiagnosticId DefaultOnInterface = new("MIST_DEFAULT_ON_INTERFACE");
+    /// <summary><c>default(T)</c> where T is an abstract type.</summary>
+    public static readonly DiagnosticId DefaultOnAbstract = new("MIST_DEFAULT_ON_ABSTRACT");
 
     /// <summary><c>default(T)</c> where T is a trait type.</summary>
     public static readonly DiagnosticId DefaultOnTrait = new("MIST_DEFAULT_ON_TRAIT");
@@ -279,10 +279,10 @@ public readonly record struct DiagnosticId(string Value)
     public static readonly DiagnosticId TargetNewNoContext = new("MIST_TARGET_NEW_NO_CONTEXT");
 
     /// <summary>
-    /// Emitted when a target-typed new expression resolves to an interface type,
+    /// Emitted when a target-typed new expression resolves to an abstract type,
     /// which cannot be instantiated.
     /// </summary>
-    public static readonly DiagnosticId TargetNewInterface = new("MIST_TARGET_NEW_INTERFACE");
+    public static readonly DiagnosticId TargetNewAbstract = new("MIST_TARGET_NEW_ABSTRACT");
 
     /// <summary>
     /// Emitted when a target-typed new expression resolves to a trait type,

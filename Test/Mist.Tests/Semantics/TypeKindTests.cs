@@ -2,7 +2,7 @@
 // Validates Requirement 3.1 — the semantic model exposes a distinct TypeKind
 // value for the user-facing unknown type and, per the TypeKind-audit decision
 // recorded on ConstructedType.MemberScope, the existing throw branch remains
-// correct when the generic definition is not a ClassType/StructType/InterfaceType
+// correct when the generic definition is not a ClassType/StructType/AbstractType
 // (the unknown top type is never a generic definition in practice).
 
 using Mist.Semantics.Contracts;
@@ -50,7 +50,7 @@ public class TypeKindTests
     // ═══════════════════════════════════════════════════════════════════════
 
     [Fact]
-    public void ConstructedType_MemberScope_Throws_When_GenericDefinition_Is_Not_ClassStructInterface()
+    public void ConstructedType_MemberScope_Throws_When_GenericDefinition_Is_Not_ClassStructAbstract()
     {
         IType standInDefinition = new StandInUnknownType();
         var constructed = new ConstructedType(standInDefinition, Array.Empty<IType>());
@@ -58,7 +58,7 @@ public class TypeKindTests
         var ex = Assert.Throws<InvalidOperationException>(() => _ = constructed.MemberScope);
         Assert.Contains("ClassType", ex.Message, StringComparison.Ordinal);
         Assert.Contains("StructType", ex.Message, StringComparison.Ordinal);
-        Assert.Contains("InterfaceType", ex.Message, StringComparison.Ordinal);
+        Assert.Contains("AbstractType", ex.Message, StringComparison.Ordinal);
     }
 
     /// <summary>

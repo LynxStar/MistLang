@@ -10,7 +10,7 @@ public class Program
         var result = Utilities.Identity<string>("hello");
         Console.WriteLine(result);
 
-        // Interface-typed variable with type argument
+        // Abstract-typed variable with type argument
         IGenericContainer<int> container = new GenericBox<int>(99);
         Console.WriteLine(container.GetItem());
     }

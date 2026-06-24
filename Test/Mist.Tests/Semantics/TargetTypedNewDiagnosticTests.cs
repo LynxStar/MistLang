@@ -21,7 +21,7 @@ namespace Mist.Tests.Semantics;
 /// Covers:
 /// - MIST_TARGET_NEW_WITH_VAR: <c>var x = new()</c> (Requirement 5.1)
 /// - MIST_TARGET_NEW_NO_CONTEXT: <c>new()</c> in expression statement (Requirement 5.2)
-/// - MIST_TARGET_NEW_INTERFACE: interface target type (Requirement 4.4)
+/// - MIST_TARGET_NEW_ABSTRACT: abstract type target type (Requirement 4.4)
 /// - MIST_TARGET_NEW_TRAIT: trait target type (Requirement 4.5)
 /// - MIST_ABSTRACT_INSTANTIATION: abstract class target (Requirement 4.6)
 /// - Constructor argument count mismatch (Requirement 4.3)
@@ -154,14 +154,14 @@ public sealed class TargetTypedNewDiagnosticTests : IDisposable
     }
 
     // ═══════════════════════════════════════════════════════════════════════
-    // MIST_TARGET_NEW_INTERFACE — interface target (Requirement 4.4)
+    // MIST_TARGET_NEW_ABSTRACT — abstract type target (Requirement 4.4)
     // ═══════════════════════════════════════════════════════════════════════
 
     [Fact]
-    public void InterfaceTarget_EmitsTargetNewInterfaceDiagnostic()
+    public void AbstractTarget_EmitsTargetNewAbstractDiagnostic()
     {
         var source = """
-            interface IFoo
+            abstract IFoo
             {
                 void DoThing();
             }
@@ -176,12 +176,12 @@ public sealed class TargetTypedNewDiagnosticTests : IDisposable
             """;
 
         var diagnostics = CompileAndGetDiagnostics(source);
-        var targetDiags = WithId(diagnostics, "MIST_TARGET_NEW_INTERFACE");
+        var targetDiags = WithId(diagnostics, "MIST_TARGET_NEW_ABSTRACT");
 
         Assert.Single(targetDiags);
         Assert.Equal(DiagnosticSeverity.Error, targetDiags[0].Severity);
         Assert.Contains("IFoo", targetDiags[0].Message);
-        Assert.Contains("interface", targetDiags[0].Message);
+        Assert.Contains("abstract type", targetDiags[0].Message);
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -339,7 +339,7 @@ public sealed class TargetTypedNewDiagnosticTests : IDisposable
 
         Assert.Empty(WithId(diagnostics, "MIST_TARGET_NEW_WITH_VAR"));
         Assert.Empty(WithId(diagnostics, "MIST_TARGET_NEW_NO_CONTEXT"));
-        Assert.Empty(WithId(diagnostics, "MIST_TARGET_NEW_INTERFACE"));
+        Assert.Empty(WithId(diagnostics, "MIST_TARGET_NEW_ABSTRACT"));
         Assert.Empty(WithId(diagnostics, "MIST_TARGET_NEW_TRAIT"));
         Assert.Empty(WithId(diagnostics, "MIST_ABSTRACT_INSTANTIATION"));
         Assert.Empty(WithId(diagnostics, "MIST_TC_0011"));

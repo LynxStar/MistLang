@@ -38,7 +38,7 @@ public sealed class ContextRoundTripScenario
 ///   <item>with TypeReference _ = expression;</item>
 ///   <item>with expression;</item>
 ///   <item>with (expression) { ... }</item>
-///   <item>Method with-clauses (methods, constructors, interface methods, trait methods)</item>
+///   <item>Method with-clauses (methods, constructors, abstract methods, trait methods)</item>
 ///   <item>Multiple with-clauses on a single method</item>
 ///   <item>Mixed context statements in method bodies</item>
 /// </list>
@@ -68,7 +68,7 @@ public static class MistContextRoundTripGenerator
     private static readonly string[] Expressions =
         ["42", "\"hello\"", "true", "new Config()", "new Logger()"];
 
-    private static readonly string[] InterfaceNames =
+    private static readonly string[] AbstractNames =
         ["IService", "IHandler", "IProcessor"];
 
     private static readonly string[] TraitNames =
@@ -226,20 +226,20 @@ public static class MistContextRoundTripGenerator
                    $"class {className} with constructor with-clauses");
     }
 
-    /// <summary>Generates an interface with methods that have with-clauses.</summary>
-    private static Gen<ContextRoundTripScenario> GenInterfaceWithClauses()
+    /// <summary>Generates an abstract type with methods that have with-clauses.</summary>
+    private static Gen<ContextRoundTripScenario> GenAbstractWithClauses()
     {
-        return from ifaceName in Gen.Elements(InterfaceNames)
+        return from abstractName in Gen.Elements(AbstractNames)
                from methodCount in Gen.Choose(1, 3)
-               from methods in Gen.ArrayOf(GenInterfaceMethodWithClauses(), methodCount)
+               from methods in Gen.ArrayOf(GenAbstractMethodWithClauses(), methodCount)
                let members = string.Join("\n", methods)
-               let source = $"interface {ifaceName} {{\n{members}\n}}\n"
+               let source = $"abstract {abstractName} {{\n{members}\n}}\n"
                select new ContextRoundTripScenario(source,
-                   $"interface {ifaceName} with {methodCount} with-clause methods");
+                   $"abstract {abstractName} with {methodCount} with-clause methods");
     }
 
-    /// <summary>Generates an interface method with with-clauses.</summary>
-    private static Gen<string> GenInterfaceMethodWithClauses()
+    /// <summary>Generates an abstract method with with-clauses.</summary>
+    private static Gen<string> GenAbstractMethodWithClauses()
     {
         return from retType in Gen.Elements("void", "int", "string", "bool")
                from name in Gen.Elements(MethodNames)
@@ -277,21 +277,21 @@ public static class MistContextRoundTripGenerator
     }
 
     /// <summary>
-    /// Generates a mixed program with a class, interface, and/or trait
+    /// Generates a mixed program with a class, abstract type, and/or trait
     /// all using context constructs.
     /// </summary>
     private static Gen<ContextRoundTripScenario> GenMixedProgram()
     {
         return from className in Gen.Elements(ClassNames)
-               from ifaceName in Gen.Elements(InterfaceNames)
+               from abstractName in Gen.Elements(AbstractNames)
                from method in GenMethodWithContextBody()
                from ctor in GenConstructorWithClauses(className)
-               from ifaceMethod in GenInterfaceMethodWithClauses()
-               let ifaceBlock = $"interface {ifaceName} {{\n{ifaceMethod}\n}}\n"
+               from abstractMethod in GenAbstractMethodWithClauses()
+               let abstractBlock = $"abstract {abstractName} {{\n{abstractMethod}\n}}\n"
                let classBlock = $"class {className} {{\n{ctor}\n\n{method}\n}}\n"
-               let source = $"{ifaceBlock}\n{classBlock}"
+               let source = $"{abstractBlock}\n{classBlock}"
                select new ContextRoundTripScenario(source,
-                   $"mixed: interface {ifaceName} + class {className}");
+                   $"mixed: abstract {abstractName} + class {className}");
     }
 
     /// <summary>
@@ -325,7 +325,7 @@ public static class MistContextRoundTripGenerator
         return Gen.OneOf(
             GenClassWithContextMethods(),
             GenClassWithConstructorClauses(),
-            GenInterfaceWithClauses(),
+            GenAbstractWithClauses(),
             GenTraitWithClauses(),
             GenMixedProgram(),
             GenDenseContextBody());

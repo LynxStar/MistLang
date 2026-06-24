@@ -390,9 +390,9 @@ public readonly class AllocDemo
     }
 }
 
-// ─── 15. Readonly interface contract enforcement ─────────────────────────
+// ─── 15. Readonly abstract type contract enforcement ─────────────────────────
 
-public readonly interface IReadable
+public readonly abstract IReadable
 {
     string Read();
     int GetLength();
@@ -407,13 +407,13 @@ public class Document : IReadable
         this.Content = content;
     }
 
-    // Must be readonly to satisfy readonly interface contract
+    // Must be readonly to satisfy readonly abstract type contract
     public readonly string Read()
     {
         return Content;
     }
 
-    // Must be readonly to satisfy readonly interface contract
+    // Must be readonly to satisfy readonly abstract type contract
     public readonly int GetLength()
     {
         return Content.Length;
@@ -521,8 +521,8 @@ public class Program
         Console.WriteLine($"  Original: {alloc.Describe()}");
         Console.WriteLine($"  Doubled: {doubled.Describe()}");
 
-        // 15. Readonly interface contract enforcement
-        Console.WriteLine("15. Readonly interface contract:");
+        // 15. Readonly abstract type contract enforcement
+        Console.WriteLine("15. Readonly abstract type contract:");
         var doc = new Document("Hello, Mist!");
         Console.WriteLine($"  Read={doc.Read()}");
         Console.WriteLine($"  Length={doc.GetLength()}");

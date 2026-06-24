@@ -216,17 +216,17 @@ public class WithStatementParsingTests
     }
 
     [Fact]
-    public void InterfaceMethodWithClause_ParsesCorrectly()
+    public void AbstractMethodWithClause_ParsesCorrectly()
     {
-        var source = "interface I { void M() with MyType ctx; }";
+        var source = "abstract I { void M() with MyType ctx; }";
         var result = ParseSource(source);
 
         Assert.Empty(result.Diagnostics);
         if (result.Root is CompilationUnitNode cu)
         {
-            var typeDecl = Assert.IsType<InterfaceTypeTypeDeclarationNode>(cu.GetTypes()[0]);
-            var methodMember = Assert.IsType<InterfaceMethodMemberInterfaceMemberDeclarationNode>(
-                typeDecl.InterfaceDeclaration.Members[0]);
+            var typeDecl = Assert.IsType<AbstractTypeTypeDeclarationNode>(cu.GetTypes()[0]);
+            var methodMember = Assert.IsType<AbstractMethodMemberAbstractMemberDeclarationNode>(
+                typeDecl.AbstractDeclaration.Members[0]);
             var method = methodMember.Method;
 
             Assert.Single(method.WithClauses);

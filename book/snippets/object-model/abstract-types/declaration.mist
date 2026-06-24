@@ -1,0 +1,6 @@
+abstract IShape
+{
+    string Name { get; }
+    string Describe();
+    int Area();
+}

@@ -276,8 +276,8 @@ public sealed partial class GenericEmissionPropertyTests : IDisposable
         GenericClassDeclaration,
         /// <summary>Generic struct declaration: struct Pair&lt;T, U&gt; { }</summary>
         GenericStructDeclaration,
-        /// <summary>Generic interface declaration: interface IContainer&lt;T&gt; { }</summary>
-        GenericInterfaceDeclaration,
+        /// <summary>Generic abstract type declaration: abstract IContainer&lt;T&gt; { }</summary>
+        GenericAbstractDeclaration,
         /// <summary>Generic method declaration: T Identity&lt;T&gt;(T value) { return value; }</summary>
         GenericMethodDeclaration,
         /// <summary>Object creation with type args: new Box&lt;int&gt;()</summary>
@@ -297,7 +297,7 @@ public sealed partial class GenericEmissionPropertyTests : IDisposable
         string[] TypeParams,
         string ConcreteType,
         string? BaseTypeName,
-        string? InterfaceName)
+        string? AbstractName)
 #pragma warning restore CA1819
     {
         public override string ToString()
@@ -309,8 +309,8 @@ public sealed partial class GenericEmissionPropertyTests : IDisposable
                     $"class {TypeName}<{tpList}> {{ {TypeParams[0]} value; }}",
                 GenericEmissionKind.GenericStructDeclaration =>
                     $"struct {TypeName}<{tpList}> {{ }}",
-                GenericEmissionKind.GenericInterfaceDeclaration =>
-                    $"interface {TypeName}<{tpList}> {{ }}",
+                GenericEmissionKind.GenericAbstractDeclaration =>
+                    $"abstract {TypeName}<{tpList}> {{ }}",
                 GenericEmissionKind.GenericMethodDeclaration =>
                     $"class {TypeName} {{ T DoIt<T>() {{ }} }}",
                 GenericEmissionKind.ObjectCreationWithTypeArgs =>
@@ -331,7 +331,7 @@ public sealed partial class GenericEmissionPropertyTests : IDisposable
 
     private static readonly string[] ClassNamePool = ["Box", "Container", "Wrapper", "Holder", "Store"];
     private static readonly string[] StructNamePool = ["Pair", "ValueHolder", "Point"];
-    private static readonly string[] InterfaceNamePool = ["IKeeper", "IStore", "IHolder"];
+    private static readonly string[] AbstractNamePool = ["IKeeper", "IStore", "IHolder"];
     private static readonly string[] PrimitivePool = ["int", "string", "bool", "float"];
 
     private static Gen<GenericEmissionScenario> GenClassDeclaration()
@@ -360,16 +360,16 @@ public sealed partial class GenericEmissionPropertyTests : IDisposable
                    name, typeParams, concreteType, null, null);
     }
 
-    private static Gen<GenericEmissionScenario> GenInterfaceDeclaration()
+    private static Gen<GenericEmissionScenario> GenAbstractDeclaration()
     {
-        return from name in Gen.Elements(InterfaceNamePool)
+        return from name in Gen.Elements(AbstractNamePool)
                from paramCount in Gen.Choose(1, 2)
                let typeParams = Enumerable.Range(0, paramCount)
                    .Select(i => ((char)('T' + i)).ToString())
                    .ToArray()
                from concreteType in Gen.Elements(PrimitivePool)
                select new GenericEmissionScenario(
-                   GenericEmissionKind.GenericInterfaceDeclaration,
+                   GenericEmissionKind.GenericAbstractDeclaration,
                    name, typeParams, concreteType, null, null);
     }
 
@@ -425,7 +425,7 @@ public sealed partial class GenericEmissionPropertyTests : IDisposable
         return Gen.OneOf(
             GenClassDeclaration(),
             GenStructDeclaration(),
-            GenInterfaceDeclaration(),
+            GenAbstractDeclaration(),
             GenMethodDeclaration(),
             GenObjectCreation(),
             GenMethodInvocation(),
@@ -444,7 +444,7 @@ public sealed partial class GenericEmissionPropertyTests : IDisposable
         {
             GenericEmissionKind.GenericClassDeclaration => BuildGenericClassDecl(scenario),
             GenericEmissionKind.GenericStructDeclaration => BuildGenericStructDecl(scenario),
-            GenericEmissionKind.GenericInterfaceDeclaration => BuildGenericInterfaceDecl(scenario),
+            GenericEmissionKind.GenericAbstractDeclaration => BuildGenericAbstractDecl(scenario),
             GenericEmissionKind.GenericMethodDeclaration => BuildGenericMethodDecl(scenario),
             GenericEmissionKind.ObjectCreationWithTypeArgs => BuildObjectCreation(scenario),
             GenericEmissionKind.MethodInvocationWithTypeArgs => BuildMethodInvocation(scenario),
@@ -512,21 +512,21 @@ public sealed partial class GenericEmissionPropertyTests : IDisposable
     /// Builds: interface TypeName&lt;T, U, ...&gt; { }
     ///         class Program { public static void Main() { } }
     /// </summary>
-    private static (CompilationUnitNode, string) BuildGenericInterfaceDecl(GenericEmissionScenario scenario)
+    private static (CompilationUnitNode, string) BuildGenericAbstractDecl(GenericEmissionScenario scenario)
     {
         var typeDecls = new List<TypeDeclarationNode>();
 
-        var interfaceDecl = new InterfaceDeclarationNode
+        var abstractDecl = new AbstractDeclarationNode
         {
             Name = Tok(scenario.TypeName),
             TypeParams = MakeTypeParamList(scenario.TypeParams),
-            Members = ImmutableArray<InterfaceMemberDeclarationNode>.Empty,
+            Members = ImmutableArray<AbstractMemberDeclarationNode>.Empty,
         };
-        typeDecls.Add(new InterfaceTypeTypeDeclarationNode { InterfaceDeclaration = interfaceDecl });
+        typeDecls.Add(new AbstractTypeTypeDeclarationNode { AbstractDeclaration = abstractDecl });
         typeDecls.Add(new ClassTypeTypeDeclarationNode { ClassDeclaration = MakeProgramClass(ImmutableArray<StatementNode>.Empty) });
 
         var tpList = string.Join(", ", scenario.TypeParams);
-        var source = $"interface {scenario.TypeName}<{tpList}> {{ }}\nclass Program {{ public static void Main() {{ }} }}";
+        var source = $"abstract {scenario.TypeName}<{tpList}> {{ }}\nclass Program {{ public static void Main() {{ }} }}";
         return (new CompilationUnitNode { Items = (typeDecls.ToImmutableArray()).AsTopLevelItems() }, source);
     }
 
@@ -771,7 +771,7 @@ public sealed partial class GenericEmissionPropertyTests : IDisposable
         {
             GenericEmissionKind.GenericClassDeclaration => VerifyGenericClassDecl(csContent, scenario),
             GenericEmissionKind.GenericStructDeclaration => VerifyGenericStructDecl(csContent, scenario),
-            GenericEmissionKind.GenericInterfaceDeclaration => VerifyGenericInterfaceDecl(csContent, scenario),
+            GenericEmissionKind.GenericAbstractDeclaration => VerifyGenericAbstractDecl(csContent, scenario),
             GenericEmissionKind.GenericMethodDeclaration => VerifyGenericMethodDecl(csContent, scenario),
             GenericEmissionKind.ObjectCreationWithTypeArgs => VerifyObjectCreation(csContent, scenario),
             GenericEmissionKind.MethodInvocationWithTypeArgs => VerifyMethodInvocation(csContent, scenario),
@@ -809,7 +809,7 @@ public sealed partial class GenericEmissionPropertyTests : IDisposable
     /// Req 12.1: Emitter SHALL emit generic interface declarations with type parameter list.
     /// Verifies: interface TypeName&lt;T, U&gt; appears in emitted C#.
     /// </summary>
-    private static bool VerifyGenericInterfaceDecl(string csContent, GenericEmissionScenario scenario)
+    private static bool VerifyGenericAbstractDecl(string csContent, GenericEmissionScenario scenario)
     {
         var tpList = string.Join(", ", scenario.TypeParams);
         var expected = $"interface {scenario.TypeName}<{tpList}>";

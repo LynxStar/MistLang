@@ -13,7 +13,7 @@ public class Program
         FirstClassFunctions.Program.RunDemo();
         Primitives.Program.RunDemo();
         Classes.Program.RunDemo();
-        ShapeInterfaces.Program.RunDemo();
+        ShapeAbstracts.Program.RunDemo();
         GenericTypes.Program.RunDemo();
         Overloading.Program.RunDemo();
         VoidType.Program.RunDemo();

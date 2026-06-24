@@ -528,7 +528,7 @@ public sealed class MoveBoundaryResolver
     /// <summary>
     /// Returns <c>true</c> for a named class/struct reference type whose name can be reported
     /// in a clone-specific diagnostic. Excludes value types (handled earlier) and unnamed
-    /// constructs (errors, type parameters, interfaces, etc.).
+    /// constructs (errors, type parameters, abstract types, etc.).
     /// </summary>
     private static bool IsNamedReferenceType(IType type)
     {

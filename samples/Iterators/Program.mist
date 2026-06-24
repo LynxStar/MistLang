@@ -5,7 +5,7 @@ namespace Iterators;
 // ─── Supporting types ────────────────────────────────────────────────────────
 
 // PROOF: User-defined struct enumerator implementing IEnumerator<TElement>
-// PROOF: MoveNext() and Current satisfy the interface contract
+// PROOF: MoveNext() and Current satisfy the abstract type contract
 class Range : IEnumerable<int>
 {
     public struct Enumerator : IEnumerator<int>

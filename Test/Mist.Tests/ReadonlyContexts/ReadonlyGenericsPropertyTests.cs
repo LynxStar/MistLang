@@ -1,7 +1,7 @@
 // Feature: readonly-contexts, Property 14: Readonly Type Argument Passing
 // Feature: readonly-contexts, Property 15: Generic Readonly/Mutable Constraint Checking
 // Feature: readonly-contexts, Property 16: Generic Readonly Constraint Member Access
-// Feature: readonly-contexts, Property 17: Interface/Trait Readonly Contract Enforcement
+// Feature: readonly-contexts, Property 17: Abstract Type/Trait Readonly Contract Enforcement
 
 using System.Collections.Immutable;
 using FsCheck;
@@ -86,17 +86,17 @@ public sealed class GenericConstraintMemberAccessScenario
 }
 
 /// <summary>
-/// Scenario for Property 17: Interface/Trait Readonly Contract Enforcement.
-/// Tests that implementing a readonly interface with non-readonly implementations
+/// Scenario for Property 17: Abstract Type/Trait Readonly Contract Enforcement.
+/// Tests that implementing a readonly abstract type with non-readonly implementations
 /// produces MIST_TC_0079.
 /// </summary>
-public sealed class InterfaceContractScenario
+public sealed class AbstractContractScenario
 {
     public string Source { get; }
     public bool ShouldError { get; }
     public string Description { get; }
 
-    public InterfaceContractScenario(string source, bool shouldError, string description)
+    public AbstractContractScenario(string source, bool shouldError, string description)
     {
         Source = source;
         ShouldError = shouldError;
@@ -306,25 +306,25 @@ class {className} {{
                    $"method '{methodName}' assigns field on non-readonly param in '{className}' — should succeed");
     }
 
-    // ─── Property 17: Interface/Trait Readonly Contract Enforcement ──────
+    // ─── Property 17: Abstract Type/Trait Readonly Contract Enforcement ──────
 
     /// <summary>
-    /// Generates types implementing readonly interfaces with non-readonly or
+    /// Generates types implementing readonly abstract types with non-readonly or
     /// readonly implementations.
     /// </summary>
-    public static Gen<InterfaceContractScenario> GenInterfaceContract()
+    public static Gen<AbstractContractScenario> GenAbstractContract()
     {
         return Gen.OneOf(
             GenNonReadonlyImplementation(),
             GenReadonlyImplementation());
     }
 
-    private static Gen<InterfaceContractScenario> GenNonReadonlyImplementation()
+    private static Gen<AbstractContractScenario> GenNonReadonlyImplementation()
     {
         return from className in Gen.Elements(ClassNames)
                from methodName in Gen.Elements(MethodNames)
                from fieldName in Gen.Elements(FieldNames)
-               let source = $@"readonly interface IReadable {{
+               let source = $@"readonly abstract IReadable {{
     int {methodName}();
 }}
 class {className} : IReadable {{
@@ -337,16 +337,16 @@ class {className} : IReadable {{
         return this.{fieldName};
     }}
 }}"
-               select new InterfaceContractScenario(source, true,
-                   $"'{className}.{methodName}' is non-readonly but implements readonly interface — should error");
+               select new AbstractContractScenario(source, true,
+                   $"'{className}.{methodName}' is non-readonly but implements readonly abstract type — should error");
     }
 
-    private static Gen<InterfaceContractScenario> GenReadonlyImplementation()
+    private static Gen<AbstractContractScenario> GenReadonlyImplementation()
     {
         return from className in Gen.Elements(ClassNames)
                from methodName in Gen.Elements(MethodNames)
                from fieldName in Gen.Elements(FieldNames)
-               let source = $@"readonly interface IReadable {{
+               let source = $@"readonly abstract IReadable {{
     int {methodName}();
 }}
 class {className} : IReadable {{
@@ -358,15 +358,15 @@ class {className} : IReadable {{
         return this.{fieldName};
     }}
 }}"
-               select new InterfaceContractScenario(source, false,
-                   $"'{className}.{methodName}' is readonly and implements readonly interface — should succeed");
+               select new AbstractContractScenario(source, false,
+                   $"'{className}.{methodName}' is readonly and implements readonly abstract type — should succeed");
     }
 }
 
 // ─── Property Tests ─────────────────────────────────────────────────────────
 
 /// <summary>
-/// Property-based tests for generics and interface contract enforcement.
+/// Property-based tests for generics and abstract type contract enforcement.
 ///
 /// Properties 14, 15, 16, and 17 from the readonly-contexts design document.
 /// Uses in-process compilation via a shared CompilerDriver instance (no process spawning).
@@ -409,8 +409,8 @@ public sealed class ReadonlyGenericsPropertyTests : IDisposable
     public static Arbitrary<GenericConstraintMemberAccessScenario> ArbitraryGenericConstraintMemberAccess() =>
         ReadonlyGenericsGenerators.GenGenericConstraintMemberAccess().ToArbitrary();
 
-    public static Arbitrary<InterfaceContractScenario> ArbitraryInterfaceContract() =>
-        ReadonlyGenericsGenerators.GenInterfaceContract().ToArbitrary();
+    public static Arbitrary<AbstractContractScenario> ArbitraryAbstractContract() =>
+        ReadonlyGenericsGenerators.GenAbstractContract().ToArbitrary();
 
     // ─── Helpers ────────────────────────────────────────────────────────
 
@@ -520,19 +520,19 @@ public sealed class ReadonlyGenericsPropertyTests : IDisposable
     }
 
     // ═══════════════════════════════════════════════════════════════════════
-    // Property 17: Interface/Trait Readonly Contract Enforcement
+    // Property 17: Abstract Type/Trait Readonly Contract Enforcement
     //
     // **Validates: Requirements 13.2, 13.3, 13.6**
     //
-    // For any type implementing a readonly interface or trait, each
-    // implementing member that corresponds to a readonly interface member
+    // For any type implementing a readonly abstract type or trait, each
+    // implementing member that corresponds to a readonly abstract type member
     // MUST itself be readonly (explicit or inferred); non-readonly
     // implementations SHALL produce a diagnostic error (MIST_TC_0079).
     // ═══════════════════════════════════════════════════════════════════════
 
     [Property(MaxTest = 50, Arbitrary = new[] { typeof(ReadonlyGenericsPropertyTests) })]
-    public Property InterfaceContract_NonReadonlyImplementation_ProducesDiagnostic(
-        InterfaceContractScenario scenario)
+    public Property AbstractContract_NonReadonlyImplementation_ProducesDiagnostic(
+        AbstractContractScenario scenario)
     {
         var result = CompileSource(scenario.Source);
 

@@ -15,7 +15,7 @@ namespace Mist.Tests.Analysis;
 /// <summary>
 /// Property-based tests verifying implementor obligation enforcement for associated types.
 ///
-/// <b>Property 7</b>: For any interface with N associated type slots (each with a constraint list)
+/// <b>Property 7</b>: For any abstract type with N associated type slots (each with a constraint list)
 /// and any implementor that provides M concrete type members (where 0 ≤ M ≤ N), the type checker
 /// SHALL emit exactly (N − M) diagnostics for missing slots (MIST_AT_0002), and for each provided
 /// concrete type member that does not satisfy its slot's constraints, the type checker SHALL emit
@@ -64,32 +64,32 @@ public class AssociatedTypeObligationPropertyTests
     {
         Struct,
         Class,
-        Interface
+        Abstract
     }
 
     // ─── Scenario model ──────────────────────────────────────────────────
 
 #pragma warning disable CA1034
 
-    /// <summary>Describes a single associated type slot in the interface.</summary>
+    /// <summary>Describes a single associated type slot in the abstract type.</summary>
     public sealed class SlotDef
     {
         public string Name { get; }
         public ConstraintKind Constraint { get; }
-        public string? InterfaceConstraintName { get; }
+        public string? AbstractConstraintName { get; }
 
-        public SlotDef(string name, ConstraintKind constraint, string? interfaceConstraintName = null)
+        public SlotDef(string name, ConstraintKind constraint, string? abstractConstraintName = null)
         {
             Name = name;
             Constraint = constraint;
-            InterfaceConstraintName = interfaceConstraintName;
+            AbstractConstraintName = abstractConstraintName;
         }
 
         public string ConstraintText => Constraint switch
         {
             ConstraintKind.Struct => "struct",
             ConstraintKind.Class => "class",
-            ConstraintKind.Interface => InterfaceConstraintName!,
+            ConstraintKind.Abstract => AbstractConstraintName!,
             _ => "struct"
         };
     }
@@ -108,7 +108,7 @@ public class AssociatedTypeObligationPropertyTests
     /// <summary>Describes a complete test scenario.</summary>
     public sealed class ObligationScenario
     {
-        public string InterfaceName { get; }
+        public string AbstractName { get; }
         public string ImplementorName { get; }
         public string ImplementorKind { get; }
         public IReadOnlyList<SlotDef> Slots { get; }
@@ -117,13 +117,13 @@ public class AssociatedTypeObligationPropertyTests
         public int ExpectedUnsatisfiedCount { get; }
 
         public ObligationScenario(
-            string interfaceName,
+            string abstractName,
             string implementorName,
             string implementorKind,
             IReadOnlyList<SlotDef> slots,
             IReadOnlyList<SatisfactionKind> satisfactions)
         {
-            InterfaceName = interfaceName;
+            AbstractName = abstractName;
             ImplementorName = implementorName;
             ImplementorKind = implementorKind;
             Slots = slots;
@@ -135,7 +135,7 @@ public class AssociatedTypeObligationPropertyTests
         public override string ToString()
         {
             var slotDescs = Slots.Zip(Satisfactions, (slot, sat) => $"{slot.Name}:{slot.ConstraintText}={sat}");
-            return $"{ImplementorKind} {ImplementorName} : {InterfaceName} [{string.Join(", ", slotDescs)}]";
+            return $"{ImplementorKind} {ImplementorName} : {AbstractName} [{string.Join(", ", slotDescs)}]";
         }
     }
 
@@ -143,7 +143,7 @@ public class AssociatedTypeObligationPropertyTests
 
     // ─── Name pools ──────────────────────────────────────────────────────
 
-    private static readonly string[] InterfaceNames =
+    private static readonly string[] AbstractNames =
         ["IIterable", "IRepository", "ICollection", "IMapper", "IFactory"];
 
     private static readonly string[] SlotNames =
@@ -152,21 +152,21 @@ public class AssociatedTypeObligationPropertyTests
     private static readonly string[] ImplementorNames =
         ["MyList", "Container", "Wrapper", "Handler", "Service"];
 
-    private static readonly string[] ConstraintInterfaceNames =
+    private static readonly string[] ConstraintAbstractNames =
         ["IComparable", "IDisposable", "ICloneable"];
 
     // ─── Generators ──────────────────────────────────────────────────────
 
     private static Gen<ConstraintKind> GenConstraintKind()
     {
-        return Gen.Elements(ConstraintKind.Struct, ConstraintKind.Class, ConstraintKind.Interface);
+        return Gen.Elements(ConstraintKind.Struct, ConstraintKind.Class, ConstraintKind.Abstract);
     }
 
     private static Gen<SlotDef> GenSlotDef(string name)
     {
         return from kind in GenConstraintKind()
-               from ifaceName in Gen.Elements(ConstraintInterfaceNames)
-               select new SlotDef(name, kind, kind == ConstraintKind.Interface ? ifaceName : null);
+               from abstractName in Gen.Elements(ConstraintAbstractNames)
+               select new SlotDef(name, kind, kind == ConstraintKind.Abstract ? abstractName : null);
     }
 
     private static Gen<SatisfactionKind> GenSatisfaction()
@@ -182,11 +182,11 @@ public class AssociatedTypeObligationPropertyTests
                where distinctSlotNames.Length > 0
                from slots in GenSlotDefs(distinctSlotNames)
                from satisfactions in Gen.ArrayOf(GenSatisfaction(), slots.Length)
-               from ifaceIdx in Gen.Choose(0, InterfaceNames.Length - 1)
+               from abstractIdx in Gen.Choose(0, AbstractNames.Length - 1)
                from implIdx in Gen.Choose(0, ImplementorNames.Length - 1)
                from implKind in Gen.Elements("class", "struct")
                select new ObligationScenario(
-                   InterfaceNames[ifaceIdx],
+                   AbstractNames[abstractIdx],
                    ImplementorNames[implIdx],
                    implKind,
                    slots,
@@ -220,23 +220,23 @@ public class AssociatedTypeObligationPropertyTests
         sb.AppendLine("namespace TestProject;");
         sb.AppendLine();
 
-        // Emit stub interfaces for any interface constraints referenced
-        var referencedInterfaces = scenario.Slots
-            .Where(s => s.Constraint == ConstraintKind.Interface)
-            .Select(s => s.InterfaceConstraintName!)
+        // Emit stub abstract types for any abstract type constraints referenced
+        var referencedAbstracts = scenario.Slots
+            .Where(s => s.Constraint == ConstraintKind.Abstract)
+            .Select(s => s.AbstractConstraintName!)
             .Distinct()
             .ToList();
 
-        foreach (var iface in referencedInterfaces)
+        foreach (var abs in referencedAbstracts)
         {
-            sb.AppendLine($"interface {iface} {{ }}");
+            sb.AppendLine($"abstract {abs} {{ }}");
         }
 
-        if (referencedInterfaces.Count > 0)
+        if (referencedAbstracts.Count > 0)
             sb.AppendLine();
 
-        // Emit the interface with associated type slots
-        sb.AppendLine($"interface {scenario.InterfaceName} {{");
+        // Emit the abstract type with associated type slots
+        sb.AppendLine($"abstract {scenario.AbstractName} {{");
         foreach (var slot in scenario.Slots)
         {
             sb.AppendLine($"    type {slot.Name} : {slot.ConstraintText};");
@@ -245,7 +245,7 @@ public class AssociatedTypeObligationPropertyTests
         sb.AppendLine();
 
         // Emit the implementor
-        sb.AppendLine($"{scenario.ImplementorKind} {scenario.ImplementorName} : {scenario.InterfaceName} {{");
+        sb.AppendLine($"{scenario.ImplementorKind} {scenario.ImplementorName} : {scenario.AbstractName} {{");
 
         for (var i = 0; i < scenario.Slots.Count; i++)
         {
@@ -288,9 +288,9 @@ public class AssociatedTypeObligationPropertyTests
                 sb.AppendLine($"    class {slot.Name} {{ }}");
                 break;
 
-            case ConstraintKind.Interface:
-                // Provide a nested class that implements the required interface
-                sb.AppendLine($"    class {slot.Name} : {slot.InterfaceConstraintName} {{ }}");
+            case ConstraintKind.Abstract:
+                // Provide a nested class that implements the required abstract type
+                sb.AppendLine($"    class {slot.Name} : {slot.AbstractConstraintName} {{ }}");
                 break;
         }
     }
@@ -312,8 +312,8 @@ public class AssociatedTypeObligationPropertyTests
                 sb.AppendLine($"    struct {slot.Name} {{ }}");
                 break;
 
-            case ConstraintKind.Interface:
-                // Provide a nested class that does NOT implement the required interface
+            case ConstraintKind.Abstract:
+                // Provide a nested class that does NOT implement the required abstract type
                 sb.AppendLine($"    class {slot.Name} {{ }}");
                 break;
         }
@@ -329,7 +329,7 @@ public class AssociatedTypeObligationPropertyTests
     //
     // **Validates: Requirements 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 3.7, 3.8, 3.9, 8.1, 8.2**
     //
-    // For any interface with N associated type slots (each with a constraint
+    // For any abstract type with N associated type slots (each with a constraint
     // list) and any implementor that provides M concrete type members (where
     // 0 ≤ M ≤ N), the type checker SHALL emit exactly (N − M) diagnostics
     // for missing slots (MIST_AT_0002), and for each provided concrete type

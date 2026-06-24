@@ -122,15 +122,15 @@ public static class MistTraitGenerator
     /// </summary>
     public static Gen<TraitPropertyDeclarationNode> GenTraitPropertyDeclaration()
     {
-        var getOnly = Gen.Constant(ImmutableArray.Create<InterfaceAccessorDeclarationNode>(
-            new InterfaceGetAccessorInterfaceAccessorDeclarationNode()));
+        var getOnly = Gen.Constant(ImmutableArray.Create<AbstractAccessorDeclarationNode>(
+            new AbstractGetAccessorAbstractAccessorDeclarationNode()));
 
-        var getSet = Gen.Constant(ImmutableArray.Create<InterfaceAccessorDeclarationNode>(
-            new InterfaceGetAccessorInterfaceAccessorDeclarationNode(),
-            new InterfaceSetAccessorInterfaceAccessorDeclarationNode()));
+        var getSet = Gen.Constant(ImmutableArray.Create<AbstractAccessorDeclarationNode>(
+            new AbstractGetAccessorAbstractAccessorDeclarationNode(),
+            new AbstractSetAccessorAbstractAccessorDeclarationNode()));
 
-        var setOnly = Gen.Constant(ImmutableArray.Create<InterfaceAccessorDeclarationNode>(
-            new InterfaceSetAccessorInterfaceAccessorDeclarationNode()));
+        var setOnly = Gen.Constant(ImmutableArray.Create<AbstractAccessorDeclarationNode>(
+            new AbstractSetAccessorAbstractAccessorDeclarationNode()));
 
         return from type in MistTypeGenerator.GenPrimitiveTypeRef()
                from name in Gen.Elements(PropertyNames)

@@ -1,0 +1,33 @@
+// NestedInAbstractTrait — Demonstrates class nested inside abstract type and trait.
+//
+// These declarations are in a separate file because having top-level
+// abstract types/traits with nested types in the same file as the Program class
+// triggers the entry point detection bug (MIST_TC_0017). In a separate file,
+// they compile and emit correctly, proving the parser and C# emitter handle
+// these patterns.
+//
+// Patterns demonstrated:
+//   7. Class in abstract type
+//   8. Class in trait
+
+namespace NestedScoping;
+
+// ─── 7. Class nested inside an abstract type ─────────────────────────────────────
+
+public abstract IFactory
+{
+    public class DefaultProduct
+    {
+        public static string Label() { return "IFactory.DefaultProduct (class in abstract type)"; }
+    }
+}
+
+// ─── 8. Class nested inside a trait ──────────────────────────────────────────
+
+public trait SerializableTrait
+{
+    public class Config
+    {
+        public static string Format() { return "SerializableTrait.Config (class in trait)"; }
+    }
+}

@@ -66,7 +66,7 @@ internal static class DependentTypeHelpersGenerator
     {
         ClassType ct => ct.TypeParameters,
         StructType st => st.TypeParameters,
-        InterfaceType it => it.TypeParameters,
+        AbstractType it => it.TypeParameters,
         TraitType tt => tt.TypeParameters,
         TypeAliasType at => at.TypeParameters,
         _ => null,

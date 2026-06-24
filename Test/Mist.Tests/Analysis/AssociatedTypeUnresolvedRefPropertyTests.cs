@@ -15,11 +15,11 @@ namespace Mist.Tests.Analysis;
 /// <summary>
 /// Property-based tests verifying that the compiler emits diagnostic MIST_AT_0004
 /// when a generic type parameter's dot-accessed name is not an associated type slot
-/// of any constraining interface or trait.
+/// of any constraining abstract type or trait.
 ///
-/// <b>Property 10</b>: For any generic type parameter <c>T</c> constrained by an interface,
+/// <b>Property 10</b>: For any generic type parameter <c>T</c> constrained by an abstract type,
 /// and any identifier <c>X</c> that is not an associated type slot of any constraining
-/// interface or trait, a reference to <c>T.X</c> in a type position SHALL cause the type
+/// abstract type or trait, a reference to <c>T.X</c> in a type position SHALL cause the type
 /// checker to emit diagnostic <c>MIST_AT_0004</c>.
 ///
 /// All work runs in-process using compiler APIs — no external process is spawned.
@@ -60,7 +60,7 @@ public class AssociatedTypeUnresolvedRefPropertyTests
 
     // ─── Name pools ──────────────────────────────────────────────────────
 
-    private static readonly string[] InterfaceNames =
+    private static readonly string[] AbstractNames =
         ["IContainer", "IFactory", "IRepository", "IMapper", "IProvider"];
 
     private static readonly string[] ValidSlotNames =
@@ -92,7 +92,7 @@ public class AssociatedTypeUnresolvedRefPropertyTests
     /// <summary>Describes a scenario where T.X references a non-existent slot.</summary>
     public sealed class UnresolvedRefScenario
     {
-        public string InterfaceName { get; }
+        public string AbstractName { get; }
         public IReadOnlyList<string> DeclaredSlots { get; }
         public string TypeParamName { get; }
         public string InvalidSlotName { get; }
@@ -100,14 +100,14 @@ public class AssociatedTypeUnresolvedRefPropertyTests
         public bool HasConstraint { get; }
 
         public UnresolvedRefScenario(
-            string interfaceName,
+            string abstractName,
             IReadOnlyList<string> declaredSlots,
             string typeParamName,
             string invalidSlotName,
             TypePosition position,
             bool hasConstraint)
         {
-            InterfaceName = interfaceName;
+            AbstractName = abstractName;
             DeclaredSlots = declaredSlots;
             TypeParamName = typeParamName;
             InvalidSlotName = invalidSlotName;
@@ -117,7 +117,7 @@ public class AssociatedTypeUnresolvedRefPropertyTests
 
         public override string ToString()
         {
-            var constraint = HasConstraint ? $" where {TypeParamName} : {InterfaceName}" : " (unconstrained)";
+            var constraint = HasConstraint ? $" where {TypeParamName} : {AbstractName}" : " (unconstrained)";
             return $"{TypeParamName}.{InvalidSlotName} in {Position}{constraint} " +
                    $"[declared slots: {string.Join(", ", DeclaredSlots)}]";
         }
@@ -129,7 +129,7 @@ public class AssociatedTypeUnresolvedRefPropertyTests
 
     private static Gen<UnresolvedRefScenario> GenScenario()
     {
-        return from ifaceName in Gen.Elements(InterfaceNames)
+        return from abstractName in Gen.Elements(AbstractNames)
                from slotCount in Gen.Choose(1, 3)
                from slotIndices in Gen.ArrayOf(Gen.Choose(0, ValidSlotNames.Length - 1), slotCount)
                let declaredSlots = slotIndices.Select(i => ValidSlotNames[i]).Distinct().ToArray()
@@ -140,7 +140,7 @@ public class AssociatedTypeUnresolvedRefPropertyTests
                from position in Gen.Elements(TypePosition.Parameter, TypePosition.ReturnType, TypePosition.LocalVariable)
                from hasConstraint in Gen.Elements(true, false)
                select new UnresolvedRefScenario(
-                   ifaceName, declaredSlots, typeParam, invalidSlot, position, hasConstraint);
+                   abstractName, declaredSlots, typeParam, invalidSlot, position, hasConstraint);
     }
 
     // ─── Source generation ───────────────────────────────────────────────
@@ -151,8 +151,8 @@ public class AssociatedTypeUnresolvedRefPropertyTests
 
         if (scenario.HasConstraint)
         {
-            // Emit the interface with declared slots
-            sb.AppendLine($"interface {scenario.InterfaceName} {{");
+            // Emit the abstract type with declared slots
+            sb.AppendLine($"abstract {scenario.AbstractName} {{");
             foreach (var slot in scenario.DeclaredSlots)
             {
                 sb.AppendLine($"    type {slot};");
@@ -165,7 +165,7 @@ public class AssociatedTypeUnresolvedRefPropertyTests
         sb.AppendLine("class TestClass {");
 
         var whereClause = scenario.HasConstraint
-            ? $" where {scenario.TypeParamName} : {scenario.InterfaceName}"
+            ? $" where {scenario.TypeParamName} : {scenario.AbstractName}"
             : "";
 
         switch (scenario.Position)
@@ -202,9 +202,9 @@ public class AssociatedTypeUnresolvedRefPropertyTests
     //
     // **Validates: Requirements 5.4, 8.3**
     //
-    // For any generic type parameter T constrained by an interface, and any
+    // For any generic type parameter T constrained by an abstract type, and any
     // identifier X that is not an associated type slot of any constraining
-    // interface or trait, a reference to T.X in a type position SHALL cause
+    // abstract type or trait, a reference to T.X in a type position SHALL cause
     // the type checker to emit diagnostic MIST_AT_0004.
     // ═══════════════════════════════════════════════════════════════════════
 

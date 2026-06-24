@@ -481,7 +481,7 @@ public sealed class CompilerDriver : ICompilerDriver
         semanticStopwatch.Stop();
         var topLevelConstructs = semanticModel?.AllSymbols.Count(s =>
             s.Origin == SymbolOrigin.UserCode &&
-            s.Kind is SymbolKind.Class or SymbolKind.Struct or SymbolKind.Interface or SymbolKind.Trait) ?? 0;
+            s.Kind is SymbolKind.Class or SymbolKind.Struct or SymbolKind.Abstract or SymbolKind.Trait) ?? 0;
         progressReporter.ReportStageComplete("4", semanticStopwatch.Elapsed, new[]
         {
             $"{topLevelConstructs} top-level constructs",

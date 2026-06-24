@@ -83,7 +83,7 @@ unknown value = 42;
 // ===== Word boundary tests =====
 // These identifiers contain keywords as substrings but must NOT match as keywords.
 
-interface
+abstract
 // <- source.mist -keyword -storage.type
 
 format

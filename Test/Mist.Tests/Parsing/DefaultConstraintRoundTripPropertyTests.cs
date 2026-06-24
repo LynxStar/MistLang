@@ -50,7 +50,7 @@ public class DefaultConstraintRoundTripPropertyTests
     private static readonly string[] TypeParamNames = ["T", "U", "V"];
     private static readonly string[] ClassNames = ["Factory", "Container", "Pool", "Cache"];
     private static readonly string[] StructNames = ["Slot", "Entry", "Cell"];
-    private static readonly string[] InterfaceNames = ["IDefaultable", "IPool", "IAllocator"];
+    private static readonly string[] AbstractNames = ["IDefaultable", "IPool", "IAllocator"];
     private static readonly string[] MethodNames = ["Create", "Allocate", "Reset"];
     private static readonly string[] AliasNames = ["DefaultList", "DefaultMap", "DefaultSet"];
     private static readonly string[] TypeRefConstraints = ["IFoo", "IBar", "IComparable"];
@@ -162,17 +162,17 @@ public class DefaultConstraintRoundTripPropertyTests
                    $"struct: {name}<{typeParamStr}>");
     }
 
-    /// <summary>Generates a generic interface declaration with a default constraint.</summary>
-    private static Gen<DefaultConstraintRoundTripScenario> GenInterfaceDeclaration()
+    /// <summary>Generates a generic abstract declaration with a default constraint.</summary>
+    private static Gen<DefaultConstraintRoundTripScenario> GenAbstractDeclaration()
     {
-        return from name in Gen.Elements(InterfaceNames)
+        return from name in Gen.Elements(AbstractNames)
                from paramCount in Gen.Choose(1, 3)
                let typeParams = TypeParamNames.Take(paramCount).ToArray()
                let typeParamStr = string.Join(", ", typeParams)
                from whereClauses in GenWhereClausesWithDefault(typeParams)
-               let source = $"interface {name}<{typeParamStr}>{whereClauses} {{\n}}"
+               let source = $"abstract {name}<{typeParamStr}>{whereClauses} {{\n}}"
                select new DefaultConstraintRoundTripScenario(source,
-                   $"interface: {name}<{typeParamStr}>");
+                   $"abstract: {name}<{typeParamStr}>");
     }
 
     /// <summary>Generates a class with a generic method that has a default constraint.</summary>
@@ -210,7 +210,7 @@ public class DefaultConstraintRoundTripPropertyTests
         return Gen.OneOf(
             GenClassDeclaration(),
             GenStructDeclaration(),
-            GenInterfaceDeclaration(),
+            GenAbstractDeclaration(),
             GenMethodDeclaration(),
             GenTypeAliasDeclaration());
     }

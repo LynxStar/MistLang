@@ -36,7 +36,7 @@ The `async` modifier on a method declaration tells the compiler to wrap the retu
 {{#endtab }}
 {{#endtabs }}
 
-The `async` modifier is valid on instance methods, static methods, top-level functions, interface method signatures, and trait method signatures. It cannot be combined with `intrinsic`, and it cannot be applied to constructors or operators.
+The `async` modifier is valid on instance methods, static methods, top-level functions, abstract type method signatures, and trait method signatures. It cannot be combined with `intrinsic`, and it cannot be applied to constructors or operators.
 
 An async method must not explicitly declare `Task<T>` as its return type — the compiler wraps it for you. Writing `async Task<int> Compute()` is a compile-time error.
 

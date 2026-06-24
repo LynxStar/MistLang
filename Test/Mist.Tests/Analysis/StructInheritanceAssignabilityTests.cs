@@ -16,7 +16,7 @@ namespace Mist.Tests.Analysis;
 /// Unit tests verifying the type checker's struct inheritance assignability rules.
 /// Derived→base assignment is accepted (direct and transitive), base→derived is rejected,
 /// unrelated struct assignment is rejected, generic struct assignability works with matching
-/// type args, and interface implementability walks the ancestor chain.
+/// type args, and abstract type implementability walks the ancestor chain.
 /// </summary>
 public class StructInheritanceAssignabilityTests
 {
@@ -220,19 +220,19 @@ public class StructInheritanceAssignabilityTests
         if (baseStructName is not null)
         {
             var baseList = MakeBaseList([MakeBaseTypeRef(baseStructName, baseTypeArgs)]);
-            decl.InterfaceList = baseList;
-            decl.Interfaces = baseList;
+            decl.AbstractList = baseList;
+            decl.Abstracts = baseList;
         }
 
         return decl;
     }
 
-    private static InterfaceDeclarationNode MakeInterfaceDecl(string name)
+    private static AbstractDeclarationNode MakeAbstractDecl(string name)
     {
-        return new InterfaceDeclarationNode
+        return new AbstractDeclarationNode
         {
             Name = MakeToken(name),
-            Members = ImmutableArray<InterfaceMemberDeclarationNode>.Empty,
+            Members = ImmutableArray<AbstractMemberDeclarationNode>.Empty,
         };
     }
 
@@ -263,8 +263,8 @@ public class StructInheritanceAssignabilityTests
     private static TypeDeclarationNode WrapClass(ClassDeclarationNode decl) =>
         new ClassTypeTypeDeclarationNode { ClassDeclaration = decl };
 
-    private static TypeDeclarationNode WrapInterface(InterfaceDeclarationNode decl) =>
-        new InterfaceTypeTypeDeclarationNode { InterfaceDeclaration = decl };
+    private static TypeDeclarationNode WrapAbstract(AbstractDeclarationNode decl) =>
+        new AbstractTypeTypeDeclarationNode { AbstractDeclaration = decl };
 
     // ─── Tests ───────────────────────────────────────────────────────────
 
@@ -461,8 +461,8 @@ public class StructInheritanceAssignabilityTests
     }
 
     /// <summary>
-    /// Interface implementability is inherited through the struct ancestor chain.
-    /// interface IFoo { }
+    /// Abstract type implementability is inherited through the struct ancestor chain.
+    /// abstract IFoo { }
     /// struct Base : IFoo { }
     /// struct Derived : Base { }
     /// class Program { static void Main() { IFoo f = new Derived(); } }
@@ -470,10 +470,10 @@ public class StructInheritanceAssignabilityTests
     /// **Validates: Requirements 4.2, 4.3**
     /// </summary>
     [Fact]
-    public void InterfaceImplementability_ThroughAncestorChain()
+    public void AbstractImplementability_ThroughAncestorChain()
     {
-        // interface IFoo { }
-        var interfaceDecl = MakeInterfaceDecl("IFoo");
+        // abstract IFoo { }
+        var abstractDecl = MakeAbstractDecl("IFoo");
 
         // struct Base : IFoo { }
         var baseStruct = new StructDeclarationNode
@@ -482,15 +482,15 @@ public class StructInheritanceAssignabilityTests
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
         };
         var baseList = MakeBaseList([MakeBaseTypeRef("IFoo")]);
-        baseStruct.InterfaceList = baseList;
-        baseStruct.Interfaces = baseList;
+        baseStruct.AbstractList = baseList;
+        baseStruct.Abstracts = baseList;
 
         // struct Derived : Base { }
         var derivedStruct = MakeStructDecl("Derived", baseStructName: "Base");
 
         var typeDecls = new List<TypeDeclarationNode>
         {
-            WrapInterface(interfaceDecl),
+            WrapAbstract(abstractDecl),
             WrapStruct(baseStruct),
             WrapStruct(derivedStruct),
         };

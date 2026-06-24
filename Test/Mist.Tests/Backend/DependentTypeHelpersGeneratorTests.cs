@@ -184,7 +184,7 @@ public sealed class DependentTypeHelpersGeneratorTests
     }
 
     [Fact]
-    public void EmitsAllSupportedInterfaceTypes()
+    public void EmitsAllSupportedAbstractTypes()
     {
         var source = """
             class A<V:int> { }

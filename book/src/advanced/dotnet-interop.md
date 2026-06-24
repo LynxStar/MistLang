@@ -4,7 +4,7 @@ Mist compiles to C# and runs on the .NET runtime, which means you have access to
 
 ## How It Works
 
-When the Mist compiler encounters a type it doesn't recognize among your Mist source files, it queries the Assembly Type Provider. The provider uses `System.Reflection.MetadataLoadContext` to inspect assembly metadata without loading assemblies into the runtime. It then projects CLR types into Mist's type system — classes become `ClassType`, structs become `StructType`, interfaces become `InterfaceType`, and enums become `EnumType`.
+When the Mist compiler encounters a type it doesn't recognize among your Mist source files, it queries the Assembly Type Provider. The provider uses `System.Reflection.MetadataLoadContext` to inspect assembly metadata without loading assemblies into the runtime. It then projects CLR types into Mist's type system — classes become `ClassType`, structs become `StructType`, interfaces become `AbstractType`, and enums become `EnumType`.
 
 Resolution is lazy: types are materialized only when first referenced, not eagerly loaded at startup. This keeps compilation fast even when hundreds of SDK assemblies are available.
 
@@ -202,10 +202,10 @@ The Assembly Type Provider translates CLR types into Mist types following these 
 
 | CLR Construct | Mist Projection |
 |---------------|-----------------|
-| Class | `ClassType` with namespace, base type, interfaces |
+| Class | `ClassType` with namespace, base type, implemented interfaces |
 | Struct (non-ref) | `StructType` |
 | Ref struct (`Span<T>`, etc.) | `StructType` with `IsRefStruct = true` (stack-only) |
-| Interface | `InterfaceType` |
+| Interface | `AbstractType` |
 | Enum | `EnumType` with named constants and underlying type |
 | Generic type | Mist generic type with same arity and parameter names |
 | Generic constraints | Translated where possible (`class`, `struct`, `new()`, base types) |

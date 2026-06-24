@@ -37,9 +37,9 @@ public struct FixedSpan<Length:int>
     public string Describe() { return $"FixedSpan<{Length}>"; }
 }
 
-// ─── 6. Dependent types on interfaces ────────────────────────────────────────
+// ─── 6. Dependent types on abstract types ────────────────────────────────────
 
-interface IFixedCollection<Size:int>
+abstract IFixedCollection<Size:int>
 {
     int GetSize();
     string GetInfo();
@@ -50,7 +50,7 @@ interface IFixedCollection<Size:int>
 public class SmallBuffer : FixedBuffer<10> { }
 public class ResizableBuffer<N:int> : FixedBuffer<N> { }
 
-// ─── Interface implementations ───────────────────────────────────────────────
+// ─── Abstract type implementations ───────────────────────────────────────────
 
 public class TinyCollection : IFixedCollection<8>
 {
@@ -161,7 +161,7 @@ public class Program
         var result = TypeIdentity.AcceptFive(b5);
         Console.WriteLine($"  {result}");
 
-        Console.WriteLine("--- 8. Dependent types on interfaces ---");
+        Console.WriteLine("--- 8. Dependent types on abstract types ---");
         var tiny = new TinyCollection();
         Console.WriteLine($"  tiny.GetInfo() = {tiny.GetInfo()}");
         Console.WriteLine($"  tiny.GetSize() = {tiny.GetSize()}");

@@ -3,7 +3,7 @@ name = "AllFeatures"
 [references]
 Primitives = { path = "../Primitives" }
 Classes = { path = "../Classes" }
-ShapeInterfaces = { path = "../ShapeInterfaces" }
+ShapeAbstracts = { path = "../ShapeAbstracts" }
 GenericTypes = { path = "../GenericTypes" }
 Overloading = { path = "../Overloading" }
 VoidType = { path = "../VoidType" }

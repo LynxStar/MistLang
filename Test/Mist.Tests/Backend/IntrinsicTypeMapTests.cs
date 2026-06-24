@@ -24,7 +24,7 @@ public class IntrinsicTypeMapTests
     private static ClassType MakeClrClass(string displayName, string ns) =>
         new(displayName, new Scope(parent: null), containingNamespace: ns);
 
-    private static InterfaceType MakeClrInterface(string displayName, string ns) =>
+    private static AbstractType MakeClrAbstractType(string displayName, string ns) =>
         new(displayName, new Scope(parent: null), containingNamespace: ns);
 
     private static ClassType MakeGenericClass(string displayName, string ns, int arity)
@@ -99,7 +99,7 @@ public class IntrinsicTypeMapTests
     [Theory]
     [InlineData("System.Collections.Generic.IEnumerator", "Standard.IEnumerator")]
     [InlineData("System.Collections.Generic.IEnumerable", "Standard.IEnumerable")]
-    public void GetMistTypeName_GenericCollectionInterfaces_ReturnsCorrectStdlibName(string clrName, string expected)
+    public void GetMistTypeName_GenericCollectionAbstractTypes_ReturnsCorrectStdlibName(string clrName, string expected)
     {
         var result = _map.GetMistTypeName(clrName);
         Assert.Equal(expected, result);
@@ -172,12 +172,12 @@ public class IntrinsicTypeMapTests
     }
 
     [Fact]
-    public void SubstituteIntrinsics_NonIntrinsicInterface_ReturnsUnchanged()
+    public void SubstituteIntrinsics_NonIntrinsicAbstractType_ReturnsUnchanged()
     {
-        var userInterface = MakeClrInterface("IDrawable", "MyApp");
-        var result = _map.SubstituteIntrinsics(userInterface, _stdlib);
+        var userAbstractType = MakeClrAbstractType("IDrawable", "MyApp");
+        var result = _map.SubstituteIntrinsics(userAbstractType, _stdlib);
 
-        Assert.Same(userInterface, result);
+        Assert.Same(userAbstractType, result);
     }
 
     // ── SubstituteIntrinsics: already-stdlib types are not re-substituted ─

@@ -1,10 +1,10 @@
-// IGenericContainer<T> — Demonstrates a generic interface.
+// IGenericContainer<T> — Demonstrates a generic abstract type.
 
 using Standard;
 
 namespace GenericTypes;
 
-interface IGenericContainer<T>
+abstract IGenericContainer<T>
 {
     T GetItem();
 }

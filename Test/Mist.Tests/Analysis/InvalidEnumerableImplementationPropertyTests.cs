@@ -263,7 +263,7 @@ public sealed class InvalidEnumerableImplementationPropertyTests : IDisposable
     private static string BuildEnumeratorNotImplementingSource(string typeName, string elementType)
     {
         // Type implements IEnumerable<TElement> with GetEnumerator() but the Enumerator
-        // type does NOT implement IEnumerator<TElement> (missing the interface declaration)
+        // type does NOT implement IEnumerator<TElement> (missing the abstract type declaration)
         return $$"""
             namespace Standard;
 
@@ -340,15 +340,15 @@ public sealed class InvalidEnumerableImplementationPropertyTests : IDisposable
     {
         var result = CompileSource(scenario.Source);
 
-        // Check for interface-related diagnostics:
-        // - MIST_SM_0022 (MissingInterfaceOverload) for missing methods
-        // - MIST_MISSING_INTERFACE_PROPERTY for missing properties (e.g., Current)
-        var interfaceDiagnostics = result.Diagnostics
+        // Check for abstract type-related diagnostics:
+        // - MIST_SM_0022 (MissingAbstractOverload) for missing methods
+        // - MIST_MISSING_ABSTRACT_PROPERTY for missing properties (e.g., Current)
+        var abstractDiagnostics = result.Diagnostics
             .Where(d => d.Id.Value == "MIST_SM_0022"
-                     || d.Id.Value == "MIST_MISSING_INTERFACE_PROPERTY")
+                     || d.Id.Value == "MIST_MISSING_ABSTRACT_PROPERTY")
             .ToList();
 
-        var hasDiagnostic = interfaceDiagnostics.Count > 0;
+        var hasDiagnostic = abstractDiagnostics.Count > 0;
 
         if (!hasDiagnostic)
         {
@@ -356,14 +356,14 @@ public sealed class InvalidEnumerableImplementationPropertyTests : IDisposable
                 ? string.Join("\n", result.Diagnostics.Select(d => $"  {d.Id.Value}: {d.Message}"))
                 : "  (none)";
             return false.ToProperty()
-                .Label($"Expected at least one interface diagnostic for {scenario.Kind} " +
+                .Label($"Expected at least one abstract type diagnostic for {scenario.Kind} " +
                        $"but found none.\nAll diagnostics:\n{allDiags}\n" +
                        $"Scenario: {scenario.Description}\nSource:\n{scenario.Source}");
         }
 
         return true.ToProperty()
             .Label($"Invalid IEnumerator<{scenario.ElementType}> ({scenario.Kind}) correctly produced " +
-                   $"{interfaceDiagnostics.Count} diagnostic(s)");
+                   $"{abstractDiagnostics.Count} diagnostic(s)");
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -381,13 +381,13 @@ public sealed class InvalidEnumerableImplementationPropertyTests : IDisposable
     {
         var result = CompileSource(scenario.Source);
 
-        // Check for interface-related diagnostics (MIST_SM_0022 = MissingInterfaceOverload)
+        // Check for abstract type-related diagnostics (MIST_SM_0022 = MissingAbstractOverload)
         // or any error-severity diagnostic that indicates the invalid implementation was caught
-        var interfaceDiagnostics = result.Diagnostics
+        var abstractDiagnostics = result.Diagnostics
             .Where(d => d.Id.Value == "MIST_SM_0022")
             .ToList();
 
-        var hasErrorDiagnostic = interfaceDiagnostics.Count > 0
+        var hasErrorDiagnostic = abstractDiagnostics.Count > 0
             || result.Diagnostics.Any(d => d.Severity == DiagnosticSeverity.Error);
 
         if (!hasErrorDiagnostic)

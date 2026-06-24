@@ -13,7 +13,7 @@ namespace Mist.Tests.Semantics;
 /// Unit tests for <see cref="ParameterSignature"/>.
 /// Tests cover:
 /// - Extract: parameterless methods, single-parameter methods, multi-parameter methods,
-///   constructors, and interface methods.
+///   constructors, and abstract type methods.
 /// - AreEqual: identical signatures, different signatures, and different-length signatures.
 ///
 /// _Requirements: 1.1, 1.2_
@@ -277,31 +277,31 @@ public class ParameterSignatureTests
     }
 
     [Fact]
-    public void Extract_InterfaceMethodWithParameter_ReturnsParameterType()
+    public void Extract_AbstractMethodWithParameter_ReturnsParameterType()
     {
-        // interface I { void M(int x); }
-        // The SemanticModelBuilder registers parameters for interface methods
+        // abstract I { void M(int x); }
+        // The SemanticModelBuilder registers parameters for abstract type methods
         // so that ParameterSignature.Extract can resolve parameter types for
         // overload duplicate-signature detection.
         var param = MakeParameter("int", "x");
-        var interfaceMethod = new InterfaceMethodDeclarationNode
+        var abstractMethod = new AbstractMethodDeclarationNode
         {
             Name = MakeToken("M"),
             ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = new ParameterListNode { Parameter = param },
         };
 
-        var interfaceDecl = new InterfaceDeclarationNode
+        var abstractDecl = new AbstractDeclarationNode
         {
             Name = MakeToken("I"),
-            Members = ImmutableArray.Create<InterfaceMemberDeclarationNode>(
-                new InterfaceMethodMemberInterfaceMemberDeclarationNode { Method = interfaceMethod }),
+            Members = ImmutableArray.Create<AbstractMemberDeclarationNode>(
+                new AbstractMethodMemberAbstractMemberDeclarationNode { Method = abstractMethod }),
         };
 
         var ast = new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new InterfaceTypeTypeDeclarationNode { InterfaceDeclaration = interfaceDecl }).AsTopLevelItems(),
+                new AbstractTypeTypeDeclarationNode { AbstractDeclaration = abstractDecl }).AsTopLevelItems(),
         };
 
         var model = BuildModel(ast);
@@ -309,7 +309,7 @@ public class ParameterSignatureTests
         var methodSymbol = model.AllSymbols.First(s => s.Name == "M" && s.Kind == SymbolKind.Method);
         var signature = ParameterSignature.Extract(methodSymbol, model);
 
-        // Interface method parameters are now registered, so Extract returns
+        // Abstract type method parameters are now registered, so Extract returns
         // the resolved parameter types.
         Assert.Single(signature);
         Assert.Equal("int", signature[0].DisplayName);

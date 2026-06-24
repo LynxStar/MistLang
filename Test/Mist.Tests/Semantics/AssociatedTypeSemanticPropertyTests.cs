@@ -48,27 +48,27 @@ public sealed class SlotSpec
         var parts = new List<string>();
         if (ExpectStruct) parts.Add("struct");
         if (ExpectClass) parts.Add("class");
-        foreach (var iface in ExpectAbstractConstraints) parts.Add(iface);
+        foreach (var abs in ExpectAbstractConstraints) parts.Add(abs);
         if (ExpectConstructorConstraint) parts.Add("new()");
         return $"{Name} : {(parts.Count > 0 ? string.Join(", ", parts) : "(unconstrained)")}";
     }
 }
 
 /// <summary>
-/// A test scenario containing an interface with one or more associated type slots.
+/// A test scenario containing an abstract type with one or more associated type slots.
 /// </summary>
 public sealed class SemanticRegistrationScenario
 {
-    public string InterfaceName { get; }
+    public string AbstractName { get; }
     public IReadOnlyList<SlotSpec> Slots { get; }
     public string Source { get; }
 
     public SemanticRegistrationScenario(
-        string interfaceName,
+        string abstractName,
         IReadOnlyList<SlotSpec> slots,
         string source)
     {
-        InterfaceName = interfaceName;
+        AbstractName = abstractName;
         Slots = slots;
         Source = source;
     }
@@ -76,7 +76,7 @@ public sealed class SemanticRegistrationScenario
     public override string ToString()
     {
         var slotDescs = string.Join("; ", Slots.Select(s => s.ToString()));
-        return $"interface {InterfaceName} {{ {slotDescs} }}";
+        return $"abstract {AbstractName} {{ {slotDescs} }}";
     }
 }
 
@@ -84,8 +84,8 @@ public sealed class SemanticRegistrationScenario
 /// Property-based tests verifying that the semantic model correctly registers
 /// associated type slots with their declared constraints.
 ///
-/// Property 5: For any interface or trait containing one or more associated type
-/// slots with varying constraint lists (including struct, class, interface references,
+/// Property 5: For any abstract type containing one or more associated type
+/// slots with varying constraint lists (including struct, class, abstract type references,
 /// new(), and combinations thereof), the semantic model SHALL register each slot as
 /// a discoverable type member whose TypeParameterConstraints metadata exactly reflects
 /// the declared constraints.
@@ -140,13 +140,13 @@ public sealed class AssociatedTypeSemanticPropertyTests : IDisposable
 
     // ─── Name pools ─────────────────────────────────────────────────────
 
-    private static readonly string[] InterfaceNames =
+    private static readonly string[] AbstractNames =
         ["IIterable", "IRepository", "ICollection", "IMapper", "IFactory", "IProcessor"];
 
     private static readonly string[] SlotNames =
         ["Enumerator", "Element", "Key", "Value", "Iterator", "Builder", "Output", "State"];
 
-    private static readonly string[] InterfaceConstraintNames =
+    private static readonly string[] AbstractConstraintNames =
         ["IComparable", "IDisposable", "ICloneable", "ISerializable"];
 
     // ─── Generators ─────────────────────────────────────────────────────
@@ -165,15 +165,15 @@ public sealed class AssociatedTypeSemanticPropertyTests : IDisposable
             expectAbstractConstraints: Array.Empty<string>(), expectConstructorConstraint: false));
     }
 
-    /// <summary>Generates a slot with only interface reference constraints.</summary>
-    private static Gen<SlotSpec> GenInterfaceOnlySlot(string name)
+    /// <summary>Generates a slot with only abstract type reference constraints.</summary>
+    private static Gen<SlotSpec> GenAbstractOnlySlot(string name)
     {
         return Gen.Choose(1, 2).SelectMany(count =>
-            Gen.ArrayOf(Gen.Elements(InterfaceConstraintNames), count)
-                .Select(ifaces => ifaces.Distinct().ToArray())
-                .Where(ifaces => ifaces.Length > 0)
-                .Select(ifaces => new SlotSpec(name, expectStruct: false, expectClass: false,
-                    expectAbstractConstraints: ifaces, expectConstructorConstraint: false)));
+            Gen.ArrayOf(Gen.Elements(AbstractConstraintNames), count)
+                .Select(abstracts => abstracts.Distinct().ToArray())
+                .Where(abstracts => abstracts.Length > 0)
+                .Select(abstracts => new SlotSpec(name, expectStruct: false, expectClass: false,
+                    expectAbstractConstraints: abstracts, expectConstructorConstraint: false)));
     }
 
     /// <summary>Generates a slot with only the new() constraint.</summary>
@@ -189,9 +189,9 @@ public sealed class AssociatedTypeSemanticPropertyTests : IDisposable
         return from hasStruct in Gen.Elements(true, false)
                from hasClass in Gen.Elements(true, false)
                where !(hasStruct && hasClass) // struct and class are mutually exclusive
-               from ifaceCount in Gen.Choose(0, 2)
-               from ifaces in Gen.ArrayOf(Gen.Elements(InterfaceConstraintNames), ifaceCount)
-               let distinctIfaces = ifaces.Distinct().ToArray()
+               from abstractCount in Gen.Choose(0, 2)
+               from abstracts in Gen.ArrayOf(Gen.Elements(AbstractConstraintNames), abstractCount)
+               let distinctIfaces = abstracts.Distinct().ToArray()
                from hasNew in Gen.Elements(true, false)
                where hasStruct || hasClass || distinctIfaces.Length > 0 || hasNew // at least one constraint
                select new SlotSpec(name, hasStruct, hasClass, distinctIfaces, hasNew);
@@ -203,7 +203,7 @@ public sealed class AssociatedTypeSemanticPropertyTests : IDisposable
         return Gen.OneOf(
             GenStructOnlySlot(name),
             GenClassOnlySlot(name),
-            GenInterfaceOnlySlot(name),
+            GenAbstractOnlySlot(name),
             GenNewOnlySlot(name),
             GenCombinedSlot(name));
     }
@@ -214,23 +214,23 @@ public sealed class AssociatedTypeSemanticPropertyTests : IDisposable
         var parts = new List<string>();
         if (slot.ExpectStruct) parts.Add("struct");
         if (slot.ExpectClass) parts.Add("class");
-        foreach (var iface in slot.ExpectAbstractConstraints) parts.Add(iface);
+        foreach (var abs in slot.ExpectAbstractConstraints) parts.Add(abs);
         if (slot.ExpectConstructorConstraint) parts.Add("new()");
         return string.Join(", ", parts);
     }
 
-    /// <summary>Generates a complete scenario with an interface containing 1-3 slots.</summary>
+    /// <summary>Generates a complete scenario with an abstract type containing 1-3 slots.</summary>
     private static Gen<SemanticRegistrationScenario> GenScenario()
     {
-        return from ifaceIdx in Gen.Choose(0, InterfaceNames.Length - 1)
+        return from abstractIdx in Gen.Choose(0, AbstractNames.Length - 1)
                from slotCount in Gen.Choose(1, 3)
                from slotIndices in Gen.ArrayOf(Gen.Choose(0, SlotNames.Length - 1), slotCount)
                let distinctSlotNames = slotIndices.Select(i => SlotNames[i]).Distinct().ToArray()
                where distinctSlotNames.Length > 0
                from slots in GenSlotSpecs(distinctSlotNames)
-               let ifaceName = InterfaceNames[ifaceIdx]
-               let source = BuildSource(ifaceName, slots)
-               select new SemanticRegistrationScenario(ifaceName, slots, source);
+               let abstractName = AbstractNames[abstractIdx]
+               let source = BuildSource(abstractName, slots)
+               select new SemanticRegistrationScenario(abstractName, slots, source);
     }
 
     private static Gen<SlotSpec[]> GenSlotSpecs(string[] names)
@@ -250,31 +250,31 @@ public sealed class AssociatedTypeSemanticPropertyTests : IDisposable
     }
 
     /// <summary>
-    /// Builds the Mist source code for an interface with the given slots.
-    /// Includes stub interface declarations for constraint references.
+    /// Builds the Mist source code for an abstract type with the given slots.
+    /// Includes stub abstract declarations for constraint references.
     /// </summary>
-    private static string BuildSource(string ifaceName, IReadOnlyList<SlotSpec> slots)
+    private static string BuildSource(string abstractName, IReadOnlyList<SlotSpec> slots)
     {
         var sb = new System.Text.StringBuilder();
         sb.AppendLine("namespace TestProject;");
         sb.AppendLine();
 
-        // Emit stub interfaces for any interface constraints referenced
-        var referencedInterfaces = slots
+        // Emit stub abstracts for any abstract constraints referenced
+        var referencedAbstracts = slots
             .SelectMany(s => s.ExpectAbstractConstraints)
             .Distinct()
             .ToList();
 
-        foreach (var iface in referencedInterfaces)
+        foreach (var abs in referencedAbstracts)
         {
-            sb.AppendLine($"interface {iface} {{ }}");
+            sb.AppendLine($"abstract {abs} {{ }}");
         }
 
-        if (referencedInterfaces.Count > 0)
+        if (referencedAbstracts.Count > 0)
             sb.AppendLine();
 
-        // Emit the main interface with associated type slots
-        sb.AppendLine($"interface {ifaceName} {{");
+        // Emit the main abstract type with associated type slots
+        sb.AppendLine($"abstract {abstractName} {{");
         foreach (var slot in slots)
         {
             var constraintList = BuildConstraintList(slot);
@@ -332,8 +332,8 @@ public sealed class AssociatedTypeSemanticPropertyTests : IDisposable
     //
     // **Validates: Requirements 2.1, 2.2, 2.3, 2.4**
     //
-    // For any interface or trait containing one or more associated type slots
-    // with varying constraint lists (including struct, class, interface
+    // For any abstract type containing one or more associated type slots
+    // with varying constraint lists (including struct, class, abstract type
     // references, new(), and combinations thereof), the semantic model SHALL
     // register each slot as a discoverable type member whose
     // TypeParameterConstraints metadata exactly reflects the declared
@@ -355,26 +355,26 @@ public sealed class AssociatedTypeSemanticPropertyTests : IDisposable
                 .Label($"Semantic model was null. Errors:\n  {string.Join("\n  ", errors)}\nSource:\n{scenario.Source}");
         }
 
-        // Find the interface symbol in the semantic model
-        var ifaceSymbol = model.AllSymbols
-            .FirstOrDefault(s => s.Name == scenario.InterfaceName && s.Kind == SymbolKind.Interface);
+        // Find the abstract type symbol in the semantic model
+        var abstractSymbol = model.AllSymbols
+            .FirstOrDefault(s => s.Name == scenario.AbstractName && s.Kind == SymbolKind.Abstract);
 
-        if (ifaceSymbol is null)
+        if (abstractSymbol is null)
             return false.ToProperty()
-                .Label($"Interface '{scenario.InterfaceName}' not found in semantic model.\nSource:\n{scenario.Source}");
+                .Label($"Abstract type '{scenario.AbstractName}' not found in semantic model.\nSource:\n{scenario.Source}");
 
-        if (ifaceSymbol.DeclaredType is not InterfaceType ifaceType)
+        if (abstractSymbol.DeclaredType is not AbstractType abstractType)
             return false.ToProperty()
-                .Label($"Interface '{scenario.InterfaceName}' DeclaredType is not InterfaceType (got {ifaceSymbol.DeclaredType?.GetType().Name ?? "null"}).\nSource:\n{scenario.Source}");
+                .Label($"Abstract type '{scenario.AbstractName}' DeclaredType is not AbstractType (got {abstractSymbol.DeclaredType?.GetType().Name ?? "null"}).\nSource:\n{scenario.Source}");
 
         // Verify each slot is discoverable and has correct constraints
         foreach (var expectedSlot in scenario.Slots)
         {
-            // Look up the slot in the interface's member scope
-            var slotSymbol = ifaceType.MemberScope.Lookup(expectedSlot.Name);
+            // Look up the slot in the abstract type's member scope
+            var slotSymbol = abstractType.MemberScope.Lookup(expectedSlot.Name);
             if (slotSymbol is null)
                 return false.ToProperty()
-                    .Label($"Slot '{expectedSlot.Name}' not found in interface '{scenario.InterfaceName}' member scope.\nSource:\n{scenario.Source}");
+                    .Label($"Slot '{expectedSlot.Name}' not found in abstract type '{scenario.AbstractName}' member scope.\nSource:\n{scenario.Source}");
 
             if (slotSymbol.DeclaredType is not AssociatedTypeSlotType slotType)
                 return false.ToProperty()
@@ -392,18 +392,18 @@ public sealed class AssociatedTypeSemanticPropertyTests : IDisposable
                 return false.ToProperty()
                     .Label($"Slot '{expectedSlot.Name}': HasClassConstraint={constraints.HasClassConstraint}, expected={expectedSlot.ExpectClass}.\nSource:\n{scenario.Source}");
 
-            // Verify interface constraints
-            var actualInterfaceNames = constraints.AbstractConstraints
+            // Verify abstract type constraints
+            var actualAbstractNames = constraints.AbstractConstraints
                 .Select(t => t.DisplayName)
                 .OrderBy(n => n)
                 .ToList();
-            var expectedInterfaceNames = expectedSlot.ExpectAbstractConstraints
+            var expectedAbstractNames = expectedSlot.ExpectAbstractConstraints
                 .OrderBy(n => n)
                 .ToList();
 
-            if (!actualInterfaceNames.SequenceEqual(expectedInterfaceNames))
+            if (!actualAbstractNames.SequenceEqual(expectedAbstractNames))
                 return false.ToProperty()
-                    .Label($"Slot '{expectedSlot.Name}': AbstractConstraints=[{string.Join(", ", actualInterfaceNames)}], expected=[{string.Join(", ", expectedInterfaceNames)}].\nSource:\n{scenario.Source}");
+                    .Label($"Slot '{expectedSlot.Name}': AbstractConstraints=[{string.Join(", ", actualAbstractNames)}], expected=[{string.Join(", ", expectedAbstractNames)}].\nSource:\n{scenario.Source}");
 
             // Verify constructor constraint
             var hasConstructorConstraint = constraints.ConstructorConstraints.Count > 0;

@@ -8,7 +8,7 @@ namespace Mist.Semantics.Model;
 public enum AsConversionKind
 {
     /// <summary>
-    /// The conversion is provably safe at compile time (identity, widening, interface
+    /// The conversion is provably safe at compile time (identity, widening, abstract type
     /// satisfaction). Result type is <c>T</c> — no runtime check needed.
     /// </summary>
     Provable,

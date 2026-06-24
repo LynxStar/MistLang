@@ -12,7 +12,7 @@ public sealed class ConstructedType : IType
     public TypeKind Kind { get; }
 
     /// <summary>
-    /// The unparameterized generic type definition (ClassType, StructType, or InterfaceType).
+    /// The unparameterized generic type definition (ClassType, StructType, or AbstractType).
     /// </summary>
     public IType GenericDefinition { get; }
 
@@ -38,9 +38,9 @@ public sealed class ConstructedType : IType
     {
         ClassType c => c.MemberScope,
         StructType s => s.MemberScope,
-        InterfaceType i => i.MemberScope,
+        AbstractType i => i.MemberScope,
         _ => throw new InvalidOperationException(
-            $"ConstructedType.GenericDefinition must be a ClassType, StructType, or InterfaceType, but was {GenericDefinition.GetType().Name}.")
+            $"ConstructedType.GenericDefinition must be a ClassType, StructType, or AbstractType, but was {GenericDefinition.GetType().Name}.")
     };
 
     public ConstructedType(

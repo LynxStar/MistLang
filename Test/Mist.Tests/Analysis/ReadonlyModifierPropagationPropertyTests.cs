@@ -2,7 +2,7 @@
 //
 // **Validates: Requirements 1.15**
 //
-// For any type declaration (struct, class, interface, or trait) that includes
+// For any type declaration (struct, class, abstract, or trait) that includes
 // the `readonly` modifier, the semantic model SHALL set `IsReadonly = true` on
 // the resulting type, and for any type declaration without the `readonly`
 // modifier, `IsReadonly` SHALL be `false`.
@@ -65,7 +65,7 @@ public static class ReadonlyPropagationGenerators
     private static readonly string[] ClassNames =
         ["Widget", "Service", "Handler", "Manager", "Store"];
 
-    private static readonly string[] InterfaceNames =
+    private static readonly string[] AbstractNames =
         ["IReadable", "IService", "IStore", "IHandler", "IProcessor"];
 
     private static readonly string[] TraitNames =
@@ -95,15 +95,15 @@ public static class ReadonlyPropagationGenerators
                select new ReadonlyPropagationScenario(name, "class", isReadonly, source);
     }
 
-    /// <summary>Generates an interface declaration with or without readonly.</summary>
-    public static Gen<ReadonlyPropagationScenario> GenInterfaceScenario()
+    /// <summary>Generates an abstract declaration with or without readonly.</summary>
+    public static Gen<ReadonlyPropagationScenario> GenAbstractScenario()
     {
-        return from name in Gen.Elements(InterfaceNames)
+        return from name in Gen.Elements(AbstractNames)
                from access in Gen.Elements(AccessModifiers)
                from isReadonly in Gen.Elements(true, false)
                let readonlyMod = isReadonly ? "readonly " : ""
-               let source = $"{access}{readonlyMod}interface {name} {{\n}}"
-               select new ReadonlyPropagationScenario(name, "interface", isReadonly, source);
+               let source = $"{access}{readonlyMod}abstract {name} {{\n}}"
+               select new ReadonlyPropagationScenario(name, "abstract", isReadonly, source);
     }
 
     /// <summary>Generates a trait declaration with or without readonly.</summary>
@@ -122,7 +122,7 @@ public static class ReadonlyPropagationGenerators
         return Gen.OneOf(
             GenStructScenario(),
             GenClassScenario(),
-            GenInterfaceScenario(),
+            GenAbstractScenario(),
             GenTraitScenario());
     }
 }
@@ -132,7 +132,7 @@ public static class ReadonlyPropagationGenerators
 /// <summary>
 /// Property-based tests for readonly modifier propagation to the semantic model.
 ///
-/// Property 1: For any type declaration (struct, class, interface, or trait) that
+/// Property 1: For any type declaration (struct, class, abstract, or trait) that
 /// includes the `readonly` modifier, the semantic model SHALL set `IsReadonly = true`
 /// on the resulting type, and for any type declaration without the `readonly`
 /// modifier, `IsReadonly` SHALL be `false`.
@@ -194,7 +194,7 @@ public class ReadonlyModifierPropagationPropertyTests
         var symbol = model.AllSymbols
             .FirstOrDefault(s => s.Name == typeName &&
                 s.Kind is SymbolKind.Class or SymbolKind.Struct
-                    or SymbolKind.Interface or SymbolKind.Trait);
+                    or SymbolKind.Abstract or SymbolKind.Trait);
 
         if (symbol?.DeclaredType is null)
             return null;
@@ -203,7 +203,7 @@ public class ReadonlyModifierPropagationPropertyTests
         {
             StructType st => st.IsReadonly,
             ClassType ct => ct.IsReadonly,
-            InterfaceType it => it.IsReadonly,
+            AbstractType it => it.IsReadonly,
             TraitType tt => tt.IsReadonly,
             _ => null,
         };
@@ -214,7 +214,7 @@ public class ReadonlyModifierPropagationPropertyTests
     //
     // **Validates: Requirements 1.15**
     //
-    // For any type declaration (struct, class, interface, or trait) that
+    // For any type declaration (struct, class, abstract, or trait) that
     // includes the `readonly` modifier, the semantic model SHALL set
     // `IsReadonly = true` on the resulting type, and for any type declaration
     // without the `readonly` modifier, `IsReadonly` SHALL be `false`.

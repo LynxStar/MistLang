@@ -3,12 +3,12 @@
 // Patterns demonstrated:
 //   1. Class in class
 //   2. Struct in class
-//   3. Interface in class
+//   3. Abstract type in class
 //   4. Trait in class
 //   5. Enum in class
 //   6. Class in struct (see NestedInStruct.mist — readonly emitter limitation)
-//   7. Class in interface (see NestedInInterfaceTrait.mist)
-//   8. Class in trait (see NestedInInterfaceTrait.mist)
+//   7. Class in abstract type (see NestedInAbstractTrait.mist)
+//   8. Class in trait (see NestedInAbstractTrait.mist)
 //   9. Deeply nested types (4 levels)
 //  10. Nested type inside generic parent accessing parent's type parameters
 //  11. Multiple sibling nested types in same parent
@@ -42,9 +42,9 @@ public class Outer
         public NestedPoint(int x, int y) { this.x = x; this.y = y; }
     }
 
-    // ─── 3. Interface nested inside a class ──────────────────────────────
+    // ─── 3. Abstract type nested inside a class ──────────────────────────
 
-    public interface IAction
+    public abstract IAction
     {
         string Execute();
     }
@@ -77,10 +77,10 @@ public class Outer
         return "Outer.NestedPoint(x, y) struct nested in class";
     }
 
-    public static string DemoInterfaceInClass()
+    public static string DemoAbstractInClass()
     {
-        // Proves the interface is registered in the parent's scope
-        return "Outer.IAction interface nested in class";
+        // Proves the abstract type is registered in the parent's scope
+        return "Outer.IAction abstract type nested in class";
     }
 
     public static string DemoTraitInClass()
@@ -275,9 +275,9 @@ public class Program
         Console.WriteLine("--- 2. Struct in class ---");
         Console.WriteLine($"  {Outer.DemoStructInClass()}");
 
-        // 3. Interface in class — nested interface declared inside Outer
-        Console.WriteLine("--- 3. Interface in class ---");
-        Console.WriteLine($"  {Outer.DemoInterfaceInClass()}");
+        // 3. Abstract type in class — nested abstract type declared inside Outer
+        Console.WriteLine("--- 3. Abstract type in class ---");
+        Console.WriteLine($"  {Outer.DemoAbstractInClass()}");
 
         // 4. Trait in class — nested trait declared inside Outer
         Console.WriteLine("--- 4. Trait in class ---");
@@ -291,13 +291,13 @@ public class Program
         Console.WriteLine("--- 6. Class in struct ---");
         Console.WriteLine("  ContainerStruct.Item declared (see NestedInStruct.mist, readonly emitter limitation)");
 
-        // 7. Class in interface — see NestedInInterfaceTrait.mist
-        Console.WriteLine("--- 7. Class in interface ---");
-        Console.WriteLine("  IFactory.DefaultProduct declared (see NestedInInterfaceTrait.mist)");
+        // 7. Class in abstract type — see NestedInAbstractTrait.mist
+        Console.WriteLine("--- 7. Class in abstract type ---");
+        Console.WriteLine("  IFactory.DefaultProduct declared (see NestedInAbstractTrait.mist)");
 
-        // 8. Class in trait — see NestedInInterfaceTrait.mist
+        // 8. Class in trait — see NestedInAbstractTrait.mist
         Console.WriteLine("--- 8. Class in trait ---");
-        Console.WriteLine("  Serializable.Config declared (see NestedInInterfaceTrait.mist)");
+        Console.WriteLine("  Serializable.Config declared (see NestedInAbstractTrait.mist)");
 
         // 9. Deeply nested types (4 levels) — each level calls the next
         Console.WriteLine("--- 9. Deeply nested types (4 levels) ---");

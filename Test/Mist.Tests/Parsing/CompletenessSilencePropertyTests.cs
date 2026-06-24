@@ -276,7 +276,7 @@ public class CompletenessSilencePropertyTests
             "class Map<TKey, TValue> { }",
             // Dependent type with identifier constraint
             "type PositiveInt = int >= 0;\nclass Arr<Length:PositiveInt> { }",
-            // Class with interface
+            // Class with abstract type
             "class Foo : IDisposable { }",
             // Class with field and method
             "class Counter {\n    int count;\n    public int GetCount() {\n        return count;\n    }\n}",

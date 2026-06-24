@@ -52,13 +52,13 @@ public class ConstraintClauseParsingTests
         return structType!.StructDeclaration;
     }
 
-    private static InterfaceDeclarationNode GetInterfaceDeclaration(CompilationUnitNode cu)
+    private static AbstractDeclarationNode GetAbstractDeclaration(CompilationUnitNode cu)
     {
         var types = cu.GetTypes();
         Assert.NotEmpty(types);
-        var interfaceType = types[0] as InterfaceTypeTypeDeclarationNode;
-        Assert.NotNull(interfaceType);
-        return interfaceType!.InterfaceDeclaration;
+        var abstractType = types[0] as AbstractTypeTypeDeclarationNode;
+        Assert.NotNull(abstractType);
+        return abstractType!.AbstractDeclaration;
     }
 
     private static MethodDeclarationNode GetMethodDeclaration(CompilationUnitNode cu)
@@ -70,11 +70,11 @@ public class ConstraintClauseParsingTests
         return methodMember!.Method;
     }
 
-    private static InterfaceMethodDeclarationNode GetInterfaceMethodDeclaration(CompilationUnitNode cu)
+    private static AbstractMethodDeclarationNode GetAbstractMethodDeclaration(CompilationUnitNode cu)
     {
-        var interfaceDecl = GetInterfaceDeclaration(cu);
-        Assert.NotEmpty(interfaceDecl.Members);
-        var methodMember = interfaceDecl.Members[0] as InterfaceMethodMemberInterfaceMemberDeclarationNode;
+        var abstractDecl = GetAbstractDeclaration(cu);
+        Assert.NotEmpty(abstractDecl.Members);
+        var methodMember = abstractDecl.Members[0] as AbstractMethodMemberAbstractMemberDeclarationNode;
         Assert.NotNull(methodMember);
         return methodMember!.Method;
     }
@@ -300,15 +300,15 @@ public class ConstraintClauseParsingTests
     }
 
     [Fact]
-    public void InterfaceDeclaration_WithConstraints_ParsesCorrectly()
+    public void AbstractDeclaration_WithConstraints_ParsesCorrectly()
     {
-        var source = "interface IRepository<T> where T : class { }";
+        var source = "abstract IRepository<T> where T : class { }";
         var cu = ParseWithoutErrors(source);
-        var interfaceDecl = GetInterfaceDeclaration(cu);
+        var abstractDecl = GetAbstractDeclaration(cu);
 
-        Assert.Single(interfaceDecl.Constraints);
-        Assert.Equal("T", AsGenericConstraint(interfaceDecl.Constraints[0]).Name.Lexeme);
-        var constraints = GetConstraints(AsGenericConstraint(interfaceDecl.Constraints[0]));
+        Assert.Single(abstractDecl.Constraints);
+        Assert.Equal("T", AsGenericConstraint(abstractDecl.Constraints[0]).Name.Lexeme);
+        var constraints = GetConstraints(AsGenericConstraint(abstractDecl.Constraints[0]));
         Assert.IsType<ClassConstraintConstraintNode>(constraints[0]);
     }
 
@@ -326,11 +326,11 @@ public class ConstraintClauseParsingTests
     }
 
     [Fact]
-    public void InterfaceMethodDeclaration_WithConstraints_ParsesCorrectly()
+    public void AbstractMethodDeclaration_WithConstraints_ParsesCorrectly()
     {
-        var source = "interface IFactory { T Create<T>() where T : new(); }";
+        var source = "abstract IFactory { T Create<T>() where T : new(); }";
         var cu = ParseWithoutErrors(source);
-        var method = GetInterfaceMethodDeclaration(cu);
+        var method = GetAbstractMethodDeclaration(cu);
 
         Assert.Single(method.Constraints);
         Assert.Equal("T", AsGenericConstraint(method.Constraints[0]).Name.Lexeme);
@@ -376,13 +376,13 @@ public class ConstraintClauseParsingTests
     }
 
     [Fact]
-    public void InterfaceDeclaration_WithoutConstraints_ParsesCorrectly()
+    public void AbstractDeclaration_WithoutConstraints_ParsesCorrectly()
     {
-        var source = "interface IReadable<T> { }";
+        var source = "abstract IReadable<T> { }";
         var cu = ParseWithoutErrors(source);
-        var interfaceDecl = GetInterfaceDeclaration(cu);
+        var abstractDecl = GetAbstractDeclaration(cu);
 
-        Assert.Empty(interfaceDecl.Constraints);
+        Assert.Empty(abstractDecl.Constraints);
     }
 
     [Fact]
@@ -396,11 +396,11 @@ public class ConstraintClauseParsingTests
     }
 
     [Fact]
-    public void InterfaceMethodDeclaration_WithoutConstraints_ParsesCorrectly()
+    public void AbstractMethodDeclaration_WithoutConstraints_ParsesCorrectly()
     {
-        var source = "interface IService { T Get<T>(); }";
+        var source = "abstract IService { T Get<T>(); }";
         var cu = ParseWithoutErrors(source);
-        var method = GetInterfaceMethodDeclaration(cu);
+        var method = GetAbstractMethodDeclaration(cu);
 
         Assert.Empty(method.Constraints);
     }
@@ -577,7 +577,7 @@ public class ConstraintClauseParsingTests
     }
 
     [Fact]
-    public void StructWithInterfaceList_AndConstraints_ParsesCorrectly()
+    public void StructWithAbstractList_AndConstraints_ParsesCorrectly()
     {
         var source = "struct Wrapper<T> : IDisposable where T : struct { }";
         var cu = ParseWithoutErrors(source);
@@ -587,24 +587,24 @@ public class ConstraintClauseParsingTests
         Assert.Single(structDecl.Constraints);
         Assert.Equal("T", AsGenericConstraint(structDecl.Constraints[0]).Name.Lexeme);
 
-        // Verify the struct name and type params are correct (interface list was parsed)
+        // Verify the struct name and type params are correct (abstract list was parsed)
         Assert.Equal("Wrapper", structDecl.Name.Lexeme);
         Assert.NotNull(structDecl.TypeParams);
     }
 
     [Fact]
-    public void InterfaceWithBaseInterfaces_AndConstraints_ParsesCorrectly()
+    public void AbstractWithBaseAbstracts_AndConstraints_ParsesCorrectly()
     {
-        var source = "interface IRepository<T> : IDisposable where T : class { }";
+        var source = "abstract IRepository<T> : IDisposable where T : class { }";
         var cu = ParseWithoutErrors(source);
-        var interfaceDecl = GetInterfaceDeclaration(cu);
+        var abstractDecl = GetAbstractDeclaration(cu);
 
         // Has constraints
-        Assert.Single(interfaceDecl.Constraints);
-        Assert.Equal("T", AsGenericConstraint(interfaceDecl.Constraints[0]).Name.Lexeme);
+        Assert.Single(abstractDecl.Constraints);
+        Assert.Equal("T", AsGenericConstraint(abstractDecl.Constraints[0]).Name.Lexeme);
 
-        // Verify the interface name and type params are correct (base interfaces were parsed)
-        Assert.Equal("IRepository", interfaceDecl.Name.Lexeme);
-        Assert.NotNull(interfaceDecl.TypeParams);
+        // Verify the abstract name and type params are correct (base abstracts were parsed)
+        Assert.Equal("IRepository", abstractDecl.Name.Lexeme);
+        Assert.NotNull(abstractDecl.TypeParams);
     }
 }

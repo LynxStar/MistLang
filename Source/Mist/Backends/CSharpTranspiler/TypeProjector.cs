@@ -238,7 +238,7 @@ internal sealed class TypeProjector
         }
 
         // Project implemented interfaces
-        abstractType.Interfaces = ProjectInterfaces(clrType, stdlib);
+        abstractType.Abstracts = ProjectInterfaces(clrType, stdlib);
 
         // Synthesize Enumerator associated type slots for IEnumerable<T> implementations
         SynthesizeEnumeratorSlots(clrType, abstractType, stdlib);
@@ -276,7 +276,7 @@ internal sealed class TypeProjector
         }
 
         // Project implemented interfaces
-        structType.Interfaces = ProjectInterfaces(clrType, stdlib);
+        structType.Abstracts = ProjectInterfaces(clrType, stdlib);
 
         // Synthesize IEnumerable<T> for types that duck-type to the enumerable pattern
         // but don't explicitly implement IEnumerable<T> (e.g., Span<T>)
@@ -351,7 +351,7 @@ internal sealed class TypeProjector
         }
 
         // Project implemented interfaces
-        classType.Interfaces = ProjectInterfaces(clrType, stdlib);
+        classType.Abstracts = ProjectInterfaces(clrType, stdlib);
 
         // Synthesize IEnumerable<T> for types that duck-type to the enumerable pattern
         // but don't explicitly implement IEnumerable<T>
@@ -781,8 +781,8 @@ internal sealed class TypeProjector
         // in its interface list (from a previous call), skip.
         var existingInterfaces = projectedType switch
         {
-            StructType st => st.Interfaces,
-            ClassType ct => ct.Interfaces,
+            StructType st => st.Abstracts,
+            ClassType ct => ct.Abstracts,
             _ => (IReadOnlyList<IType>)Array.Empty<IType>(),
         };
         if (existingInterfaces.Any(i => i is ConstructedType ci
@@ -848,12 +848,12 @@ internal sealed class TypeProjector
         switch (projectedType)
         {
             case StructType st:
-                var stInterfaces = new List<IType>(st.Interfaces) { synthesizedIEnumerable };
-                st.Interfaces = stInterfaces;
+                var stInterfaces = new List<IType>(st.Abstracts) { synthesizedIEnumerable };
+                st.Abstracts = stInterfaces;
                 break;
             case ClassType ct:
-                var ctInterfaces = new List<IType>(ct.Interfaces) { synthesizedIEnumerable };
-                ct.Interfaces = ctInterfaces;
+                var ctInterfaces = new List<IType>(ct.Abstracts) { synthesizedIEnumerable };
+                ct.Abstracts = ctInterfaces;
                 break;
             default:
                 return;

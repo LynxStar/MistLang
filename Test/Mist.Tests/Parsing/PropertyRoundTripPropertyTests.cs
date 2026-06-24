@@ -109,7 +109,7 @@ public class PropertyRoundTripPropertyTests
             printed.Contains("get {") ||
             printed.Contains("set {") ||
             printed.Contains("init {") ||
-            printed.Contains("=>"); // expression-bodied property or interface property
+            printed.Contains("=>"); // expression-bodied property or abstract type property
 
         return containsPropertySyntax.ToProperty()
             .Label($"No property syntax found in output:\n{printed}");

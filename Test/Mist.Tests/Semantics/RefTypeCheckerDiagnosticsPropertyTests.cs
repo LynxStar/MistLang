@@ -5,7 +5,7 @@
 // Feature: ref-parameters, Property 7: Ref Readonly Assignment Prohibition
 // Feature: ref-parameters, Property 8: Ref Call-Site Annotation Enforcement
 // Feature: ref-parameters, Property 10: RefKind Overload Distinction
-// Feature: ref-parameters, Property 11: RefKind Interface and Trait Matching
+// Feature: ref-parameters, Property 11: RefKind Abstract Type and Trait Matching
 // Feature: ref-parameters, Property 13: Ref Field Storage Prohibition
 // Feature: ref-parameters, Property 14: Ref Lambda Capture Prohibition
 // **Validates: Requirements 2.2, 2.3, 2.5, 3.3, 3.4, 4.3, 4.5, 4.6, 4.8, 5.6, 5.9, 6.2, 6.5, 6.7, 7.4, 7.5, 7.6, 9.1, 9.4, 9.5, 14.1-14.11**
@@ -124,8 +124,8 @@ public class RefTypeCheckerDiagnosticsPropertyTests
         public override string ToString() => Label;
     }
 
-    /// <summary>Scenario for Property 11: RefKind interface/trait matching.</summary>
-    public sealed record RefInterfaceTraitScenario(string Source, string Label)
+    /// <summary>Scenario for Property 11: RefKind abstract type/trait matching.</summary>
+    public sealed record RefAbstractTraitScenario(string Source, string Label)
     {
         public override string ToString() => Label;
     }
@@ -410,9 +410,9 @@ public class RefTypeCheckerDiagnosticsPropertyTests
         return gen.ToArbitrary();
     }
 
-    // ── Property 11: RefKind interface/trait matching generators ──────────
+    // ── Property 11: RefKind abstract type/trait matching generators ──────────
 
-    public static Arbitrary<RefInterfaceTraitScenario> ArbitraryRefInterfaceTrait()
+    public static Arbitrary<RefAbstractTraitScenario> ArbitraryRefAbstractTrait()
     {
         // Trait method requires ref parameter but implementing method does not
         var traitGen =
@@ -435,7 +435,7 @@ public class RefTypeCheckerDiagnosticsPropertyTests
                     }
                 }
                 """
-            select new RefInterfaceTraitScenario(source,
+            select new RefAbstractTraitScenario(source,
                 $"trait requires ref {typeName} but {className}.{methodName} has non-ref");
 
         return traitGen.ToArbitrary();
@@ -654,7 +654,7 @@ public class RefTypeCheckerDiagnosticsPropertyTests
     }
 
     // ═══════════════════════════════════════════════════════════════════════
-    // Property 11: RefKind Interface and Trait Matching
+    // Property 11: RefKind Abstract Type and Trait Matching
     //
     // For any trait method with a ref parameter, an implementing method whose
     // corresponding parameter is not ref SHALL produce MIST_REF_0012.
@@ -664,7 +664,7 @@ public class RefTypeCheckerDiagnosticsPropertyTests
 
     [Property(MaxTest = 100, Arbitrary = new[] { typeof(RefTypeCheckerDiagnosticsPropertyTests) })]
     public Property RefKindTraitMismatch_ProducesDiagnostic(
-        RefInterfaceTraitScenario scenario)
+        RefAbstractTraitScenario scenario)
     {
         var diagnostics = CompileAndGetDiagnostics(scenario.Source);
 

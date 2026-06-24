@@ -158,7 +158,7 @@ public sealed class OperatorProjectionPropertyTests
         {
             ClassType ct => ct.MemberScope as Scope,
             StructType st => st.MemberScope as Scope,
-            InterfaceType it => it.MemberScope as Scope,
+            AbstractType it => it.MemberScope as Scope,
             _ => null,
         };
 
@@ -265,7 +265,7 @@ public sealed class OperatorProjectionPropertyTests
         {
             ClassType ct => ct.MemberScope as Scope,
             StructType st => st.MemberScope as Scope,
-            InterfaceType it => it.MemberScope as Scope,
+            AbstractType it => it.MemberScope as Scope,
             _ => null,
         };
 

@@ -8,8 +8,8 @@ namespace Mist.Tests.Backend;
 
 /// <summary>
 /// Unit tests for <see cref="TypeProjector"/>.
-/// Validates CLR type → Mist type projection for classes, structs, interfaces, enums,
-/// generics, constraints, inheritance, interface implementations, optional parameters,
+/// Validates CLR type → Mist type projection for classes, structs, abstract types, enums,
+/// generics, constraints, inheritance, abstract type implementations, optional parameters,
 /// and generic method type parameters.
 /// Requirements: 4.1–4.8, 5.1–5.9, 10.1–10.5.
 /// </summary>
@@ -53,14 +53,14 @@ public class TypeProjectorTests
     }
 
     [Fact]
-    public void ProjectType_SimpleInterface_ProducesInterfaceType()
+    public void ProjectType_ClrInterface_ProducesAbstractType()
     {
         var (type, _) = _projector.ProjectType(typeof(ISimpleInterface), _stdlib);
 
-        Assert.IsType<InterfaceType>(type);
+        Assert.IsType<AbstractType>(type);
         Assert.Equal("ISimpleInterface", type.DisplayName);
-        var interfaceType = (InterfaceType)type;
-        Assert.Equal("Mist.Tests.InteropFixtures", interfaceType.ContainingNamespace);
+        var abstractType = (AbstractType)type;
+        Assert.Equal("Mist.Tests.InteropFixtures", abstractType.ContainingNamespace);
     }
 
     [Fact]
@@ -192,7 +192,7 @@ public class TypeProjectorTests
     }
 
     [Fact]
-    public void ProjectType_MultiConstraintWithInterfaceConstraint_TranslatesInterfaceConstraint()
+    public void ProjectType_MultiConstraintWithAbstractConstraint_TranslatesAbstractConstraint()
     {
         var (type, _) = _projector.ProjectType(typeof(MultiConstraint<>), _stdlib);
         var classType = Assert.IsType<ClassType>(type);
@@ -200,7 +200,7 @@ public class TypeProjectorTests
 
         Assert.NotNull(typeParam.Constraints);
         // MultiConstraint<T> where T : struct, IComparable<T>
-        // Should have at least one interface constraint (IComparable<T>)
+        // Should have at least one abstract type constraint (IComparable<T>)
         Assert.NotEmpty(typeParam.Constraints!.AbstractConstraints);
     }
 
@@ -241,17 +241,17 @@ public class TypeProjectorTests
     }
 
     // ═══════════════════════════════════════════════════════════════════════
-    // Interface Implementation Projection (Requirement 4.8)
+    // Abstract Type Implementation Projection (Requirement 4.8)
     // ═══════════════════════════════════════════════════════════════════════
 
     [Fact]
-    public void ProjectType_CustomCollection_HasInterfaces()
+    public void ProjectType_CustomCollection_HasAbstracts()
     {
         var (type, _) = _projector.ProjectType(typeof(CustomCollection), _stdlib);
         var classType = Assert.IsType<ClassType>(type);
 
         // CustomCollection implements IEnumerable<int> (non-generic IEnumerable is filtered)
-        Assert.NotEmpty(classType.Interfaces);
+        Assert.NotEmpty(classType.Abstracts);
     }
 
     // ═══════════════════════════════════════════════════════════════════════

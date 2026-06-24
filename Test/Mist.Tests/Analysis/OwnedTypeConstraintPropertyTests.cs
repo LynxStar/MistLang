@@ -22,7 +22,7 @@ namespace Mist.Tests.Analysis;
 /// fields SHALL themselves be declared as <c>owned</c> or be of an owned type. Any
 /// reference-type field without the <c>owned</c> specifier SHALL produce a diagnostic error.
 /// Instances of owned types SHALL always be held in <c>owned</c> variables. Owned types
-/// SHALL NOT implement interfaces or satisfy traits.
+/// SHALL NOT implement abstract types or satisfy traits.
 ///
 /// **Validates: Requirements 8.3, 8.4, 8.5, 8.6, 8.7, 8.8, 8.9, 16.5**
 /// </summary>
@@ -91,10 +91,10 @@ public class OwnedTypeConstraintPropertyTests
     }
 
     /// <summary>
-    /// Scenario for owned type implementing an interface (should produce
-    /// MIST_OWN_INTERFACE_FORBIDDEN).
+    /// Scenario for owned type implementing an abstract type (should produce
+    /// MIST_OWN_ABSTRACT_FORBIDDEN).
     /// </summary>
-    public sealed record InterfaceForbiddenScenario(string Source, string Label)
+    public sealed record AbstractForbiddenScenario(string Source, string Label)
     {
         public override string ToString() => Label;
     }
@@ -131,7 +131,7 @@ public class OwnedTypeConstraintPropertyTests
     private static readonly string[] RefTypeNames =
         ["Widget", "Handler", "Service", "Processor", "Manager", "Controller"];
 
-    private static readonly string[] InterfaceNames =
+    private static readonly string[] AbstractNames =
         ["IReadable", "IWritable", "IDisposable", "ICloneable", "IComparable", "ISerializable"];
 
     private static readonly string[] VarNames =
@@ -186,16 +186,16 @@ public class OwnedTypeConstraintPropertyTests
                select new ValidOwnedTypeScenario(source, $"owned class {typeName} with owned field {fieldName}:{refTypeName} and value field {valueFieldName}:{valueType}");
     }
 
-    // Generator: owned type implementing an interface (should fail)
-    private static Gen<InterfaceForbiddenScenario> GenInterfaceForbiddenScenario()
+    // Generator: owned type implementing an abstract type (should fail)
+    private static Gen<AbstractForbiddenScenario> GenAbstractForbiddenScenario()
     {
         return from typeName in Gen.Elements(TypeNames)
-               from ifaceName in Gen.Elements(InterfaceNames)
+               from abstractName in Gen.Elements(AbstractNames)
                let source = $$"""
-                   interface {{ifaceName}} {
+                   abstract {{abstractName}} {
                        void DoWork();
                    }
-                   owned class {{typeName}} : {{ifaceName}} {
+                   owned class {{typeName}} : {{abstractName}} {
                        public void DoWork() {
                        }
                    }
@@ -204,7 +204,7 @@ public class OwnedTypeConstraintPropertyTests
                        }
                    }
                    """
-               select new InterfaceForbiddenScenario(source, $"owned class {typeName} implementing {ifaceName}");
+               select new AbstractForbiddenScenario(source, $"owned class {typeName} implementing {abstractName}");
     }
 
     // Generator: owned type instance held without owned specifier (should fail)
@@ -233,8 +233,8 @@ public class OwnedTypeConstraintPropertyTests
     public static Arbitrary<ValidOwnedTypeScenario> ArbitraryValidOwnedTypeScenario() =>
         GenValidOwnedTypeScenario().ToArbitrary();
 
-    public static Arbitrary<InterfaceForbiddenScenario> ArbitraryInterfaceForbiddenScenario() =>
-        GenInterfaceForbiddenScenario().ToArbitrary();
+    public static Arbitrary<AbstractForbiddenScenario> ArbitraryAbstractForbiddenScenario() =>
+        GenAbstractForbiddenScenario().ToArbitrary();
 
     public static Arbitrary<TypeRequiresOwnedScenario> ArbitraryTypeRequiresOwnedScenario() =>
         GenTypeRequiresOwnedScenario().ToArbitrary();
@@ -273,22 +273,22 @@ public class OwnedTypeConstraintPropertyTests
     }
 
     // ═══════════════════════════════════════════════════════════════════════
-    // Ownership v2: owned types MAY implement interfaces — the v1 "owned types
-    // cannot implement interfaces" rejection is removed (Req 5 AC 6 narrows
-    // MIST_OWN_INTERFACE_FORBIDDEN to owned interface/trait DECLARATIONS only).
-    // An owned class implementing an interface (e.g. IClonable) is now valid.
+    // Ownership v2: owned types MAY implement abstract types — the v1 "owned types
+    // cannot implement abstract types" rejection is removed (Req 5 AC 6 narrows
+    // MIST_OWN_ABSTRACT_FORBIDDEN to owned abstract type/trait DECLARATIONS only).
+    // An owned class implementing an abstract type (e.g. IClonable) is now valid.
     // ═══════════════════════════════════════════════════════════════════════
 
     [Property(
         MaxTest = 100,
         Arbitrary = new[] { typeof(OwnedTypeConstraintPropertyTests) })]
-    public bool OwnedTypeWithInterface_EmitsInterfaceForbidden(InterfaceForbiddenScenario scenario)
+    public bool OwnedTypeWithAbstract_EmitsAbstractForbidden(AbstractForbiddenScenario scenario)
     {
         var diagnostics = CompileAndGetDiagnostics(scenario.Source);
 
-        // v2: an owned class implementing an interface is permitted; the rejection
-        // applies only to `owned interface`/`owned trait` declarations (Req 5 AC 6).
-        return !diagnostics.Any(d => d.Id.Value == "MIST_OWN_INTERFACE_FORBIDDEN");
+        // v2: an owned class implementing an abstract type is permitted; the rejection
+        // applies only to `owned abstract`/`owned trait` declarations (Req 5 AC 6).
+        return !diagnostics.Any(d => d.Id.Value == "MIST_OWN_ABSTRACT_FORBIDDEN");
     }
 
     // ═══════════════════════════════════════════════════════════════════════

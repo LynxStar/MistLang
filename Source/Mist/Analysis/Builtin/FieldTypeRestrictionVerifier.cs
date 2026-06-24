@@ -104,7 +104,7 @@ public sealed class FieldTypeRestrictionVerifier
     /// <summary>
     /// Checks whether a type parameter has constraints that satisfy the field-type
     /// restriction: either an <c>owned</c> constraint (restricts to owned types),
-    /// a <c>struct</c> constraint (restricts to value types), or an interface
+    /// a <c>struct</c> constraint (restricts to value types), or an abstract type
     /// constraint that is <c>IClonable</c> (Req 4 AC 6).
     /// </summary>
     private static bool HasOwnedOrClonableConstraint(TypeParameterType typeParam)
@@ -125,10 +125,10 @@ public sealed class FieldTypeRestrictionVerifier
         if (constraints.BaseClassConstraint is not null && IsOwnedType(Unwrap(constraints.BaseClassConstraint)))
             return true;
 
-        // Interface constraint that is IClonable satisfies the restriction.
-        foreach (var iface in constraints.AbstractConstraints)
+        // Abstract type constraint that is IClonable satisfies the restriction.
+        foreach (var abs in constraints.AbstractConstraints)
         {
-            if (IsIClonableInterface(iface))
+            if (IsIClonableInterface(abs))
                 return true;
         }
 
@@ -230,15 +230,15 @@ public sealed class FieldTypeRestrictionVerifier
 
     /// <summary>
     /// Returns <c>true</c> when the given type reference denotes the stdlib
-    /// <c>IClonable</c> interface (either constructed or bare).
+    /// <c>IClonable</c> abstract type (either constructed or bare).
     /// </summary>
     private static bool IsIClonableInterface(IType type)
     {
         return type switch
         {
             ConstructedType constructed => IsIClonableInterface(constructed.GenericDefinition),
-            InterfaceType iface => iface.DisplayName == "IClonable",
-            _ => type.DisplayName == "IClonable" && type.Kind == TypeKind.Interface,
+            AbstractType abs => abs.DisplayName == "IClonable",
+            _ => type.DisplayName == "IClonable" && type.Kind == TypeKind.Abstract,
         };
     }
 

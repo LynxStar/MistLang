@@ -345,7 +345,7 @@ narrowed-back value: 42
   Severity.Warning = Warning
   Severity.Info = Info
   Severity.Critical as Label = Label(CRITICAL, 1)
---- Interface/Trait underlying types ---
+--- Abstract Type/Trait underlying types ---
   Pet.Dog = Dog
   Pet.Cat = Cat
   Pet.Fish = Fish
@@ -413,7 +413,7 @@ StaticProps(name=One, total=2)
 --- Computed Properties ---
 ComputedProps(Area=24, Perimeter=20, IsSquare=False)
 ComputedProps(Area=25, Perimeter=20, IsSquare=True)
---- Interface Properties ---
+--- Abstract Type Properties ---
 LabeledItem(Label=Widget, Value=99)
   After edit: Label=Widget, Value=200
 --- Indexers ---
@@ -427,7 +427,7 @@ Done!
 --- Generic Constraints ---
 1. class constraint: RefOnly: hello
 2. struct constraint: ValOnly: 42
-3. interface constraint: first order = 10
+3. abstract type constraint: first order = 10
 4. trait constraint: Widget#7
 5. base class constraint: Dog
 6. new() constraint: created Widget(0)
@@ -438,7 +438,7 @@ Done!
 11. method constraint: Widget(0)
 12. propagation: new=Widget(0)
 13. any position: value=77
-14. interface with constraint: Widget(42)
+14. abstract type with constraint: Widget(42)
 15. struct with constraint: holds a Widget
 16. generic trait: transformed=Widget(42), default=Widget(0)
 --- Generic Constraints Done ---
@@ -462,7 +462,7 @@ Done!
   IntParam<42>.GetValue() = 42
 --- 7. Type identity / type safety ---
   Accepted FixedBuffer<5>
---- 8. Dependent types on interfaces ---
+--- 8. Dependent types on abstract types ---
   tiny.GetInfo() = TinyCollection(size=8)
   tiny.GetSize() = 8
 --- 9. Dependent types on traits ---
@@ -534,7 +534,7 @@ Done!
 14. Allocation in readonly context:
   Original: AllocDemo(Value=21)
   Doubled: AllocDemo(Value=42)
-15. Readonly interface contract:
+15. Readonly abstract type contract:
   Read=Hello, Mist!
   Length=12
 --- Readonly Contexts Done ---
@@ -855,14 +855,14 @@ Done!
   class (Config): GetConfig()=detailed
   struct (Locale): GetLocale()=en-US
   trait-satisfying (CountReader): CountReader(ReadContext with 0 would be: ready)
-  interface-implementing (ConsumerImpl): ConsumerImpl(ready)
+  abstract type-implementing (ConsumerImpl): ConsumerImpl(ready)
 --- 14. Advanced type keys ---
   type alias (Name=string): GetString()=via-alias
   union type (IntOrBool): GetInt()=42 (proves distinct key)
   refinement type (PositiveInt=int>=1): GetInt()=5 (shares int key)
   after refinement pop: GetInt()=42
   dependent type (Sized<5>): GetSized()=5
---- 15. Interface dispatch with with-clause ---
+--- 15. Abstract type dispatch with with-clause ---
   IContextConsumer.Consume()=ConsumerImpl.Consume: cfg=detailed
 --- 16. Trait dispatch with with-clause ---
   ContextReader.ReadContext()=CountReader.ReadContext: count=7
@@ -909,13 +909,13 @@ Done!
 --- 14. Forwarding dependent parameter with implication ---
   Wrapper<5> : FixedArray<string, 5> constructed successfully
   (Wrapper's N >= 0 implies FixedArray's Size >= 0)
---- 15. Interface refinement — same constraint (Liskov) ---
+--- 15. Abstract type refinement — same constraint (Liskov) ---
   StrictValidator.Validate(42) accepted (same constraint >= 0)
   StrictValidator.Validate(0) accepted (same constraint >= 0)
---- 16. Interface refinement — no constraint (Liskov) ---
+--- 16. Abstract type refinement — no constraint (Liskov) ---
   LenientValidator.Validate(99) accepted (no constraint)
   LenientValidator.Validate(0) accepted (no constraint)
---- 17. Interface refinement — weaker constraint (Liskov) ---
+--- 17. Abstract type refinement — weaker constraint (Liskov) ---
   WeakerProcessor.Process(50) accepted (weaker constraint >= 0)
   WeakerProcessor.Process(10) accepted (weaker constraint >= 0)
 === Adhoc Refinement Constraints Done ===
@@ -938,18 +938,18 @@ Done!
   Outer.Inner (class in class)
 --- 2. Struct in class ---
   Outer.NestedPoint(x, y) struct nested in class
---- 3. Interface in class ---
-  Outer.IAction interface nested in class
+--- 3. Abstract type in class ---
+  Outer.IAction abstract type nested in class
 --- 4. Trait in class ---
   Outer.Describable trait nested in class
 --- 5. Enum in class ---
   Outer.Status: Active=Active, Inactive=Inactive, Pending=Pending
 --- 6. Class in struct ---
   ContainerStruct.Item declared (see NestedInStruct.mist, readonly emitter limitation)
---- 7. Class in interface ---
-  IFactory.DefaultProduct declared (see NestedInInterfaceTrait.mist)
+--- 7. Class in abstract type ---
+  IFactory.DefaultProduct declared (see NestedInAbstractTrait.mist)
 --- 8. Class in trait ---
-  Serializable.Config declared (see NestedInInterfaceTrait.mist)
+  Serializable.Config declared (see NestedInAbstractTrait.mist)
 --- 9. Deeply nested types (4 levels) ---
   Level1.Level2.Level3.Level4 (4 levels deep)
 --- 10. Generic parent type parameter access ---
@@ -1138,7 +1138,7 @@ sum=400
   origin.Y=88, converted.Y=88
 Done!
 --- Associated Types ---
---- Single Interface Constraint ---
+--- Single Abstract Type Constraint ---
 Output(hello)
 Output(world)
 --- Trait Slot ---
@@ -1153,7 +1153,7 @@ product.Weight=5
 --- Multiple Constraints ---
 State(count=7)
 count=7
---- Generic Interface With Slot ---
+--- Generic Abstract Type With Slot ---
 Mapped(246)
 intMapper.GetDefault()=0
 Mapped(hello)
@@ -1161,13 +1161,13 @@ strMapper.GetDefault()=
 --- Unconstrained Slot ---
 elem.Value=50
 elem2.Value=70
---- Class Plus Interface ---
+--- Class Plus Abstract Type ---
 (3,4)
 (10,20)
 --- Multiple Slots ---
 key.Id=1
 val.Data=hello-store
---- Multiple Interfaces ---
+--- Multiple Abstract Types ---
 reader.Offset=0
 writer.BufferSize=4096
 --- Type Param In Slot Constraint ---

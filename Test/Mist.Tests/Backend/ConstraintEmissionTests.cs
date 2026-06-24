@@ -116,10 +116,10 @@ class Program {
     }
 
     [Fact]
-    public void InterfaceConstraint_EmitsInterfaceName()
+    public void AbstractConstraint_EmitsAbstractName()
     {
         var source = @"
-interface IFoo { }
+abstract IFoo { }
 class Container<T> where T : IFoo { }
 class Program {
     public static void Main() { }
@@ -270,7 +270,7 @@ class Program {
     public void ConstraintOrdering_NewFirst_EmitsNewLast()
     {
         var source = @"
-interface IFoo { }
+abstract IFoo { }
 class Container<T> where T : new(), IFoo, class { }
 class Program {
     public static void Main() { }
@@ -289,7 +289,7 @@ class Program {
     public void ConstraintOrdering_BaseClassAfterInterface_EmitsBaseClassBeforeInterface()
     {
         var source = @"
-interface IFoo { }
+abstract IFoo { }
 class Animal { }
 class Container<T> where T : IFoo, Animal, new() { }
 class Program {
@@ -324,7 +324,7 @@ class Program {
     public void MethodConstraints_EmitsWhereClauseOnMethod()
     {
         var source = @"
-interface IFoo { }
+abstract IFoo { }
 class Program {
     public static void DoWork<T>(T item) where T : IFoo { }
     public static void Main() { }

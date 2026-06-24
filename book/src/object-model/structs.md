@@ -51,7 +51,7 @@ This makes structs ideal for small, immutable data. Because each variable holds 
 | **Assignment** | Copies the reference — both variables point to the same object | Copies the entire value — each variable is independent |
 | **Identity** | Two variables can alias the same object | No aliasing — each copy is distinct |
 | **Inheritance** | Single inheritance (runtime subtype, reference) | Single inheritance (field composition, no virtual dispatch) |
-| **Best for** | Large objects, shared state, polymorphism via interfaces | Small data carriers, coordinates, measurements, colors |
+| **Best for** | Large objects, shared state, polymorphism via abstract types | Small data carriers, coordinates, measurements, colors |
 
 Use structs for small, self-contained values where copy semantics are desirable. Use classes for larger objects or when you need shared references.
 
@@ -109,9 +109,9 @@ The compiler rejects any attempt to store a ref struct value in a location that 
 | Generic type argument (e.g., `List<Span<int>>`) | Generic containers are heap-allocated |
 | Union type constituent (e.g., `Span<int> \| string`) | Unions are boxed |
 | Optional type (e.g., `Span<int>?`) | Optionals map to `Nullable<T>`, which requires boxing |
-| Assignment to an interface variable | Interface assignment boxes the value |
+| Assignment to an abstract type variable | Abstract type assignment boxes the value |
 
-Note that a ref struct **can** declare that it implements an interface (e.g., `ref struct Foo : IBar`). The restriction applies at the usage site — you cannot assign a ref struct value to an interface-typed variable or pass it where an interface type is expected.
+Note that a ref struct **can** declare that it implements an abstract type (e.g., `ref struct Foo : IBar`). The restriction applies at the usage site — you cannot assign a ref struct value to an abstract-type-typed variable or pass it where an abstract type is expected.
 
 ### Span Types and `stackalloc`
 

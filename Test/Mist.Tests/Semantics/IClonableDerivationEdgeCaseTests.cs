@@ -236,7 +236,7 @@ public sealed class IClonableDerivationEdgeCaseTests : IDisposable
     {
         var model = CompileAndCapture();
 
-        // The leaf with an interface-typed field is itself non-clonable.
+        // The leaf with an abstract-typed field is itself non-clonable.
         var leaf = FindImplementsIClonable(model, "NonClonableLeaf");
         Assert.True(leaf.HasValue, "Type 'X.NonClonableLeaf' was not found in the semantic model.");
         Assert.False(

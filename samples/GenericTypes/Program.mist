@@ -1,4 +1,4 @@
-// GenericTypes — Covers generic classes and generic interfaces.
+// GenericTypes — Covers generic classes and generic abstract types.
 
 using Standard;
 
@@ -8,7 +8,7 @@ public class Program
 {
     public static void RunDemo()
     {
-        // 27. Generics: generic class, generic interface, constructed generic types
+        // 27. Generics: generic class, generic abstract type, constructed generic types
         Console.WriteLine("--- Generics ---");
         var gbox = new GenericBox<int>(42);
         Console.WriteLine($"gbox={gbox.Describe()}");
@@ -17,7 +17,7 @@ public class Program
         var gboxStr = new GenericBox<string>("hello");
         Console.WriteLine($"gboxStr={gboxStr.Describe()}");
 
-        // Generic interface-typed variable
+        // Generic abstract type-typed variable
         IGenericContainer<int> gc = new GenericBox<int>(99);
         Console.WriteLine($"gc.item={gc.GetItem()}");
     }

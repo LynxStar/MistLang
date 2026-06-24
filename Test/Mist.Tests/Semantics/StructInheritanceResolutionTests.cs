@@ -23,7 +23,7 @@ namespace Mist.Tests.Semantics;
 /// 3. Generic struct inheritance (Derived&lt;T&gt; : Base&lt;T&gt;)
 /// 4. MIST_STRUCT_CIRCULAR_INHERITANCE fires for cycles
 /// 5. MIST_STRUCT_MAX_DEPTH fires for deep chains
-/// 6. MIST_STRUCT_INVALID_BASE fires for class/interface as base
+/// 6. MIST_STRUCT_INVALID_BASE fires for class/abstract type as base
 /// 7. MIST_STRUCT_MULTIPLE_INHERITANCE fires for multiple structs in list
 /// 8. MIST_STRUCT_FIELD_HIDING fires for duplicate field names
 ///
@@ -237,7 +237,7 @@ struct A : A {
     }
 
     // ═══════════════════════════════════════════════════════════════════════
-    // 6. Class/Interface as Base — emits MIST_STRUCT_INVALID_BASE
+    // 6. Class/Abstract Type as Base — emits MIST_STRUCT_INVALID_BASE
     // ═══════════════════════════════════════════════════════════════════════
 
     [Fact]

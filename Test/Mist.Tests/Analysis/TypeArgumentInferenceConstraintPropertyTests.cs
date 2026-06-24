@@ -102,7 +102,7 @@ public sealed class TypeArgumentInferenceConstraintPropertyTests : IDisposable
 
     private static readonly HashSet<string> ConstraintRelatedDiagnosticIds = new()
     {
-        "MIST_CONSTRAINT_0009", // Interface not implemented
+        "MIST_CONSTRAINT_0009", // Abstract type not implemented
         "MIST_CONSTRAINT_0010", // Trait not satisfied
         "MIST_CONSTRAINT_0011", // Base class not derived
         "MIST_CONSTRAINT_0012", // Class constraint violation (value type given)
@@ -195,16 +195,16 @@ public sealed class TypeArgumentInferenceConstraintPropertyTests : IDisposable
     }
 
     /// <summary>
-    /// Generates a scenario where a method has an interface constraint on T,
-    /// but a type that does not implement the interface is used.
-    /// We define an interface IMarker and pass int which does not implement it.
+    /// Generates a scenario where a method has an abstract type constraint on T,
+    /// but a type that does not implement the abstract type is used.
+    /// We define an abstract type IMarker and pass int which does not implement it.
     /// </summary>
-    private static Gen<ConstraintDiagnosticScenario> GenInterfaceConstraintViolation()
+    private static Gen<ConstraintDiagnosticScenario> GenAbstractConstraintViolation()
     {
         return from methodName in Gen.Elements(MethodNames)
                from paramName in Gen.Elements(ParamNames)
                let explicitSource = $$"""
-                   interface IMarker {
+                   abstract IMarker {
                        void Mark();
                    }
                    class Helpers {
@@ -219,7 +219,7 @@ public sealed class TypeArgumentInferenceConstraintPropertyTests : IDisposable
                    }
                    """
                let inferredSource = $$"""
-                   interface IMarker {
+                   abstract IMarker {
                        void Mark();
                    }
                    class Helpers {
@@ -234,12 +234,12 @@ public sealed class TypeArgumentInferenceConstraintPropertyTests : IDisposable
                    }
                    """
                select new ConstraintDiagnosticScenario(explicitSource, inferredSource,
-                   $"interface constraint IMarker on {methodName}<T>(T) violated by int");
+                   $"abstract type constraint IMarker on {methodName}<T>(T) violated by int");
     }
 
     /// <summary>
     /// Generates a scenario where a method has multiple constraints on T
-    /// (class + interface), and a value type is used which violates both.
+    /// (class + abstract type), and a value type is used which violates both.
     /// This validates Requirement 6.3: a separate diagnostic for each violated constraint.
     /// </summary>
     private static Gen<ConstraintDiagnosticScenario> GenMultipleConstraintViolation()
@@ -247,7 +247,7 @@ public sealed class TypeArgumentInferenceConstraintPropertyTests : IDisposable
         return from methodName in Gen.Elements(MethodNames)
                from paramName in Gen.Elements(ParamNames)
                let explicitSource = $$"""
-                   interface IMarker {
+                   abstract IMarker {
                        void Mark();
                    }
                    class Helpers {
@@ -262,7 +262,7 @@ public sealed class TypeArgumentInferenceConstraintPropertyTests : IDisposable
                    }
                    """
                let inferredSource = $$"""
-                   interface IMarker {
+                   abstract IMarker {
                        void Mark();
                    }
                    class Helpers {
@@ -336,7 +336,7 @@ public sealed class TypeArgumentInferenceConstraintPropertyTests : IDisposable
         return Gen.OneOf(
             GenStructConstraintViolation(),
             GenClassConstraintViolation(),
-            GenInterfaceConstraintViolation(),
+            GenAbstractConstraintViolation(),
             GenMultipleConstraintViolation(),
             GenBaseClassConstraintViolation());
     }

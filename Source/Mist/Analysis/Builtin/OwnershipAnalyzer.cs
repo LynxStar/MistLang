@@ -46,10 +46,10 @@ public sealed class OwnershipAnalyzer : IAnalyzer
     /// <summary>Lending from a tier that cannot provide the requested tier.</summary>
     internal static readonly DiagnosticId IncompatibleLend = new("MIST_OWN_INCOMPATIBLE_LEND");
 
-    /// <summary>Owned type attempts to implement interface/trait.</summary>
-    internal static readonly DiagnosticId InterfaceForbidden = new("MIST_OWN_INTERFACE_FORBIDDEN");
+    /// <summary>Owned type attempts to implement abstract type/trait.</summary>
+    internal static readonly DiagnosticId AbstractForbidden = new("MIST_OWN_ABSTRACT_FORBIDDEN");
 
-    /// <summary>Ownership specifier mismatch in interface/trait satisfaction.</summary>
+    /// <summary>Ownership specifier mismatch in abstract type/trait satisfaction.</summary>
     internal static readonly DiagnosticId SignatureMismatch = new("MIST_OWN_SIGNATURE_MISMATCH");
 
     /// <summary>Non-owned specifier used on return type.</summary>
@@ -299,8 +299,8 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         // A fresh MoveBoundaryResolver per Analyze() keeps the analyzer reusable.
         _resolver = new MoveBoundaryResolver();
 
-        // Pass A: declaration validation — reject the 'owned' modifier on interface/trait
-        // declarations ONLY (Req 5 AC 6). Owned types are free to implement interfaces
+        // Pass A: declaration validation — reject the 'owned' modifier on abstract/trait
+        // declarations ONLY (Req 5 AC 6). Owned types are free to implement abstract types
         // (e.g. IClonable).
         RejectOwnedOnInterfacesAndTraits(model, diagnostics);
 
@@ -325,7 +325,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         foreach (var ownedType in OwnedTypes(model))
             FieldTypeRestrictionVerifier.Verify(ownedType, model, diagnostics);
 
-        // Pass 3: ownership signature matching validation (interface/trait satisfaction).
+        // Pass 3: ownership signature matching validation (abstract type/trait satisfaction).
         // Retained unchanged from v1.
         ValidateSignatureMatching(model, diagnostics);
 
@@ -342,14 +342,14 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         AnalyzeFlowSensitive(model, diagnostics);
     }
 
-    // ── Pass A: owned-on-interface/trait rejection (Req 5 AC 6) ───────────
+    // ── Pass A: owned-on-abstract/trait rejection (Req 5 AC 6) ───────────
 
     /// <summary>
-    /// Rejects the <c>owned</c> modifier on interface and trait declarations only
+    /// Rejects the <c>owned</c> modifier on abstract and trait declarations only
     /// (Req 5 AC 6). This is the sole surviving piece of v1's owned-type declaration
     /// validation; the field-type restriction and the "owned types cannot implement
-    /// interfaces / satisfy traits" checks are deleted under v2 (Req 10) — an owned
-    /// class implementing an interface (e.g. <c>IClonable&lt;Self&gt;</c>) is now valid.
+    /// abstract types / satisfy traits" checks are deleted under v2 (Req 10) — an owned
+    /// class implementing an abstract type (e.g. <c>IClonable&lt;Self&gt;</c>) is now valid.
     /// </summary>
     private static void RejectOwnedOnInterfacesAndTraits(ISemanticModel model, DiagnosticBag diagnostics)
     {
@@ -360,7 +360,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
 
             switch (symbol.Kind)
             {
-                case SymbolKind.Interface:
+                case SymbolKind.Abstract:
                     RejectOwnedOnInterface(symbol, model, diagnostics);
                     break;
 
@@ -372,7 +372,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
     }
 
     /// <summary>
-    /// Rejects the <c>owned</c> modifier on interface declarations (Req 5 AC 6).
+    /// Rejects the <c>owned</c> modifier on abstract declarations (Req 5 AC 6).
     /// </summary>
     private static void RejectOwnedOnInterface(ISymbol symbol, ISemanticModel model, DiagnosticBag diagnostics)
     {
@@ -380,15 +380,15 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         try { declaringNode = model.GetDeclaringNode(symbol); }
         catch { return; }
 
-        if (declaringNode is not InterfaceDeclarationNode interfaceDecl)
+        if (declaringNode is not AbstractDeclarationNode abstractDecl)
             return;
 
-        if (!HasOwnedModifier(interfaceDecl.Modifiers))
+        if (!HasOwnedModifier(abstractDecl.Modifiers))
             return;
 
         diagnostics.Add(MakeDiagnostic(
-            InterfaceForbidden,
-            $"The 'owned' modifier cannot be applied to interface '{symbol.Name}'",
+            AbstractForbidden,
+            $"The 'owned' modifier cannot be applied to abstract type '{symbol.Name}'",
             declaringNode,
             model));
     }
@@ -409,7 +409,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
             return;
 
         diagnostics.Add(MakeDiagnostic(
-            InterfaceForbidden,
+            AbstractForbidden,
             $"The 'owned' modifier cannot be applied to trait '{symbol.Name}'",
             declaringNode,
             model));
@@ -2754,7 +2754,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
     // ═══════════════════════════════════════════════════════════════════════
 
     /// <summary>
-    /// Validates ownership signature matching for interface implementations and
+    /// Validates ownership signature matching for abstract type implementations and
     /// structural trait satisfaction. Also rejects non-owned specifiers on return types.
     /// </summary>
     private static void ValidateSignatureMatching(ISemanticModel model, DiagnosticBag diagnostics)
@@ -2762,7 +2762,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         // 1. Check invalid return type specifiers on all method declarations.
         ValidateReturnTypeSpecifiers(model, diagnostics);
 
-        // 2. Check interface method implementation ownership matching.
+        // 2. Check abstract type method implementation ownership matching.
         ValidateInterfaceOwnershipMatching(model, diagnostics);
 
         // 3. Check structural trait matching ownership consistency.
@@ -2807,7 +2807,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
     }
 
     /// <summary>
-    /// Checks that interface method implementations match ownership specifiers
+    /// Checks that abstract type method implementations match ownership specifiers
     /// on parameters and return types exactly (Requirements 9.1, 9.2).
     /// </summary>
     private static void ValidateInterfaceOwnershipMatching(ISemanticModel model, DiagnosticBag diagnostics)
@@ -2821,14 +2821,14 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                 continue;
 
             var type = symbol.DeclaredType;
-            IReadOnlyList<IType>? interfaces = type switch
+            IReadOnlyList<IType>? abstracts = type switch
             {
-                ClassType ct => ct.Interfaces,
-                StructType st => st.Interfaces,
+                ClassType ct => ct.Abstracts,
+                StructType st => st.Abstracts,
                 _ => null,
             };
 
-            if (interfaces is null || interfaces.Count == 0)
+            if (abstracts is null || abstracts.Count == 0)
                 continue;
 
             IScope? memberScope = type switch
@@ -2841,48 +2841,48 @@ public sealed class OwnershipAnalyzer : IAnalyzer
             if (memberScope is null)
                 continue;
 
-            var visited = new HashSet<InterfaceType>(ReferenceEqualityComparer.Instance);
-            CheckInterfaceOwnershipContracts(symbol, interfaces, memberScope, model, diagnostics, visited);
+            var visited = new HashSet<AbstractType>(ReferenceEqualityComparer.Instance);
+            CheckAbstractOwnershipContracts(symbol, abstracts, memberScope, model, diagnostics, visited);
         }
     }
 
     /// <summary>
-    /// Recursively checks ownership specifier matching for all interface methods.
+    /// Recursively checks ownership specifier matching for all abstract type methods.
     /// </summary>
-    private static void CheckInterfaceOwnershipContracts(
+    private static void CheckAbstractOwnershipContracts(
         ISymbol typeSymbol,
-        IReadOnlyList<IType> interfaces,
+        IReadOnlyList<IType> abstracts,
         IScope memberScope,
         ISemanticModel model,
         DiagnosticBag diagnostics,
-        HashSet<InterfaceType> visited)
+        HashSet<AbstractType> visited)
     {
-        foreach (var ifaceType in interfaces)
+        foreach (var abstractType in abstracts)
         {
-            if (ifaceType is not InterfaceType iface)
+            if (abstractType is not AbstractType abs)
                 continue;
 
-            if (!visited.Add(iface))
+            if (!visited.Add(abs))
                 continue;
 
-            foreach (var ifaceMember in iface.MemberScope.Members)
+            foreach (var absMember in abs.MemberScope.Members)
             {
-                if (ifaceMember.Kind != SymbolKind.Method)
+                if (absMember.Kind != SymbolKind.Method)
                     continue;
 
                 // Find the implementing method in the type's member scope.
-                var implMember = FindMethodInScope(ifaceMember.Name, memberScope);
+                var implMember = FindMethodInScope(absMember.Name, memberScope);
                 if (implMember is null)
                     continue; // Missing implementation is reported by the type checker.
 
                 CheckMethodOwnershipMatch(
-                    typeSymbol, ifaceMember, implMember, iface.DisplayName, model, diagnostics);
+                    typeSymbol, absMember, implMember, abs.DisplayName, model, diagnostics);
             }
 
-            // Recurse into parent interfaces.
-            if (iface.Interfaces.Count > 0)
+            // Recurse into parent abstract types.
+            if (abs.Abstracts.Count > 0)
             {
-                CheckInterfaceOwnershipContracts(typeSymbol, iface.Interfaces, memberScope, model, diagnostics, visited);
+                CheckAbstractOwnershipContracts(typeSymbol, abs.Abstracts, memberScope, model, diagnostics, visited);
             }
         }
     }
@@ -2952,7 +2952,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
 
     /// <summary>
     /// Compares ownership specifiers on parameters and return type between an
-    /// interface/trait method and its implementation. Emits MIST_OWN_SIGNATURE_MISMATCH
+    /// abstract type/trait method and its implementation. Emits MIST_OWN_SIGNATURE_MISMATCH
     /// for any mismatch (Requirements 9.1, 9.2, 9.3, 9.4).
     /// </summary>
     private static void CheckMethodOwnershipMatch(
@@ -3029,7 +3029,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         ParameterListNode? paramList = methodNode switch
         {
             MethodDeclarationNode m => m.Parameters,
-            InterfaceMethodDeclarationNode im => im.Parameters,
+            AbstractMethodDeclarationNode im => im.Parameters,
             TraitMethodDeclarationNode tm => tm.Parameters,
             ConstructorDeclarationNode c => c.Parameters,
             _ => null,

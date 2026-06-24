@@ -1,8 +1,8 @@
 # Traits
 
-> **Design Note:** Traits are an area of active design exploration. The core capabilities — structural typing and late binding via `with` — are desired, but the boundary between traits and interfaces is not yet fully resolved. It's unclear when a developer should reach for a trait vs. an interface, and whether both need to coexist as separate concepts or could be unified into a single mechanism with optional structural matching. This chapter documents the current design, which may change.
+> **Design Note:** Traits are an area of active design exploration. The core capabilities — structural typing and late binding via `with` — are desired, but the boundary between traits and abstract types is not yet fully resolved. It's unclear when a developer should reach for a trait vs. an abstract type, and whether both need to coexist as separate concepts or could be unified into a single mechanism with optional structural matching. This chapter documents the current design, which may change.
 
-Traits define structural typing contracts. Unlike interfaces, which require a class to explicitly declare conformance, a trait is satisfied by any type whose public members match the trait's declared signatures. This gives you the flexibility of duck typing with the safety of compile-time verification — if a type has the right shape, it fits the trait automatically.
+Traits define structural typing contracts. Unlike abstract types, which require a class to explicitly declare conformance, a trait is satisfied by any type whose public members match the trait's declared signatures. This gives you the flexibility of duck typing with the safety of compile-time verification — if a type has the right shape, it fits the trait automatically.
 
 ## Trait Declaration
 
@@ -103,7 +103,7 @@ Here `Logger.Log` is mapped to `Writable.Write`. The key property of late bindin
 
 ### Explicit Declaration
 
-You can also explicitly list a trait in a type's base clause, just like an interface. When you do this, the compiler enforces that the type satisfies the trait — it must have all the required members with matching names and types. This turns the structural check into a hard requirement at the declaration site rather than deferring it to the point of use.
+You can also explicitly list a trait in a type's base clause, just like an abstract type. When you do this, the compiler enforces that the type satisfies the trait — it must have all the required members with matching names and types. This turns the structural check into a hard requirement at the declaration site rather than deferring it to the point of use.
 
 ```mist
 trait Transformable<T> {
@@ -136,20 +136,20 @@ Trait types can be used as variable types and parameter types, accepting any val
 {{#endtab }}
 {{#endtabs }}
 
-Both `User` (structurally matched) and `Product` (mapped via `with`) can be assigned to a `Printable`-typed variable or passed to a function expecting `Printable`. The compiler dispatches member access through the interface at runtime.
+Both `User` (structurally matched) and `Product` (mapped via `with`) can be assigned to a `Printable`-typed variable or passed to a function expecting `Printable`. The compiler dispatches member access through the C# interface at runtime.
 
 ## Traits vs Interfaces
 
-Traits and interfaces both define contracts, but they differ in how conformance is established:
+Traits and abstract types both define contracts, but they differ in how conformance is established:
 
-| | Traits | Interfaces |
+| | Traits | Abstract Types |
 |---|---|---|
-| **Typing** | Structural — a type satisfies a trait if its members match | Nominal — a class must explicitly list the interface |
-| **Declaration** | No `: TraitName` needed on the class | Requires `: InterfaceName` in the class header |
+| **Typing** | Structural — a type satisfies a trait if its members match | Nominal — a class must explicitly list the abstract type |
+| **Declaration** | No `: TraitName` needed on the class | Requires `: AbstractTypeName` in the class header |
 | **Member mapping** | `with` block for name mismatches | Not applicable — names must match exactly |
-| **Emitted C#** | Interface + compiler-inserted `: TraitName` on satisfying types | Interface + developer-declared `: InterfaceName` |
-| **Retroactive conformance** | Yes — existing types can satisfy new traits without modification | No — the class source must be changed to add the interface |
+| **Emitted C#** | Interface + compiler-inserted `: TraitName` on satisfying types | Interface + developer-declared `: AbstractTypeName` |
+| **Retroactive conformance** | Yes — existing types can satisfy new traits without modification | No — the class source must be changed to add the abstract type |
 
-The key advantage of traits is **retroactive conformance**: you can define a new trait and existing types will satisfy it automatically if they already have the right members. With interfaces, you'd need to modify each class to add the interface to its base clause. The `with` block extends this further — even types with differently-named members can be adapted to a trait without touching the original class.
+The key advantage of traits is **retroactive conformance**: you can define a new trait and existing types will satisfy it automatically if they already have the right members. With abstract types, you'd need to modify each class to add the abstract type to its base clause. The `with` block extends this further — even types with differently-named members can be adapted to a trait without touching the original class.
 
-Both traits and interfaces emit as C# interfaces in the generated code. The difference is purely in how the Mist compiler determines and enforces conformance at compile time.
+Both traits and abstract types emit as C# interfaces in the generated code. The difference is purely in how the Mist compiler determines and enforces conformance at compile time.

@@ -19,7 +19,7 @@ By writing the proof code upfront, the designer (the user) defines what "done" l
 
 Each proof code block MUST:
 
-1. **Use the feature through its intended API** — not just declare it. If the feature introduces an interface with methods, the proof code must call those methods and observe their results.
+1. **Use the feature through its intended API** — not just declare it. If the feature introduces an abstract type with methods, the proof code must call those methods and observe their results.
 2. **Include `// PROOF:` comments** explaining what specific compiler capability each section exercises. These comments name the exact thing that would break if the implementation were incomplete.
 3. **Include expected output** — the exact stdout lines the code must produce when compiled and run.
 4. **Be falsifiable** — if the feature implementation were removed or incomplete, the code MUST either fail to compile or produce wrong output. Code that would still pass without the feature is not proof code.

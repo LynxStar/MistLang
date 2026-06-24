@@ -14,7 +14,7 @@ using Mist.Parsing.Contracts;
 namespace Mist.Tests.Parsing;
 
 /// <summary>
-/// Represents a generated Mist interface or trait body containing associated type slot
+/// Represents a generated Mist abstract type or trait body containing associated type slot
 /// declarations for round-trip testing.
 /// </summary>
 public sealed class AssociatedTypeRoundTripScenario
@@ -37,7 +37,7 @@ public sealed class AssociatedTypeRoundTripScenario
 /// **Validates: Requirements 1.1, 1.2, 1.3, 1.5, 1.7, 7.1, 7.2, 7.3, 7.4**
 ///
 /// For any valid associated type slot declaration (constrained or unconstrained, with or
-/// without generic type parameters, with or without where clauses) embedded in an interface
+/// without generic type parameters, with or without where clauses) embedded in an abstract type
 /// or trait body, parsing the source text, pretty-printing the resulting syntax tree, and
 /// parsing the pretty-printed output SHALL produce a syntax tree that is structurally
 /// identical to the original (verified via idempotent pretty-print output).
@@ -49,7 +49,7 @@ public class AssociatedTypeRoundTripPropertyTests
 
     // ─── Known names for generation ─────────────────────────────────────────
 
-    private static readonly string[] InterfaceNames = ["IIterable", "IRepository", "ICollection", "IMapper"];
+    private static readonly string[] AbstractNames = ["IIterable", "IRepository", "ICollection", "IMapper"];
     private static readonly string[] TraitNames = ["Sortable", "Hashable", "Serializable", "Cloneable"];
     private static readonly string[] SlotNames = ["Enumerator", "Element", "Key", "Value", "Iterator", "Builder"];
     private static readonly string[] TypeParamNames = ["TState", "TKey", "TValue"];
@@ -214,34 +214,34 @@ public class AssociatedTypeRoundTripPropertyTests
             GenConstrainedSlotWithWhereClauses());
     }
 
-    // ─── Interface/Trait body generators ────────────────────────────────────
+    // ─── Abstract type/Trait body generators ────────────────────────────────────
 
     /// <summary>
-    /// Generates an interface containing 1-3 associated type slot declarations.
+    /// Generates an abstract type containing 1-3 associated type slot declarations.
     /// </summary>
-    private static Gen<AssociatedTypeRoundTripScenario> GenInterfaceWithSlots()
+    private static Gen<AssociatedTypeRoundTripScenario> GenAbstractWithSlots()
     {
-        return from name in Gen.Elements(InterfaceNames)
+        return from name in Gen.Elements(AbstractNames)
                from slotCount in Gen.Choose(1, 3)
                from slots in Gen.ArrayOf(GenSlotDeclaration(), slotCount)
                let body = string.Join("\n", slots)
-               let source = $"interface {name} {{\n{body}\n}}"
+               let source = $"abstract {name} {{\n{body}\n}}"
                select new AssociatedTypeRoundTripScenario(source,
-                   $"interface {name} with {slotCount} slot(s)");
+                   $"abstract {name} with {slotCount} slot(s)");
     }
 
     /// <summary>
-    /// Generates a generic interface containing associated type slot declarations.
+    /// Generates a generic abstract type containing associated type slot declarations.
     /// </summary>
-    private static Gen<AssociatedTypeRoundTripScenario> GenGenericInterfaceWithSlots()
+    private static Gen<AssociatedTypeRoundTripScenario> GenGenericAbstractWithSlots()
     {
-        return from name in Gen.Elements(InterfaceNames)
+        return from name in Gen.Elements(AbstractNames)
                from slotCount in Gen.Choose(1, 2)
                from slots in Gen.ArrayOf(GenSlotDeclaration(), slotCount)
                let body = string.Join("\n", slots)
-               let source = $"interface {name}<T> {{\n{body}\n}}"
+               let source = $"abstract {name}<T> {{\n{body}\n}}"
                select new AssociatedTypeRoundTripScenario(source,
-                   $"generic interface {name}<T> with {slotCount} slot(s)");
+                   $"generic abstract type {name}<T> with {slotCount} slot(s)");
     }
 
     /// <summary>
@@ -277,8 +277,8 @@ public class AssociatedTypeRoundTripPropertyTests
     private static Gen<AssociatedTypeRoundTripScenario> GenScenario()
     {
         return Gen.OneOf(
-            GenInterfaceWithSlots(),
-            GenGenericInterfaceWithSlots(),
+            GenAbstractWithSlots(),
+            GenGenericAbstractWithSlots(),
             GenTraitWithSlots(),
             GenGenericTraitWithSlots());
     }
@@ -316,7 +316,7 @@ public class AssociatedTypeRoundTripPropertyTests
     //
     // For any valid associated type slot declaration (constrained or unconstrained,
     // with or without generic type parameters, with or without where clauses)
-    // embedded in an interface or trait body, parsing the source text,
+    // embedded in an abstract type or trait body, parsing the source text,
     // pretty-printing the resulting syntax tree, and parsing the pretty-printed
     // output SHALL produce a syntax tree that is structurally identical to the
     // original (verified via idempotent pretty-print output).

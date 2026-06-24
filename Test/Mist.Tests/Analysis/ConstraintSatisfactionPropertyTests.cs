@@ -40,7 +40,7 @@ public sealed class ConstraintSatisfactionScenario
 ///
 /// Property 2: For any constrained generic type and any type argument, the type checker
 /// SHALL accept the type argument if and only if it satisfies all declared constraints
-/// (class/struct kind check, base class derivation, interface implementation, trait
+/// (class/struct kind check, base class derivation, abstract type implementation, trait
 /// satisfaction, and at least one matching constructor for OR-semantics constructor constraints).
 ///
 /// **Validates: Requirements 5.1, 5.2, 5.3, 5.4, 5.5, 5.6, 5.7, 5.8, 5.9, 5.10**
@@ -95,7 +95,7 @@ public class ConstraintSatisfactionPropertyTests
 
     // ─── Generators ──────────────────────────────────────────────────────
 
-    private static readonly string[] InterfaceNames = ["IFoo", "IBar", "IBaz"];
+    private static readonly string[] AbstractNames = ["IFoo", "IBar", "IBaz"];
     private static readonly string[] ClassNames = ["Animal", "Vehicle", "Shape"];
 
     /// <summary>Generates scenarios where a class constraint is satisfied (reference type arg).</summary>
@@ -162,39 +162,39 @@ class Program {{
                    shouldAccept: false);
     }
 
-    /// <summary>Generates scenarios where an interface constraint is satisfied.</summary>
-    private static Gen<ConstraintSatisfactionScenario> GenInterfaceConstraintSatisfied()
+    /// <summary>Generates scenarios where an abstract type constraint is satisfied.</summary>
+    private static Gen<ConstraintSatisfactionScenario> GenAbstractConstraintSatisfied()
     {
-        return from ifaceName in Gen.Elements(InterfaceNames)
+        return from abstractName in Gen.Elements(AbstractNames)
                from implName in Gen.Elements("Impl", "Concrete", "Real")
                select new ConstraintSatisfactionScenario(
-                   $@"interface {ifaceName} {{ }}
-class {implName} : {ifaceName} {{ }}
-class Container<T> where T : {ifaceName} {{ }}
+                   $@"abstract {abstractName} {{ }}
+class {implName} : {abstractName} {{ }}
+class Container<T> where T : {abstractName} {{ }}
 class Program {{
     public static void Main() {{
         Container<{implName}> c = new Container<{implName}>();
     }}
 }}",
-                   $"interface constraint {ifaceName} satisfied by {implName}",
+                   $"abstract type constraint {abstractName} satisfied by {implName}",
                    shouldAccept: true);
     }
 
-    /// <summary>Generates scenarios where an interface constraint is violated.</summary>
-    private static Gen<ConstraintSatisfactionScenario> GenInterfaceConstraintViolated()
+    /// <summary>Generates scenarios where an abstract type constraint is violated.</summary>
+    private static Gen<ConstraintSatisfactionScenario> GenAbstractConstraintViolated()
     {
-        return from ifaceName in Gen.Elements(InterfaceNames)
+        return from abstractName in Gen.Elements(AbstractNames)
                from nonImplName in Gen.Elements("Unrelated", "Other", "Wrong")
                select new ConstraintSatisfactionScenario(
-                   $@"interface {ifaceName} {{ }}
+                   $@"abstract {abstractName} {{ }}
 class {nonImplName} {{ }}
-class Container<T> where T : {ifaceName} {{ }}
+class Container<T> where T : {abstractName} {{ }}
 class Program {{
     public static void Main() {{
         Container<{nonImplName}> c = new Container<{nonImplName}>();
     }}
 }}",
-                   $"interface constraint {ifaceName} violated by {nonImplName}",
+                   $"abstract type constraint {abstractName} violated by {nonImplName}",
                    shouldAccept: false);
     }
 
@@ -313,8 +313,8 @@ class Program {{
             GenClassConstraintViolated(),
             GenStructConstraintSatisfied(),
             GenStructConstraintViolated(),
-            GenInterfaceConstraintSatisfied(),
-            GenInterfaceConstraintViolated(),
+            GenAbstractConstraintSatisfied(),
+            GenAbstractConstraintViolated(),
             GenBaseClassConstraintSatisfied(),
             GenBaseClassConstraintViolated(),
             GenNewConstraintSatisfied(),

@@ -93,11 +93,11 @@ public sealed class ForeachNonEnumerablePropertyTests : IDisposable
     /// </summary>
     private enum NonEnumerableKind
     {
-        /// <summary>Plain class with no interface implementations.</summary>
+        /// <summary>Plain class with no abstract type implementations.</summary>
         PlainClass,
-        /// <summary>Plain struct with no interface implementations.</summary>
+        /// <summary>Plain struct with no abstract type implementations.</summary>
         PlainStruct,
-        /// <summary>Class with fields but no interface implementations.</summary>
+        /// <summary>Class with fields but no abstract type implementations.</summary>
         ClassWithFields,
     }
 

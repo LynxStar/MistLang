@@ -110,7 +110,7 @@
         },
         {
           "name": "keyword.declaration.mist",
-          "match": "\\b(namespace|using|class|struct|interface|trait|extension|type|enum)\\b"
+          "match": "\\b(namespace|using|class|struct|abstract|trait|extension|type|enum)\\b"
         },
         {
           "name": "storage.modifier.mist",
@@ -280,7 +280,7 @@
           }
         },
         {
-          "comment": "Associated type slot declaration: type Name<T> : Constraints; (in interface/trait body)",
+          "comment": "Associated type slot declaration: type Name<T> : Constraints; (in abstract/trait body)",
           "match": "\\b(type)\\s+([A-Z]\\w*)\\s*(?:<[^>]*>)?\\s*(:)\\s*([^;]*)",
           "captures": {
             "1": { "name": "keyword.declaration.mist" },
@@ -294,7 +294,7 @@
                   "match": "\\b(struct|class)\\b"
                 },
                 {
-                  "comment": "Interface/type references in constraint list",
+                  "comment": "Abstract/type references in constraint list",
                   "name": "entity.name.type.mist",
                   "match": "\\b[A-Z]\\w*\\b"
                 }
@@ -341,8 +341,8 @@
           }
         },
         {
-          "comment": "Generic class/struct/interface/trait declaration with type parameter list: class Box<T>, class Array<Size:int>",
-          "match": "\\b(class|struct|interface|trait)\\s+([a-zA-Z_]\\w*)\\s*(<)",
+          "comment": "Generic class/struct/abstract/trait declaration with type parameter list: class Box<T>, class Array<Size:int>",
+          "match": "\\b(class|struct|abstract|trait)\\s+([a-zA-Z_]\\w*)\\s*(<)",
           "captures": {
             "1": { "name": "keyword.declaration.mist" },
             "2": { "name": "entity.name.type.mist" },
@@ -373,10 +373,10 @@
           }
         },
         {
-          "match": "\\b(interface)\\s+([a-zA-Z_]\\w*)",
+          "match": "\\b(abstract)\\s+([a-zA-Z_]\\w*)",
           "captures": {
             "1": { "name": "keyword.declaration.mist" },
-            "2": { "name": "entity.name.type.interface.mist" }
+            "2": { "name": "entity.name.type.abstract.mist" }
           }
         },
         {

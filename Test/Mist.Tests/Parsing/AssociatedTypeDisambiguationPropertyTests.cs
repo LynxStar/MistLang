@@ -40,7 +40,7 @@ public sealed class DisambiguationTypeScenario
 /// and concrete type aliases.
 ///
 /// Property 2: For any valid type name and constraint list, a declaration
-/// <c>type Name : ConstraintList;</c> in an interface body SHALL parse as an
+/// <c>type Name : ConstraintList;</c> in an abstract body SHALL parse as an
 /// <c>AssociatedTypeSlotDeclarationNode</c>, while a declaration
 /// <c>type Name = TypeExpr;</c> in the same position (top-level, since type aliases
 /// are top-level items) SHALL parse as a <c>TypeAliasDeclarationNode</c>.
@@ -96,11 +96,11 @@ public class AssociatedTypeDisambiguationPropertyTests
     }
 
     /// <summary>
-    /// Builds source for an associated type slot declaration inside an interface body.
+    /// Builds source for an associated type slot declaration inside an abstract body.
     /// </summary>
     private static string BuildAssociatedTypeSlotSource(string name, string constraint)
     {
-        return $"interface ITest {{ type {name} : {constraint}; }}";
+        return $"abstract ITest {{ type {name} : {constraint}; }}";
     }
 
     /// <summary>
@@ -112,17 +112,17 @@ public class AssociatedTypeDisambiguationPropertyTests
     }
 
     /// <summary>
-    /// Extracts the first interface member declaration from a parsed interface.
+    /// Extracts the first abstract member declaration from a parsed abstract.
     /// </summary>
-    private static InterfaceMemberDeclarationNode? ExtractInterfaceMember(CompilationUnitNode cu)
+    private static AbstractMemberDeclarationNode? ExtractAbstractMember(CompilationUnitNode cu)
     {
         var typeItem = cu.Items.FirstOrDefault() as TypeItemTopLevelItemNode;
         if (typeItem is null) return null;
 
-        var interfaceDecl = typeItem.TypeDeclaration as InterfaceTypeTypeDeclarationNode;
-        if (interfaceDecl is null) return null;
+        var abstractDecl = typeItem.TypeDeclaration as AbstractTypeTypeDeclarationNode;
+        if (abstractDecl is null) return null;
 
-        return interfaceDecl.InterfaceDeclaration.Members.FirstOrDefault();
+        return abstractDecl.AbstractDeclaration.Members.FirstOrDefault();
     }
 
     /// <summary>
@@ -135,12 +135,12 @@ public class AssociatedTypeDisambiguationPropertyTests
     }
 
     // ═════════════════════════════════════════════════════════════════════════
-    // Property 2a: type Name : Constraint; in interface produces
+    // Property 2a: type Name : Constraint; in abstract produces
     //              AssociatedTypeSlotDeclarationNode
     //
     // For any valid type name and constraint, parsing `type Name : Constraint;`
-    // inside an interface body SHALL produce an
-    // InterfaceAssociatedTypeMemberInterfaceMemberDeclarationNode containing
+    // inside an abstract body SHALL produce an
+    // AbstractAssociatedTypeMemberAbstractMemberDeclarationNode containing
     // an AssociatedTypeSlotDeclarationNode.
     // ═════════════════════════════════════════════════════════════════════════
 
@@ -155,15 +155,15 @@ public class AssociatedTypeDisambiguationPropertyTests
         if (root is null)
             return false.ToProperty().Label($"Failed to parse: {source}");
 
-        var member = ExtractInterfaceMember(root);
+        var member = ExtractAbstractMember(root);
         if (member is null)
-            return false.ToProperty().Label($"Could not extract interface member from: {source}");
+            return false.ToProperty().Label($"Could not extract abstract member from: {source}");
 
-        var isAssociatedTypeSlot = member is InterfaceAssociatedTypeMemberInterfaceMemberDeclarationNode;
+        var isAssociatedTypeSlot = member is AbstractAssociatedTypeMemberAbstractMemberDeclarationNode;
 
         return isAssociatedTypeSlot
             .ToProperty()
-            .Label($"Expected InterfaceAssociatedTypeMemberInterfaceMemberDeclarationNode but got {member.GetType().Name} for: {source}");
+            .Label($"Expected AbstractAssociatedTypeMemberAbstractMemberDeclarationNode but got {member.GetType().Name} for: {source}");
     }
 
     // ═════════════════════════════════════════════════════════════════════════
@@ -194,7 +194,7 @@ public class AssociatedTypeDisambiguationPropertyTests
     // ═════════════════════════════════════════════════════════════════════════
     // Property 2c: The two forms never produce the same node type
     //
-    // For any valid type name, parsing `type Name : Constraint;` in an interface
+    // For any valid type name, parsing `type Name : Constraint;` in an abstract
     // and `type Name = TypeExpr;` at the top level SHALL produce different
     // underlying declaration node types (AssociatedTypeSlotDeclarationNode vs
     // TypeAliasDeclarationNode).
@@ -216,18 +216,18 @@ public class AssociatedTypeDisambiguationPropertyTests
         if (aliasRoot is null)
             return false.ToProperty().Label($"Failed to parse alias source: {aliasSource}");
 
-        var member = ExtractInterfaceMember(slotRoot);
+        var member = ExtractAbstractMember(slotRoot);
         if (member is null)
-            return false.ToProperty().Label($"Could not extract interface member from: {slotSource}");
+            return false.ToProperty().Label($"Could not extract abstract member from: {slotSource}");
 
         var aliasDecl = ExtractTypeAlias(aliasRoot);
         if (aliasDecl is null)
             return false.ToProperty().Label($"Could not extract type alias from: {aliasSource}");
 
-        // Extract the inner declaration node from the interface member
-        var slotMember = member as InterfaceAssociatedTypeMemberInterfaceMemberDeclarationNode;
+        // Extract the inner declaration node from the abstract member
+        var slotMember = member as AbstractAssociatedTypeMemberAbstractMemberDeclarationNode;
         if (slotMember is null)
-            return false.ToProperty().Label($"Interface member is not an associated type slot: {member.GetType().Name}");
+            return false.ToProperty().Label($"Abstract member is not an associated type slot: {member.GetType().Name}");
 
         var slotDeclType = slotMember.AssociatedType.GetType();
         var aliasDeclType = aliasDecl.GetType();

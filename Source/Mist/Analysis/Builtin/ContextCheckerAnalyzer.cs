@@ -13,7 +13,7 @@ namespace Mist.Analysis.Builtin;
 /// Built-in analyzer that validates structured context availability at compile time.
 /// Walks the call graph to verify that every method with a <c>with</c> clause is
 /// always called within a scope that provides the required context type. Also
-/// enforces interface/trait with-clause contract matching.
+/// enforces abstract type/trait with-clause contract matching.
 /// </summary>
 public sealed class ContextCheckerAnalyzer : IAnalyzer
 {
@@ -54,9 +54,9 @@ public sealed class ContextCheckerAnalyzer : IAnalyzer
     internal static readonly DiagnosticId ContextVariableNotReassignable = new("MIST_CTX_0005");
 
     /// <summary>
-    /// Implementing method missing required with-clause from interface/trait.
+    /// Implementing method missing required with-clause from abstract type/trait.
     /// Message: "Method '{method}' on type '{type}' must declare `with {contextType}`
-    /// to satisfy interface/trait '{contract}' at {location}."
+    /// to satisfy abstract type/trait '{contract}' at {location}."
     /// </summary>
     internal static readonly DiagnosticId WithClauseContractViolation = new("MIST_CTX_0006");
 
@@ -880,9 +880,9 @@ public sealed class ContextCheckerAnalyzer : IAnalyzer
         }
 
         // For abstract type dispatch, use the abstract type method's with-clauses.
-        if (receiverType is AbstractType ifaceType)
+        if (receiverType is AbstractType abstractType)
         {
-            foreach (var member in ifaceType.MemberScope.Members)
+            foreach (var member in abstractType.MemberScope.Members)
             {
                 if (member.Name == methodName && member is Symbol sym && sym.WithClauses.Count > 0)
                     return sym;
@@ -1199,7 +1199,7 @@ public sealed class ContextCheckerAnalyzer : IAnalyzer
         if (abstractMethodsWithClauses.Count == 0)
             return;
 
-        // Step 2: For each class/struct that implements an interface, check its methods.
+        // Step 2: For each class/struct that implements an abstract type, check its methods.
         foreach (var symbol in model.AllSymbols)
         {
             if (symbol is not Symbol typeSym)
@@ -1288,16 +1288,16 @@ public sealed class ContextCheckerAnalyzer : IAnalyzer
     }
 
     /// <summary>
-    /// Finds the implementing method on a type that corresponds to an interface method
+    /// Finds the implementing method on a type that corresponds to an abstract type method
     /// (matched by name and parameter count).
     /// </summary>
-    private static Symbol? FindImplementingMethod(Symbol ifaceMethod, IScope memberScope)
+    private static Symbol? FindImplementingMethod(Symbol abstractMethod, IScope memberScope)
     {
         foreach (var member in memberScope.Members)
         {
             if (member is Symbol sym
                 && sym.Kind == SymbolKind.Method
-                && sym.Name == ifaceMethod.Name)
+                && sym.Name == abstractMethod.Name)
             {
                 return sym;
             }
@@ -1310,14 +1310,14 @@ public sealed class ContextCheckerAnalyzer : IAnalyzer
     /// as the abstract type method. Emits MIST_CTX_0006 for each missing or mismatched clause.
     /// </summary>
     private static void CheckWithClauseContract(
-        Symbol ifaceMethod,
+        Symbol abstractMethod,
         Symbol implMethod,
-        AbstractType ifaceType,
+        AbstractType abstractType,
         Symbol typeSym,
         ISemanticModel model,
         DiagnosticBag diagnostics)
     {
-        foreach (var requiredClause in ifaceMethod.WithClauses)
+        foreach (var requiredClause in abstractMethod.WithClauses)
         {
             var requiredType = ResolveContextType(requiredClause.ContextType);
 
@@ -1347,7 +1347,7 @@ public sealed class ContextCheckerAnalyzer : IAnalyzer
                         WithClauseContractViolation,
                         DiagnosticSeverity.Error,
                         PipelineStage.Analysis,
-                        $"Method '{implMethod.Name}' on type '{typeSym.Name}' must declare `with {requiredType.DisplayName}` to satisfy interface/trait '{ifaceType.DisplayName}'.",
+                        $"Method '{implMethod.Name}' on type '{typeSym.Name}' must declare `with {requiredType.DisplayName}` to satisfy abstract type/trait '{abstractType.DisplayName}'.",
                         Location: location,
                         CompilationUnitPath: path,
                         AnalyzerName: "ContextChecker"));
@@ -1358,7 +1358,7 @@ public sealed class ContextCheckerAnalyzer : IAnalyzer
                         WithClauseContractViolation,
                         DiagnosticSeverity.Error,
                         PipelineStage.Analysis,
-                        $"Method '{implMethod.Name}' on type '{typeSym.Name}' must declare `with {requiredType.DisplayName}` to satisfy interface/trait '{ifaceType.DisplayName}'.",
+                        $"Method '{implMethod.Name}' on type '{typeSym.Name}' must declare `with {requiredType.DisplayName}` to satisfy abstract type/trait '{abstractType.DisplayName}'.",
                         Location: default,
                         CompilationUnitPath: "<unknown>",
                         AnalyzerName: "ContextChecker"));
@@ -1367,10 +1367,10 @@ public sealed class ContextCheckerAnalyzer : IAnalyzer
         }
 
         // Also check for mismatched clauses: if the implementing method declares
-        // with-clauses that don't match any interface method clause, that's also
+        // with-clauses that don't match any abstract type method clause, that's also
         // a contract violation (extra clauses are fine — they add requirements,
-        // but the interface's clauses must all be present).
-        // Note: Per the design, we only check that the interface's clauses are
+        // but the abstract type's clauses must all be present).
+        // Note: Per the design, we only check that the abstract type's clauses are
         // present on the implementing method. Extra clauses on the implementing
         // method are allowed (they just add additional context requirements).
     }

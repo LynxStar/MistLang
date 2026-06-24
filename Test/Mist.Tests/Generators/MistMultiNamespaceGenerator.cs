@@ -63,20 +63,20 @@ public static class MistMultiNamespaceGenerator
     }
 
     /// <summary>
-    /// Generates a simple interface declaration.
+    /// Generates a simple abstract type declaration.
     /// </summary>
-    private static Gen<string> GenInterfaceDecl()
+    private static Gen<string> GenAbstractDecl()
     {
         return from name in GenIdentifier()
-               select $"interface I{name} {{ }}";
+               select $"abstract I{name} {{ }}";
     }
 
     /// <summary>
-    /// Generates a random type declaration (class, struct, or interface).
+    /// Generates a random type declaration (class, struct, or abstract type).
     /// </summary>
     private static Gen<string> GenTypeDecl()
     {
-        return Gen.OneOf(GenClassDecl(), GenStructDecl(), GenInterfaceDecl());
+        return Gen.OneOf(GenClassDecl(), GenStructDecl(), GenAbstractDecl());
     }
 
     /// <summary>

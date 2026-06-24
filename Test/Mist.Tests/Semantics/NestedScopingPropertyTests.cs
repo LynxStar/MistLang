@@ -66,7 +66,7 @@ public sealed class NestedScopingPropertyTests
     {
         AllTypeKind.Class => "class",
         AllTypeKind.Struct => "struct",
-        AllTypeKind.Interface => "interface",
+        AllTypeKind.Abstract => "abstract",
         AllTypeKind.Trait => "trait",
         AllTypeKind.Enum => "enum",
         _ => "class"
@@ -136,7 +136,7 @@ public sealed class NestedScopingPropertyTests
         {
             ClassTypeTypeDeclarationNode ct => ct.ClassDeclaration.Modifiers,
             StructTypeTypeDeclarationNode st => st.StructDeclaration.Modifiers,
-            InterfaceTypeTypeDeclarationNode it => it.InterfaceDeclaration.Modifiers,
+            AbstractTypeTypeDeclarationNode it => it.AbstractDeclaration.Modifiers,
             TraitTypeTypeDeclarationNode tt => tt.TraitDeclaration.Modifiers,
             EnumTypeTypeDeclarationNode et => et.EnumDeclaration.Modifiers,
             _ => ImmutableArray<ModifierNode>.Empty
@@ -155,7 +155,7 @@ public sealed class NestedScopingPropertyTests
     /// <summary>
     /// Property 1: Parser nesting universality.
     /// For any container type kind (class, struct) and for any nested type kind
-    /// (class, struct, interface, trait, enum), the parser SHALL produce a valid
+    /// (class, struct, abstract type, trait, enum), the parser SHALL produce a valid
     /// AST where the nested type appears as a NestedTypeMember within the
     /// container's member list.
     /// **Validates: Requirements 1.1, 1.2, 1.3, 1.4, 1.5**
@@ -194,7 +194,7 @@ public sealed class NestedScopingPropertyTests
         {
             AllTypeKind.Class,
             AllTypeKind.Struct,
-            AllTypeKind.Interface,
+            AllTypeKind.Abstract,
             AllTypeKind.Trait,
             AllTypeKind.Enum,
         };
@@ -469,7 +469,7 @@ public sealed class NestedScopingPropertyTests
         var typeSymbol = model.AllSymbols.FirstOrDefault(s =>
             s.Name == input.TypeName &&
             s.Origin == SymbolOrigin.UserCode &&
-            s.Kind is SymbolKind.Class or SymbolKind.Struct or SymbolKind.Interface
+            s.Kind is SymbolKind.Class or SymbolKind.Struct or SymbolKind.Abstract
                 or SymbolKind.Trait or SymbolKind.Enum);
 
         if (typeSymbol is null)
@@ -500,7 +500,7 @@ public sealed class NestedScopingPropertyTests
         {
             ClassType ct => ct.ContainingNamespace,
             StructType st => st.ContainingNamespace,
-            InterfaceType it => it.ContainingNamespace,
+            AbstractType it => it.ContainingNamespace,
             TraitType tt => tt.ContainingNamespace,
             EnumType et => et.ContainingNamespace,
             _ => null,
@@ -766,7 +766,7 @@ public sealed class NestedScopingPropertyTests
         {
             ClassType ct => ct.TypeParameters.Count,
             StructType st => st.TypeParameters.Count,
-            InterfaceType it => it.TypeParameters.Count,
+            AbstractType it => it.TypeParameters.Count,
             _ => 0,
         };
     }
@@ -1053,7 +1053,7 @@ public sealed class NestedScopingPropertyTests
     {
         AllTypeKind.Class => "class",
         AllTypeKind.Struct => "struct",
-        AllTypeKind.Interface => "interface",
+        AllTypeKind.Abstract => "interface",
         AllTypeKind.Trait => "interface",
         AllTypeKind.Enum => "record class",
         _ => "class"

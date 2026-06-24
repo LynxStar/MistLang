@@ -200,9 +200,9 @@ public class DefaultValueComputationPropertyTests
         return new StructTypeTypeDeclarationNode { StructDeclaration = structDecl };
     }
 
-    private static TypeDeclarationNode WrapInterface(InterfaceDeclarationNode interfaceDecl)
+    private static TypeDeclarationNode WrapAbstractType(AbstractDeclarationNode abstractDecl)
     {
-        return new InterfaceTypeTypeDeclarationNode { InterfaceDeclaration = interfaceDecl };
+        return new AbstractTypeTypeDeclarationNode { AbstractDeclaration = abstractDecl };
     }
 
     // ─── Expression helpers ──────────────────────────────────────────────
@@ -299,13 +299,13 @@ public class DefaultValueComputationPropertyTests
     }
 
     /// <summary>
-    /// Scenario for Property 8: a type with an interface field and a default block
+    /// Scenario for Property 8: a type with an abstract-typed field and a default block
     /// that provides a type binding.
     /// </summary>
     public record TypeBindingScenario(
         string TypeName,
-        string InterfaceName,
-        string InterfaceFieldName,
+        string AbstractName,
+        string AbstractFieldName,
         string ConcreteTypeName,
         int ConcreteFieldCount,
         bool HasNestedOverrides)
@@ -313,8 +313,8 @@ public class DefaultValueComputationPropertyTests
         public override string ToString()
         {
             var nested = HasNestedOverrides ? " { alpha = ... }" : "";
-            return $"class {TypeName} {{ {InterfaceName} {InterfaceFieldName}; " +
-                   $"default {{ {InterfaceFieldName}: {ConcreteTypeName}{nested} }} }}";
+            return $"class {TypeName} {{ {AbstractName} {AbstractFieldName}; " +
+                   $"default {{ {AbstractFieldName}: {ConcreteTypeName}{nested} }} }}";
         }
     }
 
@@ -356,7 +356,7 @@ public class DefaultValueComputationPropertyTests
     private static readonly string[] TypeNames =
         ["Widget", "Config", "Engine", "Sensor", "Agent"];
 
-    private static readonly string[] InterfaceNames =
+    private static readonly string[] AbstractNames =
         ["IRenderer", "ILogger", "IService"];
 
     private static readonly string[] ConcreteTypeNames =
@@ -457,19 +457,19 @@ public class DefaultValueComputationPropertyTests
     }
 
     /// <summary>
-    /// Generates a scenario with an interface field and a type binding to a concrete class.
+    /// Generates a scenario with an abstract-typed field and a type binding to a concrete class.
     /// </summary>
     private static Gen<TypeBindingScenario> GenTypeBindingScenario()
     {
         return from typeName in Gen.Elements(TypeNames)
-               from interfaceIdx in Gen.Choose(0, InterfaceNames.Length - 1)
+               from abstractIdx in Gen.Choose(0, AbstractNames.Length - 1)
                from concreteFieldCount in Gen.Choose(1, 3)
                from hasNestedOverrides in Gen.Elements(true, false)
                select new TypeBindingScenario(
                    typeName,
-                   InterfaceNames[interfaceIdx],
+                   AbstractNames[abstractIdx],
                    "target",
-                   ConcreteTypeNames[interfaceIdx],
+                   ConcreteTypeNames[abstractIdx],
                    concreteFieldCount,
                    hasNestedOverrides);
     }
@@ -599,16 +599,16 @@ public class DefaultValueComputationPropertyTests
     }
 
     /// <summary>
-    /// Builds an AST for a Property 8 scenario: a type with an interface field
+    /// Builds an AST for a Property 8 scenario: a type with an abstract-typed field
     /// and a default block with a type binding to a concrete class.
     /// </summary>
     private static CompilationUnitNode BuildTypeBindingAst(TypeBindingScenario scenario)
     {
-        // 1. Declare the interface
-        var interfaceDecl = new InterfaceDeclarationNode
+        // 1. Declare the abstract type
+        var abstractDecl = new AbstractDeclarationNode
         {
-            Name = MakeToken(scenario.InterfaceName),
-            Members = ImmutableArray<InterfaceMemberDeclarationNode>.Empty,
+            Name = MakeToken(scenario.AbstractName),
+            Members = ImmutableArray<AbstractMemberDeclarationNode>.Empty,
         };
 
         // 2. Declare the concrete class with int fields
@@ -618,9 +618,9 @@ public class DefaultValueComputationPropertyTests
 
         var concreteClassDecl = MakeClassDecl(scenario.ConcreteTypeName, concreteMembers);
 
-        // 3. Declare the main type with the interface field and default block
-        var interfaceFieldMember = MakeFieldMember(
-            MakeField(scenario.InterfaceFieldName, MakeNamedTypeRef(scenario.InterfaceName)));
+        // 3. Declare the main type with the abstract-typed field and default block
+        var abstractFieldMember = MakeFieldMember(
+            MakeField(scenario.AbstractFieldName, MakeNamedTypeRef(scenario.AbstractName)));
 
         // Build the type binding entry
         var nestedOverrideNodes = scenario.HasNestedOverrides
@@ -633,18 +633,18 @@ public class DefaultValueComputationPropertyTests
 
         var typeBindingEntry = (DefaultFieldInitializerNode)new DefaultTypeBindingDefaultFieldInitializerNode
         {
-            FieldName = MakeToken(scenario.InterfaceFieldName),
+            FieldName = MakeToken(scenario.AbstractFieldName),
             TypeName = MakeNamedTypeRef(scenario.ConcreteTypeName),
             NestedEntries = nestedOverrideNodes,
         };
 
         var defaultBlockMember = MakeDefaultBlockMember(ImmutableArray.Create(typeBindingEntry));
 
-        var mainMembers = ImmutableArray.Create(interfaceFieldMember, defaultBlockMember);
+        var mainMembers = ImmutableArray.Create(abstractFieldMember, defaultBlockMember);
         var mainClassDecl = MakeClassDecl(scenario.TypeName, mainMembers);
 
         return MakeCompilationUnit(
-            WrapInterface(interfaceDecl),
+            WrapAbstractType(abstractDecl),
             WrapClass(concreteClassDecl),
             WrapClass(mainClassDecl));
     }
@@ -891,8 +891,8 @@ public class DefaultValueComputationPropertyTests
         if (defaultValues is null)
             return false;
 
-        // The interface field should have a TypeBinding default value
-        if (!defaultValues.TryGetValue(scenario.InterfaceFieldName, out var dfv))
+        // The abstract-typed field should have a TypeBinding default value
+        if (!defaultValues.TryGetValue(scenario.AbstractFieldName, out var dfv))
             return false;
 
         if (dfv.ValueKind != DefaultValueKind.TypeBinding)

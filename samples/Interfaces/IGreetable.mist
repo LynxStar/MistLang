@@ -1,8 +1,0 @@
-using Standard;
-
-namespace Interfaces;
-
-interface IGreetable
-{
-    string Greet();
-}

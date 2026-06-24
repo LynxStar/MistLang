@@ -198,21 +198,21 @@ Ad-hoc refinements can also constrain dependent type parameters. This is useful 
 {{#endtab }}
 {{#endtabs }}
 
-### Interface and Trait Contracts
+### Abstract Type and Trait Contracts
 
-Interfaces can declare parameter refinements as part of their contract. Implementing classes may use the same constraint, a weaker constraint (accepting more values), or no constraint at all. A weaker constraint is valid because it accepts a superset of the interface's required inputs — this satisfies the Liskov substitution principle.
+Abstract types can declare parameter refinements as part of their contract. Implementing classes may use the same constraint, a weaker constraint (accepting more values), or no constraint at all. A weaker constraint is valid because it accepts a superset of the abstract type's required inputs — this satisfies the Liskov substitution principle.
 
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-{{#include ../../snippets/type-system/refinement-types/adhoc-interfaces.mist}}
+{{#include ../../snippets/type-system/refinement-types/adhoc-abstracts.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-{{#include ../../snippets/type-system/refinement-types/adhoc-interfaces.cs}}
+{{#include ../../snippets/type-system/refinement-types/adhoc-abstracts.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
 
-An implementor cannot use a **stronger** constraint than the interface declares — that would reject values the interface promises to accept.
+An implementor cannot use a **stronger** constraint than the abstract type declares — that would reject values the abstract type promises to accept.

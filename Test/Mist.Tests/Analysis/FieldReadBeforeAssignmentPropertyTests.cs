@@ -130,7 +130,7 @@ public sealed class FieldReadBeforeAssignmentPropertyTests
     private static readonly string[] TypeNames =
         ["Widget", "Config", "Engine", "Sensor", "Agent"];
 
-    private static readonly string[] InterfaceNames =
+    private static readonly string[] AbstractNames =
         ["IRenderer", "ILogger", "IService", "IHandler"];
 
     // ─── Generator ───────────────────────────────────────────────────────
@@ -138,7 +138,7 @@ public sealed class FieldReadBeforeAssignmentPropertyTests
     private static Gen<FieldReadScenario> GenFieldReadScenario()
     {
         return from typeName in Gen.Elements(TypeNames)
-               from interfaceName in Gen.Elements(InterfaceNames)
+               from abstractName in Gen.Elements(AbstractNames)
                from fieldName in Gen.Elements(FieldNamePool)
                from pattern in Gen.Elements(
                    FieldAccessPattern.AssignThenRead,
@@ -151,7 +151,7 @@ public sealed class FieldReadBeforeAssignmentPropertyTests
                    FieldAccessPattern.ReadThenAssign or
                    FieldAccessPattern.ReadOnly or
                    FieldAccessPattern.AssignOneBranchThenRead
-               let source = BuildSource(typeName, interfaceName, fieldName, pattern)
+               let source = BuildSource(typeName, abstractName, fieldName, pattern)
                select new FieldReadScenario(source, fieldName, pattern, expectDiagnostic);
     }
 
@@ -164,19 +164,19 @@ public sealed class FieldReadBeforeAssignmentPropertyTests
 
     /// <summary>
     /// Builds Mist source code for a field read-before-assignment scenario.
-    /// The generated class has one non-defaultable field (interface type)
+    /// The generated class has one non-defaultable field (abstract type)
     /// and a constructor whose body exercises the given access pattern.
     /// A <c>sink</c> local captures reads so the code is well-formed.
     /// </summary>
     private static string BuildSource(
         string typeName,
-        string interfaceName,
+        string abstractName,
         string fieldName,
         FieldAccessPattern pattern)
     {
         var fieldDecl = pattern == FieldAccessPattern.InitializerThenRead
-            ? $"    public {interfaceName} {fieldName} = svc;"
-            : $"    public {interfaceName} {fieldName};";
+            ? $"    public {abstractName} {fieldName} = svc;"
+            : $"    public {abstractName} {fieldName};";
 
         var ctorBody = pattern switch
         {
@@ -236,10 +236,10 @@ public sealed class FieldReadBeforeAssignmentPropertyTests
 
         // Determine constructor parameters
         var ctorParams = pattern == FieldAccessPattern.InitializerThenRead
-            ? $"{interfaceName} svc"
+            ? $"{abstractName} svc"
             : NeedsFlagParam(pattern)
-                ? $"{interfaceName} svc, bool flag"
-                : $"{interfaceName} svc";
+                ? $"{abstractName} svc, bool flag"
+                : $"{abstractName} svc";
 
         // For the InitializerThenRead pattern, the field has an initializer using
         // a static field, so we use a different approach: the field initializer
@@ -267,7 +267,7 @@ public sealed class FieldReadBeforeAssignmentPropertyTests
         return $$"""
             namespace TestProgram;
 
-            public interface {{interfaceName}}
+            public abstract {{abstractName}}
             {
             }
 

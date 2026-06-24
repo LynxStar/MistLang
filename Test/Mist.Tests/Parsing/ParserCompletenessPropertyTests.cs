@@ -58,7 +58,7 @@ public class ParserCompletenessPropertyTests
         "namespace MyApp;\n\nclass Foo { }\n",
         "public class Program\n{\n    public static void Main()\n    {\n    }\n}\n",
         "public struct Point { int x; int y; }\n",
-        "interface IFoo { void DoStuff(); }\n",
+        "abstract IFoo { void DoStuff(); }\n",
         "class Container<T> { T value; }\n",
         "namespace Ns;\n\npublic class A { }\n\npublic class B { }\n",
     ];
@@ -84,7 +84,7 @@ public class ParserCompletenessPropertyTests
         "] ] ]",                    // unmatched closing brackets
         "fn broken",                // not a Mist keyword combination
         "struct",                   // incomplete struct declaration
-        "interface",                // incomplete interface declaration
+        "abstract",                // incomplete abstract declaration
     ];
 
     // ─── Generators ──────────────────────────────────────────────────────

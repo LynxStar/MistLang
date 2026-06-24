@@ -82,7 +82,7 @@ public static class ReadonlyParsingGenerators
 
     private static readonly string[] ClassNames = ["Foo", "Bar", "Baz", "Widget"];
     private static readonly string[] StructNames = ["Point", "Vector", "Cell"];
-    private static readonly string[] InterfaceNames = ["IReadable", "IService", "IStore"];
+    private static readonly string[] AbstractNames = ["IReadable", "IService", "IStore"];
     private static readonly string[] TraitNames = ["Printable", "Hashable", "Sortable"];
     private static readonly string[] FieldNames = ["x", "y", "count", "name"];
     private static readonly string[] MethodNames = ["Get", "Compute", "Process"];
@@ -161,13 +161,13 @@ public static class ReadonlyParsingGenerators
                select new ReadonlyModifierScenario(source, "struct", $"readonly struct: {structName}");
     }
 
-    /// <summary>Generates a readonly interface declaration.</summary>
-    public static Gen<ReadonlyModifierScenario> GenReadonlyInterface()
+    /// <summary>Generates a readonly abstract type declaration.</summary>
+    public static Gen<ReadonlyModifierScenario> GenReadonlyAbstract()
     {
-        return from ifaceName in Gen.Elements(InterfaceNames)
+        return from abstractName in Gen.Elements(AbstractNames)
                from access in Gen.Elements(AccessModifiers)
-               let source = $"{access}readonly interface {ifaceName} {{\n}}"
-               select new ReadonlyModifierScenario(source, "interface", $"readonly interface: {ifaceName}");
+               let source = $"{access}readonly abstract {abstractName} {{\n}}"
+               select new ReadonlyModifierScenario(source, "abstract", $"readonly abstract type: {abstractName}");
     }
 
     /// <summary>Generates a readonly trait declaration.</summary>
@@ -198,7 +198,7 @@ public static class ReadonlyParsingGenerators
             GenReadonlyConstructor(),
             GenReadonlyClass(),
             GenReadonlyStruct(),
-            GenReadonlyInterface(),
+            GenReadonlyAbstract(),
             GenReadonlyTrait(),
             GenReadonlyIndexer());
     }

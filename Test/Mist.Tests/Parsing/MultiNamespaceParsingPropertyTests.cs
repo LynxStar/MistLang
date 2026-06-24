@@ -206,7 +206,7 @@ class C { }
     [Fact]
     public void TypesOnly_ParsesCorrectly()
     {
-        var source = "class A { }\nstruct B { }\ninterface IC { }";
+        var source = "class A { }\nstruct B { }\nabstract IC { }";
         var result = ParseSource(source);
 
         Assert.NotNull(result.Root);

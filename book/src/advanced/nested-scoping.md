@@ -99,7 +99,7 @@ The emitted C# shows the mechanism clearly: each `with` declaration pushes onto 
 
 ## Nested Type Declarations
 
-Braces also create scoping boundaries for type declarations. A class, struct, interface, trait, or enum declared inside another type is scoped to its parent — accessible from outside only via the qualified name:
+Braces also create scoping boundaries for type declarations. A class, struct, abstract type, trait, or enum declared inside another type is scoped to its parent — accessible from outside only via the qualified name:
 
 {{#tabs }}
 {{#tab name="Mist" }}

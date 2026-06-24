@@ -13,9 +13,9 @@
 //  10. Multiple same-type pushes in a single scope
 //  11. Generic types as independent context keys
 //  12. Constructor with-clause
-//  13. Class, struct, trait-satisfying, and interface-implementing types as context values
+//  13. Class, struct, trait-satisfying, and abstract type-implementing types as context values
 //  14. Type alias, union type, refinement type, and dependent type as context keys
-//  15. Interface method dispatch with with-clause
+//  15. Abstract type method dispatch with with-clause
 //  16. Trait structural dispatch with with-clause
 
 using Standard;
@@ -79,8 +79,8 @@ public class StringHolder
     }
 }
 
-// Interface with with-clause on method
-interface IContextConsumer
+// Abstract type with with-clause on method
+abstract IContextConsumer
 {
     string Consume() with Config cfg;
 }
@@ -187,7 +187,7 @@ public class Consumers
         return $"CountReader(ReadContext with 0 would be: ready)";
     }
 
-    // Consumes ConsumerImpl context (interface-implementing type)
+    // Consumes ConsumerImpl context (abstract type-implementing type)
     public static string GetConsumerImpl() with ConsumerImpl c
     {
         return $"ConsumerImpl(ready)";
@@ -331,7 +331,7 @@ public class Program
         var greeter = new Greeter();
         Console.WriteLine($"  Greeter.Greeting={greeter.Greeting}");
 
-        // ─── 13. Class, struct, trait-satisfying, and interface-implementing types ─
+        // ─── 13. Class, struct, trait-satisfying, and abstract type-implementing types ─
         Console.WriteLine("--- 13. Various types as context values ---");
         // Class (Config) — already demonstrated above, consumed by GetConfig()
         Console.WriteLine($"  class (Config): GetConfig()={Consumers.GetConfig()}");
@@ -341,10 +341,10 @@ public class Program
         with var reader = new CountReader();
         var readerResult = Consumers.GetCountReader();
         Console.WriteLine($"  trait-satisfying (CountReader): {readerResult}");
-        // Interface-implementing type: ConsumerImpl implements IContextConsumer
+        // Abstract type-implementing type: ConsumerImpl implements IContextConsumer
         with var consumer = new ConsumerImpl();
         var consumerResult = Consumers.GetConsumerImpl();
-        Console.WriteLine($"  interface-implementing (ConsumerImpl): {consumerResult}");
+        Console.WriteLine($"  abstract type-implementing (ConsumerImpl): {consumerResult}");
 
         // ─── 14. Type alias, union type, refinement type, dependent type as keys ─
         Console.WriteLine("--- 14. Advanced type keys ---");
@@ -384,8 +384,8 @@ public class Program
         var sizedResult = Consumers.GetSized();
         Console.WriteLine($"  dependent type (Sized<5>): GetSized()={sizedResult}");
 
-        // ─── 15. Interface method dispatch with with-clause ──────────────
-        Console.WriteLine("--- 15. Interface dispatch with with-clause ---");
+        // ─── 15. Abstract type method dispatch with with-clause ──────────────
+        Console.WriteLine("--- 15. Abstract type dispatch with with-clause ---");
         IContextConsumer iface = new ConsumerImpl();
         var ifaceResult = iface.Consume();
         Console.WriteLine($"  IContextConsumer.Consume()={ifaceResult}");

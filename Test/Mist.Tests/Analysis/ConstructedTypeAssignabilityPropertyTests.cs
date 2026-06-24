@@ -24,8 +24,8 @@ namespace Mist.Tests.Analysis;
 /// be accepted by the type checker. Additionally, if a ConstructedType inherits from
 /// another ConstructedType (e.g., OrderedList&lt;int&gt; extends List&lt;int&gt;),
 /// assignment from the derived to the base SHALL be accepted. If a ConstructedType
-/// implements a constructed interface (e.g., Box&lt;int&gt; implements IContainer&lt;int&gt;),
-/// assignment from the implementing type to the interface SHALL be accepted.
+/// implements a constructed abstract type (e.g., Box&lt;int&gt; implements IContainer&lt;int&gt;),
+/// assignment from the implementing type to the abstract type SHALL be accepted.
 /// </summary>
 public class ConstructedTypeAssignabilityPropertyTests
 {
@@ -191,8 +191,8 @@ public class ConstructedTypeAssignabilityPropertyTests
         SameConstructedType,
         /// <summary>Derived to base: Derived&lt;int&gt; d = ...; Base&lt;int&gt; b = d;</summary>
         DerivedToBase,
-        /// <summary>Implementing type to interface: Box&lt;int&gt; b = ...; IContainer&lt;int&gt; c = b;</summary>
-        ImplementsInterface,
+        /// <summary>Implementing type to abstract type: Box&lt;int&gt; b = ...; IContainer&lt;int&gt; c = b;</summary>
+        ImplementsAbstract,
     }
 
     /// <summary>
@@ -203,7 +203,7 @@ public class ConstructedTypeAssignabilityPropertyTests
         string GenericTypeName,
         string ConcreteType,
         string? DerivedTypeName,
-        string? InterfaceName)
+        string? AbstractName)
     {
         public override string ToString()
         {
@@ -213,8 +213,8 @@ public class ConstructedTypeAssignabilityPropertyTests
                     $"{GenericTypeName}<{ConcreteType}> a = new {GenericTypeName}<{ConcreteType}>();",
                 AssignabilityKind.DerivedToBase =>
                     $"{DerivedTypeName}<{ConcreteType}> d = ...; {GenericTypeName}<{ConcreteType}> b = d;",
-                AssignabilityKind.ImplementsInterface =>
-                    $"{GenericTypeName}<{ConcreteType}> b = ...; {InterfaceName}<{ConcreteType}> i = b;",
+                AssignabilityKind.ImplementsAbstract =>
+                    $"{GenericTypeName}<{ConcreteType}> b = ...; {AbstractName}<{ConcreteType}> i = b;",
                 _ => "unknown",
             };
         }
@@ -226,7 +226,7 @@ public class ConstructedTypeAssignabilityPropertyTests
 
     private static readonly string[] GenericNamePool = ["Box", "Container", "Wrapper"];
     private static readonly string[] DerivedNamePool = ["SpecialBox", "ExtendedContainer", "SubWrapper"];
-    private static readonly string[] InterfaceNamePool = ["IHolder", "IStore", "IKeeper"];
+    private static readonly string[] AbstractNamePool = ["IHolder", "IStore", "IKeeper"];
     private static readonly string[] PrimitivePool = ["int", "string", "bool", "float"];
 
     public static Gen<AssignabilityScenario> GenAssignabilityScenario()
@@ -234,7 +234,7 @@ public class ConstructedTypeAssignabilityPropertyTests
         return Gen.OneOf(
             GenSameConstructedType(),
             GenDerivedToBase(),
-            GenImplementsInterface());
+            GenImplementsAbstract());
     }
 
     private static Gen<AssignabilityScenario> GenSameConstructedType()
@@ -256,14 +256,14 @@ public class ConstructedTypeAssignabilityPropertyTests
                    genericName, concreteType, derivedName, null);
     }
 
-    private static Gen<AssignabilityScenario> GenImplementsInterface()
+    private static Gen<AssignabilityScenario> GenImplementsAbstract()
     {
         return from genericName in Gen.Elements(GenericNamePool)
-               from interfaceName in Gen.Elements(InterfaceNamePool)
+               from abstractName in Gen.Elements(AbstractNamePool)
                from concreteType in Gen.Elements(PrimitivePool)
                select new AssignabilityScenario(
-                   AssignabilityKind.ImplementsInterface,
-                   genericName, concreteType, null, interfaceName);
+                   AssignabilityKind.ImplementsAbstract,
+                   genericName, concreteType, null, abstractName);
     }
 
     public static Arbitrary<AssignabilityScenario> ArbitraryAssignabilityScenario() =>
@@ -277,7 +277,7 @@ public class ConstructedTypeAssignabilityPropertyTests
         {
             AssignabilityKind.SameConstructedType => BuildSameConstructedTypeAst(scenario),
             AssignabilityKind.DerivedToBase => BuildDerivedToBaseAst(scenario),
-            AssignabilityKind.ImplementsInterface => BuildImplementsInterfaceAst(scenario),
+            AssignabilityKind.ImplementsAbstract => BuildImplementsAbstractAst(scenario),
             _ => throw new InvalidOperationException(),
         };
     }
@@ -369,26 +369,26 @@ public class ConstructedTypeAssignabilityPropertyTests
     }
 
     /// <summary>
-    /// Builds: interface IName&lt;T&gt; { }
+    /// Builds: abstract IName&lt;T&gt; { }
     ///         class GenericName&lt;T&gt; : IName&lt;T&gt; { }
     ///         class Program { static void Main() { GenericName&lt;concrete&gt; b = new GenericName&lt;concrete&gt;(); IName&lt;concrete&gt; i = b; } }
     /// </summary>
-    private static CompilationUnitNode BuildImplementsInterfaceAst(AssignabilityScenario scenario)
+    private static CompilationUnitNode BuildImplementsAbstractAst(AssignabilityScenario scenario)
     {
         var typeDecls = new List<TypeDeclarationNode>();
 
-        // Generic interface
-        var interfaceDecl = new InterfaceDeclarationNode
+        // Generic abstract type
+        var abstractDecl = new AbstractDeclarationNode
         {
-            Name = MakeToken(scenario.InterfaceName!),
+            Name = MakeToken(scenario.AbstractName!),
             TypeParams = MakeTypeParamList(["T"]),
-            Members = ImmutableArray<InterfaceMemberDeclarationNode>.Empty,
+            Members = ImmutableArray<AbstractMemberDeclarationNode>.Empty,
         };
-        typeDecls.Add(new InterfaceTypeTypeDeclarationNode { InterfaceDeclaration = interfaceDecl });
+        typeDecls.Add(new AbstractTypeTypeDeclarationNode { AbstractDeclaration = abstractDecl });
 
-        // Generic class implementing the interface: GenericName<T> : IName<T>
-        var ifaceTypeArgList = MakeTypeArgList([MakeNamedTypeRef("T")]);
-        var baseList = MakeBaseList([MakeBaseTypeRef(scenario.InterfaceName!, ifaceTypeArgList)]);
+        // Generic class implementing the abstract type: GenericName<T> : IName<T>
+        var abstractTypeArgList = MakeTypeArgList([MakeNamedTypeRef("T")]);
+        var baseList = MakeBaseList([MakeBaseTypeRef(scenario.AbstractName!, abstractTypeArgList)]);
         var classDecl = new ClassDeclarationNode
         {
             Name = MakeToken(scenario.GenericTypeName),
@@ -408,9 +408,9 @@ public class ConstructedTypeAssignabilityPropertyTests
         var varDeclB = MakeTypedVarDecl(classTypeRef, "b", newClassExpr);
 
         // IName<concrete> i = b;
-        var ifaceTypeArgList2 = MakeTypeArgList([MakePrimitiveTypeRef(scenario.ConcreteType)]);
-        var ifaceTypeRef = MakeNamedTypeRef(scenario.InterfaceName!, ifaceTypeArgList2);
-        var varDeclI = MakeTypedVarDecl(ifaceTypeRef, "i", MakeIdentifierExpression("b"));
+        var abstractTypeArgList2 = MakeTypeArgList([MakePrimitiveTypeRef(scenario.ConcreteType)]);
+        var abstractTypeRef = MakeNamedTypeRef(scenario.AbstractName!, abstractTypeArgList2);
+        var varDeclI = MakeTypedVarDecl(abstractTypeRef, "i", MakeIdentifierExpression("b"));
 
         var mainStatements = ImmutableArray.Create(varDeclB, varDeclI);
         typeDecls.Add(new ClassTypeTypeDeclarationNode { ClassDeclaration = MakeProgramClass(mainStatements) });
@@ -444,7 +444,7 @@ public class ConstructedTypeAssignabilityPropertyTests
     /// <summary>
     /// Property 10: For any two ConstructedType instances built from the same generic
     /// definition with the same type arguments, assignment from one to the other SHALL
-    /// be accepted. Derived-to-base and interface implementation assignments SHALL also
+    /// be accepted. Derived-to-base and abstract type implementation assignments SHALL also
     /// be accepted.
     ///
     /// **Validates: Requirements 11.1, 11.3, 11.4**

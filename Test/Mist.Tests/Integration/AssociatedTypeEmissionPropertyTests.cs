@@ -24,37 +24,37 @@ namespace Mist.Tests.Integration;
 public enum AssociatedTypeEmissionKind
 {
     /// <summary>
-    /// Interface with an unconstrained associated type slot,
+    /// Abstract type with an unconstrained associated type slot,
     /// implementor provides a concrete nested struct with matching name.
-    /// Tests: interface emission skips slot, implementor substitutes type arg.
+    /// Tests: abstract type emission skips slot, implementor substitutes type arg.
     /// </summary>
     UnconstrainedSlotWithStruct,
 
     /// <summary>
-    /// Interface with a struct-constrained associated type slot,
+    /// Abstract type with a struct-constrained associated type slot,
     /// implementor provides a concrete nested struct with matching name.
     /// Tests: struct constraint emitted as where clause on synthesized param.
     /// </summary>
     StructConstrainedSlot,
 
     /// <summary>
-    /// Interface with an interface-constrained associated type slot,
-    /// implementor provides a nested class implementing that interface.
-    /// Tests: interface constraint propagation in emitted C#.
+    /// Abstract type with an abstract-type-constrained associated type slot,
+    /// implementor provides a nested class implementing that abstract type.
+    /// Tests: abstract type constraint propagation in emitted C#.
     /// </summary>
-    InterfaceConstrainedSlot,
+    AbstractConstrainedSlot,
 
     /// <summary>
-    /// Generic function constrained by an interface with an associated type,
+    /// Generic function constrained by an abstract type with an associated type,
     /// calls a method on the constrained type parameter.
     /// Tests: generic lifting adds synthesized type params to function.
     /// </summary>
     GenericFunctionWithSlotUsage,
 
     /// <summary>
-    /// Interface with struct-constrained slot; implementor provides nested
+    /// Abstract type with struct-constrained slot; implementor provides nested
     /// struct and a method that constructs and returns it.
-    /// Tests: concrete type member emission alongside interface methods.
+    /// Tests: concrete type member emission alongside abstract type methods.
     /// </summary>
     ConcreteTypeConstruction,
 }
@@ -101,7 +101,7 @@ public sealed class AssociatedTypeEmissionScenario
 ///
 /// Property 11: End-to-end emission correctness
 ///
-/// For any valid Mist program containing interfaces with associated type slots,
+/// For any valid Mist program containing abstract types with associated type slots,
 /// implementors providing concrete type members, and generic functions using
 /// associated type references via constrained type parameters, the emitted C#
 /// code SHALL compile without errors and produce the same observable output as
@@ -168,14 +168,14 @@ public sealed class AssociatedTypeEmissionPropertyTests : IDisposable
                    intValue: intVal);
     }
 
-    private static Gen<AssociatedTypeEmissionScenario> GenInterfaceConstrainedSlot()
+    private static Gen<AssociatedTypeEmissionScenario> GenAbstractConstrainedSlot()
     {
         return from strIdx in Gen.Choose(0, StrValues.Length - 1)
                let strVal = StrValues[strIdx]
                select new AssociatedTypeEmissionScenario(
-                   AssociatedTypeEmissionKind.InterfaceConstrainedSlot,
+                   AssociatedTypeEmissionKind.AbstractConstrainedSlot,
                    expectedOutput: strVal,
-                   label: $"interface-constrained str={strVal}",
+                   label: $"abstract-constrained str={strVal}",
                    strValue: strVal);
     }
 
@@ -204,14 +204,14 @@ public sealed class AssociatedTypeEmissionPropertyTests : IDisposable
         return Gen.OneOf(
             GenUnconstrainedSlotWithStruct(),
             GenStructConstrainedSlot(),
-            GenInterfaceConstrainedSlot());
+            GenAbstractConstrainedSlot());
     }
 
     // ─── Batched program builder ─────────────────────────────────────────
 
     /// <summary>
     /// Builds a single Mist program that exercises all scenarios and prints
-    /// one result per line. Uses a fixed set of shared interfaces and
+    /// one result per line. Uses a fixed set of shared abstract types and
     /// implementors (one per scenario kind) to avoid the compiler limitation
     /// with many associated type slot declarations in a single file.
     /// </summary>
@@ -223,7 +223,7 @@ public sealed class AssociatedTypeEmissionPropertyTests : IDisposable
 
         // Emit shared type declarations (one per scenario kind)
         sb.AppendLine("// --- Unconstrained slot ---");
-        sb.AppendLine("interface IHolder {");
+        sb.AppendLine("abstract IHolder {");
         sb.AppendLine("    type Element;");
         sb.AppendLine("    int GetValue();");
         sb.AppendLine("}");
@@ -240,7 +240,7 @@ public sealed class AssociatedTypeEmissionPropertyTests : IDisposable
         sb.AppendLine();
 
         sb.AppendLine("// --- Struct-constrained slot ---");
-        sb.AppendLine("interface IContainer {");
+        sb.AppendLine("abstract IContainer {");
         sb.AppendLine("    type Item : struct;");
         sb.AppendLine("    int GetData();");
         sb.AppendLine("}");
@@ -256,12 +256,12 @@ public sealed class AssociatedTypeEmissionPropertyTests : IDisposable
         sb.AppendLine("}");
         sb.AppendLine();
 
-        sb.AppendLine("// --- Interface-constrained slot ---");
-        sb.AppendLine("interface IStringable {");
+        sb.AppendLine("// --- Abstract-constrained slot ---");
+        sb.AppendLine("abstract IStringable {");
         sb.AppendLine("    string GetStr();");
         sb.AppendLine("}");
         sb.AppendLine();
-        sb.AppendLine("interface IFactory {");
+        sb.AppendLine("abstract IFactory {");
         sb.AppendLine("    type Product : IStringable;");
         sb.AppendLine("    string Produce();");
         sb.AppendLine("}");
@@ -314,7 +314,7 @@ public sealed class AssociatedTypeEmissionPropertyTests : IDisposable
                 sb.AppendLine($"        Console.WriteLine(c{i}.GetData());");
                 break;
 
-            case AssociatedTypeEmissionKind.InterfaceConstrainedSlot:
+            case AssociatedTypeEmissionKind.AbstractConstrainedSlot:
                 sb.AppendLine($"        var f{i} = new Factory(\"{scenario.StrValue}\");");
                 sb.AppendLine($"        Console.WriteLine(f{i}.Produce());");
                 break;

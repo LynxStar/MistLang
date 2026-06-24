@@ -18,7 +18,7 @@ namespace Mist.Tests.Analysis;
 /// Property-based tests for ownership signature matching.
 ///
 /// Property 8: Ownership signature matching
-/// For any interface method with ownership specifiers on parameters or return types,
+/// For any abstract type method with ownership specifiers on parameters or return types,
 /// an implementing method SHALL match those specifiers exactly. Any mismatch SHALL
 /// produce a diagnostic error. The same rule applies to structural trait matching.
 ///
@@ -72,7 +72,7 @@ public class OwnershipSignaturePropertyTests
 #pragma warning disable CA1034
 
     /// <summary>
-    /// Scenario where an interface method and its implementation have matching
+    /// Scenario where an abstract type method and its implementation have matching
     /// ownership specifiers (should produce no MIST_OWN_SIGNATURE_MISMATCH).
     /// </summary>
     public sealed record MatchingSignatureScenario(string Source, string Label)
@@ -81,7 +81,7 @@ public class OwnershipSignaturePropertyTests
     }
 
     /// <summary>
-    /// Scenario where an interface method and its implementation have mismatching
+    /// Scenario where an abstract type method and its implementation have mismatching
     /// ownership specifiers on a parameter (should produce MIST_OWN_SIGNATURE_MISMATCH).
     /// </summary>
     public sealed record MismatchedParamScenario(string Source, string Label)
@@ -90,7 +90,7 @@ public class OwnershipSignaturePropertyTests
     }
 
     /// <summary>
-    /// Scenario where an interface method and its implementation have mismatching
+    /// Scenario where an abstract type method and its implementation have mismatching
     /// ownership specifiers on the return type (should produce MIST_OWN_SIGNATURE_MISMATCH).
     /// </summary>
     public sealed record MismatchedReturnScenario(string Source, string Label)
@@ -120,7 +120,7 @@ public class OwnershipSignaturePropertyTests
 
     // ─── Name pools ──────────────────────────────────────────────────────
 
-    private static readonly string[] InterfaceNames =
+    private static readonly string[] AbstractNames =
         ["IProcessor", "IHandler", "IService", "IWorker", "IManager", "IProvider"];
 
     private static readonly string[] ClassNames =
@@ -176,12 +176,12 @@ public class OwnershipSignaturePropertyTests
     // ─── Generators ──────────────────────────────────────────────────────
 
     /// <summary>
-    /// Generates an interface/implementation pair where the ownership specifiers
+    /// Generates an abstract type/implementation pair where the ownership specifiers
     /// on parameters match exactly (should compile without MIST_OWN_SIGNATURE_MISMATCH).
     /// </summary>
     private static Gen<MatchingSignatureScenario> GenMatchingSignatureScenario()
     {
-        return from ifaceName in Gen.Elements(InterfaceNames)
+        return from abstractName in Gen.Elements(AbstractNames)
                from className in Gen.Elements(ClassNames)
                from methodName in Gen.Elements(MethodNames)
                from paramName in Gen.Elements(ParamNames)
@@ -193,10 +193,10 @@ public class OwnershipSignaturePropertyTests
                let source = $$"""
                    class {{paramType}} {
                    }
-                   interface {{ifaceName}} {
+                   abstract {{abstractName}} {
                        {{retSpec.Specifier}}{{paramType}} {{methodName}}({{paramSpec.Specifier}}{{paramType}} {{paramName}});
                    }
-                   class {{className}} : {{ifaceName}} {
+                   class {{className}} : {{abstractName}} {
                        public {{retSpec.Specifier}}{{paramType}} {{methodName}}({{paramSpec.Specifier}}{{paramType}} {{paramName}}) {
                            return new {{paramType}}();
                        }
@@ -207,32 +207,32 @@ public class OwnershipSignaturePropertyTests
                    }
                    """
                select new MatchingSignatureScenario(source,
-                   $"matching: {ifaceName}.{methodName}({paramSpec.Label} {paramType}) -> {retSpec.Label} {paramType}, impl {className}");
+                   $"matching: {abstractName}.{methodName}({paramSpec.Label} {paramType}) -> {retSpec.Label} {paramType}, impl {className}");
     }
 
     /// <summary>
-    /// Generates an interface/implementation pair where the ownership specifier
-    /// on a parameter differs between interface and implementation.
+    /// Generates an abstract type/implementation pair where the ownership specifier
+    /// on a parameter differs between abstract type and implementation.
     /// </summary>
     private static Gen<MismatchedParamScenario> GenMismatchedParamScenario()
     {
-        return from ifaceName in Gen.Elements(InterfaceNames)
+        return from abstractName in Gen.Elements(AbstractNames)
                from className in Gen.Elements(ClassNames)
                from methodName in Gen.Elements(MethodNames)
                from paramName in Gen.Elements(ParamNames)
                from paramType in Gen.Elements(ParamTypeNames)
-               from ifaceSpecIdx in Gen.Choose(0, ParamSpecifiers.Length - 1)
+               from abstractSpecIdx in Gen.Choose(0, ParamSpecifiers.Length - 1)
                from implSpecIdx in Gen.Choose(0, ParamSpecifiers.Length - 1)
-               where ifaceSpecIdx != implSpecIdx
-               let ifaceSpec = ParamSpecifiers[ifaceSpecIdx]
+               where abstractSpecIdx != implSpecIdx
+               let abstractSpec = ParamSpecifiers[abstractSpecIdx]
                let implSpec = ParamSpecifiers[implSpecIdx]
                let source = $$"""
                    class {{paramType}} {
                    }
-                   interface {{ifaceName}} {
-                       void {{methodName}}({{ifaceSpec.Specifier}}{{paramType}} {{paramName}});
+                   abstract {{abstractName}} {
+                       void {{methodName}}({{abstractSpec.Specifier}}{{paramType}} {{paramName}});
                    }
-                   class {{className}} : {{ifaceName}} {
+                   class {{className}} : {{abstractName}} {
                        public void {{methodName}}({{implSpec.Specifier}}{{paramType}} {{paramName}}) {
                        }
                    }
@@ -242,31 +242,31 @@ public class OwnershipSignaturePropertyTests
                    }
                    """
                select new MismatchedParamScenario(source,
-                   $"mismatch param: {ifaceName}.{methodName}({ifaceSpec.Label}) vs {className}.{methodName}({implSpec.Label})");
+                   $"mismatch param: {abstractName}.{methodName}({abstractSpec.Label}) vs {className}.{methodName}({implSpec.Label})");
     }
 
     /// <summary>
-    /// Generates an interface/implementation pair where the ownership specifier
-    /// on the return type differs between interface and implementation.
+    /// Generates an abstract type/implementation pair where the ownership specifier
+    /// on the return type differs between abstract type and implementation.
     /// </summary>
     private static Gen<MismatchedReturnScenario> GenMismatchedReturnScenario()
     {
-        return from ifaceName in Gen.Elements(InterfaceNames)
+        return from abstractName in Gen.Elements(AbstractNames)
                from className in Gen.Elements(ClassNames)
                from methodName in Gen.Elements(MethodNames)
                from paramType in Gen.Elements(ParamTypeNames)
-               from ifaceRetIdx in Gen.Choose(0, ReturnSpecifiers.Length - 1)
+               from abstractRetIdx in Gen.Choose(0, ReturnSpecifiers.Length - 1)
                from implRetIdx in Gen.Choose(0, ReturnSpecifiers.Length - 1)
-               where ifaceRetIdx != implRetIdx
-               let ifaceRet = ReturnSpecifiers[ifaceRetIdx]
+               where abstractRetIdx != implRetIdx
+               let abstractRet = ReturnSpecifiers[abstractRetIdx]
                let implRet = ReturnSpecifiers[implRetIdx]
                let source = $$"""
                    class {{paramType}} {
                    }
-                   interface {{ifaceName}} {
-                       {{ifaceRet.Specifier}}{{paramType}} {{methodName}}();
+                   abstract {{abstractName}} {
+                       {{abstractRet.Specifier}}{{paramType}} {{methodName}}();
                    }
-                   class {{className}} : {{ifaceName}} {
+                   class {{className}} : {{abstractName}} {
                        public {{implRet.Specifier}}{{paramType}} {{methodName}}() {
                            return new {{paramType}}();
                        }
@@ -277,7 +277,7 @@ public class OwnershipSignaturePropertyTests
                    }
                    """
                select new MismatchedReturnScenario(source,
-                   $"mismatch return: {ifaceName}.{methodName}() -> {ifaceRet.Label} vs {className}.{methodName}() -> {implRet.Label}");
+                   $"mismatch return: {abstractName}.{methodName}() -> {abstractRet.Label} vs {className}.{methodName}() -> {implRet.Label}");
     }
 
     /// <summary>
@@ -362,7 +362,7 @@ public class OwnershipSignaturePropertyTests
         GenInvalidReturnSpecScenario().ToArbitrary();
 
     // ═══════════════════════════════════════════════════════════════════════
-    // Property 8a: Matching ownership specifiers on interface implementations
+    // Property 8a: Matching ownership specifiers on abstract type implementations
     // produce no MIST_OWN_SIGNATURE_MISMATCH
     // **Validates: Requirements 9.1, 9.2**
     // ═══════════════════════════════════════════════════════════════════════
@@ -378,7 +378,7 @@ public class OwnershipSignaturePropertyTests
     }
 
     // ═══════════════════════════════════════════════════════════════════════
-    // Property 8b: Mismatched ownership specifiers on interface parameters
+    // Property 8b: Mismatched ownership specifiers on abstract type parameters
     // produce MIST_OWN_SIGNATURE_MISMATCH
     // **Validates: Requirements 9.1, 9.4**
     // ═══════════════════════════════════════════════════════════════════════
@@ -394,7 +394,7 @@ public class OwnershipSignaturePropertyTests
     }
 
     // ═══════════════════════════════════════════════════════════════════════
-    // Property 8c: Mismatched ownership specifiers on interface return types
+    // Property 8c: Mismatched ownership specifiers on abstract type return types
     // produce MIST_OWN_SIGNATURE_MISMATCH
     // **Validates: Requirements 9.2, 9.4**
     // ═══════════════════════════════════════════════════════════════════════

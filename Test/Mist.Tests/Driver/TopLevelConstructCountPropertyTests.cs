@@ -3,7 +3,7 @@
 //
 // Property-based test verifying that the filter predicate used in Stage 4 of
 // CompilerDriver correctly counts top-level user-code constructs. The filter is:
-//   Origin == SymbolOrigin.UserCode AND Kind in {Class, Struct, Interface, Trait}
+//   Origin == SymbolOrigin.UserCode AND Kind in {Class, Struct, Abstract, Trait}
 //
 // We generate random lists of (SymbolKind, SymbolOrigin) pairs and verify that
 // the LINQ-based filter count matches a manual loop count.
@@ -29,7 +29,7 @@ public class TopLevelConstructCountPropertyTests
     {
         SymbolKind.Class,
         SymbolKind.Struct,
-        SymbolKind.Interface,
+        SymbolKind.Abstract,
         SymbolKind.Trait,
     };
 
@@ -50,7 +50,7 @@ public class TopLevelConstructCountPropertyTests
             if (origin != SymbolOrigin.UserCode)
                 continue;
             if (kind == SymbolKind.Class || kind == SymbolKind.Struct ||
-                kind == SymbolKind.Interface || kind == SymbolKind.Trait)
+                kind == SymbolKind.Abstract || kind == SymbolKind.Trait)
             {
                 count++;
             }

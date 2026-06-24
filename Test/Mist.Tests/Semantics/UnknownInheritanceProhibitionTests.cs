@@ -1,7 +1,7 @@
 // Feature: unknown-type (Phase B, Task 13) — Enforce inheritance prohibition.
 //
 // Validates Requirements 6.1, 6.2, 6.3, 6.4, 16.6 — a class, struct,
-// interface, or trait declaration that would name `unknown` as a base
+// abstract type, or trait declaration that would name `unknown` as a base
 // or implemented type is rejected.
 //
 // Reachability note. The grammar makes the positive form of each case
@@ -10,8 +10,8 @@
 //   * `BaseTypeRef = name:IDENTIFIER typeArgs:TypeArgumentList?` — the
 //     name position is a bare `IDENTIFIER` token, so `unknown` (which
 //     lexes to the reserved `UNKNOWN` keyword token) cannot appear
-//     there. This covers the class base clause, the struct interface
-//     list, and the interface base interface list.
+//     there. This covers the class base clause, the struct abstract type
+//     list, and the abstract type base list.
 //
 //   * `TraitDeclaration = TRAIT IDENTIFIER LEFT_BRACE ... RIGHT_BRACE`
 //     — traits have no base-clause production at all, so
@@ -45,7 +45,7 @@ namespace Mist.Tests.Semantics;
 /// <summary>
 /// Unit tests for the inheritance-prohibition check added in Task 13.1:
 /// <c>MIST_SB_0054</c> — <c>unknown</c> used as a base or implemented
-/// type on a class, struct, interface, or trait declaration
+/// type on a class, struct, abstract type, or trait declaration
 /// (Requirements 6.1–6.4, 16.6).
 /// </summary>
 /// <remarks>
@@ -63,7 +63,7 @@ namespace Mist.Tests.Semantics;
 /// <para>
 /// Additional negative tests lock in that <c>MIST_SB_0054</c> is not
 /// erroneously emitted on legitimate inheritance (<c>class Foo : Bar</c>,
-/// <c>struct S : I</c>, <c>interface I : J</c>, <c>trait T { }</c>).
+/// <c>struct S : I</c>, <c>abstract I : J</c>, <c>trait T { }</c>).
 /// This catches the guard over-triggering if a future refactor
 /// introduces a new symbol whose <c>DeclaredType</c> is accidentally
 /// <see cref="UnknownType"/>.
@@ -179,52 +179,52 @@ public class UnknownInheritanceProhibitionTests
     // ═══════════════════════════════════════════════════════════════════════
 
     [Fact]
-    public void StructInterfaceListWithUnknown_FailsToParse()
+    public void StructAbstractListWithUnknown_FailsToParse()
     {
-        // Valid analog: `interface I { } struct S : I { }` — a struct
-        // with an interface list of one interface. If `unknown` could
+        // Valid analog: `abstract I { } struct S : I { }` — a struct
+        // with an abstract type list of one abstract type. If `unknown` could
         // be an identifier, `struct S : unknown { }` would parse to an
         // equivalent shape.
         var (cuInvalid, _) = ParseSource("struct S : unknown { }");
         Assert.NotNull(cuInvalid);
         Assert.Empty(cuInvalid!.GetTypes());
 
-        var (cuValid, _) = ParseSource("interface I { } struct S : I { }");
+        var (cuValid, _) = ParseSource("abstract I { } struct S : I { }");
         Assert.NotNull(cuValid);
         Assert.Equal(2, cuValid!.GetTypes().Length);
     }
 
     [Fact]
-    public void StructInterfaceListWithUnknown_DoesNotEmit_MIST_SB_0054_ErroneouslyOnBenignStruct()
+    public void StructAbstractListWithUnknown_DoesNotEmit_MIST_SB_0054_ErroneouslyOnBenignStruct()
     {
-        const string source = "interface I { } struct S : I { }";
+        const string source = "abstract I { } struct S : I { }";
 
         var diagnostics = BuildAndCollectDiagnostics(source);
         Assert.Empty(WithId(diagnostics, "MIST_SB_0054"));
     }
 
     // ═══════════════════════════════════════════════════════════════════════
-    // `interface I : unknown { }` — Requirement 6.3.
+    // `abstract I : unknown { }` — Requirement 6.3.
     // ═══════════════════════════════════════════════════════════════════════
 
     [Fact]
-    public void InterfaceBaseListWithUnknown_FailsToParse()
+    public void AbstractBaseListWithUnknown_FailsToParse()
     {
-        // Valid analog: `interface J { } interface I : J { }` — an
-        // interface whose base interface list has one entry.
-        var (cuInvalid, _) = ParseSource("interface I : unknown { }");
+        // Valid analog: `abstract J { } abstract I : J { }` — an
+        // abstract type whose base list has one entry.
+        var (cuInvalid, _) = ParseSource("abstract I : unknown { }");
         Assert.NotNull(cuInvalid);
         Assert.Empty(cuInvalid!.GetTypes());
 
-        var (cuValid, _) = ParseSource("interface J { } interface I : J { }");
+        var (cuValid, _) = ParseSource("abstract J { } abstract I : J { }");
         Assert.NotNull(cuValid);
         Assert.Equal(2, cuValid!.GetTypes().Length);
     }
 
     [Fact]
-    public void InterfaceBaseListWithUnknown_DoesNotEmit_MIST_SB_0054_ErroneouslyOnBenignInterface()
+    public void AbstractBaseListWithUnknown_DoesNotEmit_MIST_SB_0054_ErroneouslyOnBenignAbstract()
     {
-        const string source = "interface J { } interface I : J { }";
+        const string source = "abstract J { } abstract I : J { }";
 
         var diagnostics = BuildAndCollectDiagnostics(source);
         Assert.Empty(WithId(diagnostics, "MIST_SB_0054"));

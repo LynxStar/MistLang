@@ -108,7 +108,7 @@ public class DefaultConstraintSatisfactionPropertyTests
     public enum NonDefaultableKind
     {
         ClassWithConstructorNoDefaultBlock,
-        Interface,
+        AbstractType,
         Trait,
     }
 
@@ -122,7 +122,7 @@ public class DefaultConstraintSatisfactionPropertyTests
     private static readonly string[] ClassNames =
         ["Widget", "Config", "Gadget", "Sensor", "Agent"];
 
-    private static readonly string[] InterfaceNames =
+    private static readonly string[] AbstractNames =
         ["IRenderer", "ILogger", "IService", "IHandler"];
 
     private static readonly string[] TraitNames =
@@ -163,7 +163,7 @@ public class DefaultConstraintSatisfactionPropertyTests
 
     /// <summary>
     /// Generates a non-defaultable type argument scenario — a class with a constructor
-    /// and no default block, an interface, or a trait.
+    /// and no default block, an abstract type, or a trait.
     /// </summary>
     private static Gen<NonDefaultableTypeArgScenario> GenNonDefaultableTypeArgScenario()
     {
@@ -186,13 +186,13 @@ public class DefaultConstraintSatisfactionPropertyTests
                 TypeArgDeclaration: decl,
                 Kind: NonDefaultableKind.ClassWithConstructorNoDefaultBlock);
 
-        var interfaceGen =
-            from ifaceName in Gen.Elements(InterfaceNames)
-            let decl = $"public interface {ifaceName}\n{{\n}}"
+        var abstractGen =
+            from abstractName in Gen.Elements(AbstractNames)
+            let decl = $"public abstract {abstractName}\n{{\n}}"
             select new NonDefaultableTypeArgScenario(
-                TypeArgName: ifaceName,
+                TypeArgName: abstractName,
                 TypeArgDeclaration: decl,
-                Kind: NonDefaultableKind.Interface);
+                Kind: NonDefaultableKind.AbstractType);
 
         var traitGen =
             from traitName in Gen.Elements(TraitNames)
@@ -202,7 +202,7 @@ public class DefaultConstraintSatisfactionPropertyTests
                 TypeArgDeclaration: decl,
                 Kind: NonDefaultableKind.Trait);
 
-        return Gen.OneOf(classWithCtorGen, interfaceGen, traitGen);
+        return Gen.OneOf(classWithCtorGen, abstractGen, traitGen);
     }
 
     // ─── Arbitrary registrations ─────────────────────────────────────────

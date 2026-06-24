@@ -3,7 +3,7 @@
 // ===== Keyword substrings in identifiers (Req 3.5) =====
 // Identifiers that contain keywords as substrings must NOT match as keywords.
 
-interface
+abstract
 // <- source.mist -keyword -storage.type
 
 format

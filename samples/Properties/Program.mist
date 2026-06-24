@@ -111,8 +111,8 @@ public class Program
         var square = new ComputedProps(5, 5);
         Console.WriteLine(square.Describe());
 
-        // 10. Interface properties
-        Console.WriteLine("--- Interface Properties ---");
+        // 10. Abstract type properties
+        Console.WriteLine("--- Abstract Type Properties ---");
         var item = new LabeledItem("Widget", 99);
         Console.WriteLine(item.Describe());
         IEditable editable = item;

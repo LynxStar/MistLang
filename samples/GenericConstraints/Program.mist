@@ -7,11 +7,11 @@ namespace GenericConstraints;
 
 // ─── Supporting types ────────────────────────────────────────────────────
 
-interface IOrderable {
+abstract IOrderable {
     int GetOrder();
 }
 
-interface IPrintable {
+abstract IPrintable {
     string Print();
 }
 
@@ -112,7 +112,7 @@ class ValOnly<T> where T : struct {
     }
 }
 
-// ─── 3. interface constraint with method call ────────────────────────────
+// ─── 3. abstract type constraint with method call ────────────────────────────
 
 class Sorter<T> where T : IOrderable {
     public T First;
@@ -232,9 +232,9 @@ class AnyPosition<T> where T : new(int), IOrderable, class {
     }
 }
 
-// ─── 14. interface declaration with constraint ───────────────────────────
+// ─── 14. abstract type declaration with constraint ───────────────────────────
 
-interface IRepository<T> where T : class, new() {
+abstract IRepository<T> where T : class, new() {
     T GetById(int id);
     void Save(T item);
 }
@@ -307,11 +307,11 @@ public class Program {
         ValOnly<int> v = new ValOnly<int>(42);
         Console.WriteLine($"2. struct constraint: {v.Show()}");
 
-        // 3. interface constraint — call constrained method
+        // 3. abstract type constraint — call constrained method
         OrderableInt a = new OrderableInt(10);
         OrderableInt b = new OrderableInt(20);
         Sorter<OrderableInt> sorter = new Sorter<OrderableInt>(a, b);
-        Console.WriteLine($"3. interface constraint: first order = {sorter.GetFirstOrder()}");
+        Console.WriteLine($"3. abstract type constraint: first order = {sorter.GetFirstOrder()}");
 
         // 4. trait constraint — call constrained method
         Widget w = new Widget(7);
@@ -363,10 +363,10 @@ public class Program {
         AnyPosition<OrderableInt> ap = new AnyPosition<OrderableInt>(77);
         Console.WriteLine($"13. any position: value={ap.Item.Value}");
 
-        // 14. interface declaration with constraint
+        // 14. abstract type declaration with constraint
         WidgetRepository repo = new WidgetRepository();
         Widget fetched = repo.GetById(42);
-        Console.WriteLine($"14. interface with constraint: Widget({fetched.Id})");
+        Console.WriteLine($"14. abstract type with constraint: Widget({fetched.Id})");
 
         // 15. struct declaration with constraint
         Holder<Widget> holder = new Holder<Widget>(new Widget(99));

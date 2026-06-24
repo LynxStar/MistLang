@@ -14,7 +14,7 @@ public enum DefaultValueKind
     /// <summary>An explicit default block overrides the field's value.</summary>
     ExplicitOverride,
 
-    /// <summary>An interface/trait field is bound to a concrete type.</summary>
+    /// <summary>An abstract type/trait field is bound to a concrete type.</summary>
     TypeBinding,
 
     /// <summary>The field's default value is inherited from a base type.</summary>

@@ -22,7 +22,7 @@ namespace Mist.Tests.Analysis;
 /// <summary>
 /// Scenario for verifying that a type correctly implementing
 /// <c>IEnumerable&lt;TElement&gt;</c> with a proper nested <c>Enumerator</c> type
-/// implementing <c>IEnumerator&lt;TElement&gt;</c> produces zero interface-related diagnostics.
+/// implementing <c>IEnumerator&lt;TElement&gt;</c> produces zero abstract-type-related diagnostics.
 /// </summary>
 public sealed class ValidEnumerableScenario
 {
@@ -54,7 +54,7 @@ public sealed class ValidEnumerableScenario
 /// For any type that declares it implements <c>IEnumerable&lt;TElement&gt;</c> and provides
 /// a nested type <c>Enumerator</c> implementing <c>IEnumerator&lt;TElement&gt;</c> (with both
 /// <c>MoveNext()</c> and <c>Current</c>), and a <c>GetEnumerator()</c> method returning
-/// that <c>Enumerator</c> type, the type checker SHALL emit zero interface-related
+/// that <c>Enumerator</c> type, the type checker SHALL emit zero abstract-type-related
 /// diagnostics for that type.
 ///
 /// Uses in-process compilation via a shared CompilerDriver instance.
@@ -196,42 +196,42 @@ public sealed class ValidEnumerableImplementationPropertyTests : IDisposable
     // provides a nested type Enumerator implementing IEnumerator<TElement>
     // (with both MoveNext() and Current), and a GetEnumerator() method
     // returning that Enumerator type, the type checker SHALL emit zero
-    // interface-related diagnostics for that type.
+    // abstract-type-related diagnostics for that type.
     //
     // **Validates: Requirements 1.4, 2.4, 2.5**
     // ═══════════════════════════════════════════════════════════════════════
 
     [Property(MaxTest = 100, Arbitrary = new[] { typeof(ValidEnumerableImplementationPropertyTests) })]
-    public Property ValidEnumerable_ZeroInterfaceDiagnostics(ValidEnumerableScenario scenario)
+    public Property ValidEnumerable_ZeroAbstractDiagnostics(ValidEnumerableScenario scenario)
     {
         var result = CompileSource(scenario.Source);
 
-        // Check for interface-related diagnostics (MIST_SM_0022 = MissingInterfaceOverload)
-        var interfaceDiagnostics = result.Diagnostics
+        // Check for abstract type-related diagnostics (MIST_SM_0022 = MissingAbstractOverload)
+        var abstractDiagnostics = result.Diagnostics
             .Where(d => d.Id.Value == "MIST_SM_0022")
             .ToList();
 
-        var hasInterfaceDiagnostics = interfaceDiagnostics.Count > 0;
+        var hasAbstractDiagnostics = abstractDiagnostics.Count > 0;
 
-        if (hasInterfaceDiagnostics)
+        if (hasAbstractDiagnostics)
         {
-            var diagMessages = string.Join("\n", interfaceDiagnostics.Select(d => $"  {d.Id.Value}: {d.Message}"));
+            var diagMessages = string.Join("\n", abstractDiagnostics.Select(d => $"  {d.Id.Value}: {d.Message}"));
             return false.ToProperty()
-                .Label($"Expected zero interface-related diagnostics but found {interfaceDiagnostics.Count}:\n{diagMessages}\n" +
+                .Label($"Expected zero abstract-type-related diagnostics but found {abstractDiagnostics.Count}:\n{diagMessages}\n" +
                        $"Scenario: {scenario.Description}\nSource:\n{scenario.Source}");
         }
 
         // Also verify the compilation succeeded overall (no other errors that would
-        // indicate a broken test scenario rather than an interface validation issue)
+        // indicate a broken test scenario rather than an abstract type validation issue)
         if (!result.Succeeded)
         {
             var allDiags = string.Join("\n", result.Diagnostics.Select(d => $"  {d.Id.Value}: {d.Message}"));
             return false.ToProperty()
-                .Label($"Compilation failed (non-interface diagnostics present):\n{allDiags}\n" +
+                .Label($"Compilation failed (non-abstract-type diagnostics present):\n{allDiags}\n" +
                        $"Scenario: {scenario.Description}\nSource:\n{scenario.Source}");
         }
 
         return true.ToProperty()
-            .Label($"Valid IEnumerable<{scenario.ElementType}> implementation accepted without interface diagnostics");
+            .Label($"Valid IEnumerable<{scenario.ElementType}> implementation accepted without abstract type diagnostics");
     }
 }

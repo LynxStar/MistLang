@@ -326,7 +326,7 @@ public class IntrinsicTypeMapRecursiveSubstitutionPropertyTests
 
             StructType st => IsIntrinsicClrType(st.DisplayName, st.ContainingNamespace),
             ClassType ct => IsIntrinsicClrType(ct.DisplayName, ct.ContainingNamespace),
-            InterfaceType it => IsIntrinsicClrType(it.DisplayName, it.ContainingNamespace),
+            AbstractType it => IsIntrinsicClrType(it.DisplayName, it.ContainingNamespace),
 
             _ => false,
         };

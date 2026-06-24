@@ -19,7 +19,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     // ── Overloading diagnostic IDs ───────────────────────────────────────
     internal static readonly DiagnosticId DuplicateMethodSignature = new("MIST_SM_0020");
     internal static readonly DiagnosticId DuplicateConstructorSignature = new("MIST_SM_0021");
-    internal static readonly DiagnosticId MissingInterfaceOverload = new("MIST_SM_0022");
+    internal static readonly DiagnosticId MissingAbstractOverload = new("MIST_SM_0022");
 
     // ── Namespace scope registry ─────────────────────────────────────────
     // Maps fully-qualified namespace names to their scope instances. Populated
@@ -656,7 +656,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// An implementation method has a stronger refinement constraint on a parameter than
     /// the abstract type or trait method requires, violating Liskov Substitution (Requirement 17.4).
     /// </summary>
-    internal static readonly DiagnosticId RefinementConstraintStrongerThanInterface = new("MIST_REFINEMENT_0009");
+    internal static readonly DiagnosticId RefinementConstraintStrongerThanAbstract = new("MIST_REFINEMENT_0009");
 
     // ── Nested type diagnostic IDs (nested-scoping spec, Requirements 9.4, 9.5, 14.3) ──
 
@@ -5488,10 +5488,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             if (declaringNode is not StructDeclarationNode structDecl)
                 continue;
 
-            if (structDecl.AbstractList is null)
+            if (structDecl.Abstracts is null)
                 continue;
 
-            var entries = ExtractBaseListEntries(structDecl.AbstractList);
+            var entries = ExtractBaseListEntries(structDecl.Abstracts);
             if (entries.Count == 0)
                 continue;
 
@@ -6283,8 +6283,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// is resolved to an <see cref="AbstractType"/> and stored on
     /// <c>AbstractType.Abstracts</c>.
     ///
-    /// Emits <c>MIST_UNDEFINED_INTERFACE</c> when an abstract type name is not found,
-    /// and <c>MIST_NOT_AN_INTERFACE</c> when a name resolves to a class or struct.
+    /// Emits <c>MIST_UNDEFINED_ABSTRACT</c> when an abstract type name is not found,
+    /// and <c>MIST_NOT_AN_ABSTRACT</c> when a name resolves to a class or struct.
     /// </summary>
     private static void Pass1_ResolveAbstractLists(
         SymbolTable symbolTable,
@@ -6448,10 +6448,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         if (declaringNode is not StructDeclarationNode structDecl)
             return;
 
-        if (structDecl.AbstractList is null)
+        if (structDecl.Abstracts is null)
             return;
 
-        var entries = ExtractBaseListEntries(structDecl.AbstractList);
+        var entries = ExtractBaseListEntries(structDecl.Abstracts);
         if (entries.Count == 0)
             return;
 
@@ -6516,10 +6516,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         if (declaringNode is not AbstractDeclarationNode abstractDecl)
             return;
 
-        if (abstractDecl.AbstractList is null)
+        if (abstractDecl.Abstracts is null)
             return;
 
-        var entries = ExtractBaseListEntries(abstractDecl.AbstractList);
+        var entries = ExtractBaseListEntries(abstractDecl.Abstracts);
         if (entries.Count == 0)
             return;
 
@@ -6568,7 +6568,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 if (declaringNode is not null)
                 {
                     diagnostics.Add(MakeDiagnosticWithLocation(
-                        "MIST_UNDEFINED_INTERFACE",
+                        "MIST_UNDEFINED_ABSTRACT",
                         DiagnosticSeverity.Error,
                         $"The abstract type '{name}' could not be found.",
                         declaringNode,
@@ -6580,7 +6580,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         findPathForSymbol, symbolTable, asts, compilation);
 
                     diagnostics.Add(new Diagnostic(
-                        new DiagnosticId("MIST_UNDEFINED_INTERFACE"),
+                        new DiagnosticId("MIST_UNDEFINED_ABSTRACT"),
                         DiagnosticSeverity.Error,
                         PipelineStage.SemanticModelConstruction,
                         $"The abstract type '{name}' could not be found.",
@@ -6604,7 +6604,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 if (declaringNode is not null)
                 {
                     diagnostics.Add(MakeDiagnosticWithLocation(
-                        "MIST_NOT_AN_INTERFACE",
+                        "MIST_NOT_AN_ABSTRACT",
                         DiagnosticSeverity.Error,
                         $"'{name}' is not an abstract type; only abstract types can appear in an abstract type list.",
                         declaringNode,
@@ -6616,7 +6616,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         findPathForSymbol, symbolTable, asts, compilation);
 
                     diagnostics.Add(new Diagnostic(
-                        new DiagnosticId("MIST_NOT_AN_INTERFACE"),
+                        new DiagnosticId("MIST_NOT_AN_ABSTRACT"),
                         DiagnosticSeverity.Error,
                         PipelineStage.SemanticModelConstruction,
                         $"'{name}' is not an abstract type; only abstract types can appear in an abstract type list.",
@@ -6668,7 +6668,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 if (declNode is not null)
                 {
                     diagnostics.Add(MakeDiagnosticWithLocation(
-                        "MIST_UNDEFINED_INTERFACE",
+                        "MIST_UNDEFINED_ABSTRACT",
                         DiagnosticSeverity.Error,
                         $"The abstract type '{name}' could not be found.",
                         declNode,
@@ -6680,7 +6680,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         findPathForSymbol, symbolTable, asts, compilation);
 
                     diagnostics.Add(new Diagnostic(
-                        new DiagnosticId("MIST_UNDEFINED_INTERFACE"),
+                        new DiagnosticId("MIST_UNDEFINED_ABSTRACT"),
                         DiagnosticSeverity.Error,
                         PipelineStage.SemanticModelConstruction,
                         $"The abstract type '{name}' could not be found.",
@@ -6757,7 +6757,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 if (declNode is not null)
                 {
                     diagnostics.Add(MakeDiagnosticWithLocation(
-                        "MIST_NOT_AN_INTERFACE",
+                        "MIST_NOT_AN_ABSTRACT",
                         DiagnosticSeverity.Error,
                         $"'{name}' is not an abstract type; only abstract types can appear in an abstract type list.",
                         declNode,
@@ -6769,7 +6769,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         findPathForSymbol, symbolTable, asts, compilation);
 
                     diagnostics.Add(new Diagnostic(
-                        new DiagnosticId("MIST_NOT_AN_INTERFACE"),
+                        new DiagnosticId("MIST_NOT_AN_ABSTRACT"),
                         DiagnosticSeverity.Error,
                         PipelineStage.SemanticModelConstruction,
                         $"'{name}' is not an abstract type; only abstract types can appear in an abstract type list.",
@@ -7586,7 +7586,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 // Get source location from the implementation method.
                 var sourceText = FindSourceTextForType(typeName, symbolTable, asts, compilation);
                 diagnostics.Add(MakeDiagnosticWithLocation(
-                    RefinementConstraintStrongerThanInterface.Value,
+                    RefinementConstraintStrongerThanAbstract.Value,
                     DiagnosticSeverity.Error,
                     message,
                     implNode,
@@ -11054,7 +11054,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// <summary>
     /// After abstract type lists are resolved, walk each abstract type's Abstracts
     /// chain to detect cycles (including self-inheritance). When a cycle is
-    /// found, emit a <c>MIST_CIRCULAR_INTERFACE_INHERITANCE</c> diagnostic
+    /// found, emit a <c>MIST_CIRCULAR_ABSTRACT_INHERITANCE</c> diagnostic
     /// and break the cycle by removing the back-edge from the abstract types list.
     /// </summary>
     private static void Pass1_DetectAbstractCycles(
@@ -11157,7 +11157,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             if (closingNode is not null)
             {
                 diagnostics.Add(MakeDiagnosticWithLocation(
-                    "MIST_CIRCULAR_INTERFACE_INHERITANCE",
+                    "MIST_CIRCULAR_ABSTRACT_INHERITANCE",
                     DiagnosticSeverity.Error,
                     $"Circular abstract type inheritance detected: '{chainStr}'.",
                     closingNode,
@@ -11169,7 +11169,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     closingAbstract, symbolTable, asts, compilation);
 
                 diagnostics.Add(new Diagnostic(
-                    new DiagnosticId("MIST_CIRCULAR_INTERFACE_INHERITANCE"),
+                    new DiagnosticId("MIST_CIRCULAR_ABSTRACT_INHERITANCE"),
                     DiagnosticSeverity.Error,
                     PipelineStage.SemanticModelConstruction,
                     $"Circular abstract type inheritance detected: '{chainStr}'.",
@@ -11657,7 +11657,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     if (missingNode is not null)
                     {
                         diagnostics.Add(MakeDiagnosticWithLocation(
-                            MissingInterfaceOverload.Value,
+                            MissingAbstractOverload.Value,
                             DiagnosticSeverity.Error,
                             message,
                             missingNode,
@@ -11669,7 +11669,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                             typeName, symbolTable, asts, compilation);
 
                         diagnostics.Add(new Diagnostic(
-                            MissingInterfaceOverload,
+                            MissingAbstractOverload,
                             DiagnosticSeverity.Error,
                             PipelineStage.SemanticModelConstruction,
                             message,
@@ -11694,7 +11694,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     if (mismatchNode is not null)
                     {
                         diagnostics.Add(MakeDiagnosticWithLocation(
-                            MissingInterfaceOverload.Value,
+                            MissingAbstractOverload.Value,
                             DiagnosticSeverity.Error,
                             message,
                             mismatchNode,
@@ -11706,7 +11706,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                             typeName, symbolTable, asts, compilation);
 
                         diagnostics.Add(new Diagnostic(
-                            MissingInterfaceOverload,
+                            MissingAbstractOverload,
                             DiagnosticSeverity.Error,
                             PipelineStage.SemanticModelConstruction,
                             message,
@@ -11770,7 +11770,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     typeName, symbolTable, asts, compilation);
 
                 diagnostics.Add(new Diagnostic(
-                    new DiagnosticId("MIST_MISSING_INTERFACE_PROPERTY"),
+                    new DiagnosticId("MIST_MISSING_ABSTRACT_PROPERTY"),
                     DiagnosticSeverity.Error,
                     PipelineStage.SemanticModelConstruction,
                     $"'{typeName}' does not implement abstract type property '{requiredAbstract.DisplayName}.{requiredProperty.Name}'.",
@@ -11789,7 +11789,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             {
                 string? path = FindCompilationUnitPathForType(typeName, symbolTable, asts, compilation);
                 diagnostics.Add(new Diagnostic(
-                    new DiagnosticId("MIST_MISSING_INTERFACE_PROPERTY_ACCESSOR"),
+                    new DiagnosticId("MIST_MISSING_ABSTRACT_PROPERTY_ACCESSOR"),
                     DiagnosticSeverity.Error,
                     PipelineStage.SemanticModelConstruction,
                     $"'{typeName}.{requiredProperty.Name}' does not implement 'get' accessor required by abstract type '{requiredAbstract.DisplayName}'.",
@@ -11802,7 +11802,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             {
                 string? path = FindCompilationUnitPathForType(typeName, symbolTable, asts, compilation);
                 diagnostics.Add(new Diagnostic(
-                    new DiagnosticId("MIST_MISSING_INTERFACE_PROPERTY_ACCESSOR"),
+                    new DiagnosticId("MIST_MISSING_ABSTRACT_PROPERTY_ACCESSOR"),
                     DiagnosticSeverity.Error,
                     PipelineStage.SemanticModelConstruction,
                     $"'{typeName}.{requiredProperty.Name}' does not implement 'set' accessor required by abstract type '{requiredAbstract.DisplayName}'.",
@@ -23621,7 +23621,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 {
                     ClassType ct2 => ct2.MemberScope,
                     StructType st2 => st2.MemberScope,
-                    abstractType it2 => it2.MemberScope,
+                    AbstractType it2 => it2.MemberScope,
                     _ => null,
                 };
 
@@ -25080,7 +25080,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             {
                 ClassType ct2 => ct2.TypeParameters,
                 StructType st2 => st2.TypeParameters,
-                abstractType it2 => it2.TypeParameters,
+                AbstractType it2 => it2.TypeParameters,
                 _ => null,
             };
             constructedTypeArgs = constructedTarget.TypeArguments;

@@ -1,4 +1,4 @@
-interface Container
+abstract Container
 {
     type Element;
 

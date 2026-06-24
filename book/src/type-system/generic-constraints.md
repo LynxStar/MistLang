@@ -1,6 +1,6 @@
 # Generic Constraints
 
-Generic constraints restrict what types can be used as type arguments. By adding a `where` clause to a generic declaration, you tell the compiler that the type parameter must satisfy certain requirements — being a reference type, implementing an interface, extending a base class, or having a specific constructor. This lets you safely call methods, access members, or construct instances of the type parameter within the generic body.
+Generic constraints restrict what types can be used as type arguments. By adding a `where` clause to a generic declaration, you tell the compiler that the type parameter must satisfy certain requirements — being a reference type, implementing an abstract type, extending a base class, or having a specific constructor. This lets you safely call methods, access members, or construct instances of the type parameter within the generic body.
 
 ## The `where` Clause Syntax
 
@@ -12,7 +12,7 @@ class Name<T> where T : constraint {
 }
 ```
 
-The constraint can be a type name (interface, trait, base class), a structural constraint (`class`, `struct`), or a constructor constraint (`new()`). Multiple constraints on the same type parameter are separated by commas.
+The constraint can be a type name (abstract type, trait, base class), a structural constraint (`class`, `struct`), or a constructor constraint (`new()`). Multiple constraints on the same type parameter are separated by commas.
 
 ## Class Constraint (Reference Type)
 
@@ -52,19 +52,19 @@ The `struct` constraint restricts a type parameter to value types only. Referenc
 
 With this constraint, `ValOnly<int>` and `ValOnly<Point>` (where `Point` is a struct) are valid, but `ValOnly<string>` would be rejected.
 
-## Interface Constraint
+## Abstract Type Constraint
 
-Constraining to an interface guarantees that the type parameter implements specific methods or properties. You can call any member declared on the interface through the constrained type parameter.
+Constraining to an abstract type guarantees that the type parameter implements specific methods or properties. You can call any member declared on the abstract type through the constrained type parameter.
 
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-{{#include ../../snippets/type-system/generic-constraints/interface-constraint.mist}}
+{{#include ../../snippets/type-system/generic-constraints/abstract-constraint.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-{{#include ../../snippets/type-system/generic-constraints/interface-constraint.cs}}
+{{#include ../../snippets/type-system/generic-constraints/abstract-constraint.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
@@ -225,24 +225,24 @@ Constraints aren't limited to type declarations — generic methods can also hav
 
 The `where T : new()` clause on the method means callers must provide a type argument that has a parameterless constructor: `MethodConstraints.CreateItem<Widget>()`.
 
-## Constraints on Interfaces and Structs
+## Constraints on Abstract Types and Structs
 
-Constraints can also appear on generic interface and struct declarations, not just classes.
+Constraints can also appear on generic abstract type and struct declarations, not just classes.
 
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-{{#include ../../snippets/type-system/generic-constraints/interface-struct-constraints.mist}}
+{{#include ../../snippets/type-system/generic-constraints/abstract-struct-constraints.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-{{#include ../../snippets/type-system/generic-constraints/interface-struct-constraints.cs}}
+{{#include ../../snippets/type-system/generic-constraints/abstract-struct-constraints.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
 
-The same `where` clause syntax works uniformly across classes, structs, interfaces, and traits.
+The same `where` clause syntax works uniformly across classes, structs, abstract types, and traits.
 
 ## Summary
 
@@ -250,11 +250,11 @@ The same `where` clause syntax works uniformly across classes, structs, interfac
 |---|---|
 | `class` | Must be a reference type |
 | `struct` | Must be a value type |
-| `InterfaceName` | Must implement the interface |
+| `AbstractTypeName` | Must implement the abstract type |
 | `TraitName` | Must structurally satisfy the trait |
 | `BaseClassName` | Must extend the base class |
 | `new()` | Must have a parameterless constructor |
 | `new(Type)` | Must have a constructor accepting that parameter type |
 | `new(), new(Type)` | Multiple constructor constraints can be combined |
 
-Constraints compose freely — combine `class`, interface, trait, base class, and constructor constraints on the same type parameter to express precise requirements. Use multiple `where` clauses when constraining different type parameters independently.
+Constraints compose freely — combine `class`, abstract type, trait, base class, and constructor constraints on the same type parameter to express precise requirements. Use multiple `where` clauses when constraining different type parameters independently.

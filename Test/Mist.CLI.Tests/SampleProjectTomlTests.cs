@@ -23,7 +23,7 @@ public class SampleProjectTomlTests
     [InlineData("AllFeatures")]
     [InlineData("Simpliest")]
     [InlineData("Inheritance")]
-    [InlineData("Interfaces")]
+    [InlineData("AbstractTypes")]
     [InlineData("Properties")]
     public void SampleProject_HasValidMistToml(string sampleName)
     {

@@ -24,7 +24,7 @@ namespace Mist.Tests.Analysis;
 /// For any <c>where</c> clause that specifies more than one substructural constraint keyword
 /// on the same type parameter, the compiler SHALL emit a diagnostic error (MIST_CONSTRAINT_0009).
 /// For any <c>where</c> clause that combines exactly one substructural constraint with any number
-/// of non-substructural constraints (class, struct, interface, new(), owned, readonly, mutable,
+/// of non-substructural constraints (class, struct, abstract type, new(), owned, readonly, mutable,
 /// default), the compiler SHALL emit no substructural combination error.
 ///
 /// All work runs in-process using CompilerDriver — no external process is spawned.
@@ -93,7 +93,7 @@ public sealed class ConstraintCombinationPropertyTests
     {
         Class,
         Struct,
-        Interface,
+        AbstractType,
         New,
         Owned,
         Readonly,
@@ -163,7 +163,7 @@ public sealed class ConstraintCombinationPropertyTests
                    SubstructuralConstraint.Relevant)
                from nonSubstructural in Gen.Elements(
                    NonSubstructuralConstraint.Class,
-                   NonSubstructuralConstraint.Interface,
+                   NonSubstructuralConstraint.AbstractType,
                    NonSubstructuralConstraint.New,
                    NonSubstructuralConstraint.Owned,
                    NonSubstructuralConstraint.Readonly,
@@ -221,7 +221,7 @@ public sealed class ConstraintCombinationPropertyTests
         {
             NonSubstructuralConstraint.Class => ("", "class"),
             NonSubstructuralConstraint.Struct => ("", "struct"),
-            NonSubstructuralConstraint.Interface => ("interface IMarker { }\n", "IMarker"),
+            NonSubstructuralConstraint.AbstractType => ("abstract IMarker { }\n", "IMarker"),
             NonSubstructuralConstraint.New => ("", "new()"),
             NonSubstructuralConstraint.Owned => ("", "owned"),
             NonSubstructuralConstraint.Readonly => ("", "readonly"),

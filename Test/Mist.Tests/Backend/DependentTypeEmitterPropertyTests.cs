@@ -227,20 +227,20 @@ public sealed class DependentTypeEmitterPropertyTests : IDisposable
     }
 
     /// <summary>Interface with dependent parameter.</summary>
-    private static Gen<DependentTypeScenario> GenInterfaceWithDepParam()
+    private static Gen<DependentTypeScenario> GenAbstractWithDepParam()
     {
-        return from ifaceName in Gen.Elements("ISized", "ICapped", "ILimited", "IBounded", "IFixed")
+        return from abstractName in Gen.Elements("ISized", "ICapped", "ILimited", "IBounded", "IFixed")
                from value in Gen.Elements(IntValues)
                from idx in Gen.Choose(0, 999)
-               let uniqueIface = $"{ifaceName}{idx}"
-               let uniqueImpl = $"Impl{ifaceName.Substring(1)}{idx}"
+               let uniqueAbstract = $"{abstractName}{idx}"
+               let uniqueImpl = $"Impl{abstractName.Substring(1)}{idx}"
                select new DependentTypeScenario
                {
-                   Description = $"interface {uniqueIface}<Cap:int> implemented with {value}",
-                   MistSource = "interface " + uniqueIface + "<Cap:int> { }\n" +
-                                "class " + uniqueImpl + " : " + uniqueIface + "<" + value + "> { }\n" +
+                   Description = $"abstract type {uniqueAbstract}<Cap:int> implemented with {value}",
+                   MistSource = "abstract " + uniqueAbstract + "<Cap:int> { }\n" +
+                                "class " + uniqueImpl + " : " + uniqueAbstract + "<" + value + "> { }\n" +
                                 "class Program { public static void Main() { } }",
-                   ExpectedPatterns = ["IConstInt", uniqueIface, uniqueImpl],
+                   ExpectedPatterns = ["IConstInt", uniqueAbstract, uniqueImpl],
                };
     }
 
@@ -277,7 +277,7 @@ public sealed class DependentTypeEmitterPropertyTests : IDisposable
             GenNegativeIntParam(),
             GenObjectConstruction(),
             GenForwardedParam(),
-            GenInterfaceWithDepParam(),
+            GenAbstractWithDepParam(),
             GenStructWithDepParam());
     }
 

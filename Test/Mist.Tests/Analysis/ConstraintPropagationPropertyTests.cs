@@ -148,51 +148,51 @@ class {derivedName}<T> : {baseName}<T> {{ }}",
     }
 
     /// <summary>
-    /// Generates scenarios where derived type has the same interface constraint as base — accepted.
+    /// Generates scenarios where derived type has the same abstract type constraint as base — accepted.
     /// </summary>
-    private static Gen<ConstraintPropagationScenario> GenInterfaceConstraintPropagated()
+    private static Gen<ConstraintPropagationScenario> GenAbstractConstraintPropagated()
     {
         return from baseName in Gen.Elements("Base", "Parent", "Root")
                from derivedName in Gen.Elements("Derived", "Child", "Sub")
-               from ifaceName in Gen.Elements("IFoo", "IBar", "IBaz")
+               from abstractName in Gen.Elements("IFoo", "IBar", "IBaz")
                select new ConstraintPropagationScenario(
-                   $@"interface {ifaceName} {{ }}
-class {baseName}<T> where T : {ifaceName} {{ }}
-class {derivedName}<T> : {baseName}<T> where T : {ifaceName} {{ }}",
-                   $"{derivedName}<T> : {baseName}<T> — both have {ifaceName} constraint",
+                   $@"abstract {abstractName} {{ }}
+class {baseName}<T> where T : {abstractName} {{ }}
+class {derivedName}<T> : {baseName}<T> where T : {abstractName} {{ }}",
+                   $"{derivedName}<T> : {baseName}<T> — both have {abstractName} constraint",
                    shouldAccept: true);
     }
 
     /// <summary>
-    /// Generates scenarios where derived type is missing the interface constraint from base — rejected.
+    /// Generates scenarios where derived type is missing the abstract type constraint from base — rejected.
     /// </summary>
-    private static Gen<ConstraintPropagationScenario> GenInterfaceConstraintMissing()
+    private static Gen<ConstraintPropagationScenario> GenAbstractConstraintMissing()
     {
         return from baseName in Gen.Elements("Base", "Parent", "Root")
                from derivedName in Gen.Elements("Derived", "Child", "Sub")
-               from ifaceName in Gen.Elements("IFoo", "IBar", "IBaz")
+               from abstractName in Gen.Elements("IFoo", "IBar", "IBaz")
                select new ConstraintPropagationScenario(
-                   $@"interface {ifaceName} {{ }}
-class {baseName}<T> where T : {ifaceName} {{ }}
+                   $@"abstract {abstractName} {{ }}
+class {baseName}<T> where T : {abstractName} {{ }}
 class {derivedName}<T> : {baseName}<T> {{ }}",
-                   $"{derivedName}<T> : {baseName}<T> — derived missing {ifaceName} constraint",
+                   $"{derivedName}<T> : {baseName}<T> — derived missing {abstractName} constraint",
                    shouldAccept: false);
     }
 
     /// <summary>
     /// Generates scenarios where derived type has a more restrictive constraint set — accepted.
-    /// (Derived has class + interface, base only has class.)
+    /// (Derived has class + abstract type, base only has class.)
     /// </summary>
     private static Gen<ConstraintPropagationScenario> GenMoreRestrictiveDerived()
     {
         return from baseName in Gen.Elements("Base", "Parent", "Root")
                from derivedName in Gen.Elements("Derived", "Child", "Sub")
-               from ifaceName in Gen.Elements("IFoo", "IBar", "IBaz")
+               from abstractName in Gen.Elements("IFoo", "IBar", "IBaz")
                select new ConstraintPropagationScenario(
-                   $@"interface {ifaceName} {{ }}
+                   $@"abstract {abstractName} {{ }}
 class {baseName}<T> where T : class {{ }}
-class {derivedName}<T> : {baseName}<T> where T : class, {ifaceName} {{ }}",
-                   $"{derivedName}<T> : {baseName}<T> — derived is more restrictive (class + {ifaceName})",
+class {derivedName}<T> : {baseName}<T> where T : class, {abstractName} {{ }}",
+                   $"{derivedName}<T> : {baseName}<T> — derived is more restrictive (class + {abstractName})",
                    shouldAccept: true);
     }
 
@@ -225,18 +225,18 @@ class {derivedName}<T> : {baseName}<T> {{ }}",
     }
 
     /// <summary>
-    /// Generates scenarios for interface inheritance propagation — accepted.
+    /// Generates scenarios for abstract type inheritance propagation — accepted.
     /// </summary>
-    private static Gen<ConstraintPropagationScenario> GenInterfaceInheritancePropagated()
+    private static Gen<ConstraintPropagationScenario> GenAbstractInheritancePropagated()
     {
-        return from baseIfaceName in Gen.Elements("IBase", "IParent", "IRoot")
-               from derivedIfaceName in Gen.Elements("IDerived", "IChild", "ISub")
-               from constraintIface in Gen.Elements("IFoo", "IBar", "IBaz")
+        return from baseAbstractName in Gen.Elements("IBase", "IParent", "IRoot")
+               from derivedAbstractName in Gen.Elements("IDerived", "IChild", "ISub")
+               from constraintAbstract in Gen.Elements("IFoo", "IBar", "IBaz")
                select new ConstraintPropagationScenario(
-                   $@"interface {constraintIface} {{ }}
-interface {baseIfaceName}<T> where T : {constraintIface} {{ }}
-interface {derivedIfaceName}<T> : {baseIfaceName}<T> where T : {constraintIface} {{ }}",
-                   $"{derivedIfaceName}<T> : {baseIfaceName}<T> — interface inheritance with {constraintIface}",
+                   $@"abstract {constraintAbstract} {{ }}
+abstract {baseAbstractName}<T> where T : {constraintAbstract} {{ }}
+abstract {derivedAbstractName}<T> : {baseAbstractName}<T> where T : {constraintAbstract} {{ }}",
+                   $"{derivedAbstractName}<T> : {baseAbstractName}<T> — abstract type inheritance with {constraintAbstract}",
                    shouldAccept: true);
     }
 
@@ -249,12 +249,12 @@ interface {derivedIfaceName}<T> : {baseIfaceName}<T> where T : {constraintIface}
             GenClassConstraintMissing(),
             GenStructConstraintPropagated(),
             GenStructConstraintMissing(),
-            GenInterfaceConstraintPropagated(),
-            GenInterfaceConstraintMissing(),
+            GenAbstractConstraintPropagated(),
+            GenAbstractConstraintMissing(),
             GenMoreRestrictiveDerived(),
             GenNewConstraintPropagated(),
             GenNewConstraintMissing(),
-            GenInterfaceInheritancePropagated());
+            GenAbstractInheritancePropagated());
     }
 
     public static Arbitrary<ConstraintPropagationScenario> ArbitraryConstraintPropagationScenario() =>

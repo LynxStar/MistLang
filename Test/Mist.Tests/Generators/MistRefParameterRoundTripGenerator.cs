@@ -276,15 +276,15 @@ public static class MistRefParameterRoundTripGenerator
                    $"return-ref: return ref {fieldName}");
     }
 
-    // ─── Interface and trait ref method generators ───────────────────────────
+    // ─── Abstract type and trait ref method generators ───────────────────────────
 
     /// <summary>
-    /// Generates an interface with a ref return method:
-    /// <c>interface IFoo { ref int Get(); }</c>
+    /// Generates an abstract type with a ref return method:
+    /// <c>abstract IFoo { ref int Get(); }</c>
     /// </summary>
-    private static Gen<RefParameterRoundTripScenario> GenInterfaceRefMethod()
+    private static Gen<RefParameterRoundTripScenario> GenAbstractRefMethod()
     {
-        return from ifaceName in Gen.Elements("IFoo", "IBar", "IService")
+        return from abstractName in Gen.Elements("IFoo", "IBar", "IService")
                from methodName in GenMethodName()
                from typeName in GenTypeName()
                from paramName in GenParamName()
@@ -292,9 +292,9 @@ public static class MistRefParameterRoundTripGenerator
                from hasRefReturn in Gen.Elements(true, false)
                let refReturn = hasRefReturn ? "ref " : ""
                let paramDecl = hasRefParam ? $"ref {typeName} {paramName}" : $"{typeName} {paramName}"
-               let source = $"interface {ifaceName} {{\n    {refReturn}{typeName} {methodName}({paramDecl});\n}}"
+               let source = $"abstract {abstractName} {{\n    {refReturn}{typeName} {methodName}({paramDecl});\n}}"
                select new RefParameterRoundTripScenario(source,
-                   $"interface-ref: {ifaceName}.{methodName}");
+                   $"abstract-ref: {abstractName}.{methodName}");
     }
 
     /// <summary>
@@ -336,7 +336,7 @@ public static class MistRefParameterRoundTripGenerator
             GenRefArgument(),
             GenMixedRefArguments(),
             GenReturnRefStatement(),
-            GenInterfaceRefMethod(),
+            GenAbstractRefMethod(),
             GenTraitRefMethod());
     }
 

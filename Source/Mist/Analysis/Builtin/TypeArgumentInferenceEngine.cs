@@ -154,47 +154,47 @@ public static class TypeArgumentInferenceEngine
             return;
         }
 
-        // Case 7: Interface implementation unification — when the declared param type
-        // is an interface (e.g., IEnumerable<TRelated>) and the argument type is a class
-        // that implements that interface (e.g., List<WI10>), find the matching interface
+        // Case 7: Abstract type implementation unification — when the declared param type
+        // is an abstract type (e.g., IEnumerable<TRelated>) and the argument type is a class
+        // that implements that abstract type (e.g., List<WI10>), find the matching abstract type
         // implementation and unify type arguments.
         if (declaredParamType is ConstructedType declaredIfaceCt
-            && declaredIfaceCt.GenericDefinition is InterfaceType declaredIface
+            && declaredIfaceCt.GenericDefinition is AbstractType declaredIface
             && argumentType is ConstructedType argumentClassCt
             && argumentClassCt.GenericDefinition is ClassType argumentClassDef)
         {
-            // Search the argument class's interfaces for one that matches the declared interface.
-            foreach (var iface in argumentClassDef.Interfaces)
+            // Search the argument class's abstracts for one that matches the declared abstract type.
+            foreach (var abs in argumentClassDef.Abstracts)
             {
-                if (iface is ConstructedType ifaceCt
-                    && ReferenceEquals(ifaceCt.GenericDefinition, declaredIface))
+                if (abs is ConstructedType absCt
+                    && ReferenceEquals(absCt.GenericDefinition, declaredIface))
                 {
-                    // Found matching interface — substitute the class's type args
-                    // into the interface's type args, then unify against the declared params.
-                    var substitutedIfaceArgs = new IType[ifaceCt.TypeArguments.Count];
-                    for (var i = 0; i < ifaceCt.TypeArguments.Count; i++)
+                    // Found matching abstract type — substitute the class's type args
+                    // into the abstract type's type args, then unify against the declared params.
+                    var substitutedIfaceArgs = new IType[absCt.TypeArguments.Count];
+                    for (var i = 0; i < absCt.TypeArguments.Count; i++)
                     {
-                        var ifaceArg = ifaceCt.TypeArguments[i];
-                        if (ifaceArg is TypeParameterType ifaceTpt
+                        var absArg = absCt.TypeArguments[i];
+                        if (absArg is TypeParameterType absTpt
                             && argumentClassDef.TypeParameters.Count > 0)
                         {
                             // Map the class's type param to the concrete type arg.
                             for (var j = 0; j < argumentClassDef.TypeParameters.Count; j++)
                             {
                                 if (argumentClassDef.TypeParameters[j] is TypeParameterType classTP
-                                    && classTP.Name == ifaceTpt.Name && classTP.Ordinal == ifaceTpt.Ordinal)
+                                    && classTP.Name == absTpt.Name && classTP.Ordinal == absTpt.Ordinal)
                                 {
-                                    ifaceArg = j < argumentClassCt.TypeArguments.Count
+                                    absArg = j < argumentClassCt.TypeArguments.Count
                                         ? argumentClassCt.TypeArguments[j]
-                                        : ifaceArg;
+                                        : absArg;
                                     break;
                                 }
                             }
                         }
-                        substitutedIfaceArgs[i] = ifaceArg;
+                        substitutedIfaceArgs[i] = absArg;
                     }
 
-                    // Unify declared interface type args against the resolved interface type args.
+                    // Unify declared abstract type args against the resolved abstract type args.
                     var count = Math.Min(declaredIfaceCt.TypeArguments.Count, substitutedIfaceArgs.Length);
                     for (var i = 0; i < count; i++)
                     {

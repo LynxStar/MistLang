@@ -19,8 +19,8 @@ namespace Mist.Tests.Semantics;
 /// Property-based tests verifying generic inheritance resolution in the semantic model.
 ///
 /// Property 7: For any class that specifies a generic base class with type arguments,
-/// and for any type that specifies generic interfaces with type arguments, the semantic
-/// model builder SHALL resolve each base type and interface to a ConstructedType with
+/// and for any type that specifies generic abstract types with type arguments, the semantic
+/// model builder SHALL resolve each base type and abstract type to a ConstructedType with
 /// the correct type arguments. When a generic type inherits from another generic type
 /// using its own type parameters (e.g., class OrderedList&lt;T&gt; : List&lt;T&gt;),
 /// the base type's type arguments SHALL reference the derived type's TypeParameterType
@@ -164,12 +164,12 @@ public class GenericInheritanceResolutionPropertyTests
     }
 
     /// <summary>
-    /// Scenario: A type implements a generic interface with type arguments.
+    /// Scenario: A type implements a generic abstract type with type arguments.
     /// e.g., class Box&lt;T&gt; : IContainer&lt;T&gt;
     /// </summary>
-    public record GenericInterfaceScenario(
+    public record GenericAbstractScenario(
         string TypeName,
-        string InterfaceName,
+        string AbstractName,
         ImmutableArray<string> TypeParamNames,
         bool TypeIsGeneric)
     {
@@ -178,9 +178,9 @@ public class GenericInheritanceResolutionPropertyTests
             if (TypeIsGeneric)
             {
                 var tps = string.Join(", ", TypeParamNames);
-                return $"class {TypeName}<{tps}> : {InterfaceName}<{tps}>";
+                return $"class {TypeName}<{tps}> : {AbstractName}<{tps}>";
             }
-            return $"class {TypeName} : {InterfaceName}<int>";
+            return $"class {TypeName} : {AbstractName}<int>";
         }
     }
 
@@ -191,7 +191,7 @@ public class GenericInheritanceResolutionPropertyTests
     private static readonly string[] TypeParamPool = ["T", "U", "V", "W"];
     private static readonly string[] BaseNamePool = ["Base", "Parent", "Root"];
     private static readonly string[] DerivedNamePool = ["Derived", "Child", "Sub"];
-    private static readonly string[] InterfaceNamePool = ["IContainer", "ICollection", "IReadable"];
+    private static readonly string[] AbstractNamePool = ["IContainer", "ICollection", "IReadable"];
     private static readonly string[] PrimitivePool = ["int", "string", "bool", "float"];
 
     public static Gen<GenericBaseClassScenario> GenGenericBaseClassScenario()
@@ -215,14 +215,14 @@ public class GenericInheritanceResolutionPropertyTests
                    concreteArgs.ToImmutableArray());
     }
 
-    public static Gen<GenericInterfaceScenario> GenGenericInterfaceScenario()
+    public static Gen<GenericAbstractScenario> GenGenericAbstractScenario()
     {
         return from typeName in Gen.Elements(DerivedNamePool)
-               from interfaceName in Gen.Elements(InterfaceNamePool)
+               from abstractName in Gen.Elements(AbstractNamePool)
                from count in Gen.Choose(1, 3)
                from isGeneric in Gen.Elements(true, false)
                let typeParams = TypeParamPool.Take(count).ToImmutableArray()
-               select new GenericInterfaceScenario(typeName, interfaceName, typeParams, isGeneric);
+               select new GenericAbstractScenario(typeName, abstractName, typeParams, isGeneric);
     }
 
     public static Arbitrary<GenericBaseClassScenario> ArbitraryGenericBaseClassScenario() =>
@@ -231,8 +231,8 @@ public class GenericInheritanceResolutionPropertyTests
     public static Arbitrary<ConcreteBaseClassScenario> ArbitraryConcreteBaseClassScenario() =>
         GenConcreteBaseClassScenario().ToArbitrary();
 
-    public static Arbitrary<GenericInterfaceScenario> ArbitraryGenericInterfaceScenario() =>
-        GenGenericInterfaceScenario().ToArbitrary();
+    public static Arbitrary<GenericAbstractScenario> ArbitraryGenericAbstractScenario() =>
+        GenGenericAbstractScenario().ToArbitrary();
 
     // ─── Property tests ──────────────────────────────────────────────────
 
@@ -400,20 +400,20 @@ public class GenericInheritanceResolutionPropertyTests
     }
 
     /// <summary>
-    /// Property 7c: When a type implements a generic interface with type arguments,
-    /// the interface resolves to a ConstructedType with the correct type arguments.
+    /// Property 7c: When a type implements a generic abstract type with type arguments,
+    /// the abstract type resolves to a ConstructedType with the correct type arguments.
     ///
     /// **Validates: Requirements 8.3, 8.5**
     /// </summary>
     [Property(Arbitrary = new[] { typeof(GenericInheritanceResolutionPropertyTests) }, MaxTest = 100)]
-    public bool GenericInterface_ResolvesToConstructedTypeWithCorrectArgs(GenericInterfaceScenario scenario)
+    public bool GenericAbstract_ResolvesToConstructedTypeWithCorrectArgs(GenericAbstractScenario scenario)
     {
-        // Build AST: generic interface + class implementing it
-        var interfaceDecl = new InterfaceDeclarationNode
+        // Build AST: generic abstract type + class implementing it
+        var abstractDecl = new AbstractDeclarationNode
         {
-            Name = MakeToken(scenario.InterfaceName),
+            Name = MakeToken(scenario.AbstractName),
             TypeParams = MakeTypeParamList(scenario.TypeParamNames.ToArray()),
-            Members = ImmutableArray<InterfaceMemberDeclarationNode>.Empty,
+            Members = ImmutableArray<AbstractMemberDeclarationNode>.Empty,
         };
 
         TypeArgumentListNode typeArgList;
@@ -427,7 +427,7 @@ public class GenericInheritanceResolutionPropertyTests
                 .ToArray();
             typeArgList = MakeTypeArgList(typeArgRefs);
 
-            var baseList = MakeBaseList([MakeBaseTypeRef(scenario.InterfaceName, typeArgList)]);
+            var baseList = MakeBaseList([MakeBaseTypeRef(scenario.AbstractName, typeArgList)]);
 
             classDecl = new ClassDeclarationNode
             {
@@ -446,7 +446,7 @@ public class GenericInheritanceResolutionPropertyTests
                 .ToArray();
             typeArgList = MakeTypeArgList(concreteArgs);
 
-            var baseList = MakeBaseList([MakeBaseTypeRef(scenario.InterfaceName, typeArgList)]);
+            var baseList = MakeBaseList([MakeBaseTypeRef(scenario.AbstractName, typeArgList)]);
 
             classDecl = new ClassDeclarationNode
             {
@@ -458,7 +458,7 @@ public class GenericInheritanceResolutionPropertyTests
         }
 
         var ast = MakeCompilationUnit(
-            new InterfaceTypeTypeDeclarationNode { InterfaceDeclaration = interfaceDecl },
+            new AbstractTypeTypeDeclarationNode { AbstractDeclaration = abstractDecl },
             new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl });
 
         var (model, diagnostics) = BuildModelWithDiagnostics(ast);
@@ -477,30 +477,30 @@ public class GenericInheritanceResolutionPropertyTests
         if (classSymbol?.DeclaredType is not ClassType classType)
             return false;
 
-        // Interfaces should contain at least one ConstructedType
-        if (classType.Interfaces.Count == 0)
+        // Abstracts should contain at least one ConstructedType
+        if (classType.Abstracts.Count == 0)
             return false;
 
-        var constructedInterface = classType.Interfaces[0] as ConstructedType;
-        if (constructedInterface is null)
+        var constructedAbstract = classType.Abstracts[0] as ConstructedType;
+        if (constructedAbstract is null)
             return false;
 
-        // GenericDefinition should be the interface
-        if (constructedInterface.GenericDefinition is not InterfaceType resolvedInterface)
+        // GenericDefinition should be the abstract type
+        if (constructedAbstract.GenericDefinition is not AbstractType resolvedAbstract)
             return false;
-        if (resolvedInterface.DisplayName != scenario.InterfaceName)
+        if (resolvedAbstract.DisplayName != scenario.AbstractName)
             return false;
 
         // TypeArguments count should match
-        if (constructedInterface.TypeArguments.Count != scenario.TypeParamNames.Length)
+        if (constructedAbstract.TypeArguments.Count != scenario.TypeParamNames.Length)
             return false;
 
         if (scenario.TypeIsGeneric)
         {
             // Type arguments should be TypeParameterType instances
-            for (var i = 0; i < constructedInterface.TypeArguments.Count; i++)
+            for (var i = 0; i < constructedAbstract.TypeArguments.Count; i++)
             {
-                if (constructedInterface.TypeArguments[i] is not TypeParameterType tpt)
+                if (constructedAbstract.TypeArguments[i] is not TypeParameterType tpt)
                     return false;
                 if (tpt.Name != scenario.TypeParamNames[i])
                     return false;
@@ -509,9 +509,9 @@ public class GenericInheritanceResolutionPropertyTests
         else
         {
             // Type arguments should be concrete types (not TypeParameterType)
-            for (var i = 0; i < constructedInterface.TypeArguments.Count; i++)
+            for (var i = 0; i < constructedAbstract.TypeArguments.Count; i++)
             {
-                if (constructedInterface.TypeArguments[i] is TypeParameterType)
+                if (constructedAbstract.TypeArguments[i] is TypeParameterType)
                     return false;
             }
         }
@@ -600,15 +600,15 @@ public class GenericInheritanceResolutionPropertyTests
     }
 
     [Fact]
-    public void GenericInterfaceImplementation_ResolvesToConstructedType()
+    public void GenericAbstractImplementation_ResolvesToConstructedType()
     {
-        // interface IContainer<T> { }
+        // abstract IContainer<T> { }
         // class Box<T> : IContainer<T> { }
-        var interfaceDecl = new InterfaceDeclarationNode
+        var abstractDecl = new AbstractDeclarationNode
         {
             Name = MakeToken("IContainer"),
             TypeParams = MakeTypeParamList(["T"]),
-            Members = ImmutableArray<InterfaceMemberDeclarationNode>.Empty,
+            Members = ImmutableArray<AbstractMemberDeclarationNode>.Empty,
         };
 
         var typeArgList = MakeTypeArgList([MakeNamedTypeRef("T")]);
@@ -624,7 +624,7 @@ public class GenericInheritanceResolutionPropertyTests
         };
 
         var ast = MakeCompilationUnit(
-            new InterfaceTypeTypeDeclarationNode { InterfaceDeclaration = interfaceDecl },
+            new AbstractTypeTypeDeclarationNode { AbstractDeclaration = abstractDecl },
             new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl });
 
         var (model, _) = BuildModelWithDiagnostics(ast);
@@ -632,11 +632,11 @@ public class GenericInheritanceResolutionPropertyTests
         var classSymbol = model.AllSymbols.First(s => s.Name == "Box" && s.Kind == SymbolKind.Class);
         var classType = Assert.IsType<ClassType>(classSymbol.DeclaredType);
 
-        Assert.Single(classType.Interfaces);
-        var constructedInterface = Assert.IsType<ConstructedType>(classType.Interfaces[0]);
-        Assert.Equal("IContainer", ((InterfaceType)constructedInterface.GenericDefinition).DisplayName);
-        Assert.Single(constructedInterface.TypeArguments);
-        var tpt = Assert.IsType<TypeParameterType>(constructedInterface.TypeArguments[0]);
+        Assert.Single(classType.Abstracts);
+        var constructedAbstract = Assert.IsType<ConstructedType>(classType.Abstracts[0]);
+        Assert.Equal("IContainer", ((AbstractType)constructedAbstract.GenericDefinition).DisplayName);
+        Assert.Single(constructedAbstract.TypeArguments);
+        var tpt = Assert.IsType<TypeParameterType>(constructedAbstract.TypeArguments[0]);
         Assert.Equal("T", tpt.Name);
     }
 

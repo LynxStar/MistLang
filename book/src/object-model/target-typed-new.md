@@ -103,10 +103,10 @@ var x = new();  // Error: The type of 'new()' cannot be inferred because 'var' d
 SomeMethod(new());  // Error if SomeMethod has overloads and the parameter type is ambiguous
 ```
 
-**Interfaces** — you cannot instantiate an interface:
+**Abstract types** — you cannot instantiate an abstract type:
 
 ```mist
-IDrawable d = new();  // Error: Cannot create an instance of interface type 'IDrawable' with target-typed new.
+IDrawable d = new();  // Error: Cannot create an instance of abstract type 'IDrawable' with target-typed new.
 ```
 
 **Traits** — you cannot instantiate a trait:

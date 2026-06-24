@@ -1,11 +1,11 @@
-// Feature: structured-context, Property 5: Interface and trait with-clause contract enforcement
+// Feature: structured-context, Property 5: Abstract type and trait with-clause contract enforcement
 //
 // **Validates: Requirements 8.1, 8.2, 8.3, 8.4, 8.5**
 //
-// For any Mist program where an interface method declares `with` clauses, every
+// For any Mist program where an abstract type method declares `with` clauses, every
 // implementing type's corresponding method SHALL declare the exact same `with`
 // clauses (matched by resolved type, no variance). Conversely, for any implementing
-// method that omits or mismatches a `with` clause from the interface method, the
+// method that omits or mismatches a `with` clause from the abstract type method, the
 // compiler SHALL emit a diagnostic. For traits, for any type's method that matches
 // a trait method in name, parameters, and return type but differs in `with` clauses,
 // the compiler SHALL NOT consider it a structural match for trait satisfaction.
@@ -38,28 +38,28 @@ namespace Mist.Tests.Analysis;
 public enum ContractScenarioKind
 {
     /// <summary>
-    /// Interface method has with-clause(s), implementing method matches exactly.
+    /// Abstract type method has with-clause(s), implementing method matches exactly.
     /// No diagnostic expected.
     /// </summary>
-    InterfaceExactMatch,
+    AbstractExactMatch,
 
     /// <summary>
-    /// Interface method has with-clause(s), implementing method omits one or more.
+    /// Abstract type method has with-clause(s), implementing method omits one or more.
     /// MIST_CTX_0006 diagnostic expected for each omitted clause.
     /// </summary>
-    InterfaceOmittedClause,
+    AbstractOmittedClause,
 
     /// <summary>
-    /// Interface method has with-clause(s), implementing method declares a different type.
+    /// Abstract type method has with-clause(s), implementing method declares a different type.
     /// MIST_CTX_0006 diagnostic expected for the mismatched clause.
     /// </summary>
-    InterfaceMismatchedType,
+    AbstractMismatchedType,
 
     /// <summary>
-    /// Interface method has with-clause(s), implementing method has all required
+    /// Abstract type method has with-clause(s), implementing method has all required
     /// clauses plus an extra one. No diagnostic expected (extra clauses are allowed).
     /// </summary>
-    InterfaceExtraClause,
+    AbstractExtraClause,
 
     /// <summary>
     /// Trait method has with-clause(s), type's method matches with-clauses exactly.
@@ -76,7 +76,7 @@ public enum ContractScenarioKind
 }
 
 /// <summary>
-/// A generated scenario for testing interface/trait with-clause contract enforcement.
+/// A generated scenario for testing abstract type/trait with-clause contract enforcement.
 /// </summary>
 public sealed class ContractEnforcementScenario
 {
@@ -84,7 +84,7 @@ public sealed class ContractEnforcementScenario
     public string Source { get; }
 
     /// <summary>
-    /// Whether MIST_CTX_0006 diagnostics are expected (for interface scenarios).
+    /// Whether MIST_CTX_0006 diagnostics are expected (for abstract type scenarios).
     /// </summary>
     public int ExpectedContractDiagnosticCount { get; }
 
@@ -120,9 +120,9 @@ public sealed class ContractEnforcementScenario
 // ─── Property test class ─────────────────────────────────────────────────
 
 /// <summary>
-/// Property-based tests for interface and trait with-clause contract enforcement.
+/// Property-based tests for abstract type and trait with-clause contract enforcement.
 ///
-/// Property 5: Interface and trait with-clause contract enforcement
+/// Property 5: Abstract type and trait with-clause contract enforcement
 ///
 /// **Validates: Requirements 8.1, 8.2, 8.3, 8.4, 8.5**
 /// </summary>
@@ -147,7 +147,7 @@ public sealed class ContextContractEnforcementPropertyTests
     private static readonly string[] MethodNames =
         ["Execute", "Process", "Handle", "Run", "Invoke"];
 
-    private static readonly string[] InterfaceNames =
+    private static readonly string[] AbstractNames =
         ["IService", "IHandler", "IProcessor", "IWorker", "IRunner"];
 
     private static readonly string[] TraitNames =
@@ -158,61 +158,61 @@ public sealed class ContextContractEnforcementPropertyTests
 
     // ─── FsCheck generators ─────────────────────────────────────────────
 
-    private static Gen<ContractEnforcementScenario> GenInterfaceExactMatch()
+    private static Gen<ContractEnforcementScenario> GenAbstractExactMatch()
     {
         return from ctxIdx in Gen.Choose(0, ContextTypeNames.Length - 1)
                from methodIdx in Gen.Choose(0, MethodNames.Length - 1)
-               from ifaceIdx in Gen.Choose(0, InterfaceNames.Length - 1)
+               from abstractIdx in Gen.Choose(0, AbstractNames.Length - 1)
                from implIdx in Gen.Choose(0, ImplClassNames.Length - 1)
-               select BuildInterfaceExactMatchScenario(
+               select BuildAbstractExactMatchScenario(
                    ContextTypeNames[ctxIdx],
                    MethodNames[methodIdx],
-                   InterfaceNames[ifaceIdx],
+                   AbstractNames[abstractIdx],
                    ImplClassNames[implIdx]);
     }
 
-    private static Gen<ContractEnforcementScenario> GenInterfaceOmittedClause()
+    private static Gen<ContractEnforcementScenario> GenAbstractOmittedClause()
     {
         return from ctxIdx in Gen.Choose(0, ContextTypeNames.Length - 1)
                from methodIdx in Gen.Choose(0, MethodNames.Length - 1)
-               from ifaceIdx in Gen.Choose(0, InterfaceNames.Length - 1)
+               from abstractIdx in Gen.Choose(0, AbstractNames.Length - 1)
                from implIdx in Gen.Choose(0, ImplClassNames.Length - 1)
-               select BuildInterfaceOmittedClauseScenario(
+               select BuildAbstractOmittedClauseScenario(
                    ContextTypeNames[ctxIdx],
                    MethodNames[methodIdx],
-                   InterfaceNames[ifaceIdx],
+                   AbstractNames[abstractIdx],
                    ImplClassNames[implIdx]);
     }
 
-    private static Gen<ContractEnforcementScenario> GenInterfaceMismatchedType()
+    private static Gen<ContractEnforcementScenario> GenAbstractMismatchedType()
     {
         return from ctxIdx1 in Gen.Choose(0, ContextTypeNames.Length - 1)
                from ctxIdx2 in Gen.Choose(0, ContextTypeNames.Length - 1)
                where ctxIdx1 != ctxIdx2
                from methodIdx in Gen.Choose(0, MethodNames.Length - 1)
-               from ifaceIdx in Gen.Choose(0, InterfaceNames.Length - 1)
+               from abstractIdx in Gen.Choose(0, AbstractNames.Length - 1)
                from implIdx in Gen.Choose(0, ImplClassNames.Length - 1)
-               select BuildInterfaceMismatchedTypeScenario(
+               select BuildAbstractMismatchedTypeScenario(
                    ContextTypeNames[ctxIdx1],
                    ContextTypeNames[ctxIdx2],
                    MethodNames[methodIdx],
-                   InterfaceNames[ifaceIdx],
+                   AbstractNames[abstractIdx],
                    ImplClassNames[implIdx]);
     }
 
-    private static Gen<ContractEnforcementScenario> GenInterfaceExtraClause()
+    private static Gen<ContractEnforcementScenario> GenAbstractExtraClause()
     {
         return from ctxIdx1 in Gen.Choose(0, ContextTypeNames.Length - 1)
                from ctxIdx2 in Gen.Choose(0, ContextTypeNames.Length - 1)
                where ctxIdx1 != ctxIdx2
                from methodIdx in Gen.Choose(0, MethodNames.Length - 1)
-               from ifaceIdx in Gen.Choose(0, InterfaceNames.Length - 1)
+               from abstractIdx in Gen.Choose(0, AbstractNames.Length - 1)
                from implIdx in Gen.Choose(0, ImplClassNames.Length - 1)
-               select BuildInterfaceExtraClauseScenario(
+               select BuildAbstractExtraClauseScenario(
                    ContextTypeNames[ctxIdx1],
                    ContextTypeNames[ctxIdx2],
                    MethodNames[methodIdx],
-                   InterfaceNames[ifaceIdx],
+                   AbstractNames[abstractIdx],
                    ImplClassNames[implIdx]);
     }
 
@@ -245,10 +245,10 @@ public sealed class ContextContractEnforcementPropertyTests
     public static Gen<ContractEnforcementScenario> GenScenario()
     {
         return Gen.OneOf(
-            GenInterfaceExactMatch(),
-            GenInterfaceOmittedClause(),
-            GenInterfaceMismatchedType(),
-            GenInterfaceExtraClause(),
+            GenAbstractExactMatch(),
+            GenAbstractOmittedClause(),
+            GenAbstractMismatchedType(),
+            GenAbstractExtraClause(),
             GenTraitExactMatch(),
             GenTraitWithClauseMismatch());
     }
@@ -259,18 +259,18 @@ public sealed class ContextContractEnforcementPropertyTests
     // ─── Scenario builders ──────────────────────────────────────────────
 
     /// <summary>
-    /// Interface method has a with-clause, implementing method matches exactly.
+    /// Abstract type method has a with-clause, implementing method matches exactly.
     /// No MIST_CTX_0006 diagnostic expected.
     /// </summary>
-    private static ContractEnforcementScenario BuildInterfaceExactMatchScenario(
-        string ctxType, string methodName, string ifaceName, string implName)
+    private static ContractEnforcementScenario BuildAbstractExactMatchScenario(
+        string ctxType, string methodName, string abstractName, string implName)
     {
         var source =
             $"class {ctxType} {{ }}\n" +
-            $"interface {ifaceName} {{\n" +
+            $"abstract {abstractName} {{\n" +
             $"    void {methodName}() with {ctxType} ctx;\n" +
             "}\n" +
-            $"class {implName} : {ifaceName} {{\n" +
+            $"class {implName} : {abstractName} {{\n" +
             $"    public void {methodName}() with {ctxType} ctx {{ }}\n" +
             "}\n" +
             "class Program {\n" +
@@ -278,7 +278,7 @@ public sealed class ContextContractEnforcementPropertyTests
             "}\n";
 
         return new ContractEnforcementScenario(
-            ContractScenarioKind.InterfaceExactMatch,
+            ContractScenarioKind.AbstractExactMatch,
             source,
             expectedContractDiagnosticCount: 0,
             expectTraitUnsatisfied: false,
@@ -286,18 +286,18 @@ public sealed class ContextContractEnforcementPropertyTests
     }
 
     /// <summary>
-    /// Interface method has a with-clause, implementing method omits it.
+    /// Abstract type method has a with-clause, implementing method omits it.
     /// MIST_CTX_0006 diagnostic expected.
     /// </summary>
-    private static ContractEnforcementScenario BuildInterfaceOmittedClauseScenario(
-        string ctxType, string methodName, string ifaceName, string implName)
+    private static ContractEnforcementScenario BuildAbstractOmittedClauseScenario(
+        string ctxType, string methodName, string abstractName, string implName)
     {
         var source =
             $"class {ctxType} {{ }}\n" +
-            $"interface {ifaceName} {{\n" +
+            $"abstract {abstractName} {{\n" +
             $"    void {methodName}() with {ctxType} ctx;\n" +
             "}\n" +
-            $"class {implName} : {ifaceName} {{\n" +
+            $"class {implName} : {abstractName} {{\n" +
             $"    public void {methodName}() {{ }}\n" +
             "}\n" +
             "class Program {\n" +
@@ -305,7 +305,7 @@ public sealed class ContextContractEnforcementPropertyTests
             "}\n";
 
         return new ContractEnforcementScenario(
-            ContractScenarioKind.InterfaceOmittedClause,
+            ContractScenarioKind.AbstractOmittedClause,
             source,
             expectedContractDiagnosticCount: 1,
             expectTraitUnsatisfied: false,
@@ -313,21 +313,21 @@ public sealed class ContextContractEnforcementPropertyTests
     }
 
     /// <summary>
-    /// Interface method has a with-clause of one type, implementing method declares
+    /// Abstract type method has a with-clause of one type, implementing method declares
     /// a with-clause of a different type. MIST_CTX_0006 diagnostic expected for the
     /// missing required type.
     /// </summary>
-    private static ContractEnforcementScenario BuildInterfaceMismatchedTypeScenario(
+    private static ContractEnforcementScenario BuildAbstractMismatchedTypeScenario(
         string requiredCtxType, string wrongCtxType, string methodName,
-        string ifaceName, string implName)
+        string abstractName, string implName)
     {
         var source =
             $"class {requiredCtxType} {{ }}\n" +
             $"class {wrongCtxType} {{ }}\n" +
-            $"interface {ifaceName} {{\n" +
+            $"abstract {abstractName} {{\n" +
             $"    void {methodName}() with {requiredCtxType} ctx;\n" +
             "}\n" +
-            $"class {implName} : {ifaceName} {{\n" +
+            $"class {implName} : {abstractName} {{\n" +
             $"    public void {methodName}() with {wrongCtxType} ctx {{ }}\n" +
             "}\n" +
             "class Program {\n" +
@@ -335,7 +335,7 @@ public sealed class ContextContractEnforcementPropertyTests
             "}\n";
 
         return new ContractEnforcementScenario(
-            ContractScenarioKind.InterfaceMismatchedType,
+            ContractScenarioKind.AbstractMismatchedType,
             source,
             expectedContractDiagnosticCount: 1,
             expectTraitUnsatisfied: false,
@@ -343,20 +343,20 @@ public sealed class ContextContractEnforcementPropertyTests
     }
 
     /// <summary>
-    /// Interface method has a with-clause, implementing method has the required clause
+    /// Abstract type method has a with-clause, implementing method has the required clause
     /// plus an extra one. No diagnostic expected (extra clauses are allowed).
     /// </summary>
-    private static ContractEnforcementScenario BuildInterfaceExtraClauseScenario(
+    private static ContractEnforcementScenario BuildAbstractExtraClauseScenario(
         string requiredCtxType, string extraCtxType, string methodName,
-        string ifaceName, string implName)
+        string abstractName, string implName)
     {
         var source =
             $"class {requiredCtxType} {{ }}\n" +
             $"class {extraCtxType} {{ }}\n" +
-            $"interface {ifaceName} {{\n" +
+            $"abstract {abstractName} {{\n" +
             $"    void {methodName}() with {requiredCtxType} ctx;\n" +
             "}\n" +
-            $"class {implName} : {ifaceName} {{\n" +
+            $"class {implName} : {abstractName} {{\n" +
             $"    public void {methodName}() with {requiredCtxType} ctx with {extraCtxType} extra {{ }}\n" +
             "}\n" +
             "class Program {\n" +
@@ -364,7 +364,7 @@ public sealed class ContextContractEnforcementPropertyTests
             "}\n";
 
         return new ContractEnforcementScenario(
-            ContractScenarioKind.InterfaceExtraClause,
+            ContractScenarioKind.AbstractExtraClause,
             source,
             expectedContractDiagnosticCount: 0,
             expectTraitUnsatisfied: false,
@@ -478,16 +478,16 @@ public sealed class ContextContractEnforcementPropertyTests
     }
 
     // ═══════════════════════════════════════════════════════════════════════
-    // Property 5: Interface and trait with-clause contract enforcement
+    // Property 5: Abstract type and trait with-clause contract enforcement
     //
     // **Validates: Requirements 8.1, 8.2, 8.3, 8.4, 8.5**
     // ═══════════════════════════════════════════════════════════════════════
 
     /// <summary>
-    /// For any Mist program where an interface method declares `with` clauses,
+    /// For any Mist program where an abstract type method declares `with` clauses,
     /// every implementing type's corresponding method SHALL declare the exact same
     /// `with` clauses (matched by resolved type, no variance). Conversely, for any
-    /// implementing method that omits or mismatches a `with` clause from the interface
+    /// implementing method that omits or mismatches a `with` clause from the abstract type
     /// method, the compiler SHALL emit a diagnostic. For traits, for any type's method
     /// that matches a trait method in name, parameters, and return type but differs in
     /// `with` clauses, the compiler SHALL NOT consider it a structural match for trait
@@ -510,7 +510,7 @@ public sealed class ContextContractEnforcementPropertyTests
             .Where(d => d.Id.Value == "MIST_TRAIT_WITH_UNSATISFIED")
             .ToImmutableArray();
 
-        // Check interface contract diagnostics count.
+        // Check abstract type contract diagnostics count.
         if (contractDiags.Length != scenario.ExpectedContractDiagnosticCount)
         {
             return false.ToProperty()

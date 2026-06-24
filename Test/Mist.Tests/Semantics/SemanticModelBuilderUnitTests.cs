@@ -1362,17 +1362,17 @@ public class SemanticModelBuilderUnitTests
     }
 
     [Fact]
-    public void WithClause_OnInterfaceMethod_ResolvesTypeAndStoresOnSymbol()
+    public void WithClause_OnAbstractMethod_ResolvesTypeAndStoresOnSymbol()
     {
         // class MyCtx { }
-        // interface I { void M() with MyCtx ctx; }
+        // abstract I { void M() with MyCtx ctx; }
         var ctxClassDecl = new ClassDeclarationNode
         {
             Name = MakeToken("MyCtx"),
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
         };
 
-        var ifaceMethodDecl = new InterfaceMethodDeclarationNode
+        var abstractMethodDecl = new AbstractMethodDeclarationNode
         {
             Name = MakeToken("M"),
             ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
@@ -1391,18 +1391,18 @@ public class SemanticModelBuilderUnitTests
             }),
         };
 
-        var ifaceDecl = new InterfaceDeclarationNode
+        var abstractDecl = new AbstractDeclarationNode
         {
             Name = MakeToken("I"),
-            Members = ImmutableArray.Create<InterfaceMemberDeclarationNode>(
-                new InterfaceMethodMemberInterfaceMemberDeclarationNode { Method = ifaceMethodDecl }),
+            Members = ImmutableArray.Create<AbstractMemberDeclarationNode>(
+                new AbstractMethodMemberAbstractMemberDeclarationNode { Method = abstractMethodDecl }),
         };
 
         var ast = new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
                 new ClassTypeTypeDeclarationNode { ClassDeclaration = ctxClassDecl },
-                new InterfaceTypeTypeDeclarationNode { InterfaceDeclaration = ifaceDecl }).AsTopLevelItems(),
+                new AbstractTypeTypeDeclarationNode { AbstractDeclaration = abstractDecl }).AsTopLevelItems(),
         };
 
         var (model, diagnostics) = BuildModelWithDiagnostics(ast);

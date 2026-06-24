@@ -19,7 +19,7 @@ namespace Mist.Tests.Analysis;
 /// Property-based tests for direct assignability precedence over implicit casts.
 ///
 /// Property 8: For any program where a type is both directly assignable to a target
-/// type (via identity, subtype, interface implementation, trait satisfaction, or numeric
+/// type (via identity, subtype, abstract type implementation, trait satisfaction, or numeric
 /// widening) AND defines an implicit cast operator to that target type, the type checker
 /// SHALL use the direct assignability path and SHALL NOT record a resolved cast operator
 /// on the assignment node.

@@ -101,7 +101,8 @@ public class BoundedRange
 
 // ─── 11. Method with both generic constraint and parameter refinement ────────
 
-interface IDisplayable
+
+abstract IDisplayable
 {
     string Display();
 }
@@ -144,9 +145,9 @@ public class SmallArray : FixedArray<int, 10> { }
 
 public class Wrapper<N:int> : FixedArray<string, N> where N >= 0 { }
 
-// ─── 15. Interface with parameter refinement — same constraint (Liskov) ──────
+// ─── 15. Abstract type with parameter refinement — same constraint (Liskov) ─
 
-interface IValidator
+abstract IValidator
 {
     string Validate(int value) where value >= 0;
 }
@@ -160,7 +161,7 @@ class StrictValidator : IValidator
     }
 }
 
-// ─── 16. Interface with parameter refinement — no constraint (Liskov) ────────
+// ─── 16. Abstract type with parameter refinement — no constraint (Liskov) ────
 
 // Implements with NO constraint — valid (weaker, accepts everything)
 class LenientValidator : IValidator
@@ -171,9 +172,9 @@ class LenientValidator : IValidator
     }
 }
 
-// ─── 17. Interface with parameter refinement — weaker constraint (Liskov) ────
+// ─── 17. Abstract type with parameter refinement — weaker constraint (Liskov) 
 
-interface IStrictProcessor
+abstract IStrictProcessor
 {
     string Process(int x) where x >= 10 and <= 100;
 }
@@ -287,24 +288,24 @@ public class Program
         Console.WriteLine($"  Wrapper<5> : FixedArray<string, 5> constructed successfully");
         Console.WriteLine($"  (Wrapper's N >= 0 implies FixedArray's Size >= 0)");
 
-        // 15. Interface with parameter refinement — same constraint (Liskov)
-        Console.WriteLine("--- 15. Interface refinement — same constraint (Liskov) ---");
+        // 15. Abstract type with parameter refinement — same constraint (Liskov)
+        Console.WriteLine("--- 15. Abstract type refinement — same constraint (Liskov) ---");
         IValidator strictVal = new StrictValidator();
         var result15 = strictVal.Validate(42);
         Console.WriteLine($"  {result15}");
         var result15b = strictVal.Validate(0);
         Console.WriteLine($"  {result15b}");
 
-        // 16. Interface with parameter refinement — no constraint (Liskov)
-        Console.WriteLine("--- 16. Interface refinement — no constraint (Liskov) ---");
+        // 16. Abstract type with parameter refinement — no constraint (Liskov)
+        Console.WriteLine("--- 16. Abstract type refinement — no constraint (Liskov) ---");
         IValidator lenientVal = new LenientValidator();
         var result16 = lenientVal.Validate(99);
         Console.WriteLine($"  {result16}");
         var result16b = lenientVal.Validate(0);
         Console.WriteLine($"  {result16b}");
 
-        // 17. Interface with parameter refinement — weaker constraint (Liskov)
-        Console.WriteLine("--- 17. Interface refinement — weaker constraint (Liskov) ---");
+        // 17. Abstract type with parameter refinement — weaker constraint (Liskov)
+        Console.WriteLine("--- 17. Abstract type refinement — weaker constraint (Liskov) ---");
         IStrictProcessor weakerProc = new WeakerProcessor();
         var result17 = weakerProc.Process(50);
         Console.WriteLine($"  {result17}");

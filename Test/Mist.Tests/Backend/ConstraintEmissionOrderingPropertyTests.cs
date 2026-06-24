@@ -72,7 +72,7 @@ public sealed class ConstraintEmissionOrderingPropertyTests : IDisposable
 
     // ─── Helpers ─────────────────────────────────────────────────────────
 
-    private static readonly string[] InterfaceNames = ["IAlpha", "IBeta", "IGamma"];
+    private static readonly string[] AbstractNames = ["IAlpha", "IBeta", "IGamma"];
     private static readonly string[] BaseClassNames = ["Animal", "Vehicle", "Shape"];
 
     private (ISemanticModel? Model, string CsContent) CompileAndEmit(string source)
@@ -167,45 +167,45 @@ public sealed class ConstraintEmissionOrderingPropertyTests : IDisposable
 
     private static Gen<ConstraintEmissionOrderingScenario> GenClassWithInterfacesAndNew()
     {
-        return Gen.Elements(InterfaceNames)
-            .SelectMany(iface => Gen.Constant(new ConstraintEmissionOrderingScenario(
+        return Gen.Elements(AbstractNames)
+            .SelectMany(abs => Gen.Constant(new ConstraintEmissionOrderingScenario(
                 $@"
-interface {iface} {{ }}
-class Container<T> where T : new(), {iface}, class {{ }}
+abstract {abs} {{ }}
+class Container<T> where T : new(), {abs}, class {{ }}
 class Program {{
     public static void Main() {{ }}
 }}",
-                $"class + {iface} + new() in reversed order",
+                $"class + {abs} + new() in reversed order",
                 "T")));
     }
 
     private static Gen<ConstraintEmissionOrderingScenario> GenStructWithInterfaces()
     {
-        return Gen.Elements(InterfaceNames)
-            .SelectMany(iface => Gen.Constant(new ConstraintEmissionOrderingScenario(
+        return Gen.Elements(AbstractNames)
+            .SelectMany(abs => Gen.Constant(new ConstraintEmissionOrderingScenario(
                 $@"
-interface {iface} {{ }}
-class Container<T> where T : {iface}, struct {{ }}
+abstract {abs} {{ }}
+class Container<T> where T : {abs}, struct {{ }}
 class Program {{
     public static void Main() {{ }}
 }}",
-                $"struct + {iface} in reversed order",
+                $"struct + {abs} in reversed order",
                 "T")));
     }
 
     private static Gen<ConstraintEmissionOrderingScenario> GenBaseClassWithInterfacesAndNew()
     {
         return Gen.Elements(BaseClassNames)
-            .SelectMany(baseClass => Gen.Elements(InterfaceNames)
-                .SelectMany(iface => Gen.Constant(new ConstraintEmissionOrderingScenario(
+            .SelectMany(baseClass => Gen.Elements(AbstractNames)
+                .SelectMany(abs => Gen.Constant(new ConstraintEmissionOrderingScenario(
                     $@"
-interface {iface} {{ }}
+abstract {abs} {{ }}
 class {baseClass} {{ }}
-class Container<T> where T : new(), {iface}, {baseClass} {{ }}
+class Container<T> where T : new(), {abs}, {baseClass} {{ }}
 class Program {{
     public static void Main() {{ }}
 }}",
-                    $"new() + {iface} + {baseClass} in wrong order",
+                    $"new() + {abs} + {baseClass} in wrong order",
                     "T"))));
     }
 
@@ -213,9 +213,9 @@ class Program {{
     {
         return Gen.Constant(new ConstraintEmissionOrderingScenario(
             @"
-interface IAlpha { }
-interface IBeta { }
-interface IGamma { }
+abstract IAlpha { }
+abstract IBeta { }
+abstract IGamma { }
 class Container<T> where T : new(), IGamma, IAlpha, IBeta, class { }
 class Program {
     public static void Main() { }
@@ -226,31 +226,31 @@ class Program {
 
     private static Gen<ConstraintEmissionOrderingScenario> GenMethodConstraintsScrambled()
     {
-        return Gen.Elements(InterfaceNames)
-            .SelectMany(iface => Gen.Constant(new ConstraintEmissionOrderingScenario(
+        return Gen.Elements(AbstractNames)
+            .SelectMany(abs => Gen.Constant(new ConstraintEmissionOrderingScenario(
                 $@"
-interface {iface} {{ }}
+abstract {abs} {{ }}
 class Program {{
-    public static void DoWork<T>(T item) where T : new(), {iface}, class {{ }}
+    public static void DoWork<T>(T item) where T : new(), {abs}, class {{ }}
     public static void Main() {{ }}
 }}",
-                $"method with class + {iface} + new() scrambled",
+                $"method with class + {abs} + new() scrambled",
                 "T")));
     }
 
     private static Gen<ConstraintEmissionOrderingScenario> GenBaseClassFirst()
     {
         return Gen.Elements(BaseClassNames)
-            .SelectMany(baseClass => Gen.Elements(InterfaceNames)
-                .SelectMany(iface => Gen.Constant(new ConstraintEmissionOrderingScenario(
+            .SelectMany(baseClass => Gen.Elements(AbstractNames)
+                .SelectMany(abs => Gen.Constant(new ConstraintEmissionOrderingScenario(
                     $@"
-interface {iface} {{ }}
+abstract {abs} {{ }}
 class {baseClass} {{ }}
-class Container<T> where T : {baseClass}, new(), {iface} {{ }}
+class Container<T> where T : {baseClass}, new(), {abs} {{ }}
 class Program {{
     public static void Main() {{ }}
 }}",
-                    $"{baseClass} first, then new(), then {iface}",
+                    $"{baseClass} first, then new(), then {abs}",
                     "T"))));
     }
 

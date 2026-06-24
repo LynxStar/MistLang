@@ -168,14 +168,14 @@ public sealed class AsExpressionTypeClassificationTests
     }
 
     /// <summary>
-    /// Interface widening: <c>dog as IAnimal</c> where Dog implements IAnimal → result type is <c>IAnimal</c>.
+    /// Abstract type widening: <c>dog as IAnimal</c> where Dog implements IAnimal → result type is <c>IAnimal</c>.
     /// Requirement 2.3
     /// </summary>
     [Fact]
-    public void Provable_InterfaceWidening_ResultTypeIsT()
+    public void Provable_AbstractTypeWidening_ResultTypeIsT()
     {
         const string source = """
-            interface IAnimal {
+            abstract IAnimal {
                 string Speak();
             }
             class Dog : IAnimal {
@@ -190,7 +190,7 @@ public sealed class AsExpressionTypeClassificationTests
             """;
 
         var diagnostics = CompileAndGetDiagnostics(source);
-        AssertNoDiagnosticErrors(diagnostics, "interface widening: dog as IAnimal → IAnimal");
+        AssertNoDiagnosticErrors(diagnostics, "abstract type widening: dog as IAnimal → IAnimal");
     }
 
     /// <summary>
@@ -315,15 +315,15 @@ public sealed class AsExpressionTypeClassificationTests
     }
 
     /// <summary>
-    /// Class to unproven interface: <c>animal as ISwimmable</c> → result type is <c>ISwimmable?</c>.
-    /// The class does not implement the interface, but a derived class might.
+    /// Class to unproven abstract type: <c>animal as ISwimmable</c> → result type is <c>ISwimmable?</c>.
+    /// The class does not implement the abstract type, but a derived class might.
     /// Requirement 3.5
     /// </summary>
     [Fact]
-    public void NonProvable_ClassToUnprovenInterface_ResultTypeIsTOptional()
+    public void NonProvable_ClassToUnprovenAbstract_ResultTypeIsTOptional()
     {
         const string source = """
-            interface ISwimmable {
+            abstract ISwimmable {
                 void Swim();
             }
             class Animal { }
@@ -336,7 +336,7 @@ public sealed class AsExpressionTypeClassificationTests
             """;
 
         var diagnostics = CompileAndGetDiagnostics(source);
-        AssertNoDiagnosticErrors(diagnostics, "class→interface (unproven): animal as ISwimmable → ISwimmable?");
+        AssertNoDiagnosticErrors(diagnostics, "class→abstract (unproven): animal as ISwimmable → ISwimmable?");
     }
 
     // ═══════════════════════════════════════════════════════════════════════

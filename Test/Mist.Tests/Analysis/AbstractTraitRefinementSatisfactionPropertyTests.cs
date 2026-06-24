@@ -1,0 +1,523 @@
+// Feature: adhoc-refinement-constraints, Property 9: Abstract/trait refinement constraint satisfaction
+// **Validates: Requirements 17.1, 17.2, 17.3, 17.4, 17.5, 17.6, 17.7, 17.8, 17.9**
+
+using System.Collections.Immutable;
+using FsCheck;
+using FsCheck.Fluent;
+using FsCheck.Xunit;
+using Mist.Analysis.Builtin;
+using Mist.Analysis.Contracts;
+using Mist.Backends.Contracts;
+using Mist.Backends.CSharpTranspiler;
+using Mist.Common.Diagnostics;
+using Mist.Driver;
+using Mist.Driver.Contracts;
+using Mist.Lexing;
+using Mist.Parsing;
+using Mist.Semantics.Model;
+
+namespace Mist.Tests.Analysis;
+
+/// <summary>
+/// Property-based tests for abstract/trait method refinement constraint satisfaction
+/// (Liskov Substitution Principle).
+///
+/// Property 9: For any abstract or trait method with a parameter refinement constraint,
+/// and any implementing method on a class or struct, the type checker SHALL accept the
+/// implementation if and only if, for each parameter position where the abstract/trait
+/// declares a refinement predicate, either (a) the implementation declares no refinement
+/// constraint on that parameter, or (b) RefinementSolver.Implies(abstractPredicate,
+/// implPredicate) returns true. If the implication does not hold (the implementation's
+/// constraint is stronger), the type checker SHALL emit a MIST_REFINEMENT_0009 diagnostic
+/// for that parameter. Each parameter position is validated independently.
+///
+/// Uses the full compilation pipeline (lexer → parser → semantic model → type checker) via
+/// a shared CompilerDriver instance to comply with the test-process-spawning policy.
+///
+/// **Validates: Requirements 17.1, 17.2, 17.3, 17.4, 17.5, 17.6, 17.7, 17.8, 17.9**
+/// </summary>
+public class AbstractTraitRefinementSatisfactionPropertyTests
+{
+    private static readonly CompilerDriver SharedDriver = new(
+        new MistLexer(),
+        new MistParser(),
+        new SemanticModelBuilder(),
+        ImmutableArray.Create<IAnalyzer>(new TypeCheckerAnalyzer()),
+        ImmutableArray.Create<IBackend>(new CSharpTranspilerBackend()));
+
+    // ─── Helpers ─────────────────────────────────────────────────────────
+
+    private static ImmutableArray<Diagnostic> CompileAndGetDiagnostics(string source)
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), $"mist_pbt_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(tempDir);
+        try
+        {
+            var sourcePath = Path.Combine(tempDir, "Program.mist");
+            File.WriteAllText(sourcePath, source);
+
+            var options = new CompilerOptions(
+                ProjectFolder: tempDir,
+                SourcePaths: ImmutableArray.Create(sourcePath),
+                Backend: new BackendId("csharp"),
+                OutputDirectory: tempDir,
+                BinDirectory: Path.Combine(tempDir, "bin"),
+                ProjectName: "TestProject",
+                NamespaceRoot: "TestProject",
+                EnabledAnalyzerIds: ImmutableArray<string>.Empty,
+                EmitToDisk: false);
+
+            var result = SharedDriver.Compile(options);
+            return result.Diagnostics;
+        }
+        finally
+        {
+            try { Directory.Delete(tempDir, recursive: true); } catch { /* best effort cleanup */ }
+        }
+    }
+
+    /// <summary>
+    /// Determines whether abstractPredicate implies implPredicate using the same
+    /// algebraic (real-number) semantics as <see cref="RefinementSolver"/>. This avoids
+    /// false positives from integer brute-force (e.g., &lt; 49 does NOT imply &lt;= 48
+    /// under real-number semantics because 48.5 satisfies &lt; 49 but not &lt;= 48).
+    /// </summary>
+    private static bool AlgebraicImplies(string abstractOp, int abstractThreshold, string implOp, int implThreshold)
+    {
+        // Mirrors RefinementPredicate.ConstraintImplies logic exactly.
+        return (abstractOp, implOp) switch
+        {
+            // Source: >=
+            (">=", ">=") => abstractThreshold >= implThreshold,
+            (">=", ">") => abstractThreshold > implThreshold,
+
+            // Source: >
+            (">", ">=") => abstractThreshold >= implThreshold,
+            (">", ">") => abstractThreshold >= implThreshold,
+
+            // Source: <=
+            ("<=", "<=") => abstractThreshold <= implThreshold,
+            ("<=", "<") => abstractThreshold < implThreshold,
+
+            // Source: <
+            ("<", "<=") => abstractThreshold <= implThreshold,
+            ("<", "<") => abstractThreshold <= implThreshold,
+
+            _ => false
+        };
+    }
+
+    // ─── Scenario types ──────────────────────────────────────────────────
+
+#pragma warning disable CA1034 // nested types are the FsCheck-friendly way to surface scenario records
+
+    /// <summary>
+    /// The kind of constraint relationship between abstract and implementation.
+    /// </summary>
+    public enum ConstraintRelation
+    {
+        /// <summary>Implementation has the same predicate as the abstract.</summary>
+        SamePredicate,
+
+        /// <summary>Implementation has no constraint (accepts all values).</summary>
+        NoPredicate,
+
+        /// <summary>Implementation has a weaker predicate (implication holds).</summary>
+        WeakerPredicate,
+
+        /// <summary>Implementation has a stronger predicate (implication fails).</summary>
+        StrongerPredicate,
+
+        /// <summary>Abstract has no constraint (implementation may add any).</summary>
+        AbstractNoConstraint
+    }
+
+    /// <summary>
+    /// Whether the contract is declared as an abstract or a trait.
+    /// Note: TraitMethodDeclaration in the Mist grammar does not support
+    /// constraints:WhereClause*, so trait methods cannot have refinement
+    /// constraints. For traits, the test verifies that implementations
+    /// can freely add any constraint (Requirement 17.8 applies).
+    /// </summary>
+    public enum ContractKind
+    {
+        Abstract,
+        Trait
+    }
+
+    /// <summary>
+    /// Scenario for abstract/trait refinement constraint satisfaction testing.
+    /// Covers method parameters on both abstracts and traits.
+    /// Note: Abstracts and traits in Mist do not support indexer declarations
+    /// in the grammar, so indexer parameter refinement is tested separately
+    /// on class-level indexers in other property tests.
+    /// </summary>
+    public sealed class SatisfactionScenario
+    {
+        public ContractKind Contract { get; }
+        public ConstraintRelation Relation { get; }
+        public string AbstractOp { get; }
+        public int AbstractThreshold { get; }
+        public string ImplOp { get; }
+        public int ImplThreshold { get; }
+
+        public SatisfactionScenario(
+            ContractKind contract,
+            ConstraintRelation relation,
+            string abstractOp,
+            int abstractThreshold,
+            string implOp,
+            int implThreshold)
+        {
+            Contract = contract;
+            Relation = relation;
+            AbstractOp = abstractOp;
+            AbstractThreshold = abstractThreshold;
+            ImplOp = implOp;
+            ImplThreshold = implThreshold;
+        }
+
+        /// <summary>
+        /// Whether this scenario should be accepted (no MIST_REFINEMENT_0009 diagnostic).
+        /// Cases (a) same predicate, (b) no predicate, (c) weaker predicate, and
+        /// (e) abstract has no constraint are all accepted.
+        /// Case (d) stronger predicate is rejected.
+        /// For traits: since TraitMethodDeclaration doesn't support WhereClause*,
+        /// trait methods never have refinement constraints, so all trait scenarios
+        /// are accepted (Requirement 17.8).
+        /// </summary>
+        public bool ShouldAccept => Contract == ContractKind.Trait
+            || Relation != ConstraintRelation.StrongerPredicate;
+
+        public string ToSource()
+        {
+            var contractKeyword = Contract == ContractKind.Abstract ? "abstract" : "trait";
+
+            // Trait methods don't support constraints:WhereClause* in the grammar,
+            // so we never emit a constraint on the trait method declaration.
+            var abstractConstraint = Contract == ContractKind.Trait
+                ? ""
+                : Relation == ConstraintRelation.AbstractNoConstraint
+                    ? ""
+                    : $" where x {AbstractOp} {AbstractThreshold}";
+
+            var implConstraint = Relation switch
+            {
+                ConstraintRelation.NoPredicate => "",
+                _ => $" where x {ImplOp} {ImplThreshold}"
+            };
+
+            return $$"""
+                namespace Test;
+                {{contractKeyword}} IContract {
+                    void Process(int x){{abstractConstraint}};
+                }
+                class Impl : IContract {
+                    public void Process(int x){{implConstraint}} { }
+                }
+                public class Program {
+                    public static void Main() { }
+                }
+                """;
+        }
+
+        public override string ToString() =>
+            $"{Contract} [{Relation}]: abstract={AbstractOp} {AbstractThreshold}, impl={ImplOp} {ImplThreshold} → {(ShouldAccept ? "accept" : "reject")}";
+    }
+
+    /// <summary>
+    /// Scenario for multi-parameter abstract method refinement constraint satisfaction.
+    /// Tests that each parameter is validated independently.
+    /// </summary>
+    public sealed class MultiParamSatisfactionScenario
+    {
+        public ContractKind Contract { get; }
+        public string Abstract1Op { get; }
+        public int Abstract1Threshold { get; }
+        public string Abstract2Op { get; }
+        public int Abstract2Threshold { get; }
+        public string Impl1Op { get; }
+        public int Impl1Threshold { get; }
+        public string Impl2Op { get; }
+        public int Impl2Threshold { get; }
+        public bool Param1HasConstraint { get; }
+        public bool Param2HasConstraint { get; }
+
+        public MultiParamSatisfactionScenario(
+            ContractKind contract,
+            string abstract1Op, int abstract1Threshold,
+            string abstract2Op, int abstract2Threshold,
+            string impl1Op, int impl1Threshold,
+            string impl2Op, int impl2Threshold,
+            bool param1HasConstraint, bool param2HasConstraint)
+        {
+            Contract = contract;
+            Abstract1Op = abstract1Op;
+            Abstract1Threshold = abstract1Threshold;
+            Abstract2Op = abstract2Op;
+            Abstract2Threshold = abstract2Threshold;
+            Impl1Op = impl1Op;
+            Impl1Threshold = impl1Threshold;
+            Impl2Op = impl2Op;
+            Impl2Threshold = impl2Threshold;
+            Param1HasConstraint = param1HasConstraint;
+            Param2HasConstraint = param2HasConstraint;
+        }
+
+        /// <summary>
+        /// Number of expected MIST_REFINEMENT_0009 diagnostics.
+        /// Each parameter is validated independently.
+        /// For traits: since TraitMethodDeclaration doesn't support WhereClause*,
+        /// trait methods never have refinement constraints, so violations are never
+        /// expected (Requirement 17.8 — implementation may freely add constraints).
+        /// </summary>
+        public int ExpectedViolationCount
+        {
+            get
+            {
+                // Traits can't have method refinement constraints in the grammar
+                if (Contract == ContractKind.Trait)
+                    return 0;
+
+                var count = 0;
+                // Param 1: abstract always has constraint; impl may or may not
+                if (Param1HasConstraint && !AlgebraicImplies(Abstract1Op, Abstract1Threshold, Impl1Op, Impl1Threshold))
+                    count++;
+                // Param 2: abstract always has constraint; impl may or may not
+                if (Param2HasConstraint && !AlgebraicImplies(Abstract2Op, Abstract2Threshold, Impl2Op, Impl2Threshold))
+                    count++;
+                return count;
+            }
+        }
+
+        public string ToSource()
+        {
+            var contractKeyword = Contract == ContractKind.Abstract ? "abstract" : "trait";
+
+            // Trait methods don't support constraints:WhereClause* in the grammar,
+            // so we never emit constraints on the trait method declaration.
+            var abstractConstraints = Contract == ContractKind.Trait
+                ? ""
+                : $" where x {Abstract1Op} {Abstract1Threshold} where y {Abstract2Op} {Abstract2Threshold}";
+
+            var implConstraintParts = new List<string>();
+            if (Param1HasConstraint)
+                implConstraintParts.Add($"where x {Impl1Op} {Impl1Threshold}");
+            if (Param2HasConstraint)
+                implConstraintParts.Add($"where y {Impl2Op} {Impl2Threshold}");
+            var implConstraints = implConstraintParts.Count > 0
+                ? " " + string.Join(" ", implConstraintParts)
+                : "";
+
+            return $$"""
+                namespace Test;
+                {{contractKeyword}} IContract {
+                    void Process(int x, int y){{abstractConstraints}};
+                }
+                class Impl : IContract {
+                    public void Process(int x, int y){{implConstraints}} { }
+                }
+                public class Program {
+                    public static void Main() { }
+                }
+                """;
+        }
+
+        public override string ToString() =>
+            $"{Contract} MultiParam: abstract=({Abstract1Op} {Abstract1Threshold}, {Abstract2Op} {Abstract2Threshold}), " +
+            $"impl=({(Param1HasConstraint ? $"{Impl1Op} {Impl1Threshold}" : "none")}, " +
+            $"{(Param2HasConstraint ? $"{Impl2Op} {Impl2Threshold}" : "none")}) → expect {ExpectedViolationCount} violations";
+    }
+
+#pragma warning restore CA1034
+
+    // ─── Generators ──────────────────────────────────────────────────────
+
+    private static readonly string[] Operators = [">=", "<=", ">", "<"];
+
+    /// <summary>
+    /// Generates a scenario where the implementation has the same predicate as the abstract.
+    /// Should always be accepted.
+    /// </summary>
+    private static Gen<SatisfactionScenario> GenSamePredicate()
+    {
+        return from contract in Gen.Elements(ContractKind.Abstract, ContractKind.Trait)
+               from op in Gen.Elements(Operators)
+               from threshold in Gen.Choose(0, 100)
+               select new SatisfactionScenario(
+                   contract, ConstraintRelation.SamePredicate,
+                   op, threshold, op, threshold);
+    }
+
+    /// <summary>
+    /// Generates a scenario where the implementation has no constraint.
+    /// Should always be accepted (no constraint means accepts all values).
+    /// </summary>
+    private static Gen<SatisfactionScenario> GenNoPredicate()
+    {
+        return from contract in Gen.Elements(ContractKind.Abstract, ContractKind.Trait)
+               from op in Gen.Elements(Operators)
+               from threshold in Gen.Choose(0, 100)
+               select new SatisfactionScenario(
+                   contract, ConstraintRelation.NoPredicate,
+                   op, threshold, op, threshold); // implOp/implThreshold unused when NoPredicate
+    }
+
+    /// <summary>
+    /// Generates a scenario where the implementation has a weaker predicate
+    /// (implication holds: abstract predicate implies impl predicate).
+    /// Should always be accepted.
+    /// </summary>
+    private static Gen<SatisfactionScenario> GenWeakerPredicate()
+    {
+        return from contract in Gen.Elements(ContractKind.Abstract, ContractKind.Trait)
+               from abstractOp in Gen.Elements(Operators)
+               from abstractThreshold in Gen.Choose(0, 100)
+               from implOp in Gen.Elements(Operators)
+               from implThreshold in Gen.Choose(0, 100)
+               where AlgebraicImplies(abstractOp, abstractThreshold, implOp, implThreshold)
+                     && !(abstractOp == implOp && abstractThreshold == implThreshold) // exclude same predicate
+               select new SatisfactionScenario(
+                   contract, ConstraintRelation.WeakerPredicate,
+                   abstractOp, abstractThreshold, implOp, implThreshold);
+    }
+
+    /// <summary>
+    /// Generates a scenario where the implementation has a stronger predicate
+    /// (implication fails: abstract predicate does NOT imply impl predicate).
+    /// Should always be rejected with MIST_REFINEMENT_0009.
+    /// </summary>
+    private static Gen<SatisfactionScenario> GenStrongerPredicate()
+    {
+        return from contract in Gen.Elements(ContractKind.Abstract, ContractKind.Trait)
+               from abstractOp in Gen.Elements(Operators)
+               from abstractThreshold in Gen.Choose(0, 100)
+               from implOp in Gen.Elements(Operators)
+               from implThreshold in Gen.Choose(0, 100)
+               where !AlgebraicImplies(abstractOp, abstractThreshold, implOp, implThreshold)
+               select new SatisfactionScenario(
+                   contract, ConstraintRelation.StrongerPredicate,
+                   abstractOp, abstractThreshold, implOp, implThreshold);
+    }
+
+    /// <summary>
+    /// Generates a scenario where the abstract has no constraint.
+    /// Implementation may freely add any constraint — should always be accepted.
+    /// </summary>
+    private static Gen<SatisfactionScenario> GenAbstractNoConstraint()
+    {
+        return from contract in Gen.Elements(ContractKind.Abstract, ContractKind.Trait)
+               from implOp in Gen.Elements(Operators)
+               from implThreshold in Gen.Choose(0, 100)
+               select new SatisfactionScenario(
+                   contract, ConstraintRelation.AbstractNoConstraint,
+                   ">=", 0, implOp, implThreshold); // abstractOp/abstractThreshold unused
+    }
+
+    private static Gen<SatisfactionScenario> GenSatisfactionScenario()
+    {
+        return Gen.OneOf(
+            GenSamePredicate(),
+            GenNoPredicate(),
+            GenWeakerPredicate(),
+            GenStrongerPredicate(),
+            GenAbstractNoConstraint());
+    }
+
+    /// <summary>
+    /// Generates multi-parameter scenarios where both abstract parameters have constraints
+    /// and the implementation may or may not have constraints on each.
+    /// </summary>
+    private static Gen<MultiParamSatisfactionScenario> GenMultiParamScenario()
+    {
+        return from contract in Gen.Elements(ContractKind.Abstract, ContractKind.Trait)
+               from abstract1Op in Gen.Elements(Operators)
+               from abstract1Threshold in Gen.Choose(0, 50)
+               from abstract2Op in Gen.Elements(Operators)
+               from abstract2Threshold in Gen.Choose(0, 50)
+               from impl1Op in Gen.Elements(Operators)
+               from impl1Threshold in Gen.Choose(0, 50)
+               from impl2Op in Gen.Elements(Operators)
+               from impl2Threshold in Gen.Choose(0, 50)
+               from param1Has in Gen.Elements(true, false)
+               from param2Has in Gen.Elements(true, false)
+               where param1Has || param2Has // at least one impl param has a constraint
+               select new MultiParamSatisfactionScenario(
+                   contract,
+                   abstract1Op, abstract1Threshold,
+                   abstract2Op, abstract2Threshold,
+                   impl1Op, impl1Threshold,
+                   impl2Op, impl2Threshold,
+                   param1Has, param2Has);
+    }
+
+    public static Arbitrary<SatisfactionScenario> ArbitrarySatisfactionScenario() =>
+        GenSatisfactionScenario().ToArbitrary();
+
+    public static Arbitrary<MultiParamSatisfactionScenario> ArbitraryMultiParamScenario() =>
+        GenMultiParamScenario().ToArbitrary();
+
+    // ─── Property Tests ──────────────────────────────────────────────────
+
+    /// <summary>
+    /// Property 9a: Single-parameter abstract/trait refinement constraint satisfaction.
+    ///
+    /// For any abstract or trait method with a parameter refinement constraint, and any
+    /// implementing method:
+    /// - Same predicate → accepted (Requirement 17.1)
+    /// - No predicate → accepted (Requirement 17.2)
+    /// - Weaker predicate (implication holds) → accepted (Requirement 17.3)
+    /// - Stronger predicate (implication fails) → rejected with MIST_REFINEMENT_0009 (Requirement 17.4)
+    /// - Abstract has no constraint → accepted regardless of impl constraint (Requirement 17.8)
+    ///
+    /// Covers both abstracts and traits (Requirement 17.6).
+    ///
+    /// **Validates: Requirements 17.1, 17.2, 17.3, 17.4, 17.5, 17.6, 17.7, 17.8**
+    /// </summary>
+    [Property(
+        MaxTest = 100,
+        Arbitrary = new[] { typeof(AbstractTraitRefinementSatisfactionPropertyTests) })]
+    public Property SingleParam_AcceptedIffImplicationHolds(SatisfactionScenario scenario)
+    {
+        var diagnostics = CompileAndGetDiagnostics(scenario.ToSource());
+
+        var violations = diagnostics
+            .Where(d => d.Id == SemanticModelBuilder.RefinementConstraintStrongerThanAbstract)
+            .ToList();
+
+        var passed = scenario.ShouldAccept
+            ? violations.Count == 0
+            : violations.Count == 1;
+
+        return passed.ToProperty()
+            .Label($"{scenario}. Violations found: {violations.Count}. " +
+                   $"All errors: [{string.Join(", ", diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error).Select(d => $"{d.Id.Value}: {d.Message}"))}]");
+    }
+
+    /// <summary>
+    /// Property 9b: Multi-parameter abstract/trait refinement constraint satisfaction.
+    ///
+    /// For any abstract or trait method with refinement constraints on multiple parameters,
+    /// each parameter is validated independently — a violation on one parameter does not
+    /// prevent validation of others.
+    ///
+    /// **Validates: Requirements 17.7, 17.9**
+    /// </summary>
+    [Property(
+        MaxTest = 100,
+        Arbitrary = new[] { typeof(AbstractTraitRefinementSatisfactionPropertyTests) })]
+    public Property MultiParam_EachParameterValidatedIndependently(MultiParamSatisfactionScenario scenario)
+    {
+        var diagnostics = CompileAndGetDiagnostics(scenario.ToSource());
+
+        var violations = diagnostics
+            .Where(d => d.Id == SemanticModelBuilder.RefinementConstraintStrongerThanAbstract)
+            .ToList();
+
+        var passed = violations.Count == scenario.ExpectedViolationCount;
+
+        return passed.ToProperty()
+            .Label($"{scenario}. Expected {scenario.ExpectedViolationCount} violations, got {violations.Count}. " +
+                   $"All errors: [{string.Join(", ", diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error).Select(d => $"{d.Id.Value}: {d.Message}"))}]");
+    }
+}

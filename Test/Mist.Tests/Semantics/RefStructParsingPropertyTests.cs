@@ -26,7 +26,7 @@ namespace Mist.Tests.Semantics;
 /// <c>IsRefStruct = true</c>, and the type SHALL retain all declared members.
 ///
 /// Property 10: Ref modifier on non-struct types produces diagnostic
-/// For any class, interface, trait, or enum declaration preceded by the <c>ref</c>
+/// For any class, abstract type, trait, or enum declaration preceded by the <c>ref</c>
 /// modifier, the compiler SHALL emit diagnostic <c>MIST2001</c>.
 ///
 /// Uses in-process compilation via shared lexer, parser, and semantic model builder.
@@ -295,7 +295,7 @@ public sealed class RefStructParsingPropertyTests
     // ═══════════════════════════════════════════════════════════════════════
     // Property 10: Ref modifier on non-struct types produces diagnostic
     //
-    // For any class, interface, trait, or enum declaration preceded by the
+    // For any class, abstract type, trait, or enum declaration preceded by the
     // `ref` modifier, the compiler SHALL emit diagnostic MIST2001.
     //
     // **Validates: Requirements 1.5**
@@ -331,7 +331,7 @@ public sealed class RefStructParsingPropertyTests
 
     public static Arbitrary<RefOnNonStructScenario> ArbitraryRefOnNonStruct()
     {
-        // Generate ref class, ref interface, ref trait, and ref enum declarations
+        // Generate ref class, ref abstract type, ref trait, and ref enum declarations
         // with random valid identifiers. All should produce MIST2001.
         var classGen =
             from name in GenValidIdentifier()
@@ -345,17 +345,17 @@ public sealed class RefStructParsingPropertyTests
                 """
             select new RefOnNonStructScenario(source, $"ref class {name}");
 
-        var interfaceGen =
+        var abstractGen =
             from name in GenValidIdentifier()
             let source = $$"""
-                ref interface {{name}} {
+                ref abstract {{name}} {
                 }
                 class Program {
                     public static void Main() {
                     }
                 }
                 """
-            select new RefOnNonStructScenario(source, $"ref interface {name}");
+            select new RefOnNonStructScenario(source, $"ref abstract {name}");
 
         var traitGen =
             from name in GenValidIdentifier()
@@ -383,7 +383,7 @@ public sealed class RefStructParsingPropertyTests
                 """
             select new RefOnNonStructScenario(source, $"ref enum {name}");
 
-        var combined = Gen.OneOf(classGen, interfaceGen, traitGen, enumGen);
+        var combined = Gen.OneOf(classGen, abstractGen, traitGen, enumGen);
         return combined.ToArbitrary();
     }
 

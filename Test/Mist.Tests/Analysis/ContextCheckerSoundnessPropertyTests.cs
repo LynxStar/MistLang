@@ -83,18 +83,18 @@ public enum ContextCheckerScenarioKind
     MultipleClausesPartiallyUnsatisfied,
 
     /// <summary>
-    /// Interface dispatch: calling through an interface type where the interface
+    /// Abstract type dispatch: calling through an abstract type where the abstract type
     /// method declares a with-clause. Context is provided.
     /// Expected: zero diagnostics.
     /// </summary>
-    InterfaceDispatchSatisfied,
+    AbstractDispatchSatisfied,
 
     /// <summary>
-    /// Interface dispatch: calling through an interface type where the interface
+    /// Abstract type dispatch: calling through an abstract type where the abstract type
     /// method declares a with-clause. Context is NOT provided.
     /// Expected: one diagnostic.
     /// </summary>
-    InterfaceDispatchUnsatisfied,
+    AbstractDispatchUnsatisfied,
 
     /// <summary>
     /// Context declared after the call site in the same block.
@@ -160,7 +160,7 @@ public sealed class ContextCheckerSoundnessPropertyTests
     private static readonly string[] MethodNames =
         ["Process", "Execute", "Handle", "Perform", "Run"];
 
-    private static readonly string[] InterfaceNames =
+    private static readonly string[] AbstractNames =
         ["IProcessor", "IExecutor", "IHandler", "IPerformer", "IRunner"];
 
     private static readonly string[] ImplClassNames =
@@ -224,20 +224,20 @@ public sealed class ContextCheckerSoundnessPropertyTests
                    ContextTypeNames[idx1], ContextTypeNames[idx2], methodName);
     }
 
-    private static Gen<ContextCheckerScenario> GenInterfaceDispatchSatisfied()
+    private static Gen<ContextCheckerScenario> GenAbstractDispatchSatisfied()
     {
-        return from idx in Gen.Choose(0, InterfaceNames.Length - 1)
+        return from idx in Gen.Choose(0, AbstractNames.Length - 1)
                from ctxType in Gen.Elements(ContextTypeNames)
-               select BuildInterfaceDispatchSatisfied(
-                   InterfaceNames[idx], ImplClassNames[idx], ctxType);
+               select BuildAbstractDispatchSatisfied(
+                   AbstractNames[idx], ImplClassNames[idx], ctxType);
     }
 
-    private static Gen<ContextCheckerScenario> GenInterfaceDispatchUnsatisfied()
+    private static Gen<ContextCheckerScenario> GenAbstractDispatchUnsatisfied()
     {
-        return from idx in Gen.Choose(0, InterfaceNames.Length - 1)
+        return from idx in Gen.Choose(0, AbstractNames.Length - 1)
                from ctxType in Gen.Elements(ContextTypeNames)
-               select BuildInterfaceDispatchUnsatisfied(
-                   InterfaceNames[idx], ImplClassNames[idx], ctxType);
+               select BuildAbstractDispatchUnsatisfied(
+                   AbstractNames[idx], ImplClassNames[idx], ctxType);
     }
 
     private static Gen<ContextCheckerScenario> GenContextDeclaredAfterCallSite()
@@ -257,8 +257,8 @@ public sealed class ContextCheckerSoundnessPropertyTests
             GenCallerWithClauseSatisfied(),
             GenMultipleClausesSatisfied(),
             GenMultipleClausesPartiallyUnsatisfied(),
-            GenInterfaceDispatchSatisfied(),
-            GenInterfaceDispatchUnsatisfied(),
+            GenAbstractDispatchSatisfied(),
+            GenAbstractDispatchUnsatisfied(),
             GenContextDeclaredAfterCallSite());
     }
 
@@ -469,64 +469,64 @@ public sealed class ContextCheckerSoundnessPropertyTests
     }
 
     /// <summary>
-    /// Builds a scenario where a method is called through an interface type.
-    /// The interface method declares a with-clause and context is provided.
+    /// Builds a scenario where a method is called through an abstract type.
+    /// The abstract type method declares a with-clause and context is provided.
     /// </summary>
-    private static ContextCheckerScenario BuildInterfaceDispatchSatisfied(
-        string ifaceName, string implName, string ctxType)
+    private static ContextCheckerScenario BuildAbstractDispatchSatisfied(
+        string abstractName, string implName, string ctxType)
     {
         var source =
             $"class {ctxType} {{ }}\n" +
             "\n" +
-            $"interface {ifaceName} {{\n" +
+            $"abstract {abstractName} {{\n" +
             $"    void DoWork() with {ctxType} ctx;\n" +
             "}\n" +
             "\n" +
-            $"class {implName} : {ifaceName} {{\n" +
+            $"class {implName} : {abstractName} {{\n" +
             $"    public void DoWork() with {ctxType} ctx {{ }}\n" +
             "}\n" +
             "\n" +
             "class Program {\n" +
             "    public static void Main() {\n" +
-            $"        {ifaceName} svc = new {implName}();\n" +
+            $"        {abstractName} svc = new {implName}();\n" +
             $"        with var c = new {ctxType}();\n" +
             "        svc.DoWork();\n" +
             "    }\n" +
             "}\n";
 
         return new ContextCheckerScenario(
-            ContextCheckerScenarioKind.InterfaceDispatchSatisfied,
+            ContextCheckerScenarioKind.AbstractDispatchSatisfied,
             source,
             expectedDiagnosticCount: 0);
     }
 
     /// <summary>
-    /// Builds a scenario where a method is called through an interface type.
-    /// The interface method declares a with-clause but no context is provided.
+    /// Builds a scenario where a method is called through an abstract type.
+    /// The abstract type method declares a with-clause but no context is provided.
     /// </summary>
-    private static ContextCheckerScenario BuildInterfaceDispatchUnsatisfied(
-        string ifaceName, string implName, string ctxType)
+    private static ContextCheckerScenario BuildAbstractDispatchUnsatisfied(
+        string abstractName, string implName, string ctxType)
     {
         var source =
             $"class {ctxType} {{ }}\n" +
             "\n" +
-            $"interface {ifaceName} {{\n" +
+            $"abstract {abstractName} {{\n" +
             $"    void DoWork() with {ctxType} ctx;\n" +
             "}\n" +
             "\n" +
-            $"class {implName} : {ifaceName} {{\n" +
+            $"class {implName} : {abstractName} {{\n" +
             $"    public void DoWork() with {ctxType} ctx {{ }}\n" +
             "}\n" +
             "\n" +
             "class Program {\n" +
             "    public static void Main() {\n" +
-            $"        {ifaceName} svc = new {implName}();\n" +
+            $"        {abstractName} svc = new {implName}();\n" +
             "        svc.DoWork();\n" +
             "    }\n" +
             "}\n";
 
         return new ContextCheckerScenario(
-            ContextCheckerScenarioKind.InterfaceDispatchUnsatisfied,
+            ContextCheckerScenarioKind.AbstractDispatchUnsatisfied,
             source,
             expectedDiagnosticCount: 1);
     }

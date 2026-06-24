@@ -303,7 +303,7 @@ public class TypeParameterRoundTripPropertyTests
             {
                 ClassTypeTypeDeclarationNode classType => classType.ClassDeclaration.TypeParams,
                 StructTypeTypeDeclarationNode structType => structType.StructDeclaration.TypeParams,
-                InterfaceTypeTypeDeclarationNode ifaceType => ifaceType.InterfaceDeclaration.TypeParams,
+                AbstractTypeTypeDeclarationNode abstractType => abstractType.AbstractDeclaration.TypeParams,
                 _ => null,
             };
 

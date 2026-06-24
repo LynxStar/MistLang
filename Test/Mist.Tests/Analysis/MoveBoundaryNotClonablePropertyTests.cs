@@ -32,7 +32,7 @@ namespace Mist.Tests.Analysis;
 ///
 /// <para>
 /// The generator builds programs that declare a reference-typed class with at least
-/// one non-clonable field (an array field, or an interface-typed field — neither
+/// one non-clonable field (an array field, or an abstract-typed field — neither
 /// auto-derives <c>IClonable&lt;T&gt;</c>), bind a NON-owned local to a fresh instance
 /// of it, and then move that local into an <c>owned var</c>. Each program is compiled
 /// in-process via a fresh <see cref="CompilerDriver"/> per iteration (the driver runs
@@ -187,8 +187,8 @@ public sealed class MoveBoundaryNotClonablePropertyTests : IDisposable
         /// <summary>An <c>int[]</c> field — arrays are not auto-derivable.</summary>
         ArrayField,
 
-        /// <summary>An interface-typed field — interfaces do not implement <c>IClonable&lt;T&gt;</c>.</summary>
-        InterfaceField,
+        /// <summary>An abstract-typed field — abstract types do not implement <c>IClonable&lt;T&gt;</c>.</summary>
+        AbstractField,
     }
 
     /// <summary>
@@ -218,7 +218,7 @@ public sealed class MoveBoundaryNotClonablePropertyTests : IDisposable
         return from typeName in Gen.Elements(TypeNames)
                from srcVar in Gen.Elements(SourceVarNames)
                from ownedVar in Gen.Elements(OwnedVarNames)
-               from kind in Gen.Elements(NonClonableKind.ArrayField, NonClonableKind.InterfaceField)
+               from kind in Gen.Elements(NonClonableKind.ArrayField, NonClonableKind.AbstractField)
                select Build(typeName, srcVar, ownedVar, kind);
     }
 
@@ -245,10 +245,10 @@ public sealed class MoveBoundaryNotClonablePropertyTests : IDisposable
                     }
                 }
                 """,
-            NonClonableKind.InterfaceField => $$"""
+            NonClonableKind.AbstractField => $$"""
                 namespace Gen;
 
-                public interface ISignal
+                public abstract ISignal
                 {
                 }
 

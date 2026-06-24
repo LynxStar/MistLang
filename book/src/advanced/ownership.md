@@ -102,7 +102,7 @@ The compiler enforces this contract at the type's definition site. For each assi
 
 If a method or constructor in an `owned` type assigns a field from a non-owned source that cannot be cloned — for example, storing an unverified parameter directly into a field — the compiler reports a contract violation, naming the method, the field, and the offending source. The fix is to make the parameter `owned`, clone it, or construct a fresh value.
 
-An `owned` type additionally enforces a **field-type restriction**: every field must have a type that is another `owned type`, implements `IClonable<T>`, or is a value type. This guarantees full ownership of the entire object graph. See [Owned Fields](#owned-fields) for details. The `owned` modifier applies to classes and structs; applying it to an interface or trait is an error.
+An `owned` type additionally enforces a **field-type restriction**: every field must have a type that is another `owned type`, implements `IClonable<T>`, or is a value type. This guarantees full ownership of the entire object graph. See [Owned Fields](#owned-fields) for details. The `owned` modifier applies to classes and structs; applying it to an abstract type or trait is an error.
 
 ## Field Assignment Provenance
 
@@ -382,10 +382,10 @@ In the emitted C#, a move is just an ordinary assignment. There is no nulling of
 
 ## IClonable: Bridging Shared to Owned
 
-Sometimes you have a value that is *not* owned — a shared reference, or a value lent to you — and you need to produce an owned value from it. The bridge is the standard-library interface `IClonable<T>`:
+Sometimes you have a value that is *not* owned — a shared reference, or a value lent to you — and you need to produce an owned value from it. The bridge is the standard-library abstract type `IClonable<T>`:
 
 ```mist
-interface IClonable<T>
+abstract IClonable<T>
 {
     owned T Clone();
 }
@@ -437,5 +437,5 @@ In the emitted C#, `IClonable<T>` is an ordinary interface with a `Clone()` meth
 - **Per-field state tracking** enables partial moves and sibling independence: move one field out while the rest remain accessible, and restore it later.
 - **Ownership inference** on `var` bindings finds the minimum tier satisfying all uses, with `shared` as the ultimate fallback.
 - **Moves** transfer ownership and leave the source dead; using a moved binding is a compile error.
-- **`IClonable<T>`** bridges shared values to owned ones, with the compiler inserting clones implicitly at move boundaries and auto-deriving the interface when all fields are clonable.
+- **`IClonable<T>`** bridges shared values to owned ones, with the compiler inserting clones implicitly at move boundaries and auto-deriving the abstract type when all fields are clonable.
 - The whole system is compile-time only; the sole runtime artifact is an occasional `.Clone()` call.

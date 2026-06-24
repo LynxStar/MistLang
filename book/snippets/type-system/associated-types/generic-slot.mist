@@ -1,9 +1,9 @@
-interface ITransform<TIn, TOut>
+abstract ITransform<TIn, TOut>
 {
     TOut Transform(TIn input);
 }
 
-interface IMapper<TIn>
+abstract IMapper<TIn>
 {
     type Mapped<TOut> : ITransform<TIn, TOut>;
 

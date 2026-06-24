@@ -82,8 +82,8 @@ public sealed class RefStructUsagePropertyTests
         /// <summary>Used as type argument in a base class: class C : G&lt;R&gt;</summary>
         BaseType,
 
-        /// <summary>Used as type argument in an interface implementation: class C : IFace&lt;R&gt;</summary>
-        InterfaceImpl,
+        /// <summary>Used as type argument in an abstract type implementation: class C : IFace&lt;R&gt;</summary>
+        AbstractImpl,
     }
 
     /// <summary>
@@ -117,7 +117,7 @@ public sealed class RefStructUsagePropertyTests
                from usageKind in Gen.Elements(
                    GenericUsageKind.ObjectCreation,
                    GenericUsageKind.BaseType,
-                   GenericUsageKind.InterfaceImpl)
+                   GenericUsageKind.AbstractImpl)
                select new GenericTypeArgScenario(refStructName, genericTypeName, usageKind);
     }
 
@@ -132,7 +132,7 @@ public sealed class RefStructUsagePropertyTests
         {
             GenericUsageKind.ObjectCreation => BuildObjectCreationSource(scenario),
             GenericUsageKind.BaseType => BuildBaseTypeSource(scenario),
-            GenericUsageKind.InterfaceImpl => BuildInterfaceImplSource(scenario),
+            GenericUsageKind.AbstractImpl => BuildAbstractImplSource(scenario),
             _ => throw new ArgumentOutOfRangeException(),
         };
     }
@@ -186,7 +186,7 @@ public class Program
 }}";
     }
 
-    private static string BuildInterfaceImplSource(GenericTypeArgScenario scenario)
+    private static string BuildAbstractImplSource(GenericTypeArgScenario scenario)
     {
         return $@"using Standard;
 
@@ -195,7 +195,7 @@ public ref struct {scenario.RefStructName}
     public int value;
 }}
 
-public interface I{scenario.GenericTypeName}<T>
+public abstract I{scenario.GenericTypeName}<T>
 {{
 }}
 

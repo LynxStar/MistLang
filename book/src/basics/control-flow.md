@@ -78,17 +78,17 @@ The loop variable is scoped to the `foreach` block and takes on the value of eac
 
 ### User-Defined Enumerables
 
-You can iterate over any user-defined type that implements `IEnumerable<TElement>` from the standard library. This requires two interfaces:
+You can iterate over any user-defined type that implements `IEnumerable<TElement>` from the standard library. This requires two abstract types:
 
 ```mist
 // From the standard library
-interface IEnumerator<TElement>
+abstract IEnumerator<TElement>
 {
     bool MoveNext();
     TElement Current { get; }
 }
 
-interface IEnumerable<TElement>
+abstract IEnumerable<TElement>
 {
     type Enumerator : IEnumerator<TElement>;
     Enumerator GetEnumerator();

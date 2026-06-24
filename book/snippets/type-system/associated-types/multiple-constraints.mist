@@ -1,14 +1,14 @@
-interface IStringable
+abstract IStringable
 {
     string Stringify();
 }
 
-interface IResettable
+abstract IResettable
 {
     string GetState();
 }
 
-interface IStatefulProducer
+abstract IStatefulProducer
 {
     type State : IStringable, IResettable;
 

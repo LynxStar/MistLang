@@ -354,7 +354,7 @@ public sealed class CooperationContractVerifier
     /// Returns <c>true</c> when the receiver expression of a member access names a type
     /// (e.g. the <c>Registry</c> in <c>Registry.Shared</c>) rather than a value. A
     /// type-named receiver has no local-variable/parameter binding and matches a declared
-    /// class/struct/interface/trait/enum symbol in the model. This is the LD-2 marker for a
+    /// class/struct/abstract/trait/enum symbol in the model. This is the LD-2 marker for a
     /// static/global read.
     /// </summary>
     private static bool ReceiverNamesType(SyntaxNode receiver, ISemanticModel model)
@@ -377,7 +377,7 @@ public sealed class CooperationContractVerifier
             if (symbol.Name != name)
                 continue;
             if (symbol.Kind is SymbolKind.Class or SymbolKind.Struct
-                or SymbolKind.Interface or SymbolKind.Trait or SymbolKind.Enum)
+                or SymbolKind.Abstract or SymbolKind.Trait or SymbolKind.Enum)
             {
                 return true;
             }

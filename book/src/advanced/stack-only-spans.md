@@ -42,7 +42,7 @@ Only **stampable** types are valid as `stackalloc` element types. A type is stam
 |---|---|
 | Primitive types (`int`, `bool`, `double`, etc.) | ✅ |
 | Structs with only primitive fields | ✅ |
-| Reference types (classes, interfaces) | ❌ |
+| Reference types (classes, abstract types) | ❌ |
 | Non-stampable structs (structs with reference-type fields) | ❌ |
 | Ref structs | ❌ |
 | Unconstrained type parameters | ❌ |

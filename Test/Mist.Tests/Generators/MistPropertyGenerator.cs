@@ -426,28 +426,28 @@ public static class MistPropertyGenerator
     }
 
     // ═══════════════════════════════════════════════════════════════════════
-    // Interface property declaration generators
+    // Abstract type property declaration generators
     // ═══════════════════════════════════════════════════════════════════════
 
     /// <summary>
-    /// Generates a random interface property declaration.
+    /// Generates a random abstract type property declaration.
     /// </summary>
-    public static Gen<InterfacePropertyDeclarationNode> GenInterfacePropertyDeclaration()
+    public static Gen<AbstractPropertyDeclarationNode> GenAbstractPropertyDeclaration()
     {
-        var getOnly = Gen.Constant(ImmutableArray.Create<InterfaceAccessorDeclarationNode>(
-            new InterfaceGetAccessorInterfaceAccessorDeclarationNode()));
+        var getOnly = Gen.Constant(ImmutableArray.Create<AbstractAccessorDeclarationNode>(
+            new AbstractGetAccessorAbstractAccessorDeclarationNode()));
 
-        var getSet = Gen.Constant(ImmutableArray.Create<InterfaceAccessorDeclarationNode>(
-            new InterfaceGetAccessorInterfaceAccessorDeclarationNode(),
-            new InterfaceSetAccessorInterfaceAccessorDeclarationNode()));
+        var getSet = Gen.Constant(ImmutableArray.Create<AbstractAccessorDeclarationNode>(
+            new AbstractGetAccessorAbstractAccessorDeclarationNode(),
+            new AbstractSetAccessorAbstractAccessorDeclarationNode()));
 
-        var setOnly = Gen.Constant(ImmutableArray.Create<InterfaceAccessorDeclarationNode>(
-            new InterfaceSetAccessorInterfaceAccessorDeclarationNode()));
+        var setOnly = Gen.Constant(ImmutableArray.Create<AbstractAccessorDeclarationNode>(
+            new AbstractSetAccessorAbstractAccessorDeclarationNode()));
 
         return from type in MistTypeGenerator.GenPrimitiveTypeRef()
                from name in Gen.Elements(PropertyNames)
                from accessors in Gen.OneOf(getOnly, getSet, setOnly)
-               select new InterfacePropertyDeclarationNode
+               select new AbstractPropertyDeclarationNode
                {
                    Type = type,
                    Name = Tok(name),
@@ -481,14 +481,14 @@ public static class MistPropertyGenerator
     }
 
     /// <summary>
-    /// Generates a CompilationUnitNode with an interface containing property declarations.
+    /// Generates a CompilationUnitNode with an abstract type containing property declarations.
     /// </summary>
-    public static Gen<CompilationUnitNode> GenInterfaceWithProperties()
+    public static Gen<CompilationUnitNode> GenAbstractWithProperties()
     {
         return from name in Gen.Elements("IReadable", "IWritable", "IConfigurable", "IEntity")
-               from props in GenInterfacePropertyDeclaration().ListOf()
+               from props in GenAbstractPropertyDeclaration().ListOf()
                    .Where(list => list.Count > 0 && list.Count <= 2)
-               select MakeInterfaceUnit(name, props.ToImmutableArray());
+               select MakeAbstractUnit(name, props.ToImmutableArray());
     }
 
     /// <summary>
@@ -499,7 +499,7 @@ public static class MistPropertyGenerator
         return Gen.OneOf(
             GenClassWithProperties(),
             GenClassWithIndexer(),
-            GenInterfaceWithProperties());
+            GenAbstractWithProperties());
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -524,27 +524,27 @@ public static class MistPropertyGenerator
         };
     }
 
-    /// <summary>Creates a CompilationUnitNode with a single interface containing property declarations.</summary>
-    public static CompilationUnitNode MakeInterfaceUnit(
-        string interfaceName,
-        ImmutableArray<InterfacePropertyDeclarationNode> properties)
+    /// <summary>Creates a CompilationUnitNode with a single abstract type containing property declarations.</summary>
+    public static CompilationUnitNode MakeAbstractUnit(
+        string abstractName,
+        ImmutableArray<AbstractPropertyDeclarationNode> properties)
     {
         var members = properties.Select(p =>
-            (InterfaceMemberDeclarationNode)new InterfacePropertyMemberInterfaceMemberDeclarationNode
+            (AbstractMemberDeclarationNode)new AbstractPropertyMemberAbstractMemberDeclarationNode
             {
                 Property = p,
             }).ToImmutableArray();
 
-        var interfaceDecl = new InterfaceDeclarationNode
+        var abstractDecl = new AbstractDeclarationNode
         {
-            Name = Tok(interfaceName),
+            Name = Tok(abstractName),
             Members = members,
         };
 
         return new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new InterfaceTypeTypeDeclarationNode { InterfaceDeclaration = interfaceDecl }).AsTopLevelItems(),
+                new AbstractTypeTypeDeclarationNode { AbstractDeclaration = abstractDecl }).AsTopLevelItems(),
         };
     }
 

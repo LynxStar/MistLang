@@ -37,7 +37,7 @@ namespace Mist.Tests.Analysis;
 /// - MIST2003 (property) — via Span&lt;T, unknown&gt; property declaration
 /// - MIST2005 (union) — via Span&lt;T, unknown&gt; | int local variable
 /// - MIST2006 (optional) — via Span&lt;T, unknown&gt;? local variable
-/// - MIST2007 (interface boxing) — via passing stackalloc span to interface parameter
+/// - MIST2007 (abstract boxing) — via passing stackalloc span to abstract type parameter
 /// - MIST_TC_0123 (lambda capture) — via capturing stackalloc span in a lambda
 /// - MIST2004 (generic arg) — via Box&lt;Span&lt;T, unknown&gt;&gt; local variable
 ///
@@ -72,8 +72,8 @@ public class SpanHeapEscapeParityPropertyTests
         GenericArg,
         /// <summary>Union constituent → MIST2005</summary>
         Union,
-        /// <summary>Interface boxing → MIST2007</summary>
-        InterfaceBoxing,
+        /// <summary>Abstract boxing → MIST2007</summary>
+        AbstractBoxing,
         /// <summary>Optional suffix (?) → RefStructCannotBeOptional (MIST2006)</summary>
         Optional,
         /// <summary>Lambda capture → MIST_TC_0123</summary>
@@ -95,7 +95,7 @@ public class SpanHeapEscapeParityPropertyTests
             HeapEscapePosition.Property => "MIST2003",
             HeapEscapePosition.GenericArg => "MIST2004",
             HeapEscapePosition.Union => "MIST2005",
-            HeapEscapePosition.InterfaceBoxing => "MIST2007",
+            HeapEscapePosition.AbstractBoxing => "MIST2007",
             HeapEscapePosition.Optional => "MIST2006",
             HeapEscapePosition.LambdaCapture => "MIST_TC_0123",
             _ => throw new ArgumentOutOfRangeException(),
@@ -116,7 +116,7 @@ public class SpanHeapEscapeParityPropertyTests
         // The lambda capture position is directly exercisable via stackalloc-created
         // SpanType values (var s = stackalloc T[n]; func<int> f = () => s[0]).
         // Other heap-escape positions (field, property, generic arg, union, optional,
-        // interface boxing) require Span<T> to resolve as a named type reference in
+        // abstract boxing) require Span<T> to resolve as a named type reference in
         // declaration contexts or need the type checker to reach the ref-struct check
         // before other errors fire. Those positions are covered by:
         // - The IsRefStructType predicate extension (task 11.1) which adds SpanType
@@ -171,8 +171,8 @@ public class SpanHeapEscapeParityPropertyTests
                 }
             }
             """,
-        HeapEscapePosition.InterfaceBoxing => $$"""
-            interface IFoo {
+        HeapEscapePosition.AbstractBoxing => $$"""
+            abstract IFoo {
             }
             class Program {
                 static void Take(IFoo f) {}
@@ -247,11 +247,11 @@ public class SpanHeapEscapeParityPropertyTests
                 }
             }
             """,
-        HeapEscapePosition.InterfaceBoxing => """
+        HeapEscapePosition.AbstractBoxing => """
             public ref struct MyRefStruct {
                 public int value;
             }
-            interface IFoo {
+            abstract IFoo {
             }
             class Program {
                 static void Take(IFoo f) {}

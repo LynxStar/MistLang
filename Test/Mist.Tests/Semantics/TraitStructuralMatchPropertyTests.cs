@@ -344,11 +344,11 @@ public class TraitStructuralMatchPropertyTests
     {
         var members = properties.Select(p =>
         {
-            var accessors = new List<InterfaceAccessorDeclarationNode>();
+            var accessors = new List<AbstractAccessorDeclarationNode>();
             if (p.hasGet)
-                accessors.Add(new InterfaceGetAccessorInterfaceAccessorDeclarationNode());
+                accessors.Add(new AbstractGetAccessorAbstractAccessorDeclarationNode());
             if (p.hasSet)
-                accessors.Add(new InterfaceSetAccessorInterfaceAccessorDeclarationNode());
+                accessors.Add(new AbstractSetAccessorAbstractAccessorDeclarationNode());
 
             return (TraitMemberDeclarationNode)new TraitPropertyMemberTraitMemberDeclarationNode
             {

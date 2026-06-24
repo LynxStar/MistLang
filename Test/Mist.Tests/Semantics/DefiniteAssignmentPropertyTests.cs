@@ -151,7 +151,7 @@ public sealed class DefiniteAssignmentPropertyTests
     private static readonly string[] TypeNames =
         ["Widget", "Config", "Engine", "Sensor", "Agent", "Record"];
 
-    private static readonly string[] InterfaceNames =
+    private static readonly string[] AbstractNames =
         ["IRenderer", "ILogger", "IService", "IHandler"];
 
     // ─── Generators ─────────────────────────────────────────────────────
@@ -166,10 +166,10 @@ public sealed class DefiniteAssignmentPropertyTests
                from typeName in Gen.Elements(TypeNames)
                from nonDefaultableCount in Gen.Choose(1, 3)
                from defaultableCount in Gen.Choose(0, 2)
-               from interfaceName in Gen.Elements(InterfaceNames)
+               from abstractName in Gen.Elements(AbstractNames)
                from primitiveType in Gen.Elements(PrimitiveTypes)
                let source = BuildAllAssignedSource(
-                   isStruct, typeName, nonDefaultableCount, defaultableCount, interfaceName, primitiveType)
+                   isStruct, typeName, nonDefaultableCount, defaultableCount, abstractName, primitiveType)
                select new AllFieldsAssignedScenario(
                    source, typeName, isStruct, nonDefaultableCount, defaultableCount);
     }
@@ -184,10 +184,10 @@ public sealed class DefiniteAssignmentPropertyTests
                from typeName in Gen.Elements(TypeNames)
                from totalNonDefaultable in Gen.Choose(1, 3)
                from missingIndex in Gen.Choose(0, totalNonDefaultable - 1)
-               from interfaceName in Gen.Elements(InterfaceNames)
+               from abstractName in Gen.Elements(AbstractNames)
                let unassignedField = FieldNames[missingIndex]
                let source = BuildMissingAssignmentSource(
-                   isStruct, typeName, totalNonDefaultable, missingIndex, interfaceName)
+                   isStruct, typeName, totalNonDefaultable, missingIndex, abstractName)
                select new MissingAssignmentScenario(
                    source, typeName, isStruct, unassignedField, totalNonDefaultable);
     }
@@ -202,10 +202,10 @@ public sealed class DefiniteAssignmentPropertyTests
                from typeName in Gen.Elements(TypeNames)
                from defaultableCount in Gen.Choose(1, 3)
                from nonDefaultableCount in Gen.Choose(0, 2)
-               from interfaceName in Gen.Elements(InterfaceNames)
+               from abstractName in Gen.Elements(AbstractNames)
                from primitiveType in Gen.Elements(PrimitiveTypes)
                let source = BuildDefaultableInjectionSource(
-                   isStruct, typeName, defaultableCount, nonDefaultableCount, interfaceName, primitiveType)
+                   isStruct, typeName, defaultableCount, nonDefaultableCount, abstractName, primitiveType)
                select new DefaultableFieldInjectionScenario(
                    source, typeName, isStruct, defaultableCount, nonDefaultableCount);
     }
@@ -228,20 +228,20 @@ public sealed class DefiniteAssignmentPropertyTests
     /// </summary>
     private static string BuildAllAssignedSource(
         bool isStruct, string typeName, int nonDefaultableCount, int defaultableCount,
-        string interfaceName, string primitiveType)
+        string abstractName, string primitiveType)
     {
         var kind = isStruct ? "struct" : "class";
         var fields = new List<string>();
         var assignments = new List<string>();
         var ctorParams = new List<string>();
 
-        // Non-defaultable fields (interface type) — all assigned via constructor params
+        // Non-defaultable fields (abstract type) — all assigned via constructor params
         for (var i = 0; i < nonDefaultableCount; i++)
         {
             var fieldName = FieldNames[i];
-            fields.Add($"    public {interfaceName} {fieldName};");
+            fields.Add($"    public {abstractName} {fieldName};");
             assignments.Add($"        this.{fieldName} = svc{i};");
-            ctorParams.Add($"{interfaceName} svc{i}");
+            ctorParams.Add($"{abstractName} svc{i}");
         }
 
         // Defaultable fields (primitive type) — also assigned for Property 4
@@ -257,7 +257,7 @@ public sealed class DefiniteAssignmentPropertyTests
         return $$"""
             namespace TestProgram;
 
-            public interface {{interfaceName}}
+            public abstract {{abstractName}}
             {
             }
 
@@ -278,7 +278,7 @@ public sealed class DefiniteAssignmentPropertyTests
     /// </summary>
     private static string BuildMissingAssignmentSource(
         bool isStruct, string typeName, int totalNonDefaultable, int missingIndex,
-        string interfaceName)
+        string abstractName)
     {
         var kind = isStruct ? "struct" : "class";
         var fields = new List<string>();
@@ -288,14 +288,14 @@ public sealed class DefiniteAssignmentPropertyTests
         for (var i = 0; i < totalNonDefaultable; i++)
         {
             var fieldName = FieldNames[i];
-            fields.Add($"    public {interfaceName} {fieldName};");
+            fields.Add($"    public {abstractName} {fieldName};");
 
             // Skip assignment for the field at missingIndex
             if (i != missingIndex)
             {
                 assignments.Add($"        this.{fieldName} = svc{i};");
             }
-            ctorParams.Add($"{interfaceName} svc{i}");
+            ctorParams.Add($"{abstractName} svc{i}");
         }
 
         var paramList = string.Join(", ", ctorParams);
@@ -303,7 +303,7 @@ public sealed class DefiniteAssignmentPropertyTests
         return $$"""
             namespace TestProgram;
 
-            public interface {{interfaceName}}
+            public abstract {{abstractName}}
             {
             }
 
@@ -326,7 +326,7 @@ public sealed class DefiniteAssignmentPropertyTests
     /// </summary>
     private static string BuildDefaultableInjectionSource(
         bool isStruct, string typeName, int defaultableCount, int nonDefaultableCount,
-        string interfaceName, string primitiveType)
+        string abstractName, string primitiveType)
     {
         var kind = isStruct ? "struct" : "class";
         var fields = new List<string>();
@@ -341,13 +341,13 @@ public sealed class DefiniteAssignmentPropertyTests
             // Intentionally NOT assigning these — they should get synthetic defaults
         }
 
-        // Non-defaultable fields (interface type) — assigned in constructor
+        // Non-defaultable fields (abstract type) — assigned in constructor
         for (var i = 0; i < nonDefaultableCount; i++)
         {
             var fieldName = FieldNames[defaultableCount + i];
-            fields.Add($"    public {interfaceName} {fieldName};");
+            fields.Add($"    public {abstractName} {fieldName};");
             assignments.Add($"        this.{fieldName} = svc{i};");
-            ctorParams.Add($"{interfaceName} svc{i}");
+            ctorParams.Add($"{abstractName} svc{i}");
         }
 
         // Build the parameter list
@@ -356,7 +356,7 @@ public sealed class DefiniteAssignmentPropertyTests
         return $$"""
             namespace TestProgram;
 
-            public interface {{interfaceName}}
+            public abstract {{abstractName}}
             {
             }
 

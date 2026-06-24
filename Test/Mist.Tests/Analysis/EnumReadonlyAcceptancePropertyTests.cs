@@ -49,7 +49,7 @@ public sealed class EnumReadonlyAcceptanceScenario
 /// **Validates: Requirements 2.1, 3.1, 5.1, 5.2, 5.3, 5.4**
 ///
 /// For any enum declaration whose resolved underlying type is a readonly type
-/// (struct, class, interface, or trait with IsReadonly = true), the type checker
+/// (struct, class, abstract type, or trait with IsReadonly = true), the type checker
 /// SHALL emit zero MIST_TC_0102 diagnostics for that enum.
 /// </summary>
 public sealed class EnumReadonlyAcceptancePropertyTests
@@ -72,7 +72,7 @@ public sealed class EnumReadonlyAcceptancePropertyTests
     private static readonly string[] ClassNames =
         ["Label", "Config", "Wrapper", "Container", "Holder"];
 
-    private static readonly string[] InterfaceNames =
+    private static readonly string[] AbstractNames =
         ["IShape", "IValue", "IToken", "IEntry", "INode"];
 
     private static readonly string[] TraitNames =
@@ -91,7 +91,7 @@ public sealed class EnumReadonlyAcceptancePropertyTests
         return Gen.OneOf(
             GenStructBaseScenario(),
             GenClassBaseScenario(),
-            GenInterfaceBaseScenario(),
+            GenAbstractBaseScenario(),
             GenTraitBaseScenario());
     }
 
@@ -134,23 +134,23 @@ public sealed class EnumReadonlyAcceptancePropertyTests
     }
 
     /// <summary>
-    /// Generates a scenario with a readonly interface as the enum base type.
-    /// A readonly struct implementing the interface is used for member values.
+    /// Generates a scenario with a readonly abstract type as the enum base type.
+    /// A readonly struct implementing the abstract type is used for member values.
     /// </summary>
-    private static Gen<EnumReadonlyAcceptanceScenario> GenInterfaceBaseScenario()
+    private static Gen<EnumReadonlyAcceptanceScenario> GenAbstractBaseScenario()
     {
         return from enumName in Gen.Elements(EnumNames)
-               from interfaceName in Gen.Elements(InterfaceNames)
+               from abstractName in Gen.Elements(AbstractNames)
                from memberCount in Gen.Choose(1, 4)
                from members in Gen.Shuffle(MemberPools)
                    .Select(m => m.Take(memberCount).ToArray())
-               let implName = string.Concat(interfaceName.AsSpan(1), "Impl")
-               let source = BuildInterfaceBaseSource(enumName, interfaceName, implName, members)
+               let implName = string.Concat(abstractName.AsSpan(1), "Impl")
+               let source = BuildAbstractBaseSource(enumName, abstractName, implName, members)
                select new EnumReadonlyAcceptanceScenario(
                    source,
                    enumName,
-                   interfaceName,
-                   $"enum {enumName} : {interfaceName} (readonly interface, {memberCount} members)");
+                   abstractName,
+                   $"enum {enumName} : {abstractName} (readonly abstract type, {memberCount} members)");
     }
 
     /// <summary>
@@ -229,18 +229,18 @@ public sealed class EnumReadonlyAcceptancePropertyTests
             """;
     }
 
-    private static string BuildInterfaceBaseSource(
-        string enumName, string interfaceName, string implName, string[] memberNames)
+    private static string BuildAbstractBaseSource(
+        string enumName, string abstractName, string implName, string[] memberNames)
     {
         var members = string.Join(",\n    ",
             memberNames.Select(m => $"{m} = new {implName}(0)"));
 
         return $$"""
-            public readonly interface {{interfaceName}} {
+            public readonly abstract {{abstractName}} {
                 int GetValue();
             }
 
-            public readonly struct {{implName}} : {{interfaceName}} {
+            public readonly struct {{implName}} : {{abstractName}} {
                 public int value;
 
                 public {{implName}}(int value)
@@ -254,7 +254,7 @@ public sealed class EnumReadonlyAcceptancePropertyTests
                 }
             }
 
-            public enum {{enumName}} : {{interfaceName}} {
+            public enum {{enumName}} : {{abstractName}} {
                 {{members}}
             }
 
@@ -344,7 +344,7 @@ public sealed class EnumReadonlyAcceptancePropertyTests
     // **Validates: Requirements 2.1, 3.1, 5.1, 5.2, 5.3, 5.4**
     //
     // For any enum declaration whose resolved underlying type is a readonly
-    // type (struct, class, interface, or trait with IsReadonly = true), the
+    // type (struct, class, abstract type, or trait with IsReadonly = true), the
     // type checker SHALL emit zero MIST_TC_0102 diagnostics for that enum.
     // ═══════════════════════════════════════════════════════════════════════
 

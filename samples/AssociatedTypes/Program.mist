@@ -1,37 +1,37 @@
 // AssociatedTypes — Demonstrates all associated type slot variants and usage patterns.
 //
-// Associated types declare abstract type slots in interfaces/traits that implementors
+// Associated types declare abstract type slots in abstract types/traits that implementors
 // must fill with concrete nested types satisfying declared constraints. The compiler
 // validates constraint satisfaction at compile time.
 //
 // PROOF OF CORRECTNESS: This program would NOT compile if the associated type feature
 // were removed — the `type Name : Constraint;` declarations would fail to parse, and
-// the constraint validation (struct/class/interface) would not occur. Each interface
-// uses its slot in method signatures (return types or parameters), proving the slot
-// is not just declared but actively participates in the interface contract.
+// the constraint validation (struct/class/abstract type) would not occur. Each abstract
+// type uses its slot in method signatures (return types or parameters), proving the slot
+// is not just declared but actively participates in the abstract type contract.
 
 using Standard;
 
 namespace AssociatedTypes;
 
-// ─── Supporting interfaces ───────────────────────────────────────────────────
+// ─── Supporting abstract types ───────────────────────────────────────────────
 
-interface IStringable {
+abstract IStringable {
     string Stringify();
 }
 
-interface IResettable {
+abstract IResettable {
     string GetState();
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// Pattern 1: Single interface constraint
+// Pattern 1: Single abstract type constraint
 // The slot `type Output : IStringable` requires the concrete type to implement
-// IStringable. The interface uses Output as a return type, proving the slot
+// IStringable. The abstract type uses Output as a return type, proving the slot
 // participates in the contract.
 // ═══════════════════════════════════════════════════════════════════════════════
 
-interface IProducer {
+abstract IProducer {
     type Output : IStringable;
     Output Produce(string value);
 }
@@ -48,7 +48,7 @@ class MessageProducer : IProducer {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// Pattern 2: Trait slot with interface constraint
+// Pattern 2: Trait slot with abstract type constraint
 // Traits can also declare associated type slots. The trait uses Input as both
 // a return type and parameter type in its method signatures.
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -76,10 +76,10 @@ class StringConsumer {
 // ═══════════════════════════════════════════════════════════════════════════════
 // Pattern 3: Struct kind constraint — implementor with nested struct
 // The slot `type Cursor : struct` requires the concrete type to be a value type.
-// The interface uses Cursor as both return and parameter type.
+// The abstract type uses Cursor as both return and parameter type.
 // ═══════════════════════════════════════════════════════════════════════════════
 
-interface IIterator {
+abstract IIterator {
     type Cursor : struct;
     Cursor Start();
     Cursor Advance(Cursor current);
@@ -101,10 +101,10 @@ class RangeIterator : IIterator {
 // ═══════════════════════════════════════════════════════════════════════════════
 // Pattern 4: Class kind constraint — implementor with nested class
 // The slot `type Product : class` requires the concrete type to be a reference type.
-// The interface uses Product as a return type.
+// The abstract type uses Product as a return type.
 // ═══════════════════════════════════════════════════════════════════════════════
 
-interface IFactory {
+abstract IFactory {
     type Product : class;
     Product Create(string name, int weight);
 }
@@ -122,11 +122,11 @@ class WidgetFactory : IFactory {
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // Pattern 5: Multiple constraints (IStringable AND IResettable)
-// The slot requires the concrete type to implement BOTH interfaces.
-// The interface uses State as a return type.
+// The slot requires the concrete type to implement BOTH abstract types.
+// The abstract type uses State as a return type.
 // ═══════════════════════════════════════════════════════════════════════════════
 
-interface IStatefulProducer {
+abstract IStatefulProducer {
     type State : IStringable, IResettable;
     State CreateState(int initial);
 }
@@ -144,13 +144,13 @@ class CounterProducer : IStatefulProducer {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// Pattern 6: Associated type slot on a generic interface
-// The interface has a type parameter used in its methods, AND an associated type
-// slot with its own constraint. The interface uses Mapped as a return type AND
+// Pattern 6: Associated type slot on a generic abstract type
+// The abstract type has a type parameter used in its methods, AND an associated type
+// slot with its own constraint. The abstract type uses Mapped as a return type AND
 // TIn as a parameter, proving both coexist correctly.
 // ═══════════════════════════════════════════════════════════════════════════════
 
-interface IMapper<TIn> {
+abstract IMapper<TIn> {
     type Mapped : IStringable;
     Mapped Map(TIn value);
     TIn GetDefault();
@@ -187,10 +187,10 @@ class StringMapper : IMapper<string> {
 // ═══════════════════════════════════════════════════════════════════════════════
 // Pattern 7: Unconstrained slot
 // The slot `type Element;` has no constraints — any nested type satisfies it.
-// The interface uses Element as a return type.
+// The abstract type uses Element as a return type.
 // ═══════════════════════════════════════════════════════════════════════════════
 
-interface IContainer {
+abstract IContainer {
     type Element;
     Element Get(int index);
     int GetSize();
@@ -210,12 +210,12 @@ class IntContainer : IContainer {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// Pattern 8: Class + interface constraint combined
-// The slot requires BOTH `class` kind AND interface implementation.
-// The interface uses Value as a return type.
+// Pattern 8: Class + abstract type constraint combined
+// The slot requires BOTH `class` kind AND abstract type implementation.
+// The abstract type uses Value as a return type.
 // ═══════════════════════════════════════════════════════════════════════════════
 
-interface IValueProducer {
+abstract IValueProducer {
     type Value : class, IStringable;
     Value Create(int x, int y);
 }
@@ -233,12 +233,12 @@ class PointProducer : IValueProducer {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// Pattern 9: Multiple slots in one interface
-// An interface can declare multiple associated type slots, each with different
-// constraints. The interface uses both Key and Value in its method signatures.
+// Pattern 9: Multiple slots in one abstract type
+// An abstract type can declare multiple associated type slots, each with different
+// constraints. The abstract type uses both Key and Value in its method signatures.
 // ═══════════════════════════════════════════════════════════════════════════════
 
-interface IKeyValueStore {
+abstract IKeyValueStore {
     type Key : struct;
     type Value : class;
     Key MakeKey(int id);
@@ -263,17 +263,17 @@ class StringStore : IKeyValueStore {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// Pattern 10: Multiple interfaces with slots on same implementor
-// A class can implement multiple interfaces that each declare associated type
-// slots. Each interface uses its slot in a method signature.
+// Pattern 10: Multiple abstract types with slots on same implementor
+// A class can implement multiple abstract types that each declare associated type
+// slots. Each abstract type uses its slot in a method signature.
 // ═══════════════════════════════════════════════════════════════════════════════
 
-interface IReadable {
+abstract IReadable {
     type Reader : struct;
     Reader OpenReader(int offset);
 }
 
-interface IWritable {
+abstract IWritable {
     type Writer : class;
     Writer OpenWriter(int bufferSize);
 }
@@ -297,18 +297,18 @@ class FileStream : IReadable, IWritable {
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // Pattern 11: Type parameter participating in associated type constraint
-// The interface's type parameter T is used in the slot's constraint:
+// The abstract type's type parameter T is used in the slot's constraint:
 // `type Output : IWrapper<T>`. This requires the concrete Output type to
-// implement IWrapper parameterized by the same T that the interface was
+// implement IWrapper parameterized by the same T that the abstract type was
 // instantiated with. Proves the compiler resolves enclosing type parameters
 // inside slot constraint type arguments.
 // ═══════════════════════════════════════════════════════════════════════════════
 
-interface IWrapper<T> {
+abstract IWrapper<T> {
     T Unwrap();
 }
 
-interface IBoxFactory<T> {
+abstract IBoxFactory<T> {
     type Boxed : IWrapper<T>;
     Boxed Wrap(T value);
 }
@@ -340,14 +340,14 @@ class StringBoxFactory : IBoxFactory<string> {
 // The slot `type Mapped<TOut> : ITransform<TIn, TOut>` is itself generic.
 // The implementor provides a generic nested type, and callers choose the type
 // argument at each usage site. The emitter erases the slot to its constraint
-// interface in the C# output since C# lacks higher-kinded types.
+// abstract type in the C# output since C# lacks higher-kinded types.
 // ═══════════════════════════════════════════════════════════════════════════════
 
-interface ITransform<TIn, TOut> {
+abstract ITransform<TIn, TOut> {
     TOut Transform(TIn input);
 }
 
-interface IConverter<TIn> {
+abstract IConverter<TIn> {
     type Converted<TOut> : ITransform<TIn, TOut>;
     Converted<string> ConvertToString(TIn input);
     Converted<int> ConvertToInt(TIn input);
@@ -373,8 +373,8 @@ public class Program {
     public static void RunDemo() {
         Console.WriteLine("--- Associated Types ---");
 
-        // 1. Single interface constraint — slot used as return type
-        Console.WriteLine("--- Single Interface Constraint ---");
+        // 1. Single abstract type constraint — slot used as return type
+        Console.WriteLine("--- Single Abstract Type Constraint ---");
         var producer = new MessageProducer();
         var output1 = producer.Produce("hello");
         Console.WriteLine(output1.Stringify());
@@ -411,8 +411,8 @@ public class Program {
         Console.WriteLine(state.Stringify());
         Console.WriteLine(state.GetState());
 
-        // 6. Generic interface with slot — slot and type param both used in methods
-        Console.WriteLine("--- Generic Interface With Slot ---");
+        // 6. Generic abstract type with slot — slot and type param both used in methods
+        Console.WriteLine("--- Generic Abstract Type With Slot ---");
         var intMapper = new IntMapper();
         var mapped1 = intMapper.Map(123);
         Console.WriteLine(mapped1.Stringify());
@@ -430,8 +430,8 @@ public class Program {
         var elem2 = container.Get(7);
         Console.WriteLine($"elem2.Value={elem2.Value}");
 
-        // 8. Class + interface constraint — slot used as return type
-        Console.WriteLine("--- Class Plus Interface ---");
+        // 8. Class + abstract type constraint — slot used as return type
+        Console.WriteLine("--- Class Plus Abstract Type ---");
         var pointProducer = new PointProducer();
         var point = pointProducer.Create(3, 4);
         Console.WriteLine(point.Stringify());
@@ -446,8 +446,8 @@ public class Program {
         var val = store.MakeValue("hello-store");
         Console.WriteLine($"val.Data={val.Data}");
 
-        // 10. Multiple interfaces — each slot used as return type
-        Console.WriteLine("--- Multiple Interfaces ---");
+        // 10. Multiple abstract types — each slot used as return type
+        Console.WriteLine("--- Multiple Abstract Types ---");
         var stream = new FileStream();
         var reader = stream.OpenReader(0);
         Console.WriteLine($"reader.Offset={reader.Offset}");

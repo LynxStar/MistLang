@@ -358,7 +358,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     internal static readonly DiagnosticId ConstraintMutableViolation = new("MIST_TC_0078");
 
-    // ── Readonly interface/trait contract diagnostic ID ───────────────────
+    // ── Readonly abstract/trait contract diagnostic ID ───────────────────
     //
     // Note on numbering: the readonly-contexts design document's Diagnostic
     // ID Allocation table proposed MIST_TC_0072 for this diagnostic. That
@@ -369,7 +369,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     // avoid overloading a diagnostic ID with two distinct meanings.
 
     /// <summary>
-    /// Emitted when a type implements a readonly interface or trait but the
+    /// Emitted when a type implements a readonly abstract or trait but the
     /// implementing member is not readonly (explicit or inferred). The
     /// implementing member must be readonly to satisfy the contract
     /// (Requirement 13.2, 13.3, 13.4, 13.5, 13.6).
@@ -416,10 +416,10 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     // ── Generic constraint satisfaction diagnostic IDs ────────────────────
 
     /// <summary>
-    /// Emitted when a type argument does not implement a required interface
+    /// Emitted when a type argument does not implement a required abstract
     /// constraint on a type parameter (Requirement 5.2, 10.1).
     /// </summary>
-    internal static readonly DiagnosticId ConstraintInterfaceNotImplemented = new("MIST_CONSTRAINT_0009");
+    internal static readonly DiagnosticId ConstraintAbstractNotImplemented = new("MIST_CONSTRAINT_0009");
 
     /// <summary>
     /// Emitted when a type argument does not satisfy a required trait
@@ -938,7 +938,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
     /// <summary>
     /// Emitted when an <c>as</c> expression is used between two types that have
-    /// no type relationship (neither is a subtype of the other, no interface/trait
+    /// no type relationship (neither is a subtype of the other, no abstract/trait
     /// relationship, no union membership, neither is <c>unknown</c>).
     /// (Requirements 4.1, 4.2, 8.1).
     /// </summary>
@@ -1052,7 +1052,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
     // ── Cache for cross-reference lookups from dedicated types to registered declarations ──
     //    Used by CollectConstructorOverloads to bridge SpanType to its registered StructType,
-    //    and by GetInterfaceList to bridge ArrayType to its registered ClassType.
+    //    and by GetAbstractList to bridge ArrayType to its registered ClassType.
     //    Cleared at the start of each Analyze() call.
     private readonly Dictionary<string, StructType?> _registeredStructTypeCache = new(StringComparer.Ordinal);
     private readonly Dictionary<string, ClassType?> _registeredClassTypeCache = new(StringComparer.Ordinal);
@@ -1098,14 +1098,14 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // Task 5.9: Check for duplicate indexers across all types (MIST_TC_0029).
         // (Individual indexer checks are done per-symbol above.)
 
-        // Task 5.10: Check for missing interface property implementations (MIST_TC_0030).
-        CheckMissingInterfaceProperties(model, diagnostics);
+        // Task 5.10: Check for missing abstract property implementations (MIST_TC_0030).
+        CheckMissingAbstractProperties(model, diagnostics);
 
-        // Task 10.1: Check readonly interface/trait contract enforcement (MIST_TC_0079).
-        CheckReadonlyInterfaceAndTraitContracts(model, diagnostics);
+        // Task 10.1: Check readonly abstract/trait contract enforcement (MIST_TC_0079).
+        CheckReadonlyAbstractAndTraitContracts(model, diagnostics);
 
         // Task 6.2: Check constraint satisfaction for inheritance clauses where
-        // constrained generics are used as base types or implemented interfaces.
+        // constrained generics are used as base types or implemented abstracts.
         CheckInheritanceClauseConstraints(model, diagnostics);
 
         // Task 7.2: Validate explicit default blocks (R9.1–9.3, R6.9, R11.1, R11.2, R13.3, R13.4, R13.10).
@@ -1364,12 +1364,12 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     // ═══════════════════════════════════════════════════════════════════════
 
     /// <summary>
-    /// Finds the declaring type (ClassType, StructType, or InterfaceType) that contains the given
+    /// Finds the declaring type (ClassType, StructType, or AbstractType) that contains the given
     /// method or constructor symbol by walking up the scope chain.
     /// </summary>
     private static IType? FindDeclaringType(ISymbol memberSymbol)
     {
-        // The member's ContainingScope is the type scope. Look for a Class/Struct/Interface
+        // The member's ContainingScope is the type scope. Look for a Class/Struct/Abstract
         // symbol in the parent scope that owns this type scope.
         var typeScope = memberSymbol.ContainingScope;
         var parentScope = typeScope?.Parent;
@@ -1378,15 +1378,15 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         foreach (var member in parentScope.Members)
         {
-            if (member.Kind is SymbolKind.Class or SymbolKind.Struct or SymbolKind.Interface
-                && member.DeclaredType is ClassType or StructType or InterfaceType)
+            if (member.Kind is SymbolKind.Class or SymbolKind.Struct or SymbolKind.Abstract
+                && member.DeclaredType is ClassType or StructType or AbstractType)
             {
                 // Check if this type's MemberScope is the same as the member's ContainingScope.
                 var memberScope = member.DeclaredType switch
                 {
                     ClassType ct => ct.MemberScope,
                     StructType st => st.MemberScope,
-                    InterfaceType it => it.MemberScope,
+                    AbstractType it => it.MemberScope,
                     _ => null,
                 };
                 if (ReferenceEquals(memberScope, typeScope))
@@ -1881,7 +1881,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
     /// <summary>
     /// Checks whether <paramref name="source"/> is directly assignable to
-    /// <paramref name="target"/> via identity, subtype, interface, trait,
+    /// <paramref name="target"/> via identity, subtype, abstract, trait,
     /// or constructed type relationships — but <b>not</b>
     /// via implicit cast operators (including numeric widening, which is
     /// now expressed as implicit cast operators on stdlib types). This is the subset of
@@ -2093,10 +2093,10 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 return true;
         }
 
-        // ConstructedType to constructed interface assignability.
-        if (target is ConstructedType targetConst && targetConst.GenericDefinition is InterfaceType)
+        // ConstructedType to constructed abstract assignability.
+        if (target is ConstructedType targetConst && targetConst.GenericDefinition is AbstractType)
         {
-            if (ImplementsConstructedInterface(source, targetConst))
+            if (ImplementsConstructedAbstract(source, targetConst))
                 return true;
         }
 
@@ -2106,10 +2106,10 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // at the end of IsAssignable handles this. IsDirectlyAssignable
         // intentionally does NOT check implicit cast operators.
 
-        // Interface assignability.
-        if (target is InterfaceType targetInterface)
+        // Abstract assignability.
+        if (target is AbstractType targetAbstract)
         {
-            if (ImplementsInterface(source, targetInterface))
+            if (ImplementsAbstract(source, targetAbstract))
                 return true;
         }
 
@@ -4066,7 +4066,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
     /// <summary>
     /// Checks constraint satisfaction for inheritance clauses where constrained generics
-    /// are used as base types or implemented interfaces. For example, if
+    /// are used as base types or implemented abstracts. For example, if
     /// <c>class Foo : Bar&lt;int&gt;</c> and <c>Bar&lt;T&gt;</c> has <c>where T : IComparable&lt;T&gt;</c>,
     /// this verifies that <c>int</c> satisfies the constraint.
     /// </summary>
@@ -4077,7 +4077,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             if (symbol.Origin == SymbolOrigin.Backend)
                 continue;
 
-            if (symbol.Kind is not (SymbolKind.Class or SymbolKind.Struct or SymbolKind.Interface))
+            if (symbol.Kind is not (SymbolKind.Class or SymbolKind.Struct or SymbolKind.Abstract))
                 continue;
 
             var declaredType = symbol.DeclaredType;
@@ -4117,41 +4117,41 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 }
             }
 
-            // Check implemented interfaces.
-            var interfaces = declaredType switch
+            // Check implemented abstracts.
+            var abstracts = declaredType switch
             {
-                ClassType ct => ct.Interfaces,
-                StructType st => st.Interfaces,
-                InterfaceType it => it.Interfaces,
+                ClassType ct => ct.Abstracts,
+                StructType st => st.Abstracts,
+                AbstractType it => it.Abstracts,
                 _ => Array.Empty<IType>()
             };
 
-            foreach (var iface in interfaces)
+            foreach (var abs in abstracts)
             {
-                if (iface is not ConstructedType ifaceConstructed)
+                if (abs is not ConstructedType absConstructed)
                     continue;
 
-                var ifaceTypeParams = GetTypeParameters(ifaceConstructed.GenericDefinition);
-                if (ifaceTypeParams is null)
+                var absTypeParams = GetTypeParameters(absConstructed.GenericDefinition);
+                if (absTypeParams is null)
                     continue;
 
-                var ifaceTypeArgs = ifaceConstructed.TypeArguments;
-                var genericName = ifaceConstructed.GenericDefinition.DisplayName;
-                for (var i = 0; i < ifaceTypeParams.Count && i < ifaceTypeArgs.Count; i++)
+                var absTypeArgs = absConstructed.TypeArguments;
+                var genericName = absConstructed.GenericDefinition.DisplayName;
+                for (var i = 0; i < absTypeParams.Count && i < absTypeArgs.Count; i++)
                 {
-                    if (ifaceTypeArgs[i] is TypeParameterType derivedTypeParam)
+                    if (absTypeArgs[i] is TypeParameterType derivedTypeParam)
                     {
                         // The type argument is a type parameter of the derived type —
                         // check constraint propagation ("at least as restrictive").
-                        if (ifaceTypeParams[i] is TypeParameterType ifaceTP)
+                        if (absTypeParams[i] is TypeParameterType absTP)
                             CheckConstraintPropagation(
-                                derivedTypeParam, ifaceTP, declaredType,
+                                derivedTypeParam, absTP, declaredType,
                                 genericName, declaringNode, model, diagnostics);
                     }
                     else
                     {
-                        if (ifaceTypeParams[i] is TypeParameterType ifaceTP2)
-                            CheckConstraintSatisfaction(ifaceTypeArgs[i], ifaceTP2, declaringNode, genericName, model, diagnostics);
+                        if (absTypeParams[i] is TypeParameterType absTP2)
+                            CheckConstraintSatisfaction(absTypeArgs[i], absTP2, declaringNode, genericName, model, diagnostics);
                     }
                 }
             }
@@ -4160,7 +4160,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
     /// <summary>
     /// Checks that a derived type's constraints on a type parameter are at least as
-    /// restrictive as the base/interface type's constraints on the corresponding type
+    /// restrictive as the base/abstract type's constraints on the corresponding type
     /// parameter. Emits MIST_CONSTRAINT_0017 when constraints are insufficient.
     /// (Requirements 7.1, 7.2, 7.3)
     /// </summary>
@@ -4210,10 +4210,10 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             }
         }
 
-        // Check interface constraint propagation: derived must require each interface the base requires.
+        // Check abstract constraint propagation: derived must require each abstract the base requires.
         foreach (var baseIface in baseConstraints.AbstractConstraints)
         {
-            if (derivedConstraints is null || !HasMatchingInterfaceConstraint(derivedConstraints, baseIface))
+            if (derivedConstraints is null || !HasMatchingAbstractConstraint(derivedConstraints, baseIface))
             {
                 EmitPropagationDiagnostic(derivedType, baseTypeName, derivedTypeParam.Name, node, model, diagnostics);
                 return;
@@ -4269,14 +4269,14 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     }
 
     /// <summary>
-    /// Checks whether the derived constraints include an interface constraint that
-    /// matches (or is more derived than) the given base interface constraint.
+    /// Checks whether the derived constraints include an abstract constraint that
+    /// matches (or is more derived than) the given base abstract constraint.
     /// </summary>
-    private static bool HasMatchingInterfaceConstraint(TypeParameterConstraints derivedConstraints, IType baseIface)
+    private static bool HasMatchingAbstractConstraint(TypeParameterConstraints derivedConstraints, IType baseIface)
     {
         foreach (var derivedIface in derivedConstraints.AbstractConstraints)
         {
-            if (ImplementsInterfaceConstraint(derivedIface, baseIface))
+            if (ImplementsAbstractConstraint(derivedIface, baseIface))
                 return true;
 
             // Direct match by display name.
@@ -4334,10 +4334,10 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     }
 
     /// <summary>
-    /// Checks that all types implementing interfaces provide required property accessors (MIST_TC_0030).
+    /// Checks that all types implementing abstracts provide required property accessors (MIST_TC_0030).
     /// This complements the semantic model builder's Pass1d validation with type-checker-level diagnostics.
     /// </summary>
-    private static void CheckMissingInterfaceProperties(ISemanticModel model, DiagnosticBag diagnostics)
+    private static void CheckMissingAbstractProperties(ISemanticModel model, DiagnosticBag diagnostics)
     {
         foreach (var symbol in model.AllSymbols)
         {
@@ -4348,14 +4348,14 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 continue;
 
             var type = symbol.DeclaredType;
-            IReadOnlyList<IType>? interfaces = type switch
+            IReadOnlyList<IType>? abstracts = type switch
             {
-                ClassType ct => ct.Interfaces,
-                StructType st => st.Interfaces,
+                ClassType ct => ct.Abstracts,
+                StructType st => st.Abstracts,
                 _ => null,
             };
 
-            if (interfaces is null || interfaces.Count == 0)
+            if (abstracts is null || abstracts.Count == 0)
                 continue;
 
             IScope? memberScope = type switch
@@ -4368,40 +4368,40 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             if (memberScope is null)
                 continue;
 
-            // Check each interface's property requirements.
-            var visited = new HashSet<InterfaceType>(ReferenceEqualityComparer.Instance);
-            CheckInterfacePropertyRequirements(symbol, interfaces, memberScope, type as ClassType, model, diagnostics, visited);
+            // Check each abstract's property requirements.
+            var visited = new HashSet<AbstractType>(ReferenceEqualityComparer.Instance);
+            CheckAbstractPropertyRequirements(symbol, abstracts, memberScope, type as ClassType, model, diagnostics, visited);
         }
     }
 
-    private static void CheckInterfacePropertyRequirements(
+    private static void CheckAbstractPropertyRequirements(
         ISymbol typeSymbol,
-        IReadOnlyList<IType> interfaces,
+        IReadOnlyList<IType> abstracts,
         IScope memberScope,
         ClassType? classType,
         ISemanticModel model,
         DiagnosticBag diagnostics,
-        HashSet<InterfaceType> visited)
+        HashSet<AbstractType> visited)
     {
-        foreach (var ifaceType in interfaces)
+        foreach (var absType in abstracts)
         {
-            if (ifaceType is not InterfaceType iface)
+            if (absType is not AbstractType abs)
                 continue;
 
-            if (!visited.Add(iface))
+            if (!visited.Add(abs))
                 continue;
 
-            foreach (var ifaceMember in iface.MemberScope.Members)
+            foreach (var abstractMember in abs.MemberScope.Members)
             {
-                if (ifaceMember.Kind != SymbolKind.Property)
+                if (abstractMember.Kind != SymbolKind.Property)
                     continue;
 
-                var requiredPropInfo = GetPropertyMetadata(ifaceMember);
+                var requiredPropInfo = GetPropertyMetadata(abstractMember);
                 if (requiredPropInfo is null)
                     continue;
 
                 // Search for matching property in the implementing type.
-                var implProperty = FindPropertyInTypeHierarchy(ifaceMember.Name, memberScope, classType);
+                var implProperty = FindPropertyInTypeHierarchy(abstractMember.Name, memberScope, classType);
 
                 if (implProperty is null)
                 {
@@ -4414,7 +4414,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     {
                         diagnostics.Add(MakeDiagnostic(
                             "MIST_TC_0030",
-                            $"'{typeSymbol.Name}' does not implement interface property '{iface.DisplayName}.{ifaceMember.Name}'",
+                            $"'{typeSymbol.Name}' does not implement abstract property '{abs.DisplayName}.{abstractMember.Name}'",
                             typeNode,
                             model));
                     }
@@ -4434,7 +4434,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 {
                     diagnostics.Add(MakeDiagnostic(
                         "MIST_TC_0030",
-                        $"'{typeSymbol.Name}.{ifaceMember.Name}' does not implement 'get' accessor required by interface '{iface.DisplayName}'",
+                        $"'{typeSymbol.Name}.{abstractMember.Name}' does not implement 'get' accessor required by abstract '{abs.DisplayName}'",
                         implNode,
                         model));
                 }
@@ -4443,16 +4443,16 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 {
                     diagnostics.Add(MakeDiagnostic(
                         "MIST_TC_0030",
-                        $"'{typeSymbol.Name}.{ifaceMember.Name}' does not implement 'set' accessor required by interface '{iface.DisplayName}'",
+                        $"'{typeSymbol.Name}.{abstractMember.Name}' does not implement 'set' accessor required by abstract '{abs.DisplayName}'",
                         implNode,
                         model));
                 }
             }
 
-            // Recurse into parent interfaces.
-            if (iface.Interfaces.Count > 0)
+            // Recurse into parent abstracts.
+            if (abs.Abstracts.Count > 0)
             {
-                CheckInterfacePropertyRequirements(typeSymbol, iface.Interfaces, memberScope, classType, model, diagnostics, visited);
+                CheckAbstractPropertyRequirements(typeSymbol, abs.Abstracts, memberScope, classType, model, diagnostics, visited);
             }
         }
     }
@@ -4486,18 +4486,18 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     }
 
     // ═══════════════════════════════════════════════════════════════════════
-    // Readonly interface/trait contract checking (MIST_TC_0079)
+    // Readonly abstract/trait contract checking (MIST_TC_0079)
     // ═══════════════════════════════════════════════════════════════════════
 
     /// <summary>
-    /// Verifies that when a type implements a readonly interface or trait, each
+    /// Verifies that when a type implements a readonly abstract or trait, each
     /// implementing member is also readonly (explicit, inferred, or implicit).
     /// If an implementing member is not readonly, emits <c>MIST_TC_0079</c>.
     /// The implementing type itself does not need to be readonly — only the
-    /// specific members that correspond to readonly interface/trait members.
+    /// specific members that correspond to readonly abstract/trait members.
     /// (Requirements 13.1, 13.2, 13.3, 13.4, 13.5, 13.6)
     /// </summary>
-    private static void CheckReadonlyInterfaceAndTraitContracts(ISemanticModel model, DiagnosticBag diagnostics)
+    private static void CheckReadonlyAbstractAndTraitContracts(ISemanticModel model, DiagnosticBag diagnostics)
     {
         foreach (var symbol in model.AllSymbols)
         {
@@ -4509,11 +4509,11 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
             var type = symbol.DeclaredType;
 
-            // Check interface contracts.
-            IReadOnlyList<IType>? interfaces = type switch
+            // Check abstract contracts.
+            IReadOnlyList<IType>? abstracts = type switch
             {
-                ClassType ct => ct.Interfaces,
-                StructType st => st.Interfaces,
+                ClassType ct => ct.Abstracts,
+                StructType st => st.Abstracts,
                 _ => null,
             };
 
@@ -4524,9 +4524,9 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 _ => null,
             };
 
-            if (memberScope is not null && interfaces is not null && interfaces.Count > 0)
+            if (memberScope is not null && abstracts is not null && abstracts.Count > 0)
             {
-                CheckReadonlyInterfaceContracts(symbol, interfaces, memberScope, model, diagnostics);
+                CheckReadonlyAbstractContracts(symbol, abstracts, memberScope, model, diagnostics);
             }
 
             // Check trait contracts via the TraitSatisfactionMap.
@@ -4538,97 +4538,97 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     }
 
     /// <summary>
-    /// Checks readonly contracts for all interfaces implemented by a type.
-    /// For each readonly interface member, verifies the implementing member is also readonly.
+    /// Checks readonly contracts for all abstracts implemented by a type.
+    /// For each readonly abstract member, verifies the implementing member is also readonly.
     /// </summary>
-    private static void CheckReadonlyInterfaceContracts(
+    private static void CheckReadonlyAbstractContracts(
         ISymbol typeSymbol,
-        IReadOnlyList<IType> interfaces,
+        IReadOnlyList<IType> abstracts,
         IScope memberScope,
         ISemanticModel model,
         DiagnosticBag diagnostics)
     {
-        foreach (var ifaceType in interfaces)
+        foreach (var absType in abstracts)
         {
-            if (ifaceType is not InterfaceType iface)
+            if (absType is not AbstractType abs)
                 continue;
 
-            // Only check readonly interfaces (all members are implicitly readonly).
-            if (!iface.IsReadonly)
+            // Only check readonly abstracts (all members are implicitly readonly).
+            if (!abs.IsReadonly)
             {
-                // Even if the interface itself is not readonly, individual members
+                // Even if the abstract itself is not readonly, individual members
                 // might be explicitly readonly. Check those too.
-                CheckReadonlyMembersOfInterface(typeSymbol, iface, memberScope, model, diagnostics);
+                CheckReadonlyMembersOfAbstract(typeSymbol, abs, memberScope, model, diagnostics);
                 continue;
             }
 
-            // The interface is readonly — all its members are implicitly readonly.
-            foreach (var ifaceMember in iface.MemberScope.Members)
+            // The abstract is readonly — all its members are implicitly readonly.
+            foreach (var abstractMember in abs.MemberScope.Members)
             {
-                if (ifaceMember.Kind is not (SymbolKind.Method or SymbolKind.Property or SymbolKind.Indexer))
+                if (abstractMember.Kind is not (SymbolKind.Method or SymbolKind.Property or SymbolKind.Indexer))
                     continue;
 
-                var implMember = FindMemberInScope(ifaceMember.Name, ifaceMember.Kind, memberScope);
+                var implMember = FindMemberInScope(abstractMember.Name, abstractMember.Kind, memberScope);
                 if (implMember is null)
-                    continue; // Missing implementation is reported by CheckMissingInterfaceProperties.
+                    continue; // Missing implementation is reported by CheckMissingAbstractProperties.
 
                 if (!IsMemberReadonly(implMember))
                 {
-                    EmitReadonlyContractViolation(typeSymbol, implMember, ifaceMember, iface.DisplayName, model, diagnostics);
+                    EmitReadonlyContractViolation(typeSymbol, implMember, abstractMember, abs.DisplayName, model, diagnostics);
                 }
             }
 
-            // Recurse into parent interfaces.
-            if (iface.Interfaces.Count > 0)
+            // Recurse into parent abstracts.
+            if (abs.Abstracts.Count > 0)
             {
-                CheckReadonlyInterfaceContracts(typeSymbol, iface.Interfaces, memberScope, model, diagnostics);
+                CheckReadonlyAbstractContracts(typeSymbol, abs.Abstracts, memberScope, model, diagnostics);
             }
         }
     }
 
     /// <summary>
-    /// Checks individual readonly members of a non-readonly interface.
+    /// Checks individual readonly members of a non-readonly abstract.
     /// </summary>
-    private static void CheckReadonlyMembersOfInterface(
+    private static void CheckReadonlyMembersOfAbstract(
         ISymbol typeSymbol,
-        InterfaceType iface,
+        AbstractType abs,
         IScope memberScope,
         ISemanticModel model,
         DiagnosticBag diagnostics)
     {
-        foreach (var ifaceMember in iface.MemberScope.Members)
+        foreach (var abstractMember in abs.MemberScope.Members)
         {
-            if (ifaceMember.Kind is not (SymbolKind.Method or SymbolKind.Property or SymbolKind.Indexer))
+            if (abstractMember.Kind is not (SymbolKind.Method or SymbolKind.Property or SymbolKind.Indexer))
                 continue;
 
-            // Check if this specific interface member is readonly.
-            if (!IsMemberReadonly(ifaceMember))
+            // Check if this specific abstract member is readonly.
+            if (!IsMemberReadonly(abstractMember))
                 continue;
 
-            var implMember = FindMemberInScope(ifaceMember.Name, ifaceMember.Kind, memberScope);
+            var implMember = FindMemberInScope(abstractMember.Name, abstractMember.Kind, memberScope);
             if (implMember is null)
                 continue;
 
             if (!IsMemberReadonly(implMember))
             {
-                EmitReadonlyContractViolation(typeSymbol, implMember, ifaceMember, iface.DisplayName, model, diagnostics);
+                EmitReadonlyContractViolation(typeSymbol, implMember, abstractMember, abs.DisplayName, model, diagnostics);
             }
         }
 
-        // Recurse into parent interfaces.
-        if (iface.Interfaces.Count > 0)
+        // Recurse into parent abstracts.
+        if (abs.Abstracts.Count > 0)
         {
-            foreach (var parentIface in iface.Interfaces)
+            foreach (var parentAbs in abs.Abstracts)
             {
-                if (parentIface is InterfaceType parentIfaceType)
+                if (parentAbs is AbstractType parentAbsType)
                 {
-                    if (parentIfaceType.IsReadonly)
+                    if (parentAbsType.IsReadonly)
                     {
-                        CheckReadonlyInterfaceContracts(typeSymbol, new[] { parentIfaceType }, memberScope, model, diagnostics);
+                        CheckReadonlyAbstractContracts(typeSymbol, new[] { parentAbsType }, memberScope, model, diagnostics);
                     }
                     else
                     {
-                        CheckReadonlyMembersOfInterface(typeSymbol, parentIfaceType, memberScope, model, diagnostics);
+                        CheckReadonlyMembersOfAbstract(typeSymbol, parentAbsType, memberScope, model, diagnostics);
                     }
                 }
             }
@@ -6622,16 +6622,16 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     }
 
     /// <summary>
-    /// Searches a type's interface list for <c>IEnumerable&lt;TElement&gt;</c> and returns
+    /// Searches a type's abstract list for <c>IEnumerable&lt;TElement&gt;</c> and returns
     /// the resolved <c>TElement</c>, or <c>null</c> if the type does not implement
     /// <c>IEnumerable&lt;TElement&gt;</c>.
     /// </summary>
     private IType? FindIEnumerableImplementation(IType type, ISemanticModel model)
     {
-        var interfaces = GetInterfaceList(type, model);
+        var abstracts = GetAbstractList(type, model);
 
         // If the source is a ConstructedType, we need to substitute type parameters
-        // in the interface list with the concrete type arguments.
+        // in the abstract list with the concrete type arguments.
         IReadOnlyList<IType>? typeParams = null;
         IReadOnlyList<IType>? typeArgs = null;
         if (type is ConstructedType sourceCt)
@@ -6639,31 +6639,31 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             switch (sourceCt.GenericDefinition)
             {
                 case ClassType classDef:
-                    interfaces = classDef.Interfaces;
+                    abstracts = classDef.Abstracts;
                     typeParams = classDef.TypeParameters;
                     typeArgs = sourceCt.TypeArguments;
                     break;
                 case StructType structDef:
-                    interfaces = structDef.Interfaces;
+                    abstracts = structDef.Abstracts;
                     typeParams = structDef.TypeParameters;
                     typeArgs = sourceCt.TypeArguments;
                     break;
-                case InterfaceType ifaceDef:
-                    interfaces = ifaceDef.Interfaces;
-                    typeParams = ifaceDef.TypeParameters;
+                case AbstractType abstractDef:
+                    abstracts = abstractDef.Abstracts;
+                    typeParams = abstractDef.TypeParameters;
                     typeArgs = sourceCt.TypeArguments;
                     break;
             }
         }
         // Bridge: for dedicated intrinsic types, construct type parameter → type argument
-        // mapping so that interface type parameters (e.g., TValue in IEnumerable<TValue>)
+        // mapping so that abstract type parameters (e.g., TValue in IEnumerable<TValue>)
         // are substituted with the actual element type.
         else if (type is ArrayType bridgeArray)
         {
             var registeredClass = FindRegisteredClassType("Array", "Standard", model);
             if (registeredClass != null)
             {
-                interfaces = registeredClass.Interfaces;
+                abstracts = registeredClass.Abstracts;
                 typeParams = registeredClass.TypeParameters;
                 // Array<TValue, Length> → [elementType, unknownLength]
                 typeArgs = new IType[] { bridgeArray.ElementType, new ArrayType(bridgeArray.ElementType) };
@@ -6675,27 +6675,27 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             var registeredStruct = FindRegisteredStructType(name, "Standard", model);
             if (registeredStruct != null)
             {
-                interfaces = registeredStruct.Interfaces;
+                abstracts = registeredStruct.Abstracts;
                 typeParams = registeredStruct.TypeParameters;
                 // Span<T, Length> → [elementType, unknownLength]
                 typeArgs = new IType[] { bridgeSpan.ElementType, new Semantics.Model.Types.SpanType(bridgeSpan.ElementType, bridgeSpan.IsReadOnly) };
             }
         }
 
-        foreach (var iface in interfaces)
+        foreach (var abs in abstracts)
         {
             // Substitute type parameters if we have a mapping.
-            var substitutedIface = (typeParams is not null && typeArgs is not null)
-                ? SubstituteType(iface, typeParams, typeArgs)
-                : iface;
+            var substitutedAbs = (typeParams is not null && typeArgs is not null)
+                ? SubstituteType(abs, typeParams, typeArgs)
+                : abs;
 
-            if (substitutedIface is ConstructedType constructedIface &&
-                constructedIface.GenericDefinition is InterfaceType ifaceDefinition &&
-                ifaceDefinition.DisplayName == "IEnumerable" &&
-                ifaceDefinition.ContainingNamespace == "Standard" &&
-                constructedIface.TypeArguments.Count > 0)
+            if (substitutedAbs is ConstructedType constructedAbs &&
+                constructedAbs.GenericDefinition is AbstractType absDefinition &&
+                absDefinition.DisplayName == "IEnumerable" &&
+                absDefinition.ContainingNamespace == "Standard" &&
+                constructedAbs.TypeArguments.Count > 0)
             {
-                return constructedIface.TypeArguments[0];
+                return constructedAbs.TypeArguments[0];
             }
         }
 
@@ -7164,7 +7164,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                         }
                         break;
 
-                    // Namespace, Class, Struct, Interface, Trait, Enum, TypeAlias, Newtype,
+                    // Namespace, Class, Struct, Abstract, Trait, Enum, TypeAlias, Newtype,
                     // Constructor, Indexer — these are type-level references and are always OK.
                 }
             }
@@ -7860,7 +7860,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         {
             ClassType ct2 => ct2.MemberScope,
             StructType st => st.MemberScope,
-            InterfaceType it => it.MemberScope,
+            AbstractType it => it.MemberScope,
             _ => null,
         };
 
@@ -8298,12 +8298,12 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         IType sourceType, IType targetType, ISemanticModel model)
     {
         // 1. Provable: source is directly assignable to target
-        //    (identity, subtype, interface, trait — NOT implicit cast operators)
+        //    (identity, subtype, abstract, trait — NOT implicit cast operators)
         if (IsDirectlyAssignable(sourceType, targetType, model))
             return AsConversionClassification.Provable;
 
         // 2. Non-provable: target is directly assignable to source (narrowing)
-        //    Base → Derived, Interface → Concrete
+        //    Base → Derived, Abstract → Concrete
         if (IsDirectlyAssignable(targetType, sourceType, model))
             return AsConversionClassification.NonProvable;
 
@@ -8330,8 +8330,8 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         if (SharesTypeHierarchy(sourceType, targetType))
             return AsConversionClassification.NonProvable;
 
-        // 6. Non-provable: target is an interface/trait that source MIGHT implement
-        if (targetType.Kind is TypeKind.Interface or TypeKind.Trait)
+        // 6. Non-provable: target is an abstract/trait that source MIGHT implement
+        if (targetType.Kind is TypeKind.Abstract or TypeKind.Trait)
         {
             if (sourceType.Kind is TypeKind.Class or TypeKind.Struct)
                 return AsConversionClassification.NonProvable;
@@ -10957,7 +10957,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         // ── unknown-type storage ban on `default` (Task 12.4) ────────────
         // Requirement 5.6 — `default(unknown)` and bare `default` inferred
-        // to `unknown` are forbidden. Checked before the interface/trait/
+        // to `unknown` are forbidden. Checked before the abstract/trait/
         // type-parameter rejections below because `unknown` is none of
         // those — it is its own TypeKind (TypeKind.Unknown) — and the
         // diagnostic for each of those cases would be misleading. The
@@ -10976,10 +10976,10 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         switch (resolvedType)
         {
-            case InterfaceType:
+            case AbstractType:
                 diagnostics.Add(MakeDiagnostic(
-                    DiagnosticId.DefaultOnInterface.Value,
-                    $"The 'default' operator is not supported on interface type '{resolvedType.DisplayName}'. Only concrete types (classes and structs) support 'default'.",
+                    DiagnosticId.DefaultOnAbstract.Value,
+                    $"The 'default' operator is not supported on abstract type '{resolvedType.DisplayName}'. Only concrete types (classes and structs) support 'default'.",
                     node,
                     model));
                 return;
@@ -12462,14 +12462,14 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     continue;
                 }
 
-                // ── MIST2007: Ref struct interface argument restriction (Requirements 3.11, 3.12) ──
-                // A ref struct value cannot be passed as an argument to an interface-typed parameter
+                // ── MIST2007: Ref struct abstract argument restriction (Requirements 3.11, 3.12) ──
+                // A ref struct value cannot be passed as an argument to an abstract-typed parameter
                 // because that would require boxing (heap allocation).
-                if (IsRefStructType(argType) && IsInterfaceTargetType(paramType))
+                if (IsRefStructType(argType) && IsAbstractTargetType(paramType))
                 {
                     diagnostics.Add(MakeDiagnostic(
                         "MIST2007",
-                        $"Ref struct value cannot be converted to interface type '{paramType.DisplayName}'",
+                        $"Ref struct value cannot be converted to abstract type '{paramType.DisplayName}'",
                         argExprs[i],
                         model));
                     continue;
@@ -12640,14 +12640,14 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     continue;
                 }
 
-                // ── MIST2007: Ref struct interface argument restriction (Requirements 3.11, 3.12) ──
-                // A ref struct value cannot be passed as an argument to an interface-typed parameter
+                // ── MIST2007: Ref struct abstract argument restriction (Requirements 3.11, 3.12) ──
+                // A ref struct value cannot be passed as an argument to an abstract-typed parameter
                 // because that would require boxing (heap allocation).
-                if (IsRefStructType(argType) && IsInterfaceTargetType(paramType))
+                if (IsRefStructType(argType) && IsAbstractTargetType(paramType))
                 {
                     diagnostics.Add(MakeDiagnostic(
                         "MIST2007",
-                        $"Ref struct value cannot be converted to interface type '{paramType.DisplayName}'",
+                        $"Ref struct value cannot be converted to abstract type '{paramType.DisplayName}'",
                         argExprs[i],
                         model));
                     continue;
@@ -12719,7 +12719,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     }
 
     /// <summary>
-    /// Gets the type parameters from a type definition (ClassType, StructType, or InterfaceType).
+    /// Gets the type parameters from a type definition (ClassType, StructType, or AbstractType).
     /// </summary>
     private static IReadOnlyList<IType>? GetTypeParameters(IType type)
     {
@@ -12727,7 +12727,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         {
             ClassType ct => ct.TypeParameters.Count > 0 ? ct.TypeParameters : null,
             StructType st => st.TypeParameters.Count > 0 ? st.TypeParameters : null,
-            InterfaceType it => it.TypeParameters.Count > 0 ? it.TypeParameters : null,
+            AbstractType it => it.TypeParameters.Count > 0 ? it.TypeParameters : null,
             _ => null,
         };
     }
@@ -12885,7 +12885,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
     /// <summary>
     /// Returns true if the given type is marked as readonly (has <c>IsReadonly == true</c>).
-    /// Checks ClassType, StructType, InterfaceType, and TraitType.
+    /// Checks ClassType, StructType, AbstractType, and TraitType.
     /// </summary>
     private static bool IsTypeReadonly(IType type)
     {
@@ -12893,7 +12893,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         {
             ClassType ct => ct.IsReadonly,
             StructType st => st.IsReadonly,
-            InterfaceType it => it.IsReadonly,
+            AbstractType it => it.IsReadonly,
             TraitType tt => tt.IsReadonly,
             _ => false,
         };
@@ -12961,7 +12961,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// Determines whether a type is defaultable — either intrinsically defaultable
     /// (primitive/string), or a ClassType/StructType/EnumType with <c>Inferred</c>
     /// or <c>Explicit</c> defaultability, or a union type containing void.
-    /// Interfaces and traits are never defaultable.
+    /// Abstracts and traits are never defaultable.
     /// </summary>
     private static bool IsTypeDefaultable(IType type)
     {
@@ -12980,7 +12980,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             UnionType ut => ut.Constituents.Any(c => c.IsVoid()),
             ConstructedType constructed => IsTypeDefaultable(constructed.GenericDefinition),
             TypeParameterType tp => tp.Constraints?.HasDefaultConstraint == true,
-            InterfaceType => false,
+            AbstractType => false,
             TraitType => false,
             _ => false,
         };
@@ -13181,7 +13181,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 var typeName = ExtractTypeName(namedRef);
                 foreach (var sym in model.AllSymbols)
                 {
-                    if (sym.Name == typeName && sym.Kind is SymbolKind.Class or SymbolKind.Struct or SymbolKind.Interface or SymbolKind.TypeAlias)
+                    if (sym.Name == typeName && sym.Kind is SymbolKind.Class or SymbolKind.Struct or SymbolKind.Abstract or SymbolKind.TypeAlias)
                     {
                         var declaredType = sym.DeclaredType ?? ErrorType.Instance;
                         return ResolveTypeAliasMaybeGeneric(
@@ -13698,7 +13698,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             {
                 ClassType ct => ct.MemberScope,
                 StructType st => st.MemberScope,
-                InterfaceType it => it.MemberScope,
+                AbstractType it => it.MemberScope,
                 _ => null,
             };
 
@@ -14525,7 +14525,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// <list type="bullet">
     ///   <item><c>var</c> declaration context (no target type from <c>var</c>)</item>
     ///   <item>No target type available (ErrorType)</item>
-    ///   <item>Target type is an interface</item>
+    ///   <item>Target type is an abstract</item>
     ///   <item>Target type is a trait</item>
     ///   <item>Target type is an abstract class</item>
     ///   <item>Constructor argument mismatch</item>
@@ -14572,11 +14572,11 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             validationType = aliasType.UnderlyingType;
 
         // Check for non-instantiable types.
-        if (IsInterfaceTargetType(validationType))
+        if (IsAbstractTargetType(validationType))
         {
             diagnostics.Add(MakeDiagnostic(
-                DiagnosticId.TargetNewInterface.Value,
-                $"Cannot create an instance of interface type '{resolvedType.DisplayName}' with target-typed new.",
+                DiagnosticId.TargetNewAbstract.Value,
+                $"Cannot create an instance of abstract type '{resolvedType.DisplayName}' with target-typed new.",
                 targetNew,
                 model));
             return;
@@ -14731,11 +14731,11 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             validationType = aliasType.UnderlyingType;
 
         // Check for non-instantiable types.
-        if (IsInterfaceTargetType(validationType))
+        if (IsAbstractTargetType(validationType))
         {
             diagnostics.Add(MakeDiagnostic(
-                DiagnosticId.TargetNewInterface.Value,
-                $"Cannot create an instance of interface type '{resolvedType.DisplayName}' with target-typed new.",
+                DiagnosticId.TargetNewAbstract.Value,
+                $"Cannot create an instance of abstract type '{resolvedType.DisplayName}' with target-typed new.",
                 targetNewNoArgs,
                 model));
             return;
@@ -15403,7 +15403,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         {
             ClassType ct2 => ct2.MemberScope,
             StructType st => st.MemberScope,
-            InterfaceType it => it.MemberScope,
+            AbstractType it => it.MemberScope,
             EnumType et => et.MemberScope,
             _ => null,
         };
@@ -15415,6 +15415,17 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         {
             if (member.Name == memberName)
                 return member;
+        }
+
+        // For abstract types, also search inherited abstract type member scopes.
+        if (targetType is AbstractType abstractType)
+        {
+            foreach (var parentAbstract in abstractType.Abstracts)
+            {
+                var found = FindMemberSymbol(parentAbstract, memberName, model);
+                if (found is not null)
+                    return found;
+            }
         }
 
         return null;
@@ -16393,17 +16404,17 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     private static void CheckAssignability(IType source, IType target, SyntaxNode node, DiagnosticBag diagnostics, ISemanticModel model)
     {
-        // ── MIST2007: Ref struct interface assignment restriction (Requirements 3.11, 3.12) ──
-        // A ref struct value cannot be assigned to an interface-typed variable because
+        // ── MIST2007: Ref struct abstract assignment restriction (Requirements 3.11, 3.12) ──
+        // A ref struct value cannot be assigned to an abstract-typed variable because
         // that would require boxing (heap allocation), violating the stack-only constraint.
         // The restriction is at the usage site — declaring that a ref struct implements
-        // an interface is permitted.
-        if (IsRefStructType(source) && IsInterfaceTargetType(target))
+        // an abstract is permitted.
+        if (IsRefStructType(source) && IsAbstractTargetType(target))
         {
-            var ifaceName = target.DisplayName;
+            var abstractName = target.DisplayName;
             diagnostics.Add(MakeDiagnostic(
                 "MIST2007",
-                $"Ref struct value cannot be converted to interface type '{ifaceName}'",
+                $"Ref struct value cannot be converted to abstract type '{abstractName}'",
                 node,
                 model));
             return;
@@ -16498,7 +16509,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         {
             // The types are assignable. If the assignability was due to an
             // implicit cast operator (not direct assignability like identity,
-            // subtype, interface, trait, or numeric widening), resolve and
+            // subtype, abstract, trait, or numeric widening), resolve and
             // record it on the AST node so the emitter can later emit the
             // conversion call. Direct assignability takes precedence over
             // implicit casts (Requirements 14.1, 14.2, 14.3).
@@ -16683,7 +16694,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 {
                     diagnostics.Add(MakeDiagnostic(
                         "MIST_REF_0012",
-                        $"Method '{sourceMember.Name}' does not match interface/trait method '{trait.DisplayName}.{traitMember.Name}': parameter ref kinds must match exactly",
+                        $"Method '{sourceMember.Name}' does not match abstract/trait method '{trait.DisplayName}.{traitMember.Name}': parameter ref kinds must match exactly",
                         node,
                         model));
                     emittedAny = true;
@@ -16858,7 +16869,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         {
             ClassType ct => ct.MemberScope,
             StructType st => st.MemberScope,
-            InterfaceType it => it.MemberScope,
+            AbstractType it => it.MemberScope,
             ConstructedType cst => cst.MemberScope,
             EnumType et => et.MemberScope,
             NewtypeType nt => nt.MemberScope,
@@ -17044,7 +17055,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         //
         // This clause is placed immediately after the ErrorType cascade
         // suppression and before every other rule so that UnknownType is
-        // handled uniformly across identity, ConstructedType, interface,
+        // handled uniformly across identity, ConstructedType, abstract,
         // subtype, trait, and implicit-cast branches.
         if (target is UnknownType)
         {
@@ -17346,7 +17357,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 // argument is `UnknownType`, provided the generic definition
                 // at that level is a class (reference-type) generic. Nested
                 // constructions recurse through the same rule. Transitive
-                // widening along the base-type / interface chain is picked
+                // widening along the base-type / abstract chain is picked
                 // up by the existing loops below.
                 if (AssignableWithUnknownWidening(
                         sourceConstructed.GenericDefinition,
@@ -17404,10 +17415,10 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             }
         }
 
-        // ConstructedType to constructed interface assignability.
-        if (target is ConstructedType targetConst && targetConst.GenericDefinition is InterfaceType)
+        // ConstructedType to constructed abstract assignability.
+        if (target is ConstructedType targetConst && targetConst.GenericDefinition is AbstractType)
         {
-            if (ImplementsConstructedInterface(source, targetConst))
+            if (ImplementsConstructedAbstract(source, targetConst))
                 return true;
         }
 
@@ -17425,12 +17436,12 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             return true;
         }
 
-        // Interface assignability:
-        // A class/struct implementing an interface (directly or transitively) is assignable to that interface.
-        // An interface is assignable to any interface it inherits from (directly or transitively).
-        if (target is InterfaceType targetInterface)
+        // Abstract assignability:
+        // A class/struct implementing an abstract (directly or transitively) is assignable to that abstract.
+        // An abstract is assignable to any abstract it inherits from (directly or transitively).
+        if (target is AbstractType targetAbstract)
         {
-            if (ImplementsInterface(source, targetInterface))
+            if (ImplementsAbstract(source, targetAbstract))
                 return true;
         }
 
@@ -18155,36 +18166,36 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     }
 
     /// <summary>
-    /// Checks whether <paramref name="source"/> implements the target constructed interface,
-    /// including transitive interface inheritance.
+    /// Checks whether <paramref name="source"/> implements the target constructed abstract,
+    /// including transitive abstract inheritance.
     /// </summary>
-    [ThreadStatic] private static HashSet<string>? _interfaceCheckVisited;
+    [ThreadStatic] private static HashSet<string>? _abstractCheckVisited;
 
-    private static bool ImplementsConstructedInterface(IType source, ConstructedType targetConstructedInterface)
+    private static bool ImplementsConstructedAbstract(IType source, ConstructedType targetConstructedAbstract)
     {
         // Cycle detection for CRTP patterns (e.g., NpgsqlDbContextOptionsBuilder extends
         // RelationalDbContextOptionsBuilder<NpgsqlDbContextOptionsBuilder, ...>).
         // Without this, the recursive walk enters infinite recursion when a type
-        // refers to itself as a generic argument in its own base/interface chain.
-        _interfaceCheckVisited ??= new HashSet<string>(StringComparer.Ordinal);
-        var key = $"{source.DisplayName}→{targetConstructedInterface.DisplayName}";
-        if (!_interfaceCheckVisited.Add(key))
+        // refers to itself as a generic argument in its own base/abstract chain.
+        _abstractCheckVisited ??= new HashSet<string>(StringComparer.Ordinal);
+        var key = $"{source.DisplayName}→{targetConstructedAbstract.DisplayName}";
+        if (!_abstractCheckVisited.Add(key))
             return false; // Already checking this pair — cycle detected.
 
         try
         {
-            return ImplementsConstructedInterfaceCore(source, targetConstructedInterface);
+            return ImplementsConstructedAbstractCore(source, targetConstructedAbstract);
         }
         finally
         {
-            _interfaceCheckVisited.Remove(key);
+            _abstractCheckVisited.Remove(key);
         }
     }
 
-    private static bool ImplementsConstructedInterfaceCore(IType source, ConstructedType targetConstructedInterface)
+    private static bool ImplementsConstructedAbstractCore(IType source, ConstructedType targetConstructedAbstract)
     {
-        // Collect all interfaces from the source type.
-        IReadOnlyList<IType>? interfaces = null;
+        // Collect all abstracts from the source type.
+        IReadOnlyList<IType>? abstracts = null;
         IReadOnlyList<IType>? typeParams = null;
         IReadOnlyList<IType>? typeArgs = null;
 
@@ -18195,48 +18206,48 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 switch (sourceCt.GenericDefinition)
                 {
                     case ClassType classDef:
-                        interfaces = classDef.Interfaces;
+                        abstracts = classDef.Abstracts;
                         typeParams = classDef.TypeParameters;
                         typeArgs = sourceCt.TypeArguments;
                         // Also check base type chain.
                         var baseType = GetSubstitutedBaseType(sourceCt);
-                        if (baseType is not null && ImplementsConstructedInterface(baseType, targetConstructedInterface))
+                        if (baseType is not null && ImplementsConstructedAbstract(baseType, targetConstructedAbstract))
                             return true;
                         break;
                     case StructType structDef:
-                        interfaces = structDef.Interfaces;
+                        abstracts = structDef.Abstracts;
                         typeParams = structDef.TypeParameters;
                         typeArgs = sourceCt.TypeArguments;
                         // Also check struct base type chain.
                         var structBaseType = GetSubstitutedBaseType(sourceCt);
-                        if (structBaseType is not null && ImplementsConstructedInterface(structBaseType, targetConstructedInterface))
+                        if (structBaseType is not null && ImplementsConstructedAbstract(structBaseType, targetConstructedAbstract))
                             return true;
                         break;
-                    case InterfaceType ifaceDef:
-                        // Check if the source interface itself matches the target.
-                        if (IsAssignable(source, targetConstructedInterface))
+                    case AbstractType abstractDef:
+                        // Check if the source abstract itself matches the target.
+                        if (IsAssignable(source, targetConstructedAbstract))
                             return true;
-                        interfaces = ifaceDef.Interfaces;
-                        typeParams = ifaceDef.TypeParameters;
+                        abstracts = abstractDef.Abstracts;
+                        typeParams = abstractDef.TypeParameters;
                         typeArgs = sourceCt.TypeArguments;
                         break;
                 }
                 break;
             }
             case ClassType classType:
-                interfaces = classType.Interfaces;
+                abstracts = classType.Abstracts;
                 // Also check base type chain.
                 var current = classType.BaseType;
                 while (current is not null)
                 {
-                    if (current is ConstructedType baseCt && IsAssignable(baseCt, targetConstructedInterface))
+                    if (current is ConstructedType baseCt && IsAssignable(baseCt, targetConstructedAbstract))
                         return true;
                     if (current is ClassType baseClass)
                     {
-                        foreach (var iface in baseClass.Interfaces)
+                        foreach (var abs in baseClass.Abstracts)
                         {
-                            var substituted = iface;
-                            if (substituted is ConstructedType ifaceCt && IsAssignable(ifaceCt, targetConstructedInterface))
+                            var substituted = abs;
+                            if (substituted is ConstructedType absCt && IsAssignable(absCt, targetConstructedAbstract))
                                 return true;
                         }
                         current = baseClass.BaseType;
@@ -18246,16 +18257,16 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 }
                 break;
             case StructType structType:
-                interfaces = structType.Interfaces;
+                abstracts = structType.Abstracts;
                 // Also check struct base type chain.
                 var currentStructBase = structType.BaseType;
                 while (currentStructBase is not null)
                 {
                     if (currentStructBase is StructType baseStruct)
                     {
-                        foreach (var iface in baseStruct.Interfaces)
+                        foreach (var abs in baseStruct.Abstracts)
                         {
-                            if (iface is ConstructedType ifaceCt && IsAssignable(ifaceCt, targetConstructedInterface))
+                            if (abs is ConstructedType absCt && IsAssignable(absCt, targetConstructedAbstract))
                                 return true;
                         }
                         currentStructBase = baseStruct.BaseType;
@@ -18264,27 +18275,27 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                         break;
                 }
                 break;
-            case InterfaceType ifaceType:
-                interfaces = ifaceType.Interfaces;
+            case AbstractType abstractType:
+                abstracts = abstractType.Abstracts;
                 break;
         }
 
-        if (interfaces is null)
+        if (abstracts is null)
             return false;
 
-        foreach (var iface in interfaces)
+        foreach (var abs in abstracts)
         {
             // Substitute type parameters if we have a mapping.
-            var substitutedIface = (typeParams is not null && typeArgs is not null)
-                ? SubstituteType(iface, typeParams, typeArgs)
-                : iface;
+            var substitutedAbs = (typeParams is not null && typeArgs is not null)
+                ? SubstituteType(abs, typeParams, typeArgs)
+                : abs;
 
-            if (substitutedIface is ConstructedType substitutedCt)
+            if (substitutedAbs is ConstructedType substitutedCt)
             {
-                if (IsAssignable(substitutedCt, targetConstructedInterface))
+                if (IsAssignable(substitutedCt, targetConstructedAbstract))
                     return true;
-                // Transitively check the interface's own inherited interfaces.
-                if (ImplementsConstructedInterface(substitutedCt, targetConstructedInterface))
+                // Transitively check the abstract's own inherited abstracts.
+                if (ImplementsConstructedAbstract(substitutedCt, targetConstructedAbstract))
                     return true;
             }
         }
@@ -18368,47 +18379,47 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     }
 
     /// <summary>
-    /// Checks whether <paramref name="source"/> implements <paramref name="targetInterface"/>
+    /// Checks whether <paramref name="source"/> implements <paramref name="targetAbstract"/>
     /// directly or transitively.
     /// </summary>
-    private static bool ImplementsInterface(IType source, InterfaceType targetInterface)
+    private static bool ImplementsAbstract(IType source, AbstractType targetAbstract)
     {
         switch (source)
         {
             case ClassType classType:
-                // Check the class's own interfaces (recursively through interface inheritance).
-                if (InterfaceListContains(classType.Interfaces, targetInterface))
+                // Check the class's own abstracts (recursively through abstract inheritance).
+                if (AbstractListContains(classType.Abstracts, targetAbstract))
                     return true;
-                // Walk the base type chain and check each ancestor's interfaces.
+                // Walk the base type chain and check each ancestor's abstracts.
                 var current = classType.BaseType as ClassType;
                 while (current is not null)
                 {
-                    if (InterfaceListContains(current.Interfaces, targetInterface))
+                    if (AbstractListContains(current.Abstracts, targetAbstract))
                         return true;
                     current = current.BaseType as ClassType;
                 }
                 return false;
 
             case StructType structType:
-                // Check the struct's interfaces (recursively through interface inheritance).
-                if (InterfaceListContains(structType.Interfaces, targetInterface))
+                // Check the struct's own abstracts (recursively through abstract inheritance).
+                if (AbstractListContains(structType.Abstracts, targetAbstract))
                     return true;
-                // Walk the struct base type chain and check each ancestor's interfaces.
+                // Walk the struct base type chain and check each ancestor's abstracts.
                 var currentStruct = structType.BaseType as StructType;
                 while (currentStruct is not null)
                 {
-                    if (InterfaceListContains(currentStruct.Interfaces, targetInterface))
+                    if (AbstractListContains(currentStruct.Abstracts, targetAbstract))
                         return true;
                     currentStruct = currentStruct.BaseType as StructType;
                 }
                 return false;
 
-            case InterfaceType sourceInterface:
-                // An interface is assignable to itself or any interface it inherits from.
-                if (ReferenceEquals(sourceInterface, targetInterface)
-                    || sourceInterface.DisplayName == targetInterface.DisplayName)
+            case AbstractType sourceAbstract:
+                // An abstract is assignable to itself or any abstract it inherits from.
+                if (ReferenceEquals(sourceAbstract, targetAbstract)
+                    || sourceAbstract.DisplayName == targetAbstract.DisplayName)
                     return true;
-                return InterfaceListContains(sourceInterface.Interfaces, targetInterface);
+                return AbstractListContains(sourceAbstract.Abstracts, targetAbstract);
 
             default:
                 return false;
@@ -18417,27 +18428,27 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
     /// <summary>
     /// Recursively checks whether <paramref name="target"/> is present in the given
-    /// interface list or in any of the interfaces' own inherited interface lists.
+    /// abstract list or in any of the abstracts' own inherited abstract lists.
     /// Uses a visited set to handle diamond inheritance and prevent infinite loops.
     /// </summary>
-    private static bool InterfaceListContains(
-        IReadOnlyList<IType> interfaces,
-        InterfaceType target,
-        HashSet<InterfaceType>? visited = null)
+    private static bool AbstractListContains(
+        IReadOnlyList<IType> abstracts,
+        AbstractType target,
+        HashSet<AbstractType>? visited = null)
     {
-        foreach (var ifaceType in interfaces)
+        foreach (var absType in abstracts)
         {
-            if (ifaceType is not InterfaceType iface)
+            if (absType is not AbstractType abs)
                 continue;
 
-            if (ReferenceEquals(iface, target) || iface.DisplayName == target.DisplayName)
+            if (ReferenceEquals(abs, target) || abs.DisplayName == target.DisplayName)
                 return true;
 
-            // Recursively check inherited interfaces, guarding against cycles.
-            visited ??= new HashSet<InterfaceType>(ReferenceEqualityComparer.Instance);
-            if (visited.Add(iface))
+            // Recursively check inherited abstracts, guarding against cycles.
+            visited ??= new HashSet<AbstractType>(ReferenceEqualityComparer.Instance);
+            if (visited.Add(abs))
             {
-                if (InterfaceListContains(iface.Interfaces, target, visited))
+                if (AbstractListContains(abs.Abstracts, target, visited))
                     return true;
             }
         }
@@ -18688,15 +18699,15 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     }
 
     /// <summary>
-    /// Returns true if the given type is an interface type (assignment target
-    /// that would require boxing a ref struct). Handles both plain <see cref="InterfaceType"/>
-    /// and <see cref="ConstructedType"/> whose generic definition is an interface
+    /// Returns true if the given type is an abstract type (assignment target
+    /// that would require boxing a ref struct). Handles both plain <see cref="AbstractType"/>
+    /// and <see cref="ConstructedType"/> whose generic definition is an abstract
     /// (e.g., IEnumerable&lt;int&gt;).
     /// </summary>
-    private static bool IsInterfaceTargetType(IType type)
+    private static bool IsAbstractTargetType(IType type)
     {
-        return type is InterfaceType
-            || (type is ConstructedType ct && ct.GenericDefinition is InterfaceType);
+        return type is AbstractType
+            || (type is ConstructedType ct && ct.GenericDefinition is AbstractType);
     }
 
     // ── delegate-func-conversion: assignability helpers ─────────────────
@@ -18928,7 +18939,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         {
             ClassType ct => ct.MemberScope,
             StructType st => st.MemberScope,
-            InterfaceType it => it.MemberScope,
+            AbstractType it => it.MemberScope,
             _ => null,
         };
 
@@ -19042,7 +19053,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// <summary>
     /// Looks up a registered <see cref="StructType"/> by name and namespace in the semantic model.
     /// Used to bridge dedicated types (e.g., <see cref="SpanType"/>) to their registered
-    /// declarations so that member scope data (constructors, interfaces) can be accessed.
+    /// declarations so that member scope data (constructors, abstracts) can be accessed.
     /// Results are cached per compilation for performance.
     /// </summary>
     private StructType? FindRegisteredStructType(string name, string namespaceName, ISemanticModel model)
@@ -19071,7 +19082,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// <summary>
     /// Looks up a registered <see cref="ClassType"/> by name and namespace in the semantic model.
     /// Used to bridge dedicated types (e.g., <see cref="ArrayType"/>) to their registered
-    /// declarations so that interface data can be accessed.
+    /// declarations so that abstract data can be accessed.
     /// Results are cached per compilation for performance.
     /// </summary>
     private ClassType? FindRegisteredClassType(string name, string namespaceName, ISemanticModel model)
@@ -19382,7 +19393,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         {
             ClassType ct => ct.MemberScope,
             StructType st => st.MemberScope,
-            InterfaceType it => it.MemberScope,
+            AbstractType it => it.MemberScope,
             ConstructedType cst => cst.MemberScope,
             _ => null,
         };
@@ -20567,14 +20578,14 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             }
         }
 
-        // Check interface constraints: type argument must implement each interface.
-        foreach (var iface in constraints.AbstractConstraints)
+        // Check abstract constraints: type argument must implement each abstract.
+        foreach (var abs in constraints.AbstractConstraints)
         {
-            if (!ImplementsInterfaceConstraint(typeArgument, iface))
+            if (!ImplementsAbstractConstraint(typeArgument, abs))
             {
                 diagnostics.Add(MakeDiagnostic(
-                    ConstraintInterfaceNotImplemented.Value,
-                    $"Type '{typeArgument.DisplayName}' does not implement interface '{iface.DisplayName}' required by type parameter '{typeParameter.Name}' of '{genericTypeName}'.",
+                    ConstraintAbstractNotImplemented.Value,
+                    $"Type '{typeArgument.DisplayName}' does not implement abstract type '{abs.DisplayName}' required by type parameter '{typeParameter.Name}' of '{genericTypeName}'.",
                     node,
                     model));
             }
@@ -20844,70 +20855,70 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     }
 
     /// <summary>
-    /// Checks whether a type argument implements the specified interface constraint.
-    /// Handles both <see cref="InterfaceType"/> and <see cref="ConstructedType"/>
-    /// (for generic interface constraints like <c>IComparable&lt;T&gt;</c>).
+    /// Checks whether a type argument implements the specified abstract constraint.
+    /// Handles both <see cref="AbstractType"/> and <see cref="ConstructedType"/>
+    /// (for generic abstract constraints like <c>IComparable&lt;T&gt;</c>).
     /// </summary>
-    private static bool ImplementsInterfaceConstraint(IType typeArgument, IType interfaceConstraint)
+    private static bool ImplementsAbstractConstraint(IType typeArgument, IType abstractConstraint)
     {
-        // If the constraint is a plain InterfaceType, use the existing helper.
-        if (interfaceConstraint is InterfaceType ifaceType)
-            return ImplementsInterface(typeArgument, ifaceType);
+        // If the constraint is a plain AbstractType, use the existing helper.
+        if (abstractConstraint is AbstractType abstractType)
+            return ImplementsAbstract(typeArgument, abstractType);
 
-        // For ConstructedType interface constraints (e.g., IComparable<int>),
-        // check if the type argument implements a matching constructed interface.
-        if (interfaceConstraint is ConstructedType constructedIface
-            && constructedIface.GenericDefinition is InterfaceType)
+        // For ConstructedType abstract constraints (e.g., IComparable<int>),
+        // check if the type argument implements a matching constructed abstract.
+        if (abstractConstraint is ConstructedType constructedAbstract
+            && constructedAbstract.GenericDefinition is AbstractType)
         {
-            return ImplementsConstructedInterface(typeArgument, constructedIface);
+            return ImplementsConstructedAbstract(typeArgument, constructedAbstract);
         }
 
         // Fallback: display name comparison.
-        return GetStaticInterfaceList(typeArgument)
-            .Any(i => i.DisplayName == interfaceConstraint.DisplayName);
+        return GetStaticAbstractList(typeArgument)
+            .Any(i => i.DisplayName == abstractConstraint.DisplayName);
     }
 
     /// <summary>
-    /// Gets the interface list from a type (ClassType, StructType, or InterfaceType).
+    /// Gets the abstract list from a type (ClassType, StructType, or AbstractType).
     /// Static version used by constraint checking where the model is not needed.
     /// </summary>
-    private static IReadOnlyList<IType> GetStaticInterfaceList(IType type)
+    private static IReadOnlyList<IType> GetStaticAbstractList(IType type)
     {
         return type switch
         {
-            ClassType ct => ct.Interfaces,
-            StructType st => st.Interfaces,
-            InterfaceType it => it.Interfaces,
+            ClassType ct => ct.Abstracts,
+            StructType st => st.Abstracts,
+            AbstractType it => it.Abstracts,
             _ => Array.Empty<IType>(),
         };
     }
 
     /// <summary>
-    /// Gets the interface list from a type (ClassType, StructType, or InterfaceType).
+    /// Gets the abstract list from a type (ClassType, StructType, or AbstractType).
     /// For dedicated intrinsic types (<see cref="ArrayType"/> and <see cref="SpanType"/>),
-    /// bridges to the registered declaration's interface list.
+    /// bridges to the registered declaration's abstract list.
     /// </summary>
-    private IReadOnlyList<IType> GetInterfaceList(IType type, ISemanticModel model)
+    private IReadOnlyList<IType> GetAbstractList(IType type, ISemanticModel model)
     {
-        // Bridge: for dedicated intrinsic types, look up the registered declaration's interfaces.
+        // Bridge: for dedicated intrinsic types, look up the registered declaration's abstracts.
         if (type is ArrayType)
         {
             var registeredClass = FindRegisteredClassType("Array", "Standard", model);
-            if (registeredClass != null) return registeredClass.Interfaces;
+            if (registeredClass != null) return registeredClass.Abstracts;
         }
 
         if (type is Semantics.Model.Types.SpanType spanType)
         {
             var name = spanType.IsReadOnly ? "ReadOnlySpan" : "Span";
             var registeredStruct = FindRegisteredStructType(name, "Standard", model);
-            if (registeredStruct != null) return registeredStruct.Interfaces;
+            if (registeredStruct != null) return registeredStruct.Abstracts;
         }
 
         return type switch
         {
-            ClassType ct => ct.Interfaces,
-            StructType st => st.Interfaces,
-            InterfaceType it => it.Interfaces,
+            ClassType ct => ct.Abstracts,
+            StructType st => st.Abstracts,
+            AbstractType it => it.Abstracts,
             _ => Array.Empty<IType>(),
         };
     }
@@ -21395,7 +21406,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     if (symbol is not null)
                     {
                         // Type symbols are not constants — they shouldn't be in a dependent position.
-                        if (symbol.Kind is SymbolKind.Class or SymbolKind.Struct or SymbolKind.Interface
+                        if (symbol.Kind is SymbolKind.Class or SymbolKind.Struct or SymbolKind.Abstract
                             or SymbolKind.Trait or SymbolKind.TypeAlias or SymbolKind.Enum)
                         {
                             return false;
@@ -21434,7 +21445,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                             return true;
 
                         // If it resolved to a concrete type, it's not a constant in a dependent position.
-                        if (resolvedType is ClassType or StructType or InterfaceType
+                        if (resolvedType is ClassType or StructType or AbstractType
                             or TypeAliasType or TypeParameterType)
                         {
                             return false;
@@ -21500,7 +21511,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
     /// <summary>
     /// Validates that when a derived type forwards a dependent parameter to a base type
-    /// or implemented interface, the derived parameter's value type can be implicitly
+    /// or implemented abstract, the derived parameter's value type can be implicitly
     /// widened to the base parameter's value type. Emits <c>MIST_DT_0004</c> for
     /// narrowing violations.
     /// </summary>
@@ -21530,27 +21541,27 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     declaredType, baseConstructed, declaringNode, model, diagnostics);
             }
 
-            // Check implemented interfaces.
-            var interfaces = declaredType switch
+            // Check implemented abstracts.
+            var abstracts = declaredType switch
             {
-                ClassType ct => ct.Interfaces,
-                StructType st => st.Interfaces,
+                ClassType ct => ct.Abstracts,
+                StructType st => st.Abstracts,
                 _ => Array.Empty<IType>()
             };
 
-            foreach (var iface in interfaces)
+            foreach (var abs in abstracts)
             {
-                if (iface is ConstructedType ifaceConstructed)
+                if (abs is ConstructedType absConstructed)
                 {
                     ValidateDependentForwardingForConstructedBase(
-                        declaredType, ifaceConstructed, declaringNode, model, diagnostics);
+                        declaredType, absConstructed, declaringNode, model, diagnostics);
                 }
             }
         }
     }
 
     /// <summary>
-    /// Checks a single constructed base type or interface for dependent parameter forwarding
+    /// Checks a single constructed base type or abstract for dependent parameter forwarding
     /// violations. When a type argument at a dependent parameter position is itself a
     /// <see cref="DependentTypeParameterType"/> (forwarded from the derived type), validates
     /// that the derived parameter's value type can widen to the base parameter's value type.
@@ -21837,7 +21848,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         {
             ClassType classType => classType.TypeParameters,
             StructType structType => structType.TypeParameters,
-            InterfaceType interfaceType => interfaceType.TypeParameters,
+            AbstractType abstractType => abstractType.TypeParameters,
             TraitType traitType => traitType.TypeParameters,
             _ => symbol is Symbol s && s.TypeParameters.Count > 0 ? s.TypeParameters : null,
         };
@@ -21853,7 +21864,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             MethodDeclarationNode methodDecl => methodDecl.Parameters,
             ConstructorDeclarationNode ctorDecl => ctorDecl.Parameters,
             IndexerDeclarationNode indexerDecl => indexerDecl.Parameters,
-            InterfaceMethodDeclarationNode ifaceMethodDecl => ifaceMethodDecl.Parameters,
+            AbstractMethodDeclarationNode abstractMethodDecl => abstractMethodDecl.Parameters,
             _ => null,
         };
 
@@ -21956,10 +21967,10 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         {
             ClassDeclarationNode classDecl => classDecl.Constraints,
             StructDeclarationNode structDecl => structDecl.Constraints,
-            InterfaceDeclarationNode interfaceDecl => interfaceDecl.Constraints,
+            AbstractDeclarationNode abstractDecl => abstractDecl.Constraints,
             TraitDeclarationNode traitDecl => traitDecl.Constraints,
             MethodDeclarationNode methodDecl => methodDecl.Constraints,
-            InterfaceMethodDeclarationNode ifaceMethodDecl => ifaceMethodDecl.Constraints,
+            AbstractMethodDeclarationNode abstractMethodDecl => abstractMethodDecl.Constraints,
             TypeAliasDeclarationNode aliasDecl => aliasDecl.Constraints,
             ConstructorDeclarationNode ctorDecl => ctorDecl.Constraints,
             IndexerDeclarationNode indexerDecl => indexerDecl.Constraints,

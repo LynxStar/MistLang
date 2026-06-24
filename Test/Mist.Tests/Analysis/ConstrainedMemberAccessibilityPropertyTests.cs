@@ -39,7 +39,7 @@ public sealed class ConstrainedMemberAccessScenario
 /// <summary>
 /// Property-based tests verifying constrained member accessibility.
 ///
-/// Property 5: For any type parameter with interface, trait, or base class constraints,
+/// Property 5: For any type parameter with abstract type, trait, or base class constraints,
 /// all members defined by those constraints (and only those members) SHALL be accessible
 /// on values of that type parameter within the generic body.
 ///
@@ -102,15 +102,15 @@ public class ConstrainedMemberAccessibilityPropertyTests
     private static readonly string[] MethodNames = ["DoWork", "Execute", "Process"];
 
     /// <summary>
-    /// Generates scenarios where interface constraint provides accessible method.
-    /// Requirement 6.1: Interface constraint makes interface members accessible.
+    /// Generates scenarios where abstract type constraint provides accessible method.
+    /// Requirement 6.1: Abstract type constraint makes abstract type members accessible.
     /// </summary>
-    private static Gen<ConstrainedMemberAccessScenario> GenInterfaceMethodAccessible()
+    private static Gen<ConstrainedMemberAccessScenario> GenAbstractMethodAccessible()
     {
         return from methodName in Gen.Elements(MethodNames)
                select new ConstrainedMemberAccessScenario(
                    $@"
-interface IWorker {{
+abstract IWorker {{
     int {methodName}();
 }}
 class Handler<T> where T : IWorker {{
@@ -121,7 +121,7 @@ class Handler<T> where T : IWorker {{
 class Program {{
     public static void Main() {{ }}
 }}",
-                   $"Interface method {methodName} accessible via constraint",
+                   $"Abstract type method {methodName} accessible via constraint",
                    shouldAccept: true);
     }
 
@@ -176,17 +176,17 @@ class Program {{
     }
 
     /// <summary>
-    /// Generates scenarios where multiple interface constraints provide accessible members.
-    /// Requirement 6.4: Multiple interface constraints make all members accessible.
+    /// Generates scenarios where multiple abstract type constraints provide accessible members.
+    /// Requirement 6.4: Multiple abstract type constraints make all members accessible.
     /// </summary>
-    private static Gen<ConstrainedMemberAccessScenario> GenMultipleInterfaceMethodsAccessible()
+    private static Gen<ConstrainedMemberAccessScenario> GenMultipleAbstractMethodsAccessible()
     {
         return Gen.Constant(new ConstrainedMemberAccessScenario(
             @"
-interface IReader {
+abstract IReader {
     int Read();
 }
-interface IWriter {
+abstract IWriter {
     int Write();
 }
 class Handler<T> where T : IReader, IWriter {
@@ -200,7 +200,7 @@ class Handler<T> where T : IReader, IWriter {
 class Program {
     public static void Main() { }
 }",
-            "Multiple interface methods accessible via multiple constraints",
+            "Multiple abstract type methods accessible via multiple constraints",
             shouldAccept: true));
     }
 
@@ -213,7 +213,7 @@ class Program {
         return from methodName in Gen.Elements("NonExistent", "Missing", "Unknown")
                select new ConstrainedMemberAccessScenario(
                    $@"
-interface IWorker {{
+abstract IWorker {{
     int DoWork();
 }}
 class Handler<T> where T : IWorker {{
@@ -279,10 +279,10 @@ class Program {{
     private static Gen<ConstrainedMemberAccessScenario> GenScenario()
     {
         return Gen.OneOf(
-            GenInterfaceMethodAccessible(),
+            GenAbstractMethodAccessible(),
             GenTraitMethodAccessible(),
             GenBaseClassMethodAccessible(),
-            GenMultipleInterfaceMethodsAccessible(),
+            GenMultipleAbstractMethodsAccessible(),
             GenUnavailableMemberRejected(),
             GenUnconstrainedMemberRejected(),
             GenInheritedBaseClassMethodAccessible());
@@ -294,7 +294,7 @@ class Program {{
     // ═══════════════════════════════════════════════════════════════════════
     // Property 5: Constrained Member Accessibility
     //
-    // For any type parameter with interface, trait, or base class constraints,
+    // For any type parameter with abstract type, trait, or base class constraints,
     // all members defined by those constraints (and only those members) SHALL
     // be accessible on values of that type parameter within the generic body.
     // ═══════════════════════════════════════════════════════════════════════

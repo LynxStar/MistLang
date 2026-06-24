@@ -14,7 +14,7 @@ using Xunit;
 namespace Mist.Tests.Analysis;
 
 /// <summary>
-/// Unit tests for the ContextCheckerAnalyzer's interface/trait contract enforcement (Task 5.3).
+/// Unit tests for the ContextCheckerAnalyzer's abstract type/trait contract enforcement (Task 5.3).
 /// Verifies that MIST_CTX_0006 is emitted for contract violations and NOT emitted
 /// when contracts are satisfied.
 /// </summary>
@@ -71,18 +71,18 @@ public sealed class ContextCheckerContractTests
     }
 
     // ═══════════════════════════════════════════════════════════════════════
-    // Tests: MIST_CTX_0006 should be emitted for interface contract violations
+    // Tests: MIST_CTX_0006 should be emitted for abstract type contract violations
     // ═══════════════════════════════════════════════════════════════════════
 
     [Fact]
-    public void InterfaceMethod_ImplementorOmitsWithClause_EmitsDiagnostic()
+    public void AbstractMethod_ImplementorOmitsWithClause_EmitsDiagnostic()
     {
-        // An interface method declares a with-clause, but the implementing class
+        // An abstract type method declares a with-clause, but the implementing class
         // method does not declare it.
         var source = """
             class MyCtx { }
 
-            interface IService {
+            abstract IService {
                 void DoWork() with MyCtx ctx;
             }
 
@@ -106,14 +106,14 @@ public sealed class ContextCheckerContractTests
     }
 
     [Fact]
-    public void InterfaceMethod_ImplementorMatchesWithClause_NoDiagnostic()
+    public void AbstractMethod_ImplementorMatchesWithClause_NoDiagnostic()
     {
-        // An interface method declares a with-clause, and the implementing class
+        // An abstract type method declares a with-clause, and the implementing class
         // method declares the same with-clause.
         var source = """
             class MyCtx { }
 
-            interface IService {
+            abstract IService {
                 void DoWork() with MyCtx ctx;
             }
 
@@ -133,15 +133,15 @@ public sealed class ContextCheckerContractTests
     }
 
     [Fact]
-    public void InterfaceMethod_MultipleWithClauses_AllOmitted_EmitsMultipleDiagnostics()
+    public void AbstractMethod_MultipleWithClauses_AllOmitted_EmitsMultipleDiagnostics()
     {
-        // An interface method declares multiple with-clauses, and the implementing
+        // An abstract type method declares multiple with-clauses, and the implementing
         // class method omits all of them.
         var source = """
             class CtxA { }
             class CtxB { }
 
-            interface IService {
+            abstract IService {
                 void DoWork() with CtxA a with CtxB b;
             }
 
@@ -163,15 +163,15 @@ public sealed class ContextCheckerContractTests
     }
 
     [Fact]
-    public void InterfaceMethod_MultipleWithClauses_PartiallyOmitted_EmitsDiagnosticForMissing()
+    public void AbstractMethod_MultipleWithClauses_PartiallyOmitted_EmitsDiagnosticForMissing()
     {
-        // An interface method declares two with-clauses, and the implementing
+        // An abstract type method declares two with-clauses, and the implementing
         // class method only declares one of them.
         var source = """
             class CtxA { }
             class CtxB { }
 
-            interface IService {
+            abstract IService {
                 void DoWork() with CtxA a with CtxB b;
             }
 
@@ -192,13 +192,13 @@ public sealed class ContextCheckerContractTests
     }
 
     [Fact]
-    public void InterfaceMethod_StructImplementor_OmitsWithClause_EmitsDiagnostic()
+    public void AbstractMethod_StructImplementor_OmitsWithClause_EmitsDiagnostic()
     {
-        // A struct implementing an interface must also match with-clauses.
+        // A struct implementing an abstract type must also match with-clauses.
         var source = """
             class MyCtx { }
 
-            interface IService {
+            abstract IService {
                 void DoWork() with MyCtx ctx;
             }
 
@@ -221,12 +221,12 @@ public sealed class ContextCheckerContractTests
     }
 
     [Fact]
-    public void InterfaceMethod_NoWithClauses_NoDiagnostic()
+    public void AbstractMethod_NoWithClauses_NoDiagnostic()
     {
-        // An interface method without with-clauses should not trigger any
+        // An abstract type method without with-clauses should not trigger any
         // contract diagnostics.
         var source = """
-            interface IService {
+            abstract IService {
                 void DoWork();
             }
 
@@ -398,18 +398,18 @@ public sealed class ContextCheckerContractTests
     }
 
     // ═══════════════════════════════════════════════════════════════════════
-    // Tests: Interface dispatch uses interface method's with-clauses
+    // Tests: Abstract type dispatch uses abstract type method's with-clauses
     // ═══════════════════════════════════════════════════════════════════════
 
     [Fact]
-    public void InterfaceDispatch_UsesInterfaceWithClauses_MissingContext_EmitsDiagnostic()
+    public void AbstractDispatch_UsesAbstractWithClauses_MissingContext_EmitsDiagnostic()
     {
-        // When calling through an interface type, the context checker should use
-        // the interface method's with-clauses to determine context requirements.
+        // When calling through an abstract type, the context checker should use
+        // the abstract type method's with-clauses to determine context requirements.
         var source = """
             class MyCtx { }
 
-            interface IService {
+            abstract IService {
                 void DoWork() with MyCtx ctx;
             }
 
@@ -436,13 +436,13 @@ public sealed class ContextCheckerContractTests
     }
 
     [Fact]
-    public void InterfaceDispatch_UsesInterfaceWithClauses_ContextProvided_NoDiagnostic()
+    public void AbstractDispatch_UsesAbstractWithClauses_ContextProvided_NoDiagnostic()
     {
-        // When calling through an interface type with context provided, no diagnostic.
+        // When calling through an abstract type with context provided, no diagnostic.
         var source = """
             class MyCtx { }
 
-            interface IService {
+            abstract IService {
                 void DoWork() with MyCtx ctx;
             }
 

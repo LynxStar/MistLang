@@ -74,6 +74,11 @@ public sealed class MistParser : IParser
         // continues (no node is produced for the malformed expression).
         DetectStackallocSizeErrors(tokens, diagnostics);
 
+        // The `interface` keyword was removed from the grammar (replaced by
+        // `abstract`). The lexer now produces IDENTIFIER for "interface". Scan
+        // for those identifiers and emit a helpful migration diagnostic.
+        DetectRemovedInterfaceKeyword(tokens, diagnostics);
+
         // Assign ParsedOrigin to every node in the tree so diagnostics
         // can resolve source locations without span-containment heuristics.
         if (root is not null)
@@ -191,6 +196,44 @@ public sealed class MistParser : IParser
             Location: location,
             CompilationUnitPath: sourcePath,
             AnalyzerName: null));
+    }
+
+    /// <summary>
+    /// Scans the token stream for IDENTIFIER tokens with lexeme <c>"interface"</c> and
+    /// emits a diagnostic directing the user to use <c>abstract</c> instead.
+    /// </summary>
+    /// <remarks>
+    /// Since the <c>INTERFACE</c> token was removed from <c>keywords.storm</c>, the
+    /// lexer produces a plain <c>IDENTIFIER</c> for the text "interface". This method
+    /// detects that usage and provides a clear migration message.
+    /// </remarks>
+    private static void DetectRemovedInterfaceKeyword(TokenStream tokens, DiagnosticBag diagnostics)
+    {
+        var defaultTokens = tokens.DefaultChannelTokens;
+        var identifierKind = (int)Mist.Generated.TokenKind.IDENTIFIER;
+
+        for (var i = 0; i < defaultTokens.Length; i++)
+        {
+            if (defaultTokens[i].Kind == identifierKind
+                && defaultTokens[i].Lexeme == "interface")
+            {
+                var token = defaultTokens[i];
+                var location = (token.Start.Line > 0 && token.Start.Column > 0)
+                    ? new LinePositionSpan(
+                        new LinePosition(token.Start.Line, token.Start.Column),
+                        new LinePosition(token.End.Line, token.End.Column))
+                    : default;
+
+                diagnostics.Add(new Diagnostic(
+                    new DiagnosticId("MIST_REMOVED_INTERFACE_KEYWORD"),
+                    DiagnosticSeverity.Error,
+                    PipelineStage.Parsing,
+                    "The 'interface' keyword has been removed. Use 'abstract' instead.",
+                    Location: location,
+                    CompilationUnitPath: tokens.Source.Path,
+                    AnalyzerName: null));
+            }
+        }
     }
 
     /// <summary>

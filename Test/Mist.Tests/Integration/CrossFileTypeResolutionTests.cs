@@ -266,12 +266,12 @@ public sealed class CrossFileTypeResolutionTests : IDisposable
     }
 
     // ═══════════════════════════════════════════════════════════════════════
-    // Scenario 4: Cross-file interface member type
-    // Interface in File A, implementor in File B uses return type for inference.
+    // Scenario 4: Cross-file abstract member type
+    // Abstract type in File A, implementor in File B uses return type for inference.
     // ═══════════════════════════════════════════════════════════════════════
 
     [Fact]
-    public void Scenario4_CrossFileInterfaceMemberType()
+    public void Scenario4_CrossFileAbstractMemberType()
     {
         var files = new List<(string, string)>
         {
@@ -279,7 +279,7 @@ public sealed class CrossFileTypeResolutionTests : IDisposable
                 using Standard;
                 namespace CrossFile;
 
-                interface ISerializer {
+                abstract ISerializer {
                     string Serialize(int data);
                 }
                 """),

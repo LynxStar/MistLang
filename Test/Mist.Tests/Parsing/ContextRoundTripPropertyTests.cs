@@ -5,7 +5,7 @@
 // For any valid Mist AST containing structured context constructs (with-var
 // declarations, with-typed declarations, with-discard declarations, with-push
 // statements, with-block statements, and method with-clauses on methods,
-// constructors, interface methods, and trait methods),
+// constructors, abstract type methods, and trait methods),
 // print(parse(print(ast))) SHALL equal print(ast).
 //
 // All work runs in-process — no external process is spawned per iteration

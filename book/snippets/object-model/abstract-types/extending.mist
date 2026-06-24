@@ -1,0 +1,9 @@
+abstract IDescribable
+{
+    string Describe();
+}
+
+abstract IFullyDescribable : IDescribable
+{
+    string DetailedDescribe();
+}

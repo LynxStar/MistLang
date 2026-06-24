@@ -1,9 +1,9 @@
-interface IStringable
+abstract IStringable
 {
     string Stringify();
 }
 
-interface IProducer
+abstract IProducer
 {
     type Output : IStringable;
 

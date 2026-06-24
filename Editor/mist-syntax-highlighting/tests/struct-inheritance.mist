@@ -17,7 +17,7 @@ struct Derived<T> : Base<T> {
     T Extra;
 }
 
-// ===== Struct inheritance: base struct + interface =====
+// ===== Struct inheritance: base struct + abstract type =====
 
 struct Multi : Base, IInterface {
 // <- keyword.declaration.mist

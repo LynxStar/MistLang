@@ -34,7 +34,7 @@ public sealed class ConstraintClauseRoundTripScenario
 ///
 /// **Validates: Requirements 2.7, 9.2, 9.3**
 ///
-/// For any valid Mist declaration (class, struct, interface, method, or type alias)
+/// For any valid Mist declaration (class, struct, abstract, method, or type alias)
 /// with any combination of constraint clauses containing any valid constraint variants
 /// (class, struct, type reference, new(...)), parsing the source text then pretty-printing
 /// then re-parsing SHALL produce an equivalent AST (verified via idempotent pretty-print output).
@@ -49,7 +49,7 @@ public class ConstraintClauseRoundTripPropertyTests
     private static readonly string[] TypeParamNames = ["T", "U", "V"];
     private static readonly string[] ClassNames = ["Box", "Factory", "Container", "Sorter"];
     private static readonly string[] StructNames = ["Wrapper", "Entry", "Cell"];
-    private static readonly string[] InterfaceNames = ["IRepository", "IReadable", "IWritable"];
+    private static readonly string[] AbstractNames = ["IRepository", "IReadable", "IWritable"];
     private static readonly string[] MethodNames = ["Create", "Transform", "Convert"];
     private static readonly string[] AliasNames = ["MyList", "MyMap", "MySet"];
     private static readonly string[] TypeRefConstraints = ["IFoo", "IBar", "IComparable"];
@@ -164,16 +164,16 @@ public class ConstraintClauseRoundTripPropertyTests
                select new ConstraintClauseRoundTripScenario(source, $"struct: {name}<{typeParamStr}>");
     }
 
-    /// <summary>Generates a generic interface declaration with constraint clauses.</summary>
-    private static Gen<ConstraintClauseRoundTripScenario> GenInterfaceDeclaration()
+    /// <summary>Generates a generic abstract declaration with constraint clauses.</summary>
+    private static Gen<ConstraintClauseRoundTripScenario> GenAbstractDeclaration()
     {
-        return from name in Gen.Elements(InterfaceNames)
+        return from name in Gen.Elements(AbstractNames)
                from paramCount in Gen.Choose(1, 3)
                let typeParams = TypeParamNames.Take(paramCount).ToArray()
                let typeParamStr = string.Join(", ", typeParams)
                from whereClauses in GenWhereClauses(typeParams)
-               let source = $"interface {name}<{typeParamStr}>{whereClauses} {{\n}}"
-               select new ConstraintClauseRoundTripScenario(source, $"interface: {name}<{typeParamStr}>");
+               let source = $"abstract {name}<{typeParamStr}>{whereClauses} {{\n}}"
+               select new ConstraintClauseRoundTripScenario(source, $"abstract: {name}<{typeParamStr}>");
     }
 
     /// <summary>Generates a class with a generic method that has constraint clauses.</summary>
@@ -209,7 +209,7 @@ public class ConstraintClauseRoundTripPropertyTests
         return Gen.OneOf(
             GenClassDeclaration(),
             GenStructDeclaration(),
-            GenInterfaceDeclaration(),
+            GenAbstractDeclaration(),
             GenMethodDeclaration(),
             GenTypeAliasDeclaration());
     }

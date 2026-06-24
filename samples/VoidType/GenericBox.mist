@@ -1,4 +1,4 @@
-// GenericBox<T> — Demonstrates a generic class implementing a generic interface.
+// GenericBox<T> — Demonstrates a generic class implementing a generic abstract type.
 
 using Standard;
 

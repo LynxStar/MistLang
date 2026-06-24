@@ -129,15 +129,15 @@ public sealed class OverloadIntegrationTests : IDisposable
     }
 
     // ═════════════════════════════════════════════════════════════════════
-    // Test 3: Overloaded interface methods + implementing class
+    // Test 3: Overloaded abstract type methods + implementing class
     // Validates: Requirements 7.1, 7.3
     // ═════════════════════════════════════════════════════════════════════
 
     [Fact]
-    public void OverloadedInterfaceMethods_FullPipeline_SuccessfulCompilation()
+    public void OverloadedAbstractMethods_FullPipeline_SuccessfulCompilation()
     {
         var source = """
-            interface IProcessor {
+            abstract IProcessor {
                 int Process(int x);
                 bool Process(bool b);
             }
@@ -153,7 +153,7 @@ public sealed class OverloadIntegrationTests : IDisposable
         var result = CompileMistSource(source);
 
         Assert.True(result.Succeeded,
-            $"Compilation failed with overloaded interface methods:{Environment.NewLine}{FormatDiagnostics(result)}");
+            $"Compilation failed with overloaded abstract type methods:{Environment.NewLine}{FormatDiagnostics(result)}");
     }
 
     // ═════════════════════════════════════════════════════════════════════

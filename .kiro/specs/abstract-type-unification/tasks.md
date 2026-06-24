@@ -10,7 +10,7 @@ This implementation unifies Mist's `interface` and `trait` keywords into a singl
 
 ## Tasks
 
-- [ ] 1. Phase 1 — Pure Rename (interface → abstract)
+- [-] 1. Phase 1 — Pure Rename (interface → abstract)
 
   - [x] 1.1 Grammar: `keywords.storm`
     - Rename `INTERFACE` token → `ABSTRACT` with value `"abstract"`
@@ -116,19 +116,19 @@ This implementation unifies Mist's `interface` and `trait` keywords into a singl
     - Update generated member variant node types (e.g., `InterfaceMethodMemberInterfaceMemberDeclarationNode` → `AbstractMethodMemberAbstractMemberDeclarationNode`)
     - Note: Keep C# emission of `interface` keyword — that's intentional CLR output
 
-  - [ ] 1.17b TypeCheckerAnalyzer: type reference and method renames
+  - [x] 1.17b TypeCheckerAnalyzer: type reference and method renames
     - Update all `InterfaceType` type references → `AbstractType`
     - Update all `SymbolKind.Interface` → `SymbolKind.Abstract`
     - Rename methods: `ImplementsInterface` → `ImplementsAbstract`, `ImplementsConstructedInterface` → `ImplementsConstructedAbstract`, `InterfaceListContains` → `AbstractListContains`, `IsInterfaceTargetType` → `IsAbstractTargetType`, `CheckInterfacePropertyRequirements` → `CheckAbstractPropertyRequirements`, `CheckReadonlyMembersOfInterface` → `CheckReadonlyMembersOfAbstract`
     - Update local variable names (`targetInterface` → `targetAbstract`, `sourceInterface` → `sourceAbstract`, etc.)
     - Update comments
 
-  - [ ] 1.17c OwnershipAnalyzer
+  - [x] 1.17c OwnershipAnalyzer
     - Update `InterfaceDeclarationNode` reference → `AbstractDeclarationNode`
     - Rename field `InterfaceForbidden` (already covered in 1.23b)
     - Update comments
 
-  - [ ] 1.18 CSharpEmitter: variable/comment cleanup
+  - [x] 1.18 CSharpEmitter: variable/comment cleanup
     - Rename locals: `interfaceDecl` → `abstractDecl`, `interfaceList` → `abstractList`, `interfaceSymbol` → `abstractSymbol`, `interfaceType` → `abstractType`, etc.
     - Update `.Interfaces` property access → `.Abstracts`
     - Update generated AST node property accesses: `.InterfaceList` → `.AbstractList`, `.InterfaceDeclaration` → `.AbstractDeclaration`
@@ -145,11 +145,11 @@ This implementation unifies Mist's `interface` and `trait` keywords into a singl
   - [x] 1.20 AssemblyTypeProvider
     - Update `InterfaceType` reference → `AbstractType`
 
-  - [ ] 1.21 MistParser: add `interface` keyword error detection
+  - [x] 1.21 MistParser: add `interface` keyword error detection
     - Add `DetectRemovedInterfaceKeyword` method: scans token stream for identifiers with lexeme `"interface"` and emits diagnostic error directing user to use `abstract`
     - Since `INTERFACE` token no longer exists in grammar, lexer produces IDENTIFIER for "interface" — detect that
 
-  - [ ] 1.22 MistPrettyPrinter: renames
+  - [x] 1.22 MistPrettyPrinter: renames
     - Update `InterfaceType` variant handling → `AbstractType` variant
     - Rename locals (`interfaceType` → `abstractType`, `interfaceClause` → `abstractClause`, `interfaceDecl` → `abstractDecl`)
     - Update `.Interfaces` → `.Abstracts` property access
@@ -157,14 +157,14 @@ This implementation unifies Mist's `interface` and `trait` keywords into a singl
     - Update generated AST node property accesses: `.InterfaceDeclaration` → `.AbstractDeclaration`
     - Emit `abstract` keyword instead of `interface` in pretty-printed output
 
-  - [ ] 1.23 Other model files: comment updates
+  - [x] 1.23 Other model files: comment updates
     - `BindingKind.cs` — update comment "interface or trait" → "abstract type or trait"
     - `AsConversionKind.cs` — update comment "interface satisfaction" → "abstract type satisfaction"
     - `DefaultValueKind.cs` — update comment "interface/trait field" → "abstract type/trait field"
     - `NullableOrigin.cs` — update comment "class, interface, string" → "class, abstract type, string"
     - `ParameterSignature.cs` — rename variable `interfaceMethod` → `abstractMethod`
 
-  - [ ] 1.23b Diagnostic IDs and field names
+  - [x] 1.23b Diagnostic IDs and field names
     - `DiagnosticId.cs`: rename fields `DefaultOnInterface` → `DefaultOnAbstract`, `TargetNewInterface` → `TargetNewAbstract`
     - `DiagnosticId.cs`: rename string values `"MIST_DEFAULT_ON_INTERFACE"` → `"MIST_DEFAULT_ON_ABSTRACT"`, `"MIST_TARGET_NEW_INTERFACE"` → `"MIST_TARGET_NEW_ABSTRACT"`
     - `SemanticModelBuilder.cs`: rename field `MissingInterfaceOverload` → `MissingAbstractOverload` (keep string `"MIST_SM_0022"` unchanged — it's a stable ID)
@@ -175,92 +175,92 @@ This implementation unifies Mist's `interface` and `trait` keywords into a singl
     - `TypeCheckerAnalyzer.cs`: rename field `ConstraintInterfaceNotImplemented` → `ConstraintAbstractNotImplemented`, update message strings
     - Update all tests that assert on these diagnostic ID strings (e.g., `InvalidAbstractReferencePropertyTests`, `AbstractCycleDetectionPropertyTests`, `ConstraintDiagnosticsTests`, `TargetTypedNewDiagnosticTests`, `InvalidEnumerableImplementationPropertyTests`, `OwnedTypeConstraintPropertyTests`)
 
-  - [ ] 1.24 Standard library `.mist` files
+  - [x] 1.24 Standard library `.mist` files
     - `Source/Standard/IEnumerator.mist` — `interface` → `abstract`
     - `Source/Standard/IEnumerable.mist` — `interface` → `abstract`
     - `Source/Standard/IClonable.mist` — `interface` → `abstract`
 
-  - [ ] 1.25 Test file: `InterfaceEmissionPropertyTests.cs`
+  - [x] 1.25 Test file: `InterfaceEmissionPropertyTests.cs`
     - Rename file → `AbstractEmissionPropertyTests.cs`
     - Rename class and all `Interface`-named members/variables
     - Update all `InterfaceType`/`InterfaceDeclaration` AST node references to new names
     - Update `SymbolKind.Interface` → `SymbolKind.Abstract`
 
-  - [ ] 1.26 Test file: `ClassInterfaceEmissionPropertyTests.cs`
+  - [x] 1.26 Test file: `ClassInterfaceEmissionPropertyTests.cs`
     - Rename file → `ClassAbstractEmissionPropertyTests.cs`
     - Rename class and all `Interface`-named members/variables
     - Update AST node type references to new names
 
 
-  - [ ] 1.27 Test file: `InterfaceSatisfactionPropertyTests.cs`
+  - [x] 1.27 Test file: `InterfaceSatisfactionPropertyTests.cs`
     - Rename file → `AbstractSatisfactionPropertyTests.cs`
     - Rename class, records (`InterfaceName` → `AbstractName`, `InterfaceMethodNames` → `AbstractMethodNames`, etc.)
     - Update `InterfaceNamePool` → `AbstractNamePool`
     - Update AST node references and `.Interfaces`/`.InterfaceList` → `.Abstracts`/`.AbstractList`
 
-  - [ ] 1.28 Test file: `InterfaceSignatureMismatchPropertyTests.cs`
+  - [x] 1.28 Test file: `InterfaceSignatureMismatchPropertyTests.cs`
     - Rename file → `AbstractSignatureMismatchPropertyTests.cs`
     - Rename class, records, variables similarly
 
-  - [ ] 1.29 Test file: `InterfaceRoundTripPropertyTests.cs`
+  - [x] 1.29 Test file: `InterfaceRoundTripPropertyTests.cs`
     - Rename file → `AbstractRoundTripPropertyTests.cs`
     - Rename class, update `interface` keyword in generated source strings → `abstract`
 
-  - [ ] 1.30 Test file: `InterfaceResolutionPropertyTests.cs`
+  - [x] 1.30 Test file: `InterfaceResolutionPropertyTests.cs`
     - Rename file → `AbstractResolutionPropertyTests.cs`
     - Rename class and all internal references
 
-  - [ ] 1.31 Test file: `InterfaceTypeRegistrationPropertyTests.cs`
+  - [x] 1.31 Test file: `InterfaceTypeRegistrationPropertyTests.cs`
     - Rename file → `AbstractTypeRegistrationPropertyTests.cs`
     - Rename class and all internal references
 
-  - [ ] 1.32 Test file: `InterfaceMemberLookupPropertyTests.cs`
+  - [x] 1.32 Test file: `InterfaceMemberLookupPropertyTests.cs`
     - Rename file → `AbstractMemberLookupPropertyTests.cs`
     - Rename class and all internal references
 
-  - [ ] 1.33 Test file: `InterfaceMemberLookupMissingPropertyTests.cs`
+  - [x] 1.33 Test file: `InterfaceMemberLookupMissingPropertyTests.cs`
     - Rename file → `AbstractMemberLookupMissingPropertyTests.cs`
     - Rename class and all internal references
 
-  - [ ] 1.34 Test file: `InterfaceNonAssignabilityPropertyTests.cs`
+  - [x] 1.34 Test file: `InterfaceNonAssignabilityPropertyTests.cs`
     - Rename file → `AbstractNonAssignabilityPropertyTests.cs`
     - Rename class and all internal references
 
-  - [ ] 1.35 Test file: `InterfaceAssignabilityPropertyTests.cs`
+  - [x] 1.35 Test file: `InterfaceAssignabilityPropertyTests.cs`
     - Rename file → `AbstractAssignabilityPropertyTests.cs`
     - Rename class and all internal references
 
-  - [ ] 1.36 Test file: `InterfaceCycleDetectionPropertyTests.cs`
+  - [x] 1.36 Test file: `InterfaceCycleDetectionPropertyTests.cs`
     - Rename file → `AbstractCycleDetectionPropertyTests.cs`
     - Rename class and all internal references
 
-  - [ ] 1.37 Test file: `InterfaceOverloadSatisfactionPropertyTests.cs`
+  - [x] 1.37 Test file: `InterfaceOverloadSatisfactionPropertyTests.cs`
     - Rename file → `AbstractOverloadSatisfactionPropertyTests.cs`
     - Rename class and all internal references
 
-  - [ ] 1.38 Test file: `InvalidInterfaceReferencePropertyTests.cs`
+  - [x] 1.38 Test file: `InvalidInterfaceReferencePropertyTests.cs`
     - Rename file → `InvalidAbstractReferencePropertyTests.cs`
     - Rename class and all internal references
 
 
-  - [ ] 1.39 Test file: `TraitInterfaceCoexistencePropertyTests.cs`
+  - [x] 1.39 Test file: `TraitInterfaceCoexistencePropertyTests.cs`
     - Rename file → `TraitAbstractCoexistencePropertyTests.cs`
     - Rename class and all `Interface`-named members
     - Update `interface` keyword in source strings → `abstract`
 
-  - [ ] 1.40 Test file: `DependentInterfaceParameterValidationTests.cs`
+  - [x] 1.40 Test file: `DependentInterfaceParameterValidationTests.cs`
     - Rename file → `DependentAbstractParameterValidationTests.cs`
     - Rename class, update `interface` keyword in source strings → `abstract`
 
-  - [ ] 1.41 Test file: `EntryPointWithInterfaceBugTests.cs`
+  - [x] 1.41 Test file: `EntryPointWithInterfaceBugTests.cs`
     - Rename file → `EntryPointWithAbstractBugTests.cs`
     - Rename class, update `interface` keyword in source strings → `abstract`
 
-  - [ ] 1.42 Test file: `InterfaceTraitRefinementSatisfactionPropertyTests.cs`
+  - [x] 1.42 Test file: `InterfaceTraitRefinementSatisfactionPropertyTests.cs`
     - Rename file → `AbstractTraitRefinementSatisfactionPropertyTests.cs`
     - Rename class, update `interface` keyword in source strings → `abstract`
 
-  - [ ] 1.43 Test files: other tests with `interface` in source strings
+  - [x] 1.43 Test files: other tests with `interface` in source strings
     - `ConstraintClauseParsingTests.cs` — update helper methods and source strings
     - `ConstraintClauseRoundTripPropertyTests.cs` — update `GenInterfaceDeclaration` → `GenAbstractDeclaration`
     - `DefaultConstraintRoundTripPropertyTests.cs` — update `GenInterfaceDeclaration` → `GenAbstractDeclaration`
@@ -280,77 +280,77 @@ This implementation unifies Mist's `interface` and `trait` keywords into a singl
     - `OwnedTypeConstraintPropertyTests.cs` — update diagnostic ID references
     - `StorageBanNewDefaultTests.cs` — update comments
 
-  - [ ] 1.44 Sample: `samples/Interfaces/` → `samples/AbstractTypes/`
+  - [x] 1.44 Sample: `samples/Interfaces/` → `samples/AbstractTypes/`
     - Rename directory
     - Replace `interface` keyword → `abstract` in all `.mist` files
     - Update comments to say "abstract type" instead of "interface" (Mist concept)
     - Update `mist.toml` if present
 
-  - [ ] 1.45 Sample: `samples/ShapeInterfaces/` → `samples/ShapeAbstracts/`
+  - [x] 1.45 Sample: `samples/ShapeInterfaces/` → `samples/ShapeAbstracts/`
     - Rename directory
     - Replace `interface` keyword → `abstract` in all `.mist` files
     - Update comments
 
-  - [ ] 1.46 Sample: `samples/Properties/IPropertyDemo.mist`
+  - [x] 1.46 Sample: `samples/Properties/IPropertyDemo.mist`
     - Replace `interface` keyword → `abstract`
     - Update comment
 
-  - [ ] 1.47 Sample: `samples/ReadonlyContexts/Program.mist`
+  - [x] 1.47 Sample: `samples/ReadonlyContexts/Program.mist`
     - Replace `interface` keyword → `abstract` (e.g., `public readonly interface IReadable` → `public readonly abstract IReadable`)
     - Update comments referencing "interface"
 
 
-  - [ ] 1.48 Sample: `samples/NestedScoping/`
+  - [x] 1.48 Sample: `samples/NestedScoping/`
     - `Program.mist` — replace `interface` keyword → `abstract`, update comments
     - `NestedInInterfaceTrait.mist` — replace keyword, update comments, consider renaming file → `NestedInAbstractTrait.mist`
 
-  - [ ] 1.49 Sample: `samples/StructuredContext/Program.mist`
+  - [x] 1.49 Sample: `samples/StructuredContext/Program.mist`
     - Replace `interface` keyword → `abstract`
     - Update all comments referencing "interface" in Mist sense
 
-  - [ ] 1.50 Sample: `samples/GenericTypes/`
+  - [x] 1.50 Sample: `samples/GenericTypes/`
     - `IGenericContainer.mist` — replace `interface` keyword → `abstract`, update comment
     - `GenericBox.mist` — update comment
 
-  - [ ] 1.51 Sample: `samples/VoidType/`
+  - [x] 1.51 Sample: `samples/VoidType/`
     - `IGenericContainer.mist` — replace `interface` keyword → `abstract`, update comment
     - `GenericBox.mist` — update comment
 
-  - [ ] 1.52 Sample: `samples/GenericConstraints/Program.mist`
+  - [x] 1.52 Sample: `samples/GenericConstraints/Program.mist`
     - Update comments referencing "interface constraint" → "abstract type constraint"
 
-  - [ ] 1.53 Sample: `samples/Iterators/Program.mist`
+  - [x] 1.53 Sample: `samples/Iterators/Program.mist`
     - Update comment "satisfy the interface contract" → "satisfy the abstract type contract"
 
-  - [ ] 1.54 Sample: `samples/Enums/Program.mist`
+  - [x] 1.54 Sample: `samples/Enums/Program.mist`
     - Update comments referencing "interface underlying type"
 
-  - [ ] 1.55 Sample: `samples/AllFeatures/Program.mist`
+  - [x] 1.55 Sample: `samples/AllFeatures/Program.mist`
     - Update entry point references for renamed samples (`Interfaces` → `AbstractTypes`, `ShapeInterfaces` → `ShapeAbstracts`)
 
-  - [ ] 1.55b Sample baselines: `samples/__baselines__/`
+  - [x] 1.55b Sample baselines: `samples/__baselines__/`
     - Update `AllFeatures.out` — replace "interface" in output strings with "abstract type" where the output comes from Mist concept references (e.g., `"--- Interface Properties ---"` → `"--- Abstract Type Properties ---"`, `"3. interface constraint:"` → `"3. abstract type constraint:"`, `"interface-implementing"` → `"abstract-implementing"`, `"Interface dispatch"` → `"Abstract type dispatch"`, `"Outer.IAction interface nested in class"` → `"Outer.IAction abstract type nested in class"`, etc.)
     - Update any per-sample baselines for `Interfaces.out`, `ShapeInterfaces.out` (rename to `AbstractTypes.out`, `ShapeAbstracts.out`)
     - Note: Output strings are determined by what the SAMPLE CODE prints — update the sample `.mist` files FIRST (tasks 1.44–1.54), then regenerate/update baselines to match
 
-  - [ ] 1.56 TextMate grammar: `mist.tmLanguage.json`
+  - [x] 1.56 TextMate grammar: `mist.tmLanguage.json`
     - Remove `interface` from declaration keyword list, add `abstract`
     - Update scope: `entity.name.type.interface.mist` → `entity.name.type.abstract.mist`
     - Update generic declaration pattern: `class|struct|interface|trait` → `class|struct|abstract|trait`
     - Update comments
 
-  - [ ] 1.57 Book highlighting: `book/theme/mist-lang.js`
+  - [x] 1.57 Book highlighting: `book/theme/mist-lang.js`
     - Replace `interface` with `abstract` in the Mist KEYWORDS string
     - Update the type declaration regex: `class|struct|interface|trait` → `class|struct|abstract|trait`
 
-  - [ ] 1.58 Book chapter: `book/src/object-model/interfaces.md` → `abstract-types.md`
+  - [x] 1.58 Book chapter: `book/src/object-model/interfaces.md` → `abstract-types.md`
     - Rename file
     - Update title to "Abstract Types"
     - Replace all `interface` keyword usage with `abstract`
     - Update `book/SUMMARY.md` to reference new filename and title
 
 
-  - [ ] 1.59 Book chapters: update "interface" references in other chapters
+  - [x] 1.59 Book chapters: update "interface" references in other chapters
     - `book/src/introduction.md` — update "Interface" description
     - `book/src/basics/control-flow.md` — update `interface` in code example → `abstract`
     - `book/src/type-system/as-operator.md` — update "implemented interface" → "implemented abstract type"
@@ -363,7 +363,7 @@ This implementation unifies Mist's `interface` and `trait` keywords into a singl
     - `book/src/advanced/default-keyword.md` — update "Interfaces and traits" → "Abstract types and traits"
     - `book/src/tooling/editor-support.md` — update `interface` in keyword table → `abstract`
 
-  - [ ] 1.60 Book snippets: rename files with "interface" in name
+  - [x] 1.60 Book snippets: rename files with "interface" in name
     - `book/snippets/type-system/generics/interfaces.mist` → `abstracts.mist` + update content
     - `book/snippets/type-system/generics/interfaces.cs` → `abstracts.cs` + update content
     - `book/snippets/type-system/generic-constraints/interface-constraint.mist` → `abstract-constraint.mist`
@@ -379,7 +379,7 @@ This implementation unifies Mist's `interface` and `trait` keywords into a singl
     - Update all `{{#include ...}}` references in book markdown to point to new filenames
     - Replace `interface` keyword → `abstract` in all renamed `.mist` snippet files
 
-  - [ ] 1.61 Phase 1 verification gate
+  - [x] 1.61 Phase 1 verification gate
     - Build entire solution: `dotnet build` — zero errors, zero warnings
     - Run full test suite: `dotnet test` — all tests pass
     - Grep for `interface` across codebase (excluding `bin/`, `obj/`, `.kiro/specs/`):
@@ -387,13 +387,13 @@ This implementation unifies Mist's `interface` and `trait` keywords into a singl
       - NOT ALLOWED in: `.mist` files, `.storm` files, TextMate grammar JSON, `book/theme/mist-lang.js` (Mist keywords section), book markdown (when referring to Mist concept), test names/comments referring to Mist concept, sample comments referring to Mist concept
     - Compile and run all samples — verify expected output matches baselines
 
-  - [ ] 1.62 Commit Phase 1
+  - [x] 1.62 Commit Phase 1
     - Commit all Phase 1 changes with message: "Phase 1: Rename interface → abstract (zero semantic change)"
 
 
 - [ ] 2. Phase 2 — Purge Traits (Pure Deletion)
 
-  - [ ] 2.1 Delete trait grammar and add error diagnostic
+  - [~] 2.1 Delete trait grammar and add error diagnostic
     - Remove `TRAIT` token from `keywords.storm`
     - Remove `TraitDeclaration` rule from `Mist.storm`
     - Remove `TraitMemberDeclaration`, `TraitFieldDeclaration`, `TraitMethodDeclaration`, `TraitPropertyDeclaration` rules
@@ -404,13 +404,13 @@ This implementation unifies Mist's `interface` and `trait` keywords into a singl
     - Add parser error: when `with` in with-block position encountered, emit error
     - NOTE: `WITH` token, `AS` token remain (used by `WithClause` and `with` statements)
 
-  - [ ] 2.2 Delete trait semantic model classes
+  - [~] 2.2 Delete trait semantic model classes
     - Delete `TraitType.cs`, `ConstructedTraitType.cs`
     - Delete `TraitSatisfactionMap.cs`, `WithBlockRegistry.cs`
     - Remove `TypeKind.Trait` from enum
     - Remove all references to deleted types
 
-  - [ ] 2.3 Delete trait SemanticModelBuilder passes
+  - [~] 2.3 Delete trait SemanticModelBuilder passes
     - Remove `RegisterTraitDeclaration`, `ResolveTraitDeclaration`
     - Remove `Pass1_ResolveTraitParents`, `Pass1_DetectTraitCycles`, `DetectTraitCyclesDfsVisit`
     - Remove `Pass1_ResolveWithBlocks` and all helper methods
@@ -418,12 +418,12 @@ This implementation unifies Mist's `interface` and `trait` keywords into a singl
     - Remove trait-related constraint satisfaction methods
     - Clean up: trait constraints become abstract type constraints
 
-  - [ ] 2.4 Delete trait CSharpEmitter logic
+  - [~] 2.4 Delete trait CSharpEmitter logic
     - Remove `EmitTraitDeclaration` and related methods
     - Remove `EmitExplicitTraitImplementations`
     - Remove all references to `TraitSatisfactionMap` and `WithBlockRegistry`
 
-  - [ ] 2.5 Delete trait-related test files
+  - [~] 2.5 Delete trait-related test files
     - Delete `TraitAssignabilityPropertyTests.cs`
     - Delete `TraitMemberAccessPropertyTests.cs`
     - Delete `TraitMemberAccessGenericPropertyTests.cs`
@@ -433,7 +433,7 @@ This implementation unifies Mist's `interface` and `trait` keywords into a singl
     - Delete `WithBlockGenericTraitPropertyTests.cs`
     - Delete any other test files whose primary purpose is testing trait behavior
 
-  - [ ] 2.6 Migrate and remove trait-related samples
+  - [~] 2.6 Migrate and remove trait-related samples
     - Delete `samples/Traits/` directory
     - Delete `samples/GenericTraits/` directory
     - Update `samples/GenericConstraints/` — replace `trait` with `abstract`, add `: AbstractType` conformance
@@ -444,101 +444,101 @@ This implementation unifies Mist's `interface` and `trait` keywords into a singl
     - Update `samples/AllFeatures/Program.mist` — remove trait demo calls
 
 
-  - [ ] 2.7 Update TextMate grammar for Phase 2
+  - [~] 2.7 Update TextMate grammar for Phase 2
     - Remove `trait` from declaration keyword list
     - Update generic declaration pattern: `class|struct|abstract|trait` → `class|struct|abstract`
     - Remove `entity.name.type.trait.mist` scope/rule
     - Remove `trait` from `book/theme/mist-lang.js`
 
-  - [ ] 2.8 Update book documentation for Phase 2
+  - [~] 2.8 Update book documentation for Phase 2
     - Remove `book/src/object-model/traits.md` (or replace with migration note)
     - Remove "Traits" entry from `book/SUMMARY.md`
     - Update cross-references to traits from other chapters
 
-  - [ ] 2.9 Phase 2 verification gate
+  - [~] 2.9 Phase 2 verification gate
     - Build: zero errors, zero warnings
     - Run full test suite: all pass
     - Grep for "trait": only in spec files and third-party code
     - Compile and run all samples
 
-  - [ ] 2.10 Commit Phase 2
+  - [~] 2.10 Commit Phase 2
     - Message: "Phase 2: Purge traits entirely"
 
 - [ ] 3. Phase 3 — Default Implementations (New Functionality)
 
-  - [ ] 3.1 Extend grammar for default implementations
+  - [~] 3.1 Extend grammar for default implementations
     - Extend `AbstractMemberDeclaration` to accept `defaultMethod:MethodDeclaration as AbstractDefaultMethodMember`
     - Parser distinguishes slots (semicolon-terminated) from defaults (body-present)
     - Error: property with body inside abstract type
 
-  - [ ] 3.2 Extend semantic model for default methods
+  - [~] 3.2 Extend semantic model for default methods
     - Add `DefaultMethods` dictionary to `AbstractType`
     - Register default method symbols in both `MemberScope` and `DefaultMethods`
 
-  - [ ] 3.3 Extend type checker for slot satisfaction with defaults
+  - [~] 3.3 Extend type checker for slot satisfaction with defaults
     - Exclude `DefaultMethods` members from required slots
     - Accept concrete type override when signatures match
     - Propagate defaults through abstract type inheritance
 
-  - [ ] 3.4 Extend CSharpEmitter for default interface methods (DIM)
+  - [~] 3.4 Extend CSharpEmitter for default interface methods (DIM)
     - Emit C# default interface method for `AbstractDefaultMethodMember` nodes
     - Emit forwarding stub on concrete types that don't override
     - When concrete type overrides, emit only concrete implementation
 
-  - [ ] 3.5 Add default implementation samples
+  - [~] 3.5 Add default implementation samples
     - Update `samples/AbstractTypes/Program.mist`
     - Verify dispatch semantics
 
-  - [ ] 3.6 Update book documentation for Phase 3
+  - [~] 3.6 Update book documentation for Phase 3
 
-  - [ ] 3.7 Phase 3 verification gate
+  - [~] 3.7 Phase 3 verification gate
     - Build, test, samples all pass
 
-  - [ ] 3.8 Commit Phase 3
+  - [~] 3.8 Commit Phase 3
     - Message: "Phase 3: Add default implementations for abstract types"
 
 
 - [ ] 4. Phase 4 — Late Binding via With Blocks (New Functionality)
 
-  - [ ] 4.1 Re-add with block grammar
+  - [~] 4.1 Re-add with block grammar
     - Re-add `WithDeclaration` rule: `with TypeName : AbstractType { mappings }`
     - Re-add `MemberMapping` rule: `sourceName:IDENTIFIER AS targetName:IDENTIFIER SEMICOLON`
     - Re-add `WithItem` variant to `TopLevelItem`
 
-  - [ ] 4.2 Implement ConformanceMap semantic model
+  - [~] 4.2 Implement ConformanceMap semantic model
     - Create `ConformanceMapping` and `ConformanceMap` classes
     - Wire into semantic model
 
-  - [ ] 4.3 Implement with-block resolution pass
+  - [~] 4.3 Implement with-block resolution pass
     - Add `Pass1_ResolveWithBlocks` pass
     - Validate type/abstract references, member mappings, signature compatibility
     - Register validated mappings in `ConformanceMap`
 
-  - [ ] 4.4 Extend type checker for with-block assignability
+  - [~] 4.4 Extend type checker for with-block assignability
     - Consult `ConformanceMap` for assignability checks
 
-  - [ ] 4.5 Implement with-block C# emission
+  - [~] 4.5 Implement with-block C# emission
     - Add abstract type's interface to concrete type's C# inheritance list
     - Emit explicit interface implementations delegating to mapped members
 
-  - [ ] 4.6 Add with-block samples
+  - [~] 4.6 Add with-block samples
     - Demonstrate conformance, `as` mapping, polymorphic usage
 
-  - [ ] 4.7 Update book documentation for Phase 4
+  - [~] 4.7 Update book documentation for Phase 4
 
-  - [ ] 4.8 Phase 4 verification gate
+  - [~] 4.8 Phase 4 verification gate
     - Build, test, samples all pass
 
-  - [ ] 4.9 Commit Phase 4
+  - [~] 4.9 Commit Phase 4
     - Message: "Phase 4: Add late binding via with blocks"
 
 - [ ] 5. Final comprehensive verification
 
-  - [ ] 5.1 Final grep verification
+  - [~] 5.1 Final grep verification
     - `interface` only in: C# source `interface` declarations, ambient type provider CLR handling, C# emission output, third-party code, spec files
     - `trait` only in: spec files and third-party code
-  - [ ] 5.2 Full test suite passes
-  - [ ] 5.3 All samples compile and produce expected output
+  - [~] 5.2 Full test suite passes
+  - [~] 5.3 All samples compile and produce expected output
 
 ## Notes
 

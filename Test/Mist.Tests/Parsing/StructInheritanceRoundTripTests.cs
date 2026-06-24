@@ -89,15 +89,15 @@ public class StructInheritanceRoundTripTests
     }
 
     /// <summary>
-    /// Base struct + interfaces: struct Point3D : Point, IComparable { int Z; }
+    /// Base struct + abstract types: struct Point3D : Point, IComparable { int Z; }
     ///
     /// **Validates: Requirement 8.2**
     /// </summary>
     [Fact]
-    public void RoundTrip_BaseStructPlusInterfaces()
+    public void RoundTrip_BaseStructPlusAbstracts()
     {
         const string source = """
-            interface IComparable {
+            abstract IComparable {
             }
             struct Point {
                 int X;
@@ -149,15 +149,15 @@ public class StructInheritanceRoundTripTests
     }
 
     /// <summary>
-    /// Multiple types in base list with type arguments on interfaces.
+    /// Multiple types in base list with type arguments on abstract types.
     ///
     /// **Validates: Requirements 8.2, 8.3**
     /// </summary>
     [Fact]
-    public void RoundTrip_BaseStructWithGenericInterface()
+    public void RoundTrip_BaseStructWithGenericAbstract()
     {
         const string source = """
-            interface IEquatable<T> {
+            abstract IEquatable<T> {
             }
             struct Point {
                 int X;

@@ -1,0 +1,59 @@
+// ShapeAbstracts — Covers abstract types with properties.
+
+using Standard;
+
+namespace ShapeAbstracts;
+
+public class Program
+{
+    // Static helper: abstract type-typed parameter, abstract type member dispatch
+    private static string DescribeShape(IShape shape)
+    {
+        return $"{shape.Describe()} has area {shape.Area()}";
+    }
+
+    public static void RunDemo()
+    {
+        // 25. Abstract types: declaration, implementation, polymorphic dispatch
+        var circle = new Circle(5);
+        var rect = new Rectangle(3, 4);
+        Console.WriteLine($"circle={circle.Describe()} area={circle.Area()}");
+        Console.WriteLine($"rect={rect.Describe()} area={rect.Area()}");
+
+        // Abstract type-typed variables
+        IShape shape1 = circle;
+        Console.WriteLine($"shape1={shape1.Describe()} area={shape1.Area()}");
+        IShape shape2 = rect;
+        Console.WriteLine($"shape2={shape2.Describe()} area={shape2.Area()}");
+
+        // IResizable-typed variable (child abstract type)
+        IResizable resizable = rect;
+        Console.WriteLine($"resizable area={resizable.ResizedArea(2)}");
+
+        // Inherited abstract type member dispatch: call IShape.Describe through IResizable reference
+        Console.WriteLine($"resizable desc={resizable.Describe()}");
+
+        // Static helper accepting IShape parameter
+        Console.WriteLine($"helper circle: {DescribeShape(circle)}");
+        Console.WriteLine($"helper rect: {DescribeShape(rect)}");
+
+        // 26. Properties: auto-properties, computed properties, abstract type properties
+        Console.WriteLine("--- Properties ---");
+        // Auto-property read/write on Circle
+        Console.WriteLine($"circle.Name={circle.Name}");
+        Console.WriteLine($"circle.Radius={circle.Radius}");
+        circle.Radius = 10;
+        Console.WriteLine($"circle.Radius after set={circle.Radius}");
+
+        // Computed property
+        Console.WriteLine($"circle.Diameter={circle.Diameter}");
+
+        // Abstract type property access
+        Console.WriteLine($"shape1.Name={shape1.Name}");
+
+        // IResizable property access
+        rect.Scale = 3;
+        Console.WriteLine($"rect.Scale={rect.Scale}");
+        Console.WriteLine($"resizable.Scale={resizable.Scale}");
+    }
+}

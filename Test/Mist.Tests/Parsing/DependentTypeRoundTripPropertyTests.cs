@@ -68,7 +68,7 @@ public class DependentTypeRoundTripPropertyTests
     private static readonly string[] TypeParamNames = ["T", "U", "V", "W"];
     private static readonly string[] ClassNames = ["FixedBuffer", "Matrix", "Vector", "Container", "Holder"];
     private static readonly string[] StructNames = ["ValueBox", "Cell", "Entry", "Slot"];
-    private static readonly string[] InterfaceNames = ["ISized", "ICapacity", "IBounded", "IFixed"];
+    private static readonly string[] AbstractNames = ["ISized", "ICapacity", "IBounded", "IFixed"];
     private static readonly string[] FieldNames = ["data", "items", "buffer", "storage"];
 
     // ─── Dependent PrimitiveType generator ───────────────────────────────
@@ -362,33 +362,33 @@ public class DependentTypeRoundTripPropertyTests
     }
 
     /// <summary>
-    /// Generates an interface with dependent type parameters.
+    /// Generates an abstract type with dependent type parameters.
     /// </summary>
-    private static Gen<DependentTypeRoundTripTestCase> GenDependentInterfaceTestCase()
+    private static Gen<DependentTypeRoundTripTestCase> GenDependentAbstractTestCase()
     {
-        return from ifaceName in Gen.Elements(InterfaceNames)
+        return from abstractName in Gen.Elements(AbstractNames)
                from typeParams in Gen.OneOf(GenDependentTypeParameterList(), GenMixedTypeParameterList())
-               select MakeDependentInterfaceTestCase(ifaceName, typeParams);
+               select MakeDependentAbstractTestCase(abstractName, typeParams);
     }
 
-    private static DependentTypeRoundTripTestCase MakeDependentInterfaceTestCase(
-        string ifaceName,
+    private static DependentTypeRoundTripTestCase MakeDependentAbstractTestCase(
+        string abstractName,
         TypeParameterListNode typeParams)
     {
-        var interfaceDecl = new InterfaceDeclarationNode
+        var abstractDecl = new AbstractDeclarationNode
         {
-            Name = Tok(ifaceName),
+            Name = Tok(abstractName),
             TypeParams = typeParams,
-            Members = ImmutableArray<InterfaceMemberDeclarationNode>.Empty,
+            Members = ImmutableArray<AbstractMemberDeclarationNode>.Empty,
         };
 
         var cu = new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new InterfaceTypeTypeDeclarationNode { InterfaceDeclaration = interfaceDecl }).AsTopLevelItems(),
+                new AbstractTypeTypeDeclarationNode { AbstractDeclaration = abstractDecl }).AsTopLevelItems(),
         };
 
-        return new DependentTypeRoundTripTestCase($"interface {ifaceName}<...dependent...>", cu);
+        return new DependentTypeRoundTripTestCase($"abstract {abstractName}<...dependent...>", cu);
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -548,7 +548,7 @@ public class DependentTypeRoundTripPropertyTests
         return Gen.OneOf(
             GenDependentClassTestCase(),
             GenDependentStructTestCase(),
-            GenDependentInterfaceTestCase(),
+            GenDependentAbstractTestCase(),
             GenDependentTypeArgumentUsageTestCase(),
             GenCombinedDeclAndUsageTestCase());
     }

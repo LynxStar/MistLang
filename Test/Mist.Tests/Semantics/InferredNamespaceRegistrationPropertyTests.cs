@@ -200,16 +200,16 @@ public sealed class InferredNamespaceRegistrationPropertyTests
         return structType is not null && structType.ContainingNamespace == expectedNs;
     }
 
-    // ─── Property 4c: Interface without namespace ───────────────────────
+    // ─── Property 4c: Abstract type without namespace ───────────────────────
 
     /// <summary>
-    /// For any valid namespace root and file path, an interface declared without an explicit
+    /// For any valid namespace root and file path, an abstract type declared without an explicit
     /// namespace should have ContainingNamespace equal to the computed inferred namespace.
     /// **Validates: Requirements 3.6, 3.7**
     /// </summary>
     [Property(Arbitrary = new[] { typeof(InferredNamespaceRegistrationPropertyTests) }, MaxTest = 100)]
-    public bool InterfaceWithoutNamespace_HasInferredNamespace(
-        ValidNamespaceRoot nsRoot, ValidIdentifier ifaceName, FolderSegments folders)
+    public bool AbstractWithoutNamespace_HasInferredNamespace(
+        ValidNamespaceRoot nsRoot, ValidIdentifier abstractName, FolderSegments folders)
     {
         var projectFolder = Path.Combine(Path.GetTempPath(), "project");
         var subPath = folders.Segments.Length > 0
@@ -220,25 +220,25 @@ public sealed class InferredNamespaceRegistrationPropertyTests
         var expectedNs = SemanticModelBuilder.ComputeInferredNamespace(
             nsRoot.Value, projectFolder, filePath);
 
-        var ifaceDecl = new InterfaceDeclarationNode
+        var abstractDecl = new AbstractDeclarationNode
         {
-            Name = MakeToken(ifaceName.Value),
-            Members = ImmutableArray<InterfaceMemberDeclarationNode>.Empty,
+            Name = MakeToken(abstractName.Value),
+            Members = ImmutableArray<AbstractMemberDeclarationNode>.Empty,
         };
         var ast = new CompilationUnitNode
         {
             Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new InterfaceTypeTypeDeclarationNode { InterfaceDeclaration = ifaceDecl }).AsTopLevelItems(),
+                new AbstractTypeTypeDeclarationNode { AbstractDeclaration = abstractDecl }).AsTopLevelItems(),
         };
 
         var model = BuildModelForFile(ast, nsRoot.Value, projectFolder, filePath);
 
         var symbol = model.AllSymbols.FirstOrDefault(
-            s => s.Name == ifaceName.Value && s.Kind == SymbolKind.Interface);
+            s => s.Name == abstractName.Value && s.Kind == SymbolKind.Abstract);
         if (symbol is null) return false;
 
-        var ifaceType = symbol.DeclaredType as InterfaceType;
-        return ifaceType is not null && ifaceType.ContainingNamespace == expectedNs;
+        var abstractType = symbol.DeclaredType as AbstractType;
+        return abstractType is not null && abstractType.ContainingNamespace == expectedNs;
     }
 
     // ─── Property 4d: Multiple types all get same inferred namespace ────
@@ -271,10 +271,10 @@ public sealed class InferredNamespaceRegistrationPropertyTests
             Name = MakeToken("Beta"),
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
         };
-        var ifaceDecl = new InterfaceDeclarationNode
+        var abstractDecl = new AbstractDeclarationNode
         {
             Name = MakeToken("IGamma"),
-            Members = ImmutableArray<InterfaceMemberDeclarationNode>.Empty,
+            Members = ImmutableArray<AbstractMemberDeclarationNode>.Empty,
         };
 
         var ast = new CompilationUnitNode
@@ -290,7 +290,7 @@ public sealed class InferredNamespaceRegistrationPropertyTests
                 },
                 new TypeItemTopLevelItemNode
                 {
-                    TypeDeclaration = new InterfaceTypeTypeDeclarationNode { InterfaceDeclaration = ifaceDecl }
+                    TypeDeclaration = new AbstractTypeTypeDeclarationNode { AbstractDeclaration = abstractDecl }
                 }),
         };
 
@@ -302,12 +302,12 @@ public sealed class InferredNamespaceRegistrationPropertyTests
         var structType = model.AllSymbols
             .FirstOrDefault(s => s.Name == "Beta" && s.Kind == SymbolKind.Struct)
             ?.DeclaredType as StructType;
-        var ifaceType = model.AllSymbols
-            .FirstOrDefault(s => s.Name == "IGamma" && s.Kind == SymbolKind.Interface)
-            ?.DeclaredType as InterfaceType;
+        var abstractType = model.AllSymbols
+            .FirstOrDefault(s => s.Name == "IGamma" && s.Kind == SymbolKind.Abstract)
+            ?.DeclaredType as AbstractType;
 
         return classType?.ContainingNamespace == expectedNs
             && structType?.ContainingNamespace == expectedNs
-            && ifaceType?.ContainingNamespace == expectedNs;
+            && abstractType?.ContainingNamespace == expectedNs;
     }
 }

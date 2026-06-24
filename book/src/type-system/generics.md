@@ -40,24 +40,24 @@ Structs can also be generic. A generic struct follows the same syntax as a gener
 
 Generic structs are useful for lightweight containers like pairs, coordinates, or result wrappers where heap allocation is undesirable.
 
-## Generic Interfaces
+## Generic Abstract Types
 
-Interfaces can declare type parameters, allowing implementors to provide concrete types when they satisfy the contract.
+Abstract types can declare type parameters, allowing implementors to provide concrete types when they satisfy the contract.
 
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-{{#include ../../snippets/type-system/generics/interfaces.mist}}
+{{#include ../../snippets/type-system/generics/abstracts.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-{{#include ../../snippets/type-system/generics/interfaces.cs}}
+{{#include ../../snippets/type-system/generics/abstracts.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
 
-A class implements a generic interface by specifying the concrete type argument (or forwarding its own type parameter). Here, `GenericBox<T>` implements `IGenericContainer<T>` by forwarding `T`:
+A class implements a generic abstract type by specifying the concrete type argument (or forwarding its own type parameter). Here, `GenericBox<T>` implements `IGenericContainer<T>` by forwarding `T`:
 
 {{#tabs }}
 {{#tab name="Mist" }}
@@ -72,7 +72,7 @@ A class implements a generic interface by specifying the concrete type argument 
 {{#endtab }}
 {{#endtabs }}
 
-Because `GenericBox<T>` implements `IGenericContainer<T>`, you can assign a `GenericBox<int>` to a variable typed `IGenericContainer<int>` and call `GetItem()` through the interface.
+Because `GenericBox<T>` implements `IGenericContainer<T>`, you can assign a `GenericBox<int>` to a variable typed `IGenericContainer<int>` and call `GetItem()` through the abstract type.
 
 ## Generic Traits
 
@@ -91,7 +91,7 @@ Traits can declare type parameters with the same syntax. A type satisfies a gene
 {{#endtab }}
 {{#endtabs }}
 
-A class with `int CompareTo(int other)` structurally satisfies `Comparable<int>`. Multiple type parameters work the same as with classes and interfaces — `Converter<TIn, TOut>` requires both to be supplied at the satisfaction site.
+A class with `int CompareTo(int other)` structurally satisfies `Comparable<int>`. Multiple type parameters work the same as with classes and abstract types — `Converter<TIn, TOut>` requires both to be supplied at the satisfaction site.
 
 ## Generic Methods
 

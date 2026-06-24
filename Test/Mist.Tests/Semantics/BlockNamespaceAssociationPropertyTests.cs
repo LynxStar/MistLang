@@ -116,13 +116,13 @@ public sealed class BlockNamespaceAssociationPropertyTests
     {
         var symbol = model.AllSymbols.FirstOrDefault(
             s => s.Name == typeName &&
-                 (s.Kind == SymbolKind.Class || s.Kind == SymbolKind.Struct || s.Kind == SymbolKind.Interface));
+                 (s.Kind == SymbolKind.Class || s.Kind == SymbolKind.Struct || s.Kind == SymbolKind.Abstract));
         if (symbol is null) return null;
         return symbol.DeclaredType switch
         {
             ClassType ct => ct.ContainingNamespace,
             StructType st => st.ContainingNamespace,
-            InterfaceType it => it.ContainingNamespace,
+            AbstractType it => it.ContainingNamespace,
             _ => null
         };
     }

@@ -770,7 +770,7 @@ public class ExtensionTypeCheckerPropertyTests
     }
 
     // ═══════════════════════════════════════════════════════════════════════
-    // Property 7: Trait/Interface Exclusion
+    // Property 7: Trait/Abstract Type Exclusion
     //
     // **Validates: Requirements 14.1, 14.2, 14.3, 15.1, 15.2**
     // ═══════════════════════════════════════════════════════════════════════
@@ -782,7 +782,7 @@ public class ExtensionTypeCheckerPropertyTests
     /// **Validates: Requirements 14.1, 14.2, 14.3, 15.1, 15.2**
     /// </summary>
     [Property(Arbitrary = new[] { typeof(ExtensionTypeCheckerPropertyTests) }, MaxTest = 100)]
-    public bool TraitInterfaceExclusion_ExtensionsNotDiscoverableOnTraitTypedVars(FallbackScenario scenario)
+    public bool TraitAbstractExclusion_ExtensionsNotDiscoverableOnTraitTypedVars(FallbackScenario scenario)
     {
         // Build: trait MyTrait { int OtherMethod(); }
         //        class ClassName { int OtherMethod() { return 0; } }

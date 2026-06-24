@@ -18,7 +18,7 @@ namespace Mist.Tests.Semantics;
 /// <summary>
 /// Property-based tests verifying type parameter registration in the semantic model.
 ///
-/// Property 2: For any generic type declaration (class, struct, or interface) with N type
+/// Property 2: For any generic type declaration (class, struct, or abstract type) with N type
 /// parameters, and for any generic method declaration with M type parameters, the semantic
 /// model builder SHALL create exactly N (or M) TypeParameterType instances, store them on
 /// the declaring type's (or method symbol's) TypeParameters property with correct ordinals
@@ -92,13 +92,13 @@ public class TypeParameterRegistrationPropertyTests
         };
     }
 
-    private static InterfaceDeclarationNode MakeGenericInterface(string name, string[] typeParamNames)
+    private static AbstractDeclarationNode MakeGenericAbstract(string name, string[] typeParamNames)
     {
-        return new InterfaceDeclarationNode
+        return new AbstractDeclarationNode
         {
             Name = MakeToken(name),
             TypeParams = MakeTypeParamList(typeParamNames),
-            Members = ImmutableArray<InterfaceMemberDeclarationNode>.Empty,
+            Members = ImmutableArray<AbstractMemberDeclarationNode>.Empty,
         };
     }
 
@@ -125,7 +125,7 @@ public class TypeParameterRegistrationPropertyTests
     /// Represents a generic type declaration for testing type parameter registration.
     /// </summary>
 #pragma warning disable CA1034
-    public enum GenericDeclKind { Class, Struct, Interface }
+    public enum GenericDeclKind { Class, Struct, Abstract }
 
     public record GenericTypeDecl(string Name, GenericDeclKind Kind, ImmutableArray<string> TypeParamNames)
     {
@@ -157,7 +157,7 @@ public class TypeParameterRegistrationPropertyTests
     public static Gen<GenericTypeDecl> GenGenericTypeDecl()
     {
         return from name in Gen.Elements(TypeNamePool)
-               from kind in Gen.Elements(GenericDeclKind.Class, GenericDeclKind.Struct, GenericDeclKind.Interface)
+               from kind in Gen.Elements(GenericDeclKind.Class, GenericDeclKind.Struct, GenericDeclKind.Abstract)
                from count in Gen.Choose(1, 4)
                let typeParams = TypeParamPool.Take(count).ToImmutableArray()
                select new GenericTypeDecl(name, kind, typeParams);
@@ -202,9 +202,9 @@ public class TypeParameterRegistrationPropertyTests
             {
                 StructDeclaration = MakeGenericStruct(decl.Name, decl.TypeParamNames.ToArray()),
             },
-            GenericDeclKind.Interface => new InterfaceTypeTypeDeclarationNode
+            GenericDeclKind.Abstract => new AbstractTypeTypeDeclarationNode
             {
-                InterfaceDeclaration = MakeGenericInterface(decl.Name, decl.TypeParamNames.ToArray()),
+                AbstractDeclaration = MakeGenericAbstract(decl.Name, decl.TypeParamNames.ToArray()),
             },
             _ => throw new InvalidOperationException(),
         };
@@ -217,7 +217,7 @@ public class TypeParameterRegistrationPropertyTests
         {
             GenericDeclKind.Class => SymbolKind.Class,
             GenericDeclKind.Struct => SymbolKind.Struct,
-            GenericDeclKind.Interface => SymbolKind.Interface,
+            GenericDeclKind.Abstract => SymbolKind.Abstract,
             _ => throw new InvalidOperationException(),
         };
 
@@ -231,7 +231,7 @@ public class TypeParameterRegistrationPropertyTests
         {
             GenericDeclKind.Class => ((ClassType)typeSymbol.DeclaredType!).TypeParameters,
             GenericDeclKind.Struct => ((StructType)typeSymbol.DeclaredType!).TypeParameters,
-            GenericDeclKind.Interface => ((InterfaceType)typeSymbol.DeclaredType!).TypeParameters,
+            GenericDeclKind.Abstract => ((AbstractType)typeSymbol.DeclaredType!).TypeParameters,
             _ => throw new InvalidOperationException(),
         };
 
@@ -258,7 +258,7 @@ public class TypeParameterRegistrationPropertyTests
         {
             GenericDeclKind.Class => ((ClassType)typeSymbol.DeclaredType!).MemberScope,
             GenericDeclKind.Struct => ((StructType)typeSymbol.DeclaredType!).MemberScope,
-            GenericDeclKind.Interface => ((InterfaceType)typeSymbol.DeclaredType!).MemberScope,
+            GenericDeclKind.Abstract => ((AbstractType)typeSymbol.DeclaredType!).MemberScope,
             _ => throw new InvalidOperationException(),
         };
 
@@ -402,19 +402,19 @@ public class TypeParameterRegistrationPropertyTests
     }
 
     [Fact]
-    public void GenericInterface_TypeParametersRegistered()
+    public void GenericAbstract_TypeParametersRegistered()
     {
-        var interfaceDecl = MakeGenericInterface("IContainer", ["T"]);
+        var abstractDecl = MakeGenericAbstract("IContainer", ["T"]);
         var ast = MakeCompilationUnit(
-            new InterfaceTypeTypeDeclarationNode { InterfaceDeclaration = interfaceDecl });
+            new AbstractTypeTypeDeclarationNode { AbstractDeclaration = abstractDecl });
         var (model, _) = BuildModelWithDiagnostics(ast);
 
-        var symbol = model.AllSymbols.First(s => s.Name == "IContainer" && s.Kind == SymbolKind.Interface);
-        var interfaceType = Assert.IsType<InterfaceType>(symbol.DeclaredType);
+        var symbol = model.AllSymbols.First(s => s.Name == "IContainer" && s.Kind == SymbolKind.Abstract);
+        var abstractType = Assert.IsType<AbstractType>(symbol.DeclaredType);
 
-        Assert.Single(interfaceType.TypeParameters);
-        Assert.Equal("T", interfaceType.TypeParameters[0].DisplayName);
-        Assert.Equal(0, ((TypeParameterType)interfaceType.TypeParameters[0]).Ordinal);
+        Assert.Single(abstractType.TypeParameters);
+        Assert.Equal("T", abstractType.TypeParameters[0].DisplayName);
+        Assert.Equal(0, ((TypeParameterType)abstractType.TypeParameters[0]).Ordinal);
     }
 
     [Fact]

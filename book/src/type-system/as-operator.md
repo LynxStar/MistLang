@@ -34,7 +34,7 @@ Identity conversions are provably safe — the compiler knows the value is alrea
 
 ## Widening Conversions
 
-When converting from a derived type to a base type (or to an implemented interface), the conversion always succeeds. The result type is the bare target type `T`, not `T?`. No runtime check is needed because every derived instance is already a valid base instance.
+When converting from a derived type to a base type (or to an implemented abstract type), the conversion always succeeds. The result type is the bare target type `T`, not `T?`. No runtime check is needed because every derived instance is already a valid base instance.
 
 {{#tabs }}
 {{#tab name="Mist" }}

@@ -40,7 +40,7 @@ public sealed class ConstraintSatisfactionScenario
 ///
 /// Property 2: For any constrained generic type and any type argument, the type checker
 /// SHALL accept the type argument if and only if it satisfies all declared constraints
-/// (class/struct kind check, base class derivation, abstract type implementation, trait
+/// (class/struct kind check, base class derivation, abstract type implementation
 /// satisfaction, and at least one matching constructor for OR-semantics constructor constraints).
 ///
 /// **Validates: Requirements 5.1, 5.2, 5.3, 5.4, 5.5, 5.6, 5.7, 5.8, 5.9, 5.10**

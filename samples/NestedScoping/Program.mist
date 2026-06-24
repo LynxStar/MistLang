@@ -4,11 +4,11 @@
 //   1. Class in class
 //   2. Struct in class
 //   3. Abstract type in class
-//   4. Trait in class
+//   4. Abstract type in class (was interface)
 //   5. Enum in class
 //   6. Class in struct (see NestedInStruct.mist — readonly emitter limitation)
-//   7. Class in abstract type (see NestedInAbstractTrait.mist)
-//   8. Class in trait (see NestedInAbstractTrait.mist)
+//   7. Class in abstract type (see NestedInAbstract.mist)
+//   8. Class in abstract type (see NestedInAbstract.mist)
 //   9. Deeply nested types (4 levels)
 //  10. Nested type inside generic parent accessing parent's type parameters
 //  11. Multiple sibling nested types in same parent
@@ -49,9 +49,9 @@ public class Outer
         string Execute();
     }
 
-    // ─── 4. Trait nested inside a class ──────────────────────────────────
+    // ─── 4. Abstract type nested inside a class ─────────────────────────
 
-    public trait Describable
+    public abstract Describable
     {
         string Describe();
     }
@@ -83,10 +83,10 @@ public class Outer
         return "Outer.IAction abstract type nested in class";
     }
 
-    public static string DemoTraitInClass()
+    public static string DemoDescribableInClass()
     {
-        // Proves the trait is registered in the parent's scope
-        return "Outer.Describable trait nested in class";
+        // Proves the abstract type (formerly interface) is registered in the parent's scope
+        return "Outer.Describable abstract type nested in class";
     }
 
     public static string DemoEnumInClass()
@@ -177,7 +177,7 @@ public class Registry
 // ─── 16. Nested types used in type positions ─────────────────────────────────
 // Nested types used as return types, parameter types, field types, local
 // variable types, and in new expressions — from classes, structs, interfaces,
-// and traits. This proves nested types work as full type references in all
+// and abstract types. This proves nested types work as full type references in all
 // contexts, not just as targets for static method calls.
 
 public class Factory
@@ -279,9 +279,9 @@ public class Program
         Console.WriteLine("--- 3. Abstract type in class ---");
         Console.WriteLine($"  {Outer.DemoAbstractInClass()}");
 
-        // 4. Trait in class — nested trait declared inside Outer
-        Console.WriteLine("--- 4. Trait in class ---");
-        Console.WriteLine($"  {Outer.DemoTraitInClass()}");
+        // 4. Abstract type in class — nested abstract type declared inside Outer
+        Console.WriteLine("--- 4. Abstract type in class ---");
+        Console.WriteLine($"  {Outer.DemoDescribableInClass()}");
 
         // 5. Enum in class — nested enum exercised via member access
         Console.WriteLine("--- 5. Enum in class ---");
@@ -291,13 +291,13 @@ public class Program
         Console.WriteLine("--- 6. Class in struct ---");
         Console.WriteLine("  ContainerStruct.Item declared (see NestedInStruct.mist, readonly emitter limitation)");
 
-        // 7. Class in abstract type — see NestedInAbstractTrait.mist
+        // 7. Class in abstract type — see NestedInAbstract.mist
         Console.WriteLine("--- 7. Class in abstract type ---");
-        Console.WriteLine("  IFactory.DefaultProduct declared (see NestedInAbstractTrait.mist)");
+        Console.WriteLine("  IFactory.DefaultProduct declared (see NestedInAbstract.mist)");
 
-        // 8. Class in trait — see NestedInAbstractTrait.mist
-        Console.WriteLine("--- 8. Class in trait ---");
-        Console.WriteLine("  Serializable.Config declared (see NestedInAbstractTrait.mist)");
+        // 8. Class in abstract type — see NestedInAbstract.mist
+        Console.WriteLine("--- 8. Class in abstract type ---");
+        Console.WriteLine("  Serializable.Config declared (see NestedInAbstract.mist)");
 
         // 9. Deeply nested types (4 levels) — each level calls the next
         Console.WriteLine("--- 9. Deeply nested types (4 levels) ---");

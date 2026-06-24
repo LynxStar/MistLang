@@ -20,8 +20,7 @@ The `readonly` modifier can appear on:
 | Constructor | Body is a readonly context with constructor privilege |
 | Class | All members are implicitly readonly; the type is immutable after construction |
 | Struct | All members are implicitly readonly; emits as C# `readonly struct` |
-| Interface | All members are implicitly readonly; implementors must satisfy the contract |
-| Trait | All members are implicitly readonly; implementors must satisfy the contract |
+| Abstract Type | All members are implicitly readonly; implementors must satisfy the contract |
 
 ## Readonly Local Variables
 

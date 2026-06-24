@@ -145,7 +145,7 @@ internal static class NeedsAsyncPropagationPass
 
     /// <summary>
     /// Extracts the body block from a method declaration AST node.
-    /// Returns null for bodyless methods (intrinsic, interface, trait signatures).
+    /// Returns null for bodyless methods (intrinsic, abstract type signatures).
     /// </summary>
     private static BlockNode? GetMethodBodyBlock(Storm.Runtime.SyntaxNode declaringNode)
     {

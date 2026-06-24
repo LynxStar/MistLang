@@ -46,10 +46,10 @@ public sealed class OwnershipAnalyzer : IAnalyzer
     /// <summary>Lending from a tier that cannot provide the requested tier.</summary>
     internal static readonly DiagnosticId IncompatibleLend = new("MIST_OWN_INCOMPATIBLE_LEND");
 
-    /// <summary>Owned type attempts to implement abstract type/trait.</summary>
+    /// <summary>Owned type attempts to implement abstract type.</summary>
     internal static readonly DiagnosticId AbstractForbidden = new("MIST_OWN_ABSTRACT_FORBIDDEN");
 
-    /// <summary>Ownership specifier mismatch in abstract type/trait satisfaction.</summary>
+    /// <summary>Ownership specifier mismatch in abstract type satisfaction.</summary>
     internal static readonly DiagnosticId SignatureMismatch = new("MIST_OWN_SIGNATURE_MISMATCH");
 
     /// <summary>Non-owned specifier used on return type.</summary>
@@ -299,10 +299,10 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         // A fresh MoveBoundaryResolver per Analyze() keeps the analyzer reusable.
         _resolver = new MoveBoundaryResolver();
 
-        // Pass A: declaration validation — reject the 'owned' modifier on abstract/trait
+        // Pass A: declaration validation — reject the 'owned' modifier on abstract
         // declarations ONLY (Req 5 AC 6). Owned types are free to implement abstract types
         // (e.g. IClonable).
-        RejectOwnedOnInterfacesAndTraits(model, diagnostics);
+        RejectOwnedOnAbstracts(model, diagnostics);
 
         // Pass B: DELETED — RejectOwnedFieldModifier removed (Req 7 AC 2).
         // The 'owned' field modifier is now valid syntax with new semantics.
@@ -325,7 +325,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         foreach (var ownedType in OwnedTypes(model))
             FieldTypeRestrictionVerifier.Verify(ownedType, model, diagnostics);
 
-        // Pass 3: ownership signature matching validation (abstract type/trait satisfaction).
+        // Pass 3: ownership signature matching validation (abstract type satisfaction).
         // Retained unchanged from v1.
         ValidateSignatureMatching(model, diagnostics);
 
@@ -342,16 +342,16 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         AnalyzeFlowSensitive(model, diagnostics);
     }
 
-    // ── Pass A: owned-on-abstract/trait rejection (Req 5 AC 6) ───────────
+    // ── Pass A: owned-on-abstract rejection (Req 5 AC 6) ───────────
 
     /// <summary>
-    /// Rejects the <c>owned</c> modifier on abstract and trait declarations only
+    /// Rejects the <c>owned</c> modifier on abstract declarations only
     /// (Req 5 AC 6). This is the sole surviving piece of v1's owned-type declaration
     /// validation; the field-type restriction and the "owned types cannot implement
-    /// abstract types / satisfy traits" checks are deleted under v2 (Req 10) — an owned
+    /// abstract types" checks are deleted under v2 (Req 10) — an owned
     /// class implementing an abstract type (e.g. <c>IClonable&lt;Self&gt;</c>) is now valid.
     /// </summary>
-    private static void RejectOwnedOnInterfacesAndTraits(ISemanticModel model, DiagnosticBag diagnostics)
+    private static void RejectOwnedOnAbstracts(ISemanticModel model, DiagnosticBag diagnostics)
     {
         foreach (var symbol in model.AllSymbols)
         {
@@ -362,10 +362,6 @@ public sealed class OwnershipAnalyzer : IAnalyzer
             {
                 case SymbolKind.Abstract:
                     RejectOwnedOnInterface(symbol, model, diagnostics);
-                    break;
-
-                case SymbolKind.Trait:
-                    RejectOwnedOnTrait(symbol, model, diagnostics);
                     break;
             }
         }
@@ -389,28 +385,6 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         diagnostics.Add(MakeDiagnostic(
             AbstractForbidden,
             $"The 'owned' modifier cannot be applied to abstract type '{symbol.Name}'",
-            declaringNode,
-            model));
-    }
-
-    /// <summary>
-    /// Rejects the <c>owned</c> modifier on trait declarations (Req 5 AC 6).
-    /// </summary>
-    private static void RejectOwnedOnTrait(ISymbol symbol, ISemanticModel model, DiagnosticBag diagnostics)
-    {
-        SyntaxNode declaringNode;
-        try { declaringNode = model.GetDeclaringNode(symbol); }
-        catch { return; }
-
-        if (declaringNode is not TraitDeclarationNode traitDecl)
-            return;
-
-        if (!HasOwnedModifier(traitDecl.Modifiers))
-            return;
-
-        diagnostics.Add(MakeDiagnostic(
-            AbstractForbidden,
-            $"The 'owned' modifier cannot be applied to trait '{symbol.Name}'",
             declaringNode,
             model));
     }
@@ -2754,8 +2728,8 @@ public sealed class OwnershipAnalyzer : IAnalyzer
     // ═══════════════════════════════════════════════════════════════════════
 
     /// <summary>
-    /// Validates ownership signature matching for abstract type implementations and
-    /// structural trait satisfaction. Also rejects non-owned specifiers on return types.
+    /// Validates ownership signature matching for abstract type implementations.
+    /// Also rejects non-owned specifiers on return types.
     /// </summary>
     private static void ValidateSignatureMatching(ISemanticModel model, DiagnosticBag diagnostics)
     {
@@ -2764,9 +2738,6 @@ public sealed class OwnershipAnalyzer : IAnalyzer
 
         // 2. Check abstract type method implementation ownership matching.
         ValidateInterfaceOwnershipMatching(model, diagnostics);
-
-        // 3. Check structural trait matching ownership consistency.
-        ValidateTraitOwnershipMatching(model, diagnostics);
     }
 
     /// <summary>
@@ -2888,71 +2859,8 @@ public sealed class OwnershipAnalyzer : IAnalyzer
     }
 
     /// <summary>
-    /// Checks ownership specifier matching for structural trait satisfaction
-    /// (Requirement 9.3).
-    /// </summary>
-    private static void ValidateTraitOwnershipMatching(ISemanticModel model, DiagnosticBag diagnostics)
-    {
-        foreach (var (satisfiedType, trait, satisfaction) in model.TraitSatisfactionMap.All())
-        {
-            var traitType = trait switch
-            {
-                TraitType tt => tt,
-                ConstructedTraitType ctt => ctt.GenericTraitDefinition,
-                _ => null,
-            };
-
-            if (traitType is null)
-                continue;
-
-            // Find the type symbol for the implementing type.
-            ISymbol? typeSymbol = null;
-            foreach (var sym in model.AllSymbols)
-            {
-                if (sym.Origin == SymbolOrigin.Backend)
-                    continue;
-                if (sym.Kind is not (SymbolKind.Class or SymbolKind.Struct))
-                    continue;
-                if (ReferenceEquals(sym.DeclaredType, satisfiedType))
-                {
-                    typeSymbol = sym;
-                    break;
-                }
-            }
-
-            if (typeSymbol is null)
-                continue;
-
-            var traitDisplayName = trait.DisplayName;
-
-            foreach (var traitMember in traitType.MemberScope.Members)
-            {
-                if (traitMember.Kind != SymbolKind.Method)
-                    continue;
-
-                // Skip type parameter symbols.
-                if (traitMember.DeclaredType is TypeParameterType)
-                    continue;
-
-                // Find the implementing member via the satisfaction map.
-                ISymbol? implMember = null;
-                if (satisfaction.StructuralMatches.TryGetValue(traitMember.Name, out var structMatch))
-                    implMember = structMatch;
-                else if (satisfaction.WithMappings.TryGetValue(traitMember.Name, out var withMatch))
-                    implMember = withMatch;
-
-                if (implMember is null || implMember.Kind != SymbolKind.Method)
-                    continue;
-
-                CheckMethodOwnershipMatch(
-                    typeSymbol, traitMember, implMember, traitDisplayName, model, diagnostics);
-            }
-        }
-    }
-
-    /// <summary>
     /// Compares ownership specifiers on parameters and return type between an
-    /// abstract type/trait method and its implementation. Emits MIST_OWN_SIGNATURE_MISMATCH
+    /// abstract type method and its implementation. Emits MIST_OWN_SIGNATURE_MISMATCH
     /// for any mismatch (Requirements 9.1, 9.2, 9.3, 9.4).
     /// </summary>
     private static void CheckMethodOwnershipMatch(
@@ -3030,7 +2938,6 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         {
             MethodDeclarationNode m => m.Parameters,
             AbstractMethodDeclarationNode im => im.Parameters,
-            TraitMethodDeclarationNode tm => tm.Parameters,
             ConstructorDeclarationNode c => c.Parameters,
             _ => null,
         };

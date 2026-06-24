@@ -38,7 +38,7 @@ public sealed class ContextRoundTripScenario
 ///   <item>with TypeReference _ = expression;</item>
 ///   <item>with expression;</item>
 ///   <item>with (expression) { ... }</item>
-///   <item>Method with-clauses (methods, constructors, abstract methods, trait methods)</item>
+///   <item>Method with-clauses (methods, constructors, abstract methods)</item>
 ///   <item>Multiple with-clauses on a single method</item>
 ///   <item>Mixed context statements in method bodies</item>
 /// </list>
@@ -70,9 +70,6 @@ public static class MistContextRoundTripGenerator
 
     private static readonly string[] AbstractNames =
         ["IService", "IHandler", "IProcessor"];
-
-    private static readonly string[] TraitNames =
-        ["Printable", "Serializable", "Comparable"];
 
     // ─── Expression generators ──────────────────────────────────────────────
 
@@ -251,34 +248,9 @@ public static class MistContextRoundTripGenerator
                select $"    {retType} {name}({paramList}) {withClauses};";
     }
 
-    /// <summary>Generates a trait with methods that have with-clauses.</summary>
-    private static Gen<ContextRoundTripScenario> GenTraitWithClauses()
-    {
-        return from traitName in Gen.Elements(TraitNames)
-               from methodCount in Gen.Choose(1, 3)
-               from methods in Gen.ArrayOf(GenTraitMethodWithClauses(), methodCount)
-               let members = string.Join("\n", methods)
-               let source = $"trait {traitName} {{\n{members}\n}}\n"
-               select new ContextRoundTripScenario(source,
-                   $"trait {traitName} with {methodCount} with-clause methods");
-    }
-
-    /// <summary>Generates a trait method with with-clauses.</summary>
-    private static Gen<string> GenTraitMethodWithClauses()
-    {
-        return from retType in Gen.Elements("void", "int", "string", "bool")
-               from name in Gen.Elements(MethodNames)
-               from hasParam in Gen.Elements(true, false)
-               from paramType in Gen.Elements(PrimitiveTypes)
-               from paramName in Gen.Elements(CtorParamNames)
-               from withClauses in GenWithClauses()
-               let paramList = hasParam ? $"{paramType} {paramName}" : ""
-               select $"    {retType} {name}({paramList}) {withClauses};";
-    }
-
     /// <summary>
-    /// Generates a mixed program with a class, abstract type, and/or trait
-    /// all using context constructs.
+    /// Generates a mixed program with a class and abstract type
+    /// using context constructs.
     /// </summary>
     private static Gen<ContextRoundTripScenario> GenMixedProgram()
     {
@@ -326,7 +298,6 @@ public static class MistContextRoundTripGenerator
             GenClassWithContextMethods(),
             GenClassWithConstructorClauses(),
             GenAbstractWithClauses(),
-            GenTraitWithClauses(),
             GenMixedProgram(),
             GenDenseContextBody());
     }

@@ -109,7 +109,6 @@ public class DefaultConstraintSatisfactionPropertyTests
     {
         ClassWithConstructorNoDefaultBlock,
         AbstractType,
-        Trait,
     }
 
 #pragma warning restore CA1034
@@ -124,9 +123,6 @@ public class DefaultConstraintSatisfactionPropertyTests
 
     private static readonly string[] AbstractNames =
         ["IRenderer", "ILogger", "IService", "IHandler"];
-
-    private static readonly string[] TraitNames =
-        ["Printable", "Serializable", "Hashable", "Displayable"];
 
     private static readonly string[] FieldNames =
         ["alpha", "beta", "gamma", "delta"];
@@ -163,7 +159,7 @@ public class DefaultConstraintSatisfactionPropertyTests
 
     /// <summary>
     /// Generates a non-defaultable type argument scenario — a class with a constructor
-    /// and no default block, an abstract type, or a trait.
+    /// and no default block, or an abstract type.
     /// </summary>
     private static Gen<NonDefaultableTypeArgScenario> GenNonDefaultableTypeArgScenario()
     {
@@ -194,15 +190,7 @@ public class DefaultConstraintSatisfactionPropertyTests
                 TypeArgDeclaration: decl,
                 Kind: NonDefaultableKind.AbstractType);
 
-        var traitGen =
-            from traitName in Gen.Elements(TraitNames)
-            let decl = $"public trait {traitName}\n{{\n}}"
-            select new NonDefaultableTypeArgScenario(
-                TypeArgName: traitName,
-                TypeArgDeclaration: decl,
-                Kind: NonDefaultableKind.Trait);
-
-        return Gen.OneOf(classWithCtorGen, abstractGen, traitGen);
+        return Gen.OneOf(classWithCtorGen, abstractGen);
     }
 
     // ─── Arbitrary registrations ─────────────────────────────────────────

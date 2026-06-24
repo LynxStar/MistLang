@@ -22,7 +22,7 @@ namespace Mist.Tests.Analysis;
 /// fields SHALL themselves be declared as <c>owned</c> or be of an owned type. Any
 /// reference-type field without the <c>owned</c> specifier SHALL produce a diagnostic error.
 /// Instances of owned types SHALL always be held in <c>owned</c> variables. Owned types
-/// SHALL NOT implement abstract types or satisfy traits.
+/// SHALL NOT implement abstract types.
 ///
 /// **Validates: Requirements 8.3, 8.4, 8.5, 8.6, 8.7, 8.8, 8.9, 16.5**
 /// </summary>
@@ -275,7 +275,7 @@ public class OwnedTypeConstraintPropertyTests
     // ═══════════════════════════════════════════════════════════════════════
     // Ownership v2: owned types MAY implement abstract types — the v1 "owned types
     // cannot implement abstract types" rejection is removed (Req 5 AC 6 narrows
-    // MIST_OWN_ABSTRACT_FORBIDDEN to owned abstract type/trait DECLARATIONS only).
+    // MIST_OWN_ABSTRACT_FORBIDDEN to owned abstract type DECLARATIONS only).
     // An owned class implementing an abstract type (e.g. IClonable) is now valid.
     // ═══════════════════════════════════════════════════════════════════════
 
@@ -287,7 +287,7 @@ public class OwnedTypeConstraintPropertyTests
         var diagnostics = CompileAndGetDiagnostics(scenario.Source);
 
         // v2: an owned class implementing an abstract type is permitted; the rejection
-        // applies only to `owned abstract`/`owned trait` declarations (Req 5 AC 6).
+        // applies only to `owned abstract` declarations (Req 5 AC 6).
         return !diagnostics.Any(d => d.Id.Value == "MIST_OWN_ABSTRACT_FORBIDDEN");
     }
 

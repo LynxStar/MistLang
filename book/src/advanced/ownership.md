@@ -102,7 +102,7 @@ The compiler enforces this contract at the type's definition site. For each assi
 
 If a method or constructor in an `owned` type assigns a field from a non-owned source that cannot be cloned — for example, storing an unverified parameter directly into a field — the compiler reports a contract violation, naming the method, the field, and the offending source. The fix is to make the parameter `owned`, clone it, or construct a fresh value.
 
-An `owned` type additionally enforces a **field-type restriction**: every field must have a type that is another `owned type`, implements `IClonable<T>`, or is a value type. This guarantees full ownership of the entire object graph. See [Owned Fields](#owned-fields) for details. The `owned` modifier applies to classes and structs; applying it to an abstract type or trait is an error.
+An `owned` type additionally enforces a **field-type restriction**: every field must have a type that is another `owned type`, implements `IClonable<T>`, or is a value type. This guarantees full ownership of the entire object graph. See [Owned Fields](#owned-fields) for details. The `owned` modifier applies to classes and structs; applying it to an abstract type is an error.
 
 ## Field Assignment Provenance
 

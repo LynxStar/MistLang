@@ -3,7 +3,7 @@ using Mist.Semantics.Contracts;
 namespace Mist.Semantics.Model.Types;
 
 /// <summary>
-/// Represents an abstract type slot declared in an interface or trait.
+/// Represents an abstract type slot declared in an interface.
 /// Implementors must provide a concrete type member satisfying the slot's constraints.
 /// </summary>
 public sealed class AssociatedTypeSlotType : IType
@@ -13,7 +13,7 @@ public sealed class AssociatedTypeSlotType : IType
     public IScope MemberScope { get; }
     public string? ContainingNamespace { get; }
 
-    /// <summary>The interface or trait that declares this slot.</summary>
+    /// <summary>The interface that declares this slot.</summary>
     public IType DeclaringType { get; }
 
     /// <summary>Constraints that the concrete type must satisfy.</summary>

@@ -12,7 +12,7 @@ class Name<T> where T : constraint {
 }
 ```
 
-The constraint can be a type name (abstract type, trait, base class), a structural constraint (`class`, `struct`), or a constructor constraint (`new()`). Multiple constraints on the same type parameter are separated by commas.
+The constraint can be a type name (abstract type, base class), a structural constraint (`class`, `struct`), or a constructor constraint (`new()`). Multiple constraints on the same type parameter are separated by commas.
 
 ## Class Constraint (Reference Type)
 
@@ -70,25 +70,6 @@ Constraining to an abstract type guarantees that the type parameter implements s
 {{#endtabs }}
 
 Because `T` is constrained to `IOrderable`, the compiler allows calling `First.GetOrder()` inside the generic body. Any type passed as `T` must implement `IOrderable`.
-
-## Trait Constraint
-
-Traits can also be used as constraints. A type satisfies a trait constraint if it structurally matches the trait's members (or has an explicit `with` mapping). The compiler emits the trait as an interface constraint in C#.
-
-{{#tabs }}
-{{#tab name="Mist" }}
-```mist
-{{#include ../../snippets/type-system/generic-constraints/trait-constraint.mist}}
-```
-{{#endtab }}
-{{#tab name="Emitted C#" }}
-```csharp
-{{#include ../../snippets/type-system/generic-constraints/trait-constraint.cs}}
-```
-{{#endtab }}
-{{#endtabs }}
-
-Any type with a public `string Describe()` method structurally satisfies the `Describable` trait and can be used as `T` in `Describer<T>`.
 
 ## Base Class Constraint
 
@@ -242,7 +223,7 @@ Constraints can also appear on generic abstract type and struct declarations, no
 {{#endtab }}
 {{#endtabs }}
 
-The same `where` clause syntax works uniformly across classes, structs, abstract types, and traits.
+The same `where` clause syntax works uniformly across classes, structs, and abstract types.
 
 ## Summary
 
@@ -251,10 +232,9 @@ The same `where` clause syntax works uniformly across classes, structs, abstract
 | `class` | Must be a reference type |
 | `struct` | Must be a value type |
 | `AbstractTypeName` | Must implement the abstract type |
-| `TraitName` | Must structurally satisfy the trait |
 | `BaseClassName` | Must extend the base class |
 | `new()` | Must have a parameterless constructor |
 | `new(Type)` | Must have a constructor accepting that parameter type |
 | `new(), new(Type)` | Multiple constructor constraints can be combined |
 
-Constraints compose freely — combine `class`, abstract type, trait, base class, and constructor constraints on the same type parameter to express precise requirements. Use multiple `where` clauses when constraining different type parameters independently.
+Constraints compose freely — combine `class`, abstract type, base class, and constructor constraints on the same type parameter to express precise requirements. Use multiple `where` clauses when constraining different type parameters independently.

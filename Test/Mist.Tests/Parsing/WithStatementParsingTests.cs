@@ -7,8 +7,7 @@ namespace Mist.Tests.Parsing;
 
 /// <summary>
 /// Parse-level smoke tests for the new structured context grammar rules.
-/// Verifies that each new with-statement variant produces the correct AST node type
-/// and that existing trait-with blocks continue to parse correctly.
+/// Verifies that each new with-statement variant produces the correct AST node type.
 ///
 /// Requirements: 1.5, 1.6, 1.7, 1.8, 2.3, 3.3, 13.1, 13.3
 /// </summary>
@@ -235,25 +234,6 @@ public class WithStatementParsingTests
     }
 
     [Fact]
-    public void TraitMethodWithClause_ParsesCorrectly()
-    {
-        var source = "trait T { void M() with MyType ctx; }";
-        var result = ParseSource(source);
-
-        Assert.Empty(result.Diagnostics);
-        if (result.Root is CompilationUnitNode cu)
-        {
-            var typeDecl = Assert.IsType<TraitTypeTypeDeclarationNode>(cu.GetTypes()[0]);
-            var methodMember = Assert.IsType<TraitMethodMemberTraitMemberDeclarationNode>(
-                typeDecl.TraitDeclaration.Members[0]);
-            var method = methodMember.Method;
-
-            Assert.Single(method.WithClauses);
-            Assert.Equal("ctx", method.WithClauses[0] is ContextWithClauseWithClauseNode ctx0 ? ctx0.Name.Lexeme : "");
-        }
-    }
-
-    [Fact]
     public void ConstructorWithClause_ParsesCorrectly()
     {
         var source = "class T { T() with MyType ctx { } }";
@@ -272,78 +252,4 @@ public class WithStatementParsingTests
         }
     }
 
-    // ─── Test 7: Existing trait-with blocks still parse correctly ────────
-
-    [Fact]
-    public void TraitWithBlock_StillParsesCorrectly()
-    {
-        var source = @"
-trait Printable {
-    string name;
-}
-
-class Widget {
-    public string label;
-}
-
-with Widget : Printable {
-    label as name;
-}";
-        var result = ParseSource(source);
-
-        Assert.Empty(result.Diagnostics);
-        if (result.Root is CompilationUnitNode cu)
-        {
-            // Verify the with declaration is parsed as a WithDeclaration (trait-with)
-            var withItem = cu.Items.OfType<WithItemTopLevelItemNode>().FirstOrDefault();
-            Assert.NotNull(withItem);
-            Assert.Equal("Widget", withItem!.WithDeclaration.TypeName.Lexeme);
-            Assert.Equal("Printable", withItem.WithDeclaration.TraitName.Lexeme);
-            Assert.Single(withItem.WithDeclaration.Mappings);
-            Assert.Equal("label", withItem.WithDeclaration.Mappings[0].SourceName.Lexeme);
-            Assert.Equal("name", withItem.WithDeclaration.Mappings[0].TargetName.Lexeme);
-        }
-    }
-
-    [Fact]
-    public void TraitWithBlock_CoexistsWithContextStatements()
-    {
-        // Verify that both trait-with blocks and context statements can coexist
-        var source = @"
-trait Printable {
-    string name;
-}
-
-class Widget {
-    public string label;
-
-    public void M() {
-        with var x = 42;
-    }
-}
-
-with Widget : Printable {
-    label as name;
-}";
-        var result = ParseSource(source);
-
-        Assert.Empty(result.Diagnostics);
-        if (result.Root is CompilationUnitNode cu)
-        {
-            // Verify trait-with block is still parsed correctly
-            var withItem = cu.Items.OfType<WithItemTopLevelItemNode>().FirstOrDefault();
-            Assert.NotNull(withItem);
-            Assert.Equal("Widget", withItem!.WithDeclaration.TypeName.Lexeme);
-
-            // Verify context statement inside method body is parsed correctly
-            var typeDecl = cu.GetTypes()[1] as ClassTypeTypeDeclarationNode;
-            Assert.NotNull(typeDecl);
-            var methodMember = typeDecl!.ClassDeclaration.Members[1] as MethodMemberMemberDeclarationNode;
-            Assert.NotNull(methodMember);
-            var block = methodMember!.Method.Body.GetBlock();
-            Assert.NotNull(block);
-            var stmt = Assert.IsType<WithVarDeclarationStatementStatementNode>(block!.Statements[0]);
-            Assert.Equal("x", stmt.WithVarDeclaration.Name.Lexeme);
-        }
-    }
 }

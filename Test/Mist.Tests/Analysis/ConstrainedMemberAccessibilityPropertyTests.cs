@@ -39,7 +39,7 @@ public sealed class ConstrainedMemberAccessScenario
 /// <summary>
 /// Property-based tests verifying constrained member accessibility.
 ///
-/// Property 5: For any type parameter with abstract type, trait, or base class constraints,
+/// Property 5: For any type parameter with abstract type or base class constraints,
 /// all members defined by those constraints (and only those members) SHALL be accessible
 /// on values of that type parameter within the generic body.
 ///
@@ -122,30 +122,6 @@ class Program {{
     public static void Main() {{ }}
 }}",
                    $"Abstract type method {methodName} accessible via constraint",
-                   shouldAccept: true);
-    }
-
-    /// <summary>
-    /// Generates scenarios where trait constraint provides accessible method.
-    /// Requirement 6.2: Trait constraint makes trait members accessible.
-    /// </summary>
-    private static Gen<ConstrainedMemberAccessScenario> GenTraitMethodAccessible()
-    {
-        return from methodName in Gen.Elements(MethodNames)
-               select new ConstrainedMemberAccessScenario(
-                   $@"
-trait Worker {{
-    int {methodName}();
-}}
-class Handler<T> where T : Worker {{
-    public int Handle(T item) {{
-        return item.{methodName}();
-    }}
-}}
-class Program {{
-    public static void Main() {{ }}
-}}",
-                   $"Trait method {methodName} accessible via constraint",
                    shouldAccept: true);
     }
 
@@ -280,7 +256,6 @@ class Program {{
     {
         return Gen.OneOf(
             GenAbstractMethodAccessible(),
-            GenTraitMethodAccessible(),
             GenBaseClassMethodAccessible(),
             GenMultipleAbstractMethodsAccessible(),
             GenUnavailableMemberRejected(),
@@ -294,7 +269,7 @@ class Program {{
     // ═══════════════════════════════════════════════════════════════════════
     // Property 5: Constrained Member Accessibility
     //
-    // For any type parameter with abstract type, trait, or base class constraints,
+    // For any type parameter with abstract type or base class constraints,
     // all members defined by those constraints (and only those members) SHALL
     // be accessible on values of that type parameter within the generic body.
     // ═══════════════════════════════════════════════════════════════════════

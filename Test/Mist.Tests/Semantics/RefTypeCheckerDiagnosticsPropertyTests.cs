@@ -5,7 +5,6 @@
 // Feature: ref-parameters, Property 7: Ref Readonly Assignment Prohibition
 // Feature: ref-parameters, Property 8: Ref Call-Site Annotation Enforcement
 // Feature: ref-parameters, Property 10: RefKind Overload Distinction
-// Feature: ref-parameters, Property 11: RefKind Abstract Type and Trait Matching
 // Feature: ref-parameters, Property 13: Ref Field Storage Prohibition
 // Feature: ref-parameters, Property 14: Ref Lambda Capture Prohibition
 // **Validates: Requirements 2.2, 2.3, 2.5, 3.3, 3.4, 4.3, 4.5, 4.6, 4.8, 5.6, 5.9, 6.2, 6.5, 6.7, 7.4, 7.5, 7.6, 9.1, 9.4, 9.5, 14.1-14.11**
@@ -124,12 +123,6 @@ public class RefTypeCheckerDiagnosticsPropertyTests
         public override string ToString() => Label;
     }
 
-    /// <summary>Scenario for Property 11: RefKind abstract type/trait matching.</summary>
-    public sealed record RefAbstractTraitScenario(string Source, string Label)
-    {
-        public override string ToString() => Label;
-    }
-
     /// <summary>Scenario for Property 13: ref stored in field.</summary>
     public sealed record RefFieldStorageScenario(string Source, string Label)
     {
@@ -143,7 +136,6 @@ public class RefTypeCheckerDiagnosticsPropertyTests
     private static readonly string[] PrimitiveTypes = ["int", "bool", "double", "float", "string"];
     private static readonly string[] VarNames = ["x", "y", "z", "val", "item"];
     private static readonly string[] MethodNames = ["DoWork", "Process", "Compute", "Transform"];
-    private static readonly string[] ClassNames = ["Foo", "Bar", "Baz", "Widget"];
 
     // ── Property 3: Non-assignable ref argument generators ───────────────
 
@@ -410,37 +402,6 @@ public class RefTypeCheckerDiagnosticsPropertyTests
         return gen.ToArbitrary();
     }
 
-    // ── Property 11: RefKind abstract type/trait matching generators ──────────
-
-    public static Arbitrary<RefAbstractTraitScenario> ArbitraryRefAbstractTrait()
-    {
-        // Trait method requires ref parameter but implementing method does not
-        var traitGen =
-            from typeName in Gen.Elements("int", "double", "bool")
-            from methodName in Gen.Elements(MethodNames)
-            from className in Gen.Elements(ClassNames)
-            let source = $$"""
-                trait IRefTrait {
-                    void {{methodName}}(ref {{typeName}} p);
-                }
-                class {{className}} {
-                    public void {{methodName}}({{typeName}} p) {
-                    }
-                }
-                with {{className}} : IRefTrait {
-                    {{methodName}} = {{methodName}};
-                }
-                class Program {
-                    public static void Main() {
-                    }
-                }
-                """
-            select new RefAbstractTraitScenario(source,
-                $"trait requires ref {typeName} but {className}.{methodName} has non-ref");
-
-        return traitGen.ToArbitrary();
-    }
-
     // ── Property 13: Ref field storage prohibition generators ─────────────
 
     public static Arbitrary<RefFieldStorageScenario> ArbitraryRefFieldStorage()
@@ -651,34 +612,6 @@ public class RefTypeCheckerDiagnosticsPropertyTests
         return (!hasDuplicateSignature).ToProperty()
             .Label($"Unexpected duplicate signature diagnostic for {scenario.Label}. " +
                    $"Got: [{string.Join(", ", diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error).Select(d => $"{d.Id.Value}: {d.Message}"))}]");
-    }
-
-    // ═══════════════════════════════════════════════════════════════════════
-    // Property 11: RefKind Abstract Type and Trait Matching
-    //
-    // For any trait method with a ref parameter, an implementing method whose
-    // corresponding parameter is not ref SHALL produce MIST_REF_0012.
-    //
-    // **Validates: Requirements 7.5, 7.6**
-    // ═══════════════════════════════════════════════════════════════════════
-
-    [Property(MaxTest = 100, Arbitrary = new[] { typeof(RefTypeCheckerDiagnosticsPropertyTests) })]
-    public Property RefKindTraitMismatch_ProducesDiagnostic(
-        RefAbstractTraitScenario scenario)
-    {
-        var diagnostics = CompileAndGetDiagnostics(scenario.Source);
-
-        // When a trait method requires ref but the implementing method doesn't have ref
-        // (or vice versa), the compiler should reject the program. This may manifest as:
-        // - MIST_REF_0012 (specific RefKind mismatch diagnostic)
-        // - A trait unsatisfied error
-        // - MIST_TC_0017 (entry point not found — indicates semantic model failure)
-        // Any error indicates the program is rejected due to the RefKind mismatch.
-        var hasError = diagnostics.Any(d => d.Severity == DiagnosticSeverity.Error);
-
-        return hasError.ToProperty()
-            .Label($"Expected compilation error for {scenario.Label}. " +
-                   $"Got: [{string.Join(", ", diagnostics.Select(d => $"{d.Id.Value}({d.Severity}): {d.Message}"))}]");
     }
 
     // ═══════════════════════════════════════════════════════════════════════

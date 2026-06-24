@@ -20,7 +20,7 @@ namespace Mist.Tests.Analysis;
 /// Property 8: Ownership signature matching
 /// For any abstract type method with ownership specifiers on parameters or return types,
 /// an implementing method SHALL match those specifiers exactly. Any mismatch SHALL
-/// produce a diagnostic error. The same rule applies to structural trait matching.
+/// produce a diagnostic error. 
 ///
 /// **Validates: Requirements 9.1, 9.2, 9.3, 9.4**
 /// </summary>
@@ -99,15 +99,6 @@ public class OwnershipSignaturePropertyTests
     }
 
     /// <summary>
-    /// Scenario where a trait method and its structural implementation have mismatching
-    /// ownership specifiers (should produce MIST_OWN_SIGNATURE_MISMATCH).
-    /// </summary>
-    public sealed record TraitMismatchScenario(string Source, string Label)
-    {
-        public override string ToString() => Label;
-    }
-
-    /// <summary>
     /// Scenario where a method has a non-owned specifier on its return type
     /// (should produce MIST_OWN_INVALID_RETURN_SPEC).
     /// </summary>
@@ -125,9 +116,6 @@ public class OwnershipSignaturePropertyTests
 
     private static readonly string[] ClassNames =
         ["Processor", "Handler", "Service", "Worker", "Manager", "Provider"];
-
-    private static readonly string[] TraitNames =
-        ["Processable", "Handleable", "Serviceable", "Workable", "Manageable", "Providable"];
 
     private static readonly string[] MethodNames =
         ["Execute", "Process", "Handle", "Transform", "Compute", "Evaluate"];
@@ -281,42 +269,6 @@ public class OwnershipSignaturePropertyTests
     }
 
     /// <summary>
-    /// Generates a trait/class pair where the ownership specifier on a parameter
-    /// differs between the trait method and the structurally matching method.
-    /// </summary>
-    private static Gen<TraitMismatchScenario> GenTraitMismatchScenario()
-    {
-        return from traitName in Gen.Elements(TraitNames)
-               from className in Gen.Elements(ClassNames)
-               from methodName in Gen.Elements(MethodNames)
-               from paramName in Gen.Elements(ParamNames)
-               from paramType in Gen.Elements(ParamTypeNames)
-               from traitSpecIdx in Gen.Choose(0, ParamSpecifiers.Length - 1)
-               from implSpecIdx in Gen.Choose(0, ParamSpecifiers.Length - 1)
-               where traitSpecIdx != implSpecIdx
-               let traitSpec = ParamSpecifiers[traitSpecIdx]
-               let implSpec = ParamSpecifiers[implSpecIdx]
-               let source = $$"""
-                   class {{paramType}} {
-                   }
-                   trait {{traitName}} {
-                       void {{methodName}}({{traitSpec.Specifier}}{{paramType}} {{paramName}});
-                   }
-                   class {{className}} {
-                       public void {{methodName}}({{implSpec.Specifier}}{{paramType}} {{paramName}}) {
-                       }
-                   }
-                   class Program {
-                       public static void Main() {
-                           {{traitName}} t = new {{className}}();
-                       }
-                   }
-                   """
-               select new TraitMismatchScenario(source,
-                   $"trait mismatch: {traitName}.{methodName}({traitSpec.Label}) vs {className}.{methodName}({implSpec.Label})");
-    }
-
-    /// <summary>
     /// Generates a method with a non-owned specifier on the return type
     /// (ref, readonly ref, or frozen ref — all invalid on return types).
     /// </summary>
@@ -354,9 +306,6 @@ public class OwnershipSignaturePropertyTests
 
     public static Arbitrary<MismatchedReturnScenario> ArbitraryMismatchedReturnScenario() =>
         GenMismatchedReturnScenario().ToArbitrary();
-
-    public static Arbitrary<TraitMismatchScenario> ArbitraryTraitMismatchScenario() =>
-        GenTraitMismatchScenario().ToArbitrary();
 
     public static Arbitrary<InvalidReturnSpecScenario> ArbitraryInvalidReturnSpecScenario() =>
         GenInvalidReturnSpecScenario().ToArbitrary();
@@ -403,22 +352,6 @@ public class OwnershipSignaturePropertyTests
         MaxTest = 100,
         Arbitrary = new[] { typeof(OwnershipSignaturePropertyTests) })]
     public bool MismatchedReturnSpecifiers_EmitsSignatureMismatch(MismatchedReturnScenario scenario)
-    {
-        var diagnostics = CompileAndGetDiagnostics(scenario.Source);
-
-        return diagnostics.Any(d => d.Id.Value == "MIST_OWN_SIGNATURE_MISMATCH");
-    }
-
-    // ═══════════════════════════════════════════════════════════════════════
-    // Property 8d: Mismatched ownership specifiers on trait structural matching
-    // produce MIST_OWN_SIGNATURE_MISMATCH
-    // **Validates: Requirements 9.3, 9.4**
-    // ═══════════════════════════════════════════════════════════════════════
-
-    [Property(
-        MaxTest = 100,
-        Arbitrary = new[] { typeof(OwnershipSignaturePropertyTests) })]
-    public bool TraitMismatchedSpecifiers_EmitsSignatureMismatch(TraitMismatchScenario scenario)
     {
         var diagnostics = CompileAndGetDiagnostics(scenario.Source);
 

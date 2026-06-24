@@ -81,9 +81,6 @@ public sealed class MistPrettyPrinter
                 case TypeItemTopLevelItemNode typeItem:
                     EmitTypeDeclaration(typeItem.TypeDeclaration);
                     break;
-                case WithItemTopLevelItemNode withItem:
-                    EmitWithDeclaration(withItem.WithDeclaration);
-                    break;
                 case TypeAliasItemTopLevelItemNode typeAliasItem:
                     EmitTypeAliasDeclaration(typeAliasItem.TypeAliasDeclaration);
                     break;
@@ -238,9 +235,6 @@ public sealed class MistPrettyPrinter
                 break;
             case AbstractTypeTypeDeclarationNode abstractType:
                 EmitAbstractDeclaration(abstractType.AbstractDeclaration);
-                break;
-            case TraitTypeTypeDeclarationNode traitType:
-                EmitTraitDeclaration(traitType.TraitDeclaration);
                 break;
             case EnumTypeTypeDeclarationNode enumType:
                 EmitEnumDeclaration(enumType.EnumDeclaration);
@@ -898,94 +892,6 @@ public sealed class MistPrettyPrinter
         }
     }
 
-    // ─── Trait Declarations ─────────────────────────────────────────────
-
-    private void EmitTraitDeclaration(TraitDeclarationNode traitDecl)
-    {
-        var name = traitDecl.Name.Lexeme;
-        var typeParams = EmitTypeParameterList(traitDecl.TypeParams);
-        var parentClause = "";
-        if (traitDecl.Parents is not null)
-        {
-            parentClause = $" : {EmitBaseList(traitDecl.Parents)}";
-        }
-        var constraintClauses = EmitConstraintClauses(traitDecl.Constraints);
-        AppendLine($"trait {name}{typeParams}{parentClause}{constraintClauses} {{");
-        _indentLevel++;
-
-        for (var i = 0; i < traitDecl.Members.Length; i++)
-        {
-            EmitTraitMemberDeclaration(traitDecl.Members[i]);
-        }
-
-        _indentLevel--;
-        AppendLine("}");
-    }
-
-    private void EmitTraitMemberDeclaration(TraitMemberDeclarationNode memberDecl)
-    {
-        switch (memberDecl)
-        {
-            case TraitFieldMemberTraitMemberDeclarationNode fieldMember:
-                EmitTraitFieldDeclaration(fieldMember.Field);
-                break;
-            case TraitMethodMemberTraitMemberDeclarationNode methodMember:
-                EmitTraitMethodDeclaration(methodMember.Method);
-                break;
-            case TraitPropertyMemberTraitMemberDeclarationNode propertyMember:
-                EmitTraitPropertyDeclaration(propertyMember.Property);
-                break;
-            case TraitAssociatedTypeMemberTraitMemberDeclarationNode associatedTypeMember:
-                EmitAssociatedTypeSlotDeclaration(associatedTypeMember.AssociatedType);
-                break;
-            case TraitUnconstrainedAssociatedTypeMemberTraitMemberDeclarationNode unconstrainedMember:
-                EmitUnconstrainedAssociatedTypeSlotDeclaration(unconstrainedMember.UnconstrainedAssociatedType);
-                break;
-            case TraitModifiedAssociatedTypeMemberTraitMemberDeclarationNode modifiedMember:
-                EmitModifiedAssociatedTypeSlotDeclaration(modifiedMember.ModifiedAssociatedType);
-                break;
-        }
-    }
-
-    private void EmitTraitFieldDeclaration(TraitFieldDeclarationNode fieldDecl)
-    {
-        var type = EmitTypeReference(fieldDecl.Type);
-        var name = fieldDecl.Name.Lexeme;
-        AppendLine($"{type} {name};");
-    }
-
-    private void EmitTraitMethodDeclaration(TraitMethodDeclarationNode methodDecl)
-    {
-        var returnOwnership = EmitOwnershipSpecifier(methodDecl.ReturnOwnership);
-        var returnType = EmitTypeReference(methodDecl.ReturnType);
-        var name = methodDecl.Name.Lexeme;
-        var parameters = EmitParameterList(methodDecl.Parameters);
-        var withClauses = EmitWithClauses(methodDecl.WithClauses);
-        AppendLine($"{returnOwnership}{returnType} {name}({parameters}){withClauses};");
-    }
-
-    private void EmitTraitPropertyDeclaration(TraitPropertyDeclarationNode propertyDecl)
-    {
-        var type = EmitTypeReference(propertyDecl.Type);
-        var name = propertyDecl.Name.Lexeme;
-
-        var accessors = new List<string>();
-        foreach (var accessor in propertyDecl.Accessors)
-        {
-            switch (accessor)
-            {
-                case AbstractGetAccessorAbstractAccessorDeclarationNode:
-                    accessors.Add("get;");
-                    break;
-                case AbstractSetAccessorAbstractAccessorDeclarationNode:
-                    accessors.Add("set;");
-                    break;
-            }
-        }
-
-        AppendLine($"{type} {name} {{ {string.Join(" ", accessors)} }}");
-    }
-
     // ─── Enum Declarations ──────────────────────────────────────────────
 
     private void EmitEnumDeclaration(EnumDeclarationNode enumDecl)
@@ -1057,32 +963,6 @@ public sealed class MistPrettyPrinter
         }
 
         return $"{prefix}{name}";
-    }
-
-    // ─── With Declarations ──────────────────────────────────────────────
-
-    private void EmitWithDeclaration(WithDeclarationNode withDecl)
-    {
-        var typeName = withDecl.TypeName.Lexeme;
-        var traitName = withDecl.TraitName.Lexeme;
-        var traitTypeArgs = EmitTypeArgumentList(withDecl.TraitTypeArgs);
-        AppendLine($"with {typeName} : {traitName}{traitTypeArgs} {{");
-        _indentLevel++;
-
-        foreach (var mapping in withDecl.Mappings)
-        {
-            EmitMemberMapping(mapping);
-        }
-
-        _indentLevel--;
-        AppendLine("}");
-    }
-
-    private void EmitMemberMapping(MemberMappingNode mapping)
-    {
-        var sourceName = mapping.SourceName.Lexeme;
-        var targetName = mapping.TargetName.Lexeme;
-        AppendLine($"{sourceName} as {targetName};");
     }
 
     // ─── Extension Block Declarations ────────────────────────────────────

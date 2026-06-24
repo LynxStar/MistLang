@@ -1,12 +1,12 @@
 # Associated Types
 
-Associated types let abstract types and traits declare abstract type slots — type members whose concrete definition is deferred to implementors. Where generic type parameters are chosen by the *caller* of a generic function or constructor, associated types are chosen by the *implementor* of an abstract type. This distinction makes associated types ideal for contracts where the implementing type determines a related type that callers shouldn't need to specify explicitly.
+Associated types let abstract types declare abstract type slots — type members whose concrete definition is deferred to implementors. Where generic type parameters are chosen by the *caller* of a generic function or constructor, associated types are chosen by the *implementor* of an abstract type. This distinction makes associated types ideal for contracts where the implementing type determines a related type that callers shouldn't need to specify explicitly.
 
 The primary motivating use case is zero-allocation iteration: an `Iterable<TValue>` abstract type declares an associated enumerator type slot, and each collection provides its own concrete struct enumerator. Generic code iterates without knowing the specific enumerator type, yet the compiler resolves it statically — no boxing, no virtual dispatch, no heap allocation for the enumerator.
 
 ## Declaration Syntax
 
-An associated type slot is declared inside an abstract type or trait body using the `type Name : ConstraintList;` syntax. The colon and constraint list specify what the concrete type must satisfy, using the same constraint syntax as generic `where` clauses (see [Generic Constraints](./generic-constraints.md)).
+An associated type slot is declared inside an abstract type body using the `type Name : ConstraintList;` syntax. The colon and constraint list specify what the concrete type must satisfy, using the same constraint syntax as generic `where` clauses (see [Generic Constraints](./generic-constraints.md)).
 
 {{#tabs }}
 {{#tab name="Mist" }}
@@ -59,26 +59,7 @@ A slot can require multiple constraints separated by commas. The concrete type m
 {{#endtab }}
 {{#endtabs }}
 
-The constraint list supports the same forms as generic constraints: `struct`, `class`, abstract type references, trait references, base class references, `new()`, and combinations thereof.
-
-### Trait Slots
-
-Traits can also declare associated type slots with the same syntax. A type structurally conforming to the trait must provide the required nested type:
-
-{{#tabs }}
-{{#tab name="Mist" }}
-```mist
-{{#include ../../snippets/type-system/associated-types/trait-slot.mist}}
-```
-{{#endtab }}
-{{#tab name="Emitted C#" }}
-```csharp
-{{#include ../../snippets/type-system/associated-types/trait-slot.cs}}
-```
-{{#endtab }}
-{{#endtabs }}
-
-The emitted C# is identical in shape — traits emit as C# interfaces, and the associated type slot becomes a type parameter with the same constraint propagation.
+The constraint list supports the same forms as generic constraints: `struct`, `class`, abstract type references, base class references, `new()`, and combinations thereof.
 
 ### Generic Type Parameters on Slots
 

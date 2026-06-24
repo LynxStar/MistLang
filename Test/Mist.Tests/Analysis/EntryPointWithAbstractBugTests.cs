@@ -1,6 +1,6 @@
-// Bugfix: Entry point detection fails when abstract/trait is present in same file.
+// Bugfix: Entry point detection fails when abstract type is present in same file.
 // Reproduces the issue where CheckEntryPoint emits MIST_TC_0017 ("no valid entry point")
-// when an abstract or trait declaration coexists with a class containing Main.
+// when an abstract declaration coexists with a class containing Main.
 
 using System.Collections.Immutable;
 using Mist.Analysis.Builtin;
@@ -17,7 +17,7 @@ namespace Mist.Tests.Analysis;
 
 /// <summary>
 /// Regression tests for the entry point detection bug where the presence of an
-/// abstract or trait declaration in the same compilation unit causes the Main
+/// abstract declaration in the same compilation unit causes the Main
 /// method symbol to not be found via GetDeclaringNode, resulting in a spurious
 /// MIST_TC_0017 diagnostic.
 /// </summary>
@@ -173,28 +173,6 @@ public sealed class EntryPointWithAbstractBugTests : IDisposable
             var node = model.GetDeclaringNode(mainSym);
             Assert.NotNull(node);
         }
-    }
-
-    /// <summary>
-    /// Reproduces the bug with a trait instead of an abstract.
-    /// </summary>
-    [Fact]
-    public void TraitAndClassWithMain_ShouldNotProduceMIST_TC_0017()
-    {
-        var source = """
-            namespace Test;
-            public trait Printable {
-                string Name;
-            }
-            public class Program {
-                public static void Main() { }
-            }
-            """;
-
-        var result = CompileSource(source);
-
-        Assert.DoesNotContain(result.Diagnostics,
-            d => d.Id.Value == "MIST_TC_0017");
     }
 
     /// <summary>

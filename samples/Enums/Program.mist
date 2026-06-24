@@ -19,7 +19,7 @@
 //  16. Enum with user-defined struct underlying type
 //  17. Enum with user-defined class underlying type
 //  18. Enum with user-defined abstract type underlying type
-//  19. Enum with trait-implementing class underlying type
+//  19. Enum with abstract type-implementing class underlying type
 //  20. String-backed enum with auto-inferred variant names
 //  21. String-backed enum with mixed explicit/inferred values
 
@@ -142,12 +142,12 @@ public enum Severity : Label {
     Info = new Label("INFO", 3)
 }
 
-// --- 18/19. Abstract type and trait underlying types ---
-// NOTE: Enum with abstract type/trait underlying types requires emitter fixes for:
-//   - Duplicate trait in abstract type list (class : Trait emits trait twice)
+// --- 18/19. Abstract type underlying types ---
+// NOTE: Enum with abstract type underlying types requires emitter fixes for:
+//   - Duplicate abstract type in abstract type list (class : AbstractType emits it twice)
 //   - Enum-to-abstract type implicit conversion
 // These features were previously silently dropped by the parser (which didn't
-// support modifiers on abstract type/trait declarations). Now that the parser
+// support modifiers on abstract type declarations). Now that the parser
 // correctly handles them, the emitter issues are exposed.
 
 abstract IMessage {
@@ -326,8 +326,8 @@ public class Program
         Label critLabel = Severity.Critical;
         Console.WriteLine($"  Severity.Critical as Label = {critLabel.Describe()}");
 
-        // 18/19. Abstract type and trait underlying types
-        Console.WriteLine("--- Abstract Type/Trait underlying types ---");
+        // 18/19. Abstract type underlying types
+        Console.WriteLine("--- Abstract Type underlying types ---");
         // Notification enum (abstract type underlying type) commented out pending emitter fix
         Console.WriteLine($"  Pet.Dog = {Pet.Dog}");
         Console.WriteLine($"  Pet.Cat = {Pet.Cat}");

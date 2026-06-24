@@ -33,11 +33,11 @@ abstract IBuffer<Cap:ulong> {
 //                    ^^^^^ storage.type.primitive.mist
 }
 
-trait Bounded<Limit:byte> {
-//    ^^^^^^^ entity.name.type.mist
-//            ^^^^^ entity.name.type.parameter.mist
-//                 ^ punctuation.separator.annotation.mist
-//                  ^^^^ storage.type.primitive.mist
+abstract Bounded<Limit:byte> {
+//       ^^^^^^^ entity.name.type.mist
+//               ^^^^^ entity.name.type.parameter.mist
+//                    ^ punctuation.separator.annotation.mist
+//                     ^^^^ storage.type.primitive.mist
 }
 
 // ===== Constant literals in type argument positions (Req 16.3) =====

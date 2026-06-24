@@ -6,64 +6,7 @@ inclusion: manual
 
 # Mist Advanced Features
 
-Deep reference for Mist features that have no C# equivalent. As with the core reference, **assume C# behavior as the baseline** — this file only covers what is genuinely new. Include this context when working with traits, structured context, refinement types, dependent types, or associated types.
-
-## Traits (Structural Typing)
-
-A trait is a structural contract. Any type whose public members match the trait's signatures satisfies it automatically — no explicit implementation declaration.
-
-```mist
-trait Printable
-{
-    string Name;     // field requirement
-    int Id;
-    string Describe(); // method requirement
-}
-
-// Satisfies Printable structurally — no ": Printable" needed
-public class User
-{
-    public string Name;
-    public int Id;
-    public string Describe() { return Name; }
-}
-
-void PrintItem(Printable item) { Console.WriteLine($"{item.Name}: {item.Id}"); }
-PrintItem(new User());   // works
-```
-
-### With-Block Mapping
-
-When a type has the right shape but different member names, a `with` declaration maps them onto the trait:
-
-```mist
-public class Product { public string Title; public int Sku; }
-
-with Product : Printable
-{
-    Title as Name;
-    Sku as Id;
-}
-
-Printable p = new Product();  // now satisfies Printable via the mapping
-```
-
-### Generic Traits
-
-```mist
-trait Comparable<T> { int CompareTo(T other); }
-trait Container<T> { T GetItem(); void SetItem(T value); }
-```
-
-### Traits vs Interfaces
-
-| | Trait | Interface |
-|--|-------|-----------|
-| Satisfaction | Structural (automatic) | Nominal (explicit `: IFoo`) |
-| Can map names | Yes (`with` block) | No |
-| Fields in contract | Yes | No (properties only) |
-
-Interfaces themselves work exactly as in C#.
+Deep reference for Mist features that have no C# equivalent. As with the core reference, **assume C# behavior as the baseline** — this file only covers what is genuinely new. Include this context when working with abstract types, structured context, refinement types, dependent types, or associated types.
 
 ## Structured Context (Implicit Parameter Passing)
 
@@ -221,10 +164,10 @@ if (target is FixedBuffer<5> matched) { }   // dependent value participates in t
 
 ## Associated Types
 
-Interfaces and traits can declare associated type slots that implementers fill in. No direct C# equivalent (C# uses generic type parameters instead).
+Abstract types can declare associated type slots that implementers fill in. No direct C# equivalent (C# uses generic type parameters instead).
 
 ```mist
-interface IIterator
+abstract type IIterator
 {
     type Item;            // associated type slot
     Item? Next();
@@ -237,7 +180,7 @@ public class RangeIterator : IIterator
 }
 
 // Constrained associated type slot
-trait Collection
+abstract type Collection
 {
     type Element : IComparable;
     Element First();

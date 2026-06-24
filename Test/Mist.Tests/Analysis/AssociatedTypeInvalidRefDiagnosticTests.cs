@@ -12,7 +12,7 @@ namespace Mist.Tests.Analysis;
 
 /// <summary>
 /// Unit tests verifying that MIST_AT_0004 is emitted when T.X is used in a type position
-/// and X is not an associated type slot of any constraining abstract type/trait.
+/// and X is not an associated type slot of any constraining abstract type.
 /// </summary>
 public class AssociatedTypeInvalidRefDiagnosticTests
 {
@@ -224,7 +224,7 @@ class TestClass {
         var msg = at0004[0].Message;
         Assert.Equal(
             "Type parameter 'T' does not have an associated type 'Missing'; " +
-            "'T' is not constrained by an abstract type or trait declaring 'Missing'.",
+            "'T' is not constrained by an abstract type declaring 'Missing'.",
             msg);
         Assert.Equal(DiagnosticSeverity.Error, at0004[0].Severity);
     }

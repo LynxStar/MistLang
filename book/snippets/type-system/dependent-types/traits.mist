@@ -1,9 +1,0 @@
-trait ISized<N:int>
-{
-    int GetCapacity();
-}
-
-public class SizedBox<N:int>
-{
-    public int GetCapacity() { return N; }
-}

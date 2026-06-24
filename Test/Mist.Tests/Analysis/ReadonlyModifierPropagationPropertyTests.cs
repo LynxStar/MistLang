@@ -2,7 +2,7 @@
 //
 // **Validates: Requirements 1.15**
 //
-// For any type declaration (struct, class, abstract, or trait) that includes
+// For any type declaration (struct, class, abstract) that includes
 // the `readonly` modifier, the semantic model SHALL set `IsReadonly = true` on
 // the resulting type, and for any type declaration without the `readonly`
 // modifier, `IsReadonly` SHALL be `false`.
@@ -68,9 +68,6 @@ public static class ReadonlyPropagationGenerators
     private static readonly string[] AbstractNames =
         ["IReadable", "IService", "IStore", "IHandler", "IProcessor"];
 
-    private static readonly string[] TraitNames =
-        ["Printable", "Hashable", "Sortable", "Comparable", "Serializable"];
-
     private static readonly string[] AccessModifiers = ["", "public "];
 
     /// <summary>Generates a struct declaration with or without readonly.</summary>
@@ -106,24 +103,13 @@ public static class ReadonlyPropagationGenerators
                select new ReadonlyPropagationScenario(name, "abstract", isReadonly, source);
     }
 
-    /// <summary>Generates a trait declaration with or without readonly.</summary>
-    public static Gen<ReadonlyPropagationScenario> GenTraitScenario()
-    {
-        return from name in Gen.Elements(TraitNames)
-               from isReadonly in Gen.Elements(true, false)
-               let readonlyMod = isReadonly ? "readonly " : ""
-               let source = $"{readonlyMod}trait {name} {{\n}}"
-               select new ReadonlyPropagationScenario(name, "trait", isReadonly, source);
-    }
-
     /// <summary>Combined generator for all type declaration scenarios.</summary>
     public static Gen<ReadonlyPropagationScenario> GenScenario()
     {
         return Gen.OneOf(
             GenStructScenario(),
             GenClassScenario(),
-            GenAbstractScenario(),
-            GenTraitScenario());
+            GenAbstractScenario());
     }
 }
 
@@ -132,7 +118,7 @@ public static class ReadonlyPropagationGenerators
 /// <summary>
 /// Property-based tests for readonly modifier propagation to the semantic model.
 ///
-/// Property 1: For any type declaration (struct, class, abstract, or trait) that
+/// Property 1: For any type declaration (struct, class, abstract) that
 /// includes the `readonly` modifier, the semantic model SHALL set `IsReadonly = true`
 /// on the resulting type, and for any type declaration without the `readonly`
 /// modifier, `IsReadonly` SHALL be `false`.
@@ -194,7 +180,7 @@ public class ReadonlyModifierPropagationPropertyTests
         var symbol = model.AllSymbols
             .FirstOrDefault(s => s.Name == typeName &&
                 s.Kind is SymbolKind.Class or SymbolKind.Struct
-                    or SymbolKind.Abstract or SymbolKind.Trait);
+                    or SymbolKind.Abstract);
 
         if (symbol?.DeclaredType is null)
             return null;
@@ -204,7 +190,6 @@ public class ReadonlyModifierPropagationPropertyTests
             StructType st => st.IsReadonly,
             ClassType ct => ct.IsReadonly,
             AbstractType it => it.IsReadonly,
-            TraitType tt => tt.IsReadonly,
             _ => null,
         };
     }
@@ -214,7 +199,7 @@ public class ReadonlyModifierPropagationPropertyTests
     //
     // **Validates: Requirements 1.15**
     //
-    // For any type declaration (struct, class, abstract, or trait) that
+    // For any type declaration (struct, class, abstract) that
     // includes the `readonly` modifier, the semantic model SHALL set
     // `IsReadonly = true` on the resulting type, and for any type declaration
     // without the `readonly` modifier, `IsReadonly` SHALL be `false`.

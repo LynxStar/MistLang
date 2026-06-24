@@ -276,7 +276,7 @@ public static class MistRefParameterRoundTripGenerator
                    $"return-ref: return ref {fieldName}");
     }
 
-    // ─── Abstract type and trait ref method generators ───────────────────────────
+    // ─── Abstract type ref method generators ───────────────────────────
 
     /// <summary>
     /// Generates an abstract type with a ref return method:
@@ -295,25 +295,6 @@ public static class MistRefParameterRoundTripGenerator
                let source = $"abstract {abstractName} {{\n    {refReturn}{typeName} {methodName}({paramDecl});\n}}"
                select new RefParameterRoundTripScenario(source,
                    $"abstract-ref: {abstractName}.{methodName}");
-    }
-
-    /// <summary>
-    /// Generates a trait with a ref return method:
-    /// <c>trait Printable { ref int Get(); }</c>
-    /// </summary>
-    private static Gen<RefParameterRoundTripScenario> GenTraitRefMethod()
-    {
-        return from traitName in Gen.Elements("Printable", "Serializable", "Comparable")
-               from methodName in GenMethodName()
-               from typeName in GenTypeName()
-               from paramName in GenParamName()
-               from hasRefParam in Gen.Elements(true, false)
-               from hasRefReturn in Gen.Elements(true, false)
-               let refReturn = hasRefReturn ? "ref " : ""
-               let paramDecl = hasRefParam ? $"ref {typeName} {paramName}" : $"{typeName} {paramName}"
-               let source = $"trait {traitName} {{\n    {refReturn}{typeName} {methodName}({paramDecl});\n}}"
-               select new RefParameterRoundTripScenario(source,
-                   $"trait-ref: {traitName}.{methodName}");
     }
 
     // ─── Combined generator ─────────────────────────────────────────────────
@@ -336,8 +317,7 @@ public static class MistRefParameterRoundTripGenerator
             GenRefArgument(),
             GenMixedRefArguments(),
             GenReturnRefStatement(),
-            GenAbstractRefMethod(),
-            GenTraitRefMethod());
+            GenAbstractRefMethod());
     }
 
     // ─── FsCheck Arbitrary registration ─────────────────────────────────────

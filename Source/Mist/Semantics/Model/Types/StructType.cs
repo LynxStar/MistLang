@@ -48,11 +48,6 @@ public sealed class StructType : IType
     internal DefaultBlockDeclarationNode? DefaultBlockNode { get; set; }
 
     /// <summary>
-    /// Traits that this type is known to satisfy (populated by with-blocks and call-site checking).
-    /// </summary>
-    public List<IType> SatisfiedTraits { get; } = new();
-
-    /// <summary>
     /// Indicates whether this type is declared as readonly.
     /// When true, all members are implicitly readonly.
     /// </summary>

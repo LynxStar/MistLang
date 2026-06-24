@@ -358,7 +358,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     internal static readonly DiagnosticId ConstraintMutableViolation = new("MIST_TC_0078");
 
-    // ── Readonly abstract/trait contract diagnostic ID ───────────────────
+    // ── Readonly abstract contract diagnostic ID ────────────────────────
     //
     // Note on numbering: the readonly-contexts design document's Diagnostic
     // ID Allocation table proposed MIST_TC_0072 for this diagnostic. That
@@ -369,7 +369,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     // avoid overloading a diagnostic ID with two distinct meanings.
 
     /// <summary>
-    /// Emitted when a type implements a readonly abstract or trait but the
+    /// Emitted when a type implements a readonly abstract but the
     /// implementing member is not readonly (explicit or inferred). The
     /// implementing member must be readonly to satisfy the contract
     /// (Requirement 13.2, 13.3, 13.4, 13.5, 13.6).
@@ -420,12 +420,6 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// constraint on a type parameter (Requirement 5.2, 10.1).
     /// </summary>
     internal static readonly DiagnosticId ConstraintAbstractNotImplemented = new("MIST_CONSTRAINT_0009");
-
-    /// <summary>
-    /// Emitted when a type argument does not satisfy a required trait
-    /// constraint on a type parameter (Requirement 5.3, 10.2).
-    /// </summary>
-    internal static readonly DiagnosticId ConstraintTraitNotSatisfied = new("MIST_CONSTRAINT_0010");
 
     /// <summary>
     /// Emitted when a type argument does not derive from a required base
@@ -938,7 +932,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
     /// <summary>
     /// Emitted when an <c>as</c> expression is used between two types that have
-    /// no type relationship (neither is a subtype of the other, no abstract/trait
+    /// no type relationship (neither is a subtype of the other, no abstract
     /// relationship, no union membership, neither is <c>unknown</c>).
     /// (Requirements 4.1, 4.2, 8.1).
     /// </summary>
@@ -1101,8 +1095,8 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // Task 5.10: Check for missing abstract property implementations (MIST_TC_0030).
         CheckMissingAbstractProperties(model, diagnostics);
 
-        // Task 10.1: Check readonly abstract/trait contract enforcement (MIST_TC_0079).
-        CheckReadonlyAbstractAndTraitContracts(model, diagnostics);
+        // Task 10.1: Check readonly abstract contract enforcement (MIST_TC_0079).
+        CheckReadonlyAbstractContracts(model, diagnostics);
 
         // Task 6.2: Check constraint satisfaction for inheritance clauses where
         // constrained generics are used as base types or implemented abstracts.
@@ -1881,7 +1875,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
     /// <summary>
     /// Checks whether <paramref name="source"/> is directly assignable to
-    /// <paramref name="target"/> via identity, subtype, abstract, trait,
+    /// <paramref name="target"/> via identity, subtype, abstract,
     /// or constructed type relationships — but <b>not</b>
     /// via implicit cast operators (including numeric widening, which is
     /// now expressed as implicit cast operators on stdlib types). This is the subset of
@@ -2155,25 +2149,11 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             }
         }
 
-        // Trait assignability.
-        if (target is TraitType targetTrait && model is not null)
-        {
-            if (SatisfiesTrait(source, targetTrait, model))
-                return true;
-        }
-
         // ── enums feature: implicit conversion to underlying type (Req 7.1, 7.2) ──
         // An enum value is directly assignable to its underlying type without
         // requiring an implicit cast operator lookup.
         if (source is EnumType sourceEnum && IsDirectlyAssignable(sourceEnum.UnderlyingType, target, model))
             return true;
-
-        // Constructed trait assignability.
-        if (target is ConstructedTraitType targetConstructedTrait && model is not null)
-        {
-            if (SatisfiesTrait(source, targetConstructedTrait, model))
-                return true;
-        }
 
         // NOTE: No implicit cast operator fallback here — that's the whole
         // point of this method. Direct assignability only.
@@ -4220,16 +4200,6 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             }
         }
 
-        // Check trait constraint propagation: derived must require each trait the base requires.
-        foreach (var baseTrait in baseConstraints.TraitConstraints)
-        {
-            if (derivedConstraints is null || !HasMatchingTraitConstraint(derivedConstraints, baseTrait))
-            {
-                EmitPropagationDiagnostic(derivedType, baseTypeName, derivedTypeParam.Name, node, model, diagnostics);
-                return;
-            }
-        }
-
         // Check constructor constraint propagation: derived must have at least the same
         // constructor constraints as the base (each base constructor constraint must be
         // matched by a derived constructor constraint).
@@ -4281,22 +4251,6 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
             // Direct match by display name.
             if (derivedIface.DisplayName == baseIface.DisplayName)
-                return true;
-        }
-
-        return false;
-    }
-
-    /// <summary>
-    /// Checks whether the derived constraints include a trait constraint that
-    /// matches the given base trait constraint.
-    /// </summary>
-    private static bool HasMatchingTraitConstraint(TypeParameterConstraints derivedConstraints, IType baseTrait)
-    {
-        foreach (var derivedTrait in derivedConstraints.TraitConstraints)
-        {
-            if (ReferenceEquals(derivedTrait, baseTrait)
-                || derivedTrait.DisplayName == baseTrait.DisplayName)
                 return true;
         }
 
@@ -4486,18 +4440,18 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     }
 
     // ═══════════════════════════════════════════════════════════════════════
-    // Readonly abstract/trait contract checking (MIST_TC_0079)
+    // Readonly abstract contract checking (MIST_TC_0079)
     // ═══════════════════════════════════════════════════════════════════════
 
     /// <summary>
-    /// Verifies that when a type implements a readonly abstract or trait, each
+    /// Verifies that when a type implements a readonly abstract, each
     /// implementing member is also readonly (explicit, inferred, or implicit).
     /// If an implementing member is not readonly, emits <c>MIST_TC_0079</c>.
     /// The implementing type itself does not need to be readonly — only the
-    /// specific members that correspond to readonly abstract/trait members.
+    /// specific members that correspond to readonly abstract members.
     /// (Requirements 13.1, 13.2, 13.3, 13.4, 13.5, 13.6)
     /// </summary>
-    private static void CheckReadonlyAbstractAndTraitContracts(ISemanticModel model, DiagnosticBag diagnostics)
+    private static void CheckReadonlyAbstractContracts(ISemanticModel model, DiagnosticBag diagnostics)
     {
         foreach (var symbol in model.AllSymbols)
         {
@@ -4527,12 +4481,6 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             if (memberScope is not null && abstracts is not null && abstracts.Count > 0)
             {
                 CheckReadonlyAbstractContracts(symbol, abstracts, memberScope, model, diagnostics);
-            }
-
-            // Check trait contracts via the TraitSatisfactionMap.
-            if (memberScope is not null)
-            {
-                CheckReadonlyTraitContracts(symbol, type!, memberScope, model, diagnostics);
             }
         }
     }
@@ -4635,109 +4583,6 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
     }
 
-    /// <summary>
-    /// Checks readonly contracts for all traits satisfied by a type.
-    /// For each readonly trait member, verifies the implementing member is also readonly.
-    /// </summary>
-    private static void CheckReadonlyTraitContracts(
-        ISymbol typeSymbol,
-        IType type,
-        IScope memberScope,
-        ISemanticModel model,
-        DiagnosticBag diagnostics)
-    {
-        foreach (var (satisfiedType, trait, satisfaction) in model.TraitSatisfactionMap.All())
-        {
-            if (!ReferenceEquals(satisfiedType, type))
-                continue;
-
-            var traitType = trait as TraitType;
-            if (traitType is null)
-                continue;
-
-            // Only check readonly traits (all members are implicitly readonly).
-            if (!traitType.IsReadonly)
-            {
-                // Check individual readonly members of non-readonly traits.
-                CheckReadonlyMembersOfTrait(typeSymbol, traitType, satisfaction, memberScope, model, diagnostics);
-                continue;
-            }
-
-            // The trait is readonly — all its members are implicitly readonly.
-            foreach (var traitMember in traitType.MemberScope.Members)
-            {
-                if (traitMember.Kind is not (SymbolKind.Method or SymbolKind.Property or SymbolKind.Indexer or SymbolKind.Field))
-                    continue;
-
-                // Skip type parameter symbols.
-                if (traitMember.DeclaredType is TypeParameterType)
-                    continue;
-
-                // Find the implementing member via the satisfaction map or scope lookup.
-                var implMember = FindTraitImplementingMember(traitMember, satisfaction, memberScope);
-                if (implMember is null)
-                    continue;
-
-                if (!IsMemberReadonly(implMember))
-                {
-                    EmitReadonlyContractViolation(typeSymbol, implMember, traitMember, traitType.DisplayName, model, diagnostics);
-                }
-            }
-        }
-    }
-
-    /// <summary>
-    /// Checks individual readonly members of a non-readonly trait.
-    /// </summary>
-    private static void CheckReadonlyMembersOfTrait(
-        ISymbol typeSymbol,
-        TraitType traitType,
-        TraitSatisfaction satisfaction,
-        IScope memberScope,
-        ISemanticModel model,
-        DiagnosticBag diagnostics)
-    {
-        foreach (var traitMember in traitType.MemberScope.Members)
-        {
-            if (traitMember.Kind is not (SymbolKind.Method or SymbolKind.Property or SymbolKind.Indexer or SymbolKind.Field))
-                continue;
-
-            // Skip type parameter symbols.
-            if (traitMember.DeclaredType is TypeParameterType)
-                continue;
-
-            if (!IsMemberReadonly(traitMember))
-                continue;
-
-            var implMember = FindTraitImplementingMember(traitMember, satisfaction, memberScope);
-            if (implMember is null)
-                continue;
-
-            if (!IsMemberReadonly(implMember))
-            {
-                EmitReadonlyContractViolation(typeSymbol, implMember, traitMember, traitType.DisplayName, model, diagnostics);
-            }
-        }
-    }
-
-    /// <summary>
-    /// Finds the implementing member for a trait member, first checking the
-    /// satisfaction map (structural matches and with-mappings), then falling
-    /// back to a scope lookup.
-    /// </summary>
-    private static ISymbol? FindTraitImplementingMember(
-        ISymbol traitMember,
-        TraitSatisfaction satisfaction,
-        IScope memberScope)
-    {
-        if (satisfaction.StructuralMatches.TryGetValue(traitMember.Name, out var structMatch))
-            return structMatch;
-
-        if (satisfaction.WithMappings.TryGetValue(traitMember.Name, out var withMatch))
-            return withMatch;
-
-        return FindMemberInScope(traitMember.Name, traitMember.Kind, memberScope);
-    }
 
     /// <summary>
     /// Finds a member by name and kind in a scope.
@@ -7164,7 +7009,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                         }
                         break;
 
-                    // Namespace, Class, Struct, Abstract, Trait, Enum, TypeAlias, Newtype,
+                    // Namespace, Class, Struct, Abstract, Enum, TypeAlias, Newtype,
                     // Constructor, Indexer — these are type-level references and are always OK.
                 }
             }
@@ -8298,7 +8143,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         IType sourceType, IType targetType, ISemanticModel model)
     {
         // 1. Provable: source is directly assignable to target
-        //    (identity, subtype, abstract, trait — NOT implicit cast operators)
+        //    (identity, subtype, abstract — NOT implicit cast operators)
         if (IsDirectlyAssignable(sourceType, targetType, model))
             return AsConversionClassification.Provable;
 
@@ -8330,8 +8175,8 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         if (SharesTypeHierarchy(sourceType, targetType))
             return AsConversionClassification.NonProvable;
 
-        // 6. Non-provable: target is an abstract/trait that source MIGHT implement
-        if (targetType.Kind is TypeKind.Abstract or TypeKind.Trait)
+        // 6. Non-provable: target is an abstract that source MIGHT implement
+        if (targetType.Kind is TypeKind.Abstract)
         {
             if (sourceType.Kind is TypeKind.Class or TypeKind.Struct)
                 return AsConversionClassification.NonProvable;
@@ -10526,8 +10371,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     }
 
     /// <summary>
-    /// Substitutes type parameters in a member's type when the target is a <see cref="ConstructedType"/>
-    /// or a <see cref="ConstructedTraitType"/>.
+    /// Substitutes type parameters in a member's type when the target is a <see cref="ConstructedType"/>.
     /// For example, if the member type is <c>T</c> and the target is <c>Box&lt;int&gt;</c>,
     /// the result is <c>int</c>.
     /// </summary>
@@ -10543,16 +10387,6 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 return memberType;
 
             return SubstituteType(memberType, typeParams, ct.TypeArguments);
-        }
-
-        // Task 10.2: Substitute type parameters for ConstructedTraitType member access.
-        if (targetType is ConstructedTraitType ctt)
-        {
-            var typeParams = ctt.GenericTraitDefinition.TypeParameters;
-            if (typeParams.Count == 0)
-                return memberType;
-
-            return SubstituteType(memberType, typeParams, ctt.TypeArguments);
         }
 
         return memberType;
@@ -10957,7 +10791,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         // ── unknown-type storage ban on `default` (Task 12.4) ────────────
         // Requirement 5.6 — `default(unknown)` and bare `default` inferred
-        // to `unknown` are forbidden. Checked before the abstract/trait/
+        // to `unknown` are forbidden. Checked before the abstract/
         // type-parameter rejections below because `unknown` is none of
         // those — it is its own TypeKind (TypeKind.Unknown) — and the
         // diagnostic for each of those cases would be misleading. The
@@ -10980,14 +10814,6 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 diagnostics.Add(MakeDiagnostic(
                     DiagnosticId.DefaultOnAbstract.Value,
                     $"The 'default' operator is not supported on abstract type '{resolvedType.DisplayName}'. Only concrete types (classes and structs) support 'default'.",
-                    node,
-                    model));
-                return;
-
-            case TraitType:
-                diagnostics.Add(MakeDiagnostic(
-                    DiagnosticId.DefaultOnTrait.Value,
-                    $"The 'default' operator is not supported on trait type '{resolvedType.DisplayName}'. Only concrete types (classes and structs) support 'default'.",
                     node,
                     model));
                 return;
@@ -11361,21 +11187,13 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         {
             // Determine type parameter substitution context.
             // 1. If the target is a ConstructedType, substitute the enclosing type's type params.
-            // 2. If the target is a ConstructedTraitType, substitute the trait's type params (Task 10.2).
-            // 3. If the method has its own type arguments, substitute those as well.
+            // 2. If the method has its own type arguments, substitute those as well.
             IReadOnlyList<IType>? enclosingTypeParams = null;
             IReadOnlyList<IType>? enclosingTypeArgs = null;
             if (targetType is ConstructedType targetCt)
             {
                 enclosingTypeParams = GetTypeParameters(targetCt.GenericDefinition);
                 enclosingTypeArgs = targetCt.TypeArguments;
-            }
-            else if (targetType is ConstructedTraitType targetCtt)
-            {
-                enclosingTypeParams = targetCtt.GenericTraitDefinition.TypeParameters.Count > 0
-                    ? targetCtt.GenericTraitDefinition.TypeParameters
-                    : null;
-                enclosingTypeArgs = targetCtt.TypeArguments;
             }
 
             // Resolve method-level type arguments if present.
@@ -12885,7 +12703,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
     /// <summary>
     /// Returns true if the given type is marked as readonly (has <c>IsReadonly == true</c>).
-    /// Checks ClassType, StructType, AbstractType, and TraitType.
+    /// Checks ClassType, StructType, and AbstractType.
     /// </summary>
     private static bool IsTypeReadonly(IType type)
     {
@@ -12894,7 +12712,6 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             ClassType ct => ct.IsReadonly,
             StructType st => st.IsReadonly,
             AbstractType it => it.IsReadonly,
-            TraitType tt => tt.IsReadonly,
             _ => false,
         };
     }
@@ -12961,7 +12778,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// Determines whether a type is defaultable — either intrinsically defaultable
     /// (primitive/string), or a ClassType/StructType/EnumType with <c>Inferred</c>
     /// or <c>Explicit</c> defaultability, or a union type containing void.
-    /// Abstracts and traits are never defaultable.
+    /// Abstracts are never defaultable.
     /// </summary>
     private static bool IsTypeDefaultable(IType type)
     {
@@ -12981,7 +12798,6 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             ConstructedType constructed => IsTypeDefaultable(constructed.GenericDefinition),
             TypeParameterType tp => tp.Constraints?.HasDefaultConstraint == true,
             AbstractType => false,
-            TraitType => false,
             _ => false,
         };
     }
@@ -14526,7 +14342,6 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     ///   <item><c>var</c> declaration context (no target type from <c>var</c>)</item>
     ///   <item>No target type available (ErrorType)</item>
     ///   <item>Target type is an abstract</item>
-    ///   <item>Target type is a trait</item>
     ///   <item>Target type is an abstract class</item>
     ///   <item>Constructor argument mismatch</item>
     /// </list>
@@ -14577,16 +14392,6 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             diagnostics.Add(MakeDiagnostic(
                 DiagnosticId.TargetNewAbstract.Value,
                 $"Cannot create an instance of abstract type '{resolvedType.DisplayName}' with target-typed new.",
-                targetNew,
-                model));
-            return;
-        }
-
-        if (IsTraitTargetType(validationType))
-        {
-            diagnostics.Add(MakeDiagnostic(
-                DiagnosticId.TargetNewTrait.Value,
-                $"Cannot create an instance of trait type '{resolvedType.DisplayName}' with target-typed new.",
                 targetNew,
                 model));
             return;
@@ -14741,16 +14546,6 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             return;
         }
 
-        if (IsTraitTargetType(validationType))
-        {
-            diagnostics.Add(MakeDiagnostic(
-                DiagnosticId.TargetNewTrait.Value,
-                $"Cannot create an instance of trait type '{resolvedType.DisplayName}' with target-typed new.",
-                targetNewNoArgs,
-                model));
-            return;
-        }
-
         if (validationType is ClassType { IsAbstract: true })
         {
             diagnostics.Add(MakeDiagnostic(
@@ -14812,15 +14607,6 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         return false;
-    }
-
-    /// <summary>
-    /// Returns <c>true</c> if the type is a trait type or a constructed generic trait type.
-    /// </summary>
-    private static bool IsTraitTargetType(IType type)
-    {
-        return type is TraitType
-            || (type is ConstructedType ct && ct.GenericDefinition is TraitType);
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -16399,8 +16185,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
     /// <summary>
     /// Checks if <paramref name="source"/> is assignable to <paramref name="target"/>.
-    /// Emits MIST_TC_0001 if not, or MIST_TRAIT_UNSATISFIED when the target is a
-    /// <see cref="TraitType"/> and the source does not satisfy it.
+    /// Emits MIST_TC_0001 if not.
     /// </summary>
     private static void CheckAssignability(IType source, IType target, SyntaxNode node, DiagnosticBag diagnostics, ISemanticModel model)
     {
@@ -16461,55 +16246,17 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             if (TryEmitDelegateAssignabilityDiagnostic(source, target, node, diagnostics, model))
                 return;
 
-            // Emit a trait-specific diagnostic when the target is a TraitType.
-            if (target is TraitType targetTrait)
-            {
-                var unsatisfiedMembers = GetUnsatisfiedTraitMembers(source, targetTrait, model);
-                var memberList = unsatisfiedMembers.Count > 0
-                    ? string.Join(", ", unsatisfiedMembers)
-                    : "(unknown)";
-
-                // Check for RefKind mismatches and emit MIST_REF_0012 (Requirement 7.6).
-                if (!EmitTraitRefKindMismatchDiagnostics(source, targetTrait, node, diagnostics, model))
-                {
-                    diagnostics.Add(MakeDiagnostic(
-                        "MIST_TRAIT_UNSATISFIED",
-                        $"Type '{source.DisplayName}' does not satisfy trait '{targetTrait.DisplayName}'. Missing members: {memberList}.",
-                        node,
-                        model));
-                }
-            }
-            else if (target is ConstructedTraitType targetConstructedTrait)
-            {
-                var unsatisfiedMembers = GetUnsatisfiedTraitMembers(source, targetConstructedTrait, model);
-                var memberList = unsatisfiedMembers.Count > 0
-                    ? string.Join(", ", unsatisfiedMembers)
-                    : "(unknown)";
-
-                // Check for RefKind mismatches and emit MIST_REF_0012 (Requirement 7.6).
-                if (!EmitTraitRefKindMismatchDiagnostics(source, targetConstructedTrait, node, diagnostics, model))
-                {
-                    diagnostics.Add(MakeDiagnostic(
-                        "MIST_TRAIT_UNSATISFIED",
-                        $"Type '{source.DisplayName}' does not satisfy trait '{targetConstructedTrait.DisplayName}'. Missing members: {memberList}.",
-                        node,
-                        model));
-                }
-            }
-            else
-            {
-                diagnostics.Add(MakeDiagnostic(
-                    "MIST_TC_0001",
-                    $"Cannot assign '{source.DisplayName}' to '{target.DisplayName}'",
-                    node,
-                    model));
-            }
+            diagnostics.Add(MakeDiagnostic(
+                "MIST_TC_0001",
+                $"Cannot assign '{source.DisplayName}' to '{target.DisplayName}'",
+                node,
+                model));
         }
         else
         {
             // The types are assignable. If the assignability was due to an
             // implicit cast operator (not direct assignability like identity,
-            // subtype, abstract, trait, or numeric widening), resolve and
+            // subtype, abstract, or numeric widening), resolve and
             // record it on the AST node so the emitter can later emit the
             // conversion call. Direct assignability takes precedence over
             // implicit casts (Requirements 14.1, 14.2, 14.3).
@@ -16585,270 +16332,6 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 node,
                 model));
             return true;
-        }
-
-        return false;
-    }
-
-    /// <summary>
-    /// Returns the list of trait member names that the source type does not satisfy
-    /// (neither structurally nor via a <c>with</c> block).
-    /// </summary>
-    private static List<string> GetUnsatisfiedTraitMembers(IType source, IType trait, ISemanticModel model)
-    {
-        var unsatisfied = new List<string>();
-        var satisfaction = model.TraitSatisfactionMap.GetSatisfaction(source, trait);
-
-        var traitMemberScope = trait switch
-        {
-            TraitType tt => tt.MemberScope,
-            ConstructedTraitType ctt => ctt.MemberScope,
-            _ => null,
-        };
-
-        if (traitMemberScope is null)
-            return unsatisfied;
-
-        foreach (var member in traitMemberScope.Members)
-        {
-            // Skip type parameter symbols (registered as SymbolKind.Class with TypeParameterType).
-            if (member.DeclaredType is TypeParameterType)
-                continue;
-
-            // Skip dependent type parameter symbols (e.g., Size:int in trait Bounded<Size:int>).
-            if (member.DeclaredType is DependentTypeParameterType)
-                continue;
-
-            var name = member.Name;
-            if (satisfaction is not null)
-            {
-                // If there's a partial satisfaction record, check which members are covered.
-                if (satisfaction.StructuralMatches.ContainsKey(name))
-                    continue;
-                if (satisfaction.WithMappings.ContainsKey(name))
-                    continue;
-            }
-            unsatisfied.Add(name);
-        }
-
-        return unsatisfied;
-    }
-
-    /// <summary>
-    /// Checks whether the source type has methods that match a trait's methods in
-    /// name, return type, and parameter types but differ in RefKind. If so, emits
-    /// MIST_REF_0012 for each such mismatch. Returns true if at least one RefKind
-    /// mismatch was detected (indicating the caller should not emit the generic
-    /// MIST_TRAIT_UNSATISFIED diagnostic).
-    /// </summary>
-    private static bool EmitTraitRefKindMismatchDiagnostics(
-        IType source, IType trait, SyntaxNode node, DiagnosticBag diagnostics, ISemanticModel model)
-    {
-        var traitMemberScope = trait switch
-        {
-            TraitType tt => tt.MemberScope,
-            ConstructedTraitType ctt => ctt.MemberScope,
-            _ => null,
-        };
-
-        var sourceMemberScope = GetMemberScope(source);
-
-        if (traitMemberScope is null || sourceMemberScope is null)
-            return false;
-
-        // Build type parameter substitution map for constructed traits.
-        Dictionary<string, IType>? typeSubstitutions = null;
-        if (trait is ConstructedTraitType constructedTrait)
-        {
-            typeSubstitutions = new Dictionary<string, IType>(StringComparer.Ordinal);
-            var typeParams = constructedTrait.GenericTraitDefinition.TypeParameters;
-            var typeArgs = constructedTrait.TypeArguments;
-            for (var i = 0; i < typeParams.Count && i < typeArgs.Count; i++)
-            {
-                typeSubstitutions[typeParams[i].DisplayName] = typeArgs[i];
-            }
-        }
-
-        var emittedAny = false;
-
-        foreach (var traitMember in traitMemberScope.Members)
-        {
-            if (traitMember.Kind != SymbolKind.Method)
-                continue;
-
-            // Skip type parameter symbols.
-            if (traitMember.DeclaredType is TypeParameterType or DependentTypeParameterType)
-                continue;
-
-            // Check if there's a source method that matches in everything except RefKind.
-            foreach (var sourceMember in sourceMemberScope.Members)
-            {
-                if (sourceMember.Kind != SymbolKind.Method || sourceMember.Name != traitMember.Name)
-                    continue;
-
-                if (!IsMemberPublicViaModel(sourceMember, model))
-                    continue;
-
-                // Check if types match but RefKind differs.
-                if (MethodTypesMatchButRefKindDiffers(traitMember, sourceMember, model, typeSubstitutions))
-                {
-                    diagnostics.Add(MakeDiagnostic(
-                        "MIST_REF_0012",
-                        $"Method '{sourceMember.Name}' does not match abstract/trait method '{trait.DisplayName}.{traitMember.Name}': parameter ref kinds must match exactly",
-                        node,
-                        model));
-                    emittedAny = true;
-                    break; // Only emit once per trait method.
-                }
-            }
-        }
-
-        return emittedAny;
-    }
-
-    /// <summary>
-    /// Checks whether two methods match in name, return type, and parameter types
-    /// but differ in RefKind on one or more parameters. Used to detect the specific
-    /// case where MIST_REF_0012 should be emitted for trait matching.
-    /// </summary>
-    private static bool MethodTypesMatchButRefKindDiffers(
-        ISymbol traitMethod, ISymbol implMethod, ISemanticModel model,
-        Dictionary<string, IType>? typeSubstitutions)
-    {
-        SyntaxNode traitNode;
-        SyntaxNode implNode;
-        try
-        {
-            traitNode = model.GetDeclaringNode(traitMethod);
-            implNode = model.GetDeclaringNode(implMethod);
-        }
-        catch
-        {
-            return false;
-        }
-
-        // Get parameter lists.
-        var traitParams = traitNode switch
-        {
-            TraitMethodDeclarationNode tm => tm.Parameters,
-            _ => null,
-        };
-        var implParams = implNode switch
-        {
-            MethodDeclarationNode m => m.Parameters,
-            _ => null,
-        };
-
-        var traitParamCount = CountParameters(traitParams);
-        var implParamCount = CountParameters(implParams);
-
-        if (traitParamCount != implParamCount)
-            return false;
-
-        // Check return type compatibility.
-        var traitReturnType = traitMethod.DeclaredType;
-        var implReturnType = implMethod.DeclaredType;
-
-        if (traitReturnType is not null && implReturnType is not null)
-        {
-            var effectiveTraitReturn = SubstituteType(traitReturnType, typeSubstitutions);
-            if (!ReturnTypeCompatibleForTrait(effectiveTraitReturn, implReturnType))
-                return false;
-        }
-        else if (traitReturnType is not null && implReturnType is null)
-        {
-            return false;
-        }
-
-        // Check parameter types match (ignoring RefKind).
-        if (traitParamCount > 0 && traitParams is not null && implParams is not null)
-        {
-            if (!ParameterTypesCompatibleIgnoringRefKind(traitParams, implParams, model, typeSubstitutions))
-                return false;
-
-            // Types match — now check if RefKind values differ.
-            return ParameterRefKindsDiffer(traitParams, implParams, model);
-        }
-
-        return false;
-    }
-
-    /// <summary>
-    /// Checks parameter type compatibility between trait method and impl method,
-    /// ignoring RefKind values. Used to detect RefKind-only mismatches.
-    /// </summary>
-    private static bool ParameterTypesCompatibleIgnoringRefKind(
-        ParameterListNode traitParams, ParameterListNode implParams, ISemanticModel model,
-        Dictionary<string, IType>? typeSubstitutions)
-    {
-        var traitParamNodes = new List<ParameterNode>();
-        var implParamNodes = new List<ParameterNode>();
-
-        foreach (var child in traitParams.Children())
-        {
-            if (child is ParameterNode pn)
-                traitParamNodes.Add(pn);
-        }
-        foreach (var child in implParams.Children())
-        {
-            if (child is ParameterNode pn)
-                implParamNodes.Add(pn);
-        }
-
-        if (traitParamNodes.Count != implParamNodes.Count)
-            return false;
-
-        for (var i = 0; i < traitParamNodes.Count; i++)
-        {
-            var traitParamSym = model.GetDeclaredSymbol(traitParamNodes[i]);
-            var implParamSym = model.GetDeclaredSymbol(implParamNodes[i]);
-
-            if (traitParamSym?.DeclaredType is null || implParamSym?.DeclaredType is null)
-                continue;
-
-            var effectiveTraitParamType = SubstituteType(traitParamSym.DeclaredType, typeSubstitutions);
-            if (effectiveTraitParamType.DisplayName != implParamSym.DeclaredType.DisplayName)
-                return false;
-        }
-
-        return true;
-    }
-
-    /// <summary>
-    /// Checks whether any parameter RefKind values differ between a trait method
-    /// and an implementing method. Returns true if at least one parameter has a
-    /// different RefKind.
-    /// </summary>
-    private static bool ParameterRefKindsDiffer(
-        ParameterListNode traitParams, ParameterListNode implParams, ISemanticModel model)
-    {
-        var traitParamNodes = new List<ParameterNode>();
-        var implParamNodes = new List<ParameterNode>();
-
-        foreach (var child in traitParams.Children())
-        {
-            if (child is ParameterNode pn)
-                traitParamNodes.Add(pn);
-        }
-        foreach (var child in implParams.Children())
-        {
-            if (child is ParameterNode pn)
-                implParamNodes.Add(pn);
-        }
-
-        if (traitParamNodes.Count != implParamNodes.Count)
-            return false;
-
-        for (var i = 0; i < traitParamNodes.Count; i++)
-        {
-            var traitParamSym = model.GetDeclaredSymbol(traitParamNodes[i]);
-            var implParamSym = model.GetDeclaredSymbol(implParamNodes[i]);
-
-            var traitRefKind = (traitParamSym as Symbol)?.RefKind ?? RefKind.None;
-            var implRefKind = (implParamSym as Symbol)?.RefKind ?? RefKind.None;
-
-            if (traitRefKind != implRefKind)
-                return true;
         }
 
         return false;
@@ -16982,8 +16465,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
     /// <summary>
     /// Returns true if <paramref name="source"/> is assignable to <paramref name="target"/>.
-    /// When <paramref name="model"/> is provided, also checks trait assignability via
-    /// the <see cref="TraitSatisfactionMap"/>.
+    /// When <paramref name="model"/> is provided, also checks abstract assignability.
     /// </summary>
     internal static bool IsAssignable(IType source, IType target, ISemanticModel? model)
     {
@@ -17056,7 +16538,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // This clause is placed immediately after the ErrorType cascade
         // suppression and before every other rule so that UnknownType is
         // handled uniformly across identity, ConstructedType, abstract,
-        // subtype, trait, and implicit-cast branches.
+        // subtype, and implicit-cast branches.
         if (target is UnknownType)
         {
             if (source.IsVoid())
@@ -17492,15 +16974,6 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             }
         }
 
-        // Trait assignability:
-        // A class/struct satisfying a trait (structurally or via with block)
-        // is assignable to that trait.
-        if (target is TraitType targetTrait && model is not null)
-        {
-            if (SatisfiesTrait(source, targetTrait, model))
-                return true;
-        }
-
         // ── enums feature: implicit conversion to underlying type (Req 7.1, 7.2) ──
         // An enum value is assignable to its underlying type. This is a direct
         // structural rule (not an implicit cast operator) so it takes precedence
@@ -17508,370 +16981,9 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         if (source is EnumType sourceEnum && IsAssignable(sourceEnum.UnderlyingType, target, model))
             return true;
 
-        // Constructed trait assignability:
-        // A class/struct satisfying a constructed trait (e.g., Comparable<int>)
-        // is assignable to that constructed trait. Comparable<int> and
-        // Comparable<string> are distinct non-assignable types because they
-        // are different keys in the TraitSatisfactionMap.
-        if (target is ConstructedTraitType targetConstructedTrait && model is not null)
-        {
-            if (SatisfiesTrait(source, targetConstructedTrait, model))
-                return true;
-        }
-
         // Implicit cast operator search (fallback after all other assignability checks).
         // Search both source type and target type for an implicit cast operator.
         if (TryFindImplicitCast(source, target, out _) is not null)
-            return true;
-
-        return false;
-    }
-
-    /// <summary>
-    /// Checks whether <paramref name="source"/> satisfies the given <paramref name="trait"/>.
-    /// Uses a lazy evaluation model:
-    /// 1. Check the type's SatisfiedTraits list (populated by with-blocks and prior call-site checks)
-    /// 2. Check the TraitSatisfactionMap (backward compat)
-    /// 3. Perform on-demand structural matching
-    /// 4. If structural matching succeeds, upsert into the type's SatisfiedTraits list and the map
-    /// </summary>
-    private static bool SatisfiesTrait(IType source, IType trait, ISemanticModel model)
-    {
-        // 1. Check the type's SatisfiedTraits list.
-        var satisfiedTraits = source switch
-        {
-            ClassType ct => ct.SatisfiedTraits,
-            StructType st => st.SatisfiedTraits,
-            _ => null,
-        };
-
-        if (satisfiedTraits is not null)
-        {
-            foreach (var satisfied in satisfiedTraits)
-            {
-                if (ReferenceEquals(satisfied, trait))
-                    return true;
-                // Structural equality fallback for ConstructedTraitType.
-                if (satisfied is ConstructedTraitType sCtt && trait is ConstructedTraitType tCtt
-                    && ReferenceEquals(sCtt.GenericTraitDefinition, tCtt.GenericTraitDefinition)
-                    && sCtt.TypeArguments.Count == tCtt.TypeArguments.Count)
-                {
-                    var allMatch = true;
-                    for (var i = 0; i < sCtt.TypeArguments.Count; i++)
-                    {
-                        if (sCtt.TypeArguments[i].DisplayName != tCtt.TypeArguments[i].DisplayName)
-                        {
-                            allMatch = false;
-                            break;
-                        }
-                    }
-                    if (allMatch)
-                        return true;
-                }
-            }
-        }
-
-        // 2. Check the TraitSatisfactionMap (covers with-block registrations).
-        if (model.TraitSatisfactionMap.Satisfies(source, trait))
-            return true;
-
-        // 3. On-demand structural matching: check if all trait members are
-        //    present and public on the source type.
-        var traitMemberScope = trait switch
-        {
-            TraitType tt => tt.MemberScope,
-            ConstructedTraitType ctt => ctt.MemberScope,
-            _ => null,
-        };
-
-        var sourceMemberScope = GetMemberScope(source);
-
-        if (traitMemberScope is null || sourceMemberScope is null)
-            return false;
-
-        // Build type parameter substitution map for constructed traits.
-        Dictionary<string, IType>? typeSubstitutions = null;
-        if (trait is ConstructedTraitType constructedTrait)
-        {
-            typeSubstitutions = new Dictionary<string, IType>(StringComparer.Ordinal);
-            var typeParams = constructedTrait.GenericTraitDefinition.TypeParameters;
-            var typeArgs = constructedTrait.TypeArguments;
-            for (var i = 0; i < typeParams.Count && i < typeArgs.Count; i++)
-            {
-                typeSubstitutions[typeParams[i].DisplayName] = typeArgs[i];
-            }
-        }
-
-        var structuralMatches = new Dictionary<string, ISymbol>();
-        foreach (var traitMember in traitMemberScope.Members)
-        {
-            // Skip type parameter symbols (registered in the trait's scope but
-            // not actual trait members that need structural matching).
-            if (traitMember.Kind is SymbolKind.Class or SymbolKind.Struct
-                && traitMember.DeclaredType is TypeParameterType)
-                continue;
-
-            // Skip dependent type parameter symbols (e.g., Max:int in trait Bounded<Max:int>).
-            if (traitMember.DeclaredType is DependentTypeParameterType)
-                continue;
-
-            var matched = TryLazyStructuralMatch(traitMember, sourceMemberScope, model, typeSubstitutions);
-            if (matched is null)
-                return false; // Structural matching failed — not satisfied.
-            structuralMatches[traitMember.Name] = matched;
-        }
-
-        // 4. Structural matching succeeded — upsert into the type's SatisfiedTraits
-        //    list and the TraitSatisfactionMap.
-        satisfiedTraits?.Add(trait);
-        model.TraitSatisfactionMap.Register(source, trait, new TraitSatisfaction
-        {
-            StructuralMatches = structuralMatches,
-            WithMappings = new Dictionary<string, ISymbol>(),
-        });
-
-        return true;
-    }
-
-    /// <summary>
-    /// Performs a simplified structural match for a single trait member against
-    /// the type's public members. Used for lazy/on-demand trait satisfaction
-    /// at call sites. Returns the matching symbol or null.
-    /// <para>
-    /// For methods, checks name, visibility, return type compatibility, and
-    /// parameter count/type compatibility. For fields/properties, checks name,
-    /// visibility, and type compatibility.
-    /// </para>
-    /// </summary>
-    private static ISymbol? TryLazyStructuralMatch(
-        ISymbol traitMember, IScope typeMemberScope, ISemanticModel model,
-        Dictionary<string, IType>? typeSubstitutions)
-    {
-        var traitMemberName = traitMember.Name;
-
-        foreach (var member in typeMemberScope.Members)
-        {
-            if (member.Name != traitMemberName)
-                continue;
-
-            // Kind compatibility: trait fields can be matched by fields or properties;
-            // trait methods must be matched by methods; trait properties by properties or fields.
-            var kindCompatible = traitMember.Kind switch
-            {
-                SymbolKind.Field => member.Kind is SymbolKind.Field or SymbolKind.Property,
-                SymbolKind.Method => member.Kind is SymbolKind.Method,
-                SymbolKind.Property => member.Kind is SymbolKind.Property or SymbolKind.Field,
-                _ => member.Kind == traitMember.Kind,
-            };
-
-            if (!kindCompatible)
-                continue;
-
-            // Check visibility: must be public.
-            if (!IsMemberPublicViaModel(member, model))
-                continue;
-
-            // For methods, check signature compatibility (return type + parameters).
-            if (traitMember.Kind == SymbolKind.Method)
-            {
-                if (!MethodSignaturesCompatible(traitMember, member, model, typeSubstitutions))
-                    continue;
-            }
-            else
-            {
-                // For fields/properties, check type compatibility.
-                if (!MemberTypesCompatible(traitMember, member, typeSubstitutions))
-                    continue;
-            }
-
-            return member;
-        }
-
-        return null;
-    }
-
-    /// <summary>
-    /// Checks whether a type member's method signature is compatible with a trait
-    /// method's signature (return type + parameter types).
-    /// </summary>
-    private static bool MethodSignaturesCompatible(
-        ISymbol traitMethod, ISymbol implMethod, ISemanticModel model,
-        Dictionary<string, IType>? typeSubstitutions)
-    {
-        SyntaxNode traitNode;
-        SyntaxNode implNode;
-        try
-        {
-            traitNode = model.GetDeclaringNode(traitMethod);
-            implNode = model.GetDeclaringNode(implMethod);
-        }
-        catch
-        {
-            return false;
-        }
-
-        // Get parameter counts.
-        var traitParams = traitNode switch
-        {
-            TraitMethodDeclarationNode tm => tm.Parameters,
-            _ => null,
-        };
-        var implParams = implNode switch
-        {
-            MethodDeclarationNode m => m.Parameters,
-            _ => null,
-        };
-
-        var traitParamCount = CountParameters(traitParams);
-        var implParamCount = CountParameters(implParams);
-
-        if (traitParamCount != implParamCount)
-            return false;
-
-        // Check return type compatibility.
-        // DeclaredType on method symbols is the resolved return type.
-        var traitReturnType = traitMethod.DeclaredType;
-        var implReturnType = implMethod.DeclaredType;
-
-        if (traitReturnType is not null && implReturnType is not null)
-        {
-            // Apply type substitution to the trait return type.
-            var effectiveTraitReturn = SubstituteType(traitReturnType, typeSubstitutions);
-            if (!ReturnTypeCompatibleForTrait(effectiveTraitReturn, implReturnType))
-                return false;
-        }
-        else if (traitReturnType is not null && implReturnType is null)
-        {
-            // Trait expects a return type but impl has none (void) — not compatible
-            // unless trait return is void too.
-            return false;
-        }
-
-        // Check parameter types (exact match required).
-        if (traitParamCount > 0 && traitParams is not null && implParams is not null)
-        {
-            if (!ParameterTypesCompatible(traitParams, implParams, model, typeSubstitutions))
-                return false;
-        }
-
-        return true;
-    }
-
-    /// <summary>
-    /// Counts parameters in a ParameterListNode (which may be null for zero-param methods).
-    /// </summary>
-    private static int CountParameters(object? paramList)
-    {
-        if (paramList is null)
-            return 0;
-        if (paramList is not ParameterListNode pln)
-            return 0;
-        return 1 + pln.Parameters.Length;
-    }
-
-    /// <summary>
-    /// Checks return type compatibility for trait matching.
-    /// Uses relaxed unknown-widening rules: a trait return of <c>unknown</c>
-    /// matches any non-void implementer return type. Also handles covariant
-    /// unknown widening for constructed types (e.g., List&lt;unknown&gt; matches List&lt;int&gt;).
-    /// </summary>
-    private static bool ReturnTypeCompatibleForTrait(IType traitReturn, IType implReturn)
-    {
-        // Exact match.
-        if (ReferenceEquals(traitReturn, implReturn))
-            return true;
-        if (traitReturn.DisplayName == implReturn.DisplayName)
-            return true;
-
-        // Unknown widening: trait returns `unknown` → impl can return any non-void type.
-        if (traitReturn is UnknownType)
-            return implReturn.DisplayName != "Void" && implReturn.DisplayName != "void";
-
-        // Covariant unknown widening for constructed types (Req 12.2, 8.1, 8.6):
-        // List<int> satisfies List<unknown> when the generic definition is a class.
-        if (traitReturn is ConstructedType targetCt && implReturn is ConstructedType sourceCt
-            && ReferenceEquals(targetCt.GenericDefinition, sourceCt.GenericDefinition)
-            && targetCt.TypeArguments.Count == sourceCt.TypeArguments.Count)
-        {
-            if (AssignableWithUnknownWidening(
-                    sourceCt.GenericDefinition, sourceCt.TypeArguments, targetCt.TypeArguments))
-                return true;
-        }
-
-        return false;
-    }
-
-    /// <summary>
-    /// Checks parameter type compatibility between trait method and impl method.
-    /// Parameter matching is exact (no widening).
-    /// </summary>
-    private static bool ParameterTypesCompatible(
-        ParameterListNode traitParams, ParameterListNode implParams, ISemanticModel model,
-        Dictionary<string, IType>? typeSubstitutions)
-    {
-        // Collect all parameter nodes from both lists.
-        var traitParamNodes = new List<ParameterNode>();
-        var implParamNodes = new List<ParameterNode>();
-
-        foreach (var child in traitParams.Children())
-        {
-            if (child is ParameterNode pn)
-                traitParamNodes.Add(pn);
-        }
-        foreach (var child in implParams.Children())
-        {
-            if (child is ParameterNode pn)
-                implParamNodes.Add(pn);
-        }
-
-        if (traitParamNodes.Count != implParamNodes.Count)
-            return false;
-
-        for (var i = 0; i < traitParamNodes.Count; i++)
-        {
-            var traitParamSym = model.GetDeclaredSymbol(traitParamNodes[i]);
-            var implParamSym = model.GetDeclaredSymbol(implParamNodes[i]);
-
-            if (traitParamSym?.DeclaredType is null || implParamSym?.DeclaredType is null)
-                continue; // Can't verify — accept (best effort).
-
-            var effectiveTraitParamType = SubstituteType(traitParamSym.DeclaredType, typeSubstitutions);
-            if (effectiveTraitParamType.DisplayName != implParamSym.DeclaredType.DisplayName)
-                return false;
-
-            // Check RefKind match (Requirement 7.6).
-            var traitRefKind = (traitParamSym as Symbol)?.RefKind ?? RefKind.None;
-            var implRefKind = (implParamSym as Symbol)?.RefKind ?? RefKind.None;
-            if (traitRefKind != implRefKind)
-                return false;
-        }
-
-        return true;
-    }
-
-    /// <summary>
-    /// Checks type compatibility for field/property trait members.
-    /// </summary>
-    private static bool MemberTypesCompatible(ISymbol traitMember, ISymbol implMember,
-        Dictionary<string, IType>? typeSubstitutions)
-    {
-        var traitType = traitMember.DeclaredType;
-        var implType = implMember.DeclaredType;
-
-        if (traitType is null || implType is null)
-            return true; // If types aren't resolved, accept (best effort).
-
-        // Apply type substitution to the trait member type.
-        var effectiveTraitType = SubstituteType(traitType, typeSubstitutions);
-
-        if (ReferenceEquals(effectiveTraitType, implType))
-            return true;
-
-        if (effectiveTraitType.DisplayName == implType.DisplayName)
-            return true;
-
-        // Unknown widening for return/field position.
-        if (effectiveTraitType is UnknownType)
             return true;
 
         return false;
@@ -20591,19 +19703,6 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             }
         }
 
-        // Check trait constraints: type argument must satisfy each trait.
-        foreach (var trait in constraints.TraitConstraints)
-        {
-            if (trait is TraitType traitType && !SatisfiesTrait(typeArgument, traitType, model))
-            {
-                diagnostics.Add(MakeDiagnostic(
-                    ConstraintTraitNotSatisfied.Value,
-                    $"Type '{typeArgument.DisplayName}' does not satisfy trait '{trait.DisplayName}' required by type parameter '{typeParameter.Name}' of '{genericTypeName}'.",
-                    node,
-                    model));
-            }
-        }
-
         // Check constructor constraints (OR semantics): type argument must have
         // at least one matching public constructor.
         if (constraints.ConstructorConstraints.Count > 0)
@@ -21407,7 +20506,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     {
                         // Type symbols are not constants — they shouldn't be in a dependent position.
                         if (symbol.Kind is SymbolKind.Class or SymbolKind.Struct or SymbolKind.Abstract
-                            or SymbolKind.Trait or SymbolKind.TypeAlias or SymbolKind.Enum)
+                            or SymbolKind.TypeAlias or SymbolKind.Enum)
                         {
                             return false;
                         }
@@ -21849,7 +20948,6 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             ClassType classType => classType.TypeParameters,
             StructType structType => structType.TypeParameters,
             AbstractType abstractType => abstractType.TypeParameters,
-            TraitType traitType => traitType.TypeParameters,
             _ => symbol is Symbol s && s.TypeParameters.Count > 0 ? s.TypeParameters : null,
         };
     }
@@ -21968,7 +21066,6 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             ClassDeclarationNode classDecl => classDecl.Constraints,
             StructDeclarationNode structDecl => structDecl.Constraints,
             AbstractDeclarationNode abstractDecl => abstractDecl.Constraints,
-            TraitDeclarationNode traitDecl => traitDecl.Constraints,
             MethodDeclarationNode methodDecl => methodDecl.Constraints,
             AbstractMethodDeclarationNode abstractMethodDecl => abstractMethodDecl.Constraints,
             TypeAliasDeclarationNode aliasDecl => aliasDecl.Constraints,

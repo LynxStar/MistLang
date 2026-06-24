@@ -103,7 +103,7 @@ public sealed class TypeArgumentInferenceConstraintPropertyTests : IDisposable
     private static readonly HashSet<string> ConstraintRelatedDiagnosticIds = new()
     {
         "MIST_CONSTRAINT_0009", // Abstract type not implemented
-        "MIST_CONSTRAINT_0010", // Trait not satisfied
+        "MIST_CONSTRAINT_0010", // Abstract type not satisfied
         "MIST_CONSTRAINT_0011", // Base class not derived
         "MIST_CONSTRAINT_0012", // Class constraint violation (value type given)
         "MIST_CONSTRAINT_0013", // Struct constraint violation (reference type given)

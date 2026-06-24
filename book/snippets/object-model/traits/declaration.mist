@@ -1,5 +1,0 @@
-trait Printable
-{
-    string Name;
-    int Id;
-}

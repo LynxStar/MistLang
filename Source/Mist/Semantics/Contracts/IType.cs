@@ -9,7 +9,6 @@ public enum TypeKind
     Class,
     Struct,
     Abstract,
-    Trait,
     Enum,
 
     /// <summary>
@@ -22,7 +21,7 @@ public enum TypeKind
     Unknown,
 
     /// <summary>
-    /// An abstract type slot declared in an interface or trait. Implementors must
+    /// An abstract type slot declared in an abstract type. Implementors must
     /// provide a concrete type member satisfying the slot's constraints.
     /// </summary>
     AssociatedTypeSlot,

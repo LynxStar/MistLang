@@ -49,7 +49,7 @@ public sealed class EnumReadonlyAcceptanceScenario
 /// **Validates: Requirements 2.1, 3.1, 5.1, 5.2, 5.3, 5.4**
 ///
 /// For any enum declaration whose resolved underlying type is a readonly type
-/// (struct, class, abstract type, or trait with IsReadonly = true), the type checker
+/// (struct, class, abstract type), the type checker
 /// SHALL emit zero MIST_TC_0102 diagnostics for that enum.
 /// </summary>
 public sealed class EnumReadonlyAcceptancePropertyTests
@@ -75,9 +75,6 @@ public sealed class EnumReadonlyAcceptancePropertyTests
     private static readonly string[] AbstractNames =
         ["IShape", "IValue", "IToken", "IEntry", "INode"];
 
-    private static readonly string[] TraitNames =
-        ["Printable", "Hashable", "Sortable", "Comparable", "Serializable"];
-
     private static readonly string[] MemberPools =
         ["Alpha", "Beta", "Gamma", "Delta", "Epsilon"];
 
@@ -91,8 +88,7 @@ public sealed class EnumReadonlyAcceptancePropertyTests
         return Gen.OneOf(
             GenStructBaseScenario(),
             GenClassBaseScenario(),
-            GenAbstractBaseScenario(),
-            GenTraitBaseScenario());
+            GenAbstractBaseScenario());
     }
 
     /// <summary>
@@ -151,26 +147,6 @@ public sealed class EnumReadonlyAcceptancePropertyTests
                    enumName,
                    abstractName,
                    $"enum {enumName} : {abstractName} (readonly abstract type, {memberCount} members)");
-    }
-
-    /// <summary>
-    /// Generates a scenario with a readonly trait as the enum base type.
-    /// A readonly struct satisfying the trait is used for member values.
-    /// </summary>
-    private static Gen<EnumReadonlyAcceptanceScenario> GenTraitBaseScenario()
-    {
-        return from enumName in Gen.Elements(EnumNames)
-               from traitName in Gen.Elements(TraitNames)
-               from memberCount in Gen.Choose(1, 4)
-               from members in Gen.Shuffle(MemberPools)
-                   .Select(m => m.Take(memberCount).ToArray())
-               let implName = traitName + "Impl"
-               let source = BuildTraitBaseSource(enumName, traitName, implName, members)
-               select new EnumReadonlyAcceptanceScenario(
-                   source,
-                   enumName,
-                   traitName,
-                   $"enum {enumName} : {traitName} (readonly trait, {memberCount} members)");
     }
 
     // ─── Source construction helpers ─────────────────────────────────────
@@ -265,42 +241,6 @@ public sealed class EnumReadonlyAcceptancePropertyTests
             """;
     }
 
-    private static string BuildTraitBaseSource(
-        string enumName, string traitName, string implName, string[] memberNames)
-    {
-        var members = string.Join(",\n    ",
-            memberNames.Select(m => $"{m} = new {implName}(0)"));
-
-        return $$"""
-            readonly trait {{traitName}} {
-                int GetValue();
-            }
-
-            public readonly struct {{implName}} {
-                public int value;
-
-                public {{implName}}(int value)
-                {
-                    this.value = value;
-                }
-
-                public int GetValue()
-                {
-                    return this.value;
-                }
-            }
-
-            public enum {{enumName}} : {{traitName}} {
-                {{members}}
-            }
-
-            public class Program {
-                public static void Main() {
-                }
-            }
-            """;
-    }
-
     // ─── Compilation helper ──────────────────────────────────────────────
 
     private static ImmutableArray<Diagnostic> CompileAndGetDiagnostics(string source)
@@ -344,7 +284,7 @@ public sealed class EnumReadonlyAcceptancePropertyTests
     // **Validates: Requirements 2.1, 3.1, 5.1, 5.2, 5.3, 5.4**
     //
     // For any enum declaration whose resolved underlying type is a readonly
-    // type (struct, class, abstract type, or trait with IsReadonly = true), the
+    // type (struct, class, abstract type), the
     // type checker SHALL emit zero MIST_TC_0102 diagnostics for that enum.
     // ═══════════════════════════════════════════════════════════════════════
 

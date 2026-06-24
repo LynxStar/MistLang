@@ -246,37 +246,6 @@ intBox.value=42 strBox.value=Mist
 boxInt=Box(7) boxStr=Box(world)
 boxInt.value=7 boxStr.value=world
 Done!
-=== Structural trait satisfaction ===
-User created: Alice, id 42
-=== With-block trait satisfaction ===
-Product created: Widget, sku 1001
-=== Trait-typed variables ===
-  Assigned User to Printable: Name=Bob, Id=7
-  Assigned Product to Printable: Name=Gadget, Id=2002
-=== Passing to trait-typed parameter ===
-  Name: Alice, Id: 42
-  Name: Widget, Id: 1001
-Done!
-=== Generic Traits Demo ===
---- 1. Type parameter as method parameter (Comparable<T>) ---
-  IntComparer(10).CompareTo(5) = 5
---- 2. Same trait, different type arg (Comparable<string>) ---
-  StringComparer.CompareTo("world") = 0
---- 3. Type parameter as field type (Container<T>) ---
-  IntBox(42) via Container<int>.Data = 42
---- 4. Type parameter as return type (Provider<T>) ---
-  NameProvider via Provider<string>.Provide() = hello
---- 5. Multiple type parameters (Converter<TIn, TOut>) ---
-  IntToString via Converter<int,string>.Convert(7) = converted
---- 6. Non-generic trait inheritance ---
-  trait ReadWriteStream : Readable, Writable { void Flush(); }
---- 7. Structural satisfaction of non-generic trait ---
-  MemoryStream.Read() via Readable = data from memory
---- 8. With-block mapping for non-generic trait ---
-  Logger.Write() via Writable called successfully
---- 9. Passing to trait-typed parameter ---
-  PrintReadable: data from memory
-=== Generic Traits Demo Complete ===
 === UnknownType Sample (AllFeatures) ===
 --- Unknown local ---
 narrowed int: 123
@@ -345,7 +314,7 @@ narrowed-back value: 42
   Severity.Warning = Warning
   Severity.Info = Info
   Severity.Critical as Label = Label(CRITICAL, 1)
---- Abstract Type/Trait underlying types ---
+--- Abstract Type underlying types ---
   Pet.Dog = Dog
   Pet.Cat = Cat
   Pet.Fish = Fish
@@ -428,7 +397,7 @@ Done!
 1. class constraint: RefOnly: hello
 2. struct constraint: ValOnly: 42
 3. abstract type constraint: first order = 10
-4. trait constraint: Widget#7
+4. abstract type constraint: Widget#7
 5. base class constraint: Dog
 6. new() constraint: created Widget(0)
 7. new(int) constraint: Widget(99)
@@ -440,7 +409,7 @@ Done!
 13. any position: value=77
 14. abstract type with constraint: Widget(42)
 15. struct with constraint: holds a Widget
-16. generic trait: transformed=Widget(42), default=Widget(0)
+16. generic abstract type: transformed=Widget(42), default=Widget(0)
 --- Generic Constraints Done ---
 === Dependent Types Sample ===
 --- 1. Single dependent parameter ---
@@ -465,7 +434,7 @@ Done!
 --- 8. Dependent types on abstract types ---
   tiny.GetInfo() = TinyCollection(size=8)
   tiny.GetSize() = 8
---- 9. Dependent types on traits ---
+--- 9. Dependent types on abstract types ---
   SizedBox<12>.GetCapacity() = 12
 --- 10. Dependent types on methods ---
   Repeat<3>: hello
@@ -854,7 +823,7 @@ Done!
 --- 13. Various types as context values ---
   class (Config): GetConfig()=detailed
   struct (Locale): GetLocale()=en-US
-  trait-satisfying (CountReader): CountReader(ReadContext with 0 would be: ready)
+  abstract type-implementing (CountReader): CountReader(ReadContext with 0 would be: ready)
   abstract type-implementing (ConsumerImpl): ConsumerImpl(ready)
 --- 14. Advanced type keys ---
   type alias (Name=string): GetString()=via-alias
@@ -864,7 +833,7 @@ Done!
   dependent type (Sized<5>): GetSized()=5
 --- 15. Abstract type dispatch with with-clause ---
   IContextConsumer.Consume()=ConsumerImpl.Consume: cfg=detailed
---- 16. Trait dispatch with with-clause ---
+--- 16. Abstract type dispatch with with-clause ---
   ContextReader.ReadContext()=CountReader.ReadContext: count=7
 === Structured Context Done ===
 === Adhoc Refinement Constraints Sample ===
@@ -940,16 +909,16 @@ Done!
   Outer.NestedPoint(x, y) struct nested in class
 --- 3. Abstract type in class ---
   Outer.IAction abstract type nested in class
---- 4. Trait in class ---
-  Outer.Describable trait nested in class
+--- 4. Abstract type in class ---
+  Outer.Describable abstract type nested in class
 --- 5. Enum in class ---
   Outer.Status: Active=Active, Inactive=Inactive, Pending=Pending
 --- 6. Class in struct ---
   ContainerStruct.Item declared (see NestedInStruct.mist, readonly emitter limitation)
 --- 7. Class in abstract type ---
-  IFactory.DefaultProduct declared (see NestedInAbstractTrait.mist)
---- 8. Class in trait ---
-  Serializable.Config declared (see NestedInAbstractTrait.mist)
+  IFactory.DefaultProduct declared (see NestedInAbstract.mist)
+--- 8. Class in abstract type ---
+  Serializable.Config declared (see NestedInAbstract.mist)
 --- 9. Deeply nested types (4 levels) ---
   Level1.Level2.Level3.Level4 (4 levels deep)
 --- 10. Generic parent type parameter access ---
@@ -1141,7 +1110,7 @@ Done!
 --- Single Abstract Type Constraint ---
 Output(hello)
 Output(world)
---- Trait Slot ---
+--- Abstract Type Slot ---
 Input(data-payload)
 Input(second-payload)
 --- Struct Constraint ---

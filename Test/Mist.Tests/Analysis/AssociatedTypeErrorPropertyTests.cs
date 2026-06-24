@@ -63,7 +63,6 @@ public class AssociatedTypeErrorPropertyTests
     private static readonly string[] SlotNames = ["Enumerator", "Element", "Key", "Value", "Iterator", "Builder"];
     private static readonly string[] TypeNames = ["MyClass", "Container", "Wrapper", "Handler", "Service"];
     private static readonly string[] AbstractNames = ["IIterable", "IRepository", "ICollection", "IMapper"];
-    private static readonly string[] TraitNames = ["Sortable", "Hashable", "Serializable", "Cloneable"];
 
     private static readonly string[] Modifiers = ["public", "private", "static"];
 
@@ -150,7 +149,7 @@ public class AssociatedTypeErrorPropertyTests
     // **Validates: Requirements 1.8**
     //
     // For any non-empty combination of modifier keywords preceding an
-    // associated type slot declaration in an abstract type or trait body, the
+    // associated type slot declaration in an abstract type body, the
     // compiler SHALL emit diagnostic MIST_AT_0005.
     // ═══════════════════════════════════════════════════════════════════════
 
@@ -172,8 +171,8 @@ public class AssociatedTypeErrorPropertyTests
 
     private static Gen<ModifierScenario> GenModifierScenario()
     {
-        return from containerKind in Gen.Elements("abstract", "trait")
-               from containerName in Gen.OneOf(Gen.Elements(AbstractNames), Gen.Elements(TraitNames))
+        return from containerKind in Gen.Constant("abstract")
+               from containerName in Gen.Elements(AbstractNames)
                from modifierCount in Gen.Choose(1, 3)
                from modifiers in Gen.ArrayOf(Gen.Elements(Modifiers), modifierCount)
                from slotName in Gen.Elements(SlotNames)
@@ -214,7 +213,7 @@ public class AssociatedTypeErrorPropertyTests
     //
     // **Validates: Requirements 2.7**
     //
-    // For any abstract type or trait body containing two or more associated type
+    // For any abstract type body containing two or more associated type
     // slots with the same name (regardless of differing constraint lists),
     // the semantic model SHALL emit diagnostic MIST_AT_0001.
     // ═══════════════════════════════════════════════════════════════════════
@@ -238,8 +237,8 @@ public class AssociatedTypeErrorPropertyTests
 
     private static Gen<DuplicateSlotScenario> GenDuplicateSlotScenario()
     {
-        return from containerKind in Gen.Elements("abstract", "trait")
-               from containerName in Gen.OneOf(Gen.Elements(AbstractNames), Gen.Elements(TraitNames))
+        return from containerKind in Gen.Constant("abstract")
+               from containerName in Gen.Elements(AbstractNames)
                from slotName in Gen.Elements(SlotNames)
                from firstConstraint in Gen.Elements("struct", "class", "IEnumerator", "IComparable")
                from secondConstraint in Gen.Elements("struct", "class", "IDisposable", "IComparable")

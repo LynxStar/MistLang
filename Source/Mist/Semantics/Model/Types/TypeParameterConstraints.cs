@@ -19,14 +19,9 @@ public sealed class TypeParameterConstraints
     public IType? BaseClassConstraint { get; init; }
 
     /// <summary>
-    /// Abstract constraints (interfaces and trait constraints lowered to interfaces).
+    /// Abstract constraints (interface constraints).
     /// </summary>
     public IReadOnlyList<IType> AbstractConstraints { get; init; } = Array.Empty<IType>();
-
-    /// <summary>
-    /// Trait constraints.
-    /// </summary>
-    public IReadOnlyList<IType> TraitConstraints { get; init; } = Array.Empty<IType>();
 
     /// <summary>
     /// Constructor constraints. Each entry is a list of parameter types

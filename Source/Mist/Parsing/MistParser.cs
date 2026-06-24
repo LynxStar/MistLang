@@ -79,6 +79,10 @@ public sealed class MistParser : IParser
         // for those identifiers and emit a helpful migration diagnostic.
         DetectRemovedInterfaceKeyword(tokens, diagnostics);
 
+        // The `trait` keyword was removed from the grammar. Use 'abstract' with
+        // nominal typing or a 'with' block for retroactive conformance instead.
+        DetectRemovedTraitKeyword(tokens, diagnostics);
+
         // Assign ParsedOrigin to every node in the tree so diagnostics
         // can resolve source locations without span-containment heuristics.
         if (root is not null)
@@ -229,6 +233,45 @@ public sealed class MistParser : IParser
                     DiagnosticSeverity.Error,
                     PipelineStage.Parsing,
                     "The 'interface' keyword has been removed. Use 'abstract' instead.",
+                    Location: location,
+                    CompilationUnitPath: tokens.Source.Path,
+                    AnalyzerName: null));
+            }
+        }
+    }
+
+    /// <summary>
+    /// Scans the token stream for IDENTIFIER tokens with lexeme <c>"trait"</c> and
+    /// emits a diagnostic directing the user to use <c>abstract</c> with nominal typing
+    /// or a <c>with</c> block for retroactive conformance.
+    /// </summary>
+    /// <remarks>
+    /// Since the <c>TRAIT</c> token was removed from <c>keywords.storm</c>, the
+    /// lexer produces a plain <c>IDENTIFIER</c> for the text "trait". This method
+    /// detects that usage and provides a clear migration message.
+    /// </remarks>
+    private static void DetectRemovedTraitKeyword(TokenStream tokens, DiagnosticBag diagnostics)
+    {
+        var defaultTokens = tokens.DefaultChannelTokens;
+        var identifierKind = (int)Mist.Generated.TokenKind.IDENTIFIER;
+
+        for (var i = 0; i < defaultTokens.Length; i++)
+        {
+            if (defaultTokens[i].Kind == identifierKind
+                && defaultTokens[i].Lexeme == "trait")
+            {
+                var token = defaultTokens[i];
+                var location = (token.Start.Line > 0 && token.Start.Column > 0)
+                    ? new LinePositionSpan(
+                        new LinePosition(token.Start.Line, token.Start.Column),
+                        new LinePosition(token.End.Line, token.End.Column))
+                    : default;
+
+                diagnostics.Add(new Diagnostic(
+                    new DiagnosticId("MIST_REMOVED_TRAIT_KEYWORD"),
+                    DiagnosticSeverity.Error,
+                    PipelineStage.Parsing,
+                    "The 'trait' keyword has been removed. Use 'abstract' with nominal typing (': AbstractType') or a 'with' block for retroactive conformance.",
                     Location: location,
                     CompilationUnitPath: tokens.Source.Path,
                     AnalyzerName: null));

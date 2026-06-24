@@ -14,12 +14,10 @@ Tuples = { path = "../Tuples" }
 TypeUnions = { path = "../TypeUnions" }
 ExtensionMethods = { path = "../ExtensionMethods" }
 TypeAliases = { path = "../TypeAliases" }
-Traits = { path = "../Traits" }
 Enums = { path = "../Enums" }
 Inheritance = { path = "../Inheritance" }
 Properties = { path = "../Properties" }
 Namespaces = { path = "../Namespaces" }
-GenericTraits = { path = "../GenericTraits" }
 GenericConstraints = { path = "../GenericConstraints" }
 DependentTypes = { path = "../DependentTypes" }
 ReadonlyContexts = { path = "../ReadonlyContexts" }

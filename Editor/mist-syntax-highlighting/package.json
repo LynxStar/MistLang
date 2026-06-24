@@ -64,7 +64,6 @@
               "entity.name.type.class.mist",
               "entity.name.type.struct.mist",
               "entity.name.type.abstract.mist",
-              "entity.name.type.trait.mist",
               "entity.name.type.enum.mist",
               "entity.name.type.alias.mist",
               "entity.name.type.newtype.mist",

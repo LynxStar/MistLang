@@ -269,7 +269,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     internal static readonly DiagnosticId UnknownInGenericConstruction = new("MIST_SB_0053");
 
     /// <summary>
-    /// A class, struct, abstract type, or trait declaration names
+    /// A class, struct, or abstract type declaration names
     /// <see cref="UnknownType"/> in its base clause or abstract type list
     /// (Requirements 6.1, 6.2, 6.3, 6.4). <c>UnknownType</c> is the
     /// user-facing top type and is not an inheritable or implementable
@@ -281,9 +281,6 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// <c>BaseTypeRef = name:IDENTIFIER typeArgs:TypeArgumentList?</c>
     /// requires an <c>IDENTIFIER</c> token, and <c>unknown</c> is a
     /// reserved keyword that lexes to <c>UNKNOWN</c>, not
-    /// <c>IDENTIFIER</c>. Traits have no base-clause production at all
-    /// (<c>TraitDeclaration = TRAIT IDENTIFIER LEFT_BRACE ... RIGHT_BRACE</c>),
-    /// so <c>trait T : unknown { }</c> also fails at parse time. The
     /// check is retained as a defensive guard for programmatically
     /// constructed ASTs and for documentation alignment with
     /// Requirements 6.1–6.4 and 16.6. When triggered, the offending
@@ -334,7 +331,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// violating the storage ban on freshly-materialized <c>unknown</c>
     /// values. Detection is performed by
     /// <see cref="Builtin.TypeCheckerAnalyzer"/> inside
-    /// <c>ValidateDefaultableType</c>, before the abstract type/trait/type-parameter
+    /// <c>ValidateDefaultableType</c>, before the abstract type/type-parameter
     /// checks, so both explicit <c>default(unknown)</c> and bare
     /// <c>default</c> inferred to <c>unknown</c> fire.
     /// </summary>
@@ -382,64 +379,6 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// </summary>
     internal static readonly DiagnosticId UnresolvedNewtypeSource = new("MIST_SB_0064");
 
-    // ── Trait with-block diagnostic IDs (Task 4.1, Requirements 6.1–6.9) ──
-
-    /// <summary>
-    /// The type name in a <c>with</c> block could not be resolved to a
-    /// declared class or struct (Requirement 6.2).
-    /// </summary>
-    internal static readonly DiagnosticId TraitWithUndefinedType = new("MIST_TRAIT_WITH_UNDEFINED_TYPE");
-
-    /// <summary>
-    /// The trait name in a <c>with</c> block could not be resolved to a
-    /// declared trait (Requirement 6.3).
-    /// </summary>
-    internal static readonly DiagnosticId TraitWithUndefinedTrait = new("MIST_TRAIT_WITH_UNDEFINED_TRAIT");
-
-    /// <summary>
-    /// A duplicate <c>with</c> block was found for the same type-trait pair
-    /// (Requirement 6.9).
-    /// </summary>
-    internal static readonly DiagnosticId TraitDuplicateWith = new("MIST_TRAIT_DUPLICATE_WITH");
-
-    /// <summary>
-    /// A member mapping in a <c>with</c> block references a source member
-    /// that does not exist as a public member on the type (Requirement 6.4).
-    /// </summary>
-    internal static readonly DiagnosticId TraitWithUndefinedSource = new("MIST_TRAIT_WITH_UNDEFINED_SOURCE");
-
-    /// <summary>
-    /// A member mapping in a <c>with</c> block references a target member
-    /// that does not exist in the trait (Requirement 6.5).
-    /// </summary>
-    internal static readonly DiagnosticId TraitWithUndefinedTarget = new("MIST_TRAIT_WITH_UNDEFINED_TARGET");
-
-    /// <summary>
-    /// A member mapping in a <c>with</c> block maps a source member to a
-    /// target trait member with an incompatible type signature (Requirement 6.6).
-    /// </summary>
-    internal static readonly DiagnosticId TraitWithTypeMismatch = new("MIST_TRAIT_WITH_TYPE_MISMATCH");
-
-    // ── Trait satisfaction diagnostic IDs (Task 5.1, Requirements 5.1–5.7, 6.7–6.8) ──
-
-    /// <summary>
-    /// A private member on a type matches a trait member by name, but trait
-    /// matching requires public visibility (Requirement 5.7).
-    /// </summary>
-    internal static readonly DiagnosticId TraitMemberVisibility = new("MIST_TRAIT_MEMBER_VISIBILITY");
-
-    /// <summary>
-    /// A <c>with</c> block exists for a type-trait pair but does not cover all
-    /// trait members that are not structurally matched (Requirement 6.8).
-    /// </summary>
-    internal static readonly DiagnosticId TraitWithUnsatisfied = new("MIST_TRAIT_WITH_UNSATISFIED");
-
-    // ── Extension block diagnostic IDs (Task 5.3, Requirements 8.1–8.8, 9.1, 9.4, 10.1–10.3, 20.1–20.6) ──
-
-    /// <summary>
-    /// The receiver type reference in an extension block could not be resolved
-    /// to a declared type (Requirement 8.4).
-    /// </summary>
     internal static readonly DiagnosticId ExtensionReceiverUnresolved = new("MIST_SB_0070");
 
     /// <summary>
@@ -654,7 +593,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
     /// <summary>
     /// An implementation method has a stronger refinement constraint on a parameter than
-    /// the abstract type or trait method requires, violating Liskov Substitution (Requirement 17.4).
+    /// the abstract type method requires, violating Liskov Substitution (Requirement 17.4).
     /// </summary>
     internal static readonly DiagnosticId RefinementConstraintStrongerThanAbstract = new("MIST_REFINEMENT_0009");
 
@@ -723,7 +662,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
     /// <summary>
     /// The <c>ref</c> modifier was used on a non-struct type declaration
-    /// (class, abstract type, trait, or enum). The <c>ref</c> modifier is only
+    /// (class, abstract type, or enum). The <c>ref</c> modifier is only
     /// valid on struct declarations (Requirement 1.5).
     /// </summary>
     internal static readonly DiagnosticId RefModifierOnlyValidOnStruct = new("MIST2001");
@@ -818,7 +757,6 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // scope that is not searched during name resolution for the user
         // project, enforcing transitive visibility rules (Requirements 6.1,
         // 6.2, 6.4).
-        var withDeclarations = new List<WithDeclarationNode>();
         var extensionBlockScopes = new Dictionary<ExtensionBlockDeclarationNode, (Scope Scope, string? Namespace, SourceText? SourceText)>();
         for (var i = 0; i < asts.Length; i++)
         {
@@ -847,7 +785,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
             try
             {
-                Pass1_RegisterTypes(ast, targetScope, symbolTable, sourceText, effectiveNamespaceRoot, effectiveProjectFolder, diagnostics, withDeclarations, extensionBlockScopes);
+                Pass1_RegisterTypes(ast, targetScope, symbolTable, sourceText, effectiveNamespaceRoot, effectiveProjectFolder, diagnostics, extensionBlockScopes);
             }
             catch (Exception ex)
             {
@@ -986,34 +924,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // WithClauses property.
         Pass1_ResolveWithClauses(symbolTable, asts, compilation, diagnostics);
 
-        // Pass 1b (cont.): Resolve trait parent references.
-        // After all types are registered and abstract type lists are resolved,
-        // resolve the inheritance clause on each trait declaration. This
-        // validates that parents are traits, checks arity, constructs
-        // ConstructedTraitType for generic parents, and detects duplicates.
-        Pass1_ResolveTraitParents(symbolTable, asts, compilation, diagnostics);
 
-        // Pass 1b (cont.): Detect trait inheritance cycles.
-        // After parent trait references are resolved, perform DFS on the
-        // trait inheritance graph to detect cycles. Traits involved in
-        // cycles are marked as cyclic and excluded from satisfaction
-        // computation.
-        Pass1_DetectTraitCycles(symbolTable, asts, compilation, diagnostics);
-
-        // Pass 1g: Resolve with-block declarations (Task 4.1).
-        // After all types are registered and abstract type lists are resolved,
-        // validate with-block type/trait references and member mappings.
-        // Stores validated mappings in a WithBlockRegistry for use by the
-        // trait satisfaction pass.
-        var withBlockRegistry = new WithBlockRegistry();
-        Pass1_ResolveWithBlocks(withDeclarations, globalScope, symbolTable, withBlockRegistry, asts, compilation, diagnostics);
-
-        // Pass 1g (cont.): Resolve trait satisfaction (Task 5.1).
-        // After with blocks are resolved, compute structural matches and
-        // combine with with-block mappings to determine which types satisfy
-        // which traits. Results are stored in a TraitSatisfactionMap.
-        var traitSatisfactionMap = new TraitSatisfactionMap();
-        Pass1_ResolveTraitSatisfaction(symbolTable, globalScope, withBlockRegistry, traitSatisfactionMap, asts, compilation, diagnostics);
 
         // Pass 1c: Detect circular abstract type inheritance chains.
         // After abstract type lists are resolved, walk each abstract type's Abstracts
@@ -1055,7 +966,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
         // Phase 4: Resolve explicit member type annotations globally.
         // After inheritance is fully resolved (base types, abstract type lists,
-        // constraints, traits, with-blocks, satisfaction), resolve all
+        // constraints), resolve all
         // explicitly-annotated member types across ALL compilation units
         // using declaration-site scopes. This guarantees that every
         // explicitly-typed field, property, method signature, constructor,
@@ -1181,12 +1092,12 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         Pass2_ResolveAdhocRefinementConstraints(symbolTable, asts, compilation, diagnostics, parameterRefinements);
 
         // Post-Pass 2: Validate refinement constraint satisfaction for
-        // abstract type and trait method implementations (Liskov Substitution).
+        // abstract type method implementations (Liskov Substitution).
         // This runs after adhoc refinement constraints are resolved so that
-        // parameter refinement predicates are available for both abstract type/trait
+        // parameter refinement predicates are available for both abstract type
         // methods and their implementations.
         Pass2_ValidateRefinementConstraintSatisfaction(
-            symbolTable, traitSatisfactionMap, parameterRefinements, asts, compilation, diagnostics);
+            symbolTable, parameterRefinements, asts, compilation, diagnostics);
 
         // Post-Pass 2: Check for duplicate extension member signatures across
         // all extension blocks for the same receiver type (Requirement 8.9, 20.4, 20.7).
@@ -1242,7 +1153,6 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             globalScope,
             symbolTable,
             expressionTypes,
-            traitSatisfactionMap,
             extensionRegistry,
             parameterRefinements,
             _discardedTaskResult);
@@ -1289,7 +1199,6 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         string namespaceRoot,
         string projectFolder,
         DiagnosticBag diagnostics,
-        List<WithDeclarationNode>? withDeclarations = null,
         Dictionary<ExtensionBlockDeclarationNode, (Scope Scope, string? Namespace, SourceText? SourceText)>? extensionBlockScopes = null)
     {
         if (ast is not CompilationUnitNode compilationUnit)
@@ -1352,13 +1261,6 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 {
                     // Register newtype under the current namespace.
                     RegisterNewtypeDeclaration(newtypeItem.NewtypeDeclaration, currentScope, symbolTable, sourceText, diagnostics);
-                    break;
-                }
-                case WithItemTopLevelItemNode withItem:
-                {
-                    // Store the WithDeclaration AST node for later resolution.
-                    // No symbols are registered at this point — with blocks don't declare types.
-                    withDeclarations?.Add(withItem.WithDeclaration);
                     break;
                 }
                 case ExtensionItemTopLevelItemNode extensionItem:
@@ -1637,7 +1539,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 foreach (var member in parentScope.Members)
                 {
                     if (member.Name == nestedTypeName
-                        && member.Kind is SymbolKind.Class or SymbolKind.Struct or SymbolKind.Abstract or SymbolKind.Trait or SymbolKind.Enum
+                        && member.Kind is SymbolKind.Class or SymbolKind.Struct or SymbolKind.Abstract or SymbolKind.Enum
                         && member.DeclaredType is not Types.TypeParameterType and not Types.DependentTypeParameterType)
                     {
                         var parent = parentTypeName ?? "<unknown>";
@@ -1666,11 +1568,6 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     abstractTypeNode.AbstractDeclaration,
                     parentScope, symbolTable, namespaceName, sourceText, diagnostics);
                 break;
-            case TraitTypeTypeDeclarationNode traitTypeNode:
-                RegisterTraitDeclaration(
-                    traitTypeNode.TraitDeclaration,
-                    parentScope, symbolTable, namespaceName, sourceText, diagnostics);
-                break;
             case EnumTypeTypeDeclarationNode enumTypeNode:
                 RegisterEnumDeclaration(
                     enumTypeNode.EnumDeclaration,
@@ -1690,7 +1587,6 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             ClassTypeTypeDeclarationNode ct => (ct.ClassDeclaration.Name.Lexeme, ct.ClassDeclaration),
             StructTypeTypeDeclarationNode st => (st.StructDeclaration.Name.Lexeme, st.StructDeclaration),
             AbstractTypeTypeDeclarationNode it => (it.AbstractDeclaration.Name.Lexeme, it.AbstractDeclaration),
-            TraitTypeTypeDeclarationNode tt => (tt.TraitDeclaration.Name.Lexeme, tt.TraitDeclaration),
             EnumTypeTypeDeclarationNode et => (et.EnumDeclaration.Name.Lexeme, et.EnumDeclaration),
             _ => (null, null),
         };
@@ -1704,7 +1600,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     {
         foreach (var symbol in symbolTable.AllSymbols)
         {
-            if (symbol.Kind is not (SymbolKind.Class or SymbolKind.Struct or SymbolKind.Abstract or SymbolKind.Trait or SymbolKind.Enum))
+            if (symbol.Kind is not (SymbolKind.Class or SymbolKind.Struct or SymbolKind.Abstract or SymbolKind.Enum))
                 continue;
 
             var memberScope = symbol.DeclaredType switch
@@ -1712,7 +1608,6 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 ClassType ct => ct.MemberScope,
                 StructType st => st.MemberScope,
                 AbstractType it => it.MemberScope,
-                TraitType tt => tt.MemberScope,
                 EnumType et => et.MemberScope,
                 _ => null,
             };
@@ -1916,96 +1811,6 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         }
     }
 
-    private static void RegisterTraitDeclaration(
-        TraitDeclarationNode traitDecl,
-        Scope parentScope,
-        SymbolTable symbolTable,
-        string? namespaceName,
-        SourceText? sourceText,
-        DiagnosticBag diagnostics)
-    {
-        // MIST2001: The 'ref' modifier is only valid on struct declarations.
-        if (HasRefModifier(traitDecl.Modifiers))
-        {
-            diagnostics.Add(MakeDiagnosticWithLocation(
-                RefModifierOnlyValidOnStruct.Value,
-                DiagnosticSeverity.Error,
-                "The 'ref' modifier is only valid on struct declarations.",
-                traitDecl,
-                sourceText));
-        }
-
-        var traitName = traitDecl.Name.Lexeme;
-        var typeScope = new Scope(parent: parentScope);
-        var traitType = new TraitType(traitName, typeScope, namespaceName);
-
-        var isReadonly = HasReadonlyModifier(traitDecl.Modifiers);
-        traitType.IsReadonly = isReadonly;
-
-        var traitSpan = ToMistSourceSpan(traitDecl.Name.Span);
-        var traitSymbol = new Symbol(traitName, SymbolKind.Trait, SymbolOrigin.UserCode, parentScope, traitType, traitSpan);
-
-        parentScope.AddMember(traitSymbol);
-        symbolTable.Register(traitSymbol, traitDecl);
-
-        // Register type parameters if present.
-        RegisterTypeParameters(traitDecl.TypeParams, traitName, typeScope, traitType, sourceText, diagnostics);
-
-        foreach (var member in traitDecl.Members)
-        {
-            switch (member)
-            {
-                case TraitFieldMemberTraitMemberDeclarationNode fieldMember:
-                {
-                    var fieldDecl = fieldMember.Field;
-                    var fieldName = fieldDecl.Name.Lexeme;
-                    var fieldSpan = ToMistSourceSpan(fieldDecl.Name.Span);
-                    var fieldSymbol = new Symbol(fieldName, SymbolKind.Field, SymbolOrigin.UserCode, typeScope, declaredType: null, fieldSpan);
-                    typeScope.AddMember(fieldSymbol);
-                    symbolTable.Register(fieldSymbol, fieldDecl);
-                    break;
-                }
-                case TraitMethodMemberTraitMemberDeclarationNode methodMember:
-                {
-                    var methodDecl = methodMember.Method;
-                    var methodName = methodDecl.Name.Lexeme;
-                    var methodSpan = ToMistSourceSpan(methodDecl.Name.Span);
-                    var methodSymbol = new Symbol(methodName, SymbolKind.Method, SymbolOrigin.UserCode, typeScope, declaredType: null, methodSpan);
-                    typeScope.AddMember(methodSymbol);
-                    symbolTable.Register(methodSymbol, methodDecl);
-                    break;
-                }
-                case TraitPropertyMemberTraitMemberDeclarationNode propertyMember:
-                {
-                    var propertyDecl = propertyMember.Property;
-                    var propName = propertyDecl.Name.Lexeme;
-                    var propSpan = ToMistSourceSpan(propertyDecl.Name.Span);
-                    var propSymbol = new Symbol(propName, SymbolKind.Property, SymbolOrigin.UserCode, typeScope, declaredType: null, propSpan);
-                    typeScope.AddMember(propSymbol);
-                    symbolTable.Register(propSymbol, propertyDecl);
-                    break;
-                }
-                case TraitAssociatedTypeMemberTraitMemberDeclarationNode associatedTypeMember:
-                    RegisterAssociatedTypeSlotDeclaration(associatedTypeMember.AssociatedType, traitType, typeScope, symbolTable, sourceText, diagnostics);
-                    break;
-                case TraitUnconstrainedAssociatedTypeMemberTraitMemberDeclarationNode unconstrainedMember:
-                    RegisterUnconstrainedAssociatedTypeSlotDeclaration(unconstrainedMember.UnconstrainedAssociatedType, traitType, typeScope, symbolTable, sourceText, diagnostics);
-                    break;
-                case TraitModifiedAssociatedTypeMemberTraitMemberDeclarationNode modifiedMember:
-                    EmitModifiersOnAssociatedTypeSlotDiagnostic(modifiedMember.ModifiedAssociatedType, sourceText, diagnostics);
-                    break;
-            }
-        }
-
-        // Check for duplicate associated type slot names.
-        DetectDuplicateAssociatedTypeSlots(traitDecl.Members, traitName, sourceText, diagnostics);
-
-        // If the trait is readonly, set all members to ImplicitReadonly.
-        if (isReadonly)
-        {
-            SetMembersImplicitReadonly(typeScope);
-        }
-    }
 
     private static void RegisterEnumDeclaration(
         EnumDeclarationNode enumDecl,
@@ -3136,55 +2941,13 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 diagnostics.Add(MakeDiagnosticWithLocation(
                     DiagnosticId.DuplicateAssociatedTypeSlot.Value,
                     DiagnosticSeverity.Error,
-                    $"Abstract type/trait '{typeName}' declares duplicate associated type slot '{slotName}'",
+                    $"Abstract type '{typeName}' declares duplicate associated type slot '{slotName}'",
                     declarationNode,
                     sourceText));
             }
         }
     }
 
-    /// <summary>
-    /// Checks for duplicate associated type slot names in a trait's members.
-    /// Emits <c>MIST_AT_0001</c> pointing to the second (duplicate) declaration.
-    /// </summary>
-    private static void DetectDuplicateAssociatedTypeSlots(
-        ImmutableArray<TraitMemberDeclarationNode> members,
-        string typeName,
-        SourceText? sourceText,
-        DiagnosticBag diagnostics)
-    {
-        var seenSlotNames = new HashSet<string>();
-
-        foreach (var member in members)
-        {
-            string? slotName;
-            Storm.Runtime.SyntaxNode declarationNode;
-
-            switch (member)
-            {
-                case TraitAssociatedTypeMemberTraitMemberDeclarationNode assoc:
-                    slotName = assoc.AssociatedType.Name.Lexeme;
-                    declarationNode = assoc.AssociatedType;
-                    break;
-                case TraitUnconstrainedAssociatedTypeMemberTraitMemberDeclarationNode unconstrained:
-                    slotName = unconstrained.UnconstrainedAssociatedType.Name.Lexeme;
-                    declarationNode = unconstrained.UnconstrainedAssociatedType;
-                    break;
-                default:
-                    continue;
-            }
-
-            if (!seenSlotNames.Add(slotName))
-            {
-                diagnostics.Add(MakeDiagnosticWithLocation(
-                    DiagnosticId.DuplicateAssociatedTypeSlot.Value,
-                    DiagnosticSeverity.Error,
-                    $"Abstract type/trait '{typeName}' declares duplicate associated type slot '{slotName}'",
-                    declarationNode,
-                    sourceText));
-            }
-        }
-    }
 
     /// <summary>
     /// Emits <c>MIST_AT_0005</c> when modifiers precede an associated type slot declaration.
@@ -3220,14 +2983,14 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         diagnostics.Add(MakeDiagnosticWithTokenLocation(
             DiagnosticId.AssociatedTypeSlotInWrongContext.Value,
             DiagnosticSeverity.Error,
-            "Abstract type slots are only permitted in abstract types and traits",
+            "Abstract type slots are only permitted in abstract types",
             typeKeywordToken,
             sourceText));
     }
 
     /// <summary>
     /// Registers a constrained associated type slot declaration as a symbol in the
-    /// declaring abstract type or trait's member scope. Creates an <see cref="AssociatedTypeSlotType"/>
+    /// declaring abstract type's member scope. Creates an <see cref="AssociatedTypeSlotType"/>
     /// with empty constraints (resolved later in <see cref="Pass1_ResolveConstraints"/>)
     /// and registers any type parameters declared on the slot.
     /// </summary>
@@ -3268,7 +3031,6 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             containingNamespace: declaringType switch
             {
                 AbstractType it => it.ContainingNamespace,
-                TraitType tt => tt.ContainingNamespace,
                 _ => null
             },
             declaringType: declaringType,
@@ -3284,7 +3046,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
     /// <summary>
     /// Registers an unconstrained associated type slot declaration (e.g., <c>type Name;</c>)
-    /// as a symbol in the declaring abstract type or trait's member scope.
+    /// as a symbol in the declaring abstract type's member scope.
     /// </summary>
     private static void RegisterUnconstrainedAssociatedTypeSlotDeclaration(
         UnconstrainedAssociatedTypeSlotDeclarationNode slotDecl,
@@ -3322,7 +3084,6 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             containingNamespace: declaringType switch
             {
                 AbstractType it => it.ContainingNamespace,
-                TraitType tt => tt.ContainingNamespace,
                 _ => null
             },
             declaringType: declaringType,
@@ -4142,9 +3903,6 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 break;
             case AbstractType abstractType:
                 abstractType.TypeParameters = typeParams;
-                break;
-            case TraitType traitType:
-                traitType.TypeParameters = typeParams;
                 break;
         }
 
@@ -5533,7 +5291,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     structDecl,
                     sourceText));
             }
-            // If it resolves to an abstract type or trait, leave it for
+            // If it resolves to an abstract type, leave it for
             // ResolveStructAbstractList to handle normally.
         }
 
@@ -5951,8 +5709,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
                     // If it resolves to a type, fall through to normal resolution.
                     if (resolvedSymbol is not null
-                        && resolvedSymbol.Kind is SymbolKind.Class or SymbolKind.Struct or SymbolKind.Abstract
-                            or SymbolKind.Trait or SymbolKind.TypeAlias or SymbolKind.Enum)
+                        && resolvedSymbol.Kind is SymbolKind.Class or SymbolKind.Struct or SymbolKind.Abstract or SymbolKind.TypeAlias or SymbolKind.Enum)
                     {
                         return (null, null);
                     }
@@ -6031,7 +5788,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 // If the symbol found is not a type (e.g., a constructor with the same
                 // name as the class), skip it and look in the parent scope instead.
                 if (resolvedSymbol is not null
-                    && resolvedSymbol.Kind is not (SymbolKind.Class or SymbolKind.Struct or SymbolKind.Abstract or SymbolKind.Trait or SymbolKind.TypeAlias or SymbolKind.Enum))
+                    && resolvedSymbol.Kind is not (SymbolKind.Class or SymbolKind.Struct or SymbolKind.Abstract or SymbolKind.TypeAlias or SymbolKind.Enum))
                 {
                     resolvedSymbol = null;
                 }
@@ -6046,7 +5803,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 // walking further up the scope chain to find a type symbol.
                 if (resolvedSymbol is not null
                     && resolvedSymbol.DeclaredType is null
-                    && resolvedSymbol.Kind is not (SymbolKind.Class or SymbolKind.Struct or SymbolKind.Abstract or SymbolKind.Trait or SymbolKind.TypeAlias or SymbolKind.Enum))
+                    && resolvedSymbol.Kind is not (SymbolKind.Class or SymbolKind.Struct or SymbolKind.Abstract or SymbolKind.TypeAlias or SymbolKind.Enum))
                 {
                     // Walk up the scope chain manually to find a type symbol.
                     IScope? searchScope = memberScope?.Parent?.Parent;
@@ -6057,7 +5814,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         {
                             foreach (var m in s.Members)
                             {
-                                if (m.Name == argName && m.Kind is SymbolKind.Class or SymbolKind.Struct or SymbolKind.Abstract or SymbolKind.Trait or SymbolKind.TypeAlias or SymbolKind.Enum)
+                                if (m.Name == argName && m.Kind is SymbolKind.Class or SymbolKind.Struct or SymbolKind.Abstract or SymbolKind.TypeAlias or SymbolKind.Enum)
                                 {
                                     resolvedSymbol = m;
                                     break;
@@ -6170,7 +5927,6 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             ClassType ct => ct.TypeParameters,
             StructType st => st.TypeParameters,
             AbstractType it => it.TypeParameters,
-            TraitType tt => tt.TypeParameters,
             TypeAliasType at => at.TypeParameters,
             AssociatedTypeSlotType slot => slot.TypeParameters,
             DelegateType dt => dt.TypeParameters,
@@ -6189,7 +5945,6 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             ClassType ct => ct.MemberScope,
             StructType st => st.MemberScope,
             AbstractType it => it.MemberScope,
-            TraitType tt => tt.MemberScope,
             NewtypeType nt => nt.MemberScope,
             AssociatedTypeSlotType slot => slot.MemberScope,
             _ => null,
@@ -6933,7 +6688,6 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 ClassType ct => ct.TypeParameters,
                 StructType st => st.TypeParameters,
                 AbstractType it => it.TypeParameters,
-                TraitType tt => tt.TypeParameters,
                 _ => null,
             };
 
@@ -7265,7 +7019,6 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         ClassType ct => ct.TypeParameters,
         StructType st => st.TypeParameters,
         AbstractType it => it.TypeParameters,
-        TraitType tt => tt.TypeParameters,
         _ => null,
     };
 
@@ -7329,14 +7082,14 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     }
 
     /// <summary>
-    /// Validates refinement constraint satisfaction for abstract type and trait method
+    /// Validates refinement constraint satisfaction for abstract type method
     /// implementations (Liskov Substitution Principle). For each matched method pair,
     /// checks that the implementation does not impose a stronger refinement constraint
-    /// on any parameter than the abstract type/trait method requires.
+    /// on any parameter than the abstract type method requires.
     /// </summary>
     /// <remarks>
     /// This runs after <see cref="Pass2_ResolveAdhocRefinementConstraints"/> so that
-    /// parameter refinement predicates are available for both abstract type/trait methods
+    /// parameter refinement predicates are available for both abstract type methods
     /// and their implementations.
     ///
     /// Algorithm per parameter position:
@@ -7348,7 +7101,6 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// </remarks>
     private static void Pass2_ValidateRefinementConstraintSatisfaction(
         SymbolTable symbolTable,
-        TraitSatisfactionMap traitSatisfactionMap,
         Dictionary<ISymbol, RefinementPredicate> parameterRefinements,
         ImmutableArray<Storm.Runtime.SyntaxNode> asts,
         MistCompilation compilation,
@@ -7414,91 +7166,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     parameterRefinements, symbolTable, asts, compilation, diagnostics);
             }
         }
-
-        // ─── Trait method refinement constraint satisfaction ─────────────
-        foreach (var (type, trait, satisfaction) in traitSatisfactionMap.All())
-        {
-            var typeName = type.DisplayName;
-            var traitName = trait.DisplayName;
-
-            // Check structural matches for method members.
-            foreach (var (traitMemberName, implSymbol) in satisfaction.StructuralMatches)
-            {
-                if (implSymbol.Kind != SymbolKind.Method)
-                    continue;
-
-                // Find the trait method symbol.
-                ISymbol? traitMethodSymbol = null;
-                var traitScope = trait switch
-                {
-                    TraitType tt => tt.MemberScope,
-                    ConstructedTraitType ctt => ctt.GenericTraitDefinition.MemberScope,
-                    _ => null,
-                };
-
-                if (traitScope is null)
-                    continue;
-
-                foreach (var member in traitScope.Members)
-                {
-                    if (member.Kind == SymbolKind.Method && member.Name == traitMemberName)
-                    {
-                        traitMethodSymbol = member;
-                        break;
-                    }
-                }
-
-                if (traitMethodSymbol is null)
-                    continue;
-
-                // Validate refinement constraints for each parameter position.
-                ValidateMethodRefinementConstraints(
-                    traitMethodSymbol, implSymbol,
-                    traitName, typeName,
-                    parameterRefinements, symbolTable, asts, compilation, diagnostics);
-            }
-
-            // Also check with-block mappings for method members.
-            foreach (var (traitMemberName, implSymbol) in satisfaction.WithMappings)
-            {
-                if (implSymbol.Kind != SymbolKind.Method)
-                    continue;
-
-                // Find the trait method symbol.
-                ISymbol? traitMethodSymbol = null;
-                var traitScope = trait switch
-                {
-                    TraitType tt => tt.MemberScope,
-                    ConstructedTraitType ctt => ctt.GenericTraitDefinition.MemberScope,
-                    _ => null,
-                };
-
-                if (traitScope is null)
-                    continue;
-
-                foreach (var member in traitScope.Members)
-                {
-                    if (member.Kind == SymbolKind.Method && member.Name == traitMemberName)
-                    {
-                        traitMethodSymbol = member;
-                        break;
-                    }
-                }
-
-                if (traitMethodSymbol is null)
-                    continue;
-
-                // Validate refinement constraints for each parameter position.
-                ValidateMethodRefinementConstraints(
-                    traitMethodSymbol, implSymbol,
-                    traitName, typeName,
-                    parameterRefinements, symbolTable, asts, compilation, diagnostics);
-            }
-        }
     }
 
     /// <summary>
-    /// Validates refinement constraint compatibility between an abstract type/trait method
+    /// Validates refinement constraint compatibility between an abstract type method
     /// and its implementation for each parameter position.
     /// </summary>
     private static void ValidateMethodRefinementConstraints(
@@ -7522,7 +7193,6 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         ParameterListNode? abstractParams = abstractNode switch
         {
             AbstractMethodDeclarationNode ifaceMethodDecl => ifaceMethodDecl.Parameters,
-            TraitMethodDeclarationNode traitMethodDecl => traitMethodDecl.Parameters,
             MethodDeclarationNode methodDecl => methodDecl.Parameters,
             _ => null,
         };
@@ -7613,9 +7283,6 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
             case AbstractDeclarationNode abstractDecl when symbol.DeclaredType is AbstractType abstractType:
                 return (abstractDecl.Constraints, abstractType.TypeParameters);
-
-            case TraitDeclarationNode traitDecl when symbol.DeclaredType is TraitType traitType:
-                return (traitDecl.Constraints, traitType.TypeParameters);
 
             case MethodDeclarationNode methodDecl when symbol is Symbol methodSymbol:
                 return (methodDecl.Constraints, methodSymbol.TypeParameters);
@@ -7798,7 +7465,6 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         var hasDefaultConstraint = false;
         IType? baseClassConstraint = null;
         var abstractConstraints = new List<IType>();
-        var traitConstraints = new List<IType>();
         var constructorConstraints = new List<IReadOnlyList<IType>>();
 
         // Track all base class constraints for validation (MIST_CONSTRAINT_0004).
@@ -7872,7 +7538,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     // Classify the resolved type, tracking base class and struct constraints.
                     ClassifyConstraintType(
                         resolvedType, ref baseClassConstraint,
-                        abstractConstraints, traitConstraints,
+                        abstractConstraints,
                         baseClassConstraints, structTypeConstraints);
                     break;
                 }
@@ -7893,7 +7559,6 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             HasStructConstraint = hasStructConstraint,
             BaseClassConstraint = baseClassConstraint,
             AbstractConstraints = abstractConstraints,
-            TraitConstraints = traitConstraints,
             ConstructorConstraints = constructorConstraints,
             HasReadonlyConstraint = hasReadonlyConstraint,
             HasMutableConstraint = hasMutableConstraint,
@@ -7932,7 +7597,6 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         var hasDefaultConstraint = false;
         IType? baseClassConstraint = null;
         var abstractConstraints = new List<IType>();
-        var traitConstraints = new List<IType>();
         var constructorConstraints = new List<IReadOnlyList<IType>>();
 
         // Track base class and struct constraints for validation.
@@ -8002,10 +7666,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         break;
                     }
 
-                    // Classify the resolved type as abstract type, trait, or base class constraint.
+                    // Classify the resolved type as abstract type, or base class constraint.
                     ClassifyConstraintType(
                         resolvedType, ref baseClassConstraint,
-                        abstractConstraints, traitConstraints,
+                        abstractConstraints,
                         baseClassConstraints, structTypeConstraints);
                     break;
                 }
@@ -8018,7 +7682,6 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             HasStructConstraint = hasStructConstraint,
             BaseClassConstraint = baseClassConstraint,
             AbstractConstraints = abstractConstraints,
-            TraitConstraints = traitConstraints,
             ConstructorConstraints = constructorConstraints,
             HasReadonlyConstraint = hasReadonlyConstraint,
             HasMutableConstraint = hasMutableConstraint,
@@ -8152,7 +7815,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     // When resolving type arguments for a constraint on an associated type slot,
                     // use the slot type itself as the declaring type. The slot's member scope
                     // contains its own type parameters (e.g., TOut in type Mapped<TOut>), and
-                    // its parent scope is the enclosing abstract type/trait's member scope which
+                    // its parent scope is the enclosing abstract type's member scope which
                     // contains the abstract type's type parameters (e.g., TIn in IMapper<TIn>).
                     // Scope.Lookup walks parent scopes, so both are found.
                     var effectiveDeclaringType = declaringSymbol.DeclaredType ?? ErrorType.Instance;
@@ -8187,7 +7850,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     }
 
     /// <summary>
-    /// Classifies a resolved constraint type as a base class, abstract type, or trait constraint
+    /// Classifies a resolved constraint type as a base class or abstract type constraint
     /// and adds it to the appropriate collection. Also tracks base class and struct types
     /// for validation purposes.
     /// </summary>
@@ -8195,7 +7858,6 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         IType resolvedType,
         ref IType? baseClassConstraint,
         List<IType> abstractConstraints,
-        List<IType> traitConstraints,
         List<IType> baseClassConstraints,
         List<IType> structTypeConstraints)
     {
@@ -8210,9 +7872,6 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 abstractConstraints.Add(resolvedType);
                 break;
 
-            case TraitType:
-                traitConstraints.Add(resolvedType);
-                break;
 
             case ClassType:
                 // Track all base class constraints for MIST_CONSTRAINT_0004 validation.
@@ -8427,8 +8086,6 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 return false;
             case AbstractTypeTypeDeclarationNode it:
                 return ReferenceEquals(it.AbstractDeclaration, declaringNode);
-            case TraitTypeTypeDeclarationNode tt:
-                return ReferenceEquals(tt.TraitDeclaration, declaringNode);
             default:
                 return false;
         }
@@ -8467,7 +8124,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
     /// <summary>
     /// Resolves with-clause type references on method-like declarations (methods,
-    /// constructors, abstract type methods, trait methods) and stores the resolved
+    /// constructors, abstract type methods) and stores the resolved
     /// <see cref="ContextClauseInfo"/> on each symbol's <see cref="Symbol.WithClauses"/>
     /// property. Uses scope-based type lookup consistent with Pass 1 constraint
     /// resolution.
@@ -8556,7 +8213,6 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             MethodDeclarationNode methodDecl => methodDecl.WithClauses,
             ConstructorDeclarationNode ctorDecl => ctorDecl.WithClauses,
             AbstractMethodDeclarationNode ifaceMethodDecl => ifaceMethodDecl.WithClauses,
-            TraitMethodDeclarationNode traitMethodDecl => traitMethodDecl.WithClauses,
             _ => null,
         };
     }
@@ -8633,811 +8289,6 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         return null;
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // Pass 1g — Resolve trait parent references
-    // ═══════════════════════════════════════════════════════════════════════
-
-    /// <summary>
-    /// Resolves the inheritance clause on each trait declaration.
-    /// For each <see cref="TraitDeclarationNode"/> with a <c>Parents</c> base list:
-    /// <list type="number">
-    ///   <item>Resolve each parent name to a <see cref="TraitType"/>.</item>
-    ///   <item>If the parent is generic, validate type arguments and construct a <see cref="ConstructedTraitType"/>.</item>
-    ///   <item>Check for duplicate parents (same trait with same type arguments).</item>
-    ///   <item>Store the resolved list on <see cref="TraitType.ParentTraits"/>.</item>
-    /// </list>
-    /// </summary>
-    private static void Pass1_ResolveTraitParents(
-        SymbolTable symbolTable,
-        ImmutableArray<Storm.Runtime.SyntaxNode> asts,
-        MistCompilation compilation,
-        DiagnosticBag diagnostics)
-    {
-        foreach (var symbol in symbolTable.AllSymbols)
-        {
-            if (symbol.Kind != SymbolKind.Trait || symbol.DeclaredType is not TraitType traitType)
-                continue;
-
-            var declaringNode = symbolTable.GetDeclaringNode(symbol);
-            if (declaringNode is not TraitDeclarationNode traitDecl)
-                continue;
-
-            if (traitDecl.Parents is null)
-                continue;
-
-            var entries = ExtractBaseListEntries(traitDecl.Parents);
-            if (entries.Count == 0)
-                continue;
-
-            var parentScope = symbol.ContainingScope;
-            var resolvedParents = new List<IType>();
-
-            foreach (var entry in entries)
-            {
-                var name = entry.Name.Lexeme;
-                if (string.IsNullOrEmpty(name))
-                    continue;
-
-                var resolvedSymbol = parentScope.Lookup(name);
-
-                if (resolvedSymbol is null)
-                {
-                    var sourceText = GetSourceTextForSymbol(symbol, symbolTable);
-                    diagnostics.Add(MakeDiagnosticWithLocation(
-                        DiagnosticId.TraitParentNotTrait.Value,
-                        DiagnosticSeverity.Error,
-                        $"'{name}' in the trait inheritance clause could not be found.",
-                        traitDecl,
-                        sourceText));
-                    continue;
-                }
-
-                if (resolvedSymbol.DeclaredType is not TraitType parentTraitType)
-                {
-                    var sourceText = GetSourceTextForSymbol(symbol, symbolTable);
-                    diagnostics.Add(MakeDiagnosticWithLocation(
-                        DiagnosticId.TraitParentNotTrait.Value,
-                        DiagnosticSeverity.Error,
-                        $"'{name}' in the trait inheritance clause is not a trait. Only traits can be extended by other traits.",
-                        traitDecl,
-                        sourceText));
-                    continue;
-                }
-
-                // Resolve the parent trait reference (handling generics).
-                var parentTypeParams = parentTraitType.TypeParameters;
-                var hasTypeArgs = entry.TypeArgs is not null;
-
-                if (hasTypeArgs)
-                {
-                    if (parentTypeParams.Count == 0)
-                    {
-                        // Parent is not generic but type arguments were provided.
-                        var sourceText = GetSourceTextForSymbol(symbol, symbolTable);
-                        diagnostics.Add(MakeDiagnosticWithLocation(
-                            DiagnosticId.NotGeneric.Value,
-                            DiagnosticSeverity.Error,
-                            $"Trait '{name}' is not generic and does not accept type arguments.",
-                            traitDecl,
-                            sourceText));
-                        resolvedParents.Add(parentTraitType);
-                        continue;
-                    }
-
-                    // Resolve type arguments.
-                    var resolvedTypeArgs = ResolveTypeArgumentList(
-                        entry.TypeArgs!, traitType, traitDecl, asts, compilation, diagnostics);
-
-                    if (resolvedTypeArgs.Count != parentTypeParams.Count)
-                    {
-                        // Arity mismatch.
-                        var sourceText = GetSourceTextForSymbol(symbol, symbolTable);
-                        diagnostics.Add(MakeDiagnosticWithLocation(
-                            DiagnosticId.ArityMismatch.Value,
-                            DiagnosticSeverity.Error,
-                            $"Trait '{name}' expects {parentTypeParams.Count} type argument(s) but received {resolvedTypeArgs.Count}.",
-                            traitDecl,
-                            sourceText));
-                        resolvedParents.Add(parentTraitType);
-                        continue;
-                    }
-
-                    // Construct a ConstructedTraitType.
-                    var constructedParent = new ConstructedTraitType(parentTraitType, resolvedTypeArgs);
-                    resolvedParents.Add(constructedParent);
-                }
-                else
-                {
-                    // No type arguments provided.
-                    if (parentTypeParams.Count > 0)
-                    {
-                        // Parent is generic but no type arguments were provided.
-                        var sourceText = GetSourceTextForSymbol(symbol, symbolTable);
-                        diagnostics.Add(MakeDiagnosticWithLocation(
-                            DiagnosticId.MissingTypeArguments.Value,
-                            DiagnosticSeverity.Error,
-                            $"Generic trait '{name}' requires type arguments.",
-                            traitDecl,
-                            sourceText));
-                        resolvedParents.Add(parentTraitType);
-                        continue;
-                    }
-
-                    // Non-generic parent — use the TraitType directly.
-                    resolvedParents.Add(parentTraitType);
-                }
-            }
-
-            // Check for duplicate parents.
-            var seen = new List<IType>();
-            var deduplicatedParents = new List<IType>();
-
-            foreach (var parent in resolvedParents)
-            {
-                if (IsDuplicateParent(parent, seen))
-                {
-                    var parentName = parent.DisplayName;
-                    var sourceText = GetSourceTextForSymbol(symbol, symbolTable);
-                    diagnostics.Add(MakeDiagnosticWithLocation(
-                        DiagnosticId.TraitDuplicateParent.Value,
-                        DiagnosticSeverity.Error,
-                        $"Trait '{traitType.DisplayName}' lists parent '{parentName}' more than once.",
-                        traitDecl,
-                        sourceText));
-                }
-                else
-                {
-                    seen.Add(parent);
-                    deduplicatedParents.Add(parent);
-                }
-            }
-
-            traitType.ParentTraits = deduplicatedParents;
-        }
-    }
-
-    /// <summary>
-    /// Determines whether a parent trait is a duplicate of one already seen.
-    /// Two parents are considered duplicates if they reference the same trait definition
-    /// with the same type arguments.
-    /// </summary>
-    private static bool IsDuplicateParent(IType candidate, List<IType> seen)
-    {
-        foreach (var existing in seen)
-        {
-            if (AreSameTraitReference(candidate, existing))
-                return true;
-        }
-        return false;
-    }
-
-    /// <summary>
-    /// Compares two trait references for equality (same trait definition, same type arguments).
-    /// </summary>
-    private static bool AreSameTraitReference(IType a, IType b)
-    {
-        if (a is TraitType traitA && b is TraitType traitB)
-            return ReferenceEquals(traitA, traitB);
-
-        if (a is ConstructedTraitType ctA && b is ConstructedTraitType ctB)
-        {
-            if (!ReferenceEquals(ctA.GenericTraitDefinition, ctB.GenericTraitDefinition))
-                return false;
-
-            if (ctA.TypeArguments.Count != ctB.TypeArguments.Count)
-                return false;
-
-            for (var i = 0; i < ctA.TypeArguments.Count; i++)
-            {
-                if (!AreSameTypeArgument(ctA.TypeArguments[i], ctB.TypeArguments[i]))
-                    return false;
-            }
-
-            return true;
-        }
-
-        return false;
-    }
-
-    /// <summary>
-    /// Compares two type arguments for structural equality.
-    /// </summary>
-    private static bool AreSameTypeArgument(IType a, IType b)
-    {
-        // Same reference (covers TypeParameterType, TraitType, ClassType, etc.)
-        if (ReferenceEquals(a, b))
-            return true;
-
-        // Both are constructed types with the same definition and arguments.
-        if (a is ConstructedType ctA && b is ConstructedType ctB)
-        {
-            if (!ReferenceEquals(ctA.GenericDefinition, ctB.GenericDefinition))
-                return false;
-            if (ctA.TypeArguments.Count != ctB.TypeArguments.Count)
-                return false;
-            for (var i = 0; i < ctA.TypeArguments.Count; i++)
-            {
-                if (!AreSameTypeArgument(ctA.TypeArguments[i], ctB.TypeArguments[i]))
-                    return false;
-            }
-
-            // Compare dependent value arguments (Requirements 8.1, 8.2).
-            if (!DependentArgumentsEqual(ctA.DependentArguments, ctB.DependentArguments))
-                return false;
-
-            return true;
-        }
-
-        // Both are constructed trait types.
-        if (a is ConstructedTraitType cttA && b is ConstructedTraitType cttB)
-        {
-            return AreSameTraitReference(cttA, cttB);
-        }
-
-        return false;
-    }
-
-    /// <summary>
-    /// Compares two dependent argument lists for value equality.
-    /// Two lists are equal when they have the same length and each pair of
-    /// non-null entries has equal values (using <see cref="object.Equals(object?, object?)"/>).
-    /// </summary>
-    private static bool DependentArgumentsEqual(
-        IReadOnlyList<DependentValueArgument?>? a,
-        IReadOnlyList<DependentValueArgument?>? b)
-    {
-        if (a is null && b is null)
-            return true;
-        if (a is null || b is null)
-            return false;
-        if (a.Count != b.Count)
-            return false;
-        for (var i = 0; i < a.Count; i++)
-        {
-            var argA = a[i];
-            var argB = b[i];
-            if (argA is null && argB is null)
-                continue;
-            if (argA is null || argB is null)
-                return false;
-            if (!Equals(argA.Value, argB.Value))
-                return false;
-        }
-        return true;
-    }
-
-    // ═══════════════════════════════════════════════════════════════════════
-    // Pass 1b (cont.) — Detect trait inheritance cycles
-    // ═══════════════════════════════════════════════════════════════════════
-
-    /// <summary>
-    /// Performs DFS on the trait inheritance graph to detect cycles.
-    /// When a cycle is detected, emits <c>MIST_TRAIT_INHERITANCE_CYCLE</c>
-    /// for each trait involved and marks them as cyclic so they are excluded
-    /// from satisfaction computation.
-    /// </summary>
-    private static void Pass1_DetectTraitCycles(
-        SymbolTable symbolTable,
-        ImmutableArray<Storm.Runtime.SyntaxNode> asts,
-        MistCompilation compilation,
-        DiagnosticBag diagnostics)
-    {
-        // Build adjacency list: each TraitType -> list of parent TraitTypes
-        // (for ConstructedTraitType parents, we use the GenericTraitDefinition).
-        var allTraits = new List<TraitType>();
-        foreach (var symbol in symbolTable.AllSymbols)
-        {
-            if (symbol.Kind == SymbolKind.Trait && symbol.DeclaredType is TraitType tt)
-                allTraits.Add(tt);
-        }
-
-        // DFS coloring: White = unvisited, Gray = on current path, Black = fully processed.
-        // 0 = White, 1 = Gray, 2 = Black
-        var color = new Dictionary<TraitType, int>();
-        foreach (var trait in allTraits)
-            color[trait] = 0; // White
-
-        foreach (var trait in allTraits)
-        {
-            if (color[trait] == 0)
-            {
-                DetectTraitCyclesDfsVisit(
-                    trait, color, new List<TraitType>(),
-                    symbolTable, asts, compilation, diagnostics);
-            }
-        }
-    }
-
-    /// <summary>
-    /// Recursive DFS visitor for trait cycle detection. Uses white/gray/black
-    /// coloring. When a gray node is revisited, a cycle is detected.
-    /// </summary>
-    private static void DetectTraitCyclesDfsVisit(
-        TraitType current,
-        Dictionary<TraitType, int> color,
-        List<TraitType> path,
-        SymbolTable symbolTable,
-        ImmutableArray<Storm.Runtime.SyntaxNode> asts,
-        MistCompilation compilation,
-        DiagnosticBag diagnostics)
-    {
-        color[current] = 1; // Gray — on current path
-        path.Add(current);
-
-        foreach (var parentType in current.ParentTraits)
-        {
-            // Extract the underlying TraitType from the parent reference.
-            var parentTrait = parentType switch
-            {
-                TraitType tt => tt,
-                ConstructedTraitType ct => ct.GenericTraitDefinition,
-                _ => null,
-            };
-
-            if (parentTrait is null)
-                continue;
-
-            // If the parent trait is not in our color map, it's from a
-            // different compilation unit or is otherwise unresolvable — skip.
-            if (!color.ContainsKey(parentTrait))
-                continue;
-
-            if (color[parentTrait] == 1)
-            {
-                // Cycle detected — parentTrait is on the current path.
-                var cycleStart = path.IndexOf(parentTrait);
-                var cycleMembers = path.Skip(cycleStart).ToList();
-
-                // Mark all traits in the cycle as cyclic.
-                foreach (var cyclicTrait in cycleMembers)
-                    cyclicTrait.IsCyclic = true;
-
-                // Build the cycle description string.
-                var cycleNames = cycleMembers.Select(t => t.DisplayName).ToList();
-                cycleNames.Add(parentTrait.DisplayName);
-                var chainStr = string.Join(" -> ", cycleNames);
-
-                // Emit a diagnostic for each trait in the cycle.
-                foreach (var cyclicTrait in cycleMembers)
-                {
-                    Storm.Runtime.SyntaxNode? declaringNode = null;
-                    ISymbol? traitSymbol = null;
-                    foreach (var sym in symbolTable.AllSymbols)
-                    {
-                        if (ReferenceEquals(sym.DeclaredType, cyclicTrait))
-                        {
-                            traitSymbol = sym;
-                            declaringNode = symbolTable.GetDeclaringNode(sym);
-                            break;
-                        }
-                    }
-
-                    if (declaringNode is not null)
-                    {
-                        var sourceText = GetSourceTextForSymbol(
-                            traitSymbol!, symbolTable);
-                        diagnostics.Add(MakeDiagnosticWithLocation(
-                            DiagnosticId.TraitInheritanceCycle.Value,
-                            DiagnosticSeverity.Error,
-                            $"Trait inheritance cycle detected: {chainStr}.",
-                            declaringNode,
-                            sourceText));
-                    }
-                    else
-                    {
-                        diagnostics.Add(new Diagnostic(
-                            DiagnosticId.TraitInheritanceCycle,
-                            DiagnosticSeverity.Error,
-                            PipelineStage.SemanticModelConstruction,
-                            $"Trait inheritance cycle detected: {chainStr}.",
-                            Location: default,
-                            CompilationUnitPath: "<unknown>",
-                            AnalyzerName: null));
-                    }
-                }
-
-                // Don't continue DFS into the cyclic parent — it's already gray.
-                continue;
-            }
-
-            if (color[parentTrait] == 0)
-            {
-                // White — not yet visited, recurse.
-                DetectTraitCyclesDfsVisit(
-                    parentTrait, color, path,
-                    symbolTable, asts, compilation, diagnostics);
-            }
-            // If Black, already fully processed — no cycle through this path.
-        }
-
-        path.RemoveAt(path.Count - 1);
-        color[current] = 2; // Black — fully processed
-    }
-
-    // ═══════════════════════════════════════════════════════════════════════
-    // Pass 1g — Resolve with-block declarations
-    // ═══════════════════════════════════════════════════════════════════════
-
-    /// <summary>
-    /// Resolves <c>with</c> block declarations collected during Pass 1.
-    /// For each <see cref="WithDeclarationNode"/>:
-    /// <list type="number">
-    ///   <item>Resolve the type name to a <see cref="ClassType"/> or <see cref="StructType"/>.</item>
-    ///   <item>Resolve the trait name to a <see cref="TraitType"/> (or <see cref="ConstructedTraitType"/> for generic traits).</item>
-    ///   <item>Check for duplicate <c>with</c> blocks for the same type-trait pair.</item>
-    ///   <item>Validate each member mapping (source exists and is public, target exists in trait, types compatible after substitution).</item>
-    ///   <item>Store validated mappings in the <see cref="WithBlockRegistry"/>.</item>
-    /// </list>
-    /// </summary>
-    private static void Pass1_ResolveWithBlocks(
-        List<WithDeclarationNode> withDeclarations,
-        Scope globalScope,
-        SymbolTable symbolTable,
-        WithBlockRegistry registry,
-        ImmutableArray<Storm.Runtime.SyntaxNode> asts,
-        MistCompilation compilation,
-        DiagnosticBag diagnostics)
-    {
-        // Track seen type-trait pairs for duplicate detection.
-        var seenPairs = new HashSet<(IType, IType)>();
-
-        foreach (var withDecl in withDeclarations)
-        {
-            var typeName = withDecl.TypeName.Lexeme;
-            var traitName = withDecl.TraitName.Lexeme;
-
-            // 1. Resolve type name to a ClassType or StructType.
-            var resolvedType = ResolveWithBlockTypeName(typeName, globalScope, symbolTable);
-            if (resolvedType is null)
-            {
-                diagnostics.Add(new Diagnostic(
-                    TraitWithUndefinedType,
-                    DiagnosticSeverity.Error,
-                    PipelineStage.SemanticModelConstruction,
-                    $"The type '{typeName}' in the `with` block could not be found.",
-                    Location: default,
-                    CompilationUnitPath: "<unknown>",
-                    AnalyzerName: null));
-                continue; // Skip this with block.
-            }
-
-            // 2. Resolve trait name to a TraitType.
-            var resolvedTraitType = ResolveWithBlockTraitName(traitName, globalScope, symbolTable);
-            if (resolvedTraitType is null)
-            {
-                diagnostics.Add(new Diagnostic(
-                    TraitWithUndefinedTrait,
-                    DiagnosticSeverity.Error,
-                    PipelineStage.SemanticModelConstruction,
-                    $"The trait '{traitName}' in the `with` block could not be found.",
-                    Location: default,
-                    CompilationUnitPath: "<unknown>",
-                    AnalyzerName: null));
-                continue; // Skip this with block.
-            }
-
-            // 2b. Handle generic trait type arguments (Task 7.1).
-            // Resolve traitName + traitTypeArgs to either a TraitType (non-generic)
-            // or ConstructedTraitType (generic).
-            IType resolvedTrait;
-            IReadOnlyList<IType>? typeParams = null;
-            IReadOnlyList<IType>? typeArgs = null;
-
-            var traitTypeParams = resolvedTraitType.TypeParameters;
-            var hasTypeArgs = withDecl.TraitTypeArgs is not null;
-
-            if (hasTypeArgs)
-            {
-                if (traitTypeParams.Count == 0)
-                {
-                    // Trait is not generic but type arguments were provided.
-                    // Use the trait directly (non-fatal, ignore extra args).
-                    resolvedTrait = resolvedTraitType;
-                }
-                else
-                {
-                    // Resolve type arguments.
-                    var resolvedTypeArgs = ResolveTypeArgumentList(
-                        withDecl.TraitTypeArgs!, resolvedType, withDecl, asts, compilation, diagnostics);
-
-                    if (resolvedTypeArgs.Count != traitTypeParams.Count)
-                    {
-                        // Arity mismatch.
-                        diagnostics.Add(new Diagnostic(
-                            new DiagnosticId(DiagnosticId.ArityMismatch.Value),
-                            DiagnosticSeverity.Error,
-                            PipelineStage.SemanticModelConstruction,
-                            $"Trait '{traitName}' expects {traitTypeParams.Count} type argument(s) but received {resolvedTypeArgs.Count}.",
-                            Location: default,
-                            CompilationUnitPath: "<unknown>",
-                            AnalyzerName: null));
-                        continue; // Skip this with block.
-                    }
-
-                    // Construct a ConstructedTraitType.
-                    resolvedTrait = new ConstructedTraitType(resolvedTraitType, resolvedTypeArgs);
-                    typeParams = traitTypeParams;
-                    typeArgs = resolvedTypeArgs;
-                }
-            }
-            else
-            {
-                // No type arguments provided.
-                if (traitTypeParams.Count > 0)
-                {
-                    // Trait is generic but no type arguments were provided.
-                    diagnostics.Add(new Diagnostic(
-                        new DiagnosticId(DiagnosticId.MissingTypeArguments.Value),
-                        DiagnosticSeverity.Error,
-                        PipelineStage.SemanticModelConstruction,
-                        $"Generic trait '{traitName}' requires type arguments.",
-                        Location: default,
-                        CompilationUnitPath: "<unknown>",
-                        AnalyzerName: null));
-                    continue; // Skip this with block.
-                }
-
-                // Non-generic trait — use the TraitType directly.
-                resolvedTrait = resolvedTraitType;
-            }
-
-            // 3. Check for duplicate with blocks for the same type-trait pair.
-            if (!seenPairs.Add((resolvedType, resolvedTrait)))
-            {
-                diagnostics.Add(new Diagnostic(
-                    TraitDuplicateWith,
-                    DiagnosticSeverity.Error,
-                    PipelineStage.SemanticModelConstruction,
-                    $"Duplicate `with` block for type '{typeName}' and trait '{resolvedTrait.DisplayName}'.",
-                    Location: default,
-                    CompilationUnitPath: "<unknown>",
-                    AnalyzerName: null));
-                continue; // Skip duplicate.
-            }
-
-            // 4. Validate each member mapping.
-            foreach (var mapping in withDecl.Mappings)
-            {
-                var sourceName = mapping.SourceName.Lexeme;
-                var targetName = mapping.TargetName.Lexeme;
-
-                // 4a. Resolve source member on the type (must be public).
-                var sourceMember = FindPublicMember(resolvedType, sourceName, symbolTable);
-                if (sourceMember is null)
-                {
-                    diagnostics.Add(new Diagnostic(
-                        TraitWithUndefinedSource,
-                        DiagnosticSeverity.Error,
-                        PipelineStage.SemanticModelConstruction,
-                        $"The member '{sourceName}' does not exist as a public member on type '{typeName}'.",
-                        Location: default,
-                        CompilationUnitPath: "<unknown>",
-                        AnalyzerName: null));
-                    continue; // Skip this mapping.
-                }
-
-                // 4b. Resolve target member in the trait.
-                var targetMember = FindTraitMember(resolvedTraitType, targetName);
-                if (targetMember is null)
-                {
-                    diagnostics.Add(new Diagnostic(
-                        TraitWithUndefinedTarget,
-                        DiagnosticSeverity.Error,
-                        PipelineStage.SemanticModelConstruction,
-                        $"The member '{targetName}' does not exist in trait '{traitName}'.",
-                        Location: default,
-                        CompilationUnitPath: "<unknown>",
-                        AnalyzerName: null));
-                    continue; // Skip this mapping.
-                }
-
-                // 4c. Check type compatibility between source and target.
-                // At this stage (Pass 1), member DeclaredType may not yet be resolved.
-                // Compare the type references from the AST nodes structurally.
-                // For generic traits, substitute type parameters with type arguments
-                // before comparing (e.g., trait member `T Value` with T=int should
-                // match source member `int Value`).
-                var sourceTypeRef = GetMemberTypeReference(sourceMember, symbolTable);
-                var targetTypeRef = GetTraitMemberTypeReference(targetMember, symbolTable);
-
-                if (sourceTypeRef is not null && targetTypeRef is not null)
-                {
-                    // Find the correct source text for the trait member's type reference.
-                    // Use reference-equality containment: walk each AST's compilation unit
-                    // and check if it contains the trait declaration node by reference.
-                    SourceText? traitMemberSourceText = null;
-                    var traitDeclSymbol = symbolTable.AllSymbols.FirstOrDefault(s =>
-                        s.Kind == SymbolKind.Trait &&
-                        ReferenceEquals(s.DeclaredType, resolvedTraitType));
-                    var traitDeclNode = traitDeclSymbol is not null
-                        ? symbolTable.GetDeclaringNode(traitDeclSymbol)
-                        : null;
-
-                    if (traitDeclNode is not null)
-                    {
-                        for (var cuIdx = 0; cuIdx < asts.Length; cuIdx++)
-                        {
-                            if (asts[cuIdx] is CompilationUnitNode cu &&
-                                ContainsNodeByReference(cu, traitDeclNode))
-                            {
-                                traitMemberSourceText = cuIdx < compilation.Units.Length
-                                    ? compilation.Units[cuIdx].Source
-                                    : null;
-                                break;
-                            }
-                        }
-                    }
-
-                    var typesMatch = typeParams is not null && typeArgs is not null
-                        ? TypeReferencesMatchWithSubstitution(sourceTypeRef, targetTypeRef, typeParams, typeArgs, traitMemberSourceText, asts, compilation)
-                        : TypeReferencesMatch(sourceTypeRef, targetTypeRef);
-
-                    if (!typesMatch)
-                    {
-                        var expectedTypeStr = typeParams is not null && typeArgs is not null
-                            ? FormatTypeReferenceWithSubstitution(targetTypeRef, typeParams, typeArgs, traitMemberSourceText, asts, compilation)
-                            : FormatTypeReference(targetTypeRef);
-                        var actualTypeStr = FormatTypeReference(sourceTypeRef);
-                        diagnostics.Add(new Diagnostic(
-                            TraitWithTypeMismatch,
-                            DiagnosticSeverity.Error,
-                            PipelineStage.SemanticModelConstruction,
-                            $"Cannot map '{typeName}.{sourceName}' to '{resolvedTrait.DisplayName}.{targetName}': expected type '{expectedTypeStr}', found '{actualTypeStr}'.",
-                            Location: default,
-                            CompilationUnitPath: "<unknown>",
-                            AnalyzerName: null));
-                        continue; // Skip this mapping.
-                    }
-                }
-
-                // 5. Store validated mapping using the resolved trait key
-                //    (ConstructedTraitType for generic traits, TraitType for non-generic).
-                registry.AddMapping(resolvedType, resolvedTrait, new ValidatedMemberMapping
-                {
-                    SourceMember = sourceMember,
-                    TargetMember = targetMember,
-                    SourceName = sourceName,
-                    TargetName = targetName,
-                });
-            }
-        }
-    }
-
-    /// <summary>
-    /// Resolves a type name from a <c>with</c> block to a <see cref="ClassType"/>
-    /// or <see cref="StructType"/> by searching all namespace scopes.
-    /// </summary>
-    private static IType? ResolveWithBlockTypeName(
-        string typeName, Scope globalScope, SymbolTable symbolTable)
-    {
-        // Search all namespace scopes for the type.
-        foreach (var nsMember in globalScope.Members)
-        {
-            if (nsMember.Kind == SymbolKind.Namespace)
-            {
-                var nsScope = FindNamespaceScopeForSymbol(nsMember, symbolTable);
-                if (nsScope is not null)
-                {
-                    var found = nsScope.Lookup(typeName);
-                    if (found?.DeclaredType is ClassType or StructType)
-                        return found.DeclaredType;
-                }
-            }
-        }
-
-        // Also search the global scope directly (types without a namespace).
-        var globalFound = globalScope.Lookup(typeName);
-        if (globalFound?.DeclaredType is ClassType or StructType)
-            return globalFound.DeclaredType;
-
-        return null;
-    }
-
-    /// <summary>
-    /// Resolves a trait name from a <c>with</c> block to a <see cref="TraitType"/>
-    /// by searching all namespace scopes.
-    /// </summary>
-    private static TraitType? ResolveWithBlockTraitName(
-        string traitName, Scope globalScope, SymbolTable symbolTable)
-    {
-        // Search all namespace scopes for the trait.
-        foreach (var nsMember in globalScope.Members)
-        {
-            if (nsMember.Kind == SymbolKind.Namespace)
-            {
-                var nsScope = FindNamespaceScopeForSymbol(nsMember, symbolTable);
-                if (nsScope is not null)
-                {
-                    var found = nsScope.Lookup(traitName);
-                    if (found?.DeclaredType is TraitType traitType)
-                        return traitType;
-                }
-            }
-        }
-
-        // Also search the global scope directly.
-        var globalFound = globalScope.Lookup(traitName);
-        if (globalFound?.DeclaredType is TraitType globalTrait)
-            return globalTrait;
-
-        return null;
-    }
-
-    /// <summary>
-    /// Finds the scope associated with a namespace symbol by looking at
-    /// the types registered in that namespace.
-    /// </summary>
-    private static IScope? FindNamespaceScopeForSymbol(
-        ISymbol namespaceSymbol, SymbolTable symbolTable)
-    {
-        // Find any type symbol whose ContainingScope is the namespace scope.
-        foreach (var sym in symbolTable.AllSymbols)
-        {
-            if (sym.ContainingScope != namespaceSymbol.ContainingScope
-                && sym.Kind is SymbolKind.Class or SymbolKind.Struct or SymbolKind.Abstract or SymbolKind.Trait)
-            {
-                // Check if this symbol's containing scope is a child of the global scope
-                // and the namespace name matches.
-                var declaringNode = symbolTable.GetDeclaringNode(sym);
-                if (declaringNode is not null)
-                {
-                    // The symbol's containing scope is the namespace scope if
-                    // the namespace symbol's name matches the type's containing namespace.
-                    var typeNamespace = GetTypeContainingNamespace(sym.DeclaredType);
-                    if (typeNamespace == namespaceSymbol.Name)
-                        return sym.ContainingScope;
-                }
-            }
-        }
-        return null;
-    }
-
-    /// <summary>
-    /// Gets the containing namespace from a type.
-    /// </summary>
-    private static string? GetTypeContainingNamespace(IType? type)
-    {
-        return type switch
-        {
-            ClassType ct => ct.ContainingNamespace,
-            StructType st => st.ContainingNamespace,
-            AbstractType it => it.ContainingNamespace,
-            TraitType tt => tt.ContainingNamespace,
-            _ => null,
-        };
-    }
-
-    /// <summary>
-    /// Finds a public member on a type by name. Returns <c>null</c> if the member
-    /// does not exist or is not public.
-    /// </summary>
-    private static ISymbol? FindPublicMember(
-        IType type, string memberName, SymbolTable symbolTable)
-    {
-        var memberScope = type switch
-        {
-            ClassType ct => ct.MemberScope,
-            StructType st => st.MemberScope,
-            _ => null,
-        };
-
-        if (memberScope is null)
-            return null;
-
-        // Search for a member with the given name.
-        foreach (var member in memberScope.Members)
-        {
-            if (member.Name == memberName
-                && member.Kind is SymbolKind.Field or SymbolKind.Method or SymbolKind.Property)
-            {
-                // Check if the member is public by examining its AST node modifiers.
-                if (IsMemberPublic(member, symbolTable))
-                    return member;
-            }
-        }
-
-        return null;
-    }
 
     /// <summary>
     /// Determines whether a member symbol is public by checking its declaring
@@ -9467,18 +8318,6 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         return modifiers.Value.Any(m => m is PublicModifierModifierNode);
     }
 
-    /// <summary>
-    /// Finds a member in a trait's member scope by name.
-    /// </summary>
-    private static ISymbol? FindTraitMember(TraitType trait, string memberName)
-    {
-        foreach (var member in trait.MemberScope.Members)
-        {
-            if (member.Name == memberName)
-                return member;
-        }
-        return null;
-    }
 
     /// <summary>
     /// Extracts the type reference AST node from a type member's declaring node.
@@ -9498,1554 +8337,11 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         };
     }
 
-    /// <summary>
-    /// Extracts the type reference AST node from a trait member's declaring node.
-    /// Used for type compatibility checking in <c>with</c> block validation.
-    /// </summary>
-    private static TypeReferenceNode? GetTraitMemberTypeReference(
-        ISymbol traitMember, SymbolTable symbolTable)
-    {
-        var declaringNode = symbolTable.GetDeclaringNode(traitMember);
-        return declaringNode switch
-        {
-            TraitFieldDeclarationNode f => f.Type,
-            TraitMethodDeclarationNode m => m.ReturnType,
-            TraitPropertyDeclarationNode p => p.Type,
-            _ => null,
-        };
-    }
 
     // ═══════════════════════════════════════════════════════════════════════
-    // Effective members computation for trait inheritance
-    // ═══════════════════════════════════════════════════════════════════════
 
-    /// <summary>
-    /// Represents a trait member in the effective member set, carrying the
-    /// original symbol and any type parameter substitution context needed
-    /// for structural matching against implementing types.
-    /// </summary>
-    /// <param name="Member">The trait member symbol (field, method, or property).</param>
-    /// <param name="TypeParams">
-    /// Type parameters to substitute when matching (from the trait's definition).
-    /// Null for non-generic traits or when no substitution is needed.
-    /// </param>
-    /// <param name="TypeArgs">
-    /// Type arguments to substitute for the type parameters.
-    /// Null for non-generic traits or when no substitution is needed.
-    /// </param>
-    /// <param name="SourceTrait">
-    /// The trait (or constructed trait) that originally declared this member.
-    /// Used for diagnostic messages.
-    /// </param>
-    internal readonly record struct EffectiveMember(
-        ISymbol Member,
-        IReadOnlyList<IType>? TypeParams,
-        IReadOnlyList<IType>? TypeArgs,
-        IType SourceTrait);
 
-    /// <summary>
-    /// Computes the effective members for a trait — the complete set of member
-    /// signatures that a type must satisfy. This includes:
-    /// <list type="number">
-    ///   <item>The trait's own declared members (with type argument substitution
-    ///         for <see cref="ConstructedTraitType"/>).</item>
-    ///   <item>All members inherited from parent traits (transitively), with
-    ///         appropriate type argument substitution composed through the chain.</item>
-    /// </list>
-    /// Members are deduplicated by name: if a member with the same name appears
-    /// from multiple inheritance paths, it is counted once (diamond inheritance).
-    /// </summary>
-    /// <param name="trait">
-    /// The trait to compute effective members for. May be a <see cref="TraitType"/>
-    /// (non-generic or unsubstituted) or a <see cref="ConstructedTraitType"/>
-    /// (generic with type arguments applied).
-    /// </param>
-    /// <returns>
-    /// A list of <see cref="EffectiveMember"/> entries representing all members
-    /// a type must satisfy, with substitution context attached.
-    /// </returns>
-    internal static List<EffectiveMember> GetEffectiveMembers(IType trait)
-    {
-        var result = new List<EffectiveMember>();
-        var seenNames = new HashSet<string>();
-        var visited = new HashSet<TraitType>();
 
-        CollectEffectiveMembers(trait, outerTypeParams: null, outerTypeArgs: null, result, seenNames, visited);
-
-        return result;
-    }
-
-    /// <summary>
-    /// Recursively collects effective members from a trait and its parent chain.
-    /// </summary>
-    /// <param name="trait">The trait (or constructed trait) to collect from.</param>
-    /// <param name="outerTypeParams">
-    /// Type parameters from an outer constructed context that need to be composed
-    /// with this trait's own substitution. Null if no outer substitution.
-    /// </param>
-    /// <param name="outerTypeArgs">
-    /// Type arguments from an outer constructed context. Null if no outer substitution.
-    /// </param>
-    /// <param name="result">Accumulator for effective members.</param>
-    /// <param name="seenNames">Set of member names already added (for deduplication).</param>
-    /// <param name="visited">Set of trait definitions already visited (prevents infinite loops on cycles).</param>
-    private static void CollectEffectiveMembers(
-        IType trait,
-        IReadOnlyList<IType>? outerTypeParams,
-        IReadOnlyList<IType>? outerTypeArgs,
-        List<EffectiveMember> result,
-        HashSet<string> seenNames,
-        HashSet<TraitType> visited)
-    {
-        // Decompose the trait into its definition and any type arguments.
-        TraitType traitDef;
-        IReadOnlyList<IType>? effectiveTypeParams;
-        IReadOnlyList<IType>? effectiveTypeArgs;
-
-        if (trait is ConstructedTraitType ctt)
-        {
-            traitDef = ctt.GenericTraitDefinition;
-            // Compose: if there's an outer substitution, apply it to this trait's type arguments.
-            if (outerTypeParams is not null && outerTypeArgs is not null)
-            {
-                var composedArgs = new IType[ctt.TypeArguments.Count];
-                for (var i = 0; i < ctt.TypeArguments.Count; i++)
-                {
-                    composedArgs[i] = SubstituteTypeInMember(ctt.TypeArguments[i], outerTypeParams, outerTypeArgs);
-                }
-                effectiveTypeParams = traitDef.TypeParameters;
-                effectiveTypeArgs = composedArgs;
-            }
-            else
-            {
-                effectiveTypeParams = traitDef.TypeParameters;
-                effectiveTypeArgs = ctt.TypeArguments;
-            }
-        }
-        else if (trait is TraitType tt)
-        {
-            traitDef = tt;
-            // For a plain TraitType, pass through any outer substitution context.
-            // This handles the case where a non-generic trait is a parent of a
-            // generic trait — its members don't need substitution themselves, but
-            // we still track the context for consistency.
-            effectiveTypeParams = outerTypeParams;
-            effectiveTypeArgs = outerTypeArgs;
-        }
-        else
-        {
-            return; // Unknown trait type — skip.
-        }
-
-        // Guard against cycles (should already be detected, but be defensive).
-        if (!visited.Add(traitDef))
-            return;
-
-        // Collect this trait's own declared members.
-        foreach (var member in traitDef.MemberScope.Members)
-        {
-            // Skip type parameter symbols (registered as SymbolKind.Class with TypeParameterType).
-            if (member.DeclaredType is TypeParameterType)
-                continue;
-
-            // Skip dependent type parameter symbols (e.g., Max:int in trait Bounded<Max:int>).
-            if (member.DeclaredType is DependentTypeParameterType)
-                continue;
-
-            // Skip non-trait-member kinds (only fields, methods, properties are trait members).
-            if (member.Kind is not (SymbolKind.Field or SymbolKind.Method or SymbolKind.Property))
-                continue;
-
-            // Deduplicate by name: first occurrence wins (diamond inheritance).
-            if (!seenNames.Add(member.Name))
-                continue;
-
-            result.Add(new EffectiveMember(
-                Member: member,
-                TypeParams: effectiveTypeParams,
-                TypeArgs: effectiveTypeArgs,
-                SourceTrait: trait));
-        }
-
-        // Recursively collect from parent traits.
-        foreach (var parent in traitDef.ParentTraits)
-        {
-            CollectEffectiveMembers(parent, effectiveTypeParams, effectiveTypeArgs, result, seenNames, visited);
-        }
-
-        // Remove from visited to allow the same trait to appear in different
-        // branches of a diamond (its members are already deduplicated by name).
-        visited.Remove(traitDef);
-    }
-
-    // ═══════════════════════════════════════════════════════════════════════
-    // Pass 1g (cont.) — Resolve trait satisfaction
-    // ═══════════════════════════════════════════════════════════════════════
-
-    /// <summary>
-    /// For each trait in the program and each class/struct, computes structural
-    /// matches and combines them with <c>with</c> block mappings to determine
-    /// which types satisfy which traits. Results are stored in the
-    /// <see cref="TraitSatisfactionMap"/>.
-    /// <list type="bullet">
-    ///   <item>Emits <c>MIST_TRAIT_MEMBER_VISIBILITY</c> when a private member
-    ///         matches a trait member name.</item>
-    ///   <item>Emits <c>MIST_TRAIT_WITH_UNSATISFIED</c> when a <c>with</c> block
-    ///         exists but doesn't cover all unmapped members.</item>
-    /// </list>
-    /// </summary>
-    private static void Pass1_ResolveTraitSatisfaction(
-        SymbolTable symbolTable,
-        Scope globalScope,
-        WithBlockRegistry withBlockRegistry,
-        TraitSatisfactionMap satisfactionMap,
-        ImmutableArray<Storm.Runtime.SyntaxNode> asts,
-        MistCompilation compilation,
-        DiagnosticBag diagnostics)
-    {
-        // Collect all traits.
-        var traits = new List<(ISymbol Symbol, TraitType Trait)>();
-        foreach (var sym in symbolTable.AllSymbols)
-        {
-            if (sym.Kind == SymbolKind.Trait && sym.DeclaredType is TraitType tt)
-                traits.Add((sym, tt));
-        }
-
-        // Collect all classes and structs.
-        var types = new List<(ISymbol Symbol, IType Type)>();
-        foreach (var sym in symbolTable.AllSymbols)
-        {
-            if (sym.Kind == SymbolKind.Class && sym.DeclaredType is ClassType ct)
-                types.Add((sym, ct));
-            else if (sym.Kind == SymbolKind.Struct && sym.DeclaredType is StructType st)
-                types.Add((sym, st));
-        }
-
-        // For each non-generic trait × type pair that has a with-block, attempt satisfaction.
-        // Lazy model: only with-blocks trigger satisfaction during Pass 1.
-        // Call-site structural matching is deferred to the type checker.
-        foreach (var (_, trait) in traits)
-        {
-            // Skip cyclic traits — they cannot be meaningfully satisfied.
-            if (trait.IsCyclic)
-                continue;
-
-            // Skip generic traits in this loop — they are handled below
-            // as ConstructedTraitType instances with specific type arguments.
-            if (trait.TypeParameters.Count > 0)
-                continue;
-
-            foreach (var (typeSym, type) in types)
-            {
-                // Only process types that have a with-block for this trait
-                // OR have the trait in their base list (explicit declaration).
-                var hasWithBlock = withBlockRegistry.HasMappings(type, trait);
-                var hasTraitInBaseList = HasTraitInBaseList(typeSym, trait, symbolTable);
-                if (!hasWithBlock && !hasTraitInBaseList)
-                    continue;
-
-                var typeName = typeSym.Name;
-                var memberScope = type switch
-                {
-                    ClassType ct => ct.MemberScope,
-                    StructType st => st.MemberScope,
-                    _ => null,
-                };
-
-                if (memberScope is null)
-                    continue;
-
-                // 1. Structural matching: for each trait member, search the
-                //    type's public members for a match.
-                var structuralMatches = new Dictionary<string, ISymbol>();
-                var privateMatches = new Dictionary<string, ISymbol>();
-
-                foreach (var traitMember in trait.MemberScope.Members)
-                {
-                    // Skip dependent type parameter symbols — they are not
-                    // members that need structural satisfaction.
-                    if (traitMember.DeclaredType is DependentTypeParameterType)
-                        continue;
-
-                    var matched = TryStructuralMatch(
-                        traitMember, memberScope, typeName, globalScope, symbolTable,
-                        asts, compilation, diagnostics, privateMatches);
-
-                    if (matched is not null)
-                    {
-                        structuralMatches[traitMember.Name] = matched;
-                    }
-                }
-
-                // 2. With-block augmentation: apply with-block mappings to
-                //    cover any trait members not structurally matched.
-                var withMappings = new Dictionary<string, ISymbol>();
-
-                foreach (var mapping in withBlockRegistry.GetMappings(type, trait))
-                {
-                    // Only apply the mapping if the trait member is not
-                    // already structurally matched.
-                    if (!structuralMatches.ContainsKey(mapping.TargetName))
-                    {
-                        withMappings[mapping.TargetName] = mapping.SourceMember;
-                    }
-                }
-
-                // 3. Satisfaction check: are all trait members covered?
-                var unsatisfiedMembers = new List<string>();
-                foreach (var traitMember in trait.MemberScope.Members)
-                {
-                    // Skip dependent type parameter symbols.
-                    if (traitMember.DeclaredType is DependentTypeParameterType)
-                        continue;
-
-                    if (!structuralMatches.ContainsKey(traitMember.Name)
-                        && !withMappings.ContainsKey(traitMember.Name))
-                    {
-                        unsatisfiedMembers.Add(traitMember.Name);
-                    }
-                }
-
-                if (unsatisfiedMembers.Count == 0)
-                {
-                    // All trait members are covered — register satisfaction.
-                    satisfactionMap.Register(type, trait, new TraitSatisfaction
-                    {
-                        StructuralMatches = structuralMatches,
-                        WithMappings = withMappings,
-                    });
-
-                    // Add to the type's SatisfiedTraits list.
-                    if (type is ClassType classType)
-                        classType.SatisfiedTraits.Add(trait);
-                    else if (type is StructType structType)
-                        structType.SatisfiedTraits.Add(trait);
-
-                    // Transitive parent satisfaction: register the type as
-                    // satisfying each parent trait (with appropriate type
-                    // argument substitution).
-                    RegisterTransitiveParentSatisfaction(
-                        type, trait, typeParams: null, typeArgs: null, satisfactionMap);
-                }
-                else
-                {
-                    // Emit MIST_TRAIT_WITH_UNSATISFIED: a with block exists
-                    // but doesn't cover all unmapped members.
-                    var memberList = string.Join(", ", unsatisfiedMembers);
-                    diagnostics.Add(new Diagnostic(
-                        TraitWithUnsatisfied,
-                        DiagnosticSeverity.Error,
-                        PipelineStage.SemanticModelConstruction,
-                        $"`with` block for '{typeName} : {trait.DisplayName}' does not cover all trait members. Unsatisfied: {memberList}.",
-                        Location: default,
-                        CompilationUnitPath: "<unknown>",
-                        AnalyzerName: null));
-                }
-
-                // 4. Emit MIST_TRAIT_MEMBER_VISIBILITY when private members
-                //    match trait member names (developer likely intended to
-                //    satisfy the trait but forgot to make some members public).
-                if (privateMatches.Count > 0)
-                {
-                    foreach (var (memberName, privateSym) in privateMatches)
-                    {
-                        var memberPath = FindCompilationUnitPathForType(typeName, symbolTable, asts, compilation);
-                        LinePositionSpan location = default;
-                        var memberNode = symbolTable.GetDeclaringNode(privateSym);
-                        if (memberNode is not null)
-                        {
-                            var sourceText = FindSourceTextForType(typeName, symbolTable, asts, compilation);
-                            if (sourceText is not null && memberNode.Span.Length > 0)
-                            {
-                                var mistSpan = new SourceSpan(memberNode.Span.Start, memberNode.Span.Length);
-                                location = sourceText.ToLinePositionSpan(mistSpan);
-                            }
-                        }
-                        diagnostics.Add(new Diagnostic(
-                            TraitMemberVisibility,
-                            DiagnosticSeverity.Error,
-                            PipelineStage.SemanticModelConstruction,
-                            $"Member '{typeName}.{memberName}' exists but is not public; trait matching requires public visibility.",
-                            Location: location,
-                            CompilationUnitPath: memberPath ?? "<unknown>",
-                            AnalyzerName: null));
-                    }
-                }
-            }
-        }
-
-        // ─── Generic trait satisfaction (ConstructedTraitType) ───────────
-        // Collect all distinct ConstructedTraitType instances that are "in play":
-        // from with-block registrations, parent trait references, and base list references.
-        var constructedTraits = new List<ConstructedTraitType>();
-        var constructedTraitSet = new HashSet<string>(); // Deduplicate by DisplayName.
-
-        // From with-block registry: any with block that targets a ConstructedTraitType.
-        foreach (var (_, traitKey, _) in withBlockRegistry.All())
-        {
-            if (traitKey is ConstructedTraitType ctt && constructedTraitSet.Add(ctt.DisplayName))
-                constructedTraits.Add(ctt);
-        }
-
-        // From parent trait references on all traits: if a trait has a
-        // ConstructedTraitType parent, that constructed trait is also a
-        // candidate for satisfaction checking.
-        foreach (var (_, trait) in traits)
-        {
-            CollectConstructedTraitsFromParents(trait, constructedTraits, constructedTraitSet);
-        }
-
-        // From base list references on types: if a class/struct has a
-        // ConstructedTraitType in its base list, that's an explicit declaration.
-        foreach (var (typeSym, _) in types)
-        {
-            CollectConstructedTraitsFromBaseList(
-                typeSym, symbolTable, globalScope, constructedTraits, constructedTraitSet);
-        }
-
-        // For each constructed trait × type pair that has a with-block, attempt satisfaction.
-        // Lazy model: only with-blocks trigger satisfaction during Pass 1.
-        foreach (var constructedTrait in constructedTraits)
-        {
-            // Skip if the underlying generic definition is cyclic.
-            if (constructedTrait.GenericTraitDefinition.IsCyclic)
-                continue;
-
-            // Compute effective members (own + inherited, with substitution).
-            var effectiveMembers = GetEffectiveMembers(constructedTrait);
-
-            foreach (var (typeSym, type) in types)
-            {
-                var hasWithBlock = withBlockRegistry.HasMappings(type, constructedTrait);
-
-                var typeName = typeSym.Name;
-                var memberScope = type switch
-                {
-                    ClassType ct => ct.MemberScope,
-                    StructType st => st.MemberScope,
-                    _ => null,
-                };
-
-                if (memberScope is null)
-                    continue;
-
-                // 1. Structural matching with type argument substitution.
-                var structuralMatches = new Dictionary<string, ISymbol>();
-                var privateMatches = new Dictionary<string, ISymbol>();
-
-                foreach (var effectiveMember in effectiveMembers)
-                {
-                    var matched = TryStructuralMatchWithSubstitution(
-                        effectiveMember, memberScope, typeName, globalScope,
-                        symbolTable, asts, compilation, diagnostics, privateMatches);
-
-                    if (matched is not null)
-                    {
-                        structuralMatches[effectiveMember.Member.Name] = matched;
-                    }
-                }
-
-                // 2. With-block augmentation.
-                var withMappings = new Dictionary<string, ISymbol>();
-
-                foreach (var mapping in withBlockRegistry.GetMappings(type, constructedTrait))
-                {
-                    if (!structuralMatches.ContainsKey(mapping.TargetName))
-                    {
-                        withMappings[mapping.TargetName] = mapping.SourceMember;
-                    }
-                }
-
-                // 3. Satisfaction check: are all effective members covered?
-                var unsatisfiedMembers = new List<string>();
-                foreach (var effectiveMember in effectiveMembers)
-                {
-                    var memberName = effectiveMember.Member.Name;
-                    if (!structuralMatches.ContainsKey(memberName)
-                        && !withMappings.ContainsKey(memberName))
-                    {
-                        unsatisfiedMembers.Add(memberName);
-                    }
-                }
-
-                if (unsatisfiedMembers.Count == 0)
-                {
-                    // All effective members are covered — register satisfaction.
-                    satisfactionMap.Register(type, constructedTrait, new TraitSatisfaction
-                    {
-                        StructuralMatches = structuralMatches,
-                        WithMappings = withMappings,
-                    });
-
-                    // Add to the type's SatisfiedTraits list.
-                    if (type is ClassType classType)
-                        classType.SatisfiedTraits.Add(constructedTrait);
-                    else if (type is StructType structType)
-                        structType.SatisfiedTraits.Add(constructedTrait);
-
-                    // Transitive parent satisfaction: register the type as
-                    // satisfying each parent trait (with appropriate type
-                    // argument substitution through the chain).
-                    RegisterTransitiveParentSatisfaction(
-                        type, constructedTrait,
-                        constructedTrait.GenericTraitDefinition.TypeParameters,
-                        constructedTrait.TypeArguments,
-                        satisfactionMap);
-                }
-                else if (hasWithBlock)
-                {
-                    var memberList = string.Join(", ", unsatisfiedMembers);
-                    diagnostics.Add(new Diagnostic(
-                        TraitWithUnsatisfied,
-                        DiagnosticSeverity.Error,
-                        PipelineStage.SemanticModelConstruction,
-                        $"`with` block for '{typeName} : {constructedTrait.DisplayName}' does not cover all trait members. Unsatisfied: {memberList}.",
-                        Location: default,
-                        CompilationUnitPath: "<unknown>",
-                        AnalyzerName: null));
-                }
-
-                // 4. Emit MIST_TRAIT_MEMBER_VISIBILITY when private members
-                //    match trait member names (only when there's a with-block).
-                if (privateMatches.Count > 0 && hasWithBlock)
-                {
-                    foreach (var (memberName, privateSym) in privateMatches)
-                    {
-                        var memberPath = FindCompilationUnitPathForType(typeName, symbolTable, asts, compilation);
-                        LinePositionSpan location = default;
-                        var memberNode = symbolTable.GetDeclaringNode(privateSym);
-                        if (memberNode is not null)
-                        {
-                            var sourceText = FindSourceTextForType(typeName, symbolTable, asts, compilation);
-                            if (sourceText is not null && memberNode.Span.Length > 0)
-                            {
-                                var mistSpan = new SourceSpan(memberNode.Span.Start, memberNode.Span.Length);
-                                location = sourceText.ToLinePositionSpan(mistSpan);
-                            }
-                        }
-                        diagnostics.Add(new Diagnostic(
-                            TraitMemberVisibility,
-                            DiagnosticSeverity.Error,
-                            PipelineStage.SemanticModelConstruction,
-                            $"Member '{typeName}.{memberName}' exists but is not public; trait matching requires public visibility.",
-                            Location: location,
-                            CompilationUnitPath: memberPath ?? "<unknown>",
-                            AnalyzerName: null));
-                    }
-                }
-            }
-        }
-    }
-
-    /// <summary>
-    /// Checks whether a type has a non-generic trait referenced in its base list
-    /// (explicit satisfaction declaration like <c>class Foo : MyTrait</c>).
-    /// </summary>
-    private static bool HasTraitInBaseList(ISymbol typeSym, TraitType trait, SymbolTable symbolTable)
-    {
-        var declaringNode = symbolTable.GetDeclaringNode(typeSym);
-        var baseList = declaringNode switch
-        {
-            ClassDeclarationNode classDecl => classDecl.BaseList,
-            _ => null,
-        };
-
-        if (baseList is null)
-            return false;
-
-        var entries = ExtractBaseListEntries(baseList);
-        foreach (var entry in entries)
-        {
-            var name = entry.Name.Lexeme;
-            if (name == trait.DisplayName && entry.TypeArgs is null)
-                return true;
-        }
-        return false;
-    }
-
-    /// <summary>
-    /// Checks whether a type has a constructed trait referenced in its base list
-    /// (explicit satisfaction declaration like <c>class Foo : MyTrait&lt;int&gt;</c>).
-    /// </summary>
-    private static bool HasConstructedTraitInBaseList(
-        ISymbol typeSym, ConstructedTraitType constructedTrait, SymbolTable symbolTable)
-    {
-        var declaringNode = symbolTable.GetDeclaringNode(typeSym);
-        var baseList = declaringNode switch
-        {
-            ClassDeclarationNode classDecl => classDecl.BaseList,
-            _ => null,
-        };
-
-        if (baseList is null)
-            return false;
-
-        var entries = ExtractBaseListEntries(baseList);
-        foreach (var entry in entries)
-        {
-            var name = entry.Name.Lexeme;
-            if (name == constructedTrait.GenericTraitDefinition.DisplayName && entry.TypeArgs is not null)
-                return true;
-        }
-        return false;
-    }
-
-    /// <summary>
-    /// Collects ConstructedTraitType instances from a type's base list references.
-    /// When a class declares <c>class Foo : MyTrait&lt;int&gt;</c>, the constructed
-    /// trait is collected for satisfaction checking.
-    /// </summary>
-    private static void CollectConstructedTraitsFromBaseList(
-        ISymbol typeSym,
-        SymbolTable symbolTable,
-        Scope globalScope,
-        List<ConstructedTraitType> constructedTraits,
-        HashSet<string> constructedTraitSet)
-    {
-        var declaringNode = symbolTable.GetDeclaringNode(typeSym);
-        var baseList = declaringNode switch
-        {
-            ClassDeclarationNode classDecl => classDecl.BaseList,
-            _ => null,
-        };
-
-        if (baseList is null)
-            return;
-
-        var entries = ExtractBaseListEntries(baseList);
-        foreach (var entry in entries)
-        {
-            if (entry.TypeArgs is null)
-                continue;
-
-            var name = entry.Name.Lexeme;
-            if (string.IsNullOrEmpty(name))
-                continue;
-
-            // Look up the name in the global scope to find the trait.
-            var resolvedSymbol = globalScope.Lookup(name)
-                ?? typeSym.ContainingScope.Lookup(name);
-            if (resolvedSymbol?.DeclaredType is not TraitType traitType)
-                continue;
-            if (traitType.TypeParameters.Count == 0)
-                continue;
-
-            // Resolve type arguments from the base list entry.
-            var typeArgs = new List<IType>();
-            var typeArgNodes = new List<TypeReferenceNode> { entry.TypeArgs.GetTypeReference() };
-            foreach (var extra in entry.TypeArgs.GetTypeReferences())
-                typeArgNodes.Add(extra);
-
-            foreach (var typeArgNode in typeArgNodes)
-            {
-                // Simple resolution: look up named type refs in the scope.
-                var resolvedArg = ResolveTypeArgFromBaseList(typeArgNode, globalScope, typeSym.ContainingScope);
-                if (resolvedArg is not null)
-                    typeArgs.Add(resolvedArg);
-            }
-
-            if (typeArgs.Count == traitType.TypeParameters.Count)
-            {
-                var ctt = new ConstructedTraitType(traitType, typeArgs);
-                if (constructedTraitSet.Add(ctt.DisplayName))
-                    constructedTraits.Add(ctt);
-            }
-        }
-    }
-
-    /// <summary>
-    /// Simple type argument resolution for base list entries.
-    /// Handles primitive types and named type references.
-    /// </summary>
-    private static IType? ResolveTypeArgFromBaseList(
-        TypeReferenceNode typeRef, Scope globalScope, IScope containingScope)
-    {
-        switch (typeRef.First)
-        {
-            case PrimitiveSingleTypeRefSingleTypeRefNode primitiveRef:
-                return ResolveLegacyPrimitive(primitiveRef.PrimitiveType);
-            case NamedSingleTypeRefSingleTypeRefNode namedRef:
-                var name = namedRef.Name.IDENTIFIER.Lexeme;
-                var sym = containingScope.Lookup(name) ?? globalScope.Lookup(name);
-                return sym?.DeclaredType;
-            default:
-                return null;
-        }
-    }
-
-    /// <summary>
-    /// Registers transitive parent trait satisfaction for a type that has been
-    /// confirmed to satisfy a child trait. Walks the child trait's parent chain
-    /// and registers the type as satisfying each parent trait with appropriate
-    /// type argument substitution.
-    /// <para>
-    /// Handles diamond inheritance: if the same parent trait is reached from
-    /// multiple paths, it is only registered once (checked via
-    /// <see cref="TraitSatisfactionMap.Satisfies"/>).
-    /// </para>
-    /// </summary>
-    /// <param name="type">The implementing type (class or struct).</param>
-    /// <param name="childTrait">
-    /// The child trait that was satisfied. Used to walk the parent chain.
-    /// May be a <see cref="TraitType"/> or <see cref="ConstructedTraitType"/>.
-    /// </param>
-    /// <param name="typeParams">
-    /// Type parameters from the child trait's generic definition (null for non-generic traits).
-    /// </param>
-    /// <param name="typeArgs">
-    /// Type arguments applied to the child trait (null for non-generic traits).
-    /// </param>
-    /// <param name="satisfactionMap">The satisfaction map to register into.</param>
-    private static void RegisterTransitiveParentSatisfaction(
-        IType type,
-        IType childTrait,
-        IReadOnlyList<IType>? typeParams,
-        IReadOnlyList<IType>? typeArgs,
-        TraitSatisfactionMap satisfactionMap)
-    {
-        // Get the trait definition and its parent traits.
-        TraitType traitDef;
-        if (childTrait is ConstructedTraitType ctt)
-            traitDef = ctt.GenericTraitDefinition;
-        else if (childTrait is TraitType tt)
-            traitDef = tt;
-        else
-            return;
-
-        if (traitDef.ParentTraits.Count == 0)
-            return;
-
-        // Use a visited set to prevent infinite recursion on cyclic hierarchies
-        // (should already be detected, but be defensive).
-        var visited = new HashSet<string>();
-        RegisterTransitiveParentSatisfactionCore(type, traitDef, typeParams, typeArgs, satisfactionMap, visited);
-    }
-
-    /// <summary>
-    /// Core recursive implementation for transitive parent satisfaction registration.
-    /// </summary>
-    private static void RegisterTransitiveParentSatisfactionCore(
-        IType type,
-        TraitType traitDef,
-        IReadOnlyList<IType>? typeParams,
-        IReadOnlyList<IType>? typeArgs,
-        TraitSatisfactionMap satisfactionMap,
-        HashSet<string> visited)
-    {
-        foreach (var parent in traitDef.ParentTraits)
-        {
-            // Resolve the parent trait with type argument substitution.
-            IType resolvedParent;
-            TraitType parentDef;
-            IReadOnlyList<IType>? parentTypeParams;
-            IReadOnlyList<IType>? parentTypeArgs;
-
-            if (parent is ConstructedTraitType parentCtt)
-            {
-                parentDef = parentCtt.GenericTraitDefinition;
-
-                // Substitute the child's type arguments into the parent's type arguments.
-                // E.g., trait Sortable<T> : Comparable<T> — when satisfying Sortable<int>,
-                // the parent becomes Comparable<int> (T is substituted with int).
-                if (typeParams is not null && typeArgs is not null && typeParams.Count > 0)
-                {
-                    var substitutedArgs = new IType[parentCtt.TypeArguments.Count];
-                    for (var i = 0; i < parentCtt.TypeArguments.Count; i++)
-                    {
-                        substitutedArgs[i] = SubstituteTypeInMember(parentCtt.TypeArguments[i], typeParams, typeArgs);
-                    }
-                    resolvedParent = new ConstructedTraitType(parentDef, substitutedArgs);
-                    parentTypeParams = parentDef.TypeParameters;
-                    parentTypeArgs = substitutedArgs;
-                }
-                else
-                {
-                    resolvedParent = parentCtt;
-                    parentTypeParams = parentDef.TypeParameters;
-                    parentTypeArgs = parentCtt.TypeArguments;
-                }
-            }
-            else if (parent is TraitType parentTt)
-            {
-                parentDef = parentTt;
-                resolvedParent = parentTt;
-                parentTypeParams = null;
-                parentTypeArgs = null;
-            }
-            else
-            {
-                continue;
-            }
-
-            // Diamond inheritance guard: skip if already registered.
-            var parentKey = resolvedParent.DisplayName;
-            if (!visited.Add(parentKey))
-                continue;
-
-            if (satisfactionMap.Satisfies(type, resolvedParent))
-                continue;
-
-            // Verify that the type actually satisfies the parent trait's
-            // effective members before registering transitive satisfaction.
-            // This prevents incorrect propagation when a child trait has no
-            // members of its own (e.g., a bridge trait like `_Bridge : Comparable<int>`)
-            // — satisfying the empty child does not imply satisfying the parent.
-            var parentEffectiveMembers = GetEffectiveMembers(resolvedParent);
-            if (parentEffectiveMembers.Count > 0)
-            {
-                // The child trait's effective members should include all parent
-                // members. If the child was satisfied, the parent should be too.
-                // However, when the child has no own members and typeParams is null
-                // (non-generic child), the child's satisfaction was trivial (0 members)
-                // and does not guarantee parent satisfaction. Only propagate if the
-                // child trait itself declares or inherits the parent's members in its
-                // effective member set (i.e., the child is generic and was checked
-                // with full effective members, or the child has own members that
-                // subsume the parent's).
-                //
-                // Safe propagation condition: the caller already verified all
-                // effective members of the child trait (which include inherited
-                // parent members) against the type. This is true when:
-                // - The child is a ConstructedTraitType (generic trait satisfaction
-                //   loop uses GetEffectiveMembers which includes inherited members)
-                // - The child is a non-generic trait WITH own members that were
-                //   checked (the non-generic loop checks trait.MemberScope.Members)
-                //
-                // Unsafe propagation: the child is a non-generic trait with NO own
-                // members (bridge pattern). In this case, typeParams is null and the
-                // child's MemberScope is empty, so satisfaction was trivial.
-                // We skip propagation here and let the constructed trait satisfaction
-                // loop handle the parent independently.
-                if (typeParams is null && typeArgs is null)
-                {
-                    // Non-generic child trait — only propagate to non-generic parents
-                    // (which have their own satisfaction check in the non-generic loop).
-                    // Skip constructed trait parents; they will be checked independently
-                    // in the constructed trait satisfaction loop.
-                    if (resolvedParent is ConstructedTraitType)
-                        continue;
-                }
-            }
-
-            // Register the type as satisfying the parent trait.
-            satisfactionMap.Register(type, resolvedParent, new TraitSatisfaction());
-
-            // Recurse into the parent's own parents.
-            RegisterTransitiveParentSatisfactionCore(
-                type, parentDef, parentTypeParams, parentTypeArgs, satisfactionMap, visited);
-        }
-    }
-
-    /// <summary>
-    /// Recursively collects <see cref="ConstructedTraitType"/> instances from
-    /// a trait's parent chain. These are candidates for satisfaction checking.
-    /// </summary>
-    private static void CollectConstructedTraitsFromParents(
-        TraitType trait,
-        List<ConstructedTraitType> collected,
-        HashSet<string> seen)
-    {
-        CollectConstructedTraitsFromParentsCore(trait, collected, seen, new HashSet<TraitType>());
-    }
-
-    /// <summary>
-    /// Core recursive implementation with a visited set to prevent infinite recursion
-    /// on cyclic trait hierarchies.
-    /// </summary>
-    private static void CollectConstructedTraitsFromParentsCore(
-        TraitType trait,
-        List<ConstructedTraitType> collected,
-        HashSet<string> seen,
-        HashSet<TraitType> visited)
-    {
-        if (!visited.Add(trait))
-            return; // Already visited — prevent infinite recursion.
-
-        foreach (var parent in trait.ParentTraits)
-        {
-            if (parent is ConstructedTraitType ctt)
-            {
-                if (seen.Add(ctt.DisplayName))
-                    collected.Add(ctt);
-                // Also recurse into the parent's own parents.
-                CollectConstructedTraitsFromParentsCore(ctt.GenericTraitDefinition, collected, seen, visited);
-            }
-            else if (parent is TraitType parentTrait)
-            {
-                CollectConstructedTraitsFromParentsCore(parentTrait, collected, seen, visited);
-            }
-        }
-    }
-
-    /// <summary>
-    /// Attempts to structurally match a single effective member (with type
-    /// argument substitution) against the type's public members.
-    /// <para>
-    /// When the effective member has <see cref="EffectiveMember.TypeParams"/>
-    /// and <see cref="EffectiveMember.TypeArgs"/>, type parameters in the
-    /// trait member's type references are substituted with the corresponding
-    /// type arguments before comparison.
-    /// </para>
-    /// </summary>
-    private static ISymbol? TryStructuralMatchWithSubstitution(
-        EffectiveMember effectiveMember,
-        IScope typeMemberScope,
-        string typeName,
-        Scope globalScope,
-        SymbolTable symbolTable,
-        ImmutableArray<Storm.Runtime.SyntaxNode> asts,
-        MistCompilation compilation,
-        DiagnosticBag diagnostics,
-        Dictionary<string, ISymbol>? privateMatches = null)
-    {
-        var traitMember = effectiveMember.Member;
-        var typeParams = effectiveMember.TypeParams;
-        var typeArgs = effectiveMember.TypeArgs;
-
-        // If no substitution is needed, fall back to the standard matching.
-        if (typeParams is null || typeArgs is null || typeParams.Count == 0)
-        {
-            return TryStructuralMatch(
-                traitMember, typeMemberScope, typeName, globalScope,
-                symbolTable, asts, compilation, diagnostics, privateMatches);
-        }
-
-        switch (traitMember.Kind)
-        {
-            case SymbolKind.Field:
-                return TryMatchTraitFieldWithSubstitution(
-                    traitMember, typeMemberScope, typeName, typeParams, typeArgs,
-                    symbolTable, asts, compilation, diagnostics, privateMatches);
-
-            case SymbolKind.Method:
-                return TryMatchTraitMethodWithSubstitution(
-                    traitMember, typeMemberScope, typeName, typeParams, typeArgs,
-                    globalScope, symbolTable, asts, compilation, diagnostics, privateMatches);
-
-            case SymbolKind.Property:
-                return TryMatchTraitPropertyWithSubstitution(
-                    traitMember, typeMemberScope, typeName, typeParams, typeArgs,
-                    globalScope, symbolTable, asts, compilation, diagnostics, privateMatches);
-
-            default:
-                return null;
-        }
-    }
-
-    /// <summary>
-    /// Matches a trait field member against the type's public fields or properties,
-    /// substituting type parameters in the trait field's type before comparison.
-    /// </summary>
-    private static ISymbol? TryMatchTraitFieldWithSubstitution(
-        ISymbol traitField,
-        IScope typeMemberScope,
-        string typeName,
-        IReadOnlyList<IType> typeParams,
-        IReadOnlyList<IType> typeArgs,
-        SymbolTable symbolTable,
-        ImmutableArray<Storm.Runtime.SyntaxNode> asts,
-        MistCompilation compilation,
-        DiagnosticBag diagnostics,
-        Dictionary<string, ISymbol>? privateMatches = null)
-    {
-        var traitFieldName = traitField.Name;
-        var traitTypeRef = GetTraitMemberTypeReference(traitField, symbolTable);
-        ISymbol? foundPrivateMatch = null;
-
-        foreach (var member in typeMemberScope.Members)
-        {
-            if (member.Name != traitFieldName)
-                continue;
-
-            if (member.Kind is not (SymbolKind.Field or SymbolKind.Property))
-                continue;
-
-            if (!IsMemberPublic(member, symbolTable))
-            {
-                foundPrivateMatch ??= member;
-                continue;
-            }
-
-            // Check type compatibility with substitution.
-            if (traitTypeRef is not null)
-            {
-                var memberTypeRef = GetMemberTypeReference(member, symbolTable);
-                if (memberTypeRef is not null
-                    && !TypeReferencesMatchWithSubstitution(memberTypeRef, traitTypeRef, typeParams, typeArgs))
-                    continue;
-            }
-
-            return member;
-        }
-
-        if (foundPrivateMatch is not null)
-        {
-            privateMatches?.TryAdd(traitFieldName, foundPrivateMatch);
-        }
-
-        return null;
-    }
-
-    /// <summary>
-    /// Matches a trait method member against the type's public methods,
-    /// substituting type parameters in the trait method's return type and
-    /// parameter types before comparison.
-    /// </summary>
-    private static ISymbol? TryMatchTraitMethodWithSubstitution(
-        ISymbol traitMethod,
-        IScope typeMemberScope,
-        string typeName,
-        IReadOnlyList<IType> typeParams,
-        IReadOnlyList<IType> typeArgs,
-        Scope globalScope,
-        SymbolTable symbolTable,
-        ImmutableArray<Storm.Runtime.SyntaxNode> asts,
-        MistCompilation compilation,
-        DiagnosticBag diagnostics,
-        Dictionary<string, ISymbol>? privateMatches = null)
-    {
-        var traitMethodName = traitMethod.Name;
-        var traitNode = symbolTable.GetDeclaringNode(traitMethod);
-        if (traitNode is not TraitMethodDeclarationNode traitMethodDecl)
-            return null;
-
-        var traitReturnType = traitMethodDecl.ReturnType;
-        var traitParams = ExtractParameterTypes(traitMethodDecl.Parameters);
-        var traitSourceText = GetSourceTextFromOrigin(traitMethodDecl);
-        ISymbol? foundPrivateMatch = null;
-
-        foreach (var member in typeMemberScope.Members)
-        {
-            if (member.Name != traitMethodName || member.Kind != SymbolKind.Method)
-                continue;
-
-            if (!IsMemberPublic(member, symbolTable))
-            {
-                foundPrivateMatch ??= member;
-                continue;
-            }
-
-            var memberNode = symbolTable.GetDeclaringNode(member);
-            if (memberNode is not MethodDeclarationNode implMethodDecl)
-                continue;
-
-            var implSourceText = GetSourceTextFromOrigin(implMethodDecl);
-            var combinedSourceText = traitSourceText ?? implSourceText;
-
-            // Compare return types with substitution.
-            if (!TypeReferenceMatchesWithSubstitutionForReturn(
-                    implMethodDecl.ReturnType, traitReturnType, typeParams, typeArgs,
-                    globalScope, symbolTable, combinedSourceText))
-                continue;
-
-            // Compare parameter types with substitution.
-            var implParams = ExtractParameterTypes(implMethodDecl.Parameters);
-            if (traitParams.Count != implParams.Count)
-                continue;
-
-            var paramsMatch = true;
-            for (var i = 0; i < traitParams.Count; i++)
-            {
-                if (!TypeReferencesMatchWithSubstitution(implParams[i], traitParams[i], typeParams, typeArgs, traitSourceText))
-                {
-                    paramsMatch = false;
-                    break;
-                }
-            }
-
-            if (!paramsMatch)
-                continue;
-
-            // Compare with-clauses: a structural match requires the same
-            // with-clauses (matched by resolved type, no variance).
-            if (!WithClausesMatchForTraitSatisfaction(traitMethod, member))
-                continue;
-
-            return member;
-        }
-
-        if (foundPrivateMatch is not null)
-        {
-            privateMatches?.TryAdd(traitMethodName, foundPrivateMatch);
-        }
-
-        return null;
-    }
-
-    /// <summary>
-    /// Matches a trait property member against the type's public properties,
-    /// substituting type parameters in the trait property's type before comparison.
-    /// </summary>
-    private static ISymbol? TryMatchTraitPropertyWithSubstitution(
-        ISymbol traitProperty,
-        IScope typeMemberScope,
-        string typeName,
-        IReadOnlyList<IType> typeParams,
-        IReadOnlyList<IType> typeArgs,
-        Scope globalScope,
-        SymbolTable symbolTable,
-        ImmutableArray<Storm.Runtime.SyntaxNode> asts,
-        MistCompilation compilation,
-        DiagnosticBag diagnostics,
-        Dictionary<string, ISymbol>? privateMatches = null)
-    {
-        var traitPropName = traitProperty.Name;
-        var traitTypeRef = GetTraitMemberTypeReference(traitProperty, symbolTable);
-        var traitNode = symbolTable.GetDeclaringNode(traitProperty);
-        var traitAccessors = GetTraitPropertyAccessors(traitNode);
-        var traitSourceText = traitNode is null
-            ? null
-            : GetSourceTextFromOrigin(traitNode);
-        ISymbol? foundPrivateMatch = null;
-
-        var traitHasSet = traitAccessors?.HasSet ?? false;
-
-        foreach (var member in typeMemberScope.Members)
-        {
-            if (member.Name != traitPropName || member.Kind != SymbolKind.Property)
-                continue;
-
-            if (!IsMemberPublic(member, symbolTable))
-            {
-                foundPrivateMatch ??= member;
-                continue;
-            }
-
-            // Check type compatibility with substitution.
-            if (traitTypeRef is not null)
-            {
-                var memberTypeRef = GetMemberTypeReference(member, symbolTable);
-                if (memberTypeRef is not null)
-                {
-                    var typesMatch = traitHasSet
-                        ? TypeReferencesMatchWithSubstitution(memberTypeRef, traitTypeRef, typeParams, typeArgs)
-                        : TypeReferenceMatchesWithSubstitutionForReturn(
-                            memberTypeRef, traitTypeRef, typeParams, typeArgs,
-                            globalScope, symbolTable, traitSourceText);
-                    if (!typesMatch)
-                        continue;
-                }
-            }
-
-            // Check accessors.
-            var implPropInfo = (member as Symbol)?.PropertyMetadata;
-            if (implPropInfo is not null && traitAccessors is not null)
-            {
-                if (traitAccessors.Value.HasGet && !implPropInfo.HasGet)
-                    continue;
-                if (traitAccessors.Value.HasSet && !implPropInfo.HasSet)
-                    continue;
-            }
-
-            return member;
-        }
-
-        if (foundPrivateMatch is not null)
-        {
-            privateMatches?.TryAdd(traitPropName, foundPrivateMatch);
-        }
-
-        return null;
-    }
-
-    /// <summary>
-    /// Compares a return type reference from the implementing type against a
-    /// trait return type reference with type parameter substitution. Applies
-    /// the relaxed unknown-widening rules at the return position.
-    /// </summary>
-    private static bool TypeReferenceMatchesWithSubstitutionForReturn(
-        TypeReferenceNode implReturn,
-        TypeReferenceNode traitReturn,
-        IReadOnlyList<IType> typeParams,
-        IReadOnlyList<IType> typeArgs,
-        Scope globalScope,
-        SymbolTable symbolTable,
-        SourceText? sourceText)
-    {
-        // If the trait return type is a type parameter, substitute it and
-        // compare the impl return against the substituted concrete type.
-        if (traitReturn.First is NamedSingleTypeRefSingleTypeRefNode namedTarget)
-        {
-            var targetName = GetNamedTypeRefName(namedTarget, sourceText);
-            for (var i = 0; i < typeParams.Count; i++)
-            {
-                var (paramName, _) = GetTypeParameterNameAndOrdinal(typeParams[i]);
-                if (paramName == targetName)
-                {
-                    // The trait return type is a type parameter — substitute
-                    // and compare against the concrete type.
-                    return TypeReferenceMatchesSubstitutedType(implReturn, typeArgs[i]);
-                }
-            }
-        }
-
-        // Not a type parameter — use the standard relaxed return matching.
-        return TypeReferencesMatchForTraitReturn(
-            traitReturn, implReturn, globalScope, symbolTable, sourceText);
-    }
-
-    /// <summary>
-    /// Attempts to structurally match a single trait member against the type's
-    /// public members. Returns the matching type member symbol, or <c>null</c>
-    /// if no structural match was found.
-    /// <para>
-    /// When a private member matches the trait member by name, it is recorded
-    /// in <paramref name="privateMatches"/> for deferred diagnostic emission
-    /// by the caller.
-    /// </para>
-    /// </summary>
-    private static ISymbol? TryStructuralMatch(
-        ISymbol traitMember,
-        IScope typeMemberScope,
-        string typeName,
-        Scope globalScope,
-        SymbolTable symbolTable,
-        ImmutableArray<Storm.Runtime.SyntaxNode> asts,
-        MistCompilation compilation,
-        DiagnosticBag diagnostics,
-        Dictionary<string, ISymbol>? privateMatches = null)
-    {
-        var traitMemberName = traitMember.Name;
-
-        switch (traitMember.Kind)
-        {
-            case SymbolKind.Field:
-                return TryMatchTraitField(traitMember, typeMemberScope, typeName, symbolTable, asts, compilation, diagnostics, privateMatches);
-
-            case SymbolKind.Method:
-                return TryMatchTraitMethod(traitMember, typeMemberScope, typeName, globalScope, symbolTable, asts, compilation, diagnostics, privateMatches);
-
-            case SymbolKind.Property:
-                return TryMatchTraitProperty(traitMember, typeMemberScope, typeName, globalScope, symbolTable, asts, compilation, diagnostics, privateMatches);
-
-            default:
-                return null;
-        }
-    }
-
-    /// <summary>
-    /// Matches a trait field member against the type's public fields or public
-    /// properties with compatible type.
-    /// </summary>
-    private static ISymbol? TryMatchTraitField(
-        ISymbol traitField,
-        IScope typeMemberScope,
-        string typeName,
-        SymbolTable symbolTable,
-        ImmutableArray<Storm.Runtime.SyntaxNode> asts,
-        MistCompilation compilation,
-        DiagnosticBag diagnostics,
-        Dictionary<string, ISymbol>? privateMatches = null)
-    {
-        var traitFieldName = traitField.Name;
-        var traitTypeRef = GetTraitMemberTypeReference(traitField, symbolTable);
-        ISymbol? foundPrivateMatch = null;
-
-        foreach (var member in typeMemberScope.Members)
-        {
-            if (member.Name != traitFieldName)
-                continue;
-
-            // Accept fields or properties.
-            if (member.Kind is not (SymbolKind.Field or SymbolKind.Property))
-                continue;
-
-            // Check visibility.
-            if (!IsMemberPublic(member, symbolTable))
-            {
-                foundPrivateMatch ??= member;
-                continue;
-            }
-
-            // Check type compatibility.
-            if (traitTypeRef is not null)
-            {
-                var memberTypeRef = GetMemberTypeReference(member, symbolTable);
-                if (memberTypeRef is not null && !TypeReferencesMatch(traitTypeRef, memberTypeRef))
-                    continue; // Type mismatch — not a match.
-            }
-
-            return member;
-        }
-
-        if (foundPrivateMatch is not null)
-        {
-            privateMatches?.TryAdd(traitFieldName, foundPrivateMatch);
-        }
-
-        return null;
-    }
-
-    /// <summary>
-    /// Matches a trait method member against the type's public methods with
-    /// the same name, return type, and parameter types. Return-position
-    /// matching uses the relaxed unknown-widening rules (Req 12.1, 12.2);
-    /// parameter-position matching remains exact (Req 12.3).
-    /// </summary>
-    private static ISymbol? TryMatchTraitMethod(
-        ISymbol traitMethod,
-        IScope typeMemberScope,
-        string typeName,
-        Scope globalScope,
-        SymbolTable symbolTable,
-        ImmutableArray<Storm.Runtime.SyntaxNode> asts,
-        MistCompilation compilation,
-        DiagnosticBag diagnostics,
-        Dictionary<string, ISymbol>? privateMatches = null)
-    {
-        var traitMethodName = traitMethod.Name;
-        var traitNode = symbolTable.GetDeclaringNode(traitMethod);
-        if (traitNode is not TraitMethodDeclarationNode traitMethodDecl)
-            return null;
-
-        var traitReturnType = traitMethodDecl.ReturnType;
-        var traitParams = ExtractParameterTypes(traitMethodDecl.Parameters);
-        var traitSourceText = GetSourceTextFromOrigin(traitMethodDecl);
-        ISymbol? foundPrivateMatch = null;
-
-        foreach (var member in typeMemberScope.Members)
-        {
-            if (member.Name != traitMethodName || member.Kind != SymbolKind.Method)
-                continue;
-
-            // Check visibility.
-            if (!IsMemberPublic(member, symbolTable))
-            {
-                foundPrivateMatch ??= member;
-                continue;
-            }
-
-            // Check signature: return type + parameter types.
-            var memberNode = symbolTable.GetDeclaringNode(member);
-            if (memberNode is not MethodDeclarationNode implMethodDecl)
-                continue;
-
-            var implSourceText = GetSourceTextFromOrigin(implMethodDecl);
-            // Both source texts should be available; if they disagree, we
-            // use the trait's as the primary lookup source (names resolved
-            // from the trait side are the ones that need to match the
-            // impl's declaration).
-            var combinedSourceText = traitSourceText ?? implSourceText;
-
-            // Compare return types under the relaxed trait-return rules
-            // (Req 12.1, 12.2 — unknown widening allowed at the return
-            // position).
-            if (!TypeReferencesMatchForTraitReturn(
-                    traitReturnType, implMethodDecl.ReturnType, globalScope, symbolTable, combinedSourceText))
-                continue;
-
-            // Compare parameter types.
-            var implParams = ExtractParameterTypes(implMethodDecl.Parameters);
-            if (traitParams.Count != implParams.Count)
-                continue;
-
-            var paramsMatch = true;
-            for (var i = 0; i < traitParams.Count; i++)
-            {
-                if (!TypeReferencesMatch(traitParams[i], implParams[i]))
-                {
-                    paramsMatch = false;
-                    break;
-                }
-            }
-
-            if (!paramsMatch)
-                continue;
-
-            // Compare with-clauses: a structural match requires the same
-            // with-clauses (matched by resolved type, no variance).
-            if (!WithClausesMatchForTraitSatisfaction(traitMethod, member))
-                continue;
-
-            return member;
-        }
-
-        if (foundPrivateMatch is not null)
-        {
-            privateMatches?.TryAdd(traitMethodName, foundPrivateMatch);
-        }
-
-        return null;
-    }
-
-    /// <summary>
-    /// Checks whether two symbols (a trait method and a candidate implementing method)
-    /// have matching with-clauses. A match requires the same set of context types
-    /// (matched by resolved type after alias resolution, no variance).
-    /// </summary>
-    private static bool WithClausesMatchForTraitSatisfaction(ISymbol traitMethod, ISymbol implMethod)
-    {
-        var traitClauses = traitMethod is Symbol traitSym ? traitSym.WithClauses : Array.Empty<ContextClauseInfo>();
-        var implClauses = implMethod is Symbol implSym ? implSym.WithClauses : Array.Empty<ContextClauseInfo>();
-
-        // If the trait method has no with-clauses, any implementing method matches
-        // (regardless of whether it has extra with-clauses).
-        if (traitClauses.Count == 0)
-            return true;
-
-        // The implementing method must declare the exact same with-clauses.
-        if (traitClauses.Count != implClauses.Count)
-            return false;
-
-        // Check that each trait clause has a matching impl clause (by resolved type).
-        var matched = new bool[implClauses.Count];
-        foreach (var traitClause in traitClauses)
-        {
-            var traitType = ResolveContextTypeForMatching(traitClause.ContextType);
-            var found = false;
-            for (var i = 0; i < implClauses.Count; i++)
-            {
-                if (matched[i])
-                    continue;
-                var implType = ResolveContextTypeForMatching(implClauses[i].ContextType);
-                if (ContextTypesMatchForContract(traitType, implType))
-                {
-                    matched[i] = true;
-                    found = true;
-                    break;
-                }
-            }
-            if (!found)
-                return false;
-        }
-
-        return true;
-    }
-
-    /// <summary>
-    /// Resolves a context type for keying/matching purposes by unwrapping type aliases.
-    /// </summary>
-    private static IType ResolveContextTypeForMatching(IType type)
-    {
-        while (type is TypeAliasType alias)
-        {
-            type = alias.UnderlyingType;
-        }
-        return type;
-    }
-
-    /// <summary>
-    /// Checks if two context types match for contract enforcement (exact match after
-    /// alias resolution, no variance).
-    /// </summary>
-    private static bool ContextTypesMatchForContract(IType a, IType b)
-    {
-        if (ReferenceEquals(a, b))
-            return true;
-        return string.Equals(a.DisplayName, b.DisplayName, StringComparison.Ordinal);
-    }
-
-    /// <summary>
-    /// Matches a trait property member against the type's public properties
-    /// with the same name, compatible type, and at least the trait's accessors.
-    /// Property types apply the relaxed unknown-widening rules (Req 12.1, 12.2)
-    /// when the trait declares only a getter (read-only), because the type
-    /// appears only at a return position. When the trait declares a setter,
-    /// exact matching is required (Req 12.3) because the property type then
-    /// appears at a parameter position (the value being assigned).
-    /// </summary>
-    private static ISymbol? TryMatchTraitProperty(
-        ISymbol traitProperty,
-        IScope typeMemberScope,
-        string typeName,
-        Scope globalScope,
-        SymbolTable symbolTable,
-        ImmutableArray<Storm.Runtime.SyntaxNode> asts,
-        MistCompilation compilation,
-        DiagnosticBag diagnostics,
-        Dictionary<string, ISymbol>? privateMatches = null)
-    {
-        var traitPropName = traitProperty.Name;
-        var traitTypeRef = GetTraitMemberTypeReference(traitProperty, symbolTable);
-        var traitNode = symbolTable.GetDeclaringNode(traitProperty);
-        var traitAccessors = GetTraitPropertyAccessors(traitNode);
-        var traitSourceText = traitNode is null
-            ? null
-            : GetSourceTextFromOrigin(traitNode);
-        ISymbol? foundPrivateMatch = null;
-
-        // A trait property with a setter exposes the property type at a
-        // parameter (write) position, which requires exact matching
-        // (Req 12.3). A read-only trait property exposes the type only at
-        // a return position and permits widening (Req 12.1, 12.2).
-        var traitHasSet = traitAccessors?.HasSet ?? false;
-
-        foreach (var member in typeMemberScope.Members)
-        {
-            if (member.Name != traitPropName || member.Kind != SymbolKind.Property)
-                continue;
-
-            // Check visibility.
-            if (!IsMemberPublic(member, symbolTable))
-            {
-                foundPrivateMatch ??= member;
-                continue;
-            }
-
-            // Check type compatibility.
-            if (traitTypeRef is not null)
-            {
-                var memberTypeRef = GetMemberTypeReference(member, symbolTable);
-                if (memberTypeRef is not null)
-                {
-                    var typesMatch = traitHasSet
-                        ? TypeReferencesMatch(traitTypeRef, memberTypeRef)
-                        : TypeReferencesMatchForTraitReturn(
-                            traitTypeRef, memberTypeRef, globalScope, symbolTable, traitSourceText);
-                    if (!typesMatch)
-                        continue; // Type mismatch.
-                }
-            }
-
-            // Check that the type's property has at least the accessors
-            // declared in the trait.
-            var implPropInfo = (member as Symbol)?.PropertyMetadata;
-            if (implPropInfo is not null && traitAccessors is not null)
-            {
-                if (traitAccessors.Value.HasGet && !implPropInfo.HasGet)
-                    continue;
-                if (traitAccessors.Value.HasSet && !implPropInfo.HasSet)
-                    continue;
-            }
-
-            return member;
-        }
-
-        if (foundPrivateMatch is not null)
-        {
-            privateMatches?.TryAdd(traitPropName, foundPrivateMatch);
-        }
-
-        return null;
-    }
-
-    /// <summary>
-    /// Extracts the accessor flags (get/set) from a trait property declaration node.
-    /// </summary>
-    private static (bool HasGet, bool HasSet)? GetTraitPropertyAccessors(
-        Storm.Runtime.SyntaxNode? declaringNode)
-    {
-        if (declaringNode is not TraitPropertyDeclarationNode traitPropDecl)
-            return null;
-
-        var hasGet = false;
-        var hasSet = false;
-
-        foreach (var accessor in traitPropDecl.Accessors)
-        {
-            switch (accessor)
-            {
-                case AbstractGetAccessorAbstractAccessorDeclarationNode:
-                    hasGet = true;
-                    break;
-                case AbstractSetAccessorAbstractAccessorDeclarationNode:
-                    hasSet = true;
-                    break;
-            }
-        }
-
-        return (hasGet, hasSet);
-    }
 
     // ═══════════════════════════════════════════════════════════════════════
     // Pass 1c — Detect circular abstract type inheritance chains
@@ -11724,7 +9020,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         typeName, symbolTable, asts, compilation);
                     var refMismatchNode = FindDeclaringNodeForType(typeName, symbolTable);
 
-                    var refMessage = $"Method '{refKindMismatch.ImplMethodName}' does not match abstract type/trait method '{requiredAbstract.DisplayName}.{refKindMismatch.AbstractMethodName}': parameter ref kinds must match exactly";
+                    var refMessage = $"Method '{refKindMismatch.ImplMethodName}' does not match abstract type method '{requiredAbstract.DisplayName}.{refKindMismatch.AbstractMethodName}': parameter ref kinds must match exactly";
 
                     if (refMismatchNode is not null)
                     {
@@ -12118,17 +9414,6 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             }
         }
 
-        // Check trait constraints: concrete type must satisfy each trait.
-        foreach (var traitConstraint in constraints.TraitConstraints)
-        {
-            if (!ConcreteTypeSatisfiesTrait(concreteType, traitConstraint))
-            {
-                EmitUnsatisfiedConstraintDiagnostic(
-                    concreteTypeName, traitConstraint.DisplayName, slotName, abstractName,
-                    implementorTypeName, concreteTypeName, symbolTable, asts, compilation, diagnostics);
-            }
-        }
-
         // Check constructor constraints: concrete type must have a public parameterless constructor.
         foreach (var requiredParams in constraints.ConstructorConstraints)
         {
@@ -12303,42 +9588,6 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         return false;
     }
 
-    /// <summary>
-    /// Checks whether a concrete type satisfies a trait constraint.
-    /// Uses display name matching against the type's trait conformances.
-    /// </summary>
-    private static bool ConcreteTypeSatisfiesTrait(IType concreteType, IType traitConstraint)
-    {
-        // Check the SatisfiedTraits list first (populated by with-blocks and call-site checking).
-        var satisfiedTraits = concreteType switch
-        {
-            ClassType ct => ct.SatisfiedTraits as IReadOnlyList<IType>,
-            StructType st => st.SatisfiedTraits as IReadOnlyList<IType>,
-            _ => Array.Empty<IType>() as IReadOnlyList<IType>,
-        };
-
-        foreach (var trait in satisfiedTraits)
-        {
-            if (trait.DisplayName == traitConstraint.DisplayName || ReferenceEquals(trait, traitConstraint))
-                return true;
-        }
-
-        // Also check the abstract types list (trait conformance may be recorded there).
-        var abstracts = concreteType switch
-        {
-            ClassType ct => ct.Abstracts,
-            StructType st => st.Abstracts,
-            _ => Array.Empty<IType>() as IReadOnlyList<IType>,
-        };
-
-        foreach (var iface in abstracts)
-        {
-            if (iface.DisplayName == traitConstraint.DisplayName || ReferenceEquals(iface, traitConstraint))
-                return true;
-        }
-
-        return false;
-    }
 
     /// <summary>
     /// Checks whether a concrete type has a public parameterless constructor.
@@ -12910,7 +10159,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// <summary>
     /// Compares two TypeReferenceNode instances for structural equality.
     /// Two <c>unknown</c> references match each other (Requirement 12.3 —
-    /// trait parameter positions require exact unknown-to-unknown match).
+    /// parameter positions require exact unknown-to-unknown match).
     /// </summary>
     private static bool TypeReferencesMatch(TypeReferenceNode a, TypeReferenceNode b)
     {
@@ -12933,9 +10182,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 && (na.ArrayRank is not null) == (nb.ArrayRank is not null),
 
             // Two `unknown` references match each other exactly. This is
-            // required for both trait return positions (where `unknown`
-            // in both sides trivially satisfies Req 12.1) and trait
-            // parameter positions (Req 12.3 — `unknown` in a trait
+            // required for both abstract type return positions (where `unknown`
+            // in both sides trivially satisfies Req 12.1) and abstract type
+            // parameter positions (Req 12.3 — `unknown` in an abstract type
             // parameter requires exactly `unknown` in the implementer).
             (UnknownSingleTypeRefSingleTypeRefNode, UnknownSingleTypeRefSingleTypeRefNode) => true,
 
@@ -13033,9 +10282,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     }
 
     /// <summary>
-    /// Compares a source type reference against a trait target type reference,
+    /// Compares a source type reference against a target type reference,
     /// substituting type parameters in the target with the provided type arguments.
-    /// For example, if the trait member type is <c>T</c> and <c>T=int</c>, this
+    /// For example, if the abstract type member type is <c>T</c> and <c>T=int</c>, this
     /// checks whether the source type reference matches <c>int</c>.
     /// </summary>
     private static bool TypeReferencesMatchWithSubstitution(
@@ -13043,7 +10292,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         TypeReferenceNode targetRef,
         IReadOnlyList<IType> typeParams,
         IReadOnlyList<IType> typeArgs,
-        SourceText? traitSourceText = null,
+        SourceText? targetSourceText = null,
         ImmutableArray<Storm.Runtime.SyntaxNode>? asts = null,
         MistCompilation? compilation = null)
     {
@@ -13051,7 +10300,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // substitute it with the corresponding type argument and compare.
         if (targetRef.First is NamedSingleTypeRefSingleTypeRefNode namedTarget)
         {
-            var targetName = GetNamedTypeRefName(namedTarget, traitSourceText);
+            var targetName = GetNamedTypeRefName(namedTarget, targetSourceText);
 
             // If primary source text lookup failed, try all compilation units.
             if (string.IsNullOrEmpty(targetName) && asts.HasValue && compilation is not null)
@@ -13080,7 +10329,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// <summary>
     /// Checks whether a source <see cref="TypeReferenceNode"/> matches a substituted
     /// <see cref="IType"/>. This bridges AST-level type references with semantic-level
-    /// resolved types for with-block validation of generic traits.
+    /// resolved types for generic type argument validation.
     /// </summary>
     private static bool TypeReferenceMatchesSubstitutedType(
         TypeReferenceNode sourceRef, IType substitutedType)
@@ -13136,7 +10385,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     }
 
     /// <summary>
-    /// Formats a trait member type reference with type parameter substitution applied.
+    /// Formats a member type reference with type parameter substitution applied.
     /// For example, if the type reference is <c>T</c> and <c>T=int</c>, returns <c>"int"</c>.
     /// </summary>
     private static string FormatTypeReferenceWithSubstitution(
@@ -13177,7 +10426,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// the AST span out of an optional source text. Returns an empty string
     /// when neither source is available.
     /// <para>
-    /// Used during trait satisfaction where AST nodes produced by the
+    /// Used during abstract type satisfaction where AST nodes produced by the
     /// parser may carry an empty lexeme on <c>IDENTIFIER</c> (the parser
     /// populates only the span in some cases).
     /// </para>
@@ -13254,244 +10503,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         return "";
     }
 
-    /// <summary>
-    /// Compares a trait member's return type reference (<paramref name="traitReturn"/>)
-    /// to a candidate implementer's return type reference (<paramref name="implReturn"/>)
-    /// under the relaxed rules for trait satisfaction (unknown-type feature,
-    /// Req 12.1 and Req 12.2). Returns <c>true</c> when the implementer's
-    /// return type satisfies the trait's return position.
-    /// <para>
-    /// Req 12.1: a trait return of <c>unknown</c> matches any non-<c>void</c>
-    /// implementer return.
-    /// </para>
-    /// <para>
-    /// Req 12.2: a trait return of <c>G&lt;…, unknown, …&gt;</c> matches an
-    /// implementer return of <c>G&lt;…, T_i, …&gt;</c> — the same generic
-    /// definition with type arguments that differ only by the trait's
-    /// <c>unknown</c> positions — when the generic definition is a class
-    /// (Req 8.6 class-only restriction). The widening is position-wise and
-    /// recurses into nested constructed types.
-    /// </para>
-    /// <para>
-    /// Non-return positions (trait parameters) MUST use the exact-match
-    /// <see cref="TypeReferencesMatch(TypeReferenceNode, TypeReferenceNode)"/>
-    /// helper to preserve Req 12.3.
-    /// </para>
-    /// </summary>
-    private static bool TypeReferencesMatchForTraitReturn(
-        TypeReferenceNode traitReturn,
-        TypeReferenceNode implReturn,
-        Scope globalScope,
-        SymbolTable symbolTable,
-        SourceText? sourceText)
-    {
-        // Req 12.1 — trait return `unknown` matches any non-void implementer
-        // return. The "non-void" guard is enforced by rejecting a void
-        // implementer when the trait asks for `unknown`.
-        if (traitReturn.First is UnknownSingleTypeRefSingleTypeRefNode)
-        {
-            return implReturn.First is not VoidSingleTypeRefSingleTypeRefNode;
-        }
 
-        // Req 12.2 — widening on generic type arguments. Both sides must be
-        // the same generic definition; only the trait's arguments may
-        // contain `unknown` at positions where the implementer has a
-        // concrete argument. The class-only restriction (Req 8.6) is
-        // enforced by a kind check on the generic definition symbol.
-        if (traitReturn.First is NamedSingleTypeRefSingleTypeRefNode traitNamed
-            && implReturn.First is NamedSingleTypeRefSingleTypeRefNode implNamed)
-        {
-            var traitName = GetNamedTypeRefName(traitNamed, sourceText);
-            var implName = GetNamedTypeRefName(implNamed, sourceText);
-
-            if (traitName == implName
-                && (traitNamed.ArrayRank is not null) == (implNamed.ArrayRank is not null))
-            {
-                // If neither side carries type arguments, this is just a
-                // plain name match.
-                if (traitNamed.TypeArgs is null && implNamed.TypeArgs is null)
-                    return true;
-
-                // If only one side carries type arguments, arities
-                // mismatch — not a valid match.
-                if (traitNamed.TypeArgs is null || implNamed.TypeArgs is null)
-                    return false;
-
-                // Both sides carry type arguments — apply the widening rule.
-                return TypeArgumentsMatchWithUnknownWidening(
-                    traitName,
-                    traitNamed.TypeArgs,
-                    implNamed.TypeArgs,
-                    globalScope,
-                    symbolTable,
-                    sourceText);
-            }
-        }
-
-        // Otherwise fall back to exact structural match.
-        return TypeReferencesMatch(traitReturn, implReturn);
-    }
-
-    /// <summary>
-    /// Position-wise widening check for the type arguments of a single
-    /// generic construction in a trait return position (Req 12.2, Req 8.6).
-    /// <para>
-    /// For each position <c>i</c>, accepts when:
-    /// <list type="bullet">
-    ///   <item>The two references are structurally equal; or</item>
-    ///   <item>The trait's argument at position <c>i</c> is <c>unknown</c>
-    ///         and the generic definition named by <paramref name="genericDefName"/>
-    ///         is a class (Req 8.6); or</item>
-    ///   <item>Both sides are nested constructed types with the same
-    ///         name, and the nested widening recurses successfully.</item>
-    /// </list>
-    /// </para>
-    /// <para>
-    /// The implementer's argument at position <c>i</c> being <c>unknown</c>
-    /// while the trait's argument is concrete is <b>not</b> accepted — the
-    /// widening is one-directional (Req 8.5 symmetry applied to traits).
-    /// </para>
-    /// </summary>
-    private static bool TypeArgumentsMatchWithUnknownWidening(
-        string genericDefName,
-        TypeArgumentListNode traitArgs,
-        TypeArgumentListNode implArgs,
-        Scope globalScope,
-        SymbolTable symbolTable,
-        SourceText? sourceText)
-    {
-        // Flatten each list into a single ordered sequence of type refs.
-        var traitList = FlattenTypeArguments(traitArgs);
-        var implList = FlattenTypeArguments(implArgs);
-
-        if (traitList.Count != implList.Count)
-            return false;
-
-        // Look up the generic definition's TypeKind to enforce Req 8.6.
-        var isClassGeneric = LookupGenericDefinitionIsClass(
-            genericDefName, globalScope, symbolTable);
-
-        for (var i = 0; i < traitList.Count; i++)
-        {
-            var traitArg = traitList[i];
-            var implArg = implList[i];
-
-            // Identity at this position — no widening happens here.
-            if (TypeReferencesMatch(traitArg, implArg))
-                continue;
-
-            // Widening: trait's argument is `unknown`, implementer's is
-            // concrete. The class-only rule (Req 8.6) is enforced at the
-            // level where the widening actually happens.
-            if (traitArg.First is UnknownSingleTypeRefSingleTypeRefNode)
-            {
-                if (!isClassGeneric)
-                    return false;
-                // Implementer must be non-void and non-unknown (unknown-to-
-                // unknown is already covered by TypeReferencesMatch above).
-                if (implArg.First is VoidSingleTypeRefSingleTypeRefNode)
-                    return false;
-                continue;
-            }
-
-            // Nested widening: both sides are named generics with the
-            // same name. Recurse into the nested argument list with the
-            // nested name as the new defCtx. Nested widening is allowed
-            // even when the outer generic is a struct — what is
-            // prohibited is widening the struct's own arguments.
-            if (traitArg.First is NamedSingleTypeRefSingleTypeRefNode traitNested
-                && implArg.First is NamedSingleTypeRefSingleTypeRefNode implNested
-                && (traitNested.ArrayRank is not null) == (implNested.ArrayRank is not null)
-                && traitNested.TypeArgs is not null
-                && implNested.TypeArgs is not null)
-            {
-                var traitNestedName = GetNamedTypeRefName(traitNested, sourceText);
-                var implNestedName = GetNamedTypeRefName(implNested, sourceText);
-                if (traitNestedName != implNestedName)
-                    return false;
-
-                if (!TypeArgumentsMatchWithUnknownWidening(
-                        traitNestedName,
-                        traitNested.TypeArgs,
-                        implNested.TypeArgs,
-                        globalScope,
-                        symbolTable,
-                        sourceText))
-                {
-                    return false;
-                }
-                continue;
-            }
-
-            // Anything else (mismatched generic names at nested level,
-            // concrete-to-unknown direction, etc.) is not a valid widening.
-            return false;
-        }
-
-        return true;
-    }
-
-    /// <summary>
-    /// Flattens a <see cref="TypeArgumentListNode"/> into a plain ordered
-    /// list of type references. The AST node splits the first argument
-    /// (<c>TypeReference</c>) from the rest (<c>TypeReferences</c>); this
-    /// helper merges them so callers can index by position.
-    /// </summary>
-    private static List<TypeReferenceNode> FlattenTypeArguments(TypeArgumentListNode node)
-    {
-        var result = new List<TypeReferenceNode>(1 + node.TypeArguments.Length)
-        {
-            node.GetTypeReference(),
-        };
-        foreach (var extra in node.GetTypeReferences())
-            result.Add(extra);
-        return result;
-    }
-
-    /// <summary>
-    /// Looks up the symbol registered for the generic definition named
-    /// <paramref name="genericDefName"/> and returns <c>true</c> if it is
-    /// a class (<see cref="SymbolKind.Class"/>). Returns <c>false</c>
-    /// when the symbol is a struct, an abstract type, or cannot be resolved.
-    /// Used to enforce Req 8.6 (class-only covariant widening) during
-    /// trait return-position matching.
-    /// </summary>
-    private static bool LookupGenericDefinitionIsClass(
-        string genericDefName,
-        Scope globalScope,
-        SymbolTable symbolTable)
-    {
-        // First try the global scope, which covers most stdlib and
-        // user-defined top-level types.
-        var symbol = globalScope.Lookup(genericDefName);
-        if (symbol is not null
-            && symbol.Kind is SymbolKind.Class or SymbolKind.Struct or SymbolKind.Abstract)
-        {
-            return symbol.Kind == SymbolKind.Class;
-        }
-
-        // Fall back to a symbol-table walk for nested/namespaced types.
-        // This handles the common case where user types live inside a
-        // namespace scope (not the global scope) and are only reachable
-        // via their containing namespace.
-        foreach (var candidate in symbolTable.AllSymbols)
-        {
-            if (candidate.Name == genericDefName
-                && (candidate.Kind == SymbolKind.Class
-                    || candidate.Kind == SymbolKind.Struct
-                    || candidate.Kind == SymbolKind.Abstract))
-            {
-                // Skip type parameters that were registered as
-                // SymbolKind.Class by RegisterTypeParameters — their
-                // DeclaredType is a TypeParameterType, not a class type.
-                if (candidate.DeclaredType is Types.TypeParameterType)
-                    continue;
-                return candidate.Kind == SymbolKind.Class;
-            }
-        }
-
-        return false;
-    }
 
     /// <summary>
     /// Compares two PrimitiveTypeNode instances for equality by variant type.
@@ -13668,7 +10680,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     {
         foreach (var symbol in symbolTable.AllSymbols)
         {
-            if ((symbol.Kind == SymbolKind.Class || symbol.Kind == SymbolKind.Struct || symbol.Kind == SymbolKind.Abstract || symbol.Kind == SymbolKind.Trait || symbol.Kind == SymbolKind.Enum)
+            if ((symbol.Kind == SymbolKind.Class || symbol.Kind == SymbolKind.Struct || symbol.Kind == SymbolKind.Abstract || symbol.Kind == SymbolKind.Enum)
                 && symbol.Name == typeName)
             {
                 return FindCompilationUnitPathForSymbol(symbol, symbolTable, asts, compilation);
@@ -13688,7 +10700,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     {
         foreach (var symbol in symbolTable.AllSymbols)
         {
-            if ((symbol.Kind == SymbolKind.Class || symbol.Kind == SymbolKind.Struct || symbol.Kind == SymbolKind.Abstract || symbol.Kind == SymbolKind.Trait || symbol.Kind == SymbolKind.Enum)
+            if ((symbol.Kind == SymbolKind.Class || symbol.Kind == SymbolKind.Struct || symbol.Kind == SymbolKind.Abstract || symbol.Kind == SymbolKind.Enum)
                 && symbol.Name == typeName)
             {
                 return GetSourceTextForSymbol(symbol, symbolTable);
@@ -13706,7 +10718,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     {
         foreach (var symbol in symbolTable.AllSymbols)
         {
-            if ((symbol.Kind == SymbolKind.Class || symbol.Kind == SymbolKind.Struct || symbol.Kind == SymbolKind.Abstract || symbol.Kind == SymbolKind.Trait || symbol.Kind == SymbolKind.Enum)
+            if ((symbol.Kind == SymbolKind.Class || symbol.Kind == SymbolKind.Struct || symbol.Kind == SymbolKind.Abstract || symbol.Kind == SymbolKind.Enum)
                 && symbol.Name == typeName)
             {
                 return symbolTable.GetDeclaringNode(symbol);
@@ -14755,7 +11767,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // the map is populated (e.g., from Pass 2 after a fresh Build() call).
         foreach (var symbol in symbolTable.AllSymbols)
         {
-            if ((symbol.Kind == SymbolKind.Class || symbol.Kind == SymbolKind.Struct || symbol.Kind == SymbolKind.Abstract || symbol.Kind == SymbolKind.Trait || symbol.Kind == SymbolKind.Enum)
+            if ((symbol.Kind == SymbolKind.Class || symbol.Kind == SymbolKind.Struct || symbol.Kind == SymbolKind.Abstract || symbol.Kind == SymbolKind.Enum)
                 && symbol.ContainingScope is Scope parentScope
                 && parentScope.Parent == globalScope)
             {
@@ -14769,10 +11781,6 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     return parentScope;
                 }
                 if (symbol.DeclaredType is AbstractType it && it.ContainingNamespace == namespaceName)
-                {
-                    return parentScope;
-                }
-                if (symbol.DeclaredType is TraitType tt && tt.ContainingNamespace == namespaceName)
                 {
                     return parentScope;
                 }
@@ -14805,9 +11813,6 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 break;
             case AbstractTypeTypeDeclarationNode abstractTypeNode:
                 ResolveAbstractDeclaration(abstractTypeNode.AbstractDeclaration, fileScope, symbolTable, ambientTypeResolver, sourceText, diagnostics);
-                break;
-            case TraitTypeTypeDeclarationNode traitTypeNode:
-                ResolveTraitDeclaration(traitTypeNode.TraitDeclaration, fileScope, symbolTable, ambientTypeResolver, sourceText, diagnostics);
                 break;
             case EnumTypeTypeDeclarationNode enumTypeNode:
                 ResolveEnumDeclaration(enumTypeNode.EnumDeclaration, fileScope, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
@@ -15202,9 +12207,6 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             case AbstractTypeTypeDeclarationNode abstractTypeNode:
                 ResolveExplicitMemberTypesForAbstract(abstractTypeNode.AbstractDeclaration, fileScope, symbolTable, ambientTypeResolver, sourceText, diagnostics);
                 break;
-            case TraitTypeTypeDeclarationNode traitTypeNode:
-                ResolveExplicitMemberTypesForTrait(traitTypeNode.TraitDeclaration, fileScope, symbolTable, ambientTypeResolver, sourceText, diagnostics);
-                break;
         }
     }
 
@@ -15370,83 +12372,6 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         }
     }
 
-    /// <summary>
-    /// Resolves explicit type annotations on all members of a trait declaration.
-    /// </summary>
-    private static void ResolveExplicitMemberTypesForTrait(
-        TraitDeclarationNode traitDecl,
-        Scope fileScope,
-        SymbolTable symbolTable,
-        IAmbientTypeResolver? ambientTypeResolver,
-        SourceText? sourceText,
-        DiagnosticBag diagnostics)
-    {
-        var traitSymbol = symbolTable.GetDeclaredSymbol(traitDecl);
-        if (traitSymbol?.DeclaredType is not TraitType traitType) return;
-
-        var typeScope = (Scope)traitType.MemberScope;
-        var resolutionScope = CreateTypeParameterScope(typeScope, fileScope);
-
-        foreach (var member in traitDecl.Members)
-        {
-            switch (member)
-            {
-                case TraitFieldMemberTraitMemberDeclarationNode fieldMember:
-                {
-                    var fieldDecl = fieldMember.Field;
-                    var fieldSymbol = symbolTable.GetDeclaredSymbol(fieldDecl) as Symbol;
-                    if (fieldSymbol is null || fieldSymbol.DeclaredType is not null) break;
-
-                    var fieldType = ResolveTypeReference(fieldDecl.Type, resolutionScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
-                    fieldSymbol.DeclaredType = fieldType;
-                    break;
-                }
-                case TraitMethodMemberTraitMemberDeclarationNode methodMember:
-                {
-                    var methodDecl = methodMember.Method;
-                    var methodSymbol = symbolTable.GetDeclaredSymbol(methodDecl) as Symbol;
-                    if (methodSymbol is null || methodSymbol.DeclaredType is not null) break;
-
-                    var returnType = ResolveTypeReference(methodDecl.ReturnType, resolutionScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
-                    methodSymbol.DeclaredType = returnType;
-
-                    if (methodDecl.ReturnOwnership is RefSpecifierOwnershipSpecifierNode)
-                    {
-                        methodSymbol.ReturnRefKind = RefKind.Ref;
-                        methodSymbol.OwnershipTier = OwnershipTier.Unrestricted;
-                    }
-                    else if (methodDecl.ReturnOwnership is ReadonlyRefSpecifierOwnershipSpecifierNode)
-                    {
-                        methodSymbol.ReturnRefKind = RefKind.RefReadonly;
-                        methodSymbol.OwnershipTier = OwnershipTier.Unrestricted;
-                    }
-                    else
-                    {
-                        methodSymbol.OwnershipTier = MapOwnershipSpecifier(methodDecl.ReturnOwnership);
-                    }
-
-                    // Resolve parameter types — Phase 4 is the sole owner for
-                    // trait parameters since traits have no body resolution in Pass 2.
-                    if (methodDecl.Parameters is not null)
-                    {
-                        var methodScope = new Scope(parent: resolutionScope);
-                        RegisterParameters(methodDecl.Parameters, methodScope, resolutionScope, symbolTable, ambientTypeResolver, sourceText, diagnostics);
-                    }
-                    break;
-                }
-                case TraitPropertyMemberTraitMemberDeclarationNode propertyMember:
-                {
-                    var propDecl = propertyMember.Property;
-                    var propSymbol = symbolTable.GetDeclaredSymbol(propDecl) as Symbol;
-                    if (propSymbol is null || propSymbol.DeclaredType is not null) break;
-
-                    var propType = ResolveTypeReference(propDecl.Type, resolutionScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
-                    propSymbol.DeclaredType = propType;
-                    break;
-                }
-            }
-        }
-    }
 
     /// <summary>
     /// Resolves explicit type annotation for a single class/struct member
@@ -16299,57 +13224,6 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // have no bodies to resolve.
     }
 
-    private static void ResolveTraitDeclaration(
-        TraitDeclarationNode traitDecl,
-        Scope fileScope,
-        SymbolTable symbolTable,
-        IAmbientTypeResolver? ambientTypeResolver,
-        SourceText? sourceText,
-        DiagnosticBag diagnostics)
-    {
-        var traitSymbol = symbolTable.GetDeclaredSymbol(traitDecl);
-        if (traitSymbol?.DeclaredType is not TraitType traitType) return;
-
-        // Create a resolution scope that includes the trait's type parameters
-        // while still having access to the file scope's imported namespaces.
-        var typeScope = (Scope)traitType.MemberScope;
-
-        // Generate implicit properties for dependent type parameters.
-        GenerateDependentTypeProperties(traitType.TypeParameters, typeScope, traitType, sourceText, diagnostics);
-
-        // Phase 4 already resolved all trait member types. Only perform
-        // storage-ban checks here (semantic validation, not type resolution).
-        foreach (var member in traitDecl.Members)
-        {
-            switch (member)
-            {
-                case TraitFieldMemberTraitMemberDeclarationNode fieldMember:
-                {
-                    var fieldDecl = fieldMember.Field;
-                    var fieldSymbol = symbolTable.GetDeclaredSymbol(fieldDecl) as Symbol;
-                    var fieldType = fieldSymbol?.DeclaredType ?? ErrorType.Instance;
-
-                    // Storage-ban check for trait fields (unknown-type
-                    // feature, Task 27.4, Requirement 12.4). Trait fields
-                    // are subject to the same storage ban as class/struct
-                    // fields because a type satisfying the trait must
-                    // provide writable storage matching the trait's
-                    // declared type — and writable storage cannot hold
-                    // an `unknown` value (Req 5.1, 7.5, 7.6).
-                    if (TypeContainment.IsStorageBanned(fieldType))
-                    {
-                        diagnostics.Add(MakeDiagnosticWithLocation(
-                            UnknownAsFieldType.Value,
-                            DiagnosticSeverity.Error,
-                            $"Field '{traitType.DisplayName}.{fieldDecl.Name.Lexeme}' of type '{fieldType.DisplayName}' cannot have 'unknown' in its declared type: 'unknown' is not permitted as the type of writable storage.",
-                            fieldDecl,
-                            sourceText));
-                    }
-                    break;
-                }
-            }
-        }
-    }
 
     private static void ResolveMemberDeclaration(
         MemberDeclarationNode memberDecl,
@@ -19184,9 +16058,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
     /// <summary>
     /// Resolves an associated type slot name from a type parameter's constraints.
-    /// When a type parameter <c>T</c> is constrained by an abstract type or trait that declares
+    /// When a type parameter <c>T</c> is constrained by an abstract type that declares
     /// an associated type slot with the given name, returns the <see cref="AssociatedTypeSlotType"/>.
-    /// Returns <c>null</c> if no constraining abstract type or trait declares a slot with that name.
+    /// Returns <c>null</c> if no constraining abstract type declares a slot with that name.
     /// </summary>
     private static AssociatedTypeSlotType? ResolveAssociatedTypeSlotFromConstraints(
         TypeParameterType typeParam,
@@ -19207,21 +16081,6 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             if (ifaceType is not null)
             {
                 var member = ifaceType.MemberScope.Lookup(slotName);
-                if (member is not null && member.DeclaredType is AssociatedTypeSlotType slotType)
-                    return slotType;
-            }
-        }
-
-        // Check trait constraints (may be TraitType or ConstructedTraitType).
-        foreach (var traitConstraint in constraints.TraitConstraints)
-        {
-            var traitType = traitConstraint as TraitType;
-            if (traitConstraint is ConstructedTraitType ctt)
-                traitType = ctt.GenericTraitDefinition;
-
-            if (traitType is not null)
-            {
-                var member = traitType.MemberScope.Lookup(slotName);
                 if (member is not null && member.DeclaredType is AssociatedTypeSlotType slotType)
                     return slotType;
             }
@@ -19359,11 +16218,11 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         }
 
                         // The left part is a type parameter but the right part is not
-                        // an associated type slot of any constraining abstract type/trait.
+                        // an associated type slot of any constraining abstract type.
                         diagnostics.Add(MakeDiagnosticWithLocation(
                             DiagnosticId.UnresolvedAssociatedTypeReference.Value,
                             DiagnosticSeverity.Error,
-                            $"Type parameter '{leftPart}' does not have an associated type '{rightPart}'; '{leftPart}' is not constrained by an abstract type or trait declaring '{rightPart}'.",
+                            $"Type parameter '{leftPart}' does not have an associated type '{rightPart}'; '{leftPart}' is not constrained by an abstract type declaring '{rightPart}'.",
                             namedRef,
                             sourceText));
                         return ErrorType.Instance;
@@ -19418,16 +16277,6 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 if (namedRef.TypeArgs is not null)
                 {
                     baseType = ResolvePass2TypeArguments(baseType, typeName, namedRef.TypeArgs, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
-                }
-                else if (baseType is TraitType tt && tt.TypeParameters.Count > 0)
-                {
-                    // Generic trait referenced without type arguments — emit diagnostic.
-                    diagnostics.Add(MakeDiagnosticWithLocation(
-                        DiagnosticId.MissingTypeArguments.Value,
-                        DiagnosticSeverity.Error,
-                        $"Generic trait '{typeName}' requires type arguments.",
-                        namedRef,
-                        sourceText));
                 }
 
                 if (namedRef.ArrayRank is SizedArrayRankArrayRankSuffixNode sizedRank)
@@ -20187,7 +17036,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // 2. Search current scope → parent scopes (local → file → namespace → global).
         //    When typeArgumentCount >= 0, use arity-aware lookup to disambiguate overloads.
         var symbol = LookupTypeByArity(fileScope, typeName, typeArgumentCount);
-        if (symbol is not null && (symbol.Kind == SymbolKind.Class || symbol.Kind == SymbolKind.Struct || symbol.Kind == SymbolKind.Abstract || symbol.Kind == SymbolKind.Trait || symbol.Kind == SymbolKind.TypeAlias || symbol.Kind == SymbolKind.Enum || symbol.Kind == SymbolKind.Newtype))
+        if (symbol is not null && (symbol.Kind == SymbolKind.Class || symbol.Kind == SymbolKind.Struct || symbol.Kind == SymbolKind.Abstract || symbol.Kind == SymbolKind.TypeAlias || symbol.Kind == SymbolKind.Enum || symbol.Kind == SymbolKind.Newtype))
         {
             // For type aliases that haven't been resolved yet, trigger
             // recursive resolution so that cycle detection via
@@ -20390,8 +17239,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
         foreach (var candidate in candidates)
         {
-            if (candidate.Kind is not (SymbolKind.Class or SymbolKind.Struct or SymbolKind.Abstract
-                or SymbolKind.Trait or SymbolKind.TypeAlias or SymbolKind.Enum or SymbolKind.Newtype))
+            if (candidate.Kind is not (SymbolKind.Class or SymbolKind.Struct or SymbolKind.Abstract or SymbolKind.TypeAlias or SymbolKind.Enum or SymbolKind.Newtype))
                 continue;
 
             var candidateArity = GetSymbolTypeParameterCount(candidate);
@@ -20420,8 +17268,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         {
             if (member.Name != typeName)
                 continue;
-            if (member.Kind is not (SymbolKind.Class or SymbolKind.Struct or SymbolKind.Abstract
-                or SymbolKind.Trait or SymbolKind.TypeAlias or SymbolKind.Enum or SymbolKind.Newtype))
+            if (member.Kind is not (SymbolKind.Class or SymbolKind.Struct or SymbolKind.Abstract or SymbolKind.TypeAlias or SymbolKind.Enum or SymbolKind.Newtype))
                 continue;
 
             if (typeArgumentCount < 0)
@@ -20457,7 +17304,6 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             ClassType ct => ct.TypeParameters.Count,
             StructType st => st.TypeParameters.Count,
             AbstractType it => it.TypeParameters.Count,
-            TraitType tt => tt.TypeParameters.Count,
             TypeAliasType at => at.TypeParameters.Count,
             _ => 0,
         };
@@ -20629,13 +17475,6 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             var underlying = alias.UnderlyingType;
             // Substitute each type parameter with the corresponding type argument.
             return SubstituteTypeInMember(underlying, alias.TypeParameters, resolvedTypeArgs);
-        }
-
-        // For generic traits, construct a ConstructedTraitType (analogous to
-        // ConstructedType for classes/structs/abstracts).
-        if (resolvedType is TraitType traitType)
-        {
-            return new ConstructedTraitType(traitType, resolvedTypeArgs);
         }
 
         // For generic delegate types (e.g., Predicate<T>), construct a new DelegateType
@@ -20867,8 +17706,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         }
 
                         // If the symbol is a type (class, struct, abstract type, etc.), treat as regular type arg.
-                        if (symbol.Kind is SymbolKind.Class or SymbolKind.Struct or SymbolKind.Abstract
-                            or SymbolKind.Trait or SymbolKind.TypeAlias or SymbolKind.Enum)
+                        if (symbol.Kind is SymbolKind.Class or SymbolKind.Struct or SymbolKind.Abstract or SymbolKind.TypeAlias or SymbolKind.Enum)
                         {
                             return null; // Fall through to normal type resolution.
                         }
@@ -20904,8 +17742,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                             foreach (var member in nsScope.Members)
                             {
                                 if (member.Name == argName &&
-                                    member.Kind is SymbolKind.Class or SymbolKind.Struct or SymbolKind.Abstract
-                                        or SymbolKind.Trait or SymbolKind.TypeAlias or SymbolKind.Enum)
+                                    member.Kind is SymbolKind.Class or SymbolKind.Struct or SymbolKind.Abstract or SymbolKind.TypeAlias or SymbolKind.Enum)
                                 {
                                     return null; // It's a type from an imported namespace.
                                 }
@@ -20968,7 +17805,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             if (wellKnown is null)
             {
                 var symbol = fileScope.Lookup(argName);
-                if (symbol is null || (symbol.Kind != SymbolKind.Class && symbol.Kind != SymbolKind.Struct && symbol.Kind != SymbolKind.Abstract && symbol.Kind != SymbolKind.Trait && symbol.Kind != SymbolKind.TypeAlias && symbol.Kind != SymbolKind.Enum))
+                if (symbol is null || (symbol.Kind != SymbolKind.Class && symbol.Kind != SymbolKind.Struct && symbol.Kind != SymbolKind.Abstract && symbol.Kind != SymbolKind.TypeAlias && symbol.Kind != SymbolKind.Enum))
                 {
                     // Check user-defined namespace scopes first.
                     var importedNamespaces = CollectImportedNamespaces(fileScope);
@@ -20986,7 +17823,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                             foreach (var member in nsScope.Members)
                             {
                                 if (member.Name == argName &&
-                                    (member.Kind == SymbolKind.Class || member.Kind == SymbolKind.Struct || member.Kind == SymbolKind.Abstract || member.Kind == SymbolKind.Trait || member.Kind == SymbolKind.TypeAlias || member.Kind == SymbolKind.Enum))
+                                    (member.Kind == SymbolKind.Class || member.Kind == SymbolKind.Struct || member.Kind == SymbolKind.Abstract || member.Kind == SymbolKind.TypeAlias || member.Kind == SymbolKind.Enum))
                                 {
                                     userResolved = true;
                                     break;
@@ -21153,13 +17990,13 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     {
         // Check if already registered in the scope.
         var existing = fileScope.Lookup(typeName);
-        if (existing is not null && (existing.Kind == SymbolKind.Class || existing.Kind == SymbolKind.Struct || existing.Kind == SymbolKind.Abstract || existing.Kind == SymbolKind.Trait))
+        if (existing is not null && (existing.Kind == SymbolKind.Class || existing.Kind == SymbolKind.Struct || existing.Kind == SymbolKind.Abstract))
         {
             return; // Already registered.
         }
 
         // Create a type symbol with SymbolOrigin.Backend.
-        var kind = type is ClassType ? SymbolKind.Class : type is AbstractType ? SymbolKind.Abstract : type is TraitType ? SymbolKind.Trait : SymbolKind.Struct;
+        var kind = type is ClassType ? SymbolKind.Class : type is AbstractType ? SymbolKind.Abstract :SymbolKind.Struct;
         var typeSymbol = new Symbol(typeName, kind, SymbolOrigin.Backend, fileScope, type, declarationSpan: null);
         fileScope.AddMember(typeSymbol);
 
@@ -24800,7 +21637,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
         // Check scope chain for type symbols (local → file → namespace → global).
         var symbol = fileScope.Lookup(name);
-        if (symbol is not null && (symbol.Kind == SymbolKind.Class || symbol.Kind == SymbolKind.Struct || symbol.Kind == SymbolKind.Abstract || symbol.Kind == SymbolKind.Trait || symbol.Kind == SymbolKind.TypeAlias || symbol.Kind == SymbolKind.Enum))
+        if (symbol is not null && (symbol.Kind == SymbolKind.Class || symbol.Kind == SymbolKind.Struct || symbol.Kind == SymbolKind.Abstract || symbol.Kind == SymbolKind.TypeAlias || symbol.Kind == SymbolKind.Enum))
         {
             return symbol.DeclaredType;
         }
@@ -24821,7 +21658,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 foreach (var member in nsScope.Members)
                 {
                     if (member.Name == name &&
-                        (member.Kind == SymbolKind.Class || member.Kind == SymbolKind.Struct || member.Kind == SymbolKind.Abstract || member.Kind == SymbolKind.Trait || member.Kind == SymbolKind.TypeAlias || member.Kind == SymbolKind.Enum))
+                        (member.Kind == SymbolKind.Class || member.Kind == SymbolKind.Struct || member.Kind == SymbolKind.Abstract || member.Kind == SymbolKind.TypeAlias || member.Kind == SymbolKind.Enum))
                     {
                         return member.DeclaredType;
                     }
@@ -24928,7 +21765,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
         // ── Constrained type parameter member access (Requirements 6.1–6.4, 6.7) ──
         // When the receiver is a TypeParameterType with constraints, look up the
-        // member in the constraint types (abstract types, traits, base class).
+        // member in the constraint types (abstract types, base class).
         if (targetType is TypeParameterType typeParam && typeParam.Constraints is not null)
         {
             var constraints = typeParam.Constraints;
@@ -24946,17 +21783,6 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     var inherited = LookupInheritedInterfaceMember(iface, memberName);
                     if (inherited is not null)
                         return inherited;
-                }
-            }
-
-            // Check trait constraints.
-            foreach (var traitConstraint in constraints.TraitConstraints)
-            {
-                if (traitConstraint is TraitType trait)
-                {
-                    var member = trait.MemberScope.Lookup(memberName);
-                    if (member is not null)
-                        return member.DeclaredType ?? ErrorType.Instance;
                 }
             }
 
@@ -24982,7 +21808,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
         // ── Associated type slot member access (Requirements 5.1–5.3) ──
         // When the receiver is an AssociatedTypeSlotType, look up the member
-        // in the slot's constraint types (abstract types, traits, base class).
+        // in the slot's constraint types (abstract types, base class).
         // This allows method calls and member access on values whose type is
         // an associated type reference (e.g., T.Enumerator).
         if (targetType is AssociatedTypeSlotType slotTarget)
@@ -25007,21 +21833,6 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         var inherited = LookupInheritedInterfaceMember(ifaceType, memberName);
                         if (inherited is not null)
                             return inherited;
-                    }
-                }
-
-                // Check trait constraints.
-                foreach (var traitConstraint in slotConstraints.TraitConstraints)
-                {
-                    var traitType = traitConstraint as TraitType;
-                    if (traitConstraint is ConstructedTraitType ctt)
-                        traitType = ctt.GenericTraitDefinition;
-
-                    if (traitType is not null)
-                    {
-                        var member = traitType.MemberScope.Lookup(memberName);
-                        if (member is not null)
-                            return member.DeclaredType ?? ErrorType.Instance;
                     }
                 }
 
@@ -25086,16 +21897,6 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             constructedTypeArgs = constructedTarget.TypeArguments;
             targetType = constructedTarget.GenericDefinition;
         }
-        // For ConstructedTraitType, unwrap to the generic trait definition and look up
-        // the member, then substitute type parameters with type arguments (Task 10.2).
-        else if (targetType is ConstructedTraitType constructedTraitTarget)
-        {
-            constructedTypeParams = constructedTraitTarget.GenericTraitDefinition.TypeParameters.Count > 0
-                ? constructedTraitTarget.GenericTraitDefinition.TypeParameters
-                : null;
-            constructedTypeArgs = constructedTraitTarget.TypeArguments;
-            targetType = constructedTraitTarget.GenericTraitDefinition;
-        }
 
         // Get the member scope from the target type.
         IScope? memberScope = targetType switch
@@ -25103,7 +21904,6 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             ClassType ct => ct.MemberScope,
             StructType st => st.MemberScope,
             AbstractType it => it.MemberScope,
-            TraitType tt => tt.MemberScope,
             NewtypeType nt => nt.MemberScope,
             ArrayType => null, // Arrays use special handling.
             _ => null,
@@ -25370,16 +22170,12 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // ── Extension member lookup fallback (Task 7.1 + 7.2 + 7.6) ────────
         // Before emitting MIST_UNDEFINED_MEMBER, check the extension registry
         // for applicable extension members matching the name.
-        // Task 7.6: Do NOT fall back to extension lookup when the receiver type
-        // is a trait. Extensions are orthogonal to traits and should not be
-        // discoverable on trait-typed variables. Abstract-type receivers ARE
-        // allowed because .NET extension methods targeting abstracts (e.g.,
-        // LINQ on IEnumerable, DI on IServiceCollection) are the primary API
-        // consumption pattern and must resolve as instance calls.
+        // Abstract-type receivers are allowed because .NET extension methods
+        // targeting abstracts (e.g., LINQ on IEnumerable, DI on IServiceCollection)
+        // are the primary API consumption pattern and must resolve as instance calls.
         // Task 7.2: Collect ALL candidates and apply specificity ordering.
         var isUnwrappedFromConstructed = constructedTypeParams is not null && constructedTypeArgs is not null;
-        if (_extensionRegistryContext is not null
-            && targetType is not TraitType)
+        if (_extensionRegistryContext is not null)
         {
             // Use the original target type (before ConstructedType unwrapping)
             // for the extension registry query. If the original was a
@@ -26044,18 +22840,6 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             return changed ? new ConstructedType(ct.GenericDefinition, substitutedArgs) : ct;
         }
 
-        if (type is ConstructedTraitType ctt)
-        {
-            var substitutedArgs = new IType[ctt.TypeArguments.Count];
-            var changed = false;
-            for (var i = 0; i < ctt.TypeArguments.Count; i++)
-            {
-                substitutedArgs[i] = SubstituteTypeInMember(ctt.TypeArguments[i], typeParams, typeArgs);
-                if (!ReferenceEquals(substitutedArgs[i], ctt.TypeArguments[i]))
-                    changed = true;
-            }
-            return changed ? new ConstructedTraitType(ctt.GenericTraitDefinition, substitutedArgs) : ctt;
-        }
 
         if (type is UnionType unionType)
         {
@@ -26231,7 +23015,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
         // ── Constrained type parameter member access (Requirements 6.1–6.4, 6.7) ──
         // When the receiver is a TypeParameterType with constraints, look up the
-        // member in the constraint types (abstract types, traits, base class).
+        // member in the constraint types (abstract types, base class).
         if (targetType is TypeParameterType typeParam && typeParam.Constraints is not null)
         {
             var constraints = typeParam.Constraints;
@@ -26249,17 +23033,6 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     var inherited = LookupInheritedInterfaceMemberSymbol(iface, memberName);
                     if (inherited is not null)
                         return inherited;
-                }
-            }
-
-            // Check trait constraints.
-            foreach (var traitConstraint in constraints.TraitConstraints)
-            {
-                if (traitConstraint is TraitType trait)
-                {
-                    var member = trait.MemberScope.Lookup(memberName);
-                    if (member is not null)
-                        return member;
                 }
             }
 
@@ -26306,21 +23079,6 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         var inherited = LookupInheritedInterfaceMemberSymbol(ifaceType, memberName);
                         if (inherited is not null)
                             return inherited;
-                    }
-                }
-
-                // Check trait constraints.
-                foreach (var traitConstraint in slotConstraints.TraitConstraints)
-                {
-                    var traitType = traitConstraint as TraitType;
-                    if (traitConstraint is ConstructedTraitType ctt)
-                        traitType = ctt.GenericTraitDefinition;
-
-                    if (traitType is not null)
-                    {
-                        var member = traitType.MemberScope.Lookup(memberName);
-                        if (member is not null)
-                            return member;
                     }
                 }
 
@@ -27547,10 +24305,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 {
                     classType.Defaultability = DefaultabilityStatus.NotDefaultable;
 
-                    // Only emit the diagnostic for abstract type/trait fields that need
+                    // Only emit the diagnostic for abstract type fields that need
                     // a type binding. Other non-defaultable field types (type parameters,
                     // void, etc.) silently make the type not-defaultable.
-                    if (field.DeclaredType is AbstractType or TraitType)
+                    if (field.DeclaredType is AbstractType)
                     {
                         diagnostics.Add(new Diagnostic(
                             DiagnosticId.DefaultRequiresTypeBinding,
@@ -27622,10 +24380,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 {
                     structType.Defaultability = DefaultabilityStatus.NotDefaultable;
 
-                    // Only emit the diagnostic for abstract type/trait fields that need
+                    // Only emit the diagnostic for abstract type fields that need
                     // a type binding. Other non-defaultable field types (type parameters,
                     // void, etc.) silently make the type not-defaultable.
-                    if (field.DeclaredType is AbstractType or TraitType)
+                    if (field.DeclaredType is AbstractType)
                     {
                         diagnostics.Add(new Diagnostic(
                             DiagnosticId.DefaultRequiresTypeBinding,
@@ -27653,7 +24411,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// Computes stampability for all struct types in the symbol table.
     /// A struct is stampable if and only if every instance field's declared type
     /// is transitively a primitive type or another stampable struct. Classes,
-    /// abstracts, traits, unions, arrays, and type-parameter-typed fields make
+    /// abstracts, unions, arrays, and type-parameter-typed fields make
     /// a struct non-stampable. Cycles are handled via a visited set (conservative
     /// false). Invoked after field types are resolved (same timing as
     /// <see cref="ComputeDefaultability"/>).
@@ -27735,10 +24493,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
                 case ClassType:
                 case AbstractType:
-                case TraitType:
                 case UnionType:
                 case ArrayType:
-                    // Reference types, abstracts, traits, unions, and arrays are
+                    // Reference types, abstracts, unions, and arrays are
                     // not stampable (Req 3.2, 3.3).
                     return false;
 
@@ -28253,7 +25010,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         {
             foreach (var member in current.Members)
             {
-                if (member.Kind is SymbolKind.Class or SymbolKind.Struct or SymbolKind.Abstract or SymbolKind.Trait
+                if (member.Kind is SymbolKind.Class or SymbolKind.Struct or SymbolKind.Abstract
                     && member.Name == typeName
                     && member.DeclaredType is not null)
                 {

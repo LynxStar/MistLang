@@ -28,7 +28,6 @@
 - [Readonly](object-model/readonly.md)
 - [Inheritance](object-model/inheritance.md)
 - [Abstract Types](object-model/abstract-types.md)
-- [Traits](object-model/traits.md)
 - [Enums](object-model/enums.md)
 - [Extensions](object-model/extension-methods.md)
 - [Target-Typed New](object-model/target-typed-new.md)

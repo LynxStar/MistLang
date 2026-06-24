@@ -154,7 +154,7 @@ A type is classified as **defaultable** or **non-defaultable** based on its stru
 | Enum without a `default` variant | Non-defaultable |
 | Union type containing `void` (e.g., `T?`) | Defaultable |
 | Union type without `void` | Non-defaultable |
-| Abstract types and traits | Always non-defaultable |
+| Abstract types | Always non-defaultable |
 
 Using `default(T)` on a non-defaultable type is a compile error. The compiler emits `MIST_DEFAULT_NOT_SUPPORTED` and the type must be constructed explicitly via `new`.
 
@@ -315,11 +315,11 @@ This rule is why optional types (`T?`, which desugars to `T | void`) are always 
 
 A union that does not include `void` (e.g., `int | string`) is non-defaultable. The compiler cannot pick one constituent over another as the "default" — that would be an arbitrary choice with no semantic basis.
 
-## Abstract Types and Traits
+## Abstract Types
 
-Abstract types and traits are always non-defaultable. They represent abstract contracts, not concrete values. You cannot call `default(ISerializable)` or `default(Printable)` — the compiler emits `MIST_DEFAULT_ON_INTERFACE` or `MIST_DEFAULT_ON_TRAIT` respectively.
+Abstract types are always non-defaultable. They represent abstract contracts, not concrete values. You cannot call `default(ISerializable)` — the compiler emits `MIST_DEFAULT_ON_ABSTRACT`.
 
-A `where T : default` constraint will also reject abstract type and trait types as type arguments, since they cannot satisfy the defaultability requirement.
+A `where T : default` constraint will also reject abstract types as type arguments, since they cannot satisfy the defaultability requirement.
 
 ## Summary of Rules
 

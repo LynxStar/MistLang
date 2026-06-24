@@ -1,4 +1,4 @@
-// Feature: dependent-types, Task 6.7: Abstract and trait dependent parameter validation
+// Feature: dependent-types, Task 6.7: Abstract dependent parameter validation
 // **Validates: Requirements 10.3, 10.4, 10.5**
 
 using System.Collections.Immutable;
@@ -13,7 +13,7 @@ using Mist.Semantics.Model;
 namespace Mist.Tests.Analysis;
 
 /// <summary>
-/// Unit tests verifying abstract and trait dependent parameter validation:
+/// Unit tests verifying abstract dependent parameter validation:
 /// - Concrete dependent value when implementing an abstract (Requirement 10.3)
 /// - Forwarding from class dependent parameter to abstract dependent parameter (Requirement 10.4)
 /// - Dependent property accessible on abstract type (Requirement 10.5)

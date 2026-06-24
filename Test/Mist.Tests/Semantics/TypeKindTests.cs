@@ -18,7 +18,7 @@ namespace Mist.Tests.Semantics;
 public class TypeKindTests
 {
     // ═══════════════════════════════════════════════════════════════════════
-    // Requirement 3.1 — TypeKind.Unknown is a defined variant placed after Trait
+    // Requirement 3.1 — TypeKind.Unknown is a defined variant placed after Enum
     // ═══════════════════════════════════════════════════════════════════════
 
     [Fact]
@@ -29,10 +29,10 @@ public class TypeKindTests
             "TypeKind.Unknown must be a defined enum value.");
 
         // The design (Phase B, "New TypeKind value") specifies the variant is
-        // placed after Trait. Lock that ordering in so a reorder is caught.
+        // placed after Enum. Lock that ordering in so a reorder is caught.
         Assert.True(
-            (int)TypeKind.Unknown > (int)TypeKind.Trait,
-            $"TypeKind.Unknown ({(int)TypeKind.Unknown}) must appear after TypeKind.Trait ({(int)TypeKind.Trait}) in the enum.");
+            (int)TypeKind.Unknown > (int)TypeKind.Enum,
+            $"TypeKind.Unknown ({(int)TypeKind.Unknown}) must appear after TypeKind.Enum ({(int)TypeKind.Enum}) in the enum.");
     }
 
     // ═══════════════════════════════════════════════════════════════════════

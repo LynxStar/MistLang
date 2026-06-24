@@ -32,8 +32,8 @@ internal static class DependentTypeHelpersGenerator
 
     /// <summary>
     /// Collects the set of C# type keywords used as dependent type parameter annotations
-    /// anywhere in the program. Scans all type declarations (classes, structs, interfaces,
-    /// traits, type aliases) and method symbols for <see cref="DependentTypeParameterType"/>
+    /// anywhere in the program. Scans all type declarations (classes, structs, abstract types,
+    /// type aliases) and method symbols for <see cref="DependentTypeParameterType"/>
     /// instances in their type parameter lists.
     /// </summary>
     public static HashSet<string> CollectUsedDependentValueTypes(ISemanticModel model)
@@ -67,7 +67,6 @@ internal static class DependentTypeHelpersGenerator
         ClassType ct => ct.TypeParameters,
         StructType st => st.TypeParameters,
         AbstractType it => it.TypeParameters,
-        TraitType tt => tt.TypeParameters,
         TypeAliasType at => at.TypeParameters,
         _ => null,
     };

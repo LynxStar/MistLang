@@ -305,27 +305,4 @@ public class WithStatementPrettyPrinterTests
         Assert.Equal(printed1, printed2);
     }
 
-    [Fact]
-    public void TraitMethodWithClause_PrettyPrintsCorrectly()
-    {
-        const string source = "trait T { void M() with MyType ctx; }";
-
-        var printed = PrettyPrint(source);
-
-        Assert.Contains("void M() with MyType ctx;", printed);
-    }
-
-    [Fact]
-    public void TraitMethodWithClause_RoundTripIsStable()
-    {
-        const string source = "trait T { void M() with MyType ctx; }";
-
-        var ast1 = ParseOrFail(source);
-        var printed1 = MistPrettyPrinter.Print(ast1, source);
-
-        var ast2 = ParseOrFail(printed1);
-        var printed2 = MistPrettyPrinter.Print(ast2, printed1);
-
-        Assert.Equal(printed1, printed2);
-    }
 }

@@ -14,7 +14,7 @@ using Mist.Parsing.Contracts;
 namespace Mist.Tests.Parsing;
 
 /// <summary>
-/// Represents a generated Mist abstract type or trait body containing associated type slot
+/// Represents a generated Mist abstract type body containing associated type slot
 /// declarations for round-trip testing.
 /// </summary>
 public sealed class AssociatedTypeRoundTripScenario
@@ -38,7 +38,7 @@ public sealed class AssociatedTypeRoundTripScenario
 ///
 /// For any valid associated type slot declaration (constrained or unconstrained, with or
 /// without generic type parameters, with or without where clauses) embedded in an abstract type
-/// or trait body, parsing the source text, pretty-printing the resulting syntax tree, and
+/// or abstract type body, parsing the source text, pretty-printing the resulting syntax tree, and
 /// parsing the pretty-printed output SHALL produce a syntax tree that is structurally
 /// identical to the original (verified via idempotent pretty-print output).
 /// </summary>
@@ -50,7 +50,6 @@ public class AssociatedTypeRoundTripPropertyTests
     // ─── Known names for generation ─────────────────────────────────────────
 
     private static readonly string[] AbstractNames = ["IIterable", "IRepository", "ICollection", "IMapper"];
-    private static readonly string[] TraitNames = ["Sortable", "Hashable", "Serializable", "Cloneable"];
     private static readonly string[] SlotNames = ["Enumerator", "Element", "Key", "Value", "Iterator", "Builder"];
     private static readonly string[] TypeParamNames = ["TState", "TKey", "TValue"];
     private static readonly string[] TypeRefConstraints = ["IEnumerator", "IComparable", "IDisposable", "ICloneable"];
@@ -214,7 +213,7 @@ public class AssociatedTypeRoundTripPropertyTests
             GenConstrainedSlotWithWhereClauses());
     }
 
-    // ─── Abstract type/Trait body generators ────────────────────────────────────
+    // ─── Abstract type body generators ────────────────────────────────────
 
     /// <summary>
     /// Generates an abstract type containing 1-3 associated type slot declarations.
@@ -244,43 +243,13 @@ public class AssociatedTypeRoundTripPropertyTests
                    $"generic abstract type {name}<T> with {slotCount} slot(s)");
     }
 
-    /// <summary>
-    /// Generates a trait containing 1-3 associated type slot declarations.
-    /// </summary>
-    private static Gen<AssociatedTypeRoundTripScenario> GenTraitWithSlots()
-    {
-        return from name in Gen.Elements(TraitNames)
-               from slotCount in Gen.Choose(1, 3)
-               from slots in Gen.ArrayOf(GenSlotDeclaration(), slotCount)
-               let body = string.Join("\n", slots)
-               let source = $"trait {name} {{\n{body}\n}}"
-               select new AssociatedTypeRoundTripScenario(source,
-                   $"trait {name} with {slotCount} slot(s)");
-    }
-
-    /// <summary>
-    /// Generates a generic trait containing associated type slot declarations.
-    /// </summary>
-    private static Gen<AssociatedTypeRoundTripScenario> GenGenericTraitWithSlots()
-    {
-        return from name in Gen.Elements(TraitNames)
-               from slotCount in Gen.Choose(1, 2)
-               from slots in Gen.ArrayOf(GenSlotDeclaration(), slotCount)
-               let body = string.Join("\n", slots)
-               let source = $"trait {name}<T> {{\n{body}\n}}"
-               select new AssociatedTypeRoundTripScenario(source,
-                   $"generic trait {name}<T> with {slotCount} slot(s)");
-    }
-
     // ─── Combined generator ─────────────────────────────────────────────────
 
     private static Gen<AssociatedTypeRoundTripScenario> GenScenario()
     {
         return Gen.OneOf(
             GenAbstractWithSlots(),
-            GenGenericAbstractWithSlots(),
-            GenTraitWithSlots(),
-            GenGenericTraitWithSlots());
+            GenGenericAbstractWithSlots());
     }
 
     // ─── Arbitrary registration ─────────────────────────────────────────────
@@ -316,7 +285,7 @@ public class AssociatedTypeRoundTripPropertyTests
     //
     // For any valid associated type slot declaration (constrained or unconstrained,
     // with or without generic type parameters, with or without where clauses)
-    // embedded in an abstract type or trait body, parsing the source text,
+    // embedded in an abstract type body, parsing the source text,
     // pretty-printing the resulting syntax tree, and parsing the pretty-printed
     // output SHALL produce a syntax tree that is structurally identical to the
     // original (verified via idempotent pretty-print output).

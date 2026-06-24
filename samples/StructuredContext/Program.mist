@@ -13,10 +13,10 @@
 //  10. Multiple same-type pushes in a single scope
 //  11. Generic types as independent context keys
 //  12. Constructor with-clause
-//  13. Class, struct, trait-satisfying, and abstract type-implementing types as context values
+//  13. Class, struct, abstract type-satisfying, and abstract type-implementing types as context values
 //  14. Type alias, union type, refinement type, and dependent type as context keys
 //  15. Abstract type method dispatch with with-clause
-//  16. Trait structural dispatch with with-clause
+//  16. Abstract type structural dispatch with with-clause
 
 using Standard;
 
@@ -94,14 +94,14 @@ public class ConsumerImpl : IContextConsumer
     }
 }
 
-// Trait with with-clause on method
-trait ContextReader
+// Abstract type with with-clause on method
+abstract ContextReader
 {
     string ReadContext() with int count;
 }
 
-// Class structurally satisfying ContextReader trait (has matching method with same with-clause)
-public class CountReader
+// Class implementing ContextReader (nominal conformance)
+public class CountReader : ContextReader
 {
     public string ReadContext() with int count
     {
@@ -181,7 +181,7 @@ public class Consumers
         return h.Item;
     }
 
-    // Consumes CountReader context (trait-satisfying type)
+    // Consumes CountReader context (abstract type-implementing type)
     public static string GetCountReader() with CountReader r
     {
         return $"CountReader(ReadContext with 0 would be: ready)";
@@ -331,16 +331,16 @@ public class Program
         var greeter = new Greeter();
         Console.WriteLine($"  Greeter.Greeting={greeter.Greeting}");
 
-        // ─── 13. Class, struct, trait-satisfying, and abstract type-implementing types ─
+        // ─── 13. Class, struct, abstract type-implementing types as context values ─
         Console.WriteLine("--- 13. Various types as context values ---");
         // Class (Config) — already demonstrated above, consumed by GetConfig()
         Console.WriteLine($"  class (Config): GetConfig()={Consumers.GetConfig()}");
         // Struct (Locale) — already demonstrated above, consumed by GetLocale()
         Console.WriteLine($"  struct (Locale): GetLocale()={Consumers.GetLocale()}");
-        // Trait-satisfying type: CountReader satisfies ContextReader trait
+        // Abstract type-implementing type: CountReader implements ContextReader
         with var reader = new CountReader();
         var readerResult = Consumers.GetCountReader();
-        Console.WriteLine($"  trait-satisfying (CountReader): {readerResult}");
+        Console.WriteLine($"  abstract type-implementing (CountReader): {readerResult}");
         // Abstract type-implementing type: ConsumerImpl implements IContextConsumer
         with var consumer = new ConsumerImpl();
         var consumerResult = Consumers.GetConsumerImpl();
@@ -390,12 +390,12 @@ public class Program
         var ifaceResult = iface.Consume();
         Console.WriteLine($"  IContextConsumer.Consume()={ifaceResult}");
 
-        // ─── 16. Trait structural dispatch with with-clause ──────────────
-        Console.WriteLine("--- 16. Trait dispatch with with-clause ---");
+        // ─── 16. Abstract type dispatch with with-clause ──────────────
+        Console.WriteLine("--- 16. Abstract type dispatch with with-clause ---");
         with 7;
-        ContextReader traitVar = new CountReader();
-        var traitResult = traitVar.ReadContext();
-        Console.WriteLine($"  ContextReader.ReadContext()={traitResult}");
+        ContextReader ctxReaderVar = new CountReader();
+        var ctxReaderResult = ctxReaderVar.ReadContext();
+        Console.WriteLine($"  ContextReader.ReadContext()={ctxReaderResult}");
 
         Console.WriteLine("=== Structured Context Done ===");
     }

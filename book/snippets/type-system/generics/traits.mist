@@ -1,9 +1,0 @@
-trait Comparable<T>
-{
-    int CompareTo(T other);
-}
-
-trait Converter<TIn, TOut>
-{
-    TOut Convert(TIn input);
-}

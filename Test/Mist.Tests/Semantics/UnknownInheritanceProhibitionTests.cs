@@ -1,7 +1,7 @@
 // Feature: unknown-type (Phase B, Task 13) — Enforce inheritance prohibition.
 //
 // Validates Requirements 6.1, 6.2, 6.3, 6.4, 16.6 — a class, struct,
-// abstract type, or trait declaration that would name `unknown` as a base
+// or abstract type declaration that would name `unknown` as a base
 // or implemented type is rejected.
 //
 // Reachability note. The grammar makes the positive form of each case
@@ -12,11 +12,6 @@
 //     lexes to the reserved `UNKNOWN` keyword token) cannot appear
 //     there. This covers the class base clause, the struct abstract type
 //     list, and the abstract type base list.
-//
-//   * `TraitDeclaration = TRAIT IDENTIFIER LEFT_BRACE ... RIGHT_BRACE`
-//     — traits have no base-clause production at all, so
-//     `trait T : unknown { }` fails to parse (the lone `TraitDeclaration`
-//     production does not accept `COLON`).
 //
 // The `MIST_SB_0054` guard in `SemanticModelBuilder` therefore exists
 // as a defensive, unreachable-from-parsed-source check (as noted in the
@@ -45,7 +40,7 @@ namespace Mist.Tests.Semantics;
 /// <summary>
 /// Unit tests for the inheritance-prohibition check added in Task 13.1:
 /// <c>MIST_SB_0054</c> — <c>unknown</c> used as a base or implemented
-/// type on a class, struct, abstract type, or trait declaration
+/// type on a class, struct, or abstract type declaration
 /// (Requirements 6.1–6.4, 16.6).
 /// </summary>
 /// <remarks>
@@ -63,7 +58,7 @@ namespace Mist.Tests.Semantics;
 /// <para>
 /// Additional negative tests lock in that <c>MIST_SB_0054</c> is not
 /// erroneously emitted on legitimate inheritance (<c>class Foo : Bar</c>,
-/// <c>struct S : I</c>, <c>abstract I : J</c>, <c>trait T { }</c>).
+/// <c>struct S : I</c>, <c>abstract I : J</c>).
 /// This catches the guard over-triggering if a future refactor
 /// introduces a new symbol whose <c>DeclaredType</c> is accidentally
 /// <see cref="UnknownType"/>.
@@ -230,37 +225,4 @@ public class UnknownInheritanceProhibitionTests
         Assert.Empty(WithId(diagnostics, "MIST_SB_0054"));
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // `trait T : unknown { }` — Requirement 6.4.
-    //
-    // Traits have no base-clause production in the grammar
-    // (`TraitDeclaration = TRAIT IDENTIFIER LEFT_BRACE ... RIGHT_BRACE`),
-    // so `trait T : unknown { }` fails at parse time for a stronger
-    // reason than the other three cases: it's not merely that `unknown`
-    // is a keyword, but that *no* inheritance syntax is accepted after
-    // the trait name. The test documents this behavior.
-    // ═══════════════════════════════════════════════════════════════════════
-
-    [Fact]
-    public void TraitBaseClauseWithUnknown_FailsToParse()
-    {
-        // Valid analog: `trait T { }` — produces a TraitTypeTypeDeclarationNode
-        // with no base clause (the grammar does not allow one).
-        var (cuInvalid, _) = ParseSource("trait T : unknown { }");
-        Assert.NotNull(cuInvalid);
-        Assert.Empty(cuInvalid!.GetTypes());
-
-        var (cuValid, _) = ParseSource("trait T { }");
-        Assert.NotNull(cuValid);
-        Assert.Single(cuValid!.GetTypes());
-    }
-
-    [Fact]
-    public void TraitBaseClauseWithUnknown_DoesNotEmit_MIST_SB_0054_ErroneouslyOnBenignTrait()
-    {
-        const string source = "trait T { }";
-
-        var diagnostics = BuildAndCollectDiagnostics(source);
-        Assert.Empty(WithId(diagnostics, "MIST_SB_0054"));
-    }
 }

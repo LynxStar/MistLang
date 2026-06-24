@@ -29,8 +29,7 @@ token BASE      = "base";
 // Enum keyword
 token ENUM = "enum";
 
-// Trait-related keywords
-token TRAIT = "trait";
+// With/As keywords (used in with-clauses, with-statements, as-expressions)
 token WITH  = "with";
 token AS    = "as";
 

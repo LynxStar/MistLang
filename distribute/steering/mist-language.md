@@ -30,7 +30,7 @@ This file is always loaded. Deeper references live in separate manual-inclusion 
 | File | Read it when the task involves… |
 |------|----------------------------------|
 | `#mist-ownership` | `owned`/`borrowed`/`frozen`/`readonly ref`, move semantics, lending, `IClonable`, or `linear`/`affine`/`relevant` drop semantics |
-| `#mist-advanced-features` | traits, structured context (`with` clauses), refinement types, dependent types, associated types, extension blocks |
+| `#mist-advanced-features` | abstract types, structured context (`with` clauses), refinement types, dependent types, associated types, extension blocks |
 | `#mist-interop` | adding NuGet packages, framework references, consuming C#/.NET types, named delegate types, delegate-func conversion, `mist inspect`, `mist restore`, or diagnosing dependency resolution |
 | `#mist-gitignore` | setting up version control — what Mist generates and what to ignore |
 
@@ -108,28 +108,6 @@ func<int, int, int> add = (a, b) => a + b;
 Lambdas, captures, method-group conversion, and `static` lambdas all behave as in C#. (`Action<T>` and `Func<...>` also exist as aliases if you prefer.)
 
 Named CLR delegates (e.g., `Predicate<T>`, `RequestDelegate`, `Comparison<T>`) are **not** collapsed to `func<...>`. They are preserved as distinct types with their CLR identity intact. A `func<...>` value or lambda is implicitly convertible to a signature-compatible named delegate, and a named delegate value is implicitly convertible back to its equivalent `func<...>` type. Two distinct named delegates are not convertible to each other, even when their signatures match. For full details, see `#mist-interop`.
-
-## Traits (Structural Typing)
-
-Traits are a new concept with no C# equivalent. A trait is a structural contract — any type with matching public members satisfies it automatically, no `implements` needed.
-
-```mist
-trait Printable { string Name; int Id; }
-
-// Any type with public Name:string and Id:int satisfies Printable
-public class User { public string Name; public int Id; }
-
-void Print(Printable item) { Console.WriteLine(item.Name); }
-Print(new User());   // works structurally
-```
-
-Use a `with` declaration to map mismatched member names onto a trait:
-
-```mist
-with Product : Printable { Title as Name; Sku as Id; }
-```
-
-Interfaces, by contrast, remain nominal and work exactly like C#.
 
 ## Type Unions
 
@@ -265,6 +243,6 @@ regex pattern = `[0-9]+`;
 Mist adds opt-in systems with no C# equivalent. These are documented in detail in companion files — include them when relevant:
 
 - **Ownership** (`owned`/`borrowed`/`frozen`/`readonly ref`, move semantics, lending, `IClonable`) and **substructural/drop semantics** (`linear`/`affine`/`relevant`): see `#mist-ownership.md`.
-- **Structured context** (implicit parameter passing via `with` clauses), refinement and dependent type details, traits, associated types: see `#mist-advanced-features.md`.
+- **Structured context** (implicit parameter passing via `with` clauses), refinement and dependent type details, abstract types, associated types: see `#mist-advanced-features.md`.
 
 By default, bindings are unrestricted and behave like ordinary C# references — you only deal with ownership when you opt in with these keywords.

@@ -42,7 +42,7 @@ public sealed class ConstraintEmissionOrderingScenario
 ///
 /// Property 3: For any Mist declaration with constraints written in any order,
 /// the emitted C# where clause SHALL contain the constraints in C#'s required order:
-/// class/struct first, then base class, then interfaces/traits, then new() last —
+/// class/struct first, then base class, then abstract types, then new() last —
 /// regardless of the source order in Mist.
 ///
 /// **Validates: Requirements 8.8, 9.1**
@@ -123,7 +123,7 @@ public sealed class ConstraintEmissionOrderingPropertyTests : IDisposable
 
     /// <summary>
     /// Verifies that the emitted constraint order follows C# rules:
-    /// class/struct → base class → interfaces/traits → new() last.
+    /// class/struct → base class → abstract types → new() last.
     /// </summary>
     private static bool VerifyConstraintOrder(string constraintList)
     {
@@ -134,7 +134,7 @@ public sealed class ConstraintEmissionOrderingPropertyTests : IDisposable
         // Determine the category of each constraint
         var categories = constraints.Select(CategorizeConstraint).ToList();
 
-        // Verify ordering: class/struct (0) → base class (1) → interfaces/traits (2) → new() (3)
+        // Verify ordering: class/struct (0) → base class (1) → abstract types (2) → new() (3)
         var lastCategory = -1;
         foreach (var category in categories)
         {
@@ -147,7 +147,7 @@ public sealed class ConstraintEmissionOrderingPropertyTests : IDisposable
 
     /// <summary>
     /// Categorizes a constraint string into its ordering category:
-    /// 0 = class/struct, 1 = base class, 2 = interface/trait, 3 = new()
+    /// 0 = class/struct, 1 = base class, 2 = abstract type, 3 = new()
     /// </summary>
     private static int CategorizeConstraint(string constraint)
     {
@@ -159,7 +159,7 @@ public sealed class ConstraintEmissionOrderingPropertyTests : IDisposable
         // For our test scenarios, base classes are Animal, Vehicle, Shape
         if (BaseClassNames.Any(bc => constraint.StartsWith(bc)))
             return 1;
-        // Everything else is an interface/trait
+        // Everything else is an abstract type
         return 2;
     }
 
@@ -273,7 +273,7 @@ class Program {{
     //
     // For any Mist declaration with constraints written in any order,
     // the emitted C# where clause SHALL contain the constraints in C#'s
-    // required order: class/struct → base class → interfaces/traits → new() last.
+    // required order: class/struct → base class → abstract types → new() last.
     // ═══════════════════════════════════════════════════════════════════════
 
     [Property(MaxTest = 100, Arbitrary = new[] { typeof(ConstraintEmissionOrderingPropertyTests) })]

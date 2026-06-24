@@ -1,6 +1,6 @@
 // AssociatedTypes — Demonstrates all associated type slot variants and usage patterns.
 //
-// Associated types declare abstract type slots in abstract types/traits that implementors
+// Associated types declare abstract type slots in abstract types that implementors
 // must fill with concrete nested types satisfying declared constraints. The compiler
 // validates constraint satisfaction at compile time.
 //
@@ -48,18 +48,18 @@ class MessageProducer : IProducer {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// Pattern 2: Trait slot with abstract type constraint
-// Traits can also declare associated type slots. The trait uses Input as both
-// a return type and parameter type in its method signatures.
+// Pattern 2: Abstract type slot with abstract type constraint
+// Abstract types can also declare associated type slots. The abstract type uses
+// Input as both a return type and parameter type in its method signatures.
 // ═══════════════════════════════════════════════════════════════════════════════
 
-trait Consumable {
+abstract Consumable {
     type Input : IStringable;
     Input Accept(string data);
     string Describe(Input item);
 }
 
-class StringConsumer {
+class StringConsumer : Consumable {
     public class Input : IStringable {
         public string Data;
         public Input(string data) { Data = data; }
@@ -381,8 +381,8 @@ public class Program {
         var output2 = producer.Produce("world");
         Console.WriteLine(output2.Stringify());
 
-        // 2. Trait slot — slot used as return and parameter type
-        Console.WriteLine("--- Trait Slot ---");
+        // 2. Abstract type slot — slot used as return and parameter type
+        Console.WriteLine("--- Abstract Type Slot ---");
         var consumer = new StringConsumer();
         var input1 = consumer.Accept("data-payload");
         Console.WriteLine(consumer.Describe(input1));

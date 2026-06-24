@@ -105,7 +105,7 @@ Transfer semantics depend on the value type:
 - Owned reference types: deep clone into target allocator + drop in source
 - Borrowed references: forbidden (can't escape their region)
 
-This mirrors Rust's `Send` trait / Erlang's message passing.
+This mirrors Rust's `Send` abstract type / Erlang's message passing.
 
 ## Open Questions
 

@@ -29,7 +29,6 @@ public sealed class SemanticModel : ISemanticModel
         Scope globalScope,
         SymbolTable symbolTable,
         Dictionary<Storm.Runtime.SyntaxNode, IType>? expressionTypes = null,
-        TraitSatisfactionMap? traitSatisfactionMap = null,
         ExtensionRegistry? extensionRegistry = null,
         Dictionary<ISymbol, RefinementPredicate>? parameterRefinements = null,
         Dictionary<Storm.Runtime.SyntaxNode, List<DiscardedTaskInfo>>? discardedTasksByScope = null)
@@ -44,7 +43,6 @@ public sealed class SemanticModel : ISemanticModel
         _parameterRefinements = parameterRefinements ?? new Dictionary<ISymbol, RefinementPredicate>();
         _guardNeededParameters = new HashSet<ISymbol>();
         _discardedTasksByScope = discardedTasksByScope ?? new Dictionary<Storm.Runtime.SyntaxNode, List<DiscardedTaskInfo>>();
-        TraitSatisfactionMap = traitSatisfactionMap ?? new TraitSatisfactionMap();
         ExtensionRegistry = extensionRegistry ?? new ExtensionRegistry();
     }
 
@@ -52,7 +50,6 @@ public sealed class SemanticModel : ISemanticModel
     public IScope GlobalScope { get; }
     public IReadOnlyList<CompilationUnit> Units { get; }
     public ImmutableArray<Storm.Runtime.SyntaxNode> Asts { get; }
-    public TraitSatisfactionMap TraitSatisfactionMap { get; }
     public ExtensionRegistry ExtensionRegistry { get; }
 
     /// <summary>

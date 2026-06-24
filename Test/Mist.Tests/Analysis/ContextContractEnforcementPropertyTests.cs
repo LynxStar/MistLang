@@ -1,4 +1,4 @@
-// Feature: structured-context, Property 5: Abstract type and trait with-clause contract enforcement
+// Feature: structured-context, Property 5: Abstract type with-clause contract enforcement
 //
 // **Validates: Requirements 8.1, 8.2, 8.3, 8.4, 8.5**
 //
@@ -6,9 +6,7 @@
 // implementing type's corresponding method SHALL declare the exact same `with`
 // clauses (matched by resolved type, no variance). Conversely, for any implementing
 // method that omits or mismatches a `with` clause from the abstract type method, the
-// compiler SHALL emit a diagnostic. For traits, for any type's method that matches
-// a trait method in name, parameters, and return type but differs in `with` clauses,
-// the compiler SHALL NOT consider it a structural match for trait satisfaction.
+// compiler SHALL emit a diagnostic.
 //
 // All work runs in-process — no external process is spawned per iteration
 // (in keeping with the workspace test-process-spawning policy).
@@ -60,23 +58,10 @@ public enum ContractScenarioKind
     /// clauses plus an extra one. No diagnostic expected (extra clauses are allowed).
     /// </summary>
     AbstractExtraClause,
-
-    /// <summary>
-    /// Trait method has with-clause(s), type's method matches with-clauses exactly.
-    /// Structural matching succeeds — no MIST_TRAIT_WITH_UNSATISFIED diagnostic.
-    /// </summary>
-    TraitExactMatch,
-
-    /// <summary>
-    /// Trait method has with-clause(s), type's method omits the with-clause.
-    /// Structural matching fails — MIST_TRAIT_WITH_UNSATISFIED diagnostic expected
-    /// (when no explicit with-block mapping covers it).
-    /// </summary>
-    TraitWithClauseMismatch,
 }
 
 /// <summary>
-/// A generated scenario for testing abstract type/trait with-clause contract enforcement.
+/// A generated scenario for testing abstract type with-clause contract enforcement.
 /// </summary>
 public sealed class ContractEnforcementScenario
 {
@@ -89,10 +74,6 @@ public sealed class ContractEnforcementScenario
     public int ExpectedContractDiagnosticCount { get; }
 
     /// <summary>
-    /// Whether MIST_TRAIT_WITH_UNSATISFIED diagnostics are expected (for trait scenarios).
-    /// </summary>
-    public bool ExpectTraitUnsatisfied { get; }
-
     /// <summary>
     /// The context type names that should appear in diagnostics (if any).
     /// </summary>
@@ -102,27 +83,24 @@ public sealed class ContractEnforcementScenario
         ContractScenarioKind kind,
         string source,
         int expectedContractDiagnosticCount,
-        bool expectTraitUnsatisfied,
         ImmutableArray<string> expectedDiagnosticContextTypes)
     {
         Kind = kind;
         Source = source;
         ExpectedContractDiagnosticCount = expectedContractDiagnosticCount;
-        ExpectTraitUnsatisfied = expectTraitUnsatisfied;
         ExpectedDiagnosticContextTypes = expectedDiagnosticContextTypes;
     }
 
     public override string ToString() =>
-        $"[{Kind}] expect {ExpectedContractDiagnosticCount} contract diag(s), " +
-        $"trait unsatisfied={ExpectTraitUnsatisfied}";
+        $"[{Kind}] expect {ExpectedContractDiagnosticCount} contract diag(s)";
 }
 
 // ─── Property test class ─────────────────────────────────────────────────
 
 /// <summary>
-/// Property-based tests for abstract type and trait with-clause contract enforcement.
+/// Property-based tests for abstract type with-clause contract enforcement.
 ///
-/// Property 5: Abstract type and trait with-clause contract enforcement
+/// Property 5: Abstract type with-clause contract enforcement
 ///
 /// **Validates: Requirements 8.1, 8.2, 8.3, 8.4, 8.5**
 /// </summary>
@@ -149,9 +127,6 @@ public sealed class ContextContractEnforcementPropertyTests
 
     private static readonly string[] AbstractNames =
         ["IService", "IHandler", "IProcessor", "IWorker", "IRunner"];
-
-    private static readonly string[] TraitNames =
-        ["Executable", "Processable", "Handleable", "Runnable", "Invokable"];
 
     private static readonly string[] ImplClassNames =
         ["ServiceImpl", "HandlerImpl", "ProcessorImpl", "WorkerImpl", "RunnerImpl"];
@@ -216,41 +191,13 @@ public sealed class ContextContractEnforcementPropertyTests
                    ImplClassNames[implIdx]);
     }
 
-    private static Gen<ContractEnforcementScenario> GenTraitExactMatch()
-    {
-        return from ctxIdx in Gen.Choose(0, ContextTypeNames.Length - 1)
-               from methodIdx in Gen.Choose(0, MethodNames.Length - 1)
-               from traitIdx in Gen.Choose(0, TraitNames.Length - 1)
-               from implIdx in Gen.Choose(0, ImplClassNames.Length - 1)
-               select BuildTraitExactMatchScenario(
-                   ContextTypeNames[ctxIdx],
-                   MethodNames[methodIdx],
-                   TraitNames[traitIdx],
-                   ImplClassNames[implIdx]);
-    }
-
-    private static Gen<ContractEnforcementScenario> GenTraitWithClauseMismatch()
-    {
-        return from ctxIdx in Gen.Choose(0, ContextTypeNames.Length - 1)
-               from methodIdx in Gen.Choose(0, MethodNames.Length - 1)
-               from traitIdx in Gen.Choose(0, TraitNames.Length - 1)
-               from implIdx in Gen.Choose(0, ImplClassNames.Length - 1)
-               select BuildTraitWithClauseMismatchScenario(
-                   ContextTypeNames[ctxIdx],
-                   MethodNames[methodIdx],
-                   TraitNames[traitIdx],
-                   ImplClassNames[implIdx]);
-    }
-
     public static Gen<ContractEnforcementScenario> GenScenario()
     {
         return Gen.OneOf(
             GenAbstractExactMatch(),
             GenAbstractOmittedClause(),
             GenAbstractMismatchedType(),
-            GenAbstractExtraClause(),
-            GenTraitExactMatch(),
-            GenTraitWithClauseMismatch());
+            GenAbstractExtraClause());
     }
 
     public static Arbitrary<ContractEnforcementScenario> ArbitraryContractEnforcementScenario() =>
@@ -281,7 +228,6 @@ public sealed class ContextContractEnforcementPropertyTests
             ContractScenarioKind.AbstractExactMatch,
             source,
             expectedContractDiagnosticCount: 0,
-            expectTraitUnsatisfied: false,
             expectedDiagnosticContextTypes: ImmutableArray<string>.Empty);
     }
 
@@ -308,7 +254,6 @@ public sealed class ContextContractEnforcementPropertyTests
             ContractScenarioKind.AbstractOmittedClause,
             source,
             expectedContractDiagnosticCount: 1,
-            expectTraitUnsatisfied: false,
             expectedDiagnosticContextTypes: ImmutableArray.Create(ctxType));
     }
 
@@ -338,7 +283,6 @@ public sealed class ContextContractEnforcementPropertyTests
             ContractScenarioKind.AbstractMismatchedType,
             source,
             expectedContractDiagnosticCount: 1,
-            expectTraitUnsatisfied: false,
             expectedDiagnosticContextTypes: ImmutableArray.Create(requiredCtxType));
     }
 
@@ -367,77 +311,6 @@ public sealed class ContextContractEnforcementPropertyTests
             ContractScenarioKind.AbstractExtraClause,
             source,
             expectedContractDiagnosticCount: 0,
-            expectTraitUnsatisfied: false,
-            expectedDiagnosticContextTypes: ImmutableArray<string>.Empty);
-    }
-
-    /// <summary>
-    /// Trait method has a with-clause, type's method matches exactly.
-    /// Structural matching succeeds — no MIST_TRAIT_WITH_UNSATISFIED diagnostic.
-    /// Uses an explicit with-block mapping to ensure the trait is satisfied.
-    /// </summary>
-    private static ContractEnforcementScenario BuildTraitExactMatchScenario(
-        string ctxType, string methodName, string traitName, string implName)
-    {
-        var source =
-            $"class {ctxType} {{ }}\n" +
-            $"trait {traitName} {{\n" +
-            $"    void {methodName}() with {ctxType} ctx;\n" +
-            "}\n" +
-            $"class {implName} {{\n" +
-            $"    public void {methodName}() with {ctxType} ctx {{ }}\n" +
-            "}\n" +
-            $"with {implName} : {traitName} {{\n" +
-            $"    {methodName} as {methodName};\n" +
-            "}\n" +
-            "class Program {\n" +
-            "    public static void Main() { }\n" +
-            "}\n";
-
-        return new ContractEnforcementScenario(
-            ContractScenarioKind.TraitExactMatch,
-            source,
-            expectedContractDiagnosticCount: 0,
-            expectTraitUnsatisfied: false,
-            expectedDiagnosticContextTypes: ImmutableArray<string>.Empty);
-    }
-
-    /// <summary>
-    /// Trait method has a with-clause, type's method does NOT have the with-clause.
-    /// The with-block only maps a different source method, so the trait method with
-    /// the with-clause is left unsatisfied by structural matching.
-    /// MIST_TRAIT_WITH_UNSATISFIED diagnostic expected.
-    /// </summary>
-    private static ContractEnforcementScenario BuildTraitWithClauseMismatchScenario(
-        string ctxType, string methodName, string traitName, string implName)
-    {
-        // The trait has two methods: one with a with-clause and one without.
-        // The type has both methods but the one that should have the with-clause
-        // does NOT have it. The with-block only maps a different source method
-        // to the helper, leaving the with-clause method unsatisfied structurally.
-        var source =
-            $"class {ctxType} {{ }}\n" +
-            $"trait {traitName} {{\n" +
-            $"    void {methodName}() with {ctxType} ctx;\n" +
-            "    void Helper();\n" +
-            "}\n" +
-            $"class {implName} {{\n" +
-            $"    public void {methodName}() {{ }}\n" +
-            "    public void Helper() { }\n" +
-            "    public void Src() { }\n" +
-            "}\n" +
-            $"with {implName} : {traitName} {{\n" +
-            "    Src as Helper;\n" +
-            "}\n" +
-            "class Program {\n" +
-            "    public static void Main() { }\n" +
-            "}\n";
-
-        return new ContractEnforcementScenario(
-            ContractScenarioKind.TraitWithClauseMismatch,
-            source,
-            expectedContractDiagnosticCount: 0,
-            expectTraitUnsatisfied: true,
             expectedDiagnosticContextTypes: ImmutableArray<string>.Empty);
     }
 
@@ -478,7 +351,7 @@ public sealed class ContextContractEnforcementPropertyTests
     }
 
     // ═══════════════════════════════════════════════════════════════════════
-    // Property 5: Abstract type and trait with-clause contract enforcement
+    // Property 5: Abstract type with-clause contract enforcement
     //
     // **Validates: Requirements 8.1, 8.2, 8.3, 8.4, 8.5**
     // ═══════════════════════════════════════════════════════════════════════
@@ -488,10 +361,7 @@ public sealed class ContextContractEnforcementPropertyTests
     /// every implementing type's corresponding method SHALL declare the exact same
     /// `with` clauses (matched by resolved type, no variance). Conversely, for any
     /// implementing method that omits or mismatches a `with` clause from the abstract type
-    /// method, the compiler SHALL emit a diagnostic. For traits, for any type's method
-    /// that matches a trait method in name, parameters, and return type but differs in
-    /// `with` clauses, the compiler SHALL NOT consider it a structural match for trait
-    /// satisfaction.
+    /// method, the compiler SHALL emit a diagnostic.
     ///
     /// **Validates: Requirements 8.1, 8.2, 8.3, 8.4, 8.5**
     /// </summary>
@@ -504,10 +374,6 @@ public sealed class ContextContractEnforcementPropertyTests
 
         var contractDiags = diagnostics
             .Where(d => d.Id == ContextCheckerAnalyzer.WithClauseContractViolation)
-            .ToImmutableArray();
-
-        var traitUnsatisfiedDiags = diagnostics
-            .Where(d => d.Id.Value == "MIST_TRAIT_WITH_UNSATISFIED")
             .ToImmutableArray();
 
         // Check abstract type contract diagnostics count.
@@ -534,26 +400,6 @@ public sealed class ContextContractEnforcementPropertyTests
                            $"Scenario: {scenario}\n" +
                            $"Source:\n{scenario.Source}");
             }
-        }
-
-        // Check trait unsatisfied diagnostics.
-        var hasTraitUnsatisfied = traitUnsatisfiedDiags.Length > 0;
-        if (scenario.ExpectTraitUnsatisfied && !hasTraitUnsatisfied)
-        {
-            return false.ToProperty()
-                .Label($"Expected MIST_TRAIT_WITH_UNSATISFIED diagnostic but none found.\n" +
-                       $"All diagnostics: [{string.Join("; ", diagnostics.Select(d => $"{d.Id.Value}: {d.Message}"))}]\n" +
-                       $"Scenario: {scenario}\n" +
-                       $"Source:\n{scenario.Source}");
-        }
-
-        if (!scenario.ExpectTraitUnsatisfied && hasTraitUnsatisfied)
-        {
-            return false.ToProperty()
-                .Label($"Did NOT expect MIST_TRAIT_WITH_UNSATISFIED diagnostic but got one.\n" +
-                       $"Diagnostics: [{string.Join("; ", traitUnsatisfiedDiags.Select(d => d.Message))}]\n" +
-                       $"Scenario: {scenario}\n" +
-                       $"Source:\n{scenario.Source}");
         }
 
         return true.ToProperty()

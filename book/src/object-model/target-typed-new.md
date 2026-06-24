@@ -109,12 +109,6 @@ SomeMethod(new());  // Error if SomeMethod has overloads and the parameter type 
 IDrawable d = new();  // Error: Cannot create an instance of abstract type 'IDrawable' with target-typed new.
 ```
 
-**Traits** — you cannot instantiate a trait:
-
-```mist
-Printable p = new();  // Error: Cannot create an instance of trait type 'Printable' with target-typed new.
-```
-
 **Abstract classes** — you cannot instantiate an abstract class:
 
 ```mist

@@ -53,7 +53,7 @@ public class UnknownTypeTests
     // UnknownType is intentionally a bare IType: it exposes only DisplayName
     // and Kind (from the IType contract). In particular, it does NOT carry a
     // MemberScope property (the types that do — ClassType, StructType,
-    // AbstractType, TraitType — declare MemberScope on themselves, not on
+    // AbstractType — declare MemberScope on themselves, not on
     // IType). Verifying the absence of a MemberScope property on the concrete
     // UnknownType class is an idiomatic structural check of "no declared
     // members."

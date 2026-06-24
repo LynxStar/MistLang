@@ -391,41 +391,41 @@ This implementation unifies Mist's `interface` and `trait` keywords into a singl
     - Commit all Phase 1 changes with message: "Phase 1: Rename interface → abstract (zero semantic change)"
 
 
-- [ ] 2. Phase 2 — Purge Traits (Pure Deletion)
+- [-] 2. Phase 2 — Purge Traits (Pure Deletion)
 
   > **Reference docs:**
   > - `phase2-tasks.md` — 72 detailed subtasks with verification commands
   > - `trait-audit.md` — per-file breakdown (196 files, 5082 grep hits)
   > - `trait-grep-raw.txt` — raw grep output for line-level reference
 
-  - [ ] 2.1 Delete trait grammar (keywords.storm, Mist.storm) + add error recovery
-  - [ ] 2.2 Delete trait semantic model types (TraitType.cs, ConstructedTraitType.cs, TraitSatisfactionMap.cs, WithBlockRegistry.cs)
-  - [ ] 2.3 Remove Trait from enums (SymbolKind, TypeKind) and contracts (ISemanticModel)
-  - [ ] 2.4 Remove TraitConstraints from TypeParameterConstraints, SatisfiedTraits from ClassType/StructType
-  - [ ] 2.5 Purge trait from SemanticModelBuilder.cs (883 hits — passes, registration, diagnostics, helpers)
-  - [ ] 2.6 Purge trait from TypeCheckerAnalyzer.cs (293 hits — SatisfiesTrait, IsTraitTargetType, readonly checks, assignability)
-  - [ ] 2.7 Purge trait from OwnershipAnalyzer, ContextCheckerAnalyzer, CooperationContractVerifier, ReadonlyAnalyzer
-  - [ ] 2.8 Purge trait from CSharpEmitter.cs (148 hits — EmitTraitDeclaration, ExplicitTraitImplementations, constraint loops)
-  - [ ] 2.9 Purge trait from CSharpTypeMap, DependentTypeHelpersGenerator, NeedsAsyncPropagationPass
-  - [ ] 2.10 Purge trait from DiagnosticId.cs, MistPrettyPrinter.cs, CompilerDriver.cs, SemanticModel.cs
-  - [ ] 2.11 Purge trait from misc semantics (DefaultValueKind, BindingKind, ReadonlyInferenceEngine)
-  - [ ] 2.12 Delete 24 trait-only test files (generators, parsing, semantics, analysis, backend)
-  - [ ] 2.13 Modify ~40 remaining test files to remove trait scenarios/branches
-  - [ ] 2.14 Delete samples/Traits/ and samples/GenericTraits/ directories
-  - [ ] 2.15 Migrate samples (GenericConstraints, AssociatedTypes, NestedScoping, StructuredContext, DependentTypes, Enums, AllFeatures)
-  - [ ] 2.16 Regenerate sample out/ directories, update AllFeatures.out baseline
-  - [ ] 2.17 Update Editor syntax highlighting (mist.tmLanguage.json, package.json, test files)
-  - [ ] 2.18 Delete book traits chapter + snippet files (traits.md + ~22 snippet files)
-  - [ ] 2.19 Update remaining book chapters (SUMMARY.md, introduction, type-system/*, advanced/*, tooling/*)
-  - [ ] 2.20 Update book theme (mist-lang.js, highlight.js Mist section only)
-  - [ ] 2.21 Update distribute/steering files (mist-advanced-features.md, mist-language.md, README.md)
-  - [ ] 2.22 Update project/design-notes/regions-and-lifetimes.md
-  - [ ] 2.23 Final verification gate
+  - [x] 2.1 Delete trait grammar (keywords.storm, Mist.storm) + add error recovery
+  - [x] 2.2 Delete trait semantic model types (TraitType.cs, ConstructedTraitType.cs, TraitSatisfactionMap.cs, WithBlockRegistry.cs)
+  - [x] 2.3 Remove Trait from enums (SymbolKind, TypeKind) and contracts (ISemanticModel)
+  - [x] 2.4 Remove TraitConstraints from TypeParameterConstraints, SatisfiedTraits from ClassType/StructType
+  - [x] 2.5 Purge trait from SemanticModelBuilder.cs (883 hits — passes, registration, diagnostics, helpers)
+  - [x] 2.6 Purge trait from TypeCheckerAnalyzer.cs (293 hits — SatisfiesTrait, IsTraitTargetType, readonly checks, assignability)
+  - [x] 2.7 Purge trait from OwnershipAnalyzer, ContextCheckerAnalyzer, CooperationContractVerifier, ReadonlyAnalyzer
+  - [x] 2.8 Purge trait from CSharpEmitter.cs (148 hits — EmitTraitDeclaration, ExplicitTraitImplementations, constraint loops)
+  - [x] 2.9 Purge trait from CSharpTypeMap, DependentTypeHelpersGenerator, NeedsAsyncPropagationPass
+  - [x] 2.10 Purge trait from DiagnosticId.cs, MistPrettyPrinter.cs, CompilerDriver.cs, SemanticModel.cs
+  - [x] 2.11 Purge trait from misc semantics (DefaultValueKind, BindingKind, ReadonlyInferenceEngine)
+  - [x] 2.12 Delete 24 trait-only test files (generators, parsing, semantics, analysis, backend)
+  - [x] 2.13 Modify ~40 remaining test files to remove trait scenarios/branches
+  - [x] 2.14 Delete samples/Traits/ and samples/GenericTraits/ directories
+  - [x] 2.15 Migrate samples (GenericConstraints, AssociatedTypes, NestedScoping, StructuredContext, DependentTypes, Enums, AllFeatures)
+  - [x] 2.16 Regenerate sample out/ directories, update AllFeatures.out baseline
+  - [x] 2.17 Update Editor syntax highlighting (mist.tmLanguage.json, package.json, test files)
+  - [x] 2.18 Delete book traits chapter + snippet files (traits.md + ~22 snippet files)
+  - [x] 2.19 Update remaining book chapters (SUMMARY.md, introduction, type-system/*, advanced/*, tooling/*)
+  - [x] 2.20 Update book theme (mist-lang.js, highlight.js Mist section only)
+  - [x] 2.21 Update distribute/steering files (mist-advanced-features.md, mist-language.md, README.md)
+  - [x] 2.22 Update project/design-notes/regions-and-lifetimes.md
+  - [x] 2.23 Final verification gate
     - Build: zero errors, zero warnings
     - Full test suite passes
     - `grep -rni 'trait' --include='*.cs' --include='*.mist' --include='*.storm' --include='*.md' --include='*.json' --include='*.js' --include='*.toml' --include='*.out' --exclude-dir='.git' --exclude-dir='.kiro' --exclude-dir='node_modules' --exclude-dir='obj' --exclude-dir='bin' .` returns ONLY: third-party highlight.js (Rust/PHP), xUnit `[Trait]` attributes
     - All samples compile and produce expected output
-  - [ ] 2.24 Commit Phase 2
+  - [-] 2.24 Commit Phase 2
     - Message: "Phase 2: Purge traits entirely"
 
 - [ ] 3. Phase 3 — Default Implementations (New Functionality)

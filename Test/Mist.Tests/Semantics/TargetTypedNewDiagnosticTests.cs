@@ -22,7 +22,6 @@ namespace Mist.Tests.Semantics;
 /// - MIST_TARGET_NEW_WITH_VAR: <c>var x = new()</c> (Requirement 5.1)
 /// - MIST_TARGET_NEW_NO_CONTEXT: <c>new()</c> in expression statement (Requirement 5.2)
 /// - MIST_TARGET_NEW_ABSTRACT: abstract type target type (Requirement 4.4)
-/// - MIST_TARGET_NEW_TRAIT: trait target type (Requirement 4.5)
 /// - MIST_ABSTRACT_INSTANTIATION: abstract class target (Requirement 4.6)
 /// - Constructor argument count mismatch (Requirement 4.3)
 /// </summary>
@@ -185,37 +184,6 @@ public sealed class TargetTypedNewDiagnosticTests : IDisposable
     }
 
     // ═══════════════════════════════════════════════════════════════════════
-    // MIST_TARGET_NEW_TRAIT — trait target (Requirement 4.5)
-    // ═══════════════════════════════════════════════════════════════════════
-
-    [Fact]
-    public void TraitTarget_EmitsTargetNewTraitDiagnostic()
-    {
-        var source = """
-            trait Printable
-            {
-                void Print();
-            }
-
-            class Program
-            {
-                void Run()
-                {
-                    Printable x = new();
-                }
-            }
-            """;
-
-        var diagnostics = CompileAndGetDiagnostics(source);
-        var targetDiags = WithId(diagnostics, "MIST_TARGET_NEW_TRAIT");
-
-        Assert.Single(targetDiags);
-        Assert.Equal(DiagnosticSeverity.Error, targetDiags[0].Severity);
-        Assert.Contains("Printable", targetDiags[0].Message);
-        Assert.Contains("trait", targetDiags[0].Message);
-    }
-
-    // ═══════════════════════════════════════════════════════════════════════
     // MIST_ABSTRACT_INSTANTIATION — abstract class target (Requirement 4.6)
     // ═══════════════════════════════════════════════════════════════════════
 
@@ -340,7 +308,6 @@ public sealed class TargetTypedNewDiagnosticTests : IDisposable
         Assert.Empty(WithId(diagnostics, "MIST_TARGET_NEW_WITH_VAR"));
         Assert.Empty(WithId(diagnostics, "MIST_TARGET_NEW_NO_CONTEXT"));
         Assert.Empty(WithId(diagnostics, "MIST_TARGET_NEW_ABSTRACT"));
-        Assert.Empty(WithId(diagnostics, "MIST_TARGET_NEW_TRAIT"));
         Assert.Empty(WithId(diagnostics, "MIST_ABSTRACT_INSTANTIATION"));
         Assert.Empty(WithId(diagnostics, "MIST_TC_0011"));
         Assert.Empty(WithId(diagnostics, "MIST_TC_0031"));

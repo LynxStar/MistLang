@@ -1419,63 +1419,6 @@ public class SemanticModelBuilderUnitTests
     }
 
     [Fact]
-    public void WithClause_OnTraitMethod_ResolvesTypeAndStoresOnSymbol()
-    {
-        // class MyCtx { }
-        // trait T { void M() with MyCtx ctx; }
-        var ctxClassDecl = new ClassDeclarationNode
-        {
-            Name = MakeToken("MyCtx"),
-            Members = ImmutableArray<MemberDeclarationNode>.Empty,
-        };
-
-        var traitMethodDecl = new TraitMethodDeclarationNode
-        {
-            Name = MakeToken("M"),
-            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
-            Parameters = null,
-            WithClauses = ImmutableArray.Create<WithClauseNode>(new ContextWithClauseWithClauseNode
-            {
-                Type = new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
-                {
-                    Name = new QualifiedIdentifierNode
-                    {
-                        IDENTIFIER = MakeToken("MyCtx"),
-                        Span = new Storm.Runtime.SourceSpan(0, 5),
-                    },
-                } },
-                Name = MakeToken("ctx"),
-            }),
-        };
-
-        var traitDecl = new TraitDeclarationNode
-        {
-            Name = MakeToken("T"),
-            Members = ImmutableArray.Create<TraitMemberDeclarationNode>(
-                new TraitMethodMemberTraitMemberDeclarationNode { Method = traitMethodDecl }),
-        };
-
-        var ast = new CompilationUnitNode
-        {
-            Items = ImmutableArray.Create<TypeDeclarationNode>(
-                new ClassTypeTypeDeclarationNode { ClassDeclaration = ctxClassDecl },
-                new TraitTypeTypeDeclarationNode { TraitDeclaration = traitDecl }).AsTopLevelItems(),
-        };
-
-        var (model, diagnostics) = BuildModelWithDiagnostics(ast);
-
-        Assert.DoesNotContain(diagnostics, d => d.Id.Value == "MIST_CTX_UNDEFINED_TYPE");
-
-        var methodSymbol = model.AllSymbols
-            .OfType<Symbol>()
-            .First(s => s.Name == "M" && s.Kind == SymbolKind.Method);
-
-        Assert.Single(methodSymbol.WithClauses);
-        Assert.Equal("ctx", methodSymbol.WithClauses[0].Identifier);
-        Assert.Equal("MyCtx", methodSymbol.WithClauses[0].ContextType.DisplayName);
-    }
-
-    [Fact]
     public void WithClause_MultipleClausesOnMethod_AllResolved()
     {
         // class CtxA { }

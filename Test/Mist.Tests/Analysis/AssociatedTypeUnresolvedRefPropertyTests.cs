@@ -15,11 +15,11 @@ namespace Mist.Tests.Analysis;
 /// <summary>
 /// Property-based tests verifying that the compiler emits diagnostic MIST_AT_0004
 /// when a generic type parameter's dot-accessed name is not an associated type slot
-/// of any constraining abstract type or trait.
+/// of any constraining abstract type.
 ///
 /// <b>Property 10</b>: For any generic type parameter <c>T</c> constrained by an abstract type,
 /// and any identifier <c>X</c> that is not an associated type slot of any constraining
-/// abstract type or trait, a reference to <c>T.X</c> in a type position SHALL cause the type
+/// abstract type, a reference to <c>T.X</c> in a type position SHALL cause the type
 /// checker to emit diagnostic <c>MIST_AT_0004</c>.
 ///
 /// All work runs in-process using compiler APIs — no external process is spawned.
@@ -204,7 +204,7 @@ public class AssociatedTypeUnresolvedRefPropertyTests
     //
     // For any generic type parameter T constrained by an abstract type, and any
     // identifier X that is not an associated type slot of any constraining
-    // abstract type or trait, a reference to T.X in a type position SHALL cause
+    // abstract type, a reference to T.X in a type position SHALL cause
     // the type checker to emit diagnostic MIST_AT_0004.
     // ═══════════════════════════════════════════════════════════════════════
 

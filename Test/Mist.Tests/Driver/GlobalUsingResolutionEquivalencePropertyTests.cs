@@ -117,7 +117,7 @@ public sealed class GlobalUsingResolutionEquivalencePropertyTests : IDisposable
     private static readonly HashSet<string> MistKeywords = new(StringComparer.OrdinalIgnoreCase)
     {
         "let", "var", "if", "else", "while", "for", "return", "class", "struct",
-        "interface", "trait", "enum", "namespace", "using", "public", "private",
+        "interface", "enum", "namespace", "using", "public", "private",
         "protected", "internal", "static", "readonly", "override", "virtual",
         "abstract", "sealed", "new", "true", "false", "null", "void", "int",
         "float", "double", "bool", "string", "char", "byte", "long", "short",

@@ -116,9 +116,6 @@ public readonly record struct DiagnosticId(string Value)
     /// <summary><c>default(T)</c> where T is an abstract type.</summary>
     public static readonly DiagnosticId DefaultOnAbstract = new("MIST_DEFAULT_ON_ABSTRACT");
 
-    /// <summary><c>default(T)</c> where T is a trait type.</summary>
-    public static readonly DiagnosticId DefaultOnTrait = new("MIST_DEFAULT_ON_TRAIT");
-
     /// <summary><c>default(T)</c> where T is a type parameter.</summary>
     public static readonly DiagnosticId DefaultOnTypeParameter = new("MIST_DEFAULT_ON_TYPE_PARAMETER");
 
@@ -128,7 +125,7 @@ public readonly record struct DiagnosticId(string Value)
     /// <summary>Explicit default block produces the same values as the inferred default (informational).</summary>
     public static readonly DiagnosticId DefaultRedundantBlock = new("MIST_DEFAULT_REDUNDANT");
 
-    /// <summary>Interface or trait field requires a type binding in the default block.</summary>
+    /// <summary>Abstract type field requires a type binding in the default block.</summary>
     public static readonly DiagnosticId DefaultRequiresTypeBinding = new("MIST_DEFAULT_REQUIRES_BINDING");
 
     /// <summary>Derived type's base class is not defaultable.</summary>
@@ -151,17 +148,6 @@ public readonly record struct DiagnosticId(string Value)
 
     /// <summary>Type argument does not satisfy the <c>where T : default</c> constraint.</summary>
     public static readonly DiagnosticId DefaultConstraintNotSatisfied = new("MIST_DEFAULT_CONSTRAINT_NOT_SATISFIED");
-
-    // ── Trait inheritance diagnostics ────────────────────────────────────
-
-    /// <summary>A parent reference in a trait's inheritance clause does not resolve to a trait.</summary>
-    public static readonly DiagnosticId TraitParentNotTrait = new("MIST_TRAIT_PARENT_NOT_TRAIT");
-
-    /// <summary>A trait lists the same parent trait more than once in its inheritance clause.</summary>
-    public static readonly DiagnosticId TraitDuplicateParent = new("MIST_TRAIT_DUPLICATE_PARENT");
-
-    /// <summary>A trait inheritance chain contains a cycle.</summary>
-    public static readonly DiagnosticId TraitInheritanceCycle = new("MIST_TRAIT_INHERITANCE_CYCLE");
 
     // ── Entry point diagnostics ──────────────────────────────────────────
 
@@ -188,7 +174,7 @@ public readonly record struct DiagnosticId(string Value)
 
     // ── Associated type diagnostics ──────────────────────────────────────
 
-    /// <summary>An interface or trait declares two or more associated type slots with the same name.</summary>
+    /// <summary>An abstract type declares two or more associated type slots with the same name.</summary>
     public static readonly DiagnosticId DuplicateAssociatedTypeSlot = new("MIST_AT_0001");
 
     /// <summary>Implementor does not provide a concrete type for an associated type slot.</summary>
@@ -203,7 +189,7 @@ public readonly record struct DiagnosticId(string Value)
     /// <summary>Modifiers are not permitted on associated type slot declarations.</summary>
     public static readonly DiagnosticId ModifiersOnAssociatedTypeSlot = new("MIST_AT_0005");
 
-    /// <summary>Abstract type slots are only permitted in interfaces and traits.</summary>
+    /// <summary>Abstract type slots are only permitted in abstract types.</summary>
     public static readonly DiagnosticId AssociatedTypeSlotInWrongContext = new("MIST_AT_0006");
 
     // ── Assembly Type Provider diagnostics ───────────────────────────────
@@ -283,10 +269,4 @@ public readonly record struct DiagnosticId(string Value)
     /// which cannot be instantiated.
     /// </summary>
     public static readonly DiagnosticId TargetNewAbstract = new("MIST_TARGET_NEW_ABSTRACT");
-
-    /// <summary>
-    /// Emitted when a target-typed new expression resolves to a trait type,
-    /// which cannot be instantiated.
-    /// </summary>
-    public static readonly DiagnosticId TargetNewTrait = new("MIST_TARGET_NEW_TRAIT");
 }

@@ -54,7 +54,6 @@ public class AdhocRefinementRoundTripPropertyTests
     private static readonly string[] ClassNames = ["Array", "Matrix", "Buffer", "Container"];
     private static readonly string[] StructNames = ["Cell", "Entry", "Slot", "Wrapper"];
     private static readonly string[] AbstractNames = ["ISized", "IBounded", "ICapacity"];
-    private static readonly string[] TraitNames = ["Bounded", "Sized", "Capped"];
     private static readonly string[] AliasNames = ["FixedSize", "BoundedInt", "LimitedCount"];
     private static readonly string[] MethodNames = ["Process", "Validate", "Compute", "Transform"];
     private static readonly string[] ParamNames = ["x", "y", "count", "size", "index", "value"];
@@ -184,20 +183,6 @@ public class AdhocRefinementRoundTripPropertyTests
     }
 
     /// <summary>
-    /// Generates a trait with adhoc refinement constraints.
-    /// Example: trait Bounded&lt;Size:int&gt; where Size >= 0 { }
-    /// </summary>
-    private static Gen<AdhocRefinementRoundTripScenario> GenTraitConstraint()
-    {
-        return from name in Gen.Elements(TraitNames)
-               from depParam in Gen.Elements(DependentParamNames)
-               from predicate in GenPredicate()
-               let source = $"trait {name}<{depParam}:int> where {depParam} {predicate} {{\n}}"
-               select new AdhocRefinementRoundTripScenario(source,
-                   $"trait constraint: {name}");
-    }
-
-    /// <summary>
     /// Generates a type alias with adhoc refinement constraints.
     /// Example: type FixedSize&lt;Size:int&gt; = int where Size >= 0;
     /// </summary>
@@ -306,7 +291,6 @@ public class AdhocRefinementRoundTripPropertyTests
             GenClassMixedConstraints(),
             GenStructConstraint(),
             GenAbstractConstraint(),
-            GenTraitConstraint(),
             GenTypeAliasConstraint(),
             GenMethodSingleConstraint(),
             GenMethodMultipleConstraints(),

@@ -142,22 +142,6 @@ class Program {
     }
 
     [Fact]
-    public void TraitConstraint_EmitsTraitAsInterface()
-    {
-        var source = @"
-trait Printable {
-    string Print();
-}
-class Container<T> where T : Printable { }
-class Program {
-    public static void Main() { }
-}";
-        var cs = CompileAndEmit(source);
-        // Traits are lowered to interfaces in C#
-        Assert.Contains("where T : Printable", cs);
-    }
-
-    [Fact]
     public void ParameterlessNewConstraint_EmitsNewParens()
     {
         var source = @"

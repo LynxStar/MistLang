@@ -125,25 +125,6 @@ Abstract types can declare dependent type parameters to define contracts that de
 
 When a class implements an abstract type with a dependent parameter, it supplies a concrete value (here `8`). The compiler emits the corresponding carrier struct (`Const_Int_8`) as the type argument.
 
-## Dependent Types on Traits
-
-Traits can also declare dependent type parameters. A type satisfies a dependent trait structurally — it must have matching members regardless of the dependent value.
-
-{{#tabs }}
-{{#tab name="Mist" }}
-```mist
-{{#include ../../snippets/type-system/dependent-types/traits.mist}}
-```
-{{#endtab }}
-{{#tab name="Emitted C#" }}
-```csharp
-{{#include ../../snippets/type-system/dependent-types/traits.cs}}
-```
-{{#endtab }}
-{{#endtabs }}
-
-The trait `ISized<N:int>` declares a contract parameterized by a constant. `SizedBox<N:int>` satisfies it structurally because it provides a `GetCapacity()` method with the correct signature.
-
 ## Dependent Types on Methods
 
 Methods can declare their own dependent type parameters, independent of the enclosing class. This is useful for operations that need a compile-time constant without requiring the entire class to be parameterized.

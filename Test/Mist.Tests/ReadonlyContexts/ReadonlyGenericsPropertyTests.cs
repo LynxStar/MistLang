@@ -1,7 +1,7 @@
 // Feature: readonly-contexts, Property 14: Readonly Type Argument Passing
 // Feature: readonly-contexts, Property 15: Generic Readonly/Mutable Constraint Checking
 // Feature: readonly-contexts, Property 16: Generic Readonly Constraint Member Access
-// Feature: readonly-contexts, Property 17: Abstract Type/Trait Readonly Contract Enforcement
+// Feature: readonly-contexts, Property 17: Abstract Type Readonly Contract Enforcement
 
 using System.Collections.Immutable;
 using FsCheck;
@@ -86,7 +86,7 @@ public sealed class GenericConstraintMemberAccessScenario
 }
 
 /// <summary>
-/// Scenario for Property 17: Abstract Type/Trait Readonly Contract Enforcement.
+/// Scenario for Property 17: Abstract Type Readonly Contract Enforcement.
 /// Tests that implementing a readonly abstract type with non-readonly implementations
 /// produces MIST_TC_0079.
 /// </summary>
@@ -306,7 +306,7 @@ class {className} {{
                    $"method '{methodName}' assigns field on non-readonly param in '{className}' — should succeed");
     }
 
-    // ─── Property 17: Abstract Type/Trait Readonly Contract Enforcement ──────
+    // ─── Property 17: Abstract Type Readonly Contract Enforcement ──────
 
     /// <summary>
     /// Generates types implementing readonly abstract types with non-readonly or
@@ -520,11 +520,11 @@ public sealed class ReadonlyGenericsPropertyTests : IDisposable
     }
 
     // ═══════════════════════════════════════════════════════════════════════
-    // Property 17: Abstract Type/Trait Readonly Contract Enforcement
+    // Property 17: Abstract Type Readonly Contract Enforcement
     //
     // **Validates: Requirements 13.2, 13.3, 13.6**
     //
-    // For any type implementing a readonly abstract type or trait, each
+    // For any type implementing a readonly abstract type, each
     // implementing member that corresponds to a readonly abstract type member
     // MUST itself be readonly (explicit or inferred); non-readonly
     // implementations SHALL produce a diagnostic error (MIST_TC_0079).

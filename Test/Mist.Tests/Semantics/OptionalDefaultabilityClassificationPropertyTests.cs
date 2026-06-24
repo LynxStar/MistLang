@@ -25,7 +25,7 @@ namespace Mist.Tests.Semantics;
 /// (regardless of whether its fields are defaultable).
 ///
 /// Property 2: For any class or struct type that has no user-defined constructor and has at
-/// least one field whose type is non-defaultable (abstract type, trait, or another non-defaultable
+/// least one field whose type is non-defaultable (abstract type or another non-defaultable
 /// class/struct), the compiler SHALL emit a diagnostic error.
 /// </summary>
 public class OptionalDefaultabilityClassificationPropertyTests
@@ -172,11 +172,6 @@ public class OptionalDefaultabilityClassificationPropertyTests
         return new AbstractTypeTypeDeclarationNode { AbstractDeclaration = abstractDecl };
     }
 
-    private static TypeDeclarationNode WrapTrait(TraitDeclarationNode traitDecl)
-    {
-        return new TraitTypeTypeDeclarationNode { TraitDeclaration = traitDecl };
-    }
-
     // ─── Scenario records ────────────────────────────────────────────────
 
 #pragma warning disable CA1034
@@ -227,7 +222,6 @@ public class OptionalDefaultabilityClassificationPropertyTests
     public enum NonDefaultableKind
     {
         AbstractType,
-        Trait,
     }
 
 #pragma warning restore CA1034
@@ -245,9 +239,6 @@ public class OptionalDefaultabilityClassificationPropertyTests
 
     private static readonly string[] AbstractNames =
         ["IRenderer", "ILogger", "IService", "IHandler", "IProcessor"];
-
-    private static readonly string[] TraitNames =
-        ["Printable", "Serializable", "Hashable", "Displayable", "Comparable"];
 
     // ─── Generators ──────────────────────────────────────────────────────
 
@@ -289,10 +280,7 @@ public class OptionalDefaultabilityClassificationPropertyTests
                from typeName in Gen.Elements(TypeNames)
                from primitiveCount in Gen.Choose(0, 3)
                from hasNonDefaultableField in Gen.Elements(true, false)
-               from nonDefaultableKind in Gen.Elements(NonDefaultableKind.AbstractType, NonDefaultableKind.Trait)
-               let nonDefaultableName = nonDefaultableKind == NonDefaultableKind.AbstractType
-                   ? AbstractNames[0]
-                   : TraitNames[0]
+               let nonDefaultableName = AbstractNames[0]
                let nonDefaultableCount = hasNonDefaultableField ? 1 : 0
                from fields in GenMixedFields(
                    Math.Max(primitiveCount, hasNonDefaultableField ? 0 : 1),
@@ -310,14 +298,11 @@ public class OptionalDefaultabilityClassificationPropertyTests
     {
         return from isStruct in Gen.Elements(true, false)
                from typeName in Gen.Elements(TypeNames)
-               from fieldKind in Gen.Elements(NonDefaultableKind.AbstractType, NonDefaultableKind.Trait)
-               from nonDefaultableName in fieldKind == NonDefaultableKind.AbstractType
-                   ? Gen.Elements(AbstractNames)
-                   : Gen.Elements(TraitNames)
+               from nonDefaultableName in Gen.Elements(AbstractNames)
                from primitiveCount in Gen.Choose(0, 3)
                from fields in GenMixedFields(primitiveCount, 1, nonDefaultableName)
                select new ConstructorlessNonDefaultableScenario(
-                   isStruct, typeName, fields, fieldKind, nonDefaultableName);
+                   isStruct, typeName, fields, NonDefaultableKind.AbstractType, nonDefaultableName);
     }
 
     // ─── Arbitrary registrations ─────────────────────────────────────────
@@ -332,7 +317,7 @@ public class OptionalDefaultabilityClassificationPropertyTests
 
     /// <summary>
     /// Builds an AST for Property 1: a type with a constructor and mixed fields.
-    /// If the scenario includes a non-defaultable field, its backing type (abstract type/trait) is declared.
+    /// If the scenario includes a non-defaultable field, its backing type (abstract type) is declared.
     /// </summary>
     private static CompilationUnitNode BuildConstructorWithFieldsAst(
         ConstructorSuppressesDiagnosticScenario scenario)
@@ -355,24 +340,11 @@ public class OptionalDefaultabilityClassificationPropertyTests
         // If there's a non-defaultable type reference, declare it
         if (scenario.NonDefaultableTypeName is not null)
         {
-            // Determine if it's an abstract type or trait based on the name
-            TypeDeclarationNode nonDefaultableDecl;
-            if (AbstractNames.Contains(scenario.NonDefaultableTypeName))
+            var nonDefaultableDecl = WrapAbstractType(new AbstractDeclarationNode
             {
-                nonDefaultableDecl = WrapAbstractType(new AbstractDeclarationNode
-                {
-                    Name = MakeToken(scenario.NonDefaultableTypeName),
-                    Members = ImmutableArray<AbstractMemberDeclarationNode>.Empty,
-                });
-            }
-            else
-            {
-                nonDefaultableDecl = WrapTrait(new TraitDeclarationNode
-                {
-                    Name = MakeToken(scenario.NonDefaultableTypeName),
-                    Members = ImmutableArray<TraitMemberDeclarationNode>.Empty,
-                });
-            }
+                Name = MakeToken(scenario.NonDefaultableTypeName),
+                Members = ImmutableArray<AbstractMemberDeclarationNode>.Empty,
+            });
 
             return MakeCompilationUnit(nonDefaultableDecl, typeDecl);
         }
@@ -382,7 +354,7 @@ public class OptionalDefaultabilityClassificationPropertyTests
 
     /// <summary>
     /// Builds an AST for Property 2: a type without a constructor that has non-defaultable fields.
-    /// The non-defaultable type (abstract type or trait) is also declared.
+    /// The non-defaultable type (abstract type) is also declared.
     /// </summary>
     private static CompilationUnitNode BuildConstructorlessNonDefaultableAst(
         ConstructorlessNonDefaultableScenario scenario)
@@ -402,20 +374,11 @@ public class OptionalDefaultabilityClassificationPropertyTests
             : WrapClass(MakeClassDecl(scenario.TypeName, members));
 
         // Declare the non-defaultable type
-        TypeDeclarationNode nonDefaultableDecl = scenario.FieldKind switch
+        TypeDeclarationNode nonDefaultableDecl = WrapAbstractType(new AbstractDeclarationNode
         {
-            NonDefaultableKind.AbstractType => WrapAbstractType(new AbstractDeclarationNode
-            {
-                Name = MakeToken(scenario.NonDefaultableTypeName),
-                Members = ImmutableArray<AbstractMemberDeclarationNode>.Empty,
-            }),
-            NonDefaultableKind.Trait => WrapTrait(new TraitDeclarationNode
-            {
-                Name = MakeToken(scenario.NonDefaultableTypeName),
-                Members = ImmutableArray<TraitMemberDeclarationNode>.Empty,
-            }),
-            _ => throw new InvalidOperationException(),
-        };
+            Name = MakeToken(scenario.NonDefaultableTypeName),
+            Members = ImmutableArray<AbstractMemberDeclarationNode>.Empty,
+        });
 
         return MakeCompilationUnit(nonDefaultableDecl, typeDecl);
     }
@@ -475,7 +438,7 @@ public class OptionalDefaultabilityClassificationPropertyTests
     // **Validates: Requirements 1.3, 11.1**
     //
     // For any class or struct type that has no user-defined constructor and has
-    // at least one field whose type is non-defaultable (abstract type, trait, or
+    // at least one field whose type is non-defaultable (abstract type or
     // another non-defaultable class/struct), the compiler SHALL emit a diagnostic
     // error.
     // ═══════════════════════════════════════════════════════════════════════

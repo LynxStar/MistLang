@@ -198,7 +198,7 @@ Ad-hoc refinements can also constrain dependent type parameters. This is useful 
 {{#endtab }}
 {{#endtabs }}
 
-### Abstract Type and Trait Contracts
+### Abstract Type Contracts
 
 Abstract types can declare parameter refinements as part of their contract. Implementing classes may use the same constraint, a weaker constraint (accepting more values), or no constraint at all. A weaker constraint is valid because it accepts a superset of the abstract type's required inputs — this satisfies the Liskov substitution principle.
 

@@ -15,7 +15,7 @@ abstract IPrintable {
     string Print();
 }
 
-trait Describable {
+abstract Describable {
     string Describe();
 }
 
@@ -46,7 +46,7 @@ struct Point {
     }
 }
 
-class Widget : IPrintable {
+class Widget : IPrintable, Describable {
     public int Id;
     public Widget() {
         Id = 0;
@@ -126,7 +126,7 @@ class Sorter<T> where T : IOrderable {
     }
 }
 
-// ─── 4. trait constraint with member access ──────────────────────────────
+// ─── 4. abstract type constraint with member access ──────────────────────
 
 class Describer<T> where T : Describable {
     public T Item;
@@ -255,9 +255,9 @@ struct Holder<T> where T : IPrintable {
     }
 }
 
-// ─── 16. generic trait with constraint ───────────────────────────────────
+// ─── 16. generic abstract type with constraint ──────────────────────────
 
-trait Transformable<T> where T : new() {
+abstract Transformable<T> where T : new() {
     T Transform(T input);
     T CreateDefault();
 }
@@ -271,9 +271,9 @@ class Doubler : Transformable<Widget> {
     }
 }
 
-// ─── 17. generic trait with constraint that structurally matches ───────────────────────────────────
+// ─── 17. generic abstract type with constraint — nominal conformance ─────
 
-class Tripler
+class Tripler : Transformable<Widget>
 {
     public Widget Transform(Widget input) 
     {
@@ -313,10 +313,10 @@ public class Program {
         Sorter<OrderableInt> sorter = new Sorter<OrderableInt>(a, b);
         Console.WriteLine($"3. abstract type constraint: first order = {sorter.GetFirstOrder()}");
 
-        // 4. trait constraint — call constrained method
+        // 4. abstract type constraint — call constrained method
         Widget w = new Widget(7);
         Describer<Widget> desc = new Describer<Widget>(w);
-        Console.WriteLine($"4. trait constraint: {desc.GetDescription()}");
+        Console.WriteLine($"4. abstract type constraint: {desc.GetDescription()}");
 
         // 5. base class constraint — call constrained method
         Dog dog = new Dog();
@@ -372,16 +372,16 @@ public class Program {
         Holder<Widget> holder = new Holder<Widget>(new Widget(99));
         Console.WriteLine($"15. struct with constraint: holds a Widget");
 
-        // 16. generic trait with constraint
+        // 16. generic abstract type with constraint
         Doubler doubler = new Doubler();
         Widget doubled = doubler.Transform(new Widget(21));
         Widget defaultWidget = doubler.CreateDefault();
-        Console.WriteLine($"16. generic trait: transformed=Widget({doubled.Id}), default=Widget({defaultWidget.Id})");
+        Console.WriteLine($"16. generic abstract type: transformed=Widget({doubled.Id}), default=Widget({defaultWidget.Id})");
 
-        // // 17. generic trait with constraint structurally matched
+        // // 17. generic abstract type with constraint — nominal conformance
         // Tripler tripler = new Tripler();
         // var tripled = TransformableHolder.UseTransformable(tripler);
-        // Console.WriteLine($"17. generic trait: default=Widget({tripled.Id})");
+        // Console.WriteLine($"17. generic abstract type: default=Widget({tripled.Id})");
 
         Console.WriteLine("--- Generic Constraints Done ---");
     }

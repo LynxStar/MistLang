@@ -263,7 +263,7 @@ name = "AllFeatures"
 [references]
 Primitives = { path = "../Primitives" }
 Classes = { path = "../Classes" }
-Traits = { path = "../Traits" }
+AbstractTypes = { path = "../AbstractTypes" }
 ```
 
 ### Project with Global Usings

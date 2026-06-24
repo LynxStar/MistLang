@@ -13,7 +13,7 @@ namespace Mist.Analysis.Builtin;
 /// Built-in analyzer that validates structured context availability at compile time.
 /// Walks the call graph to verify that every method with a <c>with</c> clause is
 /// always called within a scope that provides the required context type. Also
-/// enforces abstract type/trait with-clause contract matching.
+/// enforces abstract type with-clause contract matching.
 /// </summary>
 public sealed class ContextCheckerAnalyzer : IAnalyzer
 {
@@ -54,9 +54,9 @@ public sealed class ContextCheckerAnalyzer : IAnalyzer
     internal static readonly DiagnosticId ContextVariableNotReassignable = new("MIST_CTX_0005");
 
     /// <summary>
-    /// Implementing method missing required with-clause from abstract type/trait.
+    /// Implementing method missing required with-clause from abstract type.
     /// Message: "Method '{method}' on type '{type}' must declare `with {contextType}`
-    /// to satisfy abstract type/trait '{contract}' at {location}."
+    /// to satisfy abstract type '{contract}' at {location}."
     /// </summary>
     internal static readonly DiagnosticId WithClauseContractViolation = new("MIST_CTX_0006");
 
@@ -1145,7 +1145,6 @@ public sealed class ContextCheckerAnalyzer : IAnalyzer
             ClassType ct => ct.MemberScope,
             StructType st => st.MemberScope,
             AbstractType it => it.MemberScope,
-            TraitType tt => tt.MemberScope,
             _ => null,
         };
     }
@@ -1161,7 +1160,7 @@ public sealed class ContextCheckerAnalyzer : IAnalyzer
     }
 
     // ═══════════════════════════════════════════════════════════════════════
-    // Abstract Type/Trait Contract Enforcement (Task 5.3)
+    // Abstract Type Contract Enforcement (Task 5.3)
     // ═══════════════════════════════════════════════════════════════════════
 
     /// <summary>
@@ -1261,8 +1260,6 @@ public sealed class ContextCheckerAnalyzer : IAnalyzer
                 return ct;
             if (symbol.DeclaredType is StructType st && st.MemberScope == memberScope)
                 return st;
-            if (symbol.DeclaredType is TraitType tt && tt.MemberScope == memberScope)
-                return tt;
         }
         return null;
     }
@@ -1347,7 +1344,7 @@ public sealed class ContextCheckerAnalyzer : IAnalyzer
                         WithClauseContractViolation,
                         DiagnosticSeverity.Error,
                         PipelineStage.Analysis,
-                        $"Method '{implMethod.Name}' on type '{typeSym.Name}' must declare `with {requiredType.DisplayName}` to satisfy abstract type/trait '{abstractType.DisplayName}'.",
+                        $"Method '{implMethod.Name}' on type '{typeSym.Name}' must declare `with {requiredType.DisplayName}` to satisfy abstract type '{abstractType.DisplayName}'.",
                         Location: location,
                         CompilationUnitPath: path,
                         AnalyzerName: "ContextChecker"));
@@ -1358,7 +1355,7 @@ public sealed class ContextCheckerAnalyzer : IAnalyzer
                         WithClauseContractViolation,
                         DiagnosticSeverity.Error,
                         PipelineStage.Analysis,
-                        $"Method '{implMethod.Name}' on type '{typeSym.Name}' must declare `with {requiredType.DisplayName}` to satisfy abstract type/trait '{abstractType.DisplayName}'.",
+                        $"Method '{implMethod.Name}' on type '{typeSym.Name}' must declare `with {requiredType.DisplayName}` to satisfy abstract type '{abstractType.DisplayName}'.",
                         Location: default,
                         CompilationUnitPath: "<unknown>",
                         AnalyzerName: "ContextChecker"));

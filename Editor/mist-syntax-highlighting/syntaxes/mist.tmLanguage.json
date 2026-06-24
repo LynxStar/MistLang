@@ -110,7 +110,7 @@
         },
         {
           "name": "keyword.declaration.mist",
-          "match": "\\b(namespace|using|class|struct|abstract|trait|extension|type|enum)\\b"
+          "match": "\\b(namespace|using|class|struct|abstract|extension|type|enum)\\b"
         },
         {
           "name": "storage.modifier.mist",
@@ -280,7 +280,7 @@
           }
         },
         {
-          "comment": "Associated type slot declaration: type Name<T> : Constraints; (in abstract/trait body)",
+          "comment": "Associated type slot declaration: type Name<T> : Constraints; (in abstract body)",
           "match": "\\b(type)\\s+([A-Z]\\w*)\\s*(?:<[^>]*>)?\\s*(:)\\s*([^;]*)",
           "captures": {
             "1": { "name": "keyword.declaration.mist" },
@@ -341,8 +341,8 @@
           }
         },
         {
-          "comment": "Generic class/struct/abstract/trait declaration with type parameter list: class Box<T>, class Array<Size:int>",
-          "match": "\\b(class|struct|abstract|trait)\\s+([a-zA-Z_]\\w*)\\s*(<)",
+          "comment": "Generic class/struct/abstract declaration with type parameter list: class Box<T>, class Array<Size:int>",
+          "match": "\\b(class|struct|abstract)\\s+([a-zA-Z_]\\w*)\\s*(<)",
           "captures": {
             "1": { "name": "keyword.declaration.mist" },
             "2": { "name": "entity.name.type.mist" },
@@ -379,13 +379,7 @@
             "2": { "name": "entity.name.type.abstract.mist" }
           }
         },
-        {
-          "match": "\\b(trait)\\s+([a-zA-Z_]\\w*)",
-          "captures": {
-            "1": { "name": "keyword.declaration.mist" },
-            "2": { "name": "entity.name.type.trait.mist" }
-          }
-        },
+
         {
           "match": "\\b(enum)\\s+([a-zA-Z_]\\w*)",
           "captures": {

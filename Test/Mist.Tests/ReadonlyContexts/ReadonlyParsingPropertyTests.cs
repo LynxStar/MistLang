@@ -83,7 +83,6 @@ public static class ReadonlyParsingGenerators
     private static readonly string[] ClassNames = ["Foo", "Bar", "Baz", "Widget"];
     private static readonly string[] StructNames = ["Point", "Vector", "Cell"];
     private static readonly string[] AbstractNames = ["IReadable", "IService", "IStore"];
-    private static readonly string[] TraitNames = ["Printable", "Hashable", "Sortable"];
     private static readonly string[] FieldNames = ["x", "y", "count", "name"];
     private static readonly string[] MethodNames = ["Get", "Compute", "Process"];
     private static readonly string[] PropertyNames = ["Value", "Name", "Count"];
@@ -170,14 +169,6 @@ public static class ReadonlyParsingGenerators
                select new ReadonlyModifierScenario(source, "abstract", $"readonly abstract type: {abstractName}");
     }
 
-    /// <summary>Generates a readonly trait declaration.</summary>
-    public static Gen<ReadonlyModifierScenario> GenReadonlyTrait()
-    {
-        return from traitName in Gen.Elements(TraitNames)
-               let source = $"readonly trait {traitName} {{\n}}"
-               select new ReadonlyModifierScenario(source, "trait", $"readonly trait: {traitName}");
-    }
-
     /// <summary>Generates a readonly indexer declaration.</summary>
     public static Gen<ReadonlyModifierScenario> GenReadonlyIndexer()
     {
@@ -199,7 +190,6 @@ public static class ReadonlyParsingGenerators
             GenReadonlyClass(),
             GenReadonlyStruct(),
             GenReadonlyAbstract(),
-            GenReadonlyTrait(),
             GenReadonlyIndexer());
     }
 

@@ -64,14 +64,14 @@ public class FlexCollection<N:int> : IFixedCollection<N>
     public string GetInfo() { return $"FlexCollection<{N}>(size={this.GetSize()})"; }
 }
 
-// ─── 8. Dependent types on traits ────────────────────────────────────────────
+// ─── 8. Dependent types on abstract types ────────────────────────────────────
 
-trait ISized<N:int>
+abstract ISized<N:int>
 {
     int GetCapacity();
 }
 
-public class SizedBox<N:int>
+public class SizedBox<N:int> : ISized<N>
 {
     public int GetCapacity() { return N; }
 }
@@ -166,7 +166,7 @@ public class Program
         Console.WriteLine($"  tiny.GetInfo() = {tiny.GetInfo()}");
         Console.WriteLine($"  tiny.GetSize() = {tiny.GetSize()}");
 
-        Console.WriteLine("--- 9. Dependent types on traits ---");
+        Console.WriteLine("--- 9. Dependent types on abstract types ---");
         var sizedBox = new SizedBox<12>();
         Console.WriteLine($"  SizedBox<12>.GetCapacity() = {sizedBox.GetCapacity()}");
 

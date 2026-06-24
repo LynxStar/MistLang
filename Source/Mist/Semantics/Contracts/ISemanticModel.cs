@@ -61,14 +61,6 @@ public interface ISemanticModel
 
     ImmutableArray<ISymbol> AllSymbols { get; }
 
-    /// <summary>
-    /// The trait satisfaction map recording which types satisfy which traits
-    /// (structurally or via <c>with</c> blocks). Populated during
-    /// <c>Pass1_ResolveTraitSatisfaction</c>.
-    /// </summary>
-    TraitSatisfactionMap TraitSatisfactionMap { get; }
-
-
 
     /// <summary>
     /// The extension registry indexing all extension blocks by receiver type.

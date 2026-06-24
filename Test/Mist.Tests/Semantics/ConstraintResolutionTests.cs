@@ -18,7 +18,7 @@ namespace Mist.Tests.Semantics;
 /// 1. Constraint resolution — verify TypeParameterType.Constraints is correctly populated
 /// 2. Validation diagnostics — verify each validation rule emits the correct diagnostic
 /// 3. Backward compatibility — unconstrained generics still work without diagnostics
-/// 4. Constrained member access — members from constrained abstract types/traits/base classes are accessible
+/// 4. Constrained member access — members from constrained abstract types/base classes are accessible
 ///
 /// Requirements: 3.9, 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 4.7, 10.9, 10.10
 /// </summary>
@@ -195,24 +195,6 @@ class Zoo<T> where T : Animal { }
         Assert.NotNull(tp!.Constraints);
         Assert.NotNull(tp.Constraints!.BaseClassConstraint);
         Assert.Equal("Animal", tp.Constraints.BaseClassConstraint!.DisplayName);
-    }
-
-    [Fact]
-    public void TraitConstraint_PopulatesTraitConstraints()
-    {
-        var source = @"
-trait Printable {
-    void Print();
-}
-class Printer<T> where T : Printable { }
-";
-        var model = BuildWithoutErrors(source);
-
-        var tp = FindTypeParameter(model, "Printer", "T");
-        Assert.NotNull(tp);
-        Assert.NotNull(tp!.Constraints);
-        Assert.Single(tp.Constraints!.TraitConstraints);
-        Assert.Equal("Printable", tp.Constraints.TraitConstraints[0].DisplayName);
     }
 
     [Fact]
@@ -505,28 +487,6 @@ class Greeter<T> where T : IGreetable {
         // Filter to only those that mention "Greet" — we don't want false positives
         var greetDiags = undefinedMemberDiags.Where(d => d.Message.Contains("Greet")).ToArray();
         Assert.Empty(greetDiags);
-    }
-
-    [Fact]
-    public void TraitConstraint_MembersAccessible()
-    {
-        var source = @"
-trait Printable {
-    void Print();
-}
-class Printer<T> where T : Printable {
-    public void DoPrint(T item) {
-        item.Print();
-    }
-}
-";
-        var (_, diagnostics) = BuildModel(source);
-
-        // No MIST_UNDEFINED_MEMBER diagnostic should be emitted for item.Print()
-        var printDiags = diagnostics.Where(d =>
-            d.Message.Contains("Print") &&
-            (d.Id.Value.Contains("UNDEFINED_MEMBER") || d.Id.Value.Contains("UNDEFINED"))).ToArray();
-        Assert.Empty(printDiags);
     }
 
     [Fact]

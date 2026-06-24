@@ -98,37 +98,6 @@ class Program {
     }
 
     // ═══════════════════════════════════════════════════════════════════════
-    // MIST_CONSTRAINT_0010: Trait constraint violation
-    // "Type '{TypeArg}' does not satisfy trait '{Trait}' required by
-    //  type parameter '{TypeParam}' of '{GenericType}'."
-    // ═══════════════════════════════════════════════════════════════════════
-
-    [Fact]
-    public void MIST_CONSTRAINT_0010_TraitNotSatisfied()
-    {
-        var source = @"
-trait Printable {
-    void Print();
-}
-class NoPrint { }
-class Printer<T> where T : Printable { }
-class Program {
-    public static void Main() {
-        Printer<NoPrint> p = new Printer<NoPrint>();
-    }
-}";
-        var diagnostics = CompileAndGetDiagnostics(source);
-        var diags = WithId(diagnostics, "MIST_CONSTRAINT_0010");
-
-        Assert.Single(diags);
-        Assert.Equal(DiagnosticSeverity.Error, diags[0].Severity);
-        Assert.Contains("NoPrint", diags[0].Message);
-        Assert.Contains("Printable", diags[0].Message);
-        Assert.Contains("T", diags[0].Message);
-        Assert.Contains("Printer", diags[0].Message);
-    }
-
-    // ═══════════════════════════════════════════════════════════════════════
     // MIST_CONSTRAINT_0011: Base class constraint violation
     // "Type '{TypeArg}' does not derive from '{BaseClass}' required by
     //  type parameter '{TypeParam}' of '{GenericType}'."

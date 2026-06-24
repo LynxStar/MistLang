@@ -1605,7 +1605,6 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
             ClassType ct => ct.IsReadonly,
             StructType st => st.IsReadonly,
             AbstractType it => it.IsReadonly,
-            TraitType tt => tt.IsReadonly,
             _ => false,
         };
     }
@@ -1624,7 +1623,6 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
             ClassType ct => ct.MemberScope,
             StructType st => st.MemberScope,
             AbstractType it => it.MemberScope,
-            TraitType tt => tt.MemberScope,
             _ => null,
         };
     }

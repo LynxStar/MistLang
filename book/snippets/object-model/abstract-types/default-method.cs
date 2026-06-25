@@ -1,0 +1,31 @@
+using System;
+
+namespace Snippet;
+
+interface IGreetable
+{
+    string Name();
+    string Greet()
+    {
+        return $"Hello, I am {this.Name()}";
+    }
+}
+public class FriendlyDog : IGreetable
+{
+    private string dogName;
+
+    public FriendlyDog(string dogName)
+    {
+        this.dogName = dogName;
+    }
+
+    public string Name()
+    {
+        return dogName;
+    }
+
+    public string Greet()
+    {
+        return $"Hello, I am {this.Name()}";
+    }
+}

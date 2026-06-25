@@ -15,15 +15,13 @@ public class Program
             System.Console.WriteLine($"Found={value}");
         }
         string? name = "Mist";
-        if (name.IsString)
+        if (name is string s)
         {
-            string s = name.AsString;
             System.Console.WriteLine($"Name={s}");
         }
         string? empty = null;
-        if (empty.IsString)
+        if (empty is string e)
         {
-            string e = empty.AsString;
             System.Console.WriteLine($"Unreachable={e}");
         }
         else

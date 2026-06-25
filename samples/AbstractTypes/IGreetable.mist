@@ -4,5 +4,10 @@ namespace AbstractTypes;
 
 abstract IGreetable
 {
-    string Greet();
+    string Name();
+
+    string Greet()
+    {
+        return $"Hello, I am {this.Name()}";
+    }
 }

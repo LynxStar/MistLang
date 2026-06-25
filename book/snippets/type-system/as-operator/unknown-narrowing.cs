@@ -7,10 +7,9 @@ public class Program
     public static void Main(string[] args)
     {
         object box = 99;
-        int? maybeInt = (box is int __as_tmp ? __as_tmp : default(int?));
-        if (maybeInt.IsInt32)
+        int? maybeInt = (box is int __as_tmp_0 ? __as_tmp_0 : default(int?));
+        if (maybeInt is int n)
         {
-            int n = maybeInt.AsInt32;
             System.Console.WriteLine($"Got int: {n}");
         }
         else

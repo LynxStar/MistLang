@@ -156,8 +156,12 @@ public sealed class AbstractDefaultMethodEmissionTests : IDisposable
         var csharp = CompileToCSharp(source);
         var norm = Normalize(csharp);
 
-        // The forwarding stub casts to the interface and forwards to the DIM.
-        Assert.Contains("public string Greet() => ((IGreeting)this).Greet();", norm);
+        // The concrete type receives a copy of the default method body so it is
+        // callable directly on the concrete type (Rust-style semantics). A naive
+        // ((IFace)this).Method() forwarding stub would cause infinite recursion
+        // because the public method becomes the implicit interface implementation.
+        Assert.Contains("public string Greet()", norm);
+        Assert.Contains("return $\"Hello, I am {this.Name()}\"", norm);
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -227,8 +231,10 @@ public sealed class AbstractDefaultMethodEmissionTests : IDisposable
 
         // The default lives on IBase as a DIM.
         Assert.Contains("string Banner()", norm);
-        // Widget implements IDerived (: IBase transitively) and forwards the inherited default.
-        Assert.Contains("public string Banner() => ((IBase)this).Banner();", norm);
+        // Widget implements IDerived (: IBase transitively) and receives a copy of
+        // the inherited default method body so the default is callable directly.
+        Assert.Contains("public string Banner()", norm);
+        Assert.Contains("return $\"[{this.Tag()}]\"", norm);
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -257,6 +263,9 @@ public sealed class AbstractDefaultMethodEmissionTests : IDisposable
         var csharp = CompileToCSharp(source);
         var norm = Normalize(csharp);
 
-        Assert.Contains("public string Decorate(string text) => ((IPrefixer)this).Decorate(text);", norm);
+        // The forwarding stub duplicates the default body on the concrete type,
+        // including the parameter, so it's callable directly without interface cast.
+        Assert.Contains("public string Decorate(string text)", norm);
+        Assert.Contains("return $\"{this.Prefix()}{text}\"", norm);
     }
 }

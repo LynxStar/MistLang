@@ -34,7 +34,7 @@ public class Program
     public static void Main(string[] args)
     {
         Animal animal = new Cat("Luna", 7);
-        var dog = (animal is Dog __as_tmp ? __as_tmp : default(Dog?)) ?? new Dog("Default", "Unknown");
+        var dog = (animal as Dog) ?? new Dog("Default", "Unknown");
         System.Console.WriteLine($"{dog.Name}, {dog.Breed}");
     }
 

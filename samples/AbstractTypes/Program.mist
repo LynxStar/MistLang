@@ -38,6 +38,40 @@ public class Program
         PrintDescribable(person);
         PrintDescribable(robot);
 
+        // --- Default implementation: taken as-is (FriendlyDog does NOT override Greet) ---
+        Console.WriteLine("=== Default implementation (not overridden) ===");
+        var dog = new FriendlyDog("Rex");
+        Console.WriteLine(dog.Greet());
+
+        // --- Default implementation: called through abstract type reference ---
+        Console.WriteLine("=== Default via abstract type reference ===");
+        IGreetable greetableDog = new FriendlyDog("Rex");
+        Console.WriteLine(greetableDog.Greet());
+
+        // --- Prove identical behavior: concrete ref vs abstract ref ---
+        Console.WriteLine("=== Identical dispatch (concrete == abstract ref) ===");
+        var dog2 = new FriendlyDog("Buddy");
+        IGreetable greetableDog2 = new FriendlyDog("Buddy");
+        Console.WriteLine($"  Concrete: {dog2.Greet()}");
+        Console.WriteLine($"  Abstract: {greetableDog2.Greet()}");
+
+        // --- Default implementation: overridden (FormalCat overrides Greet) ---
+        Console.WriteLine("=== Default implementation (overridden) ===");
+        var cat = new FormalCat("Whiskers");
+        Console.WriteLine(cat.Greet());
+
+        // --- Override through abstract type reference ---
+        Console.WriteLine("=== Override via abstract type reference ===");
+        IGreetable greetableCat = new FormalCat("Whiskers");
+        Console.WriteLine(greetableCat.Greet());
+
+        // --- Prove override takes precedence regardless of reference type ---
+        Console.WriteLine("=== Override precedence (concrete == abstract ref) ===");
+        var cat2 = new FormalCat("Shadow");
+        IGreetable greetableCat2 = new FormalCat("Shadow");
+        Console.WriteLine($"  Concrete: {cat2.Greet()}");
+        Console.WriteLine($"  Abstract: {greetableCat2.Greet()}");
+
         Console.WriteLine("Done!");
     }
 

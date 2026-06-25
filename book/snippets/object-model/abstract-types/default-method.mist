@@ -1,0 +1,24 @@
+abstract IGreetable
+{
+    string Name();
+
+    string Greet()
+    {
+        return $"Hello, I am {this.Name()}";
+    }
+}
+
+public class FriendlyDog : IGreetable
+{
+    private string dogName;
+
+    public FriendlyDog(string dogName)
+    {
+        this.dogName = dogName;
+    }
+
+    public string Name()
+    {
+        return dogName;
+    }
+}

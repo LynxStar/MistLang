@@ -100,3 +100,67 @@ Abstract types can be used as variable types and parameter types, allowing code 
 {{#endtabs }}
 
 The `PrintDescription` method accepts any `IDescribable` — both `Person` and `Robot` can be passed because they both implement the abstract type. Similarly, a variable typed as `IDescribable` can hold a reference to any implementing type. The compiler dispatches the `Describe()` call to the correct implementation at runtime based on the actual object type.
+
+## Default Implementations
+
+Abstract types can provide default method implementations — methods with bodies that concrete types inherit automatically without needing to supply their own version. Only methods can have defaults; properties cannot.
+
+A default method is written just like a regular method declaration, but inside an abstract type body:
+
+{{#tabs }}
+{{#tab name="Mist" }}
+```mist
+{{#include ../../snippets/object-model/abstract-types/default-method.mist}}
+```
+{{#endtab }}
+{{#tab name="Emitted C#" }}
+```csharp
+{{#include ../../snippets/object-model/abstract-types/default-method.cs}}
+```
+{{#endtab }}
+{{#endtabs }}
+
+`IGreetable` declares `Name()` as a slot (no body — must be filled by implementers) and `Greet()` as a default method (has a body). `FriendlyDog` implements `IGreetable` and provides only `Name()` — it inherits the `Greet()` default automatically.
+
+### Overriding Defaults
+
+A concrete type can override a default method by providing its own implementation with the same signature:
+
+{{#tabs }}
+{{#tab name="Mist" }}
+```mist
+{{#include ../../snippets/object-model/abstract-types/default-override.mist}}
+```
+{{#endtab }}
+{{#tab name="Emitted C#" }}
+```csharp
+{{#include ../../snippets/object-model/abstract-types/default-override.cs}}
+```
+{{#endtab }}
+{{#endtabs }}
+
+`FormalCat` provides its own `Greet()` method, which replaces the default from `IGreetable`. The override is used regardless of how the value is accessed.
+
+### Dispatch Semantics
+
+Default methods follow Rust-style semantics: calling through a concrete type reference or through an abstract type reference produces identical behavior. There is no "lens" or split dispatch — the same implementation runs either way.
+
+{{#tabs }}
+{{#tab name="Mist" }}
+```mist
+{{#include ../../snippets/object-model/abstract-types/default-dispatch.mist}}
+```
+{{#endtab }}
+{{#tab name="Emitted C#" }}
+```csharp
+{{#include ../../snippets/object-model/abstract-types/default-dispatch.cs}}
+```
+{{#endtab }}
+{{#endtabs }}
+
+Both `dog.Greet()` and `greeter.Greet()` (where `greeter` is typed as `IGreetable`) invoke the same default implementation. If the concrete type overrides the default, the override is used through both paths.
+
+### Restrictions
+
+- **Only methods can have defaults** — property slots cannot have bodies inside abstract types. Attempting to add a body to a property declaration produces a compiler error.
+- **Defaults propagate through inheritance** — if an abstract type inherits from another abstract type that has defaults, implementers of the child type inherit those defaults as well without needing to re-declare them.

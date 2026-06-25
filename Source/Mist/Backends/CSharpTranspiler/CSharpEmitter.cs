@@ -3194,8 +3194,18 @@ internal sealed class CSharpSourceWriter
     ///
     /// C# default interface methods are only callable through an interface-typed reference
     /// (e.g., <c>((IGreeting)x).Greet()</c>). To preserve Rust-style semantics — where the
-    /// default is callable directly on the concrete type — a forwarding stub is emitted:
-    /// <code>public string Greet() => ((IGreeting)this).Greet();</code>
+    /// default is callable directly on the concrete type — the default method body is
+    /// duplicated on the concrete type:
+    /// <code>
+    /// public string Greet()
+    /// {
+    ///     return $"Hello, I am {this.Name()}";
+    /// }
+    /// </code>
+    ///
+    /// A naive <c>((IFace)this).Method()</c> forwarding stub does not work because the
+    /// public method on the concrete type becomes the implicit interface implementation,
+    /// causing infinite recursion.
     ///
     /// When the concrete type provides its own implementation for a default method (matched
     /// by name + arity), no stub is emitted — the concrete implementation takes precedence.
@@ -3292,12 +3302,6 @@ internal sealed class CSharpSourceWriter
                 if (node.Body is MethodBlockBodyMethodBodyNode blockBody)
                 {
                     EmitMethodBlock(blockBody.Block, appendImplicitReturn: false);
-                }
-                else if (node.Body is ExpressionBodyMethodBodyNode exprBody)
-                {
-                    _indentLevel++;
-                    AppendLine($"=> {EmitExpression(exprBody.Expression)};");
-                    _indentLevel--;
                 }
             }
         }

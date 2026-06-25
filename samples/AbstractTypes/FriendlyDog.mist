@@ -1,0 +1,18 @@
+using Standard;
+
+namespace AbstractTypes;
+
+public class FriendlyDog : IGreetable
+{
+    private string dogName;
+
+    public FriendlyDog(string dogName)
+    {
+        this.dogName = dogName;
+    }
+
+    public string Name()
+    {
+        return dogName;
+    }
+}

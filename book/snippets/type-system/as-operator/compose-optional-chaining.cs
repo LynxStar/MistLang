@@ -25,10 +25,9 @@ public class Program
     public static void Main(string[] args)
     {
         Animal animal = new Dog("Rex", "Labrador");
-        string? breed = ((animal is Dog __as_tmp ? __as_tmp : default(Dog?)))?.Breed;
-        if (breed.IsString)
+        string? breed = ((animal as Dog))?.Breed;
+        if (breed is string b)
         {
-            string b = breed.AsString;
             System.Console.WriteLine($"Breed: {b}");
         }
     }

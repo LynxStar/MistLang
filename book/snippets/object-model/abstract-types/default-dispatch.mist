@@ -1,0 +1,16 @@
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        var dog = new FriendlyDog("Rex");
+        var cat = new FormalCat("Whiskers");
+
+        // Call through concrete reference
+        Console.WriteLine(dog.Greet());
+        Console.WriteLine(cat.Greet());
+
+        // Call through abstract reference — identical behavior
+        IGreetable greeter = dog;
+        Console.WriteLine(greeter.Greet());
+    }
+}

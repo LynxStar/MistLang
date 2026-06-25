@@ -30,7 +30,7 @@ This file is always loaded. Deeper references live in separate manual-inclusion 
 | File | Read it when the task involves… |
 |------|----------------------------------|
 | `#mist-ownership` | `owned`/`borrowed`/`frozen`/`readonly ref`, move semantics, lending, `IClonable`, or `linear`/`affine`/`relevant` drop semantics |
-| `#mist-advanced-features` | abstract types, structured context (`with` clauses), refinement types, dependent types, associated types, extension blocks |
+| `#mist-advanced-features` | abstract types, default implementations, `with` blocks (retroactive conformance), structured context (`with` clauses), refinement types, dependent types, associated types, extension blocks |
 | `#mist-interop` | adding NuGet packages, framework references, consuming C#/.NET types, named delegate types, delegate-func conversion, `mist inspect`, `mist restore`, or diagnosing dependency resolution |
 | `#mist-gitignore` | setting up version control — what Mist generates and what to ignore |
 
@@ -243,6 +243,6 @@ regex pattern = `[0-9]+`;
 Mist adds opt-in systems with no C# equivalent. These are documented in detail in companion files — include them when relevant:
 
 - **Ownership** (`owned`/`borrowed`/`frozen`/`readonly ref`, move semantics, lending, `IClonable`) and **substructural/drop semantics** (`linear`/`affine`/`relevant`): see `#mist-ownership.md`.
-- **Structured context** (implicit parameter passing via `with` clauses), refinement and dependent type details, abstract types, associated types: see `#mist-advanced-features.md`.
+- **Structured context** (implicit parameter passing via `with` clauses), refinement and dependent type details, abstract types, default implementations, `with` blocks (retroactive conformance), associated types: see `#mist-advanced-features.md`.
 
 By default, bindings are unrestricted and behave like ordinary C# references — you only deal with ownership when you opt in with these keywords.

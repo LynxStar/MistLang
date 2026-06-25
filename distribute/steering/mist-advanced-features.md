@@ -6,7 +6,87 @@ inclusion: manual
 
 # Mist Advanced Features
 
-Deep reference for Mist features that have no C# equivalent. As with the core reference, **assume C# behavior as the baseline** — this file only covers what is genuinely new. Include this context when working with abstract types, structured context, refinement types, dependent types, or associated types.
+Deep reference for Mist features that have no C# equivalent. As with the core reference, **assume C# behavior as the baseline** — this file only covers what is genuinely new. Include this context when working with abstract types, default implementations, `with` blocks (retroactive conformance), structured context, refinement types, dependent types, or associated types.
+
+## Abstract Types
+
+Mist uses the `abstract` keyword (not `interface`) to declare contracts. Abstract types emit as C# interfaces but use nominal typing — a type must explicitly declare `: AbstractType` or use a `with` block for conformance.
+
+```mist
+abstract IDescribable
+{
+    string Describe();
+    string Label { get; }   // property slots supported
+}
+
+abstract IFullyDescribable : IDescribable   // inheritance
+{
+    string DetailedDescribe();
+}
+
+public class Robot : IFullyDescribable
+{
+    public string Describe() { return "Robot"; }
+    public string Label { get; } = "robot";
+    public string DetailedDescribe() { return "Robot, fully operational"; }
+}
+```
+
+### Default Implementations
+
+Abstract types can have method bodies — defaults that implementers inherit without providing their own. Only methods can have defaults; properties cannot.
+
+```mist
+abstract IGreeting
+{
+    string Name();                          // slot — must be filled
+
+    string Greet()                          // default — inherited automatically
+    {
+        return $"Hello, I am {this.Name()}";
+    }
+}
+
+public class Person : IGreeting
+{
+    public string Name() { return "Alice"; }
+    // Greet() is inherited from the default
+}
+```
+
+Defaults use Rust-style dispatch: calling through a concrete reference or an abstract reference produces identical behavior (no "lens" split). Overriding a default works by providing a method with the same signature — the override always wins regardless of reference type.
+
+### Late Binding with `with` Blocks
+
+A `with` block establishes retroactive conformance — making an existing type satisfy an abstract type without modifying its declaration. Members are mapped with the `as` keyword:
+
+```mist
+abstract INamed
+{
+    string Name();
+}
+
+public class Logger
+{
+    public string GetLabel() { return "SystemLogger"; }
+}
+
+with Logger : INamed
+{
+    GetLabel as Name;
+}
+
+// Logger is now assignable to INamed:
+INamed named = new Logger();
+Console.WriteLine(named.Name());   // "SystemLogger"
+```
+
+Rules:
+- Only required slots need mappings — default methods are inherited without explicit mapping.
+- If you map a member to a slot that has a default, your mapping overrides the default.
+- Signature compatibility (return type + parameter types) is checked at the mapping declaration point.
+- A type can have multiple `with` blocks for different abstract types.
+- `with` blocks cannot target CLR types (only types defined in Mist source).
 
 ## Structured Context (Implicit Parameter Passing)
 
@@ -167,7 +247,7 @@ if (target is FixedBuffer<5> matched) { }   // dependent value participates in t
 Abstract types can declare associated type slots that implementers fill in. No direct C# equivalent (C# uses generic type parameters instead).
 
 ```mist
-abstract type IIterator
+abstract IIterator
 {
     type Item;            // associated type slot
     Item? Next();
@@ -180,7 +260,7 @@ public class RangeIterator : IIterator
 }
 
 // Constrained associated type slot
-abstract type Collection
+abstract Collection
 {
     type Element : IComparable;
     Element First();

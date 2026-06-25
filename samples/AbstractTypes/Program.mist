@@ -2,75 +2,202 @@ using Standard;
 
 namespace AbstractTypes;
 
+// PROOF: abstract keyword parses as a type declaration
+// PROOF: members without bodies are slots (must be filled)
+abstract IDescribable
+{
+    string Describe();
+}
+
+// PROOF: abstract type inheritance works
+abstract IFullyDescribable : IDescribable
+{
+    string DetailedDescribe();
+}
+
+// PROOF: property slots on abstract types
+abstract ILabeled
+{
+    string Label { get; }
+}
+
+// PROOF: abstract type with default implementation
+abstract IGreeting
+{
+    string Name();
+
+    // PROOF: default implementation has a body
+    string Greet()
+    {
+        return $"Hello, I am {this.Name()}";
+    }
+}
+
+// PROOF: concrete type fills required slots including property slot
+public class Person : IDescribable, IGreeting, ILabeled
+{
+    private string name;
+    private int age;
+
+    public Person(string name, int age)
+    {
+        this.name = name;
+        this.age = age;
+    }
+
+    public string Describe()
+    {
+        return $"Person: {this.name}, age {this.age}";
+    }
+
+    // PROOF: fills the Name() slot required by IGreeting
+    public string Name()
+    {
+        return this.name;
+    }
+
+    // PROOF: fills the property slot from ILabeled
+    public string Label { get; } = "person";
+
+    // PROOF: does NOT provide Greet() — takes the default
+}
+
+// PROOF: concrete type that overrides a default
+public class Robot : IFullyDescribable, IGreeting
+{
+    private string model;
+
+    public Robot(string model)
+    {
+        this.model = model;
+    }
+
+    public string Describe()
+    {
+        return $"Robot: {this.model}";
+    }
+
+    public string DetailedDescribe()
+    {
+        return $"Robot model {this.model}, fully operational";
+    }
+
+    public string Name()
+    {
+        return this.model;
+    }
+
+    // PROOF: overrides the default Greet() with custom implementation
+    public string Greet()
+    {
+        return $"Beep boop, I am {this.model}";
+    }
+}
+
+// PROOF: late binding via with block (retroactive conformance)
+public class Logger
+{
+    public string GetLabel()
+    {
+        return "SystemLogger";
+    }
+}
+
+abstract INamed
+{
+    string Name();
+}
+
+with Logger : INamed
+{
+    GetLabel as Name;
+}
+
+// PROOF: with block filling a slot that has a default
+abstract ITaggable
+{
+    string Tag();
+
+    string DisplayTag()
+    {
+        return $"[{this.Tag()}]";
+    }
+}
+
+public class Widget
+{
+    public string GetWidgetTag()
+    {
+        return "widget-tag";
+    }
+
+    public string GetWidgetDisplay()
+    {
+        return "<Widget>";
+    }
+}
+
+with Widget : ITaggable
+{
+    GetWidgetTag as Tag;
+    GetWidgetDisplay as DisplayTag;
+}
+
 public class Program
 {
-    private static void PrintDescribable(IDescribable item)
+    // PROOF: abstract type as parameter type (polymorphism)
+    private static void PrintDescription(IDescribable item)
     {
-        Console.WriteLine($"  Describable received");
+        Console.WriteLine($"  {item.Describe()}");
     }
 
     public static void RunDemo()
     {
-        // --- Class implementing single abstract type (IDescribable) ---
-        Console.WriteLine("=== Class implementing single abstract type ===");
+        Console.WriteLine("=== Abstract type with slots only ===");
         var person = new Person("Alice", 30);
         Console.WriteLine(person.Describe());
-        Console.WriteLine($"  Name: {person.GetName()}");
 
-        // --- Abstract type-to-abstract type inheritance (IFullyDescribable : IDescribable) ---
-        Console.WriteLine("=== Abstract type inheritance (transitive) ===");
-        var robot = new Robot("T-800", 2);
-        Console.WriteLine(robot.Describe());
-        Console.WriteLine(robot.DetailedDescribe());
+        Console.WriteLine("=== Property slot filled ===");
+        // PROOF: property slot accessible on concrete type
+        Console.WriteLine($"  Label: {person.Label}");
 
-        // --- Assign implementing type to abstract type-typed variable ---
-        Console.WriteLine("=== Abstract type-typed variable ===");
-        IDescribable describable = new Person("Bob", 25);
-        Console.WriteLine("  Assigned Person to IDescribable");
+        Console.WriteLine("=== Default implementation taken (Rust-style) ===");
+        // PROOF: Greet() is callable directly on Person (no cast needed)
+        Console.WriteLine(person.Greet());
 
-        // --- Assign Robot to IDescribable (transitive abstract type assignability) ---
-        Console.WriteLine("=== Robot as IDescribable (transitive) ===");
-        IDescribable robotAsDescribable = new Robot("C-3PO", 3);
-        Console.WriteLine("  Assigned Robot to IDescribable (transitive)");
+        Console.WriteLine("=== Default implementation overridden ===");
+        var robot = new Robot("T-800");
+        Console.WriteLine(robot.Greet());
 
-        // --- Pass implementing type to method accepting abstract type parameter ---
-        Console.WriteLine("=== Abstract type parameter passing ===");
-        PrintDescribable(person);
-        PrintDescribable(robot);
+        Console.WriteLine("=== Polymorphic variable assignment ===");
+        IDescribable describable = person;
+        Console.WriteLine($"  {describable.Describe()}");
 
-        // --- Default implementation: taken as-is (FriendlyDog does NOT override Greet) ---
-        Console.WriteLine("=== Default implementation (not overridden) ===");
-        var dog = new FriendlyDog("Rex");
-        Console.WriteLine(dog.Greet());
+        Console.WriteLine("=== Transitive interface assignability ===");
+        IDescribable robotAsDescribable = robot;
+        Console.WriteLine($"  {robotAsDescribable.Describe()}");
 
-        // --- Default implementation: called through abstract type reference ---
-        Console.WriteLine("=== Default via abstract type reference ===");
-        IGreetable greetableDog = new FriendlyDog("Rex");
-        Console.WriteLine(greetableDog.Greet());
+        Console.WriteLine("=== Polymorphic parameter passing ===");
+        PrintDescription(person);
+        PrintDescription(robot);
 
-        // --- Prove identical behavior: concrete ref vs abstract ref ---
-        Console.WriteLine("=== Identical dispatch (concrete == abstract ref) ===");
-        var dog2 = new FriendlyDog("Buddy");
-        IGreetable greetableDog2 = new FriendlyDog("Buddy");
-        Console.WriteLine($"  Concrete: {dog2.Greet()}");
-        Console.WriteLine($"  Abstract: {greetableDog2.Greet()}");
+        Console.WriteLine("=== Default via abstract-typed reference ===");
+        // PROOF: same result whether called on concrete type or abstract reference
+        IGreeting greetingRef = person;
+        Console.WriteLine(greetingRef.Greet());
 
-        // --- Default implementation: overridden (FormalCat overrides Greet) ---
-        Console.WriteLine("=== Default implementation (overridden) ===");
-        var cat = new FormalCat("Whiskers");
-        Console.WriteLine(cat.Greet());
+        Console.WriteLine("=== Late binding via with block ===");
+        var logger = new Logger();
+        INamed named = logger;
+        Console.WriteLine($"  {named.Name()}");
 
-        // --- Override through abstract type reference ---
-        Console.WriteLine("=== Override via abstract type reference ===");
-        IGreetable greetableCat = new FormalCat("Whiskers");
-        Console.WriteLine(greetableCat.Greet());
-
-        // --- Prove override takes precedence regardless of reference type ---
-        Console.WriteLine("=== Override precedence (concrete == abstract ref) ===");
-        var cat2 = new FormalCat("Shadow");
-        IGreetable greetableCat2 = new FormalCat("Shadow");
-        Console.WriteLine($"  Concrete: {cat2.Greet()}");
-        Console.WriteLine($"  Abstract: {greetableCat2.Greet()}");
+        Console.WriteLine("=== With block overrides default ===");
+        // PROOF: with block maps GetWidgetDisplay to DisplayTag slot,
+        // overriding the default implementation
+        var widget = new Widget();
+        ITaggable taggable = widget;
+        Console.WriteLine($"  Tag: {taggable.Tag()}");
+        Console.WriteLine($"  DisplayTag: {taggable.DisplayTag()}");
 
         Console.WriteLine("Done!");
     }

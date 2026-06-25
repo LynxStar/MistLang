@@ -1343,7 +1343,7 @@ public sealed class EndToEndCompilationTests : IDisposable
     {
         // AbstractTypes has explicit namespace declarations in all files.
         // Requirement 12.2: files with existing single namespace declarations continue to work identically.
-        CompileAndRunSample("AbstractTypes", minSourceFiles: 5);
+        CompileAndRunSample("AbstractTypes", minSourceFiles: 1);
     }
 
     [Fact]

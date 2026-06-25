@@ -1,0 +1,27 @@
+abstract INamed
+{
+    string Name();
+}
+
+public class Logger
+{
+    public string GetLabel()
+    {
+        return "SystemLogger";
+    }
+}
+
+with Logger : INamed
+{
+    GetLabel as Name;
+}
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        var logger = new Logger();
+        INamed named = logger;
+        Console.WriteLine(named.Name());
+    }
+}

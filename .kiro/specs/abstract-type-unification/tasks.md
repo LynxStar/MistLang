@@ -428,7 +428,7 @@ This implementation unifies Mist's `interface` and `trait` keywords into a singl
   - [x] 2.24 Commit Phase 2
     - Message: "Phase 2: Purge traits entirely"
 
-- [-] 3. Phase 3 — Default Implementations (New Functionality)
+- [x] 3. Phase 3 — Default Implementations (New Functionality)
 
   - [x] 3.1 Extend grammar for default implementations
     - Extend `AbstractMemberDeclaration` to accept `defaultMethod:MethodDeclaration as AbstractDefaultMethodMember`
@@ -458,42 +458,42 @@ This implementation unifies Mist's `interface` and `trait` keywords into a singl
   - [x] 3.7 Phase 3 verification gate
     - Build, test, samples all pass
 
-  - [-] 3.8 Commit Phase 3
+  - [x] 3.8 Commit Phase 3
     - Message: "Phase 3: Add default implementations for abstract types"
 
 
-- [ ] 4. Phase 4 — Late Binding via With Blocks (New Functionality)
+- [x] 4. Phase 4 — Late Binding via With Blocks (New Functionality)
 
-  - [~] 4.1 Re-add with block grammar
+  - [x] 4.1 Re-add with block grammar
     - Re-add `WithDeclaration` rule: `with TypeName : AbstractType { mappings }`
     - Re-add `MemberMapping` rule: `sourceName:IDENTIFIER AS targetName:IDENTIFIER SEMICOLON`
     - Re-add `WithItem` variant to `TopLevelItem`
 
-  - [~] 4.2 Implement ConformanceMap semantic model
+  - [x] 4.2 Implement ConformanceMap semantic model
     - Create `ConformanceMapping` and `ConformanceMap` classes
     - Wire into semantic model
 
-  - [~] 4.3 Implement with-block resolution pass
+  - [x] 4.3 Implement with-block resolution pass
     - Add `Pass1_ResolveWithBlocks` pass
     - Validate type/abstract references, member mappings, signature compatibility
     - Register validated mappings in `ConformanceMap`
 
-  - [~] 4.4 Extend type checker for with-block assignability
+  - [x] 4.4 Extend type checker for with-block assignability
     - Consult `ConformanceMap` for assignability checks
 
-  - [~] 4.5 Implement with-block C# emission
+  - [x] 4.5 Implement with-block C# emission
     - Add abstract type's interface to concrete type's C# inheritance list
     - Emit explicit interface implementations delegating to mapped members
 
-  - [~] 4.6 Add with-block samples
+  - [x] 4.6 Add with-block samples
     - Demonstrate conformance, `as` mapping, polymorphic usage
 
-  - [~] 4.7 Update book documentation for Phase 4
+  - [x] 4.7 Update book documentation for Phase 4
 
-  - [~] 4.8 Phase 4 verification gate
+  - [x] 4.8 Phase 4 verification gate
     - Build, test, samples all pass
 
-  - [~] 4.9 Commit Phase 4
+  - [x] 4.9 Commit Phase 4
     - Message: "Phase 4: Add late binding via with blocks"
 
 - [ ] 5. Final comprehensive verification

@@ -2786,6 +2786,13 @@ internal sealed class CSharpSourceWriter
                     typeParams)
                 : EmitBaseListWithTypeArgs(classDecl.BaseList);
 
+            // Append with-block conformance interfaces to the inheritance list.
+            var withBlockInterfaces = CollectWithBlockInterfaceNames(symbol?.DeclaredType);
+            if (withBlockInterfaces.Count > 0)
+            {
+                baseParts = $"{baseParts}, {string.Join(", ", withBlockInterfaces)}";
+            }
+
             baseClause = $" : {baseParts}";
         }
         else if (symbol?.DeclaredType is ClassType classType)
@@ -2803,6 +2810,10 @@ internal sealed class CSharpSourceWriter
             {
                 parts.Add(EmitAbstractWithAssociatedTypeArgs(abs, classType.MemberScope, classType, name, typeParams));
             }
+
+            // Append with-block conformance interfaces to the inheritance list.
+            var withBlockInterfaces = CollectWithBlockInterfaceNames(classType);
+            parts.AddRange(withBlockInterfaces);
 
             if (parts.Count > 0)
             {
@@ -2987,6 +2998,15 @@ internal sealed class CSharpSourceWriter
                 name,
                 typeParams,
                 abstractTypeParamSubstitutions);
+        }
+
+        // Emit explicit interface implementations and forwarding stubs for with-block
+        // conformances. For each with-block entry targeting this type, emit:
+        // 1. Explicit interface implementations delegating to mapped source members.
+        // 2. Forwarding stubs for default methods without mappings.
+        if (symbol?.DeclaredType is not null)
+        {
+            EmitWithBlockConformanceMembers(symbol.DeclaredType, classDecl.Members);
         }
 
         // Emit explicit interface implementations for methods that use parameterized
@@ -3302,6 +3322,151 @@ internal sealed class CSharpSourceWriter
                 if (node.Body is MethodBlockBodyMethodBodyNode blockBody)
                 {
                     EmitMethodBlock(blockBody.Block, appendImplicitReturn: false);
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Collects C# interface names from with-block conformance entries targeting
+    /// the given concrete type. These names are appended to the type's inheritance list.
+    /// </summary>
+    private List<string> CollectWithBlockInterfaceNames(IType? concreteType)
+    {
+        var result = new List<string>();
+        if (concreteType is null) return result;
+
+        foreach (var (type, abstractType, _) in _model.ConformanceMap.All())
+        {
+            if (!ReferenceEquals(type, concreteType)) continue;
+            result.Add(CSharpTypeMap.GetTypeName(abstractType));
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// Emits explicit interface implementations and default method forwarding stubs
+    /// for with-block conformances targeting the given concrete type.
+    /// For each conformance entry:
+    /// 1. Emit explicit interface implementations delegating to mapped source members.
+    /// 2. For default methods without mappings, emit a forwarding stub (body duplication).
+    /// 3. For mapped slots that have defaults, the mapping takes precedence.
+    /// </summary>
+    private void EmitWithBlockConformanceMembers(
+        IType concreteType,
+        IReadOnlyList<MemberDeclarationNode> concreteMembers)
+    {
+        foreach (var (type, abstractTypeRef, mappings) in _model.ConformanceMap.All())
+        {
+            if (!ReferenceEquals(type, concreteType)) continue;
+
+            var abstractType = abstractTypeRef as AbstractType;
+            if (abstractType is null) continue;
+
+            var interfaceName = CSharpTypeMap.GetTypeName(abstractTypeRef);
+
+            // Build a set of mapped target slot names so we know which defaults need forwarding.
+            var mappedTargetNames = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var mapping in mappings)
+            {
+                mappedTargetNames.Add(mapping.TargetName);
+            }
+
+            // 1. Emit explicit interface implementations for mapped members.
+            foreach (var mapping in mappings)
+            {
+                var targetNode = _model.GetDeclaringNode(mapping.TargetSlot);
+
+                if (targetNode is AbstractMethodDeclarationNode targetMethodDecl)
+                {
+                    var returnType = EmitTypeReference(targetMethodDecl.ReturnType);
+                    var parameters = EmitParameterList(targetMethodDecl.Parameters);
+                    var paramNames = EmitParameterNamesOnly(targetMethodDecl.Parameters);
+                    var typeParamsStr = EmitTypeParameterList(targetMethodDecl.TypeParams);
+
+                    AppendLine();
+                    AppendLine($"{returnType} {interfaceName}.{mapping.TargetName}{typeParamsStr}({parameters}) => this.{mapping.SourceName}({paramNames});");
+                }
+                else if (targetNode is MethodDeclarationNode targetDefaultMethodDecl)
+                {
+                    // Mapped default method — the mapping takes precedence over the default.
+                    var returnType = EmitTypeReference(targetDefaultMethodDecl.ReturnType);
+                    var parameters = EmitParameterList(targetDefaultMethodDecl.Parameters);
+                    var paramNames = EmitParameterNamesOnly(targetDefaultMethodDecl.Parameters);
+                    var typeParamsStr = EmitTypeParameterList(targetDefaultMethodDecl.TypeParams);
+
+                    AppendLine();
+                    AppendLine($"{returnType} {interfaceName}.{mapping.TargetName}{typeParamsStr}({parameters}) => this.{mapping.SourceName}({paramNames});");
+                }
+                else if (targetNode is AbstractPropertyDeclarationNode targetPropDecl)
+                {
+                    var propType = EmitTypeReference(targetPropDecl.Type);
+
+                    AppendLine();
+                    // Emit explicit property implementation with accessors delegating to mapped source.
+                    var accessors = new List<string>();
+                    foreach (var accessor in targetPropDecl.Accessors)
+                    {
+                        switch (accessor)
+                        {
+                            case AbstractGetAccessorAbstractAccessorDeclarationNode:
+                                accessors.Add($"get => this.{mapping.SourceName};");
+                                break;
+                            case AbstractSetAccessorAbstractAccessorDeclarationNode:
+                                accessors.Add($"set => this.{mapping.SourceName} = value;");
+                                break;
+                        }
+                    }
+                    AppendLine($"{propType} {interfaceName}.{mapping.TargetName} {{ {string.Join(" ", accessors)} }}");
+                }
+            }
+
+            // 2. Emit forwarding stubs for default methods without mappings.
+            // These are default methods on the abstract type that the with-block did not map.
+            // We duplicate the DIM body on the concrete type (same approach as Phase 3).
+            if (abstractType.DefaultMethods.Count > 0)
+            {
+                // Build a set of concrete method keys to detect if the concrete type already
+                // has an implementation for any default method.
+                var concreteMethodKeys = new HashSet<string>(StringComparer.Ordinal);
+                foreach (var member in concreteMembers)
+                {
+                    if (member is MethodMemberMemberDeclarationNode mm)
+                        concreteMethodKeys.Add($"{mm.Method.Name.Lexeme}/{CountParameters(mm.Method.Parameters)}");
+                }
+
+                foreach (var entry in abstractType.DefaultMethods.OrderBy(kvp => kvp.Key, StringComparer.Ordinal))
+                {
+                    var methodName = entry.Key;
+
+                    // If this default was explicitly mapped, the mapping takes precedence —
+                    // the explicit interface implementation was already emitted above.
+                    if (mappedTargetNames.Contains(methodName)) continue;
+
+                    // If the concrete type already has an implementation, skip.
+                    if (_model.GetDeclaringNode(entry.Value) is not MethodDeclarationNode node)
+                        continue;
+
+                    var key = $"{methodName}/{CountParameters(node.Parameters)}";
+                    if (concreteMethodKeys.Contains(key)) continue;
+
+                    // Emit the default method body on the concrete type.
+                    AppendLine();
+                    var returnType = EmitTypeReference(node.ReturnType);
+                    var parameters = EmitParameterList(node.Parameters);
+                    var methodTypeParams = EmitTypeParameterList(node.TypeParams);
+
+                    var modifiers = EmitModifiers(node.Modifiers);
+                    if (string.IsNullOrEmpty(modifiers))
+                        modifiers = "public ";
+
+                    AppendLine($"{modifiers}{returnType} {methodName}{methodTypeParams}({parameters})");
+
+                    if (node.Body is MethodBlockBodyMethodBodyNode blockBody)
+                    {
+                        EmitMethodBlock(blockBody.Block, appendImplicitReturn: false);
+                    }
                 }
             }
         }
@@ -3698,6 +3863,15 @@ internal sealed class CSharpSourceWriter
                         typeParams)
                     : EmitBaseListWithTypeArgs(structDecl.AbstractList));
 
+            // Append with-block conformance interfaces to the inheritance list.
+            var withBlockInterfaces = CollectWithBlockInterfaceNames(symbol?.DeclaredType);
+            if (withBlockInterfaces.Count > 0)
+            {
+                baseParts = baseParts.Length > 0
+                    ? $"{baseParts}, {string.Join(", ", withBlockInterfaces)}"
+                    : string.Join(", ", withBlockInterfaces);
+            }
+
             if (baseParts.Length > 0)
                 abstractList = $" : {baseParts}";
         }
@@ -3710,6 +3884,10 @@ internal sealed class CSharpSourceWriter
             {
                 parts.Add(EmitAbstractWithAssociatedTypeArgs(abs, structType.MemberScope, null, name, typeParams));
             }
+
+            // Append with-block conformance interfaces to the inheritance list.
+            var withBlockInterfaces = CollectWithBlockInterfaceNames(structType);
+            parts.AddRange(withBlockInterfaces);
 
             if (parts.Count > 0)
             {
@@ -3862,6 +4040,15 @@ internal sealed class CSharpSourceWriter
                 name,
                 typeParams,
                 abstractParamSubs: null);
+        }
+
+        // Emit explicit interface implementations and forwarding stubs for with-block
+        // conformances. For each with-block entry targeting this type, emit:
+        // 1. Explicit interface implementations delegating to mapped source members.
+        // 2. Forwarding stubs for default methods without mappings.
+        if (symbol?.DeclaredType is not null)
+        {
+            EmitWithBlockConformanceMembers(symbol.DeclaredType, structDecl.Members);
         }
 
         // Emit __CreateDefault factory method for defaultable structs.

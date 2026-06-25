@@ -1,0 +1,33 @@
+abstract ITaggable
+{
+    string Tag();
+
+    string DisplayTag()
+    {
+        return $"[{this.Tag()}]";
+    }
+}
+
+public class Widget
+{
+    public string GetWidgetTag()
+    {
+        return "widget";
+    }
+}
+
+with Widget : ITaggable
+{
+    GetWidgetTag as Tag;
+}
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        var widget = new Widget();
+        ITaggable taggable = widget;
+        Console.WriteLine(taggable.Tag());
+        Console.WriteLine(taggable.DisplayTag());
+    }
+}

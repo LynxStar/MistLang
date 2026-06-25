@@ -2100,10 +2100,10 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // at the end of IsAssignable handles this. IsDirectlyAssignable
         // intentionally does NOT check implicit cast operators.
 
-        // Abstract assignability.
+        // Abstract assignability (also checks with-block conformance via ConformanceMap).
         if (target is AbstractType targetAbstract)
         {
-            if (ImplementsAbstract(source, targetAbstract))
+            if (ImplementsAbstract(source, targetAbstract, model))
                 return true;
         }
 
@@ -16921,9 +16921,10 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // Abstract assignability:
         // A class/struct implementing an abstract (directly or transitively) is assignable to that abstract.
         // An abstract is assignable to any abstract it inherits from (directly or transitively).
+        // Also checks with-block conformance via ConformanceMap when model is available.
         if (target is AbstractType targetAbstract)
         {
-            if (ImplementsAbstract(source, targetAbstract))
+            if (ImplementsAbstract(source, targetAbstract, model))
                 return true;
         }
 
@@ -17492,9 +17493,10 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
     /// <summary>
     /// Checks whether <paramref name="source"/> implements <paramref name="targetAbstract"/>
-    /// directly or transitively.
+    /// directly or transitively. When <paramref name="model"/> is provided, also consults
+    /// the <see cref="ConformanceMap"/> for with-block conformance.
     /// </summary>
-    private static bool ImplementsAbstract(IType source, AbstractType targetAbstract)
+    private static bool ImplementsAbstract(IType source, AbstractType targetAbstract, ISemanticModel? model = null)
     {
         switch (source)
         {
@@ -17510,6 +17512,9 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                         return true;
                     current = current.BaseType as ClassType;
                 }
+                // Check with-block conformance via ConformanceMap.
+                if (model?.ConformanceMap.HasConformance(classType, targetAbstract) == true)
+                    return true;
                 return false;
 
             case StructType structType:
@@ -17524,6 +17529,9 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                         return true;
                     currentStruct = currentStruct.BaseType as StructType;
                 }
+                // Check with-block conformance via ConformanceMap.
+                if (model?.ConformanceMap.HasConformance(structType, targetAbstract) == true)
+                    return true;
                 return false;
 
             case AbstractType sourceAbstract:
@@ -19693,7 +19701,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // Check abstract constraints: type argument must implement each abstract.
         foreach (var abs in constraints.AbstractConstraints)
         {
-            if (!ImplementsAbstractConstraint(typeArgument, abs))
+            if (!ImplementsAbstractConstraint(typeArgument, abs, model))
             {
                 diagnostics.Add(MakeDiagnostic(
                     ConstraintAbstractNotImplemented.Value,
@@ -19957,12 +19965,14 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// Checks whether a type argument implements the specified abstract constraint.
     /// Handles both <see cref="AbstractType"/> and <see cref="ConstructedType"/>
     /// (for generic abstract constraints like <c>IComparable&lt;T&gt;</c>).
+    /// When <paramref name="model"/> is provided, also consults the <see cref="ConformanceMap"/>
+    /// for with-block conformance.
     /// </summary>
-    private static bool ImplementsAbstractConstraint(IType typeArgument, IType abstractConstraint)
+    private static bool ImplementsAbstractConstraint(IType typeArgument, IType abstractConstraint, ISemanticModel? model = null)
     {
         // If the constraint is a plain AbstractType, use the existing helper.
         if (abstractConstraint is AbstractType abstractType)
-            return ImplementsAbstract(typeArgument, abstractType);
+            return ImplementsAbstract(typeArgument, abstractType, model);
 
         // For ConstructedType abstract constraints (e.g., IComparable<int>),
         // check if the type argument implements a matching constructed abstract.

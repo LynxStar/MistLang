@@ -974,6 +974,13 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // BEFORE any expression-level inference begins in Pass 2.
         Pass1_5_ResolveExplicitMemberTypes(asts, globalScope, symbolTable, ambientTypeResolver, fileScopesByUnit, compilation, diagnostics);
 
+        // Phase 4c: Resolve with-block declarations. After all member types
+        // are resolved (Phase 4), validate with-block type references, member
+        // mappings, and signature compatibility. Register validated mappings
+        // in the ConformanceMap for later use by the type checker and emitter.
+        var conformanceMap = new ConformanceMap();
+        Pass1_ResolveWithBlocks(asts, globalScope, symbolTable, conformanceMap, compilation, diagnostics);
+
         // Phase 4b: Clone newtype members. After all source types have their
         // members fully typed (Phase 4), iterate all newtype symbols and clone
         // members from their source types. This ensures cloned members carry
@@ -1154,6 +1161,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             symbolTable,
             expressionTypes,
             extensionRegistry,
+            conformanceMap,
             parameterRefinements,
             _discardedTaskResult);
     }
@@ -8348,6 +8356,323 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             _ => null,
         };
     }
+
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Pass 1 — Resolve With Blocks (Retroactive Conformance)
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Resolves with-block declarations, validating type references, member
+    /// mappings, and signature compatibility. Registers validated mappings
+    /// in the <see cref="ConformanceMap"/>.
+    /// </summary>
+    private static void Pass1_ResolveWithBlocks(
+        ImmutableArray<Storm.Runtime.SyntaxNode> asts,
+        Scope globalScope,
+        SymbolTable symbolTable,
+        ConformanceMap conformanceMap,
+        MistCompilation compilation,
+        DiagnosticBag diagnostics)
+    {
+        for (var i = 0; i < asts.Length; i++)
+        {
+            if (asts[i] is not CompilationUnitNode cu)
+                continue;
+
+            var sourceText = i < compilation.Units.Length ? compilation.Units[i].Source : null;
+
+            foreach (var item in cu.Items)
+            {
+                if (item is not WithItemTopLevelItemNode withItem)
+                    continue;
+
+                var withDecl = withItem.WithDeclaration;
+                ResolveWithDeclaration(withDecl, globalScope, symbolTable, conformanceMap, asts, compilation, sourceText, diagnostics);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Resolves a single with-block declaration.
+    /// </summary>
+    private static void ResolveWithDeclaration(
+        WithDeclarationNode withDecl,
+        Scope globalScope,
+        SymbolTable symbolTable,
+        ConformanceMap conformanceMap,
+        ImmutableArray<Storm.Runtime.SyntaxNode> asts,
+        MistCompilation compilation,
+        SourceText? sourceText,
+        DiagnosticBag diagnostics)
+    {
+        var typeName = withDecl.TypeName.Lexeme;
+        var abstractName = withDecl.AbstractName.Lexeme;
+
+        // Resolve typeName to a concrete type by searching all registered symbols.
+        ISymbol? typeSymbol = null;
+        foreach (var symbol in symbolTable.AllSymbols)
+        {
+            if (symbol.Name == typeName &&
+                symbol.Kind is SymbolKind.Class or SymbolKind.Struct)
+            {
+                typeSymbol = symbol;
+                break;
+            }
+        }
+
+        if (typeSymbol is null)
+        {
+            diagnostics.Add(MakeDiagnosticWithLocation(
+                "MIST_WITH_0001",
+                DiagnosticSeverity.Error,
+                $"The type '{typeName}' could not be found.",
+                withDecl,
+                sourceText));
+            return;
+        }
+
+        var concreteType = typeSymbol.DeclaredType;
+        if (concreteType is not ClassType and not StructType)
+        {
+            diagnostics.Add(MakeDiagnosticWithLocation(
+                "MIST_WITH_0001",
+                DiagnosticSeverity.Error,
+                $"The type '{typeName}' could not be found.",
+                withDecl,
+                sourceText));
+            return;
+        }
+
+        // Check if the type is a CLR/ambient type (not defined in Mist source).
+        var typeDeclaringNode = symbolTable.GetDeclaringNode(typeSymbol);
+        if (typeDeclaringNode is null)
+        {
+            diagnostics.Add(MakeDiagnosticWithLocation(
+                "MIST_WITH_0006",
+                DiagnosticSeverity.Error,
+                $"Cannot use 'with' to establish conformance for CLR type '{typeName}'. Only types defined in Mist source can be adapted via 'with' blocks.",
+                withDecl,
+                sourceText));
+            return;
+        }
+
+        // Resolve abstractName to an AbstractType.
+        ISymbol? abstractSymbol = null;
+        foreach (var symbol in symbolTable.AllSymbols)
+        {
+            if (symbol.Name == abstractName && symbol.Kind == SymbolKind.Abstract)
+            {
+                abstractSymbol = symbol;
+                break;
+            }
+        }
+
+        if (abstractSymbol is null)
+        {
+            diagnostics.Add(MakeDiagnosticWithLocation(
+                "MIST_WITH_0002",
+                DiagnosticSeverity.Error,
+                $"The abstract type '{abstractName}' could not be found.",
+                withDecl,
+                sourceText));
+            return;
+        }
+
+        if (abstractSymbol.DeclaredType is not AbstractType abstractType)
+        {
+            diagnostics.Add(MakeDiagnosticWithLocation(
+                "MIST_WITH_0002",
+                DiagnosticSeverity.Error,
+                $"'{abstractName}' is not an abstract type.",
+                withDecl,
+                sourceText));
+            return;
+        }
+
+        // Check for redundant conformance: type already declares `: AbstractType` in base clause.
+        var typeAbstracts = concreteType switch
+        {
+            ClassType ct => ct.Abstracts,
+            StructType st => st.Abstracts,
+            _ => (IReadOnlyList<IType>)Array.Empty<IType>()
+        };
+
+        foreach (var existingAbstract in typeAbstracts)
+        {
+            var existing = existingAbstract switch
+            {
+                AbstractType at => at,
+                ConstructedType { GenericDefinition: AbstractType gat } => gat,
+                _ => null
+            };
+
+            if (existing is not null && ReferenceEquals(existing, abstractType))
+            {
+                diagnostics.Add(MakeDiagnosticWithLocation(
+                    "MIST_WITH_0003",
+                    DiagnosticSeverity.Error,
+                    $"Redundant conformance: '{typeName}' already declares ': {abstractName}' in its base clause.",
+                    withDecl,
+                    sourceText));
+                return;
+            }
+        }
+
+        // Process member mappings.
+        var concreteScope = concreteType switch
+        {
+            ClassType ct => ct.MemberScope,
+            StructType st => st.MemberScope,
+            _ => null
+        };
+
+        if (concreteScope is null)
+            return;
+
+        var mappedSlotNames = new HashSet<string>();
+
+        foreach (var mapping in withDecl.Mappings)
+        {
+            var sourceName = mapping.SourceName.Lexeme;
+            var targetName = mapping.TargetName.Lexeme;
+
+            // Find sourceName as a public member on the concrete type.
+            ISymbol? sourceMember = null;
+            foreach (var member in concreteScope.Members)
+            {
+                if (member.Name == sourceName && (member.Kind == SymbolKind.Method || member.Kind == SymbolKind.Property))
+                {
+                    sourceMember = member;
+                    break;
+                }
+            }
+
+            if (sourceMember is null)
+            {
+                diagnostics.Add(MakeDiagnosticWithLocation(
+                    "MIST_WITH_0004",
+                    DiagnosticSeverity.Error,
+                    $"'{typeName}' does not have a public member named '{sourceName}'.",
+                    mapping,
+                    sourceText));
+                continue;
+            }
+
+            // Check member is public.
+            if (!IsMemberPublic(sourceMember, symbolTable))
+            {
+                diagnostics.Add(MakeDiagnosticWithLocation(
+                    "MIST_WITH_0004",
+                    DiagnosticSeverity.Error,
+                    $"'{typeName}' does not have a public member named '{sourceName}'.",
+                    mapping,
+                    sourceText));
+                continue;
+            }
+
+            // Find targetName as a slot on the abstract type.
+            ISymbol? targetSlot = null;
+            foreach (var member in abstractType.MemberScope.Members)
+            {
+                if (member.Name == targetName && (member.Kind == SymbolKind.Method || member.Kind == SymbolKind.Property))
+                {
+                    targetSlot = member;
+                    break;
+                }
+            }
+
+            if (targetSlot is null)
+            {
+                diagnostics.Add(MakeDiagnosticWithLocation(
+                    "MIST_WITH_0004",
+                    DiagnosticSeverity.Error,
+                    $"'{abstractName}' does not have a member named '{targetName}'.",
+                    mapping,
+                    sourceText));
+                continue;
+            }
+
+            // Validate signature compatibility.
+            if (sourceMember.Kind == SymbolKind.Method && targetSlot.Kind == SymbolKind.Method)
+            {
+                var sourceNode = symbolTable.GetDeclaringNode(sourceMember);
+                var targetNode = symbolTable.GetDeclaringNode(targetSlot);
+
+                if (sourceNode is MethodDeclarationNode sourceMethodDecl &&
+                    targetNode is AbstractMethodDeclarationNode targetMethodDecl)
+                {
+                    if (!SignaturesMatch(targetMethodDecl, sourceMethodDecl))
+                    {
+                        var expectedSig = FormatInterfaceMethodSignature(targetMethodDecl);
+                        var actualSig = FormatMethodSignature(sourceMethodDecl);
+                        diagnostics.Add(MakeDiagnosticWithLocation(
+                            "MIST_WITH_0005",
+                            DiagnosticSeverity.Error,
+                            $"Signature mismatch: '{sourceName}' on '{typeName}' does not match slot '{targetName}' on '{abstractName}'. Expected: {expectedSig}, got: {actualSig}.",
+                            mapping,
+                            sourceText));
+                        continue;
+                    }
+                }
+            }
+            else if (sourceMember.Kind != targetSlot.Kind)
+            {
+                diagnostics.Add(MakeDiagnosticWithLocation(
+                    "MIST_WITH_0005",
+                    DiagnosticSeverity.Error,
+                    $"Member kind mismatch: '{sourceName}' on '{typeName}' is a {sourceMember.Kind.ToString().ToLower()} but '{targetName}' on '{abstractName}' is a {targetSlot.Kind.ToString().ToLower()}.",
+                    mapping,
+                    sourceText));
+                continue;
+            }
+
+            // Register the mapping.
+            conformanceMap.Register(concreteType, abstractType, new ConformanceMapping
+            {
+                SourceMember = sourceMember,
+                TargetSlot = targetSlot,
+                SourceName = sourceName,
+                TargetName = targetName,
+            });
+
+            mappedSlotNames.Add(targetName);
+        }
+
+        // Validate that all required slots have mappings.
+        // Default methods without mappings are automatically satisfied.
+        var missingSlots = new List<string>();
+        foreach (var member in abstractType.MemberScope.Members)
+        {
+            if (member.Kind is not (SymbolKind.Method or SymbolKind.Property))
+                continue;
+
+            // Skip default methods — they don't need mappings.
+            if (member.Kind == SymbolKind.Method &&
+                abstractType.DefaultMethods.TryGetValue(member.Name, out var defaultSymbol) &&
+                ReferenceEquals(defaultSymbol, member))
+            {
+                continue;
+            }
+
+            if (!mappedSlotNames.Contains(member.Name))
+            {
+                missingSlots.Add(member.Name);
+            }
+        }
+
+        if (missingSlots.Count > 0)
+        {
+            var slotList = string.Join(", ", missingSlots.Select(s => $"'{s}'"));
+            diagnostics.Add(MakeDiagnosticWithLocation(
+                "MIST_WITH_0004",
+                DiagnosticSeverity.Error,
+                $"With-block for '{typeName} : {abstractName}' is missing required slot mappings: {slotList}.",
+                withDecl,
+                sourceText));
+        }
+    }
+
 
 
     // ═══════════════════════════════════════════════════════════════════════

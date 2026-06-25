@@ -70,6 +70,15 @@ public interface ISemanticModel
     ExtensionRegistry ExtensionRegistry { get; }
 
     /// <summary>
+    /// Records with-block conformance registrations established via
+    /// <c>with Type : AbstractType { mappings }</c> declarations.
+    /// Populated by the <see cref="Mist.Semantics.Model.SemanticModelBuilder"/>
+    /// and consumed by the type checker for assignability checks and by the
+    /// emitter for explicit interface implementation generation.
+    /// </summary>
+    ConformanceMap ConformanceMap { get; }
+
+    /// <summary>
     /// Returns the adhoc refinement predicate for a parameter symbol, or null if none.
     /// </summary>
     RefinementPredicate? GetParameterRefinement(ISymbol parameterSymbol);

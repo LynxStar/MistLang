@@ -30,6 +30,7 @@ public sealed class SemanticModel : ISemanticModel
         SymbolTable symbolTable,
         Dictionary<Storm.Runtime.SyntaxNode, IType>? expressionTypes = null,
         ExtensionRegistry? extensionRegistry = null,
+        ConformanceMap? conformanceMap = null,
         Dictionary<ISymbol, RefinementPredicate>? parameterRefinements = null,
         Dictionary<Storm.Runtime.SyntaxNode, List<DiscardedTaskInfo>>? discardedTasksByScope = null)
     {
@@ -44,6 +45,7 @@ public sealed class SemanticModel : ISemanticModel
         _guardNeededParameters = new HashSet<ISymbol>();
         _discardedTasksByScope = discardedTasksByScope ?? new Dictionary<Storm.Runtime.SyntaxNode, List<DiscardedTaskInfo>>();
         ExtensionRegistry = extensionRegistry ?? new ExtensionRegistry();
+        ConformanceMap = conformanceMap ?? new ConformanceMap();
     }
 
     public MistCompilation Compilation { get; }
@@ -51,6 +53,7 @@ public sealed class SemanticModel : ISemanticModel
     public IReadOnlyList<CompilationUnit> Units { get; }
     public ImmutableArray<Storm.Runtime.SyntaxNode> Asts { get; }
     public ExtensionRegistry ExtensionRegistry { get; }
+    public ConformanceMap ConformanceMap { get; }
 
     /// <summary>
     /// The symbol table that backs <see cref="AllSymbols"/>, exposed

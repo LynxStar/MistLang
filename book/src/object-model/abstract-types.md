@@ -164,3 +164,93 @@ Both `dog.Greet()` and `greeter.Greet()` (where `greeter` is typed as `IGreetabl
 
 - **Only methods can have defaults** — property slots cannot have bodies inside abstract types. Attempting to add a body to a property declaration produces a compiler error.
 - **Defaults propagate through inheritance** — if an abstract type inherits from another abstract type that has defaults, implementers of the child type inherit those defaults as well without needing to re-declare them.
+
+## Late Binding with `with` Blocks
+
+Sometimes a type already exists and you want it to conform to an abstract type after the fact — without modifying the type's original declaration. A `with` block establishes **retroactive conformance**: it tells the compiler that a type satisfies an abstract type's contract by mapping its existing members to the abstract type's slots.
+
+This is useful when you don't control the type's source, or when the abstract type was defined after the concrete type and you want to connect them without refactoring.
+
+### Basic Syntax
+
+A `with` block names the concrete type, the abstract type it should conform to, and one or more member mappings using the `as` keyword:
+
+```
+with ConcreteType : AbstractType
+{
+    sourceMember as targetSlot;
+}
+```
+
+Each mapping declares that `sourceMember` on the concrete type fulfills `targetSlot` on the abstract type. The source member must have the same return type and parameter types as the target slot.
+
+{{#tabs }}
+{{#tab name="Mist" }}
+```mist
+{{#include ../../snippets/object-model/abstract-types/with-block-basic.mist}}
+```
+{{#endtab }}
+{{#tab name="Emitted C#" }}
+```csharp
+{{#include ../../snippets/object-model/abstract-types/with-block-basic.cs}}
+```
+{{#endtab }}
+{{#endtabs }}
+
+`Logger` doesn't declare `: INamed` in its class header, but the `with` block establishes that `Logger` conforms to `INamed` by mapping `GetLabel` to the `Name` slot. After the `with` block, a `Logger` value can be assigned to an `INamed`-typed variable and used polymorphically.
+
+### Interaction with Defaults
+
+When the abstract type has default methods, only the required slots (those without bodies) need mappings in the `with` block. Default methods are inherited automatically — just as they would be for a type that directly implements the abstract type.
+
+{{#tabs }}
+{{#tab name="Mist" }}
+```mist
+{{#include ../../snippets/object-model/abstract-types/with-block-defaults.mist}}
+```
+{{#endtab }}
+{{#tab name="Emitted C#" }}
+```csharp
+{{#include ../../snippets/object-model/abstract-types/with-block-defaults.cs}}
+```
+{{#endtab }}
+{{#endtabs }}
+
+`ITaggable` has two members: `Tag()` (a required slot) and `DisplayTag()` (a default). The `with` block only maps `GetWidgetTag as Tag` — the default `DisplayTag()` is inherited without an explicit mapping. If you want to override a default, you can provide an additional mapping for it.
+
+### Polymorphic Usage
+
+After a `with` block establishes conformance, values of the adapted type can be used anywhere the abstract type is expected — passed to functions, stored in abstract-typed variables, or placed in collections. Multiple types can be adapted to the same abstract type with separate `with` blocks:
+
+{{#tabs }}
+{{#tab name="Mist" }}
+```mist
+{{#include ../../snippets/object-model/abstract-types/with-block-polymorphism.mist}}
+```
+{{#endtab }}
+{{#tab name="Emitted C#" }}
+```csharp
+{{#include ../../snippets/object-model/abstract-types/with-block-polymorphism.cs}}
+```
+{{#endtab }}
+{{#endtabs }}
+
+Both `Sensor` and `Actuator` are adapted to `IDescribable` via separate `with` blocks. The `PrintInfo` function accepts any `IDescribable`, so both types can be passed to it — the compiler dispatches to the correct mapped member at runtime.
+
+### Multiple `with` Blocks on the Same Type
+
+A single type can have multiple `with` blocks, each establishing conformance with a different abstract type. This lets you retroactively make a type satisfy several contracts without touching its declaration:
+
+```
+with MyType : IFirstAbstract
+{
+    MethodA as SlotA;
+}
+
+with MyType : ISecondAbstract
+{
+    MethodB as SlotB;
+}
+```
+
+Each `with` block is independent — the type accumulates all the conformances declared across its `with` blocks.

@@ -30,7 +30,7 @@ public sealed class EmitterOutputTests : IDisposable
 
     public void Dispose()
     {
-        if (Directory.Exists(_outputDir))
+        if(Directory.Exists(_outputDir))
         {
             try { Directory.Delete(_outputDir, recursive: true); } catch { /* best effort */ }
         }
@@ -148,9 +148,9 @@ public sealed class EmitterOutputTests : IDisposable
 
     private void CleanOutputDir()
     {
-        if (Directory.Exists(_outputDir))
+        if(Directory.Exists(_outputDir))
         {
-            foreach (var file in Directory.GetFiles(_outputDir))
+            foreach(var file in Directory.GetFiles(_outputDir))
                 File.Delete(file);
         }
     }
@@ -192,12 +192,15 @@ public sealed class EmitterOutputTests : IDisposable
 
         var ast = new CompilationUnitNode
         {
-            Items = ImmutableArray.Create<TopLevelItemNode>(new NamespaceItemTopLevelItemNode { NamespaceDeclaration = new FileScopedNamespaceNamespaceDeclarationNode
+            Items = ImmutableArray.Create<TopLevelItemNode>(new NamespaceItemTopLevelItemNode
             {
-                Name = nsName,
-                Body = ImmutableArray.Create<TypeDeclarationNode>(
+                NamespaceDeclaration = new FileScopedNamespaceNamespaceDeclarationNode
+                {
+                    Name = nsName,
+                    Body = ImmutableArray.Create<TypeDeclarationNode>(
                     new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsNamespaceBodyItems(),
-            } }),
+                }
+            }),
         };
 
         var model = BuildModel(ast, source);
@@ -240,12 +243,15 @@ public sealed class EmitterOutputTests : IDisposable
 
         var ast = new CompilationUnitNode
         {
-            Items = ImmutableArray.Create<TopLevelItemNode>(new NamespaceItemTopLevelItemNode { NamespaceDeclaration = new BlockNamespaceNamespaceDeclarationNode
+            Items = ImmutableArray.Create<TopLevelItemNode>(new NamespaceItemTopLevelItemNode
             {
-                Name = nsName,
-                Body = ImmutableArray.Create<TypeDeclarationNode>(
+                NamespaceDeclaration = new BlockNamespaceNamespaceDeclarationNode
+                {
+                    Name = nsName,
+                    Body = ImmutableArray.Create<TypeDeclarationNode>(
                     new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsNamespaceBodyItems(),
-            } }),
+                }
+            }),
         };
 
         var model = BuildModel(ast, source);
@@ -307,10 +313,13 @@ public sealed class EmitterOutputTests : IDisposable
         var field = new FieldDeclarationNode
         {
             Name = MakeToken("x"),
-            Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
+            Type = new TypeReferenceNode
             {
-                PrimitiveType = new IntTypePrimitiveTypeNode(),
-            } },
+                First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                {
+                    PrimitiveType = new IntTypePrimitiveTypeNode(),
+                }
+            },
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
         };
 
@@ -368,14 +377,19 @@ public sealed class EmitterOutputTests : IDisposable
         var getValueMethod = new MethodDeclarationNode
         {
             Name = MakeToken("GetValue"),
-            ReturnType = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
+            ReturnType = new TypeReferenceNode
             {
-                PrimitiveType = new IntTypePrimitiveTypeNode(),
-            } },
+                First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                {
+                    PrimitiveType = new IntTypePrimitiveTypeNode(),
+                }
+            },
             Parameters = null,
-            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode
+            Body = new MethodBlockBodyMethodBodyNode
             {
-                Statements = ImmutableArray.Create<StatementNode>(
+                Block = new BlockNode
+                {
+                    Statements = ImmutableArray.Create<StatementNode>(
                     new ReturnStatementStatementNode
                     {
                         ReturnStatement = new ReturnStatementNode
@@ -383,7 +397,8 @@ public sealed class EmitterOutputTests : IDisposable
                             Value = MakeIntLiteralExpression("42"),
                         },
                     }),
-            } },
+                }
+            },
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
         };
 
@@ -441,14 +456,19 @@ public sealed class EmitterOutputTests : IDisposable
         var addMethod = new MethodDeclarationNode
         {
             Name = MakeToken("Add"),
-            ReturnType = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
+            ReturnType = new TypeReferenceNode
             {
-                PrimitiveType = new IntTypePrimitiveTypeNode(),
-            } },
+                First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                {
+                    PrimitiveType = new IntTypePrimitiveTypeNode(),
+                }
+            },
             Parameters = paramList,
-            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode
+            Body = new MethodBlockBodyMethodBodyNode
             {
-                Statements = ImmutableArray.Create<StatementNode>(
+                Block = new BlockNode
+                {
+                    Statements = ImmutableArray.Create<StatementNode>(
                     new ReturnStatementStatementNode
                     {
                         ReturnStatement = new ReturnStatementNode
@@ -456,7 +476,8 @@ public sealed class EmitterOutputTests : IDisposable
                             Value = MakeIntLiteralExpression("0"),
                         },
                     }),
-            } },
+                }
+            },
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
         };
 
@@ -617,14 +638,17 @@ public sealed class EmitterOutputTests : IDisposable
             Name = MakeToken("Main"),
             ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
-            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode
+            Body = new MethodBlockBodyMethodBodyNode
             {
-                Statements = ImmutableArray.Create<StatementNode>(
+                Block = new BlockNode
+                {
+                    Statements = ImmutableArray.Create<StatementNode>(
                     new VariableDeclarationStatementStatementNode
                     {
                         VariableDeclaration = varDecl,
                     }),
-            } },
+                }
+            },
             Modifiers = ImmutableArray.Create<ModifierNode>(
                 new PublicModifierModifierNode(),
                 new StaticModifierModifierNode()),
@@ -758,11 +782,14 @@ public sealed class EmitterOutputTests : IDisposable
 
         var varDecl = new TypedVariableDeclarationVariableDeclarationStatementNode
         {
-            Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
+            Type = new TypeReferenceNode
             {
-                PrimitiveType = new IntTypePrimitiveTypeNode(),
-                ArrayRank = new UnsizedArrayRankArrayRankSuffixNode(),
-            } },
+                First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                {
+                    PrimitiveType = new IntTypePrimitiveTypeNode(),
+                    ArrayRank = new UnsizedArrayRankArrayRankSuffixNode(),
+                }
+            },
             Name = MakeToken("arr"),
             Initializer = arrayExpr,
         };
@@ -772,14 +799,17 @@ public sealed class EmitterOutputTests : IDisposable
             Name = MakeToken("Main"),
             ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
-            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode
+            Body = new MethodBlockBodyMethodBodyNode
             {
-                Statements = ImmutableArray.Create<StatementNode>(
+                Block = new BlockNode
+                {
+                    Statements = ImmutableArray.Create<StatementNode>(
                     new VariableDeclarationStatementStatementNode
                     {
                         VariableDeclaration = varDecl,
                     }),
-            } },
+                }
+            },
             Modifiers = ImmutableArray.Create<ModifierNode>(
                 new PublicModifierModifierNode(),
                 new StaticModifierModifierNode()),
@@ -846,14 +876,17 @@ public sealed class EmitterOutputTests : IDisposable
             Name = MakeToken("Main"),
             ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
-            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode
+            Body = new MethodBlockBodyMethodBodyNode
             {
-                Statements = ImmutableArray.Create<StatementNode>(
+                Block = new BlockNode
+                {
+                    Statements = ImmutableArray.Create<StatementNode>(
                     new VariableDeclarationStatementStatementNode
                     {
                         VariableDeclaration = varDecl,
                     }),
-            } },
+                }
+            },
             Modifiers = ImmutableArray.Create<ModifierNode>(
                 new PublicModifierModifierNode(),
                 new StaticModifierModifierNode()),
@@ -1000,18 +1033,18 @@ public sealed class EmitterOutputTests : IDisposable
     private string? CompileFullPipeline(string mistSource)
     {
         // Clean output directory
-        foreach (var file in Directory.GetFiles(_outputDir))
+        foreach(var file in Directory.GetFiles(_outputDir))
             File.Delete(file);
 
         // 1. Lex
         var sourceText = new SourceText("test.mist", mistSource);
         var bag = new DiagnosticBag();
         var tokens = PipelineLexer.Lex(sourceText, bag);
-        if (bag.HasErrors) return null;
+        if(bag.HasErrors) return null;
 
         // 2. Parse
         var parseResult = PipelineParser.Parse(tokens, bag);
-        if (parseResult.Root is null || bag.HasErrors) return null;
+        if(parseResult.Root is null || bag.HasErrors) return null;
 
         // 3. Build semantic model
         var compilation = new MistCompilation(

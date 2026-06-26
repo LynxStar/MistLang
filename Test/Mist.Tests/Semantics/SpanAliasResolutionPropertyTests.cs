@@ -58,7 +58,7 @@ public sealed class SpanAliasResolutionPropertyTests : IDisposable
 
     public void Dispose()
     {
-        if (Directory.Exists(_scratchDir))
+        if(Directory.Exists(_scratchDir))
         {
             try { Directory.Delete(_scratchDir, recursive: true); } catch { /* best effort */ }
         }
@@ -235,7 +235,7 @@ public sealed class SpanAliasResolutionPropertyTests : IDisposable
         var (result, model) = CompileAndCapture(source);
 
         // The compilation should not have errors that prevent semantic model construction.
-        if (model is null)
+        if(model is null)
         {
             var diagSummary = string.Join("\n  ",
                 result.Diagnostics.Select(d => $"[{d.Id.Value}] {d.Message}"));
@@ -248,7 +248,7 @@ public sealed class SpanAliasResolutionPropertyTests : IDisposable
             .OfType<Symbol>()
             .FirstOrDefault(s => s.Name == "x" && s.Kind == SymbolKind.LocalVariable);
 
-        if (localX is null)
+        if(localX is null)
         {
             var diagSummary = string.Join("\n  ",
                 result.Diagnostics.Select(d => $"[{d.Id.Value}] {d.Message}"));
@@ -257,7 +257,7 @@ public sealed class SpanAliasResolutionPropertyTests : IDisposable
         }
 
         // Assert the declared type is a SpanType.
-        if (localX.DeclaredType is not SpanType spanType)
+        if(localX.DeclaredType is not SpanType spanType)
         {
             return false.Label(
                 $"Expected DeclaredType to be SpanType for {scenario}, " +
@@ -266,7 +266,7 @@ public sealed class SpanAliasResolutionPropertyTests : IDisposable
         }
 
         // Assert IsReadOnly matches the scenario's kind.
-        if (spanType.IsReadOnly != scenario.IsReadOnly)
+        if(spanType.IsReadOnly != scenario.IsReadOnly)
         {
             return false.Label(
                 $"Expected IsReadOnly == {scenario.IsReadOnly} for {scenario}, " +
@@ -274,7 +274,7 @@ public sealed class SpanAliasResolutionPropertyTests : IDisposable
         }
 
         // Assert unknown length (the alias form always produces unknown length).
-        if (spanType.KnownLength is not null)
+        if(spanType.KnownLength is not null)
         {
             return false.Label(
                 $"Expected KnownLength == null (unknown) for {scenario}, " +
@@ -285,7 +285,7 @@ public sealed class SpanAliasResolutionPropertyTests : IDisposable
         // Mist primitive keywords resolve to stdlib types: "short" → "Int16", "int" → "Int32", etc.
         var elementDisplayName = spanType.ElementType.DisplayName;
         var expectedDisplayName = KeywordToDisplayName[scenario.ElementTypeName];
-        if (elementDisplayName != expectedDisplayName)
+        if(elementDisplayName != expectedDisplayName)
         {
             return false.Label(
                 $"Expected element type '{expectedDisplayName}' (from keyword '{scenario.ElementTypeName}') for {scenario}, " +

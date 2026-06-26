@@ -142,10 +142,13 @@ public class CastOperatorCoexistencePropertyTests
     }
 
     private static TypeReferenceNode MakeNamedTypeRef(string name) =>
-        new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
+        new TypeReferenceNode
         {
-            Name = new QualifiedIdentifierNode { IDENTIFIER = Tok(name) },
-        } };
+            First = new NamedSingleTypeRefSingleTypeRefNode
+            {
+                Name = new QualifiedIdentifierNode { IDENTIFIER = Tok(name) },
+            }
+        };
 
     private static ParameterNode MakeParameter(string typeName, string paramName) =>
         new()
@@ -334,7 +337,7 @@ public class CastOperatorCoexistencePropertyTests
         var castOpFound = false;
         var arithOpFound = false;
 
-        if (typeSymbol?.DeclaredType is ClassType classType)
+        if(typeSymbol?.DeclaredType is ClassType classType)
         {
             var members = classType.MemberScope.Members;
             castOpFound = members.Any(m =>

@@ -83,7 +83,7 @@ public class KeywordBypassesScopingPropertyTests
         var stdlibRoot = FindStdlibRoot();
         var diagnostics = new DiagnosticBag();
         var units = StdlibLoader.LoadFrom(stdlibRoot, diagnostics);
-        if (diagnostics.ToImmutableArray().Any(d => d.Severity == DiagnosticSeverity.Error))
+        if(diagnostics.ToImmutableArray().Any(d => d.Severity == DiagnosticSeverity.Error))
             throw new InvalidOperationException(
                 "Failed to load stdlib: " +
                 string.Join("; ", diagnostics.ToImmutableArray().Select(d => d.Message)));
@@ -99,11 +99,11 @@ public class KeywordBypassesScopingPropertyTests
         var units = StdlibUnits.Value;
         var asts = ImmutableArray.CreateBuilder<Storm.Runtime.SyntaxNode>(units.Length);
         var diagnostics = new DiagnosticBag();
-        foreach (var unit in units)
+        foreach(var unit in units)
         {
             var tokens = Lexer.Lex(unit.Source, diagnostics);
             var parseResult = Parser.Parse(tokens, diagnostics);
-            if (parseResult.Root is null)
+            if(parseResult.Root is null)
                 throw new InvalidOperationException($"Failed to parse stdlib unit: {unit.Source.Path}");
             asts.Add(parseResult.Root);
         }
@@ -118,9 +118,9 @@ public class KeywordBypassesScopingPropertyTests
     private static string FindStdlibRoot()
     {
         var dir = AppContext.BaseDirectory;
-        while (dir is not null)
+        while(dir is not null)
         {
-            if (File.Exists(Path.Combine(dir, "Mist.slnx")))
+            if(File.Exists(Path.Combine(dir, "Mist.slnx")))
                 return Path.Combine(dir, "Source", "Standard");
             dir = Directory.GetParent(dir)?.FullName;
         }
@@ -128,7 +128,7 @@ public class KeywordBypassesScopingPropertyTests
         // Fallback: check if stdlib was copied next to the test assembly
         // (via the MSBuild Content item in Mist.Tests.csproj).
         var localStdlib = Path.Combine(AppContext.BaseDirectory, "Standard");
-        if (Directory.Exists(localStdlib))
+        if(Directory.Exists(localStdlib))
             return localStdlib;
 
         throw new InvalidOperationException(
@@ -236,7 +236,7 @@ public class KeywordBypassesScopingPropertyTests
         var userTokens = Lexer.Lex(userSourceText, diagnostics);
         var userParseResult = Parser.Parse(userTokens, diagnostics);
 
-        if (userParseResult.Root is null)
+        if(userParseResult.Root is null)
             throw new InvalidOperationException("Failed to parse user source");
 
         var allUnits = stdlibUnits.Add(userUnit);
@@ -261,7 +261,7 @@ public class KeywordBypassesScopingPropertyTests
     /// </summary>
     private static IType? LookupStdlibTypeForKeyword(ISemanticModel model, string keyword)
     {
-        if (!KeywordAliases.Map.TryGetValue(keyword, out var qualifiedName))
+        if(!KeywordAliases.Map.TryGetValue(keyword, out var qualifiedName))
             return null;
 
         var lastDot = qualifiedName.LastIndexOf('.');
@@ -303,7 +303,7 @@ public class KeywordBypassesScopingPropertyTests
             s.Name == "TestClass"
             && s.Kind == SymbolKind.Class);
 
-        if (testClassSymbol?.DeclaredType is not ClassType testClass)
+        if(testClassSymbol?.DeclaredType is not ClassType testClass)
             return null;
 
         var field = testClass.MemberScope.Members
@@ -345,7 +345,7 @@ public class KeywordBypassesScopingPropertyTests
                             && !d.Id.Value.StartsWith("MIST_TC"))
                 .ToList();
 
-            if (errors.Count > 0)
+            if(errors.Count > 0)
             {
                 return false.ToProperty()
                     .Label($"Build errors: {string.Join("; ", errors.Select(e => $"[{e.Id.Value}] {e.Message}"))}\nSource:\n{source}");
@@ -356,14 +356,14 @@ public class KeywordBypassesScopingPropertyTests
             // must resolve to the stdlib type (Standard.Int32), not the
             // user's type.
             var keywordFieldType = GetFieldType(model, "keywordField");
-            if (keywordFieldType is null)
+            if(keywordFieldType is null)
             {
                 return false.ToProperty()
                     .Label($"Keyword field 'keywordField' resolved to null.\nSource:\n{source}");
             }
 
             var expectedStdlibType = LookupStdlibTypeForKeyword(model, scenario.Keyword);
-            if (expectedStdlibType is null)
+            if(expectedStdlibType is null)
             {
                 return false.ToProperty()
                     .Label($"Could not find stdlib type for keyword '{scenario.Keyword}'.\nSource:\n{source}");
@@ -371,20 +371,20 @@ public class KeywordBypassesScopingPropertyTests
 
             // The keyword-typed field must be the stdlib type.
             var isStdlibType = false;
-            if (keywordFieldType is StructType kst
+            if(keywordFieldType is StructType kst
                 && kst.ContainingNamespace == "Standard"
                 && kst.DisplayName == scenario.StdlibSimpleName)
             {
                 isStdlibType = true;
             }
-            else if (keywordFieldType is ClassType kct
+            else if(keywordFieldType is ClassType kct
                      && kct.ContainingNamespace == "Standard"
                      && kct.DisplayName == scenario.StdlibSimpleName)
             {
                 isStdlibType = true;
             }
 
-            if (!isStdlibType)
+            if(!isStdlibType)
             {
                 var actualNs = keywordFieldType switch
                 {
@@ -400,7 +400,7 @@ public class KeywordBypassesScopingPropertyTests
 
             // The keyword-typed field must NOT be the user's type.
             var userType = LookupUserType(model, scenario.StdlibSimpleName, scenario.UserNamespace);
-            if (userType is not null && ReferenceEquals(keywordFieldType, userType))
+            if(userType is not null && ReferenceEquals(keywordFieldType, userType))
             {
                 return false.ToProperty()
                     .Label($"Keyword '{scenario.Keyword}' resolved to the USER's " +
@@ -413,10 +413,10 @@ public class KeywordBypassesScopingPropertyTests
             // should resolve to the user's type when the user's type shadows
             // in the current namespace scope.
             var simpleNameFieldType = GetFieldType(model, "simpleNameField");
-            if (simpleNameFieldType is not null && userType is not null)
+            if(simpleNameFieldType is not null && userType is not null)
             {
                 // The simple name should resolve to the user's type (shadowing).
-                if (!ReferenceEquals(simpleNameFieldType, userType))
+                if(!ReferenceEquals(simpleNameFieldType, userType))
                 {
                     var simpleNs = simpleNameFieldType switch
                     {

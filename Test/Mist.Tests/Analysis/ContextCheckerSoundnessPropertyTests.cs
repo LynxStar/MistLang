@@ -635,7 +635,7 @@ public sealed class ContextCheckerSoundnessPropertyTests
                         && d.Id != ContextCheckerAnalyzer.DuplicateContextBinding)
             .ToImmutableArray();
 
-        if (nonContextErrors.Length > 0)
+        if(nonContextErrors.Length > 0)
         {
             // Scenario produced non-context errors — this shouldn't happen with
             // our generators, but if it does, treat as a test failure to investigate.
@@ -649,7 +649,7 @@ public sealed class ContextCheckerSoundnessPropertyTests
         var actualCount = contextDiags.Length;
         var expectedCount = scenario.ExpectedDiagnosticCount;
 
-        if (actualCount != expectedCount)
+        if(actualCount != expectedCount)
         {
             return false.ToProperty()
                 .Label($"Expected {expectedCount} MIST_CTX_0001 diagnostic(s) but got {actualCount}.\n" +

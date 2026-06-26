@@ -57,7 +57,7 @@ public sealed class IClonableDerivationPropertyTests : IDisposable
 
     public void Dispose()
     {
-        if (Directory.Exists(_outputDir))
+        if(Directory.Exists(_outputDir))
         {
             try { Directory.Delete(_outputDir, recursive: true); } catch { /* best effort */ }
         }
@@ -207,7 +207,7 @@ public sealed class IClonableDerivationPropertyTests : IDisposable
 
     private static Gen<List<GenType>> GenTypesRec(int index, int count, List<GenType> acc)
     {
-        if (index >= count)
+        if(index >= count)
             return Gen.Constant(acc);
 
         return from t in GenOneType(index)
@@ -238,7 +238,7 @@ public sealed class IClonableDerivationPropertyTests : IDisposable
 
     private static Gen<GenField> GenOneField(int typeIndex)
     {
-        if (typeIndex == 0)
+        if(typeIndex == 0)
         {
             // No earlier type to reference — only leaf field kinds.
             return Gen.Elements(FieldKind.IntLeaf, FieldKind.StringLeaf, FieldKind.ArrayLeaf)
@@ -256,11 +256,11 @@ public sealed class IClonableDerivationPropertyTests : IDisposable
     {
         var expected = new List<bool>(types.Count);
 
-        for (var i = 0; i < types.Count; i++)
+        for(var i = 0; i < types.Count; i++)
         {
             var t = types[i];
             bool clonable;
-            if (t.DeclaresIClonable)
+            if(t.DeclaresIClonable)
             {
                 // Left disjunct: an explicit declaration forces clonability true,
                 // regardless of whether the fields are clonable.
@@ -270,7 +270,7 @@ public sealed class IClonableDerivationPropertyTests : IDisposable
             {
                 // Right disjunct: clonable iff every field's type is clonable.
                 clonable = true;
-                foreach (var f in t.Fields)
+                foreach(var f in t.Fields)
                 {
                     var fieldClonable = f.Kind switch
                     {
@@ -280,7 +280,7 @@ public sealed class IClonableDerivationPropertyTests : IDisposable
                         FieldKind.RefType => expected[f.RefIndex],
                         _ => false,
                     };
-                    if (!fieldClonable)
+                    if(!fieldClonable)
                     {
                         clonable = false;
                         break;
@@ -293,14 +293,14 @@ public sealed class IClonableDerivationPropertyTests : IDisposable
         var sb = new System.Text.StringBuilder();
         sb.Append("using Standard;\n\nnamespace Gen;\n\n");
 
-        for (var i = 0; i < types.Count; i++)
+        for(var i = 0; i < types.Count; i++)
         {
             var t = types[i];
             var keyword = t.IsStruct ? "struct" : "class";
             var clonableClause = t.DeclaresIClonable ? $" : IClonable<T{i}>" : "";
             sb.Append($"public {keyword} T{i}{clonableClause}\n{{\n");
 
-            for (var f = 0; f < t.Fields.Count; f++)
+            for(var f = 0; f < t.Fields.Count; f++)
             {
                 var field = t.Fields[f];
                 var typeText = field.Kind switch
@@ -314,7 +314,7 @@ public sealed class IClonableDerivationPropertyTests : IDisposable
                 sb.Append($"    public {typeText} f{f};\n");
             }
 
-            if (t.DeclaresIClonable)
+            if(t.DeclaresIClonable)
             {
                 // A Clone() satisfying IClonable<T{i}>. The body returns `default`
                 // (a fresh owned graph, Req 6.10) so it compiles for any field shape.
@@ -356,17 +356,17 @@ public sealed class IClonableDerivationPropertyTests : IDisposable
     {
         var model = CompileAndCapture(scenario.Source);
 
-        if (model is null)
+        if(model is null)
             return false.ToProperty().Label($"Semantic model was null (compilation failed early).\nSource:\n{scenario.Source}");
 
-        for (var i = 0; i < scenario.Expected.Count; i++)
+        for(var i = 0; i < scenario.Expected.Count; i++)
         {
             var actual = FindImplementsIClonable(model, $"T{i}");
 
-            if (!actual.HasValue)
+            if(!actual.HasValue)
                 return false.ToProperty().Label($"Type 'Gen.T{i}' not found in the model.\nSource:\n{scenario.Source}");
 
-            if (actual.Value != scenario.Expected[i])
+            if(actual.Value != scenario.Expected[i])
             {
                 return false.ToProperty().Label(
                     $"T{i}: expected ImplementsIClonable={scenario.Expected[i]} "

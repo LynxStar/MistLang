@@ -69,16 +69,16 @@ public sealed class TypeInspectorTests
         var lines = text.Split('\n');
         var methodLines = new List<string>();
         var inVisible = false;
-        foreach (var line in lines)
+        foreach(var line in lines)
         {
-            if (line.TrimStart().StartsWith("VISIBLE:"))
+            if(line.TrimStart().StartsWith("VISIBLE:"))
             {
                 inVisible = true;
                 continue;
             }
-            if (line.TrimStart().StartsWith("HIDDEN:"))
+            if(line.TrimStart().StartsWith("HIDDEN:"))
                 break;
-            if (inVisible && line.Contains("method "))
+            if(inVisible && line.Contains("method "))
                 methodLines.Add(line);
         }
 
@@ -95,7 +95,7 @@ public sealed class TypeInspectorTests
             })
             .ToList();
 
-        for (var i = 1; i < methodNames.Count; i++)
+        for(var i = 1; i < methodNames.Count; i++)
         {
             Assert.True(
                 string.Compare(methodNames[i - 1], methodNames[i], StringComparison.Ordinal) <= 0,
@@ -124,18 +124,18 @@ public sealed class TypeInspectorTests
         var lines = text.Split('\n');
         var hiddenLines = new List<string>();
         var inHidden = false;
-        foreach (var line in lines)
+        foreach(var line in lines)
         {
-            if (line.TrimStart().StartsWith("HIDDEN:") && !line.Contains(":") == false)
+            if(line.TrimStart().StartsWith("HIDDEN:") && !line.Contains(":") == false)
             {
                 // Check if this is the section header
-                if (line.Trim() == "HIDDEN:")
+                if(line.Trim() == "HIDDEN:")
                 {
                     inHidden = true;
                     continue;
                 }
             }
-            if (inHidden && line.Trim().Length > 0 && !line.TrimStart().StartsWith("VISIBLE:"))
+            if(inHidden && line.Trim().Length > 0 && !line.TrimStart().StartsWith("VISIBLE:"))
             {
                 hiddenLines.Add(line);
             }

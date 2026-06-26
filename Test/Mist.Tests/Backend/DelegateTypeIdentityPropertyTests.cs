@@ -61,7 +61,7 @@ public sealed class DelegateTypeIdentityPropertyTests
         {
             var funcDef = new ClassType("Func", new Scope(null), "Standard", isBackendBacked: true);
             var tps = new IType[arity];
-            for (var i = 0; i < arity; i++)
+            for(var i = 0; i < arity; i++)
                 tps[i] = new TypeParameterType($"T{i}", i);
             funcDef.TypeParameters = tps;
 
@@ -91,7 +91,7 @@ public sealed class DelegateTypeIdentityPropertyTests
     {
         var funcDef = new ClassType("Func", new Scope(null), "Standard", isBackendBacked: true);
         var tps = new IType[input.FuncArity];
-        for (var i = 0; i < input.FuncArity; i++)
+        for(var i = 0; i < input.FuncArity; i++)
             tps[i] = new TypeParameterType($"T{i}", i);
         funcDef.TypeParameters = tps;
 
@@ -123,7 +123,7 @@ public sealed class DelegateTypeIdentityPropertyTests
     public void P1_DelegateTypeIdentity_ClrFullNameContainsNamespaceAndSimpleName()
     {
         var samples = GenDelegateTypeInput().Sample(100);
-        foreach (var input in samples)
+        foreach(var input in samples)
         {
             var dt = BuildDelegateType(input);
 
@@ -142,7 +142,7 @@ public sealed class DelegateTypeIdentityPropertyTests
     public void P1_DelegateTypeIdentity_TypeArgumentsCountConsistent()
     {
         var samples = GenDelegateTypeInput().Sample(100);
-        foreach (var input in samples)
+        foreach(var input in samples)
         {
             var dt = BuildDelegateType(input);
 
@@ -150,7 +150,7 @@ public sealed class DelegateTypeIdentityPropertyTests
             Assert.Equal(input.TypeArguments.Length, dt.TypeArguments.Count);
 
             // Each type argument should be the same reference we passed in
-            for (var i = 0; i < input.TypeArguments.Length; i++)
+            for(var i = 0; i < input.TypeArguments.Length; i++)
             {
                 Assert.Same(input.TypeArguments[i], dt.TypeArguments[i]);
             }
@@ -161,7 +161,7 @@ public sealed class DelegateTypeIdentityPropertyTests
     public void P1_DelegateTypeIdentity_FuncSignatureArityMatchesParameterCountPlusOne()
     {
         var samples = GenDelegateTypeInput().Sample(100);
-        foreach (var input in samples)
+        foreach(var input in samples)
         {
             var dt = BuildDelegateType(input);
 
@@ -187,11 +187,11 @@ public sealed class DelegateTypeIdentityPropertyTests
     public void P1_DelegateTypeIdentity_DisplayNameConstructedCorrectly()
     {
         var samples = GenDelegateTypeInput().Sample(100);
-        foreach (var input in samples)
+        foreach(var input in samples)
         {
             var dt = BuildDelegateType(input);
 
-            if (input.TypeArguments.Length > 0)
+            if(input.TypeArguments.Length > 0)
             {
                 // Generic delegate: DisplayName should be "SimpleName<arg1, arg2, ...>"
                 Assert.StartsWith(input.ClrSimpleName, dt.DisplayName);
@@ -199,7 +199,7 @@ public sealed class DelegateTypeIdentityPropertyTests
                 Assert.Contains(">", dt.DisplayName);
 
                 // All type argument display names should appear in the DisplayName
-                foreach (var typeArg in input.TypeArguments)
+                foreach(var typeArg in input.TypeArguments)
                 {
                     Assert.Contains(typeArg.DisplayName, dt.DisplayName);
                 }
@@ -216,7 +216,7 @@ public sealed class DelegateTypeIdentityPropertyTests
     public void P1_DelegateTypeIdentity_KindIsClass()
     {
         var samples = GenDelegateTypeInput().Sample(100);
-        foreach (var input in samples)
+        foreach(var input in samples)
         {
             var dt = BuildDelegateType(input);
 

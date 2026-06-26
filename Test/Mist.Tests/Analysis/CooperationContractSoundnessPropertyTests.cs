@@ -275,7 +275,7 @@ public sealed class CooperationContractSoundnessPropertyTests
         var diagnostics = CompileAndGetDiagnostics(scenario.Source);
         var hasViolation = diagnostics.Any(d => d.Id.Value == FieldTypeViolationId);
 
-        if (hasViolation != scenario.ExpectViolation)
+        if(hasViolation != scenario.ExpectViolation)
         {
             var ids = string.Join(", ", diagnostics.Select(d => d.Id.Value));
             return false.ToProperty().Label(

@@ -120,7 +120,7 @@ public sealed class ProjectConfigurationRoundTripPropertyTests
         sb.AppendLine($"name = \"{EscapeTomlString(config.Name)}\"");
         sb.AppendLine($"namespace_root = \"{EscapeTomlString(config.NamespaceRoot)}\"");
 
-        if (!config.GlobalUsings.IsDefaultOrEmpty)
+        if(!config.GlobalUsings.IsDefaultOrEmpty)
         {
             sb.AppendLine();
             sb.AppendLine("[global_usings]");
@@ -128,11 +128,11 @@ public sealed class ProjectConfigurationRoundTripPropertyTests
             sb.AppendLine($"namespaces = [{nsEntries}]");
         }
 
-        if (!config.References.IsDefaultOrEmpty)
+        if(!config.References.IsDefaultOrEmpty)
         {
             sb.AppendLine();
             sb.AppendLine("[references]");
-            foreach (var reference in config.References)
+            foreach(var reference in config.References)
             {
                 // Quote the reference name to handle dots (which TOML interprets as nested keys)
                 sb.AppendLine($"\"{EscapeTomlString(reference.Name)}\" = {{ path = \"{EscapeTomlString(reference.Path)}\" }}");
@@ -182,7 +182,7 @@ public sealed class ProjectConfigurationRoundTripPropertyTests
             var diagnostics = new DiagnosticBag();
             var parsed = ProjectFileParser.Parse(tempDir, diagnostics);
 
-            if (parsed is null)
+            if(parsed is null)
             {
                 // Parse failed — this should not happen for valid configurations
                 var diagMessages = string.Join("; ", diagnostics.ToImmutableArray().Select(d => d.Message));
@@ -191,20 +191,20 @@ public sealed class ProjectConfigurationRoundTripPropertyTests
             }
 
             // Assert structural equality
-            if (parsed.Name != original.Name)
+            if(parsed.Name != original.Name)
                 return false;
 
-            if (parsed.NamespaceRoot != original.NamespaceRoot)
+            if(parsed.NamespaceRoot != original.NamespaceRoot)
                 return false;
 
             // References: compare Name and Path
-            if (parsed.References.Length != original.References.Length)
+            if(parsed.References.Length != original.References.Length)
                 return false;
 
-            for (var i = 0; i < original.References.Length; i++)
+            for(var i = 0; i < original.References.Length; i++)
             {
                 // Compare Name field (should round-trip exactly)
-                if (parsed.References[i].Name != original.References[i].Name)
+                if(parsed.References[i].Name != original.References[i].Name)
                     return false;
 
                 // The parser normalizes relative paths to absolute using the project folder.
@@ -220,17 +220,17 @@ public sealed class ProjectConfigurationRoundTripPropertyTests
                         ? originalPath
                         : Path.Combine(tempDir, originalPath));
 
-                if (parsedPath != expectedNormalized)
+                if(parsedPath != expectedNormalized)
                     return false;
             }
 
             // GlobalUsings: order-sensitive comparison
-            if (parsed.GlobalUsings.Length != original.GlobalUsings.Length)
+            if(parsed.GlobalUsings.Length != original.GlobalUsings.Length)
                 return false;
 
-            for (var i = 0; i < original.GlobalUsings.Length; i++)
+            for(var i = 0; i < original.GlobalUsings.Length; i++)
             {
-                if (parsed.GlobalUsings[i] != original.GlobalUsings[i])
+                if(parsed.GlobalUsings[i] != original.GlobalUsings[i])
                     return false;
             }
 

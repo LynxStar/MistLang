@@ -60,16 +60,16 @@ public sealed class ClrRefProjectionPropertyTests
     {
         var result = new List<(MethodInfo, ParameterInfo)>();
 
-        foreach (var type in new[] { typeof(RefParamFixture), typeof(InParamFixture) })
+        foreach(var type in new[] { typeof(RefParamFixture), typeof(InParamFixture) })
         {
-            foreach (var method in type.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly))
+            foreach(var method in type.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly))
             {
-                if (method.IsSpecialName)
+                if(method.IsSpecialName)
                     continue;
 
-                foreach (var param in method.GetParameters())
+                foreach(var param in method.GetParameters())
                 {
-                    if (param.ParameterType.IsByRef && !param.IsOut)
+                    if(param.ParameterType.IsByRef && !param.IsOut)
                         result.Add((method, param));
                 }
             }
@@ -99,13 +99,13 @@ public sealed class ClrRefProjectionPropertyTests
     {
         var result = new List<MethodInfo>();
 
-        foreach (var method in typeof(MutableRefReturnFixture).GetMethods(
+        foreach(var method in typeof(MutableRefReturnFixture).GetMethods(
             BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly))
         {
-            if (method.IsSpecialName)
+            if(method.IsSpecialName)
                 continue;
 
-            if (method.ReturnType.IsByRef && !IsRefReadonlyReturn(method))
+            if(method.ReturnType.IsByRef && !IsRefReadonlyReturn(method))
                 result.Add(method);
         }
 
@@ -125,13 +125,13 @@ public sealed class ClrRefProjectionPropertyTests
     private static void RunProperty<T>(Gen<T> gen, Action<T> check, int maxTests = 100)
     {
         var samples = gen.Sample(maxTests).ToList();
-        for (var idx = 0; idx < samples.Count; idx++)
+        for(var idx = 0; idx < samples.Count; idx++)
         {
             try
             {
                 check(samples[idx]);
             }
-            catch (Exception ex)
+            catch(Exception ex)
             {
                 throw new Exception(
                     $"Property failed on sample {idx}/{samples.Count}: {samples[idx]}\n" +

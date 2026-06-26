@@ -71,7 +71,7 @@ public sealed class UnknownTypeCastEmissionTests : IDisposable
 
     public void Dispose()
     {
-        if (Directory.Exists(_outputDir))
+        if(Directory.Exists(_outputDir))
         {
             try { Directory.Delete(_outputDir, recursive: true); }
             catch { /* best effort */ }
@@ -147,7 +147,7 @@ public sealed class UnknownTypeCastEmissionTests : IDisposable
     private static string ErrorReport(string stage, ImmutableArray<Diagnostic> bag)
     {
         var errors = bag.Where(d => d.Severity == DiagnosticSeverity.Error).ToImmutableArray();
-        if (errors.IsEmpty) return "";
+        if(errors.IsEmpty) return "";
         return $"Unexpected errors during {stage}:\n" + string.Join(
             "\n",
             errors.Select(d => $"  [{d.Id.Value}] {d.Message}"));
@@ -155,9 +155,9 @@ public sealed class UnknownTypeCastEmissionTests : IDisposable
 
     private void CleanOutputDir()
     {
-        if (Directory.Exists(_outputDir))
+        if(Directory.Exists(_outputDir))
         {
-            foreach (var file in Directory.GetFiles(_outputDir, "*", SearchOption.AllDirectories))
+            foreach(var file in Directory.GetFiles(_outputDir, "*", SearchOption.AllDirectories))
             {
                 try { File.Delete(file); } catch { /* best effort */ }
             }

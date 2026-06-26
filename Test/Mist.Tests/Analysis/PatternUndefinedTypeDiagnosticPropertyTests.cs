@@ -115,13 +115,16 @@ public class PatternUndefinedTypeDiagnosticPropertyTests
         // Build type pattern with a non-existent named type
         var typePattern = new TypePatternPrimaryPatternNode
         {
-            Type = new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
+            Type = new TypeReferenceNode
             {
-                Name = new QualifiedIdentifierNode
+                First = new NamedSingleTypeRefSingleTypeRefNode
                 {
-                    IDENTIFIER = Tok(scenario.UndefinedTypeName),
-                },
-            } },
+                    Name = new QualifiedIdentifierNode
+                    {
+                        IDENTIFIER = Tok(scenario.UndefinedTypeName),
+                    },
+                }
+            },
             Name = Tok(scenario.BindingName),
         };
 

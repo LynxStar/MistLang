@@ -211,7 +211,7 @@ public class TaskStorageRestrictionPropertyTests
 
         // MIST_TC_0110 must NEVER appear (Requirement 9.8)
         var hasTc0110 = diagnostics.Any(d => d.Id.Value == "MIST_TC_0110");
-        if (hasTc0110)
+        if(hasTc0110)
         {
             return false.ToProperty()
                 .Label($"MIST_TC_0110 should never appear but was emitted.\n" +
@@ -224,7 +224,7 @@ public class TaskStorageRestrictionPropertyTests
             .Where(d => d.Id.Value == "MIST_DROP_FIELD_NOT_OWNED")
             .ToList();
 
-        if (scenario.IsPermitted)
+        if(scenario.IsPermitted)
         {
             // Matrix permits → zero MIST_DROP_FIELD_NOT_OWNED diagnostics
             var hasNone = fieldNotOwnedDiags.Count == 0;

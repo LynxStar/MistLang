@@ -139,10 +139,13 @@ public class RefReturnLifetimeSafetyTests
 
     private static TypeReferenceNode MakeIntTypeRef()
     {
-        return new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
+        return new TypeReferenceNode
         {
-            PrimitiveType = new IntTypePrimitiveTypeNode(),
-        } };
+            First = new PrimitiveSingleTypeRefSingleTypeRefNode
+            {
+                PrimitiveType = new IntTypePrimitiveTypeNode(),
+            }
+        };
     }
 
     private static ReturnStatementNode MakeReturnStatement(ExpressionNode value)
@@ -194,7 +197,7 @@ public class RefReturnLifetimeSafetyTests
 
     private static ParameterListNode MakeParameterList(params ParameterNode[] parameters)
     {
-        if (parameters.Length == 0)
+        if(parameters.Length == 0)
             return new ParameterListNode();
 
         var first = parameters[0];

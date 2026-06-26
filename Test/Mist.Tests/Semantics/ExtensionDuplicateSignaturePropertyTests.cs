@@ -128,10 +128,13 @@ public class ExtensionDuplicateSignaturePropertyTests
     // ─── AST construction helpers ────────────────────────────────────────
 
     private static TypeReferenceNode MakeNamedTypeRef(string name) =>
-        new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
+        new TypeReferenceNode
         {
-            Name = new QualifiedIdentifierNode { IDENTIFIER = Tok(name) },
-        } };
+            First = new NamedSingleTypeRefSingleTypeRefNode
+            {
+                Name = new QualifiedIdentifierNode { IDENTIFIER = Tok(name) },
+            }
+        };
 
     private static TypeReferenceNode MakeReturnTypeRef(string typeName) =>
         typeName == "void"
@@ -172,7 +175,7 @@ public class ExtensionDuplicateSignaturePropertyTests
 
     private static ParameterListNode? MakeParameterList(int parameterCount)
     {
-        if (parameterCount == 0)
+        if(parameterCount == 0)
             return null;
 
         var first = MakeParameter("p0", ParameterTypes[0]);

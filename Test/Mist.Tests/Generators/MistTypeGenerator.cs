@@ -77,18 +77,24 @@ public static class MistTypeGenerator
     /// <summary>Generates a PrimitiveTypeRef type reference (no array rank).</summary>
     public static Gen<TypeReferenceNode> GenPrimitiveTypeRef() =>
         GenPrimitiveTypeNode().Select(pt =>
-            (TypeReferenceNode)new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
+            (TypeReferenceNode)new TypeReferenceNode
             {
-                PrimitiveType = pt,
-            } });
+                First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                {
+                    PrimitiveType = pt,
+                }
+            });
 
     /// <summary>Generates a numeric PrimitiveTypeRef type reference.</summary>
     public static Gen<TypeReferenceNode> GenNumericTypeRef() =>
         GenNumericPrimitiveTypeNode().Select(pt =>
-            (TypeReferenceNode)new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
+            (TypeReferenceNode)new TypeReferenceNode
             {
-                PrimitiveType = pt,
-            } });
+                First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                {
+                    PrimitiveType = pt,
+                }
+            });
 
     /// <summary>Generates a void type reference.</summary>
     public static Gen<TypeReferenceNode> GenVoidTypeRef() =>
@@ -96,24 +102,33 @@ public static class MistTypeGenerator
 
     /// <summary>Generates an int type reference.</summary>
     public static Gen<TypeReferenceNode> GenIntTypeRef() =>
-        Gen.Constant((TypeReferenceNode)new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
+        Gen.Constant((TypeReferenceNode)new TypeReferenceNode
         {
-            PrimitiveType = new IntTypePrimitiveTypeNode(),
-        } });
+            First = new PrimitiveSingleTypeRefSingleTypeRefNode
+            {
+                PrimitiveType = new IntTypePrimitiveTypeNode(),
+            }
+        });
 
     /// <summary>Generates a bool type reference.</summary>
     public static Gen<TypeReferenceNode> GenBoolTypeRef() =>
-        Gen.Constant((TypeReferenceNode)new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
+        Gen.Constant((TypeReferenceNode)new TypeReferenceNode
         {
-            PrimitiveType = new BoolTypePrimitiveTypeNode(),
-        } });
+            First = new PrimitiveSingleTypeRefSingleTypeRefNode
+            {
+                PrimitiveType = new BoolTypePrimitiveTypeNode(),
+            }
+        });
 
     /// <summary>Generates a string type reference.</summary>
     public static Gen<TypeReferenceNode> GenStringTypeRef() =>
-        Gen.Constant((TypeReferenceNode)new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
+        Gen.Constant((TypeReferenceNode)new TypeReferenceNode
         {
-            PrimitiveType = new StringTypePrimitiveTypeNode(),
-        } });
+            First = new PrimitiveSingleTypeRefSingleTypeRefNode
+            {
+                PrimitiveType = new StringTypePrimitiveTypeNode(),
+            }
+        });
 
     /// <summary>
     /// Generates a random non-void type reference (primitive types only, no arrays).

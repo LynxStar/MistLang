@@ -72,7 +72,7 @@ public class TupleTypePropertyTests
     [Property(Arbitrary = new[] { typeof(TupleTypeGenerator) })]
     public bool DisplayName_ContainsAllElementDisplayNames(TupleType tuple)
     {
-        for (var i = 0; i < tuple.ElementTypes.Count; i++)
+        for(var i = 0; i < tuple.ElementTypes.Count; i++)
         {
             var elementDisplay = tuple.ElementTypes[i].DisplayName;
             var name = tuple.ElementNames is not null && i < tuple.ElementNames.Count
@@ -82,7 +82,7 @@ public class TupleTypePropertyTests
                 ? $"{elementDisplay} {name}"
                 : elementDisplay;
 
-            if (!tuple.DisplayName.Contains(expectedPart))
+            if(!tuple.DisplayName.Contains(expectedPart))
                 return false;
         }
 
@@ -100,7 +100,7 @@ public class TupleTypePropertyTests
         IReadOnlyList<string?>? elementNames)
     {
         var parts = new string[elementTypes.Count];
-        for (var i = 0; i < elementTypes.Count; i++)
+        for(var i = 0; i < elementTypes.Count; i++)
         {
             var name = elementNames is not null && i < elementNames.Count
                 ? elementNames[i]

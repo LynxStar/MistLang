@@ -46,23 +46,23 @@ public sealed class FieldTypeRestrictionVerifier
         ArgumentNullException.ThrowIfNull(diagnostics);
 
         var memberScope = GetMemberScope(ownedType);
-        if (memberScope is null)
+        if(memberScope is null)
             return;
 
-        foreach (var member in memberScope.Members)
+        foreach(var member in memberScope.Members)
         {
-            if (member.Kind != SymbolKind.Field)
+            if(member.Kind != SymbolKind.Field)
                 continue;
 
             // Skip static fields — they are not part of the instance object graph.
-            if (member is Symbol symbol && symbol.IsStatic)
+            if(member is Symbol symbol && symbol.IsStatic)
                 continue;
 
             var fieldType = member.DeclaredType;
-            if (fieldType is null)
+            if(fieldType is null)
                 continue;
 
-            if (!SatisfiesFieldTypeRestriction(fieldType))
+            if(!SatisfiesFieldTypeRestriction(fieldType))
             {
                 ReportViolation(member, fieldType, model, diagnostics);
             }
@@ -83,19 +83,19 @@ public sealed class FieldTypeRestrictionVerifier
         var resolved = Unwrap(fieldType);
 
         // (1) Value types (struct, enum) — always accepted (Req 4 AC 3).
-        if (IsValueType(resolved))
+        if(IsValueType(resolved))
             return true;
 
         // (2) Another owned type — accepted (Req 4 AC 1).
-        if (IsOwnedType(resolved))
+        if(IsOwnedType(resolved))
             return true;
 
         // (3) Implements IClonable<T> — accepted (Req 4 AC 2).
-        if (ImplementsIClonable(resolved))
+        if(ImplementsIClonable(resolved))
             return true;
 
         // (4) Generic type parameter — check constraints (Req 4 AC 6).
-        if (fieldType is TypeParameterType typeParam)
+        if(fieldType is TypeParameterType typeParam)
             return HasOwnedOrClonableConstraint(typeParam);
 
         return false;
@@ -110,25 +110,25 @@ public sealed class FieldTypeRestrictionVerifier
     private static bool HasOwnedOrClonableConstraint(TypeParameterType typeParam)
     {
         var constraints = typeParam.Constraints;
-        if (constraints is null)
+        if(constraints is null)
             return false;
 
         // 'owned' constraint → type argument must be an owned type.
-        if (constraints.HasOwnedConstraint)
+        if(constraints.HasOwnedConstraint)
             return true;
 
         // 'struct' constraint → type argument must be a value type.
-        if (constraints.HasStructConstraint)
+        if(constraints.HasStructConstraint)
             return true;
 
         // Base class constraint that is an owned type satisfies the restriction.
-        if (constraints.BaseClassConstraint is not null && IsOwnedType(Unwrap(constraints.BaseClassConstraint)))
+        if(constraints.BaseClassConstraint is not null && IsOwnedType(Unwrap(constraints.BaseClassConstraint)))
             return true;
 
         // Abstract type constraint that is IClonable satisfies the restriction.
-        foreach (var abs in constraints.AbstractConstraints)
+        foreach(var abs in constraints.AbstractConstraints)
         {
-            if (IsIClonableInterface(abs))
+            if(IsIClonableInterface(abs))
                 return true;
         }
 
@@ -152,7 +152,7 @@ public sealed class FieldTypeRestrictionVerifier
             ? FieldTypeViolationMessageForTypeParam(field.Name, fieldType.DisplayName)
             : FieldTypeViolationMessage(field.Name, fieldType.DisplayName);
 
-        if (declaringNode is not null)
+        if(declaringNode is not null)
         {
             diagnostics.Add(MakeDiagnostic(FieldTypeViolation, message, declaringNode, model));
         }
@@ -278,23 +278,23 @@ public sealed class FieldTypeRestrictionVerifier
         string? compilationUnitPath = null;
 
         var span = node.Span;
-        if (span.Length > 0)
+        if(span.Length > 0)
         {
             var asts = model.Asts;
             var units = model.Units;
             var astIndex = -1;
 
-            for (var i = 0; i < asts.Length; i++)
+            for(var i = 0; i < asts.Length; i++)
             {
                 var astSpan = asts[i].Span;
-                if (span.Start >= astSpan.Start && span.Start + span.Length <= astSpan.Start + astSpan.Length)
+                if(span.Start >= astSpan.Start && span.Start + span.Length <= astSpan.Start + astSpan.Length)
                 {
                     astIndex = i;
                     break;
                 }
             }
 
-            if (astIndex >= 0 && astIndex < units.Count)
+            if(astIndex >= 0 && astIndex < units.Count)
             {
                 var source = units[astIndex].Source;
                 compilationUnitPath = source.Path;

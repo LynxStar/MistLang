@@ -66,17 +66,17 @@ public class DependentTypeEqualityPropertyTests
     private static bool AreTypesEqual(ConstructedType a, ConstructedType b)
     {
         // Same generic definition
-        if (!ReferenceEquals(a.GenericDefinition, b.GenericDefinition))
+        if(!ReferenceEquals(a.GenericDefinition, b.GenericDefinition))
             return false;
 
         // Same type argument count
-        if (a.TypeArguments.Count != b.TypeArguments.Count)
+        if(a.TypeArguments.Count != b.TypeArguments.Count)
             return false;
 
         // Same type arguments (by display name since we use separate instances)
-        for (var i = 0; i < a.TypeArguments.Count; i++)
+        for(var i = 0; i < a.TypeArguments.Count; i++)
         {
-            if (a.TypeArguments[i].DisplayName != b.TypeArguments[i].DisplayName)
+            if(a.TypeArguments[i].DisplayName != b.TypeArguments[i].DisplayName)
                 return false;
         }
 
@@ -84,22 +84,22 @@ public class DependentTypeEqualityPropertyTests
         var depsA = a.DependentArguments;
         var depsB = b.DependentArguments;
 
-        if (depsA is null && depsB is null)
+        if(depsA is null && depsB is null)
             return true;
-        if (depsA is null || depsB is null)
+        if(depsA is null || depsB is null)
             return false;
-        if (depsA.Count != depsB.Count)
+        if(depsA.Count != depsB.Count)
             return false;
 
-        for (var i = 0; i < depsA.Count; i++)
+        for(var i = 0; i < depsA.Count; i++)
         {
             var argA = depsA[i];
             var argB = depsB[i];
-            if (argA is null && argB is null)
+            if(argA is null && argB is null)
                 continue;
-            if (argA is null || argB is null)
+            if(argA is null || argB is null)
                 return false;
-            if (!Equals(argA.Value, argB.Value))
+            if(!Equals(argA.Value, argB.Value))
                 return false;
         }
 

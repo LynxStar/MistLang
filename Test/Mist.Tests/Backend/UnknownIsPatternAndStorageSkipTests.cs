@@ -91,7 +91,7 @@ public sealed class UnknownIsPatternAndStorageSkipTests : IDisposable
 
     public void Dispose()
     {
-        if (Directory.Exists(_outputDir))
+        if(Directory.Exists(_outputDir))
         {
             try { Directory.Delete(_outputDir, recursive: true); }
             catch { /* best effort */ }
@@ -155,7 +155,7 @@ public sealed class UnknownIsPatternAndStorageSkipTests : IDisposable
             namespaceRoot: "TestProject",
             projectFolder: "/test",
             semBag);
-        if (!expectErrors)
+        if(!expectErrors)
         {
             Assert.False(semBag.HasErrors, ErrorReport("semantic model", semBag.ToImmutableArray()));
         }
@@ -166,10 +166,10 @@ public sealed class UnknownIsPatternAndStorageSkipTests : IDisposable
         // only needs the storage-ban diagnostic emitted from the
         // semantic-model pass to fire.
         var tcBag = new DiagnosticBag();
-        if (!semBag.HasErrors)
+        if(!semBag.HasErrors)
         {
             _analyzer.Analyze(model, tcBag);
-            if (!expectErrors)
+            if(!expectErrors)
             {
                 Assert.False(tcBag.HasErrors, ErrorReport("type check", tcBag.ToImmutableArray()));
             }
@@ -213,7 +213,7 @@ public sealed class UnknownIsPatternAndStorageSkipTests : IDisposable
     private static string ErrorReport(string stage, ImmutableArray<Diagnostic> bag)
     {
         var errors = bag.Where(d => d.Severity == DiagnosticSeverity.Error).ToImmutableArray();
-        if (errors.IsEmpty) return "";
+        if(errors.IsEmpty) return "";
         return $"Unexpected errors during {stage}:\n" + string.Join(
             "\n",
             errors.Select(d => $"  [{d.Id.Value}] {d.Message}"));
@@ -221,9 +221,9 @@ public sealed class UnknownIsPatternAndStorageSkipTests : IDisposable
 
     private void CleanOutputDir()
     {
-        if (Directory.Exists(_outputDir))
+        if(Directory.Exists(_outputDir))
         {
-            foreach (var file in Directory.GetFiles(_outputDir, "*", SearchOption.AllDirectories))
+            foreach(var file in Directory.GetFiles(_outputDir, "*", SearchOption.AllDirectories))
             {
                 try { File.Delete(file); } catch { /* best effort */ }
             }

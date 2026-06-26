@@ -144,7 +144,7 @@ public class OperatorResolutionConsistencyPropertyTests
         var userTokens = Lexer.Lex(userSourceText, diagnostics);
         var userParseResult = Parser.Parse(userTokens, diagnostics);
 
-        if (userParseResult.Root is null)
+        if(userParseResult.Root is null)
             throw new InvalidOperationException("Failed to parse user source");
 
         var allUnits = stdlibUnits.Add(userUnit);
@@ -187,12 +187,12 @@ public class OperatorResolutionConsistencyPropertyTests
     {
         var members = new List<ISymbol>();
 
-        if (type is StructType st)
+        if(type is StructType st)
         {
             members.AddRange(st.MemberScope.Members
                 .Where(m => m.Name == opName && m.Kind == SymbolKind.Method));
         }
-        else if (type is ClassType ct)
+        else if(type is ClassType ct)
         {
             members.AddRange(ct.MemberScope.Members
                 .Where(m => m.Name == opName && m.Kind == SymbolKind.Method));
@@ -215,19 +215,19 @@ public class OperatorResolutionConsistencyPropertyTests
         var stack = new Stack<SyntaxNode>();
         stack.Push(root);
 
-        while (stack.Count > 0)
+        while(stack.Count > 0)
         {
             var node = stack.Pop();
 
             // Check if this node has a resolved operator recorded
-            if (model.GetResolvedOperator(node) is not null)
+            if(model.GetResolvedOperator(node) is not null)
             {
                 result.Add(node);
             }
 
-            foreach (var child in node.Children())
+            foreach(var child in node.Children())
             {
-                if (child is not null)
+                if(child is not null)
                     stack.Push(child);
             }
         }
@@ -264,7 +264,7 @@ public class OperatorResolutionConsistencyPropertyTests
                             && !d.Id.Value.StartsWith("MIST_TC"))
                 .ToList();
 
-            if (errors.Count > 0)
+            if(errors.Count > 0)
             {
                 return false.ToProperty()
                     .Label($"Build errors: {string.Join("; ", errors.Select(e => $"[{e.Id.Value}] {e.Message}"))}\nSource:\n{source}");
@@ -272,7 +272,7 @@ public class OperatorResolutionConsistencyPropertyTests
 
             // Find the Int32 type
             var int32Type = FindInt32Type(model);
-            if (int32Type is null)
+            if(int32Type is null)
             {
                 return false.ToProperty()
                     .Label("Could not find Standard.Int32 type in the semantic model.");
@@ -282,7 +282,7 @@ public class OperatorResolutionConsistencyPropertyTests
             var userAst = model.Asts[^1];
             var operatorNodes = FindNodesWithResolvedOperators(userAst, model);
 
-            if (operatorNodes.Count == 0)
+            if(operatorNodes.Count == 0)
             {
                 return false.ToProperty()
                     .Label($"No operator expression nodes with resolved operators found.\nSource:\n{source}");
@@ -290,7 +290,7 @@ public class OperatorResolutionConsistencyPropertyTests
 
             // For each operator node, verify the recorded resolved operator
             // matches what OverloadResolver.Resolve would return.
-            foreach (var opNode in operatorNodes)
+            foreach(var opNode in operatorNodes)
             {
                 var recordedOp = model.GetResolvedOperator(opNode)!;
                 var opName = recordedOp.Name; // e.g., "operator+"
@@ -298,7 +298,7 @@ public class OperatorResolutionConsistencyPropertyTests
                 // Both operands are int, so gather candidates from Int32
                 var candidates = GetOperatorMembers(int32Type, opName);
 
-                if (candidates.Count == 0)
+                if(candidates.Count == 0)
                 {
                     return false.ToProperty()
                         .Label($"No candidates found for {opName} on Int32.\nSource:\n{source}");
@@ -309,7 +309,7 @@ public class OperatorResolutionConsistencyPropertyTests
                 var resolverResult = OverloadResolver.Resolve(
                     candidates, argTypes, model);
 
-                if (resolverResult.Status != OverloadResolutionStatus.Success)
+                if(resolverResult.Status != OverloadResolutionStatus.Success)
                 {
                     return false.ToProperty()
                         .Label($"OverloadResolver.Resolve returned {resolverResult.Status} for {opName}.\nSource:\n{source}");
@@ -317,7 +317,7 @@ public class OperatorResolutionConsistencyPropertyTests
 
                 // The recorded operator must be the same symbol as what
                 // OverloadResolver would select.
-                if (!ReferenceEquals(recordedOp, resolverResult.BestCandidate))
+                if(!ReferenceEquals(recordedOp, resolverResult.BestCandidate))
                 {
                     return false.ToProperty()
                         .Label($"Recorded operator for {opName} differs from OverloadResolver result.\n" +

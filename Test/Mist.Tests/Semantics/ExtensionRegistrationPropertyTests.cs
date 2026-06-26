@@ -158,42 +158,42 @@ public class ExtensionRegistrationPropertyTests
         var methodIdx = 0;
         var propertyIdx = 0;
 
-        foreach (var memberCount in membersPerBlock)
+        foreach(var memberCount in membersPerBlock)
         {
             var memberGens = new List<Gen<ExtensionMemberInfo>>();
-            for (var i = 0; i < memberCount; i++)
+            for(var i = 0; i < memberCount; i++)
             {
                 // Alternate between methods and properties
-                if (i % 2 == 0 && methodIdx < allMethodNames.Count)
+                if(i % 2 == 0 && methodIdx < allMethodNames.Count)
                 {
                     memberGens.Add(GenMethodMember(allMethodNames[methodIdx]));
                     methodIdx++;
                 }
-                else if (propertyIdx < allPropertyNames.Count)
+                else if(propertyIdx < allPropertyNames.Count)
                 {
                     memberGens.Add(GenPropertyMember(allPropertyNames[propertyIdx]));
                     propertyIdx++;
                 }
-                else if (methodIdx < allMethodNames.Count)
+                else if(methodIdx < allMethodNames.Count)
                 {
                     memberGens.Add(GenMethodMember(allMethodNames[methodIdx]));
                     methodIdx++;
                 }
             }
 
-            if (memberGens.Count > 0)
+            if(memberGens.Count > 0)
             {
                 var blockGen = from members in GenCombine(memberGens)
-                              select members.ToImmutableArray();
+                               select members.ToImmutableArray();
                 blockGens.Add(blockGen);
             }
         }
 
-        if (blockGens.Count == 0)
+        if(blockGens.Count == 0)
         {
             // Fallback: at least one block with one method
             var fallback = from m in GenMethodMember(allMethodNames[0])
-                          select ImmutableArray.Create(m);
+                           select ImmutableArray.Create(m);
             blockGens.Add(fallback);
         }
 
@@ -207,14 +207,14 @@ public class ExtensionRegistrationPropertyTests
     /// </summary>
     private static Gen<List<T>> GenCombine<T>(List<Gen<T>> gens)
     {
-        if (gens.Count == 0)
+        if(gens.Count == 0)
             return Gen.Constant(new List<T>());
 
         return gens.Aggregate(
             Gen.Constant(new List<T>()),
             (acc, gen) => from list in acc
-                         from item in gen
-                         select new List<T>(list) { item });
+                          from item in gen
+                          select new List<T>(list) { item });
     }
 
     public static Arbitrary<RegistrationScenario> ArbitraryRegistrationScenario() =>
@@ -223,10 +223,13 @@ public class ExtensionRegistrationPropertyTests
     // ─── AST construction helpers ────────────────────────────────────────
 
     private static TypeReferenceNode MakeNamedTypeRef(string name) =>
-        new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
+        new TypeReferenceNode
         {
-            Name = new QualifiedIdentifierNode { IDENTIFIER = Tok(name) },
-        } };
+            First = new NamedSingleTypeRefSingleTypeRefNode
+            {
+                Name = new QualifiedIdentifierNode { IDENTIFIER = Tok(name) },
+            }
+        };
 
     private static TypeReferenceNode MakeReturnTypeRef(string typeName) =>
         typeName == "void"
@@ -322,7 +325,7 @@ public class ExtensionRegistrationPropertyTests
         var items = ImmutableArray.CreateBuilder<TopLevelItemNode>();
         items.Add(classTypeDecl.AsTopLevelItem());
 
-        foreach (var block in scenario.Blocks)
+        foreach(var block in scenario.Blocks)
         {
             var members = block.Select(MakeMember).ToImmutableArray();
 
@@ -371,13 +374,13 @@ public class ExtensionRegistrationPropertyTests
         var receiverTypeSymbol = model.AllSymbols
             .FirstOrDefault(s => s.Name == scenario.ReceiverTypeName && s.Kind == SymbolKind.Class);
 
-        if (receiverTypeSymbol is null)
+        if(receiverTypeSymbol is null)
             return false.ToProperty()
                 .Label($"Receiver type '{scenario.ReceiverTypeName}' not found in model. " +
                        $"All symbols: [{string.Join(", ", model.AllSymbols.Select(s => $"{s.Name}:{s.Kind}"))}]");
 
         var receiverType = receiverTypeSymbol.DeclaredType;
-        if (receiverType is null)
+        if(receiverType is null)
             return false.ToProperty()
                 .Label($"Receiver type '{scenario.ReceiverTypeName}' has null DeclaredType");
 
@@ -408,12 +411,12 @@ public class ExtensionRegistrationPropertyTests
         var receiverTypeSymbol = model.AllSymbols
             .FirstOrDefault(s => s.Name == scenario.ReceiverTypeName && s.Kind == SymbolKind.Class);
 
-        if (receiverTypeSymbol is null)
+        if(receiverTypeSymbol is null)
             return false.ToProperty()
                 .Label($"Receiver type '{scenario.ReceiverTypeName}' not found in model");
 
         var receiverType = receiverTypeSymbol.DeclaredType;
-        if (receiverType is null)
+        if(receiverType is null)
             return false.ToProperty()
                 .Label($"Receiver type '{scenario.ReceiverTypeName}' has null DeclaredType");
 
@@ -422,9 +425,9 @@ public class ExtensionRegistrationPropertyTests
 
         // Collect all member names from all extension block member scopes
         var registeredMembers = new HashSet<(string Name, SymbolKind Kind)>();
-        foreach (var ext in extensions)
+        foreach(var ext in extensions)
         {
-            foreach (var member in ext.MemberScope.Members)
+            foreach(var member in ext.MemberScope.Members)
             {
                 registeredMembers.Add((member.Name, member.Kind));
             }
@@ -436,9 +439,9 @@ public class ExtensionRegistrationPropertyTests
             .Select(m => (m.Name, Kind: m.IsMethod ? SymbolKind.Method : SymbolKind.Property))
             .ToList();
 
-        foreach (var (name, kind) in allExpectedMembers)
+        foreach(var (name, kind) in allExpectedMembers)
         {
-            if (!registeredMembers.Contains((name, kind)))
+            if(!registeredMembers.Contains((name, kind)))
                 return false.ToProperty()
                     .Label($"Expected member '{name}' ({kind}) not found in extension registry. " +
                            $"Registered members: [{string.Join(", ", registeredMembers.Select(m => $"{m.Name}:{m.Kind}"))}]");
@@ -473,20 +476,20 @@ public class ExtensionRegistrationPropertyTests
         var receiverTypeSymbol = model.AllSymbols
             .FirstOrDefault(s => s.Name == scenario.ReceiverTypeName && s.Kind == SymbolKind.Class);
 
-        if (receiverTypeSymbol is null)
+        if(receiverTypeSymbol is null)
             return false.ToProperty()
                 .Label($"Receiver type '{scenario.ReceiverTypeName}' not found in model");
 
         var receiverType = receiverTypeSymbol.DeclaredType;
-        if (receiverType is null)
+        if(receiverType is null)
             return false.ToProperty()
                 .Label($"Receiver type '{scenario.ReceiverTypeName}' has null DeclaredType");
 
         var extensions = model.ExtensionRegistry.GetExactExtensions(receiverType);
 
-        foreach (var ext in extensions)
+        foreach(var ext in extensions)
         {
-            if (ext.ReceiverParameterName != scenario.ReceiverParamName)
+            if(ext.ReceiverParameterName != scenario.ReceiverParamName)
                 return false.ToProperty()
                     .Label($"Expected receiver parameter name '{scenario.ReceiverParamName}', " +
                            $"got '{ext.ReceiverParameterName}'");

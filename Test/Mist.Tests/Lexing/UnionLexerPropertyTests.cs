@@ -72,11 +72,11 @@ public class UnionLexerPropertyTests
     {
         var result = new List<(int Offset, bool IsLogicalOr)>();
         var i = 0;
-        while (i < source.Length)
+        while(i < source.Length)
         {
-            if (source[i] == '|')
+            if(source[i] == '|')
             {
-                if (i + 1 < source.Length && source[i + 1] == '|')
+                if(i + 1 < source.Length && source[i + 1] == '|')
                 {
                     result.Add((i, true));
                     i += 2;
@@ -120,17 +120,17 @@ public class UnionLexerPropertyTests
                     .ToList();
 
                 // Count must match
-                if (pipeTokens.Count != expected.Count)
+                if(pipeTokens.Count != expected.Count)
                     return false;
 
                 // Each token must have the correct kind
-                for (var i = 0; i < expected.Count; i++)
+                for(var i = 0; i < expected.Count; i++)
                 {
                     var expectedKind = expected[i].IsLogicalOr
                         ? (int)TokenKind.LOGICAL_OR
                         : (int)TokenKind.PIPE;
 
-                    if (pipeTokens[i].Kind != expectedKind)
+                    if(pipeTokens[i].Kind != expectedKind)
                         return false;
                 }
 
@@ -162,14 +162,14 @@ public class UnionLexerPropertyTests
                     .Where(t => t.Kind != (int)TokenKind.EndOfFile)
                     .ToList();
 
-                for (var i = 0; i < allTokens.Count - 1; i++)
+                for(var i = 0; i < allTokens.Count - 1; i++)
                 {
                     var current = allTokens[i];
                     var next = allTokens[i + 1];
 
                     // If two consecutive tokens are both PIPE and they are adjacent
                     // (no gap between them), that means the lexer failed to produce LOGICAL_OR
-                    if (current.Kind == (int)TokenKind.PIPE &&
+                    if(current.Kind == (int)TokenKind.PIPE &&
                         next.Kind == (int)TokenKind.PIPE &&
                         current.Span.Start + current.Lexeme.Length == next.Span.Start)
                     {
@@ -196,12 +196,12 @@ public class UnionLexerPropertyTests
             {
                 var tokens = LexDefaultTokens(source);
 
-                foreach (var token in tokens)
+                foreach(var token in tokens)
                 {
-                    if (token.Kind == (int)TokenKind.PIPE && token.Lexeme != "|")
+                    if(token.Kind == (int)TokenKind.PIPE && token.Lexeme != "|")
                         return false;
 
-                    if (token.Kind == (int)TokenKind.LOGICAL_OR && token.Lexeme != "||")
+                    if(token.Kind == (int)TokenKind.LOGICAL_OR && token.Lexeme != "||")
                         return false;
                 }
 

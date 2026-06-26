@@ -31,7 +31,7 @@ public static class MistProgramGenerator
     {
         var members = ImmutableArray.CreateBuilder<MemberDeclarationNode>();
 
-        if (additionalMembers != null)
+        if(additionalMembers != null)
         {
             members.AddRange(additionalMembers.Value);
         }
@@ -74,7 +74,7 @@ public static class MistProgramGenerator
     {
         var methodModifiers = ImmutableArray.CreateBuilder<ModifierNode>();
         methodModifiers.Add(new PublicModifierModifierNode());
-        if (isStatic)
+        if(isStatic)
             methodModifiers.Add(new StaticModifierModifierNode());
 
         var method = new MethodDeclarationNode

@@ -79,7 +79,7 @@ public class AbstractCycleDetectionPropertyTests
             Members = ImmutableArray<AbstractMemberDeclarationNode>.Empty,
         };
 
-        if (parentAbstractName is not null)
+        if(parentAbstractName is not null)
         {
             var _abstractList1 = MakeBaseList(parentAbstractName);
 
@@ -181,7 +181,7 @@ public class AbstractCycleDetectionPropertyTests
     {
         // Create a cycle: names[0] → names[1] → ... → names[n-1] → names[0]
         var entries = new List<(string Name, string ParentName)>();
-        for (var i = 0; i < names.Length; i++)
+        for(var i = 0; i < names.Length; i++)
         {
             var parentName = names[(i + 1) % names.Length];
             entries.Add((names[i], parentName));
@@ -220,7 +220,7 @@ public class AbstractCycleDetectionPropertyTests
     {
         // Create a linear chain: names[0] : names[1], names[1] : names[2], ..., names[n-1] (root, no parent)
         var entries = new List<(string Name, string? ParentName)>();
-        for (var i = 0; i < names.Length; i++)
+        for(var i = 0; i < names.Length; i++)
         {
             string? parentName = i < names.Length - 1 ? names[i + 1] : null;
             entries.Add((names[i], parentName));
@@ -319,22 +319,22 @@ public class AbstractCycleDetectionPropertyTests
             .Where(it => it is not null)
             .ToList();
 
-        foreach (var abstractType in abstractTypes)
+        foreach(var abstractType in abstractTypes)
         {
             var visited = new HashSet<AbstractType>();
             var queue = new Queue<AbstractType>();
             queue.Enqueue(abstractType!);
 
-            while (queue.Count > 0)
+            while(queue.Count > 0)
             {
                 var current = queue.Dequeue();
-                if (!visited.Add(current))
+                if(!visited.Add(current))
                 {
                     // Still a cycle — chain did not terminate
                     return false;
                 }
 
-                foreach (var parent in current.Abstracts.OfType<AbstractType>())
+                foreach(var parent in current.Abstracts.OfType<AbstractType>())
                 {
                     queue.Enqueue(parent);
                 }
@@ -464,17 +464,17 @@ public class AbstractCycleDetectionPropertyTests
             .Where(it => it is not null)
             .ToList();
 
-        foreach (var abstractType in abstractTypes)
+        foreach(var abstractType in abstractTypes)
         {
             var visited = new HashSet<AbstractType>();
             var queue = new Queue<AbstractType>();
             queue.Enqueue(abstractType!);
 
-            while (queue.Count > 0)
+            while(queue.Count > 0)
             {
                 var current = queue.Dequeue();
                 Assert.True(visited.Add(current), $"Cycle still present at {current.DisplayName}");
-                foreach (var parent in current.Abstracts.OfType<AbstractType>())
+                foreach(var parent in current.Abstracts.OfType<AbstractType>())
                 {
                     queue.Enqueue(parent);
                 }

@@ -38,14 +38,14 @@ public class OperatorAndIntrinsicGrammarTests
     private static StructDeclarationNode? GetStructDeclaration(CompilationUnitNode cu)
     {
         var types = cu.GetTypes();
-        if (types.Length == 0) return null;
+        if(types.Length == 0) return null;
         return (types[0] as StructTypeTypeDeclarationNode)?.StructDeclaration;
     }
 
     private static ClassDeclarationNode? GetClassDeclaration(CompilationUnitNode cu)
     {
         var types = cu.GetTypes();
-        if (types.Length == 0) return null;
+        if(types.Length == 0) return null;
         return (types[0] as ClassTypeTypeDeclarationNode)?.ClassDeclaration;
     }
 
@@ -61,7 +61,7 @@ public class OperatorAndIntrinsicGrammarTests
 
         Assert.Empty(result.Diagnostics);
 
-        if (result.Root is not CompilationUnitNode cu)
+        if(result.Root is not CompilationUnitNode cu)
             return; // skeletal parser guard, see existing convention
 
         var structDecl = GetStructDeclaration(cu);
@@ -85,7 +85,7 @@ public class OperatorAndIntrinsicGrammarTests
 
         Assert.Empty(result.Diagnostics);
 
-        if (result.Root is not CompilationUnitNode cu)
+        if(result.Root is not CompilationUnitNode cu)
             return;
 
         var structDecl = GetStructDeclaration(cu);
@@ -115,7 +115,7 @@ public class OperatorAndIntrinsicGrammarTests
 
         Assert.Empty(result.Diagnostics);
 
-        if (result.Root is not CompilationUnitNode cu)
+        if(result.Root is not CompilationUnitNode cu)
             return;
 
         var structDecl = GetStructDeclaration(cu);
@@ -151,7 +151,7 @@ public class OperatorAndIntrinsicGrammarTests
 
         Assert.Empty(result.Diagnostics);
 
-        if (result.Root is not CompilationUnitNode cu)
+        if(result.Root is not CompilationUnitNode cu)
             return;
 
         var structDecl = GetStructDeclaration(cu);
@@ -169,20 +169,20 @@ public class OperatorAndIntrinsicGrammarTests
     }
 
     [Theory]
-    [InlineData("+",  typeof(PlusOpOperatorSymbolNode))]
-    [InlineData("-",  typeof(MinusOpOperatorSymbolNode))]
-    [InlineData("*",  typeof(StarOpOperatorSymbolNode))]
-    [InlineData("/",  typeof(SlashOpOperatorSymbolNode))]
-    [InlineData("%",  typeof(ModuloOpOperatorSymbolNode))]
+    [InlineData("+", typeof(PlusOpOperatorSymbolNode))]
+    [InlineData("-", typeof(MinusOpOperatorSymbolNode))]
+    [InlineData("*", typeof(StarOpOperatorSymbolNode))]
+    [InlineData("/", typeof(SlashOpOperatorSymbolNode))]
+    [InlineData("%", typeof(ModuloOpOperatorSymbolNode))]
     [InlineData("==", typeof(EqualEqualOpOperatorSymbolNode))]
     [InlineData("!=", typeof(NotEqualOpOperatorSymbolNode))]
-    [InlineData("<",  typeof(LessThanOpOperatorSymbolNode))]
-    [InlineData(">",  typeof(GreaterThanOpOperatorSymbolNode))]
+    [InlineData("<", typeof(LessThanOpOperatorSymbolNode))]
+    [InlineData(">", typeof(GreaterThanOpOperatorSymbolNode))]
     [InlineData("<=", typeof(LessThanOrEqualOpOperatorSymbolNode))]
     [InlineData(">=", typeof(GreaterThanOrEqualOpOperatorSymbolNode))]
     [InlineData("&&", typeof(LogicalAndOpOperatorSymbolNode))]
     [InlineData("||", typeof(LogicalOrOpOperatorSymbolNode))]
-    [InlineData("!",  typeof(ExclamationOpOperatorSymbolNode))]
+    [InlineData("!", typeof(ExclamationOpOperatorSymbolNode))]
     public void Task3_1_AllFourteenOperatorSymbols_ParseToCorrectVariant(string opText, System.Type expectedVariant)
     {
         // Requirements 4.3, 4.4, 4.5: all 14 operator symbols are grammar-accepted
@@ -195,7 +195,7 @@ public class OperatorAndIntrinsicGrammarTests
 
         Assert.Empty(result.Diagnostics);
 
-        if (result.Root is not CompilationUnitNode cu)
+        if(result.Root is not CompilationUnitNode cu)
             return;
 
         var structDecl = GetStructDeclaration(cu);
@@ -220,7 +220,7 @@ public class OperatorAndIntrinsicGrammarTests
 
         Assert.Empty(result.Diagnostics);
 
-        if (result.Root is not CompilationUnitNode cu)
+        if(result.Root is not CompilationUnitNode cu)
             return;
 
         var structDecl = GetStructDeclaration(cu);
@@ -247,7 +247,7 @@ public class OperatorAndIntrinsicGrammarTests
 
         Assert.Empty(result.Diagnostics);
 
-        if (result.Root is not CompilationUnitNode cu)
+        if(result.Root is not CompilationUnitNode cu)
             return;
 
         var structDecl = GetStructDeclaration(cu);
@@ -273,7 +273,7 @@ public class OperatorAndIntrinsicGrammarTests
 
         Assert.Empty(result.Diagnostics);
 
-        if (result.Root is not CompilationUnitNode cu)
+        if(result.Root is not CompilationUnitNode cu)
             return;
 
         var structDecl = GetStructDeclaration(cu);
@@ -296,7 +296,7 @@ public class OperatorAndIntrinsicGrammarTests
 
         Assert.Empty(result.Diagnostics);
 
-        if (result.Root is not CompilationUnitNode cu)
+        if(result.Root is not CompilationUnitNode cu)
             return;
 
         var classDecl = GetClassDeclaration(cu);

@@ -41,7 +41,7 @@ public class AssociatedTypeUnresolvedRefPropertyTests
 
         var parseDiag = new DiagnosticBag();
         var parseResult = Parser.Parse(tokens, parseDiag);
-        if (parseResult.Root is null)
+        if(parseResult.Root is null)
             return lexDiag.ToImmutableArray().AddRange(parseDiag.ToImmutableArray());
 
         var (model, buildDiag) = StdlibTestHelper.BuildModelWithStdlib(
@@ -149,11 +149,11 @@ public class AssociatedTypeUnresolvedRefPropertyTests
     {
         var sb = new System.Text.StringBuilder();
 
-        if (scenario.HasConstraint)
+        if(scenario.HasConstraint)
         {
             // Emit the abstract type with declared slots
             sb.AppendLine($"abstract {scenario.AbstractName} {{");
-            foreach (var slot in scenario.DeclaredSlots)
+            foreach(var slot in scenario.DeclaredSlots)
             {
                 sb.AppendLine($"    type {slot};");
             }
@@ -168,7 +168,7 @@ public class AssociatedTypeUnresolvedRefPropertyTests
             ? $" where {scenario.TypeParamName} : {scenario.AbstractName}"
             : "";
 
-        switch (scenario.Position)
+        switch(scenario.Position)
         {
             case TypePosition.Parameter:
                 sb.AppendLine($"    void Process<{scenario.TypeParamName}>({scenario.TypeParamName}.{scenario.InvalidSlotName} item){whereClause} {{");
@@ -216,7 +216,7 @@ public class AssociatedTypeUnresolvedRefPropertyTests
 
         var at0004 = diagnostics.Where(d => d.Id.Value == "MIST_AT_0004").ToList();
 
-        if (at0004.Count == 0)
+        if(at0004.Count == 0)
             return false.ToProperty()
                 .Label($"Expected MIST_AT_0004 but none emitted.\n" +
                        $"Scenario: {scenario}\n" +
@@ -225,7 +225,7 @@ public class AssociatedTypeUnresolvedRefPropertyTests
 
         // Verify the diagnostic message mentions the invalid slot name
         var mentionsSlot = at0004.Any(d => d.Message.Contains(scenario.InvalidSlotName));
-        if (!mentionsSlot)
+        if(!mentionsSlot)
             return false.ToProperty()
                 .Label($"MIST_AT_0004 emitted but does not mention '{scenario.InvalidSlotName}'.\n" +
                        $"Scenario: {scenario}\n" +
@@ -233,7 +233,7 @@ public class AssociatedTypeUnresolvedRefPropertyTests
 
         // Verify the diagnostic message mentions the type parameter name
         var mentionsTypeParam = at0004.Any(d => d.Message.Contains(scenario.TypeParamName));
-        if (!mentionsTypeParam)
+        if(!mentionsTypeParam)
             return false.ToProperty()
                 .Label($"MIST_AT_0004 emitted but does not mention '{scenario.TypeParamName}'.\n" +
                        $"Scenario: {scenario}\n" +

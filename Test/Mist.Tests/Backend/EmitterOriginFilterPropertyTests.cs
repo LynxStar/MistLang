@@ -40,7 +40,7 @@ public sealed partial class EmitterOriginFilterPropertyTests : IDisposable
 
     public void Dispose()
     {
-        if (Directory.Exists(_outputDir))
+        if(Directory.Exists(_outputDir))
         {
             try { Directory.Delete(_outputDir, recursive: true); } catch { /* best effort */ }
         }
@@ -108,7 +108,7 @@ public sealed partial class EmitterOriginFilterPropertyTests : IDisposable
         IReadOnlyList<string> referencedAmbientTypes)
     {
         var fields = new List<MemberDeclarationNode>();
-        for (var i = 0; i < referencedAmbientTypes.Count; i++)
+        for(var i = 0; i < referencedAmbientTypes.Count; i++)
         {
             var typeName = referencedAmbientTypes[i];
             var qualifiedId = new QualifiedIdentifierNode
@@ -152,7 +152,7 @@ public sealed partial class EmitterOriginFilterPropertyTests : IDisposable
 
         // Build a source string that matches the AST structure for span extraction.
         var source = "using Standard;\nclass TestClass {\n";
-        for (var i = 0; i < referencedAmbientTypes.Count; i++)
+        for(var i = 0; i < referencedAmbientTypes.Count; i++)
         {
             source += $"    {referencedAmbientTypes[i]} field{i};\n";
         }
@@ -195,9 +195,9 @@ public sealed partial class EmitterOriginFilterPropertyTests : IDisposable
     /// </summary>
     private void CleanOutputDir()
     {
-        if (Directory.Exists(_outputDir))
+        if(Directory.Exists(_outputDir))
         {
-            foreach (var file in Directory.GetFiles(_outputDir))
+            foreach(var file in Directory.GetFiles(_outputDir))
                 File.Delete(file);
         }
     }
@@ -250,7 +250,7 @@ public sealed partial class EmitterOriginFilterPropertyTests : IDisposable
         var model = BuildModel(ast, source);
         var csContent = EmitAndGetCsContent(model);
 
-        if (string.IsNullOrEmpty(csContent))
+        if(string.IsNullOrEmpty(csContent))
             return false;
 
         // Extract all class/struct declaration names from the emitted C#.
@@ -264,9 +264,9 @@ public sealed partial class EmitterOriginFilterPropertyTests : IDisposable
         var allDecls = classDecls.Union(structDecls).ToHashSet();
 
         // No backend-origin type should appear as a declaration.
-        foreach (var ambientType in scenario.ReferencedTypes)
+        foreach(var ambientType in scenario.ReferencedTypes)
         {
-            if (allDecls.Contains(ambientType))
+            if(allDecls.Contains(ambientType))
                 return false;
         }
 
@@ -287,7 +287,7 @@ public sealed partial class EmitterOriginFilterPropertyTests : IDisposable
         var model = BuildModel(ast, source);
         var csContent = EmitAndGetCsContent(model);
 
-        if (string.IsNullOrEmpty(csContent))
+        if(string.IsNullOrEmpty(csContent))
             return false;
 
         // After stdlib migration, Console/Math/Convert are emitted as fully-qualified
@@ -314,22 +314,28 @@ public sealed partial class EmitterOriginFilterPropertyTests : IDisposable
             Name = MakeToken("Main"),
             ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
-            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode
+            Body = new MethodBlockBodyMethodBodyNode
             {
-                Statements = ImmutableArray.Create<StatementNode>(
+                Block = new BlockNode
+                {
+                    Statements = ImmutableArray.Create<StatementNode>(
                     new VariableDeclarationStatementStatementNode
                     {
                         VariableDeclaration = new TypedVariableDeclarationVariableDeclarationStatementNode
                         {
-                            Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                            Type = new TypeReferenceNode
                             {
-                                PrimitiveType = new IntTypePrimitiveTypeNode(),
-                            } },
+                                First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                                {
+                                    PrimitiveType = new IntTypePrimitiveTypeNode(),
+                                }
+                            },
                             Name = MakeToken("x"),
                             Initializer = MakeIntLiteralExpression("42"),
                         },
                     }),
-            } },
+                }
+            },
             Modifiers = ImmutableArray.Create<ModifierNode>(
                 new PublicModifierModifierNode(),
                 new StaticModifierModifierNode()),
@@ -352,7 +358,7 @@ public sealed partial class EmitterOriginFilterPropertyTests : IDisposable
         var model = BuildModel(ast, source);
         var csContent = EmitAndGetCsContent(model);
 
-        if (string.IsNullOrEmpty(csContent))
+        if(string.IsNullOrEmpty(csContent))
             return false;
 
         // Should contain the user-defined class.
@@ -389,7 +395,7 @@ public sealed partial class EmitterOriginFilterPropertyTests : IDisposable
         var model = BuildModel(ast, source);
         var csContent = EmitAndGetCsContent(model);
 
-        foreach (var ambientType in KnownAmbientTypes)
+        foreach(var ambientType in KnownAmbientTypes)
         {
             Assert.DoesNotContain($"class {ambientType}", csContent);
             Assert.DoesNotContain($"struct {ambientType}", csContent);

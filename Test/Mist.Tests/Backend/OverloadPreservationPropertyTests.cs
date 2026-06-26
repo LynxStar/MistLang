@@ -175,7 +175,7 @@ public sealed class OverloadPreservationPropertyTests
         // count (filtering one overload doesn't suppress the others) and be strictly
         // less than the total. When all overloads are filtered, the visible count — and
         // therefore the projected count — is 0 (Requirement 8.6).
-        if (filteredOverloads.Length > 0)
+        if(filteredOverloads.Length > 0)
         {
             return projectedOverloads.Length == visibleOverloads.Length
                 && projectedOverloads.Length < allOverloads.Length;

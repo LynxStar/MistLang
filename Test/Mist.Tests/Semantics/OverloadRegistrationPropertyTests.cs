@@ -253,7 +253,7 @@ public class OverloadRegistrationPropertyTests
             .ToList();
 
         // Assert: exactly N method symbols registered
-        if (methodSymbols.Count != scenario.ParamTypes.Count)
+        if(methodSymbols.Count != scenario.ParamTypes.Count)
             return false;
 
         // Assert: each registered symbol has a distinct parameter signature
@@ -261,11 +261,11 @@ public class OverloadRegistrationPropertyTests
             .Select(s => ParameterSignature.Extract(s, model))
             .ToList();
 
-        for (var i = 0; i < signatures.Count; i++)
+        for(var i = 0; i < signatures.Count; i++)
         {
-            for (var j = i + 1; j < signatures.Count; j++)
+            for(var j = i + 1; j < signatures.Count; j++)
             {
-                if (ParameterSignature.AreEqual(signatures[i], signatures[j]))
+                if(ParameterSignature.AreEqual(signatures[i], signatures[j]))
                     return false; // Found duplicate signatures — should not happen
             }
         }
@@ -312,7 +312,7 @@ public class OverloadRegistrationPropertyTests
             .ToList();
 
         // Assert: exactly N constructor symbols registered
-        if (ctorSymbols.Count != scenario.ParamTypes.Count)
+        if(ctorSymbols.Count != scenario.ParamTypes.Count)
             return false;
 
         // Assert: each registered constructor has a distinct parameter signature
@@ -320,11 +320,11 @@ public class OverloadRegistrationPropertyTests
             .Select(s => ParameterSignature.Extract(s, model))
             .ToList();
 
-        for (var i = 0; i < signatures.Count; i++)
+        for(var i = 0; i < signatures.Count; i++)
         {
-            for (var j = i + 1; j < signatures.Count; j++)
+            for(var j = i + 1; j < signatures.Count; j++)
             {
-                if (ParameterSignature.AreEqual(signatures[i], signatures[j]))
+                if(ParameterSignature.AreEqual(signatures[i], signatures[j]))
                     return false; // Found duplicate signatures — should not happen
             }
         }

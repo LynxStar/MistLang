@@ -72,10 +72,10 @@ public sealed class CSharpAmbientTypeResolver : IAmbientTypeResolver
     /// <inheritdoc />
     public IType? ResolveType(string namespaceName, string typeName)
     {
-        if (_cache.TryGetValue((namespaceName, typeName), out var cached))
+        if(_cache.TryGetValue((namespaceName, typeName), out var cached))
             return cached.Type;
 
-        if (!_typeFactories.TryGetValue((namespaceName, typeName), out var factory))
+        if(!_typeFactories.TryGetValue((namespaceName, typeName), out var factory))
             return null;
 
         var (type, members) = factory();
@@ -86,9 +86,9 @@ public sealed class CSharpAmbientTypeResolver : IAmbientTypeResolver
     /// <inheritdoc />
     public ImmutableArray<ISymbol> GetMembers(IType type)
     {
-        foreach (var entry in _cache.Values)
+        foreach(var entry in _cache.Values)
         {
-            if (ReferenceEquals(entry.Type, type))
+            if(ReferenceEquals(entry.Type, type))
                 return entry.Members;
         }
 
@@ -98,7 +98,7 @@ public sealed class CSharpAmbientTypeResolver : IAmbientTypeResolver
     /// <inheritdoc />
     public ImmutableArray<string> GetTypeNamesInNamespace(string namespaceName)
     {
-        if (_namespaceTypes.TryGetValue(namespaceName, out var types))
+        if(_namespaceTypes.TryGetValue(namespaceName, out var types))
             return [.. types];
 
         return [];
@@ -110,7 +110,7 @@ public sealed class CSharpAmbientTypeResolver : IAmbientTypeResolver
 
     private void RegisterType(string ns, string name, Func<(IType, ImmutableArray<ISymbol>)> factory)
     {
-        if (!_namespaceTypes.ContainsKey(ns))
+        if(!_namespaceTypes.ContainsKey(ns))
             _namespaceTypes[ns] = [];
 
         _namespaceTypes[ns].Add(name);

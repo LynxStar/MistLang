@@ -45,7 +45,7 @@ namespace Storm.SourceGenerator.Tests
             return path =>
             {
                 var normalized = StormImportResolver.CanonicalizePath(path);
-                if (files.TryGetValue(normalized, out var contents))
+                if(files.TryGetValue(normalized, out var contents))
                 {
                     return contents;
                 }
@@ -273,7 +273,7 @@ namespace Storm.SourceGenerator.Tests
                 : new EmissionContext(ns, grammarName, grammarIr, plan);
 
             string runtimeSource, astSource, lexerSource, parserSource;
-            lock (_parserEmitLock)
+            lock(_parserEmitLock)
             {
                 runtimeSource = AstEmitter.EmitRuntimeTypes();
                 astSource = AstEmitter.EmitAstNodes(context);
@@ -374,9 +374,9 @@ namespace Storm.SourceGenerator.Tests
 
             var sb = new System.Text.StringBuilder();
             sb.Append(type.Name).Append('[').Append(start).Append(',').Append(length).Append("](");
-            foreach (var child in children)
+            foreach(var child in children)
             {
-                if (child != null)
+                if(child != null)
                 {
                     sb.Append(StructuralKey(child)).Append(';');
                 }
@@ -428,7 +428,7 @@ namespace Storm.SourceGenerator.Tests
 
             // Single compile; drive many inputs (no process spawn anywhere).
             var samples = GenNumberList().Sample(50);
-            foreach (var input in samples)
+            foreach(var input in samples)
             {
                 var (tokenStream, diagnostics) = Lex(asm, ns, grammarName, input);
 
@@ -495,7 +495,7 @@ namespace Storm.SourceGenerator.Tests
                 RecursiveListGrammar, MemoizationPlan.Empty, plainName, plainNs);
 
             var samples = GenNumberList().Sample(50);
-            foreach (var input in samples)
+            foreach(var input in samples)
             {
                 var memoizedRoot = ParsePublic(memoizedAsm, memoNs, memoName, "Start", input);
                 var unmemoizedRoot = ParsePublic(unmemoizedAsm, plainNs, plainName, "Start", input);

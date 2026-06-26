@@ -22,9 +22,9 @@ public static class ModeValidationPass
         var modeDecls = new List<StormModeDecl>();
         var declaredModeNames = new HashSet<string> { "default" };
 
-        foreach (var decl in grammar.Declarations)
+        foreach(var decl in grammar.Declarations)
         {
-            if (decl is StormModeDecl modeDecl)
+            if(decl is StormModeDecl modeDecl)
             {
                 modeDecls.Add(modeDecl);
                 declaredModeNames.Add(modeDecl.Name);
@@ -49,9 +49,9 @@ public static class ModeValidationPass
     {
         var seen = new Dictionary<string, StormModeDecl>();
 
-        foreach (var modeDecl in modeDecls)
+        foreach(var modeDecl in modeDecls)
         {
-            if (seen.TryGetValue(modeDecl.Name, out var first))
+            if(seen.TryGetValue(modeDecl.Name, out var first))
             {
                 diagnostics.Add(new StormDiagnostic(
                     StormDiagnosticIds.STORM_DUPLICATE_MODE,
@@ -75,9 +75,9 @@ public static class ModeValidationPass
         List<StormModeDecl> modeDecls,
         List<StormDiagnostic> diagnostics)
     {
-        foreach (var modeDecl in modeDecls)
+        foreach(var modeDecl in modeDecls)
         {
-            if (modeDecl.Name == "default")
+            if(modeDecl.Name == "default")
             {
                 diagnostics.Add(new StormDiagnostic(
                     StormDiagnosticIds.STORM_RESERVED_MODE_NAME,
@@ -97,11 +97,11 @@ public static class ModeValidationPass
         List<StormModeDecl> modeDecls,
         List<StormDiagnostic> diagnostics)
     {
-        foreach (var modeDecl in modeDecls)
+        foreach(var modeDecl in modeDecls)
         {
-            foreach (var innerDecl in modeDecl.Declarations)
+            foreach(var innerDecl in modeDecl.Declarations)
             {
-                if (innerDecl is StormRuleDecl)
+                if(innerDecl is StormRuleDecl)
                 {
                     diagnostics.Add(new StormDiagnostic(
                         StormDiagnosticIds.STORM_RULE_IN_MODE,
@@ -126,15 +126,15 @@ public static class ModeValidationPass
         List<StormDiagnostic> diagnostics)
     {
         // Check top-level token declarations
-        foreach (var decl in topLevelDecls)
+        foreach(var decl in topLevelDecls)
         {
             CheckPushAction(decl, declaredModeNames, diagnostics);
         }
 
         // Check declarations inside mode blocks
-        foreach (var modeDecl in modeDecls)
+        foreach(var modeDecl in modeDecls)
         {
-            foreach (var innerDecl in modeDecl.Declarations)
+            foreach(var innerDecl in modeDecl.Declarations)
             {
                 CheckPushAction(innerDecl, declaredModeNames, diagnostics);
             }
@@ -150,7 +150,7 @@ public static class ModeValidationPass
         List<StormDiagnostic> diagnostics)
     {
         var action = GetModeAction(decl);
-        if (action is StormPushAction pushAction && !declaredModeNames.Contains(pushAction.ModeName))
+        if(action is StormPushAction pushAction && !declaredModeNames.Contains(pushAction.ModeName))
         {
             diagnostics.Add(new StormDiagnostic(
                 StormDiagnosticIds.STORM_UNDEFINED_MODE,
@@ -175,21 +175,21 @@ public static class ModeValidationPass
         // Check whether any token in any mode pushes to "default".
         // If so, a pop from default is valid — it returns to the pushing mode.
         var anyPushToDefault = false;
-        foreach (var modeDecl in modeDecls)
+        foreach(var modeDecl in modeDecls)
         {
-            foreach (var innerDecl in modeDecl.Declarations)
+            foreach(var innerDecl in modeDecl.Declarations)
             {
                 var action = GetModeAction(innerDecl);
-                if (action is StormPushAction pushAction && pushAction.ModeName == "default")
+                if(action is StormPushAction pushAction && pushAction.ModeName == "default")
                 {
                     anyPushToDefault = true;
                     break;
                 }
             }
-            if (anyPushToDefault) break;
+            if(anyPushToDefault) break;
         }
 
-        if (anyPushToDefault)
+        if(anyPushToDefault)
         {
             // Pop from default is valid — another mode pushes to default.
             return;
@@ -197,16 +197,16 @@ public static class ModeValidationPass
 
         // Only top-level declarations are in the default mode.
         // Declarations inside StormModeDecl are in their enclosing mode.
-        foreach (var decl in topLevelDecls)
+        foreach(var decl in topLevelDecls)
         {
             // Skip mode declarations themselves — they aren't tokens
-            if (decl is StormModeDecl)
+            if(decl is StormModeDecl)
             {
                 continue;
             }
 
             var action = GetModeAction(decl);
-            if (action is StormPopAction)
+            if(action is StormPopAction)
             {
                 diagnostics.Add(new StormDiagnostic(
                     StormDiagnosticIds.STORM_POP_FROM_DEFAULT,

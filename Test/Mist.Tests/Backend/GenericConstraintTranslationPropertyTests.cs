@@ -72,13 +72,13 @@ public sealed class GenericConstraintTranslationPropertyTests
     private static void RunProperty<T>(Gen<T> gen, Action<T> check, int maxTests = 100)
     {
         var samples = gen.Sample(maxTests).ToList();
-        for (var idx = 0; idx < samples.Count; idx++)
+        for(var idx = 0; idx < samples.Count; idx++)
         {
             try
             {
                 check(samples[idx]);
             }
-            catch (Exception ex)
+            catch(Exception ex)
             {
                 throw new Exception(
                     $"Property failed on sample {idx}/{samples.Count}: {samples[idx]}\n" +
@@ -107,7 +107,7 @@ public sealed class GenericConstraintTranslationPropertyTests
             var typeParams = GetTypeParameters(projectedType);
             var projectedParam = Assert.IsType<TypeParameterType>(typeParams[paramIndex]);
 
-            if (hasClrClassConstraint)
+            if(hasClrClassConstraint)
             {
                 Assert.NotNull(projectedParam.Constraints);
                 Assert.True(
@@ -118,7 +118,7 @@ public sealed class GenericConstraintTranslationPropertyTests
             else
             {
                 // If no class constraint on CLR side, projected should not have it either
-                if (projectedParam.Constraints is not null)
+                if(projectedParam.Constraints is not null)
                 {
                     Assert.False(
                         projectedParam.Constraints.HasClassConstraint,
@@ -144,7 +144,7 @@ public sealed class GenericConstraintTranslationPropertyTests
             var typeParams = GetTypeParameters(projectedType);
             var projectedParam = Assert.IsType<TypeParameterType>(typeParams[paramIndex]);
 
-            if (hasClrStructConstraint)
+            if(hasClrStructConstraint)
             {
                 Assert.NotNull(projectedParam.Constraints);
                 Assert.True(
@@ -154,7 +154,7 @@ public sealed class GenericConstraintTranslationPropertyTests
             }
             else
             {
-                if (projectedParam.Constraints is not null)
+                if(projectedParam.Constraints is not null)
                 {
                     Assert.False(
                         projectedParam.Constraints.HasStructConstraint,
@@ -184,7 +184,7 @@ public sealed class GenericConstraintTranslationPropertyTests
 
             // new() constraint is only projected when struct constraint is NOT present
             // (struct implicitly has new(), so it's redundant)
-            if (hasClrNewConstraint && !hasClrStructConstraint)
+            if(hasClrNewConstraint && !hasClrStructConstraint)
             {
                 Assert.NotNull(projectedParam.Constraints);
                 Assert.True(
@@ -194,10 +194,10 @@ public sealed class GenericConstraintTranslationPropertyTests
                 // The new() constraint should be an empty parameter list
                 Assert.Empty(projectedParam.Constraints.ConstructorConstraints[0]);
             }
-            else if (hasClrStructConstraint)
+            else if(hasClrStructConstraint)
             {
                 // struct constraint: new() is implicit, should NOT be projected separately
-                if (projectedParam.Constraints is not null)
+                if(projectedParam.Constraints is not null)
                 {
                     Assert.True(
                         projectedParam.Constraints.ConstructorConstraints.Count == 0,
@@ -226,7 +226,7 @@ public sealed class GenericConstraintTranslationPropertyTests
             var typeParams = GetTypeParameters(projectedType);
             var projectedParam = Assert.IsType<TypeParameterType>(typeParams[paramIndex]);
 
-            if (clrInterfaceConstraints.Length > 0)
+            if(clrInterfaceConstraints.Length > 0)
             {
                 Assert.NotNull(projectedParam.Constraints);
                 Assert.Equal(
@@ -234,7 +234,7 @@ public sealed class GenericConstraintTranslationPropertyTests
                     projectedParam.Constraints!.AbstractConstraints.Count);
 
                 // Each CLR interface constraint should have a corresponding projected Mist type
-                for (var i = 0; i < clrInterfaceConstraints.Length; i++)
+                for(var i = 0; i < clrInterfaceConstraints.Length; i++)
                 {
                     var projectedConstraint = projectedParam.Constraints.AbstractConstraints[i];
                     Assert.NotNull(projectedConstraint);
@@ -249,7 +249,7 @@ public sealed class GenericConstraintTranslationPropertyTests
             else
             {
                 // No interface constraints on CLR side
-                if (projectedParam.Constraints is not null)
+                if(projectedParam.Constraints is not null)
                 {
                     Assert.Empty(projectedParam.Constraints.AbstractConstraints);
                 }
@@ -275,7 +275,7 @@ public sealed class GenericConstraintTranslationPropertyTests
             var typeParams = GetTypeParameters(projectedType);
             var projectedParam = Assert.IsType<TypeParameterType>(typeParams[paramIndex]);
 
-            if (clrBaseClassConstraints.Length > 0)
+            if(clrBaseClassConstraints.Length > 0)
             {
                 Assert.NotNull(projectedParam.Constraints);
                 Assert.NotNull(projectedParam.Constraints!.BaseClassConstraint);
@@ -288,7 +288,7 @@ public sealed class GenericConstraintTranslationPropertyTests
             }
             else
             {
-                if (projectedParam.Constraints is not null)
+                if(projectedParam.Constraints is not null)
                 {
                     Assert.Null(projectedParam.Constraints.BaseClassConstraint);
                 }
@@ -317,7 +317,7 @@ public sealed class GenericConstraintTranslationPropertyTests
             var typeParams = GetTypeParameters(projectedType);
             var projectedParam = Assert.IsType<TypeParameterType>(typeParams[paramIndex]);
 
-            if (!hasAnyConstraint)
+            if(!hasAnyConstraint)
             {
                 Assert.Null(
                     projectedParam.Constraints);

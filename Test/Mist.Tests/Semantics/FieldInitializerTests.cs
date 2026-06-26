@@ -273,15 +273,21 @@ public class FieldInitializerTests
         var method = new MethodDeclarationNode
         {
             Name = MakeToken("GetValue"),
-            ReturnType = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
+            ReturnType = new TypeReferenceNode
             {
-                PrimitiveType = new IntTypePrimitiveTypeNode(),
-            } },
+                First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                {
+                    PrimitiveType = new IntTypePrimitiveTypeNode(),
+                }
+            },
             Parameters = null,
-            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode
+            Body = new MethodBlockBodyMethodBodyNode
             {
-                Statements = ImmutableArray.Create<StatementNode>(returnStmt),
-            } },
+                Block = new BlockNode
+                {
+                    Statements = ImmutableArray.Create<StatementNode>(returnStmt),
+                }
+            },
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
         };
 
@@ -336,13 +342,16 @@ public class FieldInitializerTests
         var ast1 = new CompilationUnitNode
         {
             Usings = ImmutableArray<UsingDeclarationNode>.Empty,
-            Items = ImmutableArray.Create<TopLevelItemNode>(new NamespaceItemTopLevelItemNode { NamespaceDeclaration = new FileScopedNamespaceNamespaceDeclarationNode
+            Items = ImmutableArray.Create<TopLevelItemNode>(new NamespaceItemTopLevelItemNode
             {
-                Name = MakeQualifiedId("App"),
-                Body = ImmutableArray.Create<TypeDeclarationNode>(
+                NamespaceDeclaration = new FileScopedNamespaceNamespaceDeclarationNode
+                {
+                    Name = MakeQualifiedId("App"),
+                    Body = ImmutableArray.Create<TypeDeclarationNode>(
                     new ClassTypeTypeDeclarationNode { ClassDeclaration = counterClass }).AsNamespaceBodyItems(),
-                Span = new Storm.Runtime.SourceSpan(0, source1.Length),
-            } }),
+                    Span = new Storm.Runtime.SourceSpan(0, source1.Length),
+                }
+            }),
         };
 
         // AST for file 2: Program class with Main
@@ -367,13 +376,16 @@ public class FieldInitializerTests
         var ast2 = new CompilationUnitNode
         {
             Usings = ImmutableArray<UsingDeclarationNode>.Empty,
-            Items = ImmutableArray.Create<TopLevelItemNode>(new NamespaceItemTopLevelItemNode { NamespaceDeclaration = new FileScopedNamespaceNamespaceDeclarationNode
+            Items = ImmutableArray.Create<TopLevelItemNode>(new NamespaceItemTopLevelItemNode
             {
-                Name = MakeQualifiedId("App"),
-                Body = ImmutableArray.Create<TypeDeclarationNode>(
+                NamespaceDeclaration = new FileScopedNamespaceNamespaceDeclarationNode
+                {
+                    Name = MakeQualifiedId("App"),
+                    Body = ImmutableArray.Create<TypeDeclarationNode>(
                     new ClassTypeTypeDeclarationNode { ClassDeclaration = programClass }).AsNamespaceBodyItems(),
-                Span = new Storm.Runtime.SourceSpan(0, source2.Length),
-            } }),
+                    Span = new Storm.Runtime.SourceSpan(0, source2.Length),
+                }
+            }),
         };
 
         // Build semantic model with both ASTs

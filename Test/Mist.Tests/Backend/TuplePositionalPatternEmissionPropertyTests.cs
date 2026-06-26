@@ -185,7 +185,7 @@ public sealed class TuplePositionalPatternEmissionPropertyTests
     {
         // Build a list of element generators, each with a unique var name index
         var gens = new List<Gen<SubpatternElement>>();
-        for (var i = 0; i < arity; i++)
+        for(var i = 0; i < arity; i++)
         {
             // Only allow nested tuples for the first 3 elements to keep things manageable
             gens.Add(GenSubpatternElement(i, allowNested: i < 3));
@@ -254,7 +254,7 @@ public class Program
         var elements = scenario.Elements.Select((e, idx) =>
         {
             // For var patterns, use different names to avoid conflicts
-            if (e.Kind == SubpatternKind.VarPattern)
+            if(e.Kind == SubpatternKind.VarPattern)
                 return $"var s{VarNames[idx % VarNames.Length]}";
             return e.MistSource;
         });
@@ -297,17 +297,17 @@ public class Program
 
             var result = SharedDriver.Compile(options);
 
-            if (!result.Succeeded || result.EmittedFiles is null)
+            if(!result.Succeeded || result.EmittedFiles is null)
                 return null;
 
             // Find the Program.cs file in the emitted files dictionary
-            if (result.EmittedFiles.TryGetValue("Program.cs", out var programContent))
+            if(result.EmittedFiles.TryGetValue("Program.cs", out var programContent))
                 return programContent;
 
             // Fallback: look for any file containing our namespace
-            foreach (var (_, content) in result.EmittedFiles)
+            foreach(var (_, content) in result.EmittedFiles)
             {
-                if (content.Contains("namespace TestEmission"))
+                if(content.Contains("namespace TestEmission"))
                     return content;
             }
 
@@ -339,7 +339,7 @@ public class Program
         var mistSource = BuildMistProgram(scenario);
         var csContent = CompileAndGetCSharp(mistSource);
 
-        if (csContent is null)
+        if(csContent is null)
         {
             return false.ToProperty()
                 .Label($"Compilation failed for scenario: {scenario}\nSource:\n{mistSource}");
@@ -349,7 +349,7 @@ public class Program
         var expectedPattern = scenario.ExpectedPattern;
         var containsExpectedPattern = csContent.Contains(expectedPattern);
 
-        if (!containsExpectedPattern)
+        if(!containsExpectedPattern)
         {
             return false.ToProperty()
                 .Label($"Expected pattern '{expectedPattern}' not found in emitted C#.\n" +
@@ -369,7 +369,7 @@ public class Program
         // Check that the is-expression context has the pattern
         var isExpressionPresent = csContent.Contains($"is {expectedPattern}");
 
-        if (!isExpressionPresent)
+        if(!isExpressionPresent)
         {
             return false.ToProperty()
                 .Label($"Expected 'is {expectedPattern}' in emitted C# (is-expression context).\n" +
@@ -383,7 +383,7 @@ public class Program
         var switchArmPattern = BuildExpectedSwitchArmPattern(scenario);
         var switchArmPresent = csContent.Contains(switchArmPattern);
 
-        if (!switchArmPresent)
+        if(!switchArmPresent)
         {
             return false.ToProperty()
                 .Label($"Expected switch arm pattern '{switchArmPattern}' in emitted C#.\n" +
@@ -408,7 +408,7 @@ public class Program
     {
         var elements = scenario.Elements.Select((e, idx) =>
         {
-            if (e.Kind == SubpatternKind.VarPattern)
+            if(e.Kind == SubpatternKind.VarPattern)
                 return $"var s{VarNames[idx % VarNames.Length]}";
             return e.ExpectedEmission;
         });
@@ -420,7 +420,7 @@ public class Program
     /// </summary>
     private static bool ValidatePositionalPatternFormat(string pattern, int expectedArity)
     {
-        if (!pattern.StartsWith('(') || !pattern.EndsWith(')'))
+        if(!pattern.StartsWith('(') || !pattern.EndsWith(')'))
             return false;
 
         // Remove outer parens
@@ -441,9 +441,9 @@ public class Program
         var depth = 0;
         var start = 0;
 
-        for (var i = 0; i < inner.Length; i++)
+        for(var i = 0; i < inner.Length; i++)
         {
-            switch (inner[i])
+            switch(inner[i])
             {
                 case '(':
                     depth++;
@@ -458,7 +458,7 @@ public class Program
             }
         }
 
-        if (start < inner.Length)
+        if(start < inner.Length)
             elements.Add(inner[start..].Trim());
 
         return elements;
@@ -471,7 +471,7 @@ public class Program
     {
         var count = 0;
         var index = 0;
-        while ((index = text.IndexOf(pattern, index, StringComparison.Ordinal)) != -1)
+        while((index = text.IndexOf(pattern, index, StringComparison.Ordinal)) != -1)
         {
             count++;
             index += pattern.Length;

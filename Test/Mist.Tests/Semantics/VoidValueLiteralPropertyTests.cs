@@ -275,7 +275,7 @@ class Program {{
     private static string BuildVoidDotVoidStatements(string[] varNames)
     {
         var lines = new List<string>();
-        for (var i = 0; i < varNames.Length; i++)
+        for(var i = 0; i < varNames.Length; i++)
         {
             // Use unique variable names to avoid redeclaration errors
             var uniqueName = $"{varNames[i]}{i}";
@@ -307,7 +307,7 @@ public sealed class VoidValueLiteralPropertyTests : IDisposable
 
     public void Dispose()
     {
-        if (Directory.Exists(_outputDir))
+        if(Directory.Exists(_outputDir))
         {
             try { Directory.Delete(_outputDir, recursive: true); } catch { /* best effort */ }
         }
@@ -415,9 +415,9 @@ public sealed class VoidValueLiteralPropertyTests : IDisposable
 
     private static void CollectVoidTypeLiterals(Storm.Runtime.SyntaxNode? node, List<TypeLiteralExpressionPrimaryNode> results)
     {
-        if (node is null) return;
+        if(node is null) return;
 
-        if (node is TypeLiteralExpressionPrimaryNode typeLiteral
+        if(node is TypeLiteralExpressionPrimaryNode typeLiteral
             && typeLiteral.TypeRef is { SingleTypeRefs.Length: 0, First: VoidSingleTypeRefSingleTypeRefNode })
         {
             results.Add(typeLiteral);
@@ -425,10 +425,10 @@ public sealed class VoidValueLiteralPropertyTests : IDisposable
 
         try
         {
-            foreach (var child in node.Children())
+            foreach(var child in node.Children())
                 CollectVoidTypeLiterals(child, results);
         }
-        catch (NullReferenceException)
+        catch(NullReferenceException)
         {
             // Some AST nodes may have null children that Children() doesn't guard against.
         }
@@ -456,13 +456,13 @@ public sealed class VoidValueLiteralPropertyTests : IDisposable
             .Where(d => d.Severity == DiagnosticSeverity.Error)
             .ToList();
 
-        if (errors.Count > 0)
+        if(errors.Count > 0)
         {
             return false.ToProperty()
                 .Label($"Compilation failed with errors:\n{string.Join("\n", errors.Select(e => $"  {e.Id.Value}: {e.Message}"))}\nSource:\n{scenario.Source}");
         }
 
-        if (model is null)
+        if(model is null)
         {
             return false.ToProperty()
                 .Label($"Semantic model was not captured.\nSource:\n{scenario.Source}");
@@ -472,7 +472,7 @@ public sealed class VoidValueLiteralPropertyTests : IDisposable
         var userAst = model.Asts[^1];
         var voidLiterals = FindVoidTypeLiterals(userAst);
 
-        if (voidLiterals.Count == 0)
+        if(voidLiterals.Count == 0)
         {
             return false.ToProperty()
                 .Label($"No void type literals found in user AST.\nSource:\n{scenario.Source}");
@@ -482,7 +482,7 @@ public sealed class VoidValueLiteralPropertyTests : IDisposable
         var exprLiteral = voidLiterals.Last();
         var exprType = model.GetTypeOf(exprLiteral);
 
-        if (exprType is null)
+        if(exprType is null)
         {
             return false.ToProperty()
                 .Label($"Expression type is null for void literal.\nSource:\n{scenario.Source}");
@@ -490,7 +490,7 @@ public sealed class VoidValueLiteralPropertyTests : IDisposable
 
         var isVoidType = exprType.IsVoid();
 
-        if (scenario.ExpectVoidType)
+        if(scenario.ExpectVoidType)
         {
             return isVoidType.ToProperty()
                 .Label($"Expected VoidType but got {exprType.DisplayName} (target={scenario.TargetType}).\nSource:\n{scenario.Source}");
@@ -547,7 +547,7 @@ public sealed class VoidValueLiteralPropertyTests : IDisposable
             .Where(d => d.Severity == DiagnosticSeverity.Error)
             .ToList();
 
-        if (errors.Count > 0)
+        if(errors.Count > 0)
         {
             return false.ToProperty()
                 .Label($"Compilation failed with errors:\n{string.Join("\n", errors.Select(e => $"  {e.Id.Value}: {e.Message}"))}\nSource:\n{scenario.Source}");

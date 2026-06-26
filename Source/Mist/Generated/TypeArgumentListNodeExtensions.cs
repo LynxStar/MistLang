@@ -38,7 +38,7 @@ public static class TypeArgumentListNodeExtensions
     public static ImmutableArray<TypeReferenceNode> GetTypeReferences(this TypeArgumentListNode node)
     {
         var builder = ImmutableArray.CreateBuilder<TypeReferenceNode>(node.TypeArguments.Length);
-        foreach (var arg in node.TypeArguments)
+        foreach(var arg in node.TypeArguments)
         {
             builder.Add(ExtractTypeReference(arg));
         }

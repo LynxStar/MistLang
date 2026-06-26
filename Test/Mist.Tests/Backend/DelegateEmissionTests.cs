@@ -45,7 +45,7 @@ public sealed class DelegateEmissionTests : IDisposable
 
     public void Dispose()
     {
-        if (Directory.Exists(_outputDir))
+        if(Directory.Exists(_outputDir))
         {
             try { Directory.Delete(_outputDir, recursive: true); }
             catch { /* best effort */ }
@@ -71,7 +71,7 @@ public sealed class DelegateEmissionTests : IDisposable
         // Write a minimal mist.toml so the compiler triggers the full project resolution
         // path (which enables proper assembly loading for System.Collections.Generic, etc.).
         var tomlPath = Path.Combine(_outputDir, "mist.toml");
-        if (!File.Exists(tomlPath))
+        if(!File.Exists(tomlPath))
             File.WriteAllText(tomlPath, "name = \"TestProgram\"\n");
 
         var options = new CompilerOptions(
@@ -94,12 +94,12 @@ public sealed class DelegateEmissionTests : IDisposable
     /// </summary>
     private static string? GetEmittedCSharp(CompilerResult result)
     {
-        if (result.EmittedFiles is null)
+        if(result.EmittedFiles is null)
             return null;
 
-        foreach (var (_, content) in result.EmittedFiles)
+        foreach(var (_, content) in result.EmittedFiles)
         {
-            if (content.Contains("namespace TestProgram"))
+            if(content.Contains("namespace TestProgram"))
                 return content;
         }
 

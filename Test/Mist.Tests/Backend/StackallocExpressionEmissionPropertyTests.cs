@@ -63,7 +63,7 @@ public sealed class StackallocExpressionEmissionPropertyTests : IDisposable
 
     public void Dispose()
     {
-        if (Directory.Exists(_outputDir))
+        if(Directory.Exists(_outputDir))
         {
             try { Directory.Delete(_outputDir, recursive: true); } catch { /* best effort */ }
         }
@@ -179,12 +179,12 @@ public sealed class StackallocExpressionEmissionPropertyTests : IDisposable
     /// </summary>
     private static string? GetEmittedCSharp(CompilerResult result)
     {
-        if (result.EmittedFiles is null)
+        if(result.EmittedFiles is null)
             return null;
 
-        foreach (var (_, content) in result.EmittedFiles)
+        foreach(var (_, content) in result.EmittedFiles)
         {
-            if (content.Contains("namespace TestProgram"))
+            if(content.Contains("namespace TestProgram"))
                 return content;
         }
 
@@ -209,7 +209,7 @@ public sealed class StackallocExpressionEmissionPropertyTests : IDisposable
     {
         var result = CompileSource(scenario.Source);
 
-        if (!result.Succeeded)
+        if(!result.Succeeded)
         {
             var diagnostics = string.Join(", ",
                 result.Diagnostics.Select(d => $"{d.Id.Value}: {d.Message}"));
@@ -218,7 +218,7 @@ public sealed class StackallocExpressionEmissionPropertyTests : IDisposable
         }
 
         var emittedCSharp = GetEmittedCSharp(result);
-        if (emittedCSharp is null)
+        if(emittedCSharp is null)
         {
             return false.ToProperty()
                 .Label($"No emitted C# file found for namespace TestProgram.\nSource:\n{scenario.Source}");
@@ -230,7 +230,7 @@ public sealed class StackallocExpressionEmissionPropertyTests : IDisposable
         // Count occurrences — the size expression within the stackalloc should appear exactly once
         var occurrences = CountOccurrences(emittedCSharp, expectedFragment);
 
-        if (occurrences != 1)
+        if(occurrences != 1)
         {
             return false.ToProperty()
                 .Label($"Expected exactly 1 occurrence of '{expectedFragment}' but found {occurrences}.\n" +
@@ -247,7 +247,7 @@ public sealed class StackallocExpressionEmissionPropertyTests : IDisposable
     {
         var count = 0;
         var idx = 0;
-        while ((idx = text.IndexOf(pattern, idx, StringComparison.Ordinal)) >= 0)
+        while((idx = text.IndexOf(pattern, idx, StringComparison.Ordinal)) >= 0)
         {
             count++;
             idx += pattern.Length;

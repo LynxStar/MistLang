@@ -27,13 +27,13 @@ public sealed class ProjectFileParserGlobalUsingsPropertyTests
     private static void RunProperty<T>(Gen<T> gen, Action<T> check, int maxTests = 100)
     {
         var samples = gen.Sample(maxTests).ToList();
-        for (var idx = 0; idx < samples.Count; idx++)
+        for(var idx = 0; idx < samples.Count; idx++)
         {
             try
             {
                 check(samples[idx]);
             }
-            catch (Exception ex)
+            catch(Exception ex)
             {
                 var sampleStr = samples[idx]?.ToString() ?? "<null>";
                 var escaped = string.Join("", sampleStr.Select(c => c < 32 ? $"\\x{(int)c:X2}" : c.ToString()));
@@ -292,7 +292,7 @@ public sealed class ProjectFileParserGlobalUsingsPropertyTests
                 var expectedPath = Path.Combine(projectDir, "mist.toml");
 
                 // ALL produced diagnostics must contain the file path
-                foreach (var diag in diags)
+                foreach(var diag in diags)
                 {
                     Assert.Contains(expectedPath, diag.Message);
                 }

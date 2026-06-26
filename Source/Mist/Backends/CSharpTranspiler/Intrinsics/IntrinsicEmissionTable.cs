@@ -92,16 +92,16 @@ internal sealed class IntrinsicEmissionTable : IIntrinsicEmissionRegistry
         // 6 comparison operators
         string[] comparisonOps = ["<", ">", "<=", ">=", "==", "!="];
 
-        foreach (var type in allNumericTypes)
+        foreach(var type in allNumericTypes)
         {
             // Binary arithmetic: "{0} <op> {1}"
-            foreach (var op in arithmeticOps)
+            foreach(var op in arithmeticOps)
             {
                 dict[$"{type}:operator{op}"] = new IntrinsicEmissionTemplate($"{{0}} {op} {{1}}");
             }
 
             // Binary comparison: "{0} <op> {1}"
-            foreach (var op in comparisonOps)
+            foreach(var op in comparisonOps)
             {
                 dict[$"{type}:operator{op}"] = new IntrinsicEmissionTemplate($"{{0}} {op} {{1}}");
             }
@@ -120,7 +120,7 @@ internal sealed class IntrinsicEmissionTable : IIntrinsicEmissionRegistry
             "Standard.Single", "Standard.Double", "Standard.Decimal"
         ];
 
-        foreach (var type in signedTypes)
+        foreach(var type in signedTypes)
         {
             dict[$"{type}:operator-unary"] = new IntrinsicEmissionTemplate("-{0}");
         }
@@ -156,7 +156,7 @@ internal sealed class IntrinsicEmissionTable : IIntrinsicEmissionRegistry
         const string charType = "Standard.Char";
         string[] comparisonOps = ["==", "!=", "<", ">", "<=", ">="];
 
-        foreach (var op in comparisonOps)
+        foreach(var op in comparisonOps)
         {
             dict[$"{charType}:operator{op}"] = new IntrinsicEmissionTemplate($"{{0}} {op} {{1}}");
         }
@@ -300,7 +300,7 @@ internal sealed class IntrinsicEmissionTable : IIntrinsicEmissionRegistry
     {
         // Try implicit first, then explicit.
         var implicitKey = $"{declaringType}:implicit({targetType})";
-        if (CastOperators.TryGetValue(implicitKey, out var implicitTemplate))
+        if(CastOperators.TryGetValue(implicitKey, out var implicitTemplate))
             return implicitTemplate;
 
         var explicitKey = $"{declaringType}:explicit({targetType})";
@@ -319,9 +319,9 @@ internal sealed class IntrinsicEmissionTable : IIntrinsicEmissionRegistry
     public bool HasInstanceMethods(string declaringType)
     {
         var prefix = $"{declaringType}:";
-        foreach (var key in InstanceMethods.Keys)
+        foreach(var key in InstanceMethods.Keys)
         {
-            if (key.StartsWith(prefix, StringComparison.Ordinal))
+            if(key.StartsWith(prefix, StringComparison.Ordinal))
                 return true;
         }
         return false;

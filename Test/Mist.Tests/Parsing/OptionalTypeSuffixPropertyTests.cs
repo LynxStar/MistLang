@@ -144,7 +144,7 @@ public sealed class OptionalTypeSuffixPropertyTests
             .Where(d => d.Severity == DiagnosticSeverity.Error)
             .ToList();
 
-        if (errors.Count > 0)
+        if(errors.Count > 0)
             throw new InvalidOperationException(
                 $"Unexpected parse errors:\n  {string.Join("\n  ", errors.Select(e => e.Message))}\nSource:\n{source}");
 
@@ -181,7 +181,7 @@ public sealed class OptionalTypeSuffixPropertyTests
         var typeRef = GetVariableTypeRef(source);
 
         bool optionalIsSet;
-        if (scenario.IsPrimitive)
+        if(scenario.IsPrimitive)
         {
             var primitiveRef = typeRef.First as PrimitiveSingleTypeRefSingleTypeRefNode;
             optionalIsSet = primitiveRef?.Optional is not null;

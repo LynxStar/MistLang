@@ -73,7 +73,7 @@ public class KeywordAliasReferenceIdentityPropertyTests
         var stdlibRoot = FindStdlibRoot();
         var diagnostics = new DiagnosticBag();
         var units = StdlibLoader.LoadFrom(stdlibRoot, diagnostics);
-        if (diagnostics.ToImmutableArray().Any(d => d.Severity == DiagnosticSeverity.Error))
+        if(diagnostics.ToImmutableArray().Any(d => d.Severity == DiagnosticSeverity.Error))
             throw new InvalidOperationException(
                 "Failed to load stdlib: " +
                 string.Join("; ", diagnostics.ToImmutableArray().Select(d => d.Message)));
@@ -89,11 +89,11 @@ public class KeywordAliasReferenceIdentityPropertyTests
         var units = StdlibUnits.Value;
         var asts = ImmutableArray.CreateBuilder<Storm.Runtime.SyntaxNode>(units.Length);
         var diagnostics = new DiagnosticBag();
-        foreach (var unit in units)
+        foreach(var unit in units)
         {
             var tokens = Lexer.Lex(unit.Source, diagnostics);
             var parseResult = Parser.Parse(tokens, diagnostics);
-            if (parseResult.Root is null)
+            if(parseResult.Root is null)
                 throw new InvalidOperationException($"Failed to parse stdlib unit: {unit.Source.Path}");
             asts.Add(parseResult.Root);
         }
@@ -108,9 +108,9 @@ public class KeywordAliasReferenceIdentityPropertyTests
     private static string FindStdlibRoot()
     {
         var dir = AppContext.BaseDirectory;
-        while (dir is not null)
+        while(dir is not null)
         {
-            if (File.Exists(Path.Combine(dir, "Mist.slnx")))
+            if(File.Exists(Path.Combine(dir, "Mist.slnx")))
                 return Path.Combine(dir, "Source", "Standard");
             dir = Directory.GetParent(dir)?.FullName;
         }
@@ -118,7 +118,7 @@ public class KeywordAliasReferenceIdentityPropertyTests
         // Fallback: check if stdlib was copied next to the test assembly
         // (via the MSBuild Content item in Mist.Tests.csproj).
         var localStdlib = Path.Combine(AppContext.BaseDirectory, "Standard");
-        if (Directory.Exists(localStdlib))
+        if(Directory.Exists(localStdlib))
             return localStdlib;
 
         throw new InvalidOperationException(
@@ -188,7 +188,7 @@ public class KeywordAliasReferenceIdentityPropertyTests
         sb.AppendLine("namespace TestNs;");
         sb.AppendLine("public class TestClass {");
 
-        for (var i = 0; i < scenario.FieldKeywords.Count; i++)
+        for(var i = 0; i < scenario.FieldKeywords.Count; i++)
         {
             sb.AppendLine($"    public {scenario.FieldKeywords[i]} field{i};");
         }
@@ -214,7 +214,7 @@ public class KeywordAliasReferenceIdentityPropertyTests
         var userTokens = Lexer.Lex(userSourceText, diagnostics);
         var userParseResult = Parser.Parse(userTokens, diagnostics);
 
-        if (userParseResult.Root is null)
+        if(userParseResult.Root is null)
             throw new InvalidOperationException("Failed to parse user source");
 
         // Combine stdlib + user units.
@@ -240,7 +240,7 @@ public class KeywordAliasReferenceIdentityPropertyTests
     /// </summary>
     private static IType? LookupStdlibTypeForKeyword(ISemanticModel model, string keyword)
     {
-        if (!KeywordAliases.Map.TryGetValue(keyword, out var qualifiedName))
+        if(!KeywordAliases.Map.TryGetValue(keyword, out var qualifiedName))
             return null;
 
         var lastDot = qualifiedName.LastIndexOf('.');
@@ -271,13 +271,13 @@ public class KeywordAliasReferenceIdentityPropertyTests
             s.Name == "TestClass"
             && s.Kind == SymbolKind.Class);
 
-        if (testClassSymbol?.DeclaredType is not ClassType testClass)
+        if(testClassSymbol?.DeclaredType is not ClassType testClass)
             return Array.Empty<(string, IType?)>();
 
         var members = testClass.MemberScope.Members.ToList();
         var results = new List<(string Keyword, IType? ResolvedType)>();
 
-        for (var i = 0; i < scenario.FieldKeywords.Count; i++)
+        for(var i = 0; i < scenario.FieldKeywords.Count; i++)
         {
             var fieldName = $"field{i}";
             var field = members.FirstOrDefault(m =>
@@ -320,7 +320,7 @@ public class KeywordAliasReferenceIdentityPropertyTests
                             && !d.Id.Value.StartsWith("MIST_TC"))
                 .ToList();
 
-            if (errors.Count > 0)
+            if(errors.Count > 0)
             {
                 return false.ToProperty()
                     .Label($"Build errors: {string.Join("; ", errors.Select(e => $"[{e.Id.Value}] {e.Message}"))}\nSource:\n{source}");
@@ -331,22 +331,22 @@ public class KeywordAliasReferenceIdentityPropertyTests
             // Assertion 1: Every occurrence of keyword k resolves to an IType
             // reference-equal to the stdlib type looked up via
             // KeywordAliases.Map[k].
-            foreach (var (keyword, resolvedType) in resolvedTypes)
+            foreach(var (keyword, resolvedType) in resolvedTypes)
             {
-                if (resolvedType is null)
+                if(resolvedType is null)
                 {
                     return false.ToProperty()
                         .Label($"Keyword '{keyword}' resolved to null.\nSource:\n{source}");
                 }
 
                 var expectedStdlibType = LookupStdlibTypeForKeyword(model, keyword);
-                if (expectedStdlibType is null)
+                if(expectedStdlibType is null)
                 {
                     return false.ToProperty()
                         .Label($"Could not find stdlib type for keyword '{keyword}'.\nSource:\n{source}");
                 }
 
-                if (!ReferenceEquals(resolvedType, expectedStdlibType))
+                if(!ReferenceEquals(resolvedType, expectedStdlibType))
                 {
                     return false.ToProperty()
                         .Label($"Keyword '{keyword}' resolved to {resolvedType.DisplayName} " +
@@ -362,13 +362,13 @@ public class KeywordAliasReferenceIdentityPropertyTests
                 .Where(r => r.ResolvedType is not null)
                 .GroupBy(r => r.Keyword);
 
-            foreach (var group in typesByKeyword)
+            foreach(var group in typesByKeyword)
             {
                 var types = group.Select(g => g.ResolvedType!).ToList();
                 var first = types[0];
-                for (var i = 1; i < types.Count; i++)
+                for(var i = 1; i < types.Count; i++)
                 {
-                    if (!ReferenceEquals(first, types[i]))
+                    if(!ReferenceEquals(first, types[i]))
                     {
                         return false.ToProperty()
                             .Label($"Same keyword '{group.Key}' resolved to different IType instances " +

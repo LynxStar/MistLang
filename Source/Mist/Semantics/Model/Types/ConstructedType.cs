@@ -56,9 +56,9 @@ public sealed class ConstructedType : IType
         // Build display name: "Box<int>" or "Map<string, int>" or "FixedBuffer<5>"
         // When a position has a dependent value argument, display the value instead of the placeholder type.
         var argParts = new string[typeArguments.Count];
-        for (var i = 0; i < typeArguments.Count; i++)
+        for(var i = 0; i < typeArguments.Count; i++)
         {
-            if (dependentArguments is not null && i < dependentArguments.Count && dependentArguments[i] is { } depArg)
+            if(dependentArguments is not null && i < dependentArguments.Count && dependentArguments[i] is { } depArg)
                 argParts[i] = depArg.DisplayValue;
             else
                 argParts[i] = typeArguments[i].DisplayName;

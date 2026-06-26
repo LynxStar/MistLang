@@ -116,7 +116,7 @@ public class TypeArgumentInferenceConsistentBindingPropertyTests
         var typeParameters = new IType[typeParamCount];
         var expectedBindings = new Dictionary<string, IType>();
 
-        for (var i = 0; i < typeParamCount; i++)
+        for(var i = 0; i < typeParamCount; i++)
         {
             typeParameters[i] = new TypeParameterType(typeParamNames[i], i);
             // Ensure distinct concrete types for different type parameters
@@ -129,11 +129,11 @@ public class TypeArgumentInferenceConsistentBindingPropertyTests
         var parameterTypes = new List<IType>();
         var argumentTypes = new List<IType>();
 
-        for (var i = 0; i < typeParamCount; i++)
+        for(var i = 0; i < typeParamCount; i++)
         {
             var tp = typeParameters[i];
             var concreteType = expectedBindings[typeParamNames[i]];
-            for (var r = 0; r < repetitions[i]; r++)
+            for(var r = 0; r < repetitions[i]; r++)
             {
                 parameterTypes.Add(tp);
                 argumentTypes.Add(concreteType);
@@ -257,7 +257,7 @@ public class TypeArgumentInferenceConsistentBindingPropertyTests
         var scope = new Scope(null);
         var def = new ClassType(name, scope, containingNamespace: "TestPool");
         var tps = new TypeParameterType[arity];
-        for (var i = 0; i < arity; i++)
+        for(var i = 0; i < arity; i++)
             tps[i] = new TypeParameterType($"T{i}", i);
         def.TypeParameters = tps;
         return def;
@@ -300,7 +300,7 @@ public class TypeArgumentInferenceConsistentBindingPropertyTests
             scenario.ArgumentTypes);
 
         // Inference must succeed
-        if (!result.Success)
+        if(!result.Success)
         {
             return false.ToProperty()
                 .Label($"Inference failed but should have succeeded.\nScenario: {scenario.Description}\n" +
@@ -310,14 +310,14 @@ public class TypeArgumentInferenceConsistentBindingPropertyTests
 
         // Each expected binding must match
         var inferredArgs = result.InferredTypeArguments!;
-        for (var i = 0; i < scenario.TypeParameters.Count; i++)
+        for(var i = 0; i < scenario.TypeParameters.Count; i++)
         {
-            if (scenario.TypeParameters[i] is TypeParameterType tpt)
+            if(scenario.TypeParameters[i] is TypeParameterType tpt)
             {
                 var expected = scenario.ExpectedBindings[tpt.Name];
                 var actual = inferredArgs[i];
 
-                if (expected.DisplayName != actual.DisplayName)
+                if(expected.DisplayName != actual.DisplayName)
                 {
                     return false.ToProperty()
                         .Label($"Type parameter '{tpt.Name}' inferred as '{actual.DisplayName}' " +

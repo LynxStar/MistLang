@@ -420,24 +420,24 @@ public class ArrayLiteralParserTests
     {
         Storm.Runtime.SyntaxNode current = expr;
 
-        for (var depth = 0; depth < 20; depth++)
+        for(var depth = 0; depth < 20; depth++)
         {
-            if (current is PrimaryNode primary)
+            if(current is PrimaryNode primary)
                 return primary;
 
             Storm.Runtime.SyntaxNode? next = null;
             var childCount = 0;
-            foreach (var child in current.Children())
+            foreach(var child in current.Children())
             {
-                if (child is null) continue;
+                if(child is null) continue;
                 childCount++;
-                if (child is PrimaryNode childPrimary)
+                if(child is PrimaryNode childPrimary)
                     return childPrimary;
-                if (next is null)
+                if(next is null)
                     next = child;
             }
 
-            if (childCount > 1 || next is null)
+            if(childCount > 1 || next is null)
                 return null;
 
             current = next;
@@ -453,21 +453,21 @@ public class ArrayLiteralParserTests
     {
         Storm.Runtime.SyntaxNode current = expr;
 
-        for (var depth = 0; depth < 20; depth++)
+        for(var depth = 0; depth < 20; depth++)
         {
-            if (current is PostfixNode postfix)
+            if(current is PostfixNode postfix)
                 return postfix;
 
             Storm.Runtime.SyntaxNode? next = null;
-            foreach (var child in current.Children())
+            foreach(var child in current.Children())
             {
-                if (child is null) continue;
-                if (child is PostfixNode found)
+                if(child is null) continue;
+                if(child is PostfixNode found)
                     return found;
                 next ??= child;
             }
 
-            if (next is null)
+            if(next is null)
                 return null;
 
             current = next;
@@ -491,21 +491,21 @@ public class ArrayLiteralParserTests
     {
         Storm.Runtime.SyntaxNode current = pattern;
 
-        for (var depth = 0; depth < 20; depth++)
+        for(var depth = 0; depth < 20; depth++)
         {
-            if (current is PrimaryPatternNode primaryPattern)
+            if(current is PrimaryPatternNode primaryPattern)
                 return primaryPattern;
 
             Storm.Runtime.SyntaxNode? next = null;
-            foreach (var child in current.Children())
+            foreach(var child in current.Children())
             {
-                if (child is null) continue;
-                if (child is PrimaryPatternNode found)
+                if(child is null) continue;
+                if(child is PrimaryPatternNode found)
                     return found;
                 next ??= child;
             }
 
-            if (next is null)
+            if(next is null)
                 return null;
 
             current = next;
@@ -519,14 +519,14 @@ public class ArrayLiteralParserTests
     /// </summary>
     private static T? FindNode<T>(Storm.Runtime.SyntaxNode root) where T : Storm.Runtime.SyntaxNode
     {
-        if (root is T target)
+        if(root is T target)
             return target;
 
-        foreach (var child in root.Children())
+        foreach(var child in root.Children())
         {
-            if (child is null) continue;
+            if(child is null) continue;
             var found = FindNode<T>(child);
-            if (found is not null)
+            if(found is not null)
                 return found;
         }
 

@@ -49,11 +49,11 @@ public sealed class LoadedAssemblyInfo
     {
         var index = new Dictionary<string, List<string>>();
 
-        foreach (var type in assembly.ExportedTypes)
+        foreach(var type in assembly.ExportedTypes)
         {
             var ns = type.Namespace ?? string.Empty;
 
-            if (!index.TryGetValue(ns, out var typeNames))
+            if(!index.TryGetValue(ns, out var typeNames))
             {
                 typeNames = new List<string>();
                 index[ns] = typeNames;
@@ -64,7 +64,7 @@ public sealed class LoadedAssemblyInfo
 
         // Convert to read-only collections for the public API.
         var result = new Dictionary<string, IReadOnlyList<string>>(index.Count);
-        foreach (var (ns, typeNames) in index)
+        foreach(var (ns, typeNames) in index)
         {
             result[ns] = typeNames;
         }

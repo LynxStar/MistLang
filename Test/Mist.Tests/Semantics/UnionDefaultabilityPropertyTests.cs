@@ -243,7 +243,7 @@ public sealed class UnionDefaultabilityPropertyTests
     [Property(MaxTest = 100, Arbitrary = new[] { typeof(UnionDefaultabilityPropertyTests) })]
     public Property UnionWithVoid_IsDefaultable_NoError(UnionDefaultabilityScenario scenario)
     {
-        if (!scenario.ContainsVoid)
+        if(!scenario.ContainsVoid)
             return true.ToProperty().Label("Skipped — not a void-containing scenario");
 
         var diagnostics = CompileAndGetDiagnostics(scenario.Source);
@@ -267,7 +267,7 @@ public sealed class UnionDefaultabilityPropertyTests
     [Property(MaxTest = 100, Arbitrary = new[] { typeof(UnionDefaultabilityPropertyTests) })]
     public Property UnionWithoutVoid_IsNotDefaultable_ProducesError(UnionDefaultabilityScenario scenario)
     {
-        if (scenario.ContainsVoid)
+        if(scenario.ContainsVoid)
             return true.ToProperty().Label("Skipped — not a no-void scenario");
 
         var diagnostics = CompileAndGetDiagnostics(scenario.Source);

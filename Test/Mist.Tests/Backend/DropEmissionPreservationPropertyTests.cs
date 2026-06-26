@@ -70,7 +70,7 @@ public class DropEmissionPreservationPropertyTests
         var userTokens = Lexer.Lex(userSourceText, diagnostics);
         var userParseResult = Parser.Parse(userTokens, diagnostics);
 
-        if (userParseResult.Root is null)
+        if(userParseResult.Root is null)
             return (false, "", $"Failed to parse source:\n{source}");
 
         var allUnits = stdlibUnits.Add(userUnit);
@@ -88,7 +88,7 @@ public class DropEmissionPreservationPropertyTests
         var buildErrors = diagnostics.ToImmutableArray()
             .Where(d => d.Severity == DiagnosticSeverity.Error)
             .ToList();
-        if (buildErrors.Count > 0)
+        if(buildErrors.Count > 0)
         {
             var errorText = string.Join("\n", buildErrors.Select(d => $"  {d.Id.Value}: {d.Message}"));
             return (false, "", $"Build errors:\n{errorText}");
@@ -97,7 +97,7 @@ public class DropEmissionPreservationPropertyTests
         var emitBag = new DiagnosticBag();
         var files = CSharpEmitter.EmitToMemory(model, "TestProgram", emitBag);
 
-        if (emitBag.HasErrors)
+        if(emitBag.HasErrors)
         {
             var emitErrors = emitBag.ToImmutableArray()
                 .Where(d => d.Severity == DiagnosticSeverity.Error)
@@ -105,11 +105,11 @@ public class DropEmissionPreservationPropertyTests
             return (false, "", $"Emit errors:\n{string.Join("\n", emitErrors)}");
         }
 
-        if (files.TryGetValue("test.cs", out var testContent))
+        if(files.TryGetValue("test.cs", out var testContent))
             return (true, testContent, "");
 
         var sb = new StringBuilder();
-        foreach (var (_, content) in files)
+        foreach(var (_, content) in files)
             sb.AppendLine(content);
 
         return (true, sb.ToString(), "");
@@ -190,21 +190,21 @@ public class DropEmissionPreservationPropertyTests
         var source = BuildSimpleDropSource(scenario);
         var (succeeded, csContent, errorText) = BuildAndEmit(source);
 
-        if (!succeeded)
+        if(!succeeded)
             return false.ToProperty()
                 .Label($"Compilation/emission failed for scenario: {scenario}\n{errorText}");
 
         // PRESERVATION: Simple void-returning Drop() should emit just `resource.Drop();`
         // in the finally block — no chaining, no await.
         var hasSimpleDrop = csContent.Contains("resource.Drop();");
-        if (!hasSimpleDrop)
+        if(!hasSimpleDrop)
             return false.ToProperty()
                 .Label($"REGRESSION: Simple void Drop() did not emit 'resource.Drop();' in finally block. " +
                        $"Scenario: {scenario}\nEmitted C#:\n{csContent}");
 
         // Verify no await is applied to the Drop() result (void can't be awaited).
         var hasAwaitedDrop = csContent.Contains("await resource.Drop()");
-        if (hasAwaitedDrop)
+        if(hasAwaitedDrop)
             return false.ToProperty()
                 .Label($"REGRESSION: Void-returning Drop() was incorrectly awaited. " +
                        $"Scenario: {scenario}");
@@ -284,7 +284,7 @@ public class DropEmissionPreservationPropertyTests
         var source = BuildDiscardedTaskSource(scenario);
         var (succeeded, csContent, errorText) = BuildAndEmit(source);
 
-        if (!succeeded)
+        if(!succeeded)
             return false.ToProperty()
                 .Label($"Compilation/emission failed for scenario: {scenario}\n{errorText}");
 
@@ -300,7 +300,7 @@ public class DropEmissionPreservationPropertyTests
         var hasAwaitInFinally = csContent.Contains("finally") && csContent.Contains("await");
         var hasDirectAwait = csContent.Contains("await AsyncHelper()");
 
-        if (!hasAwaitInFinally && !hasDirectAwait)
+        if(!hasAwaitInFinally && !hasDirectAwait)
             return false.ToProperty()
                 .Label($"REGRESSION: Discarded async call did not emit scope-exit await. " +
                        $"Expected either a synthetic task with await in finally, or direct await. " +
@@ -400,7 +400,7 @@ public class DropEmissionPreservationPropertyTests
         var source = BuildExplicitCaptureSource(scenario);
         var (succeeded, csContent, errorText) = BuildAndEmit(source);
 
-        if (!succeeded)
+        if(!succeeded)
             return false.ToProperty()
                 .Label($"Compilation/emission failed for scenario: {scenario}\n{errorText}");
 
@@ -419,19 +419,19 @@ public class DropEmissionPreservationPropertyTests
         var outerDropInFinally = false;
         var inFinally = false;
 
-        for (var i = 0; i < lines.Length; i++)
+        for(var i = 0; i < lines.Length; i++)
         {
-            if (lines[i].Contains("finally"))
+            if(lines[i].Contains("finally"))
                 inFinally = true;
-            else if (inFinally && lines[i].Trim() == "}")
+            else if(inFinally && lines[i].Trim() == "}")
                 inFinally = false;
 
             // Check if there's a scope-exit drop for the outer variable in a finally block
-            if (inFinally && lines[i].Contains($"{scenario.OuterName}.Drop()"))
+            if(inFinally && lines[i].Contains($"{scenario.OuterName}.Drop()"))
                 outerDropInFinally = true;
         }
 
-        if (outerDropInFinally)
+        if(outerDropInFinally)
             return false.ToProperty()
                 .Label($"REGRESSION: Explicit capture '{scenario.InnerName} = {scenario.OuterName}.Drop()' " +
                        $"still triggered a scope-exit drop for '{scenario.OuterName}' in finally block. " +

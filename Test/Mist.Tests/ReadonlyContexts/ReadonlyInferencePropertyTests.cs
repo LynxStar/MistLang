@@ -298,7 +298,7 @@ public sealed class ReadonlyInferencePropertyTests : IDisposable
 
     public void Dispose()
     {
-        if (Directory.Exists(_outputDir))
+        if(Directory.Exists(_outputDir))
         {
             try { Directory.Delete(_outputDir, recursive: true); } catch { /* best effort */ }
         }
@@ -396,14 +396,14 @@ public sealed class ReadonlyInferencePropertyTests : IDisposable
     {
         var (result, model) = CompileAndCapture(scenario.Source);
 
-        if (model is null)
+        if(model is null)
         {
             return false.ToProperty()
                 .Label($"Semantic model was not captured (compilation may have failed early).\nDiagnostics: [{string.Join(", ", result.Diagnostics.Select(d => $"{d.Id.Value}: {d.Message}"))}]\nSource:\n{scenario.Source}");
         }
 
         var methodSymbol = FindMethodSymbol(model, scenario.CallingMethodName);
-        if (methodSymbol is null)
+        if(methodSymbol is null)
         {
             return false.ToProperty()
                 .Label($"Could not find method '{scenario.CallingMethodName}' in semantic model.\nSource:\n{scenario.Source}");
@@ -432,14 +432,14 @@ public sealed class ReadonlyInferencePropertyTests : IDisposable
     {
         var (result, model) = CompileAndCapture(scenario.Source);
 
-        if (model is null)
+        if(model is null)
         {
             return false.ToProperty()
                 .Label($"Semantic model was not captured (compilation may have failed early).\nDiagnostics: [{string.Join(", ", result.Diagnostics.Select(d => $"{d.Id.Value}: {d.Message}"))}]\nSource:\n{scenario.Source}");
         }
 
         var methodSymbol = FindMethodSymbol(model, scenario.TargetMemberName);
-        if (methodSymbol is null)
+        if(methodSymbol is null)
         {
             return false.ToProperty()
                 .Label($"Could not find method '{scenario.TargetMemberName}' in semantic model.\nSource:\n{scenario.Source}");

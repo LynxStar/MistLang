@@ -68,7 +68,7 @@ public class ArrayLiteralElementCountPropertyTests
             .Where(d => d.Severity == DiagnosticSeverity.Error)
             .ToList();
 
-        if (errors.Count > 0)
+        if(errors.Count > 0)
             return null;
 
         return result.Root as CompilationUnitNode;
@@ -89,19 +89,19 @@ public class ArrayLiteralElementCountPropertyTests
     private static ArrayLiteralExpressionPrimaryNode? ExtractArrayLiteral(CompilationUnitNode cu)
     {
         var typeDecl = cu.GetTypes()[0] as ClassTypeTypeDeclarationNode;
-        if (typeDecl is null) return null;
+        if(typeDecl is null) return null;
 
         var methodMember = typeDecl.ClassDeclaration.Members[0] as MethodMemberMemberDeclarationNode;
-        if (methodMember is null) return null;
+        if(methodMember is null) return null;
 
         var block = methodMember.Method.Body.GetBlock();
-        if (block is null) return null;
+        if(block is null) return null;
 
         var stmt = block.Statements[0] as VariableDeclarationStatementStatementNode;
-        if (stmt is null) return null;
+        if(stmt is null) return null;
 
         var varDecl = stmt.VariableDeclaration as InferredVariableDeclarationVariableDeclarationStatementNode;
-        if (varDecl is null) return null;
+        if(varDecl is null) return null;
 
         var primary = UnwrapToPrimary(varDecl.Initializer);
         return primary as ArrayLiteralExpressionPrimaryNode;
@@ -114,21 +114,21 @@ public class ArrayLiteralElementCountPropertyTests
     {
         Storm.Runtime.SyntaxNode current = expr;
 
-        for (var depth = 0; depth < 20; depth++)
+        for(var depth = 0; depth < 20; depth++)
         {
-            if (current is PrimaryNode primary)
+            if(current is PrimaryNode primary)
                 return primary;
 
             Storm.Runtime.SyntaxNode? next = null;
-            foreach (var child in current.Children())
+            foreach(var child in current.Children())
             {
-                if (child is null) continue;
-                if (child is PrimaryNode childPrimary)
+                if(child is null) continue;
+                if(child is PrimaryNode childPrimary)
                     return childPrimary;
                 next ??= child;
             }
 
-            if (next is null)
+            if(next is null)
                 return null;
 
             current = next;
@@ -153,12 +153,12 @@ public class ArrayLiteralElementCountPropertyTests
         var source = BuildSource(scenario.Elements);
         var root = ParseSource(source);
 
-        if (root is null)
+        if(root is null)
             return false.ToProperty().Label($"Failed to parse: {source}");
 
         var arrayLiteral = ExtractArrayLiteral(root);
 
-        if (arrayLiteral is null)
+        if(arrayLiteral is null)
             return false.ToProperty().Label($"No ArrayLiteralExpressionPrimaryNode found in: {source}");
 
         // Total element count = 1 (First) + Expressions.Length

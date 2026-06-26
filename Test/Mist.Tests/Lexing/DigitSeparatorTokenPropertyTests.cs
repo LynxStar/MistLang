@@ -195,13 +195,13 @@ public class DigitSeparatorTokenPropertyTests
     {
         var tokens = LexDefaultTokens(literal);
 
-        if (tokens.Count != 1)
+        if(tokens.Count != 1)
             return false;
 
-        if (tokens[0].Kind != (int)expectedKind)
+        if(tokens[0].Kind != (int)expectedKind)
             return false;
 
-        if (tokens[0].Lexeme != literal)
+        if(tokens[0].Lexeme != literal)
             return false;
 
         return true;

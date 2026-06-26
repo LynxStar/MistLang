@@ -197,10 +197,13 @@ public class AccessModifierPropertyTests
         {
             VariableDeclaration = new TypedVariableDeclarationVariableDeclarationStatementNode
             {
-                Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                Type = new TypeReferenceNode
                 {
-                    PrimitiveType = new IntTypePrimitiveTypeNode(),
-                } },
+                    First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                    {
+                        PrimitiveType = new IntTypePrimitiveTypeNode(),
+                    }
+                },
                 Name = MakeToken(name),
                 Initializer = MakeIntLiteralExpression(value),
             },
@@ -216,14 +219,17 @@ public class AccessModifierPropertyTests
         {
             VariableDeclaration = new TypedVariableDeclarationVariableDeclarationStatementNode
             {
-                Type = new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
+                Type = new TypeReferenceNode
                 {
-                    Name = new QualifiedIdentifierNode
+                    First = new NamedSingleTypeRefSingleTypeRefNode
                     {
-                        IDENTIFIER = MakeToken(typeName),
-                        Span = new Storm.Runtime.SourceSpan(0, typeName.Length),
-                    },
-                } },
+                        Name = new QualifiedIdentifierNode
+                        {
+                            IDENTIFIER = MakeToken(typeName),
+                            Span = new Storm.Runtime.SourceSpan(0, typeName.Length),
+                        },
+                    }
+                },
                 Name = MakeToken(varName),
                 Initializer = MakeNewObjectExpression(typeName),
             },
@@ -245,7 +251,7 @@ public class AccessModifierPropertyTests
         // ClassA with a field or method
         var classAMembers = ImmutableArray.CreateBuilder<MemberDeclarationNode>();
 
-        if (isMemberMethod)
+        if(isMemberMethod)
         {
             var targetMethod = new MethodDeclarationNode
             {
@@ -262,10 +268,13 @@ public class AccessModifierPropertyTests
             var targetField = new FieldDeclarationNode
             {
                 Name = MakeToken("Value"),
-                Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                Type = new TypeReferenceNode
                 {
-                    PrimitiveType = new IntTypePrimitiveTypeNode(),
-                } },
+                    First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                    {
+                        PrimitiveType = new IntTypePrimitiveTypeNode(),
+                    }
+                },
                 Modifiers = memberModifiers,
             };
             classAMembers.Add(new FieldMemberMemberDeclarationNode { Field = targetField });
@@ -294,10 +303,10 @@ public class AccessModifierPropertyTests
         // also sees ClassType, so we test access via type name for both scenarios.
         var mainStatements = ImmutableArray.CreateBuilder<StatementNode>();
 
-        if (accessViaTypeName)
+        if(accessViaTypeName)
         {
             // Access via type name: ClassA.DoWork() or ClassA.Value
-            if (isMemberMethod)
+            if(isMemberMethod)
                 mainStatements.Add(MakeExpressionStatement(MakeMethodCallExpression("ClassA", "DoWork")));
             else
                 mainStatements.Add(MakeExpressionStatement(MakeMemberAccessExpression("ClassA", "Value")));
@@ -307,7 +316,7 @@ public class AccessModifierPropertyTests
             // Access via type name but testing private access: ClassA.DoWork() or ClassA.Value
             // We use type-name access for cross-class tests since the type checker
             // resolves both local variables and type names to ClassType.
-            if (isMemberMethod)
+            if(isMemberMethod)
                 mainStatements.Add(MakeExpressionStatement(MakeMethodCallExpression("ClassA", "DoWork")));
             else
                 mainStatements.Add(MakeExpressionStatement(MakeMemberAccessExpression("ClassA", "Value")));
@@ -496,7 +505,7 @@ public class AccessModifierPropertyTests
         var model = BuildModel(ast);
         var diagnostics = RunTypeChecker(model);
 
-        if (scenario.ShouldHaveError)
+        if(scenario.ShouldHaveError)
         {
             return diagnostics.Any(d => d.Id.Value == scenario.ExpectedDiagnosticId);
         }

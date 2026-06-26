@@ -52,7 +52,7 @@ public static class ProjectReferenceResolver
         // Kick off DFS for each direct reference of the root project.
         var chain = new List<string> { rootCanonicalTomlPath };
 
-        foreach (var reference in references)
+        foreach(var reference in references)
         {
             Dfs(reference.Name, reference.Path, chain, visited, inProgress, result, diagnostics);
         }
@@ -70,13 +70,13 @@ public static class ProjectReferenceResolver
         DiagnosticBag diagnostics)
     {
         // Already fully processed — deduplicate.
-        if (visited.Contains(canonicalTomlPath))
+        if(visited.Contains(canonicalTomlPath))
         {
             return;
         }
 
         // Cycle detection: path is currently on the DFS stack.
-        if (inProgress.Contains(canonicalTomlPath))
+        if(inProgress.Contains(canonicalTomlPath))
         {
             var cycleStart = chain.IndexOf(canonicalTomlPath);
             var cycleNodes = chain.Skip(cycleStart).ToList();
@@ -95,12 +95,12 @@ public static class ProjectReferenceResolver
         }
 
         // Existence check: the file must exist on disk.
-        if (!File.Exists(canonicalTomlPath))
+        if(!File.Exists(canonicalTomlPath))
         {
             // Distinguish between "directory exists but no mist.toml" and
             // "path doesn't exist at all / points to a non-mist.toml file".
             var directory = Path.GetDirectoryName(canonicalTomlPath);
-            if (directory is not null
+            if(directory is not null
                 && Directory.Exists(directory)
                 && Path.GetFileName(canonicalTomlPath)
                        .Equals(ProjectFileParser.FileName, StringComparison.Ordinal))
@@ -131,7 +131,7 @@ public static class ProjectReferenceResolver
         }
 
         // The file exists — verify it is named mist.toml.
-        if (!Path.GetFileName(canonicalTomlPath)
+        if(!Path.GetFileName(canonicalTomlPath)
                  .Equals(ProjectFileParser.FileName, StringComparison.Ordinal))
         {
             diagnostics.Add(new Diagnostic(
@@ -155,12 +155,12 @@ public static class ProjectReferenceResolver
         var config = ProjectFileParser.Parse(projectFolder, parseBag);
 
         // Propagate parse diagnostics to the outer bag.
-        foreach (var d in parseBag.ToImmutableArray())
+        foreach(var d in parseBag.ToImmutableArray())
         {
             diagnostics.Add(d);
         }
 
-        if (config is null)
+        if(config is null)
         {
             inProgress.Remove(canonicalTomlPath);
             chain.RemoveAt(chain.Count - 1);
@@ -168,7 +168,7 @@ public static class ProjectReferenceResolver
         }
 
         // Name-mismatch validation (Requirement 4)
-        if (config.Name != referenceName)
+        if(config.Name != referenceName)
         {
             diagnostics.Add(new Diagnostic(
                 DiagnosticId.ProjectReferenceNameMismatch,
@@ -185,7 +185,7 @@ public static class ProjectReferenceResolver
         }
 
         // Recurse into transitive references (post-order DFS).
-        foreach (var transRef in config.References)
+        foreach(var transRef in config.References)
         {
             Dfs(transRef.Name, transRef.Path, chain, visited, inProgress, result, diagnostics);
         }

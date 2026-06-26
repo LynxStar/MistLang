@@ -198,10 +198,13 @@ public class SemanticModelBuilderUnitTests
         {
             VariableDeclaration = new TypedVariableDeclarationVariableDeclarationStatementNode
             {
-                Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                Type = new TypeReferenceNode
                 {
-                    PrimitiveType = new IntTypePrimitiveTypeNode(),
-                } },
+                    First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                    {
+                        PrimitiveType = new IntTypePrimitiveTypeNode(),
+                    }
+                },
                 Name = MakeToken(name),
                 Initializer = MakeIntLiteralExpression(value),
             },
@@ -240,7 +243,7 @@ public class SemanticModelBuilderUnitTests
         };
 
         var members = ImmutableArray.CreateBuilder<MemberDeclarationNode>();
-        if (extraMembers is not null)
+        if(extraMembers is not null)
         {
             members.AddRange(extraMembers.Value);
         }
@@ -279,10 +282,13 @@ public class SemanticModelBuilderUnitTests
             Name = MakeToken("M"),
             ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
-            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode
+            Body = new MethodBlockBodyMethodBodyNode
             {
-                Statements = ImmutableArray.Create(MakeIntVarDecl("x")),
-            } },
+                Block = new BlockNode
+                {
+                    Statements = ImmutableArray.Create(MakeIntVarDecl("x")),
+                }
+            },
         };
 
         var classDecl = new ClassDeclarationNode
@@ -323,7 +329,7 @@ public class SemanticModelBuilderUnitTests
 
         // Eventually we should reach the global scope (null parent).
         var current = namespaceOrFileScope;
-        while (current!.Parent is not null)
+        while(current!.Parent is not null)
         {
             current = current.Parent;
         }
@@ -337,10 +343,13 @@ public class SemanticModelBuilderUnitTests
         var fieldDecl = new FieldDeclarationNode
         {
             Name = MakeToken("f"),
-            Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
+            Type = new TypeReferenceNode
             {
-                PrimitiveType = new IntTypePrimitiveTypeNode(),
-            } },
+                First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                {
+                    PrimitiveType = new IntTypePrimitiveTypeNode(),
+                }
+            },
         };
         var methodDecl = new MethodDeclarationNode
         {
@@ -540,10 +549,13 @@ public class SemanticModelBuilderUnitTests
         {
             Name = MakeToken("M"),
             ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
-            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode
+            Body = new MethodBlockBodyMethodBodyNode
             {
-                Statements = ImmutableArray.Create(MakeExpressionStatement(consoleExpr)),
-            } },
+                Block = new BlockNode
+                {
+                    Statements = ImmutableArray.Create(MakeExpressionStatement(consoleExpr)),
+                }
+            },
         };
 
         var classDecl = new ClassDeclarationNode
@@ -602,10 +614,13 @@ public class SemanticModelBuilderUnitTests
         var ctorDecl = new ConstructorDeclarationNode
         {
             Name = MakeToken("C"),
-            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode
+            Body = new MethodBlockBodyMethodBodyNode
             {
-                Statements = ImmutableArray.Create(MakeExpressionStatement(thisExpr)),
-            } },
+                Block = new BlockNode
+                {
+                    Statements = ImmutableArray.Create(MakeExpressionStatement(thisExpr)),
+                }
+            },
         };
 
         var classDecl = new ClassDeclarationNode
@@ -651,10 +666,13 @@ public class SemanticModelBuilderUnitTests
         var fieldDecl = new FieldDeclarationNode
         {
             Name = MakeToken("val"),
-            Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
+            Type = new TypeReferenceNode
             {
-                PrimitiveType = new IntTypePrimitiveTypeNode(),
-            } },
+                First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                {
+                    PrimitiveType = new IntTypePrimitiveTypeNode(),
+                }
+            },
         };
 
         // Build this.val expression
@@ -682,10 +700,13 @@ public class SemanticModelBuilderUnitTests
         {
             Name = MakeToken("M"),
             ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
-            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode
+            Body = new MethodBlockBodyMethodBodyNode
             {
-                Statements = ImmutableArray.Create(MakeExpressionStatement(expr)),
-            } },
+                Block = new BlockNode
+                {
+                    Statements = ImmutableArray.Create(MakeExpressionStatement(expr)),
+                }
+            },
         };
 
         var classDecl = new ClassDeclarationNode
@@ -728,10 +749,13 @@ public class SemanticModelBuilderUnitTests
         {
             Name = MakeToken("M"),
             ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
-            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode
+            Body = new MethodBlockBodyMethodBodyNode
             {
-                Statements = ImmutableArray.Create(MakeExpressionStatement(consoleExpr)),
-            } },
+                Block = new BlockNode
+                {
+                    Statements = ImmutableArray.Create(MakeExpressionStatement(consoleExpr)),
+                }
+            },
         };
 
         var classDecl = new ClassDeclarationNode
@@ -783,10 +807,13 @@ public class SemanticModelBuilderUnitTests
         {
             Name = MakeToken("M"),
             ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
-            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode
+            Body = new MethodBlockBodyMethodBodyNode
             {
-                Statements = ImmutableArray.Create(MakeExpressionStatement(expr)),
-            } },
+                Block = new BlockNode
+                {
+                    Statements = ImmutableArray.Create(MakeExpressionStatement(expr)),
+                }
+            },
         };
 
         var classDecl = new ClassDeclarationNode
@@ -833,18 +860,24 @@ public class SemanticModelBuilderUnitTests
         // class C { void M(int a, int a) { } }
         var param1 = new ParameterNode
         {
-            Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
+            Type = new TypeReferenceNode
             {
-                PrimitiveType = new IntTypePrimitiveTypeNode(),
-            } },
+                First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                {
+                    PrimitiveType = new IntTypePrimitiveTypeNode(),
+                }
+            },
             Name = MakeToken("a"),
         };
         var param2 = new ParameterNode
         {
-            Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
+            Type = new TypeReferenceNode
             {
-                PrimitiveType = new IntTypePrimitiveTypeNode(),
-            } },
+                First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                {
+                    PrimitiveType = new IntTypePrimitiveTypeNode(),
+                }
+            },
             Name = MakeToken("a"),
         };
 
@@ -924,10 +957,13 @@ public class SemanticModelBuilderUnitTests
         var fieldDecl = new FieldDeclarationNode
         {
             Name = MakeToken("f"),
-            Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
+            Type = new TypeReferenceNode
             {
-                PrimitiveType = new IntTypePrimitiveTypeNode(),
-            } },
+                First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                {
+                    PrimitiveType = new IntTypePrimitiveTypeNode(),
+                }
+            },
         };
 
         var statements = ImmutableArray.Create(MakeIntVarDecl("x"));
@@ -938,7 +974,7 @@ public class SemanticModelBuilderUnitTests
         var model = BuildModel(ast);
 
         // All symbols should have UserCode origin.
-        foreach (var symbol in model.AllSymbols)
+        foreach(var symbol in model.AllSymbols)
         {
             Assert.Equal(SymbolOrigin.UserCode, symbol.Origin);
         }
@@ -1015,14 +1051,17 @@ public class SemanticModelBuilderUnitTests
         var fieldDecl = new FieldDeclarationNode
         {
             Name = MakeToken("f"),
-            Type = new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
+            Type = new TypeReferenceNode
             {
-                Name = new QualifiedIdentifierNode
+                First = new NamedSingleTypeRefSingleTypeRefNode
                 {
-                    IDENTIFIER = MakeToken("Console"),
-                    Span = new Storm.Runtime.SourceSpan(0, 7),
-                },
-            } },
+                    Name = new QualifiedIdentifierNode
+                    {
+                        IDENTIFIER = MakeToken("Console"),
+                        Span = new Storm.Runtime.SourceSpan(0, 7),
+                    },
+                }
+            },
         };
 
         var methodDecl = new MethodDeclarationNode
@@ -1080,7 +1119,7 @@ public class SemanticModelBuilderUnitTests
             Members = members,
         };
 
-        if (baseClassName is not null)
+        if(baseClassName is not null)
         {
             var _baseList1 = MakeBaseList(baseClassName);
 
@@ -1099,10 +1138,13 @@ public class SemanticModelBuilderUnitTests
             Field = new FieldDeclarationNode
             {
                 Name = MakeToken(name),
-                Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                Type = new TypeReferenceNode
                 {
-                    PrimitiveType = new IntTypePrimitiveTypeNode(),
-                } },
+                    First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                    {
+                        PrimitiveType = new IntTypePrimitiveTypeNode(),
+                    }
+                },
             },
         };
     }
@@ -1240,7 +1282,7 @@ public class SemanticModelBuilderUnitTests
         var (_, diagnostics) = BuildModelWithDiagnostics(ast);
 
         Assert.DoesNotContain(diagnostics, d => d.Id.Value == "MIST_MEMBER_REDECLARATION");
-    ;
+        ;
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -1265,14 +1307,17 @@ public class SemanticModelBuilderUnitTests
             Parameters = null,
             WithClauses = ImmutableArray.Create<WithClauseNode>(new ContextWithClauseWithClauseNode
             {
-                Type = new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
+                Type = new TypeReferenceNode
                 {
-                    Name = new QualifiedIdentifierNode
+                    First = new NamedSingleTypeRefSingleTypeRefNode
                     {
-                        IDENTIFIER = MakeToken("MyCtx"),
-                        Span = new Storm.Runtime.SourceSpan(0, 5),
-                    },
-                } },
+                        Name = new QualifiedIdentifierNode
+                        {
+                            IDENTIFIER = MakeToken("MyCtx"),
+                            Span = new Storm.Runtime.SourceSpan(0, 5),
+                        },
+                    }
+                },
                 Name = MakeToken("ctx"),
             }),
             Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode() },
@@ -1321,14 +1366,17 @@ public class SemanticModelBuilderUnitTests
             Name = MakeToken("C"),
             WithClauses = ImmutableArray.Create<WithClauseNode>(new ContextWithClauseWithClauseNode
             {
-                Type = new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
+                Type = new TypeReferenceNode
                 {
-                    Name = new QualifiedIdentifierNode
+                    First = new NamedSingleTypeRefSingleTypeRefNode
                     {
-                        IDENTIFIER = MakeToken("MyCtx"),
-                        Span = new Storm.Runtime.SourceSpan(0, 5),
-                    },
-                } },
+                        Name = new QualifiedIdentifierNode
+                        {
+                            IDENTIFIER = MakeToken("MyCtx"),
+                            Span = new Storm.Runtime.SourceSpan(0, 5),
+                        },
+                    }
+                },
                 Name = MakeToken("ctx"),
             }),
             Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode() },
@@ -1379,14 +1427,17 @@ public class SemanticModelBuilderUnitTests
             Parameters = null,
             WithClauses = ImmutableArray.Create<WithClauseNode>(new ContextWithClauseWithClauseNode
             {
-                Type = new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
+                Type = new TypeReferenceNode
                 {
-                    Name = new QualifiedIdentifierNode
+                    First = new NamedSingleTypeRefSingleTypeRefNode
                     {
-                        IDENTIFIER = MakeToken("MyCtx"),
-                        Span = new Storm.Runtime.SourceSpan(0, 5),
-                    },
-                } },
+                        Name = new QualifiedIdentifierNode
+                        {
+                            IDENTIFIER = MakeToken("MyCtx"),
+                            Span = new Storm.Runtime.SourceSpan(0, 5),
+                        },
+                    }
+                },
                 Name = MakeToken("ctx"),
             }),
         };
@@ -1443,26 +1494,32 @@ public class SemanticModelBuilderUnitTests
             WithClauses = ImmutableArray.Create<WithClauseNode>(
                 new ContextWithClauseWithClauseNode
                 {
-                    Type = new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
+                    Type = new TypeReferenceNode
                     {
-                        Name = new QualifiedIdentifierNode
+                        First = new NamedSingleTypeRefSingleTypeRefNode
                         {
-                            IDENTIFIER = MakeToken("CtxA"),
-                            Span = new Storm.Runtime.SourceSpan(0, 4),
-                        },
-                    } },
+                            Name = new QualifiedIdentifierNode
+                            {
+                                IDENTIFIER = MakeToken("CtxA"),
+                                Span = new Storm.Runtime.SourceSpan(0, 4),
+                            },
+                        }
+                    },
                     Name = MakeToken("a"),
                 },
                 new ContextWithClauseWithClauseNode
                 {
-                    Type = new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
+                    Type = new TypeReferenceNode
                     {
-                        Name = new QualifiedIdentifierNode
+                        First = new NamedSingleTypeRefSingleTypeRefNode
                         {
-                            IDENTIFIER = MakeToken("CtxB"),
-                            Span = new Storm.Runtime.SourceSpan(0, 4),
-                        },
-                    } },
+                            Name = new QualifiedIdentifierNode
+                            {
+                                IDENTIFIER = MakeToken("CtxB"),
+                                Span = new Storm.Runtime.SourceSpan(0, 4),
+                            },
+                        }
+                    },
                     Name = MakeToken("b"),
                 }),
             Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode() },
@@ -1509,14 +1566,17 @@ public class SemanticModelBuilderUnitTests
             Parameters = null,
             WithClauses = ImmutableArray.Create<WithClauseNode>(new ContextWithClauseWithClauseNode
             {
-                Type = new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
+                Type = new TypeReferenceNode
                 {
-                    Name = new QualifiedIdentifierNode
+                    First = new NamedSingleTypeRefSingleTypeRefNode
                     {
-                        IDENTIFIER = MakeToken("NonExistent"),
-                        Span = new Storm.Runtime.SourceSpan(0, 11),
-                    },
-                } },
+                        Name = new QualifiedIdentifierNode
+                        {
+                            IDENTIFIER = MakeToken("NonExistent"),
+                            Span = new Storm.Runtime.SourceSpan(0, 11),
+                        },
+                    }
+                },
                 Name = MakeToken("ctx"),
             }),
             Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode() },

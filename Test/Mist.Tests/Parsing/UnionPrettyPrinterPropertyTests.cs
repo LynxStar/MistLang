@@ -76,7 +76,7 @@ public class UnionPrettyPrinterPropertyTests
             .Where(d => d.Severity == DiagnosticSeverity.Error)
             .ToList();
 
-        if (errors.Count > 0)
+        if(errors.Count > 0)
             throw new InvalidOperationException(
                 $"Unexpected parse errors:\n  {string.Join("\n  ", errors.Select(e => e.Message))}\nSource:\n{source}");
 
@@ -104,7 +104,7 @@ public class UnionPrettyPrinterPropertyTests
         // Find the field declaration line: "    public {type} x;"
         var lines = prettyPrinted.Split('\n');
         var fieldLine = lines.FirstOrDefault(l => l.Contains(" x;"));
-        if (fieldLine is null)
+        if(fieldLine is null)
             throw new InvalidOperationException(
                 $"Could not find field declaration in pretty-printed output:\n{prettyPrinted}");
 
@@ -112,7 +112,7 @@ public class UnionPrettyPrinterPropertyTests
         var trimmed = fieldLine.Trim();
         const string prefix = "public ";
         const string suffix = " x;";
-        if (trimmed.StartsWith(prefix) && trimmed.EndsWith(suffix))
+        if(trimmed.StartsWith(prefix) && trimmed.EndsWith(suffix))
         {
             return trimmed[prefix.Length..^suffix.Length];
         }
@@ -137,22 +137,22 @@ public class UnionPrettyPrinterPropertyTests
         var typeStr = ExtractTypeFromPrettyPrinted(prettyPrinted);
 
         // Every | in the type string must be surrounded by exactly one space on each side
-        for (var i = 0; i < typeStr.Length; i++)
+        for(var i = 0; i < typeStr.Length; i++)
         {
-            if (typeStr[i] == '|')
+            if(typeStr[i] == '|')
             {
                 // Must have exactly one space before
-                if (i == 0 || typeStr[i - 1] != ' ')
+                if(i == 0 || typeStr[i - 1] != ' ')
                     return false;
                 // Must not have double space before (i.e., char at i-2 should not be space)
-                if (i >= 2 && typeStr[i - 2] == ' ')
+                if(i >= 2 && typeStr[i - 2] == ' ')
                     return false;
 
                 // Must have exactly one space after
-                if (i == typeStr.Length - 1 || typeStr[i + 1] != ' ')
+                if(i == typeStr.Length - 1 || typeStr[i + 1] != ' ')
                     return false;
                 // Must not have double space after
-                if (i + 2 < typeStr.Length && typeStr[i + 2] == ' ')
+                if(i + 2 < typeStr.Length && typeStr[i + 2] == ' ')
                 {
                     // Exception: the next char after space could be another type name starting
                     // with a space-containing token — but our types don't have spaces.
@@ -199,19 +199,19 @@ public class UnionPrettyPrinterPropertyTests
 
         // Check for malformed patterns:
         // "|" not preceded by space (e.g., "int|string")
-        if (Regex.IsMatch(typeStr, @"[^ ]\|"))
+        if(Regex.IsMatch(typeStr, @"[^ ]\|"))
             return false;
 
         // "|" not followed by space (e.g., "int |string")
-        if (Regex.IsMatch(typeStr, @"\|[^ ]"))
+        if(Regex.IsMatch(typeStr, @"\|[^ ]"))
             return false;
 
         // Double space before pipe (e.g., "int  | string")
-        if (Regex.IsMatch(typeStr, @"  \|"))
+        if(Regex.IsMatch(typeStr, @"  \|"))
             return false;
 
         // Double space after pipe (e.g., "int |  string")
-        if (Regex.IsMatch(typeStr, @"\|  "))
+        if(Regex.IsMatch(typeStr, @"\|  "))
             return false;
 
         return true;

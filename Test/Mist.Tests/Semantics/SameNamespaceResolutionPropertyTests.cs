@@ -102,14 +102,17 @@ public sealed class SameNamespaceResolutionPropertyTests
         var fieldDecl = new FieldDeclarationNode
         {
             Name = MakeToken("myField"),
-            Type = new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
+            Type = new TypeReferenceNode
             {
-                Name = new QualifiedIdentifierNode
+                First = new NamedSingleTypeRefSingleTypeRefNode
                 {
-                    IDENTIFIER = MakeToken(fieldTypeName, start: typeSpanStart),
-                    Span = new Storm.Runtime.SourceSpan(typeSpanStart, fieldTypeName.Length),
-                },
-            } },
+                    Name = new QualifiedIdentifierNode
+                    {
+                        IDENTIFIER = MakeToken(fieldTypeName, start: typeSpanStart),
+                        Span = new Storm.Runtime.SourceSpan(typeSpanStart, fieldTypeName.Length),
+                    },
+                }
+            },
         };
 
         return new ClassDeclarationNode
@@ -218,7 +221,7 @@ public sealed class SameNamespaceResolutionPropertyTests
     public bool DifferentNamespace_FailsWithoutUsing(ValidNamespaceName ns1, ValidNamespaceName ns2)
     {
         // Skip if namespaces are the same — that's the same-namespace case.
-        if (ns1.Value == ns2.Value) return true;
+        if(ns1.Value == ns2.Value) return true;
 
         var nsOffset = "namespace ".Length;
 

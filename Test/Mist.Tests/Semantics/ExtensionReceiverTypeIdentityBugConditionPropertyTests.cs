@@ -156,7 +156,7 @@ public sealed class ExtensionReceiverTypeIdentityBugConditionPropertyTests : IDi
         var userTokens = Lexer.Lex(userSourceText, diagnostics);
         var userParseResult = Parser.Parse(userTokens, diagnostics);
 
-        if (userParseResult.Root is null)
+        if(userParseResult.Root is null)
             throw new InvalidOperationException($"Failed to parse source with using {importedNamespace}");
 
         var allUnits = stdlibUnits.Add(userUnit);
@@ -195,7 +195,7 @@ public sealed class ExtensionReceiverTypeIdentityBugConditionPropertyTests : IDi
         // Get the canonical type from the provider's cache.
         var canonicalType = _provider.ResolveType(scenario.InterfaceNamespace, scenario.InterfaceName);
 
-        if (canonicalType is null)
+        if(canonicalType is null)
             return false.ToProperty()
                 .Label($"AssemblyTypeProvider.ResolveType returned null for " +
                        $"{scenario.InterfaceNamespace}.{scenario.InterfaceName}");
@@ -206,10 +206,10 @@ public sealed class ExtensionReceiverTypeIdentityBugConditionPropertyTests : IDi
         ExtensionBlockInfo? matchingBlock = null;
         IType? extensionReceiverType = null;
 
-        foreach (var (receiverType, blocks) in model.ExtensionRegistry.AllGroups)
+        foreach(var (receiverType, blocks) in model.ExtensionRegistry.AllGroups)
         {
             // Check if this receiver type represents our target interface by name.
-            if (receiverType is AbstractType abstractReceiver
+            if(receiverType is AbstractType abstractReceiver
                 && abstractReceiver.DisplayName == scenario.InterfaceName
                 && abstractReceiver.ContainingNamespace == scenario.InterfaceNamespace)
             {
@@ -219,7 +219,7 @@ public sealed class ExtensionReceiverTypeIdentityBugConditionPropertyTests : IDi
             }
         }
 
-        if (matchingBlock is null || extensionReceiverType is null)
+        if(matchingBlock is null || extensionReceiverType is null)
             return false.ToProperty()
                 .Label($"No extension block found for {scenario.InterfaceNamespace}.{scenario.InterfaceName}. " +
                        $"Extension registry has {model.ExtensionRegistry.AllGroups.Count()} groups.");
@@ -232,7 +232,7 @@ public sealed class ExtensionReceiverTypeIdentityBugConditionPropertyTests : IDi
         // as what ResolveType returns.
         var isReferenceEqual = ReferenceEquals(extensionReceiverType, canonicalType);
 
-        if (!isReferenceEqual)
+        if(!isReferenceEqual)
         {
             return false.ToProperty()
                 .Label($"BUG CONFIRMED: Extension receiver type for " +

@@ -46,7 +46,7 @@ public sealed class MistParser : IParser
         }
 
         // Map Storm diagnostics to Mist diagnostics.
-        foreach (var entry in stormDiagnostics.Entries)
+        foreach(var entry in stormDiagnostics.Entries)
         {
             var location = (entry.Line > 0 && entry.Column > 0)
                 ? new LinePositionSpan(
@@ -92,7 +92,7 @@ public sealed class MistParser : IParser
 
         // Assign ParsedOrigin to every node in the tree so diagnostics
         // can resolve source locations without span-containment heuristics.
-        if (root is not null)
+        if(root is not null)
         {
             AssignOrigin(root, new ParsedOrigin(tokens.Source));
 
@@ -106,7 +106,7 @@ public sealed class MistParser : IParser
                 ? defaultTokens.Length - 1
                 : defaultTokens.Length;
 
-            if (lastPos < contentTokenCount)
+            if(lastPos < contentTokenCount)
             {
                 var unconsumedToken = defaultTokens[lastPos];
                 var location = new LinePositionSpan(
@@ -149,15 +149,15 @@ public sealed class MistParser : IParser
     private static void DetectStackallocSizeErrors(TokenStream tokens, DiagnosticBag diagnostics)
     {
         var defaultTokens = tokens.DefaultChannelTokens;
-        for (var i = 0; i < defaultTokens.Length; i++)
+        for(var i = 0; i < defaultTokens.Length; i++)
         {
-            if (defaultTokens[i].Kind != (int)Mist.Generated.TokenKind.STACKALLOC)
+            if(defaultTokens[i].Kind != (int)Mist.Generated.TokenKind.STACKALLOC)
             {
                 continue;
             }
 
             var afterType = SkipElementType(defaultTokens, i + 1);
-            if (afterType is null)
+            if(afterType is null)
             {
                 // The token after `stackalloc` does not begin a recognizable element
                 // type (e.g. `stackalloc [3]`). That is a different malformed shape;
@@ -169,7 +169,7 @@ public sealed class MistParser : IParser
             var hasOpenBracket = pos < defaultTokens.Length
                 && defaultTokens[pos].Kind == (int)Mist.Generated.TokenKind.LEFT_BRACKET;
 
-            if (!hasOpenBracket)
+            if(!hasOpenBracket)
             {
                 // Requirement 3.4: `stackalloc T` with no bracketed size.
                 AddStackallocSizeDiagnostic(defaultTokens[i], tokens.Source.Path, diagnostics);
@@ -179,7 +179,7 @@ public sealed class MistParser : IParser
             var isEmptyBrackets = pos + 1 < defaultTokens.Length
                 && defaultTokens[pos + 1].Kind == (int)Mist.Generated.TokenKind.RIGHT_BRACKET;
 
-            if (isEmptyBrackets)
+            if(isEmptyBrackets)
             {
                 // Requirement 3.5: `stackalloc T[]` with empty brackets.
                 AddStackallocSizeDiagnostic(defaultTokens[i], tokens.Source.Path, diagnostics);
@@ -223,9 +223,9 @@ public sealed class MistParser : IParser
         var defaultTokens = tokens.DefaultChannelTokens;
         var identifierKind = (int)Mist.Generated.TokenKind.IDENTIFIER;
 
-        for (var i = 0; i < defaultTokens.Length; i++)
+        for(var i = 0; i < defaultTokens.Length; i++)
         {
-            if (defaultTokens[i].Kind == identifierKind
+            if(defaultTokens[i].Kind == identifierKind
                 && defaultTokens[i].Lexeme == "interface")
             {
                 var token = defaultTokens[i];
@@ -262,9 +262,9 @@ public sealed class MistParser : IParser
         var defaultTokens = tokens.DefaultChannelTokens;
         var identifierKind = (int)Mist.Generated.TokenKind.IDENTIFIER;
 
-        for (var i = 0; i < defaultTokens.Length; i++)
+        for(var i = 0; i < defaultTokens.Length; i++)
         {
-            if (defaultTokens[i].Kind == identifierKind
+            if(defaultTokens[i].Kind == identifierKind
                 && defaultTokens[i].Lexeme == "trait")
             {
                 var token = defaultTokens[i];
@@ -316,9 +316,9 @@ public sealed class MistParser : IParser
         var semicolonKind = (int)Mist.Generated.TokenKind.SEMICOLON;
         var eofKind = (int)Mist.Generated.TokenKind.EndOfFile;
 
-        for (var i = 0; i < defaultTokens.Length; i++)
+        for(var i = 0; i < defaultTokens.Length; i++)
         {
-            if (defaultTokens[i].Kind != abstractKind)
+            if(defaultTokens[i].Kind != abstractKind)
             {
                 continue;
             }
@@ -327,7 +327,7 @@ public sealed class MistParser : IParser
             // body, only `<...>` type params, `: BaseList`, and `where` clauses may
             // appear — none of which use braces — so the first `{` is the body.
             var open = i + 1;
-            while (open < defaultTokens.Length
+            while(open < defaultTokens.Length
                 && defaultTokens[open].Kind != leftBraceKind
                 && defaultTokens[open].Kind != semicolonKind
                 && defaultTokens[open].Kind != eofKind)
@@ -335,7 +335,7 @@ public sealed class MistParser : IParser
                 open++;
             }
 
-            if (open >= defaultTokens.Length || defaultTokens[open].Kind != leftBraceKind)
+            if(open >= defaultTokens.Length || defaultTokens[open].Kind != leftBraceKind)
             {
                 continue;
             }
@@ -368,13 +368,13 @@ public sealed class MistParser : IParser
         // a brace at member level that is NOT a property accessor block.
         var memberIsMethodOrType = false;
 
-        for (var i = bodyOpenIndex; i < tokens.Length; i++)
+        for(var i = bodyOpenIndex; i < tokens.Length; i++)
         {
             var kind = tokens[i].Kind;
 
-            if (kind == leftBraceKind)
+            if(kind == leftBraceKind)
             {
-                if (depth == 1 && !memberIsMethodOrType
+                if(depth == 1 && !memberIsMethodOrType
                     && AccessorBlockHasBody(tokens, i))
                 {
                     // `Type Name { get { ... } }` or `Type Name { get => ...; }`.
@@ -385,15 +385,15 @@ public sealed class MistParser : IParser
                 continue;
             }
 
-            if (kind == rightBraceKind)
+            if(kind == rightBraceKind)
             {
                 depth--;
-                if (depth == 0)
+                if(depth == 0)
                 {
                     return; // End of this abstract body.
                 }
 
-                if (depth == 1)
+                if(depth == 1)
                 {
                     // Returned to member level after a method body / nested type.
                     memberIsMethodOrType = false;
@@ -402,22 +402,22 @@ public sealed class MistParser : IParser
                 continue;
             }
 
-            if (depth != 1)
+            if(depth != 1)
             {
                 continue;
             }
 
-            if (kind == leftParenKind || IsTypeDeclarationKeyword(kind))
+            if(kind == leftParenKind || IsTypeDeclarationKeyword(kind))
             {
                 // A method (has a parameter list) or a nested type declaration.
                 memberIsMethodOrType = true;
             }
-            else if (kind == suchThatKind && !memberIsMethodOrType)
+            else if(kind == suchThatKind && !memberIsMethodOrType)
             {
                 // `Type Name => expr;` expression-bodied property at member level.
                 AddPropertyDefaultDiagnostic(tokens[i], sourcePath, diagnostics);
             }
-            else if (kind == semicolonKind)
+            else if(kind == semicolonKind)
             {
                 // Member boundary; the next member starts fresh.
                 memberIsMethodOrType = false;
@@ -441,13 +441,13 @@ public sealed class MistParser : IParser
         var suchThatKind = (int)Mist.Generated.TokenKind.SUCH_THAT;
 
         var depth = 0;
-        for (var i = braceIndex; i < tokens.Length; i++)
+        for(var i = braceIndex; i < tokens.Length; i++)
         {
             var kind = tokens[i].Kind;
 
-            if (kind == leftBraceKind)
+            if(kind == leftBraceKind)
             {
-                if (depth == 1)
+                if(depth == 1)
                 {
                     // An accessor opened its own block body: `get { ... }`.
                     return true;
@@ -455,15 +455,15 @@ public sealed class MistParser : IParser
 
                 depth++;
             }
-            else if (kind == rightBraceKind)
+            else if(kind == rightBraceKind)
             {
                 depth--;
-                if (depth == 0)
+                if(depth == 0)
                 {
                     return false; // Reached the matching close with no bodied accessor.
                 }
             }
-            else if (kind == suchThatKind && depth == 1)
+            else if(kind == suchThatKind && depth == 1)
             {
                 // An accessor used an expression body: `get => ...;`.
                 return true;
@@ -509,24 +509,24 @@ public sealed class MistParser : IParser
         System.Collections.Immutable.ImmutableArray<Storm.Runtime.Token> tokens,
         int start)
     {
-        if (start >= tokens.Length)
+        if(start >= tokens.Length)
         {
             return null;
         }
 
         var kind = tokens[start].Kind;
 
-        if (IsPrimitiveTypeKind(kind) || kind == (int)Mist.Generated.TokenKind.UNKNOWN)
+        if(IsPrimitiveTypeKind(kind) || kind == (int)Mist.Generated.TokenKind.UNKNOWN)
         {
             return start + 1;
         }
 
-        if (kind == (int)Mist.Generated.TokenKind.IDENTIFIER)
+        if(kind == (int)Mist.Generated.TokenKind.IDENTIFIER)
         {
             var pos = start + 1;
 
             // QualifiedIdentifier: IDENTIFIER (DOT IDENTIFIER)*
-            while (pos + 1 < tokens.Length
+            while(pos + 1 < tokens.Length
                 && tokens[pos].Kind == (int)Mist.Generated.TokenKind.DOT
                 && tokens[pos + 1].Kind == (int)Mist.Generated.TokenKind.IDENTIFIER)
             {
@@ -534,7 +534,7 @@ public sealed class MistParser : IParser
             }
 
             // Optional TypeArgumentList: LESS_THAN ... GREATER_THAN (balanced).
-            if (pos < tokens.Length && tokens[pos].Kind == (int)Mist.Generated.TokenKind.LESS_THAN)
+            if(pos < tokens.Length && tokens[pos].Kind == (int)Mist.Generated.TokenKind.LESS_THAN)
             {
                 return SkipBalancedAngles(tokens, pos);
             }
@@ -555,22 +555,22 @@ public sealed class MistParser : IParser
         int openAngle)
     {
         var depth = 0;
-        for (var pos = openAngle; pos < tokens.Length; pos++)
+        for(var pos = openAngle; pos < tokens.Length; pos++)
         {
             var kind = tokens[pos].Kind;
-            if (kind == (int)Mist.Generated.TokenKind.LESS_THAN)
+            if(kind == (int)Mist.Generated.TokenKind.LESS_THAN)
             {
                 depth++;
             }
-            else if (kind == (int)Mist.Generated.TokenKind.GREATER_THAN)
+            else if(kind == (int)Mist.Generated.TokenKind.GREATER_THAN)
             {
                 depth--;
-                if (depth == 0)
+                if(depth == 0)
                 {
                     return pos + 1;
                 }
             }
-            else if (kind == (int)Mist.Generated.TokenKind.SEMICOLON
+            else if(kind == (int)Mist.Generated.TokenKind.SEMICOLON
                 || kind == (int)Mist.Generated.TokenKind.LEFT_BRACE
                 || kind == (int)Mist.Generated.TokenKind.RIGHT_BRACE
                 || kind == (int)Mist.Generated.TokenKind.EndOfFile)
@@ -603,9 +603,9 @@ public sealed class MistParser : IParser
     private static void AssignOrigin(Storm.Runtime.SyntaxNode node, ParsedOrigin origin)
     {
         node.Origin = origin;
-        foreach (var child in node.Children())
+        foreach(var child in node.Children())
         {
-            if (child is not null)
+            if(child is not null)
             {
                 AssignOrigin(child, origin);
             }
@@ -637,34 +637,34 @@ public sealed class MistParser : IParser
         // after a DOT (or directly after USING/NAMESPACE) in such a position
         // needs reclassification.
         var needsFixup = false;
-        for (var i = 0; i < tokens.Length - 1; i++)
+        for(var i = 0; i < tokens.Length - 1; i++)
         {
             var kind = tokens[i].Kind;
-            if (kind != usingKind && kind != namespaceKind)
+            if(kind != usingKind && kind != namespaceKind)
                 continue;
 
             // Check segments: (DOT segment)* pattern after the first segment.
             var j = i + 1;
-            while (j < tokens.Length)
+            while(j < tokens.Length)
             {
                 var segKind = tokens[j].Kind;
-                if (segKind == identifierKind)
+                if(segKind == identifierKind)
                 {
                     j++;
                     // Check for DOT after identifier.
-                    if (j < tokens.Length && tokens[j].Kind == dotKind)
+                    if(j < tokens.Length && tokens[j].Kind == dotKind)
                     {
                         j++; // skip DOT, continue to next segment
                         continue;
                     }
                     break; // end of qualified identifier
                 }
-                else if (segKind == dotKind)
+                else if(segKind == dotKind)
                 {
                     // DOT without preceding identifier — shouldn't happen normally
                     break;
                 }
-                else if (IsIdentifierLikeKeyword(segKind))
+                else if(IsIdentifierLikeKeyword(segKind))
                 {
                     // Found a keyword where we expect an identifier — fixup needed.
                     needsFixup = true;
@@ -675,37 +675,37 @@ public sealed class MistParser : IParser
                     break; // end of qualified identifier
                 }
             }
-            if (needsFixup) break;
+            if(needsFixup) break;
         }
 
-        if (!needsFixup)
+        if(!needsFixup)
             return tokens;
 
         // Build a new token array with reclassified tokens.
         var builder = ImmutableArray.CreateBuilder<Storm.Runtime.Token>(tokens.Length);
-        for (var i = 0; i < tokens.Length; i++)
+        for(var i = 0; i < tokens.Length; i++)
         {
             builder.Add(tokens[i]);
         }
 
-        for (var i = 0; i < builder.Count - 1; i++)
+        for(var i = 0; i < builder.Count - 1; i++)
         {
             var kind = builder[i].Kind;
-            if (kind != usingKind && kind != namespaceKind)
+            if(kind != usingKind && kind != namespaceKind)
                 continue;
 
             // Reclassify keyword tokens in the qualified identifier that follows.
             // The qualified identifier is: segment (DOT segment)* where segment is
             // IDENTIFIER or a keyword that looks like an identifier.
             var j = i + 1;
-            while (j < builder.Count)
+            while(j < builder.Count)
             {
                 var tok = builder[j];
-                if (tok.Kind == identifierKind)
+                if(tok.Kind == identifierKind)
                 {
                     j++; // valid segment, continue
                 }
-                else if (IsIdentifierLikeKeyword(tok.Kind))
+                else if(IsIdentifierLikeKeyword(tok.Kind))
                 {
                     // Reclassify this keyword token as IDENTIFIER.
                     builder[j] = new Storm.Runtime.Token(
@@ -717,7 +717,7 @@ public sealed class MistParser : IParser
                         tok.Lexeme);
                     j++;
                 }
-                else if (tok.Kind == dotKind)
+                else if(tok.Kind == dotKind)
                 {
                     j++; // DOT separator, continue to next segment
                 }

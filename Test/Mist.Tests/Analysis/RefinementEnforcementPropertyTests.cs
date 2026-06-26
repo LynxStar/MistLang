@@ -134,7 +134,7 @@ public class RefinementEnforcementPropertyTests
             .Where(d => d.Id.Value == "MIST_TC_0097")
             .ToList();
 
-        if (scenario.ShouldAccept)
+        if(scenario.ShouldAccept)
         {
             // Literal satisfies predicate: no violation diagnostic expected
             return refinementViolations.Count == 0;

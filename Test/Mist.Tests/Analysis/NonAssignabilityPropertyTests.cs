@@ -116,14 +116,17 @@ public class NonAssignabilityPropertyTests
         {
             VariableDeclaration = new TypedVariableDeclarationVariableDeclarationStatementNode
             {
-                Type = new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
+                Type = new TypeReferenceNode
                 {
-                    Name = new QualifiedIdentifierNode
+                    First = new NamedSingleTypeRefSingleTypeRefNode
                     {
-                        IDENTIFIER = MakeToken(declaredTypeName),
-                        Span = new Storm.Runtime.SourceSpan(0, declaredTypeName.Length),
-                    },
-                } },
+                        Name = new QualifiedIdentifierNode
+                        {
+                            IDENTIFIER = MakeToken(declaredTypeName),
+                            Span = new Storm.Runtime.SourceSpan(0, declaredTypeName.Length),
+                        },
+                    }
+                },
                 Name = MakeToken(varName),
                 Initializer = MakeNewObjectExpression(initializedTypeName),
             },
@@ -143,7 +146,7 @@ public class NonAssignabilityPropertyTests
             Members = members ?? ImmutableArray<MemberDeclarationNode>.Empty,
         };
 
-        if (baseClassName is not null)
+        if(baseClassName is not null)
         {
             var _baseList1 = MakeBaseList(baseClassName);
 
@@ -250,7 +253,7 @@ public class NonAssignabilityPropertyTests
         // Build a linear chain: names[0] is root, names[1] : names[0], etc.
         var classes = new List<(string Name, string? BaseName)>();
         classes.Add((names[0], null));
-        for (var i = 1; i < names.Length; i++)
+        for(var i = 1; i < names.Length; i++)
         {
             classes.Add((names[i], names[i - 1]));
         }
@@ -282,7 +285,7 @@ public class NonAssignabilityPropertyTests
         var typeDecls = new List<TypeDeclarationNode>();
 
         // Create the class hierarchy
-        foreach (var (name, baseName) in scenario.Classes)
+        foreach(var (name, baseName) in scenario.Classes)
         {
             var classDecl = MakeClassDecl(name, baseName);
             typeDecls.Add(new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl });
@@ -339,7 +342,7 @@ public class NonAssignabilityPropertyTests
 
         // At least one type mismatch diagnostic should be emitted for incompatible assignments
         return typeMismatchDiags.Count > 0;
-    ;
+        ;
     }
 
 }

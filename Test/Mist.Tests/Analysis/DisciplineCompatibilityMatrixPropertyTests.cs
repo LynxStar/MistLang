@@ -126,7 +126,7 @@ public sealed class DisciplineCompatibilityMatrixPropertyTests
     /// </summary>
     private static bool MatrixExpectsError(ContainerDisciplineKind container, FieldDisciplineKind field)
     {
-        if (field == FieldDisciplineKind.Unrestricted)
+        if(field == FieldDisciplineKind.Unrestricted)
             return false;
 
         return container switch
@@ -280,10 +280,10 @@ public sealed class DisciplineCompatibilityMatrixPropertyTests
             .Where(d => d.Id.Value == FieldNotOwnedId)
             .ToList();
 
-        if (scenario.ExpectError)
+        if(scenario.ExpectError)
         {
             // Matrix rejects → exactly one MIST_DROP_FIELD_NOT_OWNED diagnostic.
-            if (fieldNotOwnedDiags.Count != 1)
+            if(fieldNotOwnedDiags.Count != 1)
             {
                 return false.ToProperty()
                     .Label($"Expected exactly 1 {FieldNotOwnedId} for {scenario}, got {fieldNotOwnedDiags.Count}.\n"

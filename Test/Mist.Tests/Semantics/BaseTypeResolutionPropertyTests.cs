@@ -81,7 +81,7 @@ public class BaseTypeResolutionPropertyTests
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
         };
 
-        if (baseClassName is not null)
+        if(baseClassName is not null)
         {
             var _baseList1 = MakeBaseList(baseClassName);
 
@@ -163,7 +163,7 @@ public class BaseTypeResolutionPropertyTests
         // Build a generator that decides inheritance for each subsequent class
         var gen = Gen.Constant(classEntries);
 
-        for (var i = 1; i < names.Length; i++)
+        for(var i = 1; i < names.Length; i++)
         {
             var idx = i; // capture
             gen = from entries in gen
@@ -202,7 +202,7 @@ public class BaseTypeResolutionPropertyTests
     private static ClassSet BuildClassSetWithUndefinedBase(string[] names, string undefinedBase, int targetIdx)
     {
         var entries = new List<(string Name, string? BaseName)>();
-        for (var i = 0; i < names.Length; i++)
+        for(var i = 0; i < names.Length; i++)
         {
             entries.Add(i == targetIdx
                 ? (names[i], undefinedBase)
@@ -233,11 +233,11 @@ public class BaseTypeResolutionPropertyTests
         var allBasesValid = classSet.Classes.All(c =>
             c.BaseName is null || definedNames.Contains(c.BaseName));
 
-        if (!allBasesValid)
+        if(!allBasesValid)
             return true; // Skip invalid sets for this property
 
         // Also skip if there are duplicate names (would cause registration conflicts)
-        if (definedNames.Count != classSet.Classes.Length)
+        if(definedNames.Count != classSet.Classes.Length)
             return true;
 
         // Build AST
@@ -252,34 +252,34 @@ public class BaseTypeResolutionPropertyTests
         var undefinedBaseDiags = diagnostics
             .Where(d => d.Id.Value == "MIST_UNDEFINED_BASE_TYPE")
             .ToList();
-        if (undefinedBaseDiags.Count > 0)
+        if(undefinedBaseDiags.Count > 0)
             return false;
 
         // Verify each class's BaseType
-        foreach (var (name, baseName) in classSet.Classes)
+        foreach(var (name, baseName) in classSet.Classes)
         {
             var classSymbol = model.AllSymbols
                 .FirstOrDefault(s => s.Name == name && s.Kind == SymbolKind.Class);
 
-            if (classSymbol is null)
+            if(classSymbol is null)
                 return false;
 
             var classType = classSymbol.DeclaredType as ClassType;
-            if (classType is null)
+            if(classType is null)
                 return false;
 
-            if (baseName is null)
+            if(baseName is null)
             {
                 // Requirement 2.4: No inheritance clause → BaseType = null
-                if (classType.BaseType is not null)
+                if(classType.BaseType is not null)
                     return false;
             }
             else
             {
                 // Requirement 2.1: Valid inheritance clause → BaseType set to correct ClassType
-                if (classType.BaseType is null)
+                if(classType.BaseType is null)
                     return false;
-                if (classType.BaseType.DisplayName != baseName)
+                if(classType.BaseType.DisplayName != baseName)
                     return false;
             }
         }
@@ -304,11 +304,11 @@ public class BaseTypeResolutionPropertyTests
             .Where(c => c.BaseName is not null && !definedNames.Contains(c.BaseName))
             .ToList();
 
-        if (undefinedRefs.Count == 0)
+        if(undefinedRefs.Count == 0)
             return true; // Skip — no undefined references to test
 
         // Skip if there are duplicate names
-        if (definedNames.Count != classSet.Classes.Length)
+        if(definedNames.Count != classSet.Classes.Length)
             return true;
 
         // Build AST
@@ -324,24 +324,24 @@ public class BaseTypeResolutionPropertyTests
             .Where(d => d.Id.Value == "MIST_UNDEFINED_BASE_TYPE")
             .ToList();
 
-        if (undefinedBaseDiags.Count < undefinedRefs.Count)
+        if(undefinedBaseDiags.Count < undefinedRefs.Count)
             return false;
 
         // Verify that classes with undefined bases have BaseType = null
-        foreach (var (name, baseName) in undefinedRefs)
+        foreach(var (name, baseName) in undefinedRefs)
         {
             var classSymbol = model.AllSymbols
                 .FirstOrDefault(s => s.Name == name && s.Kind == SymbolKind.Class);
 
-            if (classSymbol is null)
+            if(classSymbol is null)
                 return false;
 
             var classType = classSymbol.DeclaredType as ClassType;
-            if (classType is null)
+            if(classType is null)
                 return false;
 
             // BaseType should be null when the base is undefined
-            if (classType.BaseType is not null)
+            if(classType.BaseType is not null)
                 return false;
         }
 
@@ -390,27 +390,27 @@ public class BaseTypeResolutionPropertyTests
         var undefinedDiags = diagnostics
             .Where(d => d.Id.Value == "MIST_UNDEFINED_BASE_TYPE")
             .ToList();
-        if (undefinedDiags.Count > 0)
+        if(undefinedDiags.Count > 0)
             return false;
 
         // Derived class should have BaseType set to the base class
         var derivedSymbol = model.AllSymbols
             .FirstOrDefault(s => s.Name == pair.DerivedName && s.Kind == SymbolKind.Class);
-        if (derivedSymbol?.DeclaredType is not ClassType derivedType)
+        if(derivedSymbol?.DeclaredType is not ClassType derivedType)
             return false;
-        if (derivedType.BaseType is null || derivedType.BaseType.DisplayName != pair.BaseName)
+        if(derivedType.BaseType is null || derivedType.BaseType.DisplayName != pair.BaseName)
             return false;
 
         // Base class should have BaseType = null
         var baseSymbol = model.AllSymbols
             .FirstOrDefault(s => s.Name == pair.BaseName && s.Kind == SymbolKind.Class);
-        if (baseSymbol?.DeclaredType is not ClassType baseType)
+        if(baseSymbol?.DeclaredType is not ClassType baseType)
             return false;
-        if (baseType.BaseType is not null)
+        if(baseType.BaseType is not null)
             return false;
 
         return true;
-    ;
+        ;
     }
 
 }

@@ -34,9 +34,9 @@ public sealed class CSharpCompilationDriver
         // from it. This ensures that transitive framework dependencies (e.g.,
         // System.Data.Common referenced by EF Core NuGet packages) are available
         // to the Roslyn compilation without maintaining a manual list.
-        if (refPackDir is not null)
+        if(refPackDir is not null)
         {
-            foreach (var dll in Directory.GetFiles(refPackDir, "*.dll"))
+            foreach(var dll in Directory.GetFiles(refPackDir, "*.dll"))
             {
                 refs.Add(RoslynApi.MetadataReference.CreateFromFile(dll));
             }
@@ -45,7 +45,7 @@ public sealed class CSharpCompilationDriver
         }
 
         // Fallback: no ref pack installed — use the minimal set from the runtime dir.
-        foreach (var name in new[]
+        foreach(var name in new[]
         {
             "System.Runtime.dll",
             "System.Console.dll",
@@ -59,7 +59,7 @@ public sealed class CSharpCompilationDriver
         })
         {
             var path = Path.Combine(runtimeDir, name);
-            if (File.Exists(path))
+            if(File.Exists(path))
                 refs.Add(RoslynApi.MetadataReference.CreateFromFile(path));
         }
 
@@ -69,7 +69,7 @@ public sealed class CSharpCompilationDriver
         // dispatch against. `System.Linq.Expressions` and
         // `System.Dynamic.Runtime` are transitively required by the
         // DLR's lowering.
-        foreach (var name in new[]
+        foreach(var name in new[]
         {
             "Microsoft.CSharp.dll",
             "System.Linq.Expressions.dll",
@@ -77,7 +77,7 @@ public sealed class CSharpCompilationDriver
         })
         {
             var path = Path.Combine(runtimeDir, name);
-            if (File.Exists(path))
+            if(File.Exists(path))
                 refs.Add(RoslynApi.MetadataReference.CreateFromFile(path));
         }
 
@@ -96,10 +96,10 @@ public sealed class CSharpCompilationDriver
     private static string? TryResolveRefPackDir()
     {
         var dotnetRoot = GetDotnetRoot();
-        if (dotnetRoot is null) return null;
+        if(dotnetRoot is null) return null;
 
         var refPackRoot = Path.Combine(dotnetRoot, "packs", "Microsoft.NETCore.App.Ref");
-        if (!Directory.Exists(refPackRoot)) return null;
+        if(!Directory.Exists(refPackRoot)) return null;
 
         // Pick the highest version directory matching the running
         // runtime's major.minor, then fall back to the highest overall.
@@ -111,11 +111,11 @@ public sealed class CSharpCompilationDriver
         var matched = versionDirs.FirstOrDefault(
             d => Path.GetFileName(d).StartsWith(runtimeMajorMinor, StringComparison.Ordinal));
         var selected = matched ?? versionDirs.FirstOrDefault();
-        if (selected is null) return null;
+        if(selected is null) return null;
 
         // Pick the highest tfm directory under `ref/`.
         var refDir = Path.Combine(selected, "ref");
-        if (!Directory.Exists(refDir)) return null;
+        if(!Directory.Exists(refDir)) return null;
 
         var tfmDirs = Directory.GetDirectories(refDir)
             .OrderByDescending(d => Path.GetFileName(d), StringComparer.Ordinal)
@@ -133,20 +133,20 @@ public sealed class CSharpCompilationDriver
     {
         // Try Assembly.Location first (works in non-single-file scenarios).
         var assemblyLocation = typeof(object).Assembly.Location;
-        if (!string.IsNullOrEmpty(assemblyLocation))
+        if(!string.IsNullOrEmpty(assemblyLocation))
         {
             var dir = Path.GetDirectoryName(assemblyLocation);
-            if (!string.IsNullOrEmpty(dir) && Directory.Exists(dir))
+            if(!string.IsNullOrEmpty(dir) && Directory.Exists(dir))
                 return dir;
         }
 
         // Single-file publish: discover the shared framework directory.
         // The runtime is at: <dotnet-root>/shared/Microsoft.NETCore.App/<version>/
         var dotnetRoot = GetDotnetRoot();
-        if (dotnetRoot is not null)
+        if(dotnetRoot is not null)
         {
             var sharedDir = Path.Combine(dotnetRoot, "shared", "Microsoft.NETCore.App");
-            if (Directory.Exists(sharedDir))
+            if(Directory.Exists(sharedDir))
             {
                 // Pick the highest version directory that exists.
                 var versionDirs = Directory.GetDirectories(sharedDir)
@@ -159,7 +159,7 @@ public sealed class CSharpCompilationDriver
                     Path.GetFileName(d).StartsWith($"{Environment.Version.Major}.{Environment.Version.Minor}."));
 
                 var selectedDir = exactMatch ?? versionDirs.FirstOrDefault();
-                if (selectedDir is not null && Directory.Exists(selectedDir))
+                if(selectedDir is not null && Directory.Exists(selectedDir))
                     return selectedDir;
             }
         }
@@ -176,7 +176,7 @@ public sealed class CSharpCompilationDriver
     {
         // Check DOTNET_ROOT environment variable first.
         var envRoot = Environment.GetEnvironmentVariable("DOTNET_ROOT");
-        if (!string.IsNullOrEmpty(envRoot) && Directory.Exists(envRoot))
+        if(!string.IsNullOrEmpty(envRoot) && Directory.Exists(envRoot))
             return envRoot;
 
         // Common locations per platform.
@@ -193,9 +193,9 @@ public sealed class CSharpCompilationDriver
                 Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".dotnet"),
             };
 
-        foreach (var candidate in candidates)
+        foreach(var candidate in candidates)
         {
-            if (Directory.Exists(candidate) &&
+            if(Directory.Exists(candidate) &&
                 Directory.Exists(Path.Combine(candidate, "shared", "Microsoft.NETCore.App")))
                 return candidate;
         }
@@ -212,12 +212,12 @@ public sealed class CSharpCompilationDriver
         string? mainTypeName = null,
         ImmutableArray<string> additionalReferencePaths = default)
     {
-        if (!Directory.Exists(binDirectory))
+        if(!Directory.Exists(binDirectory))
             Directory.CreateDirectory(binDirectory);
 
         // Collect all emitted .cs files
         var csFiles = Directory.GetFiles(projectDirectory, "*.cs", SearchOption.AllDirectories);
-        if (csFiles.Length == 0)
+        if(csFiles.Length == 0)
         {
             diagnostics.Add(new Diagnostic(
                 new DiagnosticId("MIST_BUILD_ERROR"),
@@ -262,15 +262,15 @@ public sealed class CSharpCompilationDriver
         var runtimeConfigPath = Path.Combine(binDirectory, $"{projectName}.runtimeconfig.json");
 
         EmitResult result;
-        using (var peStream = new FileStream(outputPath, FileMode.Create, FileAccess.Write))
+        using(var peStream = new FileStream(outputPath, FileMode.Create, FileAccess.Write))
         {
             result = compilation.Emit(peStream);
         }
 
         // Map Roslyn diagnostics back to Mist diagnostics
-        foreach (var roslynDiag in result.Diagnostics)
+        foreach(var roslynDiag in result.Diagnostics)
         {
-            if (roslynDiag.Severity == RoslynApi.DiagnosticSeverity.Error)
+            if(roslynDiag.Severity == RoslynApi.DiagnosticSeverity.Error)
             {
                 var location = roslynDiag.Location.IsInSource
                     ? roslynDiag.Location.SourceTree?.FilePath
@@ -287,9 +287,9 @@ public sealed class CSharpCompilationDriver
             }
         }
 
-        if (!result.Success)
+        if(!result.Success)
         {
-            if (File.Exists(outputPath))
+            if(File.Exists(outputPath))
                 File.Delete(outputPath);
             return new BackendResult(false, null, diagnostics.ToImmutableArray(), EmittedFileCount: emittedFileCount);
         }
@@ -298,14 +298,14 @@ public sealed class CSharpCompilationDriver
         WriteRuntimeConfig(runtimeConfigPath, additionalReferencePaths);
 
         // Copy package assembly DLLs to the bin directory so they're found at runtime.
-        if (!additionalReferencePaths.IsDefaultOrEmpty)
+        if(!additionalReferencePaths.IsDefaultOrEmpty)
         {
-            foreach (var refPath in additionalReferencePaths)
+            foreach(var refPath in additionalReferencePaths)
             {
-                if (File.Exists(refPath))
+                if(File.Exists(refPath))
                 {
                     var destPath = Path.Combine(binDirectory, Path.GetFileName(refPath));
-                    if (!File.Exists(destPath))
+                    if(!File.Exists(destPath))
                     {
                         try { File.Copy(refPath, destPath); } catch { /* best effort */ }
                     }
@@ -332,7 +332,7 @@ public sealed class CSharpCompilationDriver
                 p.Contains("Microsoft.AspNetCore.App", StringComparison.OrdinalIgnoreCase));
 
         string json;
-        if (includeAspNetCore)
+        if(includeAspNetCore)
         {
             json = $$"""
                 {

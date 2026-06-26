@@ -147,7 +147,7 @@ public class InheritanceRoundTripPropertyTests
             Modifiers = modifiers ?? ImmutableArray<ModifierNode>.Empty,
         };
 
-        if (baseClassName is not null)
+        if(baseClassName is not null)
         {
             var _baseList = new BaseListNode
             {
@@ -181,7 +181,7 @@ public class InheritanceRoundTripPropertyTests
         var result = Parser.Parse(tokens, bag);
 
         // Check for parse errors
-        if (bag.ToImmutableArray().Any(d => d.Severity == DiagnosticSeverity.Error))
+        if(bag.ToImmutableArray().Any(d => d.Severity == DiagnosticSeverity.Error))
             return null;
 
         return result.Root as CompilationUnitNode;
@@ -258,10 +258,13 @@ public class InheritanceRoundTripPropertyTests
                    {
                        Parameter = new ParameterNode
                        {
-                           Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                           Type = new TypeReferenceNode
                            {
-                               PrimitiveType = new IntTypePrimitiveTypeNode(),
-                           } },
+                               First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                               {
+                                   PrimitiveType = new IntTypePrimitiveTypeNode(),
+                               }
+                           },
                            Name = Tok("val"),
                        },
                    }
@@ -328,13 +331,13 @@ public class InheritanceRoundTripPropertyTests
         var classDecls = new List<ClassDeclarationNode>();
         var declaredNames = new List<string>();
 
-        for (var i = 0; i < classIndices.Length; i++)
+        for(var i = 0; i < classIndices.Length; i++)
         {
             // Ensure unique class names
             var baseName = ClassNames[classIndices[i]];
             var name = baseName;
             var suffix = 0;
-            while (declaredNames.Contains(name))
+            while(declaredNames.Contains(name))
             {
                 suffix++;
                 name = baseName + suffix;
@@ -343,7 +346,7 @@ public class InheritanceRoundTripPropertyTests
 
             // Determine base class: only if there's a previously declared class and hasInheritance is true
             string? baseClassName = null;
-            if (hasInheritance[i] && i > 0)
+            if(hasInheritance[i] && i > 0)
             {
                 baseClassName = declaredNames[rng.Next(i)];
             }
@@ -352,10 +355,10 @@ public class InheritanceRoundTripPropertyTests
             var members = ImmutableArray.CreateBuilder<MemberDeclarationNode>();
             var memberCount = memberCounts[i];
 
-            for (var m = 0; m < memberCount; m++)
+            for(var m = 0; m < memberCount; m++)
             {
                 // Alternate between fields and methods to keep it simple
-                if (m % 2 == 0)
+                if(m % 2 == 0)
                 {
                     var fieldName = FieldNames[rng.Next(FieldNames.Length)];
                     members.Add(new FieldMemberMemberDeclarationNode
@@ -380,7 +383,7 @@ public class InheritanceRoundTripPropertyTests
             }
 
             // Optionally add a constructor with base chain for derived classes
-            if (baseClassName is not null && rng.Next(2) == 0)
+            if(baseClassName is not null && rng.Next(2) == 0)
             {
                 members.Add(new ConstructorMemberMemberDeclarationNode
                 {
@@ -429,7 +432,7 @@ public class InheritanceRoundTripPropertyTests
     {
         // Step 1: Pretty-print the generated AST to source text
         var printed1 = MistPrettyPrinter.Print(testCase.Ast);
-        if (string.IsNullOrWhiteSpace(printed1))
+        if(string.IsNullOrWhiteSpace(printed1))
             return false.ToProperty().Label("printed1 was empty");
 
         // Step 2: Parse the printed source text back to an AST
@@ -442,12 +445,12 @@ public class InheritanceRoundTripPropertyTests
             .Where(d => d.Severity == DiagnosticSeverity.Error)
             .ToList();
 
-        if (errors.Count > 0)
+        if(errors.Count > 0)
             return false.ToProperty()
                 .Label($"Parse errors: {string.Join("; ", errors.Select(e => e.Message))}\nSource:\n{printed1}");
 
         var reparsed = result.Root as CompilationUnitNode;
-        if (reparsed is null)
+        if(reparsed is null)
             return false.ToProperty().Label($"Reparsed root was null.\nSource:\n{printed1}");
 
         // Step 3: Pretty-print the reparsed AST
@@ -456,7 +459,7 @@ public class InheritanceRoundTripPropertyTests
         // Step 4: Compare the two printed outputs — they must be identical
         return (printed1 == printed2).ToProperty()
             .Label($"Mismatch.\nPrinted1:\n{printed1}\nPrinted2:\n{printed2}");
-    ;
+        ;
     }
 
 }

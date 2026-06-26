@@ -138,13 +138,13 @@ public sealed class TypeAliasEmissionPropertyTests
         // Lex
         var lexBag = new DiagnosticBag();
         var tokens = Lexer.Lex(sourceText, lexBag);
-        if (lexBag.HasErrors)
+        if(lexBag.HasErrors)
             return (false, "", FormatDiagnostics(lexBag));
 
         // Parse
         var parseBag = new DiagnosticBag();
         var parseResult = Parser.Parse(tokens, parseBag);
-        if (parseBag.HasErrors || parseResult.Root is null)
+        if(parseBag.HasErrors || parseResult.Root is null)
             return (false, "", FormatDiagnostics(parseBag));
 
         // Semantic model
@@ -157,13 +157,13 @@ public sealed class TypeAliasEmissionPropertyTests
             projectFolder: "/test",
             semBag);
 
-        if (semBag.HasErrors)
+        if(semBag.HasErrors)
             return (false, "", FormatDiagnostics(semBag));
 
         // Type checker
         var tcBag = new DiagnosticBag();
         TypeChecker.Analyze(model, tcBag);
-        if (tcBag.ToImmutableArray().Any(d => d.Severity == DiagnosticSeverity.Error))
+        if(tcBag.ToImmutableArray().Any(d => d.Severity == DiagnosticSeverity.Error))
             return (false, "", FormatDiagnostics(tcBag));
 
         // Emit — use CSharpEmitter directly with a temp directory
@@ -174,13 +174,13 @@ public sealed class TypeAliasEmissionPropertyTests
         {
             CSharpEmitter.Emit(model, tempDir, "TestProgram", emitBag);
 
-            if (emitBag.HasErrors)
+            if(emitBag.HasErrors)
                 return (false, "", FormatDiagnostics(emitBag));
 
             // Read back emitted .cs files
             var csFiles = Directory.GetFiles(tempDir, "*.cs");
             var sb = new StringBuilder();
-            foreach (var f in csFiles)
+            foreach(var f in csFiles)
                 sb.AppendLine(File.ReadAllText(f));
 
             return (true, sb.ToString(), "");
@@ -210,13 +210,13 @@ public sealed class TypeAliasEmissionPropertyTests
     {
         var (succeeded, csContent, diagnosticText) = CompileInMemory(scenario.MistSource);
 
-        if (!succeeded)
+        if(!succeeded)
         {
             return false.ToProperty()
                 .Label($"Compilation failed: {scenario.Description}\nDiagnostics:\n{diagnosticText}");
         }
 
-        if (string.IsNullOrWhiteSpace(csContent))
+        if(string.IsNullOrWhiteSpace(csContent))
         {
             return false.ToProperty()
                 .Label($"C# output was empty: {scenario.Description}");
@@ -224,10 +224,10 @@ public sealed class TypeAliasEmissionPropertyTests
 
         // Verify no Mist-style type alias declaration leaked into C# output.
         var lines = csContent.Split('\n');
-        foreach (var line in lines)
+        foreach(var line in lines)
         {
             var trimmed = line.TrimStart();
-            if (trimmed.StartsWith("type ", StringComparison.Ordinal) &&
+            if(trimmed.StartsWith("type ", StringComparison.Ordinal) &&
                 trimmed.Contains('=') &&
                 trimmed.Contains(';'))
             {

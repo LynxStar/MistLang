@@ -121,7 +121,7 @@ public class NodeOriginConstructionPropertyTests
             _ = new SyntheticOrigin(origin, "");
             return false; // Should have thrown
         }
-        catch (ArgumentException)
+        catch(ArgumentException)
         {
             return true;
         }

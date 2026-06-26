@@ -188,7 +188,7 @@ public sealed class OptionalTypeDeduplicationPropertyTests
 
         var hasMistTc0045 = diagnostics.Any(d => d.Id.Value == "MIST_TC_0045");
 
-        if (scenario.ExpectError)
+        if(scenario.ExpectError)
         {
             return hasMistTc0045.ToProperty()
                 .Label($"Expected MIST_TC_0045 for '{scenario.Label}' but it was not emitted")

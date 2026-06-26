@@ -33,7 +33,7 @@ public static class ArgumentListNodeExtensions
     public static ImmutableArray<ExpressionNode> GetExpressions(this ArgumentListNode node)
     {
         var builder = ImmutableArray.CreateBuilder<ExpressionNode>(node.Arguments.Length);
-        foreach (var arg in node.Arguments)
+        foreach(var arg in node.Arguments)
         {
             builder.Add(ExtractExpression(arg));
         }
@@ -47,7 +47,7 @@ public static class ArgumentListNodeExtensions
     {
         var builder = ImmutableArray.CreateBuilder<ExpressionNode>(1 + node.Arguments.Length);
         builder.Add(ExtractExpression(node.Argument));
-        foreach (var arg in node.Arguments)
+        foreach(var arg in node.Arguments)
         {
             builder.Add(ExtractExpression(arg));
         }

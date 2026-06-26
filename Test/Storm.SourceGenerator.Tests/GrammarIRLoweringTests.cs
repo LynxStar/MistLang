@@ -548,4 +548,3 @@ namespace Storm.SourceGenerator.Tests
         }
     }
 }
-

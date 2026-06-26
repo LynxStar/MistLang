@@ -105,14 +105,14 @@ internal sealed class IntrinsicTypeMap
     {
         // Check if the projected type itself is an intrinsic that should be substituted.
         var mistName = TryGetMistNameFromProjectedType(projectedType);
-        if (mistName is not null)
+        if(mistName is not null)
         {
             var simpleName = GetSimpleName(mistName);
             try
             {
                 return stdlib.LookupStandardType(simpleName);
             }
-            catch (InvalidOperationException)
+            catch(InvalidOperationException)
             {
                 // FallbackStdlibTypeProvider doesn't have this type yet.
                 // Return the projected type unchanged; it will be substituted
@@ -122,7 +122,7 @@ internal sealed class IntrinsicTypeMap
         }
 
         // For constructed generic types, recursively substitute type arguments.
-        if (projectedType is ConstructedType ct)
+        if(projectedType is ConstructedType ct)
         {
             return SubstituteConstructedType(ct, stdlib);
         }
@@ -143,14 +143,14 @@ internal sealed class IntrinsicTypeMap
         var anyChanged = !ReferenceEquals(substitutedDefinition, ct.GenericDefinition);
         var substitutedArgs = new IType[ct.TypeArguments.Count];
 
-        for (var i = 0; i < ct.TypeArguments.Count; i++)
+        for(var i = 0; i < ct.TypeArguments.Count; i++)
         {
             substitutedArgs[i] = SubstituteIntrinsics(ct.TypeArguments[i], stdlib);
-            if (!ReferenceEquals(substitutedArgs[i], ct.TypeArguments[i]))
+            if(!ReferenceEquals(substitutedArgs[i], ct.TypeArguments[i]))
                 anyChanged = true;
         }
 
-        if (!anyChanged)
+        if(!anyChanged)
             return ct;
 
         return new ConstructedType(
@@ -167,35 +167,35 @@ internal sealed class IntrinsicTypeMap
     {
         // A type that is already a Standard Library type (IsBackendBacked + Standard namespace)
         // does not need substitution — it's already the correct type.
-        switch (type)
+        switch(type)
         {
             case StructType { IsBackendBacked: true, ContainingNamespace: "Standard" }:
             case ClassType { IsBackendBacked: true, ContainingNamespace: "Standard" }:
                 return null;
 
             case StructType st:
-            {
-                var qualifiedName = st.ContainingNamespace is not null
-                    ? $"{st.ContainingNamespace}.{st.DisplayName}"
-                    : st.DisplayName;
-                return GetMistTypeName(qualifiedName);
-            }
+                {
+                    var qualifiedName = st.ContainingNamespace is not null
+                        ? $"{st.ContainingNamespace}.{st.DisplayName}"
+                        : st.DisplayName;
+                    return GetMistTypeName(qualifiedName);
+                }
 
             case ClassType ct:
-            {
-                var qualifiedName = ct.ContainingNamespace is not null
-                    ? $"{ct.ContainingNamespace}.{ct.DisplayName}"
-                    : ct.DisplayName;
-                return GetMistTypeName(qualifiedName);
-            }
+                {
+                    var qualifiedName = ct.ContainingNamespace is not null
+                        ? $"{ct.ContainingNamespace}.{ct.DisplayName}"
+                        : ct.DisplayName;
+                    return GetMistTypeName(qualifiedName);
+                }
 
             case AbstractType it:
-            {
-                var qualifiedName = it.ContainingNamespace is not null
-                    ? $"{it.ContainingNamespace}.{it.DisplayName}"
-                    : it.DisplayName;
-                return GetMistTypeName(qualifiedName);
-            }
+                {
+                    var qualifiedName = it.ContainingNamespace is not null
+                        ? $"{it.ContainingNamespace}.{it.DisplayName}"
+                        : it.DisplayName;
+                    return GetMistTypeName(qualifiedName);
+                }
 
             default:
                 return null;
@@ -227,18 +227,18 @@ internal sealed class IntrinsicTypeMap
     {
         var reversed = new Dictionary<string, string>(StringComparer.Ordinal);
 
-        foreach (var (mistName, csharpName) in CSharpTypeMap.BackingTypes)
+        foreach(var (mistName, csharpName) in CSharpTypeMap.BackingTypes)
         {
             // Only process canonical "Standard.*" entries to avoid duplicates
             // from the legacy keyword entries (e.g., "int" → "int").
-            if (!mistName.StartsWith("Standard.", StringComparison.Ordinal))
+            if(!mistName.StartsWith("Standard.", StringComparison.Ordinal))
                 continue;
 
             // Map the C# name (keyword or qualified) → Mist name
             reversed.TryAdd(csharpName, mistName);
 
             // For C# keywords, also add the full CLR name
-            if (KeywordToClrFullName.TryGetValue(csharpName, out var clrFullName))
+            if(KeywordToClrFullName.TryGetValue(csharpName, out var clrFullName))
             {
                 reversed.TryAdd(clrFullName, mistName);
             }
@@ -247,7 +247,7 @@ internal sealed class IntrinsicTypeMap
         // Add inbound-only CLR → Mist projections that have no Backing_Type_Map
         // entry (their outbound emission is governed elsewhere). These let the
         // Assembly Type Provider recognize the CLR types on inbound positions.
-        foreach (var (clrName, mistName) in AdditionalClrToMist)
+        foreach(var (clrName, mistName) in AdditionalClrToMist)
         {
             reversed.TryAdd(clrName, mistName);
         }

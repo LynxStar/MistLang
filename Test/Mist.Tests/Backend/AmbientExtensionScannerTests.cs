@@ -29,7 +29,7 @@ public sealed class AmbientExtensionScannerTests : IDisposable
 
         // Build LoadedAssemblyInfo for each assembly that loads successfully.
         var loaded = new List<LoadedAssemblyInfo>();
-        foreach (var path in assemblyPaths)
+        foreach(var path in assemblyPaths)
         {
             try
             {

@@ -44,7 +44,7 @@ public sealed class SubstructuralOwnershipPropertyTests : IDisposable
 
     public void Dispose()
     {
-        if (Directory.Exists(_outputDir))
+        if(Directory.Exists(_outputDir))
         {
             try { Directory.Delete(_outputDir, recursive: true); } catch { /* best effort */ }
         }
@@ -182,7 +182,7 @@ public sealed class SubstructuralOwnershipPropertyTests : IDisposable
         // For relevant structs, append a non-owned (class) field so ownership
         // inference does not promote the struct to owned and confound the property.
         var extraField = "";
-        if (discipline == "relevant" && useStruct)
+        if(discipline == "relevant" && useStruct)
         {
             extraField = "\n    NonOwnedRef item;";
         }
@@ -214,11 +214,11 @@ public sealed class SubstructuralOwnershipPropertyTests : IDisposable
 
     private static string BuildFields(string[] fieldTypes)
     {
-        if (fieldTypes.Length == 0)
+        if(fieldTypes.Length == 0)
             return "";
 
         var lines = new List<string>();
-        for (var i = 0; i < fieldTypes.Length; i++)
+        for(var i = 0; i < fieldTypes.Length; i++)
         {
             var fieldName = i < FieldNames.Length ? FieldNames[i] : $"f{i}";
             lines.Add($"{fieldTypes[i]} {fieldName};");
@@ -242,11 +242,11 @@ public sealed class SubstructuralOwnershipPropertyTests : IDisposable
     {
         var model = CompileAndCapture(scenario.Source);
 
-        if (model is null)
+        if(model is null)
             return false.ToProperty().Label("Semantic model was null (compilation failed early)");
 
         var isOwned = FindIsOwnedType(model, scenario.TypeName);
-        if (isOwned is null)
+        if(isOwned is null)
             return false.ToProperty().Label($"Type '{scenario.TypeName}' not found in model.\nSource:\n{scenario.Source}");
 
         return (isOwned.Value == scenario.ExpectedOwned).ToProperty()

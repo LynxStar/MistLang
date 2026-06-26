@@ -88,10 +88,10 @@ public static class TypeContainment
         ArgumentNullException.ThrowIfNull(haystack);
         ArgumentNullException.ThrowIfNull(needle);
 
-        if (TypesMatch(haystack, needle))
+        if(TypesMatch(haystack, needle))
             return true;
 
-        switch (haystack)
+        switch(haystack)
         {
             case ArrayType array:
                 return ContainsType(array.ElementType, needle);
@@ -100,9 +100,9 @@ public static class TypeContainment
                 // Recurse on each type argument. Each argument is already
                 // the substituted form (see class-level remarks), so we do
                 // not re-run SubstituteAtPosition here.
-                for (var i = 0; i < constructed.TypeArguments.Count; i++)
+                for(var i = 0; i < constructed.TypeArguments.Count; i++)
                 {
-                    if (ContainsType(constructed.TypeArguments[i], needle))
+                    if(ContainsType(constructed.TypeArguments[i], needle))
                         return true;
                 }
                 return false;
@@ -182,10 +182,10 @@ public static class TypeContainment
     /// </summary>
     private static bool TypesMatch(IType a, IType b)
     {
-        if (ReferenceEquals(a, b))
+        if(ReferenceEquals(a, b))
             return true;
 
-        if (a is TypeParameterType aTp && b is TypeParameterType bTp)
+        if(a is TypeParameterType aTp && b is TypeParameterType bTp)
             return aTp.Name == bTp.Name && aTp.Ordinal == bTp.Ordinal;
 
         return false;

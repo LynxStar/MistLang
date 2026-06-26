@@ -132,7 +132,7 @@ public class GenericFieldContainmentPropertyTests
         {
             get
             {
-                if (Constraint == TypeParamConstraint.None)
+                if(Constraint == TypeParamConstraint.None)
                     return false; // Not applicable — unconstrained path takes over.
 
                 var fieldDiscipline = Constraint switch
@@ -162,11 +162,11 @@ public class GenericFieldContainmentPropertyTests
             get
             {
                 // Unrestricted container with unconstrained T → no unconstrained-TP diagnostic.
-                if (Container == ContainerDiscipline.Unrestricted && Constraint == TypeParamConstraint.None)
+                if(Container == ContainerDiscipline.Unrestricted && Constraint == TypeParamConstraint.None)
                     return true;
 
                 // Substructural container with unconstrained T → diagnostic.
-                if (ExpectsUnconstrainedDiagnostic)
+                if(ExpectsUnconstrainedDiagnostic)
                     return false;
 
                 // Constrained T → matrix decides.
@@ -283,7 +283,7 @@ public class GenericFieldContainmentPropertyTests
             .Where(d => d.Id.Value == "MIST_DROP_FIELD_NOT_OWNED")
             .ToList();
 
-        if (scenario.ExpectsZeroDiagnostics)
+        if(scenario.ExpectsZeroDiagnostics)
         {
             // Expect no MIST_DROP_FIELD_NOT_OWNED diagnostic.
             var hasNone = fieldNotOwnedDiags.Count == 0;
@@ -293,7 +293,7 @@ public class GenericFieldContainmentPropertyTests
                        $"Source:\n{source}\n" +
                        $"Diagnostics: [{string.Join(", ", fieldNotOwnedDiags.Select(d => d.Message))}]");
         }
-        else if (scenario.ExpectsUnconstrainedDiagnostic)
+        else if(scenario.ExpectsUnconstrainedDiagnostic)
         {
             // Expect the "unconstrained type parameter" diagnostic.
             var hasUnconstrainedDiag = fieldNotOwnedDiags.Count > 0 &&

@@ -178,7 +178,7 @@ public sealed class SiblingIndependencePropertyTests
     private static void PutFieldAInState(
         MethodFlowState flowState, Symbol parent, Symbol fieldA, VariableOwnershipState targetState)
     {
-        switch (targetState)
+        switch(targetState)
         {
             case VariableOwnershipState.LentReadonly:
                 flowState.ReadonlyRefField(parent, fieldA);
@@ -201,7 +201,7 @@ public sealed class SiblingIndependencePropertyTests
     private static VariableOwnershipState ApplyOperationAndGetExpectedState(
         MethodFlowState flowState, Symbol parent, Symbol fieldB, SiblingOperation operation)
     {
-        switch (operation)
+        switch(operation)
         {
             case SiblingOperation.Read:
                 // Reading field B's state — just query, expected to be Live
@@ -277,7 +277,7 @@ public sealed class SiblingIndependencePropertyTests
 
         // Verify field A is in the expected state
         var actualFieldAState = flowState.GetFieldState(parent, fieldA);
-        if (actualFieldAState != scenario.FieldAState)
+        if(actualFieldAState != scenario.FieldAState)
         {
             return false.ToProperty().Label(
                 $"Setup failed: fieldA expected {scenario.FieldAState} but got {actualFieldAState}");
@@ -285,7 +285,7 @@ public sealed class SiblingIndependencePropertyTests
 
         // Verify field B is still Live before we operate on it
         var fieldBBeforeOp = flowState.GetFieldState(parent, fieldB);
-        if (fieldBBeforeOp != VariableOwnershipState.Live)
+        if(fieldBBeforeOp != VariableOwnershipState.Live)
         {
             return false.ToProperty().Label(
                 $"Setup failed: fieldB expected Live before operation but got {fieldBBeforeOp}");

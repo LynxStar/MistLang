@@ -68,7 +68,7 @@ public sealed class DelegateNominalDistinctnessPropertyTests
     {
         var funcDef = new ClassType("Func", new Scope(null), "Standard", isBackendBacked: true);
         var tps = new IType[arity];
-        for (var i = 0; i < arity; i++)
+        for(var i = 0; i < arity; i++)
             tps[i] = new TypeParameterType($"T{i}", i);
         funcDef.TypeParameters = tps;
         return funcDef;
@@ -118,7 +118,7 @@ public sealed class DelegateNominalDistinctnessPropertyTests
 
         // Ensure the CLR full names are actually different
         // If by chance they collide, tweak the second name
-        if (fullName1 == fullName2)
+        if(fullName1 == fullName2)
             fullName2 = $"{input.Namespace2}.{input.SimpleName2}X";
 
         var d1 = new DelegateType(
@@ -157,7 +157,7 @@ public sealed class DelegateNominalDistinctnessPropertyTests
     public void P7_DistinctNamedDelegates_NotAssignable_D1ToD2()
     {
         var samples = GenDistinctDelegatePair().Sample(100);
-        foreach (var input in samples)
+        foreach(var input in samples)
         {
             var (d1, d2) = BuildDistinctPair(input);
 
@@ -175,7 +175,7 @@ public sealed class DelegateNominalDistinctnessPropertyTests
     public void P7_DistinctNamedDelegates_NotAssignable_D2ToD1()
     {
         var samples = GenDistinctDelegatePair().Sample(100);
-        foreach (var input in samples)
+        foreach(var input in samples)
         {
             var (d1, d2) = BuildDistinctPair(input);
 

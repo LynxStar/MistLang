@@ -381,7 +381,7 @@ namespace Storm.SourceGenerator.Tests
 
             // id(rule) == index of the rule within MemoizedRuleNames.
             var memoizedNames = plan.MemoizedRuleNames.ToList();
-            for (var i = 0; i < plan.MemoizedRuleNames.Count; i++)
+            for(var i = 0; i < plan.MemoizedRuleNames.Count; i++)
             {
                 var name = plan.MemoizedRuleNames[i];
                 Assert.Equal(i, plan.RuleIds[name]);
@@ -391,7 +391,7 @@ namespace Storm.SourceGenerator.Tests
             // Ids strictly increase in grammar declaration order: for any two memoized
             // rules, the one declared earlier has the smaller id.
             var previousDeclarationIndex = -1;
-            foreach (var name in plan.MemoizedRuleNames)
+            foreach(var name in plan.MemoizedRuleNames)
             {
                 var declarationIndex = IndexOfRule(grammar, name);
                 Assert.True(
@@ -755,9 +755,9 @@ namespace Storm.SourceGenerator.Tests
         /// </summary>
         private static int IndexOfRule(GrammarIR grammar, string ruleName)
         {
-            for (var i = 0; i < grammar.Rules.Count; i++)
+            for(var i = 0; i < grammar.Rules.Count; i++)
             {
-                if (grammar.Rules[i].Name == ruleName)
+                if(grammar.Rules[i].Name == ruleName)
                 {
                     return i;
                 }
@@ -773,7 +773,7 @@ namespace Storm.SourceGenerator.Tests
         private static void AssertSameRuleIds(MemoizationPlan expected, MemoizationPlan actual)
         {
             Assert.Equal(expected.RuleIds.Count, actual.RuleIds.Count);
-            foreach (var entry in expected.RuleIds)
+            foreach(var entry in expected.RuleIds)
             {
                 Assert.True(
                     actual.RuleIds.ContainsKey(entry.Key),

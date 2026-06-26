@@ -42,7 +42,7 @@ public sealed class VoidEmissionPropertyTests : IDisposable
 
     public void Dispose()
     {
-        if (Directory.Exists(_outputDir))
+        if(Directory.Exists(_outputDir))
         {
             try { Directory.Delete(_outputDir, recursive: true); } catch { /* best effort */ }
         }
@@ -116,7 +116,7 @@ public sealed class VoidEmissionPropertyTests : IDisposable
     {
         var primary = new IdentifierExpressionPrimaryNode { Name = Tok(methodName) };
         ArgumentListNode? argList = null;
-        if (args is { Length: > 0 })
+        if(args is { Length: > 0 })
         {
             argList = new ArgumentListNode { Argument = new ValueArgumentArgumentNode { Expression = args[0] } };
         }
@@ -205,9 +205,9 @@ public sealed class VoidEmissionPropertyTests : IDisposable
 
     private void CleanOutputDir()
     {
-        if (Directory.Exists(_outputDir))
+        if(Directory.Exists(_outputDir))
         {
-            foreach (var file in Directory.GetFiles(_outputDir))
+            foreach(var file in Directory.GetFiles(_outputDir))
                 File.Delete(file);
         }
     }
@@ -309,14 +309,17 @@ public sealed class VoidEmissionPropertyTests : IDisposable
             Name = Tok(scenario.MethodName),
             ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
-            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode
+            Body = new MethodBlockBodyMethodBodyNode
             {
-                Statements = ImmutableArray.Create<StatementNode>(
+                Block = new BlockNode
+                {
+                    Statements = ImmutableArray.Create<StatementNode>(
                     new ReturnStatementStatementNode
                     {
                         ReturnStatement = new ReturnStatementNode { Value = null },
                     }),
-            } },
+                }
+            },
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
         };
 
@@ -324,7 +327,7 @@ public sealed class VoidEmissionPropertyTests : IDisposable
         ImmutableArray<StatementNode> mainStatements;
         string source;
 
-        if (scenario.Context == VoidUsageContext.ValueConsumed)
+        if(scenario.Context == VoidUsageContext.ValueConsumed)
         {
             // var varName = MethodName(); — consumes the return value
             var callExpr = MakeMethodCallExpression(scenario.MethodName);
@@ -393,7 +396,7 @@ public sealed class VoidEmissionPropertyTests : IDisposable
         Arbitrary = new[] { typeof(VoidEmissionPropertyTests) })]
     public bool ValueConsumedVoidMethod_EmitsMistVoid(VoidEmissionScenario scenario)
     {
-        if (scenario.Context != VoidUsageContext.ValueConsumed)
+        if(scenario.Context != VoidUsageContext.ValueConsumed)
             return true; // skip non-matching scenarios
 
         CleanOutputDir();
@@ -402,7 +405,7 @@ public sealed class VoidEmissionPropertyTests : IDisposable
         var model = BuildModel(ast, source);
         var csContent = EmitAndGetCsContent(model);
 
-        if (string.IsNullOrEmpty(csContent))
+        if(string.IsNullOrEmpty(csContent))
             return false;
 
         // Req 10.3: The void method whose return value is consumed should have MistVoid return type
@@ -431,7 +434,7 @@ public sealed class VoidEmissionPropertyTests : IDisposable
         Arbitrary = new[] { typeof(VoidEmissionPropertyTests) })]
     public bool FireAndForgetVoidMethod_EmitsCSharpVoid(VoidEmissionScenario scenario)
     {
-        if (scenario.Context != VoidUsageContext.FireAndForget)
+        if(scenario.Context != VoidUsageContext.FireAndForget)
             return true; // skip non-matching scenarios
 
         CleanOutputDir();
@@ -440,7 +443,7 @@ public sealed class VoidEmissionPropertyTests : IDisposable
         var model = BuildModel(ast, source);
         var csContent = EmitAndGetCsContent(model);
 
-        if (string.IsNullOrEmpty(csContent))
+        if(string.IsNullOrEmpty(csContent))
             return false;
 
         // Req 10.4: The void method should have standard C# void return type

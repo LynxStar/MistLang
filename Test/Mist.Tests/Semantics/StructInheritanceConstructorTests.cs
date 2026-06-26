@@ -82,7 +82,7 @@ public class StructInheritanceConstructorTests
             Members = members ?? ImmutableArray<MemberDeclarationNode>.Empty,
         };
 
-        if (baseStructName is not null)
+        if(baseStructName is not null)
         {
             var baseList = MakeBaseList(baseStructName);
             decl.AbstractList = baseList;
@@ -131,10 +131,13 @@ public class StructInheritanceConstructorTests
         {
             Parameter = new ParameterNode
             {
-                Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                Type = new TypeReferenceNode
                 {
-                    PrimitiveType = new IntTypePrimitiveTypeNode(),
-                } },
+                    First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                    {
+                        PrimitiveType = new IntTypePrimitiveTypeNode(),
+                    }
+                },
                 Name = MakeToken(paramName),
             },
         };
@@ -149,18 +152,24 @@ public class StructInheritanceConstructorTests
         {
             Parameter = new ParameterNode
             {
-                Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                Type = new TypeReferenceNode
                 {
-                    PrimitiveType = new IntTypePrimitiveTypeNode(),
-                } },
+                    First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                    {
+                        PrimitiveType = new IntTypePrimitiveTypeNode(),
+                    }
+                },
                 Name = MakeToken(paramName1),
             },
             Parameters = ImmutableArray.Create(new ParameterNode
             {
-                Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                Type = new TypeReferenceNode
                 {
-                    PrimitiveType = new IntTypePrimitiveTypeNode(),
-                } },
+                    First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                    {
+                        PrimitiveType = new IntTypePrimitiveTypeNode(),
+                    }
+                },
                 Name = MakeToken(paramName2),
             }),
         };

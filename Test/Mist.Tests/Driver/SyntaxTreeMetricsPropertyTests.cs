@@ -50,7 +50,7 @@ public class SyntaxTreeMetricsPropertyTests
     /// </summary>
     private static Gen<TestNode> GenTree(int maxDepth)
     {
-        if (maxDepth <= 0)
+        if(maxDepth <= 0)
             return Gen.Constant(new TestNode(Array.Empty<Storm.Runtime.SyntaxNode>()));
 
         return Gen.Choose(0, 4).SelectMany(childCount =>

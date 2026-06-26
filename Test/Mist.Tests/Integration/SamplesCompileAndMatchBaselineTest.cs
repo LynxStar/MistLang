@@ -198,17 +198,17 @@ public sealed class SamplesCompileAndMatchBaselineTest
     private static string FindRepoRoot()
     {
         var dir = AppContext.BaseDirectory;
-        while (dir is not null)
+        while(dir is not null)
         {
-            if (File.Exists(Path.Combine(dir, "Mist.slnx")))
+            if(File.Exists(Path.Combine(dir, "Mist.slnx")))
                 return dir;
             dir = Directory.GetParent(dir)?.FullName;
         }
 
         dir = Directory.GetCurrentDirectory();
-        while (dir is not null)
+        while(dir is not null)
         {
-            if (File.Exists(Path.Combine(dir, "Mist.slnx")))
+            if(File.Exists(Path.Combine(dir, "Mist.slnx")))
                 return dir;
             dir = Directory.GetParent(dir)?.FullName;
         }

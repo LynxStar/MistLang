@@ -64,7 +64,7 @@ public sealed class MoveBoundaryCloneFromLentPropertyTests : IDisposable
 
     public void Dispose()
     {
-        if (Directory.Exists(_outputDir))
+        if(Directory.Exists(_outputDir))
         {
             try { Directory.Delete(_outputDir, recursive: true); } catch { /* best effort */ }
         }
@@ -140,15 +140,15 @@ public sealed class MoveBoundaryCloneFromLentPropertyTests : IDisposable
     private static (SyntaxNode Initializer, Mist.Semantics.Contracts.IType? DestinationType)? FindOwnedBindingInitializer(
         ISemanticModel model, string bindingName)
     {
-        foreach (var symbol in model.AllSymbols)
+        foreach(var symbol in model.AllSymbols)
         {
-            if (symbol.Origin != SymbolOrigin.UserCode)
+            if(symbol.Origin != SymbolOrigin.UserCode)
                 continue;
-            if (symbol.Kind != SymbolKind.LocalVariable)
+            if(symbol.Kind != SymbolKind.LocalVariable)
                 continue;
-            if (symbol.Name != bindingName)
+            if(symbol.Name != bindingName)
                 continue;
-            if (symbol is not Symbol varSymbol || varSymbol.OwnershipTier != OwnershipTier.Owned)
+            if(symbol is not Symbol varSymbol || varSymbol.OwnershipTier != OwnershipTier.Owned)
                 continue;
 
             SyntaxNode declaringNode;
@@ -156,7 +156,7 @@ public sealed class MoveBoundaryCloneFromLentPropertyTests : IDisposable
             catch { return null; }
 
             var initializer = GetInitializerExpression(declaringNode);
-            if (initializer is null)
+            if(initializer is null)
                 return null;
 
             return (initializer, varSymbol.DeclaredType);
@@ -171,13 +171,13 @@ public sealed class MoveBoundaryCloneFromLentPropertyTests : IDisposable
     /// </summary>
     private static ISymbol? FindLocalVariableSymbol(ISemanticModel model, string name)
     {
-        foreach (var symbol in model.AllSymbols)
+        foreach(var symbol in model.AllSymbols)
         {
-            if (symbol.Origin != SymbolOrigin.UserCode)
+            if(symbol.Origin != SymbolOrigin.UserCode)
                 continue;
-            if (symbol.Kind != SymbolKind.LocalVariable)
+            if(symbol.Kind != SymbolKind.LocalVariable)
                 continue;
-            if (symbol.Name == name)
+            if(symbol.Name == name)
                 return symbol;
         }
 
@@ -256,7 +256,7 @@ public sealed class MoveBoundaryCloneFromLentPropertyTests : IDisposable
         sb.Append("using Standard;\n\nnamespace Gen;\n\n");
 
         // A clonable helper class (all-int fields → auto-derives IClonable<Helper>).
-        if (usesHelper)
+        if(usesHelper)
         {
             sb.Append("public class Helper\n{\n    public int hv;\n}\n\n");
         }
@@ -264,7 +264,7 @@ public sealed class MoveBoundaryCloneFromLentPropertyTests : IDisposable
         // The non-owned reference source type S.
         var clonableClause = declaresExplicit ? " : IClonable<S>" : "";
         sb.Append($"public class S{clonableClause}\n{{\n");
-        for (var i = 0; i < fields.Count; i++)
+        for(var i = 0; i < fields.Count; i++)
         {
             var typeText = fields[i] switch
             {
@@ -276,7 +276,7 @@ public sealed class MoveBoundaryCloneFromLentPropertyTests : IDisposable
             sb.Append($"    public {typeText} f{i};\n");
         }
 
-        if (declaresExplicit)
+        if(declaresExplicit)
         {
             // A Clone() satisfying IClonable<S>; `default` is a fresh owned graph (Req 6.10).
             sb.Append("    public owned S Clone() { return default; }\n");
@@ -314,15 +314,15 @@ public sealed class MoveBoundaryCloneFromLentPropertyTests : IDisposable
     {
         var model = CompileAndCapture(scenario.Source);
 
-        if (model is null)
+        if(model is null)
             return false.ToProperty().Label($"Semantic model was null (compilation failed early).\nSource:\n{scenario.Source}");
 
         var located = FindOwnedBindingInitializer(model, "x");
-        if (located is null)
+        if(located is null)
             return false.ToProperty().Label($"Could not locate owned binding 'x' or its initializer.\nSource:\n{scenario.Source}");
 
         var lender = FindLocalVariableSymbol(model, "s");
-        if (lender is null)
+        if(lender is null)
             return false.ToProperty().Label($"Could not locate lender binding 's'.\nSource:\n{scenario.Source}");
 
         var (initializer, destinationType) = located.Value;
@@ -343,7 +343,7 @@ public sealed class MoveBoundaryCloneFromLentPropertyTests : IDisposable
             diagnostics);
 
         // (a) The non-owned clonable source resolves to an implicit clone (Req 8 AC 5).
-        if (resolution.Outcome != MoveOutcome.ImplicitClone)
+        if(resolution.Outcome != MoveOutcome.ImplicitClone)
         {
             return false.ToProperty().Label(
                 $"Expected Resolve == ImplicitClone for a clonable source held in {scenario.LentState}, "
@@ -351,13 +351,13 @@ public sealed class MoveBoundaryCloneFromLentPropertyTests : IDisposable
         }
 
         // (b) The lender is NOT consumed: its flow-state entry equals the pre-clone state.
-        if (!flowState.VariableStates.TryGetValue(lender, out var postState))
+        if(!flowState.VariableStates.TryGetValue(lender, out var postState))
         {
             return false.ToProperty().Label(
                 $"Lender 's' was removed from the flow state by the clone.\nScenario: {scenario.Label}\nSource:\n{scenario.Source}");
         }
 
-        if (postState != preState)
+        if(postState != preState)
         {
             return false.ToProperty().Label(
                 $"Clone consumed the lender: pre-state was {preState} but post-state is {postState} "

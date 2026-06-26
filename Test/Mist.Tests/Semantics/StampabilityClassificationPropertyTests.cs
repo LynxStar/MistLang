@@ -53,7 +53,7 @@ public class StampabilityClassificationPropertyTests
         var parseBag = new DiagnosticBag();
         var parseResult = SharedParser.Parse(tokens, parseBag);
 
-        if (parseResult.Root is null)
+        if(parseResult.Root is null)
             throw new InvalidOperationException(
                 $"Parse failed: {string.Join("; ", parseBag.ToImmutableArray().Select(d => d.Message))}");
 
@@ -147,7 +147,7 @@ public class StampabilityClassificationPropertyTests
     private static Gen<ImmutableArray<(string FieldName, FieldTypeKind Kind)>>
         GenFields(int count)
     {
-        if (count == 0)
+        if(count == 0)
             return Gen.Constant(
                 ImmutableArray<(string, FieldTypeKind)>.Empty);
 
@@ -155,7 +155,7 @@ public class StampabilityClassificationPropertyTests
             from kind in GenFieldKind()
             select ImmutableArray.Create((FieldNames[0], kind));
 
-        for (var i = 1; i < count; i++)
+        for(var i = 1; i < count; i++)
         {
             var idx = i;
             result = from arr in result
@@ -207,7 +207,7 @@ public class StampabilityClassificationPropertyTests
         var classIdx = 0;
         var primIdx = 0;
 
-        foreach (var (fieldName, kind) in fields)
+        foreach(var (fieldName, kind) in fields)
         {
             var typeName = kind switch
             {
@@ -224,7 +224,7 @@ public class StampabilityClassificationPropertyTests
 
             fieldSpecs.Add((fieldName, kind, typeName));
 
-            switch (kind)
+            switch(kind)
             {
                 case FieldTypeKind.StampableStruct:
                     nestedStructsNeeded.Add(typeName);
@@ -239,7 +239,7 @@ public class StampabilityClassificationPropertyTests
         }
 
         // Declare nested stampable structs (with a single int field)
-        foreach (var name in nestedStructsNeeded)
+        foreach(var name in nestedStructsNeeded)
         {
             declarations.Add($$"""
                 public struct {{name}}
@@ -250,7 +250,7 @@ public class StampabilityClassificationPropertyTests
         }
 
         // Declare classes referenced by class fields
-        foreach (var name in classesNeeded)
+        foreach(var name in classesNeeded)
         {
             declarations.Add($$"""
                 public class {{name}}
@@ -261,7 +261,7 @@ public class StampabilityClassificationPropertyTests
         }
 
         // Build the struct under test
-        foreach (var (fieldName, _, typeName) in fieldSpecs)
+        foreach(var (fieldName, _, typeName) in fieldSpecs)
         {
             structFields.Add($"    public {typeName} {fieldName};");
         }
@@ -313,14 +313,14 @@ public class StampabilityClassificationPropertyTests
                 s.Name == scenario.StructName &&
                 s.Kind == SymbolKind.Struct);
 
-        if (typeSymbol is null)
+        if(typeSymbol is null)
         {
             return false.ToProperty()
                 .Label($"Could not find struct '{scenario.StructName}' " +
                        $"in semantic model. Scenario: {scenario}");
         }
 
-        if (typeSymbol.DeclaredType is not StructType structType)
+        if(typeSymbol.DeclaredType is not StructType structType)
         {
             return false.ToProperty()
                 .Label($"Symbol '{scenario.StructName}' is not a " +

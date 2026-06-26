@@ -50,7 +50,7 @@ public class SubstructuralModifierRoundTripPropertyTests
             .Where(d => d.Severity == DiagnosticSeverity.Error)
             .ToList();
 
-        if (errors.Count > 0)
+        if(errors.Count > 0)
             throw new InvalidOperationException(
                 $"Unexpected parse errors:\n  {string.Join("\n  ", errors.Select(e => e.Message))}\nSource:\n{source}");
 
@@ -77,7 +77,7 @@ public class SubstructuralModifierRoundTripPropertyTests
         // Step 2: Pretty-print AST1 → printed1.
         var printed1 = MistPrettyPrinter.Print(ast1, scenario.Source);
 
-        if (string.IsNullOrWhiteSpace(printed1))
+        if(string.IsNullOrWhiteSpace(printed1))
             return false.ToProperty().Label("printed1 was empty");
 
         // The substructural modifier must appear as a standalone keyword in the output.
@@ -93,7 +93,7 @@ public class SubstructuralModifierRoundTripPropertyTests
         var ast1 = ParseOrFail(scenario.Source);
         var printed1 = MistPrettyPrinter.Print(ast1, scenario.Source);
 
-        if (string.IsNullOrWhiteSpace(printed1))
+        if(string.IsNullOrWhiteSpace(printed1))
             return false.ToProperty().Label("printed1 was empty");
 
         var ast2 = ParseOrFail(printed1);
@@ -134,7 +134,7 @@ public class SubstructuralModifierRoundTripPropertyTests
         var printed = MistPrettyPrinter.Print(ast, source);
 
         // Every whitespace-separated modifier keyword in the header must survive.
-        foreach (var keyword in header.Split(' ').Where(w => w is "public" or "static" or "affine" or "linear" or "relevant"))
+        foreach(var keyword in header.Split(' ').Where(w => w is "public" or "static" or "affine" or "linear" or "relevant"))
         {
             Assert.True(ContainsKeyword(printed, keyword),
                 $"Keyword '{keyword}' not preserved. Printed:\n{printed}");
@@ -149,12 +149,12 @@ public class SubstructuralModifierRoundTripPropertyTests
     private static bool ContainsKeyword(string text, string keyword)
     {
         var index = 0;
-        while ((index = text.IndexOf(keyword, index, StringComparison.Ordinal)) >= 0)
+        while((index = text.IndexOf(keyword, index, StringComparison.Ordinal)) >= 0)
         {
             var before = index == 0 || !IsIdentChar(text[index - 1]);
             var afterPos = index + keyword.Length;
             var after = afterPos >= text.Length || !IsIdentChar(text[afterPos]);
-            if (before && after)
+            if(before && after)
                 return true;
             index = afterPos;
         }

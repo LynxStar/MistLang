@@ -101,7 +101,7 @@ public sealed partial class ConstructorDefaultCoexistencePropertyTests
         Gen<ImmutableArray<(string, string, string)>> result =
             Gen.Constant(ImmutableArray<(string, string, string)>.Empty);
 
-        for (var i = 0; i < count; i++)
+        for(var i = 0; i < count; i++)
         {
             var idx = i;
             result = from arr in result
@@ -129,7 +129,7 @@ public sealed partial class ConstructorDefaultCoexistencePropertyTests
         sb.AppendLine("{");
 
         // Field declarations
-        foreach (var (fieldName, fieldType, _) in scenario.Fields)
+        foreach(var (fieldName, fieldType, _) in scenario.Fields)
         {
             sb.AppendLine($"    public {fieldType} {fieldName};");
         }
@@ -142,12 +142,12 @@ public sealed partial class ConstructorDefaultCoexistencePropertyTests
             .Select(f => $"{f.FieldType} {f.FieldName}Param");
         sb.AppendLine($"    public {scenario.TypeName}({string.Join(", ", ctorParams)})");
         sb.AppendLine("    {");
-        foreach (var (fieldName, _, _) in scenario.Fields.Take(scenario.ConstructorParamCount))
+        foreach(var (fieldName, _, _) in scenario.Fields.Take(scenario.ConstructorParamCount))
         {
             sb.AppendLine($"        this.{fieldName} = {fieldName}Param;");
         }
         // Assign remaining fields with their default values
-        foreach (var (fieldName, _, defaultValue) in scenario.Fields.Skip(scenario.ConstructorParamCount))
+        foreach(var (fieldName, _, defaultValue) in scenario.Fields.Skip(scenario.ConstructorParamCount))
         {
             sb.AppendLine($"        this.{fieldName} = {defaultValue};");
         }
@@ -158,7 +158,7 @@ public sealed partial class ConstructorDefaultCoexistencePropertyTests
         // Default block
         sb.AppendLine("    default");
         sb.AppendLine("    {");
-        foreach (var (fieldName, _, defaultValue) in scenario.Fields)
+        foreach(var (fieldName, _, defaultValue) in scenario.Fields)
         {
             sb.AppendLine($"        {fieldName} = {defaultValue}");
         }
@@ -190,13 +190,13 @@ public sealed partial class ConstructorDefaultCoexistencePropertyTests
         // Lex
         var lexBag = new DiagnosticBag();
         var tokens = Lexer.Lex(sourceText, lexBag);
-        if (lexBag.HasErrors)
+        if(lexBag.HasErrors)
             return (false, "", FormatDiagnostics(lexBag));
 
         // Parse
         var parseBag = new DiagnosticBag();
         var parseResult = Parser.Parse(tokens, parseBag);
-        if (parseBag.HasErrors || parseResult.Root is null)
+        if(parseBag.HasErrors || parseResult.Root is null)
             return (false, "", FormatDiagnostics(parseBag));
 
         // Semantic model
@@ -209,25 +209,25 @@ public sealed partial class ConstructorDefaultCoexistencePropertyTests
             projectFolder: "/test",
             semBag);
 
-        if (semBag.HasErrors)
+        if(semBag.HasErrors)
             return (false, "", FormatDiagnostics(semBag));
 
         // Type checker
         var tcBag = new DiagnosticBag();
         TypeChecker.Analyze(model, tcBag);
-        if (tcBag.ToImmutableArray().Any(d => d.Severity == DiagnosticSeverity.Error))
+        if(tcBag.ToImmutableArray().Any(d => d.Severity == DiagnosticSeverity.Error))
             return (false, "", FormatDiagnostics(tcBag));
 
         // Emit in-memory (no disk I/O)
         var emitBag = new DiagnosticBag();
         var files = CSharpEmitter.EmitToMemory(model, "TestProgram", emitBag);
 
-        if (emitBag.HasErrors)
+        if(emitBag.HasErrors)
             return (false, "", FormatDiagnostics(emitBag));
 
         // Concatenate all emitted .cs content
         var sb = new StringBuilder();
-        foreach (var (_, content) in files)
+        foreach(var (_, content) in files)
             sb.AppendLine(content);
 
         return (true, sb.ToString(), "");
@@ -280,13 +280,13 @@ public sealed partial class ConstructorDefaultCoexistencePropertyTests
         var source = BuildMistSource(scenario);
         var (succeeded, csContent, diagnosticText) = CompileInMemory(source);
 
-        if (!succeeded)
+        if(!succeeded)
         {
             return false.ToProperty()
                 .Label($"Compilation failed for: {scenario}\nSource:\n{source}\nDiagnostics:\n{diagnosticText}");
         }
 
-        if (string.IsNullOrWhiteSpace(csContent))
+        if(string.IsNullOrWhiteSpace(csContent))
         {
             return false.ToProperty()
                 .Label($"C# output was empty for: {scenario}");
@@ -298,7 +298,7 @@ public sealed partial class ConstructorDefaultCoexistencePropertyTests
             .Cast<Match>()
             .Any(m => m.Groups[1].Value == scenario.TypeName);
 
-        if (!hasCreateDefault)
+        if(!hasCreateDefault)
         {
             return false.ToProperty()
                 .Label($"__CreateDefault() not found for type '{scenario.TypeName}'\nC# output:\n{csContent}");
@@ -311,7 +311,7 @@ public sealed partial class ConstructorDefaultCoexistencePropertyTests
             .Any(m => m.Groups[1].Value == scenario.TypeName
                       && !string.IsNullOrWhiteSpace(m.Groups[2].Value));
 
-        if (!hasConstructor)
+        if(!hasConstructor)
         {
             return false.ToProperty()
                 .Label($"Constructor not found for type '{scenario.TypeName}'\nC# output:\n{csContent}");

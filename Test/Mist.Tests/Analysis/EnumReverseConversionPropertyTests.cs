@@ -141,26 +141,32 @@ public class EnumReverseConversionPropertyTests
     }
 
     private static TypeReferenceNode MakeIntTypeRef() =>
-        new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
+        new TypeReferenceNode
         {
-            PrimitiveType = new IntTypePrimitiveTypeNode(),
-        } };
+            First = new PrimitiveSingleTypeRefSingleTypeRefNode
+            {
+                PrimitiveType = new IntTypePrimitiveTypeNode(),
+            }
+        };
 
     private static TypeReferenceNode MakeEnumTypeRef(string enumName) =>
-        new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
+        new TypeReferenceNode
         {
-            Name = new QualifiedIdentifierNode
+            First = new NamedSingleTypeRefSingleTypeRefNode
             {
-                IDENTIFIER = Tok(enumName),
-                Span = new Storm.Runtime.SourceSpan(0, enumName.Length),
-            },
-        } };
+                Name = new QualifiedIdentifierNode
+                {
+                    IDENTIFIER = Tok(enumName),
+                    Span = new Storm.Runtime.SourceSpan(0, enumName.Length),
+                },
+            }
+        };
 
     private static CompilationUnitNode BuildAst(EnumReverseConversionScenario scenario)
     {
         // Build enum declaration with integer values.
         var members = new List<EnumMemberNode>();
-        for (var i = 0; i < scenario.MemberNames.Count; i++)
+        for(var i = 0; i < scenario.MemberNames.Count; i++)
         {
             members.Add(MakeEnumMember(scenario.MemberNames[i], i));
         }
@@ -256,7 +262,7 @@ public class EnumReverseConversionPropertyTests
             d.Severity == DiagnosticSeverity.Error &&
             (d.Id.Value == "MIST_SB_0083" || d.Id.Value == "MIST_TC_0001"));
 
-        if (!hasReverseConversionError)
+        if(!hasReverseConversionError)
             return false.ToProperty()
                 .Label($"Expected type error for assigning int to {scenario.EnumName}, " +
                        $"got: [{string.Join("; ", combined.Where(d => d.Severity == DiagnosticSeverity.Error).Select(e => $"{e.Id.Value}: {e.Message}"))}]");

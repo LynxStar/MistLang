@@ -71,10 +71,13 @@ public class VoidTypeResolutionPropertyTests
 
     private static TypeReferenceNode MakeVoidIdentifierTypeRef()
     {
-        return new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
+        return new TypeReferenceNode
         {
-            Name = new QualifiedIdentifierNode { IDENTIFIER = MakeToken("Void") },
-        } };
+            First = new NamedSingleTypeRefSingleTypeRefNode
+            {
+                Name = new QualifiedIdentifierNode { IDENTIFIER = MakeToken("Void") },
+            }
+        };
     }
 
     private static TypeReferenceNode MakePrimitiveTypeRef(string primitiveName)
@@ -92,11 +95,14 @@ public class VoidTypeResolutionPropertyTests
 
     private static TypeReferenceNode MakeNamedTypeRef(string name, TypeArgumentListNode? typeArgs = null)
     {
-        return new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
+        return new TypeReferenceNode
         {
-            Name = new QualifiedIdentifierNode { IDENTIFIER = MakeToken(name) },
-            TypeArgs = typeArgs,
-        } };
+            First = new NamedSingleTypeRefSingleTypeRefNode
+            {
+                Name = new QualifiedIdentifierNode { IDENTIFIER = MakeToken(name) },
+                TypeArgs = typeArgs,
+            }
+        };
     }
 
     private static TypeParameterListNode MakeTypeParamList(string[] names)
@@ -259,7 +265,7 @@ public class VoidTypeResolutionPropertyTests
         // Find the test method symbol and check its return type
         var methodSymbol = model.AllSymbols
             .FirstOrDefault(s => s.Name == scenario.MethodName && s.Kind == SymbolKind.Method);
-        if (methodSymbol is null)
+        if(methodSymbol is null)
             return false;
 
         return methodSymbol.DeclaredType?.IsVoid() == true;
@@ -315,7 +321,7 @@ public class VoidTypeResolutionPropertyTests
         // Find the variable symbol and check its declared type
         var varSymbol = model.AllSymbols
             .FirstOrDefault(s => s.Name == scenario.VarName && s.Kind == SymbolKind.LocalVariable);
-        if (varSymbol is null)
+        if(varSymbol is null)
             return false;
 
         return varSymbol.DeclaredType?.IsVoid() == true;
@@ -373,7 +379,7 @@ public class VoidTypeResolutionPropertyTests
         // Find the parameter symbol and check its declared type
         var paramSymbol = model.AllSymbols
             .FirstOrDefault(s => s.Name == scenario.ParamName && s.Kind == SymbolKind.Parameter);
-        if (paramSymbol is null)
+        if(paramSymbol is null)
             return false;
 
         return paramSymbol.DeclaredType?.IsVoid() == true;
@@ -427,13 +433,13 @@ public class VoidTypeResolutionPropertyTests
         // Find the field symbol and check its type argument
         var fieldSymbol = model.AllSymbols
             .FirstOrDefault(s => s.Name == "voidField" && s.Kind == SymbolKind.Field);
-        if (fieldSymbol is null)
+        if(fieldSymbol is null)
             return false;
 
-        if (fieldSymbol.DeclaredType is not ConstructedType constructedType)
+        if(fieldSymbol.DeclaredType is not ConstructedType constructedType)
             return false;
 
-        if (constructedType.TypeArguments.Count != 1)
+        if(constructedType.TypeArguments.Count != 1)
             return false;
 
         return constructedType.TypeArguments[0].IsVoid();

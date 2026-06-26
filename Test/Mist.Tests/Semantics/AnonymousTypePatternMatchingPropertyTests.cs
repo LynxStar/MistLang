@@ -346,7 +346,7 @@ public sealed class AnonymousTypePatternMatchingPropertyTests
                         && d.Message.Contains(scenario.PatternedName, StringComparison.Ordinal))
             .ToList();
 
-        if (undefinedPropertyDiags.Count > 0)
+        if(undefinedPropertyDiags.Count > 0)
         {
             var messages = string.Join("\n", undefinedPropertyDiags.Select(d => $"  {d.Message}"));
             return false.ToProperty().Label(
@@ -378,7 +378,7 @@ public sealed class AnonymousTypePatternMatchingPropertyTests
                         && d.Message.Contains(scenario.NonExistentName, StringComparison.Ordinal))
             .ToList();
 
-        if (undefinedPropertyDiags.Count == 0)
+        if(undefinedPropertyDiags.Count == 0)
         {
             var allDiags = string.Join("\n", diagnostics.Select(d => $"  {d.Id.Value}: {d.Message}"));
             return false.ToProperty().Label(
@@ -408,7 +408,7 @@ public sealed class AnonymousTypePatternMatchingPropertyTests
             .Where(d => d.Id.Value == PatternUndefinedPropertyId)
             .ToList();
 
-        if (undefinedPropertyDiags.Count > 0)
+        if(undefinedPropertyDiags.Count > 0)
         {
             var messages = string.Join("\n", undefinedPropertyDiags.Select(d => $"  {d.Message}"));
             return false.ToProperty().Label(
@@ -421,7 +421,7 @@ public sealed class AnonymousTypePatternMatchingPropertyTests
             .Where(d => d.Severity == DiagnosticSeverity.Error)
             .ToList();
 
-        if (errors.Count > 0)
+        if(errors.Count > 0)
         {
             var messages = string.Join("\n", errors.Select(d => $"  {d.Id.Value}: {d.Message}"));
             return false.ToProperty().Label(

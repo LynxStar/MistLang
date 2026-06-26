@@ -169,7 +169,7 @@ public class GenericRoundTripPropertyTests
             Members = members,
         };
 
-        if (baseList is not null)
+        if(baseList is not null)
         {
             classDecl.BaseClause = baseList;
             classDecl.BaseList = baseList;
@@ -206,7 +206,7 @@ public class GenericRoundTripPropertyTests
             Members = members,
         };
 
-        if (abstracts is not null)
+        if(abstracts is not null)
         {
             structDecl.Abstracts = abstracts;
         }
@@ -242,7 +242,7 @@ public class GenericRoundTripPropertyTests
             Members = members,
         };
 
-        if (abstracts is not null)
+        if(abstracts is not null)
         {
             abstractDecl.Abstracts = abstracts;
         }
@@ -303,7 +303,7 @@ public class GenericRoundTripPropertyTests
 
     private static Gen<ImmutableArray<MemberDeclarationNode>> GenMemberList(int count)
     {
-        if (count == 0)
+        if(count == 0)
             return Gen.Constant(ImmutableArray<MemberDeclarationNode>.Empty);
 
         var memberGen = Gen.OneOf(
@@ -332,7 +332,7 @@ public class GenericRoundTripPropertyTests
 
     private static Gen<ImmutableArray<AbstractMemberDeclarationNode>> GenAbstractMethodList(int count)
     {
-        if (count == 0)
+        if(count == 0)
             return Gen.Constant(ImmutableArray<AbstractMemberDeclarationNode>.Empty);
 
         var methodGen = GenGenericAbstractMethodDecl().Select(m =>
@@ -502,7 +502,7 @@ public class GenericRoundTripPropertyTests
     {
         // Step 1: Pretty-print the generated AST to source text
         var printed1 = MistPrettyPrinter.Print(testCase.Ast);
-        if (string.IsNullOrWhiteSpace(printed1))
+        if(string.IsNullOrWhiteSpace(printed1))
             return false.ToProperty().Label("printed1 was empty");
 
         // Step 2: Parse the printed source text back to an AST
@@ -515,12 +515,12 @@ public class GenericRoundTripPropertyTests
             .Where(d => d.Severity == DiagnosticSeverity.Error)
             .ToList();
 
-        if (errors.Count > 0)
+        if(errors.Count > 0)
             return false.ToProperty()
                 .Label($"Parse errors: {string.Join("; ", errors.Select(e => e.Message))}\nSource:\n{printed1}");
 
         var reparsed = result.Root as CompilationUnitNode;
-        if (reparsed is null)
+        if(reparsed is null)
             return false.ToProperty().Label($"Reparsed root was null.\nSource:\n{printed1}");
 
         // Step 3: Pretty-print the reparsed AST

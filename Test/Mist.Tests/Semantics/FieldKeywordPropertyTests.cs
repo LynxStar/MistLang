@@ -186,14 +186,14 @@ public class FieldKeywordPropertyTests
             .Where(s => s.Kind == SymbolKind.Property)
             .ToList();
 
-        if (propSymbols.Count == 0)
+        if(propSymbols.Count == 0)
             return false.ToProperty().Label("No property symbols found");
 
         var metadata = (propSymbols.First() as Symbol)?.PropertyMetadata;
-        if (metadata is null)
+        if(metadata is null)
             return false.ToProperty().Label("PropertyMetadata is null");
 
-        if (testCase.ExpectBackingField)
+        if(testCase.ExpectBackingField)
         {
             return (metadata.BackingField is not null).ToProperty()
                 .Label($"Expected backing field for '{testCase.Description}' but was null");
@@ -210,7 +210,7 @@ public class FieldKeywordPropertyTests
         Arbitrary = new[] { typeof(FieldKeywordPropertyTests) })]
     public Property FieldKeyword_BackingFieldNameFollowsConvention(FieldKeywordTestCase testCase)
     {
-        if (!testCase.ExpectBackingField)
+        if(!testCase.ExpectBackingField)
             return true.ToProperty(); // Skip for computed properties
 
         var model = BuildSemanticModel(testCase.Ast);
@@ -219,13 +219,13 @@ public class FieldKeywordPropertyTests
             .Where(s => s.Kind == SymbolKind.Property)
             .ToList();
 
-        if (propSymbols.Count == 0)
+        if(propSymbols.Count == 0)
             return false.ToProperty().Label("No property symbols found");
 
         var propSymbol = propSymbols.First();
         var metadata = (propSymbol as Symbol)?.PropertyMetadata;
 
-        if (metadata?.BackingField is null)
+        if(metadata?.BackingField is null)
             return false.ToProperty().Label("Backing field is null");
 
         var expectedName = $"_{propSymbol.Name}_k__BackingField";
@@ -244,14 +244,14 @@ public class FieldKeywordPropertyTests
             .Where(s => s.Kind == SymbolKind.Property)
             .ToList();
 
-        if (propSymbols.Count == 0)
+        if(propSymbols.Count == 0)
             return false.ToProperty().Label("No property symbols found");
 
         var metadata = (propSymbols.First() as Symbol)?.PropertyMetadata;
-        if (metadata is null)
+        if(metadata is null)
             return false.ToProperty().Label("PropertyMetadata is null");
 
-        if (!testCase.ExpectBackingField)
+        if(!testCase.ExpectBackingField)
         {
             // Computed properties should be classified as computed
             return metadata.IsComputed.ToProperty()

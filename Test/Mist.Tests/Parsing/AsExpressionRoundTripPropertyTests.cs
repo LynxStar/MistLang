@@ -49,7 +49,7 @@ public class AsExpressionRoundTripPropertyTests
     {
         // Step 1: Pretty-print the generated AST to source text
         var printed1 = MistPrettyPrinter.Print(ast);
-        if (string.IsNullOrWhiteSpace(printed1))
+        if(string.IsNullOrWhiteSpace(printed1))
             return false.ToProperty().Label("printed1 was empty");
 
         // Step 2: Parse the printed source text back to an AST
@@ -66,7 +66,7 @@ public class AsExpressionRoundTripPropertyTests
         var hasStubWarning = bag.ToImmutableArray()
             .Any(d => d.Id.Value == "MIST_PARSE_STUB");
 
-        if (hasStubWarning)
+        if(hasStubWarning)
         {
             // Parser is skeletal — verify determinism: printing twice yields identical output
             var printed2 = MistPrettyPrinter.Print(ast);
@@ -74,12 +74,12 @@ public class AsExpressionRoundTripPropertyTests
                 .Label($"Determinism failed.\nPrinted1:\n{printed1}\nPrinted2:\n{printed2}");
         }
 
-        if (errors.Count > 0)
+        if(errors.Count > 0)
             return false.ToProperty()
                 .Label($"Parse errors: {string.Join("; ", errors.Select(e => e.Message))}\nSource:\n{printed1}");
 
         var reparsed = result.Root as CompilationUnitNode;
-        if (reparsed is null)
+        if(reparsed is null)
             return false.ToProperty().Label($"Reparsed root was null.\nSource:\n{printed1}");
 
         // Step 3: Pretty-print the reparsed AST

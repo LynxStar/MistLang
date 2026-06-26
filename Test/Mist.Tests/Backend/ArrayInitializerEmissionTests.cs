@@ -49,7 +49,7 @@ public sealed class ArrayInitializerEmissionTests
         var userTokens = Lexer.Lex(userSourceText, diagnostics);
         var userParseResult = Parser.Parse(userTokens, diagnostics);
 
-        if (userParseResult.Root is null)
+        if(userParseResult.Root is null)
             return (false, "", $"Failed to parse source:\n{mistSource}");
 
         var allUnits = stdlibUnits.Add(userUnit);
@@ -67,7 +67,7 @@ public sealed class ArrayInitializerEmissionTests
         var buildErrors = diagnostics.ToImmutableArray()
             .Where(d => d.Severity == DiagnosticSeverity.Error)
             .ToList();
-        if (buildErrors.Count > 0)
+        if(buildErrors.Count > 0)
         {
             var errorText = string.Join("\n", buildErrors.Select(d => $"  {d.Id.Value}: {d.Message}"));
             return (false, "", $"Build errors:\n{errorText}");
@@ -79,7 +79,7 @@ public sealed class ArrayInitializerEmissionTests
         var tcErrors = tcBag.ToImmutableArray()
             .Where(d => d.Severity == DiagnosticSeverity.Error)
             .ToList();
-        if (tcErrors.Count > 0)
+        if(tcErrors.Count > 0)
         {
             var errorText = string.Join("\n", tcErrors.Select(d => $"  {d.Id.Value}: {d.Message}"));
             return (false, "", $"Type-check errors:\n{errorText}");
@@ -89,7 +89,7 @@ public sealed class ArrayInitializerEmissionTests
         var emitBag = new DiagnosticBag();
         var files = CSharpEmitter.EmitToMemory(model, "TestProject", emitBag);
 
-        if (emitBag.HasErrors)
+        if(emitBag.HasErrors)
         {
             var emitErrors = emitBag.ToImmutableArray()
                 .Where(d => d.Severity == DiagnosticSeverity.Error)
@@ -97,11 +97,11 @@ public sealed class ArrayInitializerEmissionTests
             return (false, "", $"Emit errors:\n{string.Join("\n", emitErrors)}");
         }
 
-        if (files.TryGetValue("test.cs", out var testContent))
+        if(files.TryGetValue("test.cs", out var testContent))
             return (true, testContent, "");
 
         var sb = new StringBuilder();
-        foreach (var (_, content) in files)
+        foreach(var (_, content) in files)
             sb.AppendLine(content);
 
         return (true, sb.ToString(), "");

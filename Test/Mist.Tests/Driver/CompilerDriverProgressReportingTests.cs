@@ -28,7 +28,7 @@ public sealed class CompilerDriverProgressReportingTests : IDisposable
 
     public void Dispose()
     {
-        if (Directory.Exists(_scratchDir))
+        if(Directory.Exists(_scratchDir))
         {
             try { Directory.Delete(_scratchDir, recursive: true); } catch { /* best effort */ }
         }
@@ -107,7 +107,7 @@ public sealed class CompilerDriverProgressReportingTests : IDisposable
         Assert.Equal(6, spy.StageStarts.Count);
         Assert.Equal(6, spy.StageCompletes.Count);
 
-        for (var i = 0; i < 6; i++)
+        for(var i = 0; i < 6; i++)
         {
             Assert.Equal((i + 1).ToString(), spy.StageStarts[i].StageId);
             Assert.Equal((i + 1).ToString(), spy.StageCompletes[i].StageId);
@@ -206,7 +206,7 @@ public sealed class CompilerDriverProgressReportingTests : IDisposable
         // At least one timing entry (TypeCheckerAnalyzer)
         Assert.True(stage5.Details.Count >= 1, "Expected at least one analyzer timing entry");
         // Each entry should contain the analyzer ID and a time
-        foreach (var detail in stage5.Details)
+        foreach(var detail in stage5.Details)
         {
             Assert.Matches(@"^\S+\s+\d+\.\d{2}s$", detail);
         }
@@ -230,7 +230,7 @@ public sealed class CompilerDriverProgressReportingTests : IDisposable
         Assert.True(emittedCount > 0, "Expected emitted file count > 0");
 
         // Second detail (if present): artifact path should be non-null/non-empty
-        if (stage6.Details.Count > 1)
+        if(stage6.Details.Count > 1)
         {
             Assert.False(string.IsNullOrWhiteSpace(stage6.Details[1]),
                 "Expected artifact path to be non-empty");

@@ -46,7 +46,7 @@ public class RegexPatternMatchingTypeTests
 
         var parseDiag = new DiagnosticBag();
         var parseResult = Parser.Parse(tokens, parseDiag);
-        if (parseResult.Root is null)
+        if(parseResult.Root is null)
             return parseDiag.ToImmutableArray();
 
         var buildDiag = new DiagnosticBag();
@@ -217,7 +217,7 @@ public class RegexPatternMatchingTypeTests
         var arms = string.Join("\n            ",
             scenario.Patterns.Select((p, i) => $"`{p}` => \"match{i}\","));
 
-        if (scenario.HasCatchAll)
+        if(scenario.HasCatchAll)
             arms += "\n            var _ => \"other\",";
 
         return $$"""
@@ -252,7 +252,7 @@ public class RegexPatternMatchingTypeTests
         var diagnostics = CompileAndGetDiagnostics(source);
         var scrutineeDiags = WithId(diagnostics, "MIST_TC_REGEX_SCRUTINEE");
 
-        if (scenario.Scrutinee.IsString)
+        if(scenario.Scrutinee.IsString)
         {
             // String scrutinee: no MIST_TC_REGEX_SCRUTINEE diagnostic expected
             return (scrutineeDiags.Length == 0).ToProperty()
@@ -284,7 +284,7 @@ public class RegexPatternMatchingTypeTests
         var diagnostics = CompileAndGetDiagnostics(source);
         var exhaustivenessDiags = WithId(diagnostics, "MIST_TC_0090");
 
-        if (scenario.HasCatchAll)
+        if(scenario.HasCatchAll)
         {
             // With catch-all: should be exhaustive (no warning)
             return (exhaustivenessDiags.Length == 0).ToProperty()

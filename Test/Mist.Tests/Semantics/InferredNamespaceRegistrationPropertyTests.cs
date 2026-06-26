@@ -153,7 +153,7 @@ public sealed class InferredNamespaceRegistrationPropertyTests
 
         var classSymbol = model.AllSymbols.FirstOrDefault(
             s => s.Name == className.Value && s.Kind == SymbolKind.Class);
-        if (classSymbol is null) return false;
+        if(classSymbol is null) return false;
 
         var classType = classSymbol.DeclaredType as ClassType;
         return classType is not null && classType.ContainingNamespace == expectedNs;
@@ -194,7 +194,7 @@ public sealed class InferredNamespaceRegistrationPropertyTests
 
         var symbol = model.AllSymbols.FirstOrDefault(
             s => s.Name == structName.Value && s.Kind == SymbolKind.Struct);
-        if (symbol is null) return false;
+        if(symbol is null) return false;
 
         var structType = symbol.DeclaredType as StructType;
         return structType is not null && structType.ContainingNamespace == expectedNs;
@@ -235,7 +235,7 @@ public sealed class InferredNamespaceRegistrationPropertyTests
 
         var symbol = model.AllSymbols.FirstOrDefault(
             s => s.Name == abstractName.Value && s.Kind == SymbolKind.Abstract);
-        if (symbol is null) return false;
+        if(symbol is null) return false;
 
         var abstractType = symbol.DeclaredType as AbstractType;
         return abstractType is not null && abstractType.ContainingNamespace == expectedNs;

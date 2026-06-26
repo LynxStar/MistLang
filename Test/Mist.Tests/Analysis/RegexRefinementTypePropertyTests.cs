@@ -46,7 +46,7 @@ public class RegexRefinementTypePropertyTests
 
         var parseDiag = new DiagnosticBag();
         var parseResult = Parser.Parse(tokens, parseDiag);
-        if (parseResult.Root is null)
+        if(parseResult.Root is null)
             return parseDiag.ToImmutableArray();
 
         var buildDiag = new DiagnosticBag();
@@ -258,7 +258,7 @@ public class RegexRefinementTypePropertyTests
     {
         // Sanity check: verify the literal actually matches the pattern using .NET regex
         var regex = new Regex($"^(?:{scenario.Pattern.TrimStart('^').TrimEnd('$')})$");
-        if (!regex.IsMatch(scenario.Literal))
+        if(!regex.IsMatch(scenario.Literal))
         {
             // Generator produced a bad scenario — skip (discard)
             return true.ToProperty().Label("discarded: generator produced non-matching literal");
@@ -289,7 +289,7 @@ public class RegexRefinementTypePropertyTests
     {
         // Sanity check: verify the literal does NOT match the pattern
         var regex = new Regex(scenario.Pattern);
-        if (regex.IsMatch(scenario.Literal))
+        if(regex.IsMatch(scenario.Literal))
         {
             // Generator produced a matching literal — skip (discard)
             return true.ToProperty().Label("discarded: generator produced matching literal");

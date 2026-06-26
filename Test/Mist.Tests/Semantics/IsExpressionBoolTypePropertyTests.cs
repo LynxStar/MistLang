@@ -125,10 +125,13 @@ public class IsExpressionBoolTypePropertyTests
         {
             VariableDeclaration = new TypedVariableDeclarationVariableDeclarationStatementNode
             {
-                Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                Type = new TypeReferenceNode
                 {
-                    PrimitiveType = MakePrimitiveType(typeName),
-                } },
+                    First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                    {
+                        PrimitiveType = MakePrimitiveType(typeName),
+                    }
+                },
                 Name = Tok(name),
                 Initializer = initializer,
             },
@@ -154,10 +157,13 @@ public class IsExpressionBoolTypePropertyTests
         {
             PatternKind.TypePattern => new TypePatternPrimaryPatternNode
             {
-                Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                Type = new TypeReferenceNode
                 {
-                    PrimitiveType = new IntTypePrimitiveTypeNode(),
-                } },
+                    First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                    {
+                        PrimitiveType = new IntTypePrimitiveTypeNode(),
+                    }
+                },
                 Name = Tok("matched"),
             },
             PatternKind.VarPattern => new VarPatternPrimaryPatternNode
@@ -247,7 +253,7 @@ public class IsExpressionBoolTypePropertyTests
         // Query the semantic model for the type of the is-expression node
         var exprType = model.GetTypeOf(isNode);
 
-        if (exprType is null)
+        if(exprType is null)
         {
             return false.ToProperty()
                 .Label($"Is-expression has null type. Scenario: {scenario}");

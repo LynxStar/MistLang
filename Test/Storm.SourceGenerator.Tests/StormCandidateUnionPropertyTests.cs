@@ -97,7 +97,7 @@ public class StormCandidateUnionPropertyTests
                 sb.AppendLine("rule Parent = MultiTarget PIPE TOK | MultiTarget NUM;");
 
                 // Optionally add another multi-caller target
-                if (extraMultiCaller == 1)
+                if(extraMultiCaller == 1)
                 {
                     multiCallerRules.Add("ExtraMulti");
                     sb.AppendLine("rule ExtraMulti = TOK;");
@@ -106,21 +106,21 @@ public class StormCandidateUnionPropertyTests
 
                 // --- @memo candidate rules ---
                 // Add @memo annotated rules that are not otherwise candidates
-                if (memoVariant >= 1)
+                if(memoVariant >= 1)
                 {
                     memoRules.Add("MemoOnly");
                     sb.AppendLine("@memo");
                     sb.AppendLine("rule MemoOnly = TOK COMMA NUM;");
                 }
 
-                if (memoVariant >= 2)
+                if(memoVariant >= 2)
                 {
                     memoRules.Add("MemoTwo");
                     sb.AppendLine("@memo");
                     sb.AppendLine("rule MemoTwo = NUM | TOK;");
                 }
 
-                if (memoVariant >= 3)
+                if(memoVariant >= 3)
                 {
                     // A rule that is BOTH a multi-caller candidate AND @memo annotated
                     // It should appear once in the plan (union deduplicates)
@@ -187,7 +187,7 @@ public class StormCandidateUnionPropertyTests
     public void P5_CandidateUnion_PlanContainsExactlyUnionOfAllSources()
     {
         var samples = GenGrammarScenario().Sample(100);
-        foreach (var scenario in samples)
+        foreach(var scenario in samples)
         {
             // Strip the "grammar Test;\n" prefix that BuildGrammar will add
             // Our source already has it, so we pass it directly through the full pipeline
@@ -197,17 +197,17 @@ public class StormCandidateUnionPropertyTests
 
             // Compute expected: union of all three candidate sources
             var expectedCandidates = new HashSet<string>();
-            foreach (var name in scenario.CycleRules)
+            foreach(var name in scenario.CycleRules)
             {
                 expectedCandidates.Add(name);
             }
 
-            foreach (var name in scenario.MultiCallerRules)
+            foreach(var name in scenario.MultiCallerRules)
             {
                 expectedCandidates.Add(name);
             }
 
-            foreach (var name in scenario.MemoRules)
+            foreach(var name in scenario.MemoRules)
             {
                 expectedCandidates.Add(name);
             }
@@ -216,7 +216,7 @@ public class StormCandidateUnionPropertyTests
             // so the expected plan is exactly the union of all candidate sources.
 
             // Verify: every expected candidate IS in the plan
-            foreach (var name in expectedCandidates)
+            foreach(var name in expectedCandidates)
             {
                 Assert.True(plan.IsMemoized(name),
                     $"Rule '{name}' should be in the MemoizationPlan (it's a candidate from one or more sources) " +
@@ -224,7 +224,7 @@ public class StormCandidateUnionPropertyTests
             }
 
             // Verify: no PLAIN rule (non-candidate) is in the plan
-            foreach (var name in scenario.PlainRules)
+            foreach(var name in scenario.PlainRules)
             {
                 Assert.False(plan.IsMemoized(name),
                     $"Rule '{name}' should NOT be in the MemoizationPlan (it's not a candidate from any source) " +

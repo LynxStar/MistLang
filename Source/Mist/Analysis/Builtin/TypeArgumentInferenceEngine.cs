@@ -25,19 +25,19 @@ public static class TypeArgumentInferenceEngine
         var context = new InferenceContext(typeParameters);
 
         var pairCount = Math.Min(parameterTypes.Count, argumentTypes.Count);
-        for (var i = 0; i < pairCount; i++)
+        for(var i = 0; i < pairCount; i++)
         {
             var argumentType = argumentTypes[i];
 
             // Skip arguments whose resolved type is ErrorType, null, or UnknownType.
-            if (argumentType is null or ErrorType or UnknownType)
+            if(argumentType is null or ErrorType or UnknownType)
                 continue;
 
             Unify(parameterTypes[i], argumentType, context);
         }
 
         // Check the context for completeness.
-        if (context.HasConflicts)
+        if(context.HasConflicts)
         {
             return new InferenceResult(
                 Success: false,
@@ -47,7 +47,7 @@ public static class TypeArgumentInferenceEngine
         }
 
         var unbound = context.GetUnboundParameters();
-        if (unbound.Count > 0)
+        if(unbound.Count > 0)
         {
             return new InferenceResult(
                 Success: false,
@@ -58,9 +58,9 @@ public static class TypeArgumentInferenceEngine
 
         // All type parameters are bound — collect inferred types in declaration order.
         var inferredTypes = new IType[typeParameters.Count];
-        for (var i = 0; i < typeParameters.Count; i++)
+        for(var i = 0; i < typeParameters.Count; i++)
         {
-            if (typeParameters[i] is TypeParameterType tpt)
+            if(typeParameters[i] is TypeParameterType tpt)
                 inferredTypes[i] = context.GetBinding(tpt.Name)!;
             else
                 inferredTypes[i] = typeParameters[i];
@@ -83,14 +83,14 @@ public static class TypeArgumentInferenceEngine
     private static void Unify(IType declaredParamType, IType argumentType, InferenceContext context)
     {
         // Case 1: The declared parameter type is a type parameter — bind it directly.
-        if (declaredParamType is TypeParameterType tpt)
+        if(declaredParamType is TypeParameterType tpt)
         {
             context.TryBind(tpt.Name, argumentType);
             return;
         }
 
         // Case 2: Both are ConstructedTypes with the same GenericDefinition — recurse.
-        if (declaredParamType is ConstructedType declaredConstructed
+        if(declaredParamType is ConstructedType declaredConstructed
             && argumentType is ConstructedType argumentConstructed
             && ReferenceEquals(declaredConstructed.GenericDefinition, argumentConstructed.GenericDefinition))
         {
@@ -98,7 +98,7 @@ public static class TypeArgumentInferenceEngine
                 declaredConstructed.TypeArguments.Count,
                 argumentConstructed.TypeArguments.Count);
 
-            for (var i = 0; i < count; i++)
+            for(var i = 0; i < count; i++)
             {
                 Unify(declaredConstructed.TypeArguments[i], argumentConstructed.TypeArguments[i], context);
             }
@@ -108,7 +108,7 @@ public static class TypeArgumentInferenceEngine
 
         // Case 3: Both are ArrayTypes — recurse into element types.
         // This handles patterns like T[] matched against string[] to infer T = string.
-        if (declaredParamType is ArrayType declaredArray && argumentType is ArrayType argumentArray)
+        if(declaredParamType is ArrayType declaredArray && argumentType is ArrayType argumentArray)
         {
             Unify(declaredArray.ElementType, argumentArray.ElementType, context);
             return;
@@ -117,11 +117,11 @@ public static class TypeArgumentInferenceEngine
         // Case 4: Declared parameter type is a UnionType (e.g., T[] | void from nullable T[]?).
         // Try to unify against each non-void constituent. This handles the common pattern
         // where CLR nullable reference types are projected as T | void unions.
-        if (declaredParamType is UnionType declaredUnion)
+        if(declaredParamType is UnionType declaredUnion)
         {
-            foreach (var constituent in declaredUnion.Constituents)
+            foreach(var constituent in declaredUnion.Constituents)
             {
-                if (constituent.IsVoid())
+                if(constituent.IsVoid())
                     continue;
                 Unify(constituent, argumentType, context);
             }
@@ -130,11 +130,11 @@ public static class TypeArgumentInferenceEngine
 
         // Case 5: Argument type is a UnionType (e.g., List<WI10> | void from nullable projection).
         // Unwrap to non-void constituent before unification.
-        if (argumentType is UnionType argumentUnion)
+        if(argumentType is UnionType argumentUnion)
         {
-            foreach (var constituent in argumentUnion.Constituents)
+            foreach(var constituent in argumentUnion.Constituents)
             {
-                if (constituent.IsVoid())
+                if(constituent.IsVoid())
                     continue;
                 Unify(declaredParamType, constituent, context);
                 return;
@@ -146,7 +146,7 @@ public static class TypeArgumentInferenceEngine
         // Expression<Func<...>> (a CLR Expression tree type), unwrap to the inner
         // Func type and unify against the argument. This enables type inference from
         // lambdas passed to Expression<Func<TEntity, TResult>> parameters.
-        if (declaredParamType is ConstructedType exprCt
+        if(declaredParamType is ConstructedType exprCt
             && exprCt.GenericDefinition is ClassType { DisplayName: "Expression" }
             && exprCt.TypeArguments.Count == 1)
         {
@@ -158,30 +158,30 @@ public static class TypeArgumentInferenceEngine
         // is an abstract type (e.g., IEnumerable<TRelated>) and the argument type is a class
         // that implements that abstract type (e.g., List<WI10>), find the matching abstract type
         // implementation and unify type arguments.
-        if (declaredParamType is ConstructedType declaredIfaceCt
+        if(declaredParamType is ConstructedType declaredIfaceCt
             && declaredIfaceCt.GenericDefinition is AbstractType declaredIface
             && argumentType is ConstructedType argumentClassCt
             && argumentClassCt.GenericDefinition is ClassType argumentClassDef)
         {
             // Search the argument class's abstracts for one that matches the declared abstract type.
-            foreach (var abs in argumentClassDef.Abstracts)
+            foreach(var abs in argumentClassDef.Abstracts)
             {
-                if (abs is ConstructedType absCt
+                if(abs is ConstructedType absCt
                     && ReferenceEquals(absCt.GenericDefinition, declaredIface))
                 {
                     // Found matching abstract type — substitute the class's type args
                     // into the abstract type's type args, then unify against the declared params.
                     var substitutedIfaceArgs = new IType[absCt.TypeArguments.Count];
-                    for (var i = 0; i < absCt.TypeArguments.Count; i++)
+                    for(var i = 0; i < absCt.TypeArguments.Count; i++)
                     {
                         var absArg = absCt.TypeArguments[i];
-                        if (absArg is TypeParameterType absTpt
+                        if(absArg is TypeParameterType absTpt
                             && argumentClassDef.TypeParameters.Count > 0)
                         {
                             // Map the class's type param to the concrete type arg.
-                            for (var j = 0; j < argumentClassDef.TypeParameters.Count; j++)
+                            for(var j = 0; j < argumentClassDef.TypeParameters.Count; j++)
                             {
-                                if (argumentClassDef.TypeParameters[j] is TypeParameterType classTP
+                                if(argumentClassDef.TypeParameters[j] is TypeParameterType classTP
                                     && classTP.Name == absTpt.Name && classTP.Ordinal == absTpt.Ordinal)
                                 {
                                     absArg = j < argumentClassCt.TypeArguments.Count
@@ -196,7 +196,7 @@ public static class TypeArgumentInferenceEngine
 
                     // Unify declared abstract type args against the resolved abstract type args.
                     var count = Math.Min(declaredIfaceCt.TypeArguments.Count, substitutedIfaceArgs.Length);
-                    for (var i = 0; i < count; i++)
+                    for(var i = 0; i < count; i++)
                     {
                         Unify(declaredIfaceCt.TypeArguments[i], substitutedIfaceArgs[i], context);
                     }
@@ -208,13 +208,13 @@ public static class TypeArgumentInferenceEngine
         // Case 8: ConstructedType with different GenericDefinitions but same display name.
         // This handles cases where the same CLR type is projected through different paths
         // (e.g., Func from stdlib vs Func from CLR projection).
-        if (declaredParamType is ConstructedType declaredCt2
+        if(declaredParamType is ConstructedType declaredCt2
             && argumentType is ConstructedType argumentCt2
             && !ReferenceEquals(declaredCt2.GenericDefinition, argumentCt2.GenericDefinition)
             && declaredCt2.GenericDefinition.DisplayName == argumentCt2.GenericDefinition.DisplayName
             && declaredCt2.TypeArguments.Count == argumentCt2.TypeArguments.Count)
         {
-            for (var i = 0; i < declaredCt2.TypeArguments.Count; i++)
+            for(var i = 0; i < declaredCt2.TypeArguments.Count; i++)
             {
                 Unify(declaredCt2.TypeArguments[i], argumentCt2.TypeArguments[i], context);
             }

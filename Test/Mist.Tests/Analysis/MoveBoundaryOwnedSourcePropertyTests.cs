@@ -53,7 +53,7 @@ public sealed class MoveBoundaryOwnedSourcePropertyTests : IDisposable
 
     public void Dispose()
     {
-        if (Directory.Exists(_outputDir))
+        if(Directory.Exists(_outputDir))
         {
             try { Directory.Delete(_outputDir, recursive: true); } catch { /* best effort */ }
         }
@@ -136,7 +136,7 @@ public sealed class MoveBoundaryOwnedSourcePropertyTests : IDisposable
 
         void Walk(SyntaxNode node)
         {
-            switch (node)
+            switch(node)
             {
                 case TypedVariableDeclarationVariableDeclarationStatementNode typed
                     when typed.OwnershipSpecifier is OwnedSpecifierOwnershipSpecifierNode:
@@ -149,9 +149,9 @@ public sealed class MoveBoundaryOwnedSourcePropertyTests : IDisposable
                     break;
             }
 
-            foreach (var child in node.Children())
+            foreach(var child in node.Children())
             {
-                if (child is not null)
+                if(child is not null)
                     Walk(child);
             }
         }
@@ -333,19 +333,19 @@ public sealed class MoveBoundaryOwnedSourcePropertyTests : IDisposable
     public bool OwnedSource_NeverResolvesToImplicitClone(OwnedSourceScenario scenario)
     {
         var model = CompileAndCapture(scenario.Source);
-        if (model is null)
+        if(model is null)
             return false;
 
         var ownedInits = FindOwnedBindingInitializers(model);
 
         // The generated program always contains at least one owned binding; if discovery
         // found none, the scenario or harness is broken.
-        if (ownedInits.Count == 0)
+        if(ownedInits.Count == 0)
             return false;
 
         var resolver = new MoveBoundaryResolver();
 
-        foreach (var (initializer, destinationType) in ownedInits)
+        foreach(var (initializer, destinationType) in ownedInits)
         {
             // A fresh flow state per resolution keeps each move independent (the binding
             // being referenced is not yet tracked, so the truth-table guard permits the move).
@@ -365,7 +365,7 @@ public sealed class MoveBoundaryOwnedSourcePropertyTests : IDisposable
                 MoveOutcome.ValueCopy or
                 MoveOutcome.DefaultGraph;
 
-            if (!ok)
+            if(!ok)
                 return false;
         }
 

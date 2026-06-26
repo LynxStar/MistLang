@@ -125,7 +125,7 @@ public class AbstractSignatureMismatchPropertyTests
             Members = members ?? ImmutableArray<MemberDeclarationNode>.Empty,
         };
 
-        if (abstractName is not null)
+        if(abstractName is not null)
         {
             var _baseList1 = MakeBaseList(abstractName);
 
@@ -148,7 +148,7 @@ public class AbstractSignatureMismatchPropertyTests
             Members = members ?? ImmutableArray<MemberDeclarationNode>.Empty,
         };
 
-        if (abstractName is not null)
+        if(abstractName is not null)
         {
             var _abstractList1 = MakeBaseList(abstractName);
 
@@ -426,7 +426,7 @@ public class AbstractSignatureMismatchPropertyTests
         var implMembers = ImmutableArray.Create<MemberDeclarationNode>(WrapMethod(implMethod));
 
         TypeDeclarationNode implTypeDecl;
-        switch (scenario.TypeKind)
+        switch(scenario.TypeKind)
         {
             case ImplTypeKind.Class:
                 implTypeDecl = WrapClass(
@@ -448,13 +448,13 @@ public class AbstractSignatureMismatchPropertyTests
             .ToList();
 
         // Exactly one signature mismatch diagnostic should be emitted
-        if (mismatchDiags.Count != 1)
+        if(mismatchDiags.Count != 1)
             return false;
 
         // The diagnostic message should reference the implementing type and method name
-        if (!mismatchDiags[0].Message.Contains(scenario.ImplementingTypeName))
+        if(!mismatchDiags[0].Message.Contains(scenario.ImplementingTypeName))
             return false;
-        if (!mismatchDiags[0].Message.Contains(scenario.MethodName))
+        if(!mismatchDiags[0].Message.Contains(scenario.MethodName))
             return false;
 
         return true;
@@ -493,7 +493,7 @@ public class AbstractSignatureMismatchPropertyTests
         var implMembers = ImmutableArray.Create<MemberDeclarationNode>(WrapMethod(implMethod));
 
         TypeDeclarationNode implTypeDecl;
-        switch (scenario.TypeKind)
+        switch(scenario.TypeKind)
         {
             case ImplTypeKind.Class:
                 implTypeDecl = WrapClass(
@@ -515,13 +515,13 @@ public class AbstractSignatureMismatchPropertyTests
             .ToList();
 
         // Exactly one signature mismatch diagnostic should be emitted
-        if (mismatchDiags.Count != 1)
+        if(mismatchDiags.Count != 1)
             return false;
 
         // The diagnostic message should reference the implementing type and method name
-        if (!mismatchDiags[0].Message.Contains(scenario.ImplementingTypeName))
+        if(!mismatchDiags[0].Message.Contains(scenario.ImplementingTypeName))
             return false;
-        if (!mismatchDiags[0].Message.Contains(scenario.MethodName))
+        if(!mismatchDiags[0].Message.Contains(scenario.MethodName))
             return false;
 
         return true;
@@ -542,7 +542,7 @@ public class AbstractSignatureMismatchPropertyTests
         AbstractMethodDeclarationNode abstractMethod;
         MethodDeclarationNode implMethod;
 
-        if (scenario.AbstractHasParam)
+        if(scenario.AbstractHasParam)
         {
             // Abstract method has a parameter, implementing method has none
             var abstractParamList = MakeParameterList(
@@ -576,7 +576,7 @@ public class AbstractSignatureMismatchPropertyTests
         var implMembers = ImmutableArray.Create<MemberDeclarationNode>(WrapMethod(implMethod));
 
         TypeDeclarationNode implTypeDecl;
-        switch (scenario.TypeKind)
+        switch(scenario.TypeKind)
         {
             case ImplTypeKind.Class:
                 implTypeDecl = WrapClass(
@@ -598,13 +598,13 @@ public class AbstractSignatureMismatchPropertyTests
             .ToList();
 
         // Exactly one signature mismatch diagnostic should be emitted
-        if (mismatchDiags.Count != 1)
+        if(mismatchDiags.Count != 1)
             return false;
 
         // The diagnostic message should reference the implementing type and method name
-        if (!mismatchDiags[0].Message.Contains(scenario.ImplementingTypeName))
+        if(!mismatchDiags[0].Message.Contains(scenario.ImplementingTypeName))
             return false;
-        if (!mismatchDiags[0].Message.Contains(scenario.MethodName))
+        if(!mismatchDiags[0].Message.Contains(scenario.MethodName))
             return false;
 
         return true;

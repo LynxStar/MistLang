@@ -17,30 +17,30 @@ public static class StormPrettyPrinter
         var sb = new StringBuilder();
 
         // Grammar declaration
-        if (file.GrammarDeclaration is not null)
+        if(file.GrammarDeclaration is not null)
         {
             sb.AppendLine($"grammar {file.GrammarDeclaration.Name};");
-            if (file.Imports.Count > 0 || file.Declarations.Count > 0)
+            if(file.Imports.Count > 0 || file.Declarations.Count > 0)
                 sb.AppendLine();
         }
 
         // Imports
-        for (var i = 0; i < file.Imports.Count; i++)
+        for(var i = 0; i < file.Imports.Count; i++)
         {
             var imp = file.Imports[i];
-            if (imp.Alias is not null)
+            if(imp.Alias is not null)
                 sb.AppendLine($"import \"{EscapeString(imp.Path)}\" as {imp.Alias};");
             else
                 sb.AppendLine($"import \"{EscapeString(imp.Path)}\";");
         }
 
-        if (file.Imports.Count > 0 && file.Declarations.Count > 0)
+        if(file.Imports.Count > 0 && file.Declarations.Count > 0)
             sb.AppendLine();
 
         // Declarations
-        for (var i = 0; i < file.Declarations.Count; i++)
+        for(var i = 0; i < file.Declarations.Count; i++)
         {
-            if (i > 0)
+            if(i > 0)
                 sb.AppendLine();
             sb.Append(PrintDeclaration(file.Declarations[i], indent: ""));
         }
@@ -67,7 +67,7 @@ public static class StormPrettyPrinter
         sb.AppendLine($"{indent}mode {mode.Name} {{");
 
         var innerIndent = indent + "    ";
-        for (var i = 0; i < mode.Declarations.Count; i++)
+        for(var i = 0; i < mode.Declarations.Count; i++)
         {
             sb.Append(PrintDeclaration(mode.Declarations[i], innerIndent));
         }
@@ -115,9 +115,9 @@ public static class StormPrettyPrinter
     private static string PrintAlternation(StormAlternationExpr alt)
     {
         var sb = new StringBuilder();
-        for (var i = 0; i < alt.Alternatives.Count; i++)
+        for(var i = 0; i < alt.Alternatives.Count; i++)
         {
-            if (i > 0)
+            if(i > 0)
                 sb.Append(" | ");
             sb.Append(PrintExpression(alt.Alternatives[i]));
         }
@@ -127,9 +127,9 @@ public static class StormPrettyPrinter
     private static string PrintSequence(StormSequenceExpr seq)
     {
         var sb = new StringBuilder();
-        for (var i = 0; i < seq.Elements.Count; i++)
+        for(var i = 0; i < seq.Elements.Count; i++)
         {
-            if (i > 0)
+            if(i > 0)
                 sb.Append(' ');
             sb.Append(PrintExpression(seq.Elements[i]));
         }
@@ -149,9 +149,9 @@ public static class StormPrettyPrinter
     private static string EscapeString(string value)
     {
         var sb = new StringBuilder(value.Length);
-        foreach (var c in value)
+        foreach(var c in value)
         {
-            switch (c)
+            switch(c)
             {
                 case '\\': sb.Append("\\\\"); break;
                 case '"': sb.Append("\\\""); break;

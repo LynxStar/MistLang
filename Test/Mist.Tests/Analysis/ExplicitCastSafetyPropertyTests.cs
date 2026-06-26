@@ -259,10 +259,13 @@ public class ExplicitCastSafetyPropertyTests
     }
 
     private static TypeReferenceNode MakeNamedTypeRef(string name) =>
-        new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
+        new TypeReferenceNode
         {
-            Name = new QualifiedIdentifierNode { IDENTIFIER = Tok(name) },
-        } };
+            First = new NamedSingleTypeRefSingleTypeRefNode
+            {
+                Name = new QualifiedIdentifierNode { IDENTIFIER = Tok(name) },
+            }
+        };
 
     private static ParameterNode MakeParameter(string typeName, string paramName) =>
         new()
@@ -441,7 +444,7 @@ public class ExplicitCastSafetyPropertyTests
         var castMember = MakeCastOperatorMember(
             scenario.Kind, scenario.TargetTypeName, scenario.SourceTypeName);
 
-        if (scenario.Placement == OperatorPlacement.OnSourceType)
+        if(scenario.Placement == OperatorPlacement.OnSourceType)
             sourceMembers.Add(castMember);
         else
             targetMembers.Add(castMember);
@@ -543,7 +546,7 @@ public class ExplicitCastSafetyPropertyTests
 
         var typeDecls = new List<TypeDeclarationNode>();
 
-        if (scenario.IsIdentity)
+        if(scenario.IsIdentity)
         {
             // Identity cast: (Alpha)alpha — same type
             typeDecls.Add(MakeEmptyClassDecl(scenario.SourceTypeName));

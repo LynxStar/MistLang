@@ -32,7 +32,7 @@ public sealed class VoidUnitTypeIntegrationTests : IDisposable
 
     public void Dispose()
     {
-        if (Directory.Exists(_outputDir))
+        if(Directory.Exists(_outputDir))
         {
             try { Directory.Delete(_outputDir, recursive: true); } catch { /* best effort */ }
         }
@@ -94,7 +94,7 @@ public sealed class VoidUnitTypeIntegrationTests : IDisposable
     {
         var primary = new IdentifierExpressionPrimaryNode { Name = Tok(methodName) };
         ArgumentListNode? argList = null;
-        if (args is { Length: > 0 })
+        if(args is { Length: > 0 })
         {
             argList = new ArgumentListNode { Argument = new ValueArgumentArgumentNode { Expression = args[0] } };
         }
@@ -151,11 +151,14 @@ public sealed class VoidUnitTypeIntegrationTests : IDisposable
 
     private static TypeReferenceNode MakeNamedTypeRef(string name, TypeArgumentListNode? typeArgs = null)
     {
-        return new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
+        return new TypeReferenceNode
         {
-            Name = new QualifiedIdentifierNode { IDENTIFIER = Tok(name) },
-            TypeArgs = typeArgs,
-        } };
+            First = new NamedSingleTypeRefSingleTypeRefNode
+            {
+                Name = new QualifiedIdentifierNode { IDENTIFIER = Tok(name) },
+                TypeArgs = typeArgs,
+            }
+        };
     }
 
     private static TypeParameterListNode MakeTypeParamList(string[] names)
@@ -252,9 +255,9 @@ public sealed class VoidUnitTypeIntegrationTests : IDisposable
 
     private void CleanOutputDir()
     {
-        if (Directory.Exists(_outputDir))
+        if(Directory.Exists(_outputDir))
         {
-            foreach (var file in Directory.GetFiles(_outputDir))
+            foreach(var file in Directory.GetFiles(_outputDir))
                 File.Delete(file);
         }
     }
@@ -437,14 +440,17 @@ public sealed class VoidUnitTypeIntegrationTests : IDisposable
             Name = Tok("DoWork"),
             ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
-            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode
+            Body = new MethodBlockBodyMethodBodyNode
             {
-                Statements = ImmutableArray.Create<StatementNode>(
+                Block = new BlockNode
+                {
+                    Statements = ImmutableArray.Create<StatementNode>(
                     new ReturnStatementStatementNode
                     {
                         ReturnStatement = new ReturnStatementNode { Value = null },
                     }),
-            } },
+                }
+            },
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
         };
 
@@ -505,14 +511,17 @@ public sealed class VoidUnitTypeIntegrationTests : IDisposable
             Name = Tok("DoWork"),
             ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
-            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode
+            Body = new MethodBlockBodyMethodBodyNode
             {
-                Statements = ImmutableArray.Create<StatementNode>(
+                Block = new BlockNode
+                {
+                    Statements = ImmutableArray.Create<StatementNode>(
                     new ReturnStatementStatementNode
                     {
                         ReturnStatement = new ReturnStatementNode { Value = null },
                     }),
-            } },
+                }
+            },
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
         };
 

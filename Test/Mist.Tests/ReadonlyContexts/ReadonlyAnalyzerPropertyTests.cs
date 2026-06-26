@@ -581,7 +581,7 @@ public sealed class ReadonlyAnalyzerPropertyTests : IDisposable
 
     public void Dispose()
     {
-        if (Directory.Exists(_outputDir))
+        if(Directory.Exists(_outputDir))
         {
             try { Directory.Delete(_outputDir, recursive: true); } catch { /* best effort */ }
         }
@@ -777,7 +777,7 @@ public sealed class ReadonlyAnalyzerPropertyTests : IDisposable
     {
         var result = CompileSource(scenario.Source);
 
-        if (scenario.ShouldSucceed)
+        if(scenario.ShouldSucceed)
         {
             var hasReadonlyErrors = HasAnyReadonlyDiagnostic(result);
             return (!hasReadonlyErrors).ToProperty()
@@ -827,7 +827,7 @@ public sealed class ReadonlyAnalyzerPropertyTests : IDisposable
     {
         var result = CompileSource(scenario.Source);
 
-        if (scenario.ShouldSucceed)
+        if(scenario.ShouldSucceed)
         {
             var hasReadonlyErrors = HasAnyReadonlyDiagnostic(result);
             return (!hasReadonlyErrors).ToProperty()

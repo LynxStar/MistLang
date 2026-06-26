@@ -115,7 +115,7 @@ public static class MistTuplePositionalPatternGenerator
     /// </summary>
     private static Gen<string> GenSubpattern(int depth)
     {
-        if (depth <= 0)
+        if(depth <= 0)
             return GenLeafPattern();
 
         // At higher depths, mix leaf patterns with nested tuple patterns
@@ -225,14 +225,14 @@ public static class MistTuplePositionalPatternGenerator
     /// </summary>
     private static int CountTopLevelArity(string pattern)
     {
-        if (pattern.Length < 2 || pattern[0] != '(')
+        if(pattern.Length < 2 || pattern[0] != '(')
             return 1;
 
         var depth = 0;
         var commas = 0;
-        for (var i = 1; i < pattern.Length - 1; i++)
+        for(var i = 1; i < pattern.Length - 1; i++)
         {
-            switch (pattern[i])
+            switch(pattern[i])
             {
                 case '(':
                     depth++;

@@ -46,7 +46,7 @@ public sealed class MemoizationPlan
     {
         var names = new List<string>(memoizedRuleNames);
         var ids = new Dictionary<string, int>(names.Count);
-        for (var i = 0; i < names.Count; i++)
+        for(var i = 0; i < names.Count; i++)
         {
             ids[names[i]] = i;
         }

@@ -93,19 +93,19 @@ public class ResolveBinaryOperatorTests
     {
         var stack = new Stack<SyntaxNode>();
         stack.Push(root);
-        while (stack.Count > 0)
+        while(stack.Count > 0)
         {
             var node = stack.Pop();
-            if (node is AdditiveNode add
+            if(node is AdditiveNode add
                 && add.Right is not null
                 && !ReferenceEquals(add.Right, add.Left)
                 && add.Operator.Lexeme is not null)
             {
                 yield return add;
             }
-            foreach (var child in node.Children())
+            foreach(var child in node.Children())
             {
-                if (child is not null)
+                if(child is not null)
                     stack.Push(child);
             }
         }

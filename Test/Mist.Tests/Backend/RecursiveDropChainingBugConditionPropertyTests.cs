@@ -79,7 +79,7 @@ public class RecursiveDropChainingBugConditionPropertyTests
         var userTokens = Lexer.Lex(userSourceText, diagnostics);
         var userParseResult = Parser.Parse(userTokens, diagnostics);
 
-        if (userParseResult.Root is null)
+        if(userParseResult.Root is null)
             return (false, "", $"Failed to parse source:\n{source}");
 
         var allUnits = stdlibUnits.Add(userUnit);
@@ -97,7 +97,7 @@ public class RecursiveDropChainingBugConditionPropertyTests
         var buildErrors = diagnostics.ToImmutableArray()
             .Where(d => d.Severity == DiagnosticSeverity.Error)
             .ToList();
-        if (buildErrors.Count > 0)
+        if(buildErrors.Count > 0)
         {
             var errorText = string.Join("\n", buildErrors.Select(d => $"  {d.Id.Value}: {d.Message}"));
             return (false, "", $"Build errors:\n{errorText}");
@@ -107,7 +107,7 @@ public class RecursiveDropChainingBugConditionPropertyTests
         var emitBag = new DiagnosticBag();
         var files = CSharpEmitter.EmitToMemory(model, "TestProgram", emitBag);
 
-        if (emitBag.HasErrors)
+        if(emitBag.HasErrors)
         {
             var emitErrors = emitBag.ToImmutableArray()
                 .Where(d => d.Severity == DiagnosticSeverity.Error)
@@ -116,12 +116,12 @@ public class RecursiveDropChainingBugConditionPropertyTests
         }
 
         // Return just the test.cs content (the user's file)
-        if (files.TryGetValue("test.cs", out var testContent))
+        if(files.TryGetValue("test.cs", out var testContent))
             return (true, testContent, "");
 
         // Fallback: concatenate all emitted content
         var sb = new StringBuilder();
-        foreach (var (_, content) in files)
+        foreach(var (_, content) in files)
             sb.AppendLine(content);
 
         return (true, sb.ToString(), "");
@@ -349,7 +349,7 @@ public class RecursiveDropChainingBugConditionPropertyTests
         var source = BuildSource(scenario);
         var (succeeded, csContent, errorText) = BuildAndEmit(source);
 
-        if (!succeeded)
+        if(!succeeded)
             return false.ToProperty()
                 .Label($"Compilation/emission failed for scenario: {scenario}\n{errorText}");
 
@@ -378,7 +378,7 @@ public class RecursiveDropChainingBugConditionPropertyTests
             _ => false
         };
 
-        if (!hasChainedDrop)
+        if(!hasChainedDrop)
         {
             // Determine what IS emitted to document the counterexample
             var emittedPattern = scenario.Kind switch
@@ -423,14 +423,14 @@ public class RecursiveDropChainingBugConditionPropertyTests
     {
         // Find lines in finally blocks that reference the local
         var lines = csContent.Split('\n');
-        for (var i = 0; i < lines.Length; i++)
+        for(var i = 0; i < lines.Length; i++)
         {
-            if (lines[i].Contains("finally"))
+            if(lines[i].Contains("finally"))
             {
                 // Look at the next few lines for the drop statement
-                for (var j = i + 1; j < Math.Min(i + 5, lines.Length); j++)
+                for(var j = i + 1; j < Math.Min(i + 5, lines.Length); j++)
                 {
-                    if (lines[j].Contains(localName))
+                    if(lines[j].Contains(localName))
                         return lines[j];
                 }
             }

@@ -60,13 +60,13 @@ public class DefaultBlockParsingPropertyTests
     private static Gen<ImmutableArray<(string FieldName, EntryKind Kind, int LiteralValue, string? TypeBindingName)>>
         GenEntriesOfCount(int count)
     {
-        if (count == 0)
+        if(count == 0)
             return Gen.Constant(ImmutableArray<(string, EntryKind, int, string?)>.Empty);
 
         Gen<ImmutableArray<(string, EntryKind, int, string?)>> result =
             GenEntry(0).Select(e => ImmutableArray.Create(e));
 
-        for (var i = 1; i < count; i++)
+        for(var i = 1; i < count; i++)
         {
             var captured = i;
             result = from arr in result
@@ -106,16 +106,16 @@ public class DefaultBlockParsingPropertyTests
 
         lines.Add($"public {keyword} {typeName} {{");
 
-        if (entries.Length == 0)
+        if(entries.Length == 0)
         {
             lines.Add("    default { }");
         }
         else
         {
             lines.Add("    default {");
-            foreach (var entry in entries)
+            foreach(var entry in entries)
             {
-                switch (entry.Kind)
+                switch(entry.Kind)
                 {
                     case EntryKind.FieldOverride:
                         lines.Add($"        {entry.FieldName} = {entry.LiteralValue}");
@@ -159,14 +159,14 @@ public class DefaultBlockParsingPropertyTests
     private static DefaultBlockDeclarationNode? FindDefaultBlock(CompilationUnitNode cu)
     {
         var types = cu.GetTypes();
-        if (types.IsEmpty)
+        if(types.IsEmpty)
             return null;
 
         var typeDecl = types[0];
 
         // Get the members from either a class or struct declaration
         ImmutableArray<MemberDeclarationNode> members;
-        switch (typeDecl)
+        switch(typeDecl)
         {
             case ClassTypeTypeDeclarationNode classType:
                 members = classType.ClassDeclaration.Members;
@@ -179,9 +179,9 @@ public class DefaultBlockParsingPropertyTests
         }
 
         // Find the default block member
-        foreach (var member in members)
+        foreach(var member in members)
         {
-            if (member is DefaultBlockMemberMemberDeclarationNode defaultBlockMember)
+            if(member is DefaultBlockMemberMemberDeclarationNode defaultBlockMember)
                 return defaultBlockMember.DefaultBlock;
         }
 
@@ -214,23 +214,23 @@ public class DefaultBlockParsingPropertyTests
                 var cu = ParseSource(source, out var hasErrors);
 
                 // If parsing fails, discard this test case
-                if (cu is null || hasErrors)
+                if(cu is null || hasErrors)
                     return true.ToProperty().Label("Parsing failed — discarded");
 
                 var defaultBlock = FindDefaultBlock(cu);
-                if (defaultBlock is null)
+                if(defaultBlock is null)
                     return false.ToProperty()
                         .Label($"No default block found in AST.\nSource:\n{source}");
 
                 // Verify entry count matches
                 var expectedCount = entries.Length;
                 var actualCount = defaultBlock.Entries.Length;
-                if (actualCount != expectedCount)
+                if(actualCount != expectedCount)
                     return false.ToProperty()
                         .Label($"Entry count mismatch: expected {expectedCount}, got {actualCount}.\nSource:\n{source}");
 
                 // Verify each entry's field name and kind
-                for (var i = 0; i < expectedCount; i++)
+                for(var i = 0; i < expectedCount; i++)
                 {
                     var expected = entries[i];
                     var actual = defaultBlock.Entries[i];
@@ -243,7 +243,7 @@ public class DefaultBlockParsingPropertyTests
                         _ => "<unknown>",
                     };
 
-                    if (actualFieldName != expected.FieldName)
+                    if(actualFieldName != expected.FieldName)
                         return false.ToProperty()
                             .Label($"Entry {i}: expected field name '{expected.FieldName}', got '{actualFieldName}'.\nSource:\n{source}");
 
@@ -255,7 +255,7 @@ public class DefaultBlockParsingPropertyTests
                         _ => (EntryKind)(-1),
                     };
 
-                    if (actualKind != expected.Kind)
+                    if(actualKind != expected.Kind)
                         return false.ToProperty()
                             .Label($"Entry {i}: expected kind {expected.Kind}, got {actualKind}.\nSource:\n{source}");
                 }
@@ -329,13 +329,13 @@ public class DefaultBlockParsingPropertyTests
     /// </summary>
     private static DefaultExpressionPrimaryNode? FindDefaultExpression(Storm.Runtime.SyntaxNode? node)
     {
-        if (node is null) return null;
-        if (node is DefaultExpressionPrimaryNode defaultExpr) return defaultExpr;
+        if(node is null) return null;
+        if(node is DefaultExpressionPrimaryNode defaultExpr) return defaultExpr;
 
-        foreach (var child in node.Children())
+        foreach(var child in node.Children())
         {
             var found = FindDefaultExpression(child);
-            if (found is not null) return found;
+            if(found is not null) return found;
         }
 
         return null;
@@ -348,7 +348,7 @@ public class DefaultBlockParsingPropertyTests
     private static string? ExtractTypeName(TypeReferenceNode typeRef, string source)
     {
         var span = typeRef.Span;
-        if (span.Length > 0 && span.Start + span.Length <= source.Length)
+        if(span.Length > 0 && span.Start + span.Length <= source.Length)
             return source.Substring(span.Start, span.Length);
 
         // Fallback for hand-crafted ASTs: check known node types
@@ -392,17 +392,17 @@ public class DefaultBlockParsingPropertyTests
                 var source = BuildDefaultExpressionSource(typeName);
                 var cu = ParseSource(source, out var hasErrors);
 
-                if (cu is null || hasErrors)
+                if(cu is null || hasErrors)
                     return false.ToProperty()
                         .Label($"Parsing failed for type '{typeName}'.\nSource:\n{source}");
 
                 var defaultExpr = FindDefaultExpression(cu);
-                if (defaultExpr is null)
+                if(defaultExpr is null)
                     return false.ToProperty()
                         .Label($"No DefaultExpressionPrimaryNode found in AST for type '{typeName}'.\nSource:\n{source}");
 
                 var actualTypeName = ExtractTypeName(defaultExpr.Type, source);
-                if (actualTypeName is null)
+                if(actualTypeName is null)
                     return false.ToProperty()
                         .Label($"Could not extract type name from TypeReferenceNode for type '{typeName}'.");
 

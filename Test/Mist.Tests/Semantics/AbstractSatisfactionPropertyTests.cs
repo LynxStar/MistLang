@@ -98,7 +98,7 @@ public class AbstractSatisfactionPropertyTests
             Members = members,
         };
 
-        if (parentAbstractName is not null)
+        if(parentAbstractName is not null)
         {
             var _abstractList1 = MakeBaseList(parentAbstractName);
 
@@ -138,7 +138,7 @@ public class AbstractSatisfactionPropertyTests
             Members = members ?? ImmutableArray<MemberDeclarationNode>.Empty,
         };
 
-        if (abstractOrBaseName is not null)
+        if(abstractOrBaseName is not null)
         {
             var _baseList1 = MakeBaseList(abstractOrBaseName);
 
@@ -161,7 +161,7 @@ public class AbstractSatisfactionPropertyTests
             Members = members ?? ImmutableArray<MemberDeclarationNode>.Empty,
         };
 
-        if (abstractName is not null)
+        if(abstractName is not null)
         {
             var _abstractList2 = MakeBaseList(abstractName);
 
@@ -433,7 +433,7 @@ public class AbstractSatisfactionPropertyTests
             .ToImmutableArray();
 
         TypeDeclarationNode implTypeDecl;
-        switch (scenario.TypeKind)
+        switch(scenario.TypeKind)
         {
             case ImplTypeKind.Class:
                 implTypeDecl = WrapClass(
@@ -480,7 +480,7 @@ public class AbstractSatisfactionPropertyTests
             .ToImmutableArray();
 
         TypeDeclarationNode implTypeDecl;
-        switch (scenario.TypeKind)
+        switch(scenario.TypeKind)
         {
             case ImplTypeKind.Class:
                 implTypeDecl = WrapClass(
@@ -502,20 +502,20 @@ public class AbstractSatisfactionPropertyTests
             .ToList();
 
         // Exactly one diagnostic per missing method
-        if (missingMethodDiags.Count != scenario.MissingMethodNames.Length)
+        if(missingMethodDiags.Count != scenario.MissingMethodNames.Length)
             return false;
 
         // Each missing method name should appear in a diagnostic message
-        foreach (var missingName in scenario.MissingMethodNames)
+        foreach(var missingName in scenario.MissingMethodNames)
         {
-            if (!missingMethodDiags.Any(d => d.Message.Contains(missingName)))
+            if(!missingMethodDiags.Any(d => d.Message.Contains(missingName)))
                 return false;
         }
 
         // Each diagnostic should reference the implementing type name
-        foreach (var diag in missingMethodDiags)
+        foreach(var diag in missingMethodDiags)
         {
-            if (!diag.Message.Contains(scenario.ImplementingTypeName))
+            if(!diag.Message.Contains(scenario.ImplementingTypeName))
                 return false;
         }
 
@@ -687,7 +687,7 @@ public class AbstractSatisfactionPropertyTests
             .ToImmutableArray();
 
         TypeDeclarationNode implTypeDecl;
-        switch (scenario.TypeKind)
+        switch(scenario.TypeKind)
         {
             case ImplTypeKind.Class:
                 implTypeDecl = WrapClass(

@@ -139,7 +139,7 @@ rule Start = IDENTIFIER;
         return path =>
         {
             var normalized = StormImportResolver.CanonicalizePath(path);
-            if (files.TryGetValue(normalized, out var contents))
+            if(files.TryGetValue(normalized, out var contents))
                 return contents;
             return null;
         };
@@ -168,7 +168,7 @@ rule Start = IDENTIFIER;
 
         var context = new EmissionContext(ns, grammarName, loweringResult.Grammar!);
         string runtimeSource, lexerSource;
-        lock (_emitLock)
+        lock(_emitLock)
         {
             runtimeSource = AstEmitter.EmitRuntimeTypes();
             lexerSource = LexerEmitter.Emit(context);
@@ -246,7 +246,7 @@ namespace Mist.Common.Text
         var enumerator = ((System.Collections.IEnumerable)allTokens).GetEnumerator();
         var tokens = new List<(int kind, string lexeme)>();
 
-        while (enumerator.MoveNext())
+        while(enumerator.MoveNext())
         {
             var token = enumerator.Current!;
             var tokenType = token.GetType();
@@ -311,7 +311,7 @@ namespace Mist.Common.Text
         var migrAsm = CompileLexer(migrRuntime, migrLexer);
 
         var samples = GenMistSourceSnippet().Sample(100);
-        foreach (var input in samples)
+        foreach(var input in samples)
         {
             var originalTokens = Tokenize(origAsm, "Original.Generated", "Original", input);
             var migratedTokens = Tokenize(migrAsm, "Migrated.Generated", "Migrated", input);
@@ -321,7 +321,7 @@ namespace Mist.Common.Text
                 $"Original ({originalTokens.Count}): {FormatTokens(originalTokens)}\n" +
                 $"Migrated ({migratedTokens.Count}): {FormatTokens(migratedTokens)}");
 
-            for (int i = 0; i < originalTokens.Count; i++)
+            for(int i = 0; i < originalTokens.Count; i++)
             {
                 Assert.True(originalTokens[i].kind == migratedTokens[i].kind,
                     $"Token kind mismatch at index {i} for input: [{Escape(input)}]\n" +

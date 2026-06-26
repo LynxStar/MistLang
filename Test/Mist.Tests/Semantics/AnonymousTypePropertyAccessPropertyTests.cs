@@ -319,7 +319,7 @@ public sealed class AnonymousTypePropertyAccessPropertyTests
                         && d.Message.Contains(scenario.AccessedName, StringComparison.Ordinal))
             .ToList();
 
-        if (undefinedMemberDiags.Count > 0)
+        if(undefinedMemberDiags.Count > 0)
         {
             var messages = string.Join("\n", undefinedMemberDiags.Select(d => d.Message));
             return false.ToProperty().Label(
@@ -350,7 +350,7 @@ public sealed class AnonymousTypePropertyAccessPropertyTests
                         && d.Message.Contains(scenario.NonExistentName, StringComparison.Ordinal))
             .ToList();
 
-        if (undefinedMemberDiags.Count == 0)
+        if(undefinedMemberDiags.Count == 0)
         {
             var allIds = string.Join(", ", diagnostics.Select(d => $"{d.Id.Value}: {d.Message}"));
             return false.ToProperty().Label(
@@ -379,7 +379,7 @@ public sealed class AnonymousTypePropertyAccessPropertyTests
             .Where(d => d.Id.Value == ReadonlyId)
             .ToList();
 
-        if (readonlyDiags.Count == 0)
+        if(readonlyDiags.Count == 0)
         {
             var allIds = string.Join(", ", diagnostics.Select(d => $"{d.Id.Value}: {d.Message}"));
             return false.ToProperty().Label(
@@ -391,7 +391,7 @@ public sealed class AnonymousTypePropertyAccessPropertyTests
         var mentionsReadonly = readonlyDiags.Any(d =>
             d.Message.Contains("read-only", StringComparison.OrdinalIgnoreCase));
 
-        if (!mentionsReadonly)
+        if(!mentionsReadonly)
         {
             var messages = string.Join("\n", readonlyDiags.Select(d => d.Message));
             return false.ToProperty().Label(

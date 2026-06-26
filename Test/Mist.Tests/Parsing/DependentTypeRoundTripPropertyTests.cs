@@ -109,7 +109,7 @@ public class DependentTypeRoundTripPropertyTests
         // Strategy: generate 1-3 parameters, ensuring at least one is dependent
         return Gen.Choose(1, 3).SelectMany(count =>
         {
-            if (count == 1)
+            if(count == 1)
             {
                 // Single dependent parameter
                 return GenDependentTypeParameter().Select(dep =>
@@ -247,7 +247,7 @@ public class DependentTypeRoundTripPropertyTests
     {
         return Gen.Choose(1, 3).SelectMany(count =>
         {
-            if (count == 1)
+            if(count == 1)
             {
                 return GenDependentValueTypeArgument().Select(arg =>
                     new TypeArgumentListNode
@@ -415,15 +415,18 @@ public class DependentTypeRoundTripPropertyTests
         string fieldName)
     {
         // Build a NamedTypeRef with type arguments: Buffer<5>
-        var fieldType = (TypeReferenceNode)new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
+        var fieldType = (TypeReferenceNode)new TypeReferenceNode
         {
-            Name = new QualifiedIdentifierNode
+            First = new NamedSingleTypeRefSingleTypeRefNode
             {
-                IDENTIFIER = Tok(fieldTypeName),
-                IDENTIFIERs = ImmutableArray<Storm.Runtime.Token>.Empty,
-            },
-            TypeArgs = typeArgs,
-        } };
+                Name = new QualifiedIdentifierNode
+                {
+                    IDENTIFIER = Tok(fieldTypeName),
+                    IDENTIFIERs = ImmutableArray<Storm.Runtime.Token>.Empty,
+                },
+                TypeArgs = typeArgs,
+            }
+        };
 
         var field = new FieldDeclarationNode
         {
@@ -481,15 +484,18 @@ public class DependentTypeRoundTripPropertyTests
         };
 
         // Usage: class Client { FixedBuffer<5> data; }
-        var fieldType = (TypeReferenceNode)new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
+        var fieldType = (TypeReferenceNode)new TypeReferenceNode
         {
-            Name = new QualifiedIdentifierNode
+            First = new NamedSingleTypeRefSingleTypeRefNode
             {
-                IDENTIFIER = Tok(fieldTypeName),
-                IDENTIFIERs = ImmutableArray<Storm.Runtime.Token>.Empty,
-            },
-            TypeArgs = typeArgs,
-        } };
+                Name = new QualifiedIdentifierNode
+                {
+                    IDENTIFIER = Tok(fieldTypeName),
+                    IDENTIFIERs = ImmutableArray<Storm.Runtime.Token>.Empty,
+                },
+                TypeArgs = typeArgs,
+            }
+        };
 
         var field = new FieldDeclarationNode
         {
@@ -520,7 +526,7 @@ public class DependentTypeRoundTripPropertyTests
 
     private static Gen<ImmutableArray<MemberDeclarationNode>> GenFieldMembers(int count)
     {
-        if (count == 0)
+        if(count == 0)
             return Gen.Constant(ImmutableArray<MemberDeclarationNode>.Empty);
 
         var fieldGen = from fieldName in Gen.Elements(FieldNames)
@@ -576,7 +582,7 @@ public class DependentTypeRoundTripPropertyTests
     {
         // Step 1: Pretty-print the generated AST to source text
         var printed1 = MistPrettyPrinter.Print(testCase.Ast);
-        if (string.IsNullOrWhiteSpace(printed1))
+        if(string.IsNullOrWhiteSpace(printed1))
             return false.ToProperty().Label("printed1 was empty");
 
         // Step 2: Parse the printed source text back to an AST
@@ -589,12 +595,12 @@ public class DependentTypeRoundTripPropertyTests
             .Where(d => d.Severity == DiagnosticSeverity.Error)
             .ToList();
 
-        if (errors.Count > 0)
+        if(errors.Count > 0)
             return false.ToProperty()
                 .Label($"Parse errors: {string.Join("; ", errors.Select(e => e.Message))}\nSource:\n{printed1}");
 
         var reparsed = result.Root as CompilationUnitNode;
-        if (reparsed is null)
+        if(reparsed is null)
             return false.ToProperty().Label($"Reparsed root was null.\nSource:\n{printed1}");
 
         // Step 3: Pretty-print the reparsed AST

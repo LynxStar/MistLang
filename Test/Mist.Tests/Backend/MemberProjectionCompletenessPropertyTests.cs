@@ -60,52 +60,52 @@ public sealed class MemberProjectionCompletenessPropertyTests
         var filter = new VisibilityFilter();
         var result = new List<(Type, MemberInfo)>();
 
-        foreach (var type in FixtureTypes)
+        foreach(var type in FixtureTypes)
         {
-            if (filter.IsTypeExcluded(type))
+            if(filter.IsTypeExcluded(type))
                 continue;
 
             // Constructors
-            foreach (var ctor in type.GetConstructors(BindingFlags.Public | BindingFlags.Instance))
+            foreach(var ctor in type.GetConstructors(BindingFlags.Public | BindingFlags.Instance))
             {
-                if (!filter.IsMemberExcluded(ctor))
+                if(!filter.IsMemberExcluded(ctor))
                     result.Add((type, ctor));
             }
 
             // Methods (excluding special names like property accessors and operators)
-            foreach (var method in type.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static))
+            foreach(var method in type.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static))
             {
-                if (method.IsSpecialName)
+                if(method.IsSpecialName)
                     continue;
-                if (!filter.IsMemberExcluded(method))
+                if(!filter.IsMemberExcluded(method))
                     result.Add((type, method));
             }
 
             // Properties (non-indexer)
-            foreach (var prop in type.GetProperties(BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static))
+            foreach(var prop in type.GetProperties(BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static))
             {
-                if (prop.GetIndexParameters().Length > 0)
+                if(prop.GetIndexParameters().Length > 0)
                     continue;
-                if (!filter.IsMemberExcluded(prop))
+                if(!filter.IsMemberExcluded(prop))
                     result.Add((type, prop));
             }
 
             // Fields (skip enum backing fields)
-            if (!type.IsEnum)
+            if(!type.IsEnum)
             {
-                foreach (var field in type.GetFields(BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static))
+                foreach(var field in type.GetFields(BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static))
                 {
-                    if (!filter.IsMemberExcluded(field))
+                    if(!filter.IsMemberExcluded(field))
                         result.Add((type, field));
                 }
             }
 
             // Indexers
-            foreach (var prop in type.GetProperties(BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static))
+            foreach(var prop in type.GetProperties(BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static))
             {
-                if (prop.GetIndexParameters().Length == 0)
+                if(prop.GetIndexParameters().Length == 0)
                     continue;
-                if (!filter.IsMemberExcluded(prop))
+                if(!filter.IsMemberExcluded(prop))
                     result.Add((type, prop));
             }
         }
@@ -118,13 +118,13 @@ public sealed class MemberProjectionCompletenessPropertyTests
     private static void RunProperty<T>(Gen<T> gen, Action<T> check, int maxTests = 100)
     {
         var samples = gen.Sample(maxTests).ToList();
-        for (var idx = 0; idx < samples.Count; idx++)
+        for(var idx = 0; idx < samples.Count; idx++)
         {
             try
             {
                 check(samples[idx]);
             }
-            catch (Exception ex)
+            catch(Exception ex)
             {
                 throw new Exception(
                     $"Property failed on sample {idx}/{samples.Count}: {samples[idx]}\n" +
@@ -166,7 +166,7 @@ public sealed class MemberProjectionCompletenessPropertyTests
             var (projectedType, _) = _projector.ProjectType(declaringType, _stdlib);
             var projectedMembers = _projector.ProjectMembers(declaringType, projectedType, _stdlib);
 
-            switch (member)
+            switch(member)
             {
                 case ConstructorInfo:
                     AssertConstructorProjected(projectedMembers, (ConstructorInfo)member);
@@ -252,7 +252,7 @@ public sealed class MemberProjectionCompletenessPropertyTests
         {
             var (declaringType, member) = VisibleMembers[memberIndex];
 
-            if (member is not MethodInfo)
+            if(member is not MethodInfo)
                 return; // Only check methods
 
             var (projectedType, _) = _projector.ProjectType(declaringType, _stdlib);
@@ -280,7 +280,7 @@ public sealed class MemberProjectionCompletenessPropertyTests
         {
             var (declaringType, member) = VisibleMembers[memberIndex];
 
-            if (member is not MethodInfo methodInfo)
+            if(member is not MethodInfo methodInfo)
                 return; // Only check methods
 
             var (projectedType, _) = _projector.ProjectType(declaringType, _stdlib);
@@ -319,7 +319,7 @@ public sealed class MemberProjectionCompletenessPropertyTests
         Assert.NotEmpty(matching);
 
         // Verify all parameters have non-null DeclaredType
-        foreach (var ctorSymbol in matching)
+        foreach(var ctorSymbol in matching)
         {
             Assert.All(ctorSymbol.Parameters, p => Assert.NotNull(p.DeclaredType));
         }
@@ -343,7 +343,7 @@ public sealed class MemberProjectionCompletenessPropertyTests
         Assert.NotEmpty(matching);
 
         // Verify return type is non-null
-        foreach (var methodSymbol in matching)
+        foreach(var methodSymbol in matching)
         {
             Assert.NotNull(methodSymbol.DeclaredType);
 
@@ -364,7 +364,7 @@ public sealed class MemberProjectionCompletenessPropertyTests
         Assert.NotEmpty(properties);
 
         // Verify the property has a non-null DeclaredType
-        foreach (var propSymbol in properties)
+        foreach(var propSymbol in properties)
         {
             Assert.NotNull(propSymbol.DeclaredType);
         }
@@ -382,7 +382,7 @@ public sealed class MemberProjectionCompletenessPropertyTests
         Assert.NotEmpty(fields);
 
         // Verify the field has a non-null DeclaredType
-        foreach (var fieldSymbol in fields)
+        foreach(var fieldSymbol in fields)
         {
             Assert.NotNull(fieldSymbol.DeclaredType);
         }
@@ -400,7 +400,7 @@ public sealed class MemberProjectionCompletenessPropertyTests
         Assert.NotEmpty(indexers);
 
         // Verify the indexer has a non-null DeclaredType (element type)
-        foreach (var indexerSymbol in indexers)
+        foreach(var indexerSymbol in indexers)
         {
             Assert.NotNull(indexerSymbol.DeclaredType);
         }

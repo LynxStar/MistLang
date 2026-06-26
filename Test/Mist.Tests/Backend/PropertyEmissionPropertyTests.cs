@@ -40,7 +40,7 @@ public sealed class PropertyEmissionPropertyTests : IDisposable
 
     public void Dispose()
     {
-        if (Directory.Exists(_outputDir))
+        if(Directory.Exists(_outputDir))
         {
             try { Directory.Delete(_outputDir, recursive: true); } catch { /* best effort */ }
         }
@@ -77,7 +77,7 @@ public sealed class PropertyEmissionPropertyTests : IDisposable
         CSharpEmitter.Emit(model, _outputDir, "TestProject", diagnostics);
 
         var csFiles = Directory.GetFiles(_outputDir, "*.cs");
-        if (csFiles.Length == 0)
+        if(csFiles.Length == 0)
             return "";
 
         return string.Join("\n", csFiles.Select(File.ReadAllText));
@@ -85,9 +85,9 @@ public sealed class PropertyEmissionPropertyTests : IDisposable
 
     private void CleanOutputDir()
     {
-        if (Directory.Exists(_outputDir))
+        if(Directory.Exists(_outputDir))
         {
-            foreach (var file in Directory.GetFiles(_outputDir))
+            foreach(var file in Directory.GetFiles(_outputDir))
                 File.Delete(file);
         }
     }
@@ -116,7 +116,7 @@ public sealed class PropertyEmissionPropertyTests : IDisposable
         var model = BuildModel(ast);
         var csContent = EmitAndGetCsContent(model);
 
-        if (string.IsNullOrWhiteSpace(csContent))
+        if(string.IsNullOrWhiteSpace(csContent))
             return true.ToProperty().Label("No output (may be expected)");
 
         // The emitted C# should contain property-related syntax
@@ -139,7 +139,7 @@ public sealed class PropertyEmissionPropertyTests : IDisposable
         var model = BuildModel(ast);
         var csContent = EmitAndGetCsContent(model);
 
-        if (string.IsNullOrWhiteSpace(csContent))
+        if(string.IsNullOrWhiteSpace(csContent))
             return true.ToProperty().Label("No output (may be expected)");
 
         var openBraces = csContent.Count(c => c == '{');
@@ -157,7 +157,7 @@ public sealed class PropertyEmissionPropertyTests : IDisposable
         var model = BuildModel(ast);
         var csContent = EmitAndGetCsContent(model);
 
-        if (string.IsNullOrWhiteSpace(csContent))
+        if(string.IsNullOrWhiteSpace(csContent))
             return true.ToProperty().Label("No output (may be expected)");
 
         var containsTypeDecl =

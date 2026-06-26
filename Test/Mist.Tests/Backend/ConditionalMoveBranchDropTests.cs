@@ -43,7 +43,7 @@ public sealed class ConditionalMoveBranchDropTests : IDisposable
 
     public void Dispose()
     {
-        if (Directory.Exists(_outputDir))
+        if(Directory.Exists(_outputDir))
         {
             try { Directory.Delete(_outputDir, recursive: true); } catch { /* best effort */ }
         }
@@ -89,12 +89,12 @@ public sealed class ConditionalMoveBranchDropTests : IDisposable
         Assert.True(errors.Count == 0,
             $"Compilation produced errors:\n{string.Join("\n", errors.Select(e => $"  {e.Id.Value}: {e.Message}"))}");
 
-        if (result.EmittedFiles is null)
+        if(result.EmittedFiles is null)
             return null;
 
-        foreach (var (_, content) in result.EmittedFiles)
+        foreach(var (_, content) in result.EmittedFiles)
         {
-            if (content.Contains("namespace TestProgram"))
+            if(content.Contains("namespace TestProgram"))
                 return content;
         }
 
@@ -196,10 +196,10 @@ public sealed class ConditionalMoveBranchDropTests : IDisposable
     private static string? ExtractBlockBody(string source, int searchStart)
     {
         var openBrace = source.IndexOf('{', searchStart);
-        if (openBrace < 0) return null;
+        if(openBrace < 0) return null;
 
         var closeBrace = FindMatchingCloseBrace(source, openBrace);
-        if (closeBrace < 0) return null;
+        if(closeBrace < 0) return null;
 
         return source.Substring(openBrace + 1, closeBrace - openBrace - 1);
     }
@@ -207,12 +207,12 @@ public sealed class ConditionalMoveBranchDropTests : IDisposable
     private static int FindMatchingCloseBrace(string source, int openBraceIndex)
     {
         var depth = 0;
-        for (var i = openBraceIndex; i < source.Length; i++)
+        for(var i = openBraceIndex; i < source.Length; i++)
         {
-            if (source[i] == '{') depth++;
-            else if (source[i] == '}') depth--;
+            if(source[i] == '{') depth++;
+            else if(source[i] == '}') depth--;
 
-            if (depth == 0)
+            if(depth == 0)
                 return i;
         }
         return -1;

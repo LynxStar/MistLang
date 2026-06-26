@@ -50,7 +50,7 @@ public sealed partial class DefaultEmitterPropertyTests : IDisposable
 
     public void Dispose()
     {
-        if (Directory.Exists(_outputDir))
+        if(Directory.Exists(_outputDir))
         {
             try { Directory.Delete(_outputDir, recursive: true); } catch { /* best effort */ }
         }
@@ -94,7 +94,7 @@ public sealed partial class DefaultEmitterPropertyTests : IDisposable
         var csFiles = Directory.GetFiles(_outputDir, "*.cs")
             .Where(f => !f.EndsWith("MistVoid.g.cs", StringComparison.OrdinalIgnoreCase));
         var sb = new System.Text.StringBuilder();
-        foreach (var file in csFiles)
+        foreach(var file in csFiles)
         {
             sb.AppendLine(File.ReadAllText(file));
         }
@@ -103,9 +103,9 @@ public sealed partial class DefaultEmitterPropertyTests : IDisposable
 
     private void CleanOutputDir()
     {
-        if (Directory.Exists(_outputDir))
+        if(Directory.Exists(_outputDir))
         {
-            foreach (var file in Directory.GetFiles(_outputDir))
+            foreach(var file in Directory.GetFiles(_outputDir))
                 File.Delete(file);
         }
     }
@@ -128,18 +128,24 @@ public sealed partial class DefaultEmitterPropertyTests : IDisposable
 
     private static TypeReferenceNode MakePrimitiveTypeRef(string typeName)
     {
-        return new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
+        return new TypeReferenceNode
         {
-            PrimitiveType = MakePrimitiveType(typeName),
-        } };
+            First = new PrimitiveSingleTypeRefSingleTypeRefNode
+            {
+                PrimitiveType = MakePrimitiveType(typeName),
+            }
+        };
     }
 
     private static TypeReferenceNode MakeNamedTypeRef(string typeName)
     {
-        return new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
+        return new TypeReferenceNode
         {
-            Name = new QualifiedIdentifierNode { IDENTIFIER = MakeToken(typeName) },
-        } };
+            First = new NamedSingleTypeRefSingleTypeRefNode
+            {
+                Name = new QualifiedIdentifierNode { IDENTIFIER = MakeToken(typeName) },
+            }
+        };
     }
 
     private static FieldDeclarationNode MakeField(
@@ -386,14 +392,14 @@ public sealed partial class DefaultEmitterPropertyTests : IDisposable
 
     private static Gen<ImmutableArray<(string FieldName, string FieldType)>> GenPrimitiveFields(int count)
     {
-        if (count == 0)
+        if(count == 0)
             return Gen.Constant(ImmutableArray<(string, string)>.Empty);
 
         Gen<ImmutableArray<(string, string)>> result =
             from fieldType in Gen.Elements(PrimitiveTypes)
             select ImmutableArray.Create<(string, string)>((FieldNames[0], fieldType));
 
-        for (var i = 1; i < count; i++)
+        for(var i = 1; i < count; i++)
         {
             var idx = i;
             result = from arr in result
@@ -440,7 +446,7 @@ public sealed partial class DefaultEmitterPropertyTests : IDisposable
         var sb = new System.Text.StringBuilder();
         var kind = scenario.IsStruct ? "struct" : "class";
         sb.AppendLine($"{kind} {scenario.TypeName} {{");
-        foreach (var (fieldName, fieldType) in scenario.Fields)
+        foreach(var (fieldName, fieldType) in scenario.Fields)
         {
             sb.AppendLine($"    {fieldType} {fieldName};");
         }
@@ -485,7 +491,7 @@ public sealed partial class DefaultEmitterPropertyTests : IDisposable
         var sb = new System.Text.StringBuilder();
         var kind = scenario.IsStruct ? "struct" : "class";
         sb.AppendLine($"{kind} {scenario.TypeName} {{");
-        foreach (var (fieldName, fieldType) in scenario.Fields)
+        foreach(var (fieldName, fieldType) in scenario.Fields)
         {
             sb.AppendLine($"    {fieldType} {fieldName};");
         }
@@ -517,7 +523,7 @@ public sealed partial class DefaultEmitterPropertyTests : IDisposable
         var model = BuildModel(ast, source);
         var csContent = EmitAndGetCsContent(model);
 
-        if (string.IsNullOrEmpty(csContent))
+        if(string.IsNullOrEmpty(csContent))
             return false;
 
         // 1. Verify __CreateDefault() method declaration exists for the type
@@ -526,7 +532,7 @@ public sealed partial class DefaultEmitterPropertyTests : IDisposable
             .Cast<Match>()
             .Any(m => m.Groups[1].Value == scenario.TypeName);
 
-        if (!hasFactoryMethod)
+        if(!hasFactoryMethod)
             return false;
 
         // 2. Verify the factory method body creates a new instance
@@ -535,7 +541,7 @@ public sealed partial class DefaultEmitterPropertyTests : IDisposable
             .Cast<Match>()
             .Any(m => m.Groups[1].Value == scenario.TypeName);
 
-        if (!hasNewInstance)
+        if(!hasNewInstance)
             return false;
 
         // 3. Verify each field is assigned somewhere in the emitted C# code.
@@ -550,9 +556,9 @@ public sealed partial class DefaultEmitterPropertyTests : IDisposable
             .Concat(ctorFieldAssignments.Cast<Match>().Select(m => m.Groups[1].Value))
             .ToHashSet();
 
-        foreach (var (fieldName, _) in scenario.Fields)
+        foreach(var (fieldName, _) in scenario.Fields)
         {
-            if (!assignedFields.Contains(fieldName))
+            if(!assignedFields.Contains(fieldName))
                 return false;
         }
 
@@ -581,7 +587,7 @@ public sealed partial class DefaultEmitterPropertyTests : IDisposable
         var model = BuildModel(ast, source);
         var csContent = EmitAndGetCsContent(model);
 
-        if (string.IsNullOrEmpty(csContent))
+        if(string.IsNullOrEmpty(csContent))
             return false;
 
         // 1. Verify __CreateDefault() factory method declaration exists
@@ -590,7 +596,7 @@ public sealed partial class DefaultEmitterPropertyTests : IDisposable
             .Cast<Match>()
             .Any(m => m.Groups[1].Value == scenario.TypeName);
 
-        if (!hasFactoryMethod)
+        if(!hasFactoryMethod)
             return false;
 
         // 2. Verify the default expression was emitted as TypeName.__CreateDefault()

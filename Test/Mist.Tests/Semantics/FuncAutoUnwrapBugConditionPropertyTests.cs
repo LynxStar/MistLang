@@ -72,7 +72,7 @@ public class FuncAutoUnwrapBugConditionPropertyTests
         var userTokens = Lexer.Lex(userSourceText, diagnostics);
         var userParseResult = Parser.Parse(userTokens, diagnostics);
 
-        if (userParseResult.Root is null)
+        if(userParseResult.Root is null)
             throw new InvalidOperationException($"Failed to parse user source:\n{source}");
 
         var allUnits = stdlibUnits.Add(userUnit);
@@ -201,13 +201,13 @@ public class FuncAutoUnwrapBugConditionPropertyTests
         // Find the `result` local variable to check its inferred type
         var resultSymbol = FindLocal(model, "result");
 
-        if (resultSymbol is null)
+        if(resultSymbol is null)
             return false.ToProperty()
                 .Label($"Could not find local 'result' in scenario: {scenario}");
 
         var resultType = resultSymbol.DeclaredType;
 
-        if (resultType is null)
+        if(resultType is null)
             return false.ToProperty()
                 .Label($"result.DeclaredType is null in scenario: {scenario}");
 
@@ -216,7 +216,7 @@ public class FuncAutoUnwrapBugConditionPropertyTests
         //
         // On UNFIXED code: result type WILL be Task<T>, causing this assertion to fail.
         // That failure CONFIRMS the bug exists.
-        if (IsStandardTaskType(resultType))
+        if(IsStandardTaskType(resultType))
         {
             // Bug detected: the Func invocation returned Task<T> instead of T
             var ct = (ConstructedType)resultType;

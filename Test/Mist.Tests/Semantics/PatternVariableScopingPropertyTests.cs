@@ -116,10 +116,13 @@ public class PatternVariableScopingPropertyTests
         {
             VariableDeclaration = new TypedVariableDeclarationVariableDeclarationStatementNode
             {
-                Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                Type = new TypeReferenceNode
                 {
-                    PrimitiveType = MakePrimitiveType(typeName),
-                } },
+                    First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                    {
+                        PrimitiveType = MakePrimitiveType(typeName),
+                    }
+                },
                 Name = Tok(name),
                 Initializer = initializer,
             },
@@ -130,10 +133,13 @@ public class PatternVariableScopingPropertyTests
     {
         var primary = new TypePatternPrimaryPatternNode
         {
-            Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
+            Type = new TypeReferenceNode
             {
-                PrimitiveType = MakePrimitiveType(typeName),
-            } },
+                First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                {
+                    PrimitiveType = MakePrimitiveType(typeName),
+                }
+            },
             Name = Tok(bindingName),
         };
         var unary = new DirectPatternUnaryPatternNode { Primary = primary };
@@ -241,7 +247,7 @@ public class PatternVariableScopingPropertyTests
             .FirstOrDefault(s => s.Name == scenario.BindingName
                                  && s.Kind == SymbolKind.LocalVariable);
 
-        if (patternVar is null)
+        if(patternVar is null)
         {
             return false.ToProperty()
                 .Label($"Pattern variable '{scenario.BindingName}' not found as LocalVariable in model. " +
@@ -250,7 +256,7 @@ public class PatternVariableScopingPropertyTests
 
         // Verify the type is correct
         var declaredType = patternVar.DeclaredType;
-        if (declaredType is null)
+        if(declaredType is null)
         {
             return false.ToProperty()
                 .Label($"Pattern variable '{scenario.BindingName}' has null DeclaredType. " +

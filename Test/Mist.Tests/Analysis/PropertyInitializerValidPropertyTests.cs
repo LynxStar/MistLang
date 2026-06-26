@@ -113,7 +113,7 @@ public sealed class PropertyInitializerValidPropertyTests
     {
         var sb = new StringBuilder();
         sb.AppendLine($"class {typeName} {{");
-        foreach (var (name, type, _) in members)
+        foreach(var (name, type, _) in members)
         {
             sb.AppendLine($"    public {type} {name} {{ get; set; }}");
         }
@@ -130,13 +130,13 @@ public sealed class PropertyInitializerValidPropertyTests
         // Lex
         var lexBag = new DiagnosticBag();
         var tokens = Lexer.Lex(sourceText, lexBag);
-        if (lexBag.HasErrors)
+        if(lexBag.HasErrors)
             return lexBag.ToImmutableArray();
 
         // Parse
         var parseBag = new DiagnosticBag();
         var parseResult = Parser.Parse(tokens, parseBag);
-        if (parseBag.HasErrors || parseResult.Root is null)
+        if(parseBag.HasErrors || parseResult.Root is null)
             return parseBag.ToImmutableArray();
 
         // Semantic model
@@ -178,7 +178,7 @@ public sealed class PropertyInitializerValidPropertyTests
             .Where(d => d.Id.Value.StartsWith("MIST_PI_"))
             .ToList();
 
-        if (piDiags.Count != 0)
+        if(piDiags.Count != 0)
         {
             return false.ToProperty()
                 .Label($"Expected zero MIST_PI_* diagnostics, got {piDiags.Count}.\n" +

@@ -17,7 +17,7 @@ namespace Storm.SourceGenerator.Emit
         {
             // Build a lookup from NFA state ID to NfaState for fast access
             var nfaStatesById = new Dictionary<int, NfaState>();
-            foreach (var state in nfa.States)
+            foreach(var state in nfa.States)
             {
                 nfaStatesById[state.Id] = state;
             }
@@ -45,23 +45,23 @@ namespace Storm.SourceGenerator.Emit
             dfaIdToNfaSet.Add(startSet);
             worklist.Enqueue(0);
 
-            while (worklist.Count > 0)
+            while(worklist.Count > 0)
             {
                 var dfaId = worklist.Dequeue();
                 var nfaSet = dfaIdToNfaSet[dfaId];
                 var dfaState = dfaStates[dfaId];
 
-                foreach (var range in alphabet)
+                foreach(var range in alphabet)
                 {
                     var targetNfaSet = Move(nfaSet, range, nfaStatesById);
-                    if (targetNfaSet.Count == 0)
+                    if(targetNfaSet.Count == 0)
                         continue;
 
                     var closedSet = EpsilonClosure(targetNfaSet, nfaStatesById);
                     var key = MakeKey(closedSet);
 
                     int targetDfaId;
-                    if (!stateSetToDfaId.TryGetValue(key, out targetDfaId))
+                    if(!stateSetToDfaId.TryGetValue(key, out targetDfaId))
                     {
                         targetDfaId = dfaStates.Count;
                         var newDfaState = new DfaState(targetDfaId);
@@ -93,16 +93,16 @@ namespace Storm.SourceGenerator.Emit
             var closure = new HashSet<int>(stateIds);
             var worklist = new Queue<int>(stateIds);
 
-            while (worklist.Count > 0)
+            while(worklist.Count > 0)
             {
                 var id = worklist.Dequeue();
                 NfaState? state;
-                if (!statesById.TryGetValue(id, out state))
+                if(!statesById.TryGetValue(id, out state))
                     continue;
 
-                foreach (var transition in state.Transitions)
+                foreach(var transition in state.Transitions)
                 {
-                    if (transition.IsEpsilon && closure.Add(transition.Target.Id))
+                    if(transition.IsEpsilon && closure.Add(transition.Target.Id))
                     {
                         worklist.Enqueue(transition.Target.Id);
                     }
@@ -127,18 +127,18 @@ namespace Storm.SourceGenerator.Emit
             // This creates a set of "cut points" that partition the character space.
             var boundarySet = new SortedSet<int>();
 
-            foreach (var state in nfa.States)
+            foreach(var state in nfa.States)
             {
-                foreach (var transition in state.Transitions)
+                foreach(var transition in state.Transitions)
                 {
-                    if (transition.Ranges == null)
+                    if(transition.Ranges == null)
                         continue;
 
-                    foreach (var range in transition.Ranges)
+                    foreach(var range in transition.Ranges)
                     {
                         boundarySet.Add(range.Lo);
                         // Add hi+1 as a boundary (if it doesn't overflow)
-                        if (range.Hi < 0xFFFF)
+                        if(range.Hi < 0xFFFF)
                         {
                             boundarySet.Add(range.Hi + 1);
                         }
@@ -146,7 +146,7 @@ namespace Storm.SourceGenerator.Emit
                 }
             }
 
-            if (boundarySet.Count == 0)
+            if(boundarySet.Count == 0)
                 return new List<CharRange>();
 
             // Convert boundary points to sorted list
@@ -155,12 +155,12 @@ namespace Storm.SourceGenerator.Emit
             // Create non-overlapping intervals from consecutive boundary points
             var result = new List<CharRange>();
 
-            for (int i = 0; i < boundaries.Count; i++)
+            for(int i = 0; i < boundaries.Count; i++)
             {
                 int lo = boundaries[i];
                 int hi;
 
-                if (i + 1 < boundaries.Count)
+                if(i + 1 < boundaries.Count)
                 {
                     hi = boundaries[i + 1] - 1;
                 }
@@ -170,7 +170,7 @@ namespace Storm.SourceGenerator.Emit
                     hi = 0xFFFF;
                 }
 
-                if (lo <= hi && lo <= 0xFFFF)
+                if(lo <= hi && lo <= 0xFFFF)
                 {
                     result.Add(new CharRange((char)lo, (char)hi));
                 }
@@ -197,20 +197,20 @@ namespace Storm.SourceGenerator.Emit
             // Use a representative character from the range to test membership
             char representative = range.Lo;
 
-            foreach (var id in stateIds)
+            foreach(var id in stateIds)
             {
                 NfaState? state;
-                if (!statesById.TryGetValue(id, out state))
+                if(!statesById.TryGetValue(id, out state))
                     continue;
 
-                foreach (var transition in state.Transitions)
+                foreach(var transition in state.Transitions)
                 {
-                    if (transition.Ranges == null)
+                    if(transition.Ranges == null)
                         continue;
 
-                    foreach (var tRange in transition.Ranges)
+                    foreach(var tRange in transition.Ranges)
                     {
-                        if (tRange.Contains(representative))
+                        if(tRange.Contains(representative))
                         {
                             result.Add(transition.Target.Id);
                             break;
@@ -235,15 +235,15 @@ namespace Storm.SourceGenerator.Emit
         {
             int bestIndex = -1;
 
-            foreach (var id in stateIds)
+            foreach(var id in stateIds)
             {
                 NfaState? state;
-                if (!statesById.TryGetValue(id, out state))
+                if(!statesById.TryGetValue(id, out state))
                     continue;
 
-                if (state.AcceptingTokenIndex >= 0)
+                if(state.AcceptingTokenIndex >= 0)
                 {
-                    if (bestIndex < 0 || state.AcceptingTokenIndex < bestIndex)
+                    if(bestIndex < 0 || state.AcceptingTokenIndex < bestIndex)
                     {
                         bestIndex = state.AcceptingTokenIndex;
                     }
@@ -266,9 +266,9 @@ namespace Storm.SourceGenerator.Emit
 
             // Use a compact representation
             var sb = new System.Text.StringBuilder();
-            for (int i = 0; i < sorted.Count; i++)
+            for(int i = 0; i < sorted.Count; i++)
             {
-                if (i > 0) sb.Append(',');
+                if(i > 0) sb.Append(',');
                 sb.Append(sorted[i]);
             }
             return sb.ToString();

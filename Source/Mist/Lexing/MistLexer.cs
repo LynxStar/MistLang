@@ -21,7 +21,7 @@ public sealed class MistLexer : ILexer
         var stormTokenStream = Mist.Generated.MistLexer.Lex(stormSource, stormDiagnostics);
 
         // Map Storm diagnostics to Mist diagnostics
-        foreach (var entry in stormDiagnostics.Entries)
+        foreach(var entry in stormDiagnostics.Entries)
         {
             var location = (entry.Line > 0 && entry.Column > 0)
                 ? new LinePositionSpan(

@@ -92,7 +92,7 @@ class Program
 
     private static string BuildCtorDeclaration(string className, int arity)
     {
-        if (arity == 0) return "";
+        if(arity == 0) return "";
 
         var parameters = string.Join(", ", Enumerable.Range(0, arity).Select(i => $"int p{i}"));
         return $"    public {className}({parameters}) {{ }}\n";
@@ -100,7 +100,7 @@ class Program
 
     private static string FormatArgs(int count)
     {
-        if (count == 0) return "";
+        if(count == 0) return "";
         return string.Join(", ", Enumerable.Range(0, count).Select(i => (i + 1).ToString()));
     }
 }
@@ -131,7 +131,7 @@ public sealed class TargetTypedNewConstructorPropertyTests : IDisposable
 
     public void Dispose()
     {
-        if (Directory.Exists(_outputDir))
+        if(Directory.Exists(_outputDir))
         {
             try { Directory.Delete(_outputDir, recursive: true); } catch { /* best effort */ }
         }
@@ -204,7 +204,7 @@ public sealed class TargetTypedNewConstructorPropertyTests : IDisposable
 
         var hasConstructorError = constructorErrors.Count > 0;
 
-        if (scenario.ShouldSucceed)
+        if(scenario.ShouldSucceed)
         {
             // Arity matches: no constructor-related errors should exist
             return (!hasConstructorError)

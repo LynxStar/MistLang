@@ -72,7 +72,7 @@ public class LambdaRoundTripPropertyTests
             .Where(d => d.Severity == DiagnosticSeverity.Error)
             .ToList();
 
-        if (errors.Count > 0)
+        if(errors.Count > 0)
             throw new InvalidOperationException(
                 $"Unexpected parse errors:\n  {string.Join("\n  ", errors.Select(e => e.Message))}\nSource:\n{source}");
 
@@ -106,7 +106,7 @@ public class LambdaRoundTripPropertyTests
         {
             printed1 = PrintOnce(scenario.Source);
         }
-        catch (Exception ex)
+        catch(Exception ex)
         {
             return false.ToProperty()
                 .Label($"First print pass failed:\n{ex.Message}\nSource:\n{scenario.Source}");
@@ -117,7 +117,7 @@ public class LambdaRoundTripPropertyTests
         {
             printed2 = PrintOnce(printed1);
         }
-        catch (Exception ex)
+        catch(Exception ex)
         {
             return false.ToProperty()
                 .Label($"Second print pass failed (re-parse of printed output):\n{ex.Message}\nPrinted1:\n{printed1}\nOriginal source:\n{scenario.Source}");

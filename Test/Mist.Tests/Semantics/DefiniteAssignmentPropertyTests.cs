@@ -236,7 +236,7 @@ public sealed class DefiniteAssignmentPropertyTests
         var ctorParams = new List<string>();
 
         // Non-defaultable fields (abstract type) — all assigned via constructor params
-        for (var i = 0; i < nonDefaultableCount; i++)
+        for(var i = 0; i < nonDefaultableCount; i++)
         {
             var fieldName = FieldNames[i];
             fields.Add($"    public {abstractName} {fieldName};");
@@ -245,7 +245,7 @@ public sealed class DefiniteAssignmentPropertyTests
         }
 
         // Defaultable fields (primitive type) — also assigned for Property 4
-        for (var i = 0; i < defaultableCount; i++)
+        for(var i = 0; i < defaultableCount; i++)
         {
             var fieldName = FieldNames[nonDefaultableCount + i];
             fields.Add($"    public {primitiveType} {fieldName};");
@@ -285,13 +285,13 @@ public sealed class DefiniteAssignmentPropertyTests
         var assignments = new List<string>();
         var ctorParams = new List<string>();
 
-        for (var i = 0; i < totalNonDefaultable; i++)
+        for(var i = 0; i < totalNonDefaultable; i++)
         {
             var fieldName = FieldNames[i];
             fields.Add($"    public {abstractName} {fieldName};");
 
             // Skip assignment for the field at missingIndex
-            if (i != missingIndex)
+            if(i != missingIndex)
             {
                 assignments.Add($"        this.{fieldName} = svc{i};");
             }
@@ -334,7 +334,7 @@ public sealed class DefiniteAssignmentPropertyTests
         var ctorParams = new List<string>();
 
         // Defaultable fields (primitive type) — NOT assigned in constructor
-        for (var i = 0; i < defaultableCount; i++)
+        for(var i = 0; i < defaultableCount; i++)
         {
             var fieldName = FieldNames[i];
             fields.Add($"    public {primitiveType} {fieldName};");
@@ -342,7 +342,7 @@ public sealed class DefiniteAssignmentPropertyTests
         }
 
         // Non-defaultable fields (abstract type) — assigned in constructor
-        for (var i = 0; i < nonDefaultableCount; i++)
+        for(var i = 0; i < nonDefaultableCount; i++)
         {
             var fieldName = FieldNames[defaultableCount + i];
             fields.Add($"    public {abstractName} {fieldName};");

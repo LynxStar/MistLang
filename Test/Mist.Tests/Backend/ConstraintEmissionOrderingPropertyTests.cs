@@ -64,7 +64,7 @@ public sealed class ConstraintEmissionOrderingPropertyTests : IDisposable
 
     public void Dispose()
     {
-        if (Directory.Exists(_outputDir))
+        if(Directory.Exists(_outputDir))
         {
             try { Directory.Delete(_outputDir, recursive: true); } catch { /* best effort */ }
         }
@@ -84,7 +84,7 @@ public sealed class ConstraintEmissionOrderingPropertyTests : IDisposable
         var parseBag = new DiagnosticBag();
         var parseResult = Parser.Parse(tokens, parseBag);
 
-        if (parseResult.Root is null)
+        if(parseResult.Root is null)
             return (null, "");
 
         var compilation = new MistCompilation(
@@ -99,7 +99,7 @@ public sealed class ConstraintEmissionOrderingPropertyTests : IDisposable
             semBag);
 
         // Clean output dir
-        foreach (var file in Directory.GetFiles(_outputDir))
+        foreach(var file in Directory.GetFiles(_outputDir))
             File.Delete(file);
 
         var emitBag = new DiagnosticBag();
@@ -129,16 +129,16 @@ public sealed class ConstraintEmissionOrderingPropertyTests : IDisposable
     {
         // Parse the constraint list into individual constraints
         var constraints = constraintList.Split(',').Select(c => c.Trim()).ToList();
-        if (constraints.Count == 0) return false;
+        if(constraints.Count == 0) return false;
 
         // Determine the category of each constraint
         var categories = constraints.Select(CategorizeConstraint).ToList();
 
         // Verify ordering: class/struct (0) → base class (1) → abstract types (2) → new() (3)
         var lastCategory = -1;
-        foreach (var category in categories)
+        foreach(var category in categories)
         {
-            if (category < lastCategory)
+            if(category < lastCategory)
                 return false;
             lastCategory = category;
         }
@@ -151,13 +151,13 @@ public sealed class ConstraintEmissionOrderingPropertyTests : IDisposable
     /// </summary>
     private static int CategorizeConstraint(string constraint)
     {
-        if (constraint == "class" || constraint == "struct")
+        if(constraint == "class" || constraint == "struct")
             return 0;
-        if (constraint == "new()")
+        if(constraint == "new()")
             return 3;
         // Base classes start with uppercase and are not interfaces (no I prefix convention)
         // For our test scenarios, base classes are Animal, Vehicle, Shape
-        if (BaseClassNames.Any(bc => constraint.StartsWith(bc)))
+        if(BaseClassNames.Any(bc => constraint.StartsWith(bc)))
             return 1;
         // Everything else is an abstract type
         return 2;
@@ -281,11 +281,11 @@ class Program {{
     {
         var (model, csContent) = CompileAndEmit(scenario.Source);
 
-        if (string.IsNullOrEmpty(csContent))
+        if(string.IsNullOrEmpty(csContent))
             return false.ToProperty().Label($"No C# output for: {scenario.Description}");
 
         var whereClause = ExtractWhereClause(csContent, scenario.TypeParamName);
-        if (whereClause is null)
+        if(whereClause is null)
             return false.ToProperty().Label($"No where clause found for {scenario.TypeParamName}");
 
         var isCorrectOrder = VerifyConstraintOrder(whereClause);

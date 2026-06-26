@@ -75,7 +75,7 @@ public class UnionParserPropertyTests
             .Where(d => d.Severity == DiagnosticSeverity.Error)
             .ToList();
 
-        if (errors.Count > 0)
+        if(errors.Count > 0)
             throw new InvalidOperationException(
                 $"Unexpected parse errors:\n  {string.Join("\n  ", errors.Select(e => e.Message))}\nSource:\n{source}");
 
@@ -91,7 +91,7 @@ public class UnionParserPropertyTests
         var typeDecl = (ClassTypeTypeDeclarationNode)cu.GetTypes()[0];
         var methodMember = (MethodMemberMemberDeclarationNode)typeDecl.ClassDeclaration.Members[0];
         var block = methodMember.Method.Body.GetBlock();
-        if (block is null)
+        if(block is null)
             throw new InvalidOperationException("Method body block is null");
         var stmt = (VariableDeclarationStatementStatementNode)block.Statements[0];
         var varDecl = (TypedVariableDeclarationVariableDeclarationStatementNode)stmt.VariableDeclaration;
@@ -110,7 +110,7 @@ public class UnionParserPropertyTests
     /// </summary>
     private static string GetTypeName(SingleTypeRefNode node)
     {
-        if (node is PrimitiveSingleTypeRefSingleTypeRefNode prim)
+        if(node is PrimitiveSingleTypeRefSingleTypeRefNode prim)
         {
             var name = EmitPrimitiveName(prim.PrimitiveType);
             return prim.ArrayRank is not null ? name + "[]" : name;
@@ -165,14 +165,14 @@ public class UnionParserPropertyTests
 
         var constituents = GetAllConstituents(typeRef);
 
-        if (constituents.Count != scenario.Constituents.Length)
+        if(constituents.Count != scenario.Constituents.Length)
             return false;
 
-        for (var i = 0; i < scenario.Constituents.Length; i++)
+        for(var i = 0; i < scenario.Constituents.Length; i++)
         {
             var expected = scenario.Constituents[i];
             var actual = GetTypeName(constituents[i]);
-            if (actual != expected)
+            if(actual != expected)
                 return false;
         }
 

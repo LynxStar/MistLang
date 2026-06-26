@@ -55,7 +55,7 @@ public class RegexCompileTimeValidationTests
 
         var parseDiag = new DiagnosticBag();
         var parseResult = Parser.Parse(tokens, parseDiag);
-        if (parseResult.Root is null)
+        if(parseResult.Root is null)
             return parseDiag.ToImmutableArray();
 
         var buildDiag = new DiagnosticBag();
@@ -185,7 +185,7 @@ public class RegexCompileTimeValidationTests
                 _ = new Regex(pattern, RegexOptions.None);
                 return true;
             }
-            catch (ArgumentException)
+            catch(ArgumentException)
             {
                 return false;
             }
@@ -248,7 +248,7 @@ public class RegexCompileTimeValidationTests
             .Where(d => d.Id.Value == "MIST_TC_REGEX_INVALID")
             .ToImmutableArray();
 
-        if (scenario.IsValidRegex)
+        if(scenario.IsValidRegex)
         {
             // Valid pattern → no MIST_TC_REGEX_INVALID diagnostic
             return (regexInvalidDiags.Length == 0).ToProperty()

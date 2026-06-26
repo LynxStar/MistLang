@@ -241,13 +241,13 @@ public sealed class EnumReadonlyUnionAcceptancePropertyTests
         // Lex
         var lexBag = new DiagnosticBag();
         var tokens = Lexer.Lex(sourceText, lexBag);
-        if (lexBag.HasErrors)
+        if(lexBag.HasErrors)
             return lexBag.ToImmutableArray();
 
         // Parse
         var parseBag = new DiagnosticBag();
         var parseResult = Parser.Parse(tokens, parseBag);
-        if (parseBag.HasErrors || parseResult.Root is null)
+        if(parseBag.HasErrors || parseResult.Root is null)
             return parseBag.ToImmutableArray();
 
         // Semantic model
@@ -291,7 +291,7 @@ public sealed class EnumReadonlyUnionAcceptancePropertyTests
             .ToList();
 
         // Must have zero MIST_TC_0103 diagnostics.
-        if (unionDiags.Count != 0)
+        if(unionDiags.Count != 0)
         {
             return false.ToProperty()
                 .Label($"Expected zero MIST_TC_0103 diagnostics, got {unionDiags.Count}.\n" +

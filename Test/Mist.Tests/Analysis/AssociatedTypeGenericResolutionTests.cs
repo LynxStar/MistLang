@@ -29,7 +29,7 @@ public class AssociatedTypeGenericResolutionTests
 
         var parseDiag = new DiagnosticBag();
         var parseResult = Parser.Parse(tokens, parseDiag);
-        if (parseResult.Root is null)
+        if(parseResult.Root is null)
             return lexDiag.ToImmutableArray().AddRange(parseDiag.ToImmutableArray());
 
         var (model, buildDiag) = StdlibTestHelper.BuildModelWithStdlib(

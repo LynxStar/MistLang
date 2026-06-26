@@ -148,10 +148,13 @@ public class EnumTypeConstructionPropertyTests
     }
 
     private static TypeReferenceNode MakeIntTypeRef() =>
-        new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
+        new TypeReferenceNode
         {
-            PrimitiveType = new IntTypePrimitiveTypeNode(),
-        } };
+            First = new PrimitiveSingleTypeRefSingleTypeRefNode
+            {
+                PrimitiveType = new IntTypePrimitiveTypeNode(),
+            }
+        };
 
     private static EnumMemberNode MakeEnumMember(string name, ExpressionNode? value = null) =>
         new()
@@ -175,10 +178,10 @@ public class EnumTypeConstructionPropertyTests
     {
         EnumMemberListNode? memberList = null;
 
-        if (scenario.MemberNames.Count > 0)
+        if(scenario.MemberNames.Count > 0)
         {
             var members = new List<EnumMemberNode>();
-            for (var i = 0; i < scenario.MemberNames.Count; i++)
+            for(var i = 0; i < scenario.MemberNames.Count; i++)
             {
                 var value = scenario.HasMemberValues
                     ? MakeIntLiteralExpression(i.ToString())
@@ -230,28 +233,28 @@ public class EnumTypeConstructionPropertyTests
         var enumSymbol = model.AllSymbols
             .FirstOrDefault(s => s.Name == scenario.EnumName && s.Kind == SymbolKind.Enum);
 
-        if (enumSymbol is null)
+        if(enumSymbol is null)
             return false.ToProperty()
                 .Label($"Enum '{scenario.EnumName}' not found with SymbolKind.Enum. " +
                        $"All symbols: [{string.Join(", ", model.AllSymbols.Select(s => $"{s.Name}:{s.Kind}"))}]");
 
         // Requirement 2.1: EnumType implements IType
-        if (enumSymbol.DeclaredType is not EnumType enumType)
+        if(enumSymbol.DeclaredType is not EnumType enumType)
             return false.ToProperty()
                 .Label($"Enum '{scenario.EnumName}' DeclaredType is not EnumType, got: {enumSymbol.DeclaredType?.GetType().Name ?? "null"}");
 
         // Requirement 2.3: Kind == TypeKind.Enum
-        if (enumType.Kind != TypeKind.Enum)
+        if(enumType.Kind != TypeKind.Enum)
             return false.ToProperty()
                 .Label($"Expected TypeKind.Enum, got {enumType.Kind}");
 
         // Requirement 2.2: Non-null UnderlyingType
-        if (enumType.UnderlyingType is null)
+        if(enumType.UnderlyingType is null)
             return false.ToProperty()
                 .Label($"UnderlyingType is null for enum '{scenario.EnumName}'");
 
         // Requirement 2.2: Members.Count equals declared member count
-        if (enumType.Members.Count != scenario.MemberNames.Count)
+        if(enumType.Members.Count != scenario.MemberNames.Count)
             return false.ToProperty()
                 .Label($"Expected {scenario.MemberNames.Count} members, got {enumType.Members.Count}. " +
                        $"Scenario: {scenario}");

@@ -159,7 +159,7 @@ public class ParameterScopingTests
     {
         var members = ImmutableArray.CreateBuilder<MemberDeclarationNode>();
 
-        foreach (var (methodName, paramType, paramName) in methods)
+        foreach(var (methodName, paramType, paramName) in methods)
         {
             var param = MakeParameter(paramType, paramName);
             var body = ImmutableArray.Create(MakeIdentifierStatement(paramName));
@@ -280,14 +280,14 @@ public class ParameterScopingTests
 
         // No MIST_UNDEFINED_IDENTIFIER for any parameter
         var paramNames = new[] { "a", "b", "c", "d", "e" };
-        foreach (var name in paramNames)
+        foreach(var name in paramNames)
         {
             Assert.DoesNotContain(diagnostics,
                 d => d.Id.Value == "MIST_UNDEFINED_IDENTIFIER" && d.Message.Contains($"'{name}'"));
         }
 
         // All parameters should be registered with correct kinds
-        foreach (var name in paramNames)
+        foreach(var name in paramNames)
         {
             Assert.Contains(model.AllSymbols, s => s.Name == name && s.Kind == SymbolKind.Parameter);
         }
@@ -321,10 +321,13 @@ public class ParameterScopingTests
         {
             Name = MakeToken("C"),
             Parameters = new ParameterListNode { Parameter = MakeParameter("int", "a") },
-            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode
+            Body = new MethodBlockBodyMethodBodyNode
             {
-                Statements = ImmutableArray.Create(MakeIdentifierStatement("a")),
-            } },
+                Block = new BlockNode
+                {
+                    Statements = ImmutableArray.Create(MakeIdentifierStatement("a")),
+                }
+            },
         };
 
         var classC = new ClassDeclarationNode
@@ -345,10 +348,13 @@ public class ParameterScopingTests
         {
             Name = MakeToken("D"),
             Parameters = new ParameterListNode { Parameter = MakeParameter("int", "b") },
-            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode
+            Body = new MethodBlockBodyMethodBodyNode
             {
-                Statements = ImmutableArray.Create(MakeIdentifierStatement("b")),
-            } },
+                Block = new BlockNode
+                {
+                    Statements = ImmutableArray.Create(MakeIdentifierStatement("b")),
+                }
+            },
         };
 
         var classD = new ClassDeclarationNode
@@ -423,10 +429,13 @@ public class ParameterScopingTests
         {
             Name = MakeToken("C"),
             Parameters = new ParameterListNode { Parameter = MakeParameter("int", "val") },
-            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode
+            Body = new MethodBlockBodyMethodBodyNode
             {
-                Statements = ImmutableArray.Create(MakeIdentifierStatement("val")),
-            } },
+                Block = new BlockNode
+                {
+                    Statements = ImmutableArray.Create(MakeIdentifierStatement("val")),
+                }
+            },
         };
 
         var classDecl = new ClassDeclarationNode

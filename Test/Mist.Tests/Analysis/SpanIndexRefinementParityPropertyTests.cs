@@ -146,7 +146,7 @@ public class SpanIndexRefinementParityPropertyTests
     {
         var spanKeyword = scenario.IsReadOnly ? "ReadOnlySpan" : "Span";
 
-        if (scenario.IsKnownLength)
+        if(scenario.IsKnownLength)
         {
             // Known length: literal size → SpanType(T, N)
             // Use `var` to keep the known-length type.
@@ -183,7 +183,7 @@ public class SpanIndexRefinementParityPropertyTests
     /// </summary>
     private static string BuildArrayProgram(IndexParityScenario scenario)
     {
-        if (scenario.IsKnownLength)
+        if(scenario.IsKnownLength)
         {
             // Known length: literal size → ArrayType(T, N)
             return $$"""
@@ -321,7 +321,7 @@ public class SpanIndexRefinementParityPropertyTests
     public Property UnknownLength_NeverEmitsUpperBoundDiagnostic(IndexParityScenario scenario)
     {
         // All unknown-length scenarios have non-negative index by construction.
-        if (scenario.IsKnownLength)
+        if(scenario.IsKnownLength)
             return true.ToProperty().Label("Skipped: not an unknown-length scenario");
 
         var spanSource = BuildSpanProgram(scenario);

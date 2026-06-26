@@ -214,10 +214,13 @@ public class StringLengthPropertyTests
     {
         var param = new ParameterNode
         {
-            Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
+            Type = new TypeReferenceNode
             {
-                PrimitiveType = new StringTypePrimitiveTypeNode(),
-            } },
+                First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                {
+                    PrimitiveType = new StringTypePrimitiveTypeNode(),
+                }
+            },
             Name = MakeToken("input"),
         };
 
@@ -277,11 +280,14 @@ public class StringLengthPropertyTests
     {
         var param = new ParameterNode
         {
-            Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
+            Type = new TypeReferenceNode
             {
-                PrimitiveType = new IntTypePrimitiveTypeNode(),
-                ArrayRank = new UnsizedArrayRankArrayRankSuffixNode(),
-            } },
+                First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                {
+                    PrimitiveType = new IntTypePrimitiveTypeNode(),
+                    ArrayRank = new UnsizedArrayRankArrayRankSuffixNode(),
+                }
+            },
             Name = MakeToken("arr"),
         };
 
@@ -391,11 +397,11 @@ public class StringLengthPropertyTests
     public bool StringMethodCall_NoCrash_CorrectTypeResolution(StringMethodCallScenario scenario)
     {
         ExpressionNode callExpr;
-        if (scenario.MethodName == "Contains")
+        if(scenario.MethodName == "Contains")
         {
             callExpr = MakeMethodCallWithStringArgExpression("input", scenario.MethodName, "x");
         }
-        else if (scenario.MethodName == "Substring")
+        else if(scenario.MethodName == "Substring")
         {
             callExpr = MakeMethodCallWithIntArgExpression("input", scenario.MethodName, "0");
         }
@@ -410,15 +416,15 @@ public class StringLengthPropertyTests
         var (model, diagnostics) = BuildModelWithDiagnostics(ast, ambientTypeResolver: resolver);
 
         // No crash (MIST_SEMANTIC_ERROR)
-        if (diagnostics.Any(d => d.Id.Value == "MIST_SEMANTIC_ERROR"))
+        if(diagnostics.Any(d => d.Id.Value == "MIST_SEMANTIC_ERROR"))
             return false;
 
         // No undefined member for the method
-        if (diagnostics.Any(d => d.Id.Value == "MIST_UNDEFINED_MEMBER" && d.Message.Contains(scenario.MethodName)))
+        if(diagnostics.Any(d => d.Id.Value == "MIST_UNDEFINED_MEMBER" && d.Message.Contains(scenario.MethodName)))
             return false;
 
         // The class type should still be registered (AST not dropped)
-        if (!model.AllSymbols.Any(s => s.Name == "TestClass" && s.Kind == SymbolKind.Class))
+        if(!model.AllSymbols.Any(s => s.Name == "TestClass" && s.Kind == SymbolKind.Class))
             return false;
 
         return true;
@@ -438,22 +444,22 @@ public class StringLengthPropertyTests
     {
         var resolver = new CSharpAmbientTypeResolver();
 
-        if (scenario.TargetType == "array")
+        if(scenario.TargetType == "array")
         {
             // Array.Length test
             var ast = BuildArrayMethodCallProgram(scenario.MethodName);
             var (model, diagnostics) = BuildModelWithDiagnostics(ast, ambientTypeResolver: resolver);
 
             // No crash
-            if (diagnostics.Any(d => d.Id.Value == "MIST_SEMANTIC_ERROR"))
+            if(diagnostics.Any(d => d.Id.Value == "MIST_SEMANTIC_ERROR"))
                 return false;
 
             // No undefined member
-            if (diagnostics.Any(d => d.Id.Value == "MIST_UNDEFINED_MEMBER" && d.Message.Contains(scenario.MethodName)))
+            if(diagnostics.Any(d => d.Id.Value == "MIST_UNDEFINED_MEMBER" && d.Message.Contains(scenario.MethodName)))
                 return false;
 
             // Class still registered
-            if (!model.AllSymbols.Any(s => s.Name == "TestClass" && s.Kind == SymbolKind.Class))
+            if(!model.AllSymbols.Any(s => s.Name == "TestClass" && s.Kind == SymbolKind.Class))
                 return false;
 
             return true;
@@ -462,11 +468,11 @@ public class StringLengthPropertyTests
         {
             // String method test (Contains or Substring)
             ExpressionNode callExpr;
-            if (scenario.MethodName == "Contains")
+            if(scenario.MethodName == "Contains")
             {
                 callExpr = MakeMethodCallWithStringArgExpression("input", scenario.MethodName, "x");
             }
-            else if (scenario.MethodName == "Substring")
+            else if(scenario.MethodName == "Substring")
             {
                 callExpr = MakeMethodCallWithIntArgExpression("input", scenario.MethodName, "0");
             }
@@ -479,15 +485,15 @@ public class StringLengthPropertyTests
             var (model, diagnostics) = BuildModelWithDiagnostics(ast, ambientTypeResolver: resolver);
 
             // No crash
-            if (diagnostics.Any(d => d.Id.Value == "MIST_SEMANTIC_ERROR"))
+            if(diagnostics.Any(d => d.Id.Value == "MIST_SEMANTIC_ERROR"))
                 return false;
 
             // No undefined member
-            if (diagnostics.Any(d => d.Id.Value == "MIST_UNDEFINED_MEMBER" && d.Message.Contains(scenario.MethodName)))
+            if(diagnostics.Any(d => d.Id.Value == "MIST_UNDEFINED_MEMBER" && d.Message.Contains(scenario.MethodName)))
                 return false;
 
             // Class still registered
-            if (!model.AllSymbols.Any(s => s.Name == "TestClass" && s.Kind == SymbolKind.Class))
+            if(!model.AllSymbols.Any(s => s.Name == "TestClass" && s.Kind == SymbolKind.Class))
                 return false;
 
             return true;

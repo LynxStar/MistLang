@@ -189,10 +189,10 @@ public class UnionSemanticModelPropertyTests
         var sourceText = new SourceText("test.mist", source);
         var bag = new DiagnosticBag();
         var tokens = Lexer.Lex(sourceText, bag);
-        if (bag.HasErrors) return null;
+        if(bag.HasErrors) return null;
 
         var result = Parser.Parse(tokens, bag);
-        if (bag.HasErrors || result.Root is null) return null;
+        if(bag.HasErrors || result.Root is null) return null;
 
         var compilation = new MistCompilation(
             ImmutableArray.Create(new CompilationUnit(sourceText)));
@@ -214,7 +214,7 @@ public class UnionSemanticModelPropertyTests
     {
         var source = $"class T {{ public void M() {{ {typeAnnotation} x = default; }} }}";
         var model = BuildSemanticModelFromSource(source);
-        if (model is null) return null;
+        if(model is null) return null;
 
         var localVar = model.AllSymbols
             .FirstOrDefault(s => s.Name == "x" && s.Kind == SymbolKind.LocalVariable);
@@ -233,13 +233,13 @@ public class UnionSemanticModelPropertyTests
     public bool NestedUnions_AreFlattenedInSemanticModel(UnionSemanticScenario scenario)
     {
         var resolvedType = GetResolvedType(scenario.TypeAnnotation);
-        if (resolvedType is null) return false;
+        if(resolvedType is null) return false;
 
         // If only one distinct type remains after dedup, it reduces to that type (not a union).
-        if (scenario.ExpectedDistinctTypes.Length == 1)
+        if(scenario.ExpectedDistinctTypes.Length == 1)
             return resolvedType is not UnionType;
 
-        if (resolvedType is not UnionType union) return false;
+        if(resolvedType is not UnionType union) return false;
 
         // No constituent should itself be a UnionType (flattening).
         return union.Constituents.All(c => c is not UnionType);
@@ -254,13 +254,13 @@ public class UnionSemanticModelPropertyTests
     public bool Duplicates_AreRemovedInSemanticModel(UnionSemanticScenario scenario)
     {
         var resolvedType = GetResolvedType(scenario.TypeAnnotation);
-        if (resolvedType is null) return false;
+        if(resolvedType is null) return false;
 
         // If only one distinct type remains after dedup, it reduces to that type.
-        if (scenario.ExpectedDistinctTypes.Length == 1)
+        if(scenario.ExpectedDistinctTypes.Length == 1)
             return resolvedType is not UnionType;
 
-        if (resolvedType is not UnionType union) return false;
+        if(resolvedType is not UnionType union) return false;
 
         // All constituents should have distinct DisplayNames.
         var displayNames = union.Constituents.Select(c => c.DisplayName).ToList();
@@ -277,16 +277,16 @@ public class UnionSemanticModelPropertyTests
     public bool ResolvedUnion_HasExpectedConstituents(UnionSemanticScenario scenario)
     {
         var resolvedType = GetResolvedType(scenario.TypeAnnotation);
-        if (resolvedType is null) return false;
+        if(resolvedType is null) return false;
 
         // If only one distinct type remains after dedup, it reduces to that type.
-        if (scenario.ExpectedDistinctTypes.Length == 1)
+        if(scenario.ExpectedDistinctTypes.Length == 1)
         {
             return resolvedType is not UnionType
                 && resolvedType.DisplayName == scenario.ExpectedDistinctTypes[0];
         }
 
-        if (resolvedType is not UnionType union) return false;
+        if(resolvedType is not UnionType union) return false;
 
         // Constituents should match expected (sorted by DisplayName).
         var actualNames = union.Constituents
@@ -294,11 +294,11 @@ public class UnionSemanticModelPropertyTests
             .OrderBy(n => n, StringComparer.Ordinal)
             .ToList();
 
-        if (actualNames.Count != scenario.ExpectedDistinctTypes.Length) return false;
+        if(actualNames.Count != scenario.ExpectedDistinctTypes.Length) return false;
 
-        for (var i = 0; i < actualNames.Count; i++)
+        for(var i = 0; i < actualNames.Count; i++)
         {
-            if (actualNames[i] != scenario.ExpectedDistinctTypes[i])
+            if(actualNames[i] != scenario.ExpectedDistinctTypes[i])
                 return false;
         }
 
@@ -316,11 +316,11 @@ public class UnionSemanticModelPropertyTests
     {
         // This property only applies to scenarios that reduce to a single type.
         // For multi-type scenarios, we just return true (vacuously true).
-        if (scenario.ExpectedDistinctTypes.Length != 1)
+        if(scenario.ExpectedDistinctTypes.Length != 1)
             return true;
 
         var resolvedType = GetResolvedType(scenario.TypeAnnotation);
-        if (resolvedType is null) return false;
+        if(resolvedType is null) return false;
 
         // Should NOT be a UnionType — reduced to the single type.
         return resolvedType is not UnionType
@@ -361,17 +361,17 @@ public class UnionSemanticModelPropertyTests
         var type1 = GetResolvedType(scenario.Annotation1);
         var type2 = GetResolvedType(scenario.Annotation2);
 
-        if (type1 is null || type2 is null) return false;
-        if (type1 is not UnionType union1 || type2 is not UnionType union2) return false;
+        if(type1 is null || type2 is null) return false;
+        if(type1 is not UnionType union1 || type2 is not UnionType union2) return false;
 
         // Same DisplayName (canonical ordering ensures this).
-        if (union1.DisplayName != union2.DisplayName) return false;
+        if(union1.DisplayName != union2.DisplayName) return false;
 
         // Same Constituents (count and display names).
-        if (union1.Constituents.Count != union2.Constituents.Count) return false;
-        for (var i = 0; i < union1.Constituents.Count; i++)
+        if(union1.Constituents.Count != union2.Constituents.Count) return false;
+        for(var i = 0; i < union1.Constituents.Count; i++)
         {
-            if (union1.Constituents[i].DisplayName != union2.Constituents[i].DisplayName)
+            if(union1.Constituents[i].DisplayName != union2.Constituents[i].DisplayName)
                 return false;
         }
 
@@ -405,7 +405,7 @@ public sealed class UnionOrderEquivalenceScenario
     {
         Annotation1 = annotation1;
         Annotation2 = annotation2;
-        Types = [..types];
+        Types = [.. types];
     }
 
     public override string ToString() =>

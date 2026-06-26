@@ -59,7 +59,7 @@ public class RegexConversionRulePropertyTests
 
         var parseDiag = new DiagnosticBag();
         var parseResult = Parser.Parse(tokens, parseDiag);
-        if (parseResult.Root is null)
+        if(parseResult.Root is null)
             return parseDiag.ToImmutableArray();
 
         // Load stdlib to get Standard.Regex with its implicit/explicit operators.
@@ -404,12 +404,12 @@ public class RegexConversionRulePropertyTests
             _ = new Regex(pattern, RegexOptions.None);
             isActuallyInvalid = false;
         }
-        catch (ArgumentException)
+        catch(ArgumentException)
         {
             isActuallyInvalid = true;
         }
 
-        if (!isActuallyInvalid)
+        if(!isActuallyInvalid)
         {
             // Pattern turned out to be valid — this shouldn't happen with our generator,
             // but if it does, the test should still pass (no diagnostic expected).

@@ -43,9 +43,9 @@ public sealed class SpanRegistrationTests
     private static string FindRepoRoot()
     {
         var dir = AppContext.BaseDirectory;
-        while (dir is not null)
+        while(dir is not null)
         {
-            if (File.Exists(Path.Combine(dir, "Mist.slnx")))
+            if(File.Exists(Path.Combine(dir, "Mist.slnx")))
                 return dir;
             dir = Directory.GetParent(dir)?.FullName;
         }
@@ -73,7 +73,7 @@ public sealed class SpanRegistrationTests
         IParser parser = new Mist.Parsing.MistParser();
         var pipelineDiagnostics = new DiagnosticBag();
 
-        foreach (var unit in units)
+        foreach(var unit in units)
         {
             var tokens = lexer.Lex(unit.Source, pipelineDiagnostics);
             var parseResult = parser.Parse(tokens, pipelineDiagnostics);

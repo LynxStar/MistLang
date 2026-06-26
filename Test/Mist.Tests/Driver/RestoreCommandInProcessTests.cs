@@ -42,21 +42,21 @@ public sealed class RestoreCommandInProcessTests
         var errorLines = new List<string>();
 
         // Per-package detail
-        foreach (var pkg in packageResult.Resolved)
+        foreach(var pkg in packageResult.Resolved)
         {
             outputLines.Add($"Restored {pkg.Name} {pkg.Version} ({pkg.SelectedTfm})");
         }
 
         // Per-framework detail
-        foreach (var fw in frameworkResult.Resolved)
+        foreach(var fw in frameworkResult.Resolved)
         {
             outputLines.Add($"Resolved {fw.Name} {fw.Version}");
         }
 
         // Zero-assemblies notes
-        foreach (var pkg in packageResult.Resolved)
+        foreach(var pkg in packageResult.Resolved)
         {
-            if (pkg.AssemblyCount == 0)
+            if(pkg.AssemblyCount == 0)
             {
                 outputLines.Add($"{pkg.Name} contributed no assemblies for {TargetFramework}");
             }
@@ -68,11 +68,11 @@ public sealed class RestoreCommandInProcessTests
         outputLines.Add($"{successCount} succeeded, {failureCount} failed");
 
         // Diagnostics on error
-        foreach (var diag in packageDiagnostics.ToImmutableArray())
+        foreach(var diag in packageDiagnostics.ToImmutableArray())
         {
             errorLines.Add(DiagnosticFormatter.Format(diag));
         }
-        foreach (var diag in frameworkDiagnostics.ToImmutableArray())
+        foreach(var diag in frameworkDiagnostics.ToImmutableArray())
         {
             errorLines.Add(DiagnosticFormatter.Format(diag));
         }

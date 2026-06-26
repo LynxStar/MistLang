@@ -25,9 +25,9 @@ public sealed class StdlibParseCompletenessTests
     private static string FindRepoRoot()
     {
         var dir = AppContext.BaseDirectory;
-        while (dir is not null)
+        while(dir is not null)
         {
-            if (File.Exists(Path.Combine(dir, "Mist.slnx")))
+            if(File.Exists(Path.Combine(dir, "Mist.slnx")))
                 return dir;
             dir = Directory.GetParent(dir)?.FullName;
         }
@@ -103,11 +103,11 @@ public sealed class StdlibParseCompletenessTests
         var validUnits = ImmutableArray.CreateBuilder<CompilationUnit>();
         var validAsts = ImmutableArray.CreateBuilder<Storm.Runtime.SyntaxNode>();
 
-        foreach (var unit in units)
+        foreach(var unit in units)
         {
             var tokens = lexer.Lex(unit.Source, parseDiag);
             var parseResult = parser.Parse(tokens, parseDiag);
-            if (parseResult.Root is not null)
+            if(parseResult.Root is not null)
             {
                 validUnits.Add(unit);
                 validAsts.Add(parseResult.Root);
@@ -153,11 +153,11 @@ public sealed class StdlibParseCompletenessTests
         var validUnits = ImmutableArray.CreateBuilder<CompilationUnit>();
         var validAsts = ImmutableArray.CreateBuilder<Storm.Runtime.SyntaxNode>();
 
-        foreach (var unit in units)
+        foreach(var unit in units)
         {
             var tokens = lexer.Lex(unit.Source, parseDiag);
             var parseResult = parser.Parse(tokens, parseDiag);
-            if (parseResult.Root is not null)
+            if(parseResult.Root is not null)
             {
                 validUnits.Add(unit);
                 validAsts.Add(parseResult.Root);

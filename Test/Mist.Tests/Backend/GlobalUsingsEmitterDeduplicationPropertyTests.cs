@@ -49,7 +49,7 @@ public sealed class GlobalUsingsEmitterDeduplicationPropertyTests : IDisposable
 
     public void Dispose()
     {
-        if (Directory.Exists(_outputDir))
+        if(Directory.Exists(_outputDir))
         {
             try { Directory.Delete(_outputDir, recursive: true); } catch { /* best effort */ }
         }
@@ -126,11 +126,11 @@ public sealed class GlobalUsingsEmitterDeduplicationPropertyTests : IDisposable
 
         // If we don't have enough distinct namespaces, pad with indexed suffixes
         var needed = globalCount + explicitCount + overlapCount;
-        if (distinct.Length < needed)
+        if(distinct.Length < needed)
         {
             var padded = new List<string>(distinct);
             var idx = 0;
-            while (padded.Count < needed)
+            while(padded.Count < needed)
             {
                 padded.Add($"Ns{idx}_Pad");
                 idx++;
@@ -149,9 +149,9 @@ public sealed class GlobalUsingsEmitterDeduplicationPropertyTests : IDisposable
 
     private void CleanOutputDir()
     {
-        if (Directory.Exists(_outputDir))
+        if(Directory.Exists(_outputDir))
         {
-            foreach (var file in Directory.GetFiles(_outputDir, "*", SearchOption.AllDirectories))
+            foreach(var file in Directory.GetFiles(_outputDir, "*", SearchOption.AllDirectories))
                 File.Delete(file);
         }
     }
@@ -168,19 +168,19 @@ public sealed class GlobalUsingsEmitterDeduplicationPropertyTests : IDisposable
 
         // Emit explicit usings FIRST (before namespace declarations)
         var allExplicitNamespaces = explicitUsings.AddRange(overlappingUsings);
-        foreach (var ns in allExplicitNamespaces)
+        foreach(var ns in allExplicitNamespaces)
         {
             sb.AppendLine($"using {ns};");
         }
 
-        if (allExplicitNamespaces.Length > 0)
+        if(allExplicitNamespaces.Length > 0)
         {
             sb.AppendLine();
         }
 
         // Define namespaces so that explicit usings resolve during semantic analysis.
         // Each namespace gets a simple class so it's not empty.
-        foreach (var ns in allExplicitNamespaces)
+        foreach(var ns in allExplicitNamespaces)
         {
             // Use a unique class name based on the namespace to avoid conflicts
             var className = "Marker_" + ns.Replace(".", "_");
@@ -253,7 +253,7 @@ public sealed class GlobalUsingsEmitterDeduplicationPropertyTests : IDisposable
         var result = SharedDriver.Compile(options);
 
         // Compilation must succeed for the property to be meaningful
-        if (!result.Succeeded)
+        if(!result.Succeeded)
         {
             var errors = string.Join("; ", result.Diagnostics
                 .Where(d => d.Severity == Mist.Common.Diagnostics.DiagnosticSeverity.Error)
@@ -263,7 +263,7 @@ public sealed class GlobalUsingsEmitterDeduplicationPropertyTests : IDisposable
         }
 
         // Read the emitted C# content from in-memory results
-        if (result.EmittedFiles is null || result.EmittedFiles.Count == 0)
+        if(result.EmittedFiles is null || result.EmittedFiles.Count == 0)
         {
             return false.ToProperty()
                 .Label("No emitted files produced");
@@ -273,7 +273,7 @@ public sealed class GlobalUsingsEmitterDeduplicationPropertyTests : IDisposable
         var userFileEntry = result.EmittedFiles
             .FirstOrDefault(kvp => kvp.Key.Equals("Test.cs", StringComparison.OrdinalIgnoreCase));
 
-        if (userFileEntry.Value is null)
+        if(userFileEntry.Value is null)
         {
             return false.ToProperty()
                 .Label($"No Test.cs file found in emitted files. Available: [{string.Join(", ", result.EmittedFiles.Keys)}]");
@@ -284,7 +284,7 @@ public sealed class GlobalUsingsEmitterDeduplicationPropertyTests : IDisposable
 
         // Property assertion 1: No duplicates
         var distinctUsings = usings.Distinct(StringComparer.Ordinal).ToList();
-        if (usings.Count != distinctUsings.Count)
+        if(usings.Count != distinctUsings.Count)
         {
             var duplicates = usings.GroupBy(u => u, StringComparer.Ordinal)
                 .Where(g => g.Count() > 1)
@@ -295,9 +295,9 @@ public sealed class GlobalUsingsEmitterDeduplicationPropertyTests : IDisposable
 
         // Property assertion 2: Sorted in ordinal alphabetical order
         var sorted = usings.OrderBy(u => u, StringComparer.Ordinal).ToList();
-        for (var i = 0; i < usings.Count; i++)
+        for(var i = 0; i < usings.Count; i++)
         {
-            if (usings[i] != sorted[i])
+            if(usings[i] != sorted[i])
             {
                 return false.ToProperty()
                     .Label($"Usings not sorted at index {i}: got '{usings[i]}' but expected '{sorted[i]}'. " +
@@ -306,9 +306,9 @@ public sealed class GlobalUsingsEmitterDeduplicationPropertyTests : IDisposable
         }
 
         // Property assertion 3: All global usings are present
-        foreach (var globalNs in allGlobalUsings)
+        foreach(var globalNs in allGlobalUsings)
         {
-            if (!usings.Contains(globalNs))
+            if(!usings.Contains(globalNs))
             {
                 return false.ToProperty()
                     .Label($"Global using '{globalNs}' not found in emitted directives: [{string.Join(", ", usings)}]");
@@ -316,9 +316,9 @@ public sealed class GlobalUsingsEmitterDeduplicationPropertyTests : IDisposable
         }
 
         // Property assertion 4: All explicit usings are present
-        foreach (var explicitNs in scenario.ExplicitUsings)
+        foreach(var explicitNs in scenario.ExplicitUsings)
         {
-            if (!usings.Contains(explicitNs))
+            if(!usings.Contains(explicitNs))
             {
                 return false.ToProperty()
                     .Label($"Explicit using '{explicitNs}' not found in emitted directives: [{string.Join(", ", usings)}]");
@@ -326,10 +326,10 @@ public sealed class GlobalUsingsEmitterDeduplicationPropertyTests : IDisposable
         }
 
         // Property assertion 5: Overlapping namespaces appear exactly once
-        foreach (var overlapNs in scenario.OverlappingNamespaces)
+        foreach(var overlapNs in scenario.OverlappingNamespaces)
         {
             var count = usings.Count(u => string.Equals(u, overlapNs, StringComparison.Ordinal));
-            if (count != 1)
+            if(count != 1)
             {
                 return false.ToProperty()
                     .Label($"Overlapping namespace '{overlapNs}' appears {count} times (expected 1)");

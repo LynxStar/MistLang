@@ -59,7 +59,7 @@ public sealed class OperatorRoundTripPropertyTests : IDisposable
 
     public void Dispose()
     {
-        if (Directory.Exists(_outputDir))
+        if(Directory.Exists(_outputDir))
         {
             try { Directory.Delete(_outputDir, recursive: true); } catch { /* best effort */ }
         }
@@ -104,7 +104,7 @@ public sealed class OperatorRoundTripPropertyTests : IDisposable
     private static string BuildBatchedInt32Program(IReadOnlyList<Int32RoundTripScenario> scenarios)
     {
         var body = new StringBuilder();
-        for (var i = 0; i < scenarios.Count; i++)
+        for(var i = 0; i < scenarios.Count; i++)
         {
             var s = scenarios[i];
             var a = FormatLiteral(s.A);
@@ -132,7 +132,7 @@ public sealed class OperatorRoundTripPropertyTests : IDisposable
     private static string BuildBatchedInt64Program(IReadOnlyList<Int64RoundTripScenario> scenarios)
     {
         var body = new StringBuilder();
-        for (var i = 0; i < scenarios.Count; i++)
+        for(var i = 0; i < scenarios.Count; i++)
         {
             var s = scenarios[i];
             var a = FormatLiteral(s.A);
@@ -184,7 +184,7 @@ public sealed class OperatorRoundTripPropertyTests : IDisposable
 
             var result = SharedDriver.Compile(options);
 
-            if (!result.Succeeded || result.PrimaryOutputArtifactPath is null)
+            if(!result.Succeeded || result.PrimaryOutputArtifactPath is null)
             {
                 var diagnosticText = string.Join("\n",
                     result.Diagnostics.Select(d => $"  {d.Severity} {d.Id.Value}: {d.Message}"));
@@ -202,13 +202,13 @@ public sealed class OperatorRoundTripPropertyTests : IDisposable
             };
 
             using var process = Process.Start(psi);
-            if (process is null)
+            if(process is null)
                 return (-1, "", "Failed to start dotnet process");
 
             var stdoutTask = process.StandardOutput.ReadToEndAsync();
             var stderrTask = process.StandardError.ReadToEndAsync();
 
-            if (!process.WaitForExit(30_000))
+            if(!process.WaitForExit(30_000))
             {
                 try { process.Kill(entireProcessTree: true); } catch { /* best effort */ }
                 return (-1, "", "Process timed out after 30 seconds");
@@ -246,7 +246,7 @@ public sealed class OperatorRoundTripPropertyTests : IDisposable
         var lines = stdout.TrimEnd().Split('\n', StringSplitOptions.None);
         Assert.Equal(scenarios.Count, lines.Length);
 
-        for (var i = 0; i < scenarios.Count; i++)
+        for(var i = 0; i < scenarios.Count; i++)
         {
             var expected = scenarios[i].A.ToString();
             var actual = lines[i].TrimEnd('\r');
@@ -278,7 +278,7 @@ public sealed class OperatorRoundTripPropertyTests : IDisposable
         var lines = stdout.TrimEnd().Split('\n', StringSplitOptions.None);
         Assert.Equal(scenarios.Count, lines.Length);
 
-        for (var i = 0; i < scenarios.Count; i++)
+        for(var i = 0; i < scenarios.Count; i++)
         {
             var expected = scenarios[i].A.ToString();
             var actual = lines[i].TrimEnd('\r');

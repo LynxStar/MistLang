@@ -66,7 +66,7 @@ public class SwitchGuardLambdaPrecedencePropertyTests
             .Where(d => d.Severity == DiagnosticSeverity.Error)
             .ToList();
 
-        if (errors.Count > 0)
+        if(errors.Count > 0)
             throw new InvalidOperationException(
                 $"Unexpected parse errors:\n  {string.Join("\n  ", errors.Select(e => e.Message))}\nSource:\n{source}");
 
@@ -77,20 +77,20 @@ public class SwitchGuardLambdaPrecedencePropertyTests
     /// <summary>Walks the syntax tree and returns the first node of type <typeparamref name="T"/>, or null.</summary>
     private static T? FindFirst<T>(SyntaxNode root) where T : SyntaxNode
     {
-        if (root is T match)
+        if(root is T match)
         {
             return match;
         }
 
-        foreach (var child in root.Children())
+        foreach(var child in root.Children())
         {
-            if (child is null)
+            if(child is null)
             {
                 continue;
             }
 
             var found = FindFirst<T>(child);
-            if (found is not null)
+            if(found is not null)
             {
                 return found;
             }
@@ -106,14 +106,14 @@ public class SwitchGuardLambdaPrecedencePropertyTests
 
         void Walk(SyntaxNode n)
         {
-            if (n is T match)
+            if(n is T match)
             {
                 results.Add(match);
             }
 
-            foreach (var child in n.Children())
+            foreach(var child in n.Children())
             {
-                if (child is not null)
+                if(child is not null)
                 {
                     Walk(child);
                 }

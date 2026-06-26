@@ -94,7 +94,7 @@ public class AbstractResolutionPropertyTests
             Members = members,
         };
 
-        if (parentAbstractName is not null)
+        if(parentAbstractName is not null)
         {
             var _abstractList1 = MakeBaseList(parentAbstractName);
 
@@ -121,7 +121,7 @@ public class AbstractResolutionPropertyTests
         // name goes in the BaseClause/BaseClassName fields. The semantic model
         // builder checks whether the first name resolves to a ClassType or
         // AbstractType to determine if it's a base class or abstract.
-        if (abstractName is not null)
+        if(abstractName is not null)
         {
             var _baseList1 = MakeBaseList(abstractName);
 
@@ -144,7 +144,7 @@ public class AbstractResolutionPropertyTests
             Members = members ?? ImmutableArray<MemberDeclarationNode>.Empty,
         };
 
-        if (abstractName is not null)
+        if(abstractName is not null)
         {
             var _abstractList2 = MakeBaseList(abstractName);
 
@@ -266,7 +266,7 @@ public class AbstractResolutionPropertyTests
     public bool AbstractResolution_ResolvesAbstractOnImplementingType(ResolutionScenario scenario)
     {
         // Ensure the abstract name and implementing type name are different
-        if (scenario.AbstractName == scenario.ImplementingTypeName)
+        if(scenario.AbstractName == scenario.ImplementingTypeName)
             return true; // skip degenerate case
 
         // Build the abstract declaration
@@ -277,7 +277,7 @@ public class AbstractResolutionPropertyTests
 
         // Build the implementing type declaration
         TypeDeclarationNode implementingTypeDecl;
-        switch (scenario.TypeKind)
+        switch(scenario.TypeKind)
         {
             case ImplementingTypeKind.Class:
                 implementingTypeDecl = WrapClass(
@@ -300,7 +300,7 @@ public class AbstractResolutionPropertyTests
         // Arrange type declarations: forward reference means implementing type
         // is declared before the abstract
         TypeDeclarationNode[] typeDecls;
-        if (scenario.ForwardReference)
+        if(scenario.ForwardReference)
         {
             typeDecls = [implementingTypeDecl, WrapAbstract(abstractDecl)];
         }
@@ -323,12 +323,12 @@ public class AbstractResolutionPropertyTests
 
         var implementingSymbol = model.AllSymbols
             .FirstOrDefault(s => s.Name == scenario.ImplementingTypeName && s.Kind == expectedKind);
-        if (implementingSymbol is null)
+        if(implementingSymbol is null)
             return false;
 
         // Get the Abstracts property from the implementing type
         IReadOnlyList<IType> resolvedAbstracts;
-        switch (implementingSymbol.DeclaredType)
+        switch(implementingSymbol.DeclaredType)
         {
             case ClassType classType:
                 resolvedAbstracts = classType.Abstracts;
@@ -347,29 +347,29 @@ public class AbstractResolutionPropertyTests
         // The count of resolved abstracts SHALL equal the count of abstract
         // names in the declaration (1 in our case, since Storm only captures
         // the first abstract name).
-        if (resolvedAbstracts.Count != 1)
+        if(resolvedAbstracts.Count != 1)
             return false;
 
         // Requirement 5.5: The resolved abstract is the correct AbstractType
         var resolved = resolvedAbstracts[0];
-        if (resolved.DisplayName != scenario.AbstractName)
+        if(resolved.DisplayName != scenario.AbstractName)
             return false;
 
         // Verify the resolved AbstractType has the correct kind
-        if (resolved.Kind != TypeKind.Abstract)
+        if(resolved.Kind != TypeKind.Abstract)
             return false;
 
         // Requirement 5.4: For classes, the base class and abstracts are
         // stored separately. Since we're implementing an abstract (not
         // inheriting a class), BaseType should be null.
-        if (implementingSymbol.DeclaredType is ClassType ct && ct.BaseType is not null)
+        if(implementingSymbol.DeclaredType is ClassType ct && ct.BaseType is not null)
             return false;
 
         // No error diagnostics should be emitted for valid resolution
         var errorDiagnostics = diagnostics.Where(d =>
             d.Id.Value == "MIST_UNDEFINED_ABSTRACT" ||
             d.Id.Value == "MIST_NOT_AN_ABSTRACT").ToList();
-        if (errorDiagnostics.Count > 0)
+        if(errorDiagnostics.Count > 0)
             return false;
 
         return true;
@@ -489,7 +489,7 @@ public class AbstractResolutionPropertyTests
         Assert.NotNull(dogType.BaseType);
         Assert.Equal("Animal", dogType.BaseType!.DisplayName);
         Assert.Empty(dogType.Abstracts);
-    ;
+        ;
     }
 
 }

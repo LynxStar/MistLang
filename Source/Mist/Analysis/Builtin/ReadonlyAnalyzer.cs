@@ -71,12 +71,12 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
         var contextStack = new Stack<ContextEntry>();
         contextStack.Push(new ContextEntry(ContextKind.Normal));
 
-        foreach (var symbol in model.AllSymbols)
+        foreach(var symbol in model.AllSymbols)
         {
-            if (symbol.Origin != SymbolOrigin.UserCode)
+            if(symbol.Origin != SymbolOrigin.UserCode)
                 continue;
 
-            switch (symbol.Kind)
+            switch(symbol.Kind)
             {
                 case SymbolKind.Method:
                 case SymbolKind.Property:
@@ -89,12 +89,12 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
 
         // Second pass: check for readonly field assignments outside constructors.
         // This applies to ALL methods/properties/indexers regardless of their own readonly status.
-        foreach (var symbol in model.AllSymbols)
+        foreach(var symbol in model.AllSymbols)
         {
-            if (symbol.Origin != SymbolOrigin.UserCode)
+            if(symbol.Origin != SymbolOrigin.UserCode)
                 continue;
 
-            switch (symbol.Kind)
+            switch(symbol.Kind)
             {
                 case SymbolKind.Method:
                 case SymbolKind.Property:
@@ -106,12 +106,12 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
 
         // Third pass: check for operations on readonly parameters.
         // This applies to ALL methods/constructors regardless of their own readonly status.
-        foreach (var symbol in model.AllSymbols)
+        foreach(var symbol in model.AllSymbols)
         {
-            if (symbol.Origin != SymbolOrigin.UserCode)
+            if(symbol.Origin != SymbolOrigin.UserCode)
                 continue;
 
-            switch (symbol.Kind)
+            switch(symbol.Kind)
             {
                 case SymbolKind.Method:
                 case SymbolKind.Constructor:
@@ -123,12 +123,12 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
         // Fourth pass: check for member access on values whose type is a type parameter
         // with a readonly constraint. When T has `where T : readonly`, all member access
         // on values of type T is treated as if the receiver is in a readonly context.
-        foreach (var symbol in model.AllSymbols)
+        foreach(var symbol in model.AllSymbols)
         {
-            if (symbol.Origin != SymbolOrigin.UserCode)
+            if(symbol.Origin != SymbolOrigin.UserCode)
                 continue;
 
-            switch (symbol.Kind)
+            switch(symbol.Kind)
             {
                 case SymbolKind.Method:
                 case SymbolKind.Property:
@@ -143,12 +143,12 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
         // Closed_Generic_With_Unknown. When a variable's resolved type contains
         // unknown at any type argument position (and no open type parameters),
         // all member access is treated as if the receiver is in a readonly context.
-        foreach (var symbol in model.AllSymbols)
+        foreach(var symbol in model.AllSymbols)
         {
-            if (symbol.Origin != SymbolOrigin.UserCode)
+            if(symbol.Origin != SymbolOrigin.UserCode)
                 continue;
 
-            switch (symbol.Kind)
+            switch(symbol.Kind)
             {
                 case SymbolKind.Method:
                 case SymbolKind.Property:
@@ -170,7 +170,7 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
         var readonlyStatus = GetReadonlyStatus(symbol);
 
         // Only enforce readonly rules on members that are actually readonly.
-        if (readonlyStatus == ReadonlyStatus.Mutable || readonlyStatus == ReadonlyStatus.Unknown)
+        if(readonlyStatus == ReadonlyStatus.Mutable || readonlyStatus == ReadonlyStatus.Unknown)
             return;
 
         // Get the declaring AST node.
@@ -179,7 +179,7 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
         catch { return; }
 
         // Walk the body based on the member kind.
-        switch (symbol.Kind)
+        switch(symbol.Kind)
         {
             case SymbolKind.Method:
                 AnalyzeMethodBody(declaringNode, ContextKind.ReadonlyMethod, null, model, diagnostics, contextStack);
@@ -222,13 +222,13 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
         catch { return; }
 
         // Collect all body blocks to walk based on member kind.
-        switch (symbol.Kind)
+        switch(symbol.Kind)
         {
             case SymbolKind.Method:
-                if (declaringNode is MethodDeclarationNode methodDecl)
+                if(declaringNode is MethodDeclarationNode methodDecl)
                 {
                     var body = methodDecl.Body.GetBlock();
-                    if (body is not null)
+                    if(body is not null)
                         WalkBlockForReadonlyFieldAssignments(body, declaringTypeScope, model, diagnostics);
                 }
                 break;
@@ -249,12 +249,12 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
         ISemanticModel model,
         DiagnosticBag diagnostics)
     {
-        switch (declaringNode)
+        switch(declaringNode)
         {
             case BlockPropertyPropertyDeclarationNode blockProp:
-                foreach (var accessor in blockProp.Accessors)
+                foreach(var accessor in blockProp.Accessors)
                 {
-                    switch (accessor)
+                    switch(accessor)
                     {
                         case BlockGetAccessorAccessorDeclarationNode blockGet:
                             WalkBlockForReadonlyFieldAssignments(blockGet.Body, declaringTypeScope, model, diagnostics);
@@ -290,12 +290,12 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
         ISemanticModel model,
         DiagnosticBag diagnostics)
     {
-        if (declaringNode is not IndexerDeclarationNode { Body: BlockIndexerBodyIndexerBodyNode blockBody } blockIndexer)
+        if(declaringNode is not IndexerDeclarationNode { Body: BlockIndexerBodyIndexerBodyNode blockBody } blockIndexer)
             return;
 
-        foreach (var accessor in blockBody.Accessors)
+        foreach(var accessor in blockBody.Accessors)
         {
-            switch (accessor)
+            switch(accessor)
             {
                 case BlockGetAccessorAccessorDeclarationNode blockGet:
                     WalkBlockForReadonlyFieldAssignments(blockGet.Body, declaringTypeScope, model, diagnostics);
@@ -325,7 +325,7 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
         ISemanticModel model,
         DiagnosticBag diagnostics)
     {
-        foreach (var stmt in block.Statements)
+        foreach(var stmt in block.Statements)
         {
             WalkStatementForReadonlyFieldAssignments(stmt, declaringTypeScope, model, diagnostics);
         }
@@ -337,15 +337,15 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
         ISemanticModel model,
         DiagnosticBag diagnostics)
     {
-        switch (stmt)
+        switch(stmt)
         {
             case VariableDeclarationStatementStatementNode varDecl:
-                if (varDecl.VariableDeclaration is { } vd)
+                if(varDecl.VariableDeclaration is { } vd)
                     WalkNodeForReadonlyFieldAssignments(vd, declaringTypeScope, model, diagnostics);
                 break;
 
             case ReturnStatementStatementNode returnStmt:
-                if (returnStmt.ReturnStatement is { } rs)
+                if(returnStmt.ReturnStatement is { } rs)
                     WalkNodeForReadonlyFieldAssignments(rs, declaringTypeScope, model, diagnostics);
                 break;
 
@@ -393,7 +393,7 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
         DiagnosticBag diagnostics)
     {
         // Check if this node is an assignment to a readonly field.
-        if (node is AssignmentNode assignment && assignment.Value is not null)
+        if(node is AssignmentNode assignment && assignment.Value is not null)
         {
             CheckReadonlyFieldAssignmentOutsideConstructor(assignment, declaringTypeScope, model, diagnostics);
         }
@@ -408,9 +408,9 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
         ISemanticModel model,
         DiagnosticBag diagnostics)
     {
-        foreach (var child in node.Children())
+        foreach(var child in node.Children())
         {
-            if (child is not null)
+            if(child is not null)
                 WalkNodeForReadonlyFieldAssignments(child, declaringTypeScope, model, diagnostics);
         }
     }
@@ -429,7 +429,7 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
     {
         var targetInfo = ClassifyAssignmentTarget(assignment.Target, model, declaringTypeScope);
 
-        switch (targetInfo.TargetKind)
+        switch(targetInfo.TargetKind)
         {
             case AssignmentTargetKind.Field:
                 CheckReadonlyFieldOutsideConstructor(targetInfo, assignment, declaringTypeScope, model, diagnostics);
@@ -451,30 +451,30 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
         ISemanticModel model,
         DiagnosticBag diagnostics)
     {
-        if (targetInfo.MemberName is null)
+        if(targetInfo.MemberName is null)
             return;
 
         // Skip the backing field keyword — it's handled by the backing field exemption
         // and the setter can only be called from a constructor (enforced by MIST_RO_0004).
-        if (targetInfo.IsBackingFieldKeyword)
+        if(targetInfo.IsBackingFieldKeyword)
             return;
 
         // Look up the field in the declaring type's scope to check its readonly status.
-        if (declaringTypeScope is null)
+        if(declaringTypeScope is null)
             return;
 
         // Only check fields on `this` (the declaring type's own fields).
-        if (!targetInfo.IsOnThis)
+        if(!targetInfo.IsOnThis)
             return;
 
         var fieldSymbol = declaringTypeScope.Lookup(targetInfo.MemberName);
-        if (fieldSymbol is not Symbol sym)
+        if(fieldSymbol is not Symbol sym)
             return;
 
-        if (sym.Kind != SymbolKind.Field)
+        if(sym.Kind != SymbolKind.Field)
             return;
 
-        if (!IsReadonly(sym.ReadonlyStatus))
+        if(!IsReadonly(sym.ReadonlyStatus))
             return;
 
         // The field is readonly and we're outside a constructor — emit MIST_RO_0009.
@@ -496,25 +496,25 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
         ISemanticModel model,
         DiagnosticBag diagnostics)
     {
-        if (targetInfo.MemberName is null)
+        if(targetInfo.MemberName is null)
             return;
 
         // Look up the property/indexer in the declaring type's scope to check its readonly status.
-        if (declaringTypeScope is null)
+        if(declaringTypeScope is null)
             return;
 
         // Only check properties/indexers on `this` (the declaring type's own members).
-        if (!targetInfo.IsOnThis)
+        if(!targetInfo.IsOnThis)
             return;
 
         var memberSymbol = declaringTypeScope.Lookup(targetInfo.MemberName);
-        if (memberSymbol is not Symbol sym)
+        if(memberSymbol is not Symbol sym)
             return;
 
-        if (sym.Kind is not (SymbolKind.Property or SymbolKind.Indexer))
+        if(sym.Kind is not (SymbolKind.Property or SymbolKind.Indexer))
             return;
 
-        if (!IsReadonly(sym.ReadonlyStatus))
+        if(!IsReadonly(sym.ReadonlyStatus))
             return;
 
         // The property/indexer is readonly and we're outside a constructor — emit MIST_RO_0004.
@@ -544,40 +544,40 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
 
         // Extract readonly parameter flags and names.
         var readonlyFlags = ParameterSignature.ExtractIsReadonly(symbol, model);
-        if (readonlyFlags.Count == 0)
+        if(readonlyFlags.Count == 0)
             return;
 
         // Check if there are any readonly parameters at all.
         var hasReadonlyParam = false;
-        for (var i = 0; i < readonlyFlags.Count; i++)
+        for(var i = 0; i < readonlyFlags.Count; i++)
         {
-            if (readonlyFlags[i])
+            if(readonlyFlags[i])
             {
                 hasReadonlyParam = true;
                 break;
             }
         }
 
-        if (!hasReadonlyParam)
+        if(!hasReadonlyParam)
             return;
 
         // Extract parameter names from the declaring node's parameter list.
         var readonlyParamNames = ExtractReadonlyParameterNames(declaringNode, readonlyFlags);
-        if (readonlyParamNames.Count == 0)
+        if(readonlyParamNames.Count == 0)
             return;
 
         // Walk the body looking for operations on readonly parameters.
-        switch (declaringNode)
+        switch(declaringNode)
         {
             case MethodDeclarationNode methodDecl:
                 var methodBody = methodDecl.Body.GetBlock();
-                if (methodBody is not null)
+                if(methodBody is not null)
                     WalkBlockForReadonlyParamViolations(methodBody, readonlyParamNames, model, diagnostics);
                 break;
 
             case ConstructorDeclarationNode ctorDecl:
                 var ctorBody = ctorDecl.Body.GetBlock();
-                if (ctorBody is not null)
+                if(ctorBody is not null)
                     WalkBlockForReadonlyParamViolations(ctorBody, readonlyParamNames, model, diagnostics);
                 break;
         }
@@ -598,27 +598,27 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
         };
 
         var names = new HashSet<string>(StringComparer.Ordinal);
-        if (paramList is null)
+        if(paramList is null)
             return names;
 
         var index = 0;
 
         // First parameter
-        if (index < readonlyFlags.Count && readonlyFlags[index])
+        if(index < readonlyFlags.Count && readonlyFlags[index])
         {
             var name = paramList.Parameter.Name.Lexeme;
-            if (!string.IsNullOrEmpty(name))
+            if(!string.IsNullOrEmpty(name))
                 names.Add(name);
         }
         index++;
 
         // Remaining parameters
-        foreach (var param in paramList.Parameters)
+        foreach(var param in paramList.Parameters)
         {
-            if (index < readonlyFlags.Count && readonlyFlags[index])
+            if(index < readonlyFlags.Count && readonlyFlags[index])
             {
                 var name = param.Name.Lexeme;
-                if (!string.IsNullOrEmpty(name))
+                if(!string.IsNullOrEmpty(name))
                     names.Add(name);
             }
             index++;
@@ -633,7 +633,7 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
         ISemanticModel model,
         DiagnosticBag diagnostics)
     {
-        foreach (var stmt in block.Statements)
+        foreach(var stmt in block.Statements)
         {
             WalkStatementForReadonlyParamViolations(stmt, readonlyParamNames, model, diagnostics);
         }
@@ -645,15 +645,15 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
         ISemanticModel model,
         DiagnosticBag diagnostics)
     {
-        switch (stmt)
+        switch(stmt)
         {
             case VariableDeclarationStatementStatementNode varDecl:
-                if (varDecl.VariableDeclaration is { } vd)
+                if(varDecl.VariableDeclaration is { } vd)
                     WalkNodeForReadonlyParamViolations(vd, readonlyParamNames, model, diagnostics);
                 break;
 
             case ReturnStatementStatementNode returnStmt:
-                if (returnStmt.ReturnStatement is { } rs)
+                if(returnStmt.ReturnStatement is { } rs)
                     WalkNodeForReadonlyParamViolations(rs, readonlyParamNames, model, diagnostics);
                 break;
 
@@ -713,9 +713,9 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
         ISemanticModel model,
         DiagnosticBag diagnostics)
     {
-        foreach (var child in node.Children())
+        foreach(var child in node.Children())
         {
-            if (child is not null)
+            if(child is not null)
                 WalkNodeForReadonlyParamViolations(child, readonlyParamNames, model, diagnostics);
         }
     }
@@ -732,7 +732,7 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
         ISemanticModel model,
         DiagnosticBag diagnostics)
     {
-        switch (node)
+        switch(node)
         {
             // Check assignments: `param.field = value` → MIST_RO_0007
             // Check assignments: `param.Prop = value` → MIST_RO_0008
@@ -760,29 +760,29 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
         // Look for pattern: param.member = value
         // The target is wrapped in expression nodes (LogicalOrNode → ... → PostfixNode).
         var postfix = FindPostfixNode(assignment.Target);
-        if (postfix is null)
+        if(postfix is null)
             return;
 
         // The receiver must be a bare identifier (the parameter name).
         var receiverName = GetReceiverParameterName(postfix);
-        if (receiverName is null || !readonlyParamNames.Contains(receiverName))
+        if(receiverName is null || !readonlyParamNames.Contains(receiverName))
             return;
 
         // Get the last suffix which is the member being assigned to.
-        if (postfix.Suffix.Length == 0)
+        if(postfix.Suffix.Length == 0)
             return;
 
         var lastSuffix = postfix.Suffix[^1];
-        if (lastSuffix is not MemberAccessSuffixPostfixSuffixNode memberAccess)
+        if(lastSuffix is not MemberAccessSuffixPostfixSuffixNode memberAccess)
             return;
 
         var memberName = memberAccess.Name.Lexeme;
 
         // Resolve the member to determine if it's a field or property/indexer.
         var symbol = model.GetDeclaredSymbol(memberAccess);
-        if (symbol is Symbol sym)
+        if(symbol is Symbol sym)
         {
-            if (sym.Kind == SymbolKind.Field)
+            if(sym.Kind == SymbolKind.Field)
             {
                 // Field assignment on readonly parameter → MIST_RO_0007
                 diagnostics.Add(MakeDiagnostic(
@@ -793,10 +793,10 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
                 return;
             }
 
-            if (sym.Kind is SymbolKind.Property or SymbolKind.Indexer)
+            if(sym.Kind is SymbolKind.Property or SymbolKind.Indexer)
             {
                 // Setter call on readonly parameter — check if the setter is readonly.
-                if (!IsReadonly(sym.ReadonlyStatus))
+                if(!IsReadonly(sym.ReadonlyStatus))
                 {
                     // Non-readonly setter on readonly parameter → MIST_RO_0008
                     diagnostics.Add(MakeDiagnostic(
@@ -822,15 +822,15 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
     /// </summary>
     private static PostfixNode? FindPostfixNode(SyntaxNode node)
     {
-        if (node is PostfixNode postfix)
+        if(node is PostfixNode postfix)
             return postfix;
 
-        foreach (var child in node.Children())
+        foreach(var child in node.Children())
         {
-            if (child is not null)
+            if(child is not null)
             {
                 var result = FindPostfixNode(child);
-                if (result is not null)
+                if(result is not null)
                     return result;
             }
         }
@@ -849,26 +849,26 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
         DiagnosticBag diagnostics)
     {
         // The receiver must be a bare identifier (the parameter name).
-        if (postfix.Target is not IdentifierExpressionPrimaryNode identifier)
+        if(postfix.Target is not IdentifierExpressionPrimaryNode identifier)
             return;
 
         var receiverName = identifier.Name.Lexeme;
-        if (!readonlyParamNames.Contains(receiverName))
+        if(!readonlyParamNames.Contains(receiverName))
             return;
 
         // Check each suffix for method calls on the readonly parameter.
-        for (var i = 0; i < postfix.Suffix.Length; i++)
+        for(var i = 0; i < postfix.Suffix.Length; i++)
         {
             var suffix = postfix.Suffix[i];
 
-            if (suffix is MethodCallSuffixPostfixSuffixNode methodCall)
+            if(suffix is MethodCallSuffixPostfixSuffixNode methodCall)
             {
                 // Only check the first suffix that operates directly on the parameter.
                 // Subsequent suffixes operate on the result of the first call.
-                if (i == 0)
+                if(i == 0)
                 {
                     var symbol = model.GetDeclaredSymbol(methodCall);
-                    if (symbol is Symbol sym && !IsReadonly(sym.ReadonlyStatus))
+                    if(symbol is Symbol sym && !IsReadonly(sym.ReadonlyStatus))
                     {
                         diagnostics.Add(MakeDiagnostic(
                             NonReadonlyMethodOnReadonlyParam,
@@ -881,7 +881,7 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
                 break;
             }
 
-            if (suffix is MemberAccessSuffixPostfixSuffixNode)
+            if(suffix is MemberAccessSuffixPostfixSuffixNode)
             {
                 // Member access on the parameter — this is fine for reads (field reads, property getter reads).
                 // But if the NEXT suffix is a method call, the receiver of that call is the member, not the param.
@@ -903,17 +903,17 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
     /// </summary>
     private static string? GetReceiverParameterName(PostfixNode postfix)
     {
-        if (postfix.Target is not IdentifierExpressionPrimaryNode identifier)
+        if(postfix.Target is not IdentifierExpressionPrimaryNode identifier)
             return null;
 
         // Must have at least one suffix (the member being assigned to).
-        if (postfix.Suffix.Length == 0)
+        if(postfix.Suffix.Length == 0)
             return null;
 
         // The first suffix must be a member access (param.member pattern).
         // For `param.member = value`, Suffix.Length == 1 and it's a MemberAccessSuffix.
         // For `param.sub.member = value`, we only care about direct member access on the param.
-        if (postfix.Suffix.Length == 1 && postfix.Suffix[0] is MemberAccessSuffixPostfixSuffixNode)
+        if(postfix.Suffix.Length == 1 && postfix.Suffix[0] is MemberAccessSuffixPostfixSuffixNode)
             return identifier.Name.Lexeme;
 
         return null;
@@ -929,11 +929,11 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
         DiagnosticBag diagnostics,
         Stack<ContextEntry> contextStack)
     {
-        if (declaringNode is not MethodDeclarationNode methodDecl)
+        if(declaringNode is not MethodDeclarationNode methodDecl)
             return;
 
         var body = methodDecl.Body.GetBlock();
-        if (body is null)
+        if(body is null)
             return;
 
         contextStack.Push(new ContextEntry(context, declaringTypeScope));
@@ -949,11 +949,11 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
         DiagnosticBag diagnostics,
         Stack<ContextEntry> contextStack)
     {
-        if (declaringNode is not ConstructorDeclarationNode ctorDecl)
+        if(declaringNode is not ConstructorDeclarationNode ctorDecl)
             return;
 
         var body = ctorDecl.Body.GetBlock();
-        if (body is null)
+        if(body is null)
             return;
 
         contextStack.Push(new ContextEntry(context, declaringTypeScope));
@@ -967,12 +967,12 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
         DiagnosticBag diagnostics,
         Stack<ContextEntry> contextStack)
     {
-        switch (declaringNode)
+        switch(declaringNode)
         {
             case BlockPropertyPropertyDeclarationNode blockProp:
-                foreach (var accessor in blockProp.Accessors)
+                foreach(var accessor in blockProp.Accessors)
                 {
-                    switch (accessor)
+                    switch(accessor)
                     {
                         case BlockGetAccessorAccessorDeclarationNode blockGet:
                             contextStack.Push(new ContextEntry(ContextKind.ReadonlyGetter));
@@ -1022,12 +1022,12 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
         DiagnosticBag diagnostics,
         Stack<ContextEntry> contextStack)
     {
-        if (declaringNode is not IndexerDeclarationNode { Body: BlockIndexerBodyIndexerBodyNode blockBody } blockIndexer)
+        if(declaringNode is not IndexerDeclarationNode { Body: BlockIndexerBodyIndexerBodyNode blockBody } blockIndexer)
             return;
 
-        foreach (var accessor in blockBody.Accessors)
+        foreach(var accessor in blockBody.Accessors)
         {
-            switch (accessor)
+            switch(accessor)
             {
                 case BlockGetAccessorAccessorDeclarationNode blockGet:
                     contextStack.Push(new ContextEntry(ContextKind.ReadonlyGetter));
@@ -1071,7 +1071,7 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
         DiagnosticBag diagnostics,
         Stack<ContextEntry> contextStack)
     {
-        foreach (var stmt in block.Statements)
+        foreach(var stmt in block.Statements)
         {
             WalkStatement(stmt, model, diagnostics, contextStack);
         }
@@ -1083,17 +1083,17 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
         DiagnosticBag diagnostics,
         Stack<ContextEntry> contextStack)
     {
-        switch (stmt)
+        switch(stmt)
         {
             case VariableDeclarationStatementStatementNode varDecl:
                 // Local variable declarations are always permitted (base rule 4).
                 // But we still need to walk the initializer for violations.
-                if (varDecl.VariableDeclaration is { } vd)
+                if(varDecl.VariableDeclaration is { } vd)
                     WalkNode(vd, model, diagnostics, contextStack);
                 break;
 
             case ReturnStatementStatementNode returnStmt:
-                if (returnStmt.ReturnStatement is { } rs)
+                if(returnStmt.ReturnStatement is { } rs)
                     WalkNode(rs, model, diagnostics, contextStack);
                 break;
 
@@ -1148,20 +1148,20 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
         // Special handling for PostfixNode: if the target type is a Closed_Generic_With_Unknown,
         // skip the readonly-context violation checks on suffixes whose receiver is a
         // Closed_Generic_With_Unknown (pass 5 handles them with MIST_TC_0062 instead).
-        if (node is PostfixNode postfix)
+        if(node is PostfixNode postfix)
         {
             var entry = contextStack.Peek();
-            if (entry.Kind != ContextKind.Normal)
+            if(entry.Kind != ContextKind.Normal)
             {
                 var currentType = model.GetTypeOf(postfix.Target);
-                if (IsClosedGenericWithUnknown(currentType))
+                if(IsClosedGenericWithUnknown(currentType))
                 {
                     // Walk the target normally (it might have its own violations).
                     WalkNode(postfix.Target, model, diagnostics, contextStack);
 
                     // For each suffix: skip the suffix-level violation check but still
                     // walk its children (e.g., method arguments) for nested violations.
-                    foreach (var suffix in postfix.Suffix)
+                    foreach(var suffix in postfix.Suffix)
                     {
                         WalkChildren(suffix, model, diagnostics, contextStack);
 
@@ -1169,7 +1169,7 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
                         // If the result is no longer a Closed_Generic_With_Unknown,
                         // subsequent suffixes should be checked normally by pass 1.
                         currentType = model.GetTypeOf(suffix);
-                        if (!IsClosedGenericWithUnknown(currentType))
+                        if(!IsClosedGenericWithUnknown(currentType))
                         {
                             // Remaining suffixes are not on a Closed_Generic_With_Unknown
                             // receiver — fall through to normal checking for them.
@@ -1197,9 +1197,9 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
         DiagnosticBag diagnostics,
         Stack<ContextEntry> contextStack)
     {
-        foreach (var child in node.Children())
+        foreach(var child in node.Children())
         {
-            if (child is not null)
+            if(child is not null)
                 WalkNode(child, model, diagnostics, contextStack);
         }
     }
@@ -1213,10 +1213,10 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
         Stack<ContextEntry> contextStack)
     {
         var entry = contextStack.Peek();
-        if (entry.Kind == ContextKind.Normal)
+        if(entry.Kind == ContextKind.Normal)
             return;
 
-        switch (node)
+        switch(node)
         {
             case AssignmentNode assignment when assignment.Value is not null:
                 CheckAssignmentViolation(assignment, entry, model, diagnostics);
@@ -1249,7 +1249,7 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
         // Determine what the assignment target is: a field, a property/indexer (setter call), or a local.
         var targetInfo = ClassifyAssignmentTarget(assignment.Target, model, entry.DeclaringTypeScope);
 
-        switch (targetInfo.TargetKind)
+        switch(targetInfo.TargetKind)
         {
             case AssignmentTargetKind.LocalVariable:
                 // Local variable assignment — always permitted (base rule 4).
@@ -1259,21 +1259,21 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
                 // Constructor privilege (exception 11): in ReadonlyConstructor, assignment to
                 // own fields (fields of the declaring type via `this`) is permitted.
                 // Exception 14: ReadonlyBlock overrides constructor privilege — no exemption.
-                if (context == ContextKind.ReadonlyConstructor && targetInfo.IsOnThis)
+                if(context == ContextKind.ReadonlyConstructor && targetInfo.IsOnThis)
                 {
                     // Check that the field belongs to the declaring type.
-                    if (IsOwnMember(targetInfo.MemberName, entry.DeclaringTypeScope, SymbolKind.Field))
+                    if(IsOwnMember(targetInfo.MemberName, entry.DeclaringTypeScope, SymbolKind.Field))
                         return; // Permitted — constructor privilege.
                 }
 
                 // Backing field exemption (exception 12): in ReadonlySetter, assignment to
                 // the backing field keyword (`field = value`) is permitted.
-                if (context == ContextKind.ReadonlySetter && targetInfo.IsBackingFieldKeyword)
+                if(context == ContextKind.ReadonlySetter && targetInfo.IsBackingFieldKeyword)
                     return; // Permitted — backing field exemption.
 
                 // In ReadonlyBlock context, emit the more specific MIST_RO_0010 diagnostic
                 // indicating that constructor privilege is suspended.
-                if (context == ContextKind.ReadonlyBlock)
+                if(context == ContextKind.ReadonlyBlock)
                 {
                     diagnostics.Add(MakeDiagnostic(
                         FieldAssignmentInReadonlyBlock,
@@ -1294,9 +1294,9 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
             case AssignmentTargetKind.PropertyOrIndexerSetter:
                 // Constructor privilege (exception 11): in ReadonlyConstructor, calling
                 // the declaring type's own readonly property/indexer setters on `this` is permitted.
-                if (context == ContextKind.ReadonlyConstructor && targetInfo.IsOnThis)
+                if(context == ContextKind.ReadonlyConstructor && targetInfo.IsOnThis)
                 {
-                    if (IsOwnReadonlyPropertyOrIndexer(targetInfo.MemberName, entry.DeclaringTypeScope))
+                    if(IsOwnReadonlyPropertyOrIndexer(targetInfo.MemberName, entry.DeclaringTypeScope))
                         return; // Permitted — constructor privilege for readonly setters.
                 }
 
@@ -1334,100 +1334,100 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
     /// </summary>
     private static AssignmentTargetInfo ClassifyAssignmentTarget(SyntaxNode targetNode, ISemanticModel model, IScope? declaringTypeScope = null)
     {
-        switch (targetNode)
+        switch(targetNode)
         {
             case PostfixNode postfix:
-            {
-                // `this.member` pattern
-                if (postfix.Suffix.Length == 1
-                    && postfix.Target is ThisExpressionPrimaryNode
-                    && postfix.Suffix[0] is MemberAccessSuffixPostfixSuffixNode memberAccess)
                 {
-                    var memberName = memberAccess.Name.Lexeme;
-                    var symbol = model.GetDeclaredSymbol(memberAccess);
-
-                    if (symbol is not null)
+                    // `this.member` pattern
+                    if(postfix.Suffix.Length == 1
+                        && postfix.Target is ThisExpressionPrimaryNode
+                        && postfix.Suffix[0] is MemberAccessSuffixPostfixSuffixNode memberAccess)
                     {
-                        if (symbol.Kind == SymbolKind.Field)
-                            return new AssignmentTargetInfo(AssignmentTargetKind.Field, memberName, IsOnThis: true);
-                        if (symbol.Kind is SymbolKind.Property or SymbolKind.Indexer)
-                            return new AssignmentTargetInfo(AssignmentTargetKind.PropertyOrIndexerSetter, memberName, IsOnThis: true);
-                    }
+                        var memberName = memberAccess.Name.Lexeme;
+                        var symbol = model.GetDeclaredSymbol(memberAccess);
 
-                    // If we can't resolve via GetDeclaredSymbol, try the declaring type scope
-                    // to distinguish fields from properties.
-                    if (declaringTypeScope is not null)
-                    {
-                        var scopeMember = declaringTypeScope.Lookup(memberName);
-                        if (scopeMember is not null)
+                        if(symbol is not null)
                         {
-                            if (scopeMember.Kind == SymbolKind.Field)
+                            if(symbol.Kind == SymbolKind.Field)
                                 return new AssignmentTargetInfo(AssignmentTargetKind.Field, memberName, IsOnThis: true);
-                            if (scopeMember.Kind is SymbolKind.Property or SymbolKind.Indexer)
+                            if(symbol.Kind is SymbolKind.Property or SymbolKind.Indexer)
                                 return new AssignmentTargetInfo(AssignmentTargetKind.PropertyOrIndexerSetter, memberName, IsOnThis: true);
                         }
+
+                        // If we can't resolve via GetDeclaredSymbol, try the declaring type scope
+                        // to distinguish fields from properties.
+                        if(declaringTypeScope is not null)
+                        {
+                            var scopeMember = declaringTypeScope.Lookup(memberName);
+                            if(scopeMember is not null)
+                            {
+                                if(scopeMember.Kind == SymbolKind.Field)
+                                    return new AssignmentTargetInfo(AssignmentTargetKind.Field, memberName, IsOnThis: true);
+                                if(scopeMember.Kind is SymbolKind.Property or SymbolKind.Indexer)
+                                    return new AssignmentTargetInfo(AssignmentTargetKind.PropertyOrIndexerSetter, memberName, IsOnThis: true);
+                            }
+                        }
+
+                        // If we still can't resolve, treat `this.x` as a field
+                        // since `this` always refers to the current instance.
+                        return new AssignmentTargetInfo(AssignmentTargetKind.Field, memberName, IsOnThis: true);
                     }
 
-                    // If we still can't resolve, treat `this.x` as a field
-                    // since `this` always refers to the current instance.
-                    return new AssignmentTargetInfo(AssignmentTargetKind.Field, memberName, IsOnThis: true);
-                }
-
-                // Bare identifier — check if it resolves to a field or property.
-                if (postfix.Suffix.Length == 0 && postfix.Target is IdentifierExpressionPrimaryNode identifier)
-                {
-                    var symbol = model.GetDeclaredSymbol(identifier);
-                    if (symbol is not null)
+                    // Bare identifier — check if it resolves to a field or property.
+                    if(postfix.Suffix.Length == 0 && postfix.Target is IdentifierExpressionPrimaryNode identifier)
                     {
-                        if (symbol.Kind == SymbolKind.Field)
-                            return new AssignmentTargetInfo(AssignmentTargetKind.Field, symbol.Name, IsOnThis: true);
-                        if (symbol.Kind is SymbolKind.Property or SymbolKind.Indexer)
-                            return new AssignmentTargetInfo(AssignmentTargetKind.PropertyOrIndexerSetter, symbol.Name, IsOnThis: true);
-                        // Local variable or parameter
+                        var symbol = model.GetDeclaredSymbol(identifier);
+                        if(symbol is not null)
+                        {
+                            if(symbol.Kind == SymbolKind.Field)
+                                return new AssignmentTargetInfo(AssignmentTargetKind.Field, symbol.Name, IsOnThis: true);
+                            if(symbol.Kind is SymbolKind.Property or SymbolKind.Indexer)
+                                return new AssignmentTargetInfo(AssignmentTargetKind.PropertyOrIndexerSetter, symbol.Name, IsOnThis: true);
+                            // Local variable or parameter
+                            return new AssignmentTargetInfo(AssignmentTargetKind.LocalVariable, null, IsOnThis: false);
+                        }
+
+                        // Unresolved identifiers are conservatively treated as locals.
                         return new AssignmentTargetInfo(AssignmentTargetKind.LocalVariable, null, IsOnThis: false);
                     }
 
-                    // Unresolved identifiers are conservatively treated as locals.
+                    // Bare `field` keyword — the backing field of the enclosing property.
+                    if(postfix.Suffix.Length == 0 && postfix.Target is FieldKeywordExpressionPrimaryNode)
+                    {
+                        return new AssignmentTargetInfo(AssignmentTargetKind.Field, "field", IsOnThis: true, IsBackingFieldKeyword: true);
+                    }
+
+                    // Member access on something other than `this` — e.g., `obj.field`
+                    if(postfix.Suffix.Length > 0
+                        && postfix.Suffix[^1] is MemberAccessSuffixPostfixSuffixNode lastMemberAccess)
+                    {
+                        var symbol = model.GetDeclaredSymbol(lastMemberAccess);
+                        if(symbol is not null)
+                        {
+                            if(symbol.Kind == SymbolKind.Field)
+                                return new AssignmentTargetInfo(AssignmentTargetKind.Field, symbol.Name, IsOnThis: false);
+                            if(symbol.Kind is SymbolKind.Property or SymbolKind.Indexer)
+                                return new AssignmentTargetInfo(AssignmentTargetKind.PropertyOrIndexerSetter, symbol.Name, IsOnThis: false);
+                        }
+                    }
+
                     return new AssignmentTargetInfo(AssignmentTargetKind.LocalVariable, null, IsOnThis: false);
                 }
 
-                // Bare `field` keyword — the backing field of the enclosing property.
-                if (postfix.Suffix.Length == 0 && postfix.Target is FieldKeywordExpressionPrimaryNode)
-                {
-                    return new AssignmentTargetInfo(AssignmentTargetKind.Field, "field", IsOnThis: true, IsBackingFieldKeyword: true);
-                }
-
-                // Member access on something other than `this` — e.g., `obj.field`
-                if (postfix.Suffix.Length > 0
-                    && postfix.Suffix[^1] is MemberAccessSuffixPostfixSuffixNode lastMemberAccess)
-                {
-                    var symbol = model.GetDeclaredSymbol(lastMemberAccess);
-                    if (symbol is not null)
-                    {
-                        if (symbol.Kind == SymbolKind.Field)
-                            return new AssignmentTargetInfo(AssignmentTargetKind.Field, symbol.Name, IsOnThis: false);
-                        if (symbol.Kind is SymbolKind.Property or SymbolKind.Indexer)
-                            return new AssignmentTargetInfo(AssignmentTargetKind.PropertyOrIndexerSetter, symbol.Name, IsOnThis: false);
-                    }
-                }
-
-                return new AssignmentTargetInfo(AssignmentTargetKind.LocalVariable, null, IsOnThis: false);
-            }
-
             default:
-            {
-                // Walk through expression wrappers to find the actual target.
-                foreach (var child in targetNode.Children())
                 {
-                    if (child is not null)
+                    // Walk through expression wrappers to find the actual target.
+                    foreach(var child in targetNode.Children())
                     {
-                        var result = ClassifyAssignmentTarget(child, model, declaringTypeScope);
-                        if (result.TargetKind != AssignmentTargetKind.LocalVariable)
-                            return result;
+                        if(child is not null)
+                        {
+                            var result = ClassifyAssignmentTarget(child, model, declaringTypeScope);
+                            if(result.TargetKind != AssignmentTargetKind.LocalVariable)
+                                return result;
+                        }
                     }
+                    return new AssignmentTargetInfo(AssignmentTargetKind.LocalVariable, null, IsOnThis: false);
                 }
-                return new AssignmentTargetInfo(AssignmentTargetKind.LocalVariable, null, IsOnThis: false);
-            }
         }
     }
 
@@ -1437,7 +1437,7 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
     /// </summary>
     private static bool IsOwnMember(string? memberName, IScope? declaringTypeScope, SymbolKind expectedKind)
     {
-        if (memberName is null || declaringTypeScope is null)
+        if(memberName is null || declaringTypeScope is null)
             return false;
 
         var member = declaringTypeScope.Lookup(memberName);
@@ -1450,14 +1450,14 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
     /// </summary>
     private static bool IsOwnReadonlyPropertyOrIndexer(string? memberName, IScope? declaringTypeScope)
     {
-        if (memberName is null || declaringTypeScope is null)
+        if(memberName is null || declaringTypeScope is null)
             return false;
 
         var member = declaringTypeScope.Lookup(memberName);
-        if (member is not Symbol sym)
+        if(member is not Symbol sym)
             return false;
 
-        if (sym.Kind is not (SymbolKind.Property or SymbolKind.Indexer))
+        if(sym.Kind is not (SymbolKind.Property or SymbolKind.Indexer))
             return false;
 
         return IsReadonly(sym.ReadonlyStatus);
@@ -1472,16 +1472,16 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
         DiagnosticBag diagnostics)
     {
         // Only enforce in readonly contexts.
-        if (context == ContextKind.Normal)
+        if(context == ContextKind.Normal)
             return;
 
         // Resolve the method being called.
         var symbol = model.GetDeclaredSymbol(methodCall);
-        if (symbol is not Symbol sym)
+        if(symbol is not Symbol sym)
             return; // Can't resolve — skip (avoid false positives).
 
         // Check if the method is readonly.
-        if (IsReadonly(sym.ReadonlyStatus))
+        if(IsReadonly(sym.ReadonlyStatus))
             return; // Permitted (base rule 2).
 
         // Non-readonly method call in a readonly context.
@@ -1501,21 +1501,21 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
         DiagnosticBag diagnostics)
     {
         // Only enforce in readonly contexts.
-        if (context == ContextKind.Normal)
+        if(context == ContextKind.Normal)
             return;
 
         var symbol = model.GetDeclaredSymbol(memberAccess);
-        if (symbol is not Symbol sym)
+        if(symbol is not Symbol sym)
             return; // Can't resolve — skip.
 
         // Field reads are always permitted (base rule 1).
-        if (sym.Kind == SymbolKind.Field)
+        if(sym.Kind == SymbolKind.Field)
             return;
 
         // Property/indexer getter access — check if readonly.
-        if (sym.Kind is SymbolKind.Property or SymbolKind.Indexer)
+        if(sym.Kind is SymbolKind.Property or SymbolKind.Indexer)
         {
-            if (!IsReadonly(sym.ReadonlyStatus))
+            if(!IsReadonly(sym.ReadonlyStatus))
             {
                 diagnostics.Add(MakeDiagnostic(
                     NonReadonlyGetterCallInReadonlyContext,
@@ -1535,29 +1535,29 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
         DiagnosticBag diagnostics)
     {
         // Only enforce in readonly contexts.
-        if (context == ContextKind.Normal)
+        if(context == ContextKind.Normal)
             return;
 
         // Resolve the type being constructed.
         var createdType = model.GetTypeOf(objectCreation);
-        if (createdType is null)
+        if(createdType is null)
             return; // Can't resolve — skip.
 
         // If the type itself is readonly, all its constructors are implicitly readonly.
-        if (IsTypeReadonly(createdType))
+        if(IsTypeReadonly(createdType))
             return; // Permitted (base rule 5).
 
         // Look for a readonly constructor in the created type.
         var memberScope = GetMemberScope(createdType);
-        if (memberScope is null)
+        if(memberScope is null)
             return; // Can't find scope — skip.
 
         // Check if any constructor is readonly.
-        foreach (var member in memberScope.Members)
+        foreach(var member in memberScope.Members)
         {
-            if (member.Kind == SymbolKind.Constructor && member is Symbol ctorSym)
+            if(member.Kind == SymbolKind.Constructor && member is Symbol ctorSym)
             {
-                if (IsReadonly(ctorSym.ReadonlyStatus))
+                if(IsReadonly(ctorSym.ReadonlyStatus))
                     return; // At least one readonly constructor exists — permitted.
             }
         }
@@ -1579,7 +1579,7 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
     /// </summary>
     private static ReadonlyStatus GetReadonlyStatus(ISymbol symbol)
     {
-        if (symbol is Symbol concreteSymbol)
+        if(symbol is Symbol concreteSymbol)
             return concreteSymbol.ReadonlyStatus;
 
         return ReadonlyStatus.Unknown;
@@ -1615,7 +1615,7 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
     private static IScope? GetMemberScope(IType type)
     {
         // For ConstructedType, look up in the generic definition.
-        if (type is ConstructedType constructed)
+        if(type is ConstructedType constructed)
             type = constructed.GenericDefinition;
 
         return type switch
@@ -1635,12 +1635,12 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
     private static Symbol? LookupMemberByName(IType? receiverType, string memberName)
     {
         var scope = GetMemberScope(receiverType!);
-        if (scope is null)
+        if(scope is null)
             return null;
 
-        foreach (var member in scope.Members)
+        foreach(var member in scope.Members)
         {
-            if (member.Name == memberName && member is Symbol sym)
+            if(member.Name == memberName && member is Symbol sym)
                 return sym;
         }
 
@@ -1676,22 +1676,22 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
         try { declaringNode = model.GetDeclaringNode(symbol); }
         catch { return; }
 
-        switch (symbol.Kind)
+        switch(symbol.Kind)
         {
             case SymbolKind.Method:
-                if (declaringNode is MethodDeclarationNode methodDecl)
+                if(declaringNode is MethodDeclarationNode methodDecl)
                 {
                     var body = methodDecl.Body.GetBlock();
-                    if (body is not null)
+                    if(body is not null)
                         WalkBlockForConstrainedTypeParamViolations(body, model, diagnostics);
                 }
                 break;
 
             case SymbolKind.Constructor:
-                if (declaringNode is ConstructorDeclarationNode ctorDecl)
+                if(declaringNode is ConstructorDeclarationNode ctorDecl)
                 {
                     var ctorBody = ctorDecl.Body.GetBlock();
-                    if (ctorBody is not null)
+                    if(ctorBody is not null)
                         WalkBlockForConstrainedTypeParamViolations(ctorBody, model, diagnostics);
                 }
                 break;
@@ -1711,12 +1711,12 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
         ISemanticModel model,
         DiagnosticBag diagnostics)
     {
-        switch (declaringNode)
+        switch(declaringNode)
         {
             case BlockPropertyPropertyDeclarationNode blockProp:
-                foreach (var accessor in blockProp.Accessors)
+                foreach(var accessor in blockProp.Accessors)
                 {
-                    switch (accessor)
+                    switch(accessor)
                     {
                         case BlockGetAccessorAccessorDeclarationNode blockGet:
                             WalkBlockForConstrainedTypeParamViolations(blockGet.Body, model, diagnostics);
@@ -1751,12 +1751,12 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
         ISemanticModel model,
         DiagnosticBag diagnostics)
     {
-        if (declaringNode is not IndexerDeclarationNode { Body: BlockIndexerBodyIndexerBodyNode blockBody } blockIndexer)
+        if(declaringNode is not IndexerDeclarationNode { Body: BlockIndexerBodyIndexerBodyNode blockBody } blockIndexer)
             return;
 
-        foreach (var accessor in blockBody.Accessors)
+        foreach(var accessor in blockBody.Accessors)
         {
-            switch (accessor)
+            switch(accessor)
             {
                 case BlockGetAccessorAccessorDeclarationNode blockGet:
                     WalkBlockForConstrainedTypeParamViolations(blockGet.Body, model, diagnostics);
@@ -1785,7 +1785,7 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
         ISemanticModel model,
         DiagnosticBag diagnostics)
     {
-        foreach (var stmt in block.Statements)
+        foreach(var stmt in block.Statements)
         {
             WalkStatementForConstrainedTypeParamViolations(stmt, model, diagnostics);
         }
@@ -1796,15 +1796,15 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
         ISemanticModel model,
         DiagnosticBag diagnostics)
     {
-        switch (stmt)
+        switch(stmt)
         {
             case VariableDeclarationStatementStatementNode varDecl:
-                if (varDecl.VariableDeclaration is { } vd)
+                if(varDecl.VariableDeclaration is { } vd)
                     WalkNodeForConstrainedTypeParamViolations(vd, model, diagnostics);
                 break;
 
             case ReturnStatementStatementNode returnStmt:
-                if (returnStmt.ReturnStatement is { } rs)
+                if(returnStmt.ReturnStatement is { } rs)
                     WalkNodeForConstrainedTypeParamViolations(rs, model, diagnostics);
                 break;
 
@@ -1862,9 +1862,9 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
         ISemanticModel model,
         DiagnosticBag diagnostics)
     {
-        foreach (var child in node.Children())
+        foreach(var child in node.Children())
         {
-            if (child is not null)
+            if(child is not null)
                 WalkNodeForConstrainedTypeParamViolations(child, model, diagnostics);
         }
     }
@@ -1882,7 +1882,7 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
         ISemanticModel model,
         DiagnosticBag diagnostics)
     {
-        switch (node)
+        switch(node)
         {
             case PostfixNode postfix:
                 CheckConstrainedTypeParamPostfix(postfix, model, diagnostics);
@@ -1906,66 +1906,66 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
     {
         // Get the type of the target expression.
         var targetType = model.GetTypeOf(postfix.Target);
-        if (!IsReadonlyConstrainedTypeParameter(targetType))
+        if(!IsReadonlyConstrainedTypeParameter(targetType))
             return;
 
         // The target is a readonly-constrained type parameter.
         // Check each suffix for violations.
-        for (var i = 0; i < postfix.Suffix.Length; i++)
+        for(var i = 0; i < postfix.Suffix.Length; i++)
         {
             var suffix = postfix.Suffix[i];
 
-            switch (suffix)
+            switch(suffix)
             {
                 case MethodCallSuffixPostfixSuffixNode methodCall:
-                {
-                    // Only check the first suffix that operates directly on the type parameter.
-                    if (i == 0)
                     {
-                        var symbol = model.GetDeclaredSymbol(methodCall);
-                        if (symbol is Symbol sym && !IsReadonly(sym.ReadonlyStatus))
+                        // Only check the first suffix that operates directly on the type parameter.
+                        if(i == 0)
                         {
-                            diagnostics.Add(MakeDiagnostic(
-                                NonReadonlyMethodCallInReadonlyContext,
-                                $"Cannot call non-readonly method '{sym.Name}' within a readonly context",
-                                methodCall,
-                                model));
+                            var symbol = model.GetDeclaredSymbol(methodCall);
+                            if(symbol is Symbol sym && !IsReadonly(sym.ReadonlyStatus))
+                            {
+                                diagnostics.Add(MakeDiagnostic(
+                                    NonReadonlyMethodCallInReadonlyContext,
+                                    $"Cannot call non-readonly method '{sym.Name}' within a readonly context",
+                                    methodCall,
+                                    model));
+                            }
                         }
+                        // After a method call, the receiver type changes — stop checking.
+                        return;
                     }
-                    // After a method call, the receiver type changes — stop checking.
-                    return;
-                }
 
                 case MemberAccessSuffixPostfixSuffixNode memberAccess:
-                {
-                    // Only check the first suffix that operates directly on the type parameter.
-                    if (i == 0)
                     {
-                        var symbol = model.GetDeclaredSymbol(memberAccess);
-                        if (symbol is Symbol sym)
+                        // Only check the first suffix that operates directly on the type parameter.
+                        if(i == 0)
                         {
-                            // Field reads are always permitted.
-                            if (sym.Kind == SymbolKind.Field)
-                                break;
-
-                            // Property/indexer getter access — check if readonly.
-                            if (sym.Kind is SymbolKind.Property or SymbolKind.Indexer)
+                            var symbol = model.GetDeclaredSymbol(memberAccess);
+                            if(symbol is Symbol sym)
                             {
-                                if (!IsReadonly(sym.ReadonlyStatus))
+                                // Field reads are always permitted.
+                                if(sym.Kind == SymbolKind.Field)
+                                    break;
+
+                                // Property/indexer getter access — check if readonly.
+                                if(sym.Kind is SymbolKind.Property or SymbolKind.Indexer)
                                 {
-                                    diagnostics.Add(MakeDiagnostic(
-                                        NonReadonlyGetterCallInReadonlyContext,
-                                        $"Cannot call non-readonly property getter '{sym.Name}' within a readonly context",
-                                        memberAccess,
-                                        model));
+                                    if(!IsReadonly(sym.ReadonlyStatus))
+                                    {
+                                        diagnostics.Add(MakeDiagnostic(
+                                            NonReadonlyGetterCallInReadonlyContext,
+                                            $"Cannot call non-readonly property getter '{sym.Name}' within a readonly context",
+                                            memberAccess,
+                                            model));
+                                    }
                                 }
                             }
                         }
+                        // After member access, the receiver type changes for subsequent suffixes.
+                        // Continue to check if the next suffix is a method call on the member result.
+                        break;
                     }
-                    // After member access, the receiver type changes for subsequent suffixes.
-                    // Continue to check if the next suffix is a method call on the member result.
-                    break;
-                }
 
                 default:
                     // For other suffix types (index, invocation), the receiver changes — stop.
@@ -1987,30 +1987,30 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
     {
         // Look for pattern: value.member = expr
         var postfix = FindPostfixNode(assignment.Target);
-        if (postfix is null)
+        if(postfix is null)
             return;
 
         // The target must be a PostfixNode with at least one member access suffix.
-        if (postfix.Suffix.Length == 0)
+        if(postfix.Suffix.Length == 0)
             return;
 
         // Check if the receiver's type is a readonly-constrained type parameter.
         var targetType = model.GetTypeOf(postfix.Target);
-        if (!IsReadonlyConstrainedTypeParameter(targetType))
+        if(!IsReadonlyConstrainedTypeParameter(targetType))
             return;
 
         // Only check direct member access on the type parameter (first suffix).
         var lastSuffix = postfix.Suffix.Length == 1 ? postfix.Suffix[0] : null;
-        if (lastSuffix is not MemberAccessSuffixPostfixSuffixNode memberAccess)
+        if(lastSuffix is not MemberAccessSuffixPostfixSuffixNode memberAccess)
             return;
 
         var memberName = memberAccess.Name.Lexeme;
 
         // Resolve the member to determine if it's a field or property/indexer.
         var symbol = model.GetDeclaredSymbol(memberAccess);
-        if (symbol is Symbol sym)
+        if(symbol is Symbol sym)
         {
-            if (sym.Kind == SymbolKind.Field)
+            if(sym.Kind == SymbolKind.Field)
             {
                 // Field assignment on readonly-constrained type parameter.
                 diagnostics.Add(MakeDiagnostic(
@@ -2021,7 +2021,7 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
                 return;
             }
 
-            if (sym.Kind is SymbolKind.Property or SymbolKind.Indexer)
+            if(sym.Kind is SymbolKind.Property or SymbolKind.Indexer)
             {
                 // Setter call on readonly-constrained type parameter.
                 diagnostics.Add(MakeDiagnostic(
@@ -2059,22 +2059,22 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
         try { declaringNode = model.GetDeclaringNode(symbol); }
         catch { return; }
 
-        switch (symbol.Kind)
+        switch(symbol.Kind)
         {
             case SymbolKind.Method:
-                if (declaringNode is MethodDeclarationNode methodDecl)
+                if(declaringNode is MethodDeclarationNode methodDecl)
                 {
                     var body = methodDecl.Body.GetBlock();
-                    if (body is not null)
+                    if(body is not null)
                         WalkBlockForClosedUnknownViolations(body, model, diagnostics);
                 }
                 break;
 
             case SymbolKind.Constructor:
-                if (declaringNode is ConstructorDeclarationNode ctorDecl)
+                if(declaringNode is ConstructorDeclarationNode ctorDecl)
                 {
                     var ctorBody = ctorDecl.Body.GetBlock();
-                    if (ctorBody is not null)
+                    if(ctorBody is not null)
                         WalkBlockForClosedUnknownViolations(ctorBody, model, diagnostics);
                 }
                 break;
@@ -2094,12 +2094,12 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
         ISemanticModel model,
         DiagnosticBag diagnostics)
     {
-        switch (declaringNode)
+        switch(declaringNode)
         {
             case BlockPropertyPropertyDeclarationNode blockProp:
-                foreach (var accessor in blockProp.Accessors)
+                foreach(var accessor in blockProp.Accessors)
                 {
-                    switch (accessor)
+                    switch(accessor)
                     {
                         case BlockGetAccessorAccessorDeclarationNode blockGet:
                             WalkBlockForClosedUnknownViolations(blockGet.Body, model, diagnostics);
@@ -2134,12 +2134,12 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
         ISemanticModel model,
         DiagnosticBag diagnostics)
     {
-        if (declaringNode is not IndexerDeclarationNode { Body: BlockIndexerBodyIndexerBodyNode blockBody } blockIndexer)
+        if(declaringNode is not IndexerDeclarationNode { Body: BlockIndexerBodyIndexerBodyNode blockBody } blockIndexer)
             return;
 
-        foreach (var accessor in blockBody.Accessors)
+        foreach(var accessor in blockBody.Accessors)
         {
-            switch (accessor)
+            switch(accessor)
             {
                 case BlockGetAccessorAccessorDeclarationNode blockGet:
                     WalkBlockForClosedUnknownViolations(blockGet.Body, model, diagnostics);
@@ -2168,7 +2168,7 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
         ISemanticModel model,
         DiagnosticBag diagnostics)
     {
-        foreach (var stmt in block.Statements)
+        foreach(var stmt in block.Statements)
         {
             WalkStatementForClosedUnknownViolations(stmt, model, diagnostics);
         }
@@ -2179,15 +2179,15 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
         ISemanticModel model,
         DiagnosticBag diagnostics)
     {
-        switch (stmt)
+        switch(stmt)
         {
             case VariableDeclarationStatementStatementNode varDecl:
-                if (varDecl.VariableDeclaration is { } vd)
+                if(varDecl.VariableDeclaration is { } vd)
                     WalkNodeForClosedUnknownViolations(vd, model, diagnostics);
                 break;
 
             case ReturnStatementStatementNode returnStmt:
-                if (returnStmt.ReturnStatement is { } rs)
+                if(returnStmt.ReturnStatement is { } rs)
                     WalkNodeForClosedUnknownViolations(rs, model, diagnostics);
                 break;
 
@@ -2239,7 +2239,7 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
         // For AssignmentNode with a value, only walk the value side — the target
         // is already handled by CheckClosedUnknownAssignment. Walking the target
         // would cause the postfix check to double-emit for the same member access.
-        if (node is AssignmentNode assignment && assignment.Value is not null)
+        if(node is AssignmentNode assignment && assignment.Value is not null)
         {
             WalkNodeForClosedUnknownViolations(assignment.Value, model, diagnostics);
             return;
@@ -2254,9 +2254,9 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
         ISemanticModel model,
         DiagnosticBag diagnostics)
     {
-        foreach (var child in node.Children())
+        foreach(var child in node.Children())
         {
-            if (child is not null)
+            if(child is not null)
                 WalkNodeForClosedUnknownViolations(child, model, diagnostics);
         }
     }
@@ -2275,7 +2275,7 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
         ISemanticModel model,
         DiagnosticBag diagnostics)
     {
-        switch (node)
+        switch(node)
         {
             case PostfixNode postfix:
                 CheckClosedUnknownPostfix(postfix, model, diagnostics);
@@ -2302,81 +2302,81 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
     {
         // Get the type of the target expression.
         var currentType = model.GetTypeOf(postfix.Target);
-        if (!IsClosedGenericWithUnknown(currentType))
+        if(!IsClosedGenericWithUnknown(currentType))
             return;
 
         // Walk each suffix, tracking the current receiver type.
-        for (var i = 0; i < postfix.Suffix.Length; i++)
+        for(var i = 0; i < postfix.Suffix.Length; i++)
         {
             var suffix = postfix.Suffix[i];
             var typeDisplayName = currentType!.DisplayName;
 
-            switch (suffix)
+            switch(suffix)
             {
                 case MethodCallSuffixPostfixSuffixNode methodCall:
-                {
-                    var sym = LookupMemberByName(currentType, methodCall.Name.Lexeme);
-                    if (sym is not null && !IsReadonly(sym.ReadonlyStatus))
                     {
-                        diagnostics.Add(MakeDiagnostic(
-                            ClosedUnknownNonReadonlyAccess,
-                            $"Cannot call non-readonly method '{sym.Name}' on '{typeDisplayName}': the type is treated as readonly because it contains an 'unknown' type argument.",
-                            methodCall,
-                            model));
-                    }
+                        var sym = LookupMemberByName(currentType, methodCall.Name.Lexeme);
+                        if(sym is not null && !IsReadonly(sym.ReadonlyStatus))
+                        {
+                            diagnostics.Add(MakeDiagnostic(
+                                ClosedUnknownNonReadonlyAccess,
+                                $"Cannot call non-readonly method '{sym.Name}' on '{typeDisplayName}': the type is treated as readonly because it contains an 'unknown' type argument.",
+                                methodCall,
+                                model));
+                        }
 
-                    // Update current type to the result of the method call.
-                    currentType = model.GetTypeOf(suffix);
-                    break;
-                }
+                        // Update current type to the result of the method call.
+                        currentType = model.GetTypeOf(suffix);
+                        break;
+                    }
 
                 case MemberAccessSuffixPostfixSuffixNode memberAccess:
-                {
-                    var sym = LookupMemberByName(currentType, memberAccess.Name.Lexeme);
-                    if (sym is not null)
                     {
-                        // Field reads are always permitted.
-                        if (sym.Kind == SymbolKind.Field)
+                        var sym = LookupMemberByName(currentType, memberAccess.Name.Lexeme);
+                        if(sym is not null)
                         {
-                            // No diagnostic — field reads are fine.
-                        }
-                        else if (sym.Kind is SymbolKind.Property or SymbolKind.Indexer)
-                        {
-                            // Property/indexer getter access — check if readonly.
-                            if (!IsReadonly(sym.ReadonlyStatus))
+                            // Field reads are always permitted.
+                            if(sym.Kind == SymbolKind.Field)
                             {
-                                diagnostics.Add(MakeDiagnostic(
-                                    ClosedUnknownNonReadonlyAccess,
-                                    $"Cannot access non-readonly property '{sym.Name}' on '{typeDisplayName}': the type is treated as readonly because it contains an 'unknown' type argument.",
-                                    memberAccess,
-                                    model));
+                                // No diagnostic — field reads are fine.
+                            }
+                            else if(sym.Kind is SymbolKind.Property or SymbolKind.Indexer)
+                            {
+                                // Property/indexer getter access — check if readonly.
+                                if(!IsReadonly(sym.ReadonlyStatus))
+                                {
+                                    diagnostics.Add(MakeDiagnostic(
+                                        ClosedUnknownNonReadonlyAccess,
+                                        $"Cannot access non-readonly property '{sym.Name}' on '{typeDisplayName}': the type is treated as readonly because it contains an 'unknown' type argument.",
+                                        memberAccess,
+                                        model));
+                                }
                             }
                         }
-                    }
 
-                    // Update current type to the result of the member access.
-                    currentType = model.GetTypeOf(suffix);
-                    break;
-                }
+                        // Update current type to the result of the member access.
+                        currentType = model.GetTypeOf(suffix);
+                        break;
+                    }
 
                 case IndexSuffixPostfixSuffixNode indexSuffix:
-                {
-                    // Index read: check the indexer getter's ReadonlyStatus.
-                    // Look up the indexer by the canonical name "this[]".
-                    var sym = LookupMemberByName(currentType, "this[]");
-                    if (sym is not null && !IsReadonly(sym.ReadonlyStatus))
                     {
-                        diagnostics.Add(MakeDiagnostic(
-                            ClosedUnknownNonReadonlyAccess,
-                            $"Cannot access non-readonly indexer on '{typeDisplayName}': the type is treated as readonly because it contains an 'unknown' type argument.",
-                            indexSuffix,
-                            model));
-                    }
+                        // Index read: check the indexer getter's ReadonlyStatus.
+                        // Look up the indexer by the canonical name "this[]".
+                        var sym = LookupMemberByName(currentType, "this[]");
+                        if(sym is not null && !IsReadonly(sym.ReadonlyStatus))
+                        {
+                            diagnostics.Add(MakeDiagnostic(
+                                ClosedUnknownNonReadonlyAccess,
+                                $"Cannot access non-readonly indexer on '{typeDisplayName}': the type is treated as readonly because it contains an 'unknown' type argument.",
+                                indexSuffix,
+                                model));
+                        }
 
-                    // Update current type to the result of the index access.
-                    currentType = model.GetTypeOf(suffix);
-                    break;
-                }
+                        // Update current type to the result of the index access.
+                        currentType = model.GetTypeOf(suffix);
+                        break;
+                    }
 
                 default:
                     // For other suffix types (invocation, etc.), update the type and continue.
@@ -2385,7 +2385,7 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
             }
 
             // If the result type is no longer a Closed_Generic_With_Unknown, stop enforcing.
-            if (!IsClosedGenericWithUnknown(currentType))
+            if(!IsClosedGenericWithUnknown(currentType))
                 return;
         }
     }
@@ -2405,18 +2405,18 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
     {
         // Look for pattern: value.member = expr or value[index] = expr
         var postfix = FindPostfixNode(assignment.Target);
-        if (postfix is null)
+        if(postfix is null)
             return;
 
         // The target must be a PostfixNode with at least one suffix.
-        if (postfix.Suffix.Length == 0)
+        if(postfix.Suffix.Length == 0)
             return;
 
         // Determine the receiver type for the last suffix (the one being assigned to).
         // For a single suffix, the receiver is the target. For multiple suffixes,
         // the receiver is the result type of the second-to-last suffix.
         IType? receiverType;
-        if (postfix.Suffix.Length == 1)
+        if(postfix.Suffix.Length == 1)
         {
             receiverType = model.GetTypeOf(postfix.Target);
         }
@@ -2425,62 +2425,62 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
             receiverType = model.GetTypeOf(postfix.Suffix[^2]);
         }
 
-        if (!IsClosedGenericWithUnknown(receiverType))
+        if(!IsClosedGenericWithUnknown(receiverType))
             return;
 
         var typeDisplayName = receiverType!.DisplayName;
         var lastSuffix = postfix.Suffix[^1];
 
-        switch (lastSuffix)
+        switch(lastSuffix)
         {
             case MemberAccessSuffixPostfixSuffixNode memberAccess:
-            {
-                var memberName = memberAccess.Name.Lexeme;
-                var sym = LookupMemberByName(receiverType, memberName);
-                if (sym is not null)
                 {
-                    if (sym.Kind == SymbolKind.Field)
+                    var memberName = memberAccess.Name.Lexeme;
+                    var sym = LookupMemberByName(receiverType, memberName);
+                    if(sym is not null)
                     {
-                        // Field assignment on Closed_Generic_With_Unknown receiver.
-                        diagnostics.Add(MakeDiagnostic(
-                            ClosedUnknownNonReadonlyAccess,
-                            $"Cannot assign to field '{memberName}' on '{typeDisplayName}': the type is treated as readonly because it contains an 'unknown' type argument.",
-                            assignment,
-                            model));
-                        return;
+                        if(sym.Kind == SymbolKind.Field)
+                        {
+                            // Field assignment on Closed_Generic_With_Unknown receiver.
+                            diagnostics.Add(MakeDiagnostic(
+                                ClosedUnknownNonReadonlyAccess,
+                                $"Cannot assign to field '{memberName}' on '{typeDisplayName}': the type is treated as readonly because it contains an 'unknown' type argument.",
+                                assignment,
+                                model));
+                            return;
+                        }
+
+                        if(sym.Kind is SymbolKind.Property or SymbolKind.Indexer)
+                        {
+                            // Setter call on Closed_Generic_With_Unknown receiver.
+                            diagnostics.Add(MakeDiagnostic(
+                                ClosedUnknownNonReadonlyAccess,
+                                $"Cannot call property setter '{memberName}' on '{typeDisplayName}': the type is treated as readonly because it contains an 'unknown' type argument.",
+                                assignment,
+                                model));
+                            return;
+                        }
                     }
 
-                    if (sym.Kind is SymbolKind.Property or SymbolKind.Indexer)
-                    {
-                        // Setter call on Closed_Generic_With_Unknown receiver.
-                        diagnostics.Add(MakeDiagnostic(
-                            ClosedUnknownNonReadonlyAccess,
-                            $"Cannot call property setter '{memberName}' on '{typeDisplayName}': the type is treated as readonly because it contains an 'unknown' type argument.",
-                            assignment,
-                            model));
-                        return;
-                    }
+                    // If we can't resolve the symbol, conservatively treat it as a field assignment.
+                    diagnostics.Add(MakeDiagnostic(
+                        ClosedUnknownNonReadonlyAccess,
+                        $"Cannot assign to field '{memberName}' on '{typeDisplayName}': the type is treated as readonly because it contains an 'unknown' type argument.",
+                        assignment,
+                        model));
+                    break;
                 }
 
-                // If we can't resolve the symbol, conservatively treat it as a field assignment.
-                diagnostics.Add(MakeDiagnostic(
-                    ClosedUnknownNonReadonlyAccess,
-                    $"Cannot assign to field '{memberName}' on '{typeDisplayName}': the type is treated as readonly because it contains an 'unknown' type argument.",
-                    assignment,
-                    model));
-                break;
-            }
-
             case IndexSuffixPostfixSuffixNode:
-            {
-                // Index write (setter) on Closed_Generic_With_Unknown receiver — always prohibited.
-                diagnostics.Add(MakeDiagnostic(
-                    ClosedUnknownNonReadonlyAccess,
-                    $"Cannot call indexer setter on '{typeDisplayName}': the type is treated as readonly because it contains an 'unknown' type argument.",
-                    assignment,
-                    model));
-                break;
-            }
+                {
+                    // Index write (setter) on Closed_Generic_With_Unknown receiver — always prohibited.
+                    diagnostics.Add(MakeDiagnostic(
+                        ClosedUnknownNonReadonlyAccess,
+                        $"Cannot call indexer setter on '{typeDisplayName}': the type is treated as readonly because it contains an 'unknown' type argument.",
+                        assignment,
+                        model));
+                    break;
+                }
         }
     }
 
@@ -2503,7 +2503,7 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
     /// </summary>
     internal static bool IsClosedGenericWithUnknown(IType? type)
     {
-        if (type is not ConstructedType ct)
+        if(type is not ConstructedType ct)
             return false;
         return ContainsUnknownTypeArgument(ct) && !ContainsOpenTypeParameter(ct);
     }
@@ -2514,11 +2514,11 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
     /// </summary>
     internal static bool ContainsUnknownTypeArgument(ConstructedType ct)
     {
-        foreach (var arg in ct.TypeArguments)
+        foreach(var arg in ct.TypeArguments)
         {
-            if (arg is UnknownType)
+            if(arg is UnknownType)
                 return true;
-            if (arg is ConstructedType nested && ContainsUnknownTypeArgument(nested))
+            if(arg is ConstructedType nested && ContainsUnknownTypeArgument(nested))
                 return true;
         }
         return false;
@@ -2530,11 +2530,11 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
     /// </summary>
     internal static bool ContainsOpenTypeParameter(ConstructedType ct)
     {
-        foreach (var arg in ct.TypeArguments)
+        foreach(var arg in ct.TypeArguments)
         {
-            if (arg is TypeParameterType)
+            if(arg is TypeParameterType)
                 return true;
-            if (arg is ConstructedType nested && ContainsOpenTypeParameter(nested))
+            if(arg is ConstructedType nested && ContainsOpenTypeParameter(nested))
                 return true;
         }
         return false;
@@ -2553,23 +2553,23 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
         string? compilationUnitPath = null;
 
         var span = node.Span;
-        if (span.Length > 0)
+        if(span.Length > 0)
         {
             var asts = model.Asts;
             var units = model.Units;
             var astIndex = -1;
 
-            for (var i = 0; i < asts.Length; i++)
+            for(var i = 0; i < asts.Length; i++)
             {
                 var astSpan = asts[i].Span;
-                if (span.Start >= astSpan.Start && span.Start + span.Length <= astSpan.Start + astSpan.Length)
+                if(span.Start >= astSpan.Start && span.Start + span.Length <= astSpan.Start + astSpan.Length)
                 {
                     astIndex = i;
                     break;
                 }
             }
 
-            if (astIndex >= 0 && astIndex < units.Count)
+            if(astIndex >= 0 && astIndex < units.Count)
             {
                 var source = units[astIndex].Source;
                 compilationUnitPath = source.Path;

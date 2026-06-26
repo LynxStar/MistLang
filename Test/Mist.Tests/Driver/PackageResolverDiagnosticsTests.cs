@@ -146,7 +146,7 @@ public sealed class PackageResolverDiagnosticsTests
         // The valid package should resolve (if network is available).
         // We check that the resolved list either contains the good package
         // or the failure count accounts for both (network unavailable scenario).
-        if (result.Resolved.Length > 0)
+        if(result.Resolved.Length > 0)
         {
             var info = result.Resolved.FirstOrDefault(r =>
                 r.Name.Equals("Newtonsoft.Json", StringComparison.OrdinalIgnoreCase));
@@ -172,7 +172,7 @@ public sealed class PackageResolverDiagnosticsTests
             diagnostics);
 
         // If network is available and dotnet is installed, this should succeed.
-        if (!diagnostics.HasErrors)
+        if(!diagnostics.HasErrors)
         {
             Assert.Equal(0, result.FailureCount);
             var info = Assert.Single(result.Resolved);
@@ -181,7 +181,7 @@ public sealed class PackageResolverDiagnosticsTests
             Assert.NotEmpty(result.AssemblyPaths);
 
             // Verify the assembly path points to a real file
-            foreach (var path in result.AssemblyPaths)
+            foreach(var path in result.AssemblyPaths)
             {
                 Assert.True(File.Exists(path), $"Assembly path does not exist: {path}");
             }

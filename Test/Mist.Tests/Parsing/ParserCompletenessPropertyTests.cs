@@ -129,14 +129,14 @@ public class ParserCompletenessPropertyTests
 
         // If the parser is skeletal (MIST_PARSE_STUB), the completeness check cannot
         // be exercised; treat as vacuously satisfied.
-        if (diagnostics.Any(d => d.Id.Value == "MIST_PARSE_STUB"))
+        if(diagnostics.Any(d => d.Id.Value == "MIST_PARSE_STUB"))
         {
             return true.ToProperty().Label("parser skeletal (MIST_PARSE_STUB)");
         }
 
         // If the prefix itself doesn't parse (root is null), the completeness check
         // is not triggered — this scenario is not applicable. Skip gracefully.
-        if (result.Root is null)
+        if(result.Root is null)
         {
             return true.ToProperty().Label("root is null (prefix did not parse)");
         }

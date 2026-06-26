@@ -262,7 +262,7 @@ public class OwnedTypeFieldRestrictionValidPropertyTests
     private static string BuildValueFields(string[] fieldTypes)
     {
         var lines = new List<string>();
-        for (var i = 0; i < fieldTypes.Length; i++)
+        for(var i = 0; i < fieldTypes.Length; i++)
         {
             var fieldName = i < FieldNames.Length ? FieldNames[i] : $"f{i}";
             lines.Add($"{fieldTypes[i]} {fieldName};");

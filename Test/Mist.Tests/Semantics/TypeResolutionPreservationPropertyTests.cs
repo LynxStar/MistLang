@@ -81,7 +81,7 @@ public sealed class TypeResolutionPreservationPropertyTests : IDisposable
 
     public void Dispose()
     {
-        if (Directory.Exists(_outputDir))
+        if(Directory.Exists(_outputDir))
         {
             try { Directory.Delete(_outputDir, recursive: true); } catch { /* best effort */ }
         }
@@ -129,7 +129,7 @@ public sealed class TypeResolutionPreservationPropertyTests : IDisposable
         var userTokens = Lexer.Lex(userSourceText, diagnostics);
         var userParseResult = Parser.Parse(userTokens, diagnostics);
 
-        if (userParseResult.Root is null)
+        if(userParseResult.Root is null)
             return (null!, diagnostics.ToImmutableArray());
 
         var allUnits = stdlibUnits.Add(userUnit);
@@ -439,7 +439,7 @@ public sealed class TypeResolutionPreservationPropertyTests : IDisposable
 
         var result = CompileSource(source);
 
-        if (scenario.ExpectsSuccess)
+        if(scenario.ExpectsSuccess)
         {
             return result.Succeeded.ToProperty()
                 .Label($"Expected compilation success with '{scenario.ExtensionNamespace}' " +

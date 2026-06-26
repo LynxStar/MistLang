@@ -43,7 +43,7 @@ public sealed class BinaryLiteralVerbatimEmissionPropertyTests : IDisposable
 
     public void Dispose()
     {
-        if (Directory.Exists(_outputDir))
+        if(Directory.Exists(_outputDir))
         {
             try { Directory.Delete(_outputDir, recursive: true); } catch { /* best effort */ }
         }
@@ -196,7 +196,7 @@ public sealed class BinaryLiteralVerbatimEmissionPropertyTests : IDisposable
         var sourceText = new SourceText("test.mist", source);
         var bag = new DiagnosticBag();
         var tokens = Lexer.Lex(sourceText, bag);
-        if (bag.HasErrors) return null;
+        if(bag.HasErrors) return null;
         var result = Parser.Parse(tokens, bag);
         return result.Root as CompilationUnitNode;
     }
@@ -218,7 +218,7 @@ public sealed class BinaryLiteralVerbatimEmissionPropertyTests : IDisposable
     private string EmitAndGetCsContent(ISemanticModel model)
     {
         // Clean the output directory for each emission
-        foreach (var file in Directory.GetFiles(_outputDir))
+        foreach(var file in Directory.GetFiles(_outputDir))
             File.Delete(file);
 
         var diagnostics = new DiagnosticBag();
@@ -248,7 +248,7 @@ public sealed class BinaryLiteralVerbatimEmissionPropertyTests : IDisposable
     {
         var root = ParseSource(scenario.Source);
 
-        if (root is null)
+        if(root is null)
             return false.ToProperty()
                 .Label($"Parse failed for: {scenario.Source}");
 
@@ -275,7 +275,7 @@ public sealed class BinaryLiteralVerbatimEmissionPropertyTests : IDisposable
     {
         var root = ParseSource(scenario.Source);
 
-        if (root is null)
+        if(root is null)
             return false.ToProperty()
                 .Label($"Parse failed for: {scenario.Source}");
 

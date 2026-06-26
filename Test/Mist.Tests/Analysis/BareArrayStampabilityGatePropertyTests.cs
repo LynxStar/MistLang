@@ -215,7 +215,7 @@ public sealed class BareArrayStampabilityGatePropertyTests
     {
         var fields = new List<string>();
         var primitives = PrimitiveTypes;
-        for (var i = 0; i < fieldCount; i++)
+        for(var i = 0; i < fieldCount; i++)
         {
             fields.Add($"    public {primitives[i % primitives.Length]} field{i};");
         }
@@ -336,7 +336,7 @@ public sealed class BareArrayStampabilityGatePropertyTests
             .Where(d => d.Id.Value != "MIST_ARRAY_REQUIRES_INITIALIZER")
             .ToList();
 
-        if (scenario.ExpectStampable)
+        if(scenario.ExpectStampable)
         {
             // Stampable: should compile without the array diagnostic
             // and without other errors

@@ -57,7 +57,7 @@ public sealed class MoveBoundaryClonableSourcePropertyTests : IDisposable
 
     public void Dispose()
     {
-        if (Directory.Exists(_outputDir))
+        if(Directory.Exists(_outputDir))
         {
             try { Directory.Delete(_outputDir, recursive: true); } catch { /* best effort */ }
         }
@@ -134,15 +134,15 @@ public sealed class MoveBoundaryClonableSourcePropertyTests : IDisposable
     private static (SyntaxNode Initializer, Mist.Semantics.Contracts.IType? DestinationType)? FindOwnedBindingInitializer(
         ISemanticModel model, string bindingName)
     {
-        foreach (var symbol in model.AllSymbols)
+        foreach(var symbol in model.AllSymbols)
         {
-            if (symbol.Origin != SymbolOrigin.UserCode)
+            if(symbol.Origin != SymbolOrigin.UserCode)
                 continue;
-            if (symbol.Kind != SymbolKind.LocalVariable)
+            if(symbol.Kind != SymbolKind.LocalVariable)
                 continue;
-            if (symbol.Name != bindingName)
+            if(symbol.Name != bindingName)
                 continue;
-            if (symbol is not Symbol varSymbol || varSymbol.OwnershipTier != OwnershipTier.Owned)
+            if(symbol is not Symbol varSymbol || varSymbol.OwnershipTier != OwnershipTier.Owned)
                 continue;
 
             SyntaxNode declaringNode;
@@ -150,7 +150,7 @@ public sealed class MoveBoundaryClonableSourcePropertyTests : IDisposable
             catch { return null; }
 
             var initializer = GetInitializerExpression(declaringNode);
-            if (initializer is null)
+            if(initializer is null)
                 return null;
 
             return (initializer, varSymbol.DeclaredType);
@@ -231,7 +231,7 @@ public sealed class MoveBoundaryClonableSourcePropertyTests : IDisposable
         sb.Append("using Standard;\n\nnamespace Gen;\n\n");
 
         // A clonable helper class (all-int fields → auto-derives IClonable<Helper>).
-        if (usesHelper)
+        if(usesHelper)
         {
             sb.Append("public class Helper\n{\n    public int hv;\n}\n\n");
         }
@@ -239,7 +239,7 @@ public sealed class MoveBoundaryClonableSourcePropertyTests : IDisposable
         // The non-owned reference source type S.
         var clonableClause = declaresExplicit ? " : IClonable<S>" : "";
         sb.Append($"public class S{clonableClause}\n{{\n");
-        for (var i = 0; i < fields.Count; i++)
+        for(var i = 0; i < fields.Count; i++)
         {
             var typeText = fields[i] switch
             {
@@ -251,7 +251,7 @@ public sealed class MoveBoundaryClonableSourcePropertyTests : IDisposable
             sb.Append($"    public {typeText} f{i};\n");
         }
 
-        if (declaresExplicit)
+        if(declaresExplicit)
         {
             // A Clone() satisfying IClonable<S>; `default` is a fresh owned graph (Req 6.10).
             sb.Append("    public owned S Clone() { return default; }\n");
@@ -289,11 +289,11 @@ public sealed class MoveBoundaryClonableSourcePropertyTests : IDisposable
     {
         var model = CompileAndCapture(scenario.Source);
 
-        if (model is null)
+        if(model is null)
             return false.ToProperty().Label($"Semantic model was null (compilation failed early).\nSource:\n{scenario.Source}");
 
         var located = FindOwnedBindingInitializer(model, "x");
-        if (located is null)
+        if(located is null)
             return false.ToProperty().Label($"Could not locate owned binding 'x' or its initializer.\nSource:\n{scenario.Source}");
 
         var (initializer, destinationType) = located.Value;
@@ -311,7 +311,7 @@ public sealed class MoveBoundaryClonableSourcePropertyTests : IDisposable
             model,
             diagnostics);
 
-        if (resolution.Outcome != MoveOutcome.ImplicitClone)
+        if(resolution.Outcome != MoveOutcome.ImplicitClone)
         {
             return false.ToProperty().Label(
                 $"Expected Resolve == ImplicitClone for a non-owned clonable reference source, "
@@ -320,7 +320,7 @@ public sealed class MoveBoundaryClonableSourcePropertyTests : IDisposable
 
         // "Exactly one clone": the resolver records a single implicit-clone annotation
         // for the source, so GetImplicitCloneDestination must be non-null.
-        if (model.GetImplicitCloneDestination(initializer) is null)
+        if(model.GetImplicitCloneDestination(initializer) is null)
         {
             return false.ToProperty().Label(
                 $"Resolve returned ImplicitClone but no implicit-clone annotation was recorded "

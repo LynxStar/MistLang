@@ -41,7 +41,7 @@ public class AssociatedTypeGenericContextPropertyTests
 
         var parseDiag = new DiagnosticBag();
         var parseResult = Parser.Parse(tokens, parseDiag);
-        if (parseResult.Root is null)
+        if(parseResult.Root is null)
             return lexDiag.ToImmutableArray().AddRange(parseDiag.ToImmutableArray());
 
         var (model, buildDiag) = StdlibTestHelper.BuildModelWithStdlib(
@@ -180,7 +180,7 @@ public class AssociatedTypeGenericContextPropertyTests
         var sb = new System.Text.StringBuilder();
 
         // If the slot has a constraint abstract type, declare it
-        if (scenario.HasSlotConstraint)
+        if(scenario.HasSlotConstraint)
         {
             sb.AppendLine($"abstract {scenario.SlotConstraintAbstractName} {{");
             sb.AppendLine($"    int {scenario.SlotConstraintMethodName}();");
@@ -190,7 +190,7 @@ public class AssociatedTypeGenericContextPropertyTests
 
         // Declare the abstract type with the associated type slot
         sb.AppendLine($"abstract {scenario.AbstractName} {{");
-        if (scenario.HasSlotConstraint)
+        if(scenario.HasSlotConstraint)
         {
             sb.AppendLine($"    type {scenario.SlotName} : {scenario.SlotConstraintAbstractName};");
         }
@@ -266,7 +266,7 @@ public class AssociatedTypeGenericContextPropertyTests
             d.Id.Value == "MIST_AT_0004" ||
             d.Id.Value == "MIST_UNDEFINED_TYPE").ToList();
 
-        if (typeErrors.Count > 0)
+        if(typeErrors.Count > 0)
         {
             return false.ToProperty()
                 .Label($"Expected no MIST_AT_0004 or MIST_UNDEFINED_TYPE but got {typeErrors.Count}.\n" +
@@ -293,7 +293,7 @@ public class AssociatedTypeGenericContextPropertyTests
     {
         // Only test scenarios that have a slot constraint — member access is
         // only meaningful when the slot has a constraint abstract type.
-        if (!scenario.HasSlotConstraint)
+        if(!scenario.HasSlotConstraint)
             return true.ToProperty().Label("Skipped: no slot constraint");
 
         var source = BuildSourceWithMemberAccess(scenario);
@@ -305,7 +305,7 @@ public class AssociatedTypeGenericContextPropertyTests
             d.Id.Value == "MIST_UNDEFINED_TYPE" ||
             d.Id.Value == "MIST_SM_0009").ToList();
 
-        if (typeErrors.Count > 0)
+        if(typeErrors.Count > 0)
         {
             return false.ToProperty()
                 .Label($"Expected member access on constrained slot to be accepted but got errors.\n" +

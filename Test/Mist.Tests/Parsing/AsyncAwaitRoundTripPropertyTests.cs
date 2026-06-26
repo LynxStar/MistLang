@@ -52,7 +52,7 @@ public class AsyncAwaitRoundTripPropertyTests
             .Where(d => d.Severity == DiagnosticSeverity.Error)
             .ToList();
 
-        if (errors.Count > 0)
+        if(errors.Count > 0)
             throw new InvalidOperationException(
                 $"Unexpected parse errors:\n  {string.Join("\n  ", errors.Select(e => e.Message))}\nSource:\n{source}");
 
@@ -80,7 +80,7 @@ public class AsyncAwaitRoundTripPropertyTests
         // Step 2: Pretty-print AST1 → printed1
         var printed1 = MistPrettyPrinter.Print(ast1, scenario.Source);
 
-        if (string.IsNullOrWhiteSpace(printed1))
+        if(string.IsNullOrWhiteSpace(printed1))
             return false.ToProperty().Label("printed1 was empty");
 
         // Step 3: Parse printed1 → AST2

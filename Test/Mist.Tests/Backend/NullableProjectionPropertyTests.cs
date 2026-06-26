@@ -193,25 +193,25 @@ public sealed class NullableProjectionPropertyTests
 
     private static Property VerifyNullableValueTypeProjection(IType result, NullableProjectionScenario scenario)
     {
-        if (result is not UnionType union)
+        if(result is not UnionType union)
         {
             return false.ToProperty()
                 .Label($"Expected UnionType for Nullable<T> but got {result.GetType().Name}: {scenario}");
         }
 
-        if (union.Constituents.Count != 2)
+        if(union.Constituents.Count != 2)
         {
             return false.ToProperty()
                 .Label($"Expected 2 constituents (T | void) but got {union.Constituents.Count}: {scenario}");
         }
 
-        if (union.NullableProjection is null)
+        if(union.NullableProjection is null)
         {
             return false.ToProperty()
                 .Label($"Expected NullableProjection metadata but was null: {scenario}");
         }
 
-        if (union.NullableProjection.Origin != NullableOrigin.NullableValueType)
+        if(union.NullableProjection.Origin != NullableOrigin.NullableValueType)
         {
             return false.ToProperty()
                 .Label($"Expected NullableValueType origin but got {union.NullableProjection.Origin}: {scenario}");
@@ -219,7 +219,7 @@ public sealed class NullableProjectionPropertyTests
 
         // Verify one constituent is void
         var hasVoid = union.Constituents.Any(c => c.DisplayName == "void");
-        if (!hasVoid)
+        if(!hasVoid)
         {
             return false.ToProperty()
                 .Label($"Expected void constituent in union but not found: {scenario}");
@@ -231,25 +231,25 @@ public sealed class NullableProjectionPropertyTests
 
     private static Property VerifyReferenceTypeProjection(IType result, NullableProjectionScenario scenario)
     {
-        if (result is not UnionType union)
+        if(result is not UnionType union)
         {
             return false.ToProperty()
                 .Label($"Expected UnionType for reference type but got {result.GetType().Name}: {scenario}");
         }
 
-        if (union.Constituents.Count != 2)
+        if(union.Constituents.Count != 2)
         {
             return false.ToProperty()
                 .Label($"Expected 2 constituents (T | void) but got {union.Constituents.Count}: {scenario}");
         }
 
-        if (union.NullableProjection is null)
+        if(union.NullableProjection is null)
         {
             return false.ToProperty()
                 .Label($"Expected NullableProjection metadata but was null: {scenario}");
         }
 
-        if (union.NullableProjection.Origin != NullableOrigin.ReferenceType)
+        if(union.NullableProjection.Origin != NullableOrigin.ReferenceType)
         {
             return false.ToProperty()
                 .Label($"Expected ReferenceType origin but got {union.NullableProjection.Origin}: {scenario}");
@@ -257,7 +257,7 @@ public sealed class NullableProjectionPropertyTests
 
         // Verify one constituent is void
         var hasVoid = union.Constituents.Any(c => c.DisplayName == "void");
-        if (!hasVoid)
+        if(!hasVoid)
         {
             return false.ToProperty()
                 .Label($"Expected void constituent in union but not found: {scenario}");
@@ -269,7 +269,7 @@ public sealed class NullableProjectionPropertyTests
 
     private static Property VerifyPlainValueTypeProjection(IType result, NullableProjectionScenario scenario)
     {
-        if (result is UnionType union)
+        if(result is UnionType union)
         {
             return false.ToProperty()
                 .Label($"Expected plain type (no union) for non-nullable value type but got UnionType " +

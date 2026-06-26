@@ -58,7 +58,7 @@ public sealed class MoveBoundaryNotClonablePropertyTests : IDisposable
 
     public void Dispose()
     {
-        if (Directory.Exists(_outputDir))
+        if(Directory.Exists(_outputDir))
         {
             try { Directory.Delete(_outputDir, recursive: true); } catch { /* best effort */ }
         }
@@ -138,15 +138,15 @@ public sealed class MoveBoundaryNotClonablePropertyTests : IDisposable
     private static (SyntaxNode Initializer, IType? DestinationType)? FindOwnedBindingInitializer(
         ISemanticModel model, string bindingName)
     {
-        foreach (var symbol in model.AllSymbols)
+        foreach(var symbol in model.AllSymbols)
         {
-            if (symbol.Origin != SymbolOrigin.UserCode)
+            if(symbol.Origin != SymbolOrigin.UserCode)
                 continue;
-            if (symbol.Kind != SymbolKind.LocalVariable)
+            if(symbol.Kind != SymbolKind.LocalVariable)
                 continue;
-            if (symbol.Name != bindingName)
+            if(symbol.Name != bindingName)
                 continue;
-            if (symbol is not Symbol varSymbol || varSymbol.OwnershipTier != OwnershipTier.Owned)
+            if(symbol is not Symbol varSymbol || varSymbol.OwnershipTier != OwnershipTier.Owned)
                 continue;
 
             SyntaxNode declaringNode;
@@ -154,7 +154,7 @@ public sealed class MoveBoundaryNotClonablePropertyTests : IDisposable
             catch { return null; }
 
             var initializer = GetInitializerExpression(declaringNode);
-            if (initializer is null)
+            if(initializer is null)
                 return null;
 
             return (initializer, varSymbol.DeclaredType);
@@ -286,11 +286,11 @@ public sealed class MoveBoundaryNotClonablePropertyTests : IDisposable
     {
         var model = CompileAndCapture(scenario.Source);
 
-        if (model is null)
+        if(model is null)
             return false.ToProperty().Label($"Semantic model was null (compilation failed early).\nSource:\n{scenario.Source}");
 
         var located = FindOwnedBindingInitializer(model, scenario.OwnedVarName);
-        if (located is null)
+        if(located is null)
         {
             return false.ToProperty().Label(
                 $"Could not locate owned binding '{scenario.OwnedVarName}' or its initializer.\nSource:\n{scenario.Source}");
@@ -310,7 +310,7 @@ public sealed class MoveBoundaryNotClonablePropertyTests : IDisposable
             model,
             diagnostics);
 
-        if (resolution.Outcome != MoveOutcome.Error)
+        if(resolution.Outcome != MoveOutcome.Error)
         {
             return false.ToProperty().Label(
                 $"Expected Outcome=Error for a non-owned non-clonable source, but got {resolution.Outcome}.\n"
@@ -318,7 +318,7 @@ public sealed class MoveBoundaryNotClonablePropertyTests : IDisposable
         }
 
         var emitted = diagnostics.ToImmutableArray();
-        if (!emitted.Any(d => d.Id.Value == NotClonableId))
+        if(!emitted.Any(d => d.Id.Value == NotClonableId))
         {
             var ids = string.Join(", ", emitted.Select(d => d.Id.Value));
             return false.ToProperty().Label(

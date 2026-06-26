@@ -84,47 +84,47 @@ public class PropertyRegistrationPropertyTests
         var model = BuildSemanticModel(ast);
         var propSymbol = GetPropertySymbols(model).FirstOrDefault();
 
-        if (propSymbol is null)
+        if(propSymbol is null)
             return false.ToProperty().Label("No property symbol found");
 
         var metadata = (propSymbol as Symbol)?.PropertyMetadata;
-        if (metadata is null)
+        if(metadata is null)
             return false.ToProperty().Label("PropertyMetadata is null");
 
         // Verify accessor presence matches the declaration
-        switch (propDecl)
+        switch(propDecl)
         {
             case BlockPropertyPropertyDeclarationNode blockProp:
-            {
-                var hasGetDecl = blockProp.Accessors.Any(a =>
-                    a is AutoGetAccessorAccessorDeclarationNode or
-                       BlockGetAccessorAccessorDeclarationNode or
-                       ExpressionGetAccessorAccessorDeclarationNode);
-                var hasSetDecl = blockProp.Accessors.Any(a =>
-                    a is AutoSetAccessorAccessorDeclarationNode or
-                       BlockSetAccessorAccessorDeclarationNode or
-                       ExpressionSetAccessorAccessorDeclarationNode);
-                var hasInitDecl = blockProp.Accessors.Any(a =>
-                    a is AutoInitAccessorAccessorDeclarationNode or
-                       BlockInitAccessorAccessorDeclarationNode or
-                       ExpressionInitAccessorAccessorDeclarationNode);
+                {
+                    var hasGetDecl = blockProp.Accessors.Any(a =>
+                        a is AutoGetAccessorAccessorDeclarationNode or
+                           BlockGetAccessorAccessorDeclarationNode or
+                           ExpressionGetAccessorAccessorDeclarationNode);
+                    var hasSetDecl = blockProp.Accessors.Any(a =>
+                        a is AutoSetAccessorAccessorDeclarationNode or
+                           BlockSetAccessorAccessorDeclarationNode or
+                           ExpressionSetAccessorAccessorDeclarationNode);
+                    var hasInitDecl = blockProp.Accessors.Any(a =>
+                        a is AutoInitAccessorAccessorDeclarationNode or
+                           BlockInitAccessorAccessorDeclarationNode or
+                           ExpressionInitAccessorAccessorDeclarationNode);
 
-                var getMatch = metadata.HasGet == hasGetDecl;
-                var setMatch = metadata.HasSet == hasSetDecl;
-                var initMatch = metadata.HasInit == hasInitDecl;
+                    var getMatch = metadata.HasGet == hasGetDecl;
+                    var setMatch = metadata.HasSet == hasSetDecl;
+                    var initMatch = metadata.HasInit == hasInitDecl;
 
-                return (getMatch && setMatch && initMatch).ToProperty()
-                    .Label($"Accessor mismatch: HasGet={metadata.HasGet}(expected {hasGetDecl}), " +
-                           $"HasSet={metadata.HasSet}(expected {hasSetDecl}), " +
-                           $"HasInit={metadata.HasInit}(expected {hasInitDecl})");
-            }
+                    return (getMatch && setMatch && initMatch).ToProperty()
+                        .Label($"Accessor mismatch: HasGet={metadata.HasGet}(expected {hasGetDecl}), " +
+                               $"HasSet={metadata.HasSet}(expected {hasSetDecl}), " +
+                               $"HasInit={metadata.HasInit}(expected {hasInitDecl})");
+                }
             case ExpressionBodiedPropertyPropertyDeclarationNode:
-            {
-                // Expression-bodied properties always have get, no set/init
-                return (metadata.HasGet && !metadata.HasSet && !metadata.HasInit).ToProperty()
-                    .Label($"Expression-bodied property should have get only. " +
-                           $"HasGet={metadata.HasGet}, HasSet={metadata.HasSet}, HasInit={metadata.HasInit}");
-            }
+                {
+                    // Expression-bodied properties always have get, no set/init
+                    return (metadata.HasGet && !metadata.HasSet && !metadata.HasInit).ToProperty()
+                        .Label($"Expression-bodied property should have get only. " +
+                               $"HasGet={metadata.HasGet}, HasSet={metadata.HasSet}, HasInit={metadata.HasInit}");
+                }
             default:
                 return true.ToProperty();
         }
@@ -139,11 +139,11 @@ public class PropertyRegistrationPropertyTests
         var model = BuildSemanticModel(ast);
         var propSymbol = GetPropertySymbols(model).FirstOrDefault();
 
-        if (propSymbol is null)
+        if(propSymbol is null)
             return false.ToProperty().Label("No property symbol found");
 
         var metadata = (propSymbol as Symbol)?.PropertyMetadata;
-        if (metadata is null)
+        if(metadata is null)
             return false.ToProperty().Label("PropertyMetadata is null");
 
         var expectedStatic = propDecl switch
@@ -166,14 +166,14 @@ public class PropertyRegistrationPropertyTests
         var model = BuildSemanticModel(ast);
         var propSymbol = GetPropertySymbols(model).FirstOrDefault();
 
-        if (propSymbol is null)
+        if(propSymbol is null)
             return false.ToProperty().Label("No property symbol found");
 
         var metadata = (propSymbol as Symbol)?.PropertyMetadata;
-        if (metadata is null)
+        if(metadata is null)
             return false.ToProperty().Label("PropertyMetadata is null");
 
-        if (metadata.IsComputed)
+        if(metadata.IsComputed)
         {
             return (metadata.BackingField is null).ToProperty()
                 .Label("Computed property should have no backing field");
@@ -186,7 +186,7 @@ public class PropertyRegistrationPropertyTests
                 (metadata.SetAccessor?.BodyKind == AccessorBodyKind.Auto) ||
                 (metadata.InitAccessor?.BodyKind == AccessorBodyKind.Auto);
 
-            if (hasAutoAccessor)
+            if(hasAutoAccessor)
             {
                 return (metadata.BackingField is not null).ToProperty()
                     .Label("Non-computed property with auto accessor should have backing field");

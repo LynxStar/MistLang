@@ -206,20 +206,20 @@ public static class MistSwitchExpressionGenerator
     public static Gen<SwitchExpressionSourceScenario> GenBoolSwitchExpression()
     {
         var exhaustiveByConstants = from trailingComma in Gen.Elements(true, false)
-                                   from result1 in GenResultExpression()
-                                   from result2 in GenResultExpression()
-                                   let comma = trailingComma ? "," : ""
-                                   select $"true => {result1}, false => {result2}{comma}";
+                                    from result1 in GenResultExpression()
+                                    from result2 in GenResultExpression()
+                                    let comma = trailingComma ? "," : ""
+                                    select $"true => {result1}, false => {result2}{comma}";
 
         var exhaustiveByCatchAll = from armCount in Gen.Choose(0, 2)
-                                  from arms in Gen.ArrayOf(GenBoolArm(), armCount)
-                                  from catchAll in GenCatchAllArm()
-                                  from trailingComma in Gen.Elements(true, false)
-                                  let comma = trailingComma ? "," : ""
-                                  let allArms = arms.Length > 0
-                                      ? string.Join(", ", arms) + ", " + catchAll + comma
-                                      : catchAll + comma
-                                  select allArms;
+                                   from arms in Gen.ArrayOf(GenBoolArm(), armCount)
+                                   from catchAll in GenCatchAllArm()
+                                   from trailingComma in Gen.Elements(true, false)
+                                   let comma = trailingComma ? "," : ""
+                                   let allArms = arms.Length > 0
+                                       ? string.Join(", ", arms) + ", " + catchAll + comma
+                                       : catchAll + comma
+                                   select allArms;
 
         return from varName in Gen.Elements(VarNames)
                from resultVar in Gen.Elements(ResultVarNames)
@@ -288,14 +288,14 @@ public static class MistSwitchExpressionGenerator
 
         // Exhaustive by catch-all
         var exhaustiveByCatchAll = from armCount in Gen.Choose(0, 2)
-                                  from arms in Gen.ArrayOf(GenUnionArm(), armCount)
-                                  from catchAll in GenCatchAllArm()
-                                  from trailingComma in Gen.Elements(true, false)
-                                  let comma = trailingComma ? "," : ""
-                                  let allArms = arms.Length > 0
-                                      ? string.Join(", ", arms) + ", " + catchAll + comma
-                                      : catchAll + comma
-                                  select allArms;
+                                   from arms in Gen.ArrayOf(GenUnionArm(), armCount)
+                                   from catchAll in GenCatchAllArm()
+                                   from trailingComma in Gen.Elements(true, false)
+                                   let comma = trailingComma ? "," : ""
+                                   let allArms = arms.Length > 0
+                                       ? string.Join(", ", arms) + ", " + catchAll + comma
+                                       : catchAll + comma
+                                   select allArms;
 
         return from varName in Gen.Elements(VarNames)
                from resultVar in Gen.Elements(ResultVarNames)

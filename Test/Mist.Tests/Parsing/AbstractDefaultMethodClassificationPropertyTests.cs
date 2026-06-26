@@ -57,7 +57,7 @@ public class AbstractDefaultMethodClassificationPropertyTests
     {
         return Gen.Choose(0, 3).SelectMany(count =>
         {
-            if (count == 0)
+            if(count == 0)
                 return Gen.Constant("");
 
             return Gen.ArrayOf(
@@ -69,7 +69,7 @@ public class AbstractDefaultMethodClassificationPropertyTests
                 .Select(parts =>
                 {
                     var used = new List<string>();
-                    for (var i = 0; i < parts.Length; i++)
+                    for(var i = 0; i < parts.Length; i++)
                     {
                         var name = parts[i].Split(' ')[1] + i;
                         var type = parts[i].Split(' ')[0];
@@ -108,13 +108,13 @@ public class AbstractDefaultMethodClassificationPropertyTests
         var result = Parser.Parse(tokens, bag);
         var diagnostics = bag.ToImmutableArray();
 
-        if (result.Root is not CompilationUnitNode cu)
+        if(result.Root is not CompilationUnitNode cu)
             return (null, diagnostics);
 
         var types = cu.GetTypes();
-        if (types.IsEmpty)
+        if(types.IsEmpty)
             return (null, diagnostics);
-        if (types[0] is not AbstractTypeTypeDeclarationNode abstractType)
+        if(types[0] is not AbstractTypeTypeDeclarationNode abstractType)
             return (null, diagnostics);
 
         var members = abstractType.AbstractDeclaration.Members;
@@ -127,14 +127,14 @@ public class AbstractDefaultMethodClassificationPropertyTests
         var (member, diagnostics) = ParseMember(scenario.Source);
 
         var errors = diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error).ToList();
-        if (errors.Count > 0)
+        if(errors.Count > 0)
             return false.ToProperty().Label(
                 $"Unexpected parse errors for [{scenario.Source}]:\n  {string.Join("\n  ", errors.Select(e => e.Message))}");
 
-        if (member is null)
+        if(member is null)
             return false.ToProperty().Label($"Could not extract a single member from: {scenario.Source}");
 
-        if (scenario.HasBody)
+        if(scenario.HasBody)
         {
             return (member is AbstractDefaultMethodMemberAbstractMemberDeclarationNode)
                 .ToProperty()

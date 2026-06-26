@@ -91,7 +91,7 @@ public class BackwardCompatibleSingleLookupPropertyTests
         scope.AddMember(targetSymbol);
 
         // Add unrelated symbols with different names
-        for (var i = 0; i < scenario.OtherCount; i++)
+        for(var i = 0; i < scenario.OtherCount; i++)
         {
             var otherName = $"other_{i}";
             scope.AddMember(MakeSymbol(otherName, SymbolKind.Field, scope));
@@ -119,7 +119,7 @@ public class BackwardCompatibleSingleLookupPropertyTests
 
         // Create a child scope with only unrelated symbols
         var child = new Scope(parent: parent);
-        for (var i = 0; i < scenario.OtherCount; i++)
+        for(var i = 0; i < scenario.OtherCount; i++)
         {
             var otherName = $"other_{i}";
             child.AddMember(MakeSymbol(otherName, SymbolKind.Field, child));
@@ -145,7 +145,7 @@ public class BackwardCompatibleSingleLookupPropertyTests
         var targetSymbol = MakeSymbol(scenario.TargetName, scenario.TargetKind, scope);
         scope.AddMember(targetSymbol);
 
-        for (var i = 0; i < scenario.OtherCount; i++)
+        for(var i = 0; i < scenario.OtherCount; i++)
         {
             scope.AddMember(MakeSymbol($"other_{i}", SymbolKind.Field, scope));
         }
@@ -221,7 +221,7 @@ public class BackwardCompatibleSingleLookupPropertyTests
         var scope = new Scope(parent: null);
 
         // Add many unrelated symbols
-        for (var i = 0; i < 20; i++)
+        for(var i = 0; i < 20; i++)
         {
             scope.AddMember(MakeSymbol($"other_{i}", SymbolKind.Field, scope));
         }

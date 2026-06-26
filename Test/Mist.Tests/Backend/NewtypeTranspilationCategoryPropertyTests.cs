@@ -174,13 +174,13 @@ public sealed class NewtypeTranspilationCategoryPropertyTests
         // Lex
         var lexBag = new DiagnosticBag();
         var tokens = Lexer.Lex(sourceText, lexBag);
-        if (lexBag.HasErrors)
+        if(lexBag.HasErrors)
             return (false, "", FormatDiagnostics(lexBag));
 
         // Parse
         var parseBag = new DiagnosticBag();
         var parseResult = Parser.Parse(tokens, parseBag);
-        if (parseBag.HasErrors || parseResult.Root is null)
+        if(parseBag.HasErrors || parseResult.Root is null)
             return (false, "", FormatDiagnostics(parseBag));
 
         // Semantic model
@@ -193,13 +193,13 @@ public sealed class NewtypeTranspilationCategoryPropertyTests
             projectFolder: "/test",
             semBag);
 
-        if (semBag.HasErrors)
+        if(semBag.HasErrors)
             return (false, "", FormatDiagnostics(semBag));
 
         // Type checker (ignore entry point diagnostic — test programs don't need Main)
         var tcBag = new DiagnosticBag();
         TypeChecker.Analyze(model, tcBag);
-        if (tcBag.ToImmutableArray().Any(d =>
+        if(tcBag.ToImmutableArray().Any(d =>
             d.Severity == DiagnosticSeverity.Error && d.Id.Value != "MIST_TC_0017"))
             return (false, "", FormatDiagnostics(tcBag));
 
@@ -207,12 +207,12 @@ public sealed class NewtypeTranspilationCategoryPropertyTests
         var emitBag = new DiagnosticBag();
         var files = CSharpEmitter.EmitToMemory(model, "TestProgram", emitBag);
 
-        if (emitBag.HasErrors)
+        if(emitBag.HasErrors)
             return (false, "", FormatDiagnostics(emitBag));
 
         // Concatenate all emitted .cs content
         var sb = new StringBuilder();
-        foreach (var (_, content) in files)
+        foreach(var (_, content) in files)
             sb.AppendLine(content);
 
         return (true, sb.ToString(), "");
@@ -245,7 +245,7 @@ public sealed class NewtypeTranspilationCategoryPropertyTests
     {
         var (succeeded, csContent, diagnosticText) = CompileInMemory(scenario.Source);
 
-        if (!succeeded)
+        if(!succeeded)
         {
             return false.ToProperty()
                 .Label($"Compilation failed:\n{diagnosticText}")
@@ -256,7 +256,7 @@ public sealed class NewtypeTranspilationCategoryPropertyTests
         var expectedPattern = $"public {scenario.ExpectedCategory} {scenario.NewtypeName}";
         var containsExpected = csContent.Contains(expectedPattern);
 
-        if (!containsExpected)
+        if(!containsExpected)
         {
             // Check if the opposite category was emitted (a clear violation)
             var oppositeCategory = scenario.ExpectedCategory == "class" ? "struct" : "class";

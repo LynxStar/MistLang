@@ -51,7 +51,7 @@ public sealed partial class ClassAbstractEmissionPropertyTests : IDisposable
 
     public void Dispose()
     {
-        if (Directory.Exists(_outputDir))
+        if(Directory.Exists(_outputDir))
         {
             try { Directory.Delete(_outputDir, recursive: true); } catch { /* best effort */ }
         }
@@ -106,7 +106,7 @@ public sealed partial class ClassAbstractEmissionPropertyTests : IDisposable
             Members = members,
         };
 
-        if (parentAbstractName is not null)
+        if(parentAbstractName is not null)
         {
             var _abstractList1 = MakeBaseList(parentAbstractName);
 
@@ -129,7 +129,7 @@ public sealed partial class ClassAbstractEmissionPropertyTests : IDisposable
             Members = members ?? ImmutableArray<MemberDeclarationNode>.Empty,
         };
 
-        if (baseOrAbstractName is not null)
+        if(baseOrAbstractName is not null)
         {
             var _baseList1 = MakeBaseList(baseOrAbstractName);
 
@@ -194,9 +194,9 @@ public sealed partial class ClassAbstractEmissionPropertyTests : IDisposable
 
     private void CleanOutputDir()
     {
-        if (Directory.Exists(_outputDir))
+        if(Directory.Exists(_outputDir))
         {
-            foreach (var file in Directory.GetFiles(_outputDir))
+            foreach(var file in Directory.GetFiles(_outputDir))
                 File.Delete(file);
         }
     }
@@ -241,9 +241,9 @@ public sealed partial class ClassAbstractEmissionPropertyTests : IDisposable
             get
             {
                 var parts = ImmutableArray.CreateBuilder<string>();
-                if (BaseClassName is not null)
+                if(BaseClassName is not null)
                     parts.Add(BaseClassName);
-                if (AbstractName is not null)
+                if(AbstractName is not null)
                     parts.Add(AbstractName);
                 return parts.ToImmutable();
             }
@@ -349,7 +349,7 @@ public sealed partial class ClassAbstractEmissionPropertyTests : IDisposable
         var typeDecls = new List<TypeDeclarationNode>();
 
         // 1. Declare the abstract (if any)
-        if (scenario.AbstractName is not null)
+        if(scenario.AbstractName is not null)
         {
             var method = MakeAbstractMethod(MethodNamePool[0]);
             var abstractDecl = MakeAbstractDecl(scenario.AbstractName,
@@ -358,7 +358,7 @@ public sealed partial class ClassAbstractEmissionPropertyTests : IDisposable
         }
 
         // 2. Declare the base class (if any)
-        if (scenario.BaseClassName is not null)
+        if(scenario.BaseClassName is not null)
         {
             typeDecls.Add(WrapClass(MakeClassDecl(scenario.BaseClassName)));
         }
@@ -391,20 +391,20 @@ public sealed partial class ClassAbstractEmissionPropertyTests : IDisposable
         var sb = new System.Text.StringBuilder();
 
         // Declare abstract
-        if (scenario.AbstractName is not null)
+        if(scenario.AbstractName is not null)
         {
             sb.AppendLine($"abstract {scenario.AbstractName} {{ void {MethodNamePool[0]}(); }}");
         }
 
         // Declare base class
-        if (scenario.BaseClassName is not null)
+        if(scenario.BaseClassName is not null)
         {
             sb.AppendLine($"class {scenario.BaseClassName} {{ }}");
         }
 
         // Declare test class with inheritance clause
         var parts = scenario.ExpectedInheritanceParts;
-        if (parts.Length > 0)
+        if(parts.Length > 0)
             sb.AppendLine($"class {scenario.ClassName} : {string.Join(", ", parts)} {{ }}");
         else
             sb.AppendLine($"class {scenario.ClassName} {{ }}");
@@ -438,13 +438,13 @@ public sealed partial class ClassAbstractEmissionPropertyTests : IDisposable
         var model = BuildModel(ast, source);
         var csContent = EmitAndGetCsContent(model);
 
-        if (string.IsNullOrEmpty(csContent))
+        if(string.IsNullOrEmpty(csContent))
             return false;
 
         // Parse all class declarations from the emitted C#
         var matches = ClassDeclWithInheritancePattern().Matches(csContent);
         var emittedClasses = new Dictionary<string, string?>();
-        foreach (Match match in matches)
+        foreach(Match match in matches)
         {
             var className = match.Groups[1].Value;
             var inheritanceClause = match.Groups[2].Success ? match.Groups[2].Value.Trim() : null;
@@ -452,27 +452,27 @@ public sealed partial class ClassAbstractEmissionPropertyTests : IDisposable
         }
 
         // Verify the test class is present in the emitted output
-        if (!emittedClasses.TryGetValue(scenario.ClassName, out var actualClause))
+        if(!emittedClasses.TryGetValue(scenario.ClassName, out var actualClause))
             return false;
 
         // Build the expected inheritance clause
         var expectedParts = scenario.ExpectedInheritanceParts;
 
-        if (expectedParts.Length == 0)
+        if(expectedParts.Length == 0)
         {
             // Requirement 2.3: No inheritance clause when no base class and no abstracts
             return actualClause is null;
         }
 
         // Requirements 2.1, 2.2, 2.4: Inheritance clause with correct order
-        if (actualClause is null)
+        if(actualClause is null)
             return false;
 
         var expectedClause = string.Join(", ", expectedParts);
 
         // The emitted clause should match exactly (base class first, then abstracts in order)
         return actualClause == expectedClause;
-    ;
+        ;
     }
 
 }

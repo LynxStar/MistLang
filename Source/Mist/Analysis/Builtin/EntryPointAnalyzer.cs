@@ -23,7 +23,7 @@ public sealed class EntryPointAnalyzer : IAnalyzer
             .ToList();
 
         // Rule 1: Multiple TLS files
-        if (tlsUnits.Count > 1)
+        if(tlsUnits.Count > 1)
         {
             var paths = string.Join(", ", tlsUnits.Select(u => u.Source.Path));
             diagnostics.Add(new Diagnostic(
@@ -37,13 +37,13 @@ public sealed class EntryPointAnalyzer : IAnalyzer
         }
 
         // Rule 2: TLS + Main conflict
-        if (tlsUnits.Count == 1)
+        if(tlsUnits.Count == 1)
         {
             var mainClasses = FindClassesWithStaticVoidMain(model);
-            if (mainClasses.Count > 0)
+            if(mainClasses.Count > 0)
             {
                 var entryPoint = model.Compilation.EntryPoint;
-                if (entryPoint is null)
+                if(entryPoint is null)
                 {
                     // No entry_point config → error MIST_EP_0002
                     var tlsPath = tlsUnits[0].Source.Path;
@@ -57,7 +57,7 @@ public sealed class EntryPointAnalyzer : IAnalyzer
                         CompilationUnitPath: tlsPath,
                         AnalyzerName: AnalyzerId));
                 }
-                else if (entryPoint != "top-level")
+                else if(entryPoint != "top-level")
                 {
                     // entry_point is set to a class name → error MIST_EP_0003
                     diagnostics.Add(new Diagnostic(
@@ -74,13 +74,13 @@ public sealed class EntryPointAnalyzer : IAnalyzer
         }
 
         // Rule 3: Multiple Mains without TLS
-        if (tlsUnits.Count == 0)
+        if(tlsUnits.Count == 0)
         {
             var mainClasses = FindClassesWithStaticVoidMain(model);
-            if (mainClasses.Count > 1)
+            if(mainClasses.Count > 1)
             {
                 var entryPoint = model.Compilation.EntryPoint;
-                if (entryPoint is null)
+                if(entryPoint is null)
                 {
                     // No entry_point config → error MIST_EP_0004
                     var classNames = string.Join(", ", mainClasses);
@@ -93,10 +93,10 @@ public sealed class EntryPointAnalyzer : IAnalyzer
                         CompilationUnitPath: "",
                         AnalyzerName: AnalyzerId));
                 }
-                else if (entryPoint != "top-level")
+                else if(entryPoint != "top-level")
                 {
                     // entry_point is set to a class name → validate it exists in mainClasses
-                    if (!mainClasses.Contains(entryPoint))
+                    if(!mainClasses.Contains(entryPoint))
                     {
                         diagnostics.Add(new Diagnostic(
                             DiagnosticId.EntryPointClassNotFound,
@@ -114,7 +114,7 @@ public sealed class EntryPointAnalyzer : IAnalyzer
         }
 
         // Rule 4: entry_point = "top-level" but no TLS file exists
-        if (tlsUnits.Count == 0 && model.Compilation.EntryPoint == "top-level")
+        if(tlsUnits.Count == 0 && model.Compilation.EntryPoint == "top-level")
         {
             diagnostics.Add(new Diagnostic(
                 DiagnosticId.TopLevelEntryPointButNoTls,
@@ -127,27 +127,27 @@ public sealed class EntryPointAnalyzer : IAnalyzer
         }
 
         // Rule 5: TLS + block namespace declaration
-        foreach (var tlsUnit in tlsUnits)
+        foreach(var tlsUnit in tlsUnits)
         {
             var unitIndex = -1;
-            for (var i = 0; i < model.Units.Count; i++)
+            for(var i = 0; i < model.Units.Count; i++)
             {
-                if (ReferenceEquals(model.Units[i], tlsUnit))
+                if(ReferenceEquals(model.Units[i], tlsUnit))
                 {
                     unitIndex = i;
                     break;
                 }
             }
 
-            if (unitIndex < 0 || unitIndex >= model.Asts.Length)
+            if(unitIndex < 0 || unitIndex >= model.Asts.Length)
                 continue;
 
-            if (model.Asts[unitIndex] is not CompilationUnitNode cu)
+            if(model.Asts[unitIndex] is not CompilationUnitNode cu)
                 continue;
 
-            foreach (var item in cu.Items)
+            foreach(var item in cu.Items)
             {
-                if (item is NamespaceItemTopLevelItemNode nsItem &&
+                if(item is NamespaceItemTopLevelItemNode nsItem &&
                     nsItem.NamespaceDeclaration is BlockNamespaceNamespaceDeclarationNode)
                 {
                     diagnostics.Add(new Diagnostic(
@@ -171,20 +171,20 @@ public sealed class EntryPointAnalyzer : IAnalyzer
     private static List<string> FindClassesWithStaticVoidMain(ISemanticModel model)
     {
         var referencedSourcePaths = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var unit in model.Units)
+        foreach(var unit in model.Units)
         {
-            if (unit.OriginProjectPath is not null)
+            if(unit.OriginProjectPath is not null)
                 referencedSourcePaths.Add(unit.Source.Path);
         }
 
         var classNames = new List<string>();
 
-        foreach (var symbol in model.AllSymbols)
+        foreach(var symbol in model.AllSymbols)
         {
-            if (symbol.Origin == SymbolOrigin.Backend)
+            if(symbol.Origin == SymbolOrigin.Backend)
                 continue;
 
-            if (symbol.Kind != SymbolKind.Method || symbol.Name != "Main")
+            if(symbol.Kind != SymbolKind.Method || symbol.Name != "Main")
                 continue;
 
             // Get the declaring AST node to inspect modifiers and return type.
@@ -192,11 +192,11 @@ public sealed class EntryPointAnalyzer : IAnalyzer
             try { declaringNode = model.GetDeclaringNode(symbol); }
             catch { continue; }
 
-            if (declaringNode is not MethodDeclarationNode methodDecl)
+            if(declaringNode is not MethodDeclarationNode methodDecl)
                 continue;
 
             // Must be static.
-            if (!methodDecl.Modifiers.Any(m => m is StaticModifierModifierNode))
+            if(!methodDecl.Modifiers.Any(m => m is StaticModifierModifierNode))
                 continue;
 
             // Valid entry point return types:
@@ -209,34 +209,34 @@ public sealed class EntryPointAnalyzer : IAnalyzer
                 && primitiveRef.PrimitiveType is IntTypePrimitiveTypeNode
                 && primitiveRef.ArrayRank is null;
 
-            if (!isVoidReturn && !isIntReturn)
+            if(!isVoidReturn && !isIntReturn)
                 continue;
 
             // int return type is only valid with the async modifier (Requirement 11.4).
-            if (isIntReturn && !methodDecl.Modifiers.Any(m => m is AsyncModifierModifierNode))
+            if(isIntReturn && !methodDecl.Modifiers.Any(m => m is AsyncModifierModifierNode))
                 continue;
 
             // Must have either no parameters or a single string[] parameter.
-            if (methodDecl.Parameters is not null)
+            if(methodDecl.Parameters is not null)
             {
                 var parameters = new List<ParameterNode>();
-                foreach (var child in methodDecl.Parameters.Children())
+                foreach(var child in methodDecl.Parameters.Children())
                 {
-                    if (child is ParameterNode param)
+                    if(child is ParameterNode param)
                         parameters.Add(param);
                 }
 
-                if (parameters.Count != 1 || !IsStringArrayTypeRef(parameters[0].Type))
+                if(parameters.Count != 1 || !IsStringArrayTypeRef(parameters[0].Type))
                     continue;
             }
 
             // Skip methods from referenced projects.
-            if (IsFromReferencedProject(symbol, model, referencedSourcePaths))
+            if(IsFromReferencedProject(symbol, model, referencedSourcePaths))
                 continue;
 
             // Find the containing class name.
             var className = FindContainingClassName(symbol, model);
-            if (className is not null)
+            if(className is not null)
                 classNames.Add(className);
         }
 
@@ -248,7 +248,7 @@ public sealed class EntryPointAnalyzer : IAnalyzer
     /// </summary>
     private static bool IsStringArrayTypeRef(TypeReferenceNode typeRef)
     {
-        if (typeRef.First is PrimitiveSingleTypeRefSingleTypeRefNode primitiveRef)
+        if(typeRef.First is PrimitiveSingleTypeRefSingleTypeRefNode primitiveRef)
         {
             return primitiveRef.PrimitiveType is StringTypePrimitiveTypeNode
                    && primitiveRef.ArrayRank is not null;
@@ -267,7 +267,7 @@ public sealed class EntryPointAnalyzer : IAnalyzer
         ISemanticModel model,
         HashSet<string> referencedSourcePaths)
     {
-        if (referencedSourcePaths.Count == 0)
+        if(referencedSourcePaths.Count == 0)
             return false;
 
         // Find the declaring node and walk up to the root.
@@ -276,13 +276,13 @@ public sealed class EntryPointAnalyzer : IAnalyzer
         catch { return false; }
 
         var node = declaringNode;
-        while (node.Parent is not null)
+        while(node.Parent is not null)
             node = node.Parent;
 
         // Match the root node against the model's AST array to find its unit index.
-        for (var i = 0; i < model.Asts.Length && i < model.Units.Count; i++)
+        for(var i = 0; i < model.Asts.Length && i < model.Units.Count; i++)
         {
-            if (ReferenceEquals(model.Asts[i], node))
+            if(ReferenceEquals(model.Asts[i], node))
                 return referencedSourcePaths.Contains(model.Units[i].Source.Path);
         }
 
@@ -298,12 +298,12 @@ public sealed class EntryPointAnalyzer : IAnalyzer
         // Walk up to find the class symbol in the parent scope.
         var typeScope = methodSymbol.ContainingScope;
         var parentScope = typeScope?.Parent;
-        if (parentScope is null)
+        if(parentScope is null)
             return null;
 
-        foreach (var member in parentScope.Members)
+        foreach(var member in parentScope.Members)
         {
-            if (member.Kind is not (SymbolKind.Class or SymbolKind.Struct))
+            if(member.Kind is not (SymbolKind.Class or SymbolKind.Struct))
                 continue;
 
             var memberScope = member.DeclaredType switch
@@ -313,7 +313,7 @@ public sealed class EntryPointAnalyzer : IAnalyzer
                 _ => null,
             };
 
-            if (memberScope == typeScope)
+            if(memberScope == typeScope)
             {
                 // Found the containing type. Build the qualified name.
                 var containingNamespace = member.DeclaredType switch

@@ -46,15 +46,15 @@ public sealed class Scope : IScope
 
     private void CollectAll(string name, List<ISymbol> results)
     {
-        foreach (var member in _members)
+        foreach(var member in _members)
         {
-            if (member.Name == name)
+            if(member.Name == name)
                 results.Add(member);
         }
 
-        if (Parent is Scope parentScope)
+        if(Parent is Scope parentScope)
             parentScope.CollectAll(name, results);
-        else if (Parent is not null)
+        else if(Parent is not null)
         {
             var parentResults = Parent.LookupAll(name);
             results.AddRange(parentResults);
@@ -71,7 +71,7 @@ public sealed class Scope : IScope
     /// </summary>
     internal void AddImportedNamespace(string namespaceName)
     {
-        if (!_importedNamespaces.Contains(namespaceName))
+        if(!_importedNamespaces.Contains(namespaceName))
         {
             _importedNamespaces.Add(namespaceName);
         }

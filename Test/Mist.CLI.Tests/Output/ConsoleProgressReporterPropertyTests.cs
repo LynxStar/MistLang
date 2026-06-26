@@ -114,7 +114,7 @@ public class ConsoleProgressReporterPropertyTests
     [Property(MaxTest = 100, Arbitrary = new[] { typeof(ConsoleProgressReporterPropertyTests) })]
     public bool DetailLines_AreIndentedWithFourSpaces(StageFormattingInput input)
     {
-        if (input.Details.Count == 0)
+        if(input.Details.Count == 0)
             return true; // vacuously true when no details
 
         using var writer = new StringWriter();
@@ -125,10 +125,10 @@ public class ConsoleProgressReporterPropertyTests
         var lines = writer.ToString().Split(Environment.NewLine);
 
         // Check each detail line (first N lines correspond to details)
-        for (var i = 0; i < input.Details.Count; i++)
+        for(var i = 0; i < input.Details.Count; i++)
         {
             var expectedLine = $"    {input.Details[i]}";
-            if (lines[i] != expectedLine)
+            if(lines[i] != expectedLine)
                 return false;
         }
 
@@ -152,11 +152,11 @@ public class ConsoleProgressReporterPropertyTests
         var elapsedLineIndex = input.Details.Count;
         var expectedElapsedLine = $"    Took {input.Elapsed.TotalSeconds:F2}s";
 
-        if (lines[elapsedLineIndex] != expectedElapsedLine)
+        if(lines[elapsedLineIndex] != expectedElapsedLine)
             return false;
 
         // Next line should be empty (the blank separator from WriteLine())
-        if (lines[elapsedLineIndex + 1].Length != 0)
+        if(lines[elapsedLineIndex + 1].Length != 0)
             return false;
 
         return true;
@@ -170,7 +170,7 @@ public class ConsoleProgressReporterPropertyTests
         sb.AppendLine($"Stage {input.StageId} - {input.Title}");
 
         // Detail lines from ReportStageComplete
-        foreach (var detail in input.Details)
+        foreach(var detail in input.Details)
             sb.AppendLine($"    {detail}");
 
         // Elapsed time line

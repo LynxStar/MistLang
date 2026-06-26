@@ -14,7 +14,7 @@ public class CsprojConfigurationTests
     {
         // Walk up from the test output directory to the repo root, then into the CLI project.
         var dir = AppContext.BaseDirectory;
-        while (dir is not null && !File.Exists(Path.Combine(dir, "Mist.slnx")))
+        while(dir is not null && !File.Exists(Path.Combine(dir, "Mist.slnx")))
         {
             dir = Directory.GetParent(dir)?.FullName;
         }

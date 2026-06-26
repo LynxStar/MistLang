@@ -97,7 +97,7 @@ public class UnknownWideningPropertyTests
         var scope = new Scope(parent: null);
         var def = new ClassType(name, scope, containingNamespace: "TestPool");
         var parameters = new TypeParameterType[arity];
-        for (var i = 0; i < arity; i++)
+        for(var i = 0; i < arity; i++)
         {
             parameters[i] = new TypeParameterType($"T{i}", i);
         }
@@ -110,7 +110,7 @@ public class UnknownWideningPropertyTests
         var scope = new Scope(parent: null);
         var def = new StructType(name, scope, containingNamespace: "TestPool");
         var parameters = new TypeParameterType[arity];
-        for (var i = 0; i < arity; i++)
+        for(var i = 0; i < arity; i++)
         {
             parameters[i] = new TypeParameterType($"T{i}", i);
         }
@@ -200,9 +200,9 @@ public class UnknownWideningPropertyTests
             from def in Gen.Elements(ClassDefs)
             let arity = def.TypeParameters.Count
             from args in Gen.ArrayOf(Gen.Elements(ConcreteArgPool), arity)
-            // Mask range is 0..(2^arity - 1) — all subsets, including the
-            // empty subset (identity case, no widening) so the identity
-            // path is also exercised.
+                // Mask range is 0..(2^arity - 1) — all subsets, including the
+                // empty subset (identity case, no widening) so the identity
+                // path is also exercised.
             from mask in Gen.Choose(0, (1 << arity) - 1)
             select new ClassWideningScenario(def, args, mask);
         return gen.ToArbitrary();
@@ -214,8 +214,8 @@ public class UnknownWideningPropertyTests
             from def in Gen.Elements(StructDefs)
             let arity = def.TypeParameters.Count
             from args in Gen.ArrayOf(Gen.Elements(ConcreteArgPool), arity)
-            // Mask range is 1..(2^arity - 1) — at least one position
-            // must be widened so Req 8.6 fires at this level.
+                // Mask range is 1..(2^arity - 1) — at least one position
+                // must be widened so Req 8.6 fires at this level.
             from mask in Gen.Choose(1, (1 << arity) - 1)
             select new StructWideningScenario(def, args, mask);
         return gen.ToArbitrary();
@@ -227,8 +227,8 @@ public class UnknownWideningPropertyTests
             from def in Gen.Elements(ClassDefs)
             let arity = def.TypeParameters.Count
             from args in Gen.ArrayOf(Gen.Elements(ConcreteArgPool), arity)
-            // Mask has at least one bit set so some source position is
-            // UnknownType while the target position is concrete.
+                // Mask has at least one bit set so some source position is
+                // UnknownType while the target position is concrete.
             from mask in Gen.Choose(1, (1 << arity) - 1)
             select new ReverseWideningScenario(def, args, mask);
         return gen.ToArbitrary();
@@ -237,7 +237,7 @@ public class UnknownWideningPropertyTests
     private static IType[] ApplyMask(IReadOnlyList<IType> args, int mask)
     {
         var result = new IType[args.Count];
-        for (var i = 0; i < args.Count; i++)
+        for(var i = 0; i < args.Count; i++)
         {
             result[i] = ((mask >> i) & 1) == 1 ? (IType)UnknownType.Instance : args[i];
         }

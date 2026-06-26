@@ -87,7 +87,7 @@ public sealed class PropertyInitializerMemberExistencePropertyTests
     {
         var sb = new StringBuilder();
         sb.AppendLine($"class {typeName} {{");
-        foreach (var prop in propNames)
+        foreach(var prop in propNames)
         {
             sb.AppendLine($"    public int {prop} {{ get; set; }}");
         }
@@ -104,13 +104,13 @@ public sealed class PropertyInitializerMemberExistencePropertyTests
         // Lex
         var lexBag = new DiagnosticBag();
         var tokens = Lexer.Lex(sourceText, lexBag);
-        if (lexBag.HasErrors)
+        if(lexBag.HasErrors)
             return lexBag.ToImmutableArray();
 
         // Parse
         var parseBag = new DiagnosticBag();
         var parseResult = Parser.Parse(tokens, parseBag);
-        if (parseBag.HasErrors || parseResult.Root is null)
+        if(parseBag.HasErrors || parseResult.Root is null)
             return parseBag.ToImmutableArray();
 
         // Semantic model
@@ -152,7 +152,7 @@ public sealed class PropertyInitializerMemberExistencePropertyTests
             .Where(d => d.Id.Value == "MIST_PI_0001")
             .ToList();
 
-        if (piDiags.Count != 1)
+        if(piDiags.Count != 1)
         {
             return false.ToProperty()
                 .Label($"Expected exactly 1 MIST_PI_0001 diagnostic, got {piDiags.Count}.\n" +

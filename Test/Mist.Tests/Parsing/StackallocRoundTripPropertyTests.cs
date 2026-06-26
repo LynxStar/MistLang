@@ -51,7 +51,7 @@ public class StackallocRoundTripPropertyTests
             .Where(d => d.Severity == DiagnosticSeverity.Error)
             .ToList();
 
-        if (errors.Count > 0)
+        if(errors.Count > 0)
             throw new InvalidOperationException(
                 $"Unexpected parse errors:\n  {string.Join("\n  ", errors.Select(e => e.Message))}\nSource:\n{source}");
 
@@ -68,12 +68,12 @@ public class StackallocRoundTripPropertyTests
 
         void Walk(SyntaxNode current)
         {
-            if (current is StackallocExpressionPrimaryNode stackallocNode)
+            if(current is StackallocExpressionPrimaryNode stackallocNode)
                 found.Add(stackallocNode);
 
-            foreach (var child in current.Children())
+            foreach(var child in current.Children())
             {
-                if (child is not null)
+                if(child is not null)
                     Walk(child);
             }
         }
@@ -91,7 +91,7 @@ public class StackallocRoundTripPropertyTests
         var ast1 = ParseOrFail(scenario.Source);
 
         var stackallocs = CollectStackallocNodes(ast1);
-        if (stackallocs.Count != 1)
+        if(stackallocs.Count != 1)
             return false.ToProperty().Label(
                 $"Expected exactly one StackallocExpression node, found {stackallocs.Count}.\nScenario: {scenario.Description}\nSource:\n{scenario.Source}");
 
@@ -116,11 +116,11 @@ public class StackallocRoundTripPropertyTests
 
         // Step 2: Pretty-print AST1 → printed1
         var printed1 = MistPrettyPrinter.Print(ast1, scenario.Source);
-        if (string.IsNullOrWhiteSpace(printed1))
+        if(string.IsNullOrWhiteSpace(printed1))
             return false.ToProperty().Label($"printed1 was empty.\nSource:\n{scenario.Source}");
 
         // The printed form must still contain the stackalloc keyword.
-        if (!printed1.Contains("stackalloc "))
+        if(!printed1.Contains("stackalloc "))
             return false.ToProperty().Label($"Pretty-printed output dropped the stackalloc keyword:\n{printed1}");
 
         // Step 3: Re-parse printed1 → AST2

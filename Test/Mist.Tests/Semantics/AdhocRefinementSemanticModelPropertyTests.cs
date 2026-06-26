@@ -181,10 +181,10 @@ public class AdhocRefinementSemanticModelPropertyTests
         var sourceText = new SourceText("test.mist", source);
         var bag = new DiagnosticBag();
         var tokens = Lexer.Lex(sourceText, bag);
-        if (bag.HasErrors) return (null, bag.ToImmutableArray());
+        if(bag.HasErrors) return (null, bag.ToImmutableArray());
 
         var result = Parser.Parse(tokens, bag);
-        if (bag.HasErrors || result.Root is null) return (null, bag.ToImmutableArray());
+        if(bag.HasErrors || result.Root is null) return (null, bag.ToImmutableArray());
 
         var compilation = new MistCompilation(
             ImmutableArray.Create(new CompilationUnit(sourceText)));
@@ -214,36 +214,36 @@ public class AdhocRefinementSemanticModelPropertyTests
     {
         var source = scenario.ToSource();
         var (model, diagnostics) = BuildModelFromSource(source);
-        if (model is null) return false;
+        if(model is null) return false;
 
         // No refinement-related diagnostics should be emitted for valid constraints.
         var refinementErrors = diagnostics
             .Where(d => d.Id.Value.StartsWith("MIST_REFINEMENT"))
             .ToList();
-        if (refinementErrors.Count > 0) return false;
+        if(refinementErrors.Count > 0) return false;
 
         // Find the class symbol.
         var classSymbol = model.AllSymbols
             .FirstOrDefault(s => s.Name == scenario.ClassName && s.Kind == SymbolKind.Class);
-        if (classSymbol is null) return false;
+        if(classSymbol is null) return false;
 
         var classType = classSymbol.DeclaredType as ClassType;
-        if (classType is null) return false;
+        if(classType is null) return false;
 
         // Find the dependent type parameter.
         var depParam = classType.TypeParameters
             .OfType<DependentTypeParameterType>()
             .FirstOrDefault(p => p.Name == scenario.DependentParamName);
-        if (depParam is null) return false;
+        if(depParam is null) return false;
 
         // The AdhocConstraint must be attached.
-        if (depParam.AdhocConstraint is null) return false;
+        if(depParam.AdhocConstraint is null) return false;
 
         // Evaluate: satisfying value should return true.
-        if (!depParam.AdhocConstraint.Evaluate(scenario.SatisfyingValue())) return false;
+        if(!depParam.AdhocConstraint.Evaluate(scenario.SatisfyingValue())) return false;
 
         // Evaluate: violating value should return false.
-        if (depParam.AdhocConstraint.Evaluate(scenario.ViolatingValue())) return false;
+        if(depParam.AdhocConstraint.Evaluate(scenario.ViolatingValue())) return false;
 
         return true;
     }
@@ -261,28 +261,28 @@ public class AdhocRefinementSemanticModelPropertyTests
     {
         var source = scenario.ToSource();
         var (model, diagnostics) = BuildModelFromSource(source);
-        if (model is null) return false;
+        if(model is null) return false;
 
         // No refinement-related diagnostics should be emitted for valid constraints.
         var refinementErrors = diagnostics
             .Where(d => d.Id.Value.StartsWith("MIST_REFINEMENT"))
             .ToList();
-        if (refinementErrors.Count > 0) return false;
+        if(refinementErrors.Count > 0) return false;
 
         // Find the parameter symbol.
         var paramSymbol = model.AllSymbols
             .FirstOrDefault(s => s.Name == scenario.ParamName && s.Kind == SymbolKind.Parameter);
-        if (paramSymbol is null) return false;
+        if(paramSymbol is null) return false;
 
         // GetParameterRefinement must return a predicate.
         var predicate = model.GetParameterRefinement(paramSymbol);
-        if (predicate is null) return false;
+        if(predicate is null) return false;
 
         // Evaluate: satisfying value should return true.
-        if (!predicate.Evaluate(scenario.SatisfyingValue())) return false;
+        if(!predicate.Evaluate(scenario.SatisfyingValue())) return false;
 
         // Evaluate: violating value should return false.
-        if (predicate.Evaluate(scenario.ViolatingValue())) return false;
+        if(predicate.Evaluate(scenario.ViolatingValue())) return false;
 
         return true;
     }

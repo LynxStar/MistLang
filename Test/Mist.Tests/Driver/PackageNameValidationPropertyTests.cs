@@ -97,9 +97,9 @@ public sealed class PackageNameValidationPropertyTests
     /// </summary>
     private static bool IsValidPackageName(string name)
     {
-        if (string.IsNullOrEmpty(name))
+        if(string.IsNullOrEmpty(name))
             return false;
-        if (name.Length > 128)
+        if(name.Length > 128)
             return false;
         return ValidPackageNameRegex.IsMatch(name);
     }
@@ -123,12 +123,12 @@ public sealed class PackageNameValidationPropertyTests
     /// </summary>
     private static bool CanRepresentInToml(string value)
     {
-        foreach (var c in value)
+        foreach(var c in value)
         {
-            if (c < 0x09) return false;
-            if (c == 0x0B || c == 0x0C) return false;
-            if (c >= 0x0E && c <= 0x1F) return false;
-            if (c == 0x7F) return false;
+            if(c < 0x09) return false;
+            if(c == 0x0B || c == 0x0C) return false;
+            if(c >= 0x0E && c <= 0x1F) return false;
+            if(c == 0x7F) return false;
         }
         return true;
     }
@@ -139,11 +139,11 @@ public sealed class PackageNameValidationPropertyTests
     /// </summary>
     private static bool VerifyPackageNameValidation(string candidateName)
     {
-        if (candidateName is null)
+        if(candidateName is null)
             return true;
 
         // Skip strings that cannot be represented in TOML (control characters)
-        if (!CanRepresentInToml(candidateName))
+        if(!CanRepresentInToml(candidateName))
             return true;
 
         var expectedValid = IsValidPackageName(candidateName);
@@ -163,10 +163,10 @@ public sealed class PackageNameValidationPropertyTests
 
             var diags = diagnostics.ToImmutableArray();
 
-            if (expectedValid)
+            if(expectedValid)
             {
                 // Should parse successfully with no package-name errors
-                if (result is null)
+                if(result is null)
                     return false;
 
                 var hasNameError = diags.Any(d =>
@@ -203,12 +203,12 @@ public sealed class PackageNameValidationPropertyTests
     {
         var samples = GenArbitraryPackageName().Sample(200).ToList();
 
-        for (var i = 0; i < samples.Count; i++)
+        for(var i = 0; i < samples.Count; i++)
         {
             var candidateName = samples[i];
             var passed = VerifyPackageNameValidation(candidateName);
 
-            if (!passed)
+            if(!passed)
             {
                 var expectedValid = IsValidPackageName(candidateName);
                 throw new Exception(

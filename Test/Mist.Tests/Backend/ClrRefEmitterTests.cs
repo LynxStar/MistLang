@@ -38,7 +38,7 @@ public sealed class ClrRefEmitterTests : IDisposable
 
     public void Dispose()
     {
-        if (Directory.Exists(_outputDir))
+        if(Directory.Exists(_outputDir))
         {
             try { Directory.Delete(_outputDir, recursive: true); }
             catch { /* best effort */ }
@@ -64,7 +64,7 @@ public sealed class ClrRefEmitterTests : IDisposable
         // Write a minimal mist.toml so the compiler triggers the full project resolution
         // path (which enables proper global usings and assembly loading).
         var tomlPath = Path.Combine(_outputDir, "mist.toml");
-        if (!File.Exists(tomlPath))
+        if(!File.Exists(tomlPath))
             File.WriteAllText(tomlPath, $"name = \"{namespaceName}\"\n");
 
         var options = new CompilerOptions(
@@ -87,12 +87,12 @@ public sealed class ClrRefEmitterTests : IDisposable
     /// </summary>
     private static string? GetEmittedCSharp(CompilerResult result, string namespaceName = "TestProgram")
     {
-        if (result.EmittedFiles is null)
+        if(result.EmittedFiles is null)
             return null;
 
-        foreach (var (_, content) in result.EmittedFiles)
+        foreach(var (_, content) in result.EmittedFiles)
         {
-            if (content.Contains($"namespace {namespaceName}"))
+            if(content.Contains($"namespace {namespaceName}"))
                 return content;
         }
 

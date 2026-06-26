@@ -56,7 +56,7 @@ public sealed class CloneEmissionAndStructElisionTests
 
             var result = SharedDriver.Compile(options);
 
-            if (!result.Succeeded)
+            if(!result.Succeeded)
                 return null;
 
             return result.EmittedFiles;
@@ -73,7 +73,7 @@ public sealed class CloneEmissionAndStructElisionTests
     private static string? GetAllEmittedCSharp(string source)
     {
         var files = CompileAndGetEmittedFiles(source);
-        if (files is null)
+        if(files is null)
             return null;
 
         var csFiles = files

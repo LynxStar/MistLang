@@ -35,7 +35,7 @@ public class SemanticModelBuilderFallbackTests
         LinePositionSpan location = default;
         string compilationUnitPath = sourceText?.Path ?? "<unknown>";
 
-        if (sourceText is not null && spanLength > 0)
+        if(sourceText is not null && spanLength > 0)
         {
             var mistSpan = new SourceSpan(spanStart, spanLength);
             location = sourceText.ToLinePositionSpan(mistSpan);

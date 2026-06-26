@@ -46,7 +46,7 @@ public sealed class AssociatedTypeSignaturePropertyTests : IDisposable
 
     public void Dispose()
     {
-        if (Directory.Exists(_outputDir))
+        if(Directory.Exists(_outputDir))
         {
             try { Directory.Delete(_outputDir, recursive: true); } catch { /* best effort */ }
         }
@@ -266,7 +266,7 @@ class Program {{
             d.Id.Value == "MIST_SM_0022" &&
             d.Message.Contains(scenario.MethodName)).ToList();
 
-        if (signatureMismatch.Count > 0)
+        if(signatureMismatch.Count > 0)
             return false.ToProperty()
                 .Label($"Expected no MIST_SM_0022 for method '{scenario.MethodName}' but got {signatureMismatch.Count}.\n" +
                        $"Source:\n{source}\n" +
@@ -298,7 +298,7 @@ class Program {{
             d.Id.Value == "MIST_SM_0022" &&
             d.Message.Contains(scenario.MethodName)).ToList();
 
-        if (signatureMismatch.Count == 0)
+        if(signatureMismatch.Count == 0)
             return false.ToProperty()
                 .Label($"Expected MIST_SM_0022 for method '{scenario.MethodName}' but none emitted.\n" +
                        $"Source:\n{source}\n" +

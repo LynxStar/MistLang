@@ -189,96 +189,96 @@ public class MissingTypeArgumentsPropertyTests
         TypeDeclarationNode genericTypeDecl;
         TypeDeclarationNode derivedTypeDecl;
 
-        switch (scenario.Kind)
+        switch(scenario.Kind)
         {
             case MissingArgsDeclKind.ClassFromClass:
-            {
-                // Generic base class
-                var genericClassDecl = new ClassDeclarationNode
                 {
-                    Name = MakeToken(scenario.GenericTypeName),
-                    TypeParams = MakeTypeParamList(scenario.TypeParamNames.ToArray()),
-                    Members = ImmutableArray<MemberDeclarationNode>.Empty,
-                };
-                genericTypeDecl = new ClassTypeTypeDeclarationNode { ClassDeclaration = genericClassDecl };
+                    // Generic base class
+                    var genericClassDecl = new ClassDeclarationNode
+                    {
+                        Name = MakeToken(scenario.GenericTypeName),
+                        TypeParams = MakeTypeParamList(scenario.TypeParamNames.ToArray()),
+                        Members = ImmutableArray<MemberDeclarationNode>.Empty,
+                    };
+                    genericTypeDecl = new ClassTypeTypeDeclarationNode { ClassDeclaration = genericClassDecl };
 
-                // Non-generic derived class inheriting without type args
-                var baseList = MakeBaseList([MakeBaseTypeRef(scenario.GenericTypeName)]);
-                var derivedClassDecl = new ClassDeclarationNode
-                {
-                    Name = MakeToken(scenario.DerivedTypeName),
-                    Members = ImmutableArray<MemberDeclarationNode>.Empty,
-                    BaseClause = baseList,
-                    BaseList = baseList,
-                };
-                derivedTypeDecl = new ClassTypeTypeDeclarationNode { ClassDeclaration = derivedClassDecl };
-                break;
-            }
+                    // Non-generic derived class inheriting without type args
+                    var baseList = MakeBaseList([MakeBaseTypeRef(scenario.GenericTypeName)]);
+                    var derivedClassDecl = new ClassDeclarationNode
+                    {
+                        Name = MakeToken(scenario.DerivedTypeName),
+                        Members = ImmutableArray<MemberDeclarationNode>.Empty,
+                        BaseClause = baseList,
+                        BaseList = baseList,
+                    };
+                    derivedTypeDecl = new ClassTypeTypeDeclarationNode { ClassDeclaration = derivedClassDecl };
+                    break;
+                }
             case MissingArgsDeclKind.ClassFromAbstract:
-            {
-                // Generic abstract type
-                var genericAbstractDecl = new AbstractDeclarationNode
                 {
-                    Name = MakeToken(scenario.GenericTypeName),
-                    TypeParams = MakeTypeParamList(scenario.TypeParamNames.ToArray()),
-                    Members = ImmutableArray<AbstractMemberDeclarationNode>.Empty,
-                };
-                genericTypeDecl = new AbstractTypeTypeDeclarationNode { AbstractDeclaration = genericAbstractDecl };
+                    // Generic abstract type
+                    var genericAbstractDecl = new AbstractDeclarationNode
+                    {
+                        Name = MakeToken(scenario.GenericTypeName),
+                        TypeParams = MakeTypeParamList(scenario.TypeParamNames.ToArray()),
+                        Members = ImmutableArray<AbstractMemberDeclarationNode>.Empty,
+                    };
+                    genericTypeDecl = new AbstractTypeTypeDeclarationNode { AbstractDeclaration = genericAbstractDecl };
 
-                // Non-generic class implementing generic abstract type without type args
-                var baseList = MakeBaseList([MakeBaseTypeRef(scenario.GenericTypeName)]);
-                var derivedClassDecl = new ClassDeclarationNode
-                {
-                    Name = MakeToken(scenario.DerivedTypeName),
-                    Members = ImmutableArray<MemberDeclarationNode>.Empty,
-                    BaseClause = baseList,
-                    BaseList = baseList,
-                };
-                derivedTypeDecl = new ClassTypeTypeDeclarationNode { ClassDeclaration = derivedClassDecl };
-                break;
-            }
+                    // Non-generic class implementing generic abstract type without type args
+                    var baseList = MakeBaseList([MakeBaseTypeRef(scenario.GenericTypeName)]);
+                    var derivedClassDecl = new ClassDeclarationNode
+                    {
+                        Name = MakeToken(scenario.DerivedTypeName),
+                        Members = ImmutableArray<MemberDeclarationNode>.Empty,
+                        BaseClause = baseList,
+                        BaseList = baseList,
+                    };
+                    derivedTypeDecl = new ClassTypeTypeDeclarationNode { ClassDeclaration = derivedClassDecl };
+                    break;
+                }
             case MissingArgsDeclKind.StructFromAbstract:
-            {
-                // Generic abstract type
-                var genericAbstractDecl = new AbstractDeclarationNode
                 {
-                    Name = MakeToken(scenario.GenericTypeName),
-                    TypeParams = MakeTypeParamList(scenario.TypeParamNames.ToArray()),
-                    Members = ImmutableArray<AbstractMemberDeclarationNode>.Empty,
-                };
-                genericTypeDecl = new AbstractTypeTypeDeclarationNode { AbstractDeclaration = genericAbstractDecl };
+                    // Generic abstract type
+                    var genericAbstractDecl = new AbstractDeclarationNode
+                    {
+                        Name = MakeToken(scenario.GenericTypeName),
+                        TypeParams = MakeTypeParamList(scenario.TypeParamNames.ToArray()),
+                        Members = ImmutableArray<AbstractMemberDeclarationNode>.Empty,
+                    };
+                    genericTypeDecl = new AbstractTypeTypeDeclarationNode { AbstractDeclaration = genericAbstractDecl };
 
-                // Non-generic struct implementing generic abstract type without type args
-                var structDecl = new StructDeclarationNode
-                {
-                    Name = MakeToken(scenario.DerivedTypeName),
-                    Members = ImmutableArray<MemberDeclarationNode>.Empty,
-                    Abstracts = MakeBaseList([MakeBaseTypeRef(scenario.GenericTypeName)]),
-                };
-                derivedTypeDecl = new StructTypeTypeDeclarationNode { StructDeclaration = structDecl };
-                break;
-            }
+                    // Non-generic struct implementing generic abstract type without type args
+                    var structDecl = new StructDeclarationNode
+                    {
+                        Name = MakeToken(scenario.DerivedTypeName),
+                        Members = ImmutableArray<MemberDeclarationNode>.Empty,
+                        Abstracts = MakeBaseList([MakeBaseTypeRef(scenario.GenericTypeName)]),
+                    };
+                    derivedTypeDecl = new StructTypeTypeDeclarationNode { StructDeclaration = structDecl };
+                    break;
+                }
             case MissingArgsDeclKind.AbstractFromAbstract:
-            {
-                // Generic abstract type
-                var genericAbstractDecl = new AbstractDeclarationNode
                 {
-                    Name = MakeToken(scenario.GenericTypeName),
-                    TypeParams = MakeTypeParamList(scenario.TypeParamNames.ToArray()),
-                    Members = ImmutableArray<AbstractMemberDeclarationNode>.Empty,
-                };
-                genericTypeDecl = new AbstractTypeTypeDeclarationNode { AbstractDeclaration = genericAbstractDecl };
+                    // Generic abstract type
+                    var genericAbstractDecl = new AbstractDeclarationNode
+                    {
+                        Name = MakeToken(scenario.GenericTypeName),
+                        TypeParams = MakeTypeParamList(scenario.TypeParamNames.ToArray()),
+                        Members = ImmutableArray<AbstractMemberDeclarationNode>.Empty,
+                    };
+                    genericTypeDecl = new AbstractTypeTypeDeclarationNode { AbstractDeclaration = genericAbstractDecl };
 
-                // Non-generic abstract type extending generic abstract type without type args
-                var derivedAbstractDecl = new AbstractDeclarationNode
-                {
-                    Name = MakeToken(scenario.DerivedTypeName),
-                    Members = ImmutableArray<AbstractMemberDeclarationNode>.Empty,
-                    Abstracts = MakeBaseList([MakeBaseTypeRef(scenario.GenericTypeName)]),
-                };
-                derivedTypeDecl = new AbstractTypeTypeDeclarationNode { AbstractDeclaration = derivedAbstractDecl };
-                break;
-            }
+                    // Non-generic abstract type extending generic abstract type without type args
+                    var derivedAbstractDecl = new AbstractDeclarationNode
+                    {
+                        Name = MakeToken(scenario.DerivedTypeName),
+                        Members = ImmutableArray<AbstractMemberDeclarationNode>.Empty,
+                        Abstracts = MakeBaseList([MakeBaseTypeRef(scenario.GenericTypeName)]),
+                    };
+                    derivedTypeDecl = new AbstractTypeTypeDeclarationNode { AbstractDeclaration = derivedAbstractDecl };
+                    break;
+                }
             default:
                 throw new InvalidOperationException();
         }

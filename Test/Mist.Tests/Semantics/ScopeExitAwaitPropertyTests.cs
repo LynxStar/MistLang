@@ -168,7 +168,7 @@ public class ScopeExitAwaitPropertyTests
 
         // Build the discarded calls in the caller method
         var statements = ImmutableArray.CreateBuilder<StatementNode>();
-        for (var i = 0; i < scenario.DiscardedCallCount; i++)
+        for(var i = 0; i < scenario.DiscardedCallCount; i++)
         {
             var (stmt, _) = MakeDiscardedCall(scenario.AsyncMethodName);
             statements.Add(stmt);
@@ -232,29 +232,29 @@ public class ScopeExitAwaitPropertyTests
         // Query the semantic model for discarded tasks on the caller's block scope
         var liveTasks = model.GetDiscardedTasks(callerBlock);
 
-        if (liveTasks.Count == 0)
+        if(liveTasks.Count == 0)
             return false.ToProperty()
                 .Label($"GetDiscardedTasks returned empty for caller block with {scenario.DiscardedCallCount} " +
                        $"discarded async calls. Scenario: {scenario}");
 
         // The number of live tasks should match the number of discarded calls
-        if (liveTasks.Count != scenario.DiscardedCallCount)
+        if(liveTasks.Count != scenario.DiscardedCallCount)
             return false.ToProperty()
                 .Label($"Expected {scenario.DiscardedCallCount} live tasks, " +
                        $"got {liveTasks.Count}. Scenario: {scenario}");
 
         // Each live task should have a Task<T> type
-        for (var i = 0; i < liveTasks.Count; i++)
+        for(var i = 0; i < liveTasks.Count; i++)
         {
             var task = liveTasks[i];
 
-            if (task.TaskType is not ConstructedType constructedType)
+            if(task.TaskType is not ConstructedType constructedType)
                 return false.ToProperty()
                     .Label($"Discarded task {i} type is not a ConstructedType. " +
                            $"Actual: {task.TaskType.GetType().Name} ({task.TaskType.DisplayName}). " +
                            $"Scenario: {scenario}");
 
-            if (constructedType.GenericDefinition is not ClassType taskClass
+            if(constructedType.GenericDefinition is not ClassType taskClass
                 || taskClass.DisplayName != "Task"
                 || taskClass.ContainingNamespace != "Standard")
                 return false.ToProperty()
@@ -263,7 +263,7 @@ public class ScopeExitAwaitPropertyTests
                            $"Scenario: {scenario}");
 
             // Verify the generated variable name follows the __task_N pattern
-            if (!task.GeneratedVariableName.StartsWith("__task_"))
+            if(!task.GeneratedVariableName.StartsWith("__task_"))
                 return false.ToProperty()
                     .Label($"Discarded task {i} has unexpected variable name '{task.GeneratedVariableName}'. " +
                            $"Expected pattern '__task_N'. Scenario: {scenario}");

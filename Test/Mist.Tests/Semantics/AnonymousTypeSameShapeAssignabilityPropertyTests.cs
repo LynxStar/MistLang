@@ -199,7 +199,7 @@ public sealed class AnonymousTypeSameShapeAssignabilityPropertyTests
             .Where(d => d.Severity == DiagnosticSeverity.Error)
             .ToList();
 
-        if (errors.Count > 0)
+        if(errors.Count > 0)
         {
             var messages = string.Join("\n", errors.Select(d => $"  {d.Id.Value}: {d.Message}"));
             return false.ToProperty().Label(

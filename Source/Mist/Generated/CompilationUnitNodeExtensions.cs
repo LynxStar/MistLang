@@ -22,9 +22,9 @@ public static class CompilationUnitNodeExtensions
     /// </summary>
     public static NamespaceDeclarationNode? GetNamespace(this CompilationUnitNode cu)
     {
-        foreach (var item in cu.Items)
+        foreach(var item in cu.Items)
         {
-            if (item is NamespaceItemTopLevelItemNode nsItem)
+            if(item is NamespaceItemTopLevelItemNode nsItem)
                 return nsItem.NamespaceDeclaration;
         }
         return null;
@@ -37,9 +37,9 @@ public static class CompilationUnitNodeExtensions
     public static ImmutableArray<TypeDeclarationNode> GetTypes(this CompilationUnitNode cu)
     {
         var builder = ImmutableArray.CreateBuilder<TypeDeclarationNode>();
-        foreach (var item in cu.Items)
+        foreach(var item in cu.Items)
         {
-            if (item is TypeItemTopLevelItemNode typeItem)
+            if(item is TypeItemTopLevelItemNode typeItem)
                 builder.Add(typeItem.TypeDeclaration);
         }
         return builder.ToImmutable();
@@ -52,9 +52,9 @@ public static class CompilationUnitNodeExtensions
     public static ImmutableArray<StatementItemTopLevelItemNode> GetTopLevelStatements(this CompilationUnitNode cu)
     {
         var builder = ImmutableArray.CreateBuilder<StatementItemTopLevelItemNode>();
-        foreach (var item in cu.Items)
+        foreach(var item in cu.Items)
         {
-            if (item is StatementItemTopLevelItemNode stmtItem)
+            if(item is StatementItemTopLevelItemNode stmtItem)
                 builder.Add(stmtItem);
         }
         return builder.ToImmutable();
@@ -65,9 +65,9 @@ public static class CompilationUnitNodeExtensions
     /// </summary>
     public static bool HasTopLevelStatements(this CompilationUnitNode cu)
     {
-        foreach (var item in cu.Items)
+        foreach(var item in cu.Items)
         {
-            if (item is StatementItemTopLevelItemNode)
+            if(item is StatementItemTopLevelItemNode)
                 return true;
         }
         return false;
@@ -95,7 +95,7 @@ public static class CompilationUnitNodeExtensions
     public static ImmutableArray<TopLevelItemNode> AsTopLevelItems(this ImmutableArray<TypeDeclarationNode> types)
     {
         var builder = ImmutableArray.CreateBuilder<TopLevelItemNode>(types.Length);
-        foreach (var t in types)
+        foreach(var t in types)
             builder.Add(t.AsTopLevelItem());
         return builder.MoveToImmutable();
     }
@@ -110,12 +110,12 @@ public static class CompilationUnitNodeExtensions
     {
         var items = ImmutableArray.CreateBuilder<TopLevelItemNode>();
 
-        if (ns is not null)
+        if(ns is not null)
             items.Add(ns.AsTopLevelItem());
 
-        if (types is not null)
+        if(types is not null)
         {
-            foreach (var t in types.Value)
+            foreach(var t in types.Value)
                 items.Add(t.AsTopLevelItem());
         }
 
@@ -141,7 +141,7 @@ public static class CompilationUnitNodeExtensions
     public static ImmutableArray<NamespaceBodyItemNode> AsNamespaceBodyItems(this ImmutableArray<TypeDeclarationNode> types)
     {
         var builder = ImmutableArray.CreateBuilder<NamespaceBodyItemNode>(types.Length);
-        foreach (var t in types)
+        foreach(var t in types)
             builder.Add(t.AsNamespaceBodyItem());
         return builder.MoveToImmutable();
     }

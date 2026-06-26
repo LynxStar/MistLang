@@ -51,7 +51,7 @@ public class StackallocMissingSizeRecoveryPropertyTests
 
         // If the parser is skeletal (MIST_PARSE_STUB), the malformed-size behavior cannot
         // be exercised; treat as vacuously satisfied so the suite stays meaningful elsewhere.
-        if (diagnostics.Any(d => d.Id.Value == "MIST_PARSE_STUB"))
+        if(diagnostics.Any(d => d.Id.Value == "MIST_PARSE_STUB"))
         {
             return true.ToProperty().Label("parser skeletal (MIST_PARSE_STUB)");
         }
@@ -89,9 +89,9 @@ public class StackallocMissingSizeRecoveryPropertyTests
     private static int CountStackallocNodes(Storm.Runtime.SyntaxNode node)
     {
         var count = node is StackallocExpressionPrimaryNode ? 1 : 0;
-        foreach (var child in node.Children())
+        foreach(var child in node.Children())
         {
-            if (child is not null)
+            if(child is not null)
             {
                 count += CountStackallocNodes(child);
             }

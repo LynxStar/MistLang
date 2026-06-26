@@ -37,9 +37,9 @@ public static class ReachabilityPass
     {
         var diagnostics = new List<StormDiagnostic>();
 
-        foreach (var decl in grammar.Declarations)
+        foreach(var decl in grammar.Declarations)
         {
-            if (decl is StormRuleDecl ruleDecl)
+            if(decl is StormRuleDecl ruleDecl)
             {
                 CheckRule(ruleDecl, grammar, diagnostics);
             }
@@ -54,14 +54,14 @@ public static class ReachabilityPass
         List<StormDiagnostic> diagnostics)
     {
         var alternatives = GetTopLevelAlternatives(rule.Body);
-        if (alternatives.Count <= 1)
+        if(alternatives.Count <= 1)
         {
             return;
         }
 
         // Compute FIRST-k sequence sets for each alternative
         var sequenceSets = new List<HashSet<string>>();
-        foreach (var alt in alternatives)
+        foreach(var alt in alternatives)
         {
             sequenceSets.Add(ComputeFirstKSequences(alt, grammar, MaxLookahead));
         }
@@ -70,9 +70,9 @@ public static class ReachabilityPass
         // An alternative is unreachable only if ALL of its FIRST-k sequences
         // are also present in the union of earlier alternatives' sequences.
         var unionSoFar = new HashSet<string>();
-        for (var i = 0; i < alternatives.Count; i++)
+        for(var i = 0; i < alternatives.Count; i++)
         {
-            if (i > 0 && sequenceSets[i].Count > 0 && sequenceSets[i].IsSubsetOf(unionSoFar))
+            if(i > 0 && sequenceSets[i].Count > 0 && sequenceSets[i].IsSubsetOf(unionSoFar))
             {
                 diagnostics.Add(new StormDiagnostic(
                     StormDiagnosticIds.STORM_UNREACHABLE_ALTERNATIVE,
@@ -83,7 +83,7 @@ public static class ReachabilityPass
                     rule.Column));
             }
 
-            foreach (var seq in sequenceSets[i])
+            foreach(var seq in sequenceSets[i])
             {
                 _ = unionSoFar.Add(seq);
             }
@@ -123,7 +123,7 @@ public static class ReachabilityPass
     {
         var prefixes = ComputePrefixes(expr, grammar, k, new HashSet<string>());
         var result = new HashSet<string>();
-        foreach (var prefix in prefixes)
+        foreach(var prefix in prefixes)
         {
             result.Add(string.Join(" ", prefix));
         }
@@ -140,12 +140,12 @@ public static class ReachabilityPass
         int k,
         HashSet<string> visited)
     {
-        if (k <= 0)
+        if(k <= 0)
         {
             return new List<List<string>> { new List<string>() };
         }
 
-        switch (expr)
+        switch(expr)
         {
             case StormStringLiteralExpr strLit:
                 return new List<List<string>> { new List<string> { "str:" + strLit.Value } };
@@ -154,72 +154,72 @@ public static class ReachabilityPass
                 return new List<List<string>> { new List<string> { "cc:" + charClass.Text } };
 
             case StormReferenceExpr refExpr:
-            {
-                var resolved = grammar.LookupByName(refExpr.Name);
-                if (resolved is StormTokenDecl or StormHiddenTokenDecl)
                 {
-                    return new List<List<string>> { new List<string> { "tok:" + refExpr.Name } };
+                    var resolved = grammar.LookupByName(refExpr.Name);
+                    if(resolved is StormTokenDecl or StormHiddenTokenDecl)
+                    {
+                        return new List<List<string>> { new List<string> { "tok:" + refExpr.Name } };
+                    }
+                    if(resolved is StormFragmentDecl)
+                    {
+                        return new List<List<string>> { new List<string> { "frag:" + refExpr.Name } };
+                    }
+                    if(resolved is StormRuleDecl ruleDecl && visited.Add(refExpr.Name))
+                    {
+                        var result = ComputePrefixes(ruleDecl.Body, grammar, k, visited);
+                        visited.Remove(refExpr.Name);
+                        return result;
+                    }
+                    return new List<List<string>> { new List<string>() };
                 }
-                if (resolved is StormFragmentDecl)
-                {
-                    return new List<List<string>> { new List<string> { "frag:" + refExpr.Name } };
-                }
-                if (resolved is StormRuleDecl ruleDecl && visited.Add(refExpr.Name))
-                {
-                    var result = ComputePrefixes(ruleDecl.Body, grammar, k, visited);
-                    visited.Remove(refExpr.Name);
-                    return result;
-                }
-                return new List<List<string>> { new List<string>() };
-            }
 
             case StormQualifiedReferenceExpr qualRef:
-            {
-                var qualName = qualRef.Qualifier + "." + qualRef.Name;
-                var qualResolved = grammar.LookupByName(qualName);
-                if (qualResolved is StormTokenDecl or StormHiddenTokenDecl)
                 {
-                    return new List<List<string>> { new List<string> { "tok:" + qualName } };
+                    var qualName = qualRef.Qualifier + "." + qualRef.Name;
+                    var qualResolved = grammar.LookupByName(qualName);
+                    if(qualResolved is StormTokenDecl or StormHiddenTokenDecl)
+                    {
+                        return new List<List<string>> { new List<string> { "tok:" + qualName } };
+                    }
+                    if(qualResolved is StormFragmentDecl)
+                    {
+                        return new List<List<string>> { new List<string> { "frag:" + qualName } };
+                    }
+                    if(qualResolved is StormRuleDecl qualRuleDecl && visited.Add(qualName))
+                    {
+                        var result = ComputePrefixes(qualRuleDecl.Body, grammar, k, visited);
+                        visited.Remove(qualName);
+                        return result;
+                    }
+                    return new List<List<string>> { new List<string>() };
                 }
-                if (qualResolved is StormFragmentDecl)
-                {
-                    return new List<List<string>> { new List<string> { "frag:" + qualName } };
-                }
-                if (qualResolved is StormRuleDecl qualRuleDecl && visited.Add(qualName))
-                {
-                    var result = ComputePrefixes(qualRuleDecl.Body, grammar, k, visited);
-                    visited.Remove(qualName);
-                    return result;
-                }
-                return new List<List<string>> { new List<string>() };
-            }
 
             case StormSequenceExpr seqExpr:
                 return ComputeSequencePrefixes(seqExpr.Elements, grammar, k, visited);
 
             case StormAlternationExpr altExpr:
-            {
-                var result = new List<List<string>>();
-                foreach (var alt in altExpr.Alternatives)
                 {
-                    result.AddRange(ComputePrefixes(alt, grammar, k, visited));
+                    var result = new List<List<string>>();
+                    foreach(var alt in altExpr.Alternatives)
+                    {
+                        result.AddRange(ComputePrefixes(alt, grammar, k, visited));
+                    }
+                    return result;
                 }
-                return result;
-            }
 
             case StormOptionalExpr optExpr:
-            {
-                var result = new List<List<string>> { new List<string>() };
-                result.AddRange(ComputePrefixes(optExpr.Inner, grammar, k, visited));
-                return result;
-            }
+                {
+                    var result = new List<List<string>> { new List<string>() };
+                    result.AddRange(ComputePrefixes(optExpr.Inner, grammar, k, visited));
+                    return result;
+                }
 
             case StormZeroOrMoreExpr zomExpr:
-            {
-                var result = new List<List<string>> { new List<string>() };
-                result.AddRange(ComputePrefixes(zomExpr.Inner, grammar, k, visited));
-                return result;
-            }
+                {
+                    var result = new List<List<string>> { new List<string>() };
+                    result.AddRange(ComputePrefixes(zomExpr.Inner, grammar, k, visited));
+                    return result;
+                }
 
             case StormOneOrMoreExpr oomExpr:
                 return ComputePrefixes(oomExpr.Inner, grammar, k, visited);
@@ -251,19 +251,19 @@ public static class ReachabilityPass
         // Start with a single empty prefix
         var current = new List<List<string>> { new List<string>() };
 
-        foreach (var element in elements)
+        foreach(var element in elements)
         {
             // If all current prefixes have reached length k, stop
-            if (current.All(p => p.Count >= k))
+            if(current.All(p => p.Count >= k))
             {
                 break;
             }
 
             var next = new List<List<string>>();
 
-            foreach (var prefix in current)
+            foreach(var prefix in current)
             {
-                if (prefix.Count >= k)
+                if(prefix.Count >= k)
                 {
                     // This prefix is already at max length, keep it as-is
                     next.Add(prefix);
@@ -273,12 +273,12 @@ public static class ReachabilityPass
                 var remaining = k - prefix.Count;
                 var elementPrefixes = ComputePrefixes(element, grammar, remaining, visited);
 
-                foreach (var ep in elementPrefixes)
+                foreach(var ep in elementPrefixes)
                 {
                     var combined = new List<string>(prefix);
                     combined.AddRange(ep);
                     // Truncate to k
-                    if (combined.Count > k)
+                    if(combined.Count > k)
                     {
                         combined = combined.Take(k).ToList();
                     }
@@ -302,7 +302,7 @@ public static class ReachabilityPass
         HashSet<string> result,
         HashSet<string> visited)
     {
-        switch (expr)
+        switch(expr)
         {
             case StormStringLiteralExpr strLit:
                 _ = result.Add("str:" + strLit.Value);
@@ -314,17 +314,17 @@ public static class ReachabilityPass
 
             case StormReferenceExpr refExpr:
                 var resolved = grammar.LookupByName(refExpr.Name);
-                if (resolved is StormTokenDecl or StormHiddenTokenDecl)
+                if(resolved is StormTokenDecl or StormHiddenTokenDecl)
                 {
                     _ = result.Add("tok:" + refExpr.Name);
                 }
-                else if (resolved is StormFragmentDecl)
+                else if(resolved is StormFragmentDecl)
                 {
                     _ = result.Add("frag:" + refExpr.Name);
                 }
-                else if (resolved is StormRuleDecl ruleDecl)
+                else if(resolved is StormRuleDecl ruleDecl)
                 {
-                    if (visited.Add(refExpr.Name))
+                    if(visited.Add(refExpr.Name))
                     {
                         ComputeFirst(ruleDecl.Body, grammar, result, visited);
                     }
@@ -334,17 +334,17 @@ public static class ReachabilityPass
             case StormQualifiedReferenceExpr qualRef:
                 var qualName = qualRef.Qualifier + "." + qualRef.Name;
                 var qualResolved = grammar.LookupByName(qualName);
-                if (qualResolved is StormTokenDecl or StormHiddenTokenDecl)
+                if(qualResolved is StormTokenDecl or StormHiddenTokenDecl)
                 {
                     _ = result.Add("tok:" + qualName);
                 }
-                else if (qualResolved is StormFragmentDecl)
+                else if(qualResolved is StormFragmentDecl)
                 {
                     _ = result.Add("frag:" + qualName);
                 }
-                else if (qualResolved is StormRuleDecl qualRuleDecl)
+                else if(qualResolved is StormRuleDecl qualRuleDecl)
                 {
-                    if (visited.Add(qualName))
+                    if(visited.Add(qualName))
                     {
                         ComputeFirst(qualRuleDecl.Body, grammar, result, visited);
                     }
@@ -352,10 +352,10 @@ public static class ReachabilityPass
                 break;
 
             case StormSequenceExpr seqExpr:
-                foreach (var element in seqExpr.Elements)
+                foreach(var element in seqExpr.Elements)
                 {
                     ComputeFirst(element, grammar, result, visited);
-                    if (!IsNullable(element))
+                    if(!IsNullable(element))
                     {
                         break;
                     }
@@ -363,7 +363,7 @@ public static class ReachabilityPass
                 break;
 
             case StormAlternationExpr altExpr:
-                foreach (var alt in altExpr.Alternatives)
+                foreach(var alt in altExpr.Alternatives)
                 {
                     ComputeFirst(alt, grammar, result, visited);
                 }

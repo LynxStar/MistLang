@@ -222,7 +222,7 @@ public sealed class ReadonlyEmissionPropertyTests : IDisposable
 
     public void Dispose()
     {
-        if (Directory.Exists(_outputDir))
+        if(Directory.Exists(_outputDir))
         {
             try { Directory.Delete(_outputDir, recursive: true); } catch { /* best effort */ }
         }
@@ -287,13 +287,13 @@ class Program {
     /// </summary>
     private static string? GetEmittedCSharp(CompilerResult result)
     {
-        if (result.EmittedFiles is null)
+        if(result.EmittedFiles is null)
             return null;
 
         // Find the user file by looking for the one containing "namespace TestProject"
-        foreach (var (_, content) in result.EmittedFiles)
+        foreach(var (_, content) in result.EmittedFiles)
         {
-            if (content.Contains("namespace TestProject"))
+            if(content.Contains("namespace TestProject"))
             {
                 return content;
             }
@@ -325,7 +325,7 @@ class Program {
     {
         var result = CompileSource(scenario.Source);
 
-        if (!result.Succeeded)
+        if(!result.Succeeded)
         {
             var diagnostics = string.Join(", ", result.Diagnostics.Select(d => $"{d.Id.Value}: {d.Message}"));
             return false.ToProperty()
@@ -333,7 +333,7 @@ class Program {
         }
 
         var emittedCSharp = GetEmittedCSharp(result);
-        if (emittedCSharp is null)
+        if(emittedCSharp is null)
         {
             return false.ToProperty()
                 .Label($"No emitted C# file found\nSource:\n{scenario.Source}");
@@ -357,7 +357,7 @@ class Program {
     {
         var result = CompileSource(scenario.Source);
 
-        if (!result.Succeeded)
+        if(!result.Succeeded)
         {
             var diagnostics = string.Join(", ", result.Diagnostics.Select(d => $"{d.Id.Value}: {d.Message}"));
             return false.ToProperty()
@@ -365,7 +365,7 @@ class Program {
         }
 
         var emittedCSharp = GetEmittedCSharp(result);
-        if (emittedCSharp is null)
+        if(emittedCSharp is null)
         {
             return false.ToProperty()
                 .Label($"No emitted C# file found\nSource:\n{scenario.Source}");
@@ -391,7 +391,7 @@ class Program {
     {
         var result = CompileSource(scenario.Source);
 
-        if (!result.Succeeded)
+        if(!result.Succeeded)
         {
             var diagnostics = string.Join(", ", result.Diagnostics.Select(d => $"{d.Id.Value}: {d.Message}"));
             return false.ToProperty()
@@ -399,7 +399,7 @@ class Program {
         }
 
         var emittedCSharp = GetEmittedCSharp(result);
-        if (emittedCSharp is null)
+        if(emittedCSharp is null)
         {
             return false.ToProperty()
                 .Label($"No emitted C# file found\nSource:\n{scenario.Source}");
@@ -422,7 +422,7 @@ class Program {
     {
         var result = CompileSource(scenario.Source);
 
-        if (!result.Succeeded)
+        if(!result.Succeeded)
         {
             var diagnostics = string.Join(", ", result.Diagnostics.Select(d => $"{d.Id.Value}: {d.Message}"));
             return false.ToProperty()
@@ -430,7 +430,7 @@ class Program {
         }
 
         var emittedCSharp = GetEmittedCSharp(result);
-        if (emittedCSharp is null)
+        if(emittedCSharp is null)
         {
             return false.ToProperty()
                 .Label($"No emitted C# file found\nSource:\n{scenario.Source}");

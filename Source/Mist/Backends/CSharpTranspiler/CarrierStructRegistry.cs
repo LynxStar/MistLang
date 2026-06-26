@@ -68,10 +68,10 @@ internal sealed class CarrierStructRegistry
     /// </summary>
     public string? RegisterByKeyword(string keyword, object value)
     {
-        if (!KeywordToCapitalized.TryGetValue(keyword, out var capitalized))
+        if(!KeywordToCapitalized.TryGetValue(keyword, out var capitalized))
             return null;
 
-        if (value is string)
+        if(value is string)
             return null;
 
         var valueSuffix = FormatValueSuffix(value, keyword);
@@ -92,11 +92,11 @@ internal sealed class CarrierStructRegistry
     public string? Register(DependentValueArgument depArg)
     {
         var keyword = CSharpTypeMap.GetKeyword(depArg.ValueType);
-        if (!KeywordToCapitalized.TryGetValue(keyword, out var capitalized))
+        if(!KeywordToCapitalized.TryGetValue(keyword, out var capitalized))
             return null;
 
         // Open/forwarded parameters have a string value (the parameter name) — skip them.
-        if (depArg.Value is string)
+        if(depArg.Value is string)
             return null;
 
         var valueSuffix = FormatValueSuffix(depArg.Value, keyword);
@@ -115,11 +115,11 @@ internal sealed class CarrierStructRegistry
     public static string? GetStructName(DependentValueArgument depArg)
     {
         var keyword = CSharpTypeMap.GetKeyword(depArg.ValueType);
-        if (!KeywordToCapitalized.TryGetValue(keyword, out var capitalized))
+        if(!KeywordToCapitalized.TryGetValue(keyword, out var capitalized))
             return null;
 
         // Open/forwarded parameters have a string value (the parameter name) — skip them.
-        if (depArg.Value is string)
+        if(depArg.Value is string)
             return null;
 
         var valueSuffix = FormatValueSuffix(depArg.Value, keyword);
@@ -136,31 +136,31 @@ internal sealed class CarrierStructRegistry
         var registry = new CarrierStructRegistry();
 
         // Scan all symbols' declared types, base types, and interfaces.
-        foreach (var symbol in model.AllSymbols)
+        foreach(var symbol in model.AllSymbols)
         {
             CollectFromType(symbol.DeclaredType, registry);
 
             // For type symbols, scan base types, interfaces, and member scope.
-            if (symbol.DeclaredType is ClassType ct)
+            if(symbol.DeclaredType is ClassType ct)
             {
                 CollectFromType(ct.BaseType, registry);
-                foreach (var iface in ct.Abstracts)
+                foreach(var iface in ct.Abstracts)
                     CollectFromType(iface, registry);
-                foreach (var member in ct.MemberScope.Members)
+                foreach(var member in ct.MemberScope.Members)
                     CollectFromType(member.DeclaredType, registry);
             }
-            else if (symbol.DeclaredType is StructType st)
+            else if(symbol.DeclaredType is StructType st)
             {
-                foreach (var iface in st.Abstracts)
+                foreach(var iface in st.Abstracts)
                     CollectFromType(iface, registry);
-                foreach (var member in st.MemberScope.Members)
+                foreach(var member in st.MemberScope.Members)
                     CollectFromType(member.DeclaredType, registry);
             }
-            else if (symbol.DeclaredType is AbstractType it)
+            else if(symbol.DeclaredType is AbstractType it)
             {
-                foreach (var iface in it.Abstracts)
+                foreach(var iface in it.Abstracts)
                     CollectFromType(iface, registry);
-                foreach (var member in it.MemberScope.Members)
+                foreach(var member in it.MemberScope.Members)
                     CollectFromType(member.DeclaredType, registry);
             }
         }
@@ -168,18 +168,18 @@ internal sealed class CarrierStructRegistry
         // Scan expression types (populated by Pass 2) for constructed types with dependent args.
         // This captures usages like `new FixedBuffer<5>()` where the constructed type is the
         // expression type but not necessarily stored as a symbol's DeclaredType.
-        if (model is SemanticModel concreteModel)
+        if(model is SemanticModel concreteModel)
         {
-            foreach (var (_, type) in concreteModel.ExpressionTypes)
+            foreach(var (_, type) in concreteModel.ExpressionTypes)
             {
                 CollectFromType(type, registry);
             }
 
             // Scan ASTs for literal type arguments that may not be captured in expression types
             // (e.g., method calls with dependent type arguments like `Repeat<3>("hello")`).
-            foreach (var ast in concreteModel.Asts)
+            foreach(var ast in concreteModel.Asts)
             {
-                if (ast is not null)
+                if(ast is not null)
                     CollectFromAst(ast, registry);
             }
         }
@@ -199,7 +199,7 @@ internal sealed class CarrierStructRegistry
     {
         // Check if this node is a literal type argument and register it.
         // Only register bool and char — integer literals need type context.
-        switch (node)
+        switch(node)
         {
             case TrueLiteralTypeArgumentTypeArgumentNode:
                 RegisterBoolLiteral(true, registry);
@@ -222,16 +222,16 @@ internal sealed class CarrierStructRegistry
 
         // For method calls with type arguments, check if any are integer literals
         // in dependent type parameter positions and register with the correct type.
-        if (node is MethodCallSuffixPostfixSuffixNode methodCall && methodCall.TypeArgs is not null)
+        if(node is MethodCallSuffixPostfixSuffixNode methodCall && methodCall.TypeArgs is not null)
         {
             RegisterMethodCallLiterals(methodCall, registry);
             // Still recurse into children for nested expressions.
         }
 
         // Recurse into children.
-        foreach (var child in node.Children())
+        foreach(var child in node.Children())
         {
-            if (child is not null)
+            if(child is not null)
                 CollectFromAst(child, registry);
         }
     }
@@ -243,19 +243,19 @@ internal sealed class CarrierStructRegistry
     /// </summary>
     private static void RegisterMethodCallLiterals(MethodCallSuffixPostfixSuffixNode methodCall, CarrierStructRegistry registry)
     {
-        if (methodCall.TypeArgs is null) return;
+        if(methodCall.TypeArgs is null) return;
 
         // Collect all type argument nodes.
         var argNodes = new List<TypeArgumentNode> { methodCall.TypeArgs.TypeArgument };
-        foreach (var extra in methodCall.TypeArgs.TypeArguments)
+        foreach(var extra in methodCall.TypeArgs.TypeArguments)
             argNodes.Add(extra);
 
         // For method calls, we default to "int" for integer literals since we don't
         // have easy access to the method's type parameters from the AST alone.
         // This is correct for the common case of method-level dependent params.
-        foreach (var argNode in argNodes)
+        foreach(var argNode in argNodes)
         {
-            switch (argNode)
+            switch(argNode)
             {
                 case IntegerLiteralTypeArgumentTypeArgumentNode intLit:
                     RegisterIntLiteral(intLit.Literal.Lexeme, negated: false, registry);
@@ -278,9 +278,9 @@ internal sealed class CarrierStructRegistry
     /// </summary>
     private static void RegisterIntLiteral(string lexeme, bool negated, CarrierStructRegistry registry)
     {
-        if (long.TryParse(lexeme, NumberStyles.Integer, CultureInfo.InvariantCulture, out var value))
+        if(long.TryParse(lexeme, NumberStyles.Integer, CultureInfo.InvariantCulture, out var value))
         {
-            if (negated) value = -value;
+            if(negated) value = -value;
             registry.RegisterByKeyword("int", value);
         }
     }
@@ -291,7 +291,7 @@ internal sealed class CarrierStructRegistry
     private static void RegisterHexLiteral(string lexeme, CarrierStructRegistry registry)
     {
         var hex = lexeme.StartsWith("0x", StringComparison.OrdinalIgnoreCase) ? lexeme[2..] : lexeme;
-        if (long.TryParse(hex, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var value))
+        if(long.TryParse(hex, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var value))
         {
             registry.RegisterByKeyword("int", value);
         }
@@ -327,18 +327,22 @@ internal sealed class CarrierStructRegistry
     /// </summary>
     private static void RegisterCharLiteral(string lexeme, CarrierStructRegistry registry)
     {
-        if (lexeme.Length >= 3 && lexeme[0] == '\'' && lexeme[^1] == '\'')
+        if(lexeme.Length >= 3 && lexeme[0] == '\'' && lexeme[^1] == '\'')
         {
             var inner = lexeme[1..^1];
             char c;
-            if (inner.Length == 1)
+            if(inner.Length == 1)
                 c = inner[0];
-            else if (inner.StartsWith('\\'))
+            else if(inner.StartsWith('\\'))
             {
                 c = inner switch
                 {
-                    "\\n" => '\n', "\\r" => '\r', "\\t" => '\t',
-                    "\\0" => '\0', "\\'" => '\'', "\\\\" => '\\',
+                    "\\n" => '\n',
+                    "\\r" => '\r',
+                    "\\t" => '\t',
+                    "\\0" => '\0',
+                    "\\'" => '\'',
+                    "\\\\" => '\\',
                     _ when inner.StartsWith("\\u") && inner.Length == 6 =>
                         (char)int.Parse(inner[2..], NumberStyles.HexNumber, CultureInfo.InvariantCulture),
                     _ => '?'
@@ -356,11 +360,11 @@ internal sealed class CarrierStructRegistry
     /// </summary>
     private static void CollectFromType(IType? type, CarrierStructRegistry registry)
     {
-        if (type is ConstructedType ct && ct.DependentArguments is not null)
+        if(type is ConstructedType ct && ct.DependentArguments is not null)
         {
-            foreach (var depArg in ct.DependentArguments)
+            foreach(var depArg in ct.DependentArguments)
             {
-                if (depArg is not null)
+                if(depArg is not null)
                 {
                     registry.Register(depArg);
                 }
@@ -389,7 +393,7 @@ internal sealed class CarrierStructRegistry
     /// </summary>
     private static string FormatCharSuffix(char c)
     {
-        if (char.IsLetterOrDigit(c))
+        if(char.IsLetterOrDigit(c))
             return c.ToString();
         return $"0x{((int)c).ToString("X2", CultureInfo.InvariantCulture)}";
     }
@@ -442,12 +446,12 @@ internal sealed class CarrierStructRegistry
     /// </summary>
     public string GenerateCarrierStructs()
     {
-        if (_entries.Count == 0)
+        if(_entries.Count == 0)
             return string.Empty;
 
         var sb = new StringBuilder();
 
-        foreach (var entry in Entries)
+        foreach(var entry in Entries)
         {
             sb.AppendLine("[System.Runtime.CompilerServices.CompilerGenerated]");
             sb.AppendLine($"public struct {entry.StructName} : {entry.InterfaceName}");

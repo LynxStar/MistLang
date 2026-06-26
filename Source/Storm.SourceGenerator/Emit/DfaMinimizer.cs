@@ -19,7 +19,7 @@ namespace Storm.SourceGenerator.Emit
         /// </summary>
         public static Dfa Minimize(Dfa dfa)
         {
-            if (dfa.States.Count == 0)
+            if(dfa.States.Count == 0)
                 return new Dfa(dfa.StartStateId, new List<DfaState>());
 
             // Collect all distinct CharRange values used across every transition
@@ -50,13 +50,13 @@ namespace Storm.SourceGenerator.Emit
             // Key -1 = non-accepting states.
             var groups = new Dictionary<int, List<int>>();
 
-            for (int i = 0; i < dfa.States.Count; i++)
+            for(int i = 0; i < dfa.States.Count; i++)
             {
                 var state = dfa.States[i];
                 int key = state.AcceptingTokenIndex;
 
                 List<int>? group;
-                if (!groups.TryGetValue(key, out group))
+                if(!groups.TryGetValue(key, out group))
                 {
                     group = new List<int>();
                     groups[key] = group;
@@ -65,7 +65,7 @@ namespace Storm.SourceGenerator.Emit
             }
 
             var partitions = new List<List<int>>();
-            foreach (var kvp in groups)
+            foreach(var kvp in groups)
             {
                 partitions.Add(kvp.Value);
             }
@@ -90,21 +90,21 @@ namespace Storm.SourceGenerator.Emit
             // Build a fast lookup: state ID -> index into the States list
             // (state IDs may not be contiguous or zero-based, so use a map)
             var stateById = new Dictionary<int, DfaState>();
-            foreach (var state in dfa.States)
+            foreach(var state in dfa.States)
             {
                 stateById[state.Id] = state;
             }
 
             bool changed = true;
-            while (changed)
+            while(changed)
             {
                 changed = false;
 
                 var newPartitions = new List<List<int>>();
 
-                foreach (var partition in partitions)
+                foreach(var partition in partitions)
                 {
-                    if (partition.Count <= 1)
+                    if(partition.Count <= 1)
                     {
                         newPartitions.Add(partition);
                         continue;
@@ -113,13 +113,13 @@ namespace Storm.SourceGenerator.Emit
                     // Try to split this partition on each symbol
                     var currentSplit = new List<List<int>> { partition };
 
-                    foreach (var range in alphabet)
+                    foreach(var range in alphabet)
                     {
                         var nextSplit = new List<List<int>>();
 
-                        foreach (var group in currentSplit)
+                        foreach(var group in currentSplit)
                         {
-                            if (group.Count <= 1)
+                            if(group.Count <= 1)
                             {
                                 nextSplit.Add(group);
                                 continue;
@@ -135,7 +135,7 @@ namespace Storm.SourceGenerator.Emit
                         currentSplit = nextSplit;
                     }
 
-                    if (currentSplit.Count > 1)
+                    if(currentSplit.Count > 1)
                         changed = true;
 
                     newPartitions.AddRange(currentSplit);
@@ -160,9 +160,9 @@ namespace Storm.SourceGenerator.Emit
         {
             // Build a lookup from state ID to partition index for fast access
             var stateToPartition = new Dictionary<int, int>();
-            for (int p = 0; p < partitions.Count; p++)
+            for(int p = 0; p < partitions.Count; p++)
             {
-                foreach (var sid in partitions[p])
+                foreach(var sid in partitions[p])
                 {
                     stateToPartition[sid] = p;
                 }
@@ -172,13 +172,13 @@ namespace Storm.SourceGenerator.Emit
             // -1 means "dead state" (no transition for this symbol).
             var subGroups = new Dictionary<int, List<int>>();
 
-            foreach (var stateId in group)
+            foreach(var stateId in group)
             {
                 int targetPartition = GetTargetPartition(
                     stateId, range, stateById, stateToPartition);
 
                 List<int>? subGroup;
-                if (!subGroups.TryGetValue(targetPartition, out subGroup))
+                if(!subGroups.TryGetValue(targetPartition, out subGroup))
                 {
                     subGroup = new List<int>();
                     subGroups[targetPartition] = subGroup;
@@ -187,7 +187,7 @@ namespace Storm.SourceGenerator.Emit
             }
 
             var result = new List<List<int>>();
-            foreach (var kvp in subGroups)
+            foreach(var kvp in subGroups)
             {
                 result.Add(kvp.Value);
             }
@@ -206,7 +206,7 @@ namespace Storm.SourceGenerator.Emit
             Dictionary<int, int> stateToPartition)
         {
             DfaState? state;
-            if (!stateById.TryGetValue(stateId, out state))
+            if(!stateById.TryGetValue(stateId, out state))
                 return -1;
 
             // Find the transition matching this range.
@@ -215,12 +215,12 @@ namespace Storm.SourceGenerator.Emit
             // or if the range's representative character falls within a
             // transition's range.
             char representative = range.Lo;
-            foreach (var transition in state.Transitions)
+            foreach(var transition in state.Transitions)
             {
-                if (transition.Range.Contains(representative))
+                if(transition.Range.Contains(representative))
                 {
                     int targetPartition;
-                    if (stateToPartition.TryGetValue(transition.TargetStateId, out targetPartition))
+                    if(stateToPartition.TryGetValue(transition.TargetStateId, out targetPartition))
                     {
                         return targetPartition;
                     }
@@ -247,9 +247,9 @@ namespace Storm.SourceGenerator.Emit
         {
             // Build a lookup: old state ID -> partition index (new state ID)
             var stateToPartition = new Dictionary<int, int>();
-            for (int p = 0; p < partitions.Count; p++)
+            for(int p = 0; p < partitions.Count; p++)
             {
-                foreach (var sid in partitions[p])
+                foreach(var sid in partitions[p])
                 {
                     stateToPartition[sid] = p;
                 }
@@ -257,14 +257,14 @@ namespace Storm.SourceGenerator.Emit
 
             // Build a lookup from old state ID to DfaState
             var stateById = new Dictionary<int, DfaState>();
-            foreach (var state in dfa.States)
+            foreach(var state in dfa.States)
             {
                 stateById[state.Id] = state;
             }
 
             // Create new DFA states, one per partition
             var newStates = new List<DfaState>();
-            for (int p = 0; p < partitions.Count; p++)
+            for(int p = 0; p < partitions.Count; p++)
             {
                 var newState = new DfaState(p);
 
@@ -273,7 +273,7 @@ namespace Storm.SourceGenerator.Emit
                 // index (guaranteed by the initial partition).
                 int representativeId = partitions[p][0];
                 DfaState? representative;
-                if (stateById.TryGetValue(representativeId, out representative))
+                if(stateById.TryGetValue(representativeId, out representative))
                 {
                     newState.AcceptingTokenIndex = representative.AcceptingTokenIndex;
 
@@ -281,15 +281,15 @@ namespace Storm.SourceGenerator.Emit
                     // find the target state's partition and create a transition
                     // to that partition's new state ID.
                     var seenTargets = new HashSet<string>();
-                    foreach (var transition in representative.Transitions)
+                    foreach(var transition in representative.Transitions)
                     {
                         int targetPartition;
-                        if (stateToPartition.TryGetValue(transition.TargetStateId, out targetPartition))
+                        if(stateToPartition.TryGetValue(transition.TargetStateId, out targetPartition))
                         {
                             // Avoid duplicate transitions (multiple old transitions
                             // could map to the same new target with the same range)
                             string key = transition.Range.Lo + "-" + transition.Range.Hi + "->" + targetPartition;
-                            if (seenTargets.Add(key))
+                            if(seenTargets.Add(key))
                             {
                                 newState.Transitions.Add(
                                     new DfaTransition(transition.Range, targetPartition));
@@ -303,7 +303,7 @@ namespace Storm.SourceGenerator.Emit
 
             // The start state's partition becomes the new start state
             int newStartStateId;
-            if (!stateToPartition.TryGetValue(dfa.StartStateId, out newStartStateId))
+            if(!stateToPartition.TryGetValue(dfa.StartStateId, out newStartStateId))
             {
                 newStartStateId = 0;
             }
@@ -322,11 +322,11 @@ namespace Storm.SourceGenerator.Emit
             var seen = new HashSet<CharRange>();
             var alphabet = new List<CharRange>();
 
-            foreach (var state in dfa.States)
+            foreach(var state in dfa.States)
             {
-                foreach (var transition in state.Transitions)
+                foreach(var transition in state.Transitions)
                 {
-                    if (seen.Add(transition.Range))
+                    if(seen.Add(transition.Range))
                     {
                         alphabet.Add(transition.Range);
                     }

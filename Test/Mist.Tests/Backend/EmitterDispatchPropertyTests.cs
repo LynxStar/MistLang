@@ -54,7 +54,7 @@ public sealed class EmitterDispatchPropertyTests : IDisposable
 
     public void Dispose()
     {
-        if (Directory.Exists(_outputDir))
+        if(Directory.Exists(_outputDir))
         {
             try { Directory.Delete(_outputDir, recursive: true); } catch { /* best effort */ }
         }
@@ -167,7 +167,7 @@ public sealed class EmitterDispatchPropertyTests : IDisposable
         var scope = new Scope(parent: null);
         var typeName = $"My{scenario.TypeSuffix}";
 
-        if (scenario.IsStruct)
+        if(scenario.IsStruct)
         {
             return new StructType(typeName, scope, containingNamespace: "Test")
             {
@@ -206,12 +206,12 @@ public sealed class EmitterDispatchPropertyTests : IDisposable
 
     private static string? GetEmittedCSharp(CompilerResult result)
     {
-        if (result.EmittedFiles is null)
+        if(result.EmittedFiles is null)
             return null;
 
-        foreach (var (_, content) in result.EmittedFiles)
+        foreach(var (_, content) in result.EmittedFiles)
         {
-            if (content.Contains("namespace TestProgram"))
+            if(content.Contains("namespace TestProgram"))
                 return content;
         }
 
@@ -245,7 +245,7 @@ public sealed class EmitterDispatchPropertyTests : IDisposable
             _ => false,
         };
 
-        if (directFlag != scenario.IsDisposableDrop)
+        if(directFlag != scenario.IsDisposableDrop)
             return false.ToProperty().Label(
                 $"Direct flag mismatch: expected {scenario.IsDisposableDrop}, got {directFlag}. "
                 + $"Scenario: {scenario}");
@@ -262,7 +262,7 @@ public sealed class EmitterDispatchPropertyTests : IDisposable
             _ => false,
         };
 
-        if (constructedFlag != scenario.IsDisposableDrop)
+        if(constructedFlag != scenario.IsDisposableDrop)
             return false.ToProperty().Label(
                 $"ConstructedType wrapper lost flag: expected {scenario.IsDisposableDrop}, got {constructedFlag}. "
                 + $"Scenario: {scenario}");
@@ -280,7 +280,7 @@ public sealed class EmitterDispatchPropertyTests : IDisposable
             _ => false,
         };
 
-        if (aliasFlag != scenario.IsDisposableDrop)
+        if(aliasFlag != scenario.IsDisposableDrop)
             return false.ToProperty().Label(
                 $"TypeAliasType wrapper lost flag: expected {scenario.IsDisposableDrop}, got {aliasFlag}. "
                 + $"Scenario: {scenario}");
@@ -356,7 +356,7 @@ public sealed class EmitterDispatchPropertyTests : IDisposable
         bool actualIsDisposableDrop;
         bool actualHasDrop;
 
-        switch (projectedType)
+        switch(projectedType)
         {
             case ClassType ct:
                 actualIsDisposableDrop = ct.IsDisposableDrop;
@@ -371,12 +371,12 @@ public sealed class EmitterDispatchPropertyTests : IDisposable
                 return true.ToProperty().Label($"Skipped: {scenario.ClrType.Name} projects to {projectedType.GetType().Name}");
         }
 
-        if (actualIsDisposableDrop != scenario.ExpectDisposableDrop)
+        if(actualIsDisposableDrop != scenario.ExpectDisposableDrop)
             return false.ToProperty().Label(
                 $"VIOLATION: {scenario.ClrType.Name} → IsDisposableDrop={actualIsDisposableDrop}, "
                 + $"expected {scenario.ExpectDisposableDrop}");
 
-        if (actualHasDrop != scenario.ExpectHasDrop)
+        if(actualHasDrop != scenario.ExpectHasDrop)
             return false.ToProperty().Label(
                 $"VIOLATION: {scenario.ClrType.Name} → HasDrop={actualHasDrop}, "
                 + $"expected {scenario.ExpectHasDrop}");
@@ -441,7 +441,7 @@ public sealed class EmitterDispatchPropertyTests : IDisposable
 
         var result = CompileSource(source);
 
-        if (!result.Succeeded)
+        if(!result.Succeeded)
         {
             var diagnostics = string.Join(", ", result.Diagnostics.Select(d => $"{d.Id.Value}: {d.Message}"));
             return false.ToProperty()
@@ -449,19 +449,19 @@ public sealed class EmitterDispatchPropertyTests : IDisposable
         }
 
         var emittedCSharp = GetEmittedCSharp(result);
-        if (emittedCSharp is null)
+        if(emittedCSharp is null)
             return false.ToProperty().Label($"No emitted C# found.\nSource:\n{source}");
 
         // Requirement 3.2: Explicit Drop type emits .Drop()
         var containsDrop = emittedCSharp.Contains(".Drop()");
-        if (!containsDrop)
+        if(!containsDrop)
             return false.ToProperty().Label(
                 $"VIOLATION Req 3.2: Explicit Drop type did not emit '.Drop()'. "
                 + $"Scenario: {scenario}\nEmitted C#:\n{emittedCSharp}");
 
         // Requirement 2.3: Explicit Drop type must NOT emit .Dispose()
         var containsDispose = emittedCSharp.Contains(".Dispose()");
-        if (containsDispose)
+        if(containsDispose)
             return false.ToProperty().Label(
                 $"VIOLATION Req 2.3: Explicit Drop type incorrectly emits '.Dispose()'. "
                 + $"Scenario: {scenario}\nEmitted C#:\n{emittedCSharp}");

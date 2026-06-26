@@ -63,7 +63,7 @@ public class ConstraintSatisfactionPropertyTests
         var parseBag = new DiagnosticBag();
         var parseResult = Parser.Parse(tokens, parseBag);
 
-        if (parseResult.Root is null)
+        if(parseResult.Root is null)
             return (null!, lexBag.ToImmutableArray().AddRange(parseBag.ToImmutableArray()));
 
         var compilation = new MistCompilation(
@@ -342,7 +342,7 @@ class Program {{
         var (_, diagnostics) = CompileSource(scenario.Source);
         var hasViolation = HasConstraintViolation(diagnostics);
 
-        if (scenario.ShouldAccept)
+        if(scenario.ShouldAccept)
         {
             return (!hasViolation).ToProperty()
                 .Label($"Expected ACCEPT but got constraint violation.\nSource:\n{scenario.Source}\nDiagnostics: {string.Join("; ", diagnostics.Where(d => d.Id.Value.StartsWith("MIST_CONSTRAINT")).Select(d => d.Message))}");

@@ -134,11 +134,14 @@ public class VoidTypeCheckerTests
 
     private static TypeReferenceNode MakeNamedTypeRef(string name, TypeArgumentListNode? typeArgs = null)
     {
-        return new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
+        return new TypeReferenceNode
         {
-            Name = new QualifiedIdentifierNode { IDENTIFIER = Tok(name) },
-            TypeArgs = typeArgs,
-        } };
+            First = new NamedSingleTypeRefSingleTypeRefNode
+            {
+                Name = new QualifiedIdentifierNode { IDENTIFIER = Tok(name) },
+                TypeArgs = typeArgs,
+            }
+        };
     }
 
     private static TypeParameterListNode MakeTypeParamList(string[] names)
@@ -470,10 +473,13 @@ public class VoidTypeCheckerTests
     {
         // struct Container { Void value; }
         // class Program { public static void Main() { } }
-        var voidIdentifierTypeRef = new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
+        var voidIdentifierTypeRef = new TypeReferenceNode
         {
-            Name = new QualifiedIdentifierNode { IDENTIFIER = Tok("Void") },
-        } };
+            First = new NamedSingleTypeRefSingleTypeRefNode
+            {
+                Name = new QualifiedIdentifierNode { IDENTIFIER = Tok("Void") },
+            }
+        };
 
         var containerStruct = new StructDeclarationNode
         {

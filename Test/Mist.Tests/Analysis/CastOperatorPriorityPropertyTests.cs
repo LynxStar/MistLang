@@ -173,10 +173,13 @@ public class CastOperatorPriorityPropertyTests
     }
 
     private static TypeReferenceNode MakeNamedTypeRef(string name) =>
-        new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
+        new TypeReferenceNode
         {
-            Name = new QualifiedIdentifierNode { IDENTIFIER = Tok(name) },
-        } };
+            First = new NamedSingleTypeRefSingleTypeRefNode
+            {
+                Name = new QualifiedIdentifierNode { IDENTIFIER = Tok(name) },
+            }
+        };
 
     private static ParameterNode MakeParameter(string typeName, string paramName) =>
         new()

@@ -224,7 +224,7 @@ struct A : A {
         // Generate a chain of 66 structs (exceeds the 64-level limit)
         var sb = new System.Text.StringBuilder();
         sb.AppendLine("struct S0 { int X; }");
-        for (var i = 1; i <= 65; i++)
+        for(var i = 1; i <= 65; i++)
         {
             sb.AppendLine($"struct S{i} : S{i - 1} {{ int F{i}; }}");
         }

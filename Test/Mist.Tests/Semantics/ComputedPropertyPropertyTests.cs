@@ -277,11 +277,11 @@ public class ComputedPropertyPropertyTests
             .Where(s => s.Kind == SymbolKind.Property)
             .ToList();
 
-        if (propSymbols.Count == 0)
+        if(propSymbols.Count == 0)
             return false.ToProperty().Label("No property symbols found");
 
         var metadata = (propSymbols.First() as Symbol)?.PropertyMetadata;
-        if (metadata is null)
+        if(metadata is null)
             return false.ToProperty().Label("PropertyMetadata is null");
 
         return (metadata.IsComputed == testCase.ExpectComputed).ToProperty()
@@ -294,7 +294,7 @@ public class ComputedPropertyPropertyTests
         Arbitrary = new[] { typeof(ComputedPropertyPropertyTests) })]
     public Property ComputedProperty_NoBackingFieldWhenComputed(ComputedPropertyTestCase testCase)
     {
-        if (!testCase.ExpectComputed)
+        if(!testCase.ExpectComputed)
             return true.ToProperty(); // Only check computed properties
 
         var model = BuildSemanticModel(testCase.Ast);
@@ -303,11 +303,11 @@ public class ComputedPropertyPropertyTests
             .Where(s => s.Kind == SymbolKind.Property)
             .ToList();
 
-        if (propSymbols.Count == 0)
+        if(propSymbols.Count == 0)
             return false.ToProperty().Label("No property symbols found");
 
         var metadata = (propSymbols.First() as Symbol)?.PropertyMetadata;
-        if (metadata is null)
+        if(metadata is null)
             return false.ToProperty().Label("PropertyMetadata is null");
 
         return (metadata.BackingField is null).ToProperty()
@@ -319,7 +319,7 @@ public class ComputedPropertyPropertyTests
         Arbitrary = new[] { typeof(ComputedPropertyPropertyTests) })]
     public Property ComputedProperty_HasGetAccessorOnly(ComputedPropertyTestCase testCase)
     {
-        if (!testCase.ExpectComputed)
+        if(!testCase.ExpectComputed)
             return true.ToProperty(); // Only check computed properties
 
         var model = BuildSemanticModel(testCase.Ast);
@@ -328,11 +328,11 @@ public class ComputedPropertyPropertyTests
             .Where(s => s.Kind == SymbolKind.Property)
             .ToList();
 
-        if (propSymbols.Count == 0)
+        if(propSymbols.Count == 0)
             return false.ToProperty().Label("No property symbols found");
 
         var metadata = (propSymbols.First() as Symbol)?.PropertyMetadata;
-        if (metadata is null)
+        if(metadata is null)
             return false.ToProperty().Label("PropertyMetadata is null");
 
         var hasGetOnly = metadata.HasGet && !metadata.HasSet && !metadata.HasInit;
@@ -346,7 +346,7 @@ public class ComputedPropertyPropertyTests
         Arbitrary = new[] { typeof(ComputedPropertyPropertyTests) })]
     public Property ComputedProperty_NonComputedAutoPropertyHasBackingField(ComputedPropertyTestCase testCase)
     {
-        if (testCase.ExpectComputed)
+        if(testCase.ExpectComputed)
             return true.ToProperty(); // Only check non-computed properties
 
         var model = BuildSemanticModel(testCase.Ast);
@@ -355,11 +355,11 @@ public class ComputedPropertyPropertyTests
             .Where(s => s.Kind == SymbolKind.Property)
             .ToList();
 
-        if (propSymbols.Count == 0)
+        if(propSymbols.Count == 0)
             return false.ToProperty().Label("No property symbols found");
 
         var metadata = (propSymbols.First() as Symbol)?.PropertyMetadata;
-        if (metadata is null)
+        if(metadata is null)
             return false.ToProperty().Label("PropertyMetadata is null");
 
         // Non-computed auto-properties should have a backing field
@@ -368,7 +368,7 @@ public class ComputedPropertyPropertyTests
             (metadata.SetAccessor?.BodyKind == AccessorBodyKind.Auto) ||
             (metadata.InitAccessor?.BodyKind == AccessorBodyKind.Auto);
 
-        if (hasAutoAccessor)
+        if(hasAutoAccessor)
         {
             return (metadata.BackingField is not null).ToProperty()
                 .Label($"Non-computed auto-property '{testCase.Description}' should have backing field");

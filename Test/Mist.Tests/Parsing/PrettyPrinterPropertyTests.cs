@@ -77,7 +77,7 @@ public class PrettyPrinterPropertyTests
     private static ExpressionNode MakeNewObjectExpression(string typeName, params ExpressionNode[] args)
     {
         ArgumentListNode? argList = null;
-        if (args.Length > 0)
+        if(args.Length > 0)
         {
             argList = new ArgumentListNode { Argument = new ValueArgumentArgumentNode { Expression = args[0] } };
             // Additional args would need to be added via Arguments, but for simplicity
@@ -112,7 +112,7 @@ public class PrettyPrinterPropertyTests
     private static ExpressionNode MakeMethodCallExpression(string target, string methodName, params ExpressionNode[] args)
     {
         ArgumentListNode? argList = null;
-        if (args.Length > 0)
+        if(args.Length > 0)
         {
             argList = new ArgumentListNode { Argument = new ValueArgumentArgumentNode { Expression = args[0] } };
         }
@@ -241,10 +241,13 @@ public class PrettyPrinterPropertyTests
         {
             VariableDeclaration = new TypedVariableDeclarationVariableDeclarationStatementNode
             {
-                Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                Type = new TypeReferenceNode
                 {
-                    PrimitiveType = new IntTypePrimitiveTypeNode(),
-                } },
+                    First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                    {
+                        PrimitiveType = new IntTypePrimitiveTypeNode(),
+                    }
+                },
                 Name = MakeToken(name),
                 Initializer = MakeIntLiteralExpression(value),
             },
@@ -300,19 +303,25 @@ public class PrettyPrinterPropertyTests
         var fieldDecl = new FieldDeclarationNode
         {
             Modifiers = ImmutableArray.Create<ModifierNode>(new PrivateModifierModifierNode()),
-            Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
+            Type = new TypeReferenceNode
             {
-                PrimitiveType = new IntTypePrimitiveTypeNode(),
-            } },
+                First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                {
+                    PrimitiveType = new IntTypePrimitiveTypeNode(),
+                }
+            },
             Name = MakeToken("x"),
         };
 
         var ctorParam = new ParameterNode
         {
-            Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
+            Type = new TypeReferenceNode
             {
-                PrimitiveType = new IntTypePrimitiveTypeNode(),
-            } },
+                First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                {
+                    PrimitiveType = new IntTypePrimitiveTypeNode(),
+                }
+            },
             Name = MakeToken("x"),
         };
 
@@ -347,27 +356,36 @@ public class PrettyPrinterPropertyTests
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
             Name = MakeToken("Point"),
             Parameters = new ParameterListNode { Parameter = ctorParam },
-            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode
+            Body = new MethodBlockBodyMethodBodyNode
             {
-                Statements = ImmutableArray.Create(
+                Block = new BlockNode
+                {
+                    Statements = ImmutableArray.Create(
                     MakeExpressionStatement(assignExpr)),
-            } },
+                }
+            },
         };
 
         var methodDecl = new MethodDeclarationNode
         {
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
-            ReturnType = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
+            ReturnType = new TypeReferenceNode
             {
-                PrimitiveType = new IntTypePrimitiveTypeNode(),
-            } },
+                First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                {
+                    PrimitiveType = new IntTypePrimitiveTypeNode(),
+                }
+            },
             Name = MakeToken("GetX"),
             Parameters = null,
-            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode
+            Body = new MethodBlockBodyMethodBodyNode
             {
-                Statements = ImmutableArray.Create(
+                Block = new BlockNode
+                {
+                    Statements = ImmutableArray.Create(
                     MakeReturnStatement(MakeIdentifierExpression("x"))),
-            } },
+                }
+            },
         };
 
         var classDecl = new ClassDeclarationNode
@@ -404,10 +422,13 @@ public class PrettyPrinterPropertyTests
         var fieldR = new FieldDeclarationNode
         {
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
-            Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
+            Type = new TypeReferenceNode
             {
-                PrimitiveType = new IntTypePrimitiveTypeNode(),
-            } },
+                First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                {
+                    PrimitiveType = new IntTypePrimitiveTypeNode(),
+                }
+            },
             Name = MakeToken("r"),
         };
 
@@ -484,10 +505,13 @@ public class PrettyPrinterPropertyTests
             {
                 Initializer = new ForInitializerVariableDeclarationForInitializerNode
                 {
-                    VariableDeclaration = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                    VariableDeclaration = new TypeReferenceNode
                     {
-                        PrimitiveType = new IntTypePrimitiveTypeNode(),
-                    } },
+                        First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                        {
+                            PrimitiveType = new IntTypePrimitiveTypeNode(),
+                        }
+                    },
                     Name = MakeToken("i"),
                     Initializer = MakeIntLiteralExpression("0"),
                 },
@@ -502,10 +526,13 @@ public class PrettyPrinterPropertyTests
         {
             ForeachStatement = new ForeachStatementNode
             {
-                Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                Type = new TypeReferenceNode
                 {
-                    PrimitiveType = new IntTypePrimitiveTypeNode(),
-                } },
+                    First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                    {
+                        PrimitiveType = new IntTypePrimitiveTypeNode(),
+                    }
+                },
                 Name = MakeToken("item"),
                 Collection = MakeIdentifierExpression("items"),
                 Body = new BlockNode(),
@@ -520,14 +547,17 @@ public class PrettyPrinterPropertyTests
             ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Name = MakeToken("Run"),
             Parameters = null,
-            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode
+            Body = new MethodBlockBodyMethodBodyNode
             {
-                Statements = ImmutableArray.Create<StatementNode>(
+                Block = new BlockNode
+                {
+                    Statements = ImmutableArray.Create<StatementNode>(
                     ifStmt,
                     whileStmt,
                     forStmt,
                     foreachStmt),
-            } },
+                }
+            },
         };
 
         var classDecl = new ClassDeclarationNode
@@ -558,10 +588,13 @@ public class PrettyPrinterPropertyTests
         {
             VariableDeclaration = new TypedVariableDeclarationVariableDeclarationStatementNode
             {
-                Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                Type = new TypeReferenceNode
                 {
-                    PrimitiveType = new IntTypePrimitiveTypeNode(),
-                } },
+                    First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                    {
+                        PrimitiveType = new IntTypePrimitiveTypeNode(),
+                    }
+                },
                 Name = MakeToken("y"),
                 Initializer = addExpr,
             },
@@ -578,14 +611,17 @@ public class PrettyPrinterPropertyTests
             ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Name = MakeToken("Test"),
             Parameters = null,
-            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode
+            Body = new MethodBlockBodyMethodBodyNode
             {
-                Statements = ImmutableArray.Create<StatementNode>(
+                Block = new BlockNode
+                {
+                    Statements = ImmutableArray.Create<StatementNode>(
                     varDecl,
                     yDecl,
                     callStmt,
                     returnStmt),
-            } },
+                }
+            },
         };
 
         var classDecl = new ClassDeclarationNode
@@ -609,10 +645,13 @@ public class PrettyPrinterPropertyTests
     {
         var paramX = new ParameterNode
         {
-            Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
+            Type = new TypeReferenceNode
             {
-                PrimitiveType = new IntTypePrimitiveTypeNode(),
-            } },
+                First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                {
+                    PrimitiveType = new IntTypePrimitiveTypeNode(),
+                }
+            },
             Name = MakeToken("x"),
         };
 
@@ -724,7 +763,7 @@ public class PrettyPrinterPropertyTests
         // This is the determinism half of idempotence — the same AST always produces
         // the same output. The full round-trip (print → parse → print) will be tested
         // when the parser is implemented.
-        foreach (var ast in AllRepresentativeAsts())
+        foreach(var ast in AllRepresentativeAsts())
         {
             var output1 = MistPrettyPrinter.Print(ast);
             var output2 = MistPrettyPrinter.Print(ast);
@@ -736,7 +775,7 @@ public class PrettyPrinterPropertyTests
     [Fact]
     public void PrettyPrinter_Idempotence_OutputIsNonEmpty()
     {
-        foreach (var ast in AllRepresentativeAsts())
+        foreach(var ast in AllRepresentativeAsts())
         {
             var output = MistPrettyPrinter.Print(ast);
             Assert.False(string.IsNullOrWhiteSpace(output),
@@ -804,16 +843,16 @@ public class PrettyPrinterPropertyTests
         var output = MistPrettyPrinter.Print(BuildClassWithMembers());
         var lines = output.Split('\n');
 
-        foreach (var line in lines)
+        foreach(var line in lines)
         {
             var trimmed = line.TrimEnd('\r');
-            if (string.IsNullOrWhiteSpace(trimmed)) continue;
+            if(string.IsNullOrWhiteSpace(trimmed)) continue;
 
             // Count leading spaces
             var leadingSpaces = 0;
-            foreach (var ch in trimmed)
+            foreach(var ch in trimmed)
             {
-                if (ch == ' ') leadingSpaces++;
+                if(ch == ' ') leadingSpaces++;
                 else break;
             }
 
@@ -831,14 +870,14 @@ public class PrettyPrinterPropertyTests
         var lines = output.Split('\n').Select(l => l.TrimEnd('\r')).ToArray();
 
         // Find lines with class/struct/method declarations — they should end with {
-        foreach (var line in lines)
+        foreach(var line in lines)
         {
             var trimmed = line.Trim();
-            if (trimmed.StartsWith("class ") || trimmed.StartsWith("public class ") ||
+            if(trimmed.StartsWith("class ") || trimmed.StartsWith("public class ") ||
                 trimmed.StartsWith("struct ") || trimmed.StartsWith("public struct ") ||
                 trimmed.Contains("(") && trimmed.Contains(")") && !trimmed.EndsWith(";"))
             {
-                if (!trimmed.StartsWith("//") && !trimmed.StartsWith("return") &&
+                if(!trimmed.StartsWith("//") && !trimmed.StartsWith("return") &&
                     !trimmed.StartsWith("var ") && !trimmed.StartsWith("int ") &&
                     !trimmed.StartsWith("Console") && !trimmed.StartsWith("if ") &&
                     !trimmed.StartsWith("while ") && !trimmed.StartsWith("for ") &&
@@ -890,9 +929,9 @@ public class PrettyPrinterPropertyTests
 
         // Every user-code symbol name should appear in the output,
         // except inferred namespace symbols which don't appear in source.
-        foreach (var symbol in model.AllSymbols)
+        foreach(var symbol in model.AllSymbols)
         {
-            if (symbol.Origin == SymbolOrigin.UserCode && symbol.Kind != SymbolKind.Namespace)
+            if(symbol.Origin == SymbolOrigin.UserCode && symbol.Kind != SymbolKind.Namespace)
             {
                 Assert.Contains(symbol.Name, output);
             }
@@ -919,11 +958,11 @@ public class PrettyPrinterPropertyTests
             projectFolder: "/test",
             diagnostics);
 
-        foreach (var symbol in model.AllSymbols)
+        foreach(var symbol in model.AllSymbols)
         {
-            if (symbol.Origin != SymbolOrigin.UserCode) continue;
+            if(symbol.Origin != SymbolOrigin.UserCode) continue;
 
-            switch (symbol.Kind)
+            switch(symbol.Kind)
             {
                 case SymbolKind.Class:
                     Assert.Contains($"class {symbol.Name}", output);
@@ -1001,7 +1040,7 @@ public class PrettyPrinterPropertyTests
         // all user-code symbol names appear in the pretty-printed output.
         var builder = new SemanticModelBuilder();
 
-        foreach (var ast in AllRepresentativeAsts())
+        foreach(var ast in AllRepresentativeAsts())
         {
             var output = MistPrettyPrinter.Print(ast);
 
@@ -1016,10 +1055,10 @@ public class PrettyPrinterPropertyTests
                 projectFolder: "/test",
                 diagnostics);
 
-            foreach (var symbol in model.AllSymbols)
+            foreach(var symbol in model.AllSymbols)
             {
                 // Skip inferred namespace symbols — they don't appear in source
-                if (symbol.Origin == SymbolOrigin.UserCode && symbol.Kind != SymbolKind.Namespace)
+                if(symbol.Origin == SymbolOrigin.UserCode && symbol.Kind != SymbolKind.Namespace)
                 {
                     Assert.True(output.Contains(symbol.Name),
                         $"Symbol '{symbol.Name}' (kind: {symbol.Kind}) not found in pretty-printed output:\n{output}");

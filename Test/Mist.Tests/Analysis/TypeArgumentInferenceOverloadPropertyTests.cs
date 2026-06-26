@@ -89,7 +89,7 @@ public sealed class TypeArgumentInferenceOverloadPropertyTests : IDisposable
 
     public void Dispose()
     {
-        if (Directory.Exists(_outputDir))
+        if(Directory.Exists(_outputDir))
         {
             try { Directory.Delete(_outputDir, recursive: true); } catch { /* best effort */ }
         }
@@ -395,7 +395,7 @@ public sealed class TypeArgumentInferenceOverloadPropertyTests : IDisposable
     {
         var result = CompileSource(scenario.Source);
 
-        if (scenario.ShouldCompileCleanly)
+        if(scenario.ShouldCompileCleanly)
         {
             // When a non-generic candidate survives after generic candidates are
             // excluded by inference failure, the program should compile without errors.

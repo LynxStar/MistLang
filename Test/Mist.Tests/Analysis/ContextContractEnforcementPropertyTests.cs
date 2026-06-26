@@ -377,7 +377,7 @@ public sealed class ContextContractEnforcementPropertyTests
             .ToImmutableArray();
 
         // Check abstract type contract diagnostics count.
-        if (contractDiags.Length != scenario.ExpectedContractDiagnosticCount)
+        if(contractDiags.Length != scenario.ExpectedContractDiagnosticCount)
         {
             return false.ToProperty()
                 .Label($"Expected {scenario.ExpectedContractDiagnosticCount} MIST_CTX_0006 diagnostic(s) " +
@@ -389,9 +389,9 @@ public sealed class ContextContractEnforcementPropertyTests
         }
 
         // Check that expected context types appear in the diagnostic messages.
-        foreach (var expectedType in scenario.ExpectedDiagnosticContextTypes)
+        foreach(var expectedType in scenario.ExpectedDiagnosticContextTypes)
         {
-            if (!contractDiags.Any(d => d.Message.Contains(expectedType)))
+            if(!contractDiags.Any(d => d.Message.Contains(expectedType)))
             {
                 return false.ToProperty()
                     .Label($"Expected MIST_CTX_0006 diagnostic mentioning '{expectedType}' " +

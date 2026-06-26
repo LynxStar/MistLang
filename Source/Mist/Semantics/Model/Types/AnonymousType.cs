@@ -29,7 +29,7 @@ public sealed class AnonymousType : IType
 
         // Build display: "{ Name: string, Version: int }"
         var parts = new string[propertyNames.Count];
-        for (var i = 0; i < propertyNames.Count; i++)
+        for(var i = 0; i < propertyNames.Count; i++)
             parts[i] = $"{propertyNames[i]}: {propertyTypes[i].DisplayName}";
         DisplayName = $"{{ {string.Join(", ", parts)} }}";
     }
@@ -40,11 +40,11 @@ public sealed class AnonymousType : IType
     /// </summary>
     public bool StructurallyEquals(AnonymousType other)
     {
-        if (PropertyNames.Count != other.PropertyNames.Count) return false;
-        for (var i = 0; i < PropertyNames.Count; i++)
+        if(PropertyNames.Count != other.PropertyNames.Count) return false;
+        for(var i = 0; i < PropertyNames.Count; i++)
         {
-            if (PropertyNames[i] != other.PropertyNames[i]) return false;
-            if (PropertyTypes[i] != other.PropertyTypes[i]) return false;
+            if(PropertyNames[i] != other.PropertyNames[i]) return false;
+            if(PropertyTypes[i] != other.PropertyTypes[i]) return false;
         }
         return true;
     }

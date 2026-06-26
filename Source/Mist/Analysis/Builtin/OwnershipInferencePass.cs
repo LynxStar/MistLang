@@ -32,7 +32,7 @@ public sealed class OwnershipInferencePass
     {
         var candidates = CollectVarDeclarations(functionBody, model);
 
-        if (candidates.Count == 0)
+        if(candidates.Count == 0)
             return new Dictionary<ISymbol, InferredBinding>();
 
         // Initialize candidates optimistically.
@@ -43,11 +43,11 @@ public sealed class OwnershipInferencePass
 
         // Build result — shared is the ultimate fallback (never conflicts).
         var result = new Dictionary<ISymbol, InferredBinding>(candidates.Count);
-        foreach (var candidate in candidates)
+        foreach(var candidate in candidates)
         {
             // If we somehow ended up with no tier after exhausting downgrades,
             // emit MIST_OWN_INFERENCE_FAILURE and fall back to Shared.
-            if (candidate.Tier == null)
+            if(candidate.Tier == null)
             {
                 diagnostics.Add(MakeDiagnostic(
                     OwnershipAnalyzer.InferenceFailure,
@@ -92,47 +92,47 @@ public sealed class OwnershipInferencePass
     private static void CollectVarDeclarationsRecursive(SyntaxNode node, ISemanticModel model, List<InferenceCandidate> candidates)
     {
         // Check if this node is a variable declaration statement.
-        if (node is VariableDeclarationStatementStatementNode varDeclStmt)
+        if(node is VariableDeclarationStatementStatementNode varDeclStmt)
         {
-            switch (varDeclStmt.VariableDeclaration)
+            switch(varDeclStmt.VariableDeclaration)
             {
                 case InferredVariableDeclarationVariableDeclarationStatementNode inferred:
-                {
-                    // Only collect if no explicit ownership specifier.
-                    if (inferred.OwnershipSpecifier is null)
                     {
-                        var symbol = model.GetDeclaredSymbol(inferred);
-                        if (symbol is Symbol sym && sym.OwnershipTier == OwnershipTier.Unrestricted
-                            && sym.Kind == SymbolKind.LocalVariable)
+                        // Only collect if no explicit ownership specifier.
+                        if(inferred.OwnershipSpecifier is null)
                         {
-                            candidates.Add(new InferenceCandidate(sym, inferred, inferred.Initializer));
+                            var symbol = model.GetDeclaredSymbol(inferred);
+                            if(symbol is Symbol sym && sym.OwnershipTier == OwnershipTier.Unrestricted
+                                && sym.Kind == SymbolKind.LocalVariable)
+                            {
+                                candidates.Add(new InferenceCandidate(sym, inferred, inferred.Initializer));
+                            }
                         }
+                        break;
                     }
-                    break;
-                }
 
                 case TypedVariableDeclarationVariableDeclarationStatementNode typed:
-                {
-                    // Typed declarations with no ownership specifier (e.g., `T x = expr;`)
-                    // are also candidates for inference.
-                    if (typed.OwnershipSpecifier is null)
                     {
-                        var symbol = model.GetDeclaredSymbol(typed);
-                        if (symbol is Symbol sym && sym.OwnershipTier == OwnershipTier.Unrestricted
-                            && sym.Kind == SymbolKind.LocalVariable)
+                        // Typed declarations with no ownership specifier (e.g., `T x = expr;`)
+                        // are also candidates for inference.
+                        if(typed.OwnershipSpecifier is null)
                         {
-                            candidates.Add(new InferenceCandidate(sym, typed, typed.Initializer));
+                            var symbol = model.GetDeclaredSymbol(typed);
+                            if(symbol is Symbol sym && sym.OwnershipTier == OwnershipTier.Unrestricted
+                                && sym.Kind == SymbolKind.LocalVariable)
+                            {
+                                candidates.Add(new InferenceCandidate(sym, typed, typed.Initializer));
+                            }
                         }
+                        break;
                     }
-                    break;
-                }
             }
         }
 
         // Recurse into child nodes.
-        foreach (var child in node.Children())
+        foreach(var child in node.Children())
         {
-            if (child is not null)
+            if(child is not null)
                 CollectVarDeclarationsRecursive(child, model, candidates);
         }
     }
@@ -149,9 +149,9 @@ public sealed class OwnershipInferencePass
         SyntaxNode functionBody,
         ISemanticModel model)
     {
-        foreach (var candidate in candidates)
+        foreach(var candidate in candidates)
         {
-            if (candidate.Initializer is not null && IsConstructorOrOwnedCall(candidate.Initializer, model))
+            if(candidate.Initializer is not null && IsConstructorOrOwnedCall(candidate.Initializer, model))
             {
                 candidate.Tier = OwnershipTier.Owned;
                 candidate.Reason = InferenceReason.OwnedInit;
@@ -182,7 +182,7 @@ public sealed class OwnershipInferencePass
         // This eliminates repeated O(M) tree walks from the fixed-point loop.
         var usesCache = new Dictionary<ISymbol, List<VariableUse>>(
             candidates.Count, ReferenceEqualityComparer.Instance);
-        foreach (var candidate in candidates)
+        foreach(var candidate in candidates)
             usesCache[candidate.Symbol] = CollectUses(candidate.Symbol, functionBody, model);
 
         // Early-out: candidates that have uses but ALL of them are Read will always
@@ -190,22 +190,22 @@ public sealed class OwnershipInferencePass
         // Candidates with zero uses stay in the loop — they keep their initial tier
         // (Owned for constructor-initialized, etc.) since nothing forces a downgrade.
         var activeCandidate = new List<InferenceCandidate>(candidates.Count);
-        foreach (var candidate in candidates)
+        foreach(var candidate in candidates)
         {
             var uses = usesCache[candidate.Symbol];
-            if (uses.Count > 0)
+            if(uses.Count > 0)
             {
                 var hasNonReadUse = false;
-                foreach (var use in uses)
+                foreach(var use in uses)
                 {
-                    if (use.Kind != UseKind.Read)
+                    if(use.Kind != UseKind.Read)
                     {
                         hasNonReadUse = true;
                         break;
                     }
                 }
 
-                if (!hasNonReadUse)
+                if(!hasNonReadUse)
                 {
                     // All uses are reads — no ownership requirement. Skip the loop.
                     candidate.Tier = OwnershipTier.Unrestricted;
@@ -220,32 +220,32 @@ public sealed class OwnershipInferencePass
         // Build a symbol → candidate lookup for cross-variable dependency resolution.
         var symbolToCandidateMap = new Dictionary<ISymbol, InferenceCandidate>(
             ReferenceEqualityComparer.Instance);
-        foreach (var c in candidates)
+        foreach(var c in candidates)
             symbolToCandidateMap[c.Symbol] = c;
 
         // Maximum iterations to prevent infinite loops. With 5 possible tiers per candidate,
         // at most candidates.Count * 4 downgrades can occur before everything reaches Shared.
         var maxIterations = activeCandidate.Count * 5 + 1;
-        for (var iteration = 0; iteration < maxIterations; iteration++)
+        for(var iteration = 0; iteration < maxIterations; iteration++)
         {
             var changed = false;
 
-            foreach (var candidate in activeCandidate)
+            foreach(var candidate in activeCandidate)
             {
-                if (candidate.Tier is null || candidate.Tier == OwnershipTier.Unrestricted)
+                if(candidate.Tier is null || candidate.Tier == OwnershipTier.Unrestricted)
                     continue; // Already at shared (ultimate fallback) — cannot conflict.
 
                 var uses = usesCache[candidate.Symbol];
-                foreach (var use in uses)
+                foreach(var use in uses)
                 {
                     var requiredTier = DetermineRequiredTier(use, candidate.Symbol, symbolToCandidateMap, model);
-                    if (requiredTier is null)
+                    if(requiredTier is null)
                         continue; // No ownership requirement for this use.
 
-                    if (Conflicts(candidate.Tier.Value, requiredTier.Value))
+                    if(Conflicts(candidate.Tier.Value, requiredTier.Value))
                     {
                         var newTier = Downgrade(candidate.Tier.Value);
-                        if (newTier != candidate.Tier)
+                        if(newTier != candidate.Tier)
                         {
                             candidate.LastConflictTier = candidate.Tier;
                             candidate.LastConflictRequired = requiredTier;
@@ -266,7 +266,7 @@ public sealed class OwnershipInferencePass
                 }
             }
 
-            if (!changed)
+            if(!changed)
                 break; // Fixed-point reached.
         }
 
@@ -275,47 +275,47 @@ public sealed class OwnershipInferencePass
         // But MethodReceiver uses with a this-tier requirement impose a MINIMUM: the binding must
         // satisfy the method's this-tier. If the fixed-point downgraded below this minimum,
         // upgrade back to the minimum tier (Req 17 AC 15, Req 18 AC 1).
-        foreach (var candidate in candidates)
+        foreach(var candidate in candidates)
         {
-            if (candidate.Tier is null || candidate.Tier == OwnershipTier.Unrestricted)
+            if(candidate.Tier is null || candidate.Tier == OwnershipTier.Unrestricted)
             {
                 // Reuse the pre-computed uses cache instead of re-walking the tree.
                 var uses = usesCache[candidate.Symbol];
                 var minimumTier = OwnershipTier.Unrestricted;
-                foreach (var use in uses)
+                foreach(var use in uses)
                 {
-                    if (use.Kind == UseKind.MethodReceiver)
+                    if(use.Kind == UseKind.MethodReceiver)
                     {
                         // Try to resolve the method's this-tier either from the use's TargetMethod
                         // or by looking up the method on the candidate's declared type.
                         ThisTier effectiveTier = ThisTier.None;
 
-                        if (use.TargetMethod is Symbol methodSym)
+                        if(use.TargetMethod is Symbol methodSym)
                         {
                             effectiveTier = methodSym.InferredThisTier;
                         }
-                        else if (candidate.Symbol.DeclaredType is not null && use.Node is IdentifierExpressionPrimaryNode receiverNode)
+                        else if(candidate.Symbol.DeclaredType is not null && use.Node is IdentifierExpressionPrimaryNode receiverNode)
                         {
                             // TargetMethod is null — try to find the method by walking the parent PostfixNode.
                             // The use was created from a PostfixNode where the identifier is the Target.
                             // Look at siblings to find the method name.
                             var candidateType = candidate.Symbol.DeclaredType;
-                            if (candidateType is ClassType ct)
+                            if(candidateType is ClassType ct)
                             {
-                                foreach (var member in ct.MemberScope.Members)
+                                foreach(var member in ct.MemberScope.Members)
                                 {
-                                    if (member.Kind == SymbolKind.Method && member is Symbol ms && ms.InferredThisTier != ThisTier.None)
+                                    if(member.Kind == SymbolKind.Method && member is Symbol ms && ms.InferredThisTier != ThisTier.None)
                                     {
                                         // Check if this method is actually called in this use context.
                                         // For safety, take the max of all methods with a tier requirement.
-                                        if ((int)ms.InferredThisTier > (int)effectiveTier)
+                                        if((int)ms.InferredThisTier > (int)effectiveTier)
                                             effectiveTier = ms.InferredThisTier;
                                     }
                                 }
                             }
                         }
 
-                        if (effectiveTier != ThisTier.None)
+                        if(effectiveTier != ThisTier.None)
                         {
                             var requiredOwnershipTier = effectiveTier switch
                             {
@@ -325,13 +325,13 @@ public sealed class OwnershipInferencePass
                                 ThisTier.Owned => OwnershipTier.Owned,
                                 _ => OwnershipTier.Unrestricted,
                             };
-                            if ((int)requiredOwnershipTier > (int)minimumTier)
+                            if((int)requiredOwnershipTier > (int)minimumTier)
                                 minimumTier = requiredOwnershipTier;
                         }
                     }
                 }
 
-                if (minimumTier != OwnershipTier.Unrestricted)
+                if(minimumTier != OwnershipTier.Unrestricted)
                 {
                     candidate.Tier = minimumTier;
                     candidate.Reason = InferenceReason.ThisTierRequired;
@@ -340,9 +340,9 @@ public sealed class OwnershipInferencePass
         }
 
         // Any candidate that didn't reach a stable tier falls back to Shared.
-        foreach (var candidate in candidates)
+        foreach(var candidate in candidates)
         {
-            if (candidate.Tier is null)
+            if(candidate.Tier is null)
             {
                 // This indicates a true inference failure (shouldn't normally happen).
                 // Leave as null — the caller will emit MIST_OWN_INFERENCE_FAILURE.
@@ -446,15 +446,15 @@ public sealed class OwnershipInferencePass
     {
         // Check PostfixNode — if its Target references our symbol and has method call suffixes,
         // it's a method receiver use.
-        if (node is PostfixNode postfix && postfix.Suffix.Length > 0)
+        if(node is PostfixNode postfix && postfix.Suffix.Length > 0)
         {
-            if (postfix.Target is IdentifierExpressionPrimaryNode targetId)
+            if(postfix.Target is IdentifierExpressionPrimaryNode targetId)
             {
                 var referencedSymbol = model.GetDeclaredSymbol(targetId);
-                if (ReferenceEquals(referencedSymbol, symbol))
+                if(ReferenceEquals(referencedSymbol, symbol))
                 {
                     var lastSuffix = postfix.Suffix[^1];
-                    if (lastSuffix is MethodCallSuffixPostfixSuffixNode methodCall)
+                    if(lastSuffix is MethodCallSuffixPostfixSuffixNode methodCall)
                     {
                         var methodSymbol = model.GetDeclaredSymbol(methodCall);
                         uses.Add(new VariableUse
@@ -470,7 +470,7 @@ public sealed class OwnershipInferencePass
                     }
                     // Don't recurse into the target again — we've handled it.
                     // Recurse into suffixes only.
-                    foreach (var suffix in postfix.Suffix)
+                    foreach(var suffix in postfix.Suffix)
                     {
                         CollectUsesRecursive(symbol, suffix, model, uses, context);
                     }
@@ -481,10 +481,10 @@ public sealed class OwnershipInferencePass
         }
 
         // Check if this node is an identifier referencing our symbol.
-        if (node is IdentifierExpressionPrimaryNode identifier)
+        if(node is IdentifierExpressionPrimaryNode identifier)
         {
             var referencedSymbol = model.GetDeclaredSymbol(identifier);
-            if (ReferenceEquals(referencedSymbol, symbol))
+            if(ReferenceEquals(referencedSymbol, symbol))
             {
                 // Classify based on context passed in.
                 var use = ClassifyUseFromContext(identifier, context, model);
@@ -494,14 +494,14 @@ public sealed class OwnershipInferencePass
         }
 
         // For argument lists, pass argument context to children.
-        if (node is ArgumentListNode argList)
+        if(node is ArgumentListNode argList)
         {
             // First argument.
             var firstArgContext = CreateArgumentContext(argList.Argument, model);
             CollectUsesRecursive(symbol, argList.Argument, model, uses, firstArgContext);
 
             // Additional arguments.
-            foreach (var arg in argList.Arguments)
+            foreach(var arg in argList.Arguments)
             {
                 var argCtx = CreateArgumentContext(arg, model);
                 CollectUsesRecursive(symbol, arg, model, uses, argCtx);
@@ -510,9 +510,9 @@ public sealed class OwnershipInferencePass
         }
 
         // Recurse into children with the same context.
-        foreach (var child in node.Children())
+        foreach(var child in node.Children())
         {
-            if (child is not null)
+            if(child is not null)
                 CollectUsesRecursive(symbol, child, model, uses, context);
         }
     }
@@ -525,18 +525,18 @@ public sealed class OwnershipInferencePass
         UseContext? context,
         ISemanticModel model)
     {
-        if (context is not null)
+        if(context is not null)
         {
             return context.Kind switch
             {
                 UseKind.OwnedParamConsumption => new VariableUse
-                    { Node = identifier, Kind = UseKind.OwnedParamConsumption },
+                { Node = identifier, Kind = UseKind.OwnedParamConsumption },
                 UseKind.BorrowedParam => new VariableUse
-                    { Node = identifier, Kind = UseKind.BorrowedParam },
+                { Node = identifier, Kind = UseKind.BorrowedParam },
                 UseKind.FrozenParam => new VariableUse
-                    { Node = identifier, Kind = UseKind.FrozenParam },
+                { Node = identifier, Kind = UseKind.FrozenParam },
                 UseKind.ReadonlyRefParam => new VariableUse
-                    { Node = identifier, Kind = UseKind.ReadonlyRefParam },
+                { Node = identifier, Kind = UseKind.ReadonlyRefParam },
                 _ => new VariableUse { Node = identifier, Kind = UseKind.Read },
             };
         }
@@ -551,7 +551,7 @@ public sealed class OwnershipInferencePass
     private static UseContext? CreateArgumentContext(SyntaxNode argNode, ISemanticModel model)
     {
         var paramSymbol = model.GetDeclaredSymbol(argNode);
-        if (paramSymbol is Symbol param)
+        if(paramSymbol is Symbol param)
         {
             var kind = param.OwnershipTier switch
             {
@@ -586,7 +586,7 @@ public sealed class OwnershipInferencePass
         Dictionary<ISymbol, InferenceCandidate> candidateMap,
         ISemanticModel model)
     {
-        switch (use.Kind)
+        switch(use.Kind)
         {
             case UseKind.OwnedParamConsumption:
                 // Passing to an owned parameter requires the binding to be owned.
@@ -618,11 +618,11 @@ public sealed class OwnershipInferencePass
                 // If the method requires a this-tier, the binding must satisfy it.
                 // A method requiring a tier needs the binding to be at least that tier.
                 // This doesn't limit from above — it sets a minimum.
-                if (use.TargetMethod is Symbol methodSym)
+                if(use.TargetMethod is Symbol methodSym)
                 {
                     // Check declared or inferred this-tier on the method.
                     var effectiveTier = methodSym.InferredThisTier;
-                    if (effectiveTier != ThisTier.None)
+                    if(effectiveTier != ThisTier.None)
                     {
                         // The method requires a this-tier — the binding must satisfy it.
                         // This doesn't conflict with higher tiers, only with lower ones.
@@ -657,38 +657,38 @@ public sealed class OwnershipInferencePass
     private static bool IsConstructorOrOwnedCall(SyntaxNode node, ISemanticModel model)
     {
         // Direct match on primary nodes.
-        if (node is ObjectCreationExpressionPrimaryNode)
+        if(node is ObjectCreationExpressionPrimaryNode)
             return true;
 
         // PostfixNode with suffixes — check for a method call returning owned.
-        if (node is PostfixNode postfix)
+        if(node is PostfixNode postfix)
         {
-            if (postfix.Suffix.Length > 0)
+            if(postfix.Suffix.Length > 0)
             {
                 var lastSuffix = postfix.Suffix[^1];
 
-                if (lastSuffix is MethodCallSuffixPostfixSuffixNode methodCall)
+                if(lastSuffix is MethodCallSuffixPostfixSuffixNode methodCall)
                 {
                     var methodSymbol = model.GetDeclaredSymbol(methodCall);
-                    if (methodSymbol is Symbol methodSym && methodSym.OwnershipTier == OwnershipTier.Owned)
+                    if(methodSymbol is Symbol methodSym && methodSym.OwnershipTier == OwnershipTier.Owned)
                         return true;
                 }
 
-                if (lastSuffix is InvocationSuffixPostfixSuffixNode invocation)
+                if(lastSuffix is InvocationSuffixPostfixSuffixNode invocation)
                 {
                     ISymbol? invokedSymbol = null;
-                    if (postfix.Target is IdentifierExpressionPrimaryNode targetId)
+                    if(postfix.Target is IdentifierExpressionPrimaryNode targetId)
                         invokedSymbol = model.GetDeclaredSymbol(targetId);
                     invokedSymbol ??= model.GetDeclaredSymbol(invocation);
 
-                    if (invokedSymbol is Symbol funcSym && funcSym.OwnershipTier == OwnershipTier.Owned)
+                    if(invokedSymbol is Symbol funcSym && funcSym.OwnershipTier == OwnershipTier.Owned)
                         return true;
                 }
 
                 return false;
             }
 
-            if (postfix.Target is ObjectCreationExpressionPrimaryNode)
+            if(postfix.Target is ObjectCreationExpressionPrimaryNode)
                 return true;
 
             return false;
@@ -697,12 +697,12 @@ public sealed class OwnershipInferencePass
         // Walk through single-child wrapper nodes.
         SyntaxNode? singleChild = null;
         var childCount = 0;
-        foreach (var child in node.Children())
+        foreach(var child in node.Children())
         {
-            if (child is null) continue;
+            if(child is null) continue;
             childCount++;
             singleChild = child;
-            if (childCount > 1) break;
+            if(childCount > 1) break;
         }
 
         return childCount == 1 && singleChild is not null && IsConstructorOrOwnedCall(singleChild, model);
@@ -746,23 +746,23 @@ public sealed class OwnershipInferencePass
         string? compilationUnitPath = null;
 
         var span = node.Span;
-        if (span.Length > 0)
+        if(span.Length > 0)
         {
             var asts = model.Asts;
             var units = model.Units;
             var astIndex = -1;
 
-            for (var i = 0; i < asts.Length; i++)
+            for(var i = 0; i < asts.Length; i++)
             {
                 var astSpan = asts[i].Span;
-                if (span.Start >= astSpan.Start && span.Start + span.Length <= astSpan.Start + astSpan.Length)
+                if(span.Start >= astSpan.Start && span.Start + span.Length <= astSpan.Start + astSpan.Length)
                 {
                     astIndex = i;
                     break;
                 }
             }
 
-            if (astIndex >= 0 && astIndex < units.Count)
+            if(astIndex >= 0 && astIndex < units.Count)
             {
                 var source = units[astIndex].Source;
                 compilationUnitPath = source.Path;

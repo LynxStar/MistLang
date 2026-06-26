@@ -50,7 +50,7 @@ public sealed class TaskAutoDropIntegrationTests : IDisposable
 
     public void Dispose()
     {
-        if (Directory.Exists(_outputDir))
+        if(Directory.Exists(_outputDir))
         {
             try { Directory.Delete(_outputDir, recursive: true); } catch { /* best effort */ }
         }
@@ -206,7 +206,7 @@ public sealed class TaskAutoDropIntegrationTests : IDisposable
         };
 
         Assert.Equal(expected.Length, lines.Length);
-        for (var i = 0; i < expected.Length; i++)
+        for(var i = 0; i < expected.Length; i++)
         {
             Assert.Equal(expected[i], lines[i]);
         }

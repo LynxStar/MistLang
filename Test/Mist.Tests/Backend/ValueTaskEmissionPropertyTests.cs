@@ -52,7 +52,7 @@ public sealed class ValueTaskEmissionPropertyTests : IDisposable
 
     public void Dispose()
     {
-        if (Directory.Exists(_outputDir))
+        if(Directory.Exists(_outputDir))
         {
             try { Directory.Delete(_outputDir, recursive: true); } catch { /* best effort */ }
         }
@@ -153,7 +153,7 @@ public sealed class ValueTaskEmissionPropertyTests : IDisposable
 
         var modifiers = ImmutableArray.CreateBuilder<ModifierNode>();
         modifiers.Add(new PublicModifierModifierNode());
-        if (scenario.IsStatic)
+        if(scenario.IsStatic)
             modifiers.Add(new StaticModifierModifierNode());
         modifiers.Add(new AsyncModifierModifierNode());
 
@@ -173,7 +173,7 @@ public sealed class ValueTaskEmissionPropertyTests : IDisposable
         members.Add(new MethodMemberMemberDeclarationNode { Method = asyncMethod });
 
         // Optionally add a caller method that awaits the async method
-        if (scenario.HasCaller)
+        if(scenario.HasCaller)
         {
             var callerMethod = BuildCallerMethod(scenario);
             members.Add(new MethodMemberMemberDeclarationNode { Method = callerMethod });
@@ -255,7 +255,7 @@ public sealed class ValueTaskEmissionPropertyTests : IDisposable
         var buildErrors = buildDiagnostics
             .Where(d => d.Severity == DiagnosticSeverity.Error)
             .ToList();
-        if (buildErrors.Count > 0)
+        if(buildErrors.Count > 0)
             return (false, "", FormatDiagnostics(buildErrors));
 
         // Run type checker (ignore entry point diagnostic — test programs don't need Main)
@@ -265,19 +265,19 @@ public sealed class ValueTaskEmissionPropertyTests : IDisposable
         var tcErrors = tcBag.ToImmutableArray()
             .Where(d => d.Severity == DiagnosticSeverity.Error && d.Id.Value != "MIST_TC_0017")
             .ToList();
-        if (tcErrors.Count > 0)
+        if(tcErrors.Count > 0)
             return (false, "", FormatDiagnostics(tcErrors));
 
         // Emit in-memory (no disk I/O)
         var emitBag = new DiagnosticBag();
         var files = CSharpEmitter.EmitToMemory(model, "TestProgram", emitBag);
 
-        if (emitBag.HasErrors)
+        if(emitBag.HasErrors)
             return (false, "", FormatEmitDiagnostics(emitBag));
 
         // Concatenate all emitted .cs content
         var sb = new StringBuilder();
-        foreach (var (_, content) in files)
+        foreach(var (_, content) in files)
             sb.AppendLine(content);
 
         return (true, sb.ToString(), "");
@@ -307,12 +307,12 @@ public sealed class ValueTaskEmissionPropertyTests : IDisposable
     /// </summary>
     private static string? GetEmittedCSharp(CompilerResult result)
     {
-        if (result.EmittedFiles is null)
+        if(result.EmittedFiles is null)
             return null;
 
-        foreach (var (_, content) in result.EmittedFiles)
+        foreach(var (_, content) in result.EmittedFiles)
         {
-            if (content.Contains("namespace TestProgram"))
+            if(content.Contains("namespace TestProgram"))
                 return content;
         }
 
@@ -349,13 +349,13 @@ public sealed class ValueTaskEmissionPropertyTests : IDisposable
     {
         var (succeeded, csContent, diagnosticText) = CompileAndEmit(scenario);
 
-        if (!succeeded)
+        if(!succeeded)
         {
             return false.ToProperty()
                 .Label($"Compilation failed: {scenario}\nDiagnostics:\n{diagnosticText}");
         }
 
-        if (string.IsNullOrWhiteSpace(csContent))
+        if(string.IsNullOrWhiteSpace(csContent))
         {
             return false.ToProperty()
                 .Label($"C# output was empty: {scenario}");
@@ -372,7 +372,7 @@ public sealed class ValueTaskEmissionPropertyTests : IDisposable
             csContent.Contains("async Task\n") ||
             csContent.Contains("System.Threading.Tasks.Task");
 
-        if (!hasTaskReference)
+        if(!hasTaskReference)
         {
             return false.ToProperty()
                 .Label($"Emitted C# does not contain any Task reference " +
@@ -389,7 +389,7 @@ public sealed class ValueTaskEmissionPropertyTests : IDisposable
             csContent.Contains("async System.Threading.Tasks.ValueTask<") ||
             csContent.Contains("async System.Threading.Tasks.ValueTask ");
 
-        if (hasValueTaskAsReturnType)
+        if(hasValueTaskAsReturnType)
         {
             return false.ToProperty()
                 .Label($"Emitted C# contains ValueTask as the async return type, " +

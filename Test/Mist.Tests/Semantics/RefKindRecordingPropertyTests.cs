@@ -68,10 +68,13 @@ public class RefKindRecordingPropertyTests
         return new ParameterNode
         {
             RefModifier = MakeToken("ref"),
-            Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
+            Type = new TypeReferenceNode
             {
-                PrimitiveType = MakePrimitiveTypeNode(typeName),
-            } },
+                First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                {
+                    PrimitiveType = MakePrimitiveTypeNode(typeName),
+                }
+            },
             Name = MakeToken(paramName),
         };
     }
@@ -82,10 +85,13 @@ public class RefKindRecordingPropertyTests
         {
             Modifier = MakeToken("readonly"),
             RefModifier = MakeToken("ref"),
-            Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
+            Type = new TypeReferenceNode
             {
-                PrimitiveType = MakePrimitiveTypeNode(typeName),
-            } },
+                First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                {
+                    PrimitiveType = MakePrimitiveTypeNode(typeName),
+                }
+            },
             Name = MakeToken(paramName),
         };
     }
@@ -94,10 +100,13 @@ public class RefKindRecordingPropertyTests
     {
         return new ParameterNode
         {
-            Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
+            Type = new TypeReferenceNode
             {
-                PrimitiveType = MakePrimitiveTypeNode(typeName),
-            } },
+                First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                {
+                    PrimitiveType = MakePrimitiveTypeNode(typeName),
+                }
+            },
             Name = MakeToken(paramName),
         };
     }
@@ -132,10 +141,13 @@ public class RefKindRecordingPropertyTests
         return new MethodDeclarationNode
         {
             Name = MakeToken(name),
-            ReturnType = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
+            ReturnType = new TypeReferenceNode
             {
-                PrimitiveType = new IntTypePrimitiveTypeNode(),
-            } },
+                First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                {
+                    PrimitiveType = new IntTypePrimitiveTypeNode(),
+                }
+            },
             ReturnOwnership = returnOwnership,
             Parameters = parameter is not null
                 ? new ParameterListNode { Parameter = parameter }
@@ -165,10 +177,13 @@ public class RefKindRecordingPropertyTests
             VariableDeclaration = new TypedVariableDeclarationVariableDeclarationStatementNode
             {
                 OwnershipSpecifier = ownershipSpecifier,
-                Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                Type = new TypeReferenceNode
                 {
-                    PrimitiveType = MakePrimitiveTypeNode(typeName),
-                } },
+                    First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                    {
+                        PrimitiveType = MakePrimitiveTypeNode(typeName),
+                    }
+                },
                 Name = MakeToken(varName),
                 Initializer = MistAstGenerator.WrapPrimary(
                     new IntegerLiteralExpressionPrimaryNode { IntegerLiteral = MakeToken("0") }),
@@ -318,7 +333,7 @@ public class RefKindRecordingPropertyTests
             .OfType<Symbol>()
             .FirstOrDefault(s => s.Name == scenario.ParamName && s.Kind == SymbolKind.Parameter);
 
-        if (paramSymbol is null)
+        if(paramSymbol is null)
             return false;
 
         // Assert: RefKind matches expected
@@ -348,7 +363,7 @@ public class RefKindRecordingPropertyTests
             .OfType<Symbol>()
             .FirstOrDefault(s => s.Name == scenario.MethodName && s.Kind == SymbolKind.Method);
 
-        if (methodSymbol is null)
+        if(methodSymbol is null)
             return false;
 
         // Assert: ReturnRefKind matches expected
@@ -395,7 +410,7 @@ public class RefKindRecordingPropertyTests
             .OfType<Symbol>()
             .FirstOrDefault(s => s.Name == scenario.VarName && s.Kind == SymbolKind.LocalVariable);
 
-        if (localSymbol is null)
+        if(localSymbol is null)
             return false;
 
         // Assert: RefKind matches expected
@@ -438,7 +453,7 @@ public class RefKindRecordingPropertyTests
             .OfType<Symbol>()
             .FirstOrDefault(s => s.Name == scenario.ParamName && s.Kind == SymbolKind.Parameter);
 
-        if (paramSymbol is null)
+        if(paramSymbol is null)
             return false;
 
         // Assert: RefKind is None

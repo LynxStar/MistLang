@@ -132,10 +132,13 @@ public class NotPatternVariableRestrictionPropertyTests
         {
             NotPatternOperandKind.TypePattern => new TypePatternPrimaryPatternNode
             {
-                Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                Type = new TypeReferenceNode
                 {
-                    PrimitiveType = new IntTypePrimitiveTypeNode(),
-                } },
+                    First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                    {
+                        PrimitiveType = new IntTypePrimitiveTypeNode(),
+                    }
+                },
                 Name = Tok(scenario.BindingName),
             },
             NotPatternOperandKind.VarPattern => new VarPatternPrimaryPatternNode

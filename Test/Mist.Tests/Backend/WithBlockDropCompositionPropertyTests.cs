@@ -211,7 +211,7 @@ public sealed class WithBlockDropCompositionPropertyTests : IDisposable
 
     public void Dispose()
     {
-        if (Directory.Exists(_outputDir))
+        if(Directory.Exists(_outputDir))
         {
             try { Directory.Delete(_outputDir, recursive: true); } catch { /* best effort */ }
         }
@@ -261,12 +261,12 @@ public sealed class WithBlockDropCompositionPropertyTests : IDisposable
     /// </summary>
     private static string? GetEmittedCSharp(CompilerResult result)
     {
-        if (result.EmittedFiles is null)
+        if(result.EmittedFiles is null)
             return null;
 
-        foreach (var (_, content) in result.EmittedFiles)
+        foreach(var (_, content) in result.EmittedFiles)
         {
-            if (content.Contains("namespace TestProgram"))
+            if(content.Contains("namespace TestProgram"))
                 return content;
         }
 
@@ -282,24 +282,24 @@ public sealed class WithBlockDropCompositionPropertyTests : IDisposable
         // Find `finally` keyword followed by `{` that contains the Pop<TypeName>()
         var popPattern = $"MistContext.Pop<{typeName}>();";
         var popIndex = emittedCSharp.IndexOf(popPattern, StringComparison.Ordinal);
-        if (popIndex < 0)
+        if(popIndex < 0)
             return null;
 
         // Walk backwards from the pop to find the enclosing finally { ... }
         // Look for the nearest `finally` keyword before the pop
         var searchRegion = emittedCSharp[..popIndex];
         var finallyIndex = searchRegion.LastIndexOf("finally", StringComparison.Ordinal);
-        if (finallyIndex < 0)
+        if(finallyIndex < 0)
             return null;
 
         // Find the opening brace after `finally`
         var openBrace = emittedCSharp.IndexOf('{', finallyIndex);
-        if (openBrace < 0)
+        if(openBrace < 0)
             return null;
 
         // Find the matching closing brace
         var closeBrace = FindMatchingCloseBrace(emittedCSharp, openBrace);
-        if (closeBrace < 0)
+        if(closeBrace < 0)
             return null;
 
         return emittedCSharp.Substring(openBrace + 1, closeBrace - openBrace - 1);
@@ -308,12 +308,12 @@ public sealed class WithBlockDropCompositionPropertyTests : IDisposable
     private static int FindMatchingCloseBrace(string source, int openBraceIndex)
     {
         var depth = 0;
-        for (var i = openBraceIndex; i < source.Length; i++)
+        for(var i = openBraceIndex; i < source.Length; i++)
         {
-            if (source[i] == '{') depth++;
-            else if (source[i] == '}') depth--;
+            if(source[i] == '{') depth++;
+            else if(source[i] == '}') depth--;
 
-            if (depth == 0)
+            if(depth == 0)
                 return i;
         }
         return -1;
@@ -335,7 +335,7 @@ public sealed class WithBlockDropCompositionPropertyTests : IDisposable
     {
         var result = CompileSource(scenario.Source);
 
-        if (!result.Succeeded)
+        if(!result.Succeeded)
         {
             var diagnostics = string.Join(", ", result.Diagnostics.Select(d => $"{d.Id.Value}: {d.Message}"));
             return false.ToProperty()
@@ -343,14 +343,14 @@ public sealed class WithBlockDropCompositionPropertyTests : IDisposable
         }
 
         var emittedCSharp = GetEmittedCSharp(result);
-        if (emittedCSharp is null)
+        if(emittedCSharp is null)
         {
             return false.ToProperty()
                 .Label($"No emitted C# file found.\nSource:\n{scenario.Source}");
         }
 
         var finallyBody = ExtractFinallyBlockContent(emittedCSharp, scenario.TypeName);
-        if (finallyBody is null)
+        if(finallyBody is null)
         {
             return false.ToProperty()
                 .Label($"No finally block containing 'MistContext.Pop<{scenario.TypeName}>()' found.\n" +
@@ -359,7 +359,7 @@ public sealed class WithBlockDropCompositionPropertyTests : IDisposable
 
         // Check that Pop<T>() is present in the finally block
         var popPattern = $"MistContext.Pop<{scenario.TypeName}>();";
-        if (!finallyBody.Contains(popPattern, StringComparison.Ordinal))
+        if(!finallyBody.Contains(popPattern, StringComparison.Ordinal))
         {
             return false.ToProperty()
                 .Label($"Pop<{scenario.TypeName}>() not found in finally block.\n" +
@@ -369,7 +369,7 @@ public sealed class WithBlockDropCompositionPropertyTests : IDisposable
         // Check that Drop() (or await) is present in the finally block
         var hasDropCall = finallyBody.Contains(".Drop();", StringComparison.Ordinal);
         var hasAwait = finallyBody.Contains("await ", StringComparison.Ordinal);
-        if (!hasDropCall && !hasAwait)
+        if(!hasDropCall && !hasAwait)
         {
             return false.ToProperty()
                 .Label($"Neither '.Drop()' nor 'await' found in finally block.\n" +
@@ -383,7 +383,7 @@ public sealed class WithBlockDropCompositionPropertyTests : IDisposable
             ? finallyBody.IndexOf(".Drop();", StringComparison.Ordinal)
             : finallyBody.IndexOf("await ", StringComparison.Ordinal);
 
-        if (popIndex >= dropIndex)
+        if(popIndex >= dropIndex)
         {
             return false.ToProperty()
                 .Label($"Pop<{scenario.TypeName}>() does not appear BEFORE Drop()/await in finally.\n" +

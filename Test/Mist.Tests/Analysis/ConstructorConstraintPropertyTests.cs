@@ -63,7 +63,7 @@ public class ConstructorConstraintPropertyTests
         var parseBag = new DiagnosticBag();
         var parseResult = Parser.Parse(tokens, parseBag);
 
-        if (parseResult.Root is null)
+        if(parseResult.Root is null)
             return (null!, lexBag.ToImmutableArray().AddRange(parseBag.ToImmutableArray()));
 
         var compilation = new MistCompilation(
@@ -228,7 +228,7 @@ public class ConstructorConstraintPropertyTests
         var (_, diagnostics) = CompileSource(scenario.Source);
         var hasMismatch = HasNewTMismatch(diagnostics);
 
-        if (scenario.ShouldAccept)
+        if(scenario.ShouldAccept)
         {
             return (!hasMismatch).ToProperty()
                 .Label($"Expected ACCEPT but got MIST_CONSTRAINT_0016.\nSource:\n{scenario.Source}\nDiagnostics: {string.Join("; ", diagnostics.Where(d => d.Id.Value.StartsWith("MIST_CONSTRAINT")).Select(d => d.Message))}");

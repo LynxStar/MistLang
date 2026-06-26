@@ -88,7 +88,7 @@ public sealed class PropertyInitializerDuplicatePropertyTests
         var sb = new StringBuilder();
         sb.AppendLine("class TestType {");
         sb.AppendLine($"    public int {dupName} {{ get; set; }}");
-        foreach (var prop in extraProps)
+        foreach(var prop in extraProps)
         {
             sb.AppendLine($"    public int {prop} {{ get; set; }}");
         }
@@ -104,7 +104,7 @@ public sealed class PropertyInitializerDuplicatePropertyTests
         parts.Add($"{dupName} = {firstValue}");
         // Extra valid assignments
         var extraVal = 100;
-        foreach (var prop in extraProps)
+        foreach(var prop in extraProps)
         {
             parts.Add($"{prop} = {extraVal++}");
         }
@@ -122,13 +122,13 @@ public sealed class PropertyInitializerDuplicatePropertyTests
         // Lex
         var lexBag = new DiagnosticBag();
         var tokens = Lexer.Lex(sourceText, lexBag);
-        if (lexBag.HasErrors)
+        if(lexBag.HasErrors)
             return lexBag.ToImmutableArray();
 
         // Parse
         var parseBag = new DiagnosticBag();
         var parseResult = Parser.Parse(tokens, parseBag);
-        if (parseBag.HasErrors || parseResult.Root is null)
+        if(parseBag.HasErrors || parseResult.Root is null)
             return parseBag.ToImmutableArray();
 
         // Semantic model
@@ -169,7 +169,7 @@ public sealed class PropertyInitializerDuplicatePropertyTests
             .Where(d => d.Id.Value == "MIST_PI_0006")
             .ToList();
 
-        if (piDiags.Count != 1)
+        if(piDiags.Count != 1)
         {
             return false.ToProperty()
                 .Label($"Expected exactly 1 MIST_PI_0006 diagnostic, got {piDiags.Count}.\n" +

@@ -120,7 +120,7 @@ public class ParserAstPropertyTests
         // Every child's span should be within the parent's span
         foreach(var child in children1)
         {
-            if (child is null) continue; // Skip null children from generated AST nodes
+            if(child is null) continue; // Skip null children from generated AST nodes
 
             Assert.True(child.Span.Start >= node.Span.Start,
                 $"Child span start ({child.Span.Start}) should be >= parent span start ({node.Span.Start})");

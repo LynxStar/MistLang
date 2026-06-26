@@ -73,12 +73,12 @@ public sealed class DropAnalyzer : IAnalyzer
     /// </summary>
     private static void ValidateDeclarations(ISemanticModel model, DiagnosticBag diagnostics)
     {
-        foreach (var symbol in model.AllSymbols)
+        foreach(var symbol in model.AllSymbols)
         {
-            if (symbol.Origin != SymbolOrigin.UserCode)
+            if(symbol.Origin != SymbolOrigin.UserCode)
                 continue;
 
-            if (symbol.Kind is not (SymbolKind.Class or SymbolKind.Struct))
+            if(symbol.Kind is not (SymbolKind.Class or SymbolKind.Struct))
                 continue;
 
             SyntaxNode declaringNode;
@@ -93,7 +93,7 @@ public sealed class DropAnalyzer : IAnalyzer
             };
 
             // Validation 1: conflicting modifiers (MIST_DROP_CONFLICTING_MODIFIERS).
-            if (modifiers is { } mods && HasConflictingModifiers(mods))
+            if(modifiers is { } mods && HasConflictingModifiers(mods))
             {
                 diagnostics.Add(MakeDiagnostic(
                     ConflictingModifiers,
@@ -125,9 +125,9 @@ public sealed class DropAnalyzer : IAnalyzer
         var hasRelevant = false;
         var hasOwned = false;
 
-        foreach (var modifier in modifiers)
+        foreach(var modifier in modifiers)
         {
-            switch (modifier)
+            switch(modifier)
             {
                 case AffineModifierModifierNode:
                     hasAffine = true;
@@ -147,12 +147,12 @@ public sealed class DropAnalyzer : IAnalyzer
         var substructuralCount = (hasAffine ? 1 : 0) + (hasLinear ? 1 : 0) + (hasRelevant ? 1 : 0);
 
         // More than one substructural modifier (e.g. affine linear, linear relevant).
-        if (substructuralCount > 1)
+        if(substructuralCount > 1)
             return true;
 
         // owned combined with any substructural modifier
         // (owned affine / owned linear are redundant, owned relevant is contradictory).
-        if (hasOwned && substructuralCount >= 1)
+        if(hasOwned && substructuralCount >= 1)
             return true;
 
         return false;
@@ -165,22 +165,22 @@ public sealed class DropAnalyzer : IAnalyzer
     private static void ValidateDropParameters(ISymbol typeSymbol, ISemanticModel model, DiagnosticBag diagnostics)
     {
         var memberScope = GetMemberScope(typeSymbol.DeclaredType);
-        if (memberScope is null)
+        if(memberScope is null)
             return;
 
-        foreach (var member in memberScope.Members)
+        foreach(var member in memberScope.Members)
         {
-            if (member.Kind != SymbolKind.Method || member.Name != "Drop")
+            if(member.Kind != SymbolKind.Method || member.Name != "Drop")
                 continue;
 
             SyntaxNode memberNode;
             try { memberNode = model.GetDeclaringNode(member); }
             catch { continue; }
 
-            if (memberNode is not MethodDeclarationNode methodDecl)
+            if(memberNode is not MethodDeclarationNode methodDecl)
                 continue;
 
-            if (CountParameters(methodDecl.Parameters) == 0)
+            if(CountParameters(methodDecl.Parameters) == 0)
                 continue;
 
             diagnostics.Add(MakeDiagnostic(
@@ -205,29 +205,29 @@ public sealed class DropAnalyzer : IAnalyzer
     private static void ValidateFieldContainment(ISymbol typeSymbol, ISemanticModel model, DiagnosticBag diagnostics)
     {
         var containerType = typeSymbol.DeclaredType;
-        if (containerType is null)
+        if(containerType is null)
             return;
 
         var memberScope = GetMemberScope(containerType);
-        if (memberScope is null)
+        if(memberScope is null)
             return;
 
         var containerDiscipline = GetContainerDiscipline(containerType);
 
-        foreach (var member in memberScope.Members)
+        foreach(var member in memberScope.Members)
         {
-            if (member.Kind != SymbolKind.Field)
+            if(member.Kind != SymbolKind.Field)
                 continue;
 
             var fieldType = member.DeclaredType;
-            if (fieldType is null)
+            if(fieldType is null)
                 continue;
 
             // Handle TypeParameterType fields in substructural containers.
-            if (fieldType is TypeParameterType tpType &&
+            if(fieldType is TypeParameterType tpType &&
                 containerDiscipline != SubstructuralDiscipline.None)
             {
-                if (!HasSubstructuralConstraint(tpType))
+                if(!HasSubstructuralConstraint(tpType))
                 {
                     // Unconstrained type parameter in a substructural container → error.
                     SyntaxNode fieldNode;
@@ -265,7 +265,7 @@ public sealed class DropAnalyzer : IAnalyzer
 
                 // Type parameter has a substructural constraint — use it as the effective discipline.
                 var constraintDiscipline = GetTypeParameterDiscipline(tpType);
-                if (!IsFieldCompatible(containerDiscipline, constraintDiscipline))
+                if(!IsFieldCompatible(containerDiscipline, constraintDiscipline))
                 {
                     SyntaxNode fieldNode;
                     try { fieldNode = model.GetDeclaringNode(member); }
@@ -283,10 +283,10 @@ public sealed class DropAnalyzer : IAnalyzer
             // Concrete field types: resolve through ConstructedType and apply the matrix.
             var fieldDiscipline = GetEffectiveFieldDiscipline(fieldType);
 
-            if (fieldDiscipline == SubstructuralDiscipline.None)
+            if(fieldDiscipline == SubstructuralDiscipline.None)
                 continue; // Unrestricted fields are always permitted.
 
-            if (IsFieldCompatible(containerDiscipline, fieldDiscipline))
+            if(IsFieldCompatible(containerDiscipline, fieldDiscipline))
                 continue;
 
             {
@@ -324,7 +324,7 @@ public sealed class DropAnalyzer : IAnalyzer
     /// </summary>
     private static SubstructuralDiscipline GetEffectiveFieldDiscipline(IType fieldType)
     {
-        if (fieldType is TypeParameterType tpType)
+        if(fieldType is TypeParameterType tpType)
             return GetTypeParameterDiscipline(tpType);
 
         return GetDiscipline(fieldType);
@@ -336,14 +336,14 @@ public sealed class DropAnalyzer : IAnalyzer
     private static SubstructuralDiscipline GetTypeParameterDiscipline(TypeParameterType tpType)
     {
         var constraints = tpType.Constraints;
-        if (constraints is null)
+        if(constraints is null)
             return SubstructuralDiscipline.None;
 
-        if (constraints.HasLinearConstraint)
+        if(constraints.HasLinearConstraint)
             return SubstructuralDiscipline.Linear;
-        if (constraints.HasAffineConstraint)
+        if(constraints.HasAffineConstraint)
             return SubstructuralDiscipline.Affine;
-        if (constraints.HasRelevantConstraint)
+        if(constraints.HasRelevantConstraint)
             return SubstructuralDiscipline.Relevant;
 
         return SubstructuralDiscipline.None;
@@ -355,7 +355,7 @@ public sealed class DropAnalyzer : IAnalyzer
     private static bool HasSubstructuralConstraint(TypeParameterType tpType)
     {
         var constraints = tpType.Constraints;
-        if (constraints is null)
+        if(constraints is null)
             return false;
 
         return constraints.HasLinearConstraint || constraints.HasAffineConstraint || constraints.HasRelevantConstraint;
@@ -372,7 +372,7 @@ public sealed class DropAnalyzer : IAnalyzer
     /// </summary>
     private static bool IsFieldCompatible(SubstructuralDiscipline container, SubstructuralDiscipline field)
     {
-        if (field == SubstructuralDiscipline.None)
+        if(field == SubstructuralDiscipline.None)
             return true; // Unrestricted fields are always permitted.
 
         return container switch
@@ -469,13 +469,13 @@ public sealed class DropAnalyzer : IAnalyzer
     /// </summary>
     private static int CountParameters(ParameterListNode? paramList)
     {
-        if (paramList is null)
+        if(paramList is null)
             return 0;
 
         var count = 0;
-        foreach (var child in paramList.Children())
+        foreach(var child in paramList.Children())
         {
-            if (child is ParameterNode)
+            if(child is ParameterNode)
                 count++;
         }
         return count;
@@ -495,23 +495,23 @@ public sealed class DropAnalyzer : IAnalyzer
         string? compilationUnitPath = null;
 
         var span = node.Span;
-        if (span.Length > 0)
+        if(span.Length > 0)
         {
             var asts = model.Asts;
             var units = model.Units;
             var astIndex = -1;
 
-            for (var i = 0; i < asts.Length; i++)
+            for(var i = 0; i < asts.Length; i++)
             {
                 var astSpan = asts[i].Span;
-                if (span.Start >= astSpan.Start && span.Start + span.Length <= astSpan.Start + astSpan.Length)
+                if(span.Start >= astSpan.Start && span.Start + span.Length <= astSpan.Start + astSpan.Length)
                 {
                     astIndex = i;
                     break;
                 }
             }
 
-            if (astIndex >= 0 && astIndex < units.Count)
+            if(astIndex >= 0 && astIndex < units.Count)
             {
                 var source = units[astIndex].Source;
                 compilationUnitPath = source.Path;
@@ -544,12 +544,12 @@ public sealed class DropAnalyzer : IAnalyzer
     /// </summary>
     private static void AnalyzeFlowSensitive(ISemanticModel model, DiagnosticBag diagnostics)
     {
-        foreach (var symbol in model.AllSymbols)
+        foreach(var symbol in model.AllSymbols)
         {
-            if (symbol.Origin != SymbolOrigin.UserCode)
+            if(symbol.Origin != SymbolOrigin.UserCode)
                 continue;
 
-            switch (symbol.Kind)
+            switch(symbol.Kind)
             {
                 case SymbolKind.Method:
                 case SymbolKind.Constructor:
@@ -578,7 +578,7 @@ public sealed class DropAnalyzer : IAnalyzer
             _ => null,
         };
 
-        if (body is null)
+        if(body is null)
             return;
 
         // A method named Drop with zero parameters is the type's own Drop() method;
@@ -608,19 +608,19 @@ public sealed class DropAnalyzer : IAnalyzer
             _ => null,
         };
 
-        if (paramList is null)
+        if(paramList is null)
             return;
 
-        foreach (var child in paramList.Children())
+        foreach(var child in paramList.Children())
         {
-            if (child is not ParameterNode paramNode)
+            if(child is not ParameterNode paramNode)
                 continue;
 
             var paramSymbol = model.GetDeclaredSymbol(paramNode);
-            if (paramSymbol?.DeclaredType is null)
+            if(paramSymbol?.DeclaredType is null)
                 continue;
 
-            if (IsOwnedDroppable(GetDiscipline(paramSymbol.DeclaredType)))
+            if(IsOwnedDroppable(GetDiscipline(paramSymbol.DeclaredType)))
                 state.DropStates[paramSymbol] = VariableDropState.Live;
         }
     }
@@ -637,7 +637,7 @@ public sealed class DropAnalyzer : IAnalyzer
         DiagnosticBag diagnostics,
         bool isDropMethod)
     {
-        foreach (var stmt in block.Statements)
+        foreach(var stmt in block.Statements)
         {
             WalkStatement(stmt, state, model, diagnostics, isDropMethod);
         }
@@ -654,7 +654,7 @@ public sealed class DropAnalyzer : IAnalyzer
         DiagnosticBag diagnostics,
         bool isDropMethod)
     {
-        switch (stmt)
+        switch(stmt)
         {
             case VariableDeclarationStatementStatementNode varDeclStmt:
                 AnalyzeVariableDeclaration(varDeclStmt.VariableDeclaration, state, model, diagnostics, isDropMethod);
@@ -702,9 +702,9 @@ public sealed class DropAnalyzer : IAnalyzer
             default:
                 // Other statement forms: scan any directly-contained expressions for uses,
                 // drop consumes, and field-drop violations.
-                foreach (var child in stmt.Children())
+                foreach(var child in stmt.Children())
                 {
-                    if (child is ExpressionNode childExpr)
+                    if(child is ExpressionNode childExpr)
                         ProcessExpression(childExpr, state, model, diagnostics, isDropMethod);
                 }
                 break;
@@ -731,18 +731,18 @@ public sealed class DropAnalyzer : IAnalyzer
             _ => null,
         };
 
-        if (initializer is not null)
+        if(initializer is not null)
         {
             ProcessExpression(initializer, state, model, diagnostics, isDropMethod);
 
             // Initializing one droppable binding from another moves the source.
             var sourceSymbol = TryResolveIdentifierSymbol(initializer, model);
-            if (sourceSymbol is not null && IsTrackedDroppable(sourceSymbol, state))
+            if(sourceSymbol is not null && IsTrackedDroppable(sourceSymbol, state))
                 MarkConsumed(sourceSymbol, VariableDropState.Moved, state);
         }
 
         var declaredSymbol = model.GetDeclaredSymbol(varDecl);
-        if (declaredSymbol?.DeclaredType is not null &&
+        if(declaredSymbol?.DeclaredType is not null &&
             declaredSymbol.Kind == SymbolKind.LocalVariable &&
             IsOwnedDroppable(GetDiscipline(declaredSymbol.DeclaredType)))
         {
@@ -765,12 +765,12 @@ public sealed class DropAnalyzer : IAnalyzer
         ProcessExpression(expr, state, model, diagnostics, isDropMethod);
 
         // Detect `target = source;` where source is a droppable variable → move source.
-        if (expr.AsAssignmentOrNull() is { Value: not null } assignment &&
+        if(expr.AsAssignmentOrNull() is { Value: not null } assignment &&
             assignment.Value.AsAssignmentOrNull() is { } rhs &&
             rhs.Value is null)
         {
             var sourceSymbol = TryResolveIdentifierSymbol(rhs.Target, model);
-            if (sourceSymbol is not null && IsTrackedDroppable(sourceSymbol, state))
+            if(sourceSymbol is not null && IsTrackedDroppable(sourceSymbol, state))
                 MarkConsumed(sourceSymbol, VariableDropState.Moved, state);
         }
     }
@@ -796,14 +796,14 @@ public sealed class DropAnalyzer : IAnalyzer
         WalkBlock(ifStmt.ThenBranch, state, model, diagnostics, isDropMethod);
         state.ExitScope();
 
-        if (ifStmt.ElseBranch is ElseBlockElseClauseNode elseBlock)
+        if(ifStmt.ElseBranch is ElseBlockElseClauseNode elseBlock)
         {
             thenState.EnterScope();
             WalkBlock(elseBlock.ElseBlock, thenState, model, diagnostics, isDropMethod);
             thenState.ExitScope();
             state.Merge(thenState);
         }
-        else if (ifStmt.ElseBranch is ElseIfElseClauseNode elseIf)
+        else if(ifStmt.ElseBranch is ElseIfElseClauseNode elseIf)
         {
             AnalyzeIfStatement(elseIf.ElseIf, thenState, model, diagnostics, isDropMethod);
             state.Merge(thenState);
@@ -824,21 +824,21 @@ public sealed class DropAnalyzer : IAnalyzer
         DiagnosticBag diagnostics,
         bool isDropMethod)
     {
-        if (forStmt.Initializer is not null)
+        if(forStmt.Initializer is not null)
         {
-            foreach (var child in forStmt.Initializer.Children())
+            foreach(var child in forStmt.Initializer.Children())
             {
-                if (child is ExpressionNode expr)
+                if(child is ExpressionNode expr)
                     ProcessExpression(expr, state, model, diagnostics, isDropMethod);
             }
         }
 
-        if (forStmt.Condition is not null)
+        if(forStmt.Condition is not null)
             ProcessExpression(forStmt.Condition, state, model, diagnostics, isDropMethod);
 
         WalkBlock(forStmt.Body, state, model, diagnostics, isDropMethod);
 
-        if (forStmt.Iterator is not null)
+        if(forStmt.Iterator is not null)
             ProcessExpression(forStmt.Iterator, state, model, diagnostics, isDropMethod);
     }
 
@@ -854,13 +854,13 @@ public sealed class DropAnalyzer : IAnalyzer
         DiagnosticBag diagnostics,
         bool isDropMethod)
     {
-        if (returnStmt.Value is null)
+        if(returnStmt.Value is null)
             return;
 
         ProcessExpression(returnStmt.Value, state, model, diagnostics, isDropMethod);
 
         var sourceSymbol = TryResolveIdentifierSymbol(returnStmt.Value, model);
-        if (sourceSymbol is not null && IsTrackedDroppable(sourceSymbol, state))
+        if(sourceSymbol is not null && IsTrackedDroppable(sourceSymbol, state))
             MarkConsumed(sourceSymbol, VariableDropState.Returned, state);
     }
 
@@ -899,10 +899,10 @@ public sealed class DropAnalyzer : IAnalyzer
         ISemanticModel model,
         DiagnosticBag diagnostics)
     {
-        if (node is IdentifierExpressionPrimaryNode identifier)
+        if(node is IdentifierExpressionPrimaryNode identifier)
         {
             var symbol = model.GetDeclaredSymbol(identifier);
-            if (symbol is not null &&
+            if(symbol is not null &&
                 state.DropStates.TryGetValue(symbol, out var dropState) &&
                 dropState != VariableDropState.Live)
             {
@@ -910,7 +910,7 @@ public sealed class DropAnalyzer : IAnalyzer
                     ? GetDiscipline(symbol.DeclaredType)
                     : SubstructuralDiscipline.None;
 
-                if (discipline == SubstructuralDiscipline.Affine)
+                if(discipline == SubstructuralDiscipline.Affine)
                 {
                     diagnostics.Add(MakeDiagnostic(
                         UseAfterDrop,
@@ -929,9 +929,9 @@ public sealed class DropAnalyzer : IAnalyzer
             }
         }
 
-        foreach (var child in node.Children())
+        foreach(var child in node.Children())
         {
-            if (child is not null)
+            if(child is not null)
                 ReportUsesOfConsumedVars(child, state, model, diagnostics);
         }
     }
@@ -947,18 +947,18 @@ public sealed class DropAnalyzer : IAnalyzer
         MethodFlowState state,
         ISemanticModel model)
     {
-        if (node is PostfixNode postfix && TryGetVariableDropTarget(postfix, model) is { } varSymbol)
+        if(node is PostfixNode postfix && TryGetVariableDropTarget(postfix, model) is { } varSymbol)
         {
-            if (IsTrackedDroppable(varSymbol, state) &&
+            if(IsTrackedDroppable(varSymbol, state) &&
                 state.DropStates[varSymbol] == VariableDropState.Live)
             {
                 state.DropStates[varSymbol] = VariableDropState.Dropped;
             }
         }
 
-        foreach (var child in node.Children())
+        foreach(var child in node.Children())
         {
-            if (child is not null)
+            if(child is not null)
                 ApplyDropConsumes(child, state, model);
         }
     }
@@ -977,12 +977,12 @@ public sealed class DropAnalyzer : IAnalyzer
         DiagnosticBag diagnostics,
         bool isDropMethod)
     {
-        if (node is PostfixNode postfix && postfix.Suffix.Length >= 2)
+        if(node is PostfixNode postfix && postfix.Suffix.Length >= 2)
         {
             var last = postfix.Suffix[^1];
             var prev = postfix.Suffix[^2];
 
-            if (last is MethodCallSuffixPostfixSuffixNode dropCall &&
+            if(last is MethodCallSuffixPostfixSuffixNode dropCall &&
                 dropCall.Name.Lexeme == "Drop" &&
                 CountArguments(dropCall.Arguments) == 0 &&
                 prev is MemberAccessSuffixPostfixSuffixNode fieldAccess)
@@ -990,7 +990,7 @@ public sealed class DropAnalyzer : IAnalyzer
                 var fieldType = model.GetTypeOf(prev);
                 var discipline = fieldType is not null ? GetDiscipline(fieldType) : SubstructuralDiscipline.None;
 
-                if (IsOwnedDroppable(discipline))
+                if(IsOwnedDroppable(discipline))
                 {
                     // Permitted only for `this.Field.Drop()` inside the type's own Drop().
                     var permitted =
@@ -998,7 +998,7 @@ public sealed class DropAnalyzer : IAnalyzer
                         postfix.Suffix.Length == 2 &&
                         postfix.Target is ThisExpressionPrimaryNode;
 
-                    if (!permitted)
+                    if(!permitted)
                     {
                         diagnostics.Add(MakeDiagnostic(
                             FieldOutsideContainer,
@@ -1010,9 +1010,9 @@ public sealed class DropAnalyzer : IAnalyzer
             }
         }
 
-        foreach (var child in node.Children())
+        foreach(var child in node.Children())
         {
-            if (child is not null)
+            if(child is not null)
                 CheckFieldDrops(child, state, model, diagnostics, isDropMethod);
         }
     }
@@ -1026,20 +1026,20 @@ public sealed class DropAnalyzer : IAnalyzer
     /// </summary>
     private static ISymbol? TryGetVariableDropTarget(PostfixNode postfix, ISemanticModel model)
     {
-        if (postfix.Suffix.Length != 1)
+        if(postfix.Suffix.Length != 1)
             return null;
 
-        if (postfix.Suffix[0] is not MethodCallSuffixPostfixSuffixNode methodCall)
+        if(postfix.Suffix[0] is not MethodCallSuffixPostfixSuffixNode methodCall)
             return null;
 
-        if (methodCall.Name.Lexeme != "Drop" || CountArguments(methodCall.Arguments) != 0)
+        if(methodCall.Name.Lexeme != "Drop" || CountArguments(methodCall.Arguments) != 0)
             return null;
 
-        if (postfix.Target is not IdentifierExpressionPrimaryNode identifier)
+        if(postfix.Target is not IdentifierExpressionPrimaryNode identifier)
             return null;
 
         var symbol = model.GetDeclaredSymbol(identifier);
-        if (symbol is null || symbol.Kind is not (SymbolKind.LocalVariable or SymbolKind.Parameter))
+        if(symbol is null || symbol.Kind is not (SymbolKind.LocalVariable or SymbolKind.Parameter))
             return null;
 
         return symbol;
@@ -1051,7 +1051,7 @@ public sealed class DropAnalyzer : IAnalyzer
     /// </summary>
     private static void MarkConsumed(ISymbol symbol, VariableDropState consumed, MethodFlowState state)
     {
-        if (state.DropStates.TryGetValue(symbol, out var current) && current == VariableDropState.Live)
+        if(state.DropStates.TryGetValue(symbol, out var current) && current == VariableDropState.Live)
             state.DropStates[symbol] = consumed;
     }
 
@@ -1080,7 +1080,7 @@ public sealed class DropAnalyzer : IAnalyzer
     /// </summary>
     private static ISymbol? TryResolveIdentifierSymbol(SyntaxNode node, ISemanticModel model)
     {
-        switch (node)
+        switch(node)
         {
             case ExpressionNode expr:
                 return expr.AsAssignmentOrNull() is { } exprAssignment
@@ -1098,24 +1098,24 @@ public sealed class DropAnalyzer : IAnalyzer
                     : TryResolveIdentifierSymbol(postfix.Target, model);
 
             case IdentifierExpressionPrimaryNode identifier:
-            {
-                var symbol = model.GetDeclaredSymbol(identifier);
-                return symbol is not null &&
-                       symbol.Kind is SymbolKind.LocalVariable or SymbolKind.Parameter
-                    ? symbol
-                    : null;
-            }
+                {
+                    var symbol = model.GetDeclaredSymbol(identifier);
+                    return symbol is not null &&
+                           symbol.Kind is SymbolKind.LocalVariable or SymbolKind.Parameter
+                        ? symbol
+                        : null;
+                }
         }
 
         SyntaxNode? onlyChild = null;
         var childCount = 0;
-        foreach (var child in node.Children())
+        foreach(var child in node.Children())
         {
-            if (child is null)
+            if(child is null)
                 continue;
             childCount++;
             onlyChild = child;
-            if (childCount > 1)
+            if(childCount > 1)
                 return null;
         }
 

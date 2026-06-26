@@ -55,7 +55,7 @@ public sealed class DelegateOverloadResolutionPropertyTests
     {
         var funcDef = new ClassType("Func", new Scope(null), "Standard", isBackendBacked: true);
         var tps = new IType[arity];
-        for (var i = 0; i < arity; i++)
+        for(var i = 0; i < arity; i++)
             tps[i] = new TypeParameterType($"T{i}", i);
         funcDef.TypeParameters = tps;
         return funcDef;
@@ -184,7 +184,7 @@ public sealed class DelegateOverloadResolutionPropertyTests
         var model = BuildMinimalModel();
         var samples = GenDelegateScenarioInput().Sample(100);
 
-        foreach (var input in samples)
+        foreach(var input in samples)
         {
             var delegateType = BuildDelegateType(input);
 
@@ -222,7 +222,7 @@ public sealed class DelegateOverloadResolutionPropertyTests
         var model = BuildMinimalModel();
         var samples = GenDelegateScenarioInput().Sample(100);
 
-        foreach (var input in samples)
+        foreach(var input in samples)
         {
             var delegateType = BuildDelegateType(input);
 
@@ -258,7 +258,7 @@ public sealed class DelegateOverloadResolutionPropertyTests
         var model = BuildMinimalModel();
         var samples = GenDelegateScenarioInput().Sample(100);
 
-        foreach (var input in samples)
+        foreach(var input in samples)
         {
             var delegateType = BuildDelegateType(input);
 
@@ -293,7 +293,7 @@ public sealed class DelegateOverloadResolutionPropertyTests
         var model = BuildMinimalModel();
         var samples = GenDelegateScenarioInput().Sample(100);
 
-        foreach (var input in samples)
+        foreach(var input in samples)
         {
             var delegateType = BuildDelegateType(input);
 

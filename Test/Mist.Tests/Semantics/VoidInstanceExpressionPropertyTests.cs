@@ -388,12 +388,12 @@ public class VoidInstanceExpressionPropertyTests
     {
         // The suffix node should have the void type assigned
         var suffixType = model.GetTypeOf(suffix);
-        if (suffixType is null || !suffixType.IsVoid())
+        if(suffixType is null || !suffixType.IsVoid())
             return false;
 
         // The overall postfix node should also have the void type assigned
         var postfixType = model.GetTypeOf(postfix);
-        if (postfixType is null || !postfixType.IsVoid())
+        if(postfixType is null || !postfixType.IsVoid())
             return false;
 
         // Both should be identified as void

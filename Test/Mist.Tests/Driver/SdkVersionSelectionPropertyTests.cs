@@ -24,7 +24,7 @@ public sealed class SdkVersionSelectionPropertyTests : IDisposable
 
     public void Dispose()
     {
-        foreach (var dir in _tempDirs)
+        foreach(var dir in _tempDirs)
         {
             try { Directory.Delete(dir, recursive: true); } catch { /* best effort */ }
         }
@@ -69,7 +69,7 @@ public sealed class SdkVersionSelectionPropertyTests : IDisposable
                 var list = entries.ToList();
                 // Ensure at least one compatible entry exists
                 var hasCompatible = list.Any(e => e.HasRefAssemblies);
-                if (!hasCompatible)
+                if(!hasCompatible)
                 {
                     // Add a guaranteed compatible entry
                     return Gen.Choose(0, 9).SelectMany(minor =>
@@ -113,13 +113,13 @@ public sealed class SdkVersionSelectionPropertyTests : IDisposable
         var packsDir = Path.Combine(sdkRoot, "packs", "Microsoft.NETCore.App.Ref");
         Directory.CreateDirectory(packsDir);
 
-        foreach (var entry in entries)
+        foreach(var entry in entries)
         {
             var versionStr = $"{entry.Major}.{entry.Minor}.{entry.Patch}";
             var versionDir = Path.Combine(packsDir, versionStr);
             Directory.CreateDirectory(versionDir);
 
-            if (entry.HasRefAssemblies)
+            if(entry.HasRefAssemblies)
             {
                 // Create the ref/{tfm}/ directory to indicate compatibility
                 var refDir = Path.Combine(versionDir, "ref", tfm);
@@ -162,11 +162,11 @@ public sealed class SdkVersionSelectionPropertyTests : IDisposable
             var result = SdkDiscovery.FindHighestVersionRefPath(sdkRoot, tfm);
 
             // Result should not be null since we guaranteed at least one compatible entry
-            if (result is null)
+            if(result is null)
                 return false.Label("Expected non-null result but got null");
 
             // The result path should end with ref/{tfm}
-            if (!result.EndsWith(Path.Combine("ref", tfm), StringComparison.Ordinal))
+            if(!result.EndsWith(Path.Combine("ref", tfm), StringComparison.Ordinal))
                 return false.Label($"Result path does not end with ref/{tfm}: {result}");
 
             // Extract the version from the result path
@@ -176,12 +176,12 @@ public sealed class SdkVersionSelectionPropertyTests : IDisposable
             // parts: ["packs", "Microsoft.NETCore.App.Ref", "{version}", "ref", "{tfm}"]
             var selectedVersionStr = parts[2];
 
-            if (!Version.TryParse(selectedVersionStr, out var selectedVersion))
+            if(!Version.TryParse(selectedVersionStr, out var selectedVersion))
                 return false.Label($"Could not parse selected version: {selectedVersionStr}");
 
             // Verify it's the highest compatible version
             var expected = ExpectedHighestVersion(entries);
-            if (expected is null)
+            if(expected is null)
                 return false.Label("Expected version is null despite guaranteed compatible entry");
 
             return (selectedVersion == expected)
@@ -239,7 +239,7 @@ public sealed class SdkVersionSelectionPropertyTests : IDisposable
 
             // ParseSdkListOutput returns the parent of the [path] value
             // Since all lines use [/usr/share/dotnet/sdk], the parent is /usr/share/dotnet
-            if (result is null)
+            if(result is null)
                 return false.Label("ParseSdkListOutput returned null for valid input");
 
             // The result should be the parent directory of the sdk path

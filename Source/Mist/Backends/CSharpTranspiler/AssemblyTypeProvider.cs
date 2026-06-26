@@ -161,9 +161,9 @@ internal sealed class AssemblyTypeProvider : IAmbientTypeResolver, IDisposable
     /// </summary>
     internal bool HasNamespaceWithPrefix(string prefix)
     {
-        foreach (var ns in _namespaceIndex.Keys)
+        foreach(var ns in _namespaceIndex.Keys)
         {
-            if (ns.StartsWith(prefix, StringComparison.Ordinal))
+            if(ns.StartsWith(prefix, StringComparison.Ordinal))
                 return true;
         }
         return false;
@@ -194,7 +194,7 @@ internal sealed class AssemblyTypeProvider : IAmbientTypeResolver, IDisposable
             ? (namespaceName, $"{typeName}`{typeArgumentCount}")
             : (namespaceName, typeName);
 
-        if (_cache.TryGetValue(cacheKey, out var cached))
+        if(_cache.TryGetValue(cacheKey, out var cached))
             return cached.Type;
 
         // Cross-key lookup: when arity is unspecified (-1), also check the arity-0 key.
@@ -202,10 +202,10 @@ internal sealed class AssemblyTypeProvider : IAmbientTypeResolver, IDisposable
         // (e.g., RegisterAmbientExtensions → ProjectMemberType → ResolveProjectedType with
         // arity 0) returns the same canonical instance when later resolved via the public
         // ResolveType(namespace, name) API which uses arity -1.
-        if (typeArgumentCount == -1)
+        if(typeArgumentCount == -1)
         {
             var arityZeroKey = (namespaceName, $"{typeName}`0");
-            if (_cache.TryGetValue(arityZeroKey, out var arityZeroCached))
+            if(_cache.TryGetValue(arityZeroKey, out var arityZeroCached))
                 return arityZeroCached.Type;
         }
 
@@ -213,7 +213,7 @@ internal sealed class AssemblyTypeProvider : IAmbientTypeResolver, IDisposable
         var clrType = typeArgumentCount >= 0
             ? FindClrTypeByArity(namespaceName, typeName, typeArgumentCount)
             : FindClrType(namespaceName, typeName);
-        if (clrType is null)
+        if(clrType is null)
             return null;
 
         // Skip non-public types: VisibilityFilter.IsTypeExcluded excludes types that are not
@@ -221,7 +221,7 @@ internal sealed class AssemblyTypeProvider : IAmbientTypeResolver, IDisposable
         // types (Span<T>/ReadOnlySpan<T> and any IsByRefLike type) are NOT excluded here — they
         // are projected as Mist stack-only structs (Requirement 9), so this guard does not null
         // them out.
-        if (_filter.IsTypeExcluded(clrType))
+        if(_filter.IsTypeExcluded(clrType))
             return null;
 
         // Project the type lazily on first access (Requirement 3.3).
@@ -234,7 +234,7 @@ internal sealed class AssemblyTypeProvider : IAmbientTypeResolver, IDisposable
         // (cache-mediated recursion safety — Requirements 6.1, 6.3). If another thread won
         // the race to project this key, discard our work and return the cached instance so
         // reference equality is preserved (Requirement 3.4).
-        if (!_cache.TryAdd(cacheKey, (projectedType, ImmutableArray<ISymbol>.Empty)))
+        if(!_cache.TryAdd(cacheKey, (projectedType, ImmutableArray<ISymbol>.Empty)))
             return _cache[cacheKey].Type;
 
         // Project members (methods, properties, fields, constructors, indexers).
@@ -242,10 +242,10 @@ internal sealed class AssemblyTypeProvider : IAmbientTypeResolver, IDisposable
 
         // Project operators and add them to the member list.
         var memberScope = GetMemberScope(projectedType);
-        if (memberScope is not null)
+        if(memberScope is not null)
         {
             var operators = _projector.ProjectOperators(clrType, memberScope, stdlib);
-            if (operators.Length > 0)
+            if(operators.Length > 0)
             {
                 projectedMembers = projectedMembers.AddRange(operators);
             }
@@ -290,7 +290,7 @@ internal sealed class AssemblyTypeProvider : IAmbientTypeResolver, IDisposable
     /// </summary>
     private IType? ResolveProjectedType(Type clrType)
     {
-        if (clrType.Namespace is null || clrType.IsGenericParameter || clrType.IsArray)
+        if(clrType.Namespace is null || clrType.IsGenericParameter || clrType.IsArray)
             return null;
 
         var typeName = TypeProjector.StripGenericAritySuffix(clrType.Name);
@@ -306,7 +306,7 @@ internal sealed class AssemblyTypeProvider : IAmbientTypeResolver, IDisposable
     /// </summary>
     private IType? ResolveProjectedTypeCacheOnly(Type clrType)
     {
-        if (clrType.Namespace is null || clrType.IsGenericParameter || clrType.IsArray)
+        if(clrType.Namespace is null || clrType.IsGenericParameter || clrType.IsArray)
             return null;
 
         var typeName = TypeProjector.StripGenericAritySuffix(clrType.Name);
@@ -316,14 +316,14 @@ internal sealed class AssemblyTypeProvider : IAmbientTypeResolver, IDisposable
             ? (clrType.Namespace, $"{typeName}`{arity}")
             : (clrType.Namespace, typeName);
 
-        if (_cache.TryGetValue(cacheKey, out var cached))
+        if(_cache.TryGetValue(cacheKey, out var cached))
             return cached.Type;
 
         // Also try without arity suffix for non-generic types (arity == 0).
-        if (arity == 0)
+        if(arity == 0)
         {
             var altKey = (clrType.Namespace, typeName);
-            if (_cache.TryGetValue(altKey, out var altCached))
+            if(_cache.TryGetValue(altKey, out var altCached))
                 return altCached.Type;
         }
 
@@ -335,9 +335,9 @@ internal sealed class AssemblyTypeProvider : IAmbientTypeResolver, IDisposable
     {
         // ConcurrentDictionary enumeration is safe against concurrent writes —
         // it takes a snapshot of the internal buckets without locking.
-        foreach (var entry in _cache.Values)
+        foreach(var entry in _cache.Values)
         {
-            if (ReferenceEquals(entry.Type, type))
+            if(ReferenceEquals(entry.Type, type))
                 return entry.Members;
         }
 
@@ -347,7 +347,7 @@ internal sealed class AssemblyTypeProvider : IAmbientTypeResolver, IDisposable
     /// <inheritdoc />
     public ImmutableArray<string> GetTypeNamesInNamespace(string namespaceName)
     {
-        if (!_namespaceIndex.TryGetValue(namespaceName, out var typeNames))
+        if(!_namespaceIndex.TryGetValue(namespaceName, out var typeNames))
             return ImmutableArray<string>.Empty;
 
         return typeNames.ToImmutableArray();
@@ -391,7 +391,7 @@ internal sealed class AssemblyTypeProvider : IAmbientTypeResolver, IDisposable
     {
         var loaded = ImmutableArray.CreateBuilder<LoadedAssemblyInfo>();
 
-        foreach (var path in assemblyPaths)
+        foreach(var path in assemblyPaths)
         {
             try
             {
@@ -399,7 +399,7 @@ internal sealed class AssemblyTypeProvider : IAmbientTypeResolver, IDisposable
                 var info = new LoadedAssemblyInfo(path, assembly);
                 loaded.Add(info);
             }
-            catch (Exception ex)
+            catch(Exception ex)
             {
                 diagnostics.Add(new Diagnostic(
                     new DiagnosticId("MIST_ASM_LOAD_FAILED"),
@@ -422,17 +422,17 @@ internal sealed class AssemblyTypeProvider : IAmbientTypeResolver, IDisposable
     /// </summary>
     private void BuildNamespaceIndex()
     {
-        foreach (var assemblyInfo in _loadedAssemblies)
+        foreach(var assemblyInfo in _loadedAssemblies)
         {
-            foreach (var (ns, typeNames) in assemblyInfo.NamespaceIndex)
+            foreach(var (ns, typeNames) in assemblyInfo.NamespaceIndex)
             {
-                if (!_namespaceIndex.TryGetValue(ns, out var existingNames))
+                if(!_namespaceIndex.TryGetValue(ns, out var existingNames))
                 {
                     existingNames = new HashSet<string>();
                     _namespaceIndex[ns] = existingNames;
                 }
 
-                foreach (var typeName in typeNames)
+                foreach(var typeName in typeNames)
                 {
                     existingNames.Add(typeName);
                 }
@@ -450,19 +450,19 @@ internal sealed class AssemblyTypeProvider : IAmbientTypeResolver, IDisposable
     {
         // The typeName from the caller may not include the generic arity suffix.
         // We need to search for both the exact name and names with arity suffixes.
-        foreach (var assemblyInfo in _loadedAssemblies)
+        foreach(var assemblyInfo in _loadedAssemblies)
         {
-            if (!assemblyInfo.NamespaceIndex.TryGetValue(namespaceName, out var typeNames))
+            if(!assemblyInfo.NamespaceIndex.TryGetValue(namespaceName, out var typeNames))
                 continue;
 
             // Try exact match first (non-generic types or types with arity suffix already).
-            if (typeNames.Contains(typeName))
+            if(typeNames.Contains(typeName))
             {
                 var fullName = $"{namespaceName}.{typeName}";
                 try
                 {
                     var type = assemblyInfo.MetadataAssembly.GetType(fullName);
-                    if (type is not null && !_filter.IsTypeExcluded(type))
+                    if(type is not null && !_filter.IsTypeExcluded(type))
                         return type;
                 }
                 catch
@@ -472,16 +472,16 @@ internal sealed class AssemblyTypeProvider : IAmbientTypeResolver, IDisposable
             }
 
             // Try matching with generic arity suffixes (e.g., "List" matches "List`1").
-            foreach (var candidateName in typeNames)
+            foreach(var candidateName in typeNames)
             {
                 var strippedName = TypeProjector.StripGenericAritySuffix(candidateName);
-                if (strippedName == typeName && candidateName != typeName)
+                if(strippedName == typeName && candidateName != typeName)
                 {
                     var fullName = $"{namespaceName}.{candidateName}";
                     try
                     {
                         var type = assemblyInfo.MetadataAssembly.GetType(fullName);
-                        if (type is not null && !_filter.IsTypeExcluded(type))
+                        if(type is not null && !_filter.IsTypeExcluded(type))
                             return type;
                     }
                     catch
@@ -504,21 +504,21 @@ internal sealed class AssemblyTypeProvider : IAmbientTypeResolver, IDisposable
         Justification = "Types are loaded via MetadataLoadContext for metadata inspection only; trimming cannot affect them.")]
     private Type? FindClrTypeByArity(string namespaceName, string typeName, int typeArgumentCount)
     {
-        foreach (var assemblyInfo in _loadedAssemblies)
+        foreach(var assemblyInfo in _loadedAssemblies)
         {
-            if (!assemblyInfo.NamespaceIndex.TryGetValue(namespaceName, out var typeNames))
+            if(!assemblyInfo.NamespaceIndex.TryGetValue(namespaceName, out var typeNames))
                 continue;
 
-            if (typeArgumentCount == 0)
+            if(typeArgumentCount == 0)
             {
                 // Non-generic: match the exact name without any arity suffix.
-                if (typeNames.Contains(typeName))
+                if(typeNames.Contains(typeName))
                 {
                     var fullName = $"{namespaceName}.{typeName}";
                     try
                     {
                         var type = assemblyInfo.MetadataAssembly.GetType(fullName);
-                        if (type is not null && !_filter.IsTypeExcluded(type) && !type.IsGenericTypeDefinition)
+                        if(type is not null && !_filter.IsTypeExcluded(type) && !type.IsGenericTypeDefinition)
                             return type;
                     }
                     catch
@@ -531,13 +531,13 @@ internal sealed class AssemblyTypeProvider : IAmbientTypeResolver, IDisposable
             {
                 // Generic: match "TypeName`N" exactly.
                 var arityName = $"{typeName}`{typeArgumentCount}";
-                if (typeNames.Contains(arityName))
+                if(typeNames.Contains(arityName))
                 {
                     var fullName = $"{namespaceName}.{arityName}";
                     try
                     {
                         var type = assemblyInfo.MetadataAssembly.GetType(fullName);
-                        if (type is not null && !_filter.IsTypeExcluded(type))
+                        if(type is not null && !_filter.IsTypeExcluded(type))
                             return type;
                     }
                     catch

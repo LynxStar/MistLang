@@ -41,7 +41,7 @@ public class AssociatedTypeErrorPropertyTests
 
         var parseDiag = new DiagnosticBag();
         var parseResult = Parser.Parse(tokens, parseDiag);
-        if (parseResult.Root is null)
+        if(parseResult.Root is null)
             return lexDiag.ToImmutableArray().AddRange(parseDiag.ToImmutableArray());
 
         var (model, buildDiag) = StdlibTestHelper.BuildModelWithStdlib(
@@ -135,7 +135,7 @@ public class AssociatedTypeErrorPropertyTests
 
         var matching = diagnostics.Where(d => d.Id.Value == "MIST_AT_0006").ToList();
 
-        if (matching.Count == 0)
+        if(matching.Count == 0)
             return false.ToProperty()
                 .Label($"Expected MIST_AT_0006 but none emitted.\nSource:\n{source}\n" +
                        $"All diagnostics: [{string.Join(", ", diagnostics.Select(d => $"{d.Id.Value}: {d.Message}"))}]");
@@ -200,7 +200,7 @@ public class AssociatedTypeErrorPropertyTests
 
         var matching = diagnostics.Where(d => d.Id.Value == "MIST_AT_0005").ToList();
 
-        if (matching.Count == 0)
+        if(matching.Count == 0)
             return false.ToProperty()
                 .Label($"Expected MIST_AT_0005 but none emitted.\nSource:\n{source}\n" +
                        $"All diagnostics: [{string.Join(", ", diagnostics.Select(d => $"{d.Id.Value}: {d.Message}"))}]");
@@ -262,7 +262,7 @@ public class AssociatedTypeErrorPropertyTests
         };
 
         // Add extra duplicates if requested
-        for (var i = 2; i < scenario.DuplicateCount; i++)
+        for(var i = 2; i < scenario.DuplicateCount; i++)
         {
             slots.Add($"    type {scenario.SlotName} : struct;");
         }
@@ -280,7 +280,7 @@ public class AssociatedTypeErrorPropertyTests
         // We expect at least (duplicateCount - 1) diagnostics (one per duplicate after the first)
         var expectedCount = scenario.DuplicateCount - 1;
 
-        if (matching.Count < expectedCount)
+        if(matching.Count < expectedCount)
             return false.ToProperty()
                 .Label($"Expected at least {expectedCount} MIST_AT_0001 diagnostic(s) but got {matching.Count}.\n" +
                        $"Source:\n{source}\n" +

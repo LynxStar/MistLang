@@ -40,7 +40,7 @@ public class AssociatedTypeObligationPropertyTests
 
         var parseDiag = new DiagnosticBag();
         var parseResult = Parser.Parse(tokens, parseDiag);
-        if (parseResult.Root is null)
+        if(parseResult.Root is null)
             return lexDiag.ToImmutableArray().AddRange(parseDiag.ToImmutableArray());
 
         var (model, buildDiag) = StdlibTestHelper.BuildModelWithStdlib(
@@ -195,11 +195,11 @@ public class AssociatedTypeObligationPropertyTests
 
     private static Gen<SlotDef[]> GenSlotDefs(string[] names)
     {
-        if (names.Length == 0)
+        if(names.Length == 0)
             return Gen.Constant(Array.Empty<SlotDef>());
 
         Gen<SlotDef[]> result = GenSlotDef(names[0]).Select(s => new[] { s });
-        for (var i = 1; i < names.Length; i++)
+        for(var i = 1; i < names.Length; i++)
         {
             var name = names[i];
             result = result.SelectMany(prev =>
@@ -227,17 +227,17 @@ public class AssociatedTypeObligationPropertyTests
             .Distinct()
             .ToList();
 
-        foreach (var abs in referencedAbstracts)
+        foreach(var abs in referencedAbstracts)
         {
             sb.AppendLine($"abstract {abs} {{ }}");
         }
 
-        if (referencedAbstracts.Count > 0)
+        if(referencedAbstracts.Count > 0)
             sb.AppendLine();
 
         // Emit the abstract type with associated type slots
         sb.AppendLine($"abstract {scenario.AbstractName} {{");
-        foreach (var slot in scenario.Slots)
+        foreach(var slot in scenario.Slots)
         {
             sb.AppendLine($"    type {slot.Name} : {slot.ConstraintText};");
         }
@@ -247,16 +247,16 @@ public class AssociatedTypeObligationPropertyTests
         // Emit the implementor
         sb.AppendLine($"{scenario.ImplementorKind} {scenario.ImplementorName} : {scenario.AbstractName} {{");
 
-        for (var i = 0; i < scenario.Slots.Count; i++)
+        for(var i = 0; i < scenario.Slots.Count; i++)
         {
             var slot = scenario.Slots[i];
             var satisfaction = scenario.Satisfactions[i];
 
-            if (satisfaction == SatisfactionKind.Missing)
+            if(satisfaction == SatisfactionKind.Missing)
                 continue;
 
             // Provide a concrete type member (nested type) for this slot
-            if (satisfaction == SatisfactionKind.Satisfied)
+            if(satisfaction == SatisfactionKind.Satisfied)
             {
                 EmitSatisfyingNestedType(sb, slot);
             }
@@ -276,7 +276,7 @@ public class AssociatedTypeObligationPropertyTests
     /// </summary>
     private static void EmitSatisfyingNestedType(System.Text.StringBuilder sb, SlotDef slot)
     {
-        switch (slot.Constraint)
+        switch(slot.Constraint)
         {
             case ConstraintKind.Struct:
                 // Provide a nested struct — satisfies `struct` constraint
@@ -300,7 +300,7 @@ public class AssociatedTypeObligationPropertyTests
     /// </summary>
     private static void EmitUnsatisfyingNestedType(System.Text.StringBuilder sb, SlotDef slot)
     {
-        switch (slot.Constraint)
+        switch(slot.Constraint)
         {
             case ConstraintKind.Struct:
                 // Provide a nested class when struct is required — violates `struct` constraint
@@ -348,7 +348,7 @@ public class AssociatedTypeObligationPropertyTests
         var unsatisfiedDiags = diagnostics.Where(d => d.Id.Value == "MIST_AT_0003").ToList();
 
         // Verify MIST_AT_0002 count = number of missing slots
-        if (missingDiags.Count != scenario.ExpectedMissingCount)
+        if(missingDiags.Count != scenario.ExpectedMissingCount)
         {
             return false.ToProperty()
                 .Label($"Expected {scenario.ExpectedMissingCount} MIST_AT_0002 diagnostic(s) but got {missingDiags.Count}.\n" +
@@ -359,7 +359,7 @@ public class AssociatedTypeObligationPropertyTests
         }
 
         // Verify MIST_AT_0003 count = number of unsatisfied constraints
-        if (unsatisfiedDiags.Count != scenario.ExpectedUnsatisfiedCount)
+        if(unsatisfiedDiags.Count != scenario.ExpectedUnsatisfiedCount)
         {
             return false.ToProperty()
                 .Label($"Expected {scenario.ExpectedUnsatisfiedCount} MIST_AT_0003 diagnostic(s) but got {unsatisfiedDiags.Count}.\n" +

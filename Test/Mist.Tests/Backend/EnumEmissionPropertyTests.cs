@@ -214,13 +214,13 @@ public sealed class EnumEmissionPropertyTests
         // Lex
         var lexBag = new DiagnosticBag();
         var tokens = Lexer.Lex(sourceText, lexBag);
-        if (lexBag.HasErrors)
+        if(lexBag.HasErrors)
             return (false, "", FormatDiagnostics(lexBag));
 
         // Parse
         var parseBag = new DiagnosticBag();
         var parseResult = Parser.Parse(tokens, parseBag);
-        if (parseBag.HasErrors || parseResult.Root is null)
+        if(parseBag.HasErrors || parseResult.Root is null)
             return (false, "", FormatDiagnostics(parseBag));
 
         // Semantic model
@@ -233,25 +233,25 @@ public sealed class EnumEmissionPropertyTests
             projectFolder: "/test",
             semBag);
 
-        if (semBag.HasErrors)
+        if(semBag.HasErrors)
             return (false, "", FormatDiagnostics(semBag));
 
         // Type checker
         var tcBag = new DiagnosticBag();
         TypeChecker.Analyze(model, tcBag);
-        if (tcBag.ToImmutableArray().Any(d => d.Severity == DiagnosticSeverity.Error))
+        if(tcBag.ToImmutableArray().Any(d => d.Severity == DiagnosticSeverity.Error))
             return (false, "", FormatDiagnostics(tcBag));
 
         // Emit in-memory (no disk I/O)
         var emitBag = new DiagnosticBag();
         var files = CSharpEmitter.EmitToMemory(model, "TestProgram", emitBag);
 
-        if (emitBag.HasErrors)
+        if(emitBag.HasErrors)
             return (false, "", FormatDiagnostics(emitBag));
 
         // Concatenate all emitted .cs content
         var sb = new StringBuilder();
-        foreach (var (_, content) in files)
+        foreach(var (_, content) in files)
             sb.AppendLine(content);
 
         return (true, sb.ToString(), "");
@@ -284,13 +284,13 @@ public sealed class EnumEmissionPropertyTests
     {
         var (succeeded, csContent, diagnosticText) = CompileInMemory(scenario.MistSource);
 
-        if (!succeeded)
+        if(!succeeded)
         {
             return false.ToProperty()
                 .Label($"Compilation failed: {scenario.Description}\nDiagnostics:\n{diagnosticText}");
         }
 
-        if (string.IsNullOrWhiteSpace(csContent))
+        if(string.IsNullOrWhiteSpace(csContent))
         {
             return false.ToProperty()
                 .Label($"C# output was empty: {scenario.Description}");
@@ -304,14 +304,14 @@ public sealed class EnumEmissionPropertyTests
             _ => $"record class {scenario.EnumName}(",
         };
 
-        if (!csContent.Contains(expectedRecordDecl))
+        if(!csContent.Contains(expectedRecordDecl))
         {
             return false.ToProperty()
                 .Label($"Missing record class declaration '{expectedRecordDecl}'\nEmitted:\n{csContent}");
         }
 
         // Requirement 9.1: Primary constructor has a Value parameter
-        if (!csContent.Contains(" Value)"))
+        if(!csContent.Contains(" Value)"))
         {
             return false.ToProperty()
                 .Label($"Missing 'Value' constructor parameter\nEmitted:\n{csContent}");
@@ -319,21 +319,21 @@ public sealed class EnumEmissionPropertyTests
 
         // Requirement 9.2: Each member has a public static readonly field
         var staticReadonlyCount = CountOccurrences(csContent, "public static readonly");
-        if (staticReadonlyCount < scenario.MemberCount)
+        if(staticReadonlyCount < scenario.MemberCount)
         {
             return false.ToProperty()
                 .Label($"Expected at least {scenario.MemberCount} 'public static readonly' fields, found {staticReadonlyCount}\nEmitted:\n{csContent}");
         }
 
         // Requirement 9.3: Contains an implicit operator
-        if (!csContent.Contains("public static implicit operator"))
+        if(!csContent.Contains("public static implicit operator"))
         {
             return false.ToProperty()
                 .Label($"Missing 'implicit operator'\nEmitted:\n{csContent}");
         }
 
         // Requirement 9.3: The implicit operator returns e.Value
-        if (!csContent.Contains("=> e.Value;"))
+        if(!csContent.Contains("=> e.Value;"))
         {
             return false.ToProperty()
                 .Label($"Missing '=> e.Value;' in implicit operator\nEmitted:\n{csContent}");
@@ -342,10 +342,10 @@ public sealed class EnumEmissionPropertyTests
         // Requirement 9.4 / 10.1 / 10.2 / 10.3: Access modifier is correct
         // For public/private, the modifier should appear before "record class"
         // For default (no modifier), "record class" should appear without a preceding modifier
-        if (!string.IsNullOrEmpty(scenario.ExpectedAccessModifier))
+        if(!string.IsNullOrEmpty(scenario.ExpectedAccessModifier))
         {
             var modifierPattern = $"{scenario.ExpectedAccessModifier} record class {scenario.EnumName}";
-            if (!csContent.Contains(modifierPattern))
+            if(!csContent.Contains(modifierPattern))
             {
                 return false.ToProperty()
                     .Label($"Expected access modifier '{scenario.ExpectedAccessModifier}' before record class\nEmitted:\n{csContent}");
@@ -360,7 +360,7 @@ public sealed class EnumEmissionPropertyTests
     {
         var count = 0;
         var index = 0;
-        while ((index = text.IndexOf(pattern, index, StringComparison.Ordinal)) != -1)
+        while((index = text.IndexOf(pattern, index, StringComparison.Ordinal)) != -1)
         {
             count++;
             index += pattern.Length;

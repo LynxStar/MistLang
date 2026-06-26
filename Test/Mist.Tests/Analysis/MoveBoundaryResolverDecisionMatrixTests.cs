@@ -74,7 +74,7 @@ public sealed class MoveBoundaryResolverDecisionMatrixTests : IDisposable
 
     public void Dispose()
     {
-        if (Directory.Exists(_scratchDir))
+        if(Directory.Exists(_scratchDir))
         {
             try { Directory.Delete(_scratchDir, recursive: true); } catch { /* best effort */ }
         }
@@ -145,15 +145,15 @@ public sealed class MoveBoundaryResolverDecisionMatrixTests : IDisposable
     private static (SyntaxNode Initializer, IType? DestinationType)? FindOwnedBindingInitializer(
         ISemanticModel model, string bindingName)
     {
-        foreach (var symbol in model.AllSymbols)
+        foreach(var symbol in model.AllSymbols)
         {
-            if (symbol.Origin != SymbolOrigin.UserCode)
+            if(symbol.Origin != SymbolOrigin.UserCode)
                 continue;
-            if (symbol.Kind != SymbolKind.LocalVariable)
+            if(symbol.Kind != SymbolKind.LocalVariable)
                 continue;
-            if (symbol.Name != bindingName)
+            if(symbol.Name != bindingName)
                 continue;
-            if (symbol is not Symbol varSymbol || varSymbol.OwnershipTier != OwnershipTier.Owned)
+            if(symbol is not Symbol varSymbol || varSymbol.OwnershipTier != OwnershipTier.Owned)
                 continue;
 
             SyntaxNode declaringNode;
@@ -161,7 +161,7 @@ public sealed class MoveBoundaryResolverDecisionMatrixTests : IDisposable
             catch { continue; }
 
             var initializer = GetInitializerExpression(declaringNode);
-            if (initializer is null)
+            if(initializer is null)
                 continue;
 
             return (initializer, varSymbol.DeclaredType);
@@ -653,7 +653,7 @@ public sealed class MoveBoundaryResolverDecisionMatrixTests : IDisposable
         var resolver = new MoveBoundaryResolver();
         var outcomes = new List<MoveOutcome>();
 
-        foreach (var site in Enum.GetValues<OwnedMoveSite>())
+        foreach(var site in Enum.GetValues<OwnedMoveSite>())
         {
             var flowState = new MethodFlowState();
             var diagnostics = new DiagnosticBag();
@@ -699,7 +699,7 @@ public sealed class MoveBoundaryResolverDecisionMatrixTests : IDisposable
         var resolver = new MoveBoundaryResolver();
         var outcomes = new List<MoveOutcome>();
 
-        foreach (var site in Enum.GetValues<OwnedMoveSite>())
+        foreach(var site in Enum.GetValues<OwnedMoveSite>())
         {
             var flowState = new MethodFlowState();
             var diagnostics = new DiagnosticBag();
@@ -743,7 +743,7 @@ public sealed class MoveBoundaryResolverDecisionMatrixTests : IDisposable
         var resolver = new MoveBoundaryResolver();
         var outcomes = new List<MoveOutcome>();
 
-        foreach (var site in Enum.GetValues<OwnedMoveSite>())
+        foreach(var site in Enum.GetValues<OwnedMoveSite>())
         {
             var flowState = new MethodFlowState();
             var diagnostics = new DiagnosticBag();

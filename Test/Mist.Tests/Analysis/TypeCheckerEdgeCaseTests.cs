@@ -779,9 +779,12 @@ public class TypeCheckerEdgeCaseTests
             _ => throw new ArgumentException($"Unknown primitive type: {typeName}"),
         };
 
-        return new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
+        return new TypeReferenceNode
         {
-            PrimitiveType = primitiveNode,
-        } };
+            First = new PrimitiveSingleTypeRefSingleTypeRefNode
+            {
+                PrimitiveType = primitiveNode,
+            }
+        };
     }
 }

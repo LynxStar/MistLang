@@ -61,20 +61,20 @@ public class LambdaExpressionParserTests
     /// </summary>
     private static T? FindFirst<T>(SyntaxNode root) where T : SyntaxNode
     {
-        if (root is T match)
+        if(root is T match)
         {
             return match;
         }
 
-        foreach (var child in root.Children())
+        foreach(var child in root.Children())
         {
-            if (child is null)
+            if(child is null)
             {
                 continue;
             }
 
             var found = FindFirst<T>(child);
-            if (found is not null)
+            if(found is not null)
             {
                 return found;
             }

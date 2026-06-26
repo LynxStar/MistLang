@@ -96,12 +96,12 @@ public sealed class DelegateTypeMapEmissionPropertyTests
         var totalArity = input.TypeArguments.Length + 1; // at minimum 1 for return type
         var funcDef = new ClassType("Func", new Scope(null), "Standard", isBackendBacked: true);
         var tps = new IType[totalArity];
-        for (var i = 0; i < totalArity; i++)
+        for(var i = 0; i < totalArity; i++)
             tps[i] = new TypeParameterType($"T{i}", i);
         funcDef.TypeParameters = tps;
 
         var funcTypeArgs = new IType[totalArity];
-        for (var i = 0; i < input.TypeArguments.Length; i++)
+        for(var i = 0; i < input.TypeArguments.Length; i++)
             funcTypeArgs[i] = input.TypeArguments[i];
         // Return type (last position)
         funcTypeArgs[totalArity - 1] = new StructType("Boolean", new Scope(null), "Standard", isBackendBacked: true);
@@ -136,7 +136,7 @@ public sealed class DelegateTypeMapEmissionPropertyTests
     public void P2_TypeMapEmission_StartsWithClrNamespace()
     {
         var samples = GenDelegateTypeMapInput().Sample(100);
-        foreach (var input in samples)
+        foreach(var input in samples)
         {
             var dt = BuildDelegateType(input);
             var result = CSharpTypeMap.GetTypeName(dt);
@@ -150,7 +150,7 @@ public sealed class DelegateTypeMapEmissionPropertyTests
     public void P2_TypeMapEmission_ContainsClrSimpleName()
     {
         var samples = GenDelegateTypeMapInput().Sample(100);
-        foreach (var input in samples)
+        foreach(var input in samples)
         {
             var dt = BuildDelegateType(input);
             var result = CSharpTypeMap.GetTypeName(dt);
@@ -164,12 +164,12 @@ public sealed class DelegateTypeMapEmissionPropertyTests
     public void P2_TypeMapEmission_IncludesTypeArgsInAngleBracketsWhenPresent()
     {
         var samples = GenDelegateTypeMapInput().Sample(100);
-        foreach (var input in samples)
+        foreach(var input in samples)
         {
             var dt = BuildDelegateType(input);
             var result = CSharpTypeMap.GetTypeName(dt);
 
-            if (input.TypeArguments.Length > 0)
+            if(input.TypeArguments.Length > 0)
             {
                 // Must contain angle brackets
                 Assert.Contains("<", result, StringComparison.Ordinal);
@@ -180,7 +180,7 @@ public sealed class DelegateTypeMapEmissionPropertyTests
                 var bracketEnd = result.LastIndexOf('>');
                 var bracketContent = result.Substring(bracketStart + 1, bracketEnd - bracketStart - 1);
 
-                foreach (var typeArg in input.TypeArguments)
+                foreach(var typeArg in input.TypeArguments)
                 {
                     var expectedName = GetExpectedCSharpName(typeArg);
                     Assert.Contains(expectedName, bracketContent, StringComparison.Ordinal);
@@ -199,7 +199,7 @@ public sealed class DelegateTypeMapEmissionPropertyTests
     public void P2_TypeMapEmission_NeverContainsSystemFuncOrSystemAction()
     {
         var samples = GenDelegateTypeMapInput().Sample(100);
-        foreach (var input in samples)
+        foreach(var input in samples)
         {
             var dt = BuildDelegateType(input);
             var result = CSharpTypeMap.GetTypeName(dt);

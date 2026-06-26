@@ -42,7 +42,7 @@ public sealed partial class InheritanceEmissionPropertyTests : IDisposable
 
     public void Dispose()
     {
-        if (Directory.Exists(_outputDir))
+        if(Directory.Exists(_outputDir))
         {
             try { Directory.Delete(_outputDir, recursive: true); } catch { /* best effort */ }
         }
@@ -84,7 +84,7 @@ public sealed partial class InheritanceEmissionPropertyTests : IDisposable
             Members = members ?? ImmutableArray<MemberDeclarationNode>.Empty,
         };
 
-        if (baseClassName is not null)
+        if(baseClassName is not null)
         {
             var _baseList1 = MakeBaseList(baseClassName);
 
@@ -122,9 +122,9 @@ public sealed partial class InheritanceEmissionPropertyTests : IDisposable
 
     private void CleanOutputDir()
     {
-        if (Directory.Exists(_outputDir))
+        if(Directory.Exists(_outputDir))
         {
-            foreach (var file in Directory.GetFiles(_outputDir))
+            foreach(var file in Directory.GetFiles(_outputDir))
                 File.Delete(file);
         }
     }
@@ -213,13 +213,13 @@ public sealed partial class InheritanceEmissionPropertyTests : IDisposable
         var classes = new List<(string Name, string? BaseName)>();
         var declaredNames = new List<string>();
 
-        for (var i = 0; i < nameIndices.Length; i++)
+        for(var i = 0; i < nameIndices.Length; i++)
         {
             // Ensure unique class names
             var baseName = ClassNamePool[nameIndices[i]];
             var name = baseName;
             var suffix = 0;
-            while (declaredNames.Contains(name) || name == "Program")
+            while(declaredNames.Contains(name) || name == "Program")
             {
                 suffix++;
                 name = baseName + suffix;
@@ -229,7 +229,7 @@ public sealed partial class InheritanceEmissionPropertyTests : IDisposable
             // Determine base class: only if there's a previously declared class
             // and the inheritance mask says yes
             string? baseClassName = null;
-            if (inheritanceMask[i] && i > 0)
+            if(inheritanceMask[i] && i > 0)
             {
                 baseClassName = declaredNames[rng.Next(i)];
             }
@@ -254,7 +254,7 @@ public sealed partial class InheritanceEmissionPropertyTests : IDisposable
     {
         var typeDecls = new List<TypeDeclarationNode>();
 
-        foreach (var (name, baseName) in scenario.Classes)
+        foreach(var (name, baseName) in scenario.Classes)
         {
             var classDecl = MakeClassDecl(name, baseName);
             typeDecls.Add(new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl });
@@ -293,9 +293,9 @@ public sealed partial class InheritanceEmissionPropertyTests : IDisposable
     private static string BuildSource(InheritanceEmissionScenario scenario)
     {
         var sb = new System.Text.StringBuilder();
-        foreach (var (name, baseName) in scenario.Classes)
+        foreach(var (name, baseName) in scenario.Classes)
         {
-            if (baseName is not null)
+            if(baseName is not null)
                 sb.AppendLine($"class {name} : {baseName} {{ }}");
             else
                 sb.AppendLine($"class {name} {{ }}");
@@ -328,13 +328,13 @@ public sealed partial class InheritanceEmissionPropertyTests : IDisposable
         var model = BuildModel(ast, source);
         var csContent = EmitAndGetCsContent(model);
 
-        if (string.IsNullOrEmpty(csContent))
+        if(string.IsNullOrEmpty(csContent))
             return false;
 
         // Parse all class declarations from the emitted C#
         var matches = ClassDeclPattern().Matches(csContent);
         var emittedClasses = new Dictionary<string, string?>();
-        foreach (Match match in matches)
+        foreach(Match match in matches)
         {
             var className = match.Groups[1].Value;
             var baseClass = match.Groups[2].Success ? match.Groups[2].Value : null;
@@ -342,33 +342,33 @@ public sealed partial class InheritanceEmissionPropertyTests : IDisposable
         }
 
         // Verify each class from the scenario appears with correct inheritance
-        foreach (var (name, expectedBase) in scenario.Classes)
+        foreach(var (name, expectedBase) in scenario.Classes)
         {
-            if (!emittedClasses.TryGetValue(name, out var actualBase))
+            if(!emittedClasses.TryGetValue(name, out var actualBase))
                 return false; // Class not found in emitted output
 
-            if (expectedBase is not null)
+            if(expectedBase is not null)
             {
                 // Derived class: must have `: BaseName`
-                if (actualBase != expectedBase)
+                if(actualBase != expectedBase)
                     return false;
             }
             else
             {
                 // Non-derived class: must NOT have a base clause
-                if (actualBase is not null)
+                if(actualBase is not null)
                     return false;
             }
         }
 
         // Also verify Program class is emitted without a base clause
-        if (!emittedClasses.TryGetValue("Program", out var programBase))
+        if(!emittedClasses.TryGetValue("Program", out var programBase))
             return false;
-        if (programBase is not null)
+        if(programBase is not null)
             return false;
 
         return true;
-    ;
+        ;
     }
 
 }

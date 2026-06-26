@@ -53,19 +53,19 @@ public sealed class CooperationContractVerifier
         ArgumentNullException.ThrowIfNull(model);
         ArgumentNullException.ThrowIfNull(diagnostics);
 
-        if (!IsOwnedType(ownedType))
+        if(!IsOwnedType(ownedType))
             return;
 
         var memberScope = MemberScopeOf(ownedType);
-        if (memberScope is null)
+        if(memberScope is null)
             return;
 
-        foreach (var member in memberScope.Members)
+        foreach(var member in memberScope.Members)
         {
-            if (member.Origin != SymbolOrigin.UserCode)
+            if(member.Origin != SymbolOrigin.UserCode)
                 continue;
 
-            if (member.Kind is not (SymbolKind.Method or SymbolKind.Constructor))
+            if(member.Kind is not (SymbolKind.Method or SymbolKind.Constructor))
                 continue;
 
             VerifyMethodOrConstructor(member, resolver, model, diagnostics);
@@ -93,7 +93,7 @@ public sealed class CooperationContractVerifier
             _ => null,
         };
 
-        if (body is null)
+        if(body is null)
             return;
 
         // A fresh flow state per body. Owned parameters start Live so that
@@ -101,7 +101,7 @@ public sealed class CooperationContractVerifier
         var flowState = new MethodFlowState();
         RegisterOwnedParameters(declaringNode, model, flowState);
 
-        foreach (var assignment in FindFieldAssignments(body, model))
+        foreach(var assignment in FindFieldAssignments(body, model))
         {
             VerifyFieldAssignment(methodSymbol, assignment, resolver, flowState, model, diagnostics);
         }
@@ -127,7 +127,7 @@ public sealed class CooperationContractVerifier
 
         // LD-2: a static/global read never yields an owned value and is not a fresh graph;
         // cloning it would duplicate global state. Reject it directly as a contract violation.
-        if (IsStaticOrGlobalRead(source, model))
+        if(IsStaticOrGlobalRead(source, model))
         {
             ReportContractViolation(methodSymbol, assignment, model, diagnostics);
             return;
@@ -145,7 +145,7 @@ public sealed class CooperationContractVerifier
             model,
             throwaway);
 
-        if (resolution.Outcome == MoveOutcome.Error)
+        if(resolution.Outcome == MoveOutcome.Error)
         {
             ReportContractViolation(methodSymbol, assignment, model, diagnostics);
         }
@@ -194,18 +194,18 @@ public sealed class CooperationContractVerifier
     /// </summary>
     private static void CollectFieldAssignments(SyntaxNode node, ISemanticModel model, List<FieldAssignment> results)
     {
-        if (node is AssignmentNode assignment && assignment.Value is not null)
+        if(node is AssignmentNode assignment && assignment.Value is not null)
         {
             var fieldSymbol = TryResolveThisFieldTarget(assignment.Target, model);
-            if (fieldSymbol is not null)
+            if(fieldSymbol is not null)
             {
                 results.Add(new FieldAssignment(fieldSymbol, assignment.Value, assignment));
             }
         }
 
-        foreach (var child in node.Children())
+        foreach(var child in node.Children())
         {
-            if (child is not null)
+            if(child is not null)
                 CollectFieldAssignments(child, model, results);
         }
     }
@@ -218,41 +218,41 @@ public sealed class CooperationContractVerifier
     /// </summary>
     private static ISymbol? TryResolveThisFieldTarget(SyntaxNode target, ISemanticModel model)
     {
-        if (target is ExpressionNode expr)
+        if(target is ExpressionNode expr)
             return expr.AsAssignmentOrNull() is { } exprAssignment
                 ? TryResolveThisFieldTarget(exprAssignment, model)
                 : null;
 
-        if (target is AssignmentNode assignment)
+        if(target is AssignmentNode assignment)
         {
-            if (assignment.Value is not null)
+            if(assignment.Value is not null)
                 return null;
             return TryResolveThisFieldTarget(assignment.Target, model);
         }
 
-        if (target is PostfixNode postfix)
+        if(target is PostfixNode postfix)
         {
             // `this.Field` — exactly one member-access suffix on a `this` receiver.
             // GetDeclaredSymbol only maps declaration nodes (not usage sites), so the
             // member is resolved by name in the receiver type's member scope instead.
-            if (postfix.Suffix.Length == 1
+            if(postfix.Suffix.Length == 1
                 && postfix.Target is ThisExpressionPrimaryNode
                 && postfix.Suffix[0] is MemberAccessSuffixPostfixSuffixNode memberAccess)
             {
                 var receiverType = model.GetTypeOf(postfix.Target);
-                if (receiverType is null)
+                if(receiverType is null)
                     return null;
                 return AsInstanceField(LookupMember(receiverType, memberAccess.Name.Lexeme));
             }
 
             // Bare `Field` reference (no suffixes) resolving to a field of the type.
-            if (postfix.Suffix.Length == 0)
+            if(postfix.Suffix.Length == 0)
                 return TryResolveThisFieldTarget(postfix.Target, model);
 
             return null;
         }
 
-        if (target is IdentifierExpressionPrimaryNode identifier)
+        if(target is IdentifierExpressionPrimaryNode identifier)
         {
             return AsInstanceField(model.GetDeclaredSymbol(identifier));
         }
@@ -260,13 +260,13 @@ public sealed class CooperationContractVerifier
         // Walk single-child wrapper chains.
         SyntaxNode? singleChild = null;
         var childCount = 0;
-        foreach (var child in target.Children())
+        foreach(var child in target.Children())
         {
-            if (child is null)
+            if(child is null)
                 continue;
             childCount++;
             singleChild = child;
-            if (childCount > 1)
+            if(childCount > 1)
                 break;
         }
 
@@ -280,7 +280,7 @@ public sealed class CooperationContractVerifier
     /// </summary>
     private static ISymbol? AsInstanceField(ISymbol? symbol)
     {
-        if (symbol is not Symbol sym || sym.Kind != SymbolKind.Field)
+        if(symbol is not Symbol sym || sym.Kind != SymbolKind.Field)
             return null;
         return sym.IsStatic ? null : sym;
     }
@@ -295,16 +295,16 @@ public sealed class CooperationContractVerifier
     /// </summary>
     private static bool IsStaticOrGlobalRead(SyntaxNode source, ISemanticModel model)
     {
-        if (source is ExpressionNode expr)
+        if(source is ExpressionNode expr)
             return expr.AsAssignmentOrNull() is { } exprAssignment && IsStaticOrGlobalRead(exprAssignment, model);
 
-        if (source is AssignmentNode assignment)
+        if(source is AssignmentNode assignment)
             return assignment.Value is null && IsStaticOrGlobalRead(assignment.Target, model);
 
-        if (source is PostfixNode postfix)
+        if(source is PostfixNode postfix)
         {
             // Member access whose final suffix is a member read: `Receiver.Member`.
-            if (postfix.Suffix.Length == 1
+            if(postfix.Suffix.Length == 1
                 && postfix.Suffix[0] is MemberAccessSuffixPostfixSuffixNode memberAccess)
             {
                 // A type-qualified read (`SomeType.Member`) is a static/global read. The
@@ -312,38 +312,38 @@ public sealed class CooperationContractVerifier
                 // binding and resolves to a declared class/struct/etc. This is the reliable
                 // signal — Symbol.IsStatic is not consistently set for properties whose
                 // accessors are lowered to a backing field.
-                if (ReceiverNamesType(postfix.Target, model))
+                if(ReceiverNamesType(postfix.Target, model))
                     return true;
 
                 // Secondary signal: the resolved member is itself static. Resolve it by name
                 // in the receiver type's scope (GetDeclaredSymbol only maps declarations).
                 var receiverType = model.GetTypeOf(postfix.Target);
-                if (receiverType is not null && IsStaticMember(LookupMember(receiverType, memberAccess.Name.Lexeme)))
+                if(receiverType is not null && IsStaticMember(LookupMember(receiverType, memberAccess.Name.Lexeme)))
                     return true;
 
                 return false;
             }
 
             // Bare identifier resolving to a static field/property.
-            if (postfix.Suffix.Length == 0)
+            if(postfix.Suffix.Length == 0)
                 return IsStaticOrGlobalRead(postfix.Target, model);
 
             return false;
         }
 
-        if (source is IdentifierExpressionPrimaryNode identifier)
+        if(source is IdentifierExpressionPrimaryNode identifier)
             return IsStaticMember(model.GetDeclaredSymbol(identifier));
 
         // Walk single-child wrapper chains.
         SyntaxNode? singleChild = null;
         var childCount = 0;
-        foreach (var child in source.Children())
+        foreach(var child in source.Children())
         {
-            if (child is null)
+            if(child is null)
                 continue;
             childCount++;
             singleChild = child;
-            if (childCount > 1)
+            if(childCount > 1)
                 break;
         }
 
@@ -360,23 +360,23 @@ public sealed class CooperationContractVerifier
     private static bool ReceiverNamesType(SyntaxNode receiver, ISemanticModel model)
     {
         // Unwrap a no-suffix postfix wrapper around the primary identifier.
-        if (receiver is PostfixNode { Suffix.Length: 0 } postfix)
+        if(receiver is PostfixNode { Suffix.Length: 0 } postfix)
             receiver = postfix.Target;
 
-        if (receiver is not IdentifierExpressionPrimaryNode identifier)
+        if(receiver is not IdentifierExpressionPrimaryNode identifier)
             return false;
 
         // A value reference (local/parameter) is NOT a type name.
         var declared = model.GetDeclaredSymbol(identifier);
-        if (declared is Symbol sym && sym.Kind is SymbolKind.LocalVariable or SymbolKind.Parameter)
+        if(declared is Symbol sym && sym.Kind is SymbolKind.LocalVariable or SymbolKind.Parameter)
             return false;
 
         var name = identifier.Name.Lexeme;
-        foreach (var symbol in model.AllSymbols)
+        foreach(var symbol in model.AllSymbols)
         {
-            if (symbol.Name != name)
+            if(symbol.Name != name)
                 continue;
-            if (symbol.Kind is SymbolKind.Class or SymbolKind.Struct
+            if(symbol.Kind is SymbolKind.Class or SymbolKind.Struct
                 or SymbolKind.Abstract or SymbolKind.Enum)
             {
                 return true;
@@ -424,15 +424,15 @@ public sealed class CooperationContractVerifier
             _ => null,
         };
 
-        if (paramList is null)
+        if(paramList is null)
             return;
 
-        foreach (var child in paramList.Children())
+        foreach(var child in paramList.Children())
         {
-            if (child is ParameterNode paramNode)
+            if(child is ParameterNode paramNode)
             {
                 var paramSymbol = model.GetDeclaredSymbol(paramNode);
-                if (paramSymbol is Symbol sym && sym.OwnershipTier == OwnershipTier.Owned)
+                if(paramSymbol is Symbol sym && sym.OwnershipTier == OwnershipTier.Owned)
                 {
                     state.VariableStates[paramSymbol] = VariableOwnershipState.Live;
                     state.BindingKinds[paramSymbol] = BindingKind.Owned;
@@ -501,7 +501,7 @@ public sealed class CooperationContractVerifier
     /// </summary>
     private static string RenderExpression(SyntaxNode node)
     {
-        switch (node)
+        switch(node)
         {
             case ExpressionNode expr:
                 return expr.AsAssignmentOrNull() is { } exprAssignment ? RenderExpression(exprAssignment) : "";
@@ -516,33 +516,33 @@ public sealed class CooperationContractVerifier
                 return "this";
 
             case PostfixNode postfix:
-            {
-                var baseText = RenderExpression(postfix.Target);
-                if (baseText.Length == 0)
-                    return "";
-
-                foreach (var suffix in postfix.Suffix)
                 {
-                    if (suffix is MemberAccessSuffixPostfixSuffixNode memberAccess)
-                        baseText += "." + memberAccess.Name.Lexeme;
-                    else
-                        return ""; // calls/indexers/etc. — not a simple source path
-                }
+                    var baseText = RenderExpression(postfix.Target);
+                    if(baseText.Length == 0)
+                        return "";
 
-                return baseText;
-            }
+                    foreach(var suffix in postfix.Suffix)
+                    {
+                        if(suffix is MemberAccessSuffixPostfixSuffixNode memberAccess)
+                            baseText += "." + memberAccess.Name.Lexeme;
+                        else
+                            return ""; // calls/indexers/etc. — not a simple source path
+                    }
+
+                    return baseText;
+                }
         }
 
         // Walk single-child wrapper chains (the operator-precedence node tower).
         SyntaxNode? singleChild = null;
         var childCount = 0;
-        foreach (var child in node.Children())
+        foreach(var child in node.Children())
         {
-            if (child is null)
+            if(child is null)
                 continue;
             childCount++;
             singleChild = child;
-            if (childCount > 1)
+            if(childCount > 1)
                 break;
         }
 
@@ -564,23 +564,23 @@ public sealed class CooperationContractVerifier
         string? compilationUnitPath = null;
 
         var span = node.Span;
-        if (span.Length > 0)
+        if(span.Length > 0)
         {
             var asts = model.Asts;
             var units = model.Units;
             var astIndex = -1;
 
-            for (var i = 0; i < asts.Length; i++)
+            for(var i = 0; i < asts.Length; i++)
             {
                 var astSpan = asts[i].Span;
-                if (span.Start >= astSpan.Start && span.Start + span.Length <= astSpan.Start + astSpan.Length)
+                if(span.Start >= astSpan.Start && span.Start + span.Length <= astSpan.Start + astSpan.Length)
                 {
                     astIndex = i;
                     break;
                 }
             }
 
-            if (astIndex >= 0 && astIndex < units.Count)
+            if(astIndex >= 0 && astIndex < units.Count)
             {
                 var source = units[astIndex].Source;
                 compilationUnitPath = source.Path;

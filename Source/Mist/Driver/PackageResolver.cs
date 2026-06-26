@@ -70,7 +70,7 @@ public static class PackageResolver
         string targetFramework,
         DiagnosticBag diagnostics)
     {
-        if (packages.IsDefaultOrEmpty)
+        if(packages.IsDefaultOrEmpty)
             return new PackageResolutionResult(
                 ImmutableArray<string>.Empty,
                 ImmutableArray<ResolvedPackageInfo>.Empty,
@@ -81,9 +81,9 @@ public static class PackageResolver
         var validPackages = ImmutableArray.CreateBuilder<NuGetPackageReference>();
         var failureCount = 0;
 
-        foreach (var pkg in packages)
+        foreach(var pkg in packages)
         {
-            if (!NuGetVersion.TryParse(pkg.Version, out _))
+            if(!NuGetVersion.TryParse(pkg.Version, out _))
             {
                 diagnostics.Add(new Diagnostic(
                     DiagnosticId.PackageNotFound,
@@ -100,7 +100,7 @@ public static class PackageResolver
             validPackages.Add(pkg);
         }
 
-        if (validPackages.Count == 0)
+        if(validPackages.Count == 0)
         {
             return new PackageResolutionResult(
                 ImmutableArray<string>.Empty,
@@ -118,7 +118,7 @@ public static class PackageResolver
             var csprojPath = GenerateCsproj(tempDir, validPackages.ToImmutable(), frameworkReferences, targetFramework);
             var (restoreExitCode, restoreStdout, restoreStderr) = RunDotnetRestore(csprojPath, tempDir);
 
-            if (restoreExitCode != 0)
+            if(restoreExitCode != 0)
             {
                 // Parse the restore output to identify which packages failed
                 return HandleRestoreFailure(
@@ -128,7 +128,7 @@ public static class PackageResolver
 
             // Parse project.assets.json to extract resolved assembly paths
             var assetsPath = Path.Combine(tempDir, "obj", "project.assets.json");
-            if (!File.Exists(assetsPath))
+            if(!File.Exists(assetsPath))
             {
                 diagnostics.Add(new Diagnostic(
                     DiagnosticId.PackageNetworkError,
@@ -147,7 +147,7 @@ public static class PackageResolver
             return ParseAssetsFile(assetsPath, validPackages.ToImmutable(), frameworkReferences,
                 targetFramework, failureCount, diagnostics);
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch(Exception ex) when(ex is IOException or UnauthorizedAccessException)
         {
             diagnostics.Add(new Diagnostic(
                 DiagnosticId.PackageNetworkError,
@@ -167,7 +167,7 @@ public static class PackageResolver
             // Clean up temp directory
             try
             {
-                if (Directory.Exists(tempDir))
+                if(Directory.Exists(tempDir))
                     Directory.Delete(tempDir, recursive: true);
             }
             catch
@@ -195,16 +195,16 @@ public static class PackageResolver
         sb.AppendLine("  </PropertyGroup>");
 
         sb.AppendLine("  <ItemGroup>");
-        foreach (var pkg in packages)
+        foreach(var pkg in packages)
         {
             sb.AppendLine($"    <PackageReference Include=\"{pkg.Name}\" Version=\"{pkg.Version}\" />");
         }
         sb.AppendLine("  </ItemGroup>");
 
-        if (!frameworkReferences.IsDefaultOrEmpty)
+        if(!frameworkReferences.IsDefaultOrEmpty)
         {
             sb.AppendLine("  <ItemGroup>");
-            foreach (var fw in frameworkReferences)
+            foreach(var fw in frameworkReferences)
             {
                 sb.AppendLine($"    <FrameworkReference Include=\"{fw.Name}\" />");
             }
@@ -244,12 +244,12 @@ public static class PackageResolver
 
         process.OutputDataReceived += (_, e) =>
         {
-            if (e.Data is not null)
+            if(e.Data is not null)
                 stdoutBuilder.AppendLine(e.Data);
         };
         process.ErrorDataReceived += (_, e) =>
         {
-            if (e.Data is not null)
+            if(e.Data is not null)
                 stderrBuilder.AppendLine(e.Data);
         };
 
@@ -259,7 +259,7 @@ public static class PackageResolver
 
         var completed = process.WaitForExit((int)RestoreTimeout.TotalMilliseconds);
 
-        if (!completed)
+        if(!completed)
         {
             try { process.Kill(entireProcessTree: true); } catch { /* best effort */ }
             return (-1, stdoutBuilder.ToString(), "Restore timed out after 120 seconds.");
@@ -283,19 +283,19 @@ public static class PackageResolver
         var packageFailures = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         // Try to identify specific package failures from the output
-        foreach (var pkg in validPackages)
+        foreach(var pkg in validPackages)
         {
-            if (combinedOutput.Contains(pkg.Name, StringComparison.OrdinalIgnoreCase))
+            if(combinedOutput.Contains(pkg.Name, StringComparison.OrdinalIgnoreCase))
             {
                 packageFailures.Add(pkg.Name);
             }
         }
 
         // If we can't identify specific failures, report all as failed
-        if (packageFailures.Count == 0)
+        if(packageFailures.Count == 0)
         {
             // Check if it's a network/connection issue
-            if (combinedOutput.Contains("Unable to load the service index", StringComparison.OrdinalIgnoreCase)
+            if(combinedOutput.Contains("Unable to load the service index", StringComparison.OrdinalIgnoreCase)
                 || combinedOutput.Contains("network", StringComparison.OrdinalIgnoreCase)
                 || combinedOutput.Contains("timeout", StringComparison.OrdinalIgnoreCase)
                 || combinedOutput.Contains("connection", StringComparison.OrdinalIgnoreCase)
@@ -314,7 +314,7 @@ public static class PackageResolver
             else
             {
                 // Generic failure — report each package individually
-                foreach (var pkg in validPackages)
+                foreach(var pkg in validPackages)
                 {
                     diagnostics.Add(new Diagnostic(
                         DiagnosticId.PackageNotFound,
@@ -337,9 +337,9 @@ public static class PackageResolver
         var resolvedInfos = ImmutableArray.CreateBuilder<ResolvedPackageInfo>();
         var newFailures = 0;
 
-        foreach (var pkg in validPackages)
+        foreach(var pkg in validPackages)
         {
-            if (packageFailures.Contains(pkg.Name))
+            if(packageFailures.Contains(pkg.Name))
             {
                 diagnostics.Add(new Diagnostic(
                     DiagnosticId.PackageNotFound,
@@ -378,7 +378,7 @@ public static class PackageResolver
             var json = File.ReadAllText(assetsPath);
             doc = JsonDocument.Parse(json);
         }
-        catch (Exception ex) when (ex is JsonException or IOException)
+        catch(Exception ex) when(ex is JsonException or IOException)
         {
             diagnostics.Add(new Diagnostic(
                 DiagnosticId.PackageNetworkError,
@@ -394,7 +394,7 @@ public static class PackageResolver
                 FailureCount: priorFailureCount + declaredPackages.Length);
         }
 
-        using (doc)
+        using(doc)
         {
             var assemblyPaths = ImmutableArray.CreateBuilder<string>();
             var resolvedInfos = ImmutableArray.CreateBuilder<ResolvedPackageInfo>();
@@ -406,22 +406,22 @@ public static class PackageResolver
             // Track which declared packages we successfully resolved
             var declaredPackageSet = new Dictionary<string, NuGetPackageReference>(
                 StringComparer.OrdinalIgnoreCase);
-            foreach (var pkg in declaredPackages)
+            foreach(var pkg in declaredPackages)
                 declaredPackageSet[pkg.Name] = pkg;
 
             var resolvedDeclaredPackages = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
             // Parse the "targets" section to get resolved libraries and their assemblies.
             // The target key is the TFM (e.g., "net10.0" or ".NETCoreApp,Version=v10.0").
-            if (doc.RootElement.TryGetProperty("targets", out var targets))
+            if(doc.RootElement.TryGetProperty("targets", out var targets))
             {
                 // Find the target entry that matches our framework
                 JsonElement? targetEntry = null;
-                foreach (var target in targets.EnumerateObject())
+                foreach(var target in targets.EnumerateObject())
                 {
                     // The key can be either short form (net10.0) or long form
                     // (.NETCoreApp,Version=v10.0). Check both.
-                    if (target.Name.Contains(targetFramework, StringComparison.OrdinalIgnoreCase)
+                    if(target.Name.Contains(targetFramework, StringComparison.OrdinalIgnoreCase)
                         || target.Name.Contains(GetLongFrameworkName(targetFramework), StringComparison.OrdinalIgnoreCase))
                     {
                         targetEntry = target.Value;
@@ -430,29 +430,29 @@ public static class PackageResolver
                 }
 
                 // If we didn't find an exact match, take the first (there's usually only one)
-                if (targetEntry is null)
+                if(targetEntry is null)
                 {
-                    foreach (var target in targets.EnumerateObject())
+                    foreach(var target in targets.EnumerateObject())
                     {
                         targetEntry = target.Value;
                         break;
                     }
                 }
 
-                if (targetEntry.HasValue)
+                if(targetEntry.HasValue)
                 {
-                    foreach (var library in targetEntry.Value.EnumerateObject())
+                    foreach(var library in targetEntry.Value.EnumerateObject())
                     {
                         // Library key format: "PackageName/Version"
                         var parts = library.Name.Split('/');
-                        if (parts.Length != 2)
+                        if(parts.Length != 2)
                             continue;
 
                         var packageName = parts[0];
                         var packageVersion = parts[1];
 
                         // Skip if this is a "project" type (not a package)
-                        if (library.Value.TryGetProperty("type", out var typeElement)
+                        if(library.Value.TryGetProperty("type", out var typeElement)
                             && typeElement.GetString() == "project")
                             continue;
 
@@ -460,26 +460,26 @@ public static class PackageResolver
                         string? selectedTfm = null;
                         var packageAssemblies = ImmutableArray.CreateBuilder<string>();
 
-                        if (library.Value.TryGetProperty("compile", out var compileSection))
+                        if(library.Value.TryGetProperty("compile", out var compileSection))
                         {
-                            foreach (var assembly in compileSection.EnumerateObject())
+                            foreach(var assembly in compileSection.EnumerateObject())
                             {
                                 var assemblyRelPath = assembly.Name;
 
                                 // Skip placeholder "_._" entries (runtime-provided packages)
-                                if (assemblyRelPath.EndsWith("_._", StringComparison.Ordinal))
+                                if(assemblyRelPath.EndsWith("_._", StringComparison.Ordinal))
                                     continue;
 
                                 // Extract TFM from path (e.g., "lib/net8.0/Assembly.dll")
                                 var pathParts = assemblyRelPath.Split('/');
-                                if (pathParts.Length >= 3 && pathParts[0] == "lib")
+                                if(pathParts.Length >= 3 && pathParts[0] == "lib")
                                     selectedTfm = pathParts[1];
 
                                 var assemblyName = Path.GetFileNameWithoutExtension(
                                     Path.GetFileName(assemblyRelPath));
 
                                 // Deduplicate against framework-provided assemblies (issue 3)
-                                if (frameworkAssemblyNames.Contains(assemblyName))
+                                if(frameworkAssemblyNames.Contains(assemblyName))
                                     continue;
 
                                 // Resolve to full path in global packages folder
@@ -489,7 +489,7 @@ public static class PackageResolver
                                     packageVersion.ToLowerInvariant(),
                                     assemblyRelPath.Replace('/', Path.DirectorySeparatorChar));
 
-                                if (File.Exists(fullPath))
+                                if(File.Exists(fullPath))
                                 {
                                     packageAssemblies.Add(fullPath);
                                 }
@@ -498,24 +498,24 @@ public static class PackageResolver
 
                         // Also check "runtime" assemblies as fallback (some packages
                         // only specify runtime, not compile)
-                        if (packageAssemblies.Count == 0
+                        if(packageAssemblies.Count == 0
                             && library.Value.TryGetProperty("runtime", out var runtimeSection))
                         {
-                            foreach (var assembly in runtimeSection.EnumerateObject())
+                            foreach(var assembly in runtimeSection.EnumerateObject())
                             {
                                 var assemblyRelPath = assembly.Name;
 
-                                if (assemblyRelPath.EndsWith("_._", StringComparison.Ordinal))
+                                if(assemblyRelPath.EndsWith("_._", StringComparison.Ordinal))
                                     continue;
 
                                 var pathParts = assemblyRelPath.Split('/');
-                                if (pathParts.Length >= 3 && pathParts[0] == "lib")
+                                if(pathParts.Length >= 3 && pathParts[0] == "lib")
                                     selectedTfm = pathParts[1];
 
                                 var assemblyName = Path.GetFileNameWithoutExtension(
                                     Path.GetFileName(assemblyRelPath));
 
-                                if (frameworkAssemblyNames.Contains(assemblyName))
+                                if(frameworkAssemblyNames.Contains(assemblyName))
                                     continue;
 
                                 var fullPath = Path.Combine(
@@ -524,7 +524,7 @@ public static class PackageResolver
                                     packageVersion.ToLowerInvariant(),
                                     assemblyRelPath.Replace('/', Path.DirectorySeparatorChar));
 
-                                if (File.Exists(fullPath))
+                                if(File.Exists(fullPath))
                                 {
                                     packageAssemblies.Add(fullPath);
                                 }
@@ -534,7 +534,7 @@ public static class PackageResolver
                         assemblyPaths.AddRange(packageAssemblies);
 
                         // Record info for declared (direct) packages
-                        if (declaredPackageSet.ContainsKey(packageName))
+                        if(declaredPackageSet.ContainsKey(packageName))
                         {
                             resolvedDeclaredPackages.Add(packageName);
                             resolvedInfos.Add(new ResolvedPackageInfo(
@@ -548,9 +548,9 @@ public static class PackageResolver
             }
 
             // Check for declared packages that didn't appear in the assets file
-            foreach (var pkg in declaredPackages)
+            foreach(var pkg in declaredPackages)
             {
-                if (!resolvedDeclaredPackages.Contains(pkg.Name))
+                if(!resolvedDeclaredPackages.Contains(pkg.Name))
                 {
                     diagnostics.Add(new Diagnostic(
                         DiagnosticId.PackageNotFound,
@@ -584,14 +584,14 @@ public static class PackageResolver
         var frameworkAssemblies = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         // Try "project" → "frameworks" → tfm → "frameworkAssemblies" in assets file
-        if (doc.RootElement.TryGetProperty("project", out var project)
+        if(doc.RootElement.TryGetProperty("project", out var project)
             && project.TryGetProperty("frameworks", out var frameworks))
         {
-            foreach (var fw in frameworks.EnumerateObject())
+            foreach(var fw in frameworks.EnumerateObject())
             {
-                if (fw.Value.TryGetProperty("frameworkAssemblies", out var fwAssemblies))
+                if(fw.Value.TryGetProperty("frameworkAssemblies", out var fwAssemblies))
                 {
-                    foreach (var asm in fwAssemblies.EnumerateObject())
+                    foreach(var asm in fwAssemblies.EnumerateObject())
                     {
                         frameworkAssemblies.Add(asm.Name);
                     }
@@ -601,25 +601,25 @@ public static class PackageResolver
 
         // Also scan the targets for libraries with type "package" that have only
         // "_._" compile entries — these are runtime-provided and should be excluded
-        if (doc.RootElement.TryGetProperty("targets", out var targets))
+        if(doc.RootElement.TryGetProperty("targets", out var targets))
         {
-            foreach (var target in targets.EnumerateObject())
+            foreach(var target in targets.EnumerateObject())
             {
-                if (!target.Name.Contains(targetFramework, StringComparison.OrdinalIgnoreCase))
+                if(!target.Name.Contains(targetFramework, StringComparison.OrdinalIgnoreCase))
                     continue;
 
-                foreach (var library in target.Value.EnumerateObject())
+                foreach(var library in target.Value.EnumerateObject())
                 {
-                    if (!library.Value.TryGetProperty("compile", out var compile))
+                    if(!library.Value.TryGetProperty("compile", out var compile))
                         continue;
 
                     var allPlaceholders = true;
                     var hasAny = false;
 
-                    foreach (var entry in compile.EnumerateObject())
+                    foreach(var entry in compile.EnumerateObject())
                     {
                         hasAny = true;
-                        if (!entry.Name.EndsWith("_._", StringComparison.Ordinal))
+                        if(!entry.Name.EndsWith("_._", StringComparison.Ordinal))
                         {
                             allPlaceholders = false;
                             break;
@@ -628,10 +628,10 @@ public static class PackageResolver
 
                     // If all compile entries are "_._" placeholders, this package
                     // is runtime-provided. Add its name to the exclusion set.
-                    if (hasAny && allPlaceholders)
+                    if(hasAny && allPlaceholders)
                     {
                         var libParts = library.Name.Split('/');
-                        if (libParts.Length == 2)
+                        if(libParts.Length == 2)
                         {
                             // The package name itself (not assembly name) is what
                             // we track here — but typically the assembly name matches
@@ -653,7 +653,7 @@ public static class PackageResolver
     private static string GetLongFrameworkName(string shortTfm)
     {
         // net10.0 → .NETCoreApp,Version=v10.0
-        if (shortTfm.StartsWith("net", StringComparison.Ordinal) && shortTfm.Contains('.'))
+        if(shortTfm.StartsWith("net", StringComparison.Ordinal) && shortTfm.Contains('.'))
         {
             var versionPart = shortTfm[3..]; // "10.0"
             return $".NETCoreApp,Version=v{versionPart}";

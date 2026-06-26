@@ -36,7 +36,7 @@ public sealed class CompilerDriverGlobalUsingsTests : IDisposable
 
     public void Dispose()
     {
-        if (Directory.Exists(_scratchDir))
+        if(Directory.Exists(_scratchDir))
         {
             try { Directory.Delete(_scratchDir, recursive: true); } catch { /* best effort */ }
         }
@@ -95,22 +95,22 @@ public sealed class CompilerDriverGlobalUsingsTests : IDisposable
         Directory.CreateDirectory(projectDir);
 
         var toml = $"name = \"{name}\"\n";
-        if (namespaceRoot is not null)
+        if(namespaceRoot is not null)
         {
             toml += $"namespace_root = \"{namespaceRoot}\"\n";
         }
 
-        if (globalUsings is not null && globalUsings.Length > 0)
+        if(globalUsings is not null && globalUsings.Length > 0)
         {
             toml += "\n[global_usings]\nnamespaces = [";
             toml += string.Join(", ", globalUsings.Select(ns => $"\"{ns}\""));
             toml += "]\n";
         }
 
-        if (referencePaths is not null)
+        if(referencePaths is not null)
         {
             toml += "\n[references]\n";
-            for (var i = 0; i < referencePaths.Length; i++)
+            for(var i = 0; i < referencePaths.Length; i++)
             {
                 var escapedPath = referencePaths[i].Replace("\\", "/");
                 // Derive a reference name from the directory name
@@ -126,9 +126,9 @@ public sealed class CompilerDriverGlobalUsingsTests : IDisposable
 
         File.WriteAllText(Path.Combine(projectDir, "mist.toml"), toml);
 
-        if (sourceFiles is not null)
+        if(sourceFiles is not null)
         {
-            foreach (var (fileName, content) in sourceFiles)
+            foreach(var (fileName, content) in sourceFiles)
             {
                 var filePath = Path.Combine(projectDir, fileName);
                 var dir = Path.GetDirectoryName(filePath)!;
@@ -188,7 +188,7 @@ public sealed class CompilerDriverGlobalUsingsTests : IDisposable
         var userUnits = units.Where(u => !u.IsStdlib && u.OriginProjectPath is null).ToList();
         Assert.NotEmpty(userUnits);
 
-        foreach (var unit in userUnits)
+        foreach(var unit in userUnits)
         {
             Assert.Equal(2, unit.GlobalUsings.Length);
             Assert.Equal("System", unit.GlobalUsings[0]);
@@ -270,7 +270,7 @@ public sealed class CompilerDriverGlobalUsingsTests : IDisposable
         Assert.NotEmpty(refUnits);
 
         // B's units should have B's global usings, not A's
-        foreach (var unit in refUnits)
+        foreach(var unit in refUnits)
         {
             Assert.Single(unit.GlobalUsings);
             Assert.Equal("SharedLib.Internal", unit.GlobalUsings[0]);
@@ -280,7 +280,7 @@ public sealed class CompilerDriverGlobalUsingsTests : IDisposable
         var userUnits = units.Where(u => !u.IsStdlib && u.OriginProjectPath is null).ToList();
         Assert.NotEmpty(userUnits);
 
-        foreach (var unit in userUnits)
+        foreach(var unit in userUnits)
         {
             Assert.Equal(2, unit.GlobalUsings.Length);
             Assert.Equal("System", unit.GlobalUsings[0]);
@@ -336,7 +336,7 @@ public sealed class CompilerDriverGlobalUsingsTests : IDisposable
         var stdlibUnits = units.Where(u => u.IsStdlib).ToList();
         Assert.NotEmpty(stdlibUnits);
 
-        foreach (var unit in stdlibUnits)
+        foreach(var unit in stdlibUnits)
         {
             Assert.True(unit.GlobalUsings.IsEmpty,
                 $"Stdlib unit '{unit.Source.Path}' should have empty GlobalUsings " +
@@ -391,7 +391,7 @@ public sealed class CompilerDriverGlobalUsingsTests : IDisposable
         var userUnits = units.Where(u => !u.IsStdlib && u.OriginProjectPath is null).ToList();
         Assert.NotEmpty(userUnits);
 
-        foreach (var unit in userUnits)
+        foreach(var unit in userUnits)
         {
             Assert.Equal(2, unit.GlobalUsings.Length);
             Assert.Equal("System", unit.GlobalUsings[0]);
@@ -400,7 +400,7 @@ public sealed class CompilerDriverGlobalUsingsTests : IDisposable
 
         // Stdlib units should still have empty global usings
         var stdlibUnits = units.Where(u => u.IsStdlib).ToList();
-        foreach (var unit in stdlibUnits)
+        foreach(var unit in stdlibUnits)
         {
             Assert.True(unit.GlobalUsings.IsEmpty,
                 "Stdlib units should not receive CompilerOptions.GlobalUsings");
@@ -456,7 +456,7 @@ public sealed class CompilerDriverGlobalUsingsTests : IDisposable
         var userUnits = units.Where(u => !u.IsStdlib && u.OriginProjectPath is null).ToList();
         Assert.NotEmpty(userUnits);
 
-        foreach (var unit in userUnits)
+        foreach(var unit in userUnits)
         {
             Assert.Single(unit.GlobalUsings);
             Assert.Equal("FromToml.Namespace", unit.GlobalUsings[0]);
@@ -535,7 +535,7 @@ public sealed class CompilerDriverGlobalUsingsTests : IDisposable
         var refUnits = units.Where(u => u.OriginProjectPath == bTomlPath).ToList();
         Assert.NotEmpty(refUnits);
 
-        foreach (var unit in refUnits)
+        foreach(var unit in refUnits)
         {
             Assert.True(unit.GlobalUsings.IsEmpty,
                 $"Referenced project unit '{unit.Source.Path}' should have empty GlobalUsings " +
@@ -544,7 +544,7 @@ public sealed class CompilerDriverGlobalUsingsTests : IDisposable
 
         // A's user units should still have A's global usings
         var userUnits = units.Where(u => !u.IsStdlib && u.OriginProjectPath is null).ToList();
-        foreach (var unit in userUnits)
+        foreach(var unit in userUnits)
         {
             Assert.Single(unit.GlobalUsings);
             Assert.Equal("System", unit.GlobalUsings[0]);

@@ -33,7 +33,7 @@ public sealed class EntryPointWithAbstractBugTests : IDisposable
 
     public void Dispose()
     {
-        if (Directory.Exists(_outputDir))
+        if(Directory.Exists(_outputDir))
         {
             try { Directory.Delete(_outputDir, recursive: true); } catch { /* best effort */ }
         }
@@ -168,7 +168,7 @@ public sealed class EntryPointWithAbstractBugTests : IDisposable
             .ToList();
         Assert.NotEmpty(mainSymbols);
 
-        foreach (var mainSym in mainSymbols)
+        foreach(var mainSym in mainSymbols)
         {
             var node = model.GetDeclaringNode(mainSym);
             Assert.NotNull(node);

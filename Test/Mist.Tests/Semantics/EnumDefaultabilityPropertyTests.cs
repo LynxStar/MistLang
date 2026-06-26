@@ -187,7 +187,7 @@ public class EnumDefaultabilityPropertyTests
             : new HashSet<int>();
 
         var members = new List<string>();
-        for (var i = 0; i < variantNames.Count; i++)
+        for(var i = 0; i < variantNames.Count; i++)
         {
             var prefix = defaultSet.Contains(i) ? "default " : "";
             var value = backingType == "string"

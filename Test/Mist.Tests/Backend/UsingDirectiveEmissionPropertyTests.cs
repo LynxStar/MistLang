@@ -34,7 +34,7 @@ public sealed class UsingDirectiveEmissionPropertyTests : IDisposable
 
     public void Dispose()
     {
-        if (Directory.Exists(_outputDir))
+        if(Directory.Exists(_outputDir))
         {
             try { Directory.Delete(_outputDir, recursive: true); } catch { /* best effort */ }
         }
@@ -115,9 +115,9 @@ public sealed class UsingDirectiveEmissionPropertyTests : IDisposable
 
     private void CleanOutputDir()
     {
-        if (Directory.Exists(_outputDir))
+        if(Directory.Exists(_outputDir))
         {
-            foreach (var file in Directory.GetFiles(_outputDir))
+            foreach(var file in Directory.GetFiles(_outputDir))
                 File.Delete(file);
         }
     }
@@ -187,9 +187,9 @@ public sealed class UsingDirectiveEmissionPropertyTests : IDisposable
 
         // Every using declaration from the Mist source should appear as a
         // using directive in the emitted C#.
-        foreach (var ns in scenario.UsingNamespaces)
+        foreach(var ns in scenario.UsingNamespaces)
         {
-            if (!csContent.Contains($"using {ns};"))
+            if(!csContent.Contains($"using {ns};"))
                 return false;
         }
 
@@ -231,11 +231,11 @@ public sealed class UsingDirectiveEmissionPropertyTests : IDisposable
             .ToList();
 
         // Each source using namespace should appear exactly once.
-        foreach (var ns in scenario.UsingNamespaces)
+        foreach(var ns in scenario.UsingNamespaces)
         {
             var directive = $"using {ns};";
             var count = emittedUsings.Count(u => u == directive);
-            if (count != 1)
+            if(count != 1)
                 return false;
         }
 

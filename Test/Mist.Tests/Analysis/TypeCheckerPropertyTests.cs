@@ -245,10 +245,13 @@ public class TypeCheckerPropertyTests
         {
             VariableDeclaration = new TypedVariableDeclarationVariableDeclarationStatementNode
             {
-                Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                Type = new TypeReferenceNode
                 {
-                    PrimitiveType = new IntTypePrimitiveTypeNode(),
-                } },
+                    First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                    {
+                        PrimitiveType = new IntTypePrimitiveTypeNode(),
+                    }
+                },
                 Name = MakeToken(name),
                 Initializer = MakeIntLiteralExpression(value),
             },
@@ -261,10 +264,13 @@ public class TypeCheckerPropertyTests
         {
             VariableDeclaration = new TypedVariableDeclarationVariableDeclarationStatementNode
             {
-                Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                Type = new TypeReferenceNode
                 {
-                    PrimitiveType = new BoolTypePrimitiveTypeNode(),
-                } },
+                    First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                    {
+                        PrimitiveType = new BoolTypePrimitiveTypeNode(),
+                    }
+                },
                 Name = MakeToken(name),
                 Initializer = MakeBoolLiteralExpression(value),
             },
@@ -277,10 +283,13 @@ public class TypeCheckerPropertyTests
         {
             VariableDeclaration = new TypedVariableDeclarationVariableDeclarationStatementNode
             {
-                Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                Type = new TypeReferenceNode
                 {
-                    PrimitiveType = new StringTypePrimitiveTypeNode(),
-                } },
+                    First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                    {
+                        PrimitiveType = new StringTypePrimitiveTypeNode(),
+                    }
+                },
                 Name = MakeToken(name),
                 Initializer = MakeStringLiteralExpression(value),
             },
@@ -356,7 +365,7 @@ public class TypeCheckerPropertyTests
     {
         var methodModifiers = ImmutableArray.CreateBuilder<ModifierNode>();
         methodModifiers.Add(new PublicModifierModifierNode());
-        if (isStatic)
+        if(isStatic)
             methodModifiers.Add(new StaticModifierModifierNode());
 
         var method = new MethodDeclarationNode

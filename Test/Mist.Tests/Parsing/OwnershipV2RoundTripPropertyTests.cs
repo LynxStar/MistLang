@@ -76,7 +76,7 @@ public class OwnershipV2RoundTripPropertyTests
         // Step 1: Parse the generated source. The generator only produces valid v2 source,
         // so an initial parse error is itself a violation.
         var parse1 = TryParse(scenario.Source);
-        if (parse1.Errors.Length > 0 || parse1.Root is null)
+        if(parse1.Errors.Length > 0 || parse1.Root is null)
         {
             return false.ToProperty().Label(
                 $"Initial parse failed.\nSource:\n{scenario.Source}\n" +
@@ -85,12 +85,12 @@ public class OwnershipV2RoundTripPropertyTests
 
         // Step 2: Pretty-print AST1 → printed1
         var printed1 = MistPrettyPrinter.Print(parse1.Root, scenario.Source);
-        if (string.IsNullOrWhiteSpace(printed1))
+        if(string.IsNullOrWhiteSpace(printed1))
             return false.ToProperty().Label($"printed1 was empty.\nSource:\n{scenario.Source}");
 
         // Step 3: Re-parse the printed text. A parse error here is a violation.
         var parse2 = TryParse(printed1);
-        if (parse2.Errors.Length > 0 || parse2.Root is null)
+        if(parse2.Errors.Length > 0 || parse2.Root is null)
         {
             return false.ToProperty().Label(
                 $"Reparse of pretty-printed text failed.\nSource:\n{scenario.Source}\n" +

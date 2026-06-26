@@ -244,7 +244,7 @@ rule Start = Number;";
 
         // RuleIds maps are equal across runs (same rule → same id, no extra/missing keys).
         Assert.Equal(expected.RuleIds.Count, actual.RuleIds.Count);
-        foreach (var entry in expected.RuleIds)
+        foreach(var entry in expected.RuleIds)
         {
             Assert.True(
                 actual.RuleIds.ContainsKey(entry.Key),

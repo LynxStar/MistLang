@@ -32,7 +32,7 @@ public sealed class EndToEndCompilationTests : IDisposable
 
     public void Dispose()
     {
-        if (Directory.Exists(_outputDir))
+        if(Directory.Exists(_outputDir))
         {
             try { Directory.Delete(_outputDir, recursive: true); } catch { /* best effort */ }
         }
@@ -286,13 +286,16 @@ public sealed class EndToEndCompilationTests : IDisposable
         var ast = new CompilationUnitNode
         {
             Usings = ImmutableArray<UsingDeclarationNode>.Empty,
-            Items = ImmutableArray.Create<TopLevelItemNode>(new NamespaceItemTopLevelItemNode { NamespaceDeclaration = new FileScopedNamespaceNamespaceDeclarationNode
+            Items = ImmutableArray.Create<TopLevelItemNode>(new NamespaceItemTopLevelItemNode
             {
-                Name = MakeQualifiedId("MyApp"),
-                Body = ImmutableArray.Create<TypeDeclarationNode>(
+                NamespaceDeclaration = new FileScopedNamespaceNamespaceDeclarationNode
+                {
+                    Name = MakeQualifiedId("MyApp"),
+                    Body = ImmutableArray.Create<TypeDeclarationNode>(
                     new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsNamespaceBodyItems(),
-                Span = new Storm.Runtime.SourceSpan(0, source.Length),
-            } }),
+                    Span = new Storm.Runtime.SourceSpan(0, source.Length),
+                }
+            }),
         };
 
         // Build semantic model
@@ -333,10 +336,13 @@ public sealed class EndToEndCompilationTests : IDisposable
         var fieldDecl = new FieldDeclarationNode
         {
             Name = MakeToken("name"),
-            Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
+            Type = new TypeReferenceNode
             {
-                PrimitiveType = new StringTypePrimitiveTypeNode(),
-            } },
+                First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                {
+                    PrimitiveType = new StringTypePrimitiveTypeNode(),
+                }
+            },
             Modifiers = ImmutableArray.Create<ModifierNode>(new PrivateModifierModifierNode()),
         };
 
@@ -351,15 +357,21 @@ public sealed class EndToEndCompilationTests : IDisposable
         var greetMethod = new MethodDeclarationNode
         {
             Name = MakeToken("Greet"),
-            ReturnType = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
+            ReturnType = new TypeReferenceNode
             {
-                PrimitiveType = new StringTypePrimitiveTypeNode(),
-            } },
+                First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                {
+                    PrimitiveType = new StringTypePrimitiveTypeNode(),
+                }
+            },
             Parameters = null,
-            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode
+            Body = new MethodBlockBodyMethodBodyNode
             {
-                Statements = ImmutableArray.Create<StatementNode>(returnStmt),
-            } },
+                Block = new BlockNode
+                {
+                    Statements = ImmutableArray.Create<StatementNode>(returnStmt),
+                }
+            },
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
         };
 
@@ -388,13 +400,16 @@ public sealed class EndToEndCompilationTests : IDisposable
         var ast = new CompilationUnitNode
         {
             Usings = ImmutableArray<UsingDeclarationNode>.Empty,
-            Items = ImmutableArray.Create<TopLevelItemNode>(new NamespaceItemTopLevelItemNode { NamespaceDeclaration = new FileScopedNamespaceNamespaceDeclarationNode
+            Items = ImmutableArray.Create<TopLevelItemNode>(new NamespaceItemTopLevelItemNode
             {
-                Name = MakeQualifiedId("TestNs"),
-                Body = ImmutableArray.Create<TypeDeclarationNode>(
+                NamespaceDeclaration = new FileScopedNamespaceNamespaceDeclarationNode
+                {
+                    Name = MakeQualifiedId("TestNs"),
+                    Body = ImmutableArray.Create<TypeDeclarationNode>(
                     new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsNamespaceBodyItems(),
-                Span = new Storm.Runtime.SourceSpan(0, source.Length),
-            } }),
+                    Span = new Storm.Runtime.SourceSpan(0, source.Length),
+                }
+            }),
         };
 
         var builder = new SemanticModelBuilder();
@@ -424,20 +439,26 @@ public sealed class EndToEndCompilationTests : IDisposable
         var fieldX = new FieldDeclarationNode
         {
             Name = MakeToken("x"),
-            Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
+            Type = new TypeReferenceNode
             {
-                PrimitiveType = new IntTypePrimitiveTypeNode(),
-            } },
+                First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                {
+                    PrimitiveType = new IntTypePrimitiveTypeNode(),
+                }
+            },
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
         };
 
         var fieldY = new FieldDeclarationNode
         {
             Name = MakeToken("y"),
-            Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
+            Type = new TypeReferenceNode
             {
-                PrimitiveType = new IntTypePrimitiveTypeNode(),
-            } },
+                First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                {
+                    PrimitiveType = new IntTypePrimitiveTypeNode(),
+                }
+            },
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
         };
 
@@ -473,14 +494,17 @@ public sealed class EndToEndCompilationTests : IDisposable
         var ast = new CompilationUnitNode
         {
             Usings = ImmutableArray<UsingDeclarationNode>.Empty,
-            Items = ImmutableArray.Create<TopLevelItemNode>(new NamespaceItemTopLevelItemNode { NamespaceDeclaration = new FileScopedNamespaceNamespaceDeclarationNode
+            Items = ImmutableArray.Create<TopLevelItemNode>(new NamespaceItemTopLevelItemNode
             {
-                Name = MakeQualifiedId("TestNs"),
-                Body = ImmutableArray.Create<TypeDeclarationNode>(
+                NamespaceDeclaration = new FileScopedNamespaceNamespaceDeclarationNode
+                {
+                    Name = MakeQualifiedId("TestNs"),
+                    Body = ImmutableArray.Create<TypeDeclarationNode>(
                     new StructTypeTypeDeclarationNode { StructDeclaration = structDecl },
                     new ClassTypeTypeDeclarationNode { ClassDeclaration = programClass }).AsNamespaceBodyItems(),
-                Span = new Storm.Runtime.SourceSpan(0, source.Length),
-            } }),
+                    Span = new Storm.Runtime.SourceSpan(0, source.Length),
+                }
+            }),
         };
 
         var builder = new SemanticModelBuilder();
@@ -532,13 +556,16 @@ public sealed class EndToEndCompilationTests : IDisposable
         var ast = new CompilationUnitNode
         {
             Usings = ImmutableArray.Create(MakeUsingDeclaration("System")),
-            Items = ImmutableArray.Create<TopLevelItemNode>(new NamespaceItemTopLevelItemNode { NamespaceDeclaration = new FileScopedNamespaceNamespaceDeclarationNode
+            Items = ImmutableArray.Create<TopLevelItemNode>(new NamespaceItemTopLevelItemNode
             {
-                Name = MakeQualifiedId("MyApp"),
-                Body = ImmutableArray.Create<TypeDeclarationNode>(
+                NamespaceDeclaration = new FileScopedNamespaceNamespaceDeclarationNode
+                {
+                    Name = MakeQualifiedId("MyApp"),
+                    Body = ImmutableArray.Create<TypeDeclarationNode>(
                     new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsNamespaceBodyItems(),
-                Span = new Storm.Runtime.SourceSpan(0, source.Length),
-            } }),
+                    Span = new Storm.Runtime.SourceSpan(0, source.Length),
+                }
+            }),
         };
 
         // Use the real CSharpAmbientTypeResolver
@@ -592,13 +619,16 @@ public sealed class EndToEndCompilationTests : IDisposable
         var ast = new CompilationUnitNode
         {
             Usings = ImmutableArray<UsingDeclarationNode>.Empty,
-            Items = ImmutableArray.Create<TopLevelItemNode>(new NamespaceItemTopLevelItemNode { NamespaceDeclaration = new FileScopedNamespaceNamespaceDeclarationNode
+            Items = ImmutableArray.Create<TopLevelItemNode>(new NamespaceItemTopLevelItemNode
             {
-                Name = MakeQualifiedId("MyApp"),
-                Body = ImmutableArray.Create<TypeDeclarationNode>(
+                NamespaceDeclaration = new FileScopedNamespaceNamespaceDeclarationNode
+                {
+                    Name = MakeQualifiedId("MyApp"),
+                    Body = ImmutableArray.Create<TypeDeclarationNode>(
                     new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsNamespaceBodyItems(),
-                Span = new Storm.Runtime.SourceSpan(0, source.Length),
-            } }),
+                    Span = new Storm.Runtime.SourceSpan(0, source.Length),
+                }
+            }),
         };
 
         var builder = new SemanticModelBuilder();
@@ -638,14 +668,19 @@ public sealed class EndToEndCompilationTests : IDisposable
         var getValueMethod = new MethodDeclarationNode
         {
             Name = MakeToken("GetValue"),
-            ReturnType = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
+            ReturnType = new TypeReferenceNode
             {
-                PrimitiveType = new IntTypePrimitiveTypeNode(),
-            } },
+                First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                {
+                    PrimitiveType = new IntTypePrimitiveTypeNode(),
+                }
+            },
             Parameters = null,
-            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode
+            Body = new MethodBlockBodyMethodBodyNode
             {
-                Statements = ImmutableArray.Create<StatementNode>(
+                Block = new BlockNode
+                {
+                    Statements = ImmutableArray.Create<StatementNode>(
                     new ReturnStatementStatementNode
                     {
                         ReturnStatement = new ReturnStatementNode
@@ -653,7 +688,8 @@ public sealed class EndToEndCompilationTests : IDisposable
                             Value = MakeIntLiteralExpression("42"),
                         },
                     }),
-            } },
+                }
+            },
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
         };
 
@@ -668,13 +704,16 @@ public sealed class EndToEndCompilationTests : IDisposable
         var ast1 = new CompilationUnitNode
         {
             Usings = ImmutableArray<UsingDeclarationNode>.Empty,
-            Items = ImmutableArray.Create<TopLevelItemNode>(new NamespaceItemTopLevelItemNode { NamespaceDeclaration = new FileScopedNamespaceNamespaceDeclarationNode
+            Items = ImmutableArray.Create<TopLevelItemNode>(new NamespaceItemTopLevelItemNode
             {
-                Name = MakeQualifiedId("App"),
-                Body = ImmutableArray.Create<TypeDeclarationNode>(
+                NamespaceDeclaration = new FileScopedNamespaceNamespaceDeclarationNode
+                {
+                    Name = MakeQualifiedId("App"),
+                    Body = ImmutableArray.Create<TypeDeclarationNode>(
                     new ClassTypeTypeDeclarationNode { ClassDeclaration = helperClass }).AsNamespaceBodyItems(),
-                Span = new Storm.Runtime.SourceSpan(0, source1.Length),
-            } }),
+                    Span = new Storm.Runtime.SourceSpan(0, source1.Length),
+                }
+            }),
         };
 
         // AST for file 2: Program class with Main
@@ -700,13 +739,16 @@ public sealed class EndToEndCompilationTests : IDisposable
         var ast2 = new CompilationUnitNode
         {
             Usings = ImmutableArray<UsingDeclarationNode>.Empty,
-            Items = ImmutableArray.Create<TopLevelItemNode>(new NamespaceItemTopLevelItemNode { NamespaceDeclaration = new FileScopedNamespaceNamespaceDeclarationNode
+            Items = ImmutableArray.Create<TopLevelItemNode>(new NamespaceItemTopLevelItemNode
             {
-                Name = MakeQualifiedId("App"),
-                Body = ImmutableArray.Create<TypeDeclarationNode>(
+                NamespaceDeclaration = new FileScopedNamespaceNamespaceDeclarationNode
+                {
+                    Name = MakeQualifiedId("App"),
+                    Body = ImmutableArray.Create<TypeDeclarationNode>(
                     new ClassTypeTypeDeclarationNode { ClassDeclaration = programClass }).AsNamespaceBodyItems(),
-                Span = new Storm.Runtime.SourceSpan(0, source2.Length),
-            } }),
+                    Span = new Storm.Runtime.SourceSpan(0, source2.Length),
+                }
+            }),
         };
 
         // Build semantic model with both ASTs
@@ -777,25 +819,31 @@ public sealed class EndToEndCompilationTests : IDisposable
         var ast1 = new CompilationUnitNode
         {
             Usings = ImmutableArray<UsingDeclarationNode>.Empty,
-            Items = ImmutableArray.Create<TopLevelItemNode>(new NamespaceItemTopLevelItemNode { NamespaceDeclaration = new FileScopedNamespaceNamespaceDeclarationNode
+            Items = ImmutableArray.Create<TopLevelItemNode>(new NamespaceItemTopLevelItemNode
             {
-                Name = MakeQualifiedId("Shared"),
-                Body = ImmutableArray.Create<TypeDeclarationNode>(
+                NamespaceDeclaration = new FileScopedNamespaceNamespaceDeclarationNode
+                {
+                    Name = MakeQualifiedId("Shared"),
+                    Body = ImmutableArray.Create<TypeDeclarationNode>(
                     new ClassTypeTypeDeclarationNode { ClassDeclaration = fooClass }).AsNamespaceBodyItems(),
-                Span = new Storm.Runtime.SourceSpan(0, source1.Length),
-            } }),
+                    Span = new Storm.Runtime.SourceSpan(0, source1.Length),
+                }
+            }),
         };
 
         var ast2 = new CompilationUnitNode
         {
             Usings = ImmutableArray<UsingDeclarationNode>.Empty,
-            Items = ImmutableArray.Create<TopLevelItemNode>(new NamespaceItemTopLevelItemNode { NamespaceDeclaration = new FileScopedNamespaceNamespaceDeclarationNode
+            Items = ImmutableArray.Create<TopLevelItemNode>(new NamespaceItemTopLevelItemNode
             {
-                Name = MakeQualifiedId("Shared"),
-                Body = ImmutableArray.Create<TypeDeclarationNode>(
+                NamespaceDeclaration = new FileScopedNamespaceNamespaceDeclarationNode
+                {
+                    Name = MakeQualifiedId("Shared"),
+                    Body = ImmutableArray.Create<TypeDeclarationNode>(
                     new ClassTypeTypeDeclarationNode { ClassDeclaration = barClass }).AsNamespaceBodyItems(),
-                Span = new Storm.Runtime.SourceSpan(0, source2.Length),
-            } }),
+                    Span = new Storm.Runtime.SourceSpan(0, source2.Length),
+                }
+            }),
         };
 
         var builder = new SemanticModelBuilder();
@@ -848,13 +896,16 @@ public sealed class EndToEndCompilationTests : IDisposable
         var ast = new CompilationUnitNode
         {
             Usings = ImmutableArray<UsingDeclarationNode>.Empty,
-            Items = ImmutableArray.Create<TopLevelItemNode>(new NamespaceItemTopLevelItemNode { NamespaceDeclaration = new FileScopedNamespaceNamespaceDeclarationNode
+            Items = ImmutableArray.Create<TopLevelItemNode>(new NamespaceItemTopLevelItemNode
             {
-                Name = MakeQualifiedId("MyApp"),
-                Body = ImmutableArray.Create<TypeDeclarationNode>(
+                NamespaceDeclaration = new FileScopedNamespaceNamespaceDeclarationNode
+                {
+                    Name = MakeQualifiedId("MyApp"),
+                    Body = ImmutableArray.Create<TypeDeclarationNode>(
                     new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsNamespaceBodyItems(),
-                Span = new Storm.Runtime.SourceSpan(0, source.Length),
-            } }),
+                    Span = new Storm.Runtime.SourceSpan(0, source.Length),
+                }
+            }),
         };
 
         var builder = new SemanticModelBuilder();
@@ -903,13 +954,16 @@ public sealed class EndToEndCompilationTests : IDisposable
         var ast = new CompilationUnitNode
         {
             Usings = ImmutableArray<UsingDeclarationNode>.Empty,
-            Items = ImmutableArray.Create<TopLevelItemNode>(new NamespaceItemTopLevelItemNode { NamespaceDeclaration = new FileScopedNamespaceNamespaceDeclarationNode
+            Items = ImmutableArray.Create<TopLevelItemNode>(new NamespaceItemTopLevelItemNode
             {
-                Name = MakeQualifiedId("MyApp"),
-                Body = ImmutableArray.Create<TypeDeclarationNode>(
+                NamespaceDeclaration = new FileScopedNamespaceNamespaceDeclarationNode
+                {
+                    Name = MakeQualifiedId("MyApp"),
+                    Body = ImmutableArray.Create<TypeDeclarationNode>(
                     new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsNamespaceBodyItems(),
-                Span = new Storm.Runtime.SourceSpan(0, source.Length),
-            } }),
+                    Span = new Storm.Runtime.SourceSpan(0, source.Length),
+                }
+            }),
         };
 
         var builder = new SemanticModelBuilder();
@@ -1413,18 +1467,18 @@ public sealed class EndToEndCompilationTests : IDisposable
     private static string FindRepoRoot()
     {
         var dir = AppContext.BaseDirectory;
-        while (dir is not null)
+        while(dir is not null)
         {
-            if (File.Exists(Path.Combine(dir, "Mist.slnx")))
+            if(File.Exists(Path.Combine(dir, "Mist.slnx")))
                 return dir;
             dir = Directory.GetParent(dir)?.FullName;
         }
 
         // Fallback: try current directory
         dir = Directory.GetCurrentDirectory();
-        while (dir is not null)
+        while(dir is not null)
         {
-            if (File.Exists(Path.Combine(dir, "Mist.slnx")))
+            if(File.Exists(Path.Combine(dir, "Mist.slnx")))
                 return dir;
             dir = Directory.GetParent(dir)?.FullName;
         }

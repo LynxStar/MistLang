@@ -58,9 +58,9 @@ public sealed class CompositeStateMaxPropertyTests
     private static VariableOwnershipState ExpectedComposite(IReadOnlyList<VariableOwnershipState> fieldStates)
     {
         var max = VariableOwnershipState.Live;
-        foreach (var s in fieldStates)
+        foreach(var s in fieldStates)
         {
-            if (Restrictiveness(s) > Restrictiveness(max))
+            if(Restrictiveness(s) > Restrictiveness(max))
                 max = s;
         }
         return max;
@@ -86,7 +86,7 @@ public sealed class CompositeStateMaxPropertyTests
     {
         var scope = new Scope(parent: null);
         var fields = new Symbol[count];
-        for (var i = 0; i < count; i++)
+        for(var i = 0; i < count; i++)
         {
             var field = new Symbol(
                 name: $"field{i}",
@@ -161,7 +161,7 @@ public sealed class CompositeStateMaxPropertyTests
         flowState.InitializeFieldStates(parent, fields.AsEnumerable());
 
         // Apply the generated states to each field directly via SetFieldState
-        for (var i = 0; i < scenario.FieldStates.Count; i++)
+        for(var i = 0; i < scenario.FieldStates.Count; i++)
         {
             flowState.SetFieldState(parent, fields[i], scenario.FieldStates[i]);
         }

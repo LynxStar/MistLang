@@ -49,7 +49,7 @@ public sealed class UnionEmitterPropertyTests : IDisposable
 
     public void Dispose()
     {
-        if (Directory.Exists(_outputDir))
+        if(Directory.Exists(_outputDir))
         {
             try { Directory.Delete(_outputDir, recursive: true); } catch { /* best effort */ }
         }
@@ -169,7 +169,7 @@ public sealed class UnionEmitterPropertyTests : IDisposable
 
             var result = SharedDriver.Compile(options);
 
-            if (!result.Succeeded)
+            if(!result.Succeeded)
             {
                 var diagnosticText = string.Join("\n",
                     result.Diagnostics.Select(d => $"  {d.Severity} {d.Id.Value}: {d.Message}"));
@@ -177,7 +177,7 @@ public sealed class UnionEmitterPropertyTests : IDisposable
             }
 
             // Read the UnionHelpers.cs from in-memory emitted files
-            if (result.EmittedFiles is null || !result.EmittedFiles.TryGetValue("UnionHelpers.cs", out var content))
+            if(result.EmittedFiles is null || !result.EmittedFiles.TryGetValue("UnionHelpers.cs", out var content))
             {
                 return (false, null, "UnionHelpers.cs was not emitted");
             }
@@ -198,13 +198,13 @@ public sealed class UnionEmitterPropertyTests : IDisposable
     {
         // First order: as given
         var (ok1, helpers1, diag1) = CompileAndGetHelpers(scenario);
-        if (!ok1)
+        if(!ok1)
             return (null, null, diag1);
 
         // Second order: reversed
         var reversed = new UnionScenario(scenario.TypeIndices.Reverse().ToImmutableArray());
         var (ok2, helpers2, diag2) = CompileAndGetHelpers(reversed);
-        if (!ok2)
+        if(!ok2)
             return (null, null, diag2);
 
         return (helpers1, helpers2, "");
@@ -221,10 +221,10 @@ public sealed class UnionEmitterPropertyTests : IDisposable
         // These are types where the literal syntax unambiguously identifies the type.
         var preferredOrder = new[] { "string", "bool", "int", "char" };
 
-        foreach (var preferred in preferredOrder)
+        foreach(var preferred in preferredOrder)
         {
             var idx = typeIndices.FirstOrDefault(i => KnownTypes[i].MistName == preferred, -1);
-            if (idx >= 0)
+            if(idx >= 0)
             {
                 var literal = KnownTypes[idx].MistName switch
                 {
@@ -281,7 +281,7 @@ public sealed class UnionEmitterPropertyTests : IDisposable
     {
         var (succeeded, content, diagnosticText) = CompileAndGetHelpers(scenario);
 
-        if (!succeeded || content is null)
+        if(!succeeded || content is null)
             return false.ToProperty().Label($"Compilation failed: {diagnosticText}");
 
         var n = scenario.TypeIndices.Length;
@@ -305,7 +305,7 @@ public sealed class UnionEmitterPropertyTests : IDisposable
     {
         var (succeeded, content, diagnosticText) = CompileAndGetHelpers(scenario);
 
-        if (!succeeded || content is null)
+        if(!succeeded || content is null)
             return false.ToProperty().Label($"Compilation failed: {diagnosticText}");
 
         var n = scenario.TypeIndices.Length;
@@ -329,7 +329,7 @@ public sealed class UnionEmitterPropertyTests : IDisposable
     {
         var (succeeded, content, diagnosticText) = CompileAndGetHelpers(scenario);
 
-        if (!succeeded || content is null)
+        if(!succeeded || content is null)
             return false.ToProperty().Label($"Compilation failed: {diagnosticText}");
 
         var n = scenario.TypeIndices.Length;
@@ -352,7 +352,7 @@ public sealed class UnionEmitterPropertyTests : IDisposable
     {
         var (succeeded, content, diagnosticText) = CompileAndGetHelpers(scenario);
 
-        if (!succeeded || content is null)
+        if(!succeeded || content is null)
             return false.ToProperty().Label($"Compilation failed: {diagnosticText}");
 
         var expectedName = GetExpectedHelperName(scenario);
@@ -373,7 +373,7 @@ public sealed class UnionEmitterPropertyTests : IDisposable
     {
         var (helpers1, helpers2, diagnosticText) = CompileWithReorderedUnion(scenario);
 
-        if (helpers1 is null || helpers2 is null)
+        if(helpers1 is null || helpers2 is null)
             return false.ToProperty().Label($"Compilation failed: {diagnosticText}");
 
         var expectedName = GetExpectedHelperName(scenario);

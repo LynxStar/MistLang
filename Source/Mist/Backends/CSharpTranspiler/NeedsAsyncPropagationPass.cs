@@ -38,18 +38,18 @@ internal static class NeedsAsyncPropagationPass
         var methodSymbols = new List<Symbol>();
         var symbolToNode = new Dictionary<Symbol, Storm.Runtime.SyntaxNode>();
 
-        foreach (var symbol in model.AllSymbols)
+        foreach(var symbol in model.AllSymbols)
         {
-            if (symbol is not Symbol sym)
+            if(symbol is not Symbol sym)
                 continue;
-            if (sym.Kind != SymbolKind.Method)
+            if(sym.Kind != SymbolKind.Method)
                 continue;
 
             Storm.Runtime.SyntaxNode? declaringNode;
             try { declaringNode = model.GetDeclaringNode(sym); }
             catch { continue; }
 
-            if (declaringNode is null)
+            if(declaringNode is null)
                 continue;
 
             methodSymbols.Add(sym);
@@ -60,17 +60,17 @@ internal static class NeedsAsyncPropagationPass
         // Also build a call graph: for each method, record which other method symbols it calls.
         var callerToCallees = new Dictionary<Symbol, HashSet<Symbol>>();
 
-        foreach (var method in methodSymbols)
+        foreach(var method in methodSymbols)
         {
             // Seed rule 1: methods declared async in Mist always need C# async.
-            if (method.IsAsync)
+            if(method.IsAsync)
             {
                 method.NeedsCSharpAsync = true;
             }
 
             var declaringNode = symbolToNode[method];
             var block = GetMethodBodyBlock(declaringNode);
-            if (block is null)
+            if(block is null)
                 continue;
 
             // Walk the method body to find await expressions, async method calls,
@@ -81,7 +81,7 @@ internal static class NeedsAsyncPropagationPass
             WalkMethodBody(block, model, method, ref needsAsync, callees);
 
             method.NeedsCSharpAsync = needsAsync;
-            if (callees.Count > 0)
+            if(callees.Count > 0)
             {
                 callerToCallees[method] = callees;
             }
@@ -96,11 +96,11 @@ internal static class NeedsAsyncPropagationPass
 
         // Step 3: Build reverse call graph (callee → callers).
         var calleeToCallers = new Dictionary<Symbol, List<Symbol>>();
-        foreach (var (caller, callees) in callerToCallees)
+        foreach(var (caller, callees) in callerToCallees)
         {
-            foreach (var callee in callees)
+            foreach(var callee in callees)
             {
-                if (!calleeToCallers.TryGetValue(callee, out var callers))
+                if(!calleeToCallers.TryGetValue(callee, out var callers))
                 {
                     callers = new List<Symbol>();
                     calleeToCallers[callee] = callers;
@@ -114,24 +114,24 @@ internal static class NeedsAsyncPropagationPass
         // already marked) also needs C# async — because the callee's C# return type
         // is now Task<T>, requiring await at the call site in the emitted C#.
         var worklist = new Queue<Symbol>();
-        foreach (var method in methodSymbols)
+        foreach(var method in methodSymbols)
         {
-            if (method.NeedsCSharpAsync)
+            if(method.NeedsCSharpAsync)
             {
                 worklist.Enqueue(method);
             }
         }
 
-        while (worklist.Count > 0)
+        while(worklist.Count > 0)
         {
             var callee = worklist.Dequeue();
 
-            if (!calleeToCallers.TryGetValue(callee, out var callers))
+            if(!calleeToCallers.TryGetValue(callee, out var callers))
                 continue;
 
-            foreach (var caller in callers)
+            foreach(var caller in callers)
             {
-                if (caller.NeedsCSharpAsync)
+                if(caller.NeedsCSharpAsync)
                     continue;
 
                 // The caller invokes a method that needs C# async.
@@ -173,7 +173,7 @@ internal static class NeedsAsyncPropagationPass
         ref bool needsAsync,
         HashSet<Symbol> callees)
     {
-        switch (node)
+        switch(node)
         {
             case AwaitExpressionUnaryNode awaitExpr:
                 // Seed rule 3: explicit await requires C# async on the enclosing method.
@@ -202,9 +202,9 @@ internal static class NeedsAsyncPropagationPass
         }
 
         // Default: walk all children.
-        foreach (var child in node.Children())
+        foreach(var child in node.Children())
         {
-            if (child is null)
+            if(child is null)
                 continue;
             WalkMethodBody(child, model, enclosingMethod, ref needsAsync, callees);
         }
@@ -224,16 +224,16 @@ internal static class NeedsAsyncPropagationPass
     {
         // Check for direct invocation: identifier(args)
         // The target identifier has a registered symbol via RegisterUsageSite.
-        if (postfix.Suffix.Length > 0 && postfix.Suffix[^1] is InvocationSuffixPostfixSuffixNode)
+        if(postfix.Suffix.Length > 0 && postfix.Suffix[^1] is InvocationSuffixPostfixSuffixNode)
         {
             var targetSymbol = model.GetDeclaredSymbol(postfix.Target);
-            if (targetSymbol is Symbol { Kind: SymbolKind.Method } calleeSym)
+            if(targetSymbol is Symbol { Kind: SymbolKind.Method } calleeSym)
             {
                 callees.Add(calleeSym);
 
                 // Seed rule 2: sync method directly invoking an async method
                 // triggers auto-unwrap, which requires await in emitted C#.
-                if (!enclosingMethod.IsAsync && calleeSym.IsAsync)
+                if(!enclosingMethod.IsAsync && calleeSym.IsAsync)
                 {
                     needsAsync = true;
                 }
@@ -241,9 +241,9 @@ internal static class NeedsAsyncPropagationPass
         }
 
         // Check for member method calls in the suffix chain: obj.Method(args)
-        foreach (var suffix in postfix.Suffix)
+        foreach(var suffix in postfix.Suffix)
         {
-            if (suffix is MethodCallSuffixPostfixSuffixNode methodCall)
+            if(suffix is MethodCallSuffixPostfixSuffixNode methodCall)
             {
                 // Try to resolve the callee symbol from the suffix node.
                 // The semantic model may have registered it via GetDeclaredSymbol
@@ -254,32 +254,32 @@ internal static class NeedsAsyncPropagationPass
                 // Fallback: if standard resolution fails (e.g., for namespace-qualified
                 // calls like Namespace.Type.Method()), try to find the method symbol
                 // by reconstructing the qualified type name from the suffix chain.
-                if (calleeSym is null)
+                if(calleeSym is null)
                 {
                     calleeSym = TryResolveQualifiedMethodCall(methodCall, postfix, model);
                 }
 
-                if (calleeSym is not null)
+                if(calleeSym is not null)
                 {
                     callees.Add(calleeSym);
 
                     // Seed rule 2: sync method calling an async method.
-                    if (!enclosingMethod.IsAsync && calleeSym.IsAsync)
+                    if(!enclosingMethod.IsAsync && calleeSym.IsAsync)
                     {
                         needsAsync = true;
                     }
                 }
 
                 // Walk arguments for nested invocations.
-                if (methodCall.Arguments is not null)
+                if(methodCall.Arguments is not null)
                 {
                     WalkMethodBody(methodCall.Arguments, model, enclosingMethod, ref needsAsync, callees);
                 }
             }
-            else if (suffix is InvocationSuffixPostfixSuffixNode invocation)
+            else if(suffix is InvocationSuffixPostfixSuffixNode invocation)
             {
                 // Walk arguments for nested invocations.
-                if (invocation.Arguments is not null)
+                if(invocation.Arguments is not null)
                 {
                     WalkMethodBody(invocation.Arguments, model, enclosingMethod, ref needsAsync, callees);
                 }
@@ -314,27 +314,27 @@ internal static class NeedsAsyncPropagationPass
 
         // Find the index of this method call in the suffix array.
         var suffixIndex = -1;
-        for (var i = 0; i < postfix.Suffix.Length; i++)
+        for(var i = 0; i < postfix.Suffix.Length; i++)
         {
-            if (ReferenceEquals(postfix.Suffix[i], methodCall))
+            if(ReferenceEquals(postfix.Suffix[i], methodCall))
             {
                 suffixIndex = i;
                 break;
             }
         }
 
-        if (suffixIndex == 0)
+        if(suffixIndex == 0)
         {
             // The receiver is the target primary expression.
             receiverType = model.GetTypeOf(postfix.Target);
         }
-        else if (suffixIndex > 0)
+        else if(suffixIndex > 0)
         {
             // The receiver is the result of the previous suffix.
             receiverType = model.GetTypeOf(postfix.Suffix[suffixIndex - 1]);
         }
 
-        if (receiverType is null)
+        if(receiverType is null)
             return null;
 
         // Look up the method by name in the receiver type's member scope.
@@ -347,17 +347,17 @@ internal static class NeedsAsyncPropagationPass
     private static Symbol? FindMethodInType(IType type, string methodName)
     {
         var scope = GetMemberScope(type);
-        if (scope is null)
+        if(scope is null)
             return null;
 
         var found = scope.Lookup(methodName);
-        if (found is Symbol sym && sym.Kind == SymbolKind.Method)
+        if(found is Symbol sym && sym.Kind == SymbolKind.Method)
         {
             return sym;
         }
 
         // Check base type for classes.
-        if (type is ClassType classType && classType.BaseType is not null)
+        if(type is ClassType classType && classType.BaseType is not null)
         {
             return FindMethodInType(classType.BaseType, methodName);
         }
@@ -398,9 +398,9 @@ internal static class NeedsAsyncPropagationPass
 
         // Find the index of this method call in the suffix array.
         var suffixIndex = -1;
-        for (var i = 0; i < postfix.Suffix.Length; i++)
+        for(var i = 0; i < postfix.Suffix.Length; i++)
         {
-            if (ReferenceEquals(postfix.Suffix[i], methodCall))
+            if(ReferenceEquals(postfix.Suffix[i], methodCall))
             {
                 suffixIndex = i;
                 break;
@@ -408,18 +408,18 @@ internal static class NeedsAsyncPropagationPass
         }
 
         // Need at least one preceding MemberAccessSuffix for the type name.
-        if (suffixIndex < 1)
+        if(suffixIndex < 1)
             return null;
 
         // Build the qualified name from the target identifier + member access suffixes.
         // For "AsyncDropChaining.Program.RunDemo()", we want "AsyncDropChaining.Program".
-        if (postfix.Target is not IdentifierExpressionPrimaryNode targetId)
+        if(postfix.Target is not IdentifierExpressionPrimaryNode targetId)
             return null;
 
         var parts = new List<string> { targetId.Name.Lexeme };
-        for (var i = 0; i < suffixIndex; i++)
+        for(var i = 0; i < suffixIndex; i++)
         {
-            if (postfix.Suffix[i] is MemberAccessSuffixPostfixSuffixNode memberAccess)
+            if(postfix.Suffix[i] is MemberAccessSuffixPostfixSuffixNode memberAccess)
             {
                 parts.Add(memberAccess.Name.Lexeme);
             }
@@ -432,7 +432,7 @@ internal static class NeedsAsyncPropagationPass
 
         // The last part is the type name, everything before is the namespace.
         // E.g., ["AsyncDropChaining", "Program"] → namespace="AsyncDropChaining", type="Program"
-        if (parts.Count < 2)
+        if(parts.Count < 2)
             return null;
 
         var typeName = parts[^1];
@@ -440,27 +440,27 @@ internal static class NeedsAsyncPropagationPass
 
         // Search the model's symbols for a class/struct in the matching namespace
         // that has the method we're looking for.
-        foreach (var symbol in model.AllSymbols)
+        foreach(var symbol in model.AllSymbols)
         {
-            if (symbol is not Symbol sym)
+            if(symbol is not Symbol sym)
                 continue;
 
-            if (sym.Kind is not (SymbolKind.Class or SymbolKind.Struct))
+            if(sym.Kind is not (SymbolKind.Class or SymbolKind.Struct))
                 continue;
 
-            if (sym.Name != typeName)
+            if(sym.Name != typeName)
                 continue;
 
             // Check if the type is in the right namespace.
             var containingNs = (sym.DeclaredType as ClassType)?.ContainingNamespace
                              ?? (sym.DeclaredType as StructType)?.ContainingNamespace;
 
-            if (containingNs != namespaceName)
+            if(containingNs != namespaceName)
                 continue;
 
             // Found the type — look for the method.
             var typeForLookup = sym.DeclaredType;
-            if (typeForLookup is null)
+            if(typeForLookup is null)
                 continue;
 
             return FindMethodInType(typeForLookup, methodName);
@@ -476,9 +476,9 @@ internal static class NeedsAsyncPropagationPass
     private static IType? FindEnclosingType(Symbol method, ISemanticModel model)
     {
         // Search all type symbols to find one whose member scope contains this method.
-        foreach (var symbol in model.AllSymbols)
+        foreach(var symbol in model.AllSymbols)
         {
-            if (symbol is not Symbol sym)
+            if(symbol is not Symbol sym)
                 continue;
 
             var memberScope = sym.DeclaredType switch
@@ -488,12 +488,12 @@ internal static class NeedsAsyncPropagationPass
                 _ => null,
             };
 
-            if (memberScope is null)
+            if(memberScope is null)
                 continue;
 
-            foreach (var member in memberScope.Members)
+            foreach(var member in memberScope.Members)
             {
-                if (ReferenceEquals(member, method))
+                if(ReferenceEquals(member, method))
                     return sym.DeclaredType;
             }
         }

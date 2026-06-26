@@ -84,7 +84,7 @@ public sealed class TypeArgumentInferenceEmissionPropertyTests : IDisposable
 
     public void Dispose()
     {
-        if (Directory.Exists(_outputDir))
+        if(Directory.Exists(_outputDir))
         {
             try { Directory.Delete(_outputDir, recursive: true); } catch { /* best effort */ }
         }
@@ -314,7 +314,7 @@ public sealed class TypeArgumentInferenceEmissionPropertyTests : IDisposable
     /// </summary>
     private static string GetAllEmittedCSharp(CompilerResult result)
     {
-        if (result.EmittedFiles is null || result.EmittedFiles.Count == 0)
+        if(result.EmittedFiles is null || result.EmittedFiles.Count == 0)
             return "";
 
         return string.Join("\n", result.EmittedFiles.Values);
@@ -338,7 +338,7 @@ public sealed class TypeArgumentInferenceEmissionPropertyTests : IDisposable
         var result = CompileSource(scenario.Source);
 
         // First, compilation must succeed (inference must work)
-        if (!result.Succeeded)
+        if(!result.Succeeded)
         {
             var errors = result.Diagnostics
                 .Where(d => d.Severity == Mist.Common.Diagnostics.DiagnosticSeverity.Error)

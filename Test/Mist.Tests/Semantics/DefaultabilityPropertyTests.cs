@@ -92,21 +92,27 @@ public class DefaultabilityPropertyTests
 
     private static FieldDeclarationNode MakePrimitiveField(string fieldName, string typeName)
     {
-        return MakeField(fieldName, new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
+        return MakeField(fieldName, new TypeReferenceNode
         {
-            PrimitiveType = MakePrimitiveType(typeName),
-        } });
+            First = new PrimitiveSingleTypeRefSingleTypeRefNode
+            {
+                PrimitiveType = MakePrimitiveType(typeName),
+            }
+        });
     }
 
     private static FieldDeclarationNode MakeNamedTypeField(string fieldName, string typeName)
     {
-        return MakeField(fieldName, new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
+        return MakeField(fieldName, new TypeReferenceNode
         {
-            Name = new QualifiedIdentifierNode
+            First = new NamedSingleTypeRefSingleTypeRefNode
             {
-                IDENTIFIER = MakeToken(typeName),
-            },
-        } });
+                Name = new QualifiedIdentifierNode
+                {
+                    IDENTIFIER = MakeToken(typeName),
+                },
+            }
+        });
     }
 
     private static MemberDeclarationNode MakeFieldMember(FieldDeclarationNode field)
@@ -288,14 +294,14 @@ public class DefaultabilityPropertyTests
 
     private static Gen<ImmutableArray<(string FieldName, string FieldType)>> GenPrimitiveFields(int count)
     {
-        if (count == 0)
+        if(count == 0)
             return Gen.Constant(ImmutableArray<(string, string)>.Empty);
 
         Gen<ImmutableArray<(string, string)>> result =
             from fieldType in Gen.Elements(PrimitiveTypes)
             select ImmutableArray.Create<(string, string)>((FieldNames[0], fieldType));
 
-        for (var i = 1; i < count; i++)
+        for(var i = 1; i < count; i++)
         {
             var idx = i;
             result = from arr in result
@@ -449,7 +455,7 @@ public class DefaultabilityPropertyTests
         var typeSymbol = model.AllSymbols
             .FirstOrDefault(s => s.Name == scenario.TypeName && s.Kind == expectedKind);
 
-        if (typeSymbol is null)
+        if(typeSymbol is null)
             return false;
 
         var status = typeSymbol.DeclaredType switch
@@ -478,7 +484,7 @@ public class DefaultabilityPropertyTests
         var typeSymbol = model.AllSymbols
             .FirstOrDefault(s => s.Name == scenario.TypeName && s.Kind == expectedKind);
 
-        if (typeSymbol is null)
+        if(typeSymbol is null)
             return false;
 
         var status = typeSymbol.DeclaredType switch
@@ -520,7 +526,7 @@ public class DefaultabilityPropertyTests
         var typeSymbol = model.AllSymbols
             .FirstOrDefault(s => s.Name == scenario.TypeName && s.Kind == expectedKind);
 
-        if (typeSymbol is null)
+        if(typeSymbol is null)
             return false;
 
         // Check defaultability status
@@ -531,7 +537,7 @@ public class DefaultabilityPropertyTests
             _ => DefaultabilityStatus.Unknown,
         };
 
-        if (status != DefaultabilityStatus.NotDefaultable)
+        if(status != DefaultabilityStatus.NotDefaultable)
             return false;
 
         // Check that MIST_DEFAULT_REQUIRES_BINDING diagnostic was emitted

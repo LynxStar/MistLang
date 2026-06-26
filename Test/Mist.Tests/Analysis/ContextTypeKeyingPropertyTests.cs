@@ -343,7 +343,7 @@ public sealed class ContextTypeKeyingPropertyTests
 
         var lexBag = new DiagnosticBag();
         var tokens = Lexer.Lex(sourceText, lexBag);
-        if (lexBag.HasErrors)
+        if(lexBag.HasErrors)
         {
             diagnostics = lexBag.ToImmutableArray();
             return null;
@@ -351,7 +351,7 @@ public sealed class ContextTypeKeyingPropertyTests
 
         var parseBag = new DiagnosticBag();
         var parseResult = Parser.Parse(tokens, parseBag);
-        if (parseBag.HasErrors || parseResult.Root is null)
+        if(parseBag.HasErrors || parseResult.Root is null)
         {
             diagnostics = parseBag.ToImmutableArray();
             return null;
@@ -386,7 +386,7 @@ public sealed class ContextTypeKeyingPropertyTests
             .OfType<Symbol>()
             .FirstOrDefault(s => s.Kind == SymbolKind.Method && s.Name == methodName);
 
-        if (methodSymbol is null)
+        if(methodSymbol is null)
             return null;
 
         // Find the local variable registered for the with-clause binding.
@@ -426,7 +426,7 @@ public sealed class ContextTypeKeyingPropertyTests
     /// </summary>
     private static IType ResolveForKeying(IType type)
     {
-        while (type is TypeAliasType alias)
+        while(type is TypeAliasType alias)
             type = alias.UnderlyingType;
         return type;
     }
@@ -465,7 +465,7 @@ public sealed class ContextTypeKeyingPropertyTests
     {
         var model = BuildModelFromSource(scenario.Source, out var diagnostics);
 
-        if (model is null)
+        if(model is null)
         {
             return false.ToProperty()
                 .Label($"Failed to build semantic model.\n" +
@@ -476,7 +476,7 @@ public sealed class ContextTypeKeyingPropertyTests
         // Find the with-clause binding types for each method.
         // Each method has a with-clause binding named ctx1/ctx2 respectively.
         var type1 = GetWithClauseBindingType(model, scenario.Method1Name, "ctx1");
-        if (type1 is null)
+        if(type1 is null)
         {
             return false.ToProperty()
                 .Label($"Could not find with-clause binding type for method '{scenario.Method1Name}'.\n" +
@@ -486,7 +486,7 @@ public sealed class ContextTypeKeyingPropertyTests
         }
 
         var type2 = GetWithClauseBindingType(model, scenario.Method2Name, "ctx2");
-        if (type2 is null)
+        if(type2 is null)
         {
             return false.ToProperty()
                 .Label($"Could not find with-clause binding type for method '{scenario.Method2Name}'.\n" +
@@ -497,7 +497,7 @@ public sealed class ContextTypeKeyingPropertyTests
 
         var keysAreEqual = AreContextKeysEqual(type1, type2);
 
-        if (scenario.ExpectSameKey && !keysAreEqual)
+        if(scenario.ExpectSameKey && !keysAreEqual)
         {
             return false.ToProperty()
                 .Label($"Expected SAME context key but got DIFFERENT.\n" +
@@ -506,7 +506,7 @@ public sealed class ContextTypeKeyingPropertyTests
                        $"  Scenario: {scenario}");
         }
 
-        if (!scenario.ExpectSameKey && keysAreEqual)
+        if(!scenario.ExpectSameKey && keysAreEqual)
         {
             return false.ToProperty()
                 .Label($"Expected DIFFERENT context keys but got SAME.\n" +

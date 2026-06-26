@@ -90,7 +90,7 @@ public sealed class ForeachEnumerableTypeInferencePropertyTests : IDisposable
 
     public void Dispose()
     {
-        if (Directory.Exists(_tempDir))
+        if(Directory.Exists(_tempDir))
         {
             try { Directory.Delete(_tempDir, recursive: true); } catch { /* best effort */ }
         }
@@ -249,7 +249,7 @@ public sealed class ForeachEnumerableTypeInferencePropertyTests : IDisposable
     {
         var result = CompileSource(scenario.Source);
 
-        if (!result.Succeeded)
+        if(!result.Succeeded)
         {
             var diagnostics = string.Join("\n", result.Diagnostics.Select(d => $"  {d.Id.Value}: {d.Message}"));
             return false.ToProperty()
@@ -277,7 +277,7 @@ public sealed class ForeachEnumerableTypeInferencePropertyTests : IDisposable
     {
         var result = CompileSource(scenario.Source);
 
-        if (!result.Succeeded)
+        if(!result.Succeeded)
         {
             var diagnostics = string.Join("\n", result.Diagnostics.Select(d => $"  {d.Id.Value}: {d.Message}"));
             return false.ToProperty()

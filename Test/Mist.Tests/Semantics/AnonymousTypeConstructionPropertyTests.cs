@@ -89,10 +89,10 @@ public class AnonymousTypeConstructionPropertyTests
     [Property(MaxTest = 100, Arbitrary = new[] { typeof(AnonymousTypeGenerator) })]
     public bool DisplayName_ContainsAllPropertyEntries(AnonymousType anon)
     {
-        for (var i = 0; i < anon.PropertyNames.Count; i++)
+        for(var i = 0; i < anon.PropertyNames.Count; i++)
         {
             var entry = $"{anon.PropertyNames[i]}: {anon.PropertyTypes[i].DisplayName}";
-            if (!anon.DisplayName.Contains(entry))
+            if(!anon.DisplayName.Contains(entry))
                 return false;
         }
 
@@ -130,7 +130,7 @@ public class AnonymousTypeConstructionPropertyTests
         IReadOnlyList<IType> propertyTypes)
     {
         var parts = new string[propertyNames.Count];
-        for (var i = 0; i < propertyNames.Count; i++)
+        for(var i = 0; i < propertyNames.Count; i++)
             parts[i] = $"{propertyNames[i]}: {propertyTypes[i].DisplayName}";
         return $"{{ {string.Join(", ", parts)} }}";
     }

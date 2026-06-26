@@ -128,22 +128,22 @@ public class TypeLiteralParserPropertyTests
 
     private static void CollectTypeLiterals(Storm.Runtime.SyntaxNode? node, List<TypeLiteralExpressionPrimaryNode> results)
     {
-        if (node is null)
+        if(node is null)
             return;
 
-        if (node is TypeLiteralExpressionPrimaryNode typeLiteral)
+        if(node is TypeLiteralExpressionPrimaryNode typeLiteral)
         {
             results.Add(typeLiteral);
         }
 
         try
         {
-            foreach (var child in node.Children())
+            foreach(var child in node.Children())
             {
                 CollectTypeLiterals(child, results);
             }
         }
-        catch (NullReferenceException)
+        catch(NullReferenceException)
         {
             // Some AST nodes may have null children that Children() doesn't guard against.
         }
@@ -169,14 +169,14 @@ public class TypeLiteralParserPropertyTests
         var root = ParseSource(testCase.Source);
 
         // Parser must produce a non-null root
-        if (root is null)
+        if(root is null)
             return false;
 
         // Find TypeLiteralExpression nodes in the AST
         var typeLiterals = FindTypeLiterals(root);
 
         // There should be at least one TypeLiteralExpression
-        if (typeLiterals.Count == 0)
+        if(typeLiterals.Count == 0)
             return false;
 
         // Find the type literal that matches our keyword's expected PrimitiveTypeNode
@@ -186,7 +186,7 @@ public class TypeLiteralParserPropertyTests
             tl.TypeRef.First is PrimitiveSingleTypeRefSingleTypeRefNode primitiveRef &&
             primitiveRef.PrimitiveType.GetType() == expectedNodeType);
 
-        if (matchingLiteral is null)
+        if(matchingLiteral is null)
             return false;
 
         // Verify the TypeRef is a PrimitiveTypeRef with the correct PrimitiveTypeNode
@@ -265,14 +265,14 @@ public class TypeLiteralParserPropertyTests
         var root = ParseSource(testCase.Source);
 
         // Parser must produce a non-null root
-        if (root is null)
+        if(root is null)
             return false;
 
         // Find TypeLiteralExpression nodes in the AST
         var typeLiterals = FindTypeLiterals(root);
 
         // There should be at least one TypeLiteralExpression
-        if (typeLiterals.Count == 0)
+        if(typeLiterals.Count == 0)
             return false;
 
         // Find the type literal that matches our keyword's expected PrimitiveTypeNode AND has array rank
@@ -358,7 +358,7 @@ public class TypeLiteralParserPropertyTests
         var root = ParseSource(testCase.Source);
 
         // Parser must produce a non-null root
-        if (root is null)
+        if(root is null)
             return false;
 
         // The AST should NOT contain any TypeLiteralExpression for the type

@@ -56,9 +56,9 @@ public sealed class EnumReadonlyRestrictionTests
     private static string FindRepoRoot()
     {
         var dir = AppContext.BaseDirectory;
-        while (dir is not null)
+        while(dir is not null)
         {
-            if (File.Exists(Path.Combine(dir, "Mist.slnx")))
+            if(File.Exists(Path.Combine(dir, "Mist.slnx")))
                 return dir;
             dir = Directory.GetParent(dir)?.FullName;
         }
@@ -79,7 +79,7 @@ public sealed class EnumReadonlyRestrictionTests
         var loaderDiagnostics = new DiagnosticBag();
         var units = StdlibLoader.LoadFrom(stdlibRoot, loaderDiagnostics);
 
-        if (loaderDiagnostics.HasErrors)
+        if(loaderDiagnostics.HasErrors)
             throw new InvalidOperationException(
                 "Failed to load stdlib: " +
                 string.Join("; ", loaderDiagnostics.ToImmutableArray().Select(d => d.Message)));
@@ -87,11 +87,11 @@ public sealed class EnumReadonlyRestrictionTests
         var pipelineDiagnostics = new DiagnosticBag();
         var asts = ImmutableArray.CreateBuilder<Storm.Runtime.SyntaxNode>(units.Length);
 
-        foreach (var unit in units)
+        foreach(var unit in units)
         {
             var tokens = Lexer.Lex(unit.Source, pipelineDiagnostics);
             var parseResult = Parser.Parse(tokens, pipelineDiagnostics);
-            if (parseResult.Root is not null)
+            if(parseResult.Root is not null)
                 asts.Add(parseResult.Root);
         }
 
@@ -164,13 +164,13 @@ public sealed class EnumReadonlyRestrictionTests
         var model = BuildStdlibModel();
 
         var missingTypes = new List<string>();
-        foreach (var typeName in BootstrapTypeNames)
+        foreach(var typeName in BootstrapTypeNames)
         {
             var symbol = model.AllSymbols
                 .FirstOrDefault(s => s.Name == typeName &&
                     s.Kind is SymbolKind.Struct or SymbolKind.Class);
 
-            if (symbol is null)
+            if(symbol is null)
                 missingTypes.Add(typeName);
         }
 
@@ -246,9 +246,9 @@ public sealed class EnumReadonlyRestrictionTests
             BindingFlags.NonPublic | BindingFlags.FlattenHierarchy);
 
         var result = new List<KeyValuePair<string, string>>();
-        foreach (var field in fields)
+        foreach(var field in fields)
         {
-            if (field.FieldType == typeof(DiagnosticId) && field.IsInitOnly)
+            if(field.FieldType == typeof(DiagnosticId) && field.IsInitOnly)
             {
                 var value = (DiagnosticId)field.GetValue(null)!;
                 result.Add(new KeyValuePair<string, string>(field.Name, value.Value));

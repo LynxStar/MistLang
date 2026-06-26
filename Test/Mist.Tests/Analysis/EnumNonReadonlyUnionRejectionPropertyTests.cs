@@ -373,13 +373,13 @@ public sealed class EnumNonReadonlyUnionRejectionPropertyTests
         // Lex
         var lexBag = new DiagnosticBag();
         var tokens = Lexer.Lex(sourceText, lexBag);
-        if (lexBag.HasErrors)
+        if(lexBag.HasErrors)
             return lexBag.ToImmutableArray();
 
         // Parse
         var parseBag = new DiagnosticBag();
         var parseResult = Parser.Parse(tokens, parseBag);
-        if (parseBag.HasErrors || parseResult.Root is null)
+        if(parseBag.HasErrors || parseResult.Root is null)
             return parseBag.ToImmutableArray();
 
         // Semantic model
@@ -426,7 +426,7 @@ public sealed class EnumNonReadonlyUnionRejectionPropertyTests
 
         // Must have exactly one MIST_TC_0103 diagnostic per non-readonly constituent.
         var expectedCount = scenario.NonReadonlyTypeNames.Count;
-        if (unionDiags.Count != expectedCount)
+        if(unionDiags.Count != expectedCount)
         {
             return false.ToProperty()
                 .Label($"Expected {expectedCount} MIST_TC_0103 diagnostic(s), got {unionDiags.Count}.\n" +
@@ -438,7 +438,7 @@ public sealed class EnumNonReadonlyUnionRejectionPropertyTests
 
         // Verify each diagnostic has severity Error.
         var nonErrorDiags = unionDiags.Where(d => d.Severity != DiagnosticSeverity.Error).ToList();
-        if (nonErrorDiags.Count > 0)
+        if(nonErrorDiags.Count > 0)
         {
             return false.ToProperty()
                 .Label($"Expected all diagnostics to have severity Error, but found: " +
@@ -450,7 +450,7 @@ public sealed class EnumNonReadonlyUnionRejectionPropertyTests
         var missingEnumName = unionDiags
             .Where(d => !d.Message.Contains(scenario.EnumName))
             .ToList();
-        if (missingEnumName.Count > 0)
+        if(missingEnumName.Count > 0)
         {
             return false.ToProperty()
                 .Label($"Some diagnostics do not contain enum name '{scenario.EnumName}'.\n" +
@@ -462,7 +462,7 @@ public sealed class EnumNonReadonlyUnionRejectionPropertyTests
         var missingTypeNames = scenario.NonReadonlyTypeNames
             .Where(typeName => !unionDiags.Any(d => d.Message.Contains(typeName)))
             .ToList();
-        if (missingTypeNames.Count > 0)
+        if(missingTypeNames.Count > 0)
         {
             return false.ToProperty()
                 .Label($"Diagnostics do not mention non-readonly type(s): " +

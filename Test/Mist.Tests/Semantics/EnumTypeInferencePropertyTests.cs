@@ -224,11 +224,11 @@ public class EnumTypeInferencePropertyTests
     {
         var members = new List<EnumMemberNode>();
 
-        switch (scenario.Category)
+        switch(scenario.Category)
         {
             case InferenceCategory.NameOnly:
                 // All members are name-only (no values).
-                foreach (var memberName in scenario.MemberNames)
+                foreach(var memberName in scenario.MemberNames)
                 {
                     members.Add(MakeEnumMember(memberName));
                 }
@@ -236,7 +236,7 @@ public class EnumTypeInferencePropertyTests
 
             case InferenceCategory.AllSameType:
                 // All members have values of the same type.
-                for (var i = 0; i < scenario.MemberNames.Count; i++)
+                for(var i = 0; i < scenario.MemberNames.Count; i++)
                 {
                     ExpressionNode value = scenario.ExpectedUnderlyingDisplayName switch
                     {
@@ -251,7 +251,7 @@ public class EnumTypeInferencePropertyTests
             case InferenceCategory.MixedTypes:
                 // First member gets an int value, second gets a string value,
                 // remaining alternate between int and string.
-                for (var i = 0; i < scenario.MemberNames.Count; i++)
+                for(var i = 0; i < scenario.MemberNames.Count; i++)
                 {
                     ExpressionNode value = i % 2 == 0
                         ? MakeIntLiteralExpression(i * 10)
@@ -310,32 +310,32 @@ public class EnumTypeInferencePropertyTests
         var enumSymbol = model.AllSymbols
             .FirstOrDefault(s => s.Name == scenario.EnumName && s.Kind == SymbolKind.Enum);
 
-        if (enumSymbol is null)
+        if(enumSymbol is null)
             return false.ToProperty()
                 .Label($"Enum '{scenario.EnumName}' not found in semantic model. " +
                        $"All symbols: [{string.Join(", ", model.AllSymbols.Select(s => $"{s.Name}:{s.Kind}"))}]");
 
-        if (enumSymbol.DeclaredType is not EnumType enumType)
+        if(enumSymbol.DeclaredType is not EnumType enumType)
             return false.ToProperty()
                 .Label($"Enum '{scenario.EnumName}' DeclaredType is not EnumType, got: {enumSymbol.DeclaredType?.GetType().Name ?? "null"}");
 
-        if (enumType.UnderlyingType is null)
+        if(enumType.UnderlyingType is null)
             return false.ToProperty()
                 .Label($"UnderlyingType is null for enum '{scenario.EnumName}'");
 
         // Verify the underlying type matches the expected type based on category.
         var actualDisplayName = enumType.UnderlyingType.DisplayName;
 
-        if (scenario.Category == InferenceCategory.MixedTypes)
+        if(scenario.Category == InferenceCategory.MixedTypes)
         {
             // For mixed types, the underlying type should be a UnionType.
-            if (enumType.UnderlyingType is not UnionType)
+            if(enumType.UnderlyingType is not UnionType)
                 return false.ToProperty()
                     .Label($"Expected UnionType for mixed-type enum, got {enumType.UnderlyingType.GetType().Name} " +
                            $"with DisplayName '{actualDisplayName}'. Scenario: {scenario}");
         }
 
-        if (actualDisplayName != scenario.ExpectedUnderlyingDisplayName)
+        if(actualDisplayName != scenario.ExpectedUnderlyingDisplayName)
             return false.ToProperty()
                 .Label($"Expected underlying type '{scenario.ExpectedUnderlyingDisplayName}', " +
                        $"got '{actualDisplayName}'. Category: {scenario.Category}. Scenario: {scenario}");

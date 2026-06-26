@@ -57,7 +57,7 @@ public sealed class IClonableDerivationEdgeCaseTests : IDisposable
 
     public void Dispose()
     {
-        if (Directory.Exists(_scratchDir))
+        if(Directory.Exists(_scratchDir))
         {
             try { Directory.Delete(_scratchDir, recursive: true); } catch { /* best effort */ }
         }

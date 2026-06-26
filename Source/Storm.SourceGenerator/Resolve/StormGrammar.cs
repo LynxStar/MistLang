@@ -238,9 +238,9 @@ public sealed class StormGrammar
 
         // Build mode names list: always include "default", plus any StormModeDecl names
         var modeNames = new List<string> { "default" };
-        foreach (var decl in declarations)
+        foreach(var decl in declarations)
         {
-            if (decl is StormModeDecl modeDecl && modeDecl.Name != "default")
+            if(decl is StormModeDecl modeDecl && modeDecl.Name != "default")
             {
                 modeNames.Add(modeDecl.Name);
             }
@@ -319,7 +319,7 @@ public sealed class StormGrammar
         foreach(var decl in file.Declarations)
         {
             // Handle mode declarations: add the mode itself and each inner declaration
-            if (decl is StormModeDecl modeDecl)
+            if(decl is StormModeDecl modeDecl)
             {
                 // Add the mode declaration itself (for mode name tracking)
                 if(nameToSourceLocation.TryGetValue(modeDecl.Name, out var existingMode))
@@ -341,7 +341,7 @@ public sealed class StormGrammar
                 }
 
                 // Add each inner declaration with its source position preserved
-                foreach (var innerDecl in modeDecl.Declarations)
+                foreach(var innerDecl in modeDecl.Declarations)
                 {
                     if(nameToSourceLocation.TryGetValue(innerDecl.Name, out var existingInner))
                     {

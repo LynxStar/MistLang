@@ -63,7 +63,7 @@ public class ConstrainedMemberAccessibilityPropertyTests
         var parseBag = new DiagnosticBag();
         var parseResult = Parser.Parse(tokens, parseBag);
 
-        if (parseResult.Root is null)
+        if(parseResult.Root is null)
             return (null, lexBag.ToImmutableArray().AddRange(parseBag.ToImmutableArray()));
 
         var compilation = new MistCompilation(

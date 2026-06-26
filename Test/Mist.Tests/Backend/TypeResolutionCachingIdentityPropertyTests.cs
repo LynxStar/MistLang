@@ -60,13 +60,13 @@ public sealed class TypeResolutionCachingIdentityPropertyTests : IDisposable
 
         // Collect types from the InteropFixtures assembly
         var fixtureAssembly = typeof(InteropFixtures.SimpleClass).Assembly;
-        foreach (var type in fixtureAssembly.GetExportedTypes())
+        foreach(var type in fixtureAssembly.GetExportedTypes())
         {
-            if (filter.IsTypeExcluded(type))
+            if(filter.IsTypeExcluded(type))
                 continue;
 
             var ns = type.Namespace;
-            if (ns is null)
+            if(ns is null)
                 continue;
 
             // Use the name as the provider would see it (with generic arity suffix stripped)
@@ -87,13 +87,13 @@ public sealed class TypeResolutionCachingIdentityPropertyTests : IDisposable
             typeof(StringComparison), typeof(DateTimeKind),
         };
 
-        foreach (var type in runtimeTypes)
+        foreach(var type in runtimeTypes)
         {
-            if (filter.IsTypeExcluded(type))
+            if(filter.IsTypeExcluded(type))
                 continue;
 
             var ns = type.Namespace;
-            if (ns is null)
+            if(ns is null)
                 continue;
 
             var name = TypeProjector.StripGenericAritySuffix(type.Name);
@@ -122,13 +122,13 @@ public sealed class TypeResolutionCachingIdentityPropertyTests : IDisposable
     private static void RunProperty(Gen<(int TypeIndex, int ResolutionCount)> gen, Action<(int, int)> check, int maxTests = 100)
     {
         var samples = gen.Sample(maxTests).ToList();
-        for (var idx = 0; idx < samples.Count; idx++)
+        for(var idx = 0; idx < samples.Count; idx++)
         {
             try
             {
                 check(samples[idx]);
             }
-            catch (Exception ex)
+            catch(Exception ex)
             {
                 var (typeIdx, count) = samples[idx];
                 var (ns, name) = ResolvableTypes[typeIdx];
@@ -165,11 +165,11 @@ public sealed class TypeResolutionCachingIdentityPropertyTests : IDisposable
             var firstResult = _provider.ResolveType(ns, typeName);
 
             // Skip types that don't resolve (e.g., intrinsic types that get substituted)
-            if (firstResult is null)
+            if(firstResult is null)
                 return;
 
             // Resolve the same type multiple times and verify reference equality
-            for (var i = 1; i < resolutionCount; i++)
+            for(var i = 1; i < resolutionCount; i++)
             {
                 var subsequentResult = _provider.ResolveType(ns, typeName);
 

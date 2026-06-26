@@ -93,7 +93,7 @@ public class AbstractRoundTripPropertyTests
             Members = members,
         };
 
-        if (parentAbstractName is not null)
+        if(parentAbstractName is not null)
         {
             var _abstractList = MakeBaseList(parentAbstractName);
             decl.AbstractList = _abstractList;
@@ -116,7 +116,7 @@ public class AbstractRoundTripPropertyTests
             Modifiers = modifiers ?? ImmutableArray<ModifierNode>.Empty,
         };
 
-        if (baseOrAbstractName is not null)
+        if(baseOrAbstractName is not null)
         {
             var _baseList = MakeBaseList(baseOrAbstractName);
             decl.BaseClause = _baseList;
@@ -139,7 +139,7 @@ public class AbstractRoundTripPropertyTests
             Modifiers = modifiers ?? ImmutableArray<ModifierNode>.Empty,
         };
 
-        if (abstractName is not null)
+        if(abstractName is not null)
         {
             var _abstractList = MakeBaseList(abstractName);
             decl.AbstractList = _abstractList;
@@ -181,7 +181,7 @@ public class AbstractRoundTripPropertyTests
 
     private static ParameterListNode MakeParameterList(params (TypeReferenceNode Type, string Name)[] parameters)
     {
-        if (parameters.Length == 0)
+        if(parameters.Length == 0)
             return null!;
 
         return new ParameterListNode
@@ -205,10 +205,13 @@ public class AbstractRoundTripPropertyTests
     // ─── Type reference helpers ──────────────────────────────────────────
 
     private static readonly TypeReferenceNode VoidType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() };
-    private static readonly TypeReferenceNode IntType = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
+    private static readonly TypeReferenceNode IntType = new TypeReferenceNode
     {
-        PrimitiveType = new IntTypePrimitiveTypeNode(),
-    } };
+        First = new PrimitiveSingleTypeRefSingleTypeRefNode
+        {
+            PrimitiveType = new IntTypePrimitiveTypeNode(),
+        }
+    };
 
     // ─── FsCheck generators ─────────────────────────────────────────────
 
@@ -305,11 +308,11 @@ public class AbstractRoundTripPropertyTests
         var descParts = new List<string>();
 
         // Generate abstracts
-        for (var i = 0; i < abstractCount; i++)
+        for(var i = 0; i < abstractCount; i++)
         {
             var abstractName = AbstractNames[i % AbstractNames.Length];
             // Ensure unique names
-            if (declaredAbstractNames.Contains(abstractName))
+            if(declaredAbstractNames.Contains(abstractName))
                 abstractName = abstractName + (i + 1);
             declaredAbstractNames.Add(abstractName);
 
@@ -318,15 +321,15 @@ public class AbstractRoundTripPropertyTests
             var methods = ImmutableArray.CreateBuilder<AbstractMethodDeclarationNode>();
             var usedMethodNames = new HashSet<string>();
 
-            for (var m = 0; m < methodCount; m++)
+            for(var m = 0; m < methodCount; m++)
             {
                 var methodName = MethodNames[m % MethodNames.Length];
-                if (!usedMethodNames.Add(methodName))
+                if(!usedMethodNames.Add(methodName))
                     continue;
 
                 var retType = PickReturnType(rng);
                 ParameterListNode? parameters = null;
-                if (rng.Next(2) == 0)
+                if(rng.Next(2) == 0)
                 {
                     parameters = new ParameterListNode
                     {
@@ -348,7 +351,7 @@ public class AbstractRoundTripPropertyTests
 
             // Decide if this abstract inherits from a previously declared abstract
             string? parentName = null;
-            if (i > 0 && rng.Next(3) == 0)
+            if(i > 0 && rng.Next(3) == 0)
             {
                 parentName = declaredAbstractNames[rng.Next(i)];
             }
@@ -361,7 +364,7 @@ public class AbstractRoundTripPropertyTests
         }
 
         // Generate classes (some may reference an abstract)
-        for (var c = 0; c < classCount; c++)
+        for(var c = 0; c < classCount; c++)
         {
             var className = ClassNames[c % ClassNames.Length];
             var mods = rng.Next(2) == 0
@@ -370,7 +373,7 @@ public class AbstractRoundTripPropertyTests
 
             // Decide if this class references an abstract (via BaseClause)
             string? baseOrAbstractName = null;
-            if (declaredAbstractNames.Count > 0 && rng.Next(2) == 0)
+            if(declaredAbstractNames.Count > 0 && rng.Next(2) == 0)
             {
                 baseOrAbstractName = declaredAbstractNames[rng.Next(declaredAbstractNames.Count)];
             }
@@ -378,9 +381,9 @@ public class AbstractRoundTripPropertyTests
             // Add 0-2 members (fields and methods)
             var members = ImmutableArray.CreateBuilder<MemberDeclarationNode>();
             var memberCount = rng.Next(0, 3);
-            for (var m = 0; m < memberCount; m++)
+            for(var m = 0; m < memberCount; m++)
             {
-                if (rng.Next(2) == 0)
+                if(rng.Next(2) == 0)
                 {
                     members.Add(new FieldMemberMemberDeclarationNode
                     {
@@ -408,7 +411,7 @@ public class AbstractRoundTripPropertyTests
         }
 
         // Generate structs (some may reference an abstract)
-        for (var s = 0; s < structCount; s++)
+        for(var s = 0; s < structCount; s++)
         {
             var structName = StructNames[s % StructNames.Length];
             var mods = rng.Next(2) == 0
@@ -417,14 +420,14 @@ public class AbstractRoundTripPropertyTests
 
             // Decide if this struct references an abstract
             string? abstractName = null;
-            if (declaredAbstractNames.Count > 0 && rng.Next(2) == 0)
+            if(declaredAbstractNames.Count > 0 && rng.Next(2) == 0)
             {
                 abstractName = declaredAbstractNames[rng.Next(declaredAbstractNames.Count)];
             }
 
             // Add 0-1 field members
             var members = ImmutableArray.CreateBuilder<MemberDeclarationNode>();
-            if (rng.Next(2) == 0)
+            if(rng.Next(2) == 0)
             {
                 members.Add(new FieldMemberMemberDeclarationNode
                 {
@@ -488,7 +491,7 @@ public class AbstractRoundTripPropertyTests
     {
         // Step 1: Pretty-print the generated AST to source text
         var printed1 = MistPrettyPrinter.Print(testCase.Ast);
-        if (string.IsNullOrWhiteSpace(printed1))
+        if(string.IsNullOrWhiteSpace(printed1))
             return false.ToProperty().Label("printed1 was empty");
 
         // Step 2: Parse the printed source text back to an AST
@@ -501,12 +504,12 @@ public class AbstractRoundTripPropertyTests
             .Where(d => d.Severity == DiagnosticSeverity.Error)
             .ToList();
 
-        if (errors.Count > 0)
+        if(errors.Count > 0)
             return false.ToProperty()
                 .Label($"Parse errors: {string.Join("; ", errors.Select(e => e.Message))}\nSource:\n{printed1}");
 
         var reparsed = result.Root as CompilationUnitNode;
-        if (reparsed is null)
+        if(reparsed is null)
             return false.ToProperty().Label($"Reparsed root was null.\nSource:\n{printed1}");
 
         // Step 3: Pretty-print the reparsed AST
@@ -621,10 +624,13 @@ public class AbstractRoundTripPropertyTests
         // Abstract with methods
         var abstractDecl = MakeAbstractDecl("IShape",
             ImmutableArray.Create(
-                MakeAbstractMethod("Area", new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                MakeAbstractMethod("Area", new TypeReferenceNode
                 {
-                    PrimitiveType = new IntTypePrimitiveTypeNode(),
-                } }),
+                    First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                    {
+                        PrimitiveType = new IntTypePrimitiveTypeNode(),
+                    }
+                }),
                 MakeAbstractMethod("Draw")));
 
         // Class implementing abstract

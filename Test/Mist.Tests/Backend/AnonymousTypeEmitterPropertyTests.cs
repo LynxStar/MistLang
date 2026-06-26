@@ -58,7 +58,7 @@ public sealed class AnonymousTypeEmitterPropertyTests : IDisposable
 
     public void Dispose()
     {
-        if (Directory.Exists(_outputDir))
+        if(Directory.Exists(_outputDir))
         {
             try { Directory.Delete(_outputDir, recursive: true); } catch { /* best effort */ }
         }
@@ -88,7 +88,7 @@ public sealed class AnonymousTypeEmitterPropertyTests : IDisposable
             var parts = Properties.Select(p =>
             {
                 var val = p.Value;
-                if (val.StartsWith('"') && val.EndsWith('"'))
+                if(val.StartsWith('"') && val.EndsWith('"'))
                     return val[1..^1]; // strip quotes for string literals
                 return val;
             });
@@ -158,16 +158,16 @@ public sealed class AnonymousTypeEmitterPropertyTests : IDisposable
     {
         var body = new StringBuilder();
 
-        for (var i = 0; i < scenarios.Count; i++)
+        for(var i = 0; i < scenarios.Count; i++)
         {
             var s = scenarios[i];
             body.AppendLine($"        // Scenario {i}");
             body.AppendLine("        {");
 
             // For projected variables, declare them first
-            foreach (var prop in s.Properties)
+            foreach(var prop in s.Properties)
             {
-                if (prop.Kind == PropertyKind.ProjectedVariable)
+                if(prop.Kind == PropertyKind.ProjectedVariable)
                 {
                     body.AppendLine($"            var {prop.Name} = {prop.Value};");
                 }
@@ -221,7 +221,7 @@ public sealed class AnonymousTypeEmitterPropertyTests : IDisposable
 
         var result = SharedDriver.Compile(options);
 
-        if (!result.Succeeded || result.PrimaryOutputArtifactPath is null)
+        if(!result.Succeeded || result.PrimaryOutputArtifactPath is null)
         {
             var diagnosticText = string.Join("\n",
                 result.Diagnostics.Select(d => $"  {d.Severity} {d.Id.Value}: {d.Message}"));
@@ -241,13 +241,13 @@ public sealed class AnonymousTypeEmitterPropertyTests : IDisposable
         };
 
         using var process = Process.Start(psi);
-        if (process is null)
+        if(process is null)
             return (-1, "", "Failed to start dotnet process");
 
         var stdoutTask = process.StandardOutput.ReadToEndAsync();
         var stderrTask = process.StandardError.ReadToEndAsync();
 
-        if (!process.WaitForExit(30_000))
+        if(!process.WaitForExit(30_000))
         {
             try { process.Kill(entireProcessTree: true); } catch { /* best effort */ }
             return (-1, "", "Process timed out after 30 seconds");
@@ -302,7 +302,7 @@ public sealed class AnonymousTypeEmitterPropertyTests : IDisposable
             $"Expected {scenarios.Length} output lines but got {lines.Length}.\n" +
             $"Stdout:\n{stdout}\n\nSource:\n{mistSource}");
 
-        for (var i = 0; i < scenarios.Length; i++)
+        for(var i = 0; i < scenarios.Length; i++)
         {
             var expected = scenarios[i].ExpectedOutput();
             var actual = lines[i].TrimEnd('\r');

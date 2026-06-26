@@ -27,14 +27,14 @@ public sealed class ReadonlyInferenceEngine
             .Where(s => s.Kind is SymbolKind.Class or SymbolKind.Struct
                                 or SymbolKind.Abstract);
 
-        foreach (var typeSymbol in typeSymbols)
+        foreach(var typeSymbol in typeSymbols)
         {
             var type = typeSymbol.DeclaredType;
-            if (type is null)
+            if(type is null)
                 continue;
 
             var memberScope = GetMemberScope(type);
-            if (memberScope is null)
+            if(memberScope is null)
                 continue;
 
             // Pass 1: classify members in declaration order.
@@ -45,14 +45,14 @@ public sealed class ReadonlyInferenceEngine
 
         // Pass 2: re-evaluate members that may depend on same-type members
         // whose status was resolved in pass 1.
-        foreach (var typeSymbol in typeSymbols)
+        foreach(var typeSymbol in typeSymbols)
         {
             var type = typeSymbol.DeclaredType;
-            if (type is null)
+            if(type is null)
                 continue;
 
             var memberScope = GetMemberScope(type);
-            if (memberScope is null)
+            if(memberScope is null)
                 continue;
 
             ClassifyMembers(memberScope, model);
@@ -72,17 +72,17 @@ public sealed class ReadonlyInferenceEngine
 
     private static void ClassifyMembers(IScope memberScope, ISemanticModel model)
     {
-        foreach (var member in memberScope.Members)
+        foreach(var member in memberScope.Members)
         {
-            if (member is not Symbol symbol)
+            if(member is not Symbol symbol)
                 continue;
 
-            if (symbol.Kind is not (SymbolKind.Field or SymbolKind.Property
+            if(symbol.Kind is not (SymbolKind.Field or SymbolKind.Property
                 or SymbolKind.Indexer or SymbolKind.Method or SymbolKind.Constructor))
                 continue;
 
             // Skip members that are already classified.
-            if (symbol.ReadonlyStatus is ReadonlyStatus.ExplicitReadonly
+            if(symbol.ReadonlyStatus is ReadonlyStatus.ExplicitReadonly
                 or ReadonlyStatus.ImplicitReadonly)
                 continue;
 
@@ -99,13 +99,13 @@ public sealed class ReadonlyInferenceEngine
     private static ReadonlyStatus ClassifyMember(Symbol symbol, ISemanticModel model)
     {
         // Fields without initializers are trivially readonly (just data).
-        if (symbol.Kind == SymbolKind.Field)
+        if(symbol.Kind == SymbolKind.Field)
         {
             return ClassifyField(symbol, model);
         }
 
         // Properties: classify based on accessor bodies.
-        if (symbol.Kind is SymbolKind.Property or SymbolKind.Indexer)
+        if(symbol.Kind is SymbolKind.Property or SymbolKind.Indexer)
         {
             return ClassifyProperty(symbol, model);
         }
@@ -124,7 +124,7 @@ public sealed class ReadonlyInferenceEngine
         try { declaringNode = model.GetDeclaringNode(symbol); }
         catch { return ReadonlyStatus.Mutable; }
 
-        if (declaringNode is not FieldDeclarationNode fieldDecl)
+        if(declaringNode is not FieldDeclarationNode fieldDecl)
             return ReadonlyStatus.Mutable;
 
         // Fields are not inferred as readonly by the inference engine.
@@ -145,89 +145,89 @@ public sealed class ReadonlyInferenceEngine
         try { declaringNode = model.GetDeclaringNode(symbol); }
         catch { return ReadonlyStatus.Mutable; }
 
-        switch (declaringNode)
+        switch(declaringNode)
         {
             case BlockPropertyPropertyDeclarationNode blockProp:
-            {
-                // If the property has a setter or init accessor, it's mutable
-                // (setters allow mutation by definition).
-                foreach (var accessor in blockProp.Accessors)
                 {
-                    if (accessor is BlockSetAccessorAccessorDeclarationNode
-                        or ExpressionSetAccessorAccessorDeclarationNode
-                        or AutoSetAccessorAccessorDeclarationNode
-                        or BlockInitAccessorAccessorDeclarationNode
-                        or ExpressionInitAccessorAccessorDeclarationNode
-                        or AutoInitAccessorAccessorDeclarationNode)
+                    // If the property has a setter or init accessor, it's mutable
+                    // (setters allow mutation by definition).
+                    foreach(var accessor in blockProp.Accessors)
                     {
-                        return ReadonlyStatus.Mutable;
+                        if(accessor is BlockSetAccessorAccessorDeclarationNode
+                            or ExpressionSetAccessorAccessorDeclarationNode
+                            or AutoSetAccessorAccessorDeclarationNode
+                            or BlockInitAccessorAccessorDeclarationNode
+                            or ExpressionInitAccessorAccessorDeclarationNode
+                            or AutoInitAccessorAccessorDeclarationNode)
+                        {
+                            return ReadonlyStatus.Mutable;
+                        }
                     }
-                }
 
-                // Check getter bodies for readonly safety.
-                foreach (var accessor in blockProp.Accessors)
-                {
-                    switch (accessor)
+                    // Check getter bodies for readonly safety.
+                    foreach(var accessor in blockProp.Accessors)
                     {
-                        case BlockGetAccessorAccessorDeclarationNode blockGet:
-                            if (!IsNodeReadonlySafe(blockGet.Body, model))
-                                return ReadonlyStatus.Mutable;
-                            break;
-                        case ExpressionGetAccessorAccessorDeclarationNode exprGet:
-                            if (!IsNodeReadonlySafe(exprGet.Expression, model))
-                                return ReadonlyStatus.Mutable;
-                            break;
-                        // Auto-get is trivially readonly.
+                        switch(accessor)
+                        {
+                            case BlockGetAccessorAccessorDeclarationNode blockGet:
+                                if(!IsNodeReadonlySafe(blockGet.Body, model))
+                                    return ReadonlyStatus.Mutable;
+                                break;
+                            case ExpressionGetAccessorAccessorDeclarationNode exprGet:
+                                if(!IsNodeReadonlySafe(exprGet.Expression, model))
+                                    return ReadonlyStatus.Mutable;
+                                break;
+                                // Auto-get is trivially readonly.
+                        }
                     }
-                }
 
-                return ReadonlyStatus.InferredReadonly;
-            }
+                    return ReadonlyStatus.InferredReadonly;
+                }
 
             case ExpressionBodiedPropertyPropertyDeclarationNode exprProp:
-            {
-                // Expression-bodied properties are get-only, check the body.
-                return IsNodeReadonlySafe(exprProp.Body, model)
-                    ? ReadonlyStatus.InferredReadonly
-                    : ReadonlyStatus.Mutable;
-            }
+                {
+                    // Expression-bodied properties are get-only, check the body.
+                    return IsNodeReadonlySafe(exprProp.Body, model)
+                        ? ReadonlyStatus.InferredReadonly
+                        : ReadonlyStatus.Mutable;
+                }
 
             // Indexer declarations
             case IndexerDeclarationNode indexerDecl
                 when indexerDecl.Body is BlockIndexerBodyIndexerBodyNode blockBody:
-            {
-                // If the indexer has a setter, it's mutable.
-                foreach (var accessor in blockBody.Accessors)
                 {
-                    if (accessor is BlockSetAccessorAccessorDeclarationNode
-                        or ExpressionSetAccessorAccessorDeclarationNode
-                        or AutoSetAccessorAccessorDeclarationNode
-                        or BlockInitAccessorAccessorDeclarationNode
-                        or ExpressionInitAccessorAccessorDeclarationNode
-                        or AutoInitAccessorAccessorDeclarationNode)
+                    // If the indexer has a setter, it's mutable.
+                    foreach(var accessor in blockBody.Accessors)
                     {
-                        return ReadonlyStatus.Mutable;
+                        if(accessor is BlockSetAccessorAccessorDeclarationNode
+                            or ExpressionSetAccessorAccessorDeclarationNode
+                            or AutoSetAccessorAccessorDeclarationNode
+                            or BlockInitAccessorAccessorDeclarationNode
+                            or ExpressionInitAccessorAccessorDeclarationNode
+                            or AutoInitAccessorAccessorDeclarationNode)
+                        {
+                            return ReadonlyStatus.Mutable;
+                        }
                     }
-                }
 
-                // Check getter bodies.
-                foreach (var accessor in blockBody.Accessors)
-                {
-                    switch (accessor)
+                    // Check getter bodies.
+                    foreach(var accessor in blockBody.Accessors)
                     {
-                        case BlockGetAccessorAccessorDeclarationNode blockGet:
-                            if (!IsNodeReadonlySafe(blockGet.Body, model))
-                                return ReadonlyStatus.Mutable;
-                            break;
-                        case ExpressionGetAccessorAccessorDeclarationNode exprGet:
-                            if (!IsNodeReadonlySafe(exprGet.Expression, model))
-                                return ReadonlyStatus.Mutable;
-                            break;
+                        switch(accessor)
+                        {
+                            case BlockGetAccessorAccessorDeclarationNode blockGet:
+                                if(!IsNodeReadonlySafe(blockGet.Body, model))
+                                    return ReadonlyStatus.Mutable;
+                                break;
+                            case ExpressionGetAccessorAccessorDeclarationNode exprGet:
+                                if(!IsNodeReadonlySafe(exprGet.Expression, model))
+                                    return ReadonlyStatus.Mutable;
+                                break;
+                        }
                     }
-                }
 
-                return ReadonlyStatus.InferredReadonly;
-            }
+                    return ReadonlyStatus.InferredReadonly;
+                }
 
             default:
                 return ReadonlyStatus.Mutable;
@@ -251,12 +251,12 @@ public sealed class ReadonlyInferenceEngine
         };
 
         // No body (intrinsic or abstract) — conservatively treat as mutable.
-        if (body is null)
+        if(body is null)
             return ReadonlyStatus.Mutable;
 
         // For constructors, check if it only assigns to its own fields
         // (constructor inference per design doc).
-        if (symbol.Kind == SymbolKind.Constructor)
+        if(symbol.Kind == SymbolKind.Constructor)
         {
             return IsConstructorBodyReadonlySafe(body, symbol, model)
                 ? ReadonlyStatus.InferredReadonly
@@ -280,13 +280,13 @@ public sealed class ReadonlyInferenceEngine
     private static bool IsNodeReadonlySafe(SyntaxNode node, ISemanticModel model)
     {
         // Check if this specific node is an unsafe operation.
-        if (IsUnsafeNode(node, model))
+        if(IsUnsafeNode(node, model))
             return false;
 
         // Recursively check all children.
-        foreach (var child in node.Children())
+        foreach(var child in node.Children())
         {
-            if (child is not null && !IsNodeReadonlySafe(child, model))
+            if(child is not null && !IsNodeReadonlySafe(child, model))
                 return false;
         }
 
@@ -299,7 +299,7 @@ public sealed class ReadonlyInferenceEngine
     /// </summary>
     private static bool IsUnsafeNode(SyntaxNode node, ISemanticModel model)
     {
-        switch (node)
+        switch(node)
         {
             // Assignment: target = value where target resolves to a field or property setter.
             // In the AST, assignments are represented as AssignmentNode with a
@@ -342,57 +342,57 @@ public sealed class ReadonlyInferenceEngine
     /// </summary>
     private static bool IsFieldOrPropertyTarget(SyntaxNode targetNode, ISemanticModel model)
     {
-        switch (targetNode)
+        switch(targetNode)
         {
             // Direct postfix expression: this.field or obj.field or this.Property
             case PostfixNode postfix:
-            {
-                // If the last suffix is a member access, check if it's a field or property.
-                if (postfix.Suffix.Length > 0)
                 {
-                    var lastSuffix = postfix.Suffix[^1];
-                    if (lastSuffix is MemberAccessSuffixPostfixSuffixNode memberAccess)
+                    // If the last suffix is a member access, check if it's a field or property.
+                    if(postfix.Suffix.Length > 0)
                     {
-                        // Resolve the member to check if it's a field or property.
-                        var symbol = ResolveMemberAccessSymbol(postfix, memberAccess, model);
-                        if (symbol is not null)
-                            return symbol.Kind is SymbolKind.Field or SymbolKind.Property or SymbolKind.Indexer;
-                        // If we can't resolve, conservatively treat as mutable (it's an assignment
-                        // to something we can't identify — could be a field or property).
-                        return true;
+                        var lastSuffix = postfix.Suffix[^1];
+                        if(lastSuffix is MemberAccessSuffixPostfixSuffixNode memberAccess)
+                        {
+                            // Resolve the member to check if it's a field or property.
+                            var symbol = ResolveMemberAccessSymbol(postfix, memberAccess, model);
+                            if(symbol is not null)
+                                return symbol.Kind is SymbolKind.Field or SymbolKind.Property or SymbolKind.Indexer;
+                            // If we can't resolve, conservatively treat as mutable (it's an assignment
+                            // to something we can't identify — could be a field or property).
+                            return true;
+                        }
+
+                        // Index suffix — assigning to an indexed element is a setter call (mutable).
+                        if(lastSuffix is IndexSuffixPostfixSuffixNode)
+                            return true;
                     }
 
-                    // Index suffix — assigning to an indexed element is a setter call (mutable).
-                    if (lastSuffix is IndexSuffixPostfixSuffixNode)
-                        return true;
-                }
+                    // Bare identifier postfix (no suffixes) — check if it's a field or property.
+                    if(postfix.Suffix.Length == 0 && postfix.Target is IdentifierExpressionPrimaryNode identifier)
+                    {
+                        var symbol = model.GetDeclaredSymbol(identifier);
+                        if(symbol is not null)
+                            return symbol.Kind is SymbolKind.Field or SymbolKind.Property or SymbolKind.Indexer;
 
-                // Bare identifier postfix (no suffixes) — check if it's a field or property.
-                if (postfix.Suffix.Length == 0 && postfix.Target is IdentifierExpressionPrimaryNode identifier)
-                {
-                    var symbol = model.GetDeclaredSymbol(identifier);
-                    if (symbol is not null)
-                        return symbol.Kind is SymbolKind.Field or SymbolKind.Property or SymbolKind.Indexer;
+                        // Unresolved identifier — likely a local variable.
+                        return false;
+                    }
 
-                    // Unresolved identifier — likely a local variable.
                     return false;
                 }
 
-                return false;
-            }
-
             // Walk through expression wrappers to find the actual target.
             default:
-            {
-                // For other expression node types (LogicalOr, Equality, etc.),
-                // walk children to find the actual postfix target.
-                foreach (var child in targetNode.Children())
                 {
-                    if (child is not null && IsFieldOrPropertyTarget(child, model))
-                        return true;
+                    // For other expression node types (LogicalOr, Equality, etc.),
+                    // walk children to find the actual postfix target.
+                    foreach(var child in targetNode.Children())
+                    {
+                        if(child is not null && IsFieldOrPropertyTarget(child, model))
+                            return true;
+                    }
+                    return false;
                 }
-                return false;
-            }
         }
     }
 
@@ -407,7 +407,7 @@ public sealed class ReadonlyInferenceEngine
         // For chained access like `a.b.c`, we need the type of `a.b`.
         IType? receiverType = null;
 
-        if (postfix.Suffix.Length == 1)
+        if(postfix.Suffix.Length == 1)
         {
             // Single suffix: receiver is the target primary.
             receiverType = model.GetTypeOf(postfix.Target);
@@ -416,13 +416,13 @@ public sealed class ReadonlyInferenceEngine
         {
             // Multiple suffixes: receiver is the previous suffix's result.
             var prevSuffixIndex = Array.IndexOf(postfix.Suffix.ToArray(), memberAccess) - 1;
-            if (prevSuffixIndex >= 0)
+            if(prevSuffixIndex >= 0)
             {
                 receiverType = model.GetTypeOf(postfix.Suffix[prevSuffixIndex]);
             }
         }
 
-        if (receiverType is null)
+        if(receiverType is null)
             return null;
 
         var memberName = memberAccess.Name.Lexeme;
@@ -437,7 +437,7 @@ public sealed class ReadonlyInferenceEngine
     {
         // Try to get the symbol from the model's declared symbol map first.
         var symbol = model.GetDeclaredSymbol(methodCall);
-        if (symbol is Symbol sym)
+        if(symbol is Symbol sym)
         {
             return !IsReadonly(sym.ReadonlyStatus);
         }
@@ -451,7 +451,7 @@ public sealed class ReadonlyInferenceEngine
             .OfType<Symbol>()
             .FirstOrDefault(s => s.Kind == SymbolKind.Method && s.Name == methodName);
 
-        if (resolved is not null)
+        if(resolved is not null)
         {
             return !IsReadonly(resolved.ReadonlyStatus);
         }
@@ -471,14 +471,14 @@ public sealed class ReadonlyInferenceEngine
         // Member access to a field is always safe (reading fields is permitted).
         // Member access to a property getter needs the getter to be readonly.
         var symbol = model.GetDeclaredSymbol(memberAccess);
-        if (symbol is Symbol sym)
+        if(symbol is Symbol sym)
         {
             // Fields are always safe to read.
-            if (sym.Kind == SymbolKind.Field)
+            if(sym.Kind == SymbolKind.Field)
                 return false;
 
             // Properties: check if the property is readonly.
-            if (sym.Kind is SymbolKind.Property or SymbolKind.Indexer)
+            if(sym.Kind is SymbolKind.Property or SymbolKind.Indexer)
             {
                 return !IsReadonly(sym.ReadonlyStatus);
             }
@@ -499,24 +499,24 @@ public sealed class ReadonlyInferenceEngine
     {
         // Resolve the type being constructed.
         var createdType = model.GetTypeOf(objectCreation);
-        if (createdType is null)
+        if(createdType is null)
             return true; // Can't resolve — conservatively mutable.
 
         // If the type itself is readonly, all its constructors are implicitly readonly.
-        if (IsTypeReadonly(createdType))
+        if(IsTypeReadonly(createdType))
             return false;
 
         // Look for a constructor in the created type's member scope.
         var memberScope = GetMemberScope(createdType);
-        if (memberScope is null)
+        if(memberScope is null)
             return true; // Can't find scope — conservatively mutable.
 
         // Find constructors and check if any is readonly.
-        foreach (var member in memberScope.Members)
+        foreach(var member in memberScope.Members)
         {
-            if (member.Kind == SymbolKind.Constructor && member is Symbol ctorSym)
+            if(member.Kind == SymbolKind.Constructor && member is Symbol ctorSym)
             {
-                if (IsReadonly(ctorSym.ReadonlyStatus))
+                if(IsReadonly(ctorSym.ReadonlyStatus))
                     return false; // At least one readonly constructor exists.
             }
         }
@@ -544,25 +544,25 @@ public sealed class ReadonlyInferenceEngine
     /// </summary>
     private static bool IsConstructorNodeSafe(SyntaxNode node, Symbol ctorSymbol, ISemanticModel model)
     {
-        switch (node)
+        switch(node)
         {
             case AssignmentNode assignment when assignment.Value is not null:
-            {
-                // In a constructor, assignments to own fields are permitted.
-                if (IsAssignmentToOwnField(assignment, ctorSymbol, model))
                 {
-                    // The value side must still be safe.
-                    return IsConstructorNodeSafe(assignment.Value, ctorSymbol, model);
+                    // In a constructor, assignments to own fields are permitted.
+                    if(IsAssignmentToOwnField(assignment, ctorSymbol, model))
+                    {
+                        // The value side must still be safe.
+                        return IsConstructorNodeSafe(assignment.Value, ctorSymbol, model);
+                    }
+                    // In a constructor, assignments to own properties (setter calls) are also permitted.
+                    if(IsAssignmentToOwnProperty(assignment, ctorSymbol, model))
+                    {
+                        // The value side must still be safe.
+                        return IsConstructorNodeSafe(assignment.Value, ctorSymbol, model);
+                    }
+                    // Assignment to something other than own field/property — not safe.
+                    return false;
                 }
-                // In a constructor, assignments to own properties (setter calls) are also permitted.
-                if (IsAssignmentToOwnProperty(assignment, ctorSymbol, model))
-                {
-                    // The value side must still be safe.
-                    return IsConstructorNodeSafe(assignment.Value, ctorSymbol, model);
-                }
-                // Assignment to something other than own field/property — not safe.
-                return false;
-            }
 
             case MethodCallSuffixPostfixSuffixNode methodCall:
                 return !IsNonReadonlyMethodCall(methodCall, model);
@@ -574,15 +574,15 @@ public sealed class ReadonlyInferenceEngine
                 return !IsNonReadonlyConstructorAllocation(objectCreation, model);
 
             default:
-            {
-                // Recursively check all children.
-                foreach (var child in node.Children())
                 {
-                    if (child is not null && !IsConstructorNodeSafe(child, ctorSymbol, model))
-                        return false;
+                    // Recursively check all children.
+                    foreach(var child in node.Children())
+                    {
+                        if(child is not null && !IsConstructorNodeSafe(child, ctorSymbol, model))
+                            return false;
+                    }
+                    return true;
                 }
-                return true;
-            }
         }
     }
 
@@ -601,59 +601,59 @@ public sealed class ReadonlyInferenceEngine
     /// </summary>
     private static bool IsOwnFieldTarget(SyntaxNode targetNode, Symbol ctorSymbol, ISemanticModel model)
     {
-        switch (targetNode)
+        switch(targetNode)
         {
             case PostfixNode postfix:
-            {
-                // `this.field` pattern: target is `this`, suffix is member access to a field.
-                if (postfix.Suffix.Length == 1
-                    && postfix.Target is ThisExpressionPrimaryNode
-                    && postfix.Suffix[0] is MemberAccessSuffixPostfixSuffixNode memberAccess)
                 {
-                    var memberName = memberAccess.Name.Lexeme;
-                    // Check if this member is a field in the declaring type.
-                    var declaringType = GetDeclaringType(ctorSymbol);
-                    if (declaringType is not null)
+                    // `this.field` pattern: target is `this`, suffix is member access to a field.
+                    if(postfix.Suffix.Length == 1
+                        && postfix.Target is ThisExpressionPrimaryNode
+                        && postfix.Suffix[0] is MemberAccessSuffixPostfixSuffixNode memberAccess)
                     {
-                        var scope = GetMemberScope(declaringType);
-                        if (scope is not null)
+                        var memberName = memberAccess.Name.Lexeme;
+                        // Check if this member is a field in the declaring type.
+                        var declaringType = GetDeclaringType(ctorSymbol);
+                        if(declaringType is not null)
                         {
-                            var member = scope.Lookup(memberName);
-                            return member is not null && member.Kind == SymbolKind.Field;
+                            var scope = GetMemberScope(declaringType);
+                            if(scope is not null)
+                            {
+                                var member = scope.Lookup(memberName);
+                                return member is not null && member.Kind == SymbolKind.Field;
+                            }
                         }
+                        return false;
                     }
+
+                    // Bare identifier that is a field of the declaring type.
+                    if(postfix.Suffix.Length == 0 && postfix.Target is IdentifierExpressionPrimaryNode identifier)
+                    {
+                        var memberName = identifier.Name.Lexeme;
+                        var declaringType = GetDeclaringType(ctorSymbol);
+                        if(declaringType is not null)
+                        {
+                            var scope = GetMemberScope(declaringType);
+                            if(scope is not null)
+                            {
+                                var member = scope.Lookup(memberName);
+                                return member is not null && member.Kind == SymbolKind.Field;
+                            }
+                        }
+                        return false;
+                    }
+
                     return false;
                 }
-
-                // Bare identifier that is a field of the declaring type.
-                if (postfix.Suffix.Length == 0 && postfix.Target is IdentifierExpressionPrimaryNode identifier)
-                {
-                    var memberName = identifier.Name.Lexeme;
-                    var declaringType = GetDeclaringType(ctorSymbol);
-                    if (declaringType is not null)
-                    {
-                        var scope = GetMemberScope(declaringType);
-                        if (scope is not null)
-                        {
-                            var member = scope.Lookup(memberName);
-                            return member is not null && member.Kind == SymbolKind.Field;
-                        }
-                    }
-                    return false;
-                }
-
-                return false;
-            }
 
             default:
-            {
-                foreach (var child in targetNode.Children())
                 {
-                    if (child is not null && IsOwnFieldTarget(child, ctorSymbol, model))
-                        return true;
+                    foreach(var child in targetNode.Children())
+                    {
+                        if(child is not null && IsOwnFieldTarget(child, ctorSymbol, model))
+                            return true;
+                    }
+                    return false;
                 }
-                return false;
-            }
         }
     }
 
@@ -671,60 +671,60 @@ public sealed class ReadonlyInferenceEngine
     /// </summary>
     private static bool IsOwnReadonlyPropertyTarget(SyntaxNode targetNode, Symbol ctorSymbol, ISemanticModel model)
     {
-        switch (targetNode)
+        switch(targetNode)
         {
             case PostfixNode postfix:
-            {
-                // `this.Property` pattern: target is `this`, suffix is member access to a property.
-                if (postfix.Suffix.Length == 1
-                    && postfix.Target is ThisExpressionPrimaryNode
-                    && postfix.Suffix[0] is MemberAccessSuffixPostfixSuffixNode memberAccess)
                 {
-                    var memberName = memberAccess.Name.Lexeme;
-                    var declaringType = GetDeclaringType(ctorSymbol);
-                    if (declaringType is not null)
+                    // `this.Property` pattern: target is `this`, suffix is member access to a property.
+                    if(postfix.Suffix.Length == 1
+                        && postfix.Target is ThisExpressionPrimaryNode
+                        && postfix.Suffix[0] is MemberAccessSuffixPostfixSuffixNode memberAccess)
                     {
-                        var scope = GetMemberScope(declaringType);
-                        if (scope is not null)
+                        var memberName = memberAccess.Name.Lexeme;
+                        var declaringType = GetDeclaringType(ctorSymbol);
+                        if(declaringType is not null)
                         {
-                            var member = scope.Lookup(memberName);
-                            if (member is Symbol sym && sym.Kind is SymbolKind.Property or SymbolKind.Indexer)
-                                return IsReadonly(sym.ReadonlyStatus);
+                            var scope = GetMemberScope(declaringType);
+                            if(scope is not null)
+                            {
+                                var member = scope.Lookup(memberName);
+                                if(member is Symbol sym && sym.Kind is SymbolKind.Property or SymbolKind.Indexer)
+                                    return IsReadonly(sym.ReadonlyStatus);
+                            }
                         }
+                        return false;
                     }
+
+                    // Bare identifier that is a readonly property of the declaring type.
+                    if(postfix.Suffix.Length == 0 && postfix.Target is IdentifierExpressionPrimaryNode identifier)
+                    {
+                        var memberName = identifier.Name.Lexeme;
+                        var declaringType = GetDeclaringType(ctorSymbol);
+                        if(declaringType is not null)
+                        {
+                            var scope = GetMemberScope(declaringType);
+                            if(scope is not null)
+                            {
+                                var member = scope.Lookup(memberName);
+                                if(member is Symbol sym && sym.Kind is SymbolKind.Property or SymbolKind.Indexer)
+                                    return IsReadonly(sym.ReadonlyStatus);
+                            }
+                        }
+                        return false;
+                    }
+
                     return false;
                 }
-
-                // Bare identifier that is a readonly property of the declaring type.
-                if (postfix.Suffix.Length == 0 && postfix.Target is IdentifierExpressionPrimaryNode identifier)
-                {
-                    var memberName = identifier.Name.Lexeme;
-                    var declaringType = GetDeclaringType(ctorSymbol);
-                    if (declaringType is not null)
-                    {
-                        var scope = GetMemberScope(declaringType);
-                        if (scope is not null)
-                        {
-                            var member = scope.Lookup(memberName);
-                            if (member is Symbol sym && sym.Kind is SymbolKind.Property or SymbolKind.Indexer)
-                                return IsReadonly(sym.ReadonlyStatus);
-                        }
-                    }
-                    return false;
-                }
-
-                return false;
-            }
 
             default:
-            {
-                foreach (var child in targetNode.Children())
                 {
-                    if (child is not null && IsOwnReadonlyPropertyTarget(child, ctorSymbol, model))
-                        return true;
+                    foreach(var child in targetNode.Children())
+                    {
+                        if(child is not null && IsOwnReadonlyPropertyTarget(child, ctorSymbol, model))
+                            return true;
+                    }
+                    return false;
                 }
-                return false;
-            }
         }
     }
 
@@ -765,14 +765,14 @@ public sealed class ReadonlyInferenceEngine
         var scope = symbol.ContainingScope;
         // The containing scope's parent should be the type scope.
         // Look for a symbol in the parent scope that declares a type.
-        if (scope?.Parent is IScope parentScope)
+        if(scope?.Parent is IScope parentScope)
         {
-            foreach (var member in parentScope.Members)
+            foreach(var member in parentScope.Members)
             {
-                if (member.DeclaredType is not null)
+                if(member.DeclaredType is not null)
                 {
                     var memberScope = GetMemberScope(member.DeclaredType);
-                    if (ReferenceEquals(memberScope, scope))
+                    if(ReferenceEquals(memberScope, scope))
                         return member.DeclaredType;
                 }
             }
@@ -790,34 +790,34 @@ public sealed class ReadonlyInferenceEngine
     /// </summary>
     private static IType? FindTypeForScope(IScope? scope)
     {
-        if (scope is null)
+        if(scope is null)
             return null;
 
         // Walk up to find the parent scope that contains type symbols.
         var parentScope = scope.Parent;
-        if (parentScope is null)
+        if(parentScope is null)
             return null;
 
-        foreach (var member in parentScope.Members)
+        foreach(var member in parentScope.Members)
         {
-            if (member.DeclaredType is not null)
+            if(member.DeclaredType is not null)
             {
                 var memberScope = GetMemberScope(member.DeclaredType);
-                if (ReferenceEquals(memberScope, scope))
+                if(ReferenceEquals(memberScope, scope))
                     return member.DeclaredType;
             }
         }
 
         // Try grandparent scope (for namespace-scoped types).
         var grandparent = parentScope.Parent;
-        if (grandparent is not null)
+        if(grandparent is not null)
         {
-            foreach (var member in grandparent.Members)
+            foreach(var member in grandparent.Members)
             {
-                if (member.DeclaredType is not null)
+                if(member.DeclaredType is not null)
                 {
                     var memberScope = GetMemberScope(member.DeclaredType);
-                    if (ReferenceEquals(memberScope, scope))
+                    if(ReferenceEquals(memberScope, scope))
                         return member.DeclaredType;
                 }
             }
@@ -833,17 +833,17 @@ public sealed class ReadonlyInferenceEngine
     private static ISymbol? LookupMemberInType(IType type, string memberName)
     {
         // For ConstructedType, look up in the generic definition.
-        if (type is ConstructedType ct)
+        if(type is ConstructedType ct)
             type = ct.GenericDefinition;
 
-        if (type is ClassType classType)
+        if(type is ClassType classType)
         {
             ClassType? current = classType;
-            while (current is not null)
+            while(current is not null)
             {
-                foreach (var m in current.MemberScope.Members)
+                foreach(var m in current.MemberScope.Members)
                 {
-                    if (m.Name == memberName)
+                    if(m.Name == memberName)
                         return m;
                 }
                 current = current.BaseType as ClassType;

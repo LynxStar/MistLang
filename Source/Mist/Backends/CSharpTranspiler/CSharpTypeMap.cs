@@ -81,18 +81,18 @@ internal static class CSharpTypeMap
     public static string? TryGetMappedName(string mistTypeName)
     {
         // Check the simple name first (e.g., "Type" → "System.Type").
-        if (BackingTypes.TryGetValue(mistTypeName, out var mapped))
+        if(BackingTypes.TryGetValue(mistTypeName, out var mapped))
         {
             // Only return if the mapped name differs from the input
             // (skip identity mappings like "int" → "int").
-            if (mapped != mistTypeName)
+            if(mapped != mistTypeName)
                 return mapped;
         }
 
         // Check with "Standard." prefix (e.g., "Type" → "Standard.Type" → "System.Type").
-        if (BackingTypes.TryGetValue($"Standard.{mistTypeName}", out var qualifiedMapped))
+        if(BackingTypes.TryGetValue($"Standard.{mistTypeName}", out var qualifiedMapped))
         {
-            if (qualifiedMapped != mistTypeName)
+            if(qualifiedMapped != mistTypeName)
                 return qualifiedMapped;
         }
 
@@ -115,11 +115,11 @@ internal static class CSharpTypeMap
             _ => null,
         };
 
-        if (qualifiedKey is not null && BackingTypes.TryGetValue(qualifiedKey, out var keyword))
+        if(qualifiedKey is not null && BackingTypes.TryGetValue(qualifiedKey, out var keyword))
             return keyword;
 
         // Fallback: legacy DisplayName lookup (tests without stdlib).
-        if (BackingTypes.TryGetValue(type.DisplayName, out var legacyKeyword))
+        if(BackingTypes.TryGetValue(type.DisplayName, out var legacyKeyword))
             return legacyKeyword;
 
         throw new ArgumentException($"Unknown primitive type: {type.DisplayName}");
@@ -159,123 +159,123 @@ internal static class CSharpTypeMap
     {
         // Defensive null check: type arguments in ConstructedType may be
         // null if resolution failed upstream.
-        if (type is null)
+        if(type is null)
             return "object";
 
         return type switch
         {
-        // Defensive: type aliases are resolved transparently during type checking,
-        // so a TypeAliasType should never reach the type map. If one does leak
-        // through, resolve to the underlying type and delegate to existing logic.
-        TypeAliasType alias => GetTypeName(alias.UnderlyingType, isValueContext),
+            // Defensive: type aliases are resolved transparently during type checking,
+            // so a TypeAliasType should never reach the type map. If one does leak
+            // through, resolve to the underlying type and delegate to existing logic.
+            TypeAliasType alias => GetTypeName(alias.UnderlyingType, isValueContext),
 
-        // Refinement types are erased to their base type in C#. For example,
-        // `AdultAge` (defined as `type AdultAge = int >= 18;`) emits as `int`.
-        RefinementType refinement => GetTypeName(refinement.BaseType, isValueContext),
+            // Refinement types are erased to their base type in C#. For example,
+            // `AdultAge` (defined as `type AdultAge = int >= 18;`) emits as `int`.
+            RefinementType refinement => GetTypeName(refinement.BaseType, isValueContext),
 
-        // Enum types map to their record class name (the enum's DisplayName).
-        EnumType et => et.DisplayName,
+            // Enum types map to their record class name (the enum's DisplayName).
+            EnumType et => et.DisplayName,
 
-        // Two-constituent void unions (T | void) lower to C# Nullable<T> for value types
-        // or plain T for reference types (Requirement 7.1, 7.8).
-        UnionType ut when TryGetOptionalTypeName(ut, isValueContext) is { } optName => optName,
+            // Two-constituent void unions (T | void) lower to C# Nullable<T> for value types
+            // or plain T for reference types (Requirement 7.1, 7.8).
+            UnionType ut when TryGetOptionalTypeName(ut, isValueContext) is { } optName => optName,
 
-        // Multi-constituent unions (or non-void unions) lower to the generated helper struct name.
-        UnionType ut => UnionHelperGenerator.GetHelperTypeName(ut),
+            // Multi-constituent unions (or non-void unions) lower to the generated helper struct name.
+            UnionType ut => UnionHelperGenerator.GetHelperTypeName(ut),
 
-        // User-facing UnknownType (Requirement 15.1): every direct reference to
-        // UnknownType lowers to C# `object`. Matched before the generic class/
-        // struct branches because UnknownType is a singleton with its own class
-        // — it is neither a StructType nor a ClassType and has no
-        // Backing_Type_Map entry.
-        UnknownType => "object",
+            // User-facing UnknownType (Requirement 15.1): every direct reference to
+            // UnknownType lowers to C# `object`. Matched before the generic class/
+            // struct branches because UnknownType is a singleton with its own class
+            // — it is neither a StructType nor a ClassType and has no
+            // Backing_Type_Map entry.
+            UnknownType => "object",
 
-        // Stdlib Backend_Backed_Types — routed to a C# source keyword via
-        // the Backing_Type_Map. Matched first so any Standard.* type does
-        // not fall through to the generic ClassType / StructType branches
-        // below (which would emit the Mist simple name — e.g., "Int32" —
-        // instead of the C# keyword).
-        StructType st when st.IsBackendBacked && st.ContainingNamespace == "Standard" && st.IsVoid()
-            => isValueContext ? "MistVoid" : "void",
-        StructType st when st.IsBackendBacked && st.ContainingNamespace == "Standard"
-            => GetKeyword(st),
-        ClassType ct when ct.IsBackendBacked && ct.ContainingNamespace == "Standard"
-            && ct.DisplayName != "Func" && ct.DisplayName != "Task" && ct.DisplayName != "ValueTask"
-            => GetKeyword(ct),
-        // Bare Func/Task/ValueTask class types (generic definitions without type arguments)
-        // should not normally reach the type map. Emit as 'object' as a safe fallback.
-        ClassType ct when ct.IsBackendBacked && ct.ContainingNamespace == "Standard"
-            && (ct.DisplayName == "Func" || ct.DisplayName == "Task" || ct.DisplayName == "ValueTask")
-            => "object",
+            // Stdlib Backend_Backed_Types — routed to a C# source keyword via
+            // the Backing_Type_Map. Matched first so any Standard.* type does
+            // not fall through to the generic ClassType / StructType branches
+            // below (which would emit the Mist simple name — e.g., "Int32" —
+            // instead of the C# keyword).
+            StructType st when st.IsBackendBacked && st.ContainingNamespace == "Standard" && st.IsVoid()
+                => isValueContext ? "MistVoid" : "void",
+            StructType st when st.IsBackendBacked && st.ContainingNamespace == "Standard"
+                => GetKeyword(st),
+            ClassType ct when ct.IsBackendBacked && ct.ContainingNamespace == "Standard"
+                && ct.DisplayName != "Func" && ct.DisplayName != "Task" && ct.DisplayName != "ValueTask"
+                => GetKeyword(ct),
+            // Bare Func/Task/ValueTask class types (generic definitions without type arguments)
+            // should not normally reach the type map. Emit as 'object' as a safe fallback.
+            ClassType ct when ct.IsBackendBacked && ct.ContainingNamespace == "Standard"
+                && (ct.DisplayName == "Func" || ct.DisplayName == "Task" || ct.DisplayName == "ValueTask")
+                => "object",
 
-        // Legacy fallback void (tests without stdlib)
-        StructType st when st.IsVoid() => isValueContext ? "MistVoid" : "void",
-        // Legacy fallback Type (tests without stdlib)
-        ClassType ct when ct.IsTypeType() => "System.Type",
+            // Legacy fallback void (tests without stdlib)
+            StructType st when st.IsVoid() => isValueContext ? "MistVoid" : "void",
+            // Legacy fallback Type (tests without stdlib)
+            ClassType ct when ct.IsTypeType() => "System.Type",
 
-        ArrayType a => $"{GetTypeName(a.ElementType, isValueContext)}[]",
+            ArrayType a => $"{GetTypeName(a.ElementType, isValueContext)}[]",
 
-        // SpanType — the Array length-erasure path (Requirements 6.2, 6.3, 7.1, 7.2).
-        // Span<T, Length> lowers to System.Span<T> and ReadOnlySpan<T, Length> lowers to
-        // System.ReadOnlySpan<T>, erasing the Length type argument — exactly as
-        // Array<T, Length> erases to T[] above. This is deliberately NOT the
-        // Task/IntrinsicTypeMap single-BackingTypes-entry ConstructedType path.
-        SpanType s when s.IsReadOnly => $"System.ReadOnlySpan<{GetTypeName(s.ElementType, isValueContext)}>",
-        SpanType s => $"System.Span<{GetTypeName(s.ElementType, isValueContext)}>",
+            // SpanType — the Array length-erasure path (Requirements 6.2, 6.3, 7.1, 7.2).
+            // Span<T, Length> lowers to System.Span<T> and ReadOnlySpan<T, Length> lowers to
+            // System.ReadOnlySpan<T>, erasing the Length type argument — exactly as
+            // Array<T, Length> erases to T[] above. This is deliberately NOT the
+            // Task/IntrinsicTypeMap single-BackingTypes-entry ConstructedType path.
+            SpanType s when s.IsReadOnly => $"System.ReadOnlySpan<{GetTypeName(s.ElementType, isValueContext)}>",
+            SpanType s => $"System.Span<{GetTypeName(s.ElementType, isValueContext)}>",
 
-        TupleType t => EmitTupleTypeName(t, isValueContext),
-        TypeParameterType tp => tp.Name,
+            TupleType t => EmitTupleTypeName(t, isValueContext),
+            TypeParameterType tp => tp.Name,
 
-        // Standard.Task<T> — maps to System.Threading.Tasks.Task<T> or non-generic Task.
-        // Task<Void> always emits as non-generic "Task".
-        // Task<T> where T is not Void → "Task<T>".
-        // For the initial implementation, always emit Task<T> (ValueTask optimization comes later).
-        ConstructedType ctTask when IsStandardTask(ctTask)
-            => EmitTaskTypeName(ctTask, isValueContext),
+            // Standard.Task<T> — maps to System.Threading.Tasks.Task<T> or non-generic Task.
+            // Task<Void> always emits as non-generic "Task".
+            // Task<T> where T is not Void → "Task<T>".
+            // For the initial implementation, always emit Task<T> (ValueTask optimization comes later).
+            ConstructedType ctTask when IsStandardTask(ctTask)
+                => EmitTaskTypeName(ctTask, isValueContext),
 
-        // Standard.ValueTask<T> — maps to System.Threading.Tasks.ValueTask<T> or non-generic ValueTask.
-        // ValueTask<Void> always emits as non-generic "ValueTask".
-        // ValueTask<T> where T is not Void → "ValueTask<T>".
-        ConstructedType ctVTask when IsStandardValueTask(ctVTask)
-            => EmitValueTaskTypeName(ctVTask, isValueContext),
+            // Standard.ValueTask<T> — maps to System.Threading.Tasks.ValueTask<T> or non-generic ValueTask.
+            // ValueTask<Void> always emits as non-generic "ValueTask".
+            // ValueTask<T> where T is not Void → "ValueTask<T>".
+            ConstructedType ctVTask when IsStandardValueTask(ctVTask)
+                => EmitValueTaskTypeName(ctVTask, isValueContext),
 
-        // Standard.Func<...> — maps to System.Func<...> / System.Action<...> / System.Action
-        // based on whether the last type argument (the return type) is Void.
-        // Func<void> → System.Action; Func<T1, void> → System.Action<T1>;
-        // Func<T1, ..., TN> (TResult ≠ void) → System.Func<T1, ..., TN>.
-        ConstructedType ctFunc when IsStandardFunc(ctFunc)
-            => EmitFuncTypeName(ctFunc),
+            // Standard.Func<...> — maps to System.Func<...> / System.Action<...> / System.Action
+            // based on whether the last type argument (the return type) is Void.
+            // Func<void> → System.Action; Func<T1, void> → System.Action<T1>;
+            // Func<T1, ..., TN> (TResult ≠ void) → System.Func<T1, ..., TN>.
+            ConstructedType ctFunc when IsStandardFunc(ctFunc)
+                => EmitFuncTypeName(ctFunc),
 
-        // Closed_Generic_With_Unknown (Task 31 revised) — a constructed type
-        // whose type arguments transitively contain UnknownType lowers to C#
-        // `dynamic`. See the XML remarks above for the rationale.
-        ConstructedType ctUnknown when ConstructedTypeContainsUnknown(ctUnknown)
-            => "dynamic",
+            // Closed_Generic_With_Unknown (Task 31 revised) — a constructed type
+            // whose type arguments transitively contain UnknownType lowers to C#
+            // `dynamic`. See the XML remarks above for the rationale.
+            ConstructedType ctUnknown when ConstructedTypeContainsUnknown(ctUnknown)
+                => "dynamic",
 
-        ConstructedType ct when ct.DependentArguments is not null
-            => EmitConstructedTypeWithDependentArgs(ct, isValueContext),
+            ConstructedType ct when ct.DependentArguments is not null
+                => EmitConstructedTypeWithDependentArgs(ct, isValueContext),
 
-        ConstructedType ct => $"{GetTypeName(ct.GenericDefinition, isValueContext)}<{string.Join(", ", ct.TypeArguments.Select(t => GetTypeName(t, isValueContext)))}>",
+            ConstructedType ct => $"{GetTypeName(ct.GenericDefinition, isValueContext)}<{string.Join(", ", ct.TypeArguments.Select(t => GetTypeName(t, isValueContext)))}>",
 
-        // DelegateType → emit the fully qualified CLR delegate name
-        DelegateType dt when dt.TypeArguments.Count > 0
-            => $"{dt.ClrNamespace}.{dt.ClrSimpleName}<{string.Join(", ", dt.TypeArguments.Select(t => GetTypeName(t, isValueContext)))}>",
-        DelegateType dt
-            => $"{dt.ClrNamespace}.{dt.ClrSimpleName}",
+            // DelegateType → emit the fully qualified CLR delegate name
+            DelegateType dt when dt.TypeArguments.Count > 0
+                => $"{dt.ClrNamespace}.{dt.ClrSimpleName}<{string.Join(", ", dt.TypeArguments.Select(t => GetTypeName(t, isValueContext)))}>",
+            DelegateType dt
+                => $"{dt.ClrNamespace}.{dt.ClrSimpleName}",
 
-        // BaseDelegateType → System.Delegate
-        BaseDelegateType => "System.Delegate",
+            // BaseDelegateType → System.Delegate
+            BaseDelegateType => "System.Delegate",
 
-        NewtypeType nt => nt.Name,
-        ClassType c when !c.IsBackendBacked && c.ContainingNamespace is not null
-            && IsClrNamespace(c.ContainingNamespace) => $"{c.ContainingNamespace}.{c.DisplayName}",
-        ClassType c => c.DisplayName,
-        StructType s when !s.IsBackendBacked && s.ContainingNamespace is not null
-            && IsClrNamespace(s.ContainingNamespace) => $"{s.ContainingNamespace}.{GetKeywordOrDisplayName(s)}",
-        StructType s => GetKeywordOrDisplayName(s),
-        AbstractType i when i.ContainingNamespace == "Standard" && TryGetMappedName($"Standard.{i.DisplayName}") is { } mapped => mapped,
-        AbstractType i => i.DisplayName,
-        _ => throw new ArgumentException($"Cannot map type to C#: {type.DisplayName}"),
+            NewtypeType nt => nt.Name,
+            ClassType c when !c.IsBackendBacked && c.ContainingNamespace is not null
+                && IsClrNamespace(c.ContainingNamespace) => $"{c.ContainingNamespace}.{c.DisplayName}",
+            ClassType c => c.DisplayName,
+            StructType s when !s.IsBackendBacked && s.ContainingNamespace is not null
+                && IsClrNamespace(s.ContainingNamespace) => $"{s.ContainingNamespace}.{GetKeywordOrDisplayName(s)}",
+            StructType s => GetKeywordOrDisplayName(s),
+            AbstractType i when i.ContainingNamespace == "Standard" && TryGetMappedName($"Standard.{i.DisplayName}") is { } mapped => mapped,
+            AbstractType i => i.DisplayName,
+            _ => throw new ArgumentException($"Cannot map type to C#: {type.DisplayName}"),
         };
     }
 
@@ -299,13 +299,13 @@ internal static class CSharpTypeMap
     private static string EmitConstructedTypeWithDependentArgs(ConstructedType ct, bool isValueContext)
     {
         var argParts = new string[ct.TypeArguments.Count];
-        for (var i = 0; i < ct.TypeArguments.Count; i++)
+        for(var i = 0; i < ct.TypeArguments.Count; i++)
         {
-            if (ct.DependentArguments is not null && i < ct.DependentArguments.Count && ct.DependentArguments[i] is { } depArg)
+            if(ct.DependentArguments is not null && i < ct.DependentArguments.Count && ct.DependentArguments[i] is { } depArg)
             {
                 // Concrete dependent value → carrier struct name
                 var structName = CarrierStructRegistry.GetStructName(depArg);
-                if (structName is not null)
+                if(structName is not null)
                 {
                     argParts[i] = structName;
                 }
@@ -350,21 +350,21 @@ internal static class CSharpTypeMap
         var typeArgs = ct.TypeArguments;
         var returnType = typeArgs[typeArgs.Count - 1];
 
-        if (returnType.IsVoid())
+        if(returnType.IsVoid())
         {
             // Action family: drop the trailing void return type.
-            if (typeArgs.Count == 1)
+            if(typeArgs.Count == 1)
                 return "System.Action";
 
             var actionArgs = new string[typeArgs.Count - 1];
-            for (var i = 0; i < actionArgs.Length; i++)
+            for(var i = 0; i < actionArgs.Length; i++)
                 actionArgs[i] = GetTypeName(typeArgs[i], isValueContext: true);
             return $"System.Action<{string.Join(", ", actionArgs)}>";
         }
 
         // Func family: all type arguments, including the return type.
         var funcArgs = new string[typeArgs.Count];
-        for (var i = 0; i < funcArgs.Length; i++)
+        for(var i = 0; i < funcArgs.Length; i++)
             funcArgs[i] = GetTypeName(typeArgs[i], isValueContext: true);
         return $"System.Func<{string.Join(", ", funcArgs)}>";
     }
@@ -394,7 +394,7 @@ internal static class CSharpTypeMap
     {
         var innerType = ct.TypeArguments[0];
 
-        if (innerType.IsVoid())
+        if(innerType.IsVoid())
         {
             // Task<Void> always emits as non-generic Task.
             return "System.Threading.Tasks.Task";
@@ -427,7 +427,7 @@ internal static class CSharpTypeMap
     {
         var innerType = ct.TypeArguments[0];
 
-        if (innerType.IsVoid())
+        if(innerType.IsVoid())
         {
             // ValueTask<Void> always emits as non-generic ValueTask.
             return "System.Threading.Tasks.ValueTask";
@@ -447,9 +447,9 @@ internal static class CSharpTypeMap
     /// </summary>
     private static bool ConstructedTypeContainsUnknown(ConstructedType ct)
     {
-        foreach (var arg in ct.TypeArguments)
+        foreach(var arg in ct.TypeArguments)
         {
-            if (TypeContainsUnknown(arg))
+            if(TypeContainsUnknown(arg))
                 return true;
         }
         return false;
@@ -481,7 +481,7 @@ internal static class CSharpTypeMap
     /// </summary>
     private static string GetKeywordOrDisplayName(StructType s)
     {
-        if (BackingTypes.TryGetValue(s.DisplayName, out var keyword))
+        if(BackingTypes.TryGetValue(s.DisplayName, out var keyword))
             return keyword;
         return s.DisplayName;
     }
@@ -494,7 +494,7 @@ internal static class CSharpTypeMap
     private static string EmitTupleTypeName(TupleType tuple, bool isValueContext)
     {
         var parts = new string[tuple.Arity];
-        for (var i = 0; i < tuple.Arity; i++)
+        for(var i = 0; i < tuple.Arity; i++)
         {
             var elementTypeName = GetTypeName(tuple.ElementTypes[i], isValueContext);
             var name = tuple.ElementNames is not null && i < tuple.ElementNames.Count
@@ -525,7 +525,7 @@ internal static class CSharpTypeMap
     /// </summary>
     public static IType? GetOptionalInnerType(UnionType unionType)
     {
-        if (!IsOptionalUnion(unionType))
+        if(!IsOptionalUnion(unionType))
             return null;
         return unionType.Constituents.First(c => !c.IsVoid());
     }
@@ -542,14 +542,14 @@ internal static class CSharpTypeMap
     /// </summary>
     public static string? TryGetOptionalTypeName(UnionType unionType, bool isValueContext = false)
     {
-        if (!IsOptionalUnion(unionType))
+        if(!IsOptionalUnion(unionType))
             return null;
 
         var innerType = GetOptionalInnerType(unionType)!;
         var innerTypeName = GetTypeName(innerType, isValueContext);
 
         // Value types (struct, enum) → Nullable<T> (emitted as T?)
-        if (IsValueType(innerType))
+        if(IsValueType(innerType))
             return $"{innerTypeName}?";
 
         // Reference types (class) → plain T (null represents void)

@@ -43,7 +43,7 @@ public sealed class GlobalUsingsUndefinedNamespacePropertyTests : IDisposable
 
     public void Dispose()
     {
-        if (Directory.Exists(_outputDir))
+        if(Directory.Exists(_outputDir))
         {
             try { Directory.Delete(_outputDir, recursive: true); } catch { /* best effort */ }
         }
@@ -63,13 +63,13 @@ public sealed class GlobalUsingsUndefinedNamespacePropertyTests : IDisposable
     private static void RunProperty<T>(Gen<T> gen, Action<T> check, int maxTests = 100)
     {
         var samples = gen.Sample(maxTests).ToList();
-        for (var idx = 0; idx < samples.Count; idx++)
+        for(var idx = 0; idx < samples.Count; idx++)
         {
             try
             {
                 check(samples[idx]);
             }
-            catch (Exception ex)
+            catch(Exception ex)
             {
                 var sampleStr = samples[idx]?.ToString() ?? "<null>";
                 throw new Exception(

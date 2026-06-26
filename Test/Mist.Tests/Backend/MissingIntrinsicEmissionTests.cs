@@ -40,7 +40,7 @@ public sealed class MissingIntrinsicEmissionTests : IDisposable
 
     private static void TryDeleteDir(string dir)
     {
-        try { if (Directory.Exists(dir)) Directory.Delete(dir, recursive: true); } catch { }
+        try { if(Directory.Exists(dir)) Directory.Delete(dir, recursive: true); } catch { }
     }
 
     private static Storm.Runtime.Token MakeToken(string lexeme, int start = 0)
@@ -91,37 +91,46 @@ public class Program {
 }";
 
         // Build the stdlib AST: intrinsic struct FakeType with operator+
-        var fakeTypeRef = new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
+        var fakeTypeRef = new TypeReferenceNode
         {
-            Name = new QualifiedIdentifierNode
-            {
-                IDENTIFIER = MakeToken("FakeType"),
-                Span = new Storm.Runtime.SourceSpan(0, 0),
-            },
-        } };
-
-        var paramA = new ParameterNode
-        {
-            Type = new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
+            First = new NamedSingleTypeRefSingleTypeRefNode
             {
                 Name = new QualifiedIdentifierNode
                 {
                     IDENTIFIER = MakeToken("FakeType"),
                     Span = new Storm.Runtime.SourceSpan(0, 0),
                 },
-            } },
+            }
+        };
+
+        var paramA = new ParameterNode
+        {
+            Type = new TypeReferenceNode
+            {
+                First = new NamedSingleTypeRefSingleTypeRefNode
+                {
+                    Name = new QualifiedIdentifierNode
+                    {
+                        IDENTIFIER = MakeToken("FakeType"),
+                        Span = new Storm.Runtime.SourceSpan(0, 0),
+                    },
+                }
+            },
             Name = MakeToken("a"),
         };
         var paramB = new ParameterNode
         {
-            Type = new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
+            Type = new TypeReferenceNode
             {
-                Name = new QualifiedIdentifierNode
+                First = new NamedSingleTypeRefSingleTypeRefNode
                 {
-                    IDENTIFIER = MakeToken("FakeType"),
-                    Span = new Storm.Runtime.SourceSpan(0, 0),
-                },
-            } },
+                    Name = new QualifiedIdentifierNode
+                    {
+                        IDENTIFIER = MakeToken("FakeType"),
+                        Span = new Storm.Runtime.SourceSpan(0, 0),
+                    },
+                }
+            },
             Name = MakeToken("b"),
         };
 
@@ -288,14 +297,17 @@ public class Program {
 }";
 
         // Build stdlib AST
-        var fakeTypeRef = new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
+        var fakeTypeRef = new TypeReferenceNode
         {
-            Name = new QualifiedIdentifierNode
+            First = new NamedSingleTypeRefSingleTypeRefNode
             {
-                IDENTIFIER = MakeToken("FakeType"),
-                Span = new Storm.Runtime.SourceSpan(0, 0),
-            },
-        } };
+                Name = new QualifiedIdentifierNode
+                {
+                    IDENTIFIER = MakeToken("FakeType"),
+                    Span = new Storm.Runtime.SourceSpan(0, 0),
+                },
+            }
+        };
 
         var paramA = new ParameterNode
         {
@@ -304,27 +316,33 @@ public class Program {
         };
         var paramB = new ParameterNode
         {
-            Type = new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
+            Type = new TypeReferenceNode
             {
-                Name = new QualifiedIdentifierNode
+                First = new NamedSingleTypeRefSingleTypeRefNode
                 {
-                    IDENTIFIER = MakeToken("FakeType"),
-                    Span = new Storm.Runtime.SourceSpan(0, 0),
-                },
-            } },
+                    Name = new QualifiedIdentifierNode
+                    {
+                        IDENTIFIER = MakeToken("FakeType"),
+                        Span = new Storm.Runtime.SourceSpan(0, 0),
+                    },
+                }
+            },
             Name = MakeToken("b"),
         };
 
         var operatorDecl = new OperatorDeclarationNode
         {
-            ReturnType = new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
+            ReturnType = new TypeReferenceNode
             {
-                Name = new QualifiedIdentifierNode
+                First = new NamedSingleTypeRefSingleTypeRefNode
                 {
-                    IDENTIFIER = MakeToken("FakeType"),
-                    Span = new Storm.Runtime.SourceSpan(0, 0),
-                },
-            } },
+                    Name = new QualifiedIdentifierNode
+                    {
+                        IDENTIFIER = MakeToken("FakeType"),
+                        Span = new Storm.Runtime.SourceSpan(0, 0),
+                    },
+                }
+            },
             Symbol = new PlusOpOperatorSymbolNode(),
             Parameters = new ParameterListNode { Parameter = paramA, Parameters = ImmutableArray.Create(paramB) },
             Body = new OperatorNoBodyOperatorBodyNode(),
@@ -514,20 +532,20 @@ public class Program {
         // Known unary-only operator symbols (Requirement 4.4).
         var unaryOnlyOps = new HashSet<string> { "!" };
 
-        foreach (var symbol in model.AllSymbols)
+        foreach(var symbol in model.AllSymbols)
         {
-            if (symbol is not Symbol { IsIntrinsic: true } intrinsicSymbol)
+            if(symbol is not Symbol { IsIntrinsic: true } intrinsicSymbol)
                 continue;
 
             // Skip non-method symbols (type-level intrinsic markers are on
             // struct/class symbols, not on operator/method symbols).
-            if (intrinsicSymbol.Kind != SymbolKind.Method &&
+            if(intrinsicSymbol.Kind != SymbolKind.Method &&
                 intrinsicSymbol.Kind != SymbolKind.Constructor)
                 continue;
 
             // Determine the declaring type's qualified name.
             var declaringType = GetDeclaringTypeQualifiedName(intrinsicSymbol);
-            if (declaringType is null)
+            if(declaringType is null)
                 continue;
 
             // Skip types whose static methods are emitted via CSharpTypeMap
@@ -540,7 +558,7 @@ public class Program {
             // ArrayType/SpanType handling in the type map and emitter — their
             // intrinsic members (constructors, GetEnumerator, Slice, indexers)
             // are emitted through dedicated code paths, not templates.
-            if (declaringType is "Standard.Console" or "Standard.Math" or "Standard.Convert"
+            if(declaringType is "Standard.Console" or "Standard.Math" or "Standard.Convert"
                 or "Standard.Task" or "Standard.ValueTask"
                 or "Standard.Array" or "Standard.Span" or "Standard.ReadOnlySpan"
                 or "Enumerator")
@@ -551,24 +569,24 @@ public class Program {
             // Cast operators (operator_implicit, operator_explicit) are
             // emitted through a separate path (TryGetCastOperator), not
             // through the binary/unary/instance method tables. Skip them.
-            if (name.StartsWith("operator_implicit") || name.StartsWith("operator_explicit"))
+            if(name.StartsWith("operator_implicit") || name.StartsWith("operator_explicit"))
                 continue;
 
             // Determine what kind of intrinsic this is and look it up.
             IntrinsicEmissionTemplate? template;
 
-            if (name.StartsWith("operator"))
+            if(name.StartsWith("operator"))
             {
                 var op = name["operator".Length..];
 
                 // Determine arity: known unary-only ops are unary; "-" can
                 // be either, so we try unary first then binary; everything
                 // else is binary.
-                if (unaryOnlyOps.Contains(op))
+                if(unaryOnlyOps.Contains(op))
                 {
                     template = registry.TryGetUnaryOperator(declaringType, op);
                 }
-                else if (op == "-")
+                else if(op == "-")
                 {
                     // "-" is overloaded: try unary first, then binary.
                     template = registry.TryGetUnaryOperator(declaringType, op)
@@ -579,7 +597,7 @@ public class Program {
                     template = registry.TryGetBinaryOperator(declaringType, op);
                 }
             }
-            else if (intrinsicSymbol.Kind == SymbolKind.Constructor)
+            else if(intrinsicSymbol.Kind == SymbolKind.Constructor)
             {
                 // Constructor — look up via TryGetConstructor.
                 var paramTypes = ExtractParameterTypeNames(intrinsicSymbol, model);
@@ -595,7 +613,7 @@ public class Program {
                         ?? registry.TryGetStaticMethod(declaringType, name, paramTypes);
             }
 
-            if (template is null)
+            if(template is null)
             {
                 missing.Add($"{declaringType}.{name}");
             }
@@ -616,18 +634,18 @@ public class Program {
     {
         var stack = new Stack<Storm.Runtime.SyntaxNode>();
         stack.Push(root);
-        while (stack.Count > 0)
+        while(stack.Count > 0)
         {
             var node = stack.Pop();
-            if (node is AdditiveNode add
+            if(node is AdditiveNode add
                 && add.Right is not null
                 && !ReferenceEquals(add.Right, add.Left))
             {
                 return add;
             }
-            foreach (var child in node.Children())
+            foreach(var child in node.Children())
             {
-                if (child is not null)
+                if(child is not null)
                     stack.Push(child);
             }
         }
@@ -640,19 +658,19 @@ public class Program {
     private static string? GetDeclaringTypeQualifiedName(Symbol symbol)
     {
         var memberScope = symbol.ContainingScope;
-        if (memberScope?.Parent is null)
+        if(memberScope?.Parent is null)
             return null;
 
-        foreach (var sibling in memberScope.Parent.Members)
+        foreach(var sibling in memberScope.Parent.Members)
         {
-            if (sibling.DeclaredType is ClassType ct && ct.MemberScope == memberScope)
+            if(sibling.DeclaredType is ClassType ct && ct.MemberScope == memberScope)
             {
                 return ct.ContainingNamespace is not null
                     ? $"{ct.ContainingNamespace}.{ct.DisplayName}"
                     : ct.DisplayName;
             }
 
-            if (sibling.DeclaredType is StructType st && st.MemberScope == memberScope)
+            if(sibling.DeclaredType is StructType st && st.MemberScope == memberScope)
             {
                 return st.ContainingNamespace is not null
                     ? $"{st.ContainingNamespace}.{st.DisplayName}"
@@ -680,14 +698,14 @@ public class Program {
     /// </summary>
     private static string? GetTypeQualifiedName(IType? type)
     {
-        if (type is ClassType ct)
+        if(type is ClassType ct)
         {
             return ct.ContainingNamespace is not null
                 ? $"{ct.ContainingNamespace}.{ct.DisplayName}"
                 : ct.DisplayName;
         }
 
-        if (type is StructType st)
+        if(type is StructType st)
         {
             return st.ContainingNamespace is not null
                 ? $"{st.ContainingNamespace}.{st.DisplayName}"

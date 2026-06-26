@@ -115,7 +115,7 @@ public class AccessorModifierPropertyTests
         typeChecker.Analyze(model, analyzerDiagnostics);
 
         // Merge all diagnostics
-        foreach (var d in analyzerDiagnostics.ToImmutableArray())
+        foreach(var d in analyzerDiagnostics.ToImmutableArray())
             semanticDiagnostics.Add(d);
 
         return (model, semanticDiagnostics);
@@ -135,10 +135,13 @@ public class AccessorModifierPropertyTests
         var property = new BlockPropertyPropertyDeclarationNode
         {
             Modifiers = propertyModifiers,
-            Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
+            Type = new TypeReferenceNode
             {
-                PrimitiveType = new IntTypePrimitiveTypeNode(),
-            } },
+                First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                {
+                    PrimitiveType = new IntTypePrimitiveTypeNode(),
+                }
+            },
             Name = Tok("Value"),
             Accessors = accessors,
         };
@@ -155,7 +158,7 @@ public class AccessorModifierPropertyTests
         Arbitrary = new[] { typeof(AccessorModifierPropertyTests) })]
     public Property AccessorModifier_ValidCombinationsProduceNoDiagnostic(AccessorModifierTestCase testCase)
     {
-        if (!testCase.ExpectValid)
+        if(!testCase.ExpectValid)
             return true.ToProperty(); // Skip invalid cases in this test
 
         var ast = MakePropertyWithModifiers(testCase.PropertyModifiers, testCase.AccessorModifier);
@@ -175,7 +178,7 @@ public class AccessorModifierPropertyTests
         Arbitrary = new[] { typeof(AccessorModifierPropertyTests) })]
     public Property AccessorModifier_InvalidCombinationsProduceDiagnostic(AccessorModifierTestCase testCase)
     {
-        if (testCase.ExpectValid)
+        if(testCase.ExpectValid)
             return true.ToProperty(); // Skip valid cases in this test
 
         var ast = MakePropertyWithModifiers(testCase.PropertyModifiers, testCase.AccessorModifier);

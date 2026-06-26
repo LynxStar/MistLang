@@ -52,7 +52,7 @@ public sealed class FieldDropRestrictionPropertyTests : IDisposable
 
     public void Dispose()
     {
-        if (Directory.Exists(_outputDir))
+        if(Directory.Exists(_outputDir))
         {
             try { Directory.Delete(_outputDir, recursive: true); } catch { /* best effort */ }
         }
@@ -273,7 +273,7 @@ public sealed class FieldDropRestrictionPropertyTests : IDisposable
         var diagnostics = Compile(scenario.Source);
         var count = CountFieldOutsideContainer(diagnostics);
 
-        if (scenario.ExpectError)
+        if(scenario.ExpectError)
         {
             return (count == 1).ToProperty()
                 .Label($"Expected exactly one {FieldOutsideContainerId} for {scenario.Label}, got {count}.\n"
@@ -310,7 +310,7 @@ public sealed class FieldDropRestrictionPropertyTests : IDisposable
 
         var count = CountFieldOutsideContainer(Compile(scenario.Source));
 
-        if (expectError)
+        if(expectError)
             Assert.Equal(1, count);
         else
             Assert.Equal(0, count);

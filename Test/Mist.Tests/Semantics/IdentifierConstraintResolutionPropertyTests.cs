@@ -58,7 +58,7 @@ public class IdentifierConstraintResolutionPropertyTests
         var parseBag = new DiagnosticBag();
         var parseResult = Parser.Parse(tokens, parseBag);
 
-        if (parseResult.Root is null)
+        if(parseResult.Root is null)
             return (null!, ImmutableArray<Diagnostic>.Empty);
 
         var compilation = new MistCompilation(
@@ -175,7 +175,7 @@ public class IdentifierConstraintResolutionPropertyTests
         var source = scenario.ToSource();
         var (model, diagnostics) = BuildModel(source);
 
-        if (model is null)
+        if(model is null)
         {
             return false.ToProperty()
                 .Label($"Parse failed for source:\n{source}");
@@ -192,7 +192,7 @@ public class IdentifierConstraintResolutionPropertyTests
         // Find the dependent type parameter on the declared type.
         var depParam = FindDependentTypeParameter(model, scenario.ClassName, scenario.ParamName);
 
-        if (depParam is null)
+        if(depParam is null)
         {
             return false.ToProperty()
                 .Label($"DependentTypeParameterType not found for {scenario.ClassName}.{scenario.ParamName}\n"

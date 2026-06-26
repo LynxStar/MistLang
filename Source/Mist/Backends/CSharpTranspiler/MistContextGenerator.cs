@@ -19,22 +19,22 @@ internal static class MistContextGenerator
     public static bool UsesStructuredContext(ISemanticModel model)
     {
         // Check 1: Any method or constructor symbol with WithClauses.
-        foreach (var symbol in model.AllSymbols)
+        foreach(var symbol in model.AllSymbols)
         {
-            if (symbol is not Symbol sym)
+            if(symbol is not Symbol sym)
                 continue;
 
-            if (sym.Kind is not (SymbolKind.Method or SymbolKind.Constructor))
+            if(sym.Kind is not (SymbolKind.Method or SymbolKind.Constructor))
                 continue;
 
-            if (sym.WithClauses.Count > 0)
+            if(sym.WithClauses.Count > 0)
                 return true;
         }
 
         // Check 2: Any context declaration or block statement in the ASTs.
-        foreach (var ast in model.Asts)
+        foreach(var ast in model.Asts)
         {
-            if (AstContainsContextUsage(ast))
+            if(AstContainsContextUsage(ast))
                 return true;
         }
 
@@ -85,7 +85,7 @@ internal static class MistContextGenerator
     /// </summary>
     private static bool AstContainsContextUsage(Storm.Runtime.SyntaxNode node)
     {
-        switch (node)
+        switch(node)
         {
             case WithVarDeclarationStatementStatementNode:
             case WithTypedDeclarationStatementStatementNode:
@@ -95,9 +95,9 @@ internal static class MistContextGenerator
                 return true;
         }
 
-        foreach (var child in node.Children())
+        foreach(var child in node.Children())
         {
-            if (child is Storm.Runtime.SyntaxNode childNode && AstContainsContextUsage(childNode))
+            if(child is Storm.Runtime.SyntaxNode childNode && AstContainsContextUsage(childNode))
                 return true;
         }
 

@@ -58,12 +58,12 @@ public sealed class FrameEscapeAnalyzer : IAnalyzer
 
     public void Analyze(ISemanticModel model, DiagnosticBag diagnostics)
     {
-        foreach (var symbol in model.AllSymbols)
+        foreach(var symbol in model.AllSymbols)
         {
-            if (symbol.Origin != SymbolOrigin.UserCode)
+            if(symbol.Origin != SymbolOrigin.UserCode)
                 continue;
 
-            switch (symbol.Kind)
+            switch(symbol.Kind)
             {
                 case SymbolKind.Method:
                 case SymbolKind.Constructor:
@@ -88,7 +88,7 @@ public sealed class FrameEscapeAnalyzer : IAnalyzer
             _ => null,
         };
 
-        if (body is null)
+        if(body is null)
             return;
 
         // The backing state maps local symbols to their stack-backing provenance.
@@ -105,7 +105,7 @@ public sealed class FrameEscapeAnalyzer : IAnalyzer
         ISemanticModel model,
         DiagnosticBag diagnostics)
     {
-        foreach (var stmt in block.Statements)
+        foreach(var stmt in block.Statements)
         {
             WalkStatement(stmt, state, model, diagnostics);
         }
@@ -117,7 +117,7 @@ public sealed class FrameEscapeAnalyzer : IAnalyzer
         ISemanticModel model,
         DiagnosticBag diagnostics)
     {
-        switch (stmt)
+        switch(stmt)
         {
             case VariableDeclarationStatementStatementNode varDeclStmt:
                 AnalyzeVariableDeclaration(varDeclStmt.VariableDeclaration, state, model, diagnostics);
@@ -163,7 +163,7 @@ public sealed class FrameEscapeAnalyzer : IAnalyzer
         SyntaxNode? initializer = null;
         ISymbol? declaredSymbol = null;
 
-        switch (varDecl)
+        switch(varDecl)
         {
             case TypedVariableDeclarationVariableDeclarationStatementNode typed:
                 initializer = typed.Initializer;
@@ -176,12 +176,12 @@ public sealed class FrameEscapeAnalyzer : IAnalyzer
                 break;
         }
 
-        if (declaredSymbol is null || initializer is null)
+        if(declaredSymbol is null || initializer is null)
             return;
 
         // Only track span-typed bindings.
         var declaredType = declaredSymbol.DeclaredType;
-        if (!IsSpanType(declaredType))
+        if(!IsSpanType(declaredType))
             return;
 
         // Determine the backing of the initializer.
@@ -200,10 +200,10 @@ public sealed class FrameEscapeAnalyzer : IAnalyzer
         // Check for assignments: target = value
         // An expression statement wrapping an assignment might store a stack-backed
         // span into an escaping location.
-        if (expression is ExpressionNode exprNode)
+        if(expression is ExpressionNode exprNode)
         {
             var assignment = exprNode.AsAssignmentOrNull();
-            if (assignment?.Value is not null)
+            if(assignment?.Value is not null)
             {
                 AnalyzeAssignment(assignment, state, model, diagnostics);
             }
@@ -216,24 +216,24 @@ public sealed class FrameEscapeAnalyzer : IAnalyzer
         ISemanticModel model,
         DiagnosticBag diagnostics)
     {
-        if (assignment.Value is null)
+        if(assignment.Value is null)
             return;
 
         var rhsAssignment = assignment.Value.AsAssignmentOrNull();
-        if (rhsAssignment is null)
+        if(rhsAssignment is null)
             return;
 
         // Determine the backing of the RHS.
         var rhsBacking = DetermineAssignmentValueBacking(rhsAssignment, state, model);
-        if (rhsBacking != StackBacking.StackBacked)
+        if(rhsBacking != StackBacking.StackBacked)
             return; // NotStackBacked never triggers frame-escape (R9.4).
 
         // Check if the LHS is a frame-local span binding (propagation within frame is fine).
         var lhsSymbol = TryResolveLocalSymbol(assignment.Target, model);
-        if (lhsSymbol is not null && lhsSymbol.Kind == SymbolKind.LocalVariable)
+        if(lhsSymbol is not null && lhsSymbol.Kind == SymbolKind.LocalVariable)
         {
             // Reassignment to a local — propagate the backing fact.
-            if (IsSpanType(lhsSymbol.DeclaredType))
+            if(IsSpanType(lhsSymbol.DeclaredType))
             {
                 state[lhsSymbol] = StackBacking.StackBacked;
             }
@@ -241,10 +241,10 @@ public sealed class FrameEscapeAnalyzer : IAnalyzer
         }
 
         // Check if the LHS is a parameter (also frame-local for the call duration).
-        if (lhsSymbol is not null && lhsSymbol.Kind == SymbolKind.Parameter)
+        if(lhsSymbol is not null && lhsSymbol.Kind == SymbolKind.Parameter)
         {
             // Assigning to a by-value parameter is frame-local.
-            if (IsSpanType(lhsSymbol.DeclaredType))
+            if(IsSpanType(lhsSymbol.DeclaredType))
             {
                 state[lhsSymbol] = StackBacking.StackBacked;
             }
@@ -269,16 +269,16 @@ public sealed class FrameEscapeAnalyzer : IAnalyzer
         ISemanticModel model,
         DiagnosticBag diagnostics)
     {
-        if (returnStmt.Value is null)
+        if(returnStmt.Value is null)
             return;
 
         // Only check span-typed return values.
         var returnType = model.GetTypeOf(returnStmt.Value);
-        if (!IsSpanType(returnType))
+        if(!IsSpanType(returnType))
             return;
 
         var backing = DetermineExpressionBacking(returnStmt.Value, state, model);
-        if (backing == StackBacking.StackBacked)
+        if(backing == StackBacking.StackBacked)
         {
             diagnostics.Add(MakeDiagnostic(
                 StackBackedReturn,
@@ -300,9 +300,9 @@ public sealed class FrameEscapeAnalyzer : IAnalyzer
         WalkBlock(ifStmt.ThenBranch, state, model, diagnostics);
 
         // Walk the else block if present.
-        if (ifStmt.ElseBranch is ElseBlockElseClauseNode elseBlock)
+        if(ifStmt.ElseBranch is ElseBlockElseClauseNode elseBlock)
             WalkBlock(elseBlock.ElseBlock, state, model, diagnostics);
-        else if (ifStmt.ElseBranch is ElseIfElseClauseNode elseIf)
+        else if(ifStmt.ElseBranch is ElseIfElseClauseNode elseIf)
             AnalyzeIfStatement(elseIf.ElseIf, state, model, diagnostics);
     }
 
@@ -312,7 +312,7 @@ public sealed class FrameEscapeAnalyzer : IAnalyzer
         ISemanticModel model,
         DiagnosticBag diagnostics)
     {
-        if (whileStmt.Body is not null)
+        if(whileStmt.Body is not null)
             WalkBlock(whileStmt.Body, state, model, diagnostics);
     }
 
@@ -322,7 +322,7 @@ public sealed class FrameEscapeAnalyzer : IAnalyzer
         ISemanticModel model,
         DiagnosticBag diagnostics)
     {
-        if (forStmt.Body is not null)
+        if(forStmt.Body is not null)
             WalkBlock(forStmt.Body, state, model, diagnostics);
     }
 
@@ -333,7 +333,7 @@ public sealed class FrameEscapeAnalyzer : IAnalyzer
         DiagnosticBag diagnostics)
     {
         // foreach over a span is a safe in-frame use (R8.6).
-        if (foreachStmt.Body is not null)
+        if(foreachStmt.Body is not null)
             WalkBlock(foreachStmt.Body, state, model, diagnostics);
     }
 
@@ -348,15 +348,15 @@ public sealed class FrameEscapeAnalyzer : IAnalyzer
         ISemanticModel model)
     {
         // Unwrap expression wrappers.
-        if (node is ExpressionNode exprNode)
+        if(node is ExpressionNode exprNode)
         {
             var assignment = exprNode.AsAssignmentOrNull();
-            if (assignment is not null)
+            if(assignment is not null)
                 return DetermineAssignmentValueBacking(assignment, state, model);
             return StackBacking.NotStackBacked;
         }
 
-        if (node is AssignmentNode assignNode)
+        if(node is AssignmentNode assignNode)
             return DetermineAssignmentValueBacking(assignNode, state, model);
 
         return StackBacking.NotStackBacked;
@@ -371,11 +371,11 @@ public sealed class FrameEscapeAnalyzer : IAnalyzer
         Dictionary<ISymbol, StackBacking> state,
         ISemanticModel model)
     {
-        if (assignment.Value is not null)
+        if(assignment.Value is not null)
         {
             // Chained assignment: recurse into the value.
             var innerAssignment = assignment.Value.AsAssignmentOrNull();
-            if (innerAssignment is not null)
+            if(innerAssignment is not null)
                 return DetermineAssignmentValueBacking(innerAssignment, state, model);
             return StackBacking.NotStackBacked;
         }
@@ -394,14 +394,14 @@ public sealed class FrameEscapeAnalyzer : IAnalyzer
         ISemanticModel model)
     {
         // Check for a stackalloc expression.
-        if (target is StackallocExpressionPrimaryNode)
+        if(target is StackallocExpressionPrimaryNode)
             return StackBacking.StackBacked;
 
         // Check for an identifier referencing a tracked local.
-        if (target is IdentifierExpressionPrimaryNode identifier)
+        if(target is IdentifierExpressionPrimaryNode identifier)
         {
             var symbol = model.GetDeclaredSymbol(identifier);
-            if (symbol is not null && state.TryGetValue(symbol, out var backing))
+            if(symbol is not null && state.TryGetValue(symbol, out var backing))
                 return backing;
             // Parameters default to NotStackBacked (they cannot be stackalloc-backed
             // because a stackalloc cannot escape a frame to become a parameter value).
@@ -410,9 +410,9 @@ public sealed class FrameEscapeAnalyzer : IAnalyzer
 
         // PostfixNode with suffixes: check for Slice call (propagates backing of receiver),
         // or member access on a ref struct field (conservative StackBacked propagation).
-        if (target is PostfixNode postfix)
+        if(target is PostfixNode postfix)
         {
-            if (postfix.Suffix.Length == 0)
+            if(postfix.Suffix.Length == 0)
             {
                 // No suffixes — the backing comes from the target.
                 return DetermineTargetBacking(postfix.Target, state, model);
@@ -421,12 +421,12 @@ public sealed class FrameEscapeAnalyzer : IAnalyzer
             // Check for method call suffixes (e.g., .Slice(...)).
             var receiverBacking = DetermineTargetBacking(postfix.Target, state, model);
 
-            foreach (var suffix in postfix.Suffix)
+            foreach(var suffix in postfix.Suffix)
             {
-                if (suffix is MethodCallSuffixPostfixSuffixNode methodCall)
+                if(suffix is MethodCallSuffixPostfixSuffixNode methodCall)
                 {
                     // .Slice() returns a span aliasing the receiver's memory.
-                    if (IsSliceCall(methodCall))
+                    if(IsSliceCall(methodCall))
                     {
                         // Slice propagates the receiver's backing (R8.1).
                         return receiverBacking;
@@ -436,28 +436,28 @@ public sealed class FrameEscapeAnalyzer : IAnalyzer
                     // unless we can prove otherwise. Conservative: if the return type
                     // is a span type, treat as StackBacked when receiver is StackBacked.
                     var callResultType = model.GetTypeOf(postfix);
-                    if (IsSpanType(callResultType) && receiverBacking == StackBacking.StackBacked)
+                    if(IsSpanType(callResultType) && receiverBacking == StackBacking.StackBacked)
                         return StackBacking.StackBacked;
                     return StackBacking.NotStackBacked;
                 }
 
-                if (suffix is MemberAccessSuffixPostfixSuffixNode)
+                if(suffix is MemberAccessSuffixPostfixSuffixNode)
                 {
                     // Member access on a ref-struct — if the containing value is
                     // StackBacked and the result is a span type, propagate backing
                     // (containing ref struct field, R8.5).
                     var resultType = model.GetTypeOf(postfix);
-                    if (IsSpanType(resultType) && receiverBacking == StackBacking.StackBacked)
+                    if(IsSpanType(resultType) && receiverBacking == StackBacking.StackBacked)
                         return StackBacking.StackBacked;
                     return StackBacking.NotStackBacked;
                 }
 
-                if (suffix is IndexSuffixPostfixSuffixNode)
+                if(suffix is IndexSuffixPostfixSuffixNode)
                 {
                     // Indexing a span returns an element (not a span), so no propagation.
                     // Unless the element type is itself a span (unlikely but conservative).
                     var resultType = model.GetTypeOf(postfix);
-                    if (IsSpanType(resultType) && receiverBacking == StackBacking.StackBacked)
+                    if(IsSpanType(resultType) && receiverBacking == StackBacking.StackBacked)
                         return StackBacking.StackBacked;
                     return StackBacking.NotStackBacked;
                 }
@@ -468,19 +468,19 @@ public sealed class FrameEscapeAnalyzer : IAnalyzer
 
         // For other expression chain nodes, walk through single-child chains.
         var children = new List<SyntaxNode>();
-        foreach (var child in target.Children())
+        foreach(var child in target.Children())
         {
-            if (child is not null)
+            if(child is not null)
                 children.Add(child);
         }
 
-        if (children.Count == 1)
+        if(children.Count == 1)
             return DetermineTargetBacking(children[0], state, model);
 
         // Conservative: if we cannot determine the backing, and the expression type
         // is a span type, treat as StackBacked (no false-accept, R8.4).
         var exprType = model.GetTypeOf(target);
-        if (IsSpanType(exprType))
+        if(IsSpanType(exprType))
             return StackBacking.StackBacked;
 
         return StackBacking.NotStackBacked;
@@ -492,7 +492,7 @@ public sealed class FrameEscapeAnalyzer : IAnalyzer
     {
         // A Slice call looks like: .Slice(start, length)
         // The method name is accessed via Name.Lexeme on the generated node.
-        if (methodCall.Name.Lexeme == "Slice")
+        if(methodCall.Name.Lexeme == "Slice")
             return true;
         return false;
     }
@@ -501,32 +501,32 @@ public sealed class FrameEscapeAnalyzer : IAnalyzer
 
     private static ISymbol? TryResolveLocalSymbol(SyntaxNode node, ISemanticModel model)
     {
-        if (node is ExpressionNode expr)
+        if(node is ExpressionNode expr)
         {
             var assignment = expr.AsAssignmentOrNull();
-            if (assignment is not null)
+            if(assignment is not null)
                 return TryResolveLocalSymbol(assignment.Target, model);
             return null;
         }
 
-        if (node is AssignmentNode assignNode)
+        if(node is AssignmentNode assignNode)
         {
-            if (assignNode.Value is not null)
+            if(assignNode.Value is not null)
                 return null;
             return TryResolveLocalSymbol(assignNode.Target, model);
         }
 
-        if (node is PostfixNode postfix)
+        if(node is PostfixNode postfix)
         {
-            if (postfix.Suffix.Length > 0)
+            if(postfix.Suffix.Length > 0)
                 return null; // Has suffixes — not a simple local.
             return TryResolveLocalSymbol(postfix.Target, model);
         }
 
-        if (node is IdentifierExpressionPrimaryNode identifier)
+        if(node is IdentifierExpressionPrimaryNode identifier)
         {
             var symbol = model.GetDeclaredSymbol(identifier);
-            if (symbol is not null &&
+            if(symbol is not null &&
                 symbol.Kind is SymbolKind.LocalVariable or SymbolKind.Parameter)
             {
                 return symbol;
@@ -536,13 +536,13 @@ public sealed class FrameEscapeAnalyzer : IAnalyzer
 
         // Walk single-child chains.
         var children = new List<SyntaxNode>();
-        foreach (var child in node.Children())
+        foreach(var child in node.Children())
         {
-            if (child is not null)
+            if(child is not null)
                 children.Add(child);
         }
 
-        if (children.Count == 1)
+        if(children.Count == 1)
             return TryResolveLocalSymbol(children[0], model);
 
         return null;
@@ -575,23 +575,23 @@ public sealed class FrameEscapeAnalyzer : IAnalyzer
         string? compilationUnitPath = null;
 
         var span = node.Span;
-        if (span.Length > 0)
+        if(span.Length > 0)
         {
             var asts = model.Asts;
             var units = model.Units;
             var astIndex = -1;
 
-            for (var i = 0; i < asts.Length; i++)
+            for(var i = 0; i < asts.Length; i++)
             {
                 var astSpan = asts[i].Span;
-                if (span.Start >= astSpan.Start && span.Start + span.Length <= astSpan.Start + astSpan.Length)
+                if(span.Start >= astSpan.Start && span.Start + span.Length <= astSpan.Start + astSpan.Length)
                 {
                     astIndex = i;
                     break;
                 }
             }
 
-            if (astIndex >= 0 && astIndex < units.Count)
+            if(astIndex >= 0 && astIndex < units.Count)
             {
                 var source = units[astIndex].Source;
                 compilationUnitPath = source.Path;

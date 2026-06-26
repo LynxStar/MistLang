@@ -83,7 +83,7 @@ public class MultiSymbolScopeLookupPropertyTests
 
         // Add N symbols with the target name
         var expectedSymbols = new List<ISymbol>();
-        for (var i = 0; i < scenario.TargetCount; i++)
+        for(var i = 0; i < scenario.TargetCount; i++)
         {
             var symbol = MakeSymbol(scenario.TargetName, SymbolKind.Method, scope);
             scope.AddMember(symbol);
@@ -91,7 +91,7 @@ public class MultiSymbolScopeLookupPropertyTests
         }
 
         // Add some symbols with different names (noise)
-        for (var i = 0; i < scenario.OtherCount; i++)
+        for(var i = 0; i < scenario.OtherCount; i++)
         {
             var otherName = $"other_{i}";
             var symbol = MakeSymbol(otherName, SymbolKind.Method, scope);
@@ -102,11 +102,11 @@ public class MultiSymbolScopeLookupPropertyTests
         var results = scope.LookupAll(scenario.TargetName);
 
         // Assert: exactly N symbols returned
-        if (results.Count != scenario.TargetCount)
+        if(results.Count != scenario.TargetCount)
             return false;
 
         // Assert: every returned symbol has the correct name
-        if (results.Any(s => s.Name != scenario.TargetName))
+        if(results.Any(s => s.Name != scenario.TargetName))
             return false;
 
         // Assert: every expected symbol is present in the results
@@ -123,7 +123,7 @@ public class MultiSymbolScopeLookupPropertyTests
         // Arrange: create a scope with only "other" symbols, none matching target
         var scope = new Scope(parent: null);
 
-        for (var i = 0; i < scenario.OtherCount; i++)
+        for(var i = 0; i < scenario.OtherCount; i++)
         {
             var otherName = $"other_{i}";
             scope.AddMember(MakeSymbol(otherName, SymbolKind.Field, scope));

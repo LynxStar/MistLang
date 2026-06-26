@@ -30,7 +30,7 @@ public class EquivalenceClassComputerTests
         var (charToClass, classCount) = EquivalenceClassComputer.Compute(dfa);
 
         Assert.Equal(1, classCount);
-        for (int c = 0; c < 65536; c++)
+        for(int c = 0; c < 65536; c++)
         {
             Assert.Equal(0, charToClass[c]);
         }
@@ -75,7 +75,7 @@ public class EquivalenceClassComputerTests
         Assert.Equal(2, classCount);
         // All chars in [a-z] should be in the same class
         int classAZ = charToClass['a'];
-        for (char c = 'b'; c <= 'z'; c++)
+        for(char c = 'b'; c <= 'z'; c++)
         {
             Assert.Equal(classAZ, charToClass[c]);
         }
@@ -168,13 +168,13 @@ public class EquivalenceClassComputerTests
         var (charToClass, classCount) = EquivalenceClassComputer.Compute(dfa);
 
         var usedClasses = new HashSet<int>();
-        for (int c = 0; c < 65536; c++)
+        for(int c = 0; c < 65536; c++)
         {
             usedClasses.Add(charToClass[c]);
         }
 
         Assert.Equal(classCount, usedClasses.Count);
-        for (int i = 0; i < classCount; i++)
+        for(int i = 0; i < classCount; i++)
         {
             Assert.Contains(i, usedClasses);
         }

@@ -58,11 +58,11 @@ public class TupleTypeCheckerPropertyTests
     [Property(Arbitrary = new[] { typeof(TupleTypeGenerator) })]
     public bool PositionalAccess_ResolvesToCorrectElementType(TupleType tuple)
     {
-        for (var i = 0; i < tuple.Arity; i++)
+        for(var i = 0; i < tuple.Arity; i++)
         {
             var memberName = $"Item{i + 1}";
             var resolved = ResolveTupleMemberType(tuple, memberName);
-            if (resolved is null || resolved.DisplayName != tuple.ElementTypes[i].DisplayName)
+            if(resolved is null || resolved.DisplayName != tuple.ElementTypes[i].DisplayName)
                 return false;
         }
         return true;
@@ -76,28 +76,28 @@ public class TupleTypeCheckerPropertyTests
     [Property(Arbitrary = new[] { typeof(TupleTypeGenerator) })]
     public bool NamedAccess_ResolvesToSameTypeAsPositional(TupleType tuple)
     {
-        if (tuple.ElementNames is null)
+        if(tuple.ElementNames is null)
             return true; // No names to check.
 
         // Track which names we've already checked to handle duplicates.
         var checkedNames = new HashSet<string>();
 
-        for (var i = 0; i < tuple.ElementNames.Count; i++)
+        for(var i = 0; i < tuple.ElementNames.Count; i++)
         {
             var name = tuple.ElementNames[i];
-            if (name is null) continue;
+            if(name is null) continue;
 
             // Only check the first occurrence of each name.
-            if (!checkedNames.Add(name)) continue;
+            if(!checkedNames.Add(name)) continue;
 
             var namedResolved = ResolveTupleMemberType(tuple, name);
             var positionalResolved = ResolveTupleMemberType(tuple, $"Item{i + 1}");
 
-            if (namedResolved is null || positionalResolved is null)
+            if(namedResolved is null || positionalResolved is null)
                 return false;
             // The named access resolves to the first element with that name,
             // which is at position i (since we skip duplicates).
-            if (namedResolved.DisplayName != tuple.ElementTypes[i].DisplayName)
+            if(namedResolved.DisplayName != tuple.ElementTypes[i].DisplayName)
                 return false;
         }
         return true;
@@ -126,7 +126,7 @@ public class TupleTypeCheckerPropertyTests
     private static IType? ResolveTupleMemberType(TupleType tuple, string memberName)
     {
         // Check positional access: Item1, Item2, ..., ItemN (1-indexed).
-        if (memberName.StartsWith("Item", StringComparison.Ordinal)
+        if(memberName.StartsWith("Item", StringComparison.Ordinal)
             && int.TryParse(memberName.AsSpan(4), out var itemIndex)
             && itemIndex >= 1
             && itemIndex <= tuple.Arity)
@@ -135,11 +135,11 @@ public class TupleTypeCheckerPropertyTests
         }
 
         // Check named access.
-        if (tuple.ElementNames is not null)
+        if(tuple.ElementNames is not null)
         {
-            for (var i = 0; i < tuple.ElementNames.Count; i++)
+            for(var i = 0; i < tuple.ElementNames.Count; i++)
             {
-                if (tuple.ElementNames[i] == memberName)
+                if(tuple.ElementNames[i] == memberName)
                     return tuple.ElementTypes[i];
             }
         }
@@ -241,10 +241,10 @@ public static class TupleTypePairGenerator
 
     private static bool TypeArraysEqual(IType[] a, IType[] b)
     {
-        if (a.Length != b.Length) return false;
-        for (var i = 0; i < a.Length; i++)
+        if(a.Length != b.Length) return false;
+        for(var i = 0; i < a.Length; i++)
         {
-            if (a[i].DisplayName != b[i].DisplayName)
+            if(a[i].DisplayName != b[i].DisplayName)
                 return false;
         }
         return true;
@@ -272,7 +272,7 @@ public static class TupleTypeAndInvalidNameGenerator
     private static bool IsValidMemberName(TupleType tuple, string name)
     {
         // Check positional names.
-        if (name.StartsWith("Item", StringComparison.Ordinal)
+        if(name.StartsWith("Item", StringComparison.Ordinal)
             && int.TryParse(name.AsSpan(4), out var index)
             && index >= 1 && index <= tuple.Arity)
         {
@@ -280,11 +280,11 @@ public static class TupleTypeAndInvalidNameGenerator
         }
 
         // Check declared names.
-        if (tuple.ElementNames is not null)
+        if(tuple.ElementNames is not null)
         {
-            for (var i = 0; i < tuple.ElementNames.Count; i++)
+            for(var i = 0; i < tuple.ElementNames.Count; i++)
             {
-                if (tuple.ElementNames[i] == name)
+                if(tuple.ElementNames[i] == name)
                     return true;
             }
         }

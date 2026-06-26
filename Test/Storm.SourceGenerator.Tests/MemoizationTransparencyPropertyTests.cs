@@ -67,7 +67,7 @@ public class MemoizationTransparencyPropertyTests
         return path =>
         {
             var normalized = StormImportResolver.CanonicalizePath(path);
-            if (files.TryGetValue(normalized, out var contents))
+            if(files.TryGetValue(normalized, out var contents))
             {
                 return contents;
             }
@@ -110,7 +110,7 @@ public class MemoizationTransparencyPropertyTests
             : new EmissionContext(ns, grammarName, grammarIr, plan);
 
         string runtimeSource, astSource, lexerSource, parserSource;
-        lock (EmitLock)
+        lock(EmitLock)
         {
             runtimeSource = AstEmitter.EmitRuntimeTypes();
             astSource = AstEmitter.EmitAstNodes(context);
@@ -221,9 +221,9 @@ public class MemoizationTransparencyPropertyTests
 
         var sb = new System.Text.StringBuilder();
         sb.Append(type.Name).Append('[').Append(start).Append(',').Append(length).Append("](");
-        foreach (var child in children)
+        foreach(var child in children)
         {
-            if (child != null)
+            if(child != null)
             {
                 sb.Append(StructuralKey(child)).Append(';');
             }
@@ -245,7 +245,7 @@ public class MemoizationTransparencyPropertyTests
         var numGen = Gen.Choose(0, 999).Select(n => n.ToString());
         var identGen = Gen.Elements("foo", "bar", "baz", "qux", "x", "y", "z");
 
-        if (depth >= 3)
+        if(depth >= 3)
         {
             // Base case: only atoms to prevent infinite recursion
             return Gen.OneOf(numGen, identGen);
@@ -254,7 +254,7 @@ public class MemoizationTransparencyPropertyTests
         var callGen = identGen.SelectMany(name =>
             Gen.Choose(0, 3).SelectMany(argCount =>
             {
-                if (argCount == 0)
+                if(argCount == 0)
                     return Gen.Constant($"{name}()");
 
                 return Gen.ArrayOf(GenValidExpr(depth + 1), argCount)
@@ -284,7 +284,7 @@ public class MemoizationTransparencyPropertyTests
 
         return Gen.Choose(0, 6).SelectMany(count =>
         {
-            if (count == 0)
+            if(count == 0)
                 return Gen.Constant("");
 
             return Gen.ArrayOf(tokenGen, count)
@@ -327,7 +327,7 @@ public class MemoizationTransparencyPropertyTests
         var unmemoizedAsm = UnmemoizedAsm.Value;
 
         var samples = GenMixedInput().Sample(200);
-        foreach (var input in samples)
+        foreach(var input in samples)
         {
             var (memoNode, memoDiagCount) = ParseWithDiagnostics(
                 memoizedAsm, "Memo.Generated", "Memo", "Start", input);
@@ -343,7 +343,7 @@ public class MemoizationTransparencyPropertyTests
                 $"{(plainSucceeded ? "succeeded" : "failed")} for input [{input}].");
 
             // When both succeed, AST structure must be identical
-            if (memoSucceeded && plainSucceeded)
+            if(memoSucceeded && plainSucceeded)
             {
                 var memoKey = StructuralKey(memoNode!);
                 var plainKey = StructuralKey(plainNode!);

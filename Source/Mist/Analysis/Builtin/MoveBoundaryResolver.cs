@@ -164,14 +164,14 @@ public sealed class MoveBoundaryResolver
         ArgumentNullException.ThrowIfNull(diagnostics);
 
         // ── Step 1: default(T) / bare default → fresh owned graph (Req 6 AC 10) ──
-        if (IsDefaultExpression(source))
+        if(IsDefaultExpression(source))
         {
             return new MoveResolution(MoveOutcome.DefaultGraph, ConsumedBinding: null);
         }
 
         // ── Step 2: value/primitive types copy — never alias (Req 4 AC 3/4) ──
         var sourceType = model.GetTypeOf(source);
-        if (sourceType is not null && (IsValueType(sourceType) || IsPrimitive(sourceType)))
+        if(sourceType is not null && (IsValueType(sourceType) || IsPrimitive(sourceType)))
         {
             return new MoveResolution(MoveOutcome.ValueCopy, ConsumedBinding: null);
         }
@@ -179,14 +179,14 @@ public sealed class MoveBoundaryResolver
         // ── Step 3: already-owned source (Req 6 AC 1–3, AC 8) ──
         // A bare reference to an owned binding/parameter is a move from that binding.
         var referencedSymbol = TryResolveIdentifierSymbol(source, model);
-        if (referencedSymbol is Symbol refSym &&
+        if(referencedSymbol is Symbol refSym &&
             refSym.Kind is SymbolKind.LocalVariable or SymbolKind.Parameter)
         {
-            if (refSym.OwnershipTier == OwnershipTier.Owned)
+            if(refSym.OwnershipTier == OwnershipTier.Owned)
             {
                 // The truth table guards the move: a move is only permitted from the
                 // Live state. LentRef/LentFrozen/LentReadonly/Moved reject the move.
-                if (flowState.VariableStates.TryGetValue(refSym, out var currentState) &&
+                if(flowState.VariableStates.TryGetValue(refSym, out var currentState) &&
                     !IsMovePermitted(currentState))
                 {
                     ReportMoveStateViolation(refSym, currentState, source, model, diagnostics);
@@ -204,7 +204,7 @@ public sealed class MoveBoundaryResolver
             // A non-owned binding never yields unique ownership by reference alone — it must
             // be bridged via IClonable (handled below).
         }
-        else if (IsConstructorOrOwnedCall(source, model))
+        else if(IsConstructorOrOwnedCall(source, model))
         {
             // Constructor call (new T()) or a call returning an owned value yields a fresh
             // uniquely-owned value with no binding to consume.
@@ -215,7 +215,7 @@ public sealed class MoveBoundaryResolver
         // Cloning from a lent tier (borrowed/frozen/readonly ref) does NOT consume the
         // lender — Clone() reads through the reference (Req 8 AC 5). Because the clone
         // outcome never marks any binding Moved, the lender's flow state is left untouched.
-        if (sourceType is not null && ImplementsIClonable(sourceType))
+        if(sourceType is not null && ImplementsIClonable(sourceType))
         {
             model.RecordImplicitClone(source, destinationType ?? sourceType);
             return new MoveResolution(MoveOutcome.ImplicitClone, ConsumedBinding: null);
@@ -282,7 +282,7 @@ public sealed class MoveBoundaryResolver
     {
         // A resolvable reference type that does not implement IClonable gets the
         // clone-specific guidance.
-        if (sourceType is not null && IsNamedReferenceType(sourceType))
+        if(sourceType is not null && IsNamedReferenceType(sourceType))
         {
             diagnostics.Add(MakeDiagnostic(
                 OwnershipAnalyzer.NotClonable,
@@ -309,7 +309,7 @@ public sealed class MoveBoundaryResolver
     /// </summary>
     private static bool IsDefaultExpression(SyntaxNode node)
     {
-        switch (node)
+        switch(node)
         {
             case DefaultExpressionPrimaryNode:
             case DefaultLiteralExpressionPrimaryNode:
@@ -322,13 +322,13 @@ public sealed class MoveBoundaryResolver
         // Recurse through single non-null child wrappers.
         SyntaxNode? singleChild = null;
         var childCount = 0;
-        foreach (var child in node.Children())
+        foreach(var child in node.Children())
         {
-            if (child is null)
+            if(child is null)
                 continue;
             childCount++;
             singleChild = child;
-            if (childCount > 1)
+            if(childCount > 1)
                 break;
         }
 
@@ -343,37 +343,37 @@ public sealed class MoveBoundaryResolver
     private static bool IsConstructorOrOwnedCall(SyntaxNode node, ISemanticModel model)
     {
         // Direct match on primary nodes.
-        if (node is ObjectCreationExpressionPrimaryNode)
+        if(node is ObjectCreationExpressionPrimaryNode)
             return true;
 
         // PostfixNode with suffixes — check for a method call or invocation returning owned.
-        if (node is PostfixNode postfix)
+        if(node is PostfixNode postfix)
         {
-            if (postfix.Suffix.Length > 0)
+            if(postfix.Suffix.Length > 0)
             {
                 var lastSuffix = postfix.Suffix[^1];
 
                 // Method call: receiver.Method()
-                if (lastSuffix is MethodCallSuffixPostfixSuffixNode methodCall)
+                if(lastSuffix is MethodCallSuffixPostfixSuffixNode methodCall)
                 {
                     var methodSymbol = model.GetDeclaredSymbol(methodCall);
-                    if (methodSymbol is Symbol methodSym && methodSym.OwnershipTier == OwnershipTier.Owned)
+                    if(methodSymbol is Symbol methodSym && methodSym.OwnershipTier == OwnershipTier.Owned)
                         return true;
-                    if (methodSymbol is Symbol returnSym && returnSym.DeclaredType is not null && IsOwnedType(returnSym.DeclaredType))
+                    if(methodSymbol is Symbol returnSym && returnSym.DeclaredType is not null && IsOwnedType(returnSym.DeclaredType))
                         return true;
                 }
 
                 // Direct invocation: func()
-                if (lastSuffix is InvocationSuffixPostfixSuffixNode invocation)
+                if(lastSuffix is InvocationSuffixPostfixSuffixNode invocation)
                 {
                     ISymbol? invokedSymbol = null;
-                    if (postfix.Target is IdentifierExpressionPrimaryNode targetId)
+                    if(postfix.Target is IdentifierExpressionPrimaryNode targetId)
                         invokedSymbol = model.GetDeclaredSymbol(targetId);
                     invokedSymbol ??= model.GetDeclaredSymbol(invocation);
 
-                    if (invokedSymbol is Symbol funcSym && funcSym.OwnershipTier == OwnershipTier.Owned)
+                    if(invokedSymbol is Symbol funcSym && funcSym.OwnershipTier == OwnershipTier.Owned)
                         return true;
-                    if (invokedSymbol is Symbol funcRetSym && funcRetSym.DeclaredType is not null && IsOwnedType(funcRetSym.DeclaredType))
+                    if(invokedSymbol is Symbol funcRetSym && funcRetSym.DeclaredType is not null && IsOwnedType(funcRetSym.DeclaredType))
                         return true;
                 }
 
@@ -381,7 +381,7 @@ public sealed class MoveBoundaryResolver
             }
 
             // No suffixes — check if the target is a constructor call.
-            if (postfix.Target is ObjectCreationExpressionPrimaryNode)
+            if(postfix.Target is ObjectCreationExpressionPrimaryNode)
                 return true;
 
             return false;
@@ -390,13 +390,13 @@ public sealed class MoveBoundaryResolver
         // Walk through single-child wrapper nodes (ExpressionNode → AssignmentNode → etc.)
         SyntaxNode? singleChild = null;
         var childCount = 0;
-        foreach (var child in node.Children())
+        foreach(var child in node.Children())
         {
-            if (child is null)
+            if(child is null)
                 continue;
             childCount++;
             singleChild = child;
-            if (childCount > 1)
+            if(childCount > 1)
                 break;
         }
 
@@ -410,29 +410,29 @@ public sealed class MoveBoundaryResolver
     /// </summary>
     private static ISymbol? TryResolveIdentifierSymbol(SyntaxNode node, ISemanticModel model)
     {
-        if (node is ExpressionNode expr)
+        if(node is ExpressionNode expr)
             return expr.AsAssignmentOrNull() is { } exprAssignment
                 ? TryResolveIdentifierSymbol(exprAssignment, model)
                 : null;
 
-        if (node is AssignmentNode assignment)
+        if(node is AssignmentNode assignment)
         {
-            if (assignment.Value is not null)
+            if(assignment.Value is not null)
                 return null;
             return TryResolveIdentifierSymbol(assignment.Target, model);
         }
 
-        if (node is PostfixNode postfix)
+        if(node is PostfixNode postfix)
         {
-            if (postfix.Suffix.Length > 0)
+            if(postfix.Suffix.Length > 0)
                 return null;
             return TryResolveIdentifierSymbol(postfix.Target, model);
         }
 
-        if (node is IdentifierExpressionPrimaryNode identifier)
+        if(node is IdentifierExpressionPrimaryNode identifier)
         {
             var symbol = model.GetDeclaredSymbol(identifier);
-            if (symbol is not null &&
+            if(symbol is not null &&
                 symbol.Kind is SymbolKind.LocalVariable or SymbolKind.Parameter)
             {
                 return symbol;
@@ -441,13 +441,13 @@ public sealed class MoveBoundaryResolver
         }
 
         var nonNullChildren = new List<SyntaxNode>();
-        foreach (var child in node.Children())
+        foreach(var child in node.Children())
         {
-            if (child is not null)
+            if(child is not null)
                 nonNullChildren.Add(child);
         }
 
-        if (nonNullChildren.Count == 1)
+        if(nonNullChildren.Count == 1)
             return TryResolveIdentifierSymbol(nonNullChildren[0], model);
 
         return null;
@@ -471,15 +471,15 @@ public sealed class MoveBoundaryResolver
     private static bool IsPrimitive(IType type)
     {
         var resolved = Unwrap(type);
-        if (resolved.Kind is TypeKind.Struct or TypeKind.Enum)
+        if(resolved.Kind is TypeKind.Struct or TypeKind.Enum)
             return true;
 
         // String is the only reference-typed primitive.
-        if (resolved is ClassType ct)
+        if(resolved is ClassType ct)
         {
-            if (ct.IsBackendBacked && ct.ContainingNamespace == "Standard" && ct.DisplayName == "String")
+            if(ct.IsBackendBacked && ct.ContainingNamespace == "Standard" && ct.DisplayName == "String")
                 return true;
-            if (ct.DisplayName == "string")
+            if(ct.DisplayName == "string")
                 return true;
         }
 
@@ -543,9 +543,9 @@ public sealed class MoveBoundaryResolver
     /// </summary>
     private static IType Unwrap(IType type)
     {
-        while (true)
+        while(true)
         {
-            switch (type)
+            switch(type)
             {
                 case TypeAliasType alias:
                     type = alias.UnderlyingType;
@@ -578,20 +578,20 @@ public sealed class MoveBoundaryResolver
     private static string GetNodeText(SyntaxNode node, ISemanticModel model)
     {
         var span = node.Span;
-        if (span.Length <= 0)
+        if(span.Length <= 0)
             return "<expression>";
 
-        foreach (var unit in model.Units)
+        foreach(var unit in model.Units)
         {
             var source = unit.Source;
-            if (source is null)
+            if(source is null)
                 continue;
 
             var contents = source.Contents;
-            if (span.Start >= 0 && span.Start + span.Length <= contents.Length)
+            if(span.Start >= 0 && span.Start + span.Length <= contents.Length)
             {
                 var text = contents.Substring(span.Start, span.Length).Trim();
-                if (text.Length > 0)
+                if(text.Length > 0)
                     return text;
             }
         }
@@ -614,23 +614,23 @@ public sealed class MoveBoundaryResolver
         string? compilationUnitPath = null;
 
         var span = node.Span;
-        if (span.Length > 0)
+        if(span.Length > 0)
         {
             var asts = model.Asts;
             var units = model.Units;
             var astIndex = -1;
 
-            for (var i = 0; i < asts.Length; i++)
+            for(var i = 0; i < asts.Length; i++)
             {
                 var astSpan = asts[i].Span;
-                if (span.Start >= astSpan.Start && span.Start + span.Length <= astSpan.Start + astSpan.Length)
+                if(span.Start >= astSpan.Start && span.Start + span.Length <= astSpan.Start + astSpan.Length)
                 {
                     astIndex = i;
                     break;
                 }
             }
 
-            if (astIndex >= 0 && astIndex < units.Count)
+            if(astIndex >= 0 && astIndex < units.Count)
             {
                 var source = units[astIndex].Source;
                 compilationUnitPath = source.Path;

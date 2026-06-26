@@ -99,7 +99,7 @@ public class UnknownInheritanceProhibitionTests
 
         var parseBag = new DiagnosticBag();
         var parseResult = Parser.Parse(tokens, parseBag);
-        if (parseResult.Root is null)
+        if(parseResult.Root is null)
         {
             // Parser produced no root — return parse diagnostics so
             // callers can still check for the absence of MIST_SB_0054.

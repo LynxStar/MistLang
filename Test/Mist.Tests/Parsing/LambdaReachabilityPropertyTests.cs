@@ -58,7 +58,7 @@ public class LambdaReachabilityPropertyTests
             .Where(d => d.Severity == DiagnosticSeverity.Error)
             .ToList();
 
-        if (errors.Count > 0)
+        if(errors.Count > 0)
             throw new InvalidOperationException(
                 $"Unexpected parse errors:\n  {string.Join("\n  ", errors.Select(e => e.Message))}\nSource:\n{source}");
 
@@ -72,16 +72,16 @@ public class LambdaReachabilityPropertyTests
     /// </summary>
     private static T? FindFirst<T>(SyntaxNode root) where T : SyntaxNode
     {
-        if (root is T match)
+        if(root is T match)
             return match;
 
-        foreach (var child in root.Children())
+        foreach(var child in root.Children())
         {
-            if (child is null)
+            if(child is null)
                 continue;
 
             var found = FindFirst<T>(child);
-            if (found is not null)
+            if(found is not null)
                 return found;
         }
 
@@ -111,22 +111,22 @@ public class LambdaReachabilityPropertyTests
 
         // ── Slot 1: assignment RHS — f = L; ──────────────────────────────────
         var assignFailure = CheckAssignmentRhs(l);
-        if (assignFailure is not null)
+        if(assignFailure is not null)
             return false.ToProperty().Label(assignFailure);
 
         // ── Slot 2: call argument — g(L); ────────────────────────────────────
         var argFailure = CheckCallArgument(l);
-        if (argFailure is not null)
+        if(argFailure is not null)
             return false.ToProperty().Label(argFailure);
 
         // ── Slot 3: return value — return L; ─────────────────────────────────
         var returnFailure = CheckReturnValue(l);
-        if (returnFailure is not null)
+        if(returnFailure is not null)
             return false.ToProperty().Label(returnFailure);
 
         // ── Slot 4: nested lambda body — q => L ──────────────────────────────
         var nestedFailure = CheckNestedLambdaBody(l);
-        if (nestedFailure is not null)
+        if(nestedFailure is not null)
             return false.ToProperty().Label(nestedFailure);
 
         return true.ToProperty();
@@ -142,13 +142,13 @@ public class LambdaReachabilityPropertyTests
         var cu = ParseOrFail(source);
 
         var stmt = FindFirst<ExpressionStatementNode>(cu);
-        if (stmt is null)
+        if(stmt is null)
             return $"[assignment RHS] no ExpressionStatementNode found.\nLambda: {lambdaText}\nSource:\n{source}";
 
-        if (stmt.Expression is not AssignmentFormExpressionNode assignForm)
+        if(stmt.Expression is not AssignmentFormExpressionNode assignForm)
             return $"[assignment RHS] expression was {stmt.Expression?.GetType().Name ?? "null"}, expected AssignmentFormExpressionNode.\nLambda: {lambdaText}\nSource:\n{source}";
 
-        if (assignForm.Assignment.Value is not LambdaFormExpressionNode)
+        if(assignForm.Assignment.Value is not LambdaFormExpressionNode)
             return $"[assignment RHS] assignment value was {assignForm.Assignment.Value?.GetType().Name ?? "null"}, expected LambdaFormExpressionNode.\nLambda: {lambdaText}\nSource:\n{source}";
 
         return null;
@@ -164,10 +164,10 @@ public class LambdaReachabilityPropertyTests
         var cu = ParseOrFail(source);
 
         var arg = FindFirst<ValueArgumentArgumentNode>(cu);
-        if (arg is null)
+        if(arg is null)
             return $"[call argument] no ValueArgumentArgumentNode found.\nLambda: {lambdaText}\nSource:\n{source}";
 
-        if (arg.Expression is not LambdaFormExpressionNode)
+        if(arg.Expression is not LambdaFormExpressionNode)
             return $"[call argument] argument expression was {arg.Expression?.GetType().Name ?? "null"}, expected LambdaFormExpressionNode.\nLambda: {lambdaText}\nSource:\n{source}";
 
         return null;
@@ -183,10 +183,10 @@ public class LambdaReachabilityPropertyTests
         var cu = ParseOrFail(source);
 
         var ret = FindFirst<ReturnStatementNode>(cu);
-        if (ret is null)
+        if(ret is null)
             return $"[return value] no ReturnStatementNode found.\nLambda: {lambdaText}\nSource:\n{source}";
 
-        if (ret.Value is not LambdaFormExpressionNode)
+        if(ret.Value is not LambdaFormExpressionNode)
             return $"[return value] return value was {ret.Value?.GetType().Name ?? "null"}, expected LambdaFormExpressionNode.\nLambda: {lambdaText}\nSource:\n{source}";
 
         return null;
@@ -203,10 +203,10 @@ public class LambdaReachabilityPropertyTests
 
         // The outer lambda is the first lambda encountered top-down.
         var outer = FindFirst<ExpressionLambdaLambdaExpressionNode>(cu);
-        if (outer is null)
+        if(outer is null)
             return $"[nested lambda body] no outer ExpressionLambdaLambdaExpressionNode found.\nLambda: {lambdaText}\nSource:\n{source}";
 
-        if (outer.Body is not LambdaFormExpressionNode)
+        if(outer.Body is not LambdaFormExpressionNode)
             return $"[nested lambda body] outer lambda body was {outer.Body?.GetType().Name ?? "null"}, expected LambdaFormExpressionNode.\nLambda: {lambdaText}\nSource:\n{source}";
 
         return null;

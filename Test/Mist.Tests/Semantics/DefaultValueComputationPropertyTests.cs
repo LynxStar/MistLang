@@ -100,18 +100,24 @@ public class DefaultValueComputationPropertyTests
 
     private static TypeReferenceNode MakePrimitiveTypeRef(string typeName)
     {
-        return new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
+        return new TypeReferenceNode
         {
-            PrimitiveType = MakePrimitiveType(typeName),
-        } };
+            First = new PrimitiveSingleTypeRefSingleTypeRefNode
+            {
+                PrimitiveType = MakePrimitiveType(typeName),
+            }
+        };
     }
 
     private static TypeReferenceNode MakeNamedTypeRef(string typeName)
     {
-        return new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
+        return new TypeReferenceNode
         {
-            Name = new QualifiedIdentifierNode { IDENTIFIER = MakeToken(typeName) },
-        } };
+            First = new NamedSingleTypeRefSingleTypeRefNode
+            {
+                Name = new QualifiedIdentifierNode { IDENTIFIER = MakeToken(typeName) },
+            }
+        };
     }
 
     private static FieldDeclarationNode MakeField(
@@ -398,7 +404,7 @@ public class DefaultValueComputationPropertyTests
             from hasInit in Gen.Elements(true, false)
             select ImmutableArray.Create(new FieldSpec(FieldNames[0], ft, hasInit));
 
-        for (var i = 1; i < count; i++)
+        for(var i = 1; i < count; i++)
         {
             var idx = i;
             result = from arr in result
@@ -415,9 +421,9 @@ public class DefaultValueComputationPropertyTests
 
     private static ImmutableArray<FieldSpec> EnsureMixed(ImmutableArray<FieldSpec> fields)
     {
-        if (fields.All(f => f.HasInitializer))
+        if(fields.All(f => f.HasInitializer))
             return fields.SetItem(0, fields[0] with { HasInitializer = false });
-        if (fields.All(f => !f.HasInitializer))
+        if(fields.All(f => !f.HasInitializer))
             return fields.SetItem(0, fields[0] with { HasInitializer = true });
         return fields;
     }
@@ -445,7 +451,7 @@ public class DefaultValueComputationPropertyTests
             from hasInit in Gen.Elements(true, false)
             select ImmutableArray.Create(new FieldSpec(FieldNames[0], "int", hasInit));
 
-        for (var i = 1; i < count; i++)
+        for(var i = 1; i < count; i++)
         {
             var idx = i;
             result = from arr in result
@@ -508,7 +514,7 @@ public class DefaultValueComputationPropertyTests
             from hasInit in Gen.Elements(true, false)
             select ImmutableArray.Create(new FieldSpec(namePool[0], ft, hasInit));
 
-        for (var i = 1; i < count; i++)
+        for(var i = 1; i < count; i++)
         {
             var idx = i;
             result = from arr in result
@@ -684,7 +690,7 @@ public class DefaultValueComputationPropertyTests
 
         // 3. Optionally add an explicit default block that overrides base fields
         ImmutableArray<MemberDeclarationNode> derivedMembers;
-        if (scenario.OverriddenBaseFieldNames.Length > 0)
+        if(scenario.OverriddenBaseFieldNames.Length > 0)
         {
             var entries = scenario.OverriddenBaseFieldNames
                 .Select(name => (DefaultFieldInitializerNode)
@@ -764,28 +770,28 @@ public class DefaultValueComputationPropertyTests
         var (model, _) = BuildModel(ast);
 
         var defaultValues = GetDefaultValues(model, scenario.TypeName);
-        if (defaultValues is null)
+        if(defaultValues is null)
             return false;
 
-        foreach (var field in scenario.Fields)
+        foreach(var field in scenario.Fields)
         {
-            if (!defaultValues.TryGetValue(field.FieldName, out var dfv))
+            if(!defaultValues.TryGetValue(field.FieldName, out var dfv))
                 return false;
 
-            if (field.HasInitializer)
+            if(field.HasInitializer)
             {
                 // Field with initializer → FieldInitializer kind
-                if (dfv.ValueKind != DefaultValueKind.FieldInitializer)
+                if(dfv.ValueKind != DefaultValueKind.FieldInitializer)
                     return false;
             }
             else
             {
                 // Field without initializer → ZeroInitialized kind with correct zero value
-                if (dfv.ValueKind != DefaultValueKind.ZeroInitialized)
+                if(dfv.ValueKind != DefaultValueKind.ZeroInitialized)
                     return false;
 
                 var expectedZero = ExpectedZeroValue(field.FieldType);
-                if (!Equals(dfv.ConstantValue, expectedZero))
+                if(!Equals(dfv.ConstantValue, expectedZero))
                     return false;
             }
         }
@@ -822,33 +828,33 @@ public class DefaultValueComputationPropertyTests
         var (model, _) = BuildModel(ast);
 
         var defaultValues = GetDefaultValues(model, scenario.TypeName);
-        if (defaultValues is null)
+        if(defaultValues is null)
             return false;
 
         var overriddenSet = scenario.OverriddenFieldNames.ToHashSet();
 
-        foreach (var field in scenario.Fields)
+        foreach(var field in scenario.Fields)
         {
-            if (!defaultValues.TryGetValue(field.FieldName, out var dfv))
+            if(!defaultValues.TryGetValue(field.FieldName, out var dfv))
                 return false;
 
-            if (overriddenSet.Contains(field.FieldName))
+            if(overriddenSet.Contains(field.FieldName))
             {
                 // This field was overridden → ExplicitOverride kind
-                if (dfv.ValueKind != DefaultValueKind.ExplicitOverride)
+                if(dfv.ValueKind != DefaultValueKind.ExplicitOverride)
                     return false;
             }
             else
             {
                 // Not overridden → should retain original value kind
-                if (field.HasInitializer)
+                if(field.HasInitializer)
                 {
-                    if (dfv.ValueKind != DefaultValueKind.FieldInitializer)
+                    if(dfv.ValueKind != DefaultValueKind.FieldInitializer)
                         return false;
                 }
                 else
                 {
-                    if (dfv.ValueKind != DefaultValueKind.ZeroInitialized)
+                    if(dfv.ValueKind != DefaultValueKind.ZeroInitialized)
                         return false;
                 }
             }
@@ -888,38 +894,38 @@ public class DefaultValueComputationPropertyTests
         var (model, _) = BuildModel(ast);
 
         var defaultValues = GetDefaultValues(model, scenario.TypeName);
-        if (defaultValues is null)
+        if(defaultValues is null)
             return false;
 
         // The abstract-typed field should have a TypeBinding default value
-        if (!defaultValues.TryGetValue(scenario.AbstractFieldName, out var dfv))
+        if(!defaultValues.TryGetValue(scenario.AbstractFieldName, out var dfv))
             return false;
 
-        if (dfv.ValueKind != DefaultValueKind.TypeBinding)
+        if(dfv.ValueKind != DefaultValueKind.TypeBinding)
             return false;
 
         // ConcreteType should match the bound type
-        if (dfv.ConcreteType is null || dfv.ConcreteType.DisplayName != scenario.ConcreteTypeName)
+        if(dfv.ConcreteType is null || dfv.ConcreteType.DisplayName != scenario.ConcreteTypeName)
             return false;
 
         // Verify nested overrides
-        if (scenario.HasNestedOverrides)
+        if(scenario.HasNestedOverrides)
         {
-            if (dfv.NestedOverrides is null || dfv.NestedOverrides.Count == 0)
+            if(dfv.NestedOverrides is null || dfv.NestedOverrides.Count == 0)
                 return false;
 
             // The first concrete field should be overridden
             var overriddenFieldName = FieldNames[0];
-            if (!dfv.NestedOverrides.TryGetValue(overriddenFieldName, out var nestedDfv))
+            if(!dfv.NestedOverrides.TryGetValue(overriddenFieldName, out var nestedDfv))
                 return false;
 
-            if (nestedDfv.ValueKind != DefaultValueKind.ExplicitOverride)
+            if(nestedDfv.ValueKind != DefaultValueKind.ExplicitOverride)
                 return false;
         }
         else
         {
             // No nested overrides — NestedOverrides should be null or empty
-            if (dfv.NestedOverrides is not null && dfv.NestedOverrides.Count > 0)
+            if(dfv.NestedOverrides is not null && dfv.NestedOverrides.Count > 0)
                 return false;
         }
 
@@ -961,56 +967,56 @@ public class DefaultValueComputationPropertyTests
 
         // The derived class must have default values
         var derivedDefaults = GetDefaultValues(model, scenario.DerivedTypeName);
-        if (derivedDefaults is null)
+        if(derivedDefaults is null)
             return false;
 
         var overriddenSet = scenario.OverriddenBaseFieldNames.ToHashSet();
 
         // 1. Verify inherited base fields
-        foreach (var baseField in scenario.BaseFields)
+        foreach(var baseField in scenario.BaseFields)
         {
-            if (!derivedDefaults.TryGetValue(baseField.FieldName, out var dfv))
+            if(!derivedDefaults.TryGetValue(baseField.FieldName, out var dfv))
                 return false;
 
-            if (overriddenSet.Contains(baseField.FieldName))
+            if(overriddenSet.Contains(baseField.FieldName))
             {
                 // Overridden base field → ExplicitOverride
-                if (dfv.ValueKind != DefaultValueKind.ExplicitOverride)
+                if(dfv.ValueKind != DefaultValueKind.ExplicitOverride)
                     return false;
             }
             else
             {
                 // Non-overridden inherited field → InheritedDefault
-                if (dfv.ValueKind != DefaultValueKind.InheritedDefault)
+                if(dfv.ValueKind != DefaultValueKind.InheritedDefault)
                     return false;
             }
         }
 
         // 2. Verify derived class's own new fields
-        foreach (var derivedField in scenario.DerivedFields)
+        foreach(var derivedField in scenario.DerivedFields)
         {
-            if (!derivedDefaults.TryGetValue(derivedField.FieldName, out var dfv))
+            if(!derivedDefaults.TryGetValue(derivedField.FieldName, out var dfv))
                 return false;
 
-            if (derivedField.HasInitializer)
+            if(derivedField.HasInitializer)
             {
-                if (dfv.ValueKind != DefaultValueKind.FieldInitializer)
+                if(dfv.ValueKind != DefaultValueKind.FieldInitializer)
                     return false;
             }
             else
             {
-                if (dfv.ValueKind != DefaultValueKind.ZeroInitialized)
+                if(dfv.ValueKind != DefaultValueKind.ZeroInitialized)
                     return false;
 
                 var expectedZero = ExpectedZeroValue(derivedField.FieldType);
-                if (!Equals(dfv.ConstantValue, expectedZero))
+                if(!Equals(dfv.ConstantValue, expectedZero))
                     return false;
             }
         }
 
         // 3. Verify total count: all base fields + all derived fields
         var expectedCount = scenario.BaseFields.Length + scenario.DerivedFields.Length;
-        if (derivedDefaults.Count != expectedCount)
+        if(derivedDefaults.Count != expectedCount)
             return false;
 
         return true;

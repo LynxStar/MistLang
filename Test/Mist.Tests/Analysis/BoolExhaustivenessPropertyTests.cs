@@ -107,7 +107,7 @@ public class BoolExhaustivenessPropertyTests
     private static bool ShouldBeExhaustive(IReadOnlyList<(ArmKind Kind, bool HasGuard)> arms)
     {
         var hasUnguardedCatchAll = arms.Any(a => a.Kind == ArmKind.CatchAll && !a.HasGuard);
-        if (hasUnguardedCatchAll)
+        if(hasUnguardedCatchAll)
             return true;
 
         var hasUnguardedTrue = arms.Any(a => a.Kind == ArmKind.TrueConstant && !a.HasGuard);

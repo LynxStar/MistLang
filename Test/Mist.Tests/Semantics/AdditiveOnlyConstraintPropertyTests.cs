@@ -77,7 +77,7 @@ public class AdditiveOnlyConstraintPropertyTests
             Members = members,
         };
 
-        if (baseClassName is not null)
+        if(baseClassName is not null)
         {
             var _baseList1 = MakeBaseList(baseClassName);
 
@@ -96,10 +96,13 @@ public class AdditiveOnlyConstraintPropertyTests
             Field = new FieldDeclarationNode
             {
                 Name = MakeToken(name),
-                Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                Type = new TypeReferenceNode
                 {
-                    PrimitiveType = new IntTypePrimitiveTypeNode(),
-                } },
+                    First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                    {
+                        PrimitiveType = new IntTypePrimitiveTypeNode(),
+                    }
+                },
             },
         };
     }
@@ -246,37 +249,37 @@ public class AdditiveOnlyConstraintPropertyTests
         // Reserve the redeclared name so we don't accidentally use it elsewhere
         usedNames.Add(redeclaredName);
 
-        for (var i = 0; i < classNames.Length; i++)
+        for(var i = 0; i < classNames.Length; i++)
         {
             var fields = new List<string>();
             var methods = new List<string>();
 
             // Add the redeclared member at the ancestor level
-            if (i == ancestorLevel)
+            if(i == ancestorLevel)
             {
-                if (ancestorKind == MemberKind.Field)
+                if(ancestorKind == MemberKind.Field)
                     fields.Add(redeclaredName);
                 else
                     methods.Add(redeclaredName);
             }
 
             // Add the redeclared member at the derived level (this is the redeclaration)
-            if (i == redeclLevel)
+            if(i == redeclLevel)
             {
-                if (derivedKind == MemberKind.Field)
+                if(derivedKind == MemberKind.Field)
                     fields.Add(redeclaredName);
                 else
                     methods.Add(redeclaredName);
             }
 
             // Add 0-1 unique fields at this level
-            if (i != ancestorLevel || ancestorKind != MemberKind.Field)
+            if(i != ancestorLevel || ancestorKind != MemberKind.Field)
             {
                 // Try to add one unique field
-                while (fieldIdx < shuffledFields.Length)
+                while(fieldIdx < shuffledFields.Length)
                 {
                     var candidate = shuffledFields[fieldIdx++];
-                    if (usedNames.Add(candidate))
+                    if(usedNames.Add(candidate))
                     {
                         fields.Add(candidate);
                         break;
@@ -285,12 +288,12 @@ public class AdditiveOnlyConstraintPropertyTests
             }
 
             // Add 0-1 unique methods at this level
-            if (i != ancestorLevel || ancestorKind != MemberKind.Method)
+            if(i != ancestorLevel || ancestorKind != MemberKind.Method)
             {
-                while (methodIdx < shuffledMethods.Length)
+                while(methodIdx < shuffledMethods.Length)
                 {
                     var candidate = shuffledMethods[methodIdx++];
-                    if (usedNames.Add(candidate))
+                    if(usedNames.Add(candidate))
                     {
                         methods.Add(candidate);
                         break;
@@ -342,20 +345,20 @@ public class AdditiveOnlyConstraintPropertyTests
         var fieldIdx = 0;
         var methodIdx = 0;
 
-        for (var i = 0; i < classNames.Length; i++)
+        for(var i = 0; i < classNames.Length; i++)
         {
             var fields = new List<string>();
             var methods = new List<string>();
 
             // Add 1-2 unique fields at this level
             var fieldCount = Math.Min(2, shuffledFields.Length - fieldIdx);
-            if (fieldCount > 0) fieldCount = 1; // Keep it simple: 1 field per level
-            for (var f = 0; f < fieldCount; f++)
+            if(fieldCount > 0) fieldCount = 1; // Keep it simple: 1 field per level
+            for(var f = 0; f < fieldCount; f++)
             {
-                while (fieldIdx < shuffledFields.Length)
+                while(fieldIdx < shuffledFields.Length)
                 {
                     var candidate = shuffledFields[fieldIdx++];
-                    if (usedNames.Add(candidate))
+                    if(usedNames.Add(candidate))
                     {
                         fields.Add(candidate);
                         break;
@@ -364,10 +367,10 @@ public class AdditiveOnlyConstraintPropertyTests
             }
 
             // Add 1 unique method at this level
-            while (methodIdx < shuffledMethods.Length)
+            while(methodIdx < shuffledMethods.Length)
             {
                 var candidate = shuffledMethods[methodIdx++];
-                if (usedNames.Add(candidate))
+                if(usedNames.Add(candidate))
                 {
                     methods.Add(candidate);
                     break;
@@ -402,16 +405,16 @@ public class AdditiveOnlyConstraintPropertyTests
     {
         var classDecls = new List<ClassDeclarationNode>();
 
-        foreach (var cls in classes)
+        foreach(var cls in classes)
         {
             var members = new List<MemberDeclarationNode>();
 
-            foreach (var field in cls.Fields)
+            foreach(var field in cls.Fields)
             {
                 members.Add(MakeFieldMember(field));
             }
 
-            foreach (var method in cls.Methods)
+            foreach(var method in cls.Methods)
             {
                 members.Add(MakeMethodMember(method));
             }
@@ -469,7 +472,7 @@ public class AdditiveOnlyConstraintPropertyTests
             .ToList();
 
         return redeclDiags.Count == 0;
-    ;
+        ;
     }
 
 }

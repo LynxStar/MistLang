@@ -24,9 +24,9 @@ internal sealed class InferenceContext
     public InferenceContext(IReadOnlyList<IType> typeParameters)
     {
         _bindings = new Dictionary<string, IType?>();
-        foreach (var tp in typeParameters)
+        foreach(var tp in typeParameters)
         {
-            if (tp is TypeParameterType tpt)
+            if(tp is TypeParameterType tpt)
                 _bindings[tpt.Name] = null;
         }
     }
@@ -42,20 +42,20 @@ internal sealed class InferenceContext
     /// <returns>True if binding succeeded; false if a conflict was recorded.</returns>
     public bool TryBind(string typeParameterName, IType concreteType)
     {
-        if (!_bindings.TryGetValue(typeParameterName, out var existing))
+        if(!_bindings.TryGetValue(typeParameterName, out var existing))
             return false;
 
-        if (existing is null)
+        if(existing is null)
         {
             _bindings[typeParameterName] = concreteType;
             return true;
         }
 
         // Already bound — check consistency by reference or display name.
-        if (ReferenceEquals(existing, concreteType))
+        if(ReferenceEquals(existing, concreteType))
             return true;
 
-        if (existing.DisplayName == concreteType.DisplayName)
+        if(existing.DisplayName == concreteType.DisplayName)
             return true;
 
         // Conflict: same type parameter bound to two different concrete types.
@@ -90,9 +90,9 @@ internal sealed class InferenceContext
     public IReadOnlyList<string> GetUnboundParameters()
     {
         var unbound = new List<string>();
-        foreach (var (name, type) in _bindings)
+        foreach(var (name, type) in _bindings)
         {
-            if (type is null)
+            if(type is null)
                 unbound.Add(name);
         }
 

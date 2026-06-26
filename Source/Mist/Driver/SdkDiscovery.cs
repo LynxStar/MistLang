@@ -42,11 +42,11 @@ public static partial class SdkDiscovery
     public static string? FindReferenceAssemblyPath(string targetFramework, DiagnosticBag diagnostics)
     {
         // 1. In-process cache (instant)
-        lock (_cacheLock)
+        lock(_cacheLock)
         {
-            if (_inProcessCacheInitialized)
+            if(_inProcessCacheInitialized)
             {
-                if (_inProcessCache is not null && Directory.Exists(_inProcessCache))
+                if(_inProcessCache is not null && Directory.Exists(_inProcessCache))
                     return _inProcessCache;
 
                 // Cached value is stale — fall through to rediscovery.
@@ -57,9 +57,9 @@ public static partial class SdkDiscovery
 
         // 2. Disk cache (file read, validated by Directory.Exists)
         var diskCached = ReadDiskCache();
-        if (diskCached is not null && Directory.Exists(diskCached))
+        if(diskCached is not null && Directory.Exists(diskCached))
         {
-            lock (_cacheLock)
+            lock(_cacheLock)
             {
                 _inProcessCache = diskCached;
                 _inProcessCacheInitialized = true;
@@ -69,9 +69,9 @@ public static partial class SdkDiscovery
 
         // 3. Full discovery
         var discovered = RunFullDiscovery(targetFramework, diagnostics);
-        if (discovered is not null)
+        if(discovered is not null)
         {
-            lock (_cacheLock)
+            lock(_cacheLock)
             {
                 _inProcessCache = discovered;
                 _inProcessCacheInitialized = true;
@@ -89,7 +89,7 @@ public static partial class SdkDiscovery
     public static void RegenerateDiskCache()
     {
         // Clear in-process cache so full discovery runs.
-        lock (_cacheLock)
+        lock(_cacheLock)
         {
             _inProcessCache = null;
             _inProcessCacheInitialized = false;
@@ -97,10 +97,10 @@ public static partial class SdkDiscovery
 
         var diagnostics = new DiagnosticBag();
         var path = RunFullDiscovery("net10.0", diagnostics);
-        if (path is not null)
+        if(path is not null)
         {
             WriteDiskCache(path);
-            lock (_cacheLock)
+            lock(_cacheLock)
             {
                 _inProcessCache = path;
                 _inProcessCacheInitialized = true;
@@ -113,7 +113,7 @@ public static partial class SdkDiscovery
     /// </summary>
     internal static void ResetInProcessCache()
     {
-        lock (_cacheLock)
+        lock(_cacheLock)
         {
             _inProcessCache = null;
             _inProcessCacheInitialized = false;
@@ -128,7 +128,7 @@ public static partial class SdkDiscovery
         // Locate the dotnet root (the directory containing packs/).
         var sdkRoot = FindDotnetRoot();
 
-        if (sdkRoot is null)
+        if(sdkRoot is null)
         {
             diagnostics.Add(new Diagnostic(
                 DiagnosticId.SdkNotFound,
@@ -143,7 +143,7 @@ public static partial class SdkDiscovery
 
         // Find the highest version reference assembly path for the target framework.
         var refPath = FindHighestVersionRefPath(sdkRoot, tfm);
-        if (refPath is null)
+        if(refPath is null)
         {
             diagnostics.Add(new Diagnostic(
                 DiagnosticId.SdkNoFramework,
@@ -197,17 +197,17 @@ public static partial class SdkDiscovery
             };
 
             using var process = Process.Start(psi);
-            if (process is null)
+            if(process is null)
                 return null;
 
             var output = process.StandardOutput.ReadToEnd();
-            if (!process.WaitForExit(DotnetTimeoutMs))
+            if(!process.WaitForExit(DotnetTimeoutMs))
             {
                 try { process.Kill(); } catch { /* best effort */ }
                 return null;
             }
 
-            if (process.ExitCode != 0)
+            if(process.ExitCode != 0)
                 return null;
 
             return ParseSdkListOutput(output);
@@ -226,25 +226,25 @@ public static partial class SdkDiscovery
     /// </summary>
     internal static string? ParseSdkListOutput(string output)
     {
-        if (string.IsNullOrWhiteSpace(output))
+        if(string.IsNullOrWhiteSpace(output))
             return null;
 
         Version? highestVersion = null;
         string? highestPath = null;
 
-        foreach (var line in output.Split('\n', StringSplitOptions.RemoveEmptyEntries))
+        foreach(var line in output.Split('\n', StringSplitOptions.RemoveEmptyEntries))
         {
             var trimmed = line.Trim();
             var match = SdkLinePattern().Match(trimmed);
-            if (!match.Success)
+            if(!match.Success)
                 continue;
 
             var versionStr = match.Groups[1].Value;
             var sdkPath = match.Groups[2].Value;
 
-            if (Version.TryParse(versionStr, out var version))
+            if(Version.TryParse(versionStr, out var version))
             {
-                if (highestVersion is null || version > highestVersion)
+                if(highestVersion is null || version > highestVersion)
                 {
                     highestVersion = version;
                     // The path in the output is the sdk folder (e.g., /usr/share/dotnet/sdk)
@@ -254,7 +254,7 @@ public static partial class SdkDiscovery
             }
         }
 
-        if (highestPath is null)
+        if(highestPath is null)
             return null;
 
         // The [path] in dotnet --list-sdks output is the directory containing
@@ -271,9 +271,9 @@ public static partial class SdkDiscovery
     {
         var candidates = GetWellKnownDotnetPaths();
 
-        foreach (var candidate in candidates)
+        foreach(var candidate in candidates)
         {
-            if (Directory.Exists(candidate) && Directory.Exists(Path.Combine(candidate, "packs")))
+            if(Directory.Exists(candidate) && Directory.Exists(Path.Combine(candidate, "packs")))
                 return candidate;
         }
 
@@ -284,7 +284,7 @@ public static partial class SdkDiscovery
     {
         var homePath = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
 
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        if(RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
             return
             [
@@ -293,7 +293,7 @@ public static partial class SdkDiscovery
             ];
         }
 
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+        if(RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
         {
             return
             [
@@ -320,7 +320,7 @@ public static partial class SdkDiscovery
     internal static string? FindHighestVersionRefPath(string sdkRoot, string tfm)
     {
         var packsDir = Path.Combine(sdkRoot, "packs", "Microsoft.NETCore.App.Ref");
-        if (!Directory.Exists(packsDir))
+        if(!Directory.Exists(packsDir))
             return null;
 
         string[] versionDirs;
@@ -339,21 +339,21 @@ public static partial class SdkDiscovery
         Version? highestVersion = null;
         string? highestRefPath = null;
 
-        foreach (var versionDir in versionDirs)
+        foreach(var versionDir in versionDirs)
         {
             var dirName = Path.GetFileName(versionDir);
-            if (!Version.TryParse(dirName, out var version))
+            if(!Version.TryParse(dirName, out var version))
                 continue;
 
             // Only consider versions whose major matches the TFM major
-            if (tfmMajor.HasValue && version.Major != tfmMajor.Value)
+            if(tfmMajor.HasValue && version.Major != tfmMajor.Value)
                 continue;
 
             var refPath = Path.Combine(versionDir, "ref", tfm);
-            if (!Directory.Exists(refPath))
+            if(!Directory.Exists(refPath))
                 continue;
 
-            if (highestVersion is null || version > highestVersion)
+            if(highestVersion is null || version > highestVersion)
             {
                 highestVersion = version;
                 highestRefPath = refPath;
@@ -370,11 +370,11 @@ public static partial class SdkDiscovery
     /// </summary>
     internal static int? ExtractTfmMajorVersion(string tfm)
     {
-        if (tfm.StartsWith("net", StringComparison.OrdinalIgnoreCase) && tfm.Contains('.'))
+        if(tfm.StartsWith("net", StringComparison.OrdinalIgnoreCase) && tfm.Contains('.'))
         {
             var numPart = tfm.AsSpan(3); // skip "net"
             var dotIndex = numPart.IndexOf('.');
-            if (dotIndex > 0 && int.TryParse(numPart[..dotIndex], out var major))
+            if(dotIndex > 0 && int.TryParse(numPart[..dotIndex], out var major))
                 return major;
         }
 
@@ -385,7 +385,7 @@ public static partial class SdkDiscovery
     {
         try
         {
-            if (!File.Exists(CacheFilePath))
+            if(!File.Exists(CacheFilePath))
                 return null;
 
             var cached = File.ReadAllText(CacheFilePath).Trim();
@@ -402,7 +402,7 @@ public static partial class SdkDiscovery
         try
         {
             var dir = Path.GetDirectoryName(CacheFilePath);
-            if (dir is not null && !Directory.Exists(dir))
+            if(dir is not null && !Directory.Exists(dir))
                 Directory.CreateDirectory(dir);
 
             File.WriteAllText(CacheFilePath, path);

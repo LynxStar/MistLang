@@ -68,7 +68,7 @@ public class ArrayLiteralTrailingCommaPropertyTests
             .Where(d => d.Severity == DiagnosticSeverity.Error)
             .ToList();
 
-        if (errors.Count > 0)
+        if(errors.Count > 0)
             return null;
 
         return result.Root as CompilationUnitNode;
@@ -98,19 +98,19 @@ public class ArrayLiteralTrailingCommaPropertyTests
     private static ArrayLiteralExpressionPrimaryNode? ExtractArrayLiteral(CompilationUnitNode cu)
     {
         var typeDecl = cu.GetTypes()[0] as ClassTypeTypeDeclarationNode;
-        if (typeDecl is null) return null;
+        if(typeDecl is null) return null;
 
         var methodMember = typeDecl.ClassDeclaration.Members[0] as MethodMemberMemberDeclarationNode;
-        if (methodMember is null) return null;
+        if(methodMember is null) return null;
 
         var block = methodMember.Method.Body.GetBlock();
-        if (block is null) return null;
+        if(block is null) return null;
 
         var stmt = block.Statements[0] as VariableDeclarationStatementStatementNode;
-        if (stmt is null) return null;
+        if(stmt is null) return null;
 
         var varDecl = stmt.VariableDeclaration as InferredVariableDeclarationVariableDeclarationStatementNode;
-        if (varDecl is null) return null;
+        if(varDecl is null) return null;
 
         var primary = UnwrapToPrimary(varDecl.Initializer);
         return primary as ArrayLiteralExpressionPrimaryNode;
@@ -123,21 +123,21 @@ public class ArrayLiteralTrailingCommaPropertyTests
     {
         Storm.Runtime.SyntaxNode current = expr;
 
-        for (var depth = 0; depth < 20; depth++)
+        for(var depth = 0; depth < 20; depth++)
         {
-            if (current is PrimaryNode primary)
+            if(current is PrimaryNode primary)
                 return primary;
 
             Storm.Runtime.SyntaxNode? next = null;
-            foreach (var child in current.Children())
+            foreach(var child in current.Children())
             {
-                if (child is null) continue;
-                if (child is PrimaryNode childPrimary)
+                if(child is null) continue;
+                if(child is PrimaryNode childPrimary)
                     return childPrimary;
                 next ??= child;
             }
 
-            if (next is null)
+            if(next is null)
                 return null;
 
             current = next;
@@ -176,19 +176,19 @@ public class ArrayLiteralTrailingCommaPropertyTests
         var rootWithout = ParseSource(sourceWithout);
         var rootWith = ParseSource(sourceWith);
 
-        if (rootWithout is null)
+        if(rootWithout is null)
             return false.ToProperty().Label($"Failed to parse without trailing comma: {sourceWithout}");
 
-        if (rootWith is null)
+        if(rootWith is null)
             return false.ToProperty().Label($"Failed to parse with trailing comma: {sourceWith}");
 
         var arrayWithout = ExtractArrayLiteral(rootWithout);
         var arrayWith = ExtractArrayLiteral(rootWith);
 
-        if (arrayWithout is null)
+        if(arrayWithout is null)
             return false.ToProperty().Label($"No ArrayLiteralExpressionPrimaryNode found (without comma): {sourceWithout}");
 
-        if (arrayWith is null)
+        if(arrayWith is null)
             return false.ToProperty().Label($"No ArrayLiteralExpressionPrimaryNode found (with comma): {sourceWith}");
 
         // Verify identical element count
@@ -196,7 +196,7 @@ public class ArrayLiteralTrailingCommaPropertyTests
         var countWithout = 1 + arrayWithout.Expressions.Length;
         var countWith = 1 + arrayWith.Expressions.Length;
 
-        if (countWithout != countWith)
+        if(countWithout != countWith)
             return false.ToProperty().Label(
                 $"Element count mismatch: without={countWithout}, with={countWith} for: {scenario}");
 
@@ -204,7 +204,7 @@ public class ArrayLiteralTrailingCommaPropertyTests
         var printedWithout = GetPrettyPrintedOutput(rootWithout, sourceWithout);
         var printedWith = GetPrettyPrintedOutput(rootWith, sourceWith);
 
-        if (printedWithout != printedWith)
+        if(printedWithout != printedWith)
             return false.ToProperty().Label(
                 $"Pretty-printed output differs:\n  without: {printedWithout}\n  with: {printedWith}\n  for: {scenario}");
 

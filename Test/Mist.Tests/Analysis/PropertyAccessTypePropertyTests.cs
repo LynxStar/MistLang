@@ -103,18 +103,21 @@ public class PropertyAccessTypePropertyTests
         string propName, bool hasGet, bool hasSet)
     {
         var accessors = ImmutableArray.CreateBuilder<AccessorDeclarationNode>();
-        if (hasGet)
+        if(hasGet)
             accessors.Add(new AutoGetAccessorAccessorDeclarationNode());
-        if (hasSet)
+        if(hasSet)
             accessors.Add(new AutoSetAccessorAccessorDeclarationNode());
 
         var property = new BlockPropertyPropertyDeclarationNode
         {
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
-            Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
+            Type = new TypeReferenceNode
             {
-                PrimitiveType = new IntTypePrimitiveTypeNode(),
-            } },
+                First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                {
+                    PrimitiveType = new IntTypePrimitiveTypeNode(),
+                }
+            },
             Name = Tok(propName),
             Accessors = accessors.ToImmutable(),
         };
@@ -134,18 +137,21 @@ public class PropertyAccessTypePropertyTests
         string propName, bool hasGet, bool hasSet, int value)
     {
         var accessors = ImmutableArray.CreateBuilder<AccessorDeclarationNode>();
-        if (hasGet)
+        if(hasGet)
             accessors.Add(new AutoGetAccessorAccessorDeclarationNode());
-        if (hasSet)
+        if(hasSet)
             accessors.Add(new AutoSetAccessorAccessorDeclarationNode());
 
         var property = new BlockPropertyPropertyDeclarationNode
         {
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
-            Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
+            Type = new TypeReferenceNode
             {
-                PrimitiveType = new IntTypePrimitiveTypeNode(),
-            } },
+                First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                {
+                    PrimitiveType = new IntTypePrimitiveTypeNode(),
+                }
+            },
             Name = Tok(propName),
             Accessors = accessors.ToImmutable(),
         };
@@ -177,7 +183,7 @@ public class PropertyAccessTypePropertyTests
         typeChecker.Analyze(model, analyzerDiagnostics);
 
         // Merge all diagnostics
-        foreach (var d in analyzerDiagnostics.ToImmutableArray())
+        foreach(var d in analyzerDiagnostics.ToImmutableArray())
             semanticDiagnostics.Add(d);
 
         return (model, semanticDiagnostics);
@@ -192,7 +198,7 @@ public class PropertyAccessTypePropertyTests
         Arbitrary = new[] { typeof(PropertyAccessTypePropertyTests) })]
     public Property PropertyAccess_ValidAccessProducesNoAccessDiagnostic(PropertyAccessTestCase testCase)
     {
-        if (!testCase.ExpectValid)
+        if(!testCase.ExpectValid)
             return true.ToProperty();
 
         var (model, diagnostics) = BuildAndAnalyze(testCase.Ast);
@@ -218,13 +224,13 @@ public class PropertyAccessTypePropertyTests
             .Where(s => s.Kind == SymbolKind.Property)
             .ToList();
 
-        if (propSymbols.Count == 0)
+        if(propSymbols.Count == 0)
             return false.ToProperty().Label("No property symbols found");
 
         var propSymbol = propSymbols.First();
         var metadata = (propSymbol as Symbol)?.PropertyMetadata;
 
-        if (metadata is null)
+        if(metadata is null)
             return false.ToProperty().Label("PropertyMetadata is null");
 
         // Every generated property should have at least a get accessor

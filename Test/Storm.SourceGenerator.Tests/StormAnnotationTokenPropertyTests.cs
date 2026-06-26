@@ -45,7 +45,7 @@ public class StormAnnotationTokenPropertyTests
     public void P1_AnnotationTokenLexing_AtPlusValidIdentifier_ProducesSingleAnnotationToken()
     {
         var samples = GenValidIdentifier().Sample(200);
-        foreach (var identifier in samples)
+        foreach(var identifier in samples)
         {
             var input = "@" + identifier;
             var diagnostics = new List<StormDiagnostic>();

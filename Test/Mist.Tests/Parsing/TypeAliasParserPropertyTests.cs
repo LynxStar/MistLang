@@ -46,7 +46,7 @@ public class TypeAliasParserPropertyTests
             .Where(d => d.Severity == DiagnosticSeverity.Error)
             .ToList();
 
-        if (errors.Count > 0)
+        if(errors.Count > 0)
             throw new InvalidOperationException(
                 $"Unexpected parse errors:\n  {string.Join("\n  ", errors.Select(e => e.Message))}\nSource:\n{source}");
 
@@ -69,11 +69,11 @@ public class TypeAliasParserPropertyTests
 
     private static IReadOnlyList<string> GetTypeParameterNames(TypeParameterListNode? typeParams)
     {
-        if (typeParams is null)
+        if(typeParams is null)
             return Array.Empty<string>();
 
         var names = new List<string> { typeParams.TypeParameter.GetName().Lexeme };
-        foreach (var param in typeParams.TypeParameters)
+        foreach(var param in typeParams.TypeParameters)
             names.Add(param.GetName().Lexeme);
 
         return names;
@@ -102,13 +102,13 @@ public class TypeAliasParserPropertyTests
 
         // Verify type parameters
         bool typeParamsCorrect;
-        if (scenario.TypeParameterCount == 0)
+        if(scenario.TypeParameterCount == 0)
         {
             typeParamsCorrect = aliasDecl.TypeParams is null;
         }
         else
         {
-            if (aliasDecl.TypeParams is null)
+            if(aliasDecl.TypeParams is null)
             {
                 typeParamsCorrect = false;
             }

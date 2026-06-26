@@ -103,7 +103,7 @@ public class IntrinsicTypeMapRecursiveSubstitutionPropertyTests
         var scope = new Scope(null);
         var cls = new ClassType(displayName, scope, containingNamespace: ns);
         var typeParams = new TypeParameterType[arity];
-        for (var i = 0; i < arity; i++)
+        for(var i = 0; i < arity; i++)
             typeParams[i] = new TypeParameterType($"T{i}", i);
         cls.TypeParameters = typeParams;
         return cls;
@@ -125,7 +125,7 @@ public class IntrinsicTypeMapRecursiveSubstitutionPropertyTests
         // Generate a type argument (either a leaf or a nested generic)
         Gen<IType> GenTypeArg(int maxDepth)
         {
-            if (maxDepth <= 0)
+            if(maxDepth <= 0)
             {
                 return genLeaf.Select(l => l.Type);
             }
@@ -179,9 +179,9 @@ public class IntrinsicTypeMapRecursiveSubstitutionPropertyTests
         return Gen.Choose(0, arity - 1).SelectMany(intrinsicPos =>
         {
             var argGens = new Gen<IType>[arity];
-            for (var i = 0; i < arity; i++)
+            for(var i = 0; i < arity; i++)
             {
-                if (i == intrinsicPos)
+                if(i == intrinsicPos)
                 {
                     // This position must contain an intrinsic (possibly nested)
                     argGens[i] = GenTypeArgWithIntrinsic(maxDepth);
@@ -201,7 +201,7 @@ public class IntrinsicTypeMapRecursiveSubstitutionPropertyTests
     /// </summary>
     private static Gen<IType> GenTypeArgWithIntrinsic(int maxDepth)
     {
-        if (maxDepth <= 0)
+        if(maxDepth <= 0)
         {
             // At leaf level, just pick an intrinsic
             return Gen.Choose(0, IntrinsicTypes.Length - 1).Select(i => MakeIntrinsicType(i));
@@ -228,7 +228,7 @@ public class IntrinsicTypeMapRecursiveSubstitutionPropertyTests
     /// </summary>
     private static Gen<IType> GenAnyTypeArg(int maxDepth)
     {
-        if (maxDepth <= 0)
+        if(maxDepth <= 0)
         {
             return Gen.OneOf(
                 Gen.Choose(0, IntrinsicTypes.Length - 1).Select(i => MakeIntrinsicType(i)),
@@ -259,15 +259,15 @@ public class IntrinsicTypeMapRecursiveSubstitutionPropertyTests
     /// </summary>
     private static Gen<IType[]> GenCombine(Gen<IType>[] gens)
     {
-        if (gens.Length == 1)
+        if(gens.Length == 1)
             return gens[0].Select(t => new[] { t });
 
-        if (gens.Length == 2)
+        if(gens.Length == 2)
             return gens[0].SelectMany(t0 => gens[1].Select(t1 => new[] { t0, t1 }));
 
         // General case: fold
         Gen<IType[]> acc = gens[0].Select(t => new[] { t });
-        for (var i = 1; i < gens.Length; i++)
+        for(var i = 1; i < gens.Length; i++)
         {
             var idx = i;
             acc = acc.SelectMany(arr => gens[idx].Select(t => arr.Append(t).ToArray()));
@@ -338,7 +338,7 @@ public class IntrinsicTypeMapRecursiveSubstitutionPropertyTests
     /// </summary>
     private static bool IsIntrinsicClrType(string displayName, string? ns)
     {
-        if (ns is null) return false;
+        if(ns is null) return false;
         var qualifiedName = $"{ns}.{displayName}";
         return Map.GetMistTypeName(qualifiedName) is not null;
     }

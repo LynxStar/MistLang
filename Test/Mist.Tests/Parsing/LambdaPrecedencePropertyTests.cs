@@ -121,7 +121,7 @@ public class LambdaPrecedencePropertyTests
             .Where(d => d.Severity == DiagnosticSeverity.Error)
             .ToList();
 
-        if (errors.Count > 0)
+        if(errors.Count > 0)
         {
             throw new InvalidOperationException(
                 $"Unexpected parse errors:\n  {string.Join("\n  ", errors.Select(e => e.Message))}\nSource:\n{source}");
@@ -139,19 +139,19 @@ public class LambdaPrecedencePropertyTests
     {
         var cu = ParseOrFail(source);
 
-        if (cu.Items.Length != 1)
+        if(cu.Items.Length != 1)
         {
             throw new InvalidOperationException(
                 $"Expected exactly one top-level item, got {cu.Items.Length}.\nSource:\n{source}");
         }
 
-        if (cu.Items[0] is not StatementItemTopLevelItemNode statementItem)
+        if(cu.Items[0] is not StatementItemTopLevelItemNode statementItem)
         {
             throw new InvalidOperationException(
                 $"Top-level item is not a statement: {cu.Items[0].GetType().Name}.\nSource:\n{source}");
         }
 
-        if (statementItem.Statement is not ExpressionStatementStatementNode expressionStatement)
+        if(statementItem.Statement is not ExpressionStatementStatementNode expressionStatement)
         {
             throw new InvalidOperationException(
                 $"Statement is not an expression statement: {statementItem.Statement.GetType().Name}.\nSource:\n{source}");
@@ -176,21 +176,21 @@ public class LambdaPrecedencePropertyTests
         var top = TopLevelExpression(scenario.Source);
 
         // The top-level expression must be the ASSIGNMENT form, never the lambda form.
-        if (top.AsLambdaOrNull() is not null)
+        if(top.AsLambdaOrNull() is not null)
         {
             return false.ToProperty()
                 .Label($"Top-level expression parsed as a LAMBDA form (lambda bound tighter than `=`): `(f = ...) => ...`.\nSource:\n{scenario.Source}");
         }
 
         var assignment = top.AsAssignmentOrNull();
-        if (assignment is null)
+        if(assignment is null)
         {
             return false.ToProperty()
                 .Label($"Top-level expression is neither lambda nor assignment form: {top.GetType().Name}.\nSource:\n{scenario.Source}");
         }
 
         // The assignment must actually carry the `=` operator (it is `f = <rhs>`).
-        if (!assignment.Operator.HasValue)
+        if(!assignment.Operator.HasValue)
         {
             return false.ToProperty()
                 .Label($"Top-level expression is an assignment with no operator (not an `=`).\nSource:\n{scenario.Source}");
@@ -222,9 +222,9 @@ public class LambdaPrecedencePropertyTests
         var current = top;
         var peeled = 0;
 
-        while (current.AsLambdaOrNull() is { } lambda)
+        while(current.AsLambdaOrNull() is { } lambda)
         {
-            if (lambda is not ExpressionLambdaLambdaExpressionNode expressionLambda)
+            if(lambda is not ExpressionLambdaLambdaExpressionNode expressionLambda)
             {
                 return false.ToProperty()
                     .Label($"Encountered a non-expression-bodied lambda at depth {peeled}: {lambda.GetType().Name}.\nSource:\n{scenario.Source}");

@@ -23,13 +23,13 @@ public sealed class ProjectFileParserPropertyTests
     private static void RunProperty<T>(Gen<T> gen, Action<T> check, int maxTests = 100)
     {
         var samples = gen.Sample(maxTests).ToList();
-        for (var idx = 0; idx < samples.Count; idx++)
+        for(var idx = 0; idx < samples.Count; idx++)
         {
             try
             {
                 check(samples[idx]);
             }
-            catch (Exception ex)
+            catch(Exception ex)
             {
                 throw new Exception(
                     $"Property failed on sample {idx}/{samples.Count}: {samples[idx]}\n" +
@@ -82,7 +82,7 @@ public sealed class ProjectFileParserPropertyTests
             {
                 // Build mist.toml content with [references] named table entries
                 var toml = "name = \"TestProject\"\n\n[references]\n";
-                for (var i = 0; i < paths.Count; i++)
+                for(var i = 0; i < paths.Count; i++)
                 {
                     toml += $"Ref{i} = {{ path = \"{paths[i]}\" }}\n";
                 }
@@ -98,10 +98,10 @@ public sealed class ProjectFileParserPropertyTests
                 Assert.Equal(paths.Count, result.References.Length);
 
                 // Each reference path should be the normalized absolute path
-                for (var i = 0; i < paths.Count; i++)
+                for(var i = 0; i < paths.Count; i++)
                 {
                     var expected = Path.GetFullPath(Path.Combine(projectDir, paths[i]));
-                    if (!Path.GetFileName(expected).Equals("mist.toml", StringComparison.Ordinal))
+                    if(!Path.GetFileName(expected).Equals("mist.toml", StringComparison.Ordinal))
                         expected = Path.Combine(expected, "mist.toml");
 
                     Assert.Equal(expected, result.References[i].Path);
@@ -173,12 +173,12 @@ public sealed class ProjectFileParserPropertyTests
                 var toml = "name = \"TestProject\"\n\n[references.MyRef]\n";
                 toml += $"path = \"{path}\"\n";
                 var seenKeys = new HashSet<string>();
-                foreach (var (key, value) in fields)
+                foreach(var (key, value) in fields)
                 {
                     // Ensure key doesn't collide with "path" or "name"
                     var safeKey = "extra_" + key;
                     // Skip duplicate keys (TOML rejects them)
-                    if (!seenKeys.Add(safeKey))
+                    if(!seenKeys.Add(safeKey))
                         continue;
                     toml += $"{safeKey} = \"{value}\"\n";
                 }
@@ -196,7 +196,7 @@ public sealed class ProjectFileParserPropertyTests
 
                 // The path should be preserved (after normalization)
                 var expected = Path.GetFullPath(Path.Combine(projectDir, path));
-                if (!Path.GetFileName(expected).Equals("mist.toml", StringComparison.Ordinal))
+                if(!Path.GetFileName(expected).Equals("mist.toml", StringComparison.Ordinal))
                     expected = Path.Combine(expected, "mist.toml");
 
                 Assert.Equal(expected, result.References[0].Path);

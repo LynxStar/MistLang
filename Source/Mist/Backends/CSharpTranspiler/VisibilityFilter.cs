@@ -111,7 +111,7 @@ internal sealed class VisibilityFilter
 #pragma warning restore CA1822
     {
         // Non-public types are excluded.
-        if (!IsTypePublic(clrType))
+        if(!IsTypePublic(clrType))
             return true;
 
         // Ref-struct types are NOT excluded — they are projected as stack-only structs.
@@ -125,31 +125,31 @@ internal sealed class VisibilityFilter
     public bool IsMemberExcluded(MemberInfo member)
     {
         // 1. Non-public accessibility → exclude (Requirement 6.7)
-        if (!IsMemberPublic(member))
+        if(!IsMemberPublic(member))
             return true;
 
         // 2. Events → exclude (Requirement 5.8)
-        if (member is EventInfo)
+        if(member is EventInfo)
             return true;
 
         // 3. out parameters — no longer excluded (projected as ref with ClrCallingConvention.Out)
-        if (HasOutParameters(member))
+        if(HasOutParameters(member))
             return true;
 
         // 4. ref parameters — no longer excluded (CLR ref is now supported)
-        if (HasRefParameters(member))
+        if(HasRefParameters(member))
             return true;
 
         // 5. ref readonly return type → exclude method/property (Requirement 6.3)
-        if (HasRefReturn(member))
+        if(HasRefReturn(member))
             return true;
 
         // 6. Pointer types in signature → exclude member (Requirement 6.4)
-        if (HasPointerTypes(member))
+        if(HasPointerTypes(member))
             return true;
 
         // 7. Signature references an excluded type → exclude member (Requirement 6.6)
-        if (ReferencesExcludedType(member))
+        if(ReferencesExcludedType(member))
             return true;
 
         return false;
@@ -171,33 +171,33 @@ internal sealed class VisibilityFilter
     public MemberClassification Classify(MemberInfo member)
     {
         // 1. Non-public accessibility → exclude (Requirement 6.7)
-        if (!IsMemberPublic(member))
+        if(!IsMemberPublic(member))
             return Hidden(MemberHiddenReason.NonPublic);
 
         // 2. Events → exclude (Requirement 5.8)
-        if (member is EventInfo)
+        if(member is EventInfo)
             return Hidden(MemberHiddenReason.Event);
 
         // 3. out parameters — no longer excluded; check retained to mirror IsMemberExcluded order.
         // HasOutParameters currently returns false, so this never triggers in practice.
-        if (HasOutParameters(member))
+        if(HasOutParameters(member))
             return Hidden(MemberHiddenReason.OutParameter);
 
         // 4. ref parameters — no longer excluded (HasRefParameters always returns false). There is
         // no corresponding MemberHiddenReason because this exclusion was removed and cannot trigger.
 
         // 5. ref readonly return type → exclude method/property (Requirement 6.3)
-        if (HasRefReturn(member))
+        if(HasRefReturn(member))
             return Hidden(MemberHiddenReason.RefReadonlyReturn);
 
         // 6. Pointer types in signature → exclude member (Requirement 6.4)
-        if (HasPointerTypes(member))
+        if(HasPointerTypes(member))
             return Hidden(MemberHiddenReason.Pointer);
 
         // 7. Signature references an excluded type → exclude member (Requirement 6.6).
         // Gather the offending types so the inspect command can name them (Requirement 9.4).
         var offendingTypes = CollectExcludedTypesInSignature(member);
-        if (offendingTypes.Count > 0)
+        if(offendingTypes.Count > 0)
         {
             // Prefer reporting RefStructType when any offending type is a ref struct; otherwise the
             // member is hidden because of some other excluded type (e.g. a non-public type).
@@ -207,10 +207,10 @@ internal sealed class VisibilityFilter
             // De-duplicate by rendered display name, preserving first-seen order for determinism.
             var names = ImmutableArray.CreateBuilder<string>();
             var seen = new HashSet<string>(StringComparer.Ordinal);
-            foreach (var offending in offendingTypes)
+            foreach(var offending in offendingTypes)
             {
                 var name = RenderTypeDisplayName(offending);
-                if (seen.Add(name))
+                if(seen.Add(name))
                     names.Add(name);
             }
 
@@ -261,7 +261,7 @@ internal sealed class VisibilityFilter
     /// </summary>
     private static bool IsTypePublic(Type type)
     {
-        if (type.IsNested)
+        if(type.IsNested)
             return type.IsNestedPublic && type.DeclaringType is not null && IsTypePublic(type.DeclaringType);
 
         return type.IsPublic;
@@ -400,58 +400,58 @@ internal sealed class VisibilityFilter
     private bool IsTypeExcludedInSignature(Type type)
     {
         // Unwrap by-ref (ref/out/in parameter types are T& in metadata)
-        if (type.IsByRef)
+        if(type.IsByRef)
         {
             var elementType = type.GetElementType();
-            if (elementType is not null)
+            if(elementType is not null)
                 return IsTypeExcludedInSignature(elementType);
         }
 
         // Unwrap pointer types
-        if (type.IsPointer)
+        if(type.IsPointer)
         {
             var elementType = type.GetElementType();
-            if (elementType is not null)
+            if(elementType is not null)
                 return IsTypeExcludedInSignature(elementType);
         }
 
         // Unwrap array element types
-        if (type.IsArray)
+        if(type.IsArray)
         {
             var elementType = type.GetElementType();
-            if (elementType is not null)
+            if(elementType is not null)
                 return IsTypeExcludedInSignature(elementType);
         }
 
         // Check generic type arguments recursively
-        if (type.IsConstructedGenericType)
+        if(type.IsConstructedGenericType)
         {
-            foreach (var arg in type.GetGenericArguments())
+            foreach(var arg in type.GetGenericArguments())
             {
-                if (IsTypeExcludedInSignature(arg))
+                if(IsTypeExcludedInSignature(arg))
                     return true;
             }
 
             // Also check the generic type definition itself
             var genericDef = type.GetGenericTypeDefinition();
-            if (IsTypeExcluded(genericDef))
+            if(IsTypeExcluded(genericDef))
                 return true;
 
             // Delegate-specific check: if a constructed generic type is a named delegate,
             // inspect its Invoke method for excluded types (Requirements 5.2, 5.3, 5.4).
-            if (IsDelegateWithExcludedInvokeSignature(genericDef))
+            if(IsDelegateWithExcludedInvokeSignature(genericDef))
                 return true;
 
             return false;
         }
 
         // Skip generic type parameters (T, TKey, etc.) — they are not concrete types
-        if (type.IsGenericParameter)
+        if(type.IsGenericParameter)
             return false;
 
         // Delegate-specific check: if a non-generic type is a named delegate, inspect its
         // Invoke method for pointer types, ref structs, or ref readonly return (Requirements 5.2, 5.3, 5.4).
-        if (IsDelegateWithExcludedInvokeSignature(type))
+        if(IsDelegateWithExcludedInvokeSignature(type))
             return true;
 
         // Check the concrete type itself
@@ -486,18 +486,18 @@ internal sealed class VisibilityFilter
     private static bool IsDelegateWithExcludedInvokeSignature(Type type)
     {
         // Only named delegates inherit from System.MulticastDelegate.
-        if (type.BaseType?.FullName != "System.MulticastDelegate")
+        if(type.BaseType?.FullName != "System.MulticastDelegate")
             return false;
 
         // System.Delegate and System.MulticastDelegate themselves are never excluded (Requirement 5.5).
         var fullName = type.FullName ?? "";
-        if (fullName is "System.Delegate" or "System.MulticastDelegate")
+        if(fullName is "System.Delegate" or "System.MulticastDelegate")
             return false;
 
         // System.Func<...> and System.Action<...> families are not named delegates for this purpose;
         // they are projected directly as Standard.Func<...>.
         var name = type.Name;
-        if (type.Namespace == "System" &&
+        if(type.Namespace == "System" &&
             (name.StartsWith("Func`", StringComparison.Ordinal) ||
              name.StartsWith("Action`", StringComparison.Ordinal) ||
              name == "Action"))
@@ -505,28 +505,28 @@ internal sealed class VisibilityFilter
 
         // Get the Invoke method that defines the delegate's calling convention.
         var invokeMethod = type.GetMethod("Invoke");
-        if (invokeMethod is null)
+        if(invokeMethod is null)
             return false;
 
         // Check for ref readonly return (Requirement 5.2).
-        if (invokeMethod.ReturnType.IsByRef && IsRefReadonlyReturn(invokeMethod))
+        if(invokeMethod.ReturnType.IsByRef && IsRefReadonlyReturn(invokeMethod))
             return true;
 
         // Check for pointer types in the return type.
-        if (ContainsPointerType(invokeMethod.ReturnType))
+        if(ContainsPointerType(invokeMethod.ReturnType))
             return true;
 
         // Check for ref struct types in the return type.
         var returnElementType = invokeMethod.ReturnType.IsByRef
             ? invokeMethod.ReturnType.GetElementType() ?? invokeMethod.ReturnType
             : invokeMethod.ReturnType;
-        if (IsRefStruct(returnElementType.IsConstructedGenericType
+        if(IsRefStruct(returnElementType.IsConstructedGenericType
             ? returnElementType.GetGenericTypeDefinition()
             : returnElementType))
             return true;
 
         // Check parameters for pointer types or ref struct types.
-        foreach (var param in invokeMethod.GetParameters())
+        foreach(var param in invokeMethod.GetParameters())
         {
             var paramType = param.ParameterType;
 
@@ -535,14 +535,14 @@ internal sealed class VisibilityFilter
                 ? paramType.GetElementType() ?? paramType
                 : paramType;
 
-            if (ContainsPointerType(unwrapped))
+            if(ContainsPointerType(unwrapped))
                 return true;
 
             // Check if the unwrapped type is a ref struct.
             var typeToCheck = unwrapped.IsConstructedGenericType
                 ? unwrapped.GetGenericTypeDefinition()
                 : unwrapped;
-            if (IsRefStruct(typeToCheck))
+            if(IsRefStruct(typeToCheck))
                 return true;
         }
 
@@ -558,15 +558,15 @@ internal sealed class VisibilityFilter
     private List<Type> CollectExcludedTypesInSignature(MemberInfo member)
     {
         var offending = new List<Type>();
-        switch (member)
+        switch(member)
         {
             case MethodInfo method:
                 CollectExcludedTypesInSignature(method.ReturnType, offending);
-                foreach (var p in method.GetParameters())
+                foreach(var p in method.GetParameters())
                     CollectExcludedTypesInSignature(p.ParameterType, offending);
                 break;
             case ConstructorInfo ctor:
-                foreach (var p in ctor.GetParameters())
+                foreach(var p in ctor.GetParameters())
                     CollectExcludedTypesInSignature(p.ParameterType, offending);
                 break;
             case PropertyInfo property:
@@ -591,61 +591,61 @@ internal sealed class VisibilityFilter
     private void CollectExcludedTypesInSignature(Type type, List<Type> offending)
     {
         // Unwrap by-ref (ref/out/in parameter types are T& in metadata)
-        if (type.IsByRef)
+        if(type.IsByRef)
         {
             var elementType = type.GetElementType();
-            if (elementType is not null)
+            if(elementType is not null)
                 CollectExcludedTypesInSignature(elementType, offending);
             return;
         }
 
         // Unwrap pointer types
-        if (type.IsPointer)
+        if(type.IsPointer)
         {
             var elementType = type.GetElementType();
-            if (elementType is not null)
+            if(elementType is not null)
                 CollectExcludedTypesInSignature(elementType, offending);
             return;
         }
 
         // Unwrap array element types
-        if (type.IsArray)
+        if(type.IsArray)
         {
             var elementType = type.GetElementType();
-            if (elementType is not null)
+            if(elementType is not null)
                 CollectExcludedTypesInSignature(elementType, offending);
             return;
         }
 
         // Descend into generic type arguments, then check the generic definition itself.
-        if (type.IsConstructedGenericType)
+        if(type.IsConstructedGenericType)
         {
-            foreach (var arg in type.GetGenericArguments())
+            foreach(var arg in type.GetGenericArguments())
                 CollectExcludedTypesInSignature(arg, offending);
 
             var genericDef = type.GetGenericTypeDefinition();
-            if (IsTypeExcluded(genericDef))
+            if(IsTypeExcluded(genericDef))
                 offending.Add(type);
 
             // Delegate-specific check: if the generic definition is a named delegate with an
             // excluded Invoke signature, record the constructed type as offending (Requirements 5.2, 5.3, 5.4).
-            if (IsDelegateWithExcludedInvokeSignature(genericDef))
+            if(IsDelegateWithExcludedInvokeSignature(genericDef))
                 offending.Add(type);
 
             return;
         }
 
         // Skip generic type parameters (T, TKey, etc.) — they are not concrete types
-        if (type.IsGenericParameter)
+        if(type.IsGenericParameter)
             return;
 
         // Delegate-specific check: if a non-generic type is a named delegate with an excluded
         // Invoke signature, record it as offending (Requirements 5.2, 5.3, 5.4).
-        if (IsDelegateWithExcludedInvokeSignature(type))
+        if(IsDelegateWithExcludedInvokeSignature(type))
             offending.Add(type);
 
         // Check the concrete type itself
-        if (IsTypeExcluded(type))
+        if(IsTypeExcluded(type))
             offending.Add(type);
     }
 
@@ -668,14 +668,14 @@ internal sealed class VisibilityFilter
     /// </summary>
     private static string RenderTypeDisplayName(Type type)
     {
-        if (type.IsByRef || type.IsPointer || type.IsArray)
+        if(type.IsByRef || type.IsPointer || type.IsArray)
         {
             var elementType = type.GetElementType();
-            if (elementType is not null)
+            if(elementType is not null)
                 return RenderTypeDisplayName(elementType);
         }
 
-        if (type.IsConstructedGenericType)
+        if(type.IsConstructedGenericType)
         {
             var name = TypeProjector.StripGenericAritySuffix(type.Name);
             var args = type.GetGenericArguments().Select(RenderTypeDisplayName);
@@ -690,29 +690,29 @@ internal sealed class VisibilityFilter
     /// </summary>
     private static bool ContainsPointerType(Type type)
     {
-        if (type.IsPointer)
+        if(type.IsPointer)
             return true;
 
         // Unwrap by-ref (ref/out/in parameter types are T& in metadata)
-        if (type.IsByRef)
+        if(type.IsByRef)
         {
             var elementType = type.GetElementType();
             return elementType is not null && ContainsPointerType(elementType);
         }
 
         // Check array element types
-        if (type.IsArray)
+        if(type.IsArray)
         {
             var elementType = type.GetElementType();
             return elementType is not null && ContainsPointerType(elementType);
         }
 
         // Check generic type arguments
-        if (type.IsConstructedGenericType)
+        if(type.IsConstructedGenericType)
         {
-            foreach (var arg in type.GetGenericArguments())
+            foreach(var arg in type.GetGenericArguments())
             {
-                if (ContainsPointerType(arg))
+                if(ContainsPointerType(arg))
                     return true;
             }
         }

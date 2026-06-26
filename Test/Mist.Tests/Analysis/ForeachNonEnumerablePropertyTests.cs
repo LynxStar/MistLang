@@ -66,7 +66,7 @@ public sealed class ForeachNonEnumerablePropertyTests : IDisposable
 
     public void Dispose()
     {
-        if (Directory.Exists(_tempDir))
+        if(Directory.Exists(_tempDir))
         {
             try { Directory.Delete(_tempDir, recursive: true); } catch { /* best effort */ }
         }

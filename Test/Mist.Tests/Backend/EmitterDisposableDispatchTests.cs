@@ -33,7 +33,7 @@ public sealed class EmitterDisposableDispatchTests : IDisposable
 
     public void Dispose()
     {
-        if (Directory.Exists(_outputDir))
+        if(Directory.Exists(_outputDir))
         {
             try { Directory.Delete(_outputDir, recursive: true); }
             catch { /* best effort */ }
@@ -81,9 +81,9 @@ public sealed class EmitterDisposableDispatchTests : IDisposable
             $"Compilation produced errors:\n{string.Join("\n", errors.Select(e => $"  {e.Id.Value}: {e.Message}"))}");
 
         Assert.NotNull(result.EmittedFiles);
-        foreach (var (_, content) in result.EmittedFiles!)
+        foreach(var (_, content) in result.EmittedFiles!)
         {
-            if (content.Contains("namespace TestProgram"))
+            if(content.Contains("namespace TestProgram"))
                 return content;
         }
 

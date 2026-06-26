@@ -96,7 +96,7 @@ public sealed class PropertyInitializerNoArgsEmissionPropertyTests
     {
         var sb = new StringBuilder();
         sb.AppendLine($"class {typeName} {{");
-        foreach (var prop in propNames)
+        foreach(var prop in propNames)
         {
             sb.AppendLine($"    public int {prop} {{ get; set; }}");
         }
@@ -114,13 +114,13 @@ public sealed class PropertyInitializerNoArgsEmissionPropertyTests
         // Lex
         var lexBag = new DiagnosticBag();
         var tokens = Lexer.Lex(sourceText, lexBag);
-        if (lexBag.HasErrors)
+        if(lexBag.HasErrors)
             return (false, "", FormatDiagnostics(lexBag));
 
         // Parse
         var parseBag = new DiagnosticBag();
         var parseResult = Parser.Parse(tokens, parseBag);
-        if (parseBag.HasErrors || parseResult.Root is null)
+        if(parseBag.HasErrors || parseResult.Root is null)
             return (false, "", FormatDiagnostics(parseBag));
 
         // Semantic model
@@ -133,25 +133,25 @@ public sealed class PropertyInitializerNoArgsEmissionPropertyTests
             projectFolder: "/test",
             semBag);
 
-        if (semBag.HasErrors)
+        if(semBag.HasErrors)
             return (false, "", FormatDiagnostics(semBag));
 
         // Type checker
         var tcBag = new DiagnosticBag();
         TypeChecker.Analyze(model, tcBag);
-        if (tcBag.ToImmutableArray().Any(d => d.Severity == DiagnosticSeverity.Error))
+        if(tcBag.ToImmutableArray().Any(d => d.Severity == DiagnosticSeverity.Error))
             return (false, "", FormatDiagnostics(tcBag));
 
         // Emit in-memory (no disk I/O)
         var emitBag = new DiagnosticBag();
         var files = CSharpEmitter.EmitToMemory(model, "TestProgram", emitBag);
 
-        if (emitBag.HasErrors)
+        if(emitBag.HasErrors)
             return (false, "", FormatDiagnostics(emitBag));
 
         // Concatenate all emitted .cs content
         var sb = new StringBuilder();
-        foreach (var (_, content) in files)
+        foreach(var (_, content) in files)
             sb.AppendLine(content);
 
         return (true, sb.ToString(), "");
@@ -181,13 +181,13 @@ public sealed class PropertyInitializerNoArgsEmissionPropertyTests
     {
         var (succeeded, csContent, diagnosticText) = CompileInMemory(scenario.MistSource);
 
-        if (!succeeded)
+        if(!succeeded)
         {
             return false.ToProperty()
                 .Label($"Compilation failed: {scenario.Description}\nDiagnostics:\n{diagnosticText}\nSource:\n{scenario.MistSource}");
         }
 
-        if (string.IsNullOrWhiteSpace(csContent))
+        if(string.IsNullOrWhiteSpace(csContent))
         {
             return false.ToProperty()
                 .Label($"C# output was empty: {scenario.Description}");
@@ -196,7 +196,7 @@ public sealed class PropertyInitializerNoArgsEmissionPropertyTests
         // The emitted C# must contain `new TypeName()` with explicit empty parens
         // followed by the initializer block `{`
         var expectedPattern = $"new {scenario.TypeName}()";
-        if (!csContent.Contains(expectedPattern))
+        if(!csContent.Contains(expectedPattern))
         {
             return false.ToProperty()
                 .Label($"Missing explicit empty parens pattern '{expectedPattern}'\n" +
@@ -205,7 +205,7 @@ public sealed class PropertyInitializerNoArgsEmissionPropertyTests
 
         // Additionally verify the pattern `new TypeName() {` appears (parens before brace)
         var patternWithBrace = $"new {scenario.TypeName}() {{";
-        if (!csContent.Contains(patternWithBrace))
+        if(!csContent.Contains(patternWithBrace))
         {
             return false.ToProperty()
                 .Label($"Missing pattern '{patternWithBrace}' (parens before initializer brace)\n" +

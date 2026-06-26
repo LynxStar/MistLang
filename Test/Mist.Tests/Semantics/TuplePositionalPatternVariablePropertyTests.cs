@@ -48,7 +48,7 @@ public class TuplePositionalPatternVariablePropertyTests
         var parseDiag = new DiagnosticBag();
         var parseResult = Parser.Parse(tokens, parseDiag);
 
-        if (parseResult.Root is null)
+        if(parseResult.Root is null)
             throw new InvalidOperationException("Parse produced no root node.");
 
         var buildDiag = new DiagnosticBag();
@@ -272,12 +272,12 @@ public class TuplePositionalPatternVariablePropertyTests
             .ToList();
 
         // Verify each expected variable is present with correct type
-        foreach (var (name, expectedType) in expectedVars)
+        foreach(var (name, expectedType) in expectedVars)
         {
             var symbol = model.AllSymbols
                 .FirstOrDefault(s => s.Name == name && s.Kind == SymbolKind.LocalVariable);
 
-            if (symbol is null)
+            if(symbol is null)
             {
                 return false.ToProperty()
                     .Label($"Expected variable '{name}' not found as LocalVariable. " +
@@ -285,7 +285,7 @@ public class TuplePositionalPatternVariablePropertyTests
                            $"All locals: [{string.Join(", ", model.AllSymbols.Where(s => s.Kind == SymbolKind.LocalVariable).Select(s => s.Name))}]");
             }
 
-            if (symbol.DeclaredType is null)
+            if(symbol.DeclaredType is null)
             {
                 return false.ToProperty()
                     .Label($"Variable '{name}' has null DeclaredType. Source:\n{source}");
@@ -298,7 +298,7 @@ public class TuplePositionalPatternVariablePropertyTests
                               || symbol.DeclaredType.DisplayName.Equals(expectedType, StringComparison.OrdinalIgnoreCase)
                               || IsEquivalentPrimitiveType(symbol.DeclaredType.DisplayName, expectedType);
 
-            if (!typeMatches)
+            if(!typeMatches)
             {
                 return false.ToProperty()
                     .Label($"Variable '{name}' expected type '{expectedType}' but got '{symbol.DeclaredType.DisplayName}'. " +
@@ -311,7 +311,7 @@ public class TuplePositionalPatternVariablePropertyTests
         var discardVar = model.AllSymbols
             .FirstOrDefault(s => s.Name == "_" && s.Kind == SymbolKind.LocalVariable);
 
-        if (discardVar is not null)
+        if(discardVar is not null)
         {
             return false.ToProperty()
                 .Label($"Discard pattern introduced a variable named '_'. Source:\n{source}");

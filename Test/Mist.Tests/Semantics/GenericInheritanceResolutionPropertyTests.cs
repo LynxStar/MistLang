@@ -87,10 +87,13 @@ public class GenericInheritanceResolutionPropertyTests
 
     private static TypeReferenceNode MakeNamedTypeRef(string name)
     {
-        return new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
+        return new TypeReferenceNode
         {
-            Name = new QualifiedIdentifierNode { IDENTIFIER = MakeToken(name) },
-        } };
+            First = new NamedSingleTypeRefSingleTypeRefNode
+            {
+                Name = new QualifiedIdentifierNode { IDENTIFIER = MakeToken(name) },
+            }
+        };
     }
 
     private static TypeReferenceNode MakePrimitiveTypeRef(string primitiveName)
@@ -175,7 +178,7 @@ public class GenericInheritanceResolutionPropertyTests
     {
         public override string ToString()
         {
-            if (TypeIsGeneric)
+            if(TypeIsGeneric)
             {
                 var tps = string.Join(", ", TypeParamNames);
                 return $"class {TypeName}<{tps}> : {AbstractName}<{tps}>";
@@ -283,35 +286,35 @@ public class GenericInheritanceResolutionPropertyTests
             d.Id == DiagnosticId.ArityMismatch ||
             d.Id == DiagnosticId.MissingTypeArguments ||
             d.Id == DiagnosticId.NotGeneric).ToList();
-        if (genericDiags.Count > 0)
+        if(genericDiags.Count > 0)
             return false;
 
         // Find the derived class symbol
         var derivedSymbol = model.AllSymbols
             .FirstOrDefault(s => s.Name == scenario.DerivedName && s.Kind == SymbolKind.Class);
-        if (derivedSymbol?.DeclaredType is not ClassType derivedType)
+        if(derivedSymbol?.DeclaredType is not ClassType derivedType)
             return false;
 
         // BaseType should be a ConstructedType
-        if (derivedType.BaseType is not ConstructedType constructedBase)
+        if(derivedType.BaseType is not ConstructedType constructedBase)
             return false;
 
         // GenericDefinition should be the base class
-        if (constructedBase.GenericDefinition is not ClassType baseType)
+        if(constructedBase.GenericDefinition is not ClassType baseType)
             return false;
-        if (baseType.DisplayName != scenario.BaseName)
+        if(baseType.DisplayName != scenario.BaseName)
             return false;
 
         // TypeArguments count should match
-        if (constructedBase.TypeArguments.Count != scenario.TypeParamNames.Length)
+        if(constructedBase.TypeArguments.Count != scenario.TypeParamNames.Length)
             return false;
 
         // Each type argument should be a TypeParameterType matching the derived class's type params
-        for (var i = 0; i < constructedBase.TypeArguments.Count; i++)
+        for(var i = 0; i < constructedBase.TypeArguments.Count; i++)
         {
-            if (constructedBase.TypeArguments[i] is not TypeParameterType tpt)
+            if(constructedBase.TypeArguments[i] is not TypeParameterType tpt)
                 return false;
-            if (tpt.Name != scenario.TypeParamNames[i])
+            if(tpt.Name != scenario.TypeParamNames[i])
                 return false;
         }
 
@@ -363,36 +366,36 @@ public class GenericInheritanceResolutionPropertyTests
             d.Id == DiagnosticId.ArityMismatch ||
             d.Id == DiagnosticId.MissingTypeArguments ||
             d.Id == DiagnosticId.NotGeneric).ToList();
-        if (genericDiags.Count > 0)
+        if(genericDiags.Count > 0)
             return false;
 
         // Find the derived class symbol
         var derivedSymbol = model.AllSymbols
             .FirstOrDefault(s => s.Name == scenario.DerivedName && s.Kind == SymbolKind.Class);
-        if (derivedSymbol?.DeclaredType is not ClassType derivedType)
+        if(derivedSymbol?.DeclaredType is not ClassType derivedType)
             return false;
 
         // BaseType should be a ConstructedType
-        if (derivedType.BaseType is not ConstructedType constructedBase)
+        if(derivedType.BaseType is not ConstructedType constructedBase)
             return false;
 
         // GenericDefinition should be the base class
-        if (constructedBase.GenericDefinition is not ClassType baseType)
+        if(constructedBase.GenericDefinition is not ClassType baseType)
             return false;
-        if (baseType.DisplayName != scenario.BaseName)
+        if(baseType.DisplayName != scenario.BaseName)
             return false;
 
         // TypeArguments count should match
-        if (constructedBase.TypeArguments.Count != scenario.ConcreteArgPrimitives.Length)
+        if(constructedBase.TypeArguments.Count != scenario.ConcreteArgPrimitives.Length)
             return false;
 
         // Each type argument should be a concrete primitive type (not a TypeParameterType)
-        for (var i = 0; i < constructedBase.TypeArguments.Count; i++)
+        for(var i = 0; i < constructedBase.TypeArguments.Count; i++)
         {
-            if (constructedBase.TypeArguments[i] is TypeParameterType)
+            if(constructedBase.TypeArguments[i] is TypeParameterType)
                 return false;
             // Verify the type argument is not null
-            if (constructedBase.TypeArguments[i] is null)
+            if(constructedBase.TypeArguments[i] is null)
                 return false;
         }
 
@@ -419,7 +422,7 @@ public class GenericInheritanceResolutionPropertyTests
         TypeArgumentListNode typeArgList;
         ClassDeclarationNode classDecl;
 
-        if (scenario.TypeIsGeneric)
+        if(scenario.TypeIsGeneric)
         {
             // class Box<T> : IContainer<T>
             var typeArgRefs = scenario.TypeParamNames
@@ -468,50 +471,50 @@ public class GenericInheritanceResolutionPropertyTests
             d.Id == DiagnosticId.ArityMismatch ||
             d.Id == DiagnosticId.MissingTypeArguments ||
             d.Id == DiagnosticId.NotGeneric).ToList();
-        if (genericDiags.Count > 0)
+        if(genericDiags.Count > 0)
             return false;
 
         // Find the class symbol
         var classSymbol = model.AllSymbols
             .FirstOrDefault(s => s.Name == scenario.TypeName && s.Kind == SymbolKind.Class);
-        if (classSymbol?.DeclaredType is not ClassType classType)
+        if(classSymbol?.DeclaredType is not ClassType classType)
             return false;
 
         // Abstracts should contain at least one ConstructedType
-        if (classType.Abstracts.Count == 0)
+        if(classType.Abstracts.Count == 0)
             return false;
 
         var constructedAbstract = classType.Abstracts[0] as ConstructedType;
-        if (constructedAbstract is null)
+        if(constructedAbstract is null)
             return false;
 
         // GenericDefinition should be the abstract type
-        if (constructedAbstract.GenericDefinition is not AbstractType resolvedAbstract)
+        if(constructedAbstract.GenericDefinition is not AbstractType resolvedAbstract)
             return false;
-        if (resolvedAbstract.DisplayName != scenario.AbstractName)
+        if(resolvedAbstract.DisplayName != scenario.AbstractName)
             return false;
 
         // TypeArguments count should match
-        if (constructedAbstract.TypeArguments.Count != scenario.TypeParamNames.Length)
+        if(constructedAbstract.TypeArguments.Count != scenario.TypeParamNames.Length)
             return false;
 
-        if (scenario.TypeIsGeneric)
+        if(scenario.TypeIsGeneric)
         {
             // Type arguments should be TypeParameterType instances
-            for (var i = 0; i < constructedAbstract.TypeArguments.Count; i++)
+            for(var i = 0; i < constructedAbstract.TypeArguments.Count; i++)
             {
-                if (constructedAbstract.TypeArguments[i] is not TypeParameterType tpt)
+                if(constructedAbstract.TypeArguments[i] is not TypeParameterType tpt)
                     return false;
-                if (tpt.Name != scenario.TypeParamNames[i])
+                if(tpt.Name != scenario.TypeParamNames[i])
                     return false;
             }
         }
         else
         {
             // Type arguments should be concrete types (not TypeParameterType)
-            for (var i = 0; i < constructedAbstract.TypeArguments.Count; i++)
+            for(var i = 0; i < constructedAbstract.TypeArguments.Count; i++)
             {
-                if (constructedAbstract.TypeArguments[i] is TypeParameterType)
+                if(constructedAbstract.TypeArguments[i] is TypeParameterType)
                     return false;
             }
         }

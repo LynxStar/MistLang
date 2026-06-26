@@ -265,10 +265,10 @@ class {className} {{
         return from className in Gen.Elements(ClassNames)
                from methodName in Gen.Elements(MethodNames)
                from fieldName in Gen.Elements(FieldNames)
-               // When T has a readonly constraint, a readonly parameter of type T
-               // should prohibit field assignment (MIST_RO_0007).
-               // This validates Requirement 12.3: readonly constraint means all
-               // member access on T is treated as readonly.
+                   // When T has a readonly constraint, a readonly parameter of type T
+                   // should prohibit field assignment (MIST_RO_0007).
+                   // This validates Requirement 12.3: readonly constraint means all
+                   // member access on T is treated as readonly.
                let source = $@"class DataHolder {{
     public int {fieldName};
     DataHolder() {{
@@ -289,8 +289,8 @@ class {className} {{
         return from className in Gen.Elements(ClassNames)
                from methodName in Gen.Elements(MethodNames)
                from fieldName in Gen.Elements(FieldNames)
-               // When the parameter is NOT readonly, field assignment is permitted.
-               // This validates Requirement 12.4: mutable constraint permits mutation.
+                   // When the parameter is NOT readonly, field assignment is permitted.
+                   // This validates Requirement 12.4: mutable constraint permits mutation.
                let source = $@"class DataHolder {{
     public int {fieldName};
     DataHolder() {{
@@ -383,7 +383,7 @@ public sealed class ReadonlyGenericsPropertyTests : IDisposable
 
     public void Dispose()
     {
-        if (Directory.Exists(_outputDir))
+        if(Directory.Exists(_outputDir))
         {
             try { Directory.Delete(_outputDir, recursive: true); } catch { /* best effort */ }
         }
@@ -501,7 +501,7 @@ public sealed class ReadonlyGenericsPropertyTests : IDisposable
     {
         var result = CompileSource(scenario.Source);
 
-        if (scenario.ShouldError)
+        if(scenario.ShouldError)
         {
             // When T has a readonly constraint and the method is readonly,
             // accessing non-readonly members on T should produce a readonly diagnostic.
@@ -536,7 +536,7 @@ public sealed class ReadonlyGenericsPropertyTests : IDisposable
     {
         var result = CompileSource(scenario.Source);
 
-        if (scenario.ShouldError)
+        if(scenario.ShouldError)
         {
             return HasDiagnostic(result, "MIST_TC_0079").ToProperty()
                 .Label($"Expected MIST_TC_0079 but got: [{string.Join(", ", result.Diagnostics.Select(d => $"{d.Id.Value}: {d.Message}"))}]\nSource:\n{scenario.Source}");

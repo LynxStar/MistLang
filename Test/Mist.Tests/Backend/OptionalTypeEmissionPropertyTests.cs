@@ -113,7 +113,7 @@ public sealed class OptionalTypeEmissionPropertyTests
 
             var result = SharedDriver.Compile(options);
 
-            if (!result.Succeeded)
+            if(!result.Succeeded)
                 return null;
 
             return result.EmittedFiles;
@@ -130,7 +130,7 @@ public sealed class OptionalTypeEmissionPropertyTests
     private static string? GetEmittedContent(string source)
     {
         var files = CompileAndGetEmittedFiles(source);
-        if (files is null)
+        if(files is null)
             return null;
 
         // Concatenate all emitted file contents (excluding helper files like MistVoid.g.cs)
@@ -388,18 +388,18 @@ public sealed class OptionalTypeEmissionPropertyTests
         var source = BuildNullableEmissionSource(scenario);
         var emittedContent = GetEmittedContent(source);
 
-        if (emittedContent is null)
+        if(emittedContent is null)
         {
             return false.ToProperty()
                 .Label($"Compilation failed for: {scenario}\nSource:\n{source}");
         }
 
         // Verify the type representation in emitted C#
-        if (scenario.IsValueType)
+        if(scenario.IsValueType)
         {
             // Value types: emitted C# should contain T? (e.g., "int?" not just "int")
             var expectedTypePattern = $"{scenario.TypeName}?";
-            if (!emittedContent.Contains(expectedTypePattern))
+            if(!emittedContent.Contains(expectedTypePattern))
             {
                 return false.ToProperty()
                     .Label($"Value type '{scenario.TypeName}' should emit as '{expectedTypePattern}' but not found.\n" +
@@ -411,7 +411,7 @@ public sealed class OptionalTypeEmissionPropertyTests
             // Reference types: emitted C# should contain plain T (without ?)
             // and should NOT contain T? for this type
             var unexpectedPattern = $"{scenario.TypeName}?";
-            if (emittedContent.Contains(unexpectedPattern))
+            if(emittedContent.Contains(unexpectedPattern))
             {
                 return false.ToProperty()
                     .Label($"Reference type '{scenario.TypeName}' should emit as plain '{scenario.TypeName}' " +
@@ -420,7 +420,7 @@ public sealed class OptionalTypeEmissionPropertyTests
             }
 
             // Verify the type name IS present (plain, without ?)
-            if (!emittedContent.Contains(scenario.TypeName))
+            if(!emittedContent.Contains(scenario.TypeName))
             {
                 return false.ToProperty()
                     .Label($"Reference type '{scenario.TypeName}' not found in emitted code.\n" +
@@ -429,7 +429,7 @@ public sealed class OptionalTypeEmissionPropertyTests
         }
 
         // Verify void literals emit as null (not MistVoid.Instance)
-        if (!emittedContent.Contains("null"))
+        if(!emittedContent.Contains("null"))
         {
             return false.ToProperty()
                 .Label($"Void literal should emit as 'null' but 'null' not found.\n" +
@@ -438,7 +438,7 @@ public sealed class OptionalTypeEmissionPropertyTests
 
         // Verify no Union helper struct is generated for this two-constituent T | void union
         var unionHelperPattern = $"Union_{scenario.TypeName}";
-        if (emittedContent.Contains(unionHelperPattern))
+        if(emittedContent.Contains(unionHelperPattern))
         {
             return false.ToProperty()
                 .Label($"Should NOT generate union helper struct '{unionHelperPattern}' for T | void.\n" +
@@ -464,7 +464,7 @@ public sealed class OptionalTypeEmissionPropertyTests
         var source = BuildOperatorSource(scenario);
         var emittedContent = GetEmittedContent(source);
 
-        if (emittedContent is null)
+        if(emittedContent is null)
         {
             return false.ToProperty()
                 .Label($"Compilation failed for: {scenario}\nSource:\n{source}");
@@ -479,7 +479,7 @@ public sealed class OptionalTypeEmissionPropertyTests
             _ => throw new InvalidOperationException($"Unknown operator: {scenario.Operator}"),
         };
 
-        if (!emittedContent.Contains(expectedOperator))
+        if(!emittedContent.Contains(expectedOperator))
         {
             return false.ToProperty()
                 .Label($"Operator '{expectedOperator}' not found in emitted C# for scenario: {scenario}\n" +
@@ -487,10 +487,10 @@ public sealed class OptionalTypeEmissionPropertyTests
         }
 
         // For ??= specifically, verify it's not emitted as an if-statement pattern
-        if (scenario.Operator == "??=")
+        if(scenario.Operator == "??=")
         {
             // Should NOT contain the old pattern: if (x.IsVoid)
-            if (emittedContent.Contains(".IsVoid"))
+            if(emittedContent.Contains(".IsVoid"))
             {
                 return false.ToProperty()
                     .Label($"??= should emit as native C# '??=' but found old '.IsVoid' pattern.\n" +
@@ -499,10 +499,10 @@ public sealed class OptionalTypeEmissionPropertyTests
         }
 
         // For ?. specifically, verify it's not emitted as a ternary pattern
-        if (scenario.Operator == "?.")
+        if(scenario.Operator == "?.")
         {
             // Should NOT contain the old pattern with .IsVoid ternary
-            if (emittedContent.Contains(".IsVoid"))
+            if(emittedContent.Contains(".IsVoid"))
             {
                 return false.ToProperty()
                     .Label($"?. should emit as native C# '?.' but found old '.IsVoid' pattern.\n" +
@@ -511,9 +511,9 @@ public sealed class OptionalTypeEmissionPropertyTests
         }
 
         // For ?? specifically, verify it's not emitted as a ternary pattern
-        if (scenario.Operator == "??")
+        if(scenario.Operator == "??")
         {
-            if (emittedContent.Contains(".IsVoid"))
+            if(emittedContent.Contains(".IsVoid"))
             {
                 return false.ToProperty()
                     .Label($"?? should emit as native C# '??' but found old '.IsVoid' pattern.\n" +
@@ -526,7 +526,7 @@ public sealed class OptionalTypeEmissionPropertyTests
         // before emission, which can cause the void literal in the initial declaration
         // to emit as MistVoid.Instance instead of null. This is a known limitation
         // tracked separately. We only check for MistVoid.Instance in non-??= scenarios.
-        if (scenario.Operator != "??=" && emittedContent.Contains("MistVoid.Instance"))
+        if(scenario.Operator != "??=" && emittedContent.Contains("MistVoid.Instance"))
         {
             return false.ToProperty()
                 .Label($"Should use 'null' instead of 'MistVoid.Instance' in optional contexts.\n" +

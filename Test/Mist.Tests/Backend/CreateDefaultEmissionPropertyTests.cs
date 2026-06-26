@@ -89,7 +89,7 @@ public sealed class CreateDefaultEmissionPropertyTests : IDisposable
 
     public void Dispose()
     {
-        if (Directory.Exists(_outputDir))
+        if(Directory.Exists(_outputDir))
         {
             try { Directory.Delete(_outputDir, recursive: true); } catch { /* best effort */ }
         }
@@ -130,12 +130,12 @@ public sealed class CreateDefaultEmissionPropertyTests : IDisposable
     /// </summary>
     private static string? GetEmittedCSharp(CompilerResult result)
     {
-        if (result.EmittedFiles is null)
+        if(result.EmittedFiles is null)
             return null;
 
-        foreach (var (_, content) in result.EmittedFiles)
+        foreach(var (_, content) in result.EmittedFiles)
         {
-            if (content.Contains("namespace TestProgram"))
+            if(content.Contains("namespace TestProgram"))
                 return content;
         }
 
@@ -175,14 +175,14 @@ public sealed class CreateDefaultEmissionPropertyTests : IDisposable
         sb.AppendLine();
         sb.AppendLine($"public {kind} {typeName}");
         sb.AppendLine("{");
-        foreach (var (fieldName, fieldType) in fields)
+        foreach(var (fieldName, fieldType) in fields)
         {
             sb.AppendLine($"    public {fieldType} {fieldName};");
         }
         sb.AppendLine();
         sb.AppendLine($"    public {typeName}()");
         sb.AppendLine("    {");
-        foreach (var (fieldName, fieldType) in fields)
+        foreach(var (fieldName, fieldType) in fields)
         {
             var defaultValue = fieldType switch
             {
@@ -216,7 +216,7 @@ public sealed class CreateDefaultEmissionPropertyTests : IDisposable
         sb.AppendLine();
         sb.AppendLine($"public {kind} {typeName}");
         sb.AppendLine("{");
-        foreach (var (fieldName, fieldType) in fields)
+        foreach(var (fieldName, fieldType) in fields)
         {
             sb.AppendLine($"    public {fieldType} {fieldName};");
         }
@@ -241,14 +241,14 @@ public sealed class CreateDefaultEmissionPropertyTests : IDisposable
         sb.AppendLine();
         sb.AppendLine($"public {kind} {typeName}");
         sb.AppendLine("{");
-        foreach (var (fieldName, fieldType) in fields)
+        foreach(var (fieldName, fieldType) in fields)
         {
             sb.AppendLine($"    public {fieldType} {fieldName};");
         }
         sb.AppendLine();
         sb.AppendLine("    default");
         sb.AppendLine("    {");
-        foreach (var (fieldName, fieldType) in fields)
+        foreach(var (fieldName, fieldType) in fields)
         {
             var defaultValue = fieldType switch
             {
@@ -277,14 +277,14 @@ public sealed class CreateDefaultEmissionPropertyTests : IDisposable
 
     private static Gen<ImmutableArray<(string FieldName, string FieldType)>> GenFields(int count)
     {
-        if (count == 0)
+        if(count == 0)
             return Gen.Constant(ImmutableArray<(string, string)>.Empty);
 
         Gen<ImmutableArray<(string, string)>> result =
             from fieldType in Gen.Elements(PrimitiveTypes)
             select ImmutableArray.Create<(string, string)>((FieldNames[0], fieldType));
 
-        for (var i = 1; i < count; i++)
+        for(var i = 1; i < count; i++)
         {
             var idx = i;
             result = from arr in result
@@ -360,7 +360,7 @@ public sealed class CreateDefaultEmissionPropertyTests : IDisposable
     {
         var result = CompileSource(scenario.Source);
 
-        if (!result.Succeeded)
+        if(!result.Succeeded)
         {
             var errors = result.Diagnostics
                 .Where(d => d.Severity == DiagnosticSeverity.Error)
@@ -370,7 +370,7 @@ public sealed class CreateDefaultEmissionPropertyTests : IDisposable
         }
 
         var emittedCSharp = GetEmittedCSharp(result);
-        if (emittedCSharp is null)
+        if(emittedCSharp is null)
         {
             return false.ToProperty()
                 .Label($"No emitted C# content found.\nSource:\n{scenario.Source}");
@@ -395,7 +395,7 @@ public sealed class CreateDefaultEmissionPropertyTests : IDisposable
     {
         var result = CompileSource(scenario.Source);
 
-        if (!result.Succeeded)
+        if(!result.Succeeded)
         {
             var errors = result.Diagnostics
                 .Where(d => d.Severity == DiagnosticSeverity.Error)
@@ -405,7 +405,7 @@ public sealed class CreateDefaultEmissionPropertyTests : IDisposable
         }
 
         var emittedCSharp = GetEmittedCSharp(result);
-        if (emittedCSharp is null)
+        if(emittedCSharp is null)
         {
             return false.ToProperty()
                 .Label($"No emitted C# content found.\nSource:\n{scenario.Source}");
@@ -430,7 +430,7 @@ public sealed class CreateDefaultEmissionPropertyTests : IDisposable
     {
         var result = CompileSource(scenario.Source);
 
-        if (!result.Succeeded)
+        if(!result.Succeeded)
         {
             var errors = result.Diagnostics
                 .Where(d => d.Severity == DiagnosticSeverity.Error)
@@ -440,7 +440,7 @@ public sealed class CreateDefaultEmissionPropertyTests : IDisposable
         }
 
         var emittedCSharp = GetEmittedCSharp(result);
-        if (emittedCSharp is null)
+        if(emittedCSharp is null)
         {
             return false.ToProperty()
                 .Label($"No emitted C# content found.\nSource:\n{scenario.Source}");

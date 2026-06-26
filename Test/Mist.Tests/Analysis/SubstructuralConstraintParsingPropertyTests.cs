@@ -218,7 +218,7 @@ public class SubstructuralConstraintParsingPropertyTests
 
         // The source should compile without errors (we build compatible combinations).
         var errors = diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error).ToList();
-        if (errors.Count > 0)
+        if(errors.Count > 0)
         {
             return false.ToProperty()
                 .Label($"Expected zero errors but got {errors.Count}.\n" +
@@ -227,7 +227,7 @@ public class SubstructuralConstraintParsingPropertyTests
                        $"Errors: [{string.Join(", ", errors.Select(d => $"{d.Id.Value}: {d.Message}"))}]");
         }
 
-        if (model is null)
+        if(model is null)
         {
             return false.ToProperty()
                 .Label($"Semantic model was not captured.\nScenario: {scenario}");
@@ -237,7 +237,7 @@ public class SubstructuralConstraintParsingPropertyTests
         var classSymbol = model.AllSymbols
             .FirstOrDefault(s => s.Kind == SymbolKind.Class && s.Name == scenario.ClassName);
 
-        if (classSymbol is null)
+        if(classSymbol is null)
         {
             return false.ToProperty()
                 .Label($"Could not find class symbol '{scenario.ClassName}' in the semantic model.\n" +
@@ -247,7 +247,7 @@ public class SubstructuralConstraintParsingPropertyTests
 
         // Get the TypeParameterType from the class's TypeParameters.
         var classType = classSymbol.DeclaredType as ClassType;
-        if (classType is null)
+        if(classType is null)
         {
             return false.ToProperty()
                 .Label($"Class symbol '{scenario.ClassName}' does not have a ClassType DeclaredType.\n" +
@@ -258,7 +258,7 @@ public class SubstructuralConstraintParsingPropertyTests
             .OfType<TypeParameterType>()
             .FirstOrDefault(tp => tp.Name == scenario.TypeParamName);
 
-        if (typeParam is null)
+        if(typeParam is null)
         {
             return false.ToProperty()
                 .Label($"Could not find type parameter '{scenario.TypeParamName}' on class '{scenario.ClassName}'.\n" +
@@ -267,7 +267,7 @@ public class SubstructuralConstraintParsingPropertyTests
         }
 
         var constraints = typeParam.Constraints;
-        if (constraints is null)
+        if(constraints is null)
         {
             return false.ToProperty()
                 .Label($"Type parameter '{scenario.TypeParamName}' has null Constraints.\n" +
@@ -286,7 +286,7 @@ public class SubstructuralConstraintParsingPropertyTests
         var affineOk = constraints.HasAffineConstraint == expectedAffine;
         var relevantOk = constraints.HasRelevantConstraint == expectedRelevant;
 
-        if (!linearOk || !affineOk || !relevantOk)
+        if(!linearOk || !affineOk || !relevantOk)
         {
             return false.ToProperty()
                 .Label($"Constraint booleans mismatch for '{scenario.DisciplineKeyword}' constraint.\n" +

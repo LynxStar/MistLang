@@ -63,7 +63,7 @@ public class ConstraintPropagationPropertyTests
         var parseBag = new DiagnosticBag();
         var parseResult = Parser.Parse(tokens, parseBag);
 
-        if (parseResult.Root is null)
+        if(parseResult.Root is null)
             return (null!, lexBag.ToImmutableArray().AddRange(parseBag.ToImmutableArray()));
 
         var compilation = new MistCompilation(
@@ -278,7 +278,7 @@ abstract {derivedAbstractName}<T> : {baseAbstractName}<T> where T : {constraintA
         var (_, diagnostics) = CompileSource(scenario.Source);
         var hasViolation = HasPropagationViolation(diagnostics);
 
-        if (scenario.ShouldAccept)
+        if(scenario.ShouldAccept)
         {
             return (!hasViolation).ToProperty()
                 .Label($"Expected ACCEPT but got MIST_CONSTRAINT_0017.\nSource:\n{scenario.Source}\nDiagnostics: {string.Join("; ", diagnostics.Where(d => d.Id.Value.StartsWith("MIST_CONSTRAINT")).Select(d => d.Message))}");

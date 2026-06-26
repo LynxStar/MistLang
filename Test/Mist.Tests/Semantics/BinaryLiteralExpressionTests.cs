@@ -33,7 +33,7 @@ public class BinaryLiteralExpressionTests
         var sourceText = new SourceText("test.mist", source);
         var bag = new DiagnosticBag();
         var tokens = Lexer.Lex(sourceText, bag);
-        if (bag.HasErrors) return null;
+        if(bag.HasErrors) return null;
         var result = Parser.Parse(tokens, bag);
         return result.Root as CompilationUnitNode;
     }

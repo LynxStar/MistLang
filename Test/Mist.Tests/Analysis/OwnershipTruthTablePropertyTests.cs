@@ -221,9 +221,9 @@ public class OwnershipTruthTablePropertyTests
     /// </summary>
     public static IEnumerable<object[]> PermittedPairs()
     {
-        foreach (var ((state, action), permitted) in ExpectedTruthTable)
+        foreach(var ((state, action), permitted) in ExpectedTruthTable)
         {
-            if (permitted)
+            if(permitted)
                 yield return new object[] { state, action };
         }
     }
@@ -233,9 +233,9 @@ public class OwnershipTruthTablePropertyTests
     /// </summary>
     public static IEnumerable<object[]> RejectedPairs()
     {
-        foreach (var ((state, action), permitted) in ExpectedTruthTable)
+        foreach(var ((state, action), permitted) in ExpectedTruthTable)
         {
-            if (!permitted)
+            if(!permitted)
                 yield return new object[] { state, action };
         }
     }

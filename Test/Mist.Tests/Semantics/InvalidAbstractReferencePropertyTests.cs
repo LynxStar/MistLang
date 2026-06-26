@@ -94,7 +94,7 @@ public class InvalidAbstractReferencePropertyTests
             Members = members,
         };
 
-        if (parentAbstractName is not null)
+        if(parentAbstractName is not null)
         {
             var _abstractList1 = MakeBaseList(parentAbstractName);
 
@@ -128,7 +128,7 @@ public class InvalidAbstractReferencePropertyTests
             Members = members ?? ImmutableArray<MemberDeclarationNode>.Empty,
         };
 
-        if (abstractName is not null)
+        if(abstractName is not null)
         {
             var _abstractList2 = MakeBaseList(abstractName);
 
@@ -276,7 +276,7 @@ public class InvalidAbstractReferencePropertyTests
         var typeDecls = new List<TypeDeclarationNode>();
 
         // If the reference is to a class or struct, declare that type first
-        switch (scenario.ReferenceKind)
+        switch(scenario.ReferenceKind)
         {
             case InvalidReferenceKind.ReferencesClass:
                 typeDecls.Add(WrapClass(MakeClassDecl(scenario.ReferencedName)));
@@ -284,11 +284,11 @@ public class InvalidAbstractReferencePropertyTests
             case InvalidReferenceKind.ReferencesStruct:
                 typeDecls.Add(WrapStruct(MakeStructDecl(scenario.ReferencedName)));
                 break;
-            // Undefined: no declaration for the referenced name
+                // Undefined: no declaration for the referenced name
         }
 
         // Build the referencing type that has the invalid abstract reference
-        switch (scenario.TypeKind)
+        switch(scenario.TypeKind)
         {
             case ReferencingTypeKind.Struct:
                 typeDecls.Add(WrapStruct(
@@ -316,16 +316,16 @@ public class InvalidAbstractReferencePropertyTests
             .Where(d => d.Id.Value == expectedDiagnosticId)
             .ToList();
 
-        if (matchingDiagnostics.Count != 1)
+        if(matchingDiagnostics.Count != 1)
             return false;
 
         // Verify the diagnostic message references the invalid name
         var diag = matchingDiagnostics[0];
-        if (!diag.Message.Contains(scenario.ReferencedName))
+        if(!diag.Message.Contains(scenario.ReferencedName))
             return false;
 
         // Verify the diagnostic severity is Error
-        if (diag.Severity != DiagnosticSeverity.Error)
+        if(diag.Severity != DiagnosticSeverity.Error)
             return false;
 
         // Verify the implementing type's Abstracts list does NOT contain
@@ -339,7 +339,7 @@ public class InvalidAbstractReferencePropertyTests
 
         var referencingSymbol = model.AllSymbols
             .FirstOrDefault(s => s.Name == scenario.ReferencingTypeName && s.Kind == expectedKind);
-        if (referencingSymbol is null)
+        if(referencingSymbol is null)
             return false;
 
         IReadOnlyList<IType> resolvedAbstracts = referencingSymbol.DeclaredType switch
@@ -350,7 +350,7 @@ public class InvalidAbstractReferencePropertyTests
         };
 
         // The invalid reference should not appear in the resolved abstracts
-        if (resolvedAbstracts.Any(i => i.DisplayName == scenario.ReferencedName))
+        if(resolvedAbstracts.Any(i => i.DisplayName == scenario.ReferencedName))
             return false;
 
         return true;

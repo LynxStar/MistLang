@@ -144,7 +144,7 @@ public sealed class SyntheticDropInferenceDisposableExclusionPropertyTests
 
         // Create field types based on configuration
         var fieldTypes = new ClassType[scenario.FieldConfigs.Count];
-        for (var i = 0; i < scenario.FieldConfigs.Count; i++)
+        for(var i = 0; i < scenario.FieldConfigs.Count; i++)
         {
             var config = scenario.FieldConfigs[i];
             var fieldTypeScope = new Scope(parent: null);
@@ -158,7 +158,7 @@ public sealed class SyntheticDropInferenceDisposableExclusionPropertyTests
 
             var fieldType = new ClassType(fieldTypeName, fieldTypeScope, containingNamespace: "Test");
 
-            switch (config)
+            switch(config)
             {
                 case FieldConfig.ExplicitDrop:
                     fieldType.HasDrop = true;
@@ -189,7 +189,7 @@ public sealed class SyntheticDropInferenceDisposableExclusionPropertyTests
 
         // Create the container type with fields referencing the above types
         var containerScope = new Scope(parent: null);
-        for (var i = 0; i < scenario.FieldConfigs.Count; i++)
+        for(var i = 0; i < scenario.FieldConfigs.Count; i++)
         {
             var fieldSymbol = new Symbol(
                 name: $"field_{i}",
@@ -241,26 +241,26 @@ public sealed class SyntheticDropInferenceDisposableExclusionPropertyTests
 
         // Compute expected: only ExplicitDrop fields should appear
         var expectedFields = new List<string>();
-        for (var i = 0; i < scenario.FieldConfigs.Count; i++)
+        for(var i = 0; i < scenario.FieldConfigs.Count; i++)
         {
             var fieldName = $"field_{i}";
             var config = scenario.FieldConfigs[i];
 
-            if (config == FieldConfig.DisposableDrop)
+            if(config == FieldConfig.DisposableDrop)
             {
                 // Requirement 5.1: IsDisposableDrop=true fields must NOT appear
-                if (synthFields.Contains(fieldName))
+                if(synthFields.Contains(fieldName))
                 {
                     return false.ToProperty().Label(
                         $"VIOLATION Req 5.1: Field '{fieldName}' has IsDisposableDrop=true but appeared in SyntheticDropFields. "
                         + $"Scenario: {scenario}");
                 }
             }
-            else if (config == FieldConfig.ExplicitDrop)
+            else if(config == FieldConfig.ExplicitDrop)
             {
                 // Requirement 5.3: HasDrop=true AND IsDisposableDrop=false fields MUST appear
                 expectedFields.Add(fieldName);
-                if (!synthFields.Contains(fieldName))
+                if(!synthFields.Contains(fieldName))
                 {
                     return false.ToProperty().Label(
                         $"VIOLATION Req 5.3: Field '{fieldName}' has HasDrop=true, IsDisposableDrop=false but was NOT in SyntheticDropFields. "
@@ -270,7 +270,7 @@ public sealed class SyntheticDropInferenceDisposableExclusionPropertyTests
             else
             {
                 // NonDroppable: must not appear
-                if (synthFields.Contains(fieldName))
+                if(synthFields.Contains(fieldName))
                 {
                     return false.ToProperty().Label(
                         $"VIOLATION: Non-droppable field '{fieldName}' appeared in SyntheticDropFields. "
@@ -280,7 +280,7 @@ public sealed class SyntheticDropInferenceDisposableExclusionPropertyTests
         }
 
         // Verify HasDrop on container matches expectations (Req 5.2)
-        if (expectedFields.Count == 0)
+        if(expectedFields.Count == 0)
         {
             // No explicit-drop fields → container should NOT have synthetic drop
             var ok = !containerType.HasDrop && containerType.SyntheticDropFields is null;

@@ -88,13 +88,13 @@ public sealed class DelegateVisibilityPropertyTests
     private static void RunProperty<T>(Gen<T> gen, Action<T> check, int maxTests = 100)
     {
         var samples = gen.Sample(maxTests).ToList();
-        for (var idx = 0; idx < samples.Count; idx++)
+        for(var idx = 0; idx < samples.Count; idx++)
         {
             try
             {
                 check(samples[idx]);
             }
-            catch (Exception ex)
+            catch(Exception ex)
             {
                 throw new Exception(
                     $"Property failed on sample {idx}/{samples.Count}: {samples[idx]}\n" +
@@ -253,7 +253,7 @@ public sealed class DelegateVisibilityPropertyTests
 
             // None should have pointer types in their Invoke
             var invokeMethod = delegateType.GetMethod("Invoke");
-            if (invokeMethod is not null)
+            if(invokeMethod is not null)
             {
                 Assert.False(ContainsPointerInSignature(invokeMethod),
                     $"Safe delegate {delegateType.FullName} unexpectedly has pointers in Invoke.");
@@ -267,12 +267,12 @@ public sealed class DelegateVisibilityPropertyTests
 
     private static bool ContainsPointerInSignature(MethodInfo method)
     {
-        if (ContainsPointerType(method.ReturnType))
+        if(ContainsPointerType(method.ReturnType))
             return true;
 
-        foreach (var param in method.GetParameters())
+        foreach(var param in method.GetParameters())
         {
-            if (ContainsPointerType(param.ParameterType))
+            if(ContainsPointerType(param.ParameterType))
                 return true;
         }
 
@@ -281,28 +281,28 @@ public sealed class DelegateVisibilityPropertyTests
 
     private static bool ContainsPointerType(Type type)
     {
-        if (type.IsPointer)
+        if(type.IsPointer)
             return true;
 
-        if (type.IsByRef)
+        if(type.IsByRef)
         {
             var element = type.GetElementType();
-            if (element is not null)
+            if(element is not null)
                 return ContainsPointerType(element);
         }
 
-        if (type.IsArray)
+        if(type.IsArray)
         {
             var element = type.GetElementType();
-            if (element is not null)
+            if(element is not null)
                 return ContainsPointerType(element);
         }
 
-        if (type.IsConstructedGenericType)
+        if(type.IsConstructedGenericType)
         {
-            foreach (var arg in type.GetGenericArguments())
+            foreach(var arg in type.GetGenericArguments())
             {
-                if (ContainsPointerType(arg))
+                if(ContainsPointerType(arg))
                     return true;
             }
         }

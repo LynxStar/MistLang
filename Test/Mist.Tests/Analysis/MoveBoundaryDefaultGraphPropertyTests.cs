@@ -49,7 +49,7 @@ public sealed class MoveBoundaryDefaultGraphPropertyTests : IDisposable
 
     public void Dispose()
     {
-        if (Directory.Exists(_outputDir))
+        if(Directory.Exists(_outputDir))
         {
             try { Directory.Delete(_outputDir, recursive: true); } catch { /* best effort */ }
         }
@@ -132,7 +132,7 @@ public sealed class MoveBoundaryDefaultGraphPropertyTests : IDisposable
 
         void Walk(SyntaxNode node)
         {
-            switch (node)
+            switch(node)
             {
                 case TypedVariableDeclarationVariableDeclarationStatementNode typed
                     when typed.OwnershipSpecifier is OwnedSpecifierOwnershipSpecifierNode:
@@ -145,9 +145,9 @@ public sealed class MoveBoundaryDefaultGraphPropertyTests : IDisposable
                     break;
             }
 
-            foreach (var child in node.Children())
+            foreach(var child in node.Children())
             {
-                if (child is not null)
+                if(child is not null)
                     Walk(child);
             }
         }
@@ -287,19 +287,19 @@ public sealed class MoveBoundaryDefaultGraphPropertyTests : IDisposable
     public bool Default_ResolvesToDefaultGraph_AndIsAccepted(DefaultScenario scenario)
     {
         var model = CompileAndCapture(scenario.Source);
-        if (model is null)
+        if(model is null)
             return false;
 
         var ownedInits = FindOwnedBindingInitializers(model);
 
         // The generated program always contains exactly two owned default bindings
         // (default(T) and bare default); if discovery found fewer, the harness is broken.
-        if (ownedInits.Count < 2)
+        if(ownedInits.Count < 2)
             return false;
 
         var resolver = new MoveBoundaryResolver();
 
-        foreach (var (initializer, destinationType) in ownedInits)
+        foreach(var (initializer, destinationType) in ownedInits)
         {
             var flowState = new MethodFlowState();
             var diagnostics = new DiagnosticBag();
@@ -313,11 +313,11 @@ public sealed class MoveBoundaryDefaultGraphPropertyTests : IDisposable
                 diagnostics);
 
             // Both default(T) and bare default must classify as a fresh owned graph (Req 6 AC 10).
-            if (resolution.Outcome != MoveOutcome.DefaultGraph)
+            if(resolution.Outcome != MoveOutcome.DefaultGraph)
                 return false;
 
             // The move must be accepted — no error diagnostic emitted by the resolver.
-            if (diagnostics.HasErrors)
+            if(diagnostics.HasErrors)
                 return false;
         }
 

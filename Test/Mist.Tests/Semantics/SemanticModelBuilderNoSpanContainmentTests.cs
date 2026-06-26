@@ -28,7 +28,7 @@ public class SemanticModelBuilderNoSpanContainmentTests
         var type = typeof(SemanticModelBuilder);
         var methods = type.GetMethods(AllMethods);
 
-        foreach (var removedName in RemovedMethodNames)
+        foreach(var removedName in RemovedMethodNames)
         {
             var found = methods.FirstOrDefault(m => m.Name == removedName);
             Assert.True(

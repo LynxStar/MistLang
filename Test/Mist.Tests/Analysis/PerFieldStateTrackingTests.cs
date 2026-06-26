@@ -39,7 +39,7 @@ public sealed class PerFieldStateTrackingTests
         var scope = new Scope(parent: null);
         var fields = new Symbol[fieldNames.Length];
 
-        for (var i = 0; i < fieldNames.Length; i++)
+        for(var i = 0; i < fieldNames.Length; i++)
         {
             var field = new Symbol(
                 name: fieldNames[i],

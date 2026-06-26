@@ -81,10 +81,10 @@ public sealed class ThisTierInferenceSoundnessPropertyTests
     private static ThisTier ExpectedTier(params FieldOp[] ops)
     {
         var max = ThisTier.None;
-        foreach (var op in ops)
+        foreach(var op in ops)
         {
             var tier = TierForOp(op);
-            if (tier > max) max = tier;
+            if(tier > max) max = tier;
         }
         return max;
     }
@@ -108,10 +108,10 @@ public sealed class ThisTierInferenceSoundnessPropertyTests
     {
         var fieldDecls = string.Join("\n    ", fieldNames.Select(f => $"owned int {f};"));
         var bodyLines = new List<string>();
-        for (var i = 0; i < ops.Length; i++)
+        for(var i = 0; i < ops.Length; i++)
         {
             var line = GenerateBodyLine(ops[i], fieldNames[i]);
-            if (!string.IsNullOrEmpty(line))
+            if(!string.IsNullOrEmpty(line))
                 bodyLines.Add(line);
         }
 
@@ -140,11 +140,11 @@ public sealed class ThisTierInferenceSoundnessPropertyTests
         var sourceText = new SourceText("test.mist", source);
         var lexBag = new DiagnosticBag();
         var tokens = Lexer.Lex(sourceText, lexBag);
-        if (lexBag.HasErrors) return null;
+        if(lexBag.HasErrors) return null;
 
         var parseBag = new DiagnosticBag();
         var parseResult = Parser.Parse(tokens, parseBag);
-        if (parseBag.HasErrors || parseResult.Root is null) return null;
+        if(parseBag.HasErrors || parseResult.Root is null) return null;
 
         var builder = new SemanticModelBuilder();
         var compilation = new MistCompilation(
@@ -164,7 +164,7 @@ public sealed class ThisTierInferenceSoundnessPropertyTests
         var targetMethod = model.AllSymbols
             .FirstOrDefault(s => s.Name == "Target" && s.Kind == SymbolKind.Method);
 
-        if (targetMethod is null) return null;
+        if(targetMethod is null) return null;
 
         return ThisTierInferencePass.GetThisTier(targetMethod);
     }
@@ -177,7 +177,7 @@ public sealed class ThisTierInferenceSoundnessPropertyTests
 
     public static IEnumerable<object[]> SingleFieldCombinations()
     {
-        foreach (var op in Enum.GetValues<FieldOp>())
+        foreach(var op in Enum.GetValues<FieldOp>())
         {
             yield return new object[] { op };
         }
@@ -211,9 +211,9 @@ public sealed class ThisTierInferenceSoundnessPropertyTests
 
     public static IEnumerable<object[]> TwoFieldCombinations()
     {
-        foreach (var opA in Enum.GetValues<FieldOp>())
+        foreach(var opA in Enum.GetValues<FieldOp>())
         {
-            foreach (var opB in Enum.GetValues<FieldOp>())
+            foreach(var opB in Enum.GetValues<FieldOp>())
             {
                 yield return new object[] { opA, opB };
             }
@@ -247,11 +247,11 @@ public sealed class ThisTierInferenceSoundnessPropertyTests
 
     public static IEnumerable<object[]> ThreeFieldCombinations()
     {
-        foreach (var opA in Enum.GetValues<FieldOp>())
+        foreach(var opA in Enum.GetValues<FieldOp>())
         {
-            foreach (var opB in Enum.GetValues<FieldOp>())
+            foreach(var opB in Enum.GetValues<FieldOp>())
             {
-                foreach (var opC in Enum.GetValues<FieldOp>())
+                foreach(var opC in Enum.GetValues<FieldOp>())
                 {
                     yield return new object[] { opA, opB, opC };
                 }
@@ -291,9 +291,9 @@ public sealed class ThisTierInferenceSoundnessPropertyTests
     public static IEnumerable<object[]> TransitiveCompositionCases()
     {
         // (helperOp, callerOp) → caller tier should be Max(tierForHelperOp, tierForCallerOp)
-        foreach (var helperOp in Enum.GetValues<FieldOp>())
+        foreach(var helperOp in Enum.GetValues<FieldOp>())
         {
-            foreach (var callerOp in Enum.GetValues<FieldOp>())
+            foreach(var callerOp in Enum.GetValues<FieldOp>())
             {
                 yield return new object[] { helperOp, callerOp };
             }
@@ -311,7 +311,7 @@ public sealed class ThisTierInferenceSoundnessPropertyTests
     public void TransitiveComposition_CallerTierIsAtLeastCalleesTier(FieldOp helperOp, FieldOp callerOp)
     {
         var helperBody = GenerateBodyLine(helperOp, "data");
-        if (string.IsNullOrEmpty(helperBody)) helperBody = "int _h = 0;";
+        if(string.IsNullOrEmpty(helperBody)) helperBody = "int _h = 0;";
 
         var callerDirectBody = GenerateBodyLine(callerOp, "data");
         var callerBody = string.IsNullOrEmpty(callerDirectBody)

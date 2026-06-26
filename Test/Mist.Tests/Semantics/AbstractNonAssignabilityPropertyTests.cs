@@ -118,14 +118,17 @@ public class AbstractNonAssignabilityPropertyTests
         {
             VariableDeclaration = new TypedVariableDeclarationVariableDeclarationStatementNode
             {
-                Type = new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
+                Type = new TypeReferenceNode
                 {
-                    Name = new QualifiedIdentifierNode
+                    First = new NamedSingleTypeRefSingleTypeRefNode
                     {
-                        IDENTIFIER = MakeToken(declaredTypeName),
-                        Span = new Storm.Runtime.SourceSpan(0, declaredTypeName.Length),
-                    },
-                } },
+                        Name = new QualifiedIdentifierNode
+                        {
+                            IDENTIFIER = MakeToken(declaredTypeName),
+                            Span = new Storm.Runtime.SourceSpan(0, declaredTypeName.Length),
+                        },
+                    }
+                },
                 Name = MakeToken(varName),
                 Initializer = MakeNewObjectExpression(initializedTypeName),
             },
@@ -166,7 +169,7 @@ public class AbstractNonAssignabilityPropertyTests
         bool isStatic = false)
     {
         var modifiers = new List<ModifierNode> { new PublicModifierModifierNode() };
-        if (isStatic)
+        if(isStatic)
             modifiers.Add(new StaticModifierModifierNode());
 
         return new MethodDeclarationNode
@@ -174,10 +177,13 @@ public class AbstractNonAssignabilityPropertyTests
             Name = MakeToken(name),
             ReturnType = returnType ?? new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = parameters,
-            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode
+            Body = new MethodBlockBodyMethodBodyNode
             {
-                Statements = bodyStatements ?? ImmutableArray<StatementNode>.Empty,
-            } },
+                Block = new BlockNode
+                {
+                    Statements = bodyStatements ?? ImmutableArray<StatementNode>.Empty,
+                }
+            },
             Modifiers = modifiers.ToImmutableArray(),
         };
     }
@@ -193,7 +199,7 @@ public class AbstractNonAssignabilityPropertyTests
             Members = members ?? ImmutableArray<MemberDeclarationNode>.Empty,
         };
 
-        if (baseOrAbstractName is not null)
+        if(baseOrAbstractName is not null)
         {
             var _baseList1 = MakeBaseList(baseOrAbstractName);
 
@@ -216,7 +222,7 @@ public class AbstractNonAssignabilityPropertyTests
             Members = members ?? ImmutableArray<MemberDeclarationNode>.Empty,
         };
 
-        if (abstractName is not null)
+        if(abstractName is not null)
         {
             var _abstractList1 = MakeBaseList(abstractName);
 
@@ -336,7 +342,7 @@ public class AbstractNonAssignabilityPropertyTests
 
         // 2. Non-implementing type — NO abstract list (no `: IFoo`)
         // The type is a plain class or struct with no base clause / abstract list.
-        switch (scenario.TypeKind)
+        switch(scenario.TypeKind)
         {
             case NonImplTypeKind.Class:
                 typeDecls.Add(WrapClass(
@@ -450,7 +456,7 @@ public class AbstractNonAssignabilityPropertyTests
         var diagnostics = RunTypeChecker(model);
 
         Assert.Contains(diagnostics, d => d.Id.Value == "MIST_TC_0001");
-    ;
+        ;
     }
 
 }

@@ -203,7 +203,7 @@ public sealed class StackallocStampabilityGateParityPropertyTests
     private static string BuildPureStructDecl(string structName, int fieldCount)
     {
         var fields = new List<string>();
-        for (var i = 0; i < fieldCount; i++)
+        for(var i = 0; i < fieldCount; i++)
         {
             var fieldType = PrimitiveTypes[i % PrimitiveTypes.Length];
             fields.Add($"    public {fieldType} field{i};");

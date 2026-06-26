@@ -273,10 +273,13 @@ public class RefinementComparisonEngineEdgeCaseTests
         // Type pattern alternative: int x
         var typePatternPrimary = new TypePatternPrimaryPatternNode
         {
-            Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
+            Type = new TypeReferenceNode
             {
-                PrimitiveType = new IntTypePrimitiveTypeNode(),
-            } },
+                First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                {
+                    PrimitiveType = new IntTypePrimitiveTypeNode(),
+                }
+            },
             Name = MistTypeGenerator.MakeToken("x"),
         };
         var typeDirect = new DirectPatternUnaryPatternNode { Primary = typePatternPrimary };

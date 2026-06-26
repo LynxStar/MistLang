@@ -17,7 +17,7 @@ public class StormRegexLiteralIRPropertyTests
         return path =>
         {
             var normalized = StormImportResolver.CanonicalizePath(path);
-            if (files.TryGetValue(normalized, out var contents))
+            if(files.TryGetValue(normalized, out var contents))
                 return contents;
             return null;
         };
@@ -72,7 +72,7 @@ public class StormRegexLiteralIRPropertyTests
     public void IRLowering_PreservesRegexPattern()
     {
         var patterns = GenRegexPattern().Sample(100);
-        foreach (var pattern in patterns)
+        foreach(var pattern in patterns)
         {
             // Build a grammar with a token using the regex literal (tests InlineFragments path)
             var grammarSource = $"grammar Test;\ntoken T = `{pattern}`;\nrule Start = T;";

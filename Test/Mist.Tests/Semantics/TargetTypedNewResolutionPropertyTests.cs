@@ -185,7 +185,7 @@ public static class TargetTypedNewResolutionGenerators
 
     private static string BuildCtorDecl(string className, int argCount)
     {
-        if (argCount == 0) return "";
+        if(argCount == 0) return "";
         var parms = BuildCtorParams(argCount);
         return "    public " + className + "(" + parms + ") { }\n";
     }
@@ -278,7 +278,7 @@ public sealed class TargetTypedNewResolutionPropertyTests : IDisposable
 
     public void Dispose()
     {
-        if (Directory.Exists(_outputDir))
+        if(Directory.Exists(_outputDir))
         {
             try { Directory.Delete(_outputDir, recursive: true); } catch { /* best effort */ }
         }
@@ -353,19 +353,19 @@ public sealed class TargetTypedNewResolutionPropertyTests : IDisposable
 
     private static void CollectTargetTypedNewNodes(Storm.Runtime.SyntaxNode? node, List<TargetTypedNewExpressionPrimaryNode> results)
     {
-        if (node is null) return;
+        if(node is null) return;
 
-        if (node is TargetTypedNewExpressionPrimaryNode targetNew)
+        if(node is TargetTypedNewExpressionPrimaryNode targetNew)
         {
             results.Add(targetNew);
         }
 
         try
         {
-            foreach (var child in node.Children())
+            foreach(var child in node.Children())
                 CollectTargetTypedNewNodes(child, results);
         }
-        catch (NullReferenceException)
+        catch(NullReferenceException)
         {
             // Some AST nodes may have null children that Children() doesn't guard against.
         }
@@ -395,7 +395,7 @@ public sealed class TargetTypedNewResolutionPropertyTests : IDisposable
             .Where(d => d.Id.Value != "MIST_TC_0017")
             .ToList();
 
-        if (errors.Count > 0)
+        if(errors.Count > 0)
         {
             return false.ToProperty()
                 .Label($"Compilation failed with errors:\n" +
@@ -404,7 +404,7 @@ public sealed class TargetTypedNewResolutionPropertyTests : IDisposable
                        "\nSource:\n" + scenario.Source);
         }
 
-        if (model is null)
+        if(model is null)
         {
             return false.ToProperty()
                 .Label("Semantic model was not captured.\nSource:\n" + scenario.Source);
@@ -414,7 +414,7 @@ public sealed class TargetTypedNewResolutionPropertyTests : IDisposable
         var userAst = model.Asts[^1];
         var targetNewNodes = FindTargetTypedNewNodes(userAst);
 
-        if (targetNewNodes.Count == 0)
+        if(targetNewNodes.Count == 0)
         {
             return false.ToProperty()
                 .Label("No TargetTypedNewExpressionPrimaryNode found in user AST.\nContext: " +
@@ -426,7 +426,7 @@ public sealed class TargetTypedNewResolutionPropertyTests : IDisposable
         var nodeToCheck = targetNewNodes[^1];
         var resolvedType = model.GetTypeOf(nodeToCheck);
 
-        if (resolvedType is null)
+        if(resolvedType is null)
         {
             return false.ToProperty()
                 .Label("Expression type is null for target-typed new node.\nContext: " +

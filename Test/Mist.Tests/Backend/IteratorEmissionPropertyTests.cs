@@ -91,7 +91,7 @@ public sealed class IteratorEmissionPropertyTests : IDisposable
 
     public void Dispose()
     {
-        if (Directory.Exists(_tempDir))
+        if(Directory.Exists(_tempDir))
         {
             try { Directory.Delete(_tempDir, recursive: true); } catch { /* best effort */ }
         }
@@ -256,20 +256,20 @@ public sealed class IteratorEmissionPropertyTests : IDisposable
     /// </summary>
     private static string? GetEmittedCSharp(CompilerResult result)
     {
-        if (result.EmittedFiles is null)
+        if(result.EmittedFiles is null)
             return null;
 
         // Find the user file — the one containing our test class (not the stdlib files).
         // Since we put our test code in the Standard namespace, look for the file
         // that contains our generated class names.
-        foreach (var (fileName, content) in result.EmittedFiles)
+        foreach(var (fileName, content) in result.EmittedFiles)
         {
             // Skip the .csproj file
-            if (fileName.EndsWith(".csproj", StringComparison.OrdinalIgnoreCase))
+            if(fileName.EndsWith(".csproj", StringComparison.OrdinalIgnoreCase))
                 continue;
 
             // The user file will contain "class Program" (our test entry point)
-            if (content.Contains("class Program"))
+            if(content.Contains("class Program"))
             {
                 return content;
             }
@@ -300,7 +300,7 @@ public sealed class IteratorEmissionPropertyTests : IDisposable
     {
         var result = CompileSource(scenario.Source);
 
-        if (!result.Succeeded)
+        if(!result.Succeeded)
         {
             var diagnostics = string.Join(", ", result.Diagnostics.Select(d => $"{d.Id.Value}: {d.Message}"));
             return false.ToProperty()
@@ -308,7 +308,7 @@ public sealed class IteratorEmissionPropertyTests : IDisposable
         }
 
         var emittedCSharp = GetEmittedCSharp(result);
-        if (emittedCSharp is null)
+        if(emittedCSharp is null)
         {
             return false.ToProperty()
                 .Label($"No emitted C# file found for namespace TestProject\nSource:\n{scenario.Source}");
@@ -335,7 +335,7 @@ public sealed class IteratorEmissionPropertyTests : IDisposable
     {
         var result = CompileSource(scenario.Source);
 
-        if (!result.Succeeded)
+        if(!result.Succeeded)
         {
             var diagnostics = string.Join(", ", result.Diagnostics.Select(d => $"{d.Id.Value}: {d.Message}"));
             return false.ToProperty()
@@ -343,7 +343,7 @@ public sealed class IteratorEmissionPropertyTests : IDisposable
         }
 
         var emittedCSharp = GetEmittedCSharp(result);
-        if (emittedCSharp is null)
+        if(emittedCSharp is null)
         {
             return false.ToProperty()
                 .Label($"No emitted C# file found for namespace TestProject\nSource:\n{scenario.Source}");
@@ -370,7 +370,7 @@ public sealed class IteratorEmissionPropertyTests : IDisposable
     {
         var result = CompileSource(scenario.Source);
 
-        if (!result.Succeeded)
+        if(!result.Succeeded)
         {
             var diagnostics = string.Join(", ", result.Diagnostics.Select(d => $"{d.Id.Value}: {d.Message}"));
             return false.ToProperty()
@@ -378,7 +378,7 @@ public sealed class IteratorEmissionPropertyTests : IDisposable
         }
 
         var emittedCSharp = GetEmittedCSharp(result);
-        if (emittedCSharp is null)
+        if(emittedCSharp is null)
         {
             return false.ToProperty()
                 .Label($"No emitted C# file found for namespace TestProject\nSource:\n{scenario.Source}");
@@ -423,7 +423,7 @@ public sealed class IteratorEmissionPropertyTests : IDisposable
     {
         var result = CompileSource(scenario.Source);
 
-        if (!result.Succeeded)
+        if(!result.Succeeded)
         {
             var diagnostics = string.Join(", ", result.Diagnostics.Select(d => $"{d.Id.Value}: {d.Message}"));
             return false.ToProperty()
@@ -431,7 +431,7 @@ public sealed class IteratorEmissionPropertyTests : IDisposable
         }
 
         var emittedCSharp = GetEmittedCSharp(result);
-        if (emittedCSharp is null)
+        if(emittedCSharp is null)
         {
             return false.ToProperty()
                 .Label($"No emitted C# file found for namespace TestProject\nSource:\n{scenario.Source}");
@@ -480,23 +480,23 @@ public sealed class IteratorEmissionPropertyTests : IDisposable
     {
         // Find the Main method and extract its body
         var mainIndex = emittedCSharp.IndexOf("static void Main(", StringComparison.Ordinal);
-        if (mainIndex < 0)
+        if(mainIndex < 0)
             mainIndex = emittedCSharp.IndexOf("void Main(", StringComparison.Ordinal);
-        if (mainIndex < 0)
+        if(mainIndex < 0)
             return null;
 
         // Find the opening brace of Main
         var braceStart = emittedCSharp.IndexOf('{', mainIndex);
-        if (braceStart < 0)
+        if(braceStart < 0)
             return null;
 
         // Find the matching closing brace (simple brace counting)
         var depth = 1;
         var pos = braceStart + 1;
-        while (pos < emittedCSharp.Length && depth > 0)
+        while(pos < emittedCSharp.Length && depth > 0)
         {
-            if (emittedCSharp[pos] == '{') depth++;
-            else if (emittedCSharp[pos] == '}') depth--;
+            if(emittedCSharp[pos] == '{') depth++;
+            else if(emittedCSharp[pos] == '}') depth--;
             pos++;
         }
 

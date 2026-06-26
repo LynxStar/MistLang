@@ -56,18 +56,18 @@ public sealed class ClrRefVisibilityPropertyTests
     {
         var result = new List<MethodInfo>();
 
-        foreach (var type in new[] { typeof(RefParamFixture), typeof(InParamFixture) })
+        foreach(var type in new[] { typeof(RefParamFixture), typeof(InParamFixture) })
         {
-            foreach (var method in type.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly))
+            foreach(var method in type.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly))
             {
-                if (method.IsSpecialName)
+                if(method.IsSpecialName)
                     continue;
 
                 var parameters = method.GetParameters();
                 var hasRefOrIn = parameters.Any(p => p.ParameterType.IsByRef && !p.IsOut);
                 var hasOut = parameters.Any(p => p.IsOut);
 
-                if (hasRefOrIn && !hasOut)
+                if(hasRefOrIn && !hasOut)
                     result.Add(method);
             }
         }
@@ -79,15 +79,15 @@ public sealed class ClrRefVisibilityPropertyTests
     {
         var result = new List<MethodInfo>();
 
-        foreach (var type in new[] { typeof(OutParamFixture), typeof(MixedRefOutFixture) })
+        foreach(var type in new[] { typeof(OutParamFixture), typeof(MixedRefOutFixture) })
         {
-            foreach (var method in type.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly))
+            foreach(var method in type.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly))
             {
-                if (method.IsSpecialName)
+                if(method.IsSpecialName)
                     continue;
 
                 var parameters = method.GetParameters();
-                if (parameters.Any(p => p.IsOut))
+                if(parameters.Any(p => p.IsOut))
                     result.Add(method);
             }
         }
@@ -99,13 +99,13 @@ public sealed class ClrRefVisibilityPropertyTests
     {
         var result = new List<MethodInfo>();
 
-        foreach (var method in typeof(MutableRefReturnFixture).GetMethods(
+        foreach(var method in typeof(MutableRefReturnFixture).GetMethods(
             BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly))
         {
-            if (method.IsSpecialName)
+            if(method.IsSpecialName)
                 continue;
 
-            if (method.ReturnType.IsByRef && !IsRefReadonlyReturn(method))
+            if(method.ReturnType.IsByRef && !IsRefReadonlyReturn(method))
                 result.Add(method);
         }
 
@@ -116,13 +116,13 @@ public sealed class ClrRefVisibilityPropertyTests
     {
         var result = new List<MethodInfo>();
 
-        foreach (var method in typeof(RefReadonlyReturnFixture).GetMethods(
+        foreach(var method in typeof(RefReadonlyReturnFixture).GetMethods(
             BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly))
         {
-            if (method.IsSpecialName)
+            if(method.IsSpecialName)
                 continue;
 
-            if (method.ReturnType.IsByRef && IsRefReadonlyReturn(method))
+            if(method.ReturnType.IsByRef && IsRefReadonlyReturn(method))
                 result.Add(method);
         }
 
@@ -146,13 +146,13 @@ public sealed class ClrRefVisibilityPropertyTests
     private static void RunProperty<T>(Gen<T> gen, Action<T> check, int maxTests = 100)
     {
         var samples = gen.Sample(maxTests).ToList();
-        for (var idx = 0; idx < samples.Count; idx++)
+        for(var idx = 0; idx < samples.Count; idx++)
         {
             try
             {
                 check(samples[idx]);
             }
-            catch (Exception ex)
+            catch(Exception ex)
             {
                 throw new Exception(
                     $"Property failed on sample {idx}/{samples.Count}: {samples[idx]}\n" +

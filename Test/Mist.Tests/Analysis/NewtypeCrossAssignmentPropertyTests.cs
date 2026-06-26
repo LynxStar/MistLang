@@ -60,7 +60,7 @@ public sealed class NewtypeCrossAssignmentPropertyTests
 
         var parseDiag = new DiagnosticBag();
         var parseResult = Parser.Parse(tokens, parseDiag);
-        if (parseResult.Root is null)
+        if(parseResult.Root is null)
             return lexDiag.ToImmutableArray().AddRange(parseDiag.ToImmutableArray());
 
         var allUnits = stdlibUnits.Add(userUnit);
@@ -215,7 +215,7 @@ class Program {{
             .ToList();
 
         // We expect at least one type mismatch per scenario (one cross-assignment each)
-        if (typeMismatchDiags.Count < scenario.ScenarioCount)
+        if(typeMismatchDiags.Count < scenario.ScenarioCount)
         {
             var allDiags = diagnostics
                 .Where(d => d.Severity == DiagnosticSeverity.Error)

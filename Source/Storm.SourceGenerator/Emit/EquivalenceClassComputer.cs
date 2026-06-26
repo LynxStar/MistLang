@@ -24,7 +24,7 @@ namespace Storm.SourceGenerator.Emit
         {
             var charToClass = new int[65536];
 
-            if (dfa.States.Count == 0)
+            if(dfa.States.Count == 0)
             {
                 // All characters map to class 0
                 return (charToClass, 1);
@@ -36,7 +36,7 @@ namespace Storm.SourceGenerator.Emit
             // but applied to the DFA's transitions.
             var intervals = ComputeDfaAlphabetPartition(dfa);
 
-            if (intervals.Count == 0)
+            if(intervals.Count == 0)
             {
                 // No transitions at all — every character behaves the same
                 return (charToClass, 1);
@@ -49,7 +49,7 @@ namespace Storm.SourceGenerator.Emit
 
             // Build a fast lookup: state ID -> index in States list
             var stateIdToIndex = new Dictionary<int, int>();
-            for (int i = 0; i < dfa.States.Count; i++)
+            for(int i = 0; i < dfa.States.Count; i++)
             {
                 stateIdToIndex[dfa.States[i].Id] = i;
             }
@@ -63,13 +63,13 @@ namespace Storm.SourceGenerator.Emit
             // Track which class each interval gets assigned to
             var intervalClasses = new int[intervals.Count];
 
-            for (int i = 0; i < intervals.Count; i++)
+            for(int i = 0; i < intervals.Count; i++)
             {
                 var signature = ComputeSignature(
                     intervals[i].Lo, dfa, stateIdToIndex, stateCount);
 
                 int classIndex;
-                if (!signatureToClass.TryGetValue(signature, out classIndex))
+                if(!signatureToClass.TryGetValue(signature, out classIndex))
                 {
                     classIndex = nextClass++;
                     signatureToClass[signature] = classIndex;
@@ -83,7 +83,7 @@ namespace Storm.SourceGenerator.Emit
             // -1 for every state. Compute that signature and assign a class.
             var defaultSignature = ComputeDefaultSignature(stateCount);
             int defaultClass;
-            if (!signatureToClass.TryGetValue(defaultSignature, out defaultClass))
+            if(!signatureToClass.TryGetValue(defaultSignature, out defaultClass))
             {
                 defaultClass = nextClass++;
                 signatureToClass[defaultSignature] = defaultClass;
@@ -91,18 +91,18 @@ namespace Storm.SourceGenerator.Emit
 
             // Fill the charToClass array. Start by setting everything to the
             // default class, then overwrite the intervals.
-            for (int c = 0; c < 65536; c++)
+            for(int c = 0; c < 65536; c++)
             {
                 charToClass[c] = defaultClass;
             }
 
-            for (int i = 0; i < intervals.Count; i++)
+            for(int i = 0; i < intervals.Count; i++)
             {
                 int lo = intervals[i].Lo;
                 int hi = intervals[i].Hi;
                 int cls = intervalClasses[i];
 
-                for (int c = lo; c <= hi; c++)
+                for(int c = lo; c <= hi; c++)
                 {
                     charToClass[c] = cls;
                 }
@@ -121,31 +121,31 @@ namespace Storm.SourceGenerator.Emit
         {
             var boundarySet = new SortedSet<int>();
 
-            foreach (var state in dfa.States)
+            foreach(var state in dfa.States)
             {
-                foreach (var transition in state.Transitions)
+                foreach(var transition in state.Transitions)
                 {
                     boundarySet.Add(transition.Range.Lo);
 
-                    if (transition.Range.Hi < 0xFFFF)
+                    if(transition.Range.Hi < 0xFFFF)
                     {
                         boundarySet.Add(transition.Range.Hi + 1);
                     }
                 }
             }
 
-            if (boundarySet.Count == 0)
+            if(boundarySet.Count == 0)
                 return new List<CharRange>();
 
             var boundaries = new List<int>(boundarySet);
             var result = new List<CharRange>();
 
-            for (int i = 0; i < boundaries.Count; i++)
+            for(int i = 0; i < boundaries.Count; i++)
             {
                 int lo = boundaries[i];
                 int hi;
 
-                if (i + 1 < boundaries.Count)
+                if(i + 1 < boundaries.Count)
                 {
                     hi = boundaries[i + 1] - 1;
                 }
@@ -154,7 +154,7 @@ namespace Storm.SourceGenerator.Emit
                     hi = 0xFFFF;
                 }
 
-                if (lo <= hi && lo <= 0xFFFF)
+                if(lo <= hi && lo <= 0xFFFF)
                 {
                     result.Add(new CharRange((char)lo, (char)hi));
                 }
@@ -178,21 +178,21 @@ namespace Storm.SourceGenerator.Emit
             // ordered by state index. Using a pre-allocated array avoids
             // repeated allocations.
             var targets = new int[stateCount];
-            for (int i = 0; i < stateCount; i++)
+            for(int i = 0; i < stateCount; i++)
             {
                 targets[i] = -1;
             }
 
-            for (int i = 0; i < dfa.States.Count; i++)
+            for(int i = 0; i < dfa.States.Count; i++)
             {
                 var state = dfa.States[i];
                 int stateIndex;
-                if (!stateIdToIndex.TryGetValue(state.Id, out stateIndex))
+                if(!stateIdToIndex.TryGetValue(state.Id, out stateIndex))
                     continue;
 
-                foreach (var transition in state.Transitions)
+                foreach(var transition in state.Transitions)
                 {
-                    if (transition.Range.Contains(representative))
+                    if(transition.Range.Contains(representative))
                     {
                         targets[stateIndex] = transition.TargetStateId;
                         break;
@@ -210,7 +210,7 @@ namespace Storm.SourceGenerator.Emit
         private static string ComputeDefaultSignature(int stateCount)
         {
             var targets = new int[stateCount];
-            for (int i = 0; i < stateCount; i++)
+            for(int i = 0; i < stateCount; i++)
             {
                 targets[i] = -1;
             }
@@ -224,9 +224,9 @@ namespace Storm.SourceGenerator.Emit
         private static string EncodeSignature(int[] targets)
         {
             var sb = new System.Text.StringBuilder();
-            for (int i = 0; i < targets.Length; i++)
+            for(int i = 0; i < targets.Length; i++)
             {
-                if (i > 0) sb.Append(',');
+                if(i > 0) sb.Append(',');
                 sb.Append(targets[i]);
             }
             return sb.ToString();

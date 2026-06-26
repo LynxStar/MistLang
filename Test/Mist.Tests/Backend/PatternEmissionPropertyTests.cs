@@ -45,7 +45,7 @@ public sealed class PatternEmissionPropertyTests : IDisposable
 
     public void Dispose()
     {
-        if (Directory.Exists(_outputDir))
+        if(Directory.Exists(_outputDir))
         {
             try { Directory.Delete(_outputDir, recursive: true); } catch { /* best effort */ }
         }
@@ -84,9 +84,9 @@ public sealed class PatternEmissionPropertyTests : IDisposable
 
     private void CleanOutputDir()
     {
-        if (Directory.Exists(_outputDir))
+        if(Directory.Exists(_outputDir))
         {
-            foreach (var file in Directory.GetFiles(_outputDir))
+            foreach(var file in Directory.GetFiles(_outputDir))
                 File.Delete(file);
         }
     }
@@ -164,10 +164,13 @@ public sealed class PatternEmissionPropertyTests : IDisposable
         {
             EmissionPatternKind.TypePattern => new TypePatternPrimaryPatternNode
             {
-                Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                Type = new TypeReferenceNode
                 {
-                    PrimitiveType = new IntTypePrimitiveTypeNode(),
-                } },
+                    First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                    {
+                        PrimitiveType = new IntTypePrimitiveTypeNode(),
+                    }
+                },
                 Name = Tok("matched"),
             },
             EmissionPatternKind.VarPattern => new VarPatternPrimaryPatternNode
@@ -276,7 +279,7 @@ public sealed class PatternEmissionPropertyTests : IDisposable
         var model = BuildModel(ast);
         var csContent = EmitAndGetCsContent(model);
 
-        if (string.IsNullOrEmpty(csContent))
+        if(string.IsNullOrEmpty(csContent))
         {
             return false.ToProperty()
                 .Label($"Emitted C# content was empty. Scenario: {scenario}");

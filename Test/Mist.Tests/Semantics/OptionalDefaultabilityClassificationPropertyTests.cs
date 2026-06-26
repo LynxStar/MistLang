@@ -90,21 +90,27 @@ public class OptionalDefaultabilityClassificationPropertyTests
 
     private static FieldDeclarationNode MakePrimitiveField(string fieldName, string typeName)
     {
-        return MakeField(fieldName, new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
+        return MakeField(fieldName, new TypeReferenceNode
         {
-            PrimitiveType = MakePrimitiveType(typeName),
-        } });
+            First = new PrimitiveSingleTypeRefSingleTypeRefNode
+            {
+                PrimitiveType = MakePrimitiveType(typeName),
+            }
+        });
     }
 
     private static FieldDeclarationNode MakeNamedTypeField(string fieldName, string typeName)
     {
-        return MakeField(fieldName, new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
+        return MakeField(fieldName, new TypeReferenceNode
         {
-            Name = new QualifiedIdentifierNode
+            First = new NamedSingleTypeRefSingleTypeRefNode
             {
-                IDENTIFIER = MakeToken(typeName),
-            },
-        } });
+                Name = new QualifiedIdentifierNode
+                {
+                    IDENTIFIER = MakeToken(typeName),
+                },
+            }
+        });
     }
 
     private static MemberDeclarationNode MakeFieldMember(FieldDeclarationNode field)
@@ -245,13 +251,13 @@ public class OptionalDefaultabilityClassificationPropertyTests
     private static Gen<ImmutableArray<(string FieldName, string FieldType, bool IsNonDefaultable)>> GenMixedFields(
         int primitiveCount, int nonDefaultableCount, string nonDefaultableTypeName)
     {
-        if (primitiveCount + nonDefaultableCount == 0)
+        if(primitiveCount + nonDefaultableCount == 0)
             return Gen.Constant(ImmutableArray<(string, string, bool)>.Empty);
 
         Gen<ImmutableArray<(string, string, bool)>> result =
             Gen.Constant(ImmutableArray<(string, string, bool)>.Empty);
 
-        for (var i = 0; i < primitiveCount; i++)
+        for(var i = 0; i < primitiveCount; i++)
         {
             var idx = i;
             result = from arr in result
@@ -259,7 +265,7 @@ public class OptionalDefaultabilityClassificationPropertyTests
                      select arr.Add((FieldNames[idx], fieldType, false));
         }
 
-        for (var i = 0; i < nonDefaultableCount; i++)
+        for(var i = 0; i < nonDefaultableCount; i++)
         {
             var idx = primitiveCount + i;
             result = from arr in result
@@ -338,7 +344,7 @@ public class OptionalDefaultabilityClassificationPropertyTests
             : WrapClass(MakeClassDecl(scenario.TypeName, members));
 
         // If there's a non-defaultable type reference, declare it
-        if (scenario.NonDefaultableTypeName is not null)
+        if(scenario.NonDefaultableTypeName is not null)
         {
             var nonDefaultableDecl = WrapAbstractType(new AbstractDeclarationNode
             {
@@ -411,7 +417,7 @@ public class OptionalDefaultabilityClassificationPropertyTests
         var typeSymbol = model.AllSymbols
             .FirstOrDefault(s => s.Name == scenario.TypeName && s.Kind == expectedKind);
 
-        if (typeSymbol is null)
+        if(typeSymbol is null)
             return false;
 
         // Check defaultability status is NotDefaultable
@@ -422,7 +428,7 @@ public class OptionalDefaultabilityClassificationPropertyTests
             _ => DefaultabilityStatus.Unknown,
         };
 
-        if (status != DefaultabilityStatus.NotDefaultable)
+        if(status != DefaultabilityStatus.NotDefaultable)
             return false;
 
         // Check that NO defaultability-related diagnostics are emitted for this type
@@ -461,7 +467,7 @@ public class OptionalDefaultabilityClassificationPropertyTests
         var typeSymbol = model.AllSymbols
             .FirstOrDefault(s => s.Name == scenario.TypeName && s.Kind == expectedKind);
 
-        if (typeSymbol is null)
+        if(typeSymbol is null)
             return false;
 
         // Check defaultability status is NotDefaultable
@@ -472,7 +478,7 @@ public class OptionalDefaultabilityClassificationPropertyTests
             _ => DefaultabilityStatus.Unknown,
         };
 
-        if (status != DefaultabilityStatus.NotDefaultable)
+        if(status != DefaultabilityStatus.NotDefaultable)
             return false;
 
         // Check that MIST_DEFAULT_REQUIRES_BINDING diagnostic was emitted

@@ -89,10 +89,13 @@ public class RefFieldStorageProhibitionTests
 
     private static TypeReferenceNode MakeIntTypeRef()
     {
-        return new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
+        return new TypeReferenceNode
         {
-            PrimitiveType = new IntTypePrimitiveTypeNode(),
-        } };
+            First = new PrimitiveSingleTypeRefSingleTypeRefNode
+            {
+                PrimitiveType = new IntTypePrimitiveTypeNode(),
+            }
+        };
     }
 
     /// <summary>
@@ -151,7 +154,7 @@ public class RefFieldStorageProhibitionTests
 
     private static ParameterListNode MakeParameterList(params ParameterNode[] parameters)
     {
-        if (parameters.Length == 0)
+        if(parameters.Length == 0)
             return new ParameterListNode();
 
         var first = parameters[0];

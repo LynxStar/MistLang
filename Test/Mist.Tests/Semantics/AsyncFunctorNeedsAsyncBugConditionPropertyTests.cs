@@ -75,7 +75,7 @@ public class AsyncFunctorNeedsAsyncBugConditionPropertyTests
         var userTokens = Lexer.Lex(userSourceText, diagnostics);
         var userParseResult = Parser.Parse(userTokens, diagnostics);
 
-        if (userParseResult.Root is null)
+        if(userParseResult.Root is null)
             throw new InvalidOperationException($"Failed to parse user source:\n{source}");
 
         var allUnits = stdlibUnits.Add(userUnit);
@@ -213,12 +213,12 @@ public class AsyncFunctorNeedsAsyncBugConditionPropertyTests
         // Find the target method (the one with async functor expressions).
         var methodSymbol = FindMethod(model, scenario.MethodName);
 
-        if (methodSymbol is null)
+        if(methodSymbol is null)
             return false.ToProperty()
                 .Label($"Could not find method '{scenario.MethodName}' in scenario: {scenario}");
 
         // Verify preconditions: the method is NOT declared async.
-        if (methodSymbol.IsAsync)
+        if(methodSymbol.IsAsync)
             return false.ToProperty()
                 .Label($"Method '{scenario.MethodName}' should be sync but is declared async: {scenario}");
 
@@ -228,7 +228,7 @@ public class AsyncFunctorNeedsAsyncBugConditionPropertyTests
         //
         // On UNFIXED code: NeedsCSharpAsync WILL be false, causing this to fail.
         // That failure CONFIRMS the bug exists.
-        if (!methodSymbol.NeedsCSharpAsync)
+        if(!methodSymbol.NeedsCSharpAsync)
         {
             return false.ToProperty()
                 .Label($"BUG CONFIRMED: Sync method '{scenario.MethodName}' with {scenario.FunctorCount} " +

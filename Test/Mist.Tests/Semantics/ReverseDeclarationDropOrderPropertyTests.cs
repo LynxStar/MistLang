@@ -78,12 +78,12 @@ public sealed class ReverseDeclarationDropOrderPropertyTests
 
     private static string? GetEmittedCSharp(CompilerResult result)
     {
-        if (result.EmittedFiles is null)
+        if(result.EmittedFiles is null)
             return null;
 
-        foreach (var (_, content) in result.EmittedFiles)
+        foreach(var (_, content) in result.EmittedFiles)
         {
-            if (content.Contains("namespace TestProgram"))
+            if(content.Contains("namespace TestProgram"))
                 return content;
         }
 
@@ -132,7 +132,7 @@ public sealed class ReverseDeclarationDropOrderPropertyTests
     private static string BuildProgram(int n)
     {
         var decls = new System.Text.StringBuilder();
-        for (var i = 0; i < n; i++)
+        for(var i = 0; i < n; i++)
         {
             var name = LocalNames[i];
             decls.AppendLine($"        Res {name} = new Res({i});");
@@ -140,7 +140,7 @@ public sealed class ReverseDeclarationDropOrderPropertyTests
 
         // Keep every local live at scope exit: use each one in a no-op read so it is not
         // dead-code eliminated and is not moved/returned.
-        for (var i = 0; i < n; i++)
+        for(var i = 0; i < n; i++)
         {
             var name = LocalNames[i];
             decls.AppendLine($"        int use{i} = {name}.GetId();");
@@ -166,11 +166,11 @@ public sealed class ReverseDeclarationDropOrderPropertyTests
     private static List<int> GetDropEmissionOrder(string emitted, int n)
     {
         var positions = new List<(int Position, int DeclIndex)>();
-        for (var i = 0; i < n; i++)
+        for(var i = 0; i < n; i++)
         {
             var marker = $"{LocalNames[i]}.Drop()";
             var pos = emitted.IndexOf(marker, StringComparison.Ordinal);
-            if (pos >= 0)
+            if(pos >= 0)
                 positions.Add((pos, i));
         }
 
@@ -205,20 +205,20 @@ public sealed class ReverseDeclarationDropOrderPropertyTests
             .Where(d => d.Id.Value != "MIST_TC_0017")
             .ToList();
 
-        if (errors.Count > 0)
+        if(errors.Count > 0)
         {
             return false.ToProperty().Label(
                 $"Unexpected compile errors for N={n}: {string.Join("; ", errors.Select(e => e.Id.Value + ": " + e.Message))}\nSource:\n{source}");
         }
 
         var emitted = GetEmittedCSharp(result);
-        if (emitted is null)
+        if(emitted is null)
             return false.ToProperty().Label($"No emitted C# produced for N={n}.\nSource:\n{source}");
 
         var order = GetDropEmissionOrder(emitted, n);
 
         // Every declared local must have an emitted Drop() call.
-        if (order.Count != n)
+        if(order.Count != n)
         {
             return false.ToProperty().Label(
                 $"Expected {n} Drop() calls, found {order.Count}. Emission order: [{string.Join(", ", order)}].\nEmitted:\n{emitted}");

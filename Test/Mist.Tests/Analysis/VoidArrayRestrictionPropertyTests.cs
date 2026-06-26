@@ -150,11 +150,14 @@ public class VoidArrayRestrictionPropertyTests
         var arrayCreationExpr = MakeVoidArrayCreation(scenario.ArraySize);
 
         // Void[] type reference: NamedTypeRef with "Void" identifier and ArrayRank set
-        var voidArrayTypeRef = new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
+        var voidArrayTypeRef = new TypeReferenceNode
         {
-            Name = new QualifiedIdentifierNode { IDENTIFIER = Tok("Void") },
-            ArrayRank = new UnsizedArrayRankArrayRankSuffixNode(),
-        } };
+            First = new NamedSingleTypeRefSingleTypeRefNode
+            {
+                Name = new QualifiedIdentifierNode { IDENTIFIER = Tok("Void") },
+                ArrayRank = new UnsizedArrayRankArrayRankSuffixNode(),
+            }
+        };
 
         var varDecl = new VariableDeclarationStatementStatementNode
         {

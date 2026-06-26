@@ -39,7 +39,7 @@ public sealed class CompilerDriverReferenceIntegrationTests : IDisposable
 
     public void Dispose()
     {
-        if (Directory.Exists(_scratchDir))
+        if(Directory.Exists(_scratchDir))
         {
             try { Directory.Delete(_scratchDir, recursive: true); } catch { /* best effort */ }
         }
@@ -62,15 +62,15 @@ public sealed class CompilerDriverReferenceIntegrationTests : IDisposable
         Directory.CreateDirectory(projectDir);
 
         var toml = $"name = \"{name}\"\n";
-        if (namespaceRoot is not null)
+        if(namespaceRoot is not null)
         {
             toml += $"namespace_root = \"{namespaceRoot}\"\n";
         }
 
-        if (referencePaths is not null)
+        if(referencePaths is not null)
         {
             toml += "\n[references]\n";
-            for (var i = 0; i < referencePaths.Length; i++)
+            for(var i = 0; i < referencePaths.Length; i++)
             {
                 // Use forward slashes for TOML compatibility
                 var escapedPath = referencePaths[i].Replace("\\", "/");
@@ -87,9 +87,9 @@ public sealed class CompilerDriverReferenceIntegrationTests : IDisposable
 
         File.WriteAllText(Path.Combine(projectDir, "mist.toml"), toml);
 
-        if (sourceFiles is not null)
+        if(sourceFiles is not null)
         {
-            foreach (var (fileName, content) in sourceFiles)
+            foreach(var (fileName, content) in sourceFiles)
             {
                 File.WriteAllText(Path.Combine(projectDir, fileName), content);
             }

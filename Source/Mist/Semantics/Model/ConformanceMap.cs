@@ -29,7 +29,7 @@ public sealed class ConformanceMap
     public void Register(IType type, IType abstractType, ConformanceMapping mapping)
     {
         var key = (type, abstractType);
-        if (!_entries.TryGetValue(key, out var list))
+        if(!_entries.TryGetValue(key, out var list))
         {
             list = new List<ConformanceMapping>();
             _entries[key] = list;
@@ -50,7 +50,7 @@ public sealed class ConformanceMap
     /// </summary>
     public IReadOnlyList<ConformanceMapping> GetMappings(IType type, IType abstractType)
     {
-        if (_entries.TryGetValue((type, abstractType), out var list))
+        if(_entries.TryGetValue((type, abstractType), out var list))
         {
             return list;
         }
@@ -63,7 +63,7 @@ public sealed class ConformanceMap
     /// </summary>
     public IEnumerable<(IType Type, IType AbstractType, IReadOnlyList<ConformanceMapping> Mappings)> All()
     {
-        foreach (var ((type, abstractType), mappings) in _entries)
+        foreach(var ((type, abstractType), mappings) in _entries)
         {
             yield return (type, abstractType, mappings);
         }

@@ -233,7 +233,7 @@ public sealed class OptionalChainingPropertyTests
         OptionalChainingNonOptionalScenario scenario)
     {
         string source;
-        if (scenario.IsPrimitive)
+        if(scenario.IsPrimitive)
         {
             // For primitive types, we use a local variable and call ToString via ?.
             source = $$"""

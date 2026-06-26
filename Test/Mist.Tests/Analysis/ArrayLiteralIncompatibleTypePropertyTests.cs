@@ -60,7 +60,7 @@ public class ArrayLiteralIncompatibleTypePropertyTests
         var parseBag = new DiagnosticBag();
         var parseResult = Parser.Parse(tokens, parseBag);
 
-        if (parseResult.Root is null)
+        if(parseResult.Root is null)
             return lexBag.ToImmutableArray().AddRange(parseBag.ToImmutableArray());
 
         var compilation = new MistCompilation(

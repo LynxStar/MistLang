@@ -970,7 +970,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// removed per Requirements 6.7, 6.8, and 6.9.
     /// </summary>
 #pragma warning disable CA1805 // Flag default value is part of the contract — the migration plan
-                               // (design § Migration Plan) calls it out explicitly.
+    // (design § Migration Plan) calls it out explicitly.
     internal static bool UseOperatorOverloadResolution = true;
 #pragma warning restore CA1805
 
@@ -1061,12 +1061,12 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         _registeredClassTypeCache.Clear();
 
         // Walk each method, constructor, property, and indexer body to check type rules.
-        foreach (var symbol in model.AllSymbols)
+        foreach(var symbol in model.AllSymbols)
         {
-            if (symbol.Origin == SymbolOrigin.Backend)
+            if(symbol.Origin == SymbolOrigin.Backend)
                 continue;
 
-            switch (symbol.Kind)
+            switch(symbol.Kind)
             {
                 case SymbolKind.Method:
                     CheckMethodBody(symbol, model, diagnostics);
@@ -1142,9 +1142,9 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // Build a set of source file paths from referenced project units
         // so we can skip their Main methods during entry point detection.
         var referencedSourcePaths = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var unit in model.Units)
+        foreach(var unit in model.Units)
         {
-            if (unit.OriginProjectPath is not null)
+            if(unit.OriginProjectPath is not null)
             {
                 referencedSourcePaths.Add(unit.Source.Path);
             }
@@ -1152,12 +1152,12 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         var entryPoints = new List<(ISymbol Symbol, SyntaxNode Node)>();
 
-        foreach (var symbol in model.AllSymbols)
+        foreach(var symbol in model.AllSymbols)
         {
-            if (symbol.Origin == SymbolOrigin.Backend)
+            if(symbol.Origin == SymbolOrigin.Backend)
                 continue;
 
-            if (symbol.Kind != SymbolKind.Method || symbol.Name != "Main")
+            if(symbol.Kind != SymbolKind.Method || symbol.Name != "Main")
                 continue;
 
             // Get the declaring AST node to inspect modifiers and parameters.
@@ -1165,34 +1165,34 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             try { declaringNode = model.GetDeclaringNode(symbol); }
             catch { continue; }
 
-            if (declaringNode is not MethodDeclarationNode methodDecl)
+            if(declaringNode is not MethodDeclarationNode methodDecl)
                 continue;
 
             // Skip entry points from referenced projects — only the root
             // project's Main methods count as entry points.
-            if (IsFromReferencedProject(declaringNode, model, referencedSourcePaths))
+            if(IsFromReferencedProject(declaringNode, model, referencedSourcePaths))
                 continue;
 
             // Must be static.
             var isStatic = false;
-            foreach (var mod in methodDecl.Modifiers)
+            foreach(var mod in methodDecl.Modifiers)
             {
-                if (mod is StaticModifierModifierNode)
+                if(mod is StaticModifierModifierNode)
                 {
                     isStatic = true;
                     break;
                 }
             }
-            if (!isStatic)
+            if(!isStatic)
                 continue;
 
             // Must return void.
-            if (methodDecl.ReturnType.First is not VoidSingleTypeRefSingleTypeRefNode
+            if(methodDecl.ReturnType.First is not VoidSingleTypeRefSingleTypeRefNode
                 || methodDecl.ReturnType.SingleTypeRefs.Length > 0)
                 continue;
 
             // Must have either no parameters or a single string[] parameter.
-            if (methodDecl.Parameters is null)
+            if(methodDecl.Parameters is null)
             {
                 // static void Main() — valid entry point.
                 entryPoints.Add((symbol, declaringNode));
@@ -1201,18 +1201,18 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             {
                 // Check for exactly one parameter of type string[].
                 var parameters = new List<ParameterNode>();
-                foreach (var child in methodDecl.Parameters.Children())
+                foreach(var child in methodDecl.Parameters.Children())
                 {
-                    if (child is ParameterNode param)
+                    if(child is ParameterNode param)
                         parameters.Add(param);
                 }
 
-                if (parameters.Count == 1)
+                if(parameters.Count == 1)
                 {
                     var paramType = parameters[0].Type;
                     // string[] is represented as PrimitiveTypeRef with StringType and an array rank,
                     // or as a NamedTypeRef. Check for the string[] pattern.
-                    if (IsStringArrayTypeRef(paramType))
+                    if(IsStringArrayTypeRef(paramType))
                     {
                         entryPoints.Add((symbol, declaringNode));
                     }
@@ -1221,7 +1221,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             }
         }
 
-        if (entryPoints.Count == 0)
+        if(entryPoints.Count == 0)
         {
             diagnostics.Add(new Diagnostic(
                 new DiagnosticId("MIST_TC_0017"),
@@ -1232,10 +1232,10 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 CompilationUnitPath: "<unknown>",
                 AnalyzerName: "TypeChecker"));
         }
-        else if (entryPoints.Count > 1)
+        else if(entryPoints.Count > 1)
         {
             // Emit a diagnostic listing all entry point locations.
-            foreach (var (_, node) in entryPoints)
+            foreach(var (_, node) in entryPoints)
             {
                 diagnostics.Add(MakeDiagnostic(
                     "MIST_TC_0018",
@@ -1252,7 +1252,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     private static bool IsStringArrayTypeRef(TypeReferenceNode typeRef)
     {
         // string[] as a primitive type ref: PrimitiveTypeRef with StringType and array rank.
-        if (typeRef.First is PrimitiveSingleTypeRefSingleTypeRefNode primitiveRef)
+        if(typeRef.First is PrimitiveSingleTypeRefSingleTypeRefNode primitiveRef)
         {
             return primitiveRef.PrimitiveType is StringTypePrimitiveTypeNode
                    && primitiveRef.ArrayRank is not null;
@@ -1274,7 +1274,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         ISemanticModel model,
         HashSet<string> referencedSourcePaths)
     {
-        if (referencedSourcePaths.Count == 0)
+        if(referencedSourcePaths.Count == 0)
             return false;
 
         // Check each referenced unit's source path against the compilation units.
@@ -1284,38 +1284,38 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         // Build a set of namespace roots from referenced projects.
         var referencedNamespaceRoots = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var unit in units)
+        foreach(var unit in units)
         {
-            if (unit.OriginProjectPath is not null && unit.NamespaceRoot is not null)
+            if(unit.OriginProjectPath is not null && unit.NamespaceRoot is not null)
             {
                 referencedNamespaceRoots.Add(unit.NamespaceRoot);
             }
         }
 
-        if (referencedNamespaceRoots.Count == 0)
+        if(referencedNamespaceRoots.Count == 0)
             return false;
 
         // Find the containing type of the method by walking up the scope chain.
         // The method's declaring node is inside a class/struct. Check if that
         // type's containing namespace matches a referenced project's namespace root.
-        if (node is not MethodDeclarationNode)
+        if(node is not MethodDeclarationNode)
             return false;
 
         // Get the declared symbol for this node to find its containing scope.
         var methodSymbol = model.GetDeclaredSymbol(node);
-        if (methodSymbol is null)
+        if(methodSymbol is null)
             return false;
 
         // Walk up the scope chain to find the containing type.
         var typeScope = methodSymbol.ContainingScope;
         var parentScope = typeScope?.Parent;
-        if (parentScope is null)
+        if(parentScope is null)
             return false;
 
         // Find the type symbol that owns this scope.
-        foreach (var member in parentScope.Members)
+        foreach(var member in parentScope.Members)
         {
-            if (member.Kind is SymbolKind.Class or SymbolKind.Struct)
+            if(member.Kind is SymbolKind.Class or SymbolKind.Struct)
             {
                 var memberScope = member.DeclaredType switch
                 {
@@ -1324,7 +1324,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     _ => null,
                 };
 
-                if (memberScope is not null && ReferenceEquals(memberScope, typeScope))
+                if(memberScope is not null && ReferenceEquals(memberScope, typeScope))
                 {
                     // Found the containing type. Check its namespace.
                     var containingNs = member.DeclaredType switch
@@ -1334,14 +1334,14 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                         _ => null,
                     };
 
-                    if (containingNs is not null && referencedNamespaceRoots.Contains(containingNs))
+                    if(containingNs is not null && referencedNamespaceRoots.Contains(containingNs))
                         return true;
 
                     // Also check if the namespace starts with a referenced namespace root
                     // (for nested namespaces like "Inheritance.Models").
-                    foreach (var nsRoot in referencedNamespaceRoots)
+                    foreach(var nsRoot in referencedNamespaceRoots)
                     {
-                        if (containingNs is not null && containingNs.StartsWith(nsRoot + ".", StringComparison.Ordinal))
+                        if(containingNs is not null && containingNs.StartsWith(nsRoot + ".", StringComparison.Ordinal))
                             return true;
                     }
 
@@ -1367,12 +1367,12 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // symbol in the parent scope that owns this type scope.
         var typeScope = memberSymbol.ContainingScope;
         var parentScope = typeScope?.Parent;
-        if (parentScope is null)
+        if(parentScope is null)
             return null;
 
-        foreach (var member in parentScope.Members)
+        foreach(var member in parentScope.Members)
         {
-            if (member.Kind is SymbolKind.Class or SymbolKind.Struct or SymbolKind.Abstract
+            if(member.Kind is SymbolKind.Class or SymbolKind.Struct or SymbolKind.Abstract
                 && member.DeclaredType is ClassType or StructType or AbstractType)
             {
                 // Check if this type's MemberScope is the same as the member's ContainingScope.
@@ -1383,7 +1383,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     AbstractType it => it.MemberScope,
                     _ => null,
                 };
-                if (ReferenceEquals(memberScope, typeScope))
+                if(ReferenceEquals(memberScope, typeScope))
                     return member.DeclaredType;
             }
         }
@@ -1402,12 +1402,12 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         catch { return; }
 
         // ── Cast operator declarations ───────────────────────────────────
-        if (declaringNode is CastOperatorDeclarationNode castOpDecl)
+        if(declaringNode is CastOperatorDeclarationNode castOpDecl)
         {
             // ── MIST_TC_0108: async on operator (Requirement 2.5) ──
-            foreach (var mod in castOpDecl.Modifiers)
+            foreach(var mod in castOpDecl.Modifiers)
             {
-                if (mod is AsyncModifierModifierNode)
+                if(mod is AsyncModifierModifierNode)
                 {
                     diagnostics.Add(MakeDiagnostic(
                         "MIST_TC_0108",
@@ -1427,7 +1427,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             CheckCastOperatorDeclaration(castOpDecl, methodSymbol, model, diagnostics);
 
             // ── Flow narrowing: detect closure-captured variables ──
-            if (castOpDecl.Body.GetBlock() is BlockNode castBlock)
+            if(castOpDecl.Body.GetBlock() is BlockNode castBlock)
             {
                 CollectClosureCapturedVariables(castBlock);
                 CheckRefLambdaCaptureProhibition(castBlock, model, diagnostics);
@@ -1440,12 +1440,12 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         // ── Regular operator declarations ────────────────────────────────
-        if (declaringNode is OperatorDeclarationNode opDecl)
+        if(declaringNode is OperatorDeclarationNode opDecl)
         {
             // ── MIST_TC_0108: async on operator (Requirement 2.5) ──
-            foreach (var mod in opDecl.Modifiers)
+            foreach(var mod in opDecl.Modifiers)
             {
-                if (mod is AsyncModifierModifierNode)
+                if(mod is AsyncModifierModifierNode)
                 {
                     diagnostics.Add(MakeDiagnostic(
                         "MIST_TC_0108",
@@ -1462,7 +1462,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             _insideConstructor = false;
             _insidePropertyAccessor = false;
 
-            if (opDecl.Body.GetBlock() is BlockNode opBlock)
+            if(opDecl.Body.GetBlock() is BlockNode opBlock)
             {
                 CollectClosureCapturedVariables(opBlock);
                 CheckRefLambdaCaptureProhibition(opBlock, model, diagnostics);
@@ -1474,7 +1474,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             return;
         }
 
-        if (declaringNode is not MethodDeclarationNode methodDecl)
+        if(declaringNode is not MethodDeclarationNode methodDecl)
             return;
 
         // ── MIST_TC_0104: async + intrinsic incompatibility (Requirement 2.4) ──
@@ -1487,15 +1487,15 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // strategy used throughout this file.
         var hasAsync = false;
         var hasIntrinsic = false;
-        foreach (var mod in methodDecl.Modifiers)
+        foreach(var mod in methodDecl.Modifiers)
         {
-            if (mod is AsyncModifierModifierNode)
+            if(mod is AsyncModifierModifierNode)
                 hasAsync = true;
-            else if (mod is IntrinsicModifierModifierNode)
+            else if(mod is IntrinsicModifierModifierNode)
                 hasIntrinsic = true;
         }
 
-        if (hasAsync && hasIntrinsic)
+        if(hasAsync && hasIntrinsic)
         {
             diagnostics.Add(MakeDiagnostic(
                 "MIST_TC_0104",
@@ -1508,7 +1508,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // When a method has the `async` modifier, the compiler wraps the return type
         // in Task<T> automatically. If the developer also writes Task<T> explicitly,
         // that's an error — it would result in double-wrapping (Task<Task<T>>).
-        if (hasAsync && methodSymbol is Symbol { DeclaredReturnType: { } declaredReturn }
+        if(hasAsync && methodSymbol is Symbol { DeclaredReturnType: { } declaredReturn }
             && SemanticModelBuilder.IsStandardTaskType(declaredReturn))
         {
             diagnostics.Add(MakeDiagnostic(
@@ -1533,7 +1533,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         CheckAnonymousTypeEscapeInSignature(methodSymbol, declaringNode, model, diagnostics);
 
         // ── Flow narrowing: detect closure-captured variables ──
-        if (methodDecl.Body.GetBlock() is BlockNode block)
+        if(methodDecl.Body.GetBlock() is BlockNode block)
         {
             CollectClosureCapturedVariables(block);
             CheckRefLambdaCaptureProhibition(block, model, diagnostics);
@@ -1571,7 +1571,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         DiagnosticBag diagnostics)
     {
         var enclosingType = _currentEnclosingType;
-        if (enclosingType is null)
+        if(enclosingType is null)
             return;
 
         // Resolve the source parameter type from the symbol's parameter.
@@ -1584,14 +1584,14 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // ── MIST_TC_0040: Enclosing type constraint ─────────────────────
         // Either the source parameter type or the target type must be the
         // enclosing type.
-        if (sourceType is not null && targetType is not null)
+        if(sourceType is not null && targetType is not null)
         {
             var sourceMatchesEnclosing = sourceType.DisplayName == enclosingType.DisplayName
                 || (sourceType.IsVoid() && enclosingType.IsVoid());
             var targetMatchesEnclosing = targetType.DisplayName == enclosingType.DisplayName
                 || (targetType.IsVoid() && enclosingType.IsVoid());
 
-            if (!sourceMatchesEnclosing && !targetMatchesEnclosing)
+            if(!sourceMatchesEnclosing && !targetMatchesEnclosing)
             {
                 diagnostics.Add(MakeDiagnostic(
                     CastOperatorEnclosingTypeViolation.Value,
@@ -1605,7 +1605,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // After type resolution, check for duplicate cast operators with the
         // same kind (implicit/explicit) and the same resolved source-target
         // type pair in the enclosing type.
-        if (sourceType is not null && targetType is not null)
+        if(sourceType is not null && targetType is not null)
         {
             var castKind = castOpDecl.CastKind switch
             {
@@ -1622,24 +1622,24 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 _ => null,
             };
 
-            if (memberScope is not null)
+            if(memberScope is not null)
             {
-                foreach (var sibling in memberScope.Members)
+                foreach(var sibling in memberScope.Members)
                 {
-                    if (sibling.Kind != SymbolKind.Method)
+                    if(sibling.Kind != SymbolKind.Method)
                         continue;
 
                     // Skip self.
-                    if (ReferenceEquals(sibling, methodSymbol))
+                    if(ReferenceEquals(sibling, methodSymbol))
                         continue;
 
                     // Only consider cast operator symbols (name starts with "operator_implicit_" or "operator_explicit_").
-                    if (!sibling.Name.StartsWith("operator_implicit_") && !sibling.Name.StartsWith("operator_explicit_"))
+                    if(!sibling.Name.StartsWith("operator_implicit_") && !sibling.Name.StartsWith("operator_explicit_"))
                         continue;
 
                     // Determine the sibling's cast kind from its name.
                     var siblingKind = sibling.Name.StartsWith("operator_implicit_") ? "implicit" : "explicit";
-                    if (siblingKind != castKind)
+                    if(siblingKind != castKind)
                         continue;
 
                     // Compare resolved source and target types.
@@ -1647,7 +1647,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     var siblingParamTypes = ParameterSignature.Extract(sibling, model);
                     var siblingSourceType = siblingParamTypes.Count > 0 ? siblingParamTypes[0] : null;
 
-                    if (siblingSourceType is not null && siblingTargetType is not null
+                    if(siblingSourceType is not null && siblingTargetType is not null
                         && siblingSourceType.DisplayName == sourceType.DisplayName
                         && siblingTargetType.DisplayName == targetType.DisplayName)
                     {
@@ -1702,12 +1702,12 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     {
         // 1. Resolve the target type (already set by Pass 2).
         var targetType = model.GetTypeOf(castExpr);
-        if (targetType is null || IsErrorType(targetType))
+        if(targetType is null || IsErrorType(targetType))
             return;
 
         // 2. Get the compile-time type of the operand.
         var sourceType = model.GetTypeOf(castExpr.Operand);
-        if (sourceType is null || IsErrorType(sourceType))
+        if(sourceType is null || IsErrorType(sourceType))
             return;
 
         // 3. If the operand type is directly assignable to the target type
@@ -1719,16 +1719,16 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         //    IsDirectlyAssignable: `(unknown) expr` for any non-void `expr`
         //    is trivially valid and returns before any operator search
         //    (Task 26.2).
-        if (IsDirectlyAssignable(sourceType, targetType, model))
+        if(IsDirectlyAssignable(sourceType, targetType, model))
             return;
 
         // 3a. Newtype ↔ source type explicit cast (newtypes feature, Req 2.1).
         //     A cast from a newtype to its source type or from the source type
         //     to the newtype is always valid — no operator lookup needed.
-        if (sourceType is NewtypeType sourceNewtype
+        if(sourceType is NewtypeType sourceNewtype
             && IsDirectlyAssignable(sourceNewtype.SourceType, targetType, model))
             return;
-        if (targetType is NewtypeType targetNewtype
+        if(targetType is NewtypeType targetNewtype
             && IsDirectlyAssignable(sourceType, targetNewtype.SourceType, model))
             return;
 
@@ -1740,7 +1740,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         //     MIST_TC_0067 instead of the generic MIST_TC_0042 so the
         //     user sees an explanation specific to the top-type case
         //     (Req 16.4). Ambiguity still routes through MIST_TC_0043.
-        if (sourceType is UnknownType && targetType is not UnknownType)
+        if(sourceType is UnknownType && targetType is not UnknownType)
         {
             CheckCastFromUnknown(castExpr, sourceType, targetType, model, diagnostics);
             return;
@@ -1755,11 +1755,11 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         // 4a. Search the source type's member scope.
         var sourceScope = GetMemberScope(sourceType);
-        if (sourceScope is not null)
+        if(sourceScope is not null)
         {
-            foreach (var member in sourceScope.Members)
+            foreach(var member in sourceScope.Members)
             {
-                if (member.Kind == SymbolKind.Method
+                if(member.Kind == SymbolKind.Method
                     && (member.Name == explicitOpName || member.Name == implicitOpName))
                     candidates.Add(member);
             }
@@ -1767,28 +1767,28 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         // 4b. Search the target type's member scope.
         var targetScope = GetMemberScope(targetType);
-        if (targetScope is not null && !ReferenceEquals(sourceScope, targetScope))
+        if(targetScope is not null && !ReferenceEquals(sourceScope, targetScope))
         {
-            foreach (var member in targetScope.Members)
+            foreach(var member in targetScope.Members)
             {
-                if (member.Kind == SymbolKind.Method
+                if(member.Kind == SymbolKind.Method
                     && (member.Name == explicitOpName || member.Name == implicitOpName))
                 {
                     // Avoid duplicates if the same symbol appears in both scopes.
-                    if (!candidates.Any(c => ReferenceEquals(c, member)))
+                    if(!candidates.Any(c => ReferenceEquals(c, member)))
                         candidates.Add(member);
                 }
             }
         }
 
         // 5. Evaluate candidates.
-        if (candidates.Count == 1)
+        if(candidates.Count == 1)
         {
             // Record the resolved operator and set the expression type.
             model.RecordResolvedOperator(castExpr, candidates[0]);
             model.SetTypeOf(castExpr, targetType);
         }
-        else if (candidates.Count == 0)
+        else if(candidates.Count == 0)
         {
             // MIST_TC_0042: No cast operator found.
             diagnostics.Add(MakeDiagnostic(
@@ -1839,11 +1839,11 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // (UnknownType) has no scope (Req 3.4) so no second search is
         // needed.
         var targetScope = GetMemberScope(targetType);
-        if (targetScope is not null)
+        if(targetScope is not null)
         {
-            foreach (var member in targetScope.Members)
+            foreach(var member in targetScope.Members)
             {
-                if (member.Kind == SymbolKind.Method
+                if(member.Kind == SymbolKind.Method
                     && (member.Name == explicitOpName || member.Name == implicitOpName))
                 {
                     candidates.Add(member);
@@ -1851,12 +1851,12 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             }
         }
 
-        if (candidates.Count == 1)
+        if(candidates.Count == 1)
         {
             model.RecordResolvedOperator(castExpr, candidates[0]);
             model.SetTypeOf(castExpr, targetType);
         }
-        else if (candidates.Count == 0)
+        else if(candidates.Count == 0)
         {
             // MIST_TC_0067: targeted diagnostic for the top-type case.
             diagnostics.Add(MakeDiagnostic(
@@ -1892,26 +1892,26 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // Type aliases are fully transparent — unwrap to the underlying type
         // before any comparison so that using an alias is semantically
         // identical to using the underlying type directly.
-        if (source is TypeAliasType sourceAlias)
+        if(source is TypeAliasType sourceAlias)
             source = sourceAlias.UnderlyingType;
-        if (target is TypeAliasType targetAlias)
+        if(target is TypeAliasType targetAlias)
             target = targetAlias.UnderlyingType;
 
         // ── refinement-types feature: nominal subtyping (Requirement 8.3) ──
         // Same rules as in IsAssignable: widening from refinement to base is
         // always safe, and same-name refinement types are identity-assignable.
         // Different refinement types with same base use subset proving (Requirement 9.1, 9.2).
-        if (source is RefinementType sourceRefinementDirect)
+        if(source is RefinementType sourceRefinementDirect)
         {
-            if (target is RefinementType targetRefinementDirect)
+            if(target is RefinementType targetRefinementDirect)
             {
-                if (sourceRefinementDirect.Name == targetRefinementDirect.Name)
+                if(sourceRefinementDirect.Name == targetRefinementDirect.Name)
                     return true;
 
                 // Different refinement types with same base: use subset proving.
-                if (IsDirectlyAssignable(sourceRefinementDirect.BaseType, targetRefinementDirect.BaseType, model))
+                if(IsDirectlyAssignable(sourceRefinementDirect.BaseType, targetRefinementDirect.BaseType, model))
                 {
-                    if (RefinementSolver.Implies(sourceRefinementDirect.Predicate, targetRefinementDirect.Predicate))
+                    if(RefinementSolver.Implies(sourceRefinementDirect.Predicate, targetRefinementDirect.Predicate))
                         return true;
                 }
             }
@@ -1922,13 +1922,13 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // ── refinement-types feature: target is RefinementType ───────────
         // Same rule as in IsAssignable: when the target is a RefinementType,
         // check assignability against the base type.
-        if (target is RefinementType targetRefinementDirectForBase)
+        if(target is RefinementType targetRefinementDirectForBase)
         {
             return IsDirectlyAssignable(source, targetRefinementDirectForBase.BaseType, model);
         }
 
         // ErrorType suppresses cascading errors.
-        if (IsErrorType(source) || IsErrorType(target))
+        if(IsErrorType(source) || IsErrorType(target))
             return true;
 
         // ── unknown-type feature: top-type direct-assignability (Task 26.2) ──
@@ -1948,9 +1948,9 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         //
         // void → unknown is rejected here; the caller (assignment site or
         // CheckCastExpression) is responsible for emitting MIST_TC_0061.
-        if (target is UnknownType)
+        if(target is UnknownType)
         {
-            if (source.IsVoid())
+            if(source.IsVoid())
                 return false;
             return true;
         }
@@ -1965,19 +1965,19 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // and IsAssignable agree on union-related assignments. This ensures
         // the cast-expression path and the implicit-cast precedence check
         // both handle union types consistently.
-        if (target is UnionType targetUnionDirect)
+        if(target is UnionType targetUnionDirect)
         {
-            if (HasErrorConstituent(targetUnionDirect))
+            if(HasErrorConstituent(targetUnionDirect))
                 return true;
 
-            if (source is UnionType sourceUnionDirect)
+            if(source is UnionType sourceUnionDirect)
             {
-                if (HasErrorConstituent(sourceUnionDirect))
+                if(HasErrorConstituent(sourceUnionDirect))
                     return true;
 
-                foreach (var constituent in sourceUnionDirect.Constituents)
+                foreach(var constituent in sourceUnionDirect.Constituents)
                 {
-                    if (!IsConstituentOf(constituent, targetUnionDirect))
+                    if(!IsConstituentOf(constituent, targetUnionDirect))
                         return false;
                 }
                 return true;
@@ -1985,7 +1985,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
             return IsConstituentOf(source, targetUnionDirect);
         }
-        if (source is UnionType)
+        if(source is UnionType)
         {
             return false;
         }
@@ -2001,18 +2001,18 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // This check is placed before the identity/DisplayName checks so that
         // a newtype with the same DisplayName as another type (unlikely but
         // possible in error-recovery scenarios) is still rejected.
-        if (source is NewtypeType || target is NewtypeType)
+        if(source is NewtypeType || target is NewtypeType)
         {
             // Only the same newtype instance is assignable to itself.
             return ReferenceEquals(source, target);
         }
 
         // Identity.
-        if (ReferenceEquals(source, target))
+        if(ReferenceEquals(source, target))
             return true;
 
         // Same display name.
-        if (source.DisplayName == target.DisplayName)
+        if(source.DisplayName == target.DisplayName)
             return true;
 
         // ── anonymous-types feature: structural equality (Requirement 4.6) ──
@@ -2020,59 +2020,59 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // order are the same type and are directly assignable to each other.
         // This explicit check ensures correctness regardless of DisplayName
         // formatting and makes the structural equality contract visible.
-        if (source is AnonymousType sourceAnon && target is AnonymousType targetAnon)
+        if(source is AnonymousType sourceAnon && target is AnonymousType targetAnon)
         {
             return sourceAnon.StructurallyEquals(targetAnon);
         }
 
         // Migration-window shim.
-        if (ArePrimitiveEquivalent(source, target))
+        if(ArePrimitiveEquivalent(source, target))
             return true;
 
         // Tuple assignability with name erasure: two TupleType instances are
         // assignable if they have the same arity and each element type is
         // assignable. Element names are ignored (name erasure).
-        if (source is TupleType sourceTuple && target is TupleType targetTuple)
+        if(source is TupleType sourceTuple && target is TupleType targetTuple)
         {
-            if (sourceTuple.Arity == targetTuple.Arity)
+            if(sourceTuple.Arity == targetTuple.Arity)
             {
                 var allElementsAssignable = true;
-                for (var i = 0; i < sourceTuple.Arity; i++)
+                for(var i = 0; i < sourceTuple.Arity; i++)
                 {
-                    if (!IsDirectlyAssignable(sourceTuple.ElementTypes[i], targetTuple.ElementTypes[i], model))
+                    if(!IsDirectlyAssignable(sourceTuple.ElementTypes[i], targetTuple.ElementTypes[i], model))
                     {
                         allElementsAssignable = false;
                         break;
                     }
                 }
-                if (allElementsAssignable) return true;
+                if(allElementsAssignable) return true;
             }
             return false;
         }
 
         // ConstructedType identity.
-        if (source is ConstructedType sourceConstructed && target is ConstructedType targetConstructed)
+        if(source is ConstructedType sourceConstructed && target is ConstructedType targetConstructed)
         {
-            if (ReferenceEquals(sourceConstructed.GenericDefinition, targetConstructed.GenericDefinition)
+            if(ReferenceEquals(sourceConstructed.GenericDefinition, targetConstructed.GenericDefinition)
                 && sourceConstructed.TypeArguments.Count == targetConstructed.TypeArguments.Count)
             {
                 var allMatch = true;
-                for (var i = 0; i < sourceConstructed.TypeArguments.Count; i++)
+                for(var i = 0; i < sourceConstructed.TypeArguments.Count; i++)
                 {
-                    if (!TypesEqual(sourceConstructed.TypeArguments[i], targetConstructed.TypeArguments[i]))
+                    if(!TypesEqual(sourceConstructed.TypeArguments[i], targetConstructed.TypeArguments[i]))
                     {
                         allMatch = false;
                         break;
                     }
                 }
-                if (allMatch) return true;
+                if(allMatch) return true;
 
                 // Covariant unknown widening (unknown-type feature, Task 23.3).
                 // Req 8.4: a trivially-valid cast like `(List<unknown>) intList`
                 // must not require a user-declared cast operator. Applying the
                 // widening rule here lets `CheckCastExpression` accept it
                 // directly.
-                if (AssignableWithUnknownWidening(
+                if(AssignableWithUnknownWidening(
                         sourceConstructed.GenericDefinition,
                         sourceConstructed.TypeArguments,
                         targetConstructed.TypeArguments))
@@ -2083,27 +2083,27 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         // ConstructedType inheritance.
-        if (source is ConstructedType sourceConst && target is ConstructedType)
+        if(source is ConstructedType sourceConst && target is ConstructedType)
         {
             var baseType = GetSubstitutedBaseType(sourceConst);
-            if (baseType is not null && IsDirectlyAssignable(baseType, target, model))
+            if(baseType is not null && IsDirectlyAssignable(baseType, target, model))
                 return true;
         }
 
         // ConstructedType (struct) to plain StructType assignability.
-        if (source is ConstructedType sourceStructConst
+        if(source is ConstructedType sourceStructConst
             && sourceStructConst.GenericDefinition is StructType
             && target is StructType)
         {
             var baseType = GetSubstitutedBaseType(sourceStructConst);
-            if (baseType is not null && IsDirectlyAssignable(baseType, target, model))
+            if(baseType is not null && IsDirectlyAssignable(baseType, target, model))
                 return true;
         }
 
         // ConstructedType to constructed abstract assignability.
-        if (target is ConstructedType targetConst && targetConst.GenericDefinition is AbstractType)
+        if(target is ConstructedType targetConst && targetConst.GenericDefinition is AbstractType)
         {
-            if (ImplementsConstructedAbstract(source, targetConst))
+            if(ImplementsConstructedAbstract(source, targetConst))
                 return true;
         }
 
@@ -2114,44 +2114,44 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // intentionally does NOT check implicit cast operators.
 
         // Abstract assignability (also checks with-block conformance via ConformanceMap).
-        if (target is AbstractType targetAbstract)
+        if(target is AbstractType targetAbstract)
         {
-            if (ImplementsAbstract(source, targetAbstract, model))
+            if(ImplementsAbstract(source, targetAbstract, model))
                 return true;
         }
 
         // Subtype assignability — walk the inheritance chain.
-        if (source is ClassType sourceClass && target is ClassType)
+        if(source is ClassType sourceClass && target is ClassType)
         {
             var current = sourceClass.BaseType as ClassType;
-            while (current is not null)
+            while(current is not null)
             {
-                if (ReferenceEquals(current, target) || current.DisplayName == target.DisplayName)
+                if(ReferenceEquals(current, target) || current.DisplayName == target.DisplayName)
                     return true;
                 current = current.BaseType as ClassType;
             }
         }
 
         // Struct subtype assignability — walk the inheritance chain.
-        if (source is StructType sourceStruct && target is StructType)
+        if(source is StructType sourceStruct && target is StructType)
         {
             var current = sourceStruct.BaseType as StructType;
-            while (current is not null)
+            while(current is not null)
             {
-                if (ReferenceEquals(current, target) || current.DisplayName == target.DisplayName)
+                if(ReferenceEquals(current, target) || current.DisplayName == target.DisplayName)
                     return true;
                 current = current.BaseType as StructType;
             }
         }
 
         // Plain StructType to ConstructedType (struct) assignability.
-        if (source is StructType sourceStructForCt && target is ConstructedType targetStructCt
+        if(source is StructType sourceStructForCt && target is ConstructedType targetStructCt
             && targetStructCt.GenericDefinition is StructType)
         {
             var currentBase = sourceStructForCt.BaseType;
-            while (currentBase is not null)
+            while(currentBase is not null)
             {
-                if (IsDirectlyAssignable(currentBase, target, model))
+                if(IsDirectlyAssignable(currentBase, target, model))
                     return true;
                 currentBase = currentBase switch
                 {
@@ -2165,7 +2165,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // ── enums feature: implicit conversion to underlying type (Req 7.1, 7.2) ──
         // An enum value is directly assignable to its underlying type without
         // requiring an implicit cast operator lookup.
-        if (source is EnumType sourceEnum && IsDirectlyAssignable(sourceEnum.UnderlyingType, target, model))
+        if(source is EnumType sourceEnum && IsDirectlyAssignable(sourceEnum.UnderlyingType, target, model))
             return true;
 
         // NOTE: No implicit cast operator fallback here — that's the whole
@@ -2179,13 +2179,13 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         try { declaringNode = model.GetDeclaringNode(ctorSymbol); }
         catch { return; }
 
-        if (declaringNode is not ConstructorDeclarationNode ctorDecl)
+        if(declaringNode is not ConstructorDeclarationNode ctorDecl)
             return;
 
         // ── MIST_TC_0108: async on constructor (Requirement 2.5) ──
-        foreach (var mod in ctorDecl.Modifiers)
+        foreach(var mod in ctorDecl.Modifiers)
         {
-            if (mod is AsyncModifierModifierNode)
+            if(mod is AsyncModifierModifierNode)
             {
                 diagnostics.Add(MakeDiagnostic(
                     "MIST_TC_0108",
@@ -2201,12 +2201,12 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         _insidePropertyAccessor = false;
 
         // Check constructor chaining (: this(args))
-        if (ctorDecl.Chain is not null)
+        if(ctorDecl.Chain is not null)
         {
             CheckConstructorChain(ctorDecl.Chain, ctorSymbol, model, diagnostics);
         }
 
-        if (ctorDecl.Body.GetBlock() is BlockNode ctorBlock)
+        if(ctorDecl.Body.GetBlock() is BlockNode ctorBlock)
         {
             // ── Flow narrowing: inject parameter refinement narrowing (Requirement 8.1–8.5) ──
             var paramNarrowings = InjectParameterRefinementNarrowing(declaringNode, model);
@@ -2237,7 +2237,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     {
         // Find the declaring type.
         var declaringType = FindDeclaringType(ctorSymbol);
-        if (declaringType is null)
+        if(declaringType is null)
             return;
 
         // Get the member scope to enumerate fields.
@@ -2247,30 +2247,30 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             StructType st => st.MemberScope,
             _ => null,
         };
-        if (memberScope is null)
+        if(memberScope is null)
             return;
 
         // Collect all instance fields declared on this type (not inherited).
         // Static fields are not part of instance construction and must be excluded.
         // Inherited fields are excluded because their assignment is handled by the base constructor.
         var allFields = new List<string>();
-        foreach (var member in memberScope.Members)
+        foreach(var member in memberScope.Members)
         {
-            if (member.Kind == SymbolKind.Field && member is Symbol sym && !sym.IsStatic
+            if(member.Kind == SymbolKind.Field && member is Symbol sym && !sym.IsStatic
                 && ReferenceEquals(member.ContainingScope, memberScope))
                 allFields.Add(member.Name);
         }
 
-        if (allFields.Count == 0)
+        if(allFields.Count == 0)
             return;
 
         // Build a mapping from property names to their backing field names.
         // When code assigns `this.PropertyName = value`, it's actually assigning
         // the backing field `_PropertyName_k__BackingField`.
         var propertyToBackingField = new Dictionary<string, string>(StringComparer.Ordinal);
-        foreach (var member in memberScope.Members)
+        foreach(var member in memberScope.Members)
         {
-            if (member.Kind == SymbolKind.Property && member is Symbol propSym
+            if(member.Kind == SymbolKind.Property && member is Symbol propSym
                 && propSym.PropertyMetadata?.BackingField is Symbol backingField
                 && !backingField.IsStatic)
             {
@@ -2282,17 +2282,17 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // - Fields with initializers (Req 3.2)
         // - Fields with defaultable types and no initializer (Req 3.3 — synthetic default injection)
         var initiallyAssigned = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var member in memberScope.Members)
+        foreach(var member in memberScope.Members)
         {
-            if (member.Kind != SymbolKind.Field)
+            if(member.Kind != SymbolKind.Field)
                 continue;
 
             // Skip static fields — they are not part of instance construction.
-            if (member is Symbol fieldSym && fieldSym.IsStatic)
+            if(member is Symbol fieldSym && fieldSym.IsStatic)
                 continue;
 
             // Skip inherited fields — their initialization is the base constructor's responsibility.
-            if (!ReferenceEquals(member.ContainingScope, memberScope))
+            if(!ReferenceEquals(member.ContainingScope, memberScope))
                 continue;
 
             // Check if the field has an initializer.
@@ -2300,11 +2300,11 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             try
             {
                 var fieldNode = model.GetDeclaringNode(member);
-                if (fieldNode is FieldDeclarationNode fieldDecl && fieldDecl.Initializer is not null)
+                if(fieldNode is FieldDeclarationNode fieldDecl && fieldDecl.Initializer is not null)
                     hasInitializer = true;
                 // For backing fields, the declaring node is the property node.
                 // Check if the property has an initializer.
-                else if (fieldNode is BlockPropertyPropertyDeclarationNode propDecl && propDecl.Initializer is not null)
+                else if(fieldNode is BlockPropertyPropertyDeclarationNode propDecl && propDecl.Initializer is not null)
                     hasInitializer = true;
             }
             catch
@@ -2312,17 +2312,17 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 // If we can't get the declaring node, treat as no initializer.
             }
 
-            if (hasInitializer)
+            if(hasInitializer)
             {
                 // Req 3.2: Field with initializer → pre-assigned.
                 initiallyAssigned.Add(member.Name);
             }
-            else if (member.DeclaredType is not null && IsTypeDefaultable(member.DeclaredType))
+            else if(member.DeclaredType is not null && IsTypeDefaultable(member.DeclaredType))
             {
                 // Req 3.3: Field type is defaultable, no initializer → pre-assigned (synthetic default injection).
                 initiallyAssigned.Add(member.Name);
             }
-            else if (member.DeclaredType is TypeParameterType)
+            else if(member.DeclaredType is TypeParameterType)
             {
                 // Type parameter fields are runtime zero-initialized (like C#'s default(T)).
                 // Constraint satisfaction for the type argument is checked at instantiation sites.
@@ -2331,14 +2331,14 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         // If all fields are already assigned, nothing to check.
-        if (initiallyAssigned.Count >= allFields.Count)
+        if(initiallyAssigned.Count >= allFields.Count)
             return;
 
         // Compute the set of non-defaultable fields (those not in initiallyAssigned).
         var allNonDefaultableFields = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var fieldName in allFields)
+        foreach(var fieldName in allFields)
         {
-            if (!initiallyAssigned.Contains(fieldName))
+            if(!initiallyAssigned.Contains(fieldName))
                 allNonDefaultableFields.Add(fieldName);
         }
 
@@ -2350,9 +2350,9 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // Emit MIST_FIELD_READ_BEFORE_ASSIGNMENT for each field-read violation (Req 1.1, 1.4, 1.8, 7.1, 7.4).
         // Emit MIST_LOCAL_READ_BEFORE_ASSIGNMENT for each local-read violation (Req 2.1, 2.3, 2.6, 7.2, 7.4).
         var ctorName = ctorSymbol.Name;
-        foreach (var violation in readViolations)
+        foreach(var violation in readViolations)
         {
-            if (violation.Kind == ReadViolationKind.Field)
+            if(violation.Kind == ReadViolationKind.Field)
             {
                 diagnostics.Add(MakeDiagnostic(
                     DiagnosticId.FieldReadBeforeAssignment.Value,
@@ -2360,7 +2360,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     violation.Location,
                     model));
             }
-            else if (violation.Kind == ReadViolationKind.Local)
+            else if(violation.Kind == ReadViolationKind.Local)
             {
                 diagnostics.Add(MakeDiagnostic(
                     DiagnosticId.LocalReadBeforeAssignment.Value,
@@ -2373,15 +2373,15 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // Existing end-of-constructor check: MIST_FIELD_NOT_DEFINITELY_ASSIGNED (Req 1.7).
         // Check that all fields are in the definitely-assigned set at exit.
         var assignedAtExit = state.AssignedFields;
-        foreach (var fieldName in allFields)
+        foreach(var fieldName in allFields)
         {
-            if (!assignedAtExit.Contains(fieldName))
+            if(!assignedAtExit.Contains(fieldName))
             {
                 // Find the field symbol to get its type for the diagnostic message.
                 ISymbol? fieldSymbol = null;
-                foreach (var member in memberScope.Members)
+                foreach(var member in memberScope.Members)
                 {
-                    if (member.Kind == SymbolKind.Field && member.Name == fieldName)
+                    if(member.Kind == SymbolKind.Field && member.Name == fieldName)
                     {
                         fieldSymbol = member;
                         break;
@@ -2417,9 +2417,9 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         var emptyPropertyMap = new Dictionary<string, string>(StringComparer.Ordinal);
         var readViolations = RunForwardDataflow(block, state, emptyPropertyMap, model, false, null, null);
 
-        foreach (var violation in readViolations)
+        foreach(var violation in readViolations)
         {
-            if (violation.Kind == ReadViolationKind.Local)
+            if(violation.Kind == ReadViolationKind.Local)
             {
                 diagnostics.Add(MakeDiagnostic(
                     DiagnosticId.LocalReadBeforeAssignment.Value,
@@ -2484,9 +2484,9 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         List<ReadViolation> violations,
         HashSet<string>? allNonDefaultableFields)
     {
-        foreach (var stmt in block.Statements)
+        foreach(var stmt in block.Statements)
         {
-            if (state.Terminated)
+            if(state.Terminated)
                 break;
             AnalyzeStatementDataflow(stmt, state, propertyToBackingField, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
         }
@@ -2506,7 +2506,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         List<ReadViolation> violations,
         HashSet<string>? allNonDefaultableFields)
     {
-        switch (stmt)
+        switch(stmt)
         {
             case ExpressionStatementStatementNode exprStmt:
                 AnalyzeExpressionDataflow(exprStmt.ExpressionStatement.Expression, state, propertyToBackingField, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
@@ -2529,9 +2529,9 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 // Analyze the initializer (may introduce a local assignment).
                 AnalyzeForInitializerDataflow(forStmt.ForStatement, state, propertyToBackingField, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
                 // Check condition and iterator for reads.
-                if (forStmt.ForStatement.Condition is not null)
+                if(forStmt.ForStatement.Condition is not null)
                     AnalyzeExpressionForReads(forStmt.ForStatement.Condition, state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
-                if (forStmt.ForStatement.Iterator is not null)
+                if(forStmt.ForStatement.Iterator is not null)
                     AnalyzeExpressionForReads(forStmt.ForStatement.Iterator, state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
                 // Conservative: body may not execute.
                 var forBodyState = state.Clone();
@@ -2545,7 +2545,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 var foreachBodyState = state.Clone();
                 // The foreach iteration variable is implicitly assigned by the loop mechanism.
                 var foreachVarSymbol = model.GetDeclaredSymbol(foreachStmt.ForeachStatement);
-                if (foreachVarSymbol is not null)
+                if(foreachVarSymbol is not null)
                     foreachBodyState.AssignedLocals.Add(foreachVarSymbol);
                 AnalyzeBlockDataflow(foreachStmt.ForeachStatement.Body, foreachBodyState, propertyToBackingField, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
                 break;
@@ -2556,11 +2556,11 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
             case ReturnStatementStatementNode returnStmt:
                 // Check the return value expression for reads before marking terminated.
-                if (returnStmt.ReturnStatement.Value is not null)
+                if(returnStmt.ReturnStatement.Value is not null)
                 {
                     AnalyzeExpressionForReads(returnStmt.ReturnStatement.Value, state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
                     // this-escape: returning `this` from a constructor while fields are unassigned (Req 1.8).
-                    if (isConstructor && allNonDefaultableFields is not null)
+                    if(isConstructor && allNonDefaultableFields is not null)
                     {
                         CheckThisEscapeInExpression(returnStmt.ReturnStatement.Value, state, allNonDefaultableFields, violations, (SyntaxNode)returnStmt.ReturnStatement);
                     }
@@ -2604,7 +2604,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // Check the condition expression for reads.
         AnalyzeExpressionForReads(ifStmt.Condition, state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
 
-        if (ifStmt.ElseBranch is null)
+        if(ifStmt.ElseBranch is null)
         {
             // No else branch: the then-path is conditional. Assignments in the then-branch
             // are not guaranteed. Analyze the then-branch with a copy for read-checking
@@ -2619,7 +2619,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         AnalyzeBlockDataflow(ifStmt.ThenBranch, thenBranchState, propertyToBackingField, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
 
         var elseBranchState = state.Clone();
-        switch (ifStmt.ElseBranch)
+        switch(ifStmt.ElseBranch)
         {
             case ElseBlockElseClauseNode elseBlock:
                 AnalyzeBlockDataflow(elseBlock.ElseBlock, elseBranchState, propertyToBackingField, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
@@ -2655,7 +2655,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         List<ReadViolation> violations,
         HashSet<string>? allNonDefaultableFields)
     {
-        if (expr is not AssignmentFormExpressionNode assignExpr)
+        if(expr is not AssignmentFormExpressionNode assignExpr)
         {
             // Not an assignment form — check the entire expression for reads.
             AnalyzeExpressionForReads(expr, state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
@@ -2663,7 +2663,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         var assignment = assignExpr.Assignment;
-        if (assignment.Value is null)
+        if(assignment.Value is null)
         {
             // No assignment value — this is just an expression (e.g., method call).
             // Check the target for reads.
@@ -2678,17 +2678,17 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         // Extract the assignment target (field or local).
         var fieldName = TryExtractThisFieldAssignmentTarget(assignment.Target);
-        if (fieldName is null)
+        if(fieldName is null)
             fieldName = TryExtractBareFieldAssignmentTarget(assignment.Target);
         var localSymbol = TryExtractLocalAssignmentTarget(assignment.Target, model);
 
-        if (isVoidCoalescingAssign)
+        if(isVoidCoalescingAssign)
         {
             // Void-coalescing assignment (??=): read-then-write.
             // Check the target as a read FIRST (Req 2.6).
             AnalyzeVoidCoalescingForReads(assignment.Target, state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
         }
-        else if (fieldName is null && localSymbol is null)
+        else if(fieldName is null && localSymbol is null)
         {
             // Not a simple field/local target — check target for reads
             // (e.g., array element assignment: arr[i] = ...).
@@ -2699,14 +2699,14 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         AnalyzeExpressionForReads(assignment.Value, state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
 
         // Record the write.
-        if (fieldName is not null)
+        if(fieldName is not null)
         {
             state.AssignedFields.Add(fieldName);
-            if (propertyToBackingField.TryGetValue(fieldName, out var backingFieldName))
+            if(propertyToBackingField.TryGetValue(fieldName, out var backingFieldName))
                 state.AssignedFields.Add(backingFieldName);
         }
 
-        if (localSymbol is not null)
+        if(localSymbol is not null)
         {
             state.AssignedLocals.Add(localSymbol);
         }
@@ -2725,33 +2725,33 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         List<ReadViolation> violations,
         HashSet<string>? allNonDefaultableFields)
     {
-        switch (varDecl)
+        switch(varDecl)
         {
             case TypedVariableDeclarationVariableDeclarationStatementNode typed:
                 AnalyzeExpressionForReads(typed.Initializer, state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
                 var typedSymbol = model.GetDeclaredSymbol(typed);
-                if (typedSymbol is not null)
+                if(typedSymbol is not null)
                     state.AssignedLocals.Add(typedSymbol);
                 break;
 
             case InferredVariableDeclarationVariableDeclarationStatementNode inferred:
                 AnalyzeExpressionForReads(inferred.Initializer, state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
                 var inferredSymbol = model.GetDeclaredSymbol(inferred);
-                if (inferredSymbol is not null)
+                if(inferredSymbol is not null)
                     state.AssignedLocals.Add(inferredSymbol);
                 break;
 
             case VarTupleDeconstructionVariableDeclarationStatementNode varTuple:
                 AnalyzeExpressionForReads(varTuple.Initializer, state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
                 var tupleSymbol = model.GetDeclaredSymbol(varTuple);
-                if (tupleSymbol is not null)
+                if(tupleSymbol is not null)
                     state.AssignedLocals.Add(tupleSymbol);
                 break;
 
             case TypedTupleDeconstructionVariableDeclarationStatementNode typedTuple:
                 AnalyzeExpressionForReads(typedTuple.Initializer, state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
                 var typedTupleSymbol = model.GetDeclaredSymbol(typedTuple);
-                if (typedTupleSymbol is not null)
+                if(typedTupleSymbol is not null)
                     state.AssignedLocals.Add(typedTupleSymbol);
                 break;
         }
@@ -2771,19 +2771,19 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         List<ReadViolation> violations,
         HashSet<string>? allNonDefaultableFields)
     {
-        switch (forStmt.Initializer)
+        switch(forStmt.Initializer)
         {
             case ForInitializerVariableDeclarationForInitializerNode varInit:
                 AnalyzeExpressionForReads(varInit.Initializer, state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
                 var varSymbol = model.GetDeclaredSymbol(varInit);
-                if (varSymbol is not null)
+                if(varSymbol is not null)
                     state.AssignedLocals.Add(varSymbol);
                 break;
 
             case ForInitializerVarDeclarationForInitializerNode varDeclInit:
                 AnalyzeExpressionForReads(varDeclInit.Initializer, state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
                 var varDeclSymbol = model.GetDeclaredSymbol(varDeclInit);
-                if (varDeclSymbol is not null)
+                if(varDeclSymbol is not null)
                     state.AssignedLocals.Add(varDeclSymbol);
                 break;
 
@@ -2807,15 +2807,15 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         HashSet<string>? allNonDefaultableFields)
     {
         // Lambda expressions introduce their own scope — don't analyze their body here.
-        if (expr.AsLambdaOrNull() is not null)
+        if(expr.AsLambdaOrNull() is not null)
             return;
 
         var assignment = expr.AsAssignmentOrNull();
-        if (assignment is null)
+        if(assignment is null)
             return;
 
         // If this is an assignment expression (nested), handle it recursively.
-        if (assignment.Value is not null)
+        if(assignment.Value is not null)
         {
             // Nested assignment: check RHS for reads, then the target.
             AnalyzeExpressionForReads(assignment.Value, state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
@@ -2838,14 +2838,14 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         List<ReadViolation> violations,
         HashSet<string>? allNonDefaultableFields)
     {
-        if (target.Left is null)
+        if(target.Left is null)
             return;
 
         // Check the main expression chain.
         AnalyzeLogicalOrForReads(target.Left, state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
 
         // Check any void-coalescing right-hand sides (?? expressions).
-        foreach (var logicalOr in target.LogicalOrs)
+        foreach(var logicalOr in target.LogicalOrs)
         {
             AnalyzeLogicalOrForReads(logicalOr, state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
         }
@@ -2864,7 +2864,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         HashSet<string>? allNonDefaultableFields)
     {
         AnalyzeLogicalAndForReads(logicalOr.Left, state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
-        if (logicalOr.Right is not null)
+        if(logicalOr.Right is not null)
             AnalyzeLogicalAndForReads(logicalOr.Right, state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
     }
 
@@ -2881,7 +2881,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         HashSet<string>? allNonDefaultableFields)
     {
         AnalyzeEqualityForReads(logicalAnd.Left, state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
-        if (logicalAnd.Right is not null)
+        if(logicalAnd.Right is not null)
             AnalyzeEqualityForReads(logicalAnd.Right, state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
     }
 
@@ -2899,7 +2899,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     {
         AnalyzeRelationalForReads(equality.Left, state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
 
-        if (equality.Right is not null)
+        if(equality.Right is not null)
             AnalyzeRelationalForReads(equality.Right, state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
     }
 
@@ -2915,11 +2915,11 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         List<ReadViolation> violations,
         HashSet<string>? allNonDefaultableFields)
     {
-        switch (relational)
+        switch(relational)
         {
             case RelationalComparisonRelationalNode cmp:
                 AnalyzeAdditiveForReads(cmp.Left, state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
-                if (cmp.Right is not null)
+                if(cmp.Right is not null)
                     AnalyzeAdditiveForReads(cmp.Right, state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
                 break;
             case IsExpressionRelationalNode isExpr:
@@ -2944,7 +2944,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         HashSet<string>? allNonDefaultableFields)
     {
         AnalyzeMultiplicativeForReads(additive.Left, state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
-        if (additive.Right is not null)
+        if(additive.Right is not null)
             AnalyzeMultiplicativeForReads(additive.Right, state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
     }
 
@@ -2961,7 +2961,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         HashSet<string>? allNonDefaultableFields)
     {
         AnalyzeUnaryForReads(multiplicative.Left, state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
-        if (multiplicative.Right is not null)
+        if(multiplicative.Right is not null)
             AnalyzeUnaryForReads(multiplicative.Right, state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
     }
 
@@ -2977,7 +2977,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         List<ReadViolation> violations,
         HashSet<string>? allNonDefaultableFields)
     {
-        switch (unary)
+        switch(unary)
         {
             case PostfixExpressionUnaryNode postfixExpr:
                 AnalyzePostfixForReads(postfixExpr.Primary, state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
@@ -3013,32 +3013,32 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         List<ReadViolation> violations,
         HashSet<string>? allNonDefaultableFields)
     {
-        if (postfix is null)
+        if(postfix is null)
             return;
 
         // Check for this.field read pattern or this-escape patterns.
-        if (isConstructor && postfix.Target is ThisExpressionPrimaryNode && postfix.Suffix.Length >= 1)
+        if(isConstructor && postfix.Target is ThisExpressionPrimaryNode && postfix.Suffix.Length >= 1)
         {
             var firstSuffix = postfix.Suffix[0];
 
-            if (firstSuffix is MemberAccessSuffixPostfixSuffixNode memberAccess)
+            if(firstSuffix is MemberAccessSuffixPostfixSuffixNode memberAccess)
             {
                 var fieldName = memberAccess.Name.Lexeme;
-                if (!state.AssignedFields.Contains(fieldName)
+                if(!state.AssignedFields.Contains(fieldName)
                     && initiallyAssignedFields is not null
                     && !initiallyAssignedFields.Contains(fieldName))
                 {
                     violations.Add(new ReadViolation(ReadViolationKind.Field, fieldName, null, (SyntaxNode)postfix));
                 }
             }
-            else if (firstSuffix is MethodCallSuffixPostfixSuffixNode)
+            else if(firstSuffix is MethodCallSuffixPostfixSuffixNode)
             {
                 // this-escape: method called on `this` before all non-defaultable fields are assigned (Req 1.8).
-                if (allNonDefaultableFields is not null)
+                if(allNonDefaultableFields is not null)
                 {
-                    foreach (var field in allNonDefaultableFields)
+                    foreach(var field in allNonDefaultableFields)
                     {
-                        if (!state.AssignedFields.Contains(field))
+                        if(!state.AssignedFields.Contains(field))
                         {
                             violations.Add(new ReadViolation(ReadViolationKind.Field, field, null, (SyntaxNode)postfix));
                         }
@@ -3047,7 +3047,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             }
 
             // Check remaining suffixes for reads (e.g., this.field.Method(arg) — check arg).
-            for (var i = 1; i < postfix.Suffix.Length; i++)
+            for(var i = 1; i < postfix.Suffix.Length; i++)
             {
                 AnalyzeSuffixForReads(postfix.Suffix[i], state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
             }
@@ -3059,10 +3059,10 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // (e.g., argument checking in AnalyzeSuffixForReads).
 
         // Check for local variable read pattern.
-        if (postfix.Target is IdentifierExpressionPrimaryNode identifier && postfix.Suffix.Length == 0)
+        if(postfix.Target is IdentifierExpressionPrimaryNode identifier && postfix.Suffix.Length == 0)
         {
             var symbol = model.GetDeclaredSymbol(identifier);
-            if (symbol is not null && symbol.Kind == SymbolKind.LocalVariable
+            if(symbol is not null && symbol.Kind == SymbolKind.LocalVariable
                 && !state.AssignedLocals.Contains(symbol))
             {
                 // Only flag locals that were introduced by variable declarations tracked
@@ -3071,7 +3071,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 // by the pattern match and should not trigger this diagnostic.
                 Storm.Runtime.SyntaxNode? declaringNode = null;
                 try { declaringNode = model.GetDeclaringNode(symbol); } catch { /* ignore */ }
-                if (declaringNode is TypedVariableDeclarationVariableDeclarationStatementNode
+                if(declaringNode is TypedVariableDeclarationVariableDeclarationStatementNode
                     or InferredVariableDeclarationVariableDeclarationStatementNode
                     or VarTupleDeconstructionVariableDeclarationStatementNode
                     or TypedTupleDeconstructionVariableDeclarationStatementNode
@@ -3086,7 +3086,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         // Check all suffixes for reads (arguments, index expressions, etc.).
-        foreach (var suffix in postfix.Suffix)
+        foreach(var suffix in postfix.Suffix)
         {
             AnalyzeSuffixForReads(suffix, state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
         }
@@ -3105,14 +3105,14 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         List<ReadViolation> violations,
         HashSet<string>? allNonDefaultableFields)
     {
-        switch (suffix)
+        switch(suffix)
         {
             case InvocationSuffixPostfixSuffixNode invocation:
-                if (invocation.Arguments is not null)
+                if(invocation.Arguments is not null)
                 {
                     CheckArgumentForThisEscape(invocation.Arguments.Argument, state, model, isConstructor, allNonDefaultableFields, violations);
                     AnalyzeExpressionForReads(ArgumentListNodeExtensions.ExtractExpression(invocation.Arguments.Argument), state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
-                    foreach (var arg in invocation.Arguments.Arguments)
+                    foreach(var arg in invocation.Arguments.Arguments)
                     {
                         CheckArgumentForThisEscape(arg, state, model, isConstructor, allNonDefaultableFields, violations);
                         AnalyzeExpressionForReads(ArgumentListNodeExtensions.ExtractExpression(arg), state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
@@ -3121,11 +3121,11 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 break;
 
             case MethodCallSuffixPostfixSuffixNode methodCall:
-                if (methodCall.Arguments is not null)
+                if(methodCall.Arguments is not null)
                 {
                     CheckArgumentForThisEscape(methodCall.Arguments.Argument, state, model, isConstructor, allNonDefaultableFields, violations);
                     AnalyzeExpressionForReads(ArgumentListNodeExtensions.ExtractExpression(methodCall.Arguments.Argument), state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
-                    foreach (var arg in methodCall.Arguments.Arguments)
+                    foreach(var arg in methodCall.Arguments.Arguments)
                     {
                         CheckArgumentForThisEscape(arg, state, model, isConstructor, allNonDefaultableFields, violations);
                         AnalyzeExpressionForReads(ArgumentListNodeExtensions.ExtractExpression(arg), state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
@@ -3151,17 +3151,17 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         HashSet<string>? allNonDefaultableFields,
         List<ReadViolation> violations)
     {
-        if (!isConstructor || allNonDefaultableFields is null)
+        if(!isConstructor || allNonDefaultableFields is null)
             return;
 
         var expr = ArgumentListNodeExtensions.ExtractExpression(arg);
-        if (!IsBarThisExpression(expr))
+        if(!IsBarThisExpression(expr))
             return;
 
         // this is passed as an argument — treat as a read of all unassigned non-defaultable fields.
-        foreach (var field in allNonDefaultableFields)
+        foreach(var field in allNonDefaultableFields)
         {
-            if (!state.AssignedFields.Contains(field))
+            if(!state.AssignedFields.Contains(field))
             {
                 violations.Add(new ReadViolation(ReadViolationKind.Field, field, null, GetThisNode(expr)));
             }
@@ -3179,13 +3179,13 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         List<ReadViolation> violations,
         SyntaxNode locationNode)
     {
-        if (!IsBarThisExpression(expr))
+        if(!IsBarThisExpression(expr))
             return;
 
         // this is returned — treat as a read of all unassigned non-defaultable fields.
-        foreach (var field in allNonDefaultableFields)
+        foreach(var field in allNonDefaultableFields)
         {
-            if (!state.AssignedFields.Contains(field))
+            if(!state.AssignedFields.Contains(field))
             {
                 violations.Add(new ReadViolation(ReadViolationKind.Field, field, null, locationNode));
             }
@@ -3198,41 +3198,41 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     private static bool IsBarThisExpression(ExpressionNode expr)
     {
         var assignment = expr.AsAssignmentOrNull();
-        if (assignment is null || assignment.Value is not null)
+        if(assignment is null || assignment.Value is not null)
             return false;
 
         var target = assignment.Target;
-        if (target.Left is not { } logicalOr)
+        if(target.Left is not { } logicalOr)
             return false;
-        if (logicalOr.Right is not null)
+        if(logicalOr.Right is not null)
             return false;
 
         var logicalAnd = logicalOr.Left;
-        if (logicalAnd.Right is not null)
+        if(logicalAnd.Right is not null)
             return false;
 
         var equality = logicalAnd.Left;
-        if (equality.Right is not null)
+        if(equality.Right is not null)
             return false;
 
-        if (equality.Left is not RelationalComparisonRelationalNode relational)
+        if(equality.Left is not RelationalComparisonRelationalNode relational)
             return false;
-        if (relational.Right is not null)
+        if(relational.Right is not null)
             return false;
 
         var additive = relational.Left;
-        if (additive.Right is not null)
+        if(additive.Right is not null)
             return false;
 
         var multiplicative = additive.Left;
-        if (multiplicative.Right is not null)
+        if(multiplicative.Right is not null)
             return false;
 
-        if (multiplicative.Left is not PostfixExpressionUnaryNode postfixExpr)
+        if(multiplicative.Left is not PostfixExpressionUnaryNode postfixExpr)
             return false;
 
         var postfix = postfixExpr.Primary;
-        if (postfix is null)
+        if(postfix is null)
             return false;
 
         return postfix.Target is ThisExpressionPrimaryNode && postfix.Suffix.Length == 0;
@@ -3245,9 +3245,9 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     private static SyntaxNode GetThisNode(ExpressionNode expr)
     {
         var assignment = expr.AsAssignmentOrNull();
-        if (assignment?.Target.Left?.Left.Left.Left is RelationalComparisonRelationalNode relational)
+        if(assignment?.Target.Left?.Left.Left.Left is RelationalComparisonRelationalNode relational)
         {
-            if (relational.Left.Left.Left is PostfixExpressionUnaryNode postfixExpr
+            if(relational.Left.Left.Left is PostfixExpressionUnaryNode postfixExpr
                 && postfixExpr.Primary?.Target is ThisExpressionPrimaryNode thisNode)
             {
                 return (SyntaxNode)thisNode;
@@ -3263,46 +3263,46 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     private static ISymbol? TryExtractLocalAssignmentTarget(VoidCoalescingNode target, ISemanticModel model)
     {
-        if (target.Left is not { } logicalOr)
+        if(target.Left is not { } logicalOr)
             return null;
-        if (logicalOr.Right is not null)
+        if(logicalOr.Right is not null)
             return null;
 
         var logicalAnd = logicalOr.Left;
-        if (logicalAnd.Right is not null)
+        if(logicalAnd.Right is not null)
             return null;
 
         var equality = logicalAnd.Left;
-        if (equality.Right is not null)
+        if(equality.Right is not null)
             return null;
 
-        if (equality.Left is not RelationalComparisonRelationalNode relational)
+        if(equality.Left is not RelationalComparisonRelationalNode relational)
             return null;
-        if (relational.Right is not null)
+        if(relational.Right is not null)
             return null;
 
         var additive = relational.Left;
-        if (additive.Right is not null)
+        if(additive.Right is not null)
             return null;
 
         var multiplicative = additive.Left;
-        if (multiplicative.Right is not null)
+        if(multiplicative.Right is not null)
             return null;
 
-        if (multiplicative.Left is not PostfixExpressionUnaryNode postfixExpr)
+        if(multiplicative.Left is not PostfixExpressionUnaryNode postfixExpr)
             return null;
 
         var postfix = postfixExpr.Primary;
-        if (postfix is null)
+        if(postfix is null)
             return null;
 
-        if (postfix.Target is not IdentifierExpressionPrimaryNode identifier)
+        if(postfix.Target is not IdentifierExpressionPrimaryNode identifier)
             return null;
-        if (postfix.Suffix.Length != 0)
+        if(postfix.Suffix.Length != 0)
             return null;
 
         var symbol = model.GetDeclaredSymbol(identifier);
-        if (symbol is not null && symbol.Kind == SymbolKind.LocalVariable)
+        if(symbol is not null && symbol.Kind == SymbolKind.LocalVariable)
             return symbol;
 
         return null;
@@ -3337,43 +3337,43 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     private static string? TryExtractBareFieldAssignmentTarget(VoidCoalescingNode target)
     {
         // Unwrap the nested expression tree to reach the PostfixNode.
-        if (target.Left is not { } logicalOr)
+        if(target.Left is not { } logicalOr)
             return null;
-        if (logicalOr.Right is not null)
+        if(logicalOr.Right is not null)
             return null;
 
         var logicalAnd = logicalOr.Left;
-        if (logicalAnd.Right is not null)
+        if(logicalAnd.Right is not null)
             return null;
 
         var equality = logicalAnd.Left;
-        if (equality.Right is not null)
+        if(equality.Right is not null)
             return null;
 
-        if (equality.Left is not RelationalComparisonRelationalNode relational)
+        if(equality.Left is not RelationalComparisonRelationalNode relational)
             return null;
-        if (relational.Right is not null)
+        if(relational.Right is not null)
             return null;
 
         var additive = relational.Left;
-        if (additive.Right is not null)
+        if(additive.Right is not null)
             return null;
 
         var multiplicative = additive.Left;
-        if (multiplicative.Right is not null)
+        if(multiplicative.Right is not null)
             return null;
 
-        if (multiplicative.Left is not PostfixExpressionUnaryNode postfixExpr)
+        if(multiplicative.Left is not PostfixExpressionUnaryNode postfixExpr)
             return null;
 
         var postfix = postfixExpr.Primary;
-        if (postfix is null)
+        if(postfix is null)
             return null;
 
         // Check that the target is a bare identifier with no suffix (no member access, no invocation).
-        if (postfix.Target is not IdentifierExpressionPrimaryNode identifier)
+        if(postfix.Target is not IdentifierExpressionPrimaryNode identifier)
             return null;
-        if (postfix.Suffix.Length != 0)
+        if(postfix.Suffix.Length != 0)
             return null;
 
         return identifier.Name.Lexeme;
@@ -3390,45 +3390,45 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         //   -> Left (EqualityNode) -> Left (RelationalComparisonRelationalNode)
         //   -> Left (AdditiveNode) -> Left (MultiplicativeNode) -> Left (UnaryNode)
         //   -> Primary (PostfixNode)
-        if (target.Left is not { } logicalOr)
+        if(target.Left is not { } logicalOr)
             return null;
-        if (logicalOr.Right is not null)
+        if(logicalOr.Right is not null)
             return null;
 
         var logicalAnd = logicalOr.Left;
-        if (logicalAnd.Right is not null)
+        if(logicalAnd.Right is not null)
             return null;
 
         var equality = logicalAnd.Left;
-        if (equality.Right is not null)
+        if(equality.Right is not null)
             return null;
 
-        if (equality.Left is not RelationalComparisonRelationalNode relational)
+        if(equality.Left is not RelationalComparisonRelationalNode relational)
             return null;
-        if (relational.Right is not null)
+        if(relational.Right is not null)
             return null;
 
         var additive = relational.Left;
-        if (additive.Right is not null)
+        if(additive.Right is not null)
             return null;
 
         var multiplicative = additive.Left;
-        if (multiplicative.Right is not null)
+        if(multiplicative.Right is not null)
             return null;
 
-        if (multiplicative.Left is not PostfixExpressionUnaryNode postfixExpr)
+        if(multiplicative.Left is not PostfixExpressionUnaryNode postfixExpr)
             return null;
 
         var postfix = postfixExpr.Primary;
-        if (postfix is null)
+        if(postfix is null)
             return null;
 
         // Check that the target is `this.fieldName` — a ThisExpression with exactly one MemberAccessSuffix.
-        if (postfix.Target is not ThisExpressionPrimaryNode)
+        if(postfix.Target is not ThisExpressionPrimaryNode)
             return null;
-        if (postfix.Suffix.Length != 1)
+        if(postfix.Suffix.Length != 1)
             return null;
-        if (postfix.Suffix[0] is not MemberAccessSuffixPostfixSuffixNode memberAccess)
+        if(postfix.Suffix[0] is not MemberAccessSuffixPostfixSuffixNode memberAccess)
             return null;
 
         return memberAccess.Name.Lexeme;
@@ -3440,18 +3440,18 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         try { declaringNode = model.GetDeclaringNode(fieldSymbol); }
         catch { return; }
 
-        if (declaringNode is not FieldDeclarationNode fieldDecl)
+        if(declaringNode is not FieldDeclarationNode fieldDecl)
             return;
 
         // ── MIST2002: Ref struct field restriction (Requirement 3.5) ──
         // A ref struct type cannot be used as a field in a non-ref-struct type,
         // since that would allow the ref struct value to escape to the heap.
         var fieldType = fieldSymbol.DeclaredType;
-        if (fieldType is not null && IsRefStructType(fieldType))
+        if(fieldType is not null && IsRefStructType(fieldType))
         {
             var containingType = FindDeclaringType(fieldSymbol);
             var containingIsRefStruct = containingType is not null && IsRefStructType(containingType);
-            if (!containingIsRefStruct)
+            if(!containingIsRefStruct)
             {
                 var containerName = containingType switch
                 {
@@ -3469,7 +3469,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         // ── MIST_ANON_ESCAPE_FIELD: Anonymous type field restriction (Requirement 4.5) ──
         // Anonymous types cannot be used as field types because they have no denotable name.
-        if (fieldType is AnonymousType)
+        if(fieldType is AnonymousType)
         {
             diagnostics.Add(MakeDiagnostic(
                 "MIST_ANON_ESCAPE_FIELD",
@@ -3516,11 +3516,11 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // ── MIST2003: Ref struct property restriction (Requirement 3.6) ──
         // A ref struct type cannot be used as a property type in a non-ref-struct type,
         // since that would allow the ref struct value to escape to the heap.
-        if (IsRefStructType(propType))
+        if(IsRefStructType(propType))
         {
             var containingType = _currentEnclosingType;
             var containingIsRefStruct = containingType is not null && IsRefStructType(containingType);
-            if (!containingIsRefStruct)
+            if(!containingIsRefStruct)
             {
                 var containerName = containingType switch
                 {
@@ -3536,57 +3536,57 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             }
         }
 
-        switch (declaringNode)
+        switch(declaringNode)
         {
             case BlockPropertyPropertyDeclarationNode blockProp:
-            {
-                var propModifiers = ExtractPropertyModifiers(blockProp.Modifiers);
-
-                // Task 5.4: Check accessor modifier restrictiveness (MIST_TC_0022).
-                CheckAccessorModifierRestrictiveness(blockProp.Accessors, propModifiers, model, diagnostics);
-
-                // Task 5.1: Walk accessor bodies for type correctness.
-                foreach (var accessor in blockProp.Accessors)
                 {
-                    CheckAccessorBody(accessor, propType, propInfo, propModifiers.IsStatic, model, diagnostics);
-                }
+                    var propModifiers = ExtractPropertyModifiers(blockProp.Modifiers);
 
-                // Task 5.5: Check field keyword usage in accessor bodies (MIST_TC_0023, MIST_TC_0024).
-                CheckFieldKeywordUsageInAccessors(blockProp.Accessors, propInfo, model, diagnostics);
+                    // Task 5.4: Check accessor modifier restrictiveness (MIST_TC_0022).
+                    CheckAccessorModifierRestrictiveness(blockProp.Accessors, propModifiers, model, diagnostics);
 
-                // Task 5.7: Check this in static accessor (MIST_TC_0026).
-                if (propModifiers.IsStatic)
-                {
-                    CheckThisInStaticAccessors(blockProp.Accessors, model, diagnostics);
-                }
-                break;
-            }
-            case ExpressionBodiedPropertyPropertyDeclarationNode exprProp:
-            {
-                var propModifiers = ExtractPropertyModifiers(exprProp.Modifiers);
-
-                // Task 5.8: Check expression body type compatibility (MIST_TC_0028).
-                CheckExpression(exprProp.Body, model, diagnostics);
-                var bodyType = model.GetTypeOf(exprProp.Body);
-                if (bodyType is not null && !IsErrorType(bodyType) && !IsErrorType(propType))
-                {
-                    if (!IsAssignable(bodyType, propType))
+                    // Task 5.1: Walk accessor bodies for type correctness.
+                    foreach(var accessor in blockProp.Accessors)
                     {
-                        diagnostics.Add(MakeDiagnostic(
-                            "MIST_TC_0028",
-                            $"Expression body type '{bodyType.DisplayName}' is not compatible with property type '{propType.DisplayName}'",
-                            exprProp.Body,
-                            model));
+                        CheckAccessorBody(accessor, propType, propInfo, propModifiers.IsStatic, model, diagnostics);
                     }
-                }
 
-                // Task 5.7: Check this in static expression-bodied property (MIST_TC_0026).
-                if (propModifiers.IsStatic)
-                {
-                    CheckThisInExpression(exprProp.Body, model, diagnostics);
+                    // Task 5.5: Check field keyword usage in accessor bodies (MIST_TC_0023, MIST_TC_0024).
+                    CheckFieldKeywordUsageInAccessors(blockProp.Accessors, propInfo, model, diagnostics);
+
+                    // Task 5.7: Check this in static accessor (MIST_TC_0026).
+                    if(propModifiers.IsStatic)
+                    {
+                        CheckThisInStaticAccessors(blockProp.Accessors, model, diagnostics);
+                    }
+                    break;
                 }
-                break;
-            }
+            case ExpressionBodiedPropertyPropertyDeclarationNode exprProp:
+                {
+                    var propModifiers = ExtractPropertyModifiers(exprProp.Modifiers);
+
+                    // Task 5.8: Check expression body type compatibility (MIST_TC_0028).
+                    CheckExpression(exprProp.Body, model, diagnostics);
+                    var bodyType = model.GetTypeOf(exprProp.Body);
+                    if(bodyType is not null && !IsErrorType(bodyType) && !IsErrorType(propType))
+                    {
+                        if(!IsAssignable(bodyType, propType))
+                        {
+                            diagnostics.Add(MakeDiagnostic(
+                                "MIST_TC_0028",
+                                $"Expression body type '{bodyType.DisplayName}' is not compatible with property type '{propType.DisplayName}'",
+                                exprProp.Body,
+                                model));
+                        }
+                    }
+
+                    // Task 5.7: Check this in static expression-bodied property (MIST_TC_0026).
+                    if(propModifiers.IsStatic)
+                    {
+                        CheckThisInExpression(exprProp.Body, model, diagnostics);
+                    }
+                    break;
+                }
         }
     }
 
@@ -3600,9 +3600,9 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         try { declaringNode = model.GetDeclaringNode(indexerSymbol); }
         catch { return; }
 
-        if (declaringNode is not IndexerDeclarationNode indexerDecl)
+        if(declaringNode is not IndexerDeclarationNode indexerDecl)
             return;
-        if (indexerDecl.Body is not BlockIndexerBodyIndexerBodyNode blockBody)
+        if(indexerDecl.Body is not BlockIndexerBodyIndexerBodyNode blockBody)
             return;
 
         _currentEnclosingType = FindDeclaringType(indexerSymbol);
@@ -3620,7 +3620,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         var paramNarrowings = InjectParameterRefinementNarrowing(declaringNode, model);
 
         // Task 5.1: Walk accessor bodies for type correctness.
-        foreach (var accessor in blockBody.Accessors)
+        foreach(var accessor in blockBody.Accessors)
         {
             CheckAccessorBody(accessor, indexerType, propInfo, indexerModifiers.IsStatic, model, diagnostics);
         }
@@ -3650,7 +3650,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         try
         {
-            switch (accessor)
+            switch(accessor)
             {
                 // Block get accessor — check body statements, return type is the property type.
                 case BlockGetAccessorAccessorDeclarationNode blockGet:
@@ -3704,10 +3704,10 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         DiagnosticBag diagnostics)
     {
         var exprType = model.GetTypeOf(expression);
-        if (exprType is null || IsErrorType(exprType) || IsErrorType(propType))
+        if(exprType is null || IsErrorType(exprType) || IsErrorType(propType))
             return;
 
-        if (!IsAssignable(exprType, propType))
+        if(!IsAssignable(exprType, propType))
         {
             diagnostics.Add(MakeDiagnostic(
                 "MIST_TC_0028",
@@ -3727,17 +3727,17 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         ISemanticModel model,
         DiagnosticBag diagnostics)
     {
-        foreach (var accessor in accessors)
+        foreach(var accessor in accessors)
         {
             var accessorModifier = GetAccessorModifier(accessor);
-            if (accessorModifier is null)
+            if(accessorModifier is null)
                 continue; // No explicit accessor modifier — OK.
 
             var propLevel = GetAccessLevel(propModifiers);
             var accessorLevel = GetModifierAccessLevel(accessorModifier);
 
             // The accessor modifier must be strictly more restrictive than the property.
-            if (!IsMoreRestrictive(accessorLevel, propLevel))
+            if(!IsMoreRestrictive(accessorLevel, propLevel))
             {
                 diagnostics.Add(MakeDiagnostic(
                     "MIST_TC_0022",
@@ -3758,16 +3758,16 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         ISemanticModel model,
         DiagnosticBag diagnostics)
     {
-        if (propInfo is null)
+        if(propInfo is null)
             return;
 
-        foreach (var accessor in accessors)
+        foreach(var accessor in accessors)
         {
             var fieldNodes = CollectFieldKeywordNodes(accessor);
-            foreach (var fieldNode in fieldNodes)
+            foreach(var fieldNode in fieldNodes)
             {
                 // MIST_TC_0024: field keyword in computed property (no backing field).
-                if (propInfo.IsComputed)
+                if(propInfo.IsComputed)
                 {
                     diagnostics.Add(MakeDiagnostic(
                         "MIST_TC_0024",
@@ -3787,10 +3787,10 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         ISemanticModel model,
         DiagnosticBag diagnostics)
     {
-        foreach (var accessor in accessors)
+        foreach(var accessor in accessors)
         {
             var thisNodes = CollectThisKeywordNodes(accessor);
-            foreach (var thisNode in thisNodes)
+            foreach(var thisNode in thisNodes)
             {
                 diagnostics.Add(MakeDiagnostic(
                     "MIST_TC_0026",
@@ -3811,7 +3811,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     {
         var thisNodes = new List<SyntaxNode>();
         CollectThisKeywordNodesFromTree(expression, thisNodes);
-        foreach (var thisNode in thisNodes)
+        foreach(var thisNode in thisNodes)
         {
             diagnostics.Add(MakeDiagnostic(
                 "MIST_TC_0026",
@@ -3831,7 +3831,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         DiagnosticBag diagnostics)
     {
         var declaringType = FindDeclaringType(indexerSymbol);
-        if (declaringType is null)
+        if(declaringType is null)
             return;
 
         IScope? memberScope = declaringType switch
@@ -3841,28 +3841,28 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             _ => null,
         };
 
-        if (memberScope is null)
+        if(memberScope is null)
             return;
 
         // Collect parameter types for this indexer.
         var thisParamTypes = CollectIndexerParameterTypes(indexerDecl, model);
 
         // Check all other indexers in the same type.
-        foreach (var member in memberScope.Members)
+        foreach(var member in memberScope.Members)
         {
-            if (member.Kind != SymbolKind.Indexer || ReferenceEquals(member, indexerSymbol))
+            if(member.Kind != SymbolKind.Indexer || ReferenceEquals(member, indexerSymbol))
                 continue;
 
             SyntaxNode otherNode;
             try { otherNode = model.GetDeclaringNode(member); }
             catch { continue; }
 
-            if (otherNode is not IndexerDeclarationNode otherIndexer)
+            if(otherNode is not IndexerDeclarationNode otherIndexer)
                 continue;
 
             var otherParamTypes = CollectIndexerParameterTypes(otherIndexer, model);
 
-            if (ParameterTypesMatch(thisParamTypes, otherParamTypes))
+            if(ParameterTypesMatch(thisParamTypes, otherParamTypes))
             {
                 diagnostics.Add(MakeDiagnostic(
                     "MIST_TC_0029",
@@ -3882,15 +3882,15 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         ISemanticModel model)
     {
         var types = new List<string>();
-        if (indexer.Parameters is null)
+        if(indexer.Parameters is null)
             return types;
 
-        foreach (var child in indexer.Parameters.Children())
+        foreach(var child in indexer.Parameters.Children())
         {
-            if (child is ParameterNode param)
+            if(child is ParameterNode param)
             {
                 var paramSymbol = model.GetDeclaredSymbol(param);
-                if (paramSymbol?.DeclaredType is not null)
+                if(paramSymbol?.DeclaredType is not null)
                     types.Add(paramSymbol.DeclaredType.DisplayName);
                 else
                     types.Add("?");
@@ -3905,12 +3905,12 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     private static bool ParameterTypesMatch(List<string> a, List<string> b)
     {
-        if (a.Count != b.Count)
+        if(a.Count != b.Count)
             return false;
 
-        for (var i = 0; i < a.Count; i++)
+        for(var i = 0; i < a.Count; i++)
         {
-            if (a[i] != b[i])
+            if(a[i] != b[i])
                 return false;
         }
 
@@ -3955,7 +3955,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     private static AccessLevel GetAccessLevel(MemberModifiers modifiers)
     {
-        if (modifiers.IsPublic) return AccessLevel.Public;
+        if(modifiers.IsPublic) return AccessLevel.Public;
         return AccessLevel.Private; // Default is private.
     }
 
@@ -3989,9 +3989,9 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         var isPrivate = false;
         var isStatic = false;
 
-        foreach (var mod in modifiers)
+        foreach(var mod in modifiers)
         {
-            switch (mod)
+            switch(mod)
             {
                 case PublicModifierModifierNode:
                     isPublic = true;
@@ -4013,7 +4013,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     private static PropertyInfo? GetPropertyMetadata(ISymbol symbol)
     {
-        if (symbol is Mist.Semantics.Model.Symbol concreteSymbol)
+        if(symbol is Mist.Semantics.Model.Symbol concreteSymbol)
             return concreteSymbol.PropertyMetadata;
         return null;
     }
@@ -4030,15 +4030,15 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
     private static void CollectFieldKeywordNodesFromTree(SyntaxNode node, List<SyntaxNode> results)
     {
-        if (node is FieldKeywordExpressionPrimaryNode)
+        if(node is FieldKeywordExpressionPrimaryNode)
         {
             results.Add(node);
             return;
         }
 
-        foreach (var child in node.Children())
+        foreach(var child in node.Children())
         {
-            if (child is not null)
+            if(child is not null)
                 CollectFieldKeywordNodesFromTree(child, results);
         }
     }
@@ -4055,15 +4055,15 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
     private static void CollectThisKeywordNodesFromTree(SyntaxNode node, List<SyntaxNode> results)
     {
-        if (node is ThisExpressionPrimaryNode)
+        if(node is ThisExpressionPrimaryNode)
         {
             results.Add(node);
             return;
         }
 
-        foreach (var child in node.Children())
+        foreach(var child in node.Children())
         {
-            if (child is not null)
+            if(child is not null)
                 CollectThisKeywordNodesFromTree(child, results);
         }
     }
@@ -4076,16 +4076,16 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     private static void CheckInheritanceClauseConstraints(ISemanticModel model, DiagnosticBag diagnostics)
     {
-        foreach (var symbol in model.AllSymbols)
+        foreach(var symbol in model.AllSymbols)
         {
-            if (symbol.Origin == SymbolOrigin.Backend)
+            if(symbol.Origin == SymbolOrigin.Backend)
                 continue;
 
-            if (symbol.Kind is not (SymbolKind.Class or SymbolKind.Struct or SymbolKind.Abstract))
+            if(symbol.Kind is not (SymbolKind.Class or SymbolKind.Struct or SymbolKind.Abstract))
                 continue;
 
             var declaredType = symbol.DeclaredType;
-            if (declaredType is null)
+            if(declaredType is null)
                 continue;
 
             // Get the declaring node for diagnostic location.
@@ -4094,27 +4094,27 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             catch { continue; }
 
             // Check base type (classes only).
-            if (declaredType is ClassType classType && classType.BaseType is ConstructedType baseConstructed)
+            if(declaredType is ClassType classType && classType.BaseType is ConstructedType baseConstructed)
             {
                 var baseTypeParams = GetTypeParameters(baseConstructed.GenericDefinition);
-                if (baseTypeParams is not null)
+                if(baseTypeParams is not null)
                 {
                     var baseTypeArgs = baseConstructed.TypeArguments;
                     var genericName = baseConstructed.GenericDefinition.DisplayName;
-                    for (var i = 0; i < baseTypeParams.Count && i < baseTypeArgs.Count; i++)
+                    for(var i = 0; i < baseTypeParams.Count && i < baseTypeArgs.Count; i++)
                     {
-                        if (baseTypeArgs[i] is TypeParameterType derivedTypeParam)
+                        if(baseTypeArgs[i] is TypeParameterType derivedTypeParam)
                         {
                             // The type argument is a type parameter of the derived type —
                             // check constraint propagation ("at least as restrictive").
-                            if (baseTypeParams[i] is TypeParameterType baseTP)
+                            if(baseTypeParams[i] is TypeParameterType baseTP)
                                 CheckConstraintPropagation(
                                     derivedTypeParam, baseTP, declaredType,
                                     genericName, declaringNode, model, diagnostics);
                         }
                         else
                         {
-                            if (baseTypeParams[i] is TypeParameterType baseTP2)
+                            if(baseTypeParams[i] is TypeParameterType baseTP2)
                                 CheckConstraintSatisfaction(baseTypeArgs[i], baseTP2, declaringNode, genericName, model, diagnostics);
                         }
                     }
@@ -4130,31 +4130,31 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 _ => Array.Empty<IType>()
             };
 
-            foreach (var abs in abstracts)
+            foreach(var abs in abstracts)
             {
-                if (abs is not ConstructedType absConstructed)
+                if(abs is not ConstructedType absConstructed)
                     continue;
 
                 var absTypeParams = GetTypeParameters(absConstructed.GenericDefinition);
-                if (absTypeParams is null)
+                if(absTypeParams is null)
                     continue;
 
                 var absTypeArgs = absConstructed.TypeArguments;
                 var genericName = absConstructed.GenericDefinition.DisplayName;
-                for (var i = 0; i < absTypeParams.Count && i < absTypeArgs.Count; i++)
+                for(var i = 0; i < absTypeParams.Count && i < absTypeArgs.Count; i++)
                 {
-                    if (absTypeArgs[i] is TypeParameterType derivedTypeParam)
+                    if(absTypeArgs[i] is TypeParameterType derivedTypeParam)
                     {
                         // The type argument is a type parameter of the derived type —
                         // check constraint propagation ("at least as restrictive").
-                        if (absTypeParams[i] is TypeParameterType absTP)
+                        if(absTypeParams[i] is TypeParameterType absTP)
                             CheckConstraintPropagation(
                                 derivedTypeParam, absTP, declaredType,
                                 genericName, declaringNode, model, diagnostics);
                     }
                     else
                     {
-                        if (absTypeParams[i] is TypeParameterType absTP2)
+                        if(absTypeParams[i] is TypeParameterType absTP2)
                             CheckConstraintSatisfaction(absTypeArgs[i], absTP2, declaringNode, genericName, model, diagnostics);
                     }
                 }
@@ -4178,15 +4178,15 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         DiagnosticBag diagnostics)
     {
         var baseConstraints = baseTypeParam.Constraints;
-        if (baseConstraints is null)
+        if(baseConstraints is null)
             return; // Base has no constraints — nothing to propagate.
 
         var derivedConstraints = derivedTypeParam.Constraints;
 
         // Check class constraint propagation.
-        if (baseConstraints.HasClassConstraint)
+        if(baseConstraints.HasClassConstraint)
         {
-            if (derivedConstraints is null || !derivedConstraints.HasClassConstraint)
+            if(derivedConstraints is null || !derivedConstraints.HasClassConstraint)
             {
                 EmitPropagationDiagnostic(derivedType, baseTypeName, derivedTypeParam.Name, node, model, diagnostics);
                 return;
@@ -4194,9 +4194,9 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         // Check struct constraint propagation.
-        if (baseConstraints.HasStructConstraint)
+        if(baseConstraints.HasStructConstraint)
         {
-            if (derivedConstraints is null || !derivedConstraints.HasStructConstraint)
+            if(derivedConstraints is null || !derivedConstraints.HasStructConstraint)
             {
                 EmitPropagationDiagnostic(derivedType, baseTypeName, derivedTypeParam.Name, node, model, diagnostics);
                 return;
@@ -4204,9 +4204,9 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         // Check base class constraint propagation.
-        if (baseConstraints.BaseClassConstraint is not null)
+        if(baseConstraints.BaseClassConstraint is not null)
         {
-            if (derivedConstraints?.BaseClassConstraint is null
+            if(derivedConstraints?.BaseClassConstraint is null
                 || !DerivesFromClass(derivedConstraints.BaseClassConstraint, baseConstraints.BaseClassConstraint))
             {
                 EmitPropagationDiagnostic(derivedType, baseTypeName, derivedTypeParam.Name, node, model, diagnostics);
@@ -4215,9 +4215,9 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         // Check abstract constraint propagation: derived must require each abstract the base requires.
-        foreach (var baseIface in baseConstraints.AbstractConstraints)
+        foreach(var baseIface in baseConstraints.AbstractConstraints)
         {
-            if (derivedConstraints is null || !HasMatchingAbstractConstraint(derivedConstraints, baseIface))
+            if(derivedConstraints is null || !HasMatchingAbstractConstraint(derivedConstraints, baseIface))
             {
                 EmitPropagationDiagnostic(derivedType, baseTypeName, derivedTypeParam.Name, node, model, diagnostics);
                 return;
@@ -4227,9 +4227,9 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // Check constructor constraint propagation: derived must have at least the same
         // constructor constraints as the base (each base constructor constraint must be
         // matched by a derived constructor constraint).
-        foreach (var baseCtorParams in baseConstraints.ConstructorConstraints)
+        foreach(var baseCtorParams in baseConstraints.ConstructorConstraints)
         {
-            if (derivedConstraints is null || !HasMatchingConstructorConstraint(derivedConstraints, baseCtorParams))
+            if(derivedConstraints is null || !HasMatchingConstructorConstraint(derivedConstraints, baseCtorParams))
             {
                 EmitPropagationDiagnostic(derivedType, baseTypeName, derivedTypeParam.Name, node, model, diagnostics);
                 return;
@@ -4237,9 +4237,9 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         // Check owned constraint propagation: if the base requires owned, derived must too.
-        if (baseConstraints.HasOwnedConstraint)
+        if(baseConstraints.HasOwnedConstraint)
         {
-            if (derivedConstraints is null || !derivedConstraints.HasOwnedConstraint)
+            if(derivedConstraints is null || !derivedConstraints.HasOwnedConstraint)
             {
                 EmitPropagationDiagnostic(derivedType, baseTypeName, derivedTypeParam.Name, node, model, diagnostics);
                 return;
@@ -4268,13 +4268,13 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     private static bool HasMatchingAbstractConstraint(TypeParameterConstraints derivedConstraints, IType baseIface)
     {
-        foreach (var derivedIface in derivedConstraints.AbstractConstraints)
+        foreach(var derivedIface in derivedConstraints.AbstractConstraints)
         {
-            if (ImplementsAbstractConstraint(derivedIface, baseIface))
+            if(ImplementsAbstractConstraint(derivedIface, baseIface))
                 return true;
 
             // Direct match by display name.
-            if (derivedIface.DisplayName == baseIface.DisplayName)
+            if(derivedIface.DisplayName == baseIface.DisplayName)
                 return true;
         }
 
@@ -4289,22 +4289,22 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         TypeParameterConstraints derivedConstraints,
         IReadOnlyList<IType> baseCtorParams)
     {
-        foreach (var derivedCtorParams in derivedConstraints.ConstructorConstraints)
+        foreach(var derivedCtorParams in derivedConstraints.ConstructorConstraints)
         {
-            if (derivedCtorParams.Count != baseCtorParams.Count)
+            if(derivedCtorParams.Count != baseCtorParams.Count)
                 continue;
 
             var allMatch = true;
-            for (var j = 0; j < derivedCtorParams.Count; j++)
+            for(var j = 0; j < derivedCtorParams.Count; j++)
             {
-                if (derivedCtorParams[j].DisplayName != baseCtorParams[j].DisplayName)
+                if(derivedCtorParams[j].DisplayName != baseCtorParams[j].DisplayName)
                 {
                     allMatch = false;
                     break;
                 }
             }
 
-            if (allMatch)
+            if(allMatch)
                 return true;
         }
 
@@ -4317,12 +4317,12 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     private static void CheckMissingAbstractProperties(ISemanticModel model, DiagnosticBag diagnostics)
     {
-        foreach (var symbol in model.AllSymbols)
+        foreach(var symbol in model.AllSymbols)
         {
-            if (symbol.Origin == SymbolOrigin.Backend)
+            if(symbol.Origin == SymbolOrigin.Backend)
                 continue;
 
-            if (symbol.Kind is not (SymbolKind.Class or SymbolKind.Struct))
+            if(symbol.Kind is not (SymbolKind.Class or SymbolKind.Struct))
                 continue;
 
             var type = symbol.DeclaredType;
@@ -4333,7 +4333,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 _ => null,
             };
 
-            if (abstracts is null || abstracts.Count == 0)
+            if(abstracts is null || abstracts.Count == 0)
                 continue;
 
             IScope? memberScope = type switch
@@ -4343,7 +4343,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 _ => null,
             };
 
-            if (memberScope is null)
+            if(memberScope is null)
                 continue;
 
             // Check each abstract's property requirements.
@@ -4361,34 +4361,34 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         DiagnosticBag diagnostics,
         HashSet<AbstractType> visited)
     {
-        foreach (var absType in abstracts)
+        foreach(var absType in abstracts)
         {
-            if (absType is not AbstractType abs)
+            if(absType is not AbstractType abs)
                 continue;
 
-            if (!visited.Add(abs))
+            if(!visited.Add(abs))
                 continue;
 
-            foreach (var abstractMember in abs.MemberScope.Members)
+            foreach(var abstractMember in abs.MemberScope.Members)
             {
-                if (abstractMember.Kind != SymbolKind.Property)
+                if(abstractMember.Kind != SymbolKind.Property)
                     continue;
 
                 var requiredPropInfo = GetPropertyMetadata(abstractMember);
-                if (requiredPropInfo is null)
+                if(requiredPropInfo is null)
                     continue;
 
                 // Search for matching property in the implementing type.
                 var implProperty = FindPropertyInTypeHierarchy(abstractMember.Name, memberScope, classType);
 
-                if (implProperty is null)
+                if(implProperty is null)
                 {
                     // Get the declaring node for location info.
                     SyntaxNode? typeNode;
                     try { typeNode = model.GetDeclaringNode(typeSymbol); }
                     catch { typeNode = null; }
 
-                    if (typeNode is not null)
+                    if(typeNode is not null)
                     {
                         diagnostics.Add(MakeDiagnostic(
                             "MIST_TC_0030",
@@ -4400,7 +4400,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 }
 
                 var implPropInfo = GetPropertyMetadata(implProperty);
-                if (implPropInfo is null)
+                if(implPropInfo is null)
                     continue;
 
                 // Check accessor satisfaction.
@@ -4408,7 +4408,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 try { implNode = model.GetDeclaringNode(implProperty); }
                 catch { implNode = null; }
 
-                if (requiredPropInfo.HasGet && !implPropInfo.HasGet && implNode is not null)
+                if(requiredPropInfo.HasGet && !implPropInfo.HasGet && implNode is not null)
                 {
                     diagnostics.Add(MakeDiagnostic(
                         "MIST_TC_0030",
@@ -4417,7 +4417,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                         model));
                 }
 
-                if (requiredPropInfo.HasSet && !implPropInfo.HasSet && !implPropInfo.HasInit && implNode is not null)
+                if(requiredPropInfo.HasSet && !implPropInfo.HasSet && !implPropInfo.HasInit && implNode is not null)
                 {
                     diagnostics.Add(MakeDiagnostic(
                         "MIST_TC_0030",
@@ -4428,7 +4428,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             }
 
             // Recurse into parent abstracts.
-            if (abs.Abstracts.Count > 0)
+            if(abs.Abstracts.Count > 0)
             {
                 CheckAbstractPropertyRequirements(typeSymbol, abs.Abstracts, memberScope, classType, model, diagnostics, visited);
             }
@@ -4440,20 +4440,20 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     private static ISymbol? FindPropertyInTypeHierarchy(string propertyName, IScope memberScope, ClassType? classType)
     {
-        foreach (var member in memberScope.Members)
+        foreach(var member in memberScope.Members)
         {
-            if (member.Kind == SymbolKind.Property && member.Name == propertyName)
+            if(member.Kind == SymbolKind.Property && member.Name == propertyName)
                 return member;
         }
 
-        if (classType is not null)
+        if(classType is not null)
         {
             var ancestor = classType.BaseType as ClassType;
-            while (ancestor is not null)
+            while(ancestor is not null)
             {
-                foreach (var member in ancestor.MemberScope.Members)
+                foreach(var member in ancestor.MemberScope.Members)
                 {
-                    if (member.Kind == SymbolKind.Property && member.Name == propertyName)
+                    if(member.Kind == SymbolKind.Property && member.Name == propertyName)
                         return member;
                 }
                 ancestor = ancestor.BaseType as ClassType;
@@ -4477,12 +4477,12 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     private static void CheckReadonlyAbstractContracts(ISemanticModel model, DiagnosticBag diagnostics)
     {
-        foreach (var symbol in model.AllSymbols)
+        foreach(var symbol in model.AllSymbols)
         {
-            if (symbol.Origin == SymbolOrigin.Backend)
+            if(symbol.Origin == SymbolOrigin.Backend)
                 continue;
 
-            if (symbol.Kind is not (SymbolKind.Class or SymbolKind.Struct))
+            if(symbol.Kind is not (SymbolKind.Class or SymbolKind.Struct))
                 continue;
 
             var type = symbol.DeclaredType;
@@ -4502,7 +4502,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 _ => null,
             };
 
-            if (memberScope is not null && abstracts is not null && abstracts.Count > 0)
+            if(memberScope is not null && abstracts is not null && abstracts.Count > 0)
             {
                 CheckReadonlyAbstractContracts(symbol, abstracts, memberScope, model, diagnostics);
             }
@@ -4520,13 +4520,13 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         ISemanticModel model,
         DiagnosticBag diagnostics)
     {
-        foreach (var absType in abstracts)
+        foreach(var absType in abstracts)
         {
-            if (absType is not AbstractType abs)
+            if(absType is not AbstractType abs)
                 continue;
 
             // Only check readonly abstracts (all members are implicitly readonly).
-            if (!abs.IsReadonly)
+            if(!abs.IsReadonly)
             {
                 // Even if the abstract itself is not readonly, individual members
                 // might be explicitly readonly. Check those too.
@@ -4535,23 +4535,23 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             }
 
             // The abstract is readonly — all its members are implicitly readonly.
-            foreach (var abstractMember in abs.MemberScope.Members)
+            foreach(var abstractMember in abs.MemberScope.Members)
             {
-                if (abstractMember.Kind is not (SymbolKind.Method or SymbolKind.Property or SymbolKind.Indexer))
+                if(abstractMember.Kind is not (SymbolKind.Method or SymbolKind.Property or SymbolKind.Indexer))
                     continue;
 
                 var implMember = FindMemberInScope(abstractMember.Name, abstractMember.Kind, memberScope);
-                if (implMember is null)
+                if(implMember is null)
                     continue; // Missing implementation is reported by CheckMissingAbstractProperties.
 
-                if (!IsMemberReadonly(implMember))
+                if(!IsMemberReadonly(implMember))
                 {
                     EmitReadonlyContractViolation(typeSymbol, implMember, abstractMember, abs.DisplayName, model, diagnostics);
                 }
             }
 
             // Recurse into parent abstracts.
-            if (abs.Abstracts.Count > 0)
+            if(abs.Abstracts.Count > 0)
             {
                 CheckReadonlyAbstractContracts(typeSymbol, abs.Abstracts, memberScope, model, diagnostics);
             }
@@ -4568,33 +4568,33 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         ISemanticModel model,
         DiagnosticBag diagnostics)
     {
-        foreach (var abstractMember in abs.MemberScope.Members)
+        foreach(var abstractMember in abs.MemberScope.Members)
         {
-            if (abstractMember.Kind is not (SymbolKind.Method or SymbolKind.Property or SymbolKind.Indexer))
+            if(abstractMember.Kind is not (SymbolKind.Method or SymbolKind.Property or SymbolKind.Indexer))
                 continue;
 
             // Check if this specific abstract member is readonly.
-            if (!IsMemberReadonly(abstractMember))
+            if(!IsMemberReadonly(abstractMember))
                 continue;
 
             var implMember = FindMemberInScope(abstractMember.Name, abstractMember.Kind, memberScope);
-            if (implMember is null)
+            if(implMember is null)
                 continue;
 
-            if (!IsMemberReadonly(implMember))
+            if(!IsMemberReadonly(implMember))
             {
                 EmitReadonlyContractViolation(typeSymbol, implMember, abstractMember, abs.DisplayName, model, diagnostics);
             }
         }
 
         // Recurse into parent abstracts.
-        if (abs.Abstracts.Count > 0)
+        if(abs.Abstracts.Count > 0)
         {
-            foreach (var parentAbs in abs.Abstracts)
+            foreach(var parentAbs in abs.Abstracts)
             {
-                if (parentAbs is AbstractType parentAbsType)
+                if(parentAbs is AbstractType parentAbsType)
                 {
-                    if (parentAbsType.IsReadonly)
+                    if(parentAbsType.IsReadonly)
                     {
                         CheckReadonlyAbstractContracts(typeSymbol, new[] { parentAbsType }, memberScope, model, diagnostics);
                     }
@@ -4613,13 +4613,13 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     private static ISymbol? FindMemberInScope(string name, SymbolKind kind, IScope scope)
     {
-        foreach (var member in scope.Members)
+        foreach(var member in scope.Members)
         {
-            if (member.Name == name && member.Kind == kind)
+            if(member.Name == name && member.Kind == kind)
                 return member;
 
             // Properties can satisfy property requirements, fields can satisfy field requirements.
-            if (member.Name == name)
+            if(member.Name == name)
             {
                 var kindCompatible = kind switch
                 {
@@ -4627,7 +4627,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     SymbolKind.Property => member.Kind is SymbolKind.Property or SymbolKind.Field,
                     _ => false,
                 };
-                if (kindCompatible)
+                if(kindCompatible)
                     return member;
             }
         }
@@ -4640,7 +4640,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     private static bool IsMemberReadonly(ISymbol symbol)
     {
-        if (symbol is Symbol concreteSymbol)
+        if(symbol is Symbol concreteSymbol)
         {
             return concreteSymbol.ReadonlyStatus is ReadonlyStatus.ExplicitReadonly
                 or ReadonlyStatus.InferredReadonly
@@ -4666,13 +4666,13 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         catch { implNode = null; }
 
         // Fall back to the type declaration node if the member node is unavailable.
-        if (implNode is null)
+        if(implNode is null)
         {
             try { implNode = model.GetDeclaringNode(typeSymbol); }
             catch { implNode = null; }
         }
 
-        if (implNode is null)
+        if(implNode is null)
             return;
 
         var memberKind = contractMember.Kind switch
@@ -4697,7 +4697,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
     private void CheckBlock(BlockNode block, IType returnType, ISemanticModel model, DiagnosticBag diagnostics)
     {
-        foreach (var stmt in block.Statements)
+        foreach(var stmt in block.Statements)
         {
             CheckStatement(stmt, returnType, model, diagnostics);
         }
@@ -4705,7 +4705,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
     private void CheckStatement(StatementNode stmt, IType returnType, ISemanticModel model, DiagnosticBag diagnostics)
     {
-        switch (stmt)
+        switch(stmt)
         {
             case VariableDeclarationStatementStatementNode varDeclStmt:
                 CheckVariableDeclarationStatement(varDeclStmt.VariableDeclaration, model, diagnostics);
@@ -4759,248 +4759,248 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // locals, this ensures ref locals are still validated.
         CheckRefLocalRequiresInitializer(varDecl, model, diagnostics);
 
-        switch (varDecl)
+        switch(varDecl)
         {
             case TypedVariableDeclarationVariableDeclarationStatementNode typed:
-            {
-                // Infer bare 'default' type from the declared type before checking.
-                var declaredTypeForDefault = model.GetTypeOf(typed.Type)
-                                             ?? model.GetDeclaredSymbol(typed)?.DeclaredType;
-                TryInferDefaultLiteralType(typed.Initializer, declaredTypeForDefault, model);
-
-                // Check the initializer expression.
-                CheckExpression(typed.Initializer, model, diagnostics);
-
-                // Verify RHS type is assignable to declared type (MIST_TC_0001).
-                var declaredType = model.GetTypeOf(typed.Type);
-                var initType = model.GetTypeOf(typed.Initializer);
-
-                // ── ??= flow narrowing: if the initializer is a simple identifier
-                // that has been narrowed by a preceding ??= statement, use the
-                // narrowed type instead of the stale cached union type.
-                if (initType is UnionType)
                 {
-                    var narrowedInitType = TryGetNarrowedTypeForExpression(typed.Initializer);
-                    if (narrowedInitType is not null)
-                        initType = narrowedInitType;
-                }
+                    // Infer bare 'default' type from the declared type before checking.
+                    var declaredTypeForDefault = model.GetTypeOf(typed.Type)
+                                                 ?? model.GetDeclaredSymbol(typed)?.DeclaredType;
+                    TryInferDefaultLiteralType(typed.Initializer, declaredTypeForDefault, model);
 
-                // When the TypeReference node isn't in the expression type map
-                // (source-parsed programs), fall back to the variable symbol's
-                // declared type so we can still detect type mismatches
-                // (e.g., TypeType assigned to a non-Type variable).
-                declaredType ??= model.GetDeclaredSymbol(typed)?.DeclaredType;
+                    // Check the initializer expression.
+                    CheckExpression(typed.Initializer, model, diagnostics);
 
-                // ── first-class-functions: method group ambiguity check (MIST_TC_0121) ──
-                // When the declared type is a Func type and the initializer is a bare
-                // identifier (method group), check for ambiguous overloads.
-                if (declaredType is not null && SemanticModelBuilder.IsFuncType(declaredType))
-                {
-                    var postfix = TryExtractPostfixNode(typed.Initializer);
-                    if (postfix is not null)
+                    // Verify RHS type is assignable to declared type (MIST_TC_0001).
+                    var declaredType = model.GetTypeOf(typed.Type);
+                    var initType = model.GetTypeOf(typed.Initializer);
+
+                    // ── ??= flow narrowing: if the initializer is a simple identifier
+                    // that has been narrowed by a preceding ??= statement, use the
+                    // narrowed type instead of the stale cached union type.
+                    if(initType is UnionType)
                     {
-                        CheckMethodGroupAmbiguity(postfix, declaredType, model, diagnostics);
-                    }
-                }
-
-                // Check for void[] variable declarations (MIST_TC_0034).
-                if (declaredType is ArrayType arrayType && arrayType.ElementType.IsVoid())
-                {
-                    diagnostics.Add(MakeDiagnostic(
-                        "MIST_TC_0034",
-                        "Cannot declare a variable of type 'void[]'. Void is not permitted as an array element type.",
-                        varDecl,
-                        model));
-                }
-
-                if (declaredType is not null && initType is not null)
-                {
-                    // ── flow narrowing: use narrowed type if available ──
-                    var effectiveInitType = GetEffectiveSourceType(typed.Initializer, initType);
-
-                    // ── refinement-types feature: compile-time enforcement ──
-                    // When the target is a RefinementType, check the assignment
-                    // against the refinement predicate before the generic
-                    // assignability check. If a refinement-specific diagnostic
-                    // is emitted, skip the generic check to avoid cascading.
-                    if (TryCheckRefinementAssignment(effectiveInitType, declaredType, typed.Initializer, diagnostics, model))
-                    {
-                        break;
+                        var narrowedInitType = TryGetNarrowedTypeForExpression(typed.Initializer);
+                        if(narrowedInitType is not null)
+                            initType = narrowedInitType;
                     }
 
-                    // ── regex-type feature: string literal shorthand (Requirements 6.5, 6.8, 6.9) ──
-                    // When the target is regex and the source is string, apply
-                    // the string→regex conversion rules before the generic check.
-                    if (TryCheckStringToRegexAssignment(initType, declaredType, typed.Initializer, diagnostics, model))
-                    {
-                        break;
-                    }
+                    // When the TypeReference node isn't in the expression type map
+                    // (source-parsed programs), fall back to the variable symbol's
+                    // declared type so we can still detect type mismatches
+                    // (e.g., TypeType assigned to a non-Type variable).
+                    declaredType ??= model.GetDeclaredSymbol(typed)?.DeclaredType;
 
-                    // Allow numeric-to-numeric assignments in variable declarations
-                    // to support constant narrowing (e.g., byte x = 0; where 0 is int).
-                    // Non-numeric type mismatches (e.g., Type → int) are still checked.
-                    if (!(NumericDisplayNames.Contains(initType.DisplayName)
-                          && NumericDisplayNames.Contains(declaredType.DisplayName)))
+                    // ── first-class-functions: method group ambiguity check (MIST_TC_0121) ──
+                    // When the declared type is a Func type and the initializer is a bare
+                    // identifier (method group), check for ambiguous overloads.
+                    if(declaredType is not null && SemanticModelBuilder.IsFuncType(declaredType))
                     {
-                        CheckAssignability(initType, declaredType, typed.Initializer, diagnostics, model);
-                    }
-                }
-                break;
-            }
-            case InferredVariableDeclarationVariableDeclarationStatementNode inferred:
-            {
-                // Check if the initializer is a bare 'default' in a var declaration.
-                // This is always an error: var x = default; — neither side provides a type.
-                var defaultLiteralInVar = TryExtractDefaultLiteral(inferred.Initializer);
-                if (defaultLiteralInVar is not null)
-                {
-                    diagnostics.Add(MakeDiagnostic(
-                        DiagnosticId.DefaultCannotInferType.Value,
-                        "The type of 'default' cannot be inferred because neither side provides a type. Use 'default(TypeName)' or declare the variable with an explicit type.",
-                        defaultLiteralInVar,
-                        model));
-                }
-
-                // var with initializer — check the initializer expression.
-                CheckExpression(inferred.Initializer, model, diagnostics);
-
-                // After type checking the initializer, the expression type may have been
-                // refined (e.g., type argument inference resolved T → bool). Update the
-                // local variable's DeclaredType so downstream usage sees the concrete type.
-                var varSymbol = model.GetDeclaredSymbol(inferred) as Symbol;
-                if (varSymbol is not null && varSymbol.DeclaredType is TypeParameterType)
-                {
-                    var refinedType = GetRefinedInitializerType(inferred.Initializer, model);
-                    if (refinedType is not null && refinedType is not TypeParameterType)
-                    {
-                        varSymbol.DeclaredType = refinedType;
-                    }
-                }
-
-                // After type checking an `as` expression, the type checker may have
-                // refined the result from the preliminary target type T (set in Pass 2)
-                // to T | void (NonProvable classification). Update the local variable's
-                // DeclaredType so downstream member access correctly sees the union type
-                // and requires optional chaining (?.) to unwrap.
-                if (varSymbol is not null)
-                {
-                    var asExprNode = TryExtractAsExpression(inferred.Initializer);
-                    if (asExprNode is not null)
-                    {
-                        var asRefinedType = model.GetTypeOf(asExprNode);
-                        if (asRefinedType is not null && asRefinedType is not ErrorType)
+                        var postfix = TryExtractPostfixNode(typed.Initializer);
+                        if(postfix is not null)
                         {
-                            varSymbol.DeclaredType = asRefinedType;
+                            CheckMethodGroupAmbiguity(postfix, declaredType, model, diagnostics);
                         }
                     }
-                }
 
-                // MIST_TC_0009: var without initializer.
-                // The grammar requires an initializer for var declarations,
-                // but if the initializer expression type is null, the var
-                // type cannot be inferred.
-                var inferredType = model.GetTypeOf(inferred.Initializer);
-                if (inferredType is null)
-                {
-                    diagnostics.Add(MakeDiagnostic(
-                        "MIST_TC_0009",
-                        "'var' declaration requires an initializer",
-                        inferred,
-                        model));
-                }
-                break;
-            }
-            case VarTupleDeconstructionVariableDeclarationStatementNode varTuple:
-            {
-                // var (a, b, ...) = expr; — check initializer and validate tuple deconstruction.
-                CheckExpression(varTuple.Initializer, model, diagnostics);
-
-                var initType = model.GetTypeOf(varTuple.Initializer);
-                if (initType is not null && initType is not ErrorType)
-                {
-                    if (initType is not TupleType tupleType)
+                    // Check for void[] variable declarations (MIST_TC_0034).
+                    if(declaredType is ArrayType arrayType && arrayType.ElementType.IsVoid())
                     {
                         diagnostics.Add(MakeDiagnostic(
-                            "MIST_TC_0064",
-                            $"Cannot deconstruct expression of type '{initType.DisplayName}'; a tuple type is required.",
-                            varTuple,
+                            "MIST_TC_0034",
+                            "Cannot declare a variable of type 'void[]'. Void is not permitted as an array element type.",
+                            varDecl,
                             model));
                     }
-                    else
+
+                    if(declaredType is not null && initType is not null)
                     {
-                        // Count targets: FirstName + RestNames.
-                        var targetCount = 1 + varTuple.RestNames.Length;
-                        if (targetCount != tupleType.Arity)
+                        // ── flow narrowing: use narrowed type if available ──
+                        var effectiveInitType = GetEffectiveSourceType(typed.Initializer, initType);
+
+                        // ── refinement-types feature: compile-time enforcement ──
+                        // When the target is a RefinementType, check the assignment
+                        // against the refinement predicate before the generic
+                        // assignability check. If a refinement-specific diagnostic
+                        // is emitted, skip the generic check to avoid cascading.
+                        if(TryCheckRefinementAssignment(effectiveInitType, declaredType, typed.Initializer, diagnostics, model))
+                        {
+                            break;
+                        }
+
+                        // ── regex-type feature: string literal shorthand (Requirements 6.5, 6.8, 6.9) ──
+                        // When the target is regex and the source is string, apply
+                        // the string→regex conversion rules before the generic check.
+                        if(TryCheckStringToRegexAssignment(initType, declaredType, typed.Initializer, diagnostics, model))
+                        {
+                            break;
+                        }
+
+                        // Allow numeric-to-numeric assignments in variable declarations
+                        // to support constant narrowing (e.g., byte x = 0; where 0 is int).
+                        // Non-numeric type mismatches (e.g., Type → int) are still checked.
+                        if(!(NumericDisplayNames.Contains(initType.DisplayName)
+                              && NumericDisplayNames.Contains(declaredType.DisplayName)))
+                        {
+                            CheckAssignability(initType, declaredType, typed.Initializer, diagnostics, model);
+                        }
+                    }
+                    break;
+                }
+            case InferredVariableDeclarationVariableDeclarationStatementNode inferred:
+                {
+                    // Check if the initializer is a bare 'default' in a var declaration.
+                    // This is always an error: var x = default; — neither side provides a type.
+                    var defaultLiteralInVar = TryExtractDefaultLiteral(inferred.Initializer);
+                    if(defaultLiteralInVar is not null)
+                    {
+                        diagnostics.Add(MakeDiagnostic(
+                            DiagnosticId.DefaultCannotInferType.Value,
+                            "The type of 'default' cannot be inferred because neither side provides a type. Use 'default(TypeName)' or declare the variable with an explicit type.",
+                            defaultLiteralInVar,
+                            model));
+                    }
+
+                    // var with initializer — check the initializer expression.
+                    CheckExpression(inferred.Initializer, model, diagnostics);
+
+                    // After type checking the initializer, the expression type may have been
+                    // refined (e.g., type argument inference resolved T → bool). Update the
+                    // local variable's DeclaredType so downstream usage sees the concrete type.
+                    var varSymbol = model.GetDeclaredSymbol(inferred) as Symbol;
+                    if(varSymbol is not null && varSymbol.DeclaredType is TypeParameterType)
+                    {
+                        var refinedType = GetRefinedInitializerType(inferred.Initializer, model);
+                        if(refinedType is not null && refinedType is not TypeParameterType)
+                        {
+                            varSymbol.DeclaredType = refinedType;
+                        }
+                    }
+
+                    // After type checking an `as` expression, the type checker may have
+                    // refined the result from the preliminary target type T (set in Pass 2)
+                    // to T | void (NonProvable classification). Update the local variable's
+                    // DeclaredType so downstream member access correctly sees the union type
+                    // and requires optional chaining (?.) to unwrap.
+                    if(varSymbol is not null)
+                    {
+                        var asExprNode = TryExtractAsExpression(inferred.Initializer);
+                        if(asExprNode is not null)
+                        {
+                            var asRefinedType = model.GetTypeOf(asExprNode);
+                            if(asRefinedType is not null && asRefinedType is not ErrorType)
+                            {
+                                varSymbol.DeclaredType = asRefinedType;
+                            }
+                        }
+                    }
+
+                    // MIST_TC_0009: var without initializer.
+                    // The grammar requires an initializer for var declarations,
+                    // but if the initializer expression type is null, the var
+                    // type cannot be inferred.
+                    var inferredType = model.GetTypeOf(inferred.Initializer);
+                    if(inferredType is null)
+                    {
+                        diagnostics.Add(MakeDiagnostic(
+                            "MIST_TC_0009",
+                            "'var' declaration requires an initializer",
+                            inferred,
+                            model));
+                    }
+                    break;
+                }
+            case VarTupleDeconstructionVariableDeclarationStatementNode varTuple:
+                {
+                    // var (a, b, ...) = expr; — check initializer and validate tuple deconstruction.
+                    CheckExpression(varTuple.Initializer, model, diagnostics);
+
+                    var initType = model.GetTypeOf(varTuple.Initializer);
+                    if(initType is not null && initType is not ErrorType)
+                    {
+                        if(initType is not TupleType tupleType)
                         {
                             diagnostics.Add(MakeDiagnostic(
-                                "MIST_TC_0061",
-                                $"Tuple deconstruction has {targetCount} targets but the tuple has {tupleType.Arity} elements.",
+                                "MIST_TC_0064",
+                                $"Cannot deconstruct expression of type '{initType.DisplayName}'; a tuple type is required.",
                                 varTuple,
                                 model));
                         }
+                        else
+                        {
+                            // Count targets: FirstName + RestNames.
+                            var targetCount = 1 + varTuple.RestNames.Length;
+                            if(targetCount != tupleType.Arity)
+                            {
+                                diagnostics.Add(MakeDiagnostic(
+                                    "MIST_TC_0061",
+                                    $"Tuple deconstruction has {targetCount} targets but the tuple has {tupleType.Arity} elements.",
+                                    varTuple,
+                                    model));
+                            }
+                        }
                     }
+                    break;
                 }
-                break;
-            }
             case TypedTupleDeconstructionVariableDeclarationStatementNode typedTuple:
-            {
-                // (Type1 a, Type2 b, ...) = expr; — check initializer and validate types.
-                CheckExpression(typedTuple.Initializer, model, diagnostics);
-
-                var initType = model.GetTypeOf(typedTuple.Initializer);
-                if (initType is not null && initType is not ErrorType)
                 {
-                    if (initType is not TupleType tupleType)
+                    // (Type1 a, Type2 b, ...) = expr; — check initializer and validate types.
+                    CheckExpression(typedTuple.Initializer, model, diagnostics);
+
+                    var initType = model.GetTypeOf(typedTuple.Initializer);
+                    if(initType is not null && initType is not ErrorType)
                     {
-                        diagnostics.Add(MakeDiagnostic(
-                            "MIST_TC_0064",
-                            $"Cannot deconstruct expression of type '{initType.DisplayName}'; a tuple type is required.",
-                            typedTuple,
-                            model));
-                    }
-                    else
-                    {
-                        // Count targets: First + Rest + Additional.
-                        var targetCount = 2 + typedTuple.TupleDeconstructionElements.Length;
-                        if (targetCount != tupleType.Arity)
+                        if(initType is not TupleType tupleType)
                         {
                             diagnostics.Add(MakeDiagnostic(
-                                "MIST_TC_0061",
-                                $"Tuple deconstruction has {targetCount} targets but the tuple has {tupleType.Arity} elements.",
+                                "MIST_TC_0064",
+                                $"Cannot deconstruct expression of type '{initType.DisplayName}'; a tuple type is required.",
                                 typedTuple,
                                 model));
                         }
                         else
                         {
-                            // Verify each element type is assignable.
-                            void CheckDeconstructionElement(TupleDeconstructionElementNode element, int index)
+                            // Count targets: First + Rest + Additional.
+                            var targetCount = 2 + typedTuple.TupleDeconstructionElements.Length;
+                            if(targetCount != tupleType.Arity)
                             {
-                                var declaredType = model.GetTypeOf(element.Type);
-                                if (declaredType is not null && index < tupleType.Arity)
+                                diagnostics.Add(MakeDiagnostic(
+                                    "MIST_TC_0061",
+                                    $"Tuple deconstruction has {targetCount} targets but the tuple has {tupleType.Arity} elements.",
+                                    typedTuple,
+                                    model));
+                            }
+                            else
+                            {
+                                // Verify each element type is assignable.
+                                void CheckDeconstructionElement(TupleDeconstructionElementNode element, int index)
                                 {
-                                    var elementType = tupleType.ElementTypes[index];
-                                    if (!IsAssignable(elementType, declaredType, model))
+                                    var declaredType = model.GetTypeOf(element.Type);
+                                    if(declaredType is not null && index < tupleType.Arity)
                                     {
-                                        diagnostics.Add(MakeDiagnostic(
-                                            "MIST_TC_0062",
-                                            $"Cannot assign tuple element of type '{elementType.DisplayName}' to '{declaredType.DisplayName}' at position {index + 1}.",
-                                            element,
-                                            model));
+                                        var elementType = tupleType.ElementTypes[index];
+                                        if(!IsAssignable(elementType, declaredType, model))
+                                        {
+                                            diagnostics.Add(MakeDiagnostic(
+                                                "MIST_TC_0062",
+                                                $"Cannot assign tuple element of type '{elementType.DisplayName}' to '{declaredType.DisplayName}' at position {index + 1}.",
+                                                element,
+                                                model));
+                                        }
                                     }
                                 }
-                            }
 
-                            CheckDeconstructionElement(typedTuple.First, 0);
-                            CheckDeconstructionElement(typedTuple.Rest, 1);
-                            for (var i = 0; i < typedTuple.TupleDeconstructionElements.Length; i++)
-                            {
-                                CheckDeconstructionElement(typedTuple.TupleDeconstructionElements[i], 2 + i);
+                                CheckDeconstructionElement(typedTuple.First, 0);
+                                CheckDeconstructionElement(typedTuple.Rest, 1);
+                                for(var i = 0; i < typedTuple.TupleDeconstructionElements.Length; i++)
+                                {
+                                    CheckDeconstructionElement(typedTuple.TupleDeconstructionElements[i], 2 + i);
+                                }
                             }
                         }
                     }
+                    break;
                 }
-                break;
-            }
         }
     }
 
@@ -5024,10 +5024,10 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         DiagnosticBag diagnostics)
     {
         var symbol = model.GetDeclaredSymbol(varDecl);
-        if (symbol is not Symbol { Kind: SymbolKind.LocalVariable } sym)
+        if(symbol is not Symbol { Kind: SymbolKind.LocalVariable } sym)
             return;
 
-        if (sym.RefKind == RefKind.None)
+        if(sym.RefKind == RefKind.None)
             return;
 
         // Check if the declaration has an initializer based on its type.
@@ -5038,7 +5038,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             _ => false,
         };
 
-        if (!hasInitializer)
+        if(!hasInitializer)
         {
             diagnostics.Add(MakeDiagnostic(
                 "MIST_REF_0010",
@@ -5080,18 +5080,18 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         DiagnosticBag diagnostics)
     {
         // Only applies when the enclosing method has a ref or ref readonly return type.
-        if (_currentMethodSymbol is not Symbol methodSym)
+        if(_currentMethodSymbol is not Symbol methodSym)
             return false;
 
-        if (methodSym.ReturnRefKind == RefKind.None)
+        if(methodSym.ReturnRefKind == RefKind.None)
             return false;
 
         // The return statement must have a value expression.
-        if (returnStmt.Value is null)
+        if(returnStmt.Value is null)
             return false;
 
         // Check whether the return expression references a valid long-lived storage location.
-        if (IsValidRefReturnTarget(returnStmt.Value, model))
+        if(IsValidRefReturnTarget(returnStmt.Value, model))
             return false;
 
         // The return expression does not reference a valid long-lived storage location.
@@ -5112,17 +5112,17 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     private static bool IsValidRefReturnTarget(ExpressionNode expr, ISemanticModel model)
     {
         var postfix = TryExtractPostfixNode(expr);
-        if (postfix is null)
+        if(postfix is null)
         {
             // Expression has binary/logical operators or assignment — not a valid ref return target.
             return false;
         }
 
         // Case 1: Expression has suffixes (member access, index, method call, etc.)
-        if (postfix.Suffix.Length > 0)
+        if(postfix.Suffix.Length > 0)
         {
             // Check if the root is `this` — field access via this is valid.
-            if (postfix.Target is ThisExpressionPrimaryNode)
+            if(postfix.Target is ThisExpressionPrimaryNode)
             {
                 // Verify the suffix chain consists only of member accesses and index accesses.
                 // Method calls in the chain invalidate the ref return (the result is a temporary).
@@ -5132,10 +5132,10 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             // Check if the root is an identifier that resolves to a ref parameter —
             // accessing fields/elements of a ref parameter is valid (the ref parameter's
             // storage outlives the callee).
-            if (postfix.Target is IdentifierExpressionPrimaryNode rootIdentifier)
+            if(postfix.Target is IdentifierExpressionPrimaryNode rootIdentifier)
             {
                 var symbol = model.GetDeclaredSymbol(rootIdentifier);
-                if (symbol is Symbol { Kind: SymbolKind.Parameter } paramSym && paramSym.RefKind == RefKind.Ref)
+                if(symbol is Symbol { Kind: SymbolKind.Parameter } paramSym && paramSym.RefKind == RefKind.Ref)
                 {
                     // A ref parameter with field/index access — valid.
                     return AllSuffixesAreFieldOrIndexAccess(postfix.Suffix);
@@ -5145,7 +5145,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 // In Mist, static field access is `TypeName.fieldName`, which is an
                 // identifier with a member access suffix.
                 var resolvedType = model.GetTypeOf(rootIdentifier);
-                if (resolvedType is not null && symbol is not null &&
+                if(resolvedType is not null && symbol is not null &&
                     symbol.Kind is SymbolKind.Class or SymbolKind.Struct or SymbolKind.Enum)
                 {
                     // Static member access — valid (static fields outlive any method call).
@@ -5159,15 +5159,15 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         // Case 2: No suffixes — the expression is just a primary node (identifier, literal, etc.)
-        if (postfix.Target is IdentifierExpressionPrimaryNode identifier)
+        if(postfix.Target is IdentifierExpressionPrimaryNode identifier)
         {
             var symbol = model.GetDeclaredSymbol(identifier);
-            if (symbol is not Symbol concreteSymbol)
+            if(symbol is not Symbol concreteSymbol)
                 return false;
 
             // A ref parameter by itself is a valid ref return target —
             // the caller's storage outlives the callee.
-            if (concreteSymbol.Kind == SymbolKind.Parameter && concreteSymbol.RefKind == RefKind.Ref)
+            if(concreteSymbol.Kind == SymbolKind.Parameter && concreteSymbol.RefKind == RefKind.Ref)
                 return true;
 
             // Local variables and non-ref parameters are NOT valid — their storage
@@ -5185,9 +5185,9 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     private static bool AllSuffixesAreFieldOrIndexAccess(IReadOnlyList<PostfixSuffixNode> suffixes)
     {
-        foreach (var suffix in suffixes)
+        foreach(var suffix in suffixes)
         {
-            if (suffix is not (MemberAccessSuffixPostfixSuffixNode or IndexSuffixPostfixSuffixNode))
+            if(suffix is not (MemberAccessSuffixPostfixSuffixNode or IndexSuffixPostfixSuffixNode))
                 return false;
         }
         return true;
@@ -5200,10 +5200,10 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     private static string DescribeRefReturnTarget(ExpressionNode expr, ISemanticModel model)
     {
         var postfix = TryExtractPostfixNode(expr);
-        if (postfix is null)
+        if(postfix is null)
             return DescribeExpression(expr, model);
 
-        if (postfix.Target is IdentifierExpressionPrimaryNode identifier)
+        if(postfix.Target is IdentifierExpressionPrimaryNode identifier)
             return identifier.Name.Lexeme;
 
         return DescribeExpression(expr, model);
@@ -5215,13 +5215,13 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         ISemanticModel model,
         DiagnosticBag diagnostics)
     {
-        if (IsErrorType(methodReturnType))
+        if(IsErrorType(methodReturnType))
             return;
 
-        if (returnStmt.Value is not null)
+        if(returnStmt.Value is not null)
         {
             // Infer bare 'default' type from the method return type before checking.
-            if (!methodReturnType.IsVoid())
+            if(!methodReturnType.IsVoid())
             {
                 TryInferDefaultLiteralType(returnStmt.Value, methodReturnType, model);
             }
@@ -5233,7 +5233,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             // When the enclosing method has a ref or ref readonly return type,
             // validate that the return expression references a storage location
             // whose lifetime exceeds the method call.
-            if (CheckRefReturnLifetimeSafety(returnStmt, model, diagnostics))
+            if(CheckRefReturnLifetimeSafety(returnStmt, model, diagnostics))
             {
                 // A ref lifetime diagnostic was emitted; skip further type checks
                 // to avoid cascading diagnostics.
@@ -5242,10 +5242,10 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
             var valueType = model.GetTypeOf(returnStmt.Value);
 
-            if (methodReturnType.IsVoid())
+            if(methodReturnType.IsVoid())
             {
                 // Void methods: reject return values UNLESS the value is void
-                if (valueType is not null && !IsErrorType(valueType) && !valueType.IsVoid())
+                if(valueType is not null && !IsErrorType(valueType) && !valueType.IsVoid())
                 {
                     diagnostics.Add(MakeDiagnostic(
                         "MIST_TC_0008",
@@ -5254,7 +5254,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                         model));
                 }
             }
-            else if (valueType is not null)
+            else if(valueType is not null)
             {
                 // ── flow narrowing: use narrowed type if available ──
                 var effectiveValueType = GetEffectiveSourceType(returnStmt.Value, valueType);
@@ -5262,35 +5262,35 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 // ── refinement-types feature: compile-time enforcement ──
                 // When the return type is a RefinementType, check the return
                 // value against the refinement predicate.
-                if (TryCheckRefinementAssignment(effectiveValueType, methodReturnType, returnStmt.Value, diagnostics, model))
+                if(TryCheckRefinementAssignment(effectiveValueType, methodReturnType, returnStmt.Value, diagnostics, model))
                 {
                     // Refinement-specific diagnostic emitted; skip generic.
                 }
                 // ── regex-type feature: string literal shorthand (Requirements 6.5, 6.8, 6.9) ──
                 // When the return type is regex and the value is string, apply
                 // the string→regex conversion rules.
-                else if (TryCheckStringToRegexAssignment(valueType, methodReturnType, returnStmt.Value, diagnostics, model))
+                else if(TryCheckStringToRegexAssignment(valueType, methodReturnType, returnStmt.Value, diagnostics, model))
                 {
                     // Regex-specific diagnostic emitted or accepted; skip generic.
                 }
-                else if (!IsAssignable(valueType, methodReturnType))
+                else if(!IsAssignable(valueType, methodReturnType))
                 {
                     // unknown-type feature (Req 4.2, 4.4): emit a targeted
                     // diagnostic for void→unknown or unknown→non-unknown
                     // before falling back to the generic MIST_TC_0008.
-                    if (TryEmitUnknownAssignabilityDiagnostic(valueType, methodReturnType, returnStmt, diagnostics, model))
+                    if(TryEmitUnknownAssignabilityDiagnostic(valueType, methodReturnType, returnStmt, diagnostics, model))
                     {
                         // Targeted unknown diagnostic emitted; skip generic.
                     }
                     // type-unions feature (Req 6.3, 6.4): emit a targeted
                     // diagnostic for union-specific failures.
-                    else if (TryEmitUnionAssignabilityDiagnostic(valueType, methodReturnType, returnStmt, diagnostics, model))
+                    else if(TryEmitUnionAssignabilityDiagnostic(valueType, methodReturnType, returnStmt, diagnostics, model))
                     {
                         // Targeted union diagnostic emitted; skip generic.
                     }
                     // enums feature (Req 7.3): emit a targeted diagnostic
                     // for reverse conversion (underlying type → enum).
-                    else if (TryEmitEnumAssignabilityDiagnostic(valueType, methodReturnType, returnStmt, diagnostics, model))
+                    else if(TryEmitEnumAssignabilityDiagnostic(valueType, methodReturnType, returnStmt, diagnostics, model))
                     {
                         // Targeted enum diagnostic emitted; skip generic.
                     }
@@ -5315,7 +5315,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         else
         {
             // return; — only valid in void methods.
-            if (!methodReturnType.IsVoid())
+            if(!methodReturnType.IsVoid())
             {
                 diagnostics.Add(MakeDiagnostic(
                     "MIST_TC_0008",
@@ -5345,13 +5345,13 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // so we can restore them after the then-branch (preserving outer
         // for-loop narrowing, for example).
         var previousNarrowings = new List<(string VarName, List<ConditionConstraint>? Previous)>();
-        foreach (var (varName, constraints) in narrowings)
+        foreach(var (varName, constraints) in narrowings)
         {
             _narrowingContext.TryGetValue(varName, out var previous);
             previousNarrowings.Add((varName, previous is not null ? new List<ConditionConstraint>(previous) : null));
 
             // Merge: if there's existing narrowing, combine constraints; otherwise set new.
-            if (previous is not null)
+            if(previous is not null)
             {
                 var merged = new List<ConditionConstraint>(previous);
                 merged.AddRange(constraints);
@@ -5366,9 +5366,9 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         CheckBlock(ifStmt.ThenBranch, returnType, model, diagnostics);
 
         // Restore previous narrowing entries after the then-branch.
-        foreach (var (varName, previous) in previousNarrowings)
+        foreach(var (varName, previous) in previousNarrowings)
         {
-            if (previous is not null)
+            if(previous is not null)
             {
                 _narrowingContext[varName] = previous;
             }
@@ -5378,11 +5378,11 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             }
         }
 
-        if (ifStmt.ElseBranch is ElseIfElseClauseNode elseIf)
+        if(ifStmt.ElseBranch is ElseIfElseClauseNode elseIf)
         {
             CheckIfStatement(elseIf.ElseIf, returnType, model, diagnostics);
         }
-        else if (ifStmt.ElseBranch is ElseBlockElseClauseNode elseBlock)
+        else if(ifStmt.ElseBranch is ElseBlockElseClauseNode elseBlock)
         {
             CheckBlock(elseBlock.ElseBlock, returnType, model, diagnostics);
         }
@@ -5413,49 +5413,49 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         // Navigate: Expression → Assignment → LogicalOr → LogicalAnd → Equality → Relational
         var assignment = condition.AsAssignmentOrNull();
-        if (assignment is null) return result; // Lambda form is not a narrowing condition.
-        if (assignment.Value is not null) return result; // Not a simple condition.
+        if(assignment is null) return result; // Lambda form is not a narrowing condition.
+        if(assignment.Value is not null) return result; // Not a simple condition.
 
         var voidCoalescing = assignment.Target;
-        if (voidCoalescing is null) return result;
-        if (voidCoalescing.LogicalOrs.Length > 0) return result;
+        if(voidCoalescing is null) return result;
+        if(voidCoalescing.LogicalOrs.Length > 0) return result;
 
         var logicalOr = voidCoalescing.Left;
-        if (logicalOr is null) return result;
+        if(logicalOr is null) return result;
 
         // Only handle simple conditions (no || for now).
-        if (logicalOr.Right is not null && !ReferenceEquals(logicalOr.Right, logicalOr.Left))
+        if(logicalOr.Right is not null && !ReferenceEquals(logicalOr.Right, logicalOr.Left))
             return result;
 
         var logicalAnd = logicalOr.Left;
-        if (logicalAnd is null) return result;
+        if(logicalAnd is null) return result;
 
         // Only handle simple conditions (no && for now — could be extended later).
-        if (logicalAnd.Right is not null && !ReferenceEquals(logicalAnd.Right, logicalAnd.Left))
+        if(logicalAnd.Right is not null && !ReferenceEquals(logicalAnd.Right, logicalAnd.Left))
             return result;
 
         var equality = logicalAnd.Left;
-        if (equality is null) return result;
-        if (equality.Right is not null && !ReferenceEquals(equality.Right, equality.Left))
+        if(equality is null) return result;
+        if(equality.Right is not null && !ReferenceEquals(equality.Right, equality.Left))
             return result;
 
         var relational = equality.Left;
-        if (relational is null) return result;
+        if(relational is null) return result;
 
-        switch (relational)
+        switch(relational)
         {
             case RelationalComparisonRelationalNode cmp when cmp.Right is not null:
-            {
-                // Simple comparison: x >= N, x <= N, x > N, x < N
-                TryNarrowFromComparison(cmp, model, result);
-                break;
-            }
+                {
+                    // Simple comparison: x >= N, x <= N, x > N, x < N
+                    TryNarrowFromComparison(cmp, model, result);
+                    break;
+                }
             case IsExpressionRelationalNode isExpr:
-            {
-                // `is` pattern: x is >= N
-                TryNarrowFromIsPattern(isExpr, model, result);
-                break;
-            }
+                {
+                    // `is` pattern: x is >= N
+                    TryNarrowFromIsPattern(isExpr, model, result);
+                    break;
+                }
         }
 
         return result;
@@ -5472,20 +5472,20 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     {
         // Extract the variable name from the LHS.
         var varName = TryExtractSimpleIdentifierName(cmp.Left);
-        if (varName is null) return;
+        if(varName is null) return;
 
         // Check eligibility: must be a local primitive variable not captured by closures.
-        if (_closureCapturedVariables.Contains(varName)) return;
+        if(_closureCapturedVariables.Contains(varName)) return;
 
         var varType = TryGetVariableType(varName, cmp.Left, model);
-        if (varType is null || !IsPrimitiveImmutableType(varType)) return;
+        if(varType is null || !IsPrimitiveImmutableType(varType)) return;
 
         // Extract the operator and constant value from the comparison.
         var op = cmp.Operator.Lexeme;
-        if (op is null) return;
+        if(op is null) return;
 
         var constantValue = TryExtractLongFromAdditiveNode(cmp.Right);
-        if (!constantValue.HasValue) return;
+        if(!constantValue.HasValue) return;
 
         // Build a constraint from the condition and store it directly.
         var constraint = op switch
@@ -5497,7 +5497,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             _ => (ConditionConstraint?)null
         };
 
-        if (constraint is not null)
+        if(constraint is not null)
         {
             result.Add((varName, new List<ConditionConstraint> { constraint.Value }));
         }
@@ -5515,29 +5515,29 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     {
         // Extract the variable name from the LHS.
         var varName = TryExtractSimpleIdentifierName(isExpr.Left);
-        if (varName is null) return;
+        if(varName is null) return;
 
         // Check eligibility: must be a local primitive variable not captured by closures.
-        if (_closureCapturedVariables.Contains(varName)) return;
+        if(_closureCapturedVariables.Contains(varName)) return;
 
         var varType = TryGetVariableType(varName, isExpr.Left, model);
-        if (varType is null || !IsPrimitiveImmutableType(varType)) return;
+        if(varType is null || !IsPrimitiveImmutableType(varType)) return;
 
         // Extract the relational pattern from the is expression.
         // Pattern → OrPattern → AndPattern → UnaryPattern → PrimaryPattern
         var pattern = isExpr.Pattern;
-        if (pattern?.OrPattern is null) return;
+        if(pattern?.OrPattern is null) return;
 
         var orPattern = pattern.OrPattern;
-        if (orPattern.Right is not null && !ReferenceEquals(orPattern.Right, orPattern.Left))
+        if(orPattern.Right is not null && !ReferenceEquals(orPattern.Right, orPattern.Left))
             return; // Or patterns not supported for narrowing.
 
         var andPattern = orPattern.Left;
-        if (andPattern is null) return;
+        if(andPattern is null) return;
 
         // Extract constraints directly from the pattern.
         var constraints = ExtractConstraintsFromAndPattern(andPattern);
-        if (constraints.Count > 0)
+        if(constraints.Count > 0)
         {
             result.Add((varName, constraints));
         }
@@ -5553,23 +5553,23 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     {
         // Extract the predicate's constraints.
         var predicateConstraints = ExtractPredicateConstraints(predicate);
-        if (predicateConstraints.Count == 0) return false;
+        if(predicateConstraints.Count == 0) return false;
 
         // For implication to hold, every constraint in the predicate must be
         // implied by at least one constraint in the condition.
-        foreach (var target in predicateConstraints)
+        foreach(var target in predicateConstraints)
         {
             var implied = false;
-            foreach (var source in conditionConstraints)
+            foreach(var source in conditionConstraints)
             {
-                if (ConditionConstraintImplies(source, target))
+                if(ConditionConstraintImplies(source, target))
                 {
                     implied = true;
                     break;
                 }
             }
 
-            if (!implied)
+            if(!implied)
                 return false;
         }
 
@@ -5584,13 +5584,13 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     private static bool ConditionConstraintImplies(ConditionConstraint source, ConditionConstraint target)
     {
         // Both symbolic with same ID and same operator → tautology
-        if (source.SymbolicId is not null && target.SymbolicId is not null)
+        if(source.SymbolicId is not null && target.SymbolicId is not null)
         {
             return source.SymbolicId == target.SymbolicId && source.Op == target.Op;
         }
 
         // One symbolic, one concrete → cannot prove
-        if (source.SymbolicId is not null || target.SymbolicId is not null)
+        if(source.SymbolicId is not null || target.SymbolicId is not null)
         {
             return false;
         }
@@ -5634,14 +5634,14 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         var constraints = new List<ConditionConstraint>();
         ExtractConstraintFromUnary(andPattern.Left, constraints);
 
-        if (andPattern.Right is not null && !ReferenceEquals(andPattern.Right, andPattern.Left))
+        if(andPattern.Right is not null && !ReferenceEquals(andPattern.Right, andPattern.Left))
         {
             ExtractConstraintFromUnary(andPattern.Right, constraints);
         }
 
-        if (!andPattern.UnaryPatterns.IsDefaultOrEmpty)
+        if(!andPattern.UnaryPatterns.IsDefaultOrEmpty)
         {
-            foreach (var part in andPattern.UnaryPatterns)
+            foreach(var part in andPattern.UnaryPatterns)
             {
                 ExtractConstraintFromUnary(part, constraints);
             }
@@ -5655,34 +5655,34 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     private static void ExtractConstraintFromUnary(UnaryPatternNode unary, List<ConditionConstraint> constraints)
     {
-        if (unary is not DirectPatternUnaryPatternNode direct) return;
+        if(unary is not DirectPatternUnaryPatternNode direct) return;
 
-        switch (direct.Primary)
+        switch(direct.Primary)
         {
             case GreaterThanOrEqualRelationalPatternPrimaryPatternNode gte:
-            {
-                var val = TryExtractLongFromPatternConstant(gte.Constant);
-                if (val.HasValue) constraints.Add(new ConditionConstraint(ConditionRelOp.Gte, val.Value));
-                break;
-            }
+                {
+                    var val = TryExtractLongFromPatternConstant(gte.Constant);
+                    if(val.HasValue) constraints.Add(new ConditionConstraint(ConditionRelOp.Gte, val.Value));
+                    break;
+                }
             case LessThanOrEqualRelationalPatternPrimaryPatternNode lte:
-            {
-                var val = TryExtractLongFromPatternConstant(lte.Constant);
-                if (val.HasValue) constraints.Add(new ConditionConstraint(ConditionRelOp.Lte, val.Value));
-                break;
-            }
+                {
+                    var val = TryExtractLongFromPatternConstant(lte.Constant);
+                    if(val.HasValue) constraints.Add(new ConditionConstraint(ConditionRelOp.Lte, val.Value));
+                    break;
+                }
             case GreaterThanRelationalPatternPrimaryPatternNode gt:
-            {
-                var val = TryExtractLongFromPatternConstant(gt.Constant);
-                if (val.HasValue) constraints.Add(new ConditionConstraint(ConditionRelOp.Gt, val.Value));
-                break;
-            }
+                {
+                    var val = TryExtractLongFromPatternConstant(gt.Constant);
+                    if(val.HasValue) constraints.Add(new ConditionConstraint(ConditionRelOp.Gt, val.Value));
+                    break;
+                }
             case LessThanRelationalPatternPrimaryPatternNode lt:
-            {
-                var val = TryExtractLongFromPatternConstant(lt.Constant);
-                if (val.HasValue) constraints.Add(new ConditionConstraint(ConditionRelOp.Lt, val.Value));
-                break;
-            }
+                {
+                    var val = TryExtractLongFromPatternConstant(lt.Constant);
+                    if(val.HasValue) constraints.Add(new ConditionConstraint(ConditionRelOp.Lt, val.Value));
+                    break;
+                }
         }
     }
 
@@ -5702,20 +5702,20 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     private static string? TryExtractSimpleIdentifierName(AdditiveNode additive)
     {
-        if (additive?.Right is not null && !ReferenceEquals(additive.Right, additive.Left))
+        if(additive?.Right is not null && !ReferenceEquals(additive.Right, additive.Left))
             return null;
 
         var multiplicative = additive?.Left;
-        if (multiplicative?.Right is not null && !ReferenceEquals(multiplicative.Right, multiplicative.Left))
+        if(multiplicative?.Right is not null && !ReferenceEquals(multiplicative.Right, multiplicative.Left))
             return null;
 
-        if (multiplicative?.Left is not PostfixExpressionUnaryNode postfixUnary)
+        if(multiplicative?.Left is not PostfixExpressionUnaryNode postfixUnary)
             return null;
 
         var postfix = postfixUnary.Primary;
-        if (postfix.Suffix.Length > 0) return null;
+        if(postfix.Suffix.Length > 0) return null;
 
-        if (postfix.Target is IdentifierExpressionPrimaryNode identifier)
+        if(postfix.Target is IdentifierExpressionPrimaryNode identifier)
             return identifier.Name.Lexeme;
 
         return null;
@@ -5726,21 +5726,21 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     private static long? TryExtractLongFromAdditiveNode(AdditiveNode? additive)
     {
-        if (additive is null) return null;
-        if (additive.Right is not null && !ReferenceEquals(additive.Right, additive.Left))
+        if(additive is null) return null;
+        if(additive.Right is not null && !ReferenceEquals(additive.Right, additive.Left))
             return null;
 
         var multiplicative = additive.Left;
-        if (multiplicative?.Right is not null && !ReferenceEquals(multiplicative.Right, multiplicative.Left))
+        if(multiplicative?.Right is not null && !ReferenceEquals(multiplicative.Right, multiplicative.Left))
             return null;
 
-        if (multiplicative?.Left is not PostfixExpressionUnaryNode postfixUnary)
+        if(multiplicative?.Left is not PostfixExpressionUnaryNode postfixUnary)
             return null;
 
         var postfix = postfixUnary.Primary;
-        if (postfix.Suffix.Length > 0) return null;
+        if(postfix.Suffix.Length > 0) return null;
 
-        if (postfix.Target is IntegerLiteralExpressionPrimaryNode intLiteral)
+        if(postfix.Target is IntegerLiteralExpressionPrimaryNode intLiteral)
             return RefinementPredicate.ParseIntegerLexeme(intLiteral.IntegerLiteral.Lexeme);
 
         return null;
@@ -5768,43 +5768,43 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     {
         // Navigate to the identifier: Expression → Assignment → LogicalOr → ... → Primary
         var assignment = expr.AsAssignmentOrNull();
-        if (assignment is null) return null; // Lambda form is not a narrowed identifier.
-        if (assignment.Value is not null) return null;
+        if(assignment is null) return null; // Lambda form is not a narrowed identifier.
+        if(assignment.Value is not null) return null;
 
         var logicalOr = assignment.Target?.Left;
-        if (logicalOr?.Right is not null && !ReferenceEquals(logicalOr.Right, logicalOr.Left))
+        if(logicalOr?.Right is not null && !ReferenceEquals(logicalOr.Right, logicalOr.Left))
             return null;
 
         var logicalAnd = logicalOr?.Left;
-        if (logicalAnd?.Right is not null && !ReferenceEquals(logicalAnd.Right, logicalAnd.Left))
+        if(logicalAnd?.Right is not null && !ReferenceEquals(logicalAnd.Right, logicalAnd.Left))
             return null;
 
         var equality = logicalAnd?.Left;
-        if (equality?.Right is not null && !ReferenceEquals(equality.Right, equality.Left))
+        if(equality?.Right is not null && !ReferenceEquals(equality.Right, equality.Left))
             return null;
 
-        if (equality?.Left is not RelationalComparisonRelationalNode relCmp)
+        if(equality?.Left is not RelationalComparisonRelationalNode relCmp)
             return null;
-        if (relCmp.Right is not null && !ReferenceEquals(relCmp.Right, relCmp.Left))
+        if(relCmp.Right is not null && !ReferenceEquals(relCmp.Right, relCmp.Left))
             return null;
 
         var additive = relCmp.Left;
-        if (additive?.Right is not null && !ReferenceEquals(additive.Right, additive.Left))
+        if(additive?.Right is not null && !ReferenceEquals(additive.Right, additive.Left))
             return null;
 
         var multiplicative = additive?.Left;
-        if (multiplicative?.Right is not null && !ReferenceEquals(multiplicative.Right, multiplicative.Left))
+        if(multiplicative?.Right is not null && !ReferenceEquals(multiplicative.Right, multiplicative.Left))
             return null;
 
-        if (multiplicative?.Left is not PostfixExpressionUnaryNode postfixUnary)
+        if(multiplicative?.Left is not PostfixExpressionUnaryNode postfixUnary)
             return null;
 
         var postfix = postfixUnary.Primary;
-        if (postfix.Suffix.Length > 0) return null;
+        if(postfix.Suffix.Length > 0) return null;
 
-        if (postfix.Target is IdentifierExpressionPrimaryNode identifier)
+        if(postfix.Target is IdentifierExpressionPrimaryNode identifier)
         {
-            if (_narrowingContext.ContainsKey(identifier.Name.Lexeme))
+            if(_narrowingContext.ContainsKey(identifier.Name.Lexeme))
                 return identifier.Name.Lexeme;
         }
 
@@ -5837,7 +5837,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     private IType? TryGetNarrowedTypeForExpression(ExpressionNode expr)
     {
         var varName = TryExtractIdentifierFromExpression(expr);
-        if (varName is not null && _voidCoalescingTypeNarrowings.TryGetValue(varName, out var narrowedType))
+        if(varName is not null && _voidCoalescingTypeNarrowings.TryGetValue(varName, out var narrowedType))
             return narrowedType;
         return null;
     }
@@ -5850,9 +5850,9 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     {
         // Expression → Assignment → VoidCoalescing → LogicalOr → ... → Postfix → Identifier
         var assignment = expr.AsAssignmentOrNull();
-        if (assignment is null)
+        if(assignment is null)
             return null; // Lambda form is not a simple identifier reference.
-        if (assignment.Value is not null || assignment.Operator is not null)
+        if(assignment.Value is not null || assignment.Operator is not null)
             return null;
         return TryExtractIdentifierFromLogicalOr(assignment.Target.Left);
     }
@@ -5875,7 +5875,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     private void InvalidateNarrowingForAssignmentTarget(LogicalOrNode target)
     {
         var varName = TryExtractIdentifierFromLogicalOr(target);
-        if (varName is not null)
+        if(varName is not null)
         {
             _narrowingContext.Remove(varName);
             _voidCoalescingTypeNarrowings.Remove(varName);
@@ -5888,37 +5888,37 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     private static string? TryExtractIdentifierFromLogicalOr(LogicalOrNode logicalOr)
     {
-        if (logicalOr.Right is not null && !ReferenceEquals(logicalOr.Right, logicalOr.Left))
+        if(logicalOr.Right is not null && !ReferenceEquals(logicalOr.Right, logicalOr.Left))
             return null;
 
         var logicalAnd = logicalOr.Left;
-        if (logicalAnd?.Right is not null && !ReferenceEquals(logicalAnd.Right, logicalAnd.Left))
+        if(logicalAnd?.Right is not null && !ReferenceEquals(logicalAnd.Right, logicalAnd.Left))
             return null;
 
         var equality = logicalAnd?.Left;
-        if (equality?.Right is not null && !ReferenceEquals(equality.Right, equality.Left))
+        if(equality?.Right is not null && !ReferenceEquals(equality.Right, equality.Left))
             return null;
 
-        if (equality?.Left is not RelationalComparisonRelationalNode relCmp)
+        if(equality?.Left is not RelationalComparisonRelationalNode relCmp)
             return null;
-        if (relCmp.Right is not null && !ReferenceEquals(relCmp.Right, relCmp.Left))
+        if(relCmp.Right is not null && !ReferenceEquals(relCmp.Right, relCmp.Left))
             return null;
 
         var additive = relCmp.Left;
-        if (additive?.Right is not null && !ReferenceEquals(additive.Right, additive.Left))
+        if(additive?.Right is not null && !ReferenceEquals(additive.Right, additive.Left))
             return null;
 
         var multiplicative = additive?.Left;
-        if (multiplicative?.Right is not null && !ReferenceEquals(multiplicative.Right, multiplicative.Left))
+        if(multiplicative?.Right is not null && !ReferenceEquals(multiplicative.Right, multiplicative.Left))
             return null;
 
-        if (multiplicative?.Left is not PostfixExpressionUnaryNode postfixUnary)
+        if(multiplicative?.Left is not PostfixExpressionUnaryNode postfixUnary)
             return null;
 
         var postfix = postfixUnary.Primary;
-        if (postfix.Suffix.Length > 0) return null;
+        if(postfix.Suffix.Length > 0) return null;
 
-        if (postfix.Target is IdentifierExpressionPrimaryNode identifier)
+        if(postfix.Target is IdentifierExpressionPrimaryNode identifier)
             return identifier.Name.Lexeme;
 
         return null;
@@ -6007,23 +6007,23 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         var narrowedParams = new List<string>();
 
         var paramSymbols = CollectParameterSymbols(declaringNode, model);
-        foreach (var paramSymbol in paramSymbols)
+        foreach(var paramSymbol in paramSymbols)
         {
             var refinement = model.GetParameterRefinement(paramSymbol);
-            if (refinement is null)
+            if(refinement is null)
                 continue;
 
             var baseType = paramSymbol.DeclaredType;
-            if (baseType is null)
+            if(baseType is null)
                 continue;
 
             // Skip parameters captured by closures (Requirement 7.7).
-            if (_closureCapturedVariables.Contains(paramSymbol.Name))
+            if(_closureCapturedVariables.Contains(paramSymbol.Name))
                 continue;
 
             // Extract constraints from the parameter's refinement predicate and store them.
             var constraints = ExtractPredicateConstraints(refinement);
-            if (constraints.Count > 0)
+            if(constraints.Count > 0)
             {
                 _narrowingContext[paramSymbol.Name] = constraints;
                 narrowedParams.Add(paramSymbol.Name);
@@ -6040,7 +6040,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     private void RemoveParameterRefinementNarrowing(List<string> narrowedParams)
     {
-        foreach (var paramName in narrowedParams)
+        foreach(var paramName in narrowedParams)
         {
             _narrowingContext.Remove(paramName);
         }
@@ -6068,7 +6068,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         List<(Storm.Runtime.SyntaxNode Node, IType OriginalType)> narrowedArgs,
         ISemanticModel model)
     {
-        foreach (var (node, originalType) in narrowedArgs)
+        foreach(var (node, originalType) in narrowedArgs)
         {
             model.SetTypeOf(node, originalType);
         }
@@ -6081,39 +6081,39 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     private static IdentifierExpressionPrimaryNode? TryExtractIdentifierPrimaryNode(ExpressionNode expr)
     {
         var assignment = expr.AsAssignmentOrNull();
-        if (assignment is null) return null; // Lambda form is not a simple identifier.
-        if (assignment.Value is not null) return null;
+        if(assignment is null) return null; // Lambda form is not a simple identifier.
+        if(assignment.Value is not null) return null;
 
         var logicalOr = assignment.Target?.Left;
-        if (logicalOr?.Right is not null && !ReferenceEquals(logicalOr.Right, logicalOr.Left))
+        if(logicalOr?.Right is not null && !ReferenceEquals(logicalOr.Right, logicalOr.Left))
             return null;
 
         var logicalAnd = logicalOr?.Left;
-        if (logicalAnd?.Right is not null && !ReferenceEquals(logicalAnd.Right, logicalAnd.Left))
+        if(logicalAnd?.Right is not null && !ReferenceEquals(logicalAnd.Right, logicalAnd.Left))
             return null;
 
         var equality = logicalAnd?.Left;
-        if (equality?.Right is not null && !ReferenceEquals(equality.Right, equality.Left))
+        if(equality?.Right is not null && !ReferenceEquals(equality.Right, equality.Left))
             return null;
 
-        if (equality?.Left is not RelationalComparisonRelationalNode relCmp)
+        if(equality?.Left is not RelationalComparisonRelationalNode relCmp)
             return null;
-        if (relCmp.Right is not null && !ReferenceEquals(relCmp.Right, relCmp.Left))
+        if(relCmp.Right is not null && !ReferenceEquals(relCmp.Right, relCmp.Left))
             return null;
 
         var additive = relCmp.Left;
-        if (additive?.Right is not null && !ReferenceEquals(additive.Right, additive.Left))
+        if(additive?.Right is not null && !ReferenceEquals(additive.Right, additive.Left))
             return null;
 
         var multiplicative = additive?.Left;
-        if (multiplicative?.Right is not null && !ReferenceEquals(multiplicative.Right, multiplicative.Left))
+        if(multiplicative?.Right is not null && !ReferenceEquals(multiplicative.Right, multiplicative.Left))
             return null;
 
-        if (multiplicative?.Left is not PostfixExpressionUnaryNode postfixUnary)
+        if(multiplicative?.Left is not PostfixExpressionUnaryNode postfixUnary)
             return null;
 
         var postfix = postfixUnary.Primary;
-        if (postfix.Suffix.Length > 0) return null;
+        if(postfix.Suffix.Length > 0) return null;
 
         return postfix.Target as IdentifierExpressionPrimaryNode;
     }
@@ -6121,35 +6121,35 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     private void CheckForStatement(ForStatementNode forStmt, IType returnType, ISemanticModel model, DiagnosticBag diagnostics)
     {
         // Check initializer.
-        if (forStmt.Initializer is ForInitializerVariableDeclarationForInitializerNode varInit)
+        if(forStmt.Initializer is ForInitializerVariableDeclarationForInitializerNode varInit)
         {
             CheckExpression(varInit.Initializer, model, diagnostics);
             // Check assignability of initializer to declared type.
             var declaredType = model.GetTypeOf(varInit.VariableDeclaration);
             var initType = model.GetTypeOf(varInit.Initializer);
-            if (declaredType is not null && initType is not null)
+            if(declaredType is not null && initType is not null)
             {
                 CheckAssignability(initType, declaredType, varInit.Initializer, diagnostics, model);
             }
         }
-        else if (forStmt.Initializer is ForInitializerVarDeclarationForInitializerNode varDeclInit)
+        else if(forStmt.Initializer is ForInitializerVarDeclarationForInitializerNode varDeclInit)
         {
             CheckExpression(varDeclInit.Initializer, model, diagnostics);
         }
-        else if (forStmt.Initializer is ForInitializerExpressionForInitializerNode exprInit)
+        else if(forStmt.Initializer is ForInitializerExpressionForInitializerNode exprInit)
         {
             CheckExpression(exprInit.Expression, model, diagnostics);
         }
 
         // Check condition.
-        if (forStmt.Condition is not null)
+        if(forStmt.Condition is not null)
         {
             CheckExpression(forStmt.Condition, model, diagnostics);
             CheckConditionIsBool(forStmt.Condition, model, diagnostics);
         }
 
         // Check iterator.
-        if (forStmt.Iterator is not null)
+        if(forStmt.Iterator is not null)
         {
             CheckExpression(forStmt.Iterator, model, diagnostics);
         }
@@ -6160,7 +6160,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         CheckBlock(forStmt.Body, returnType, model, diagnostics);
 
         // Remove narrowing after the body check.
-        if (narrowedVar is not null)
+        if(narrowedVar is not null)
         {
             _narrowingContext.Remove(narrowedVar);
         }
@@ -6179,12 +6179,12 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         string? varName;
         ExpressionNode? initializerExpr;
 
-        if (forStmt.Initializer is ForInitializerVariableDeclarationForInitializerNode varInit)
+        if(forStmt.Initializer is ForInitializerVariableDeclarationForInitializerNode varInit)
         {
             varName = varInit.Name.Lexeme;
             initializerExpr = varInit.Initializer;
         }
-        else if (forStmt.Initializer is ForInitializerVarDeclarationForInitializerNode varDeclInit)
+        else if(forStmt.Initializer is ForInitializerVarDeclarationForInitializerNode varDeclInit)
         {
             varName = varDeclInit.Name.Lexeme;
             initializerExpr = varDeclInit.Initializer;
@@ -6194,24 +6194,24 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             return null;
         }
 
-        if (varName is null)
+        if(varName is null)
             return null;
 
         // 2. Extract lower bound from initializer value — must be a literal integer.
         var lowerBound = TryExtractLongFromExpression(initializerExpr);
-        if (!lowerBound.HasValue)
+        if(!lowerBound.HasValue)
             return null;
 
         // 3. Extract upper bound from condition.
-        if (forStmt.Condition is null)
+        if(forStmt.Condition is null)
             return null;
 
         var upperBound = TryExtractForLoopUpperBound(forStmt.Condition, varName, model);
-        if (upperBound is null)
+        if(upperBound is null)
             return null;
 
         // 4. Check for reassignment in body — if the induction variable is reassigned, skip narrowing.
-        if (HasReassignmentInBody(forStmt.Body, varName))
+        if(HasReassignmentInBody(forStmt.Body, varName))
             return null;
 
         // 5. Inject constraints into _narrowingContext.
@@ -6232,27 +6232,27 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     private static long? TryExtractLongFromExpression(ExpressionNode expr)
     {
         var assignment = expr.AsAssignmentOrNull();
-        if (assignment is null) return null; // Lambda form is not a literal integer.
-        if (assignment.Value is not null) return null;
+        if(assignment is null) return null; // Lambda form is not a literal integer.
+        if(assignment.Value is not null) return null;
 
         var logicalOr = assignment.Target?.Left;
-        if (logicalOr is null) return null;
-        if (logicalOr.Right is not null && !ReferenceEquals(logicalOr.Right, logicalOr.Left))
+        if(logicalOr is null) return null;
+        if(logicalOr.Right is not null && !ReferenceEquals(logicalOr.Right, logicalOr.Left))
             return null;
 
         var logicalAnd = logicalOr.Left;
-        if (logicalAnd is null) return null;
-        if (logicalAnd.Right is not null && !ReferenceEquals(logicalAnd.Right, logicalAnd.Left))
+        if(logicalAnd is null) return null;
+        if(logicalAnd.Right is not null && !ReferenceEquals(logicalAnd.Right, logicalAnd.Left))
             return null;
 
         var equality = logicalAnd.Left;
-        if (equality is null) return null;
-        if (equality.Right is not null && !ReferenceEquals(equality.Right, equality.Left))
+        if(equality is null) return null;
+        if(equality.Right is not null && !ReferenceEquals(equality.Right, equality.Left))
             return null;
 
-        if (equality.Left is not RelationalComparisonRelationalNode relCmp)
+        if(equality.Left is not RelationalComparisonRelationalNode relCmp)
             return null;
-        if (relCmp.Right is not null && !ReferenceEquals(relCmp.Right, relCmp.Left))
+        if(relCmp.Right is not null && !ReferenceEquals(relCmp.Right, relCmp.Left))
             return null;
 
         return TryExtractLongFromAdditiveNode(relCmp.Left);
@@ -6267,40 +6267,40 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     {
         // Navigate: Expression → Assignment → LogicalOr → LogicalAnd → Equality → Relational
         var assignment = condition.AsAssignmentOrNull();
-        if (assignment is null) return null; // Lambda form is not a for-loop condition.
-        if (assignment.Value is not null) return null;
+        if(assignment is null) return null; // Lambda form is not a for-loop condition.
+        if(assignment.Value is not null) return null;
 
         var logicalOr = assignment.Target?.Left;
-        if (logicalOr is null) return null;
-        if (logicalOr.Right is not null && !ReferenceEquals(logicalOr.Right, logicalOr.Left))
+        if(logicalOr is null) return null;
+        if(logicalOr.Right is not null && !ReferenceEquals(logicalOr.Right, logicalOr.Left))
             return null;
 
         var logicalAnd = logicalOr.Left;
-        if (logicalAnd is null) return null;
-        if (logicalAnd.Right is not null && !ReferenceEquals(logicalAnd.Right, logicalAnd.Left))
+        if(logicalAnd is null) return null;
+        if(logicalAnd.Right is not null && !ReferenceEquals(logicalAnd.Right, logicalAnd.Left))
             return null;
 
         var equality = logicalAnd.Left;
-        if (equality is null) return null;
-        if (equality.Right is not null && !ReferenceEquals(equality.Right, equality.Left))
+        if(equality is null) return null;
+        if(equality.Right is not null && !ReferenceEquals(equality.Right, equality.Left))
             return null;
 
-        if (equality.Left is not RelationalComparisonRelationalNode cmp)
+        if(equality.Left is not RelationalComparisonRelationalNode cmp)
             return null;
-        if (cmp.Right is null || ReferenceEquals(cmp.Right, cmp.Left))
+        if(cmp.Right is null || ReferenceEquals(cmp.Right, cmp.Left))
             return null;
 
         // Verify the LHS is the induction variable.
         var lhsName = TryExtractSimpleIdentifierName(cmp.Left);
-        if (lhsName is null || !string.Equals(lhsName, varName, StringComparison.Ordinal))
+        if(lhsName is null || !string.Equals(lhsName, varName, StringComparison.Ordinal))
             return null;
 
         // Determine the operator.
         var op = cmp.Operator.Lexeme;
         ConditionRelOp relOp;
-        if (op == "<")
+        if(op == "<")
             relOp = ConditionRelOp.Lt;
-        else if (op == "<=")
+        else if(op == "<=")
             relOp = ConditionRelOp.Lte;
         else
             return null;
@@ -6308,12 +6308,12 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // Try to extract the upper bound value from the RHS.
         // Case a: literal integer
         var literalValue = TryExtractLongFromAdditiveNode(cmp.Right);
-        if (literalValue.HasValue)
+        if(literalValue.HasValue)
             return new ConditionConstraint(relOp, literalValue.Value);
 
         // Case b: identifier.Length on an ArrayType
         var symbolicBound = TryExtractArrayLengthBound(cmp.Right, relOp, model);
-        if (symbolicBound is not null)
+        if(symbolicBound is not null)
             return symbolicBound;
 
         return null;
@@ -6326,42 +6326,42 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     private static ConditionConstraint? TryExtractArrayLengthBound(AdditiveNode additive, ConditionRelOp relOp, ISemanticModel model)
     {
         // Navigate: Additive → Multiplicative → Unary → Postfix
-        if (additive.Right is not null && !ReferenceEquals(additive.Right, additive.Left))
+        if(additive.Right is not null && !ReferenceEquals(additive.Right, additive.Left))
             return null;
 
         var multiplicative = additive.Left;
-        if (multiplicative?.Right is not null && !ReferenceEquals(multiplicative.Right, multiplicative.Left))
+        if(multiplicative?.Right is not null && !ReferenceEquals(multiplicative.Right, multiplicative.Left))
             return null;
 
-        if (multiplicative?.Left is not PostfixExpressionUnaryNode postfixUnary)
+        if(multiplicative?.Left is not PostfixExpressionUnaryNode postfixUnary)
             return null;
 
         var postfix = postfixUnary.Primary;
 
         // Must have at least one suffix, and the last suffix must be MemberAccessSuffix "Length".
-        if (postfix.Suffix.Length < 1)
+        if(postfix.Suffix.Length < 1)
             return null;
 
-        if (postfix.Suffix[postfix.Suffix.Length - 1] is not MemberAccessSuffixPostfixSuffixNode memberAccess)
+        if(postfix.Suffix[postfix.Suffix.Length - 1] is not MemberAccessSuffixPostfixSuffixNode memberAccess)
             return null;
 
-        if (memberAccess.Name.Lexeme != "Length")
+        if(memberAccess.Name.Lexeme != "Length")
             return null;
 
         // Determine the receiver type for the .Length access.
         IType? receiverType;
-        if (postfix.Suffix.Length == 1)
+        if(postfix.Suffix.Length == 1)
         {
             // Simple case: identifier.Length — get type of the target primary.
             receiverType = model.GetTypeOf(postfix.Target);
             // Fallback: if GetTypeOf returns null or non-ArrayType, try looking up
             // the identifier's declared type directly from the semantic model.
-            if (receiverType is not ArrayType)
+            if(receiverType is not ArrayType)
             {
-                if (postfix.Target is IdentifierExpressionPrimaryNode targetIdent)
+                if(postfix.Target is IdentifierExpressionPrimaryNode targetIdent)
                 {
                     receiverType = model.GetTypeOf(targetIdent);
-                    if (receiverType is null)
+                    if(receiverType is null)
                     {
                         var symbol = model.GetDeclaredSymbol(targetIdent);
                         receiverType = symbol?.DeclaredType;
@@ -6378,31 +6378,31 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             // Fallback: for nested arrays like d[i].Length, the target d has type
             // ArrayType(ArrayType(int)), and d[i] gives the inner ArrayType(int).
             // Derive the inner type from the outer array's element type.
-            if (receiverType is not ArrayType)
+            if(receiverType is not ArrayType)
             {
                 var targetType = model.GetTypeOf(postfix.Target);
-                if (targetType is ArrayType outerArray && outerArray.ElementType is ArrayType)
+                if(targetType is ArrayType outerArray && outerArray.ElementType is ArrayType)
                 {
                     receiverType = outerArray.ElementType;
                 }
             }
         }
 
-        if (receiverType is not ArrayType arrayType)
+        if(receiverType is not ArrayType arrayType)
         {
             // Handle nested array access: target has suffixes (e.g., d[i].Length where
             // the postfix is the whole `d[i]` expression). Check if the postfix expression
             // itself resolves to an ArrayType.
-            if (postfix.Suffix.Length > 0)
+            if(postfix.Suffix.Length > 0)
             {
                 // The whole postfix expression (target + suffixes except the last .Length)
                 // might resolve to an ArrayType. Check the expression type of the postfix node.
                 var postfixType = model.GetTypeOf(postfix);
-                if (postfixType is ArrayType innerArrayType)
+                if(postfixType is ArrayType innerArrayType)
                 {
-                    if (innerArrayType.KnownLength.HasValue)
+                    if(innerArrayType.KnownLength.HasValue)
                         return new ConditionConstraint(relOp, innerArrayType.KnownLength.Value);
-                    if (innerArrayType.SymbolicLengthId.HasValue)
+                    if(innerArrayType.SymbolicLengthId.HasValue)
                         return new ConditionConstraint(relOp, 0, innerArrayType.SymbolicLengthId.Value);
                 }
             }
@@ -6410,11 +6410,11 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         // If the array has a concrete known length, use it.
-        if (arrayType.KnownLength.HasValue)
+        if(arrayType.KnownLength.HasValue)
             return new ConditionConstraint(relOp, arrayType.KnownLength.Value);
 
         // If the array has a symbolic length ID, use it.
-        if (arrayType.SymbolicLengthId.HasValue)
+        if(arrayType.SymbolicLengthId.HasValue)
             return new ConditionConstraint(relOp, 0, arrayType.SymbolicLengthId.Value);
 
         return null;
@@ -6437,17 +6437,17 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     private static bool HasReassignmentInNode(SyntaxNode node, string varName)
     {
         // Check if this node is an assignment expression targeting the variable.
-        if (node is AssignmentNode assignment && assignment.Value is not null)
+        if(node is AssignmentNode assignment && assignment.Value is not null)
         {
             var targetName = TryExtractIdentifierFromLogicalOr(assignment.Target.Left);
-            if (targetName is not null && string.Equals(targetName, varName, StringComparison.Ordinal))
+            if(targetName is not null && string.Equals(targetName, varName, StringComparison.Ordinal))
                 return true;
         }
 
         // Recurse into children.
-        foreach (var child in node.Children())
+        foreach(var child in node.Children())
         {
-            if (child is not null && HasReassignmentInNode(child, varName))
+            if(child is not null && HasReassignmentInNode(child, varName))
                 return true;
         }
 
@@ -6460,10 +6460,10 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         // Resolve the collection expression's type and validate it implements IEnumerable<TElement>.
         var collectionType = model.GetTypeOf(foreachStmt.Collection);
-        if (collectionType is not null && !IsErrorType(collectionType))
+        if(collectionType is not null && !IsErrorType(collectionType))
         {
             var elementType = FindIEnumerableImplementation(collectionType, model);
-            if (elementType is null)
+            if(elementType is null)
             {
                 // Emit diagnostic: type does not implement IEnumerable<TElement>.
                 diagnostics.Add(MakeDiagnostic(
@@ -6473,16 +6473,16 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     model));
 
                 // Bind iteration variable to ErrorType for error recovery.
-                if (model.GetDeclaredSymbol(foreachStmt) is Symbol iterVarSymbol)
+                if(model.GetDeclaredSymbol(foreachStmt) is Symbol iterVarSymbol)
                     iterVarSymbol.DeclaredType = ErrorType.Instance;
             }
             else
             {
                 // Validate explicit type annotation against the resolved TElement.
                 var declaredType = ResolveTypeReferenceToType(foreachStmt.Type, model);
-                if (declaredType is not null && !IsErrorType(declaredType))
+                if(declaredType is not null && !IsErrorType(declaredType))
                 {
-                    if (!IsAssignable(elementType, declaredType, model))
+                    if(!IsAssignable(elementType, declaredType, model))
                     {
                         // Emit diagnostic: TElement is not assignable to the declared type.
                         diagnostics.Add(MakeDiagnostic(
@@ -6493,13 +6493,13 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     }
 
                     // Bind the iteration variable to the declared type (user's intent).
-                    if (model.GetDeclaredSymbol(foreachStmt) is Symbol iterVarSymbol)
+                    if(model.GetDeclaredSymbol(foreachStmt) is Symbol iterVarSymbol)
                         iterVarSymbol.DeclaredType = declaredType;
                 }
                 else
                 {
                     // Declared type could not be resolved; fall back to TElement.
-                    if (model.GetDeclaredSymbol(foreachStmt) is Symbol iterVarSymbol)
+                    if(model.GetDeclaredSymbol(foreachStmt) is Symbol iterVarSymbol)
                         iterVarSymbol.DeclaredType = elementType;
                 }
             }
@@ -6521,9 +6521,9 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // in the abstract list with the concrete type arguments.
         IReadOnlyList<IType>? typeParams = null;
         IReadOnlyList<IType>? typeArgs = null;
-        if (type is ConstructedType sourceCt)
+        if(type is ConstructedType sourceCt)
         {
-            switch (sourceCt.GenericDefinition)
+            switch(sourceCt.GenericDefinition)
             {
                 case ClassType classDef:
                     abstracts = classDef.Abstracts;
@@ -6545,10 +6545,10 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // Bridge: for dedicated intrinsic types, construct type parameter → type argument
         // mapping so that abstract type parameters (e.g., TValue in IEnumerable<TValue>)
         // are substituted with the actual element type.
-        else if (type is ArrayType bridgeArray)
+        else if(type is ArrayType bridgeArray)
         {
             var registeredClass = FindRegisteredClassType("Array", "Standard", model);
-            if (registeredClass != null)
+            if(registeredClass != null)
             {
                 abstracts = registeredClass.Abstracts;
                 typeParams = registeredClass.TypeParameters;
@@ -6556,11 +6556,11 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 typeArgs = new IType[] { bridgeArray.ElementType, new ArrayType(bridgeArray.ElementType) };
             }
         }
-        else if (type is Semantics.Model.Types.SpanType bridgeSpan)
+        else if(type is Semantics.Model.Types.SpanType bridgeSpan)
         {
             var name = bridgeSpan.IsReadOnly ? "ReadOnlySpan" : "Span";
             var registeredStruct = FindRegisteredStructType(name, "Standard", model);
-            if (registeredStruct != null)
+            if(registeredStruct != null)
             {
                 abstracts = registeredStruct.Abstracts;
                 typeParams = registeredStruct.TypeParameters;
@@ -6569,14 +6569,14 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             }
         }
 
-        foreach (var abs in abstracts)
+        foreach(var abs in abstracts)
         {
             // Substitute type parameters if we have a mapping.
             var substitutedAbs = (typeParams is not null && typeArgs is not null)
                 ? SubstituteType(abs, typeParams, typeArgs)
                 : abs;
 
-            if (substitutedAbs is ConstructedType constructedAbs &&
+            if(substitutedAbs is ConstructedType constructedAbs &&
                 constructedAbs.GenericDefinition is AbstractType absDefinition &&
                 absDefinition.DisplayName == "IEnumerable" &&
                 absDefinition.ContainingNamespace == "Standard" &&
@@ -6592,10 +6592,10 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     private static void CheckConditionIsBool(ExpressionNode condition, ISemanticModel model, DiagnosticBag diagnostics)
     {
         var condType = model.GetTypeOf(condition);
-        if (condType is null || IsErrorType(condType))
+        if(condType is null || IsErrorType(condType))
             return;
 
-        if (!IsBoolLike(condType))
+        if(!IsBoolLike(condType))
         {
             diagnostics.Add(MakeDiagnostic(
                 "MIST_TC_0007",
@@ -6611,11 +6611,11 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
     private void CheckExpression(ExpressionNode expr, ISemanticModel model, DiagnosticBag diagnostics)
     {
-        if (expr.AsLambdaOrNull() is { } lambda)
+        if(expr.AsLambdaOrNull() is { } lambda)
         {
             CheckLambdaExpression(lambda, expr, model, diagnostics);
         }
-        else if (expr.AsAssignmentOrNull() is { } assignment)
+        else if(expr.AsAssignmentOrNull() is { } assignment)
         {
             CheckAssignmentNode(assignment, model, diagnostics);
         }
@@ -6643,25 +6643,25 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         // ── MIST_TC_0115: Mixed typed/untyped parameters ──
         // When a lambda has parenthesized params, all must be either all typed or all untyped.
-        if (paramList is ParenthesizedLambdaParamsLambdaParameterListNode parenParams
+        if(paramList is ParenthesizedLambdaParamsLambdaParameterListNode parenParams
             && parenParams.Params is not null)
         {
             var paramNodes = new List<LambdaParamNode> { parenParams.Params.LambdaParam };
             paramNodes.AddRange(parenParams.Params.LambdaParams);
 
-            if (paramNodes.Count > 1)
+            if(paramNodes.Count > 1)
             {
                 var hasTyped = false;
                 var hasUntyped = false;
-                foreach (var p in paramNodes)
+                foreach(var p in paramNodes)
                 {
-                    if (p is TypedLambdaParamLambdaParamNode)
+                    if(p is TypedLambdaParamLambdaParamNode)
                         hasTyped = true;
                     else
                         hasUntyped = true;
                 }
 
-                if (hasTyped && hasUntyped)
+                if(hasTyped && hasUntyped)
                 {
                     diagnostics.Add(MakeDiagnostic(
                         MixedLambdaParameterTypes.Value,
@@ -6676,17 +6676,17 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // When a lambda has implicit (untyped) params and the resolved type is UnknownType,
         // the semantic model could not infer parameter types (no target Func type available).
         var resolvedType = model.GetTypeOf(enclosingExpr);
-        if (resolvedType is UnknownType)
+        if(resolvedType is UnknownType)
         {
             // Only emit when the lambda actually has implicit params that need inference.
             var hasImplicitParams = paramList is SingleImplicitParamLambdaParameterListNode;
-            if (!hasImplicitParams && paramList is ParenthesizedLambdaParamsLambdaParameterListNode pp && pp.Params is not null)
+            if(!hasImplicitParams && paramList is ParenthesizedLambdaParamsLambdaParameterListNode pp && pp.Params is not null)
             {
                 var firstParam = pp.Params.LambdaParam;
                 hasImplicitParams = firstParam is UntypedLambdaParamLambdaParamNode;
             }
 
-            if (hasImplicitParams)
+            if(hasImplicitParams)
             {
                 diagnostics.Add(MakeDiagnostic(
                     CannotInferLambdaParameterTypes.Value,
@@ -6699,12 +6699,12 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // ── MIST_TC_0117: Inconsistent return types in block lambda ──
         // When the semantic model resolved the lambda to a Func type whose return type
         // is ErrorType, the block has inconsistent return types.
-        if (lambda is BlockLambdaLambdaExpressionNode
+        if(lambda is BlockLambdaLambdaExpressionNode
             && resolvedType is ConstructedType ct
             && SemanticModelBuilder.IsFuncType(ct))
         {
             var returnType = SemanticModelBuilder.GetFuncReturnType(ct);
-            if (IsErrorType(returnType))
+            if(IsErrorType(returnType))
             {
                 diagnostics.Add(MakeDiagnostic(
                     InconsistentLambdaReturnTypes.Value,
@@ -6717,12 +6717,12 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // ── MIST_TC_0118: Missing return in non-void block lambda ──
         // When the target return type is non-void but the block has no return statements
         // with values, emit an error.
-        if (lambda is BlockLambdaLambdaExpressionNode blockLambdaForReturn
+        if(lambda is BlockLambdaLambdaExpressionNode blockLambdaForReturn
             && resolvedType is ConstructedType funcCt
             && SemanticModelBuilder.IsFuncType(funcCt))
         {
             var returnType = SemanticModelBuilder.GetFuncReturnType(funcCt);
-            if (!IsErrorType(returnType) && !returnType.IsVoid())
+            if(!IsErrorType(returnType) && !returnType.IsVoid())
             {
                 // For async lambdas, the return type is Task<T>. If T is Void
                 // (i.e., the return type is Task<Void>), the lambda is effectively
@@ -6736,7 +6736,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     && taskCt.TypeArguments[^1].IsVoid();
 
                 // Check if the block has any return statements with values.
-                if (!isAsyncVoid && !BlockHasReturnWithValue(blockLambdaForReturn.Body))
+                if(!isAsyncVoid && !BlockHasReturnWithValue(blockLambdaForReturn.Body))
                 {
                     diagnostics.Add(MakeDiagnostic(
                         MissingReturnInNonVoidLambda.Value,
@@ -6760,7 +6760,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 _ => null!,
             };
 
-            if (captureBodyNode is not null)
+            if(captureBodyNode is not null)
             {
                 CheckCaptureRestrictions(captureBodyNode, captureParamNames, model, diagnostics);
             }
@@ -6769,7 +6769,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // ── MIST_TC_0122: Static lambda capture violation ──
         // A static lambda cannot capture variables from the enclosing scope.
         // It may only reference its own parameters, static fields/methods, constants, and type names.
-        if (IsStaticLambda(lambda))
+        if(IsStaticLambda(lambda))
         {
             var lambdaParamNames = CollectLambdaParameterNames(lambda);
             SyntaxNode bodyNode = lambda switch
@@ -6779,7 +6779,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 _ => null!,
             };
 
-            if (bodyNode is not null)
+            if(bodyNode is not null)
             {
                 CheckStaticLambdaBody(bodyNode, lambdaParamNames, model, diagnostics);
             }
@@ -6789,7 +6789,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // When a lambda does NOT have the async modifier, any await expression
         // in its body is an error. Async lambdas permit await freely.
         // The static async combination is valid (both modifiers can coexist).
-        if (!IsAsyncLambda(lambda))
+        if(!IsAsyncLambda(lambda))
         {
             SyntaxNode asyncBodyNode = lambda switch
             {
@@ -6798,14 +6798,14 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 _ => null!,
             };
 
-            if (asyncBodyNode is not null)
+            if(asyncBodyNode is not null)
             {
                 CheckAwaitInNonAsyncLambdaBody(asyncBodyNode, model, diagnostics);
             }
         }
 
         // Recurse into the lambda body to check nested expressions.
-        switch (lambda)
+        switch(lambda)
         {
             case ExpressionLambdaLambdaExpressionNode exprLambda:
                 CheckExpression(exprLambda.Body, model, diagnostics);
@@ -6822,9 +6822,9 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     private static bool BlockHasReturnWithValue(BlockNode block)
     {
-        foreach (var stmt in block.Statements)
+        foreach(var stmt in block.Statements)
         {
-            if (StatementHasReturnWithValue(stmt))
+            if(StatementHasReturnWithValue(stmt))
                 return true;
         }
         return false;
@@ -6836,15 +6836,15 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     private static bool StatementHasReturnWithValue(StatementNode stmt)
     {
-        switch (stmt)
+        switch(stmt)
         {
             case ReturnStatementStatementNode returnStmt:
                 return returnStmt.ReturnStatement.Value is not null;
 
             case IfStatementStatementNode ifStmt:
-                if (BlockHasReturnWithValue(ifStmt.IfStatement.ThenBranch))
+                if(BlockHasReturnWithValue(ifStmt.IfStatement.ThenBranch))
                     return true;
-                if (ifStmt.IfStatement.ElseBranch is not null)
+                if(ifStmt.IfStatement.ElseBranch is not null)
                     return ElseClauseHasReturnWithValue(ifStmt.IfStatement.ElseBranch);
                 return false;
 
@@ -6893,7 +6893,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     private static IType GetLambdaBodyReturnType(IType? resolvedType)
     {
-        if (resolvedType is ConstructedType ct && SemanticModelBuilder.IsFuncType(ct))
+        if(resolvedType is ConstructedType ct && SemanticModelBuilder.IsFuncType(ct))
             return SemanticModelBuilder.GetFuncReturnType(ct);
         return ErrorType.Instance;
     }
@@ -6927,30 +6927,30 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             _ => null,
         };
 
-        switch (paramList)
+        switch(paramList)
         {
             case SingleImplicitParamLambdaParameterListNode singleParam:
                 names.Add(singleParam.Name.Lexeme);
                 break;
 
             case ParenthesizedLambdaParamsLambdaParameterListNode parenParams when parenParams.Params is not null:
-            {
-                var paramNodes = new List<LambdaParamNode> { parenParams.Params.LambdaParam };
-                paramNodes.AddRange(parenParams.Params.LambdaParams);
-
-                foreach (var paramNode in paramNodes)
                 {
-                    var name = paramNode switch
+                    var paramNodes = new List<LambdaParamNode> { parenParams.Params.LambdaParam };
+                    paramNodes.AddRange(parenParams.Params.LambdaParams);
+
+                    foreach(var paramNode in paramNodes)
                     {
-                        TypedLambdaParamLambdaParamNode typed => typed.Name.Lexeme,
-                        UntypedLambdaParamLambdaParamNode untyped => untyped.Name.Lexeme,
-                        _ => null,
-                    };
-                    if (name is not null)
-                        names.Add(name);
+                        var name = paramNode switch
+                        {
+                            TypedLambdaParamLambdaParamNode typed => typed.Name.Lexeme,
+                            UntypedLambdaParamLambdaParamNode untyped => untyped.Name.Lexeme,
+                            _ => null,
+                        };
+                        if(name is not null)
+                            names.Add(name);
+                    }
+                    break;
                 }
-                break;
-            }
         }
 
         return names;
@@ -6968,7 +6968,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         DiagnosticBag diagnostics)
     {
         // 'this' reference in a static lambda is always a violation.
-        if (node is ThisExpressionPrimaryNode)
+        if(node is ThisExpressionPrimaryNode)
         {
             diagnostics.Add(MakeDiagnostic(
                 StaticLambdaCaptureViolation.Value,
@@ -6979,19 +6979,19 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         // Check identifier references.
-        if (node is IdentifierExpressionPrimaryNode identifier)
+        if(node is IdentifierExpressionPrimaryNode identifier)
         {
             var name = identifier.Name.Lexeme;
 
             // The lambda's own parameters are always permitted.
-            if (lambdaParamNames.Contains(name))
+            if(lambdaParamNames.Contains(name))
                 return;
 
             // Resolve the symbol to determine what it refers to.
             var symbol = model.GetDeclaredSymbol(identifier);
-            if (symbol is Symbol concreteSymbol)
+            if(symbol is Symbol concreteSymbol)
             {
-                switch (concreteSymbol.Kind)
+                switch(concreteSymbol.Kind)
                 {
                     case SymbolKind.LocalVariable:
                         // Local variable from an enclosing scope — violation.
@@ -7014,7 +7014,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
                     case SymbolKind.Field:
                         // Instance field — violation. Static fields are OK.
-                        if (!concreteSymbol.IsStatic)
+                        if(!concreteSymbol.IsStatic)
                         {
                             diagnostics.Add(MakeDiagnostic(
                                 StaticLambdaCaptureViolation.Value,
@@ -7027,7 +7027,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
                     case SymbolKind.Method:
                         // Instance method — violation. Static methods are OK.
-                        if (!concreteSymbol.IsStatic)
+                        if(!concreteSymbol.IsStatic)
                         {
                             diagnostics.Add(MakeDiagnostic(
                                 StaticLambdaCaptureViolation.Value,
@@ -7040,7 +7040,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
                     case SymbolKind.Property:
                         // Instance property — violation. Static properties are OK.
-                        if (!concreteSymbol.IsStatic)
+                        if(!concreteSymbol.IsStatic)
                         {
                             diagnostics.Add(MakeDiagnostic(
                                 StaticLambdaCaptureViolation.Value,
@@ -7051,8 +7051,8 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                         }
                         break;
 
-                    // Namespace, Class, Struct, Abstract, Enum, TypeAlias, Newtype,
-                    // Constructor, Indexer — these are type-level references and are always OK.
+                        // Namespace, Class, Struct, Abstract, Enum, TypeAlias, Newtype,
+                        // Constructor, Indexer — these are type-level references and are always OK.
                 }
             }
 
@@ -7062,13 +7062,13 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         // Do not descend into nested lambda bodies — they have their own scope rules.
-        if (node is LambdaExpressionNode)
+        if(node is LambdaExpressionNode)
             return;
 
         // Recurse into child nodes.
-        foreach (var child in node.Children())
+        foreach(var child in node.Children())
         {
-            if (child is not null)
+            if(child is not null)
             {
                 CheckStaticLambdaBody(child, lambdaParamNames, model, diagnostics);
             }
@@ -7092,24 +7092,24 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         DiagnosticBag diagnostics)
     {
         // Check identifier references for captured variables with restricted types/ownership.
-        if (node is IdentifierExpressionPrimaryNode identifier)
+        if(node is IdentifierExpressionPrimaryNode identifier)
         {
             var name = identifier.Name.Lexeme;
 
             // The lambda's own parameters are NOT captured — skip them.
-            if (lambdaParamNames.Contains(name))
+            if(lambdaParamNames.Contains(name))
                 return;
 
             // Resolve the symbol to determine what it refers to.
             var symbol = model.GetDeclaredSymbol(identifier);
-            if (symbol is Symbol concreteSymbol &&
+            if(symbol is Symbol concreteSymbol &&
                 concreteSymbol.Kind is SymbolKind.LocalVariable or SymbolKind.Parameter)
             {
                 // This is a captured variable from an outer scope.
                 var declaredType = concreteSymbol.DeclaredType;
 
                 // ── MIST_TC_0123: ref struct capture ──
-                if (declaredType is not null && IsRefStructType(declaredType))
+                if(declaredType is not null && IsRefStructType(declaredType))
                 {
                     diagnostics.Add(MakeDiagnostic(
                         CaptureRefStruct.Value,
@@ -7120,7 +7120,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 }
 
                 // ── MIST_TC_0124: owned capture ──
-                if (concreteSymbol.OwnershipTier == OwnershipTier.Owned)
+                if(concreteSymbol.OwnershipTier == OwnershipTier.Owned)
                 {
                     diagnostics.Add(MakeDiagnostic(
                         CaptureOwned.Value,
@@ -7131,7 +7131,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 }
 
                 // ── MIST_TC_0125: borrowed/frozen/readonly-ref capture ──
-                if (concreteSymbol.OwnershipTier is OwnershipTier.Borrowed or OwnershipTier.Frozen or OwnershipTier.ReadonlyRef)
+                if(concreteSymbol.OwnershipTier is OwnershipTier.Borrowed or OwnershipTier.Frozen or OwnershipTier.ReadonlyRef)
                 {
                     var tierName = concreteSymbol.OwnershipTier switch
                     {
@@ -7154,13 +7154,13 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         // Do not descend into nested lambda bodies — they have their own capture scope.
-        if (node is LambdaExpressionNode)
+        if(node is LambdaExpressionNode)
             return;
 
         // Recurse into child nodes.
-        foreach (var child in node.Children())
+        foreach(var child in node.Children())
         {
-            if (child is not null)
+            if(child is not null)
             {
                 CheckCaptureRestrictions(child, lambdaParamNames, model, diagnostics);
             }
@@ -7192,7 +7192,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         ISemanticModel model,
         DiagnosticBag diagnostics)
     {
-        if (node is AwaitExpressionUnaryNode)
+        if(node is AwaitExpressionUnaryNode)
         {
             diagnostics.Add(MakeDiagnostic(
                 AwaitInNonAsyncLambda.Value,
@@ -7203,12 +7203,12 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         // Do not descend into nested lambda bodies — they have their own async context.
-        if (node is LambdaExpressionNode)
+        if(node is LambdaExpressionNode)
             return;
 
-        foreach (var child in node.Children())
+        foreach(var child in node.Children())
         {
-            if (child is not null)
+            if(child is not null)
             {
                 CheckAwaitInNonAsyncLambdaBody(child, model, diagnostics);
             }
@@ -7226,7 +7226,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // inner assignment target as the recursion walks inward.
         var targetIsLhs = assignment.Value is not null;
         var previousAssignmentLhs = _analyzingAssignmentLhs;
-        if (targetIsLhs) _analyzingAssignmentLhs = true;
+        if(targetIsLhs) _analyzingAssignmentLhs = true;
 
         try
         {
@@ -7237,11 +7237,11 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             _analyzingAssignmentLhs = previousAssignmentLhs;
         }
 
-        if (assignment.Value is not null)
+        if(assignment.Value is not null)
         {
             // ── optional-types feature: void-coalescing assignment (??=) ──
             // When the operator is ??=, apply special validation and flow narrowing.
-            if (assignment.Operator is { } op && op.Kind == (int)TokenKind.QUESTION_QUESTION_EQUAL)
+            if(assignment.Operator is { } op && op.Kind == (int)TokenKind.QUESTION_QUESTION_EQUAL)
             {
                 CheckVoidCoalescingAssignment(assignment, model, diagnostics);
                 return;
@@ -7273,7 +7273,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             // assignment form can carry a bare 'default' literal.
             var lhsTypeForDefault = model.GetTypeOf(assignment.Target);
             var rhsAssignment = assignment.Value.AsAssignmentOrNull();
-            if (rhsAssignment is not null)
+            if(rhsAssignment is not null)
                 TryInferDefaultLiteralTypeFromAssignment(rhsAssignment, lhsTypeForDefault, model);
 
             // This is an assignment: target = value.
@@ -7287,16 +7287,16 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             // ── first-class-functions: method group ambiguity check (MIST_TC_0121) ──
             // When the LHS type is a Func type and the RHS is a bare identifier
             // (method group), check for ambiguous overloads.
-            if (lhsType is not null && SemanticModelBuilder.IsFuncType(lhsType))
+            if(lhsType is not null && SemanticModelBuilder.IsFuncType(lhsType))
             {
                 var rhsPostfix = TryExtractPostfixNode(assignment.Value);
-                if (rhsPostfix is not null)
+                if(rhsPostfix is not null)
                 {
                     CheckMethodGroupAmbiguity(rhsPostfix, lhsType, model, diagnostics);
                 }
             }
 
-            if (lhsType is not null && rhsType is not null)
+            if(lhsType is not null && rhsType is not null)
             {
                 // ── flow narrowing: use narrowed type for RHS if available ──
                 var effectiveRhsType = rhsAssignment is not null
@@ -7307,7 +7307,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 // When the target is a RefinementType, check the assignment
                 // against the refinement predicate before the generic
                 // assignability check.
-                if (!TryCheckRefinementAssignment(effectiveRhsType, lhsType, assignment.Value, diagnostics, model)
+                if(!TryCheckRefinementAssignment(effectiveRhsType, lhsType, assignment.Value, diagnostics, model)
                     // ── regex-type feature: string literal shorthand (Requirements 6.5, 6.8, 6.9) ──
                     // When the target is regex and the source is string, apply
                     // the string→regex conversion rules.
@@ -7322,13 +7322,13 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
             // Property-specific assignment checks (MIST_TC_0020, MIST_TC_0021, MIST_TC_0025).
             var targetPropertySymbol = TryResolvePropertyFromAssignmentTarget(assignment.Target.Left, model);
-            if (targetPropertySymbol is not null)
+            if(targetPropertySymbol is not null)
             {
                 var propInfo = GetPropertyMetadata(targetPropertySymbol);
-                if (propInfo is not null)
+                if(propInfo is not null)
                 {
                     // MIST_TC_0020: No accessible set/init accessor.
-                    if (!propInfo.HasSet && !propInfo.HasInit)
+                    if(!propInfo.HasSet && !propInfo.HasInit)
                     {
                         diagnostics.Add(MakeDiagnostic(
                             "MIST_TC_0020",
@@ -7337,7 +7337,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                             model));
                     }
                     // MIST_TC_0025: init-only property assigned outside constructor context.
-                    else if (propInfo.HasInit && !propInfo.HasSet && !_insideConstructor)
+                    else if(propInfo.HasInit && !propInfo.HasSet && !_insideConstructor)
                     {
                         diagnostics.Add(MakeDiagnostic(
                             "MIST_TC_0025",
@@ -7348,33 +7348,33 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
                     // MIST_TC_0021: Property type mismatch.
                     var propType = targetPropertySymbol.DeclaredType;
-                    if (propType is not null && rhsType is not null && !IsErrorType(propType) && !IsErrorType(rhsType))
+                    if(propType is not null && rhsType is not null && !IsErrorType(propType) && !IsErrorType(rhsType))
                     {
                         // ── regex-type feature: string literal shorthand ──
                         // Skip the property type mismatch check if the string→regex
                         // conversion was already handled by the main assignment check.
-                        if (IsRegexLike(propType) && IsStringLike(rhsType))
+                        if(IsRegexLike(propType) && IsStringLike(rhsType))
                         {
                             // Already handled by TryCheckStringToRegexAssignment above.
                         }
-                        else if (!IsAssignable(rhsType, propType))
+                        else if(!IsAssignable(rhsType, propType))
                         {
                             // unknown-type feature (Req 4.2, 4.4): emit a targeted
                             // diagnostic for void→unknown or unknown→non-unknown
                             // before falling back to the generic MIST_TC_0021.
-                            if (TryEmitUnknownAssignabilityDiagnostic(rhsType, propType, assignment, diagnostics, model))
+                            if(TryEmitUnknownAssignabilityDiagnostic(rhsType, propType, assignment, diagnostics, model))
                             {
                                 // Targeted unknown diagnostic emitted; skip generic.
                             }
                             // type-unions feature (Req 6.3, 6.4): emit a targeted
                             // diagnostic for union-specific failures.
-                            else if (TryEmitUnionAssignabilityDiagnostic(rhsType, propType, assignment, diagnostics, model))
+                            else if(TryEmitUnionAssignabilityDiagnostic(rhsType, propType, assignment, diagnostics, model))
                             {
                                 // Targeted union diagnostic emitted; skip generic.
                             }
                             // enums feature (Req 7.3): emit a targeted diagnostic
                             // for reverse conversion (underlying type → enum).
-                            else if (TryEmitEnumAssignabilityDiagnostic(rhsType, propType, assignment, diagnostics, model))
+                            else if(TryEmitEnumAssignabilityDiagnostic(rhsType, propType, assignment, diagnostics, model))
                             {
                                 // Targeted enum diagnostic emitted; skip generic.
                             }
@@ -7410,24 +7410,24 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     {
         // Extract the PostfixNode from the assignment target.
         var postfix = TryExtractPostfixFromLogicalOr(assignment.Target.Left);
-        if (postfix is null)
+        if(postfix is null)
             return;
 
         // Only check simple identifiers (no member access or indexing suffixes).
-        if (postfix.Suffix.Length != 0)
+        if(postfix.Suffix.Length != 0)
             return;
 
-        if (postfix.Target is not IdentifierExpressionPrimaryNode)
+        if(postfix.Target is not IdentifierExpressionPrimaryNode)
             return;
 
         var symbol = model.GetDeclaredSymbol(postfix.Target);
-        if (symbol is not Symbol sym)
+        if(symbol is not Symbol sym)
             return;
 
-        if (sym.Kind != SymbolKind.LocalVariable)
+        if(sym.Kind != SymbolKind.LocalVariable)
             return;
 
-        if (sym.ReadonlyStatus != ReadonlyStatus.ExplicitReadonly)
+        if(sym.ReadonlyStatus != ReadonlyStatus.ExplicitReadonly)
             return;
 
         diagnostics.Add(MakeDiagnostic(
@@ -7449,14 +7449,14 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     {
         // Extract the PostfixNode from the assignment target.
         var postfix = TryExtractPostfixFromLogicalOr(assignment.Target.Left);
-        if (postfix is null)
+        if(postfix is null)
             return;
 
         // Case 1: Simple identifier — check if it resolves to a ref readonly local or parameter.
-        if (postfix.Suffix.Length == 0 && postfix.Target is IdentifierExpressionPrimaryNode)
+        if(postfix.Suffix.Length == 0 && postfix.Target is IdentifierExpressionPrimaryNode)
         {
             var symbol = model.GetDeclaredSymbol(postfix.Target);
-            if (symbol is Symbol sym
+            if(symbol is Symbol sym
                 && sym.RefKind == RefKind.RefReadonly
                 && sym.Kind is SymbolKind.LocalVariable or SymbolKind.Parameter)
             {
@@ -7471,15 +7471,15 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         // Case 2: Method call result — check if the last suffix is a method call
         // whose resolved method has ReturnRefKind == RefReadonly.
-        if (postfix.Suffix.Length > 0)
+        if(postfix.Suffix.Length > 0)
         {
             var lastSuffix = postfix.Suffix[^1];
 
             // Direct method call: target.Method() = value
-            if (lastSuffix is MethodCallSuffixPostfixSuffixNode methodCall)
+            if(lastSuffix is MethodCallSuffixPostfixSuffixNode methodCall)
             {
                 var methodSymbol = model.GetDeclaredSymbol(methodCall);
-                if (methodSymbol is Symbol methodSym && methodSym.ReturnRefKind == RefKind.RefReadonly)
+                if(methodSymbol is Symbol methodSym && methodSym.ReturnRefKind == RefKind.RefReadonly)
                 {
                     diagnostics.Add(MakeDiagnostic(
                         "MIST_REF_0009",
@@ -7496,13 +7496,13 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             // subsequent member access operates on.
             // For the simple case of `GetRef().field = value`, the last suffix is
             // a MemberAccessSuffix, and the preceding suffix is the method call.
-            if (lastSuffix is MemberAccessSuffixPostfixSuffixNode && postfix.Suffix.Length >= 2)
+            if(lastSuffix is MemberAccessSuffixPostfixSuffixNode && postfix.Suffix.Length >= 2)
             {
                 var precedingSuffix = postfix.Suffix[^2];
-                if (precedingSuffix is MethodCallSuffixPostfixSuffixNode precedingMethodCall)
+                if(precedingSuffix is MethodCallSuffixPostfixSuffixNode precedingMethodCall)
                 {
                     var methodSymbol = model.GetDeclaredSymbol(precedingMethodCall);
-                    if (methodSymbol is Symbol methodSym && methodSym.ReturnRefKind == RefKind.RefReadonly)
+                    if(methodSymbol is Symbol methodSym && methodSym.ReturnRefKind == RefKind.RefReadonly)
                     {
                         diagnostics.Add(MakeDiagnostic(
                             "MIST_REF_0009",
@@ -7518,11 +7518,11 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // Case 3: Bare method call (no suffixes, target is a method invocation).
         // This handles the case where the target is an invocation expression like `GetRef() = value`.
         // In Mist's AST, this would be a PostfixNode with an InvocationSuffix.
-        if (postfix.Suffix.Length == 1 && postfix.Suffix[0] is InvocationSuffixPostfixSuffixNode)
+        if(postfix.Suffix.Length == 1 && postfix.Suffix[0] is InvocationSuffixPostfixSuffixNode)
         {
             // Resolve the method from the target identifier.
             var symbol = model.GetDeclaredSymbol(postfix.Target);
-            if (symbol is Symbol methodSym && methodSym.Kind == SymbolKind.Method && methodSym.ReturnRefKind == RefKind.RefReadonly)
+            if(symbol is Symbol methodSym && methodSym.Kind == SymbolKind.Method && methodSym.ReturnRefKind == RefKind.RefReadonly)
             {
                 diagnostics.Add(MakeDiagnostic(
                     "MIST_REF_0009",
@@ -7547,11 +7547,11 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     {
         // Extract the PostfixNode from the assignment target.
         var postfix = TryExtractPostfixFromLogicalOr(assignment.Target.Left);
-        if (postfix is null)
+        if(postfix is null)
             return;
 
         // The assignment target must end with an index suffix.
-        if (postfix.Suffix.Length == 0 || postfix.Suffix[^1] is not IndexSuffixPostfixSuffixNode)
+        if(postfix.Suffix.Length == 0 || postfix.Suffix[^1] is not IndexSuffixPostfixSuffixNode)
             return;
 
         // Determine the receiver type (the expression before the index suffix).
@@ -7559,7 +7559,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             ? model.GetTypeOf(postfix.Suffix[^2])
             : model.GetTypeOf(postfix.Target);
 
-        if (receiverType is SpanType { IsReadOnly: true })
+        if(receiverType is SpanType { IsReadOnly: true })
         {
             diagnostics.Add(MakeDiagnostic(
                 "MIST_TC_0156",
@@ -7581,48 +7581,48 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     {
         // Step 1: Check if the assignment target is a field (member access suffix).
         var targetPostfix = TryExtractPostfixFromLogicalOr(assignment.Target.Left);
-        if (targetPostfix is null)
+        if(targetPostfix is null)
             return;
 
         // The target must have at least one suffix, and the last suffix must be a member access.
         // This covers `this.field = ...`, `obj.field = ...`, and `this.inner.field = ...`.
-        if (targetPostfix.Suffix.Length == 0)
+        if(targetPostfix.Suffix.Length == 0)
             return;
 
         var lastSuffix = targetPostfix.Suffix[^1];
-        if (lastSuffix is not MemberAccessSuffixPostfixSuffixNode)
+        if(lastSuffix is not MemberAccessSuffixPostfixSuffixNode)
             return;
 
         // Step 2: Check if the RHS is a ref parameter or ref local.
         // The RHS is assignment.Value which is now a full ExpressionNode. A simple ref
         // identifier reference only occurs in the assignment form; a lambda RHS is not one.
         var rhsAssignment = assignment.Value!.AsAssignmentOrNull();
-        if (rhsAssignment is null)
+        if(rhsAssignment is null)
             return; // Lambda-form RHS — not a simple ref identifier.
-        if (rhsAssignment.Value is not null)
+        if(rhsAssignment.Value is not null)
             return; // Chained assignment — not a simple ref identifier.
 
         var rhsPostfix = TryExtractPostfixFromLogicalOr(rhsAssignment.Target.Left);
-        if (rhsPostfix is null)
+        if(rhsPostfix is null)
             return;
 
         // The RHS must be a simple identifier (no suffixes) to be a direct ref reference.
-        if (rhsPostfix.Suffix.Length > 0)
+        if(rhsPostfix.Suffix.Length > 0)
             return;
 
-        if (rhsPostfix.Target is not IdentifierExpressionPrimaryNode rhsIdentifier)
+        if(rhsPostfix.Target is not IdentifierExpressionPrimaryNode rhsIdentifier)
             return;
 
         var rhsSymbol = model.GetDeclaredSymbol(rhsIdentifier);
-        if (rhsSymbol is not Symbol concreteSymbol)
+        if(rhsSymbol is not Symbol concreteSymbol)
             return;
 
         // Only parameters and local variables can be refs.
-        if (concreteSymbol.Kind is not (SymbolKind.Parameter or SymbolKind.LocalVariable))
+        if(concreteSymbol.Kind is not (SymbolKind.Parameter or SymbolKind.LocalVariable))
             return;
 
         // Check if the symbol has a ref kind (Ref or RefReadonly).
-        if (concreteSymbol.RefKind is RefKind.Ref or RefKind.RefReadonly)
+        if(concreteSymbol.RefKind is RefKind.Ref or RefKind.RefReadonly)
         {
             diagnostics.Add(MakeDiagnostic(
                 "MIST_REF_0008",
@@ -7643,16 +7643,16 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     {
         // Extract the PostfixNode from the assignment target.
         var targetPostfix = TryExtractPostfixFromLogicalOr(assignment.Target.Left);
-        if (targetPostfix is null)
+        if(targetPostfix is null)
             return;
 
         // The target must have at least one suffix, and the last suffix must be a member access.
         // This covers `anon.Property = value`.
-        if (targetPostfix.Suffix.Length == 0)
+        if(targetPostfix.Suffix.Length == 0)
             return;
 
         var lastSuffix = targetPostfix.Suffix[^1];
-        if (lastSuffix is not MemberAccessSuffixPostfixSuffixNode)
+        if(lastSuffix is not MemberAccessSuffixPostfixSuffixNode)
             return;
 
         // Determine the receiver type: it's the type of the previous suffix,
@@ -7661,7 +7661,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             ? model.GetTypeOf(targetPostfix.Suffix[^2])
             : model.GetTypeOf(targetPostfix.Target);
 
-        if (receiverType is AnonymousType)
+        if(receiverType is AnonymousType)
         {
             diagnostics.Add(MakeDiagnostic(
                 "MIST_ANON_READONLY",
@@ -7683,7 +7683,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     {
         // Check return type.
         var returnType = (methodSymbol as Symbol)?.DeclaredReturnType ?? methodSymbol.DeclaredType;
-        if (returnType is AnonymousType)
+        if(returnType is AnonymousType)
         {
             diagnostics.Add(MakeDiagnostic(
                 "MIST_ANON_ESCAPE_SIGNATURE",
@@ -7693,11 +7693,11 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         // Check parameter types.
-        if (methodSymbol is Symbol { Parameters.Count: > 0 } sym)
+        if(methodSymbol is Symbol { Parameters.Count: > 0 } sym)
         {
-            foreach (var param in sym.Parameters)
+            foreach(var param in sym.Parameters)
             {
-                if (param.DeclaredType is AnonymousType)
+                if(param.DeclaredType is AnonymousType)
                 {
                     diagnostics.Add(MakeDiagnostic(
                         "MIST_ANON_ESCAPE_SIGNATURE",
@@ -7712,9 +7712,9 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         {
             // For Mist-declared methods, collect parameters from the AST.
             var paramSymbols = CollectParameterSymbols(declaringNode, model);
-            foreach (var param in paramSymbols)
+            foreach(var param in paramSymbols)
             {
-                if (param.DeclaredType is AnonymousType)
+                if(param.DeclaredType is AnonymousType)
                 {
                     diagnostics.Add(MakeDiagnostic(
                         "MIST_ANON_ESCAPE_SIGNATURE",
@@ -7733,24 +7733,24 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     private static PostfixNode? TryExtractPostfixFromLogicalOr(LogicalOrNode target)
     {
-        if (target.Right is not null) return null;
+        if(target.Right is not null) return null;
 
         var logicalAnd = target.Left;
-        if (logicalAnd.Right is not null) return null;
+        if(logicalAnd.Right is not null) return null;
 
         var equality = logicalAnd.Left;
-        if (equality.Right is not null) return null;
+        if(equality.Right is not null) return null;
 
-        if (equality.Left is not RelationalComparisonRelationalNode relationalComparison) return null;
-        if (relationalComparison.Right is not null) return null;
+        if(equality.Left is not RelationalComparisonRelationalNode relationalComparison) return null;
+        if(relationalComparison.Right is not null) return null;
 
         var additive = relationalComparison.Left;
-        if (additive.Right is not null) return null;
+        if(additive.Right is not null) return null;
 
         var multiplicative = additive.Left;
-        if (multiplicative.Right is not null) return null;
+        if(multiplicative.Right is not null) return null;
 
-        if (multiplicative.Left is not PostfixExpressionUnaryNode postfixExpr)
+        if(multiplicative.Left is not PostfixExpressionUnaryNode postfixExpr)
             return null;
 
         return postfixExpr.Primary;
@@ -7768,38 +7768,38 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         // Navigate through the expression tree: LogicalOr -> LogicalAnd -> Equality -> Relational -> Additive -> Multiplicative -> Unary -> Postfix
         var logicalAnd = target.Left;
-        if (target.Right is not null) return null;
+        if(target.Right is not null) return null;
 
         var equality = logicalAnd.Left;
-        if (logicalAnd.Right is not null) return null;
+        if(logicalAnd.Right is not null) return null;
 
         var relational = equality.Left;
-        if (equality.Right is not null) return null;
+        if(equality.Right is not null) return null;
 
-        if (relational is not RelationalComparisonRelationalNode relationalComparison) return null;
+        if(relational is not RelationalComparisonRelationalNode relationalComparison) return null;
 
         var additive = relationalComparison.Left;
-        if (relationalComparison.Right is not null) return null;
+        if(relationalComparison.Right is not null) return null;
 
         var multiplicative = additive.Left;
-        if (additive.Right is not null) return null;
+        if(additive.Right is not null) return null;
 
         var unary = multiplicative.Left;
-        if (multiplicative.Right is not null) return null;
+        if(multiplicative.Right is not null) return null;
 
-        if (unary is not PostfixExpressionUnaryNode postfixExpr)
+        if(unary is not PostfixExpressionUnaryNode postfixExpr)
             return null;
 
         var postfix = postfixExpr.Primary;
 
         // Check if the last suffix is a MemberAccessSuffix that resolves to a property.
-        if (postfix.Suffix.Length > 0)
+        if(postfix.Suffix.Length > 0)
         {
             var lastSuffix = postfix.Suffix[^1];
-            if (lastSuffix is MemberAccessSuffixPostfixSuffixNode memberAccess)
+            if(lastSuffix is MemberAccessSuffixPostfixSuffixNode memberAccess)
             {
                 var symbol = model.GetDeclaredSymbol(memberAccess);
-                if (symbol is not null && symbol.Kind == SymbolKind.Property)
+                if(symbol is not null && symbol.Kind == SymbolKind.Property)
                     return symbol;
 
                 // Fallback: resolve via the receiver type's member scope.
@@ -7809,10 +7809,10 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 var receiverType = postfix.Suffix.Length > 1
                     ? model.GetTypeOf(postfix.Suffix[^2])
                     : model.GetTypeOf(postfix.Target);
-                if (receiverType is not null)
+                if(receiverType is not null)
                 {
                     var resolved = FindPropertyMemberSymbol(receiverType, memberAccess.Name.Lexeme, model);
-                    if (resolved is not null)
+                    if(resolved is not null)
                         return resolved;
                 }
             }
@@ -7821,7 +7821,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         {
             // Simple identifier — check if it resolves to a property.
             var symbol = model.GetDeclaredSymbol(postfix.Target);
-            if (symbol is not null && symbol.Kind == SymbolKind.Property)
+            if(symbol is not null && symbol.Kind == SymbolKind.Property)
                 return symbol;
         }
 
@@ -7839,7 +7839,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     private static ISymbol? FindPropertyMemberSymbol(IType targetType, string memberName, ISemanticModel model)
     {
         // Unwrap ConstructedType to look up in the generic definition's member scope.
-        if (targetType is ConstructedType ct)
+        if(targetType is ConstructedType ct)
             targetType = ct.GenericDefinition;
 
         IScope? memberScope = targetType switch
@@ -7850,16 +7850,16 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             _ => null,
         };
 
-        if (memberScope is null)
+        if(memberScope is null)
             return null;
 
-        foreach (var member in memberScope.Members)
+        foreach(var member in memberScope.Members)
         {
-            if (member.Name == memberName && member.Kind == SymbolKind.Property)
+            if(member.Name == memberName && member.Kind == SymbolKind.Property)
             {
                 // Only match static properties to avoid interfering with
                 // instance property assignment validation.
-                if (member is Symbol sym && sym.PropertyMetadata is { IsStatic: true })
+                if(member is Symbol sym && sym.PropertyMetadata is { IsStatic: true })
                     return member;
             }
         }
@@ -7885,24 +7885,24 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // Always check the left operand.
         CheckLogicalOrNode(node.Left, model, diagnostics);
 
-        if (node.LogicalOrs.Length == 0)
+        if(node.LogicalOrs.Length == 0)
             return; // No ?? operators — nothing more to check.
 
         // Walk the chain of ?? operators.
         var currentLeftType = model.GetTypeOf(node.Left);
 
-        foreach (var rightOperand in node.LogicalOrs)
+        foreach(var rightOperand in node.LogicalOrs)
         {
             // Check the right operand's sub-expressions.
             CheckLogicalOrNode(rightOperand, model, diagnostics);
 
             // Validate: left operand must be a union type containing void.
-            if (currentLeftType is not null)
+            if(currentLeftType is not null)
             {
                 var containsVoid = currentLeftType is UnionType leftUnion
                     && leftUnion.Constituents.Any(c => c.IsVoid());
 
-                if (!containsVoid)
+                if(!containsVoid)
                 {
                     diagnostics.Add(MakeDiagnostic(
                         "MIST_TC_0041",
@@ -7925,7 +7925,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
                 // Validate: right operand must be assignable to T.
                 var rightType = model.GetTypeOf(rightOperand);
-                if (rightType is not null && !IsAssignable(rightType, nonVoidPortion, model))
+                if(rightType is not null && !IsAssignable(rightType, nonVoidPortion, model))
                 {
                     diagnostics.Add(MakeDiagnostic(
                         "MIST_TC_0044",
@@ -7954,7 +7954,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     private void CheckVoidCoalescingAssignment(AssignmentNode assignment, ISemanticModel model, DiagnosticBag diagnostics)
     {
         // ── MIST_TC_0047: ??= is statement-only, cannot be used as a sub-expression ──
-        if (!_atStatementLevel || _assignmentNestingDepth > 0)
+        if(!_atStatementLevel || _assignmentNestingDepth > 0)
         {
             diagnostics.Add(MakeDiagnostic(
                 "MIST_TC_0047",
@@ -7970,7 +7970,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         // ── MIST_TC_0043: Left operand must be a mutable variable ──
         var targetVarName = TryExtractIdentifierFromLogicalOr(assignment.Target.Left);
-        if (targetVarName is null)
+        if(targetVarName is null)
         {
             diagnostics.Add(MakeDiagnostic(
                 "MIST_TC_0043",
@@ -7982,10 +7982,10 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         // Check that the variable is not readonly.
         var targetPostfix = TryExtractPostfixFromLogicalOr(assignment.Target.Left);
-        if (targetPostfix is not null)
+        if(targetPostfix is not null)
         {
             var targetSymbol = model.GetDeclaredSymbol(targetPostfix.Target);
-            if (targetSymbol is Symbol concreteTargetSymbol
+            if(targetSymbol is Symbol concreteTargetSymbol
                 && concreteTargetSymbol.Kind == SymbolKind.LocalVariable
                 && concreteTargetSymbol.ReadonlyStatus == ReadonlyStatus.ExplicitReadonly)
             {
@@ -8000,13 +8000,13 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         // ── MIST_TC_0042: Left operand type must contain void ──
         var lhsType = model.GetTypeOf(assignment.Target);
-        if (lhsType is null)
+        if(lhsType is null)
             return;
 
         var containsVoid = lhsType is UnionType lhsUnion
             && lhsUnion.Constituents.Any(c => c.IsVoid());
 
-        if (!containsVoid)
+        if(!containsVoid)
         {
             diagnostics.Add(MakeDiagnostic(
                 "MIST_TC_0042",
@@ -8027,7 +8027,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         // ── MIST_TC_0044: Right operand must be assignable to T ──
         var rhsType = model.GetTypeOf(assignment.Value);
-        if (rhsType is not null && !IsAssignable(rhsType, nonVoidPortion, model))
+        if(rhsType is not null && !IsAssignable(rhsType, nonVoidPortion, model))
         {
             diagnostics.Add(MakeDiagnostic(
                 "MIST_TC_0044",
@@ -8041,10 +8041,10 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         // Update the symbol's DeclaredType so that subsequent GetTypeOf calls
         // for this variable return the narrowed type.
-        if (targetPostfix is not null)
+        if(targetPostfix is not null)
         {
             var symbol = model.GetDeclaredSymbol(targetPostfix.Target);
-            if (symbol is Symbol concreteSymbol && concreteSymbol.Kind == SymbolKind.LocalVariable)
+            if(symbol is Symbol concreteSymbol && concreteSymbol.Kind == SymbolKind.LocalVariable)
             {
                 concreteSymbol.DeclaredType = nonVoidPortion;
             }
@@ -8058,7 +8058,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // analysis for their own operator/member checks.
         CheckLogicalAndNode(node.Left, model, diagnostics);
 
-        if (node.Right is not null)
+        if(node.Right is not null)
         {
             CheckLogicalAndNode(node.Right, model, diagnostics);
 
@@ -8081,7 +8081,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     {
         CheckEqualityNode(node.Left, model, diagnostics);
 
-        if (node.Right is not null)
+        if(node.Right is not null)
         {
             CheckEqualityNode(node.Right, model, diagnostics);
 
@@ -8104,7 +8104,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     {
         CheckRelationalNode(node.Left, model, diagnostics);
 
-        if (node.Right is not null)
+        if(node.Right is not null)
         {
             CheckRelationalNode(node.Right, model, diagnostics);
 
@@ -8117,7 +8117,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             // remain well-typed.
             var lhsType = model.GetTypeOf(node.Left);
             var rhsType = model.GetTypeOf(node.Right);
-            if (lhsType is not null && lhsType.IsVoid() && rhsType is not null && rhsType.IsVoid())
+            if(lhsType is not null && lhsType.IsVoid() && rhsType is not null && rhsType.IsVoid())
             {
                 model.SetTypeOf(node, LegacyPrimitiveTypes.Bool);
                 return;
@@ -8127,9 +8127,9 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             // Two values of the same AnonymousType (structurally equal) can
             // be compared with == / !=. Different anonymous type shapes are
             // rejected with MIST_ANON_EQUALITY_MISMATCH.
-            if (lhsType is AnonymousType lhsAnon && rhsType is AnonymousType rhsAnon)
+            if(lhsType is AnonymousType lhsAnon && rhsType is AnonymousType rhsAnon)
             {
-                if (lhsAnon.StructurallyEquals(rhsAnon))
+                if(lhsAnon.StructurallyEquals(rhsAnon))
                 {
                     model.SetTypeOf(node, LegacyPrimitiveTypes.Bool);
                 }
@@ -8163,52 +8163,52 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
     private void CheckRelationalNode(RelationalNode node, ISemanticModel model, DiagnosticBag diagnostics)
     {
-        switch (node)
+        switch(node)
         {
             case RelationalComparisonRelationalNode cmp:
-            {
-                CheckAdditiveNode(cmp.Left, model, diagnostics);
-
-                if (cmp.Right is not null)
                 {
-                    CheckAdditiveNode(cmp.Right, model, diagnostics);
+                    CheckAdditiveNode(cmp.Left, model, diagnostics);
 
-                    // Route typing / error emission through overload resolution
-                    // (Requirements 6.1, 6.4). Relational operators (<, >, <=, >=)
-                    // are declared on each numeric stdlib type and Char; the old
-                    // NumericTypes / IsNumeric special case is removed
-                    // (Requirement 6.7).
-                    var op = cmp.Operator.Lexeme ?? "<";
-                    ResolveBinaryOperator(
-                        op,
-                        cmp.Left,
-                        cmp.Right,
-                        cmp,
-                        "MIST_TC_0004",
-                        model,
-                        diagnostics);
+                    if(cmp.Right is not null)
+                    {
+                        CheckAdditiveNode(cmp.Right, model, diagnostics);
+
+                        // Route typing / error emission through overload resolution
+                        // (Requirements 6.1, 6.4). Relational operators (<, >, <=, >=)
+                        // are declared on each numeric stdlib type and Char; the old
+                        // NumericTypes / IsNumeric special case is removed
+                        // (Requirement 6.7).
+                        var op = cmp.Operator.Lexeme ?? "<";
+                        ResolveBinaryOperator(
+                            op,
+                            cmp.Left,
+                            cmp.Right,
+                            cmp,
+                            "MIST_TC_0004",
+                            model,
+                            diagnostics);
+                    }
+
+                    break;
                 }
-
-                break;
-            }
 
             case IsExpressionRelationalNode isExpr:
-            {
-                CheckAdditiveNode(isExpr.Left, model, diagnostics);
-                var scrutineeType = model.GetTypeOf(isExpr.Left);
-                if (scrutineeType is not null)
                 {
-                    CheckPattern(isExpr.Pattern, scrutineeType, model, diagnostics);
+                    CheckAdditiveNode(isExpr.Left, model, diagnostics);
+                    var scrutineeType = model.GetTypeOf(isExpr.Left);
+                    if(scrutineeType is not null)
+                    {
+                        CheckPattern(isExpr.Pattern, scrutineeType, model, diagnostics);
+                    }
+                    break;
                 }
-                break;
-            }
 
             case AsExpressionRelationalNode asExpr:
-            {
-                CheckAdditiveNode(asExpr.Left, model, diagnostics);
-                CheckAsExpression(asExpr, model, diagnostics);
-                break;
-            }
+                {
+                    CheckAdditiveNode(asExpr.Left, model, diagnostics);
+                    CheckAsExpression(asExpr, model, diagnostics);
+                    break;
+                }
         }
     }
 
@@ -8229,16 +8229,16 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     {
         // The target type was resolved by Pass 2 and set as the preliminary type.
         var targetType = model.GetTypeOf(asExpr);
-        if (targetType is null || IsErrorType(targetType))
+        if(targetType is null || IsErrorType(targetType))
             return;
 
         // Get the compile-time type of the left operand.
         var sourceType = model.GetTypeOf(asExpr.Left);
-        if (sourceType is null || IsErrorType(sourceType))
+        if(sourceType is null || IsErrorType(sourceType))
             return;
 
         // Reject void source.
-        if (sourceType.IsVoid())
+        if(sourceType.IsVoid())
         {
             diagnostics.Add(MakeDiagnostic(
                 AsOperatorVoidSource.Value,
@@ -8249,7 +8249,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         // Reject void target.
-        if (targetType.IsVoid())
+        if(targetType.IsVoid())
         {
             diagnostics.Add(MakeDiagnostic(
                 AsOperatorVoidTarget.Value,
@@ -8262,7 +8262,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // Classify the conversion.
         var classification = ClassifyAsConversion(sourceType, targetType, model);
 
-        switch (classification)
+        switch(classification)
         {
             case AsConversionClassification.Provable:
                 model.SetTypeOf(asExpr, targetType);
@@ -8307,41 +8307,41 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     {
         // 1. Provable: source is directly assignable to target
         //    (identity, subtype, abstract — NOT implicit cast operators)
-        if (IsDirectlyAssignable(sourceType, targetType, model))
+        if(IsDirectlyAssignable(sourceType, targetType, model))
             return AsConversionClassification.Provable;
 
         // 2. Non-provable: target is directly assignable to source (narrowing)
         //    Base → Derived, Abstract → Concrete
-        if (IsDirectlyAssignable(targetType, sourceType, model))
+        if(IsDirectlyAssignable(targetType, sourceType, model))
             return AsConversionClassification.NonProvable;
 
         // 3. Non-provable: source is unknown → any concrete target
-        if (sourceType is UnknownType)
+        if(sourceType is UnknownType)
             return AsConversionClassification.NonProvable;
 
         // 4. Non-provable: source is a union and target is a constituent or related
-        if (sourceType is UnionType sourceUnion)
+        if(sourceType is UnionType sourceUnion)
         {
-            if (IsConstituentOf(targetType, sourceUnion))
+            if(IsConstituentOf(targetType, sourceUnion))
                 return AsConversionClassification.NonProvable;
 
             // Target shares inheritance with a constituent
-            foreach (var constituent in sourceUnion.Constituents)
+            foreach(var constituent in sourceUnion.Constituents)
             {
-                if (IsDirectlyAssignable(targetType, constituent, model)
+                if(IsDirectlyAssignable(targetType, constituent, model)
                     || IsDirectlyAssignable(constituent, targetType, model))
                     return AsConversionClassification.NonProvable;
             }
         }
 
         // 5. Non-provable: both are classes in the same hierarchy (sibling types)
-        if (SharesTypeHierarchy(sourceType, targetType))
+        if(SharesTypeHierarchy(sourceType, targetType))
             return AsConversionClassification.NonProvable;
 
         // 6. Non-provable: target is an abstract that source MIGHT implement
-        if (targetType.Kind is TypeKind.Abstract)
+        if(targetType.Kind is TypeKind.Abstract)
         {
-            if (sourceType.Kind is TypeKind.Class or TypeKind.Struct)
+            if(sourceType.Kind is TypeKind.Class or TypeKind.Struct)
                 return AsConversionClassification.NonProvable;
         }
 
@@ -8357,25 +8357,25 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     private static bool SharesTypeHierarchy(IType a, IType b)
     {
         // Class hierarchy sharing
-        if (a is ClassType classA && b is ClassType classB)
+        if(a is ClassType classA && b is ClassType classB)
         {
             var ancestorsA = CollectClassAncestors(classA);
             var ancestorsB = CollectClassAncestors(classB);
-            foreach (var ancestor in ancestorsA)
+            foreach(var ancestor in ancestorsA)
             {
-                if (ancestorsB.Contains(ancestor))
+                if(ancestorsB.Contains(ancestor))
                     return true;
             }
         }
 
         // Struct hierarchy sharing
-        if (a is StructType structA && b is StructType structB)
+        if(a is StructType structA && b is StructType structB)
         {
             var ancestorsA = CollectStructAncestors(structA);
             var ancestorsB = CollectStructAncestors(structB);
-            foreach (var ancestor in ancestorsA)
+            foreach(var ancestor in ancestorsA)
             {
-                if (ancestorsB.Contains(ancestor))
+                if(ancestorsB.Contains(ancestor))
                     return true;
             }
         }
@@ -8391,7 +8391,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     {
         var ancestors = new HashSet<string>(StringComparer.Ordinal);
         var current = classType.BaseType as ClassType;
-        while (current is not null)
+        while(current is not null)
         {
             ancestors.Add(current.DisplayName);
             current = current.BaseType as ClassType;
@@ -8407,7 +8407,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     {
         var ancestors = new HashSet<string>(StringComparer.Ordinal);
         var current = structType.BaseType as StructType;
-        while (current is not null)
+        while(current is not null)
         {
             ancestors.Add(current.DisplayName);
             current = current.BaseType as StructType;
@@ -8430,7 +8430,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         ISemanticModel model,
         DiagnosticBag diagnostics)
     {
-        if (IsErrorType(scrutineeType))
+        if(IsErrorType(scrutineeType))
             return;
 
         CheckOrPattern(pattern.OrPattern, scrutineeType, model, diagnostics);
@@ -8444,7 +8444,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     {
         CheckAndPattern(orPattern.Left, scrutineeType, model, diagnostics);
 
-        if (orPattern.Right is not null && !ReferenceEquals(orPattern.Right, orPattern.Left))
+        if(orPattern.Right is not null && !ReferenceEquals(orPattern.Right, orPattern.Left))
         {
             CheckAndPattern(orPattern.Right, scrutineeType, model, diagnostics);
 
@@ -8456,7 +8456,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             var rightVars = new Dictionary<string, IType>(StringComparer.Ordinal);
             CollectPatternVariablesFromAndPattern(orPattern.Right, scrutineeType, model, rightVars);
 
-            if (!PatternVariableSetsMatch(leftVars, rightVars))
+            if(!PatternVariableSetsMatch(leftVars, rightVars))
             {
                 diagnostics.Add(MakeDiagnostic(
                     PatternOrInconsistentVariables.Value,
@@ -8475,7 +8475,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     {
         CheckUnaryPattern(andPattern.Left, scrutineeType, model, diagnostics);
 
-        if (andPattern.Right is not null && !ReferenceEquals(andPattern.Right, andPattern.Left))
+        if(andPattern.Right is not null && !ReferenceEquals(andPattern.Right, andPattern.Left))
         {
             CheckUnaryPattern(andPattern.Right, scrutineeType, model, diagnostics);
         }
@@ -8487,30 +8487,30 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         ISemanticModel model,
         DiagnosticBag diagnostics)
     {
-        switch (unaryPattern)
+        switch(unaryPattern)
         {
             case NotPatternUnaryPatternNode notPattern:
-            {
-                CheckPrimaryPattern(notPattern.Operand, scrutineeType, model, diagnostics);
-
-                // MIST_TC_0057: Not-pattern operand must not introduce variables.
-                var vars = new Dictionary<string, IType>(StringComparer.Ordinal);
-                CollectPatternVariablesFromPrimaryPattern(notPattern.Operand, scrutineeType, model, vars);
-                if (vars.Count > 0)
                 {
-                    diagnostics.Add(MakeDiagnostic(
-                        PatternNotCannotBindVariable.Value,
-                        "A 'not' pattern cannot contain variable bindings",
-                        notPattern,
-                        model));
+                    CheckPrimaryPattern(notPattern.Operand, scrutineeType, model, diagnostics);
+
+                    // MIST_TC_0057: Not-pattern operand must not introduce variables.
+                    var vars = new Dictionary<string, IType>(StringComparer.Ordinal);
+                    CollectPatternVariablesFromPrimaryPattern(notPattern.Operand, scrutineeType, model, vars);
+                    if(vars.Count > 0)
+                    {
+                        diagnostics.Add(MakeDiagnostic(
+                            PatternNotCannotBindVariable.Value,
+                            "A 'not' pattern cannot contain variable bindings",
+                            notPattern,
+                            model));
+                    }
+                    break;
                 }
-                break;
-            }
             case DirectPatternUnaryPatternNode directPattern:
-            {
-                CheckPrimaryPattern(directPattern.Primary, scrutineeType, model, diagnostics);
-                break;
-            }
+                {
+                    CheckPrimaryPattern(directPattern.Primary, scrutineeType, model, diagnostics);
+                    break;
+                }
         }
     }
 
@@ -8520,396 +8520,396 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         ISemanticModel model,
         DiagnosticBag diagnostics)
     {
-        switch (primaryPattern)
+        switch(primaryPattern)
         {
             case TypePatternPrimaryPatternNode typePattern:
-            {
-                // MIST_TC_0050: Verify the type exists in scope.
-                // The semantic model resolved the type reference during Pass 2.
-                // If it resolved to ErrorType, the type was not found.
-                var patternType = model.GetTypeOf(typePattern.Type);
-                patternType ??= model.GetDeclaredSymbol(typePattern)?.DeclaredType;
-                if (patternType is null || IsErrorType(patternType))
                 {
-                    diagnostics.Add(MakeDiagnostic(
-                        PatternUndefinedType.Value,
-                        $"Type '{ExtractTypeReferenceName(typePattern.Type)}' could not be found in pattern",
-                        typePattern,
-                        model));
-                }
-                else if (patternType is UnknownType)
-                {
-                    // Task 24.1 / Req 11.3: narrowing to `unknown` is not
-                    // meaningful. `is unknown u` is tautologically true
-                    // because every value is assignable to `unknown`
-                    // (Req 4.1), and the introduced binding has no more
-                    // specific type than the scrutinee — it discards
-                    // information instead of recovering it.
-                    // Exception: `is object` (NamedSingleTypeRef) maps to C#'s
-                    // `is object` pattern which tests for non-null.
-                    if (typePattern.Type.First is not NamedSingleTypeRefSingleTypeRefNode)
+                    // MIST_TC_0050: Verify the type exists in scope.
+                    // The semantic model resolved the type reference during Pass 2.
+                    // If it resolved to ErrorType, the type was not found.
+                    var patternType = model.GetTypeOf(typePattern.Type);
+                    patternType ??= model.GetDeclaredSymbol(typePattern)?.DeclaredType;
+                    if(patternType is null || IsErrorType(patternType))
                     {
                         diagnostics.Add(MakeDiagnostic(
-                            PatternNarrowToUnknown.Value,
-                            "Narrowing to 'unknown' is not meaningful: the pattern is tautologically true and introduces no new type information. Remove the pattern or narrow to a concrete type instead.",
+                            PatternUndefinedType.Value,
+                            $"Type '{ExtractTypeReferenceName(typePattern.Type)}' could not be found in pattern",
                             typePattern,
                             model));
                     }
-                }
-                else if (IsClosedGenericWithUnknown(patternType))
-                {
-                    // Task 24.2 / Req 11.4: narrowing to a
-                    // Closed_Generic_With_Unknown (e.g., `List<unknown>`)
-                    // is not meaningful. Covariant_Unknown_Widening
-                    // (Req 8) makes the pattern tautologically true, and
-                    // the introduced binding is strictly less useful than
-                    // the scrutinee — members classified WritesT with
-                    // respect to the `unknown`-bound type parameter are
-                    // filtered per Requirement 10, without any information
-                    // gain.
-                    diagnostics.Add(MakeDiagnostic(
-                        PatternNarrowToClosedGenericWithUnknown.Value,
-                        $"Narrowing to '{patternType.DisplayName}' is not meaningful: the pattern is tautologically true under covariant unknown widening, and the binding loses information because members that write to a type parameter bound to 'unknown' are filtered. Narrow to a concrete constructed type (e.g., '{ReplaceUnknownWithConcretePlaceholder(patternType)}') instead.",
-                        typePattern,
-                        model));
-                }
-                else if (HasOpenDependentArguments(patternType))
-                {
-                    // Task 6.5 / Req 9.3, 9.4, 15.7: pattern match against an
-                    // open dependent type (dependent args contain unresolved
-                    // parameters) is rejected — pattern matching requires
-                    // concrete dependent values.
-                    diagnostics.Add(MakeDiagnostic(
-                        DependentOpenTypePattern.Value,
-                        $"Cannot pattern match against open dependent type '{patternType.DisplayName}'. Pattern matching requires concrete dependent values.",
-                        typePattern,
-                        model));
-                }
-                else if (patternType is RefinementType refinementPattern)
-                {
-                    // Refinement type pattern: `is AdultAge age` — runtime predicate check.
-                    // Verify the scrutinee type is compatible with the refinement's base type.
-                    // The scrutinee must be assignable to the base type (or be the base type,
-                    // or be another refinement of the same base type).
-                    var effectiveScrutinee = scrutineeType is RefinementType scrutineeRefinement
-                        ? scrutineeRefinement.BaseType
-                        : scrutineeType;
-
-                    if (effectiveScrutinee is UnionType unionForRefinement)
+                    else if(patternType is UnknownType)
                     {
-                        // Scrutinee is a union: check if the refinement's base type is a constituent.
-                        if (!IsConstituentOfUnion(refinementPattern.BaseType, unionForRefinement))
+                        // Task 24.1 / Req 11.3: narrowing to `unknown` is not
+                        // meaningful. `is unknown u` is tautologically true
+                        // because every value is assignable to `unknown`
+                        // (Req 4.1), and the introduced binding has no more
+                        // specific type than the scrutinee — it discards
+                        // information instead of recovering it.
+                        // Exception: `is object` (NamedSingleTypeRef) maps to C#'s
+                        // `is object` pattern which tests for non-null.
+                        if(typePattern.Type.First is not NamedSingleTypeRefSingleTypeRefNode)
                         {
-                            diagnostics.Add(MakeDiagnosticWarning(
-                                UnionPatternNonConstituent.Value,
-                                $"Type '{patternType.DisplayName}' (base type '{refinementPattern.BaseType.DisplayName}') is not a constituent of union type '{unionForRefinement.DisplayName}'; this pattern will never match",
+                            diagnostics.Add(MakeDiagnostic(
+                                PatternNarrowToUnknown.Value,
+                                "Narrowing to 'unknown' is not meaningful: the pattern is tautologically true and introduces no new type information. Remove the pattern or narrow to a concrete type instead.",
                                 typePattern,
                                 model));
                         }
                     }
-                    else if (!IsAssignable(effectiveScrutinee, refinementPattern.BaseType, model)
-                             && !IsAssignable(refinementPattern.BaseType, effectiveScrutinee, model))
+                    else if(IsClosedGenericWithUnknown(patternType))
                     {
-                        // Scrutinee type is not compatible with the refinement's base type.
-                        diagnostics.Add(MakeDiagnosticWarning(
-                            PatternIncompatibleRefinement.Value,
-                            $"Refinement type '{patternType.DisplayName}' has base type '{refinementPattern.BaseType.DisplayName}' which is not compatible with scrutinee type '{scrutineeType.DisplayName}'; this pattern will never match",
+                        // Task 24.2 / Req 11.4: narrowing to a
+                        // Closed_Generic_With_Unknown (e.g., `List<unknown>`)
+                        // is not meaningful. Covariant_Unknown_Widening
+                        // (Req 8) makes the pattern tautologically true, and
+                        // the introduced binding is strictly less useful than
+                        // the scrutinee — members classified WritesT with
+                        // respect to the `unknown`-bound type parameter are
+                        // filtered per Requirement 10, without any information
+                        // gain.
+                        diagnostics.Add(MakeDiagnostic(
+                            PatternNarrowToClosedGenericWithUnknown.Value,
+                            $"Narrowing to '{patternType.DisplayName}' is not meaningful: the pattern is tautologically true under covariant unknown widening, and the binding loses information because members that write to a type parameter bound to 'unknown' are filtered. Narrow to a concrete constructed type (e.g., '{ReplaceUnknownWithConcretePlaceholder(patternType)}') instead.",
                             typePattern,
                             model));
                     }
-                    // Otherwise: valid refinement type pattern — the is expression will
-                    // evaluate the refinement predicate at runtime.
+                    else if(HasOpenDependentArguments(patternType))
+                    {
+                        // Task 6.5 / Req 9.3, 9.4, 15.7: pattern match against an
+                        // open dependent type (dependent args contain unresolved
+                        // parameters) is rejected — pattern matching requires
+                        // concrete dependent values.
+                        diagnostics.Add(MakeDiagnostic(
+                            DependentOpenTypePattern.Value,
+                            $"Cannot pattern match against open dependent type '{patternType.DisplayName}'. Pattern matching requires concrete dependent values.",
+                            typePattern,
+                            model));
+                    }
+                    else if(patternType is RefinementType refinementPattern)
+                    {
+                        // Refinement type pattern: `is AdultAge age` — runtime predicate check.
+                        // Verify the scrutinee type is compatible with the refinement's base type.
+                        // The scrutinee must be assignable to the base type (or be the base type,
+                        // or be another refinement of the same base type).
+                        var effectiveScrutinee = scrutineeType is RefinementType scrutineeRefinement
+                            ? scrutineeRefinement.BaseType
+                            : scrutineeType;
+
+                        if(effectiveScrutinee is UnionType unionForRefinement)
+                        {
+                            // Scrutinee is a union: check if the refinement's base type is a constituent.
+                            if(!IsConstituentOfUnion(refinementPattern.BaseType, unionForRefinement))
+                            {
+                                diagnostics.Add(MakeDiagnosticWarning(
+                                    UnionPatternNonConstituent.Value,
+                                    $"Type '{patternType.DisplayName}' (base type '{refinementPattern.BaseType.DisplayName}') is not a constituent of union type '{unionForRefinement.DisplayName}'; this pattern will never match",
+                                    typePattern,
+                                    model));
+                            }
+                        }
+                        else if(!IsAssignable(effectiveScrutinee, refinementPattern.BaseType, model)
+                                 && !IsAssignable(refinementPattern.BaseType, effectiveScrutinee, model))
+                        {
+                            // Scrutinee type is not compatible with the refinement's base type.
+                            diagnostics.Add(MakeDiagnosticWarning(
+                                PatternIncompatibleRefinement.Value,
+                                $"Refinement type '{patternType.DisplayName}' has base type '{refinementPattern.BaseType.DisplayName}' which is not compatible with scrutinee type '{scrutineeType.DisplayName}'; this pattern will never match",
+                                typePattern,
+                                model));
+                        }
+                        // Otherwise: valid refinement type pattern — the is expression will
+                        // evaluate the refinement predicate at runtime.
+                    }
+                    else if(scrutineeType is UnionType unionForTypePattern
+                             && !IsConstituentOfUnion(patternType, unionForTypePattern))
+                    {
+                        // Task 6.3 / Req 8.3, 12.5: type pattern references a
+                        // type that is not a constituent of the union — the
+                        // pattern will never match at runtime.
+                        diagnostics.Add(MakeDiagnosticWarning(
+                            UnionPatternNonConstituent.Value,
+                            $"Type '{patternType.DisplayName}' is not a constituent of union type '{unionForTypePattern.DisplayName}'; this pattern will never match",
+                            typePattern,
+                            model));
+                    }
+                    break;
                 }
-                else if (scrutineeType is UnionType unionForTypePattern
-                         && !IsConstituentOfUnion(patternType, unionForTypePattern))
-                {
-                    // Task 6.3 / Req 8.3, 12.5: type pattern references a
-                    // type that is not a constituent of the union — the
-                    // pattern will never match at runtime.
-                    diagnostics.Add(MakeDiagnosticWarning(
-                        UnionPatternNonConstituent.Value,
-                        $"Type '{patternType.DisplayName}' is not a constituent of union type '{unionForTypePattern.DisplayName}'; this pattern will never match",
-                        typePattern,
-                        model));
-                }
-                break;
-            }
 
             case BareTypePatternPrimaryPatternNode bareTypePattern:
-            {
-                // Bare type pattern: `Type` (no binding name) — pure type test.
-                // Verify the type exists in scope.
-                var patternType = model.GetTypeOf(bareTypePattern.Type);
-                if (patternType is null || IsErrorType(patternType))
                 {
-                    diagnostics.Add(MakeDiagnostic(
-                        PatternUndefinedType.Value,
-                        $"Type '{ExtractTypeReferenceName(bareTypePattern.Type)}' could not be found in pattern",
-                        bareTypePattern,
-                        model));
-                }
-                else if (patternType is EnumType)
-                {
-                    // Enum member pattern: `is EnumName.MemberName` — value equality check.
-                    // The semantic model builder resolved this as an enum member access.
-                    // Accept it without error; the emitter will generate a == comparison.
-                    // Verify the scrutinee type is compatible (must be the same enum type
-                    // or the enum's underlying type).
-                    if (!IsAssignable(scrutineeType, patternType)
-                        && !(patternType is EnumType enumPatternType
-                             && IsAssignable(scrutineeType, enumPatternType.UnderlyingType)))
+                    // Bare type pattern: `Type` (no binding name) — pure type test.
+                    // Verify the type exists in scope.
+                    var patternType = model.GetTypeOf(bareTypePattern.Type);
+                    if(patternType is null || IsErrorType(patternType))
                     {
                         diagnostics.Add(MakeDiagnostic(
-                            PatternConstantTypeMismatch.Value,
-                            $"Enum pattern of type '{patternType.DisplayName}' is not compatible with scrutinee type '{scrutineeType.DisplayName}'",
+                            PatternUndefinedType.Value,
+                            $"Type '{ExtractTypeReferenceName(bareTypePattern.Type)}' could not be found in pattern",
                             bareTypePattern,
                             model));
                     }
-                }
-                else if (patternType is UnknownType)
-                {
-                    // Allow `is object` when the source uses the `object` keyword explicitly
-                    // (a NamedSingleTypeRef, not an UnknownSingleTypeRef). This maps to C#'s
-                    // `is object` pattern which tests for non-null.
-                    if (bareTypePattern.Type.First is not NamedSingleTypeRefSingleTypeRefNode)
+                    else if(patternType is EnumType)
                     {
-                        diagnostics.Add(MakeDiagnostic(
-                            PatternNarrowToUnknown.Value,
-                            "Narrowing to 'unknown' is not meaningful: the pattern is tautologically true and introduces no new type information. Remove the pattern or narrow to a concrete type instead.",
-                            bareTypePattern,
-                            model));
-                    }
-                }
-                else if (IsClosedGenericWithUnknown(patternType))
-                {
-                    diagnostics.Add(MakeDiagnostic(
-                        PatternNarrowToClosedGenericWithUnknown.Value,
-                        $"Narrowing to '{patternType.DisplayName}' is not meaningful: the pattern is tautologically true under covariant unknown widening, and the binding loses information because members that write to a type parameter bound to 'unknown' are filtered. Narrow to a concrete constructed type (e.g., '{ReplaceUnknownWithConcretePlaceholder(patternType)}') instead.",
-                        bareTypePattern,
-                        model));
-                }
-                else if (HasOpenDependentArguments(patternType))
-                {
-                    // Task 6.5 / Req 9.3, 9.4, 15.7: pattern match against an
-                    // open dependent type (dependent args contain unresolved
-                    // parameters) is rejected — pattern matching requires
-                    // concrete dependent values.
-                    diagnostics.Add(MakeDiagnostic(
-                        DependentOpenTypePattern.Value,
-                        $"Cannot pattern match against open dependent type '{patternType.DisplayName}'. Pattern matching requires concrete dependent values.",
-                        bareTypePattern,
-                        model));
-                }
-                else if (patternType is RefinementType bareRefinementPattern)
-                {
-                    // Refinement type pattern (bare): `is AdultAge` — runtime predicate check.
-                    // Verify the scrutinee type is compatible with the refinement's base type.
-                    var effectiveScrutinee = scrutineeType is RefinementType scrutineeRefinementBare
-                        ? scrutineeRefinementBare.BaseType
-                        : scrutineeType;
-
-                    if (effectiveScrutinee is UnionType unionForBareRefinement)
-                    {
-                        if (!IsConstituentOfUnion(bareRefinementPattern.BaseType, unionForBareRefinement))
+                        // Enum member pattern: `is EnumName.MemberName` — value equality check.
+                        // The semantic model builder resolved this as an enum member access.
+                        // Accept it without error; the emitter will generate a == comparison.
+                        // Verify the scrutinee type is compatible (must be the same enum type
+                        // or the enum's underlying type).
+                        if(!IsAssignable(scrutineeType, patternType)
+                            && !(patternType is EnumType enumPatternType
+                                 && IsAssignable(scrutineeType, enumPatternType.UnderlyingType)))
                         {
-                            diagnostics.Add(MakeDiagnosticWarning(
-                                UnionPatternNonConstituent.Value,
-                                $"Type '{patternType.DisplayName}' (base type '{bareRefinementPattern.BaseType.DisplayName}') is not a constituent of union type '{unionForBareRefinement.DisplayName}'; this pattern will never match",
+                            diagnostics.Add(MakeDiagnostic(
+                                PatternConstantTypeMismatch.Value,
+                                $"Enum pattern of type '{patternType.DisplayName}' is not compatible with scrutinee type '{scrutineeType.DisplayName}'",
                                 bareTypePattern,
                                 model));
                         }
                     }
-                    else if (!IsAssignable(effectiveScrutinee, bareRefinementPattern.BaseType, model)
-                             && !IsAssignable(bareRefinementPattern.BaseType, effectiveScrutinee, model))
+                    else if(patternType is UnknownType)
                     {
-                        diagnostics.Add(MakeDiagnosticWarning(
-                            PatternIncompatibleRefinement.Value,
-                            $"Refinement type '{patternType.DisplayName}' has base type '{bareRefinementPattern.BaseType.DisplayName}' which is not compatible with scrutinee type '{scrutineeType.DisplayName}'; this pattern will never match",
-                            bareTypePattern,
-                            model));
-                    }
-                }
-                else if (scrutineeType is UnionType unionForBareTypePattern
-                         && !IsConstituentOfUnion(patternType, unionForBareTypePattern))
-                {
-                    // Task 6.3 / Req 8.3, 12.5: type pattern references a
-                    // type that is not a constituent of the union — the
-                    // pattern will never match at runtime.
-                    diagnostics.Add(MakeDiagnosticWarning(
-                        UnionPatternNonConstituent.Value,
-                        $"Type '{patternType.DisplayName}' is not a constituent of union type '{unionForBareTypePattern.DisplayName}'; this pattern will never match",
-                        bareTypePattern,
-                        model));
-                }
-                break;
-            }
-
-            case VarPatternPrimaryPatternNode:
-            {
-                // Var pattern: always valid.
-                break;
-            }
-
-            case DiscardPatternPrimaryPatternNode:
-            {
-                // Discard pattern (bare _): always valid, no binding.
-                break;
-            }
-
-            case ConstantPatternPrimaryPatternNode constantPattern:
-            {
-                // Task 3.4: Regex pattern matching validation.
-                // When a regex constant pattern is used, the scrutinee must be `string`.
-                // Capture groups are ignored — no bindings are introduced.
-                if (constantPattern.Literal is RegexConstantConstantLiteralNode regexConst)
-                {
-                    // MIST_TC_REGEX_SCRUTINEE: Verify scrutinee is string (Req 7.2, 7.3).
-                    // A refinement type whose base type is string is also accepted.
-                    var effectiveType = scrutineeType is RefinementType refinement
-                        ? refinement.BaseType
-                        : scrutineeType;
-                    if (!IsStringLike(effectiveType))
-                    {
-                        diagnostics.Add(MakeDiagnostic(
-                            RegexScrutineeNotString.Value,
-                            $"Regex patterns require a 'string' scrutinee, but found '{scrutineeType.DisplayName}'",
-                            constantPattern,
-                            model));
-                    }
-
-                    // Validate regex pattern syntax at pattern position (Req 7.7).
-                    ValidateRegexPattern(regexConst.Value.Lexeme, constantPattern, model, diagnostics);
-                }
-                else
-                {
-                    // MIST_TC_0051: Verify constant type is compatible with scrutinee.
-                    var constantType = model.GetTypeOf(constantPattern.Literal);
-                    if (constantType is not null && !IsErrorType(constantType))
-                    {
-                        if (!ArePatternTypesCompatible(constantType, scrutineeType))
+                        // Allow `is object` when the source uses the `object` keyword explicitly
+                        // (a NamedSingleTypeRef, not an UnknownSingleTypeRef). This maps to C#'s
+                        // `is object` pattern which tests for non-null.
+                        if(bareTypePattern.Type.First is not NamedSingleTypeRefSingleTypeRefNode)
                         {
                             diagnostics.Add(MakeDiagnostic(
-                                PatternConstantTypeMismatch.Value,
-                                $"Constant of type '{constantType.DisplayName}' is not compatible with scrutinee type '{scrutineeType.DisplayName}'",
-                                constantPattern,
+                                PatternNarrowToUnknown.Value,
+                                "Narrowing to 'unknown' is not meaningful: the pattern is tautologically true and introduces no new type information. Remove the pattern or narrow to a concrete type instead.",
+                                bareTypePattern,
                                 model));
                         }
                     }
+                    else if(IsClosedGenericWithUnknown(patternType))
+                    {
+                        diagnostics.Add(MakeDiagnostic(
+                            PatternNarrowToClosedGenericWithUnknown.Value,
+                            $"Narrowing to '{patternType.DisplayName}' is not meaningful: the pattern is tautologically true under covariant unknown widening, and the binding loses information because members that write to a type parameter bound to 'unknown' are filtered. Narrow to a concrete constructed type (e.g., '{ReplaceUnknownWithConcretePlaceholder(patternType)}') instead.",
+                            bareTypePattern,
+                            model));
+                    }
+                    else if(HasOpenDependentArguments(patternType))
+                    {
+                        // Task 6.5 / Req 9.3, 9.4, 15.7: pattern match against an
+                        // open dependent type (dependent args contain unresolved
+                        // parameters) is rejected — pattern matching requires
+                        // concrete dependent values.
+                        diagnostics.Add(MakeDiagnostic(
+                            DependentOpenTypePattern.Value,
+                            $"Cannot pattern match against open dependent type '{patternType.DisplayName}'. Pattern matching requires concrete dependent values.",
+                            bareTypePattern,
+                            model));
+                    }
+                    else if(patternType is RefinementType bareRefinementPattern)
+                    {
+                        // Refinement type pattern (bare): `is AdultAge` — runtime predicate check.
+                        // Verify the scrutinee type is compatible with the refinement's base type.
+                        var effectiveScrutinee = scrutineeType is RefinementType scrutineeRefinementBare
+                            ? scrutineeRefinementBare.BaseType
+                            : scrutineeType;
+
+                        if(effectiveScrutinee is UnionType unionForBareRefinement)
+                        {
+                            if(!IsConstituentOfUnion(bareRefinementPattern.BaseType, unionForBareRefinement))
+                            {
+                                diagnostics.Add(MakeDiagnosticWarning(
+                                    UnionPatternNonConstituent.Value,
+                                    $"Type '{patternType.DisplayName}' (base type '{bareRefinementPattern.BaseType.DisplayName}') is not a constituent of union type '{unionForBareRefinement.DisplayName}'; this pattern will never match",
+                                    bareTypePattern,
+                                    model));
+                            }
+                        }
+                        else if(!IsAssignable(effectiveScrutinee, bareRefinementPattern.BaseType, model)
+                                 && !IsAssignable(bareRefinementPattern.BaseType, effectiveScrutinee, model))
+                        {
+                            diagnostics.Add(MakeDiagnosticWarning(
+                                PatternIncompatibleRefinement.Value,
+                                $"Refinement type '{patternType.DisplayName}' has base type '{bareRefinementPattern.BaseType.DisplayName}' which is not compatible with scrutinee type '{scrutineeType.DisplayName}'; this pattern will never match",
+                                bareTypePattern,
+                                model));
+                        }
+                    }
+                    else if(scrutineeType is UnionType unionForBareTypePattern
+                             && !IsConstituentOfUnion(patternType, unionForBareTypePattern))
+                    {
+                        // Task 6.3 / Req 8.3, 12.5: type pattern references a
+                        // type that is not a constituent of the union — the
+                        // pattern will never match at runtime.
+                        diagnostics.Add(MakeDiagnosticWarning(
+                            UnionPatternNonConstituent.Value,
+                            $"Type '{patternType.DisplayName}' is not a constituent of union type '{unionForBareTypePattern.DisplayName}'; this pattern will never match",
+                            bareTypePattern,
+                            model));
+                    }
+                    break;
                 }
-                break;
-            }
+
+            case VarPatternPrimaryPatternNode:
+                {
+                    // Var pattern: always valid.
+                    break;
+                }
+
+            case DiscardPatternPrimaryPatternNode:
+                {
+                    // Discard pattern (bare _): always valid, no binding.
+                    break;
+                }
+
+            case ConstantPatternPrimaryPatternNode constantPattern:
+                {
+                    // Task 3.4: Regex pattern matching validation.
+                    // When a regex constant pattern is used, the scrutinee must be `string`.
+                    // Capture groups are ignored — no bindings are introduced.
+                    if(constantPattern.Literal is RegexConstantConstantLiteralNode regexConst)
+                    {
+                        // MIST_TC_REGEX_SCRUTINEE: Verify scrutinee is string (Req 7.2, 7.3).
+                        // A refinement type whose base type is string is also accepted.
+                        var effectiveType = scrutineeType is RefinementType refinement
+                            ? refinement.BaseType
+                            : scrutineeType;
+                        if(!IsStringLike(effectiveType))
+                        {
+                            diagnostics.Add(MakeDiagnostic(
+                                RegexScrutineeNotString.Value,
+                                $"Regex patterns require a 'string' scrutinee, but found '{scrutineeType.DisplayName}'",
+                                constantPattern,
+                                model));
+                        }
+
+                        // Validate regex pattern syntax at pattern position (Req 7.7).
+                        ValidateRegexPattern(regexConst.Value.Lexeme, constantPattern, model, diagnostics);
+                    }
+                    else
+                    {
+                        // MIST_TC_0051: Verify constant type is compatible with scrutinee.
+                        var constantType = model.GetTypeOf(constantPattern.Literal);
+                        if(constantType is not null && !IsErrorType(constantType))
+                        {
+                            if(!ArePatternTypesCompatible(constantType, scrutineeType))
+                            {
+                                diagnostics.Add(MakeDiagnostic(
+                                    PatternConstantTypeMismatch.Value,
+                                    $"Constant of type '{constantType.DisplayName}' is not compatible with scrutinee type '{scrutineeType.DisplayName}'",
+                                    constantPattern,
+                                    model));
+                            }
+                        }
+                    }
+                    break;
+                }
 
             case LessThanRelationalPatternPrimaryPatternNode ltPattern:
-            {
-                CheckRelationalPattern(ltPattern, ltPattern.Constant, "<", scrutineeType, model, diagnostics);
-                break;
-            }
+                {
+                    CheckRelationalPattern(ltPattern, ltPattern.Constant, "<", scrutineeType, model, diagnostics);
+                    break;
+                }
 
             case GreaterThanRelationalPatternPrimaryPatternNode gtPattern:
-            {
-                CheckRelationalPattern(gtPattern, gtPattern.Constant, ">", scrutineeType, model, diagnostics);
-                break;
-            }
+                {
+                    CheckRelationalPattern(gtPattern, gtPattern.Constant, ">", scrutineeType, model, diagnostics);
+                    break;
+                }
 
             case LessThanOrEqualRelationalPatternPrimaryPatternNode ltePattern:
-            {
-                CheckRelationalPattern(ltePattern, ltePattern.Constant, "<=", scrutineeType, model, diagnostics);
-                break;
-            }
+                {
+                    CheckRelationalPattern(ltePattern, ltePattern.Constant, "<=", scrutineeType, model, diagnostics);
+                    break;
+                }
 
             case GreaterThanOrEqualRelationalPatternPrimaryPatternNode gtePattern:
-            {
-                CheckRelationalPattern(gtePattern, gtePattern.Constant, ">=", scrutineeType, model, diagnostics);
-                break;
-            }
+                {
+                    CheckRelationalPattern(gtePattern, gtePattern.Constant, ">=", scrutineeType, model, diagnostics);
+                    break;
+                }
 
             case PropertyPatternPrimaryPatternNode propertyPattern:
-            {
-                // Determine the effective type for property lookups.
-                var patternType = scrutineeType;
-                if (propertyPattern.TypeName is not null)
                 {
-                    // If there's a type prefix, use it. Check if it resolved.
-                    var resolvedSymbol = model.GetDeclaredSymbol(propertyPattern);
-                    if (resolvedSymbol?.DeclaredType is not null && !IsErrorType(resolvedSymbol.DeclaredType))
+                    // Determine the effective type for property lookups.
+                    var patternType = scrutineeType;
+                    if(propertyPattern.TypeName is not null)
                     {
-                        patternType = resolvedSymbol.DeclaredType;
+                        // If there's a type prefix, use it. Check if it resolved.
+                        var resolvedSymbol = model.GetDeclaredSymbol(propertyPattern);
+                        if(resolvedSymbol?.DeclaredType is not null && !IsErrorType(resolvedSymbol.DeclaredType))
+                        {
+                            patternType = resolvedSymbol.DeclaredType;
+                        }
                     }
-                }
 
-                // MIST_TC_0053: Verify each property name exists on the type.
-                if (propertyPattern.Subpatterns is not null)
-                {
-                    CheckPropertySubpatternList(propertyPattern.Subpatterns, patternType, model, diagnostics);
+                    // MIST_TC_0053: Verify each property name exists on the type.
+                    if(propertyPattern.Subpatterns is not null)
+                    {
+                        CheckPropertySubpatternList(propertyPattern.Subpatterns, patternType, model, diagnostics);
+                    }
+                    break;
                 }
-                break;
-            }
 
             case ListPatternPrimaryPatternNode listPattern:
-            {
-                // MIST_TC_0054: Verify scrutinee is an array type.
-                if (scrutineeType is not ArrayType arrayType)
                 {
-                    diagnostics.Add(MakeDiagnostic(
-                        PatternListRequiresArray.Value,
-                        $"A list pattern requires the scrutinee to be an array type, but found '{scrutineeType.DisplayName}'",
-                        listPattern,
-                        model));
+                    // MIST_TC_0054: Verify scrutinee is an array type.
+                    if(scrutineeType is not ArrayType arrayType)
+                    {
+                        diagnostics.Add(MakeDiagnostic(
+                            PatternListRequiresArray.Value,
+                            $"A list pattern requires the scrutinee to be an array type, but found '{scrutineeType.DisplayName}'",
+                            listPattern,
+                            model));
+                        break;
+                    }
+
+                    var elementType = arrayType.ElementType;
+
+                    // Count fixed elements and recursively validate.
+                    if(listPattern.Elements is not null)
+                    {
+                        CheckListPatternElementList(listPattern.Elements, elementType, arrayType, model, diagnostics);
+                    }
                     break;
                 }
-
-                var elementType = arrayType.ElementType;
-
-                // Count fixed elements and recursively validate.
-                if (listPattern.Elements is not null)
-                {
-                    CheckListPatternElementList(listPattern.Elements, elementType, arrayType, model, diagnostics);
-                }
-                break;
-            }
 
             case TuplePositionalPatternPrimaryPatternNode tuplePattern:
-            {
-                // Suppress cascading errors when scrutinee already has an error type.
-                if (scrutineeType is ErrorType)
-                    break;
-
-                if (scrutineeType is not TupleType tupleType)
                 {
-                    diagnostics.Add(MakeDiagnostic(
-                        TuplePositionalPatternRequiresTupleType.Value,
-                        $"Positional pattern requires a tuple type, but the scrutinee has type '{scrutineeType.DisplayName}'",
-                        tuplePattern, model));
+                    // Suppress cascading errors when scrutinee already has an error type.
+                    if(scrutineeType is ErrorType)
+                        break;
+
+                    if(scrutineeType is not TupleType tupleType)
+                    {
+                        diagnostics.Add(MakeDiagnostic(
+                            TuplePositionalPatternRequiresTupleType.Value,
+                            $"Positional pattern requires a tuple type, but the scrutinee has type '{scrutineeType.DisplayName}'",
+                            tuplePattern, model));
+                        break;
+                    }
+
+                    // Collect element patterns: first, rest, plus any additional elements.
+                    var elementPatterns = new List<PatternNode> { tuplePattern.First, tuplePattern.Rest };
+                    elementPatterns.AddRange(tuplePattern.Patterns);
+
+                    if(elementPatterns.Count != tupleType.Arity)
+                    {
+                        diagnostics.Add(MakeDiagnostic(
+                            TuplePositionalPatternArityMismatch.Value,
+                            $"Tuple positional pattern has {elementPatterns.Count} elements, but the tuple type '{tupleType.DisplayName}' has {tupleType.Arity} elements",
+                            tuplePattern, model));
+                        break;
+                    }
+
+                    // Validate each element against its corresponding type independently.
+                    for(var i = 0; i < elementPatterns.Count; i++)
+                    {
+                        CheckPattern(elementPatterns[i], tupleType.ElementTypes[i], model, diagnostics);
+                    }
                     break;
                 }
-
-                // Collect element patterns: first, rest, plus any additional elements.
-                var elementPatterns = new List<PatternNode> { tuplePattern.First, tuplePattern.Rest };
-                elementPatterns.AddRange(tuplePattern.Patterns);
-
-                if (elementPatterns.Count != tupleType.Arity)
-                {
-                    diagnostics.Add(MakeDiagnostic(
-                        TuplePositionalPatternArityMismatch.Value,
-                        $"Tuple positional pattern has {elementPatterns.Count} elements, but the tuple type '{tupleType.DisplayName}' has {tupleType.Arity} elements",
-                        tuplePattern, model));
-                    break;
-                }
-
-                // Validate each element against its corresponding type independently.
-                for (var i = 0; i < elementPatterns.Count; i++)
-                {
-                    CheckPattern(elementPatterns[i], tupleType.ElementTypes[i], model, diagnostics);
-                }
-                break;
-            }
 
             case ParenthesizedPatternPrimaryPatternNode parenPattern:
-            {
-                // Recursively validate the inner pattern.
-                CheckPattern(parenPattern.Inner, scrutineeType, model, diagnostics);
-                break;
-            }
+                {
+                    // Recursively validate the inner pattern.
+                    CheckPattern(parenPattern.Inner, scrutineeType, model, diagnostics);
+                    break;
+                }
         }
     }
 
@@ -8926,7 +8926,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         DiagnosticBag diagnostics)
     {
         // MIST_TC_0052: Verify scrutinee supports comparison operators.
-        if (!TypeSupportsComparison(scrutineeType))
+        if(!TypeSupportsComparison(scrutineeType))
         {
             diagnostics.Add(MakeDiagnostic(
                 PatternRelationalNonComparable.Value,
@@ -8937,9 +8937,9 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         // MIST_TC_0051: Verify constant type is compatible with scrutinee.
         var constantType = model.GetTypeOf(constantExpr);
-        if (constantType is not null && !IsErrorType(constantType))
+        if(constantType is not null && !IsErrorType(constantType))
         {
-            if (!ArePatternTypesCompatible(constantType, scrutineeType))
+            if(!ArePatternTypesCompatible(constantType, scrutineeType))
             {
                 diagnostics.Add(MakeDiagnostic(
                     PatternConstantTypeMismatch.Value,
@@ -8957,21 +8957,21 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     private static bool TypeSupportsComparison(IType type)
     {
-        if (IsErrorType(type))
+        if(IsErrorType(type))
             return true; // Suppress cascading errors.
 
         // Numeric display names are always comparable.
-        if (NumericDisplayNames.Contains(type.DisplayName))
+        if(NumericDisplayNames.Contains(type.DisplayName))
             return true;
 
         // Check the type's member scope for operator< (any comparison operator).
         var scope = GetMemberScope(type);
-        if (scope is null)
+        if(scope is null)
             return false;
 
-        foreach (var member in scope.Members)
+        foreach(var member in scope.Members)
         {
-            if (member.Kind == SymbolKind.Method && member.Name == "operator<")
+            if(member.Kind == SymbolKind.Method && member.Name == "operator<")
                 return true;
         }
 
@@ -8985,25 +8985,25 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     private static bool ArePatternTypesCompatible(IType constantType, IType scrutineeType)
     {
-        if (IsErrorType(constantType) || IsErrorType(scrutineeType))
+        if(IsErrorType(constantType) || IsErrorType(scrutineeType))
             return true;
 
-        if (ReferenceEquals(constantType, scrutineeType))
+        if(ReferenceEquals(constantType, scrutineeType))
             return true;
 
-        if (constantType.DisplayName == scrutineeType.DisplayName)
+        if(constantType.DisplayName == scrutineeType.DisplayName)
             return true;
 
-        if (ArePrimitiveEquivalent(constantType, scrutineeType))
+        if(ArePrimitiveEquivalent(constantType, scrutineeType))
             return true;
 
         // Both numeric types are compatible.
-        if (NumericDisplayNames.Contains(constantType.DisplayName)
+        if(NumericDisplayNames.Contains(constantType.DisplayName)
             && NumericDisplayNames.Contains(scrutineeType.DisplayName))
             return true;
 
         // Assignability in either direction.
-        if (IsAssignable(constantType, scrutineeType) || IsAssignable(scrutineeType, constantType))
+        if(IsAssignable(constantType, scrutineeType) || IsAssignable(scrutineeType, constantType))
             return true;
 
         return false;
@@ -9021,7 +9021,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     {
         CheckPropertySubpattern(subpatternList.PropertySubpattern, patternType, model, diagnostics);
 
-        foreach (var subpattern in subpatternList.PropertySubpatterns)
+        foreach(var subpattern in subpatternList.PropertySubpatterns)
         {
             CheckPropertySubpattern(subpattern, patternType, model, diagnostics);
         }
@@ -9040,23 +9040,23 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         var propertyName = subpattern.Name.Lexeme;
 
         // Handle TupleType specially: positional (Item1..ItemN) and named element access.
-        if (patternType is TupleType tupleType)
+        if(patternType is TupleType tupleType)
         {
             IType? elementType = null;
 
             // Check positional access: Item1, Item2, ..., ItemN (1-indexed).
-            if (propertyName.StartsWith("Item", StringComparison.Ordinal)
+            if(propertyName.StartsWith("Item", StringComparison.Ordinal)
                 && int.TryParse(propertyName.AsSpan(4), out var itemIndex)
                 && itemIndex >= 1 && itemIndex <= tupleType.Arity)
             {
                 elementType = tupleType.ElementTypes[itemIndex - 1];
             }
             // Check named element access.
-            else if (tupleType.ElementNames is not null)
+            else if(tupleType.ElementNames is not null)
             {
-                for (var i = 0; i < tupleType.ElementNames.Count; i++)
+                for(var i = 0; i < tupleType.ElementNames.Count; i++)
                 {
-                    if (tupleType.ElementNames[i] == propertyName)
+                    if(tupleType.ElementNames[i] == propertyName)
                     {
                         elementType = tupleType.ElementTypes[i];
                         break;
@@ -9064,7 +9064,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 }
             }
 
-            if (elementType is null)
+            if(elementType is null)
             {
                 diagnostics.Add(MakeDiagnostic(
                     PatternUndefinedProperty.Value,
@@ -9081,7 +9081,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // Req 8.3: Property patterns on `unknown` accept any property names — defer
         // validation to runtime. The sub-pattern is validated against `unknown` so
         // that nested `var` bindings still get the correct (unknown) type.
-        if (patternType is UnknownType)
+        if(patternType is UnknownType)
         {
             CheckPattern(subpattern.Pattern, patternType, model, diagnostics);
             return;
@@ -9089,19 +9089,19 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         // Req 5.1, 5.3: Validate property patterns against AnonymousType property
         // names and types. Report error for names that don't exist on the type.
-        if (patternType is AnonymousType anonType)
+        if(patternType is AnonymousType anonType)
         {
             IType? anonPropertyType = null;
-            for (var i = 0; i < anonType.PropertyNames.Count; i++)
+            for(var i = 0; i < anonType.PropertyNames.Count; i++)
             {
-                if (anonType.PropertyNames[i] == propertyName)
+                if(anonType.PropertyNames[i] == propertyName)
                 {
                     anonPropertyType = anonType.PropertyTypes[i];
                     break;
                 }
             }
 
-            if (anonPropertyType is null)
+            if(anonPropertyType is null)
             {
                 diagnostics.Add(MakeDiagnostic(
                     PatternUndefinedProperty.Value,
@@ -9118,12 +9118,12 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         var memberScope = GetMemberScope(patternType);
 
         ISymbol? member = null;
-        if (memberScope is not null)
+        if(memberScope is not null)
         {
             member = memberScope.Lookup(propertyName);
         }
 
-        if (member is null)
+        if(member is null)
         {
             // MIST_TC_0053: Property not found on the type.
             diagnostics.Add(MakeDiagnostic(
@@ -9156,18 +9156,18 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // Count fixed (non-slice) elements.
         var fixedCount = 0;
         var hasSlice = false;
-        foreach (var element in allElements)
+        foreach(var element in allElements)
         {
-            if (element is PatternElementListPatternElementNode)
+            if(element is PatternElementListPatternElementNode)
                 fixedCount++;
-            else if (element is SliceElementListPatternElementNode)
+            else if(element is SliceElementListPatternElementNode)
                 hasSlice = true;
         }
 
         // MIST_TC_0055: Warn if too many fixed elements (only meaningful
         // when there is no slice — with a slice, the array can be any length).
         // This is a warning, not an error.
-        if (!hasSlice && fixedCount > 0)
+        if(!hasSlice && fixedCount > 0)
         {
             // We can't know the array length at compile time in general,
             // but we emit a warning when the pattern has fixed elements
@@ -9176,9 +9176,9 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         // Recursively validate each element pattern.
-        foreach (var element in allElements)
+        foreach(var element in allElements)
         {
-            switch (element)
+            switch(element)
             {
                 case PatternElementListPatternElementNode patternElement:
                     CheckPattern(patternElement.Pattern, elementType, model, diagnostics);
@@ -9213,7 +9213,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     {
         CollectPatternVariablesFromAndPattern(orPattern.Left, scrutineeType, model, variables);
 
-        if (orPattern.Right is not null && !ReferenceEquals(orPattern.Right, orPattern.Left))
+        if(orPattern.Right is not null && !ReferenceEquals(orPattern.Right, orPattern.Left))
         {
             CollectPatternVariablesFromAndPattern(orPattern.Right, scrutineeType, model, variables);
         }
@@ -9227,7 +9227,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     {
         CollectPatternVariablesFromUnaryPattern(andPattern.Left, scrutineeType, model, variables);
 
-        if (andPattern.Right is not null && !ReferenceEquals(andPattern.Right, andPattern.Left))
+        if(andPattern.Right is not null && !ReferenceEquals(andPattern.Right, andPattern.Left))
         {
             CollectPatternVariablesFromUnaryPattern(andPattern.Right, scrutineeType, model, variables);
         }
@@ -9239,7 +9239,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         ISemanticModel model,
         Dictionary<string, IType> variables)
     {
-        switch (unaryPattern)
+        switch(unaryPattern)
         {
             case NotPatternUnaryPatternNode notPattern:
                 CollectPatternVariablesFromPrimaryPattern(notPattern.Operand, scrutineeType, model, variables);
@@ -9256,85 +9256,85 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         ISemanticModel model,
         Dictionary<string, IType> variables)
     {
-        switch (primaryPattern)
+        switch(primaryPattern)
         {
             case TypePatternPrimaryPatternNode typePattern:
-            {
-                var name = typePattern.Name.Lexeme;
-                if (name != "_")
                 {
-                    var patternType = model.GetTypeOf(typePattern.Type);
-                    patternType ??= model.GetDeclaredSymbol(typePattern)?.DeclaredType;
-                    variables[name] = patternType ?? ErrorType.Instance;
+                    var name = typePattern.Name.Lexeme;
+                    if(name != "_")
+                    {
+                        var patternType = model.GetTypeOf(typePattern.Type);
+                        patternType ??= model.GetDeclaredSymbol(typePattern)?.DeclaredType;
+                        variables[name] = patternType ?? ErrorType.Instance;
+                    }
+                    break;
                 }
-                break;
-            }
 
             case BareTypePatternPrimaryPatternNode:
-            {
-                // Bare type pattern: no binding name, nothing to collect.
-                break;
-            }
+                {
+                    // Bare type pattern: no binding name, nothing to collect.
+                    break;
+                }
 
             case VarPatternPrimaryPatternNode varPattern:
-            {
-                var name = varPattern.Name.Lexeme;
-                if (name != "_")
                 {
-                    variables[name] = scrutineeType;
-                }
-                break;
-            }
-
-            case DiscardPatternPrimaryPatternNode:
-            {
-                // Discard pattern (bare _): no binding, nothing to collect.
-                break;
-            }
-
-            case PropertyPatternPrimaryPatternNode propertyPattern:
-            {
-                // Recursively collect from subpatterns.
-                if (propertyPattern.Subpatterns is not null)
-                {
-                    var patternType = scrutineeType;
-                    CollectPatternVariablesFromPropertySubpatternList(
-                        propertyPattern.Subpatterns, patternType, model, variables);
-                }
-
-                // Trailing identifier introduces a variable.
-                if (propertyPattern.Name.HasValue)
-                {
-                    var name = propertyPattern.Name.Value.Lexeme;
-                    if (name != "_")
+                    var name = varPattern.Name.Lexeme;
+                    if(name != "_")
                     {
                         variables[name] = scrutineeType;
                     }
+                    break;
                 }
-                break;
-            }
+
+            case DiscardPatternPrimaryPatternNode:
+                {
+                    // Discard pattern (bare _): no binding, nothing to collect.
+                    break;
+                }
+
+            case PropertyPatternPrimaryPatternNode propertyPattern:
+                {
+                    // Recursively collect from subpatterns.
+                    if(propertyPattern.Subpatterns is not null)
+                    {
+                        var patternType = scrutineeType;
+                        CollectPatternVariablesFromPropertySubpatternList(
+                            propertyPattern.Subpatterns, patternType, model, variables);
+                    }
+
+                    // Trailing identifier introduces a variable.
+                    if(propertyPattern.Name.HasValue)
+                    {
+                        var name = propertyPattern.Name.Value.Lexeme;
+                        if(name != "_")
+                        {
+                            variables[name] = scrutineeType;
+                        }
+                    }
+                    break;
+                }
 
             case ListPatternPrimaryPatternNode listPattern:
-            {
-                var elementType = scrutineeType is ArrayType arrayType
-                    ? arrayType.ElementType
-                    : ErrorType.Instance;
-
-                if (listPattern.Elements is not null)
                 {
-                    CollectPatternVariablesFromListElementList(
-                        listPattern.Elements, elementType, model, variables);
+                    var elementType = scrutineeType is ArrayType arrayType
+                        ? arrayType.ElementType
+                        : ErrorType.Instance;
+
+                    if(listPattern.Elements is not null)
+                    {
+                        CollectPatternVariablesFromListElementList(
+                            listPattern.Elements, elementType, model, variables);
+                    }
+                    break;
                 }
-                break;
-            }
 
             case ParenthesizedPatternPrimaryPatternNode parenPattern:
-            {
-                CollectPatternVariablesFromPattern(parenPattern.Inner, scrutineeType, model, variables);
-                break;
-            }
+                {
+                    CollectPatternVariablesFromPattern(parenPattern.Inner, scrutineeType, model, variables);
+                    break;
+                }
 
-            // Constant, relational, and discard patterns introduce no variables.
+                // Constant, relational, and discard patterns introduce no variables.
         }
     }
 
@@ -9346,7 +9346,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     {
         CollectPatternVariablesFromPropertySubpattern(subpatternList.PropertySubpattern, patternType, model, variables);
 
-        foreach (var subpattern in subpatternList.PropertySubpatterns)
+        foreach(var subpattern in subpatternList.PropertySubpatterns)
         {
             CollectPatternVariablesFromPropertySubpattern(subpattern, patternType, model, variables);
         }
@@ -9374,7 +9374,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     {
         CollectPatternVariablesFromListElement(elementList.ListPatternElement, elementType, model, variables);
 
-        foreach (var element in elementList.ListPatternElements)
+        foreach(var element in elementList.ListPatternElements)
         {
             CollectPatternVariablesFromListElement(element, elementType, model, variables);
         }
@@ -9386,16 +9386,16 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         ISemanticModel model,
         Dictionary<string, IType> variables)
     {
-        switch (element)
+        switch(element)
         {
             case PatternElementListPatternElementNode patternElement:
                 CollectPatternVariablesFromPattern(patternElement.Pattern, elementType, model, variables);
                 break;
             case SliceElementListPatternElementNode sliceElement:
-                if (sliceElement.Name.HasValue)
+                if(sliceElement.Name.HasValue)
                 {
                     var name = sliceElement.Name.Value.Lexeme;
-                    if (name != "_")
+                    if(name != "_")
                     {
                         // Slice variable captures a sub-array.
                         variables[name] = new ArrayType(elementType);
@@ -9412,19 +9412,19 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         Dictionary<string, IType> left,
         Dictionary<string, IType> right)
     {
-        if (left.Count != right.Count)
+        if(left.Count != right.Count)
             return false;
 
-        foreach (var (name, leftType) in left)
+        foreach(var (name, leftType) in left)
         {
-            if (!right.TryGetValue(name, out var rightType))
+            if(!right.TryGetValue(name, out var rightType))
                 return false;
 
             // Allow ErrorType to match anything (suppress cascading errors).
-            if (IsErrorType(leftType) || IsErrorType(rightType))
+            if(IsErrorType(leftType) || IsErrorType(rightType))
                 continue;
 
-            if (leftType.DisplayName != rightType.DisplayName
+            if(leftType.DisplayName != rightType.DisplayName
                 && !ArePrimitiveEquivalent(leftType, rightType))
                 return false;
         }
@@ -9493,12 +9493,12 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </remarks>
     private static bool IsClosedGenericWithUnknown(IType type)
     {
-        if (type is not ConstructedType ct)
+        if(type is not ConstructedType ct)
             return false;
 
-        foreach (var arg in ct.TypeArguments)
+        foreach(var arg in ct.TypeArguments)
         {
-            if (ContainsUnknownAtAnyPosition(arg))
+            if(ContainsUnknownAtAnyPosition(arg))
                 return true;
         }
         return false;
@@ -9516,15 +9516,15 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     private static bool HasOpenDependentArguments(IType type)
     {
-        if (type is not ConstructedType ct)
+        if(type is not ConstructedType ct)
             return false;
 
-        if (ct.DependentArguments is null)
+        if(ct.DependentArguments is null)
             return false;
 
-        foreach (var depArg in ct.DependentArguments)
+        foreach(var depArg in ct.DependentArguments)
         {
-            if (depArg is not null && depArg.Value is string)
+            if(depArg is not null && depArg.Value is string)
                 return true;
         }
         return false;
@@ -9538,16 +9538,16 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     private static bool ContainsUnknownAtAnyPosition(IType type)
     {
-        switch (type)
+        switch(type)
         {
             case UnknownType:
                 return true;
             case ArrayType arr:
                 return ContainsUnknownAtAnyPosition(arr.ElementType);
             case ConstructedType ct:
-                foreach (var arg in ct.TypeArguments)
+                foreach(var arg in ct.TypeArguments)
                 {
-                    if (ContainsUnknownAtAnyPosition(arg))
+                    if(ContainsUnknownAtAnyPosition(arg))
                         return true;
                 }
                 return false;
@@ -9584,7 +9584,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     {
         CheckMultiplicativeNode(node.Left, model, diagnostics);
 
-        if (node.Right is not null)
+        if(node.Right is not null)
         {
             CheckMultiplicativeNode(node.Right, model, diagnostics);
 
@@ -9608,7 +9608,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     {
         CheckUnaryNode(node.Left, model, diagnostics);
 
-        if (node.Right is not null)
+        if(node.Right is not null)
         {
             CheckUnaryNode(node.Right, model, diagnostics);
 
@@ -9630,44 +9630,44 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
     private void CheckUnaryNode(UnaryNode node, ISemanticModel model, DiagnosticBag diagnostics)
     {
-        switch (node)
+        switch(node)
         {
             case LogicalNotUnaryNode logicalNot:
-            {
-                // Walk the operand first so its own operators / members
-                // still get analysed.
-                CheckUnaryNode(logicalNot.Operand, model, diagnostics);
+                {
+                    // Walk the operand first so its own operators / members
+                    // still get analysed.
+                    CheckUnaryNode(logicalNot.Operand, model, diagnostics);
 
-                // Route typing / error emission through overload
-                // resolution (Requirements 6.2, 6.9). Boolean.operator!
-                // is declared on Standard.Boolean; the old
-                // PrimitiveType.Bool special case is removed.
-                ResolveUnaryOperator(
-                    "!",
-                    logicalNot.Operand,
-                    logicalNot,
-                    "MIST_TC_0006",
-                    model,
-                    diagnostics);
-                break;
-            }
+                    // Route typing / error emission through overload
+                    // resolution (Requirements 6.2, 6.9). Boolean.operator!
+                    // is declared on Standard.Boolean; the old
+                    // PrimitiveType.Bool special case is removed.
+                    ResolveUnaryOperator(
+                        "!",
+                        logicalNot.Operand,
+                        logicalNot,
+                        "MIST_TC_0006",
+                        model,
+                        diagnostics);
+                    break;
+                }
             case NegateUnaryNode negate:
-            {
-                CheckUnaryNode(negate.Operand, model, diagnostics);
+                {
+                    CheckUnaryNode(negate.Operand, model, diagnostics);
 
-                // Route typing / error emission through overload
-                // resolution (Requirements 6.2, 6.7). Unary - is declared
-                // on each signed numeric stdlib type; the old IsNumeric
-                // special case is removed.
-                ResolveUnaryOperator(
-                    "-",
-                    negate.Operand,
-                    negate,
-                    "MIST_TC_0003",
-                    model,
-                    diagnostics);
-                break;
-            }
+                    // Route typing / error emission through overload
+                    // resolution (Requirements 6.2, 6.7). Unary - is declared
+                    // on each signed numeric stdlib type; the old IsNumeric
+                    // special case is removed.
+                    ResolveUnaryOperator(
+                        "-",
+                        negate.Operand,
+                        negate,
+                        "MIST_TC_0003",
+                        model,
+                        diagnostics);
+                    break;
+                }
             case PostfixExpressionUnaryNode postfix:
                 CheckPostfixNode(postfix.Primary, model, diagnostics);
                 // Propagate refined type from the PostfixNode up to the
@@ -9675,7 +9675,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 // other upstream consumers see the correct type after
                 // type argument inference.
                 var postfixType = model.GetTypeOf(postfix.Primary);
-                if (postfixType is not null && postfixType != model.GetTypeOf(postfix))
+                if(postfixType is not null && postfixType != model.GetTypeOf(postfix))
                 {
                     model.SetTypeOf(postfix, postfixType);
                 }
@@ -9719,18 +9719,18 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         // If the operand resolved to an error type, suppress cascading diagnostics.
         var operandType = model.GetTypeOf(operand);
-        if (operandType is UnknownType || IsErrorType(operandType ?? ErrorType.Instance))
+        if(operandType is UnknownType || IsErrorType(operandType ?? ErrorType.Instance))
             return;
 
         // A valid operand is a PostfixExpressionUnaryNode whose PostfixNode ends
         // with an invocation suffix (direct call) or method call suffix (dot call).
-        if (operand is PostfixExpressionUnaryNode postfixExpr)
+        if(operand is PostfixExpressionUnaryNode postfixExpr)
         {
             var postfix = postfixExpr.Primary;
-            if (postfix.Suffix.Length > 0)
+            if(postfix.Suffix.Length > 0)
             {
                 var lastSuffix = postfix.Suffix[^1];
-                if (lastSuffix is InvocationSuffixPostfixSuffixNode or MethodCallSuffixPostfixSuffixNode)
+                if(lastSuffix is InvocationSuffixPostfixSuffixNode or MethodCallSuffixPostfixSuffixNode)
                     return;
             }
         }
@@ -9749,36 +9749,36 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     private static string DescribeUnaryExpressionKind(UnaryNode operand)
     {
-        switch (operand)
+        switch(operand)
         {
             case PostfixExpressionUnaryNode postfixExpr:
-            {
-                var postfix = postfixExpr.Primary;
-                if (postfix.Suffix.Length == 0)
                 {
-                    return postfix.Target switch
+                    var postfix = postfixExpr.Primary;
+                    if(postfix.Suffix.Length == 0)
                     {
-                        IdentifierExpressionPrimaryNode => "a variable reference",
-                        IntegerLiteralExpressionPrimaryNode => "a literal",
-                        FloatLiteralExpressionPrimaryNode => "a literal",
-                        StringLiteralExpressionPrimaryNode => "a literal",
-                        TrueLiteralExpressionPrimaryNode => "a literal",
-                        FalseLiteralExpressionPrimaryNode => "a literal",
-                        CharLiteralExpressionPrimaryNode => "a literal",
-                        ThisExpressionPrimaryNode => "a 'this' expression",
+                        return postfix.Target switch
+                        {
+                            IdentifierExpressionPrimaryNode => "a variable reference",
+                            IntegerLiteralExpressionPrimaryNode => "a literal",
+                            FloatLiteralExpressionPrimaryNode => "a literal",
+                            StringLiteralExpressionPrimaryNode => "a literal",
+                            TrueLiteralExpressionPrimaryNode => "a literal",
+                            FalseLiteralExpressionPrimaryNode => "a literal",
+                            CharLiteralExpressionPrimaryNode => "a literal",
+                            ThisExpressionPrimaryNode => "a 'this' expression",
+                            _ => "an expression"
+                        };
+                    }
+
+                    var lastSuffix = postfix.Suffix[^1];
+                    return lastSuffix switch
+                    {
+                        MemberAccessSuffixPostfixSuffixNode => "a property access",
+                        IndexSuffixPostfixSuffixNode => "an index access",
+                        SwitchExpressionSuffixPostfixSuffixNode => "a switch expression",
                         _ => "an expression"
                     };
                 }
-
-                var lastSuffix = postfix.Suffix[^1];
-                return lastSuffix switch
-                {
-                    MemberAccessSuffixPostfixSuffixNode => "a property access",
-                    IndexSuffixPostfixSuffixNode => "an index access",
-                    SwitchExpressionSuffixPostfixSuffixNode => "a switch expression",
-                    _ => "an expression"
-                };
-            }
             case CastExpressionUnaryNode:
                 return "a cast expression";
             case LogicalNotUnaryNode:
@@ -9814,18 +9814,18 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         DiagnosticBag diagnostics)
     {
         // Only relevant in an async context.
-        if (_currentMethodSymbol is not Symbol { IsAsync: true })
+        if(_currentMethodSymbol is not Symbol { IsAsync: true })
             return;
 
         // Suppress if the operand resolved to an error type.
         var operandType = model.GetTypeOf(asyncExpr.Operand);
-        if (operandType is null || operandType is UnknownType || IsErrorType(operandType))
+        if(operandType is null || operandType is UnknownType || IsErrorType(operandType))
             return;
 
         // In an async context, if the operand (a method invocation) already has
         // type Task<T>, it means the target method is async. The async functor
         // will wrap it again to Task<Task<T>> — the double-wrap condition.
-        if (!SemanticModelBuilder.IsStandardTaskType(operandType))
+        if(!SemanticModelBuilder.IsStandardTaskType(operandType))
             return;
 
         diagnostics.Add(MakeDiagnosticWarning(
@@ -9855,14 +9855,14 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         DiagnosticBag diagnostics)
     {
         var operandType = model.GetTypeOf(awaitExpr.Operand);
-        if (operandType is null || operandType is UnknownType || IsErrorType(operandType))
+        if(operandType is null || operandType is UnknownType || IsErrorType(operandType))
             return;
 
-        if (SemanticModelBuilder.IsStandardTaskType(operandType))
+        if(SemanticModelBuilder.IsStandardTaskType(operandType))
             return;
 
         // Also accept ValueTask<T> as a valid await operand.
-        if (operandType is ConstructedType vt
+        if(operandType is ConstructedType vt
             && vt.GenericDefinition is ClassType { DisplayName: "ValueTask", ContainingNamespace: "Standard", IsBackendBacked: true })
             return;
 
@@ -9892,11 +9892,11 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // so those nested visits do not inherit the LHS context.
         _analyzingAssignmentLhs = false;
 
-        for (var suffixIndex = 0; suffixIndex < node.Suffix.Length; suffixIndex++)
+        for(var suffixIndex = 0; suffixIndex < node.Suffix.Length; suffixIndex++)
         {
             var suffix = node.Suffix[suffixIndex];
 
-            switch (suffix)
+            switch(suffix)
             {
                 case MethodCallSuffixPostfixSuffixNode methodCall:
                     // Task 25.1: bare-unknown member access rejection.
@@ -9905,7 +9905,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     // singleton has no member scope (Req 3.4). Emit
                     // MIST_TC_0065 and short-circuit the remaining
                     // suffix logic to suppress cascading diagnostics.
-                    if (currentType is UnknownType)
+                    if(currentType is UnknownType)
                     {
                         diagnostics.Add(MakeDiagnostic(
                             BareUnknownMemberAccess.Value,
@@ -9923,9 +9923,9 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     // is invalid — the user must use `?.` to safely unwrap the optional.
                     // For non-void unions (e.g., int | string), check that the method
                     // exists on ALL constituents.
-                    if (currentType is UnionType unionForMethodCall)
+                    if(currentType is UnionType unionForMethodCall)
                     {
-                        if (unionForMethodCall.Constituents.Any(c => c.IsVoid()))
+                        if(unionForMethodCall.Constituents.Any(c => c.IsVoid()))
                         {
                             diagnostics.Add(MakeDiagnostic(
                                 UnionMemberNotOnAllConstituents.Value,
@@ -9974,7 +9974,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     // MIST_TC_0065 naming the canonical indexer lexeme
                     // and short-circuit the remaining suffix logic to
                     // suppress cascading diagnostics.
-                    if (currentType is UnknownType)
+                    if(currentType is UnknownType)
                     {
                         diagnostics.Add(MakeDiagnostic(
                             BareUnknownMemberAccess.Value,
@@ -9997,10 +9997,10 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
                 case SwitchExpressionSuffixPostfixSuffixNode switchExpr:
                     // Walk each switch arm: check guard type and recurse into sub-expressions.
-                    if (switchExpr.Arms is not null)
+                    if(switchExpr.Arms is not null)
                     {
                         CheckSwitchArm(switchExpr.Arms.SwitchArm, model, diagnostics);
-                        foreach (var arm in switchExpr.Arms.SwitchArms)
+                        foreach(var arm in switchExpr.Arms.SwitchArms)
                         {
                             CheckSwitchArm(arm, model, diagnostics);
                         }
@@ -10008,10 +10008,10 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                         // Task 3.4: Validate switch arm patterns against the scrutinee type.
                         // The scrutinee type is `currentType` (the type of the expression
                         // before the switch suffix was applied).
-                        if (currentType is not null && currentType is not ErrorType)
+                        if(currentType is not null && currentType is not ErrorType)
                         {
                             CheckPattern(switchExpr.Arms.SwitchArm.Pattern, currentType, model, diagnostics);
-                            foreach (var arm in switchExpr.Arms.SwitchArms)
+                            foreach(var arm in switchExpr.Arms.SwitchArms)
                             {
                                 CheckPattern(arm.Pattern, currentType, model, diagnostics);
                             }
@@ -10025,11 +10025,11 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                         // Task 5.5: Exhaustiveness checking.
                         // The scrutinee type is `currentType` at this point (the type
                         // of the expression before the switch suffix was applied).
-                        if (currentType is not null && currentType is not ErrorType)
+                        if(currentType is not null && currentType is not ErrorType)
                         {
                             var armTuples = BuildSwitchArmTuples(switchExpr.Arms);
                             var missingCases = ExhaustivenessChecker.CheckExhaustiveness(currentType, armTuples);
-                            if (missingCases.Count > 0)
+                            if(missingCases.Count > 0)
                             {
                                 var casesStr = string.Join(", ", missingCases);
                                 diagnostics.Add(MakeDiagnosticWarning(
@@ -10054,7 +10054,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     // singleton has no member scope (Req 3.4). Emit
                     // MIST_TC_0065 and short-circuit the remaining
                     // suffix logic to suppress cascading diagnostics.
-                    if (currentType is UnknownType)
+                    if(currentType is UnknownType)
                     {
                         diagnostics.Add(MakeDiagnostic(
                             BareUnknownMemberAccess.Value,
@@ -10071,9 +10071,9 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     // is invalid — the user must use `?.` to safely unwrap the optional.
                     // For non-void unions (e.g., int | string), check that the member
                     // exists on ALL constituents.
-                    if (currentType is UnionType unionForMemberAccess)
+                    if(currentType is UnionType unionForMemberAccess)
                     {
-                        if (unionForMemberAccess.Constituents.Any(c => c.IsVoid()))
+                        if(unionForMemberAccess.Constituents.Any(c => c.IsVoid()))
                         {
                             diagnostics.Add(MakeDiagnostic(
                                 UnionMemberNotOnAllConstituents.Value,
@@ -10094,7 +10094,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     // so skip access modifier checks. The semantic model builder
                     // already validates member existence and reports MIST_SB_0082
                     // for undefined members.
-                    if (currentType is EnumType)
+                    if(currentType is EnumType)
                     {
                         currentType = model.GetTypeOf(suffix) ?? ErrorType.Instance;
                         targetIsTypeName = false;
@@ -10104,7 +10104,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     // and have no declared symbol, so skip access modifier checks.
                     // The semantic model builder resolves property types and reports
                     // MIST_UNDEFINED_MEMBER for unknown property names.
-                    if (currentType is AnonymousType)
+                    if(currentType is AnonymousType)
                     {
                         currentType = model.GetTypeOf(suffix) ?? ErrorType.Instance;
                         targetIsTypeName = false;
@@ -10123,92 +10123,92 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     break;
 
                 case OptionalMemberAccessSuffixPostfixSuffixNode optionalMemberAccess:
-                {
-                    // Task 6.1: Optional chaining member access (Requirements 3.1, 3.2, 3.3, 3.4).
-                    // The receiver must be a UnionType containing void.
-                    var optMemberResult = CheckOptionalChainingReceiver(
-                        currentType, optionalMemberAccess, model, diagnostics);
-                    if (optMemberResult is null)
                     {
-                        currentType = ErrorType.Instance;
+                        // Task 6.1: Optional chaining member access (Requirements 3.1, 3.2, 3.3, 3.4).
+                        // The receiver must be a UnionType containing void.
+                        var optMemberResult = CheckOptionalChainingReceiver(
+                            currentType, optionalMemberAccess, model, diagnostics);
+                        if(optMemberResult is null)
+                        {
+                            currentType = ErrorType.Instance;
+                            targetIsTypeName = false;
+                            break;
+                        }
+
+                        // Resolve the member on the projected type T (void removed).
+                        var projectedType = optMemberResult;
+                        var memberSymbol = FindMemberSymbol(projectedType, optionalMemberAccess.Name.Lexeme, model);
+                        if(memberSymbol is null)
+                        {
+                            diagnostics.Add(MakeDiagnostic(
+                                "MIST_UNDEFINED_MEMBER",
+                                $"'{projectedType.DisplayName}' does not contain a definition for '{optionalMemberAccess.Name.Lexeme}'",
+                                optionalMemberAccess,
+                                model));
+                            currentType = ErrorType.Instance;
+                            targetIsTypeName = false;
+                            break;
+                        }
+
+                        // The result type is R | void (flattened if R already contains void).
+                        var memberType = SubstituteMemberType(memberSymbol.DeclaredType, projectedType);
+                        currentType = WrapWithVoid(memberType, currentType);
+                        model.SetTypeOf(suffix, currentType);
                         targetIsTypeName = false;
                         break;
                     }
-
-                    // Resolve the member on the projected type T (void removed).
-                    var projectedType = optMemberResult;
-                    var memberSymbol = FindMemberSymbol(projectedType, optionalMemberAccess.Name.Lexeme, model);
-                    if (memberSymbol is null)
-                    {
-                        diagnostics.Add(MakeDiagnostic(
-                            "MIST_UNDEFINED_MEMBER",
-                            $"'{projectedType.DisplayName}' does not contain a definition for '{optionalMemberAccess.Name.Lexeme}'",
-                            optionalMemberAccess,
-                            model));
-                        currentType = ErrorType.Instance;
-                        targetIsTypeName = false;
-                        break;
-                    }
-
-                    // The result type is R | void (flattened if R already contains void).
-                    var memberType = SubstituteMemberType(memberSymbol.DeclaredType, projectedType);
-                    currentType = WrapWithVoid(memberType, currentType);
-                    model.SetTypeOf(suffix, currentType);
-                    targetIsTypeName = false;
-                    break;
-                }
 
                 case OptionalMethodCallSuffixPostfixSuffixNode optionalMethodCall:
-                {
-                    // Task 6.1: Optional chaining method call (Requirements 3.1, 3.2, 3.3, 3.4).
-                    // The receiver must be a UnionType containing void.
-                    var receiverTypeForVoidWrap = currentType;
-                    var optMethodResult = CheckOptionalChainingReceiver(
-                        currentType, optionalMethodCall, model, diagnostics);
-                    if (optMethodResult is null)
                     {
-                        currentType = ErrorType.Instance;
-                        targetIsTypeName = false;
-                        break;
-                    }
-
-                    // Resolve the method on the projected type T (void removed).
-                    var projectedType = optMethodResult;
-                    var methodSymbol = FindMemberSymbol(projectedType, optionalMethodCall.Name.Lexeme, model);
-                    if (methodSymbol is null)
-                    {
-                        diagnostics.Add(MakeDiagnostic(
-                            "MIST_UNDEFINED_MEMBER",
-                            $"'{projectedType.DisplayName}' does not contain a definition for '{optionalMethodCall.Name.Lexeme}'",
-                            optionalMethodCall,
-                            model));
-                        currentType = ErrorType.Instance;
-                        targetIsTypeName = false;
-                        break;
-                    }
-
-                    // Check argument expressions recursively.
-                    if (optionalMethodCall.Arguments is not null)
-                    {
-                        CheckArgumentListExpressions(optionalMethodCall.Arguments, model, diagnostics);
-                    }
-
-                    // The result type is R | void (flattened if R already contains void).
-                    var returnType = SubstituteMemberType(methodSymbol.DeclaredType, projectedType);
-                    // Also substitute method-level type arguments in the return type.
-                    if (optionalMethodCall.TypeArgs is not null && methodSymbol is Symbol sym && sym.TypeParameters.Count > 0)
-                    {
-                        var resolvedTypeArgs = ResolveTypeArgumentsFromAst(optionalMethodCall.TypeArgs, model);
-                        if (resolvedTypeArgs.Count == sym.TypeParameters.Count)
+                        // Task 6.1: Optional chaining method call (Requirements 3.1, 3.2, 3.3, 3.4).
+                        // The receiver must be a UnionType containing void.
+                        var receiverTypeForVoidWrap = currentType;
+                        var optMethodResult = CheckOptionalChainingReceiver(
+                            currentType, optionalMethodCall, model, diagnostics);
+                        if(optMethodResult is null)
                         {
-                            returnType = TypeCheckerAnalyzer.SubstituteType(returnType!, sym.TypeParameters, resolvedTypeArgs);
+                            currentType = ErrorType.Instance;
+                            targetIsTypeName = false;
+                            break;
                         }
+
+                        // Resolve the method on the projected type T (void removed).
+                        var projectedType = optMethodResult;
+                        var methodSymbol = FindMemberSymbol(projectedType, optionalMethodCall.Name.Lexeme, model);
+                        if(methodSymbol is null)
+                        {
+                            diagnostics.Add(MakeDiagnostic(
+                                "MIST_UNDEFINED_MEMBER",
+                                $"'{projectedType.DisplayName}' does not contain a definition for '{optionalMethodCall.Name.Lexeme}'",
+                                optionalMethodCall,
+                                model));
+                            currentType = ErrorType.Instance;
+                            targetIsTypeName = false;
+                            break;
+                        }
+
+                        // Check argument expressions recursively.
+                        if(optionalMethodCall.Arguments is not null)
+                        {
+                            CheckArgumentListExpressions(optionalMethodCall.Arguments, model, diagnostics);
+                        }
+
+                        // The result type is R | void (flattened if R already contains void).
+                        var returnType = SubstituteMemberType(methodSymbol.DeclaredType, projectedType);
+                        // Also substitute method-level type arguments in the return type.
+                        if(optionalMethodCall.TypeArgs is not null && methodSymbol is Symbol sym && sym.TypeParameters.Count > 0)
+                        {
+                            var resolvedTypeArgs = ResolveTypeArgumentsFromAst(optionalMethodCall.TypeArgs, model);
+                            if(resolvedTypeArgs.Count == sym.TypeParameters.Count)
+                            {
+                                returnType = TypeCheckerAnalyzer.SubstituteType(returnType!, sym.TypeParameters, resolvedTypeArgs);
+                            }
+                        }
+                        currentType = WrapWithVoid(returnType, receiverTypeForVoidWrap);
+                        model.SetTypeOf(suffix, currentType);
+                        targetIsTypeName = false;
+                        break;
                     }
-                    currentType = WrapWithVoid(returnType, receiverTypeForVoidWrap);
-                    model.SetTypeOf(suffix, currentType);
-                    targetIsTypeName = false;
-                    break;
-                }
             }
         }
 
@@ -10217,10 +10217,10 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // a TypeParameterType to a concrete type), update the PostfixNode's
         // expression type so that upstream consumers (var declarations, argument
         // type resolution) see the refined type.
-        if (currentType is not null && node.Suffix.Length > 0)
+        if(currentType is not null && node.Suffix.Length > 0)
         {
             var existingNodeType = model.GetTypeOf(node);
-            if (existingNodeType is not null && currentType != existingNodeType)
+            if(existingNodeType is not null && currentType != existingNodeType)
             {
                 model.SetTypeOf(node, currentType);
             }
@@ -10243,38 +10243,38 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         ISemanticModel model,
         DiagnosticBag diagnostics)
     {
-        if (currentType is null || currentType is ErrorType)
+        if(currentType is null || currentType is ErrorType)
             return null;
 
         // Unwrap type aliases (e.g., Optional<T> → T | void).
         var effectiveType = currentType;
-        if (effectiveType is TypeAliasType alias)
+        if(effectiveType is TypeAliasType alias)
             effectiveType = alias.UnderlyingType;
 
         // The receiver must be a UnionType containing void.
-        if (effectiveType is UnionType union)
+        if(effectiveType is UnionType union)
         {
             var hasVoid = false;
-            foreach (var constituent in union.Constituents)
+            foreach(var constituent in union.Constituents)
             {
-                if (constituent.IsVoid())
+                if(constituent.IsVoid())
                 {
                     hasVoid = true;
                     break;
                 }
             }
 
-            if (hasVoid)
+            if(hasVoid)
             {
                 // Compute projected type T by removing void from constituents.
                 var nonVoidConstituents = new List<IType>();
-                foreach (var constituent in union.Constituents)
+                foreach(var constituent in union.Constituents)
                 {
-                    if (!constituent.IsVoid())
+                    if(!constituent.IsVoid())
                         nonVoidConstituents.Add(constituent);
                 }
 
-                if (nonVoidConstituents.Count == 0)
+                if(nonVoidConstituents.Count == 0)
                 {
                     // All constituents are void — degenerate case.
                     diagnostics.Add(MakeDiagnostic(
@@ -10285,7 +10285,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     return null;
                 }
 
-                if (nonVoidConstituents.Count == 1)
+                if(nonVoidConstituents.Count == 1)
                     return nonVoidConstituents[0];
 
                 return new UnionType(nonVoidConstituents);
@@ -10309,19 +10309,19 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     private static IType WrapWithVoid(IType? type, IType? receiverType = null)
     {
-        if (type is null || type is ErrorType)
+        if(type is null || type is ErrorType)
             return ErrorType.Instance;
 
         // If R is already void, return void.
-        if (type.IsVoid())
+        if(type.IsVoid())
             return type;
 
         // If R is already a union containing void, return it unchanged.
-        if (type is UnionType existingUnion)
+        if(type is UnionType existingUnion)
         {
-            foreach (var constituent in existingUnion.Constituents)
+            foreach(var constituent in existingUnion.Constituents)
             {
-                if (constituent.IsVoid())
+                if(constituent.IsVoid())
                     return type;
             }
         }
@@ -10330,11 +10330,11 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // type identity consistency. This avoids mismatches between LegacyPrimitiveTypes.Void
         // (DisplayName "void") and the stdlib Standard.Void (DisplayName "Void").
         IType voidType = LegacyPrimitiveTypes.Void;
-        if (receiverType is UnionType receiverUnion)
+        if(receiverType is UnionType receiverUnion)
         {
-            foreach (var constituent in receiverUnion.Constituents)
+            foreach(var constituent in receiverUnion.Constituents)
             {
-                if (constituent.IsVoid())
+                if(constituent.IsVoid())
                 {
                     voidType = constituent;
                     break;
@@ -10354,11 +10354,11 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     private void CheckSwitchArm(SwitchArmNode arm, ISemanticModel model, DiagnosticBag diagnostics)
     {
         // Walk the guard expression (if present) and verify it resolves to bool.
-        if (arm.Guard is not null)
+        if(arm.Guard is not null)
         {
             CheckVoidCoalescingNode(arm.Guard.Condition, model, diagnostics);
             var guardType = model.GetTypeOf(arm.Guard.Condition);
-            if (guardType is not null && !IsErrorType(guardType) && !IsBoolLike(guardType))
+            if(guardType is not null && !IsErrorType(guardType) && !IsBoolLike(guardType))
             {
                 diagnostics.Add(MakeDiagnostic(
                     SwitchGuardNotBool.Value,
@@ -10387,23 +10387,23 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // The unified result type stored by the semantic model is UnknownType.Instance
         // when no common type could be determined across all arms.
         var unifiedType = model.GetTypeOf(switchExpr);
-        if (unifiedType is not UnknownType)
+        if(unifiedType is not UnknownType)
             return;
 
         // Collect arm result types to find the first incompatible pair.
         var arms = switchExpr.Arms!;
         var firstArmType = model.GetTypeOf(arms.SwitchArm.Result);
-        if (firstArmType is null || IsErrorType(firstArmType))
+        if(firstArmType is null || IsErrorType(firstArmType))
             return;
 
         // Check the first arm against remaining arms to find the incompatible pair.
-        foreach (var arm in arms.SwitchArms)
+        foreach(var arm in arms.SwitchArms)
         {
             var armType = model.GetTypeOf(arm.Result);
-            if (armType is null || IsErrorType(armType))
+            if(armType is null || IsErrorType(armType))
                 continue;
 
-            if (!IsAssignable(armType, firstArmType) && !IsAssignable(firstArmType, armType))
+            if(!IsAssignable(armType, firstArmType) && !IsAssignable(firstArmType, armType))
             {
                 diagnostics.Add(MakeDiagnostic(
                     SwitchIncompatibleArmTypes.Value,
@@ -10424,7 +10424,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     {
         var result = new List<(PatternNode, bool)>();
         result.Add((armList.SwitchArm.Pattern, armList.SwitchArm.Guard is not null));
-        foreach (var arm in armList.SwitchArms)
+        foreach(var arm in armList.SwitchArms)
         {
             result.Add((arm.Pattern, arm.Guard is not null));
         }
@@ -10447,7 +10447,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     {
         // Collect all arms into a flat list for positional iteration.
         var arms = new List<SwitchArmNode> { armList.SwitchArm };
-        foreach (var arm in armList.SwitchArms)
+        foreach(var arm in armList.SwitchArms)
         {
             arms.Add(arm);
         }
@@ -10456,14 +10456,14 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         var seenConstants = new HashSet<string>(StringComparer.Ordinal);
         var seenTypes = new HashSet<string>(StringComparer.Ordinal);
 
-        for (var i = 0; i < arms.Count; i++)
+        for(var i = 0; i < arms.Count; i++)
         {
             var arm = arms[i];
             var hasGuard = arm.Guard is not null;
 
             // Rule 1: If an unguarded catch-all was seen at an earlier position,
             // all subsequent arms are unreachable.
-            if (catchAllSeenAtIndex >= 0 && i > catchAllSeenAtIndex)
+            if(catchAllSeenAtIndex >= 0 && i > catchAllSeenAtIndex)
             {
                 diagnostics.Add(MakeDiagnosticWarning(
                     SwitchUnreachableArm.Value,
@@ -10475,21 +10475,21 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
             // Extract the primary pattern for classification.
             var primary = TryGetSinglePrimaryPattern(arm.Pattern);
-            if (primary is null)
+            if(primary is null)
                 continue;
 
             // Check if this arm is a catch-all (discard or var pattern).
-            if (!hasGuard && IsCatchAllPrimaryPattern(primary))
+            if(!hasGuard && IsCatchAllPrimaryPattern(primary))
             {
                 catchAllSeenAtIndex = i;
                 continue;
             }
 
             // Rule 2: Duplicate unguarded constant patterns.
-            if (!hasGuard && primary is ConstantPatternPrimaryPatternNode constantPattern)
+            if(!hasGuard && primary is ConstantPatternPrimaryPatternNode constantPattern)
             {
                 var key = GetConstantKey(constantPattern.Literal);
-                if (key is not null && !seenConstants.Add(key))
+                if(key is not null && !seenConstants.Add(key))
                 {
                     diagnostics.Add(MakeDiagnosticWarning(
                         SwitchUnreachableArm.Value,
@@ -10501,7 +10501,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             }
 
             // Rule 3: Duplicate unguarded type patterns for the same type.
-            if (!hasGuard)
+            if(!hasGuard)
             {
                 string? typeName = primary switch
                 {
@@ -10512,7 +10512,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     _ => null,
                 };
 
-                if (typeName is not null && !seenTypes.Add(typeName))
+                if(typeName is not null && !seenTypes.Add(typeName))
                 {
                     diagnostics.Add(MakeDiagnosticWarning(
                         SwitchUnreachableArm.Value,
@@ -10534,23 +10534,23 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         var orPattern = pattern.OrPattern;
 
         // If there are multiple or-alternatives, this is not a simple pattern.
-        if (orPattern.AndPatterns.Length > 0)
+        if(orPattern.AndPatterns.Length > 0)
             return null;
 
         var andPattern = orPattern.Left;
 
         // If there are multiple and-conjuncts, this is not a simple pattern.
-        if (andPattern.UnaryPatterns.Length > 0)
+        if(andPattern.UnaryPatterns.Length > 0)
             return null;
 
         var unaryPattern = andPattern.Left;
 
         // Only direct patterns (not negated) can be catch-alls or simple patterns.
-        if (unaryPattern is not DirectPatternUnaryPatternNode directPattern)
+        if(unaryPattern is not DirectPatternUnaryPatternNode directPattern)
             return null;
 
         // Handle parenthesized patterns by recursing into the inner pattern.
-        if (directPattern.Primary is ParenthesizedPatternPrimaryPatternNode parenthesized)
+        if(directPattern.Primary is ParenthesizedPatternPrimaryPatternNode parenthesized)
             return TryGetSinglePrimaryPattern(parenthesized.Inner);
 
         return directPattern.Primary;
@@ -10622,13 +10622,13 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     private static IType? SubstituteMemberType(IType? memberType, IType? targetType)
     {
-        if (memberType is null)
+        if(memberType is null)
             return memberType;
 
-        if (targetType is ConstructedType ct)
+        if(targetType is ConstructedType ct)
         {
             var typeParams = GetTypeParameters(ct.GenericDefinition);
-            if (typeParams is null)
+            if(typeParams is null)
                 return memberType;
 
             return SubstituteType(memberType, typeParams, ct.TypeArguments);
@@ -10645,25 +10645,25 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     private static IType? SubstituteMethodReturnType(IType? returnType, MethodCallSuffixPostfixSuffixNode methodCall, ISemanticModel model)
     {
-        if (returnType is null)
+        if(returnType is null)
             return returnType;
 
         var methodSymbol = model.GetDeclaredSymbol(methodCall);
-        if (methodSymbol is not Symbol sym || sym.TypeParameters.Count == 0)
+        if(methodSymbol is not Symbol sym || sym.TypeParameters.Count == 0)
             return returnType;
 
         // Try explicit type args first (existing behavior)
-        if (methodCall.TypeArgs is not null)
+        if(methodCall.TypeArgs is not null)
         {
             var methodTypeArgs = ResolveTypeArgumentsFromAst(methodCall.TypeArgs, model);
-            if (methodTypeArgs.Count != sym.TypeParameters.Count)
+            if(methodTypeArgs.Count != sym.TypeParameters.Count)
                 return returnType;
             return SubstituteType(returnType, sym.TypeParameters, methodTypeArgs);
         }
 
         // Try inferred type args
         var inferredArgs = model.GetInferredTypeArguments(methodCall);
-        if (inferredArgs is not null && inferredArgs.Count == sym.TypeParameters.Count)
+        if(inferredArgs is not null && inferredArgs.Count == sym.TypeParameters.Count)
         {
             return SubstituteType(returnType, sym.TypeParameters, inferredArgs);
         }
@@ -10684,19 +10684,19 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         ISemanticModel model)
     {
         // Only applies to Slice calls whose return type is already a SpanType.
-        if (currentType is not SpanType resultSpan)
+        if(currentType is not SpanType resultSpan)
             return currentType;
 
         // Must be a method named "Slice".
-        if (methodCall.Name.Lexeme != "Slice")
+        if(methodCall.Name.Lexeme != "Slice")
             return currentType;
 
         // Must have arguments with at least two parameters (start, length).
-        if (methodCall.Arguments is null)
+        if(methodCall.Arguments is null)
             return currentType;
 
         // The second argument is the length parameter.
-        if (methodCall.Arguments.Arguments.Length < 1)
+        if(methodCall.Arguments.Arguments.Length < 1)
             return currentType;
 
         var lengthArg = methodCall.Arguments.Arguments[0];
@@ -10704,19 +10704,19 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         // Try to extract a literal integer value from the length argument.
         var literalValue = TryExtractLiteralConstantValue(lengthExpr);
-        if (literalValue is int intVal)
+        if(literalValue is int intVal)
         {
             return new SpanType(resultSpan.ElementType, (long)intVal, resultSpan.IsReadOnly);
         }
-        if (literalValue is long longVal)
+        if(literalValue is long longVal)
         {
             return new SpanType(resultSpan.ElementType, longVal, resultSpan.IsReadOnly);
         }
-        if (literalValue is uint uintVal)
+        if(literalValue is uint uintVal)
         {
             return new SpanType(resultSpan.ElementType, (long)uintVal, resultSpan.IsReadOnly);
         }
-        if (literalValue is ulong ulongVal && ulongVal <= long.MaxValue)
+        if(literalValue is ulong ulongVal && ulongVal <= long.MaxValue)
         {
             return new SpanType(resultSpan.ElementType, (long)ulongVal, resultSpan.IsReadOnly);
         }
@@ -10741,11 +10741,11 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </remarks>
     private static IType? SubstituteClosedUnknownInResultType(IType? resultType, IType? receiverType)
     {
-        if (resultType is null || receiverType is not ConstructedType ct)
+        if(resultType is null || receiverType is not ConstructedType ct)
             return resultType;
 
         var typeParams = GetTypeParameters(ct.GenericDefinition);
-        if (typeParams is null)
+        if(typeParams is null)
             return resultType;
 
         // Build a parallel (TypeParameter, TypeArgument) pair but replace
@@ -10756,7 +10756,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // for `List<int>` where T → int.
         var count = Math.Min(typeParams.Count, ct.TypeArguments.Count);
         var args = new IType[count];
-        for (var i = 0; i < count; i++)
+        for(var i = 0; i < count; i++)
             args[i] = ct.TypeArguments[i];
 
         // SubstituteType already does this mapping when used with the
@@ -10791,23 +10791,23 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         ISemanticModel model,
         DiagnosticBag diagnostics)
     {
-        if (targetType is null || IsErrorType(targetType))
+        if(targetType is null || IsErrorType(targetType))
             return;
 
         var memberName = memberAccess.Name.Lexeme;
         var memberSymbol = FindMemberSymbol(targetType, memberName, model);
-        if (memberSymbol is null || memberSymbol.Kind != SymbolKind.Property)
+        if(memberSymbol is null || memberSymbol.Kind != SymbolKind.Property)
             return;
 
         // Skip backend symbols — they are assumed to have proper accessors.
-        if (memberSymbol.Origin == SymbolOrigin.Backend)
+        if(memberSymbol.Origin == SymbolOrigin.Backend)
             return;
 
         var propInfo = GetPropertyMetadata(memberSymbol);
-        if (propInfo is null)
+        if(propInfo is null)
             return;
 
-        if (!propInfo.HasGet)
+        if(!propInfo.HasGet)
         {
             diagnostics.Add(MakeDiagnostic(
                 "MIST_TC_0019",
@@ -10819,7 +10819,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
     private void CheckPrimaryNode(PrimaryNode node, ISemanticModel model, DiagnosticBag diagnostics)
     {
-        switch (node)
+        switch(node)
         {
             case ArrayCreationExpressionPrimaryNode arrayCreation:
                 CheckArrayCreation(arrayCreation, model, diagnostics);
@@ -10850,9 +10850,9 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 break;
 
             case InterpolatedStringExpressionPrimaryNode interpolated:
-                foreach (var part in interpolated.InterpolatedString.Parts)
+                foreach(var part in interpolated.InterpolatedString.Parts)
                 {
-                    if (part is ExpressionPartInterpolatedPartNode exprPart)
+                    if(part is ExpressionPartInterpolatedPartNode exprPart)
                     {
                         CheckExpression(exprPart.Expression, model, diagnostics);
                     }
@@ -10871,7 +10871,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 // annotation and no error is needed.
                 {
                     var resolvedType = model.GetTypeOf(emptyArrayLiteral);
-                    if (resolvedType is Mist.Semantics.Model.Types.ErrorType)
+                    if(resolvedType is Mist.Semantics.Model.Types.ErrorType)
                     {
                         diagnostics.Add(MakeDiagnostic(
                             "MIST_TC_0096",
@@ -10889,7 +10889,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 // Note: When checking property accessor bodies, the semantic model
                 // resolves 'field' to the backing field symbol, so this check only
                 // fires when 'field' appears in a non-property context.
-                if (!_insidePropertyAccessor)
+                if(!_insidePropertyAccessor)
                 {
                     diagnostics.Add(MakeDiagnostic(
                         "MIST_TC_0023",
@@ -10950,7 +10950,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             // Validate using the same regex flavor as the runtime (.NET).
             _ = new Regex(pattern, RegexOptions.None);
         }
-        catch (ArgumentException ex)
+        catch(ArgumentException ex)
         {
             // Extract the offset from the exception if available.
             // .NET's RegexParseException (derived from ArgumentException) provides an Offset property.
@@ -10980,7 +10980,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         var resolvedType = model.GetTypeOf(defaultExpr);
 
         // If the type reference could not be resolved, emit MIST_DEFAULT_UNDEFINED_TYPE.
-        if (resolvedType is null || IsErrorType(resolvedType))
+        if(resolvedType is null || IsErrorType(resolvedType))
         {
             diagnostics.Add(MakeDiagnostic(
                 DiagnosticId.DefaultUndefinedType.Value,
@@ -11007,7 +11007,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         var resolvedType = model.GetTypeOf(defaultLiteral);
 
         // If the type is still unknown, context inference did not find a type.
-        if (resolvedType is null || IsErrorType(resolvedType))
+        if(resolvedType is null || IsErrorType(resolvedType))
         {
             diagnostics.Add(MakeDiagnostic(
                 DiagnosticId.DefaultCannotInferType.Value,
@@ -11031,7 +11031,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         DiagnosticBag diagnostics)
     {
         // Unwrap type aliases to their underlying type for validation.
-        while (resolvedType is TypeAliasType alias)
+        while(resolvedType is TypeAliasType alias)
             resolvedType = alias.UnderlyingType;
 
         // ── unknown-type storage ban on `default` (Task 12.4) ────────────
@@ -11043,7 +11043,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // rule fires for both explicit `default(unknown)` and bare
         // `default` whose inferred type is UnknownType (e.g.,
         // `unknown x = default;`).
-        if (resolvedType is UnknownType)
+        if(resolvedType is UnknownType)
         {
             diagnostics.Add(MakeDiagnostic(
                 SemanticModelBuilder.UnknownHasNoDefault.Value,
@@ -11053,7 +11053,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             return;
         }
 
-        switch (resolvedType)
+        switch(resolvedType)
         {
             case AbstractType:
                 diagnostics.Add(MakeDiagnostic(
@@ -11064,7 +11064,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 return;
 
             case TypeParameterType typeParamType:
-                if (typeParamType.Constraints?.HasDefaultConstraint == true)
+                if(typeParamType.Constraints?.HasDefaultConstraint == true)
                     return;
 
                 diagnostics.Add(MakeDiagnostic(
@@ -11075,7 +11075,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 return;
 
             case ClassType classType:
-                if (classType.Defaultability == DefaultabilityStatus.NotDefaultable)
+                if(classType.Defaultability == DefaultabilityStatus.NotDefaultable)
                 {
                     diagnostics.Add(MakeDiagnostic(
                         DiagnosticId.DefaultNotSupported.Value,
@@ -11086,7 +11086,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 return;
 
             case StructType structType:
-                if (structType.Defaultability == DefaultabilityStatus.NotDefaultable)
+                if(structType.Defaultability == DefaultabilityStatus.NotDefaultable)
                 {
                     diagnostics.Add(MakeDiagnostic(
                         DiagnosticId.DefaultNotSupported.Value,
@@ -11097,7 +11097,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 return;
 
             case EnumType enumType:
-                if (enumType.Defaultability != DefaultabilityStatus.Explicit)
+                if(enumType.Defaultability != DefaultabilityStatus.Explicit)
                 {
                     diagnostics.Add(MakeDiagnostic(
                         DiagnosticId.DefaultNotSupported.Value,
@@ -11108,7 +11108,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 return;
 
             case UnionType unionType:
-                if (!unionType.Constituents.Any(c => c.IsVoid()))
+                if(!unionType.Constituents.Any(c => c.IsVoid()))
                 {
                     diagnostics.Add(MakeDiagnostic(
                         DiagnosticId.DefaultNotSupported.Value,
@@ -11118,10 +11118,10 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 }
                 return;
 
-            // Primitive types (represented as ClassType from stdlib) and other
-            // types are handled by the ClassType/StructType cases above.
-            // ConstructedType, ArrayType, etc. fall through — no diagnostic needed
-            // as they are not directly defaultable via default(T) in v1.
+                // Primitive types (represented as ClassType from stdlib) and other
+                // types are handled by the ClassType/StructType cases above.
+                // ConstructedType, ArrayType, etc. fall through — no diagnostic needed
+                // as they are not directly defaultable via default(T) in v1.
         }
     }
 
@@ -11137,39 +11137,39 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // Expression → Assignment → LogicalOr → LogicalAnd → Equality →
         // Relational → Additive → Multiplicative → Unary → Postfix
         var assignment = expr.AsAssignmentOrNull();
-        if (assignment is null)
+        if(assignment is null)
             return null; // Lambda form — not a simple postfix chain.
-        if (assignment.Value is not null)
+        if(assignment.Value is not null)
             return null;
 
         var logicalOr = assignment.Target.Left;
-        if (logicalOr.Right is not null)
+        if(logicalOr.Right is not null)
             return null;
 
         var logicalAnd = logicalOr.Left;
-        if (logicalAnd.Right is not null)
+        if(logicalAnd.Right is not null)
             return null;
 
         var equality = logicalAnd.Left;
-        if (equality.Right is not null)
+        if(equality.Right is not null)
             return null;
 
         var relational = equality.Left;
-        if (relational is not RelationalComparisonRelationalNode cmp)
+        if(relational is not RelationalComparisonRelationalNode cmp)
             return null;
-        if (cmp.Right is not null)
+        if(cmp.Right is not null)
             return null;
 
         var additive = cmp.Left;
-        if (additive.Right is not null)
+        if(additive.Right is not null)
             return null;
 
         var multiplicative = additive.Left;
-        if (multiplicative.Right is not null)
+        if(multiplicative.Right is not null)
             return null;
 
         var unary = multiplicative.Left;
-        if (unary is not PostfixExpressionUnaryNode postfixExpr)
+        if(unary is not PostfixExpressionUnaryNode postfixExpr)
             return null;
 
         // The PostfixNode's type is updated by CheckPostfixNode when inference
@@ -11188,25 +11188,25 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     {
         // Expression → Assignment → VoidCoalescing → LogicalOr → LogicalAnd → Equality → Relational
         var assignment = expr.AsAssignmentOrNull();
-        if (assignment is null)
+        if(assignment is null)
             return null; // Lambda form — not an as expression.
-        if (assignment.Value is not null)
+        if(assignment.Value is not null)
             return null;
 
         // VoidCoalescing: must not have any ?? right-hand operands.
-        if (assignment.Target.LogicalOrs.Length > 0)
+        if(assignment.Target.LogicalOrs.Length > 0)
             return null;
 
         var logicalOr = assignment.Target.Left;
-        if (logicalOr.Right is not null)
+        if(logicalOr.Right is not null)
             return null;
 
         var logicalAnd = logicalOr.Left;
-        if (logicalAnd.Right is not null)
+        if(logicalAnd.Right is not null)
             return null;
 
         var equality = logicalAnd.Left;
-        if (equality.Right is not null)
+        if(equality.Right is not null)
             return null;
 
         return equality.Left as AsExpressionRelationalNode;
@@ -11222,43 +11222,43 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // Expression → Assignment → LogicalOr → LogicalAnd → Equality →
         // Relational → Additive → Multiplicative → Unary → Postfix → Primary
         var assignment = expr.AsAssignmentOrNull();
-        if (assignment is null)
+        if(assignment is null)
             return null; // Lambda form — not a bare 'default'.
-        if (assignment.Value is not null)
+        if(assignment.Value is not null)
             return null; // Has an assignment operator — not a simple expression.
 
         var logicalOr = assignment.Target.Left;
-        if (logicalOr.Right is not null)
+        if(logicalOr.Right is not null)
             return null;
 
         var logicalAnd = logicalOr.Left;
-        if (logicalAnd.Right is not null)
+        if(logicalAnd.Right is not null)
             return null;
 
         var equality = logicalAnd.Left;
-        if (equality.Right is not null)
+        if(equality.Right is not null)
             return null;
 
         var relational = equality.Left;
-        if (relational is not RelationalComparisonRelationalNode cmp1)
+        if(relational is not RelationalComparisonRelationalNode cmp1)
             return null;
-        if (cmp1.Right is not null)
+        if(cmp1.Right is not null)
             return null;
 
         var additive = cmp1.Left;
-        if (additive.Right is not null)
+        if(additive.Right is not null)
             return null;
 
         var multiplicative = additive.Left;
-        if (multiplicative.Right is not null)
+        if(multiplicative.Right is not null)
             return null;
 
         var unary = multiplicative.Left;
-        if (unary is not PostfixExpressionUnaryNode postfixExpr)
+        if(unary is not PostfixExpressionUnaryNode postfixExpr)
             return null;
 
         var postfix = postfixExpr.Primary;
-        if (postfix.Suffix.Length > 0)
+        if(postfix.Suffix.Length > 0)
             return null; // Has postfix suffixes (member access, method call, etc.).
 
         return postfix.Target as DefaultLiteralExpressionPrimaryNode;
@@ -11273,11 +11273,11 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         IType? contextType,
         ISemanticModel model)
     {
-        if (contextType is null || IsErrorType(contextType))
+        if(contextType is null || IsErrorType(contextType))
             return;
 
         var defaultLiteral = TryExtractDefaultLiteral(expr);
-        if (defaultLiteral is null)
+        if(defaultLiteral is null)
             return;
 
         // Set the inferred type on the bare default literal node.
@@ -11294,16 +11294,16 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         IType? contextType,
         ISemanticModel model)
     {
-        if (contextType is null || IsErrorType(contextType))
+        if(contextType is null || IsErrorType(contextType))
             return;
 
         // The assignment RHS is itself an AssignmentNode. If it has no further
         // assignment (Value is null), the expression is just the Target (LogicalOr).
-        if (assignment.Value is not null)
+        if(assignment.Value is not null)
             return;
 
         var defaultLiteral = TryExtractDefaultLiteralFromLogicalOr(assignment.Target.Left);
-        if (defaultLiteral is null)
+        if(defaultLiteral is null)
             return;
 
         model.SetTypeOf(defaultLiteral, contextType);
@@ -11315,37 +11315,37 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     private static DefaultLiteralExpressionPrimaryNode? TryExtractDefaultLiteralFromLogicalOr(LogicalOrNode logicalOr)
     {
-        if (logicalOr.Right is not null)
+        if(logicalOr.Right is not null)
             return null;
 
         var logicalAnd = logicalOr.Left;
-        if (logicalAnd.Right is not null)
+        if(logicalAnd.Right is not null)
             return null;
 
         var equality = logicalAnd.Left;
-        if (equality.Right is not null)
+        if(equality.Right is not null)
             return null;
 
         var relational = equality.Left;
-        if (relational is not RelationalComparisonRelationalNode cmp2)
+        if(relational is not RelationalComparisonRelationalNode cmp2)
             return null;
-        if (cmp2.Right is not null)
+        if(cmp2.Right is not null)
             return null;
 
         var additive = cmp2.Left;
-        if (additive.Right is not null)
+        if(additive.Right is not null)
             return null;
 
         var multiplicative = additive.Left;
-        if (multiplicative.Right is not null)
+        if(multiplicative.Right is not null)
             return null;
 
         var unary = multiplicative.Left;
-        if (unary is not PostfixExpressionUnaryNode postfixExpr)
+        if(unary is not PostfixExpressionUnaryNode postfixExpr)
             return null;
 
         var postfix = postfixExpr.Primary;
-        if (postfix.Suffix.Length > 0)
+        if(postfix.Suffix.Length > 0)
             return null;
 
         return postfix.Target as DefaultLiteralExpressionPrimaryNode;
@@ -11360,22 +11360,22 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         MethodCallSuffixPostfixSuffixNode methodCall,
         ISemanticModel model)
     {
-        if (argList is null)
+        if(argList is null)
             return;
 
         var methodSymbol = model.GetDeclaredSymbol(methodCall);
-        if (methodSymbol is null || methodSymbol.Kind != SymbolKind.Method)
+        if(methodSymbol is null || methodSymbol.Kind != SymbolKind.Method)
             return;
 
         var paramTypes = ParameterSignature.Extract(methodSymbol, model);
         var argExprs = new List<ExpressionNode>();
-        foreach (var expr in argList.GetAllExpressions())
+        foreach(var expr in argList.GetAllExpressions())
         {
             argExprs.Add(expr);
         }
 
         var count = Math.Min(argExprs.Count, paramTypes.Count);
-        for (var i = 0; i < count; i++)
+        for(var i = 0; i < count; i++)
         {
             TryInferDefaultLiteralType(argExprs[i], paramTypes[i], model);
         }
@@ -11389,23 +11389,23 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         InvocationSuffixPostfixSuffixNode invocation,
         ISemanticModel model)
     {
-        if (invocation.Arguments is null)
+        if(invocation.Arguments is null)
             return;
 
         var invokedSymbol = model.GetDeclaredSymbol(invocation);
-        if (invokedSymbol is null || invokedSymbol.Kind != SymbolKind.Method)
+        if(invokedSymbol is null || invokedSymbol.Kind != SymbolKind.Method)
             return;
 
         var paramTypes = ParameterSignature.Extract(invokedSymbol, model);
         var argExprs = new List<ExpressionNode>();
-        foreach (var child in invocation.Arguments.Children())
+        foreach(var child in invocation.Arguments.Children())
         {
-            if (child is ExpressionNode expr)
+            if(child is ExpressionNode expr)
                 argExprs.Add(expr);
         }
 
         var count = Math.Min(argExprs.Count, paramTypes.Count);
-        for (var i = 0; i < count; i++)
+        for(var i = 0; i < count; i++)
         {
             TryInferDefaultLiteralType(argExprs[i], paramTypes[i], model);
         }
@@ -11427,7 +11427,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         InferDefaultLiteralTypesForArguments(methodCall.Arguments, methodCall, model);
 
         // Check argument expressions recursively.
-        if (methodCall.Arguments is not null)
+        if(methodCall.Arguments is not null)
         {
             CheckArgumentListExpressions(methodCall.Arguments, model, diagnostics);
         }
@@ -11441,7 +11441,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         var methodSymbol = model.GetDeclaredSymbol(methodCall);
 
         // ── ref call-site annotation enforcement (MIST_REF_0002, MIST_REF_0003) ──
-        if (methodSymbol is not null && methodSymbol.Kind == SymbolKind.Method && methodCall.Arguments is not null)
+        if(methodSymbol is not null && methodSymbol.Kind == SymbolKind.Method && methodCall.Arguments is not null)
         {
             CheckRefCallSiteAnnotationsForSymbol(methodCall.Arguments, methodSymbol, model, diagnostics);
         }
@@ -11454,7 +11454,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // CLR method arguments (substitution may not match CLR type parameter ordinals).
         // Backend symbols are registered for the emitter's ref/in keyword selection only.
         var hasMultipleOverloads = false;
-        if (methodSymbol is not null && methodSymbol.Kind == SymbolKind.Method
+        if(methodSymbol is not null && methodSymbol.Kind == SymbolKind.Method
             && methodSymbol.Origin != SymbolOrigin.Backend)
         {
             var methodName0 = methodCall.Name.Lexeme;
@@ -11462,7 +11462,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             hasMultipleOverloads = candidates0.Count > 1;
         }
 
-        if (methodSymbol is not null && methodSymbol.Kind == SymbolKind.Method
+        if(methodSymbol is not null && methodSymbol.Kind == SymbolKind.Method
             && methodSymbol.Origin != SymbolOrigin.Backend && !hasMultipleOverloads)
         {
             // Determine type parameter substitution context.
@@ -11470,7 +11470,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             // 2. If the method has its own type arguments, substitute those as well.
             IReadOnlyList<IType>? enclosingTypeParams = null;
             IReadOnlyList<IType>? enclosingTypeArgs = null;
-            if (targetType is ConstructedType targetCt)
+            if(targetType is ConstructedType targetCt)
             {
                 enclosingTypeParams = GetTypeParameters(targetCt.GenericDefinition);
                 enclosingTypeArgs = targetCt.TypeArguments;
@@ -11479,7 +11479,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             // Resolve method-level type arguments if present.
             IReadOnlyList<IType>? methodTypeParams = null;
             IReadOnlyList<IType>? methodTypeArgs = null;
-            if (methodCall.TypeArgs is not null && HasOnlyTypeReferenceArgs(methodCall.TypeArgs)
+            if(methodCall.TypeArgs is not null && HasOnlyTypeReferenceArgs(methodCall.TypeArgs)
                 && methodSymbol is Symbol sym && sym.TypeParameters.Count > 0)
             {
                 methodTypeParams = sym.TypeParameters;
@@ -11487,13 +11487,13 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
                 // Check constraint satisfaction for each explicit type argument
                 // against the corresponding method type parameter.
-                for (var i = 0; i < methodTypeParams.Count && i < methodTypeArgs.Count; i++)
+                for(var i = 0; i < methodTypeParams.Count && i < methodTypeArgs.Count; i++)
                 {
-                    if (methodTypeParams[i] is TypeParameterType methodTP)
+                    if(methodTypeParams[i] is TypeParameterType methodTP)
                         CheckConstraintSatisfaction(methodTypeArgs[i], methodTP, (SyntaxNode)methodCall, sym.Name, model, diagnostics);
                 }
             }
-            else if (methodCall.TypeArgs is null && methodSymbol is Symbol inferSym && inferSym.TypeParameters.Count > 0)
+            else if(methodCall.TypeArgs is null && methodSymbol is Symbol inferSym && inferSym.TypeParameters.Count > 0)
             {
                 // Type argument inference: deduce type arguments from argument types.
                 var paramTypes = ParameterSignature.Extract(methodSymbol, model);
@@ -11502,7 +11502,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 var inferenceResult = TypeArgumentInferenceEngine.TryInfer(
                     inferSym.TypeParameters, paramTypes, argTypes);
 
-                if (inferenceResult.Success)
+                if(inferenceResult.Success)
                 {
                     methodTypeParams = inferSym.TypeParameters;
                     methodTypeArgs = inferenceResult.InferredTypeArguments!;
@@ -11511,9 +11511,9 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     model.RecordInferredTypeArguments((SyntaxNode)methodCall, methodTypeArgs);
 
                     // Check constraints (same path as explicit type args).
-                    for (var i = 0; i < methodTypeParams.Count && i < methodTypeArgs.Count; i++)
+                    for(var i = 0; i < methodTypeParams.Count && i < methodTypeArgs.Count; i++)
                     {
-                        if (methodTypeParams[i] is TypeParameterType methodTP)
+                        if(methodTypeParams[i] is TypeParameterType methodTP)
                             CheckConstraintSatisfaction(methodTypeArgs[i], methodTP, (SyntaxNode)methodCall, inferSym.Name, model, diagnostics);
                     }
                 }
@@ -11534,7 +11534,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         var candidates = CollectMethodOverloads(targetType, methodName);
 
         // If there are multiple candidates, use overload resolution.
-        if (candidates.Count > 1)
+        if(candidates.Count > 1)
         {
             var argTypes = CollectArgumentTypes(methodCall.Arguments, model);
             var argRefKinds = CollectArgumentRefKinds(methodCall.Arguments);
@@ -11543,12 +11543,12 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             // attempt inference for each generic candidate and exclude those where
             // inference fails (Requirements 5.1, 5.2, 5.3, 5.4, 5.5, 5.6).
             InferenceResult?[]? inferenceResults = null;
-            if (methodCall.TypeArgs is null)
+            if(methodCall.TypeArgs is null)
             {
                 inferenceResults = new InferenceResult?[candidates.Count];
-                for (var i = 0; i < candidates.Count; i++)
+                for(var i = 0; i < candidates.Count; i++)
                 {
-                    if (candidates[i] is Symbol candidateSym && candidateSym.TypeParameters.Count > 0)
+                    if(candidates[i] is Symbol candidateSym && candidateSym.TypeParameters.Count > 0)
                     {
                         var candidateParamTypes = ParameterSignature.Extract(candidates[i], model);
                         inferenceResults[i] = TypeArgumentInferenceEngine.TryInfer(
@@ -11563,12 +11563,12 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 // so the overload resolver substitutes the method's type parameters
                 // into parameter types before the assignability check.
                 var resolvedExplicitTypeArgs = ResolveTypeArgumentsFromAst(methodCall.TypeArgs, model);
-                if (resolvedExplicitTypeArgs.Count > 0)
+                if(resolvedExplicitTypeArgs.Count > 0)
                 {
                     inferenceResults = new InferenceResult?[candidates.Count];
-                    for (var i = 0; i < candidates.Count; i++)
+                    for(var i = 0; i < candidates.Count; i++)
                     {
-                        if (candidates[i] is Symbol candidateSym
+                        if(candidates[i] is Symbol candidateSym
                             && candidateSym.TypeParameters.Count == resolvedExplicitTypeArgs.Count)
                         {
                             inferenceResults[i] = new InferenceResult(
@@ -11577,7 +11577,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                                 UninferrableTypeParameters: null,
                                 Conflicts: null);
                         }
-                        else if (candidates[i] is Symbol mismatchSym
+                        else if(candidates[i] is Symbol mismatchSym
                             && mismatchSym.TypeParameters.Count > 0
                             && mismatchSym.TypeParameters.Count != resolvedExplicitTypeArgs.Count)
                         {
@@ -11596,7 +11596,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             var result = OverloadResolver.Resolve(candidates, argTypes, model,
                 argumentRefKinds: argRefKinds, inferenceResults: inferenceResults);
 
-            switch (result.Status)
+            switch(result.Status)
             {
                 case OverloadResolutionStatus.NoApplicableCandidate:
                     var argTypeNames = string.Join(", ", argTypes.Select(t => t.DisplayName));
@@ -11610,7 +11610,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 case OverloadResolutionStatus.AmbiguousCall:
                     // Check if the ambiguity is specifically across multiple DelegateType parameters
                     // (delegate-func-conversion: MIST_TC_0094).
-                    if (IsDelegateOverloadAmbiguity(result.AmbiguousCandidates!, model))
+                    if(IsDelegateOverloadAmbiguity(result.AmbiguousCandidates!, model))
                     {
                         var delegateNames = GetAmbiguousDelegateNames(result.AmbiguousCandidates!, model);
                         diagnostics.Add(MakeDiagnostic(
@@ -11635,19 +11635,19 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     // Record inferred type arguments for the winning candidate if inference was used.
                     IReadOnlyList<IType>? winnerMethodTypeParams = null;
                     IReadOnlyList<IType>? winnerMethodTypeArgs = null;
-                    if (inferenceResults is not null && result.BestCandidate is Symbol winnerSym && winnerSym.TypeParameters.Count > 0)
+                    if(inferenceResults is not null && result.BestCandidate is Symbol winnerSym && winnerSym.TypeParameters.Count > 0)
                     {
                         var winnerIndex = -1;
-                        for (var i = 0; i < candidates.Count; i++)
+                        for(var i = 0; i < candidates.Count; i++)
                         {
-                            if (ReferenceEquals(candidates[i], result.BestCandidate))
+                            if(ReferenceEquals(candidates[i], result.BestCandidate))
                             {
                                 winnerIndex = i;
                                 break;
                             }
                         }
 
-                        if (winnerIndex >= 0 && inferenceResults[winnerIndex] is { Success: true } winnerInference)
+                        if(winnerIndex >= 0 && inferenceResults[winnerIndex] is { Success: true } winnerInference)
                         {
                             model.RecordInferredTypeArguments((SyntaxNode)methodCall, winnerInference.InferredTypeArguments!);
                             winnerMethodTypeParams = winnerSym.TypeParameters;
@@ -11656,16 +11656,16 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                             // Substitute inferred type arguments into the return type so that
                             // downstream type checking sees the concrete return type.
                             var currentReturnType = model.GetTypeOf((SyntaxNode)methodCall);
-                            if (currentReturnType is not null)
+                            if(currentReturnType is not null)
                             {
                                 var substitutedReturnType = SubstituteType(currentReturnType, winnerSym.TypeParameters, winnerInference.InferredTypeArguments!);
                                 model.SetTypeOf((SyntaxNode)methodCall, substitutedReturnType);
                             }
 
                             // Check constraints for the inferred type arguments.
-                            for (var i = 0; i < winnerSym.TypeParameters.Count && i < winnerInference.InferredTypeArguments!.Count; i++)
+                            for(var i = 0; i < winnerSym.TypeParameters.Count && i < winnerInference.InferredTypeArguments!.Count; i++)
                             {
-                                if (winnerSym.TypeParameters[i] is TypeParameterType methodTP)
+                                if(winnerSym.TypeParameters[i] is TypeParameterType methodTP)
                                     CheckConstraintSatisfaction(winnerInference.InferredTypeArguments[i], methodTP,
                                         (SyntaxNode)methodCall, winnerSym.Name, model, diagnostics);
                             }
@@ -11674,11 +11674,11 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
                     // Resolved successfully — proceed with the resolved symbol for further type checking.
                     // Use substitution-aware checking when inference provided type arguments.
-                    if (winnerMethodTypeArgs is not null)
+                    if(winnerMethodTypeArgs is not null)
                     {
                         IReadOnlyList<IType>? winnerEnclosingTypeParams = null;
                         IReadOnlyList<IType>? winnerEnclosingTypeArgs = null;
-                        if (targetType is ConstructedType winnerTargetCt)
+                        if(targetType is ConstructedType winnerTargetCt)
                         {
                             winnerEnclosingTypeParams = GetTypeParameters(winnerTargetCt.GenericDefinition);
                             winnerEnclosingTypeArgs = winnerTargetCt.TypeArguments;
@@ -11694,22 +11694,22 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     return;
             }
         }
-        else if (candidates.Count == 1)
+        else if(candidates.Count == 1)
         {
             // Single candidate — attempt inference if generic and type args omitted,
             // or use explicit type args if provided.
             var singleCandidate = candidates[0];
-            if (singleCandidate is Symbol singleSym && singleSym.TypeParameters.Count > 0)
+            if(singleCandidate is Symbol singleSym && singleSym.TypeParameters.Count > 0)
             {
-                if (methodCall.TypeArgs is not null && HasOnlyTypeReferenceArgs(methodCall.TypeArgs))
+                if(methodCall.TypeArgs is not null && HasOnlyTypeReferenceArgs(methodCall.TypeArgs))
                 {
                     // Explicit type arguments provided (all are type references) — resolve and use them.
                     var explicitMethodTypeArgs = ResolveTypeArgumentsFromAst(methodCall.TypeArgs, model);
 
                     // Check constraints for the explicit type arguments.
-                    for (var i = 0; i < singleSym.TypeParameters.Count && i < explicitMethodTypeArgs.Count; i++)
+                    for(var i = 0; i < singleSym.TypeParameters.Count && i < explicitMethodTypeArgs.Count; i++)
                     {
-                        if (singleSym.TypeParameters[i] is TypeParameterType methodTP)
+                        if(singleSym.TypeParameters[i] is TypeParameterType methodTP)
                             CheckConstraintSatisfaction(explicitMethodTypeArgs[i], methodTP,
                                 (SyntaxNode)methodCall, singleSym.Name, model, diagnostics);
                     }
@@ -11717,7 +11717,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     // Check argument types with explicit substitution.
                     IReadOnlyList<IType>? singleEnclosingTypeParams = null;
                     IReadOnlyList<IType>? singleEnclosingTypeArgs = null;
-                    if (targetType is ConstructedType singleTargetCtExplicit)
+                    if(targetType is ConstructedType singleTargetCtExplicit)
                     {
                         singleEnclosingTypeParams = GetTypeParameters(singleTargetCtExplicit.GenericDefinition);
                         singleEnclosingTypeArgs = singleTargetCtExplicit.TypeArguments;
@@ -11726,7 +11726,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                         singleEnclosingTypeParams, singleEnclosingTypeArgs,
                         singleSym.TypeParameters, explicitMethodTypeArgs);
                 }
-                else if (methodCall.TypeArgs is null)
+                else if(methodCall.TypeArgs is null)
                 {
                     // No type arguments — attempt inference.
                     var argTypes = CollectArgumentTypes(methodCall.Arguments, model);
@@ -11735,7 +11735,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     var inferenceResult = TypeArgumentInferenceEngine.TryInfer(
                         singleSym.TypeParameters, paramTypes, argTypes);
 
-                    if (inferenceResult.Success)
+                    if(inferenceResult.Success)
                     {
                         // Record inferred type arguments for the emitter.
                         model.RecordInferredTypeArguments((SyntaxNode)methodCall, inferenceResult.InferredTypeArguments!);
@@ -11743,16 +11743,16 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                         // Substitute inferred type arguments into the return type so that
                         // downstream type checking sees the concrete return type.
                         var currentReturnType = model.GetTypeOf((SyntaxNode)methodCall);
-                        if (currentReturnType is not null)
+                        if(currentReturnType is not null)
                         {
                             var substitutedReturnType = SubstituteType(currentReturnType, singleSym.TypeParameters, inferenceResult.InferredTypeArguments!);
                             model.SetTypeOf((SyntaxNode)methodCall, substitutedReturnType);
                         }
 
                         // Check constraints for the inferred type arguments.
-                        for (var i = 0; i < singleSym.TypeParameters.Count && i < inferenceResult.InferredTypeArguments!.Count; i++)
+                        for(var i = 0; i < singleSym.TypeParameters.Count && i < inferenceResult.InferredTypeArguments!.Count; i++)
                         {
-                            if (singleSym.TypeParameters[i] is TypeParameterType methodTP)
+                            if(singleSym.TypeParameters[i] is TypeParameterType methodTP)
                                 CheckConstraintSatisfaction(inferenceResult.InferredTypeArguments[i], methodTP,
                                     (SyntaxNode)methodCall, singleSym.Name, model, diagnostics);
                         }
@@ -11760,7 +11760,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                         // Check argument types with inferred substitution.
                         IReadOnlyList<IType>? singleEnclosingTypeParams = null;
                         IReadOnlyList<IType>? singleEnclosingTypeArgs = null;
-                        if (targetType is ConstructedType singleTargetCt)
+                        if(targetType is ConstructedType singleTargetCt)
                         {
                             singleEnclosingTypeParams = GetTypeParameters(singleTargetCt.GenericDefinition);
                             singleEnclosingTypeArgs = singleTargetCt.TypeArguments;
@@ -11787,7 +11787,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 CheckArgumentTypes(methodCall.Arguments, singleCandidate, model, diagnostics, methodCall);
             }
         }
-        else if (methodSymbol is not null && methodSymbol.Kind == SymbolKind.Method
+        else if(methodSymbol is not null && methodSymbol.Kind == SymbolKind.Method
             && methodSymbol.Origin != SymbolOrigin.Backend)
         {
             // Fallback: use the symbol from the call-site node if no candidates found via target type.
@@ -11808,7 +11808,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         InferDefaultLiteralTypesForInvocationArguments(invocation, model);
 
         // Check argument expressions recursively.
-        if (invocation.Arguments is not null)
+        if(invocation.Arguments is not null)
         {
             CheckArgumentListExpressions(invocation.Arguments, model, diagnostics);
         }
@@ -11816,7 +11816,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // ── first-class-functions: Func-typed invocation validation ──
         // When the target expression's type is a Func constructed type, validate
         // argument count and types against the Func's parameter types.
-        if (targetType is not null && SemanticModelBuilder.IsFuncType(targetType) && targetType is ConstructedType funcCt)
+        if(targetType is not null && SemanticModelBuilder.IsFuncType(targetType) && targetType is ConstructedType funcCt)
         {
             CheckFuncInvocationArguments(invocation, funcCt, model, diagnostics);
             return;
@@ -11826,7 +11826,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // When the target expression's type is a DelegateType, validate arguments
         // against the DelegateType's FuncSignature (the equivalent func<...> type).
         // The result type is the FuncSignature's return type (last type argument).
-        if (targetType is DelegateType delegateType)
+        if(targetType is DelegateType delegateType)
         {
             CheckFuncInvocationArguments(invocation, delegateType.FuncSignature, model, diagnostics);
             return;
@@ -11835,7 +11835,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // ── delegate-func-conversion: BaseDelegateType is NOT invocable ──
         // System.Delegate cannot be invoked directly — it requires a cast to a
         // specific delegate type or func<...> first.
-        if (targetType is BaseDelegateType)
+        if(targetType is BaseDelegateType)
         {
             diagnostics.Add(MakeDiagnostic(
                 BaseDelegateNotInvocable.Value,
@@ -11847,16 +11847,16 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         // Look up the invoked symbol.
         var invokedSymbol = model.GetDeclaredSymbol(invocation);
-        if (invokedSymbol is null)
+        if(invokedSymbol is null)
             return;
 
         // ── ref call-site annotation enforcement (MIST_REF_0002, MIST_REF_0003) ──
-        if (invokedSymbol.Kind == SymbolKind.Method && invocation.Arguments is not null)
+        if(invokedSymbol.Kind == SymbolKind.Method && invocation.Arguments is not null)
         {
             CheckRefCallSiteAnnotationsForSymbol(invocation.Arguments, invokedSymbol, model, diagnostics);
         }
 
-        if (invokedSymbol.Kind == SymbolKind.Method)
+        if(invokedSymbol.Kind == SymbolKind.Method)
         {
             var methodName = invokedSymbol.Name;
 
@@ -11864,13 +11864,13 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             var candidates = CollectMethodOverloads(targetType, methodName);
 
             // If there are multiple candidates, use overload resolution.
-            if (candidates.Count > 1)
+            if(candidates.Count > 1)
             {
                 var argTypes = CollectArgumentTypes(invocation.Arguments, model);
                 var argRefKinds = CollectArgumentRefKinds(invocation.Arguments);
                 var result = OverloadResolver.Resolve(candidates, argTypes, model, argumentRefKinds: argRefKinds);
 
-                switch (result.Status)
+                switch(result.Status)
                 {
                     case OverloadResolutionStatus.NoApplicableCandidate:
                         var argTypeNames = string.Join(", ", argTypes.Select(t => t.DisplayName));
@@ -11882,7 +11882,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                         return;
 
                     case OverloadResolutionStatus.AmbiguousCall:
-                        if (IsDelegateOverloadAmbiguity(result.AmbiguousCandidates!, model))
+                        if(IsDelegateOverloadAmbiguity(result.AmbiguousCandidates!, model))
                         {
                             var delegateNames = GetAmbiguousDelegateNames(result.AmbiguousCandidates!, model);
                             diagnostics.Add(MakeDiagnostic(
@@ -11920,7 +11920,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     private void CheckArgumentListExpressions(ArgumentListNode argList, ISemanticModel model, DiagnosticBag diagnostics)
     {
         // The ArgumentListNode has Argument (first) and Arguments (rest), each wrapping an ExpressionNode.
-        foreach (var expr in argList.GetAllExpressions())
+        foreach(var expr in argList.GetAllExpressions())
         {
             CheckExpression(expr, model, diagnostics);
         }
@@ -11955,7 +11955,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         var actualArgCount = argTypes.Count;
 
         // ── MIST_TC_0119: argument count mismatch ──
-        if (actualArgCount != expectedParamCount)
+        if(actualArgCount != expectedParamCount)
         {
             diagnostics.Add(MakeDiagnostic(
                 FuncInvocationArgumentCountMismatch.Value,
@@ -11966,16 +11966,16 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         // ── MIST_TC_0120: argument type mismatch ──
-        for (var i = 0; i < actualArgCount; i++)
+        for(var i = 0; i < actualArgCount; i++)
         {
             var argType = argTypes[i];
             var paramType = typeArgs[i];
 
             // Skip error types to avoid cascading diagnostics.
-            if (IsErrorType(argType) || IsErrorType(paramType))
+            if(IsErrorType(argType) || IsErrorType(paramType))
                 continue;
 
-            if (!IsAssignable(argType, paramType, model))
+            if(!IsAssignable(argType, paramType, model))
             {
                 diagnostics.Add(MakeDiagnostic(
                     FuncInvocationArgumentTypeMismatch.Value,
@@ -12005,37 +12005,37 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     {
         // Only applies when the target is a Func type and the expression is a bare identifier
         // (no invocation suffix — i.e., used as a value, not called).
-        if (targetFuncType is not ConstructedType funcCt || !SemanticModelBuilder.IsFuncType(funcCt))
+        if(targetFuncType is not ConstructedType funcCt || !SemanticModelBuilder.IsFuncType(funcCt))
             return;
 
-        if (postfix.Target is not IdentifierExpressionPrimaryNode identifier)
+        if(postfix.Target is not IdentifierExpressionPrimaryNode identifier)
             return;
 
         // If there's an invocation suffix, this is a call, not a method group conversion.
-        if (postfix.Suffix.Length > 0 && postfix.Suffix[0] is InvocationSuffixPostfixSuffixNode)
+        if(postfix.Suffix.Length > 0 && postfix.Suffix[0] is InvocationSuffixPostfixSuffixNode)
             return;
 
         // Resolve the symbol for the identifier.
         var symbol = model.GetDeclaredSymbol(identifier);
-        if (symbol is not Symbol { Kind: SymbolKind.Method } methodSymbol)
+        if(symbol is not Symbol { Kind: SymbolKind.Method } methodSymbol)
             return;
 
         // Find the containing scope to look for overloads.
         var containingScope = methodSymbol.ContainingScope;
-        if (containingScope is null)
+        if(containingScope is null)
             return;
 
         // Collect all methods with the same name in the containing scope.
         var methodName = methodSymbol.Name;
         var overloads = new List<ISymbol>();
-        foreach (var member in containingScope.Members)
+        foreach(var member in containingScope.Members)
         {
-            if (member.Kind == SymbolKind.Method && member.Name == methodName)
+            if(member.Kind == SymbolKind.Method && member.Name == methodName)
                 overloads.Add(member);
         }
 
         // If there's only one overload, no ambiguity is possible.
-        if (overloads.Count <= 1)
+        if(overloads.Count <= 1)
             return;
 
         // Extract the target Func type's parameter types (all but last type arg).
@@ -12044,16 +12044,16 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         // Count how many overloads match the target Func type's signature.
         var matchingOverloads = new List<ISymbol>();
-        foreach (var overload in overloads)
+        foreach(var overload in overloads)
         {
             var paramTypes = ParameterSignature.Extract(overload, model);
-            if (paramTypes.Count != funcParamCount)
+            if(paramTypes.Count != funcParamCount)
                 continue;
 
             var allMatch = true;
-            for (var i = 0; i < funcParamCount; i++)
+            for(var i = 0; i < funcParamCount; i++)
             {
-                if (!IsAssignable(funcTypeArgs[i], paramTypes[i], model)
+                if(!IsAssignable(funcTypeArgs[i], paramTypes[i], model)
                     && !IsAssignable(paramTypes[i], funcTypeArgs[i], model))
                 {
                     allMatch = false;
@@ -12061,12 +12061,12 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 }
             }
 
-            if (allMatch)
+            if(allMatch)
                 matchingOverloads.Add(overload);
         }
 
         // If more than one overload matches, emit MIST_TC_0121.
-        if (matchingOverloads.Count > 1)
+        if(matchingOverloads.Count > 1)
         {
             var signatures = matchingOverloads
                 .Select(o => FormatCandidateSignature(o, methodName, model));
@@ -12092,7 +12092,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     private static void CheckRefArgumentAssignability(ArgumentListNode argList, ISemanticModel model, DiagnosticBag diagnostics)
     {
         CheckSingleRefArgument(argList.Argument, model, diagnostics);
-        foreach (var arg in argList.Arguments)
+        foreach(var arg in argList.Arguments)
         {
             CheckSingleRefArgument(arg, model, diagnostics);
         }
@@ -12104,16 +12104,16 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     private static void CheckSingleRefArgument(ArgumentNode arg, ISemanticModel model, DiagnosticBag diagnostics)
     {
-        if (arg is not RefArgumentArgumentNode refArg)
+        if(arg is not RefArgumentArgumentNode refArg)
             return;
 
         var expr = refArg.Expression;
 
         // ── readonly-locals feature: reject passing readonly locals by mutable ref ──
-        if (CheckReadonlyLocalRefArgument(refArg, expr, model, diagnostics))
+        if(CheckReadonlyLocalRefArgument(refArg, expr, model, diagnostics))
             return;
 
-        if (IsAssignableStorageLocation(expr, model, out var description))
+        if(IsAssignableStorageLocation(expr, model, out var description))
             return;
 
         diagnostics.Add(MakeDiagnostic(
@@ -12137,20 +12137,20 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         DiagnosticBag diagnostics)
     {
         var postfix = TryExtractPostfixNode(expr);
-        if (postfix is null || postfix.Suffix.Length > 0)
+        if(postfix is null || postfix.Suffix.Length > 0)
             return false;
 
-        if (postfix.Target is not IdentifierExpressionPrimaryNode identifier)
+        if(postfix.Target is not IdentifierExpressionPrimaryNode identifier)
             return false;
 
         var symbol = model.GetDeclaredSymbol(identifier);
-        if (symbol is not Symbol concreteSymbol)
+        if(symbol is not Symbol concreteSymbol)
             return false;
 
-        if (concreteSymbol.Kind != SymbolKind.LocalVariable)
+        if(concreteSymbol.Kind != SymbolKind.LocalVariable)
             return false;
 
-        if (concreteSymbol.ReadonlyStatus != ReadonlyStatus.ExplicitReadonly)
+        if(concreteSymbol.ReadonlyStatus != ReadonlyStatus.ExplicitReadonly)
             return false;
 
         diagnostics.Add(MakeDiagnostic(
@@ -12178,7 +12178,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // Navigate through the expression tree to reach the PostfixNode:
         // Expression → Assignment → LogicalOr → LogicalAnd → Equality → Relational → Additive → Multiplicative → Unary → Postfix → Primary
         var postfix = TryExtractPostfixNode(expr);
-        if (postfix is null)
+        if(postfix is null)
         {
             // The expression has binary/logical operators or assignment — not a storage location.
             description = DescribeExpression(expr, model);
@@ -12186,16 +12186,16 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         // Case 1: Expression has suffixes — check if the last suffix is a member access or index.
-        if (postfix.Suffix.Length > 0)
+        if(postfix.Suffix.Length > 0)
         {
             var lastSuffix = postfix.Suffix[^1];
 
             // Array element access (indexer) — always an assignable storage location.
-            if (lastSuffix is IndexSuffixPostfixSuffixNode)
+            if(lastSuffix is IndexSuffixPostfixSuffixNode)
                 return AssignableResult(out description);
 
             // Member access — a field access is assignable.
-            if (lastSuffix is MemberAccessSuffixPostfixSuffixNode)
+            if(lastSuffix is MemberAccessSuffixPostfixSuffixNode)
                 return AssignableResult(out description);
 
             // Method call result, invocation result, switch expression result — not assignable.
@@ -12207,10 +12207,10 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         var primary = postfix.Target;
 
         // Identifier expression — check if it resolves to a mutable variable/parameter.
-        if (primary is IdentifierExpressionPrimaryNode identifier)
+        if(primary is IdentifierExpressionPrimaryNode identifier)
         {
             var symbol = model.GetDeclaredSymbol(identifier);
-            if (symbol is not Symbol concreteSymbol)
+            if(symbol is not Symbol concreteSymbol)
             {
                 // Cannot resolve — treat as non-assignable with the identifier name.
                 description = identifier.Name.Lexeme;
@@ -12218,35 +12218,35 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             }
 
             // Only local variables and parameters are valid storage locations for ref.
-            if (concreteSymbol.Kind is not (SymbolKind.LocalVariable or SymbolKind.Parameter))
+            if(concreteSymbol.Kind is not (SymbolKind.LocalVariable or SymbolKind.Parameter))
             {
                 description = identifier.Name.Lexeme;
                 return false;
             }
 
             // Reject readonly variables (explicit readonly modifier).
-            if (concreteSymbol.ReadonlyStatus is ReadonlyStatus.ExplicitReadonly or ReadonlyStatus.InferredReadonly or ReadonlyStatus.ImplicitReadonly)
+            if(concreteSymbol.ReadonlyStatus is ReadonlyStatus.ExplicitReadonly or ReadonlyStatus.InferredReadonly or ReadonlyStatus.ImplicitReadonly)
             {
                 description = identifier.Name.Lexeme;
                 return false;
             }
 
             // Reject frozen ownership tier.
-            if (concreteSymbol.OwnershipTier == OwnershipTier.Frozen)
+            if(concreteSymbol.OwnershipTier == OwnershipTier.Frozen)
             {
                 description = identifier.Name.Lexeme;
                 return false;
             }
 
             // Reject readonly ref ownership tier.
-            if (concreteSymbol.OwnershipTier == OwnershipTier.ReadonlyRef)
+            if(concreteSymbol.OwnershipTier == OwnershipTier.ReadonlyRef)
             {
                 description = identifier.Name.Lexeme;
                 return false;
             }
 
             // Reject ref readonly locals (they are readonly references).
-            if (concreteSymbol.RefKind == RefKind.RefReadonly)
+            if(concreteSymbol.RefKind == RefKind.RefReadonly)
             {
                 description = identifier.Name.Lexeme;
                 return false;
@@ -12257,7 +12257,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         // Parenthesized expression — unwrap and check inner.
-        if (primary is ParenthesizedExpressionPrimaryNode paren)
+        if(primary is ParenthesizedExpressionPrimaryNode paren)
         {
             return IsAssignableStorageLocation(paren.Inner, model, out description);
         }
@@ -12274,12 +12274,12 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     private static List<ArgumentNode> CollectArgumentNodes(ArgumentListNode? argList)
     {
-        if (argList is null)
+        if(argList is null)
             return [];
 
         var nodes = new List<ArgumentNode>(1 + argList.Arguments.Length);
         nodes.Add(argList.Argument);
-        foreach (var arg in argList.Arguments)
+        foreach(var arg in argList.Arguments)
         {
             nodes.Add(arg);
         }
@@ -12294,35 +12294,35 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     private static PostfixNode? TryExtractPostfixNode(ExpressionNode expr)
     {
         var assignment = expr.AsAssignmentOrNull();
-        if (assignment is null) return null; // Lambda form — not a simple postfix chain.
-        if (assignment.Value is not null) return null;
+        if(assignment is null) return null; // Lambda form — not a simple postfix chain.
+        if(assignment.Value is not null) return null;
 
         var logicalOr = assignment.Target?.Left;
-        if (logicalOr?.Right is not null && !ReferenceEquals(logicalOr.Right, logicalOr.Left))
+        if(logicalOr?.Right is not null && !ReferenceEquals(logicalOr.Right, logicalOr.Left))
             return null;
 
         var logicalAnd = logicalOr?.Left;
-        if (logicalAnd?.Right is not null && !ReferenceEquals(logicalAnd.Right, logicalAnd.Left))
+        if(logicalAnd?.Right is not null && !ReferenceEquals(logicalAnd.Right, logicalAnd.Left))
             return null;
 
         var equality = logicalAnd?.Left;
-        if (equality?.Right is not null && !ReferenceEquals(equality.Right, equality.Left))
+        if(equality?.Right is not null && !ReferenceEquals(equality.Right, equality.Left))
             return null;
 
-        if (equality?.Left is not RelationalComparisonRelationalNode relCmp)
+        if(equality?.Left is not RelationalComparisonRelationalNode relCmp)
             return null;
-        if (relCmp.Right is not null && !ReferenceEquals(relCmp.Right, relCmp.Left))
+        if(relCmp.Right is not null && !ReferenceEquals(relCmp.Right, relCmp.Left))
             return null;
 
         var additive = relCmp.Left;
-        if (additive?.Right is not null && !ReferenceEquals(additive.Right, additive.Left))
+        if(additive?.Right is not null && !ReferenceEquals(additive.Right, additive.Left))
             return null;
 
         var multiplicative = additive?.Left;
-        if (multiplicative?.Right is not null && !ReferenceEquals(multiplicative.Right, multiplicative.Left))
+        if(multiplicative?.Right is not null && !ReferenceEquals(multiplicative.Right, multiplicative.Left))
             return null;
 
-        if (multiplicative?.Left is not PostfixExpressionUnaryNode postfixUnary)
+        if(multiplicative?.Left is not PostfixExpressionUnaryNode postfixUnary)
             return null;
 
         return postfixUnary.Primary;
@@ -12338,12 +12338,12 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         // Try to extract a simple identifier name.
         var identifierNode = TryExtractIdentifierPrimaryNode(expr);
-        if (identifierNode is not null)
+        if(identifierNode is not null)
             return identifierNode.Name.Lexeme;
 
         // Try to unwrap to a primary node for a more specific description.
         var primary = UnwrapExpressionToPrimary(expr);
-        if (primary is not null)
+        if(primary is not null)
         {
             return primary switch
             {
@@ -12403,16 +12403,16 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             _ => null,
         };
 
-        if (parameters is null)
+        if(parameters is null)
             return;
 
         var paramSymbols = ImmutableArray.CreateBuilder<ISymbol>();
-        foreach (var child in parameters.Children())
+        foreach(var child in parameters.Children())
         {
-            if (child is ParameterNode paramNode)
+            if(child is ParameterNode paramNode)
             {
                 var paramSym = model.GetDeclaredSymbol(paramNode);
-                if (paramSym is not null)
+                if(paramSym is not null)
                     paramSymbols.Add(paramSym);
             }
         }
@@ -12435,28 +12435,28 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         ISemanticModel model,
         DiagnosticBag diagnostics)
     {
-        if (argList is null)
+        if(argList is null)
             return;
 
         // Collect all ArgumentNode objects (first + rest).
         var argNodes = new List<ArgumentNode>(1 + argList.Arguments.Length);
         argNodes.Add(argList.Argument);
-        foreach (var arg in argList.Arguments)
+        foreach(var arg in argList.Arguments)
         {
             argNodes.Add(arg);
         }
 
         var count = Math.Min(argNodes.Count, paramSymbols.Length);
-        for (var i = 0; i < count; i++)
+        for(var i = 0; i < count; i++)
         {
             var argNode = argNodes[i];
             var paramSym = paramSymbols[i];
 
             // Access RefKind from the concrete Symbol type.
-            if (paramSym is not Symbol concreteParam)
+            if(paramSym is not Symbol concreteParam)
                 continue;
 
-            if (concreteParam.RefKind == RefKind.Ref && argNode is ValueArgumentArgumentNode)
+            if(concreteParam.RefKind == RefKind.Ref && argNode is ValueArgumentArgumentNode)
             {
                 // Parameter is ref but argument is missing the 'ref' keyword.
                 diagnostics.Add(MakeDiagnostic(
@@ -12465,7 +12465,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     (SyntaxNode)argNode,
                     model));
             }
-            else if (concreteParam.RefKind == RefKind.None && argNode is RefArgumentArgumentNode)
+            else if(concreteParam.RefKind == RefKind.None && argNode is RefArgumentArgumentNode)
             {
                 // Parameter is not ref but argument has a spurious 'ref' keyword.
                 diagnostics.Add(MakeDiagnostic(
@@ -12488,7 +12488,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // For CLR Backend symbols, parameters are stored directly on the Symbol instance.
         ImmutableArray<ISymbol> paramSymbols;
 
-        if (methodSymbol is Symbol { Parameters.Count: > 0 } backendSym)
+        if(methodSymbol is Symbol { Parameters.Count: > 0 } backendSym)
         {
             paramSymbols = [.. backendSym.Parameters];
         }
@@ -12498,15 +12498,15 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             try { methodNode = model.GetDeclaringNode(methodSymbol); }
             catch { return; }
 
-            if (methodNode is MethodDeclarationNode methodDecl && methodDecl.Parameters is not null)
+            if(methodNode is MethodDeclarationNode methodDecl && methodDecl.Parameters is not null)
             {
                 var paramList = new List<ISymbol>();
-                foreach (var child in methodDecl.Parameters.Children())
+                foreach(var child in methodDecl.Parameters.Children())
                 {
-                    if (child is ParameterNode paramNode)
+                    if(child is ParameterNode paramNode)
                     {
                         var paramSym = model.GetDeclaredSymbol(paramNode);
-                        if (paramSym is not null)
+                        if(paramSym is not null)
                             paramList.Add(paramSym);
                     }
                 }
@@ -12520,9 +12520,9 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         // Collect argument expressions.
         var argExprs = new List<ExpressionNode>();
-        if (argList is not null)
+        if(argList is not null)
         {
-            foreach (var expr in argList.GetAllExpressions())
+            foreach(var expr in argList.GetAllExpressions())
             {
                 argExprs.Add(expr);
             }
@@ -12533,21 +12533,21 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         // Check each argument against the corresponding parameter.
         var count = Math.Min(argExprs.Count, paramSymbols.Length);
-        for (var i = 0; i < count; i++)
+        for(var i = 0; i < count; i++)
         {
             var argType = model.GetTypeOf(argExprs[i]);
             var paramType = paramSymbols[i].DeclaredType;
 
-            if (argType is not null && paramType is not null)
+            if(argType is not null && paramType is not null)
             {
                 // ── ref-parameters feature: exact type match (MIST_REF_0007) ──
                 // When the argument is a ref argument, require exact type identity
                 // (no implicit conversions, no subtype substitution).
                 // Only check if the argument passed the assignable storage location
                 // check (no cascading with MIST_REF_0001).
-                if (i < argNodes.Count && argNodes[i] is RefArgumentArgumentNode refArgNode)
+                if(i < argNodes.Count && argNodes[i] is RefArgumentArgumentNode refArgNode)
                 {
-                    if (IsAssignableStorageLocation(refArgNode.Expression, model, out _)
+                    if(IsAssignableStorageLocation(refArgNode.Expression, model, out _)
                         && !RefTypesCompatible(argType, paramType))
                     {
                         diagnostics.Add(MakeDiagnostic(
@@ -12563,7 +12563,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 // ── MIST2007: Ref struct abstract argument restriction (Requirements 3.11, 3.12) ──
                 // A ref struct value cannot be passed as an argument to an abstract-typed parameter
                 // because that would require boxing (heap allocation).
-                if (IsRefStructType(argType) && IsAbstractTargetType(paramType))
+                if(IsRefStructType(argType) && IsAbstractTargetType(paramType))
                 {
                     diagnostics.Add(MakeDiagnostic(
                         "MIST2007",
@@ -12576,7 +12576,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 // ── refinement-types feature: compile-time enforcement ──
                 // When the parameter is a RefinementType, check the argument
                 // against the refinement predicate (Requirement 5.3).
-                if (TryCheckRefinementAssignment(argType, paramType, argExprs[i], diagnostics, model))
+                if(TryCheckRefinementAssignment(argType, paramType, argExprs[i], diagnostics, model))
                 {
                     continue;
                 }
@@ -12584,35 +12584,35 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 // ── regex-type feature: string literal shorthand (Requirements 6.5, 6.8, 6.9, 6.10) ──
                 // When the parameter is regex and the argument is string, apply
                 // the string→regex conversion rules.
-                if (TryCheckStringToRegexAssignment(argType, paramType, argExprs[i], diagnostics, model))
+                if(TryCheckStringToRegexAssignment(argType, paramType, argExprs[i], diagnostics, model))
                 {
                     continue;
                 }
 
-                if (!IsAssignable(argType, paramType))
+                if(!IsAssignable(argType, paramType))
                 {
                     // unknown-type feature (Req 4.2, 4.4): emit a targeted
                     // diagnostic for void→unknown or unknown→non-unknown
                     // before falling back to the generic MIST_TC_0002.
-                    if (TryEmitUnknownAssignabilityDiagnostic(argType, paramType, argExprs[i], diagnostics, model))
+                    if(TryEmitUnknownAssignabilityDiagnostic(argType, paramType, argExprs[i], diagnostics, model))
                     {
                         // Targeted unknown diagnostic emitted; skip generic.
                     }
                     // type-unions feature (Req 6.3, 6.4): emit a targeted
                     // diagnostic for union-specific failures.
-                    else if (TryEmitUnionAssignabilityDiagnostic(argType, paramType, argExprs[i], diagnostics, model))
+                    else if(TryEmitUnionAssignabilityDiagnostic(argType, paramType, argExprs[i], diagnostics, model))
                     {
                         // Targeted union diagnostic emitted; skip generic.
                     }
                     // enums feature (Req 7.3): emit a targeted diagnostic
                     // for reverse conversion (underlying type → enum).
-                    else if (TryEmitEnumAssignabilityDiagnostic(argType, paramType, argExprs[i], diagnostics, model))
+                    else if(TryEmitEnumAssignabilityDiagnostic(argType, paramType, argExprs[i], diagnostics, model))
                     {
                         // Targeted enum diagnostic emitted; skip generic.
                     }
                     // stack-only-types feature (R7.7): emit a targeted diagnostic
                     // for span-to-span mismatch (kind or element type).
-                    else if (TryEmitSpanInteropMismatchDiagnostic(argType, paramType, argExprs[i], diagnostics, model))
+                    else if(TryEmitSpanInteropMismatchDiagnostic(argType, paramType, argExprs[i], diagnostics, model))
                     {
                         // Targeted span mismatch diagnostic emitted; skip generic.
                     }
@@ -12658,7 +12658,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // For CLR Backend symbols, parameters are stored directly on the Symbol instance.
         ImmutableArray<ISymbol> paramSymbols;
 
-        if (methodSymbol is Symbol { Parameters.Count: > 0 } backendSym)
+        if(methodSymbol is Symbol { Parameters.Count: > 0 } backendSym)
         {
             paramSymbols = [.. backendSym.Parameters];
         }
@@ -12668,15 +12668,15 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             try { methodNode = model.GetDeclaringNode(methodSymbol); }
             catch { return; }
 
-            if (methodNode is MethodDeclarationNode methodDecl && methodDecl.Parameters is not null)
+            if(methodNode is MethodDeclarationNode methodDecl && methodDecl.Parameters is not null)
             {
                 var paramList = new List<ISymbol>();
-                foreach (var child in methodDecl.Parameters.Children())
+                foreach(var child in methodDecl.Parameters.Children())
                 {
-                    if (child is ParameterNode paramNode)
+                    if(child is ParameterNode paramNode)
                     {
                         var paramSym = model.GetDeclaredSymbol(paramNode);
-                        if (paramSym is not null)
+                        if(paramSym is not null)
                             paramList.Add(paramSym);
                     }
                 }
@@ -12690,9 +12690,9 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         // Collect argument expressions.
         var argExprs = new List<ExpressionNode>();
-        if (argList is not null)
+        if(argList is not null)
         {
-            foreach (var expr in argList.GetAllExpressions())
+            foreach(var expr in argList.GetAllExpressions())
             {
                 argExprs.Add(expr);
             }
@@ -12703,19 +12703,19 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         // Check each argument against the corresponding parameter, applying substitution.
         var count = Math.Min(argExprs.Count, paramSymbols.Length);
-        for (var i = 0; i < count; i++)
+        for(var i = 0; i < count; i++)
         {
             var argType = model.GetTypeOf(argExprs[i]);
             var paramType = paramSymbols[i].DeclaredType;
 
-            if (argType is not null && paramType is not null)
+            if(argType is not null && paramType is not null)
             {
                 // Apply enclosing type substitution (e.g., T → int for Box<int>).
-                if (enclosingTypeParams is not null && enclosingTypeArgs is not null)
+                if(enclosingTypeParams is not null && enclosingTypeArgs is not null)
                     paramType = SubstituteType(paramType, enclosingTypeParams, enclosingTypeArgs);
 
                 // Apply method-level substitution (e.g., U → string for Method<string>).
-                if (methodTypeParams is not null && methodTypeArgs is not null)
+                if(methodTypeParams is not null && methodTypeArgs is not null)
                     paramType = SubstituteType(paramType, methodTypeParams, methodTypeArgs);
 
                 // ── ref-parameters feature: exact type match (MIST_REF_0007) ──
@@ -12723,9 +12723,9 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 // (no implicit conversions, no subtype substitution).
                 // Only check if the argument passed the assignable storage location
                 // check (no cascading with MIST_REF_0001).
-                if (i < argNodes.Count && argNodes[i] is RefArgumentArgumentNode refArgNode)
+                if(i < argNodes.Count && argNodes[i] is RefArgumentArgumentNode refArgNode)
                 {
-                    if (IsAssignableStorageLocation(refArgNode.Expression, model, out _)
+                    if(IsAssignableStorageLocation(refArgNode.Expression, model, out _)
                         && !RefTypesCompatible(argType, paramType))
                     {
                         diagnostics.Add(MakeDiagnostic(
@@ -12741,7 +12741,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 // ── MIST2007: Ref struct abstract argument restriction (Requirements 3.11, 3.12) ──
                 // A ref struct value cannot be passed as an argument to an abstract-typed parameter
                 // because that would require boxing (heap allocation).
-                if (IsRefStructType(argType) && IsAbstractTargetType(paramType))
+                if(IsRefStructType(argType) && IsAbstractTargetType(paramType))
                 {
                     diagnostics.Add(MakeDiagnostic(
                         "MIST2007",
@@ -12754,7 +12754,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 // ── refinement-types feature: compile-time enforcement ──
                 // When the parameter is a RefinementType, check the argument
                 // against the refinement predicate (Requirement 5.3).
-                if (TryCheckRefinementAssignment(argType, paramType, argExprs[i], diagnostics, model))
+                if(TryCheckRefinementAssignment(argType, paramType, argExprs[i], diagnostics, model))
                 {
                     continue;
                 }
@@ -12762,35 +12762,35 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 // ── regex-type feature: string literal shorthand (Requirements 6.5, 6.8, 6.9, 6.10) ──
                 // When the parameter is regex and the argument is string, apply
                 // the string→regex conversion rules.
-                if (TryCheckStringToRegexAssignment(argType, paramType, argExprs[i], diagnostics, model))
+                if(TryCheckStringToRegexAssignment(argType, paramType, argExprs[i], diagnostics, model))
                 {
                     continue;
                 }
 
-                if (!IsAssignable(argType, paramType))
+                if(!IsAssignable(argType, paramType))
                 {
                     // unknown-type feature (Req 4.2, 4.4): emit a targeted
                     // diagnostic for void→unknown or unknown→non-unknown
                     // before falling back to the generic MIST_TC_0002.
-                    if (TryEmitUnknownAssignabilityDiagnostic(argType, paramType, argExprs[i], diagnostics, model))
+                    if(TryEmitUnknownAssignabilityDiagnostic(argType, paramType, argExprs[i], diagnostics, model))
                     {
                         // Targeted unknown diagnostic emitted; skip generic.
                     }
                     // type-unions feature (Req 6.3, 6.4): emit a targeted
                     // diagnostic for union-specific failures.
-                    else if (TryEmitUnionAssignabilityDiagnostic(argType, paramType, argExprs[i], diagnostics, model))
+                    else if(TryEmitUnionAssignabilityDiagnostic(argType, paramType, argExprs[i], diagnostics, model))
                     {
                         // Targeted union diagnostic emitted; skip generic.
                     }
                     // enums feature (Req 7.3): emit a targeted diagnostic
                     // for reverse conversion (underlying type → enum).
-                    else if (TryEmitEnumAssignabilityDiagnostic(argType, paramType, argExprs[i], diagnostics, model))
+                    else if(TryEmitEnumAssignabilityDiagnostic(argType, paramType, argExprs[i], diagnostics, model))
                     {
                         // Targeted enum diagnostic emitted; skip generic.
                     }
                     // stack-only-types feature (R7.7): emit a targeted diagnostic
                     // for span-to-span mismatch (kind or element type).
-                    else if (TryEmitSpanInteropMismatchDiagnostic(argType, paramType, argExprs[i], diagnostics, model))
+                    else if(TryEmitSpanInteropMismatchDiagnostic(argType, paramType, argExprs[i], diagnostics, model))
                     {
                         // Targeted span mismatch diagnostic emitted; skip generic.
                     }
@@ -12850,7 +12850,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         DiagnosticBag diagnostics,
         SyntaxNode callSite)
     {
-        if (argList is null)
+        if(argList is null)
             return;
 
         // Get the declaring node to resolve parameter symbols.
@@ -12860,31 +12860,31 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         // Collect parameter symbols from the declaring node.
         var paramSymbols = CollectParameterSymbols(declaringNode, model);
-        if (paramSymbols.Count == 0)
+        if(paramSymbols.Count == 0)
             return;
 
         // Collect argument expressions.
         var argExprs = new List<ExpressionNode>();
-        foreach (var expr in argList.GetAllExpressions())
+        foreach(var expr in argList.GetAllExpressions())
         {
             argExprs.Add(expr);
         }
 
         // Check each argument against the corresponding parameter's refinement constraint.
         var count = Math.Min(argExprs.Count, paramSymbols.Count);
-        for (var i = 0; i < count; i++)
+        for(var i = 0; i < count; i++)
         {
             var paramRefinement = model.GetParameterRefinement(paramSymbols[i]);
-            if (paramRefinement is null)
+            if(paramRefinement is null)
                 continue;
 
             var argExpr = argExprs[i];
             var argType = model.GetTypeOf(argExpr);
 
             // Case 1: Argument's type is a named refinement type — check implication.
-            if (argType is RefinementType sourceRefinement)
+            if(argType is RefinementType sourceRefinement)
             {
-                if (RefinementSolver.Implies(sourceRefinement.Predicate, paramRefinement))
+                if(RefinementSolver.Implies(sourceRefinement.Predicate, paramRefinement))
                 {
                     // Source predicate implies parameter constraint — accept.
                     continue;
@@ -12902,9 +12902,9 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
             // Case 2: Argument is a compile-time constant — evaluate predicate.
             var constantValue = TryExtractLiteralConstantValue(argExpr);
-            if (constantValue is not null)
+            if(constantValue is not null)
             {
-                if (!paramRefinement.Evaluate(constantValue))
+                if(!paramRefinement.Evaluate(constantValue))
                 {
                     // Determine the callable description for the diagnostic message.
                     var callableName = GetCallableDescription(callableSymbol);
@@ -12945,15 +12945,15 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             _ => null,
         };
 
-        if (parameters is null)
+        if(parameters is null)
             return paramList;
 
-        foreach (var child in parameters.Children())
+        foreach(var child in parameters.Children())
         {
-            if (child is ParameterNode paramNode)
+            if(child is ParameterNode paramNode)
             {
                 var paramSym = model.GetDeclaredSymbol(paramNode);
-                if (paramSym is not null)
+                if(paramSym is not null)
                     paramList.Add(paramSym);
             }
         }
@@ -13063,9 +13063,9 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     private static bool IsTypeDefaultable(IType type)
     {
         // Intrinsically defaultable: primitives and string.
-        if (type is StructType or ClassType)
+        if(type is StructType or ClassType)
         {
-            if (IntrinsicDefaultableNames.Contains(type.DisplayName))
+            if(IntrinsicDefaultableNames.Contains(type.DisplayName))
                 return true;
         }
 
@@ -13096,32 +13096,32 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         DiagnosticBag diagnostics,
         SyntaxNode callSite)
     {
-        if (argList is null)
+        if(argList is null)
             return;
 
         // Extract readonly flags for each parameter of the method.
         var readonlyFlags = ParameterSignature.ExtractIsReadonly(methodSymbol, model);
-        if (readonlyFlags.Count == 0)
+        if(readonlyFlags.Count == 0)
             return;
 
         // Collect argument expressions.
         var argExprs = new List<ExpressionNode>();
-        foreach (var expr in argList.GetAllExpressions())
+        foreach(var expr in argList.GetAllExpressions())
         {
             argExprs.Add(expr);
         }
 
         // Check each argument: if its type is readonly, the parameter must be readonly.
         var count = Math.Min(argExprs.Count, readonlyFlags.Count);
-        for (var i = 0; i < count; i++)
+        for(var i = 0; i < count; i++)
         {
             var argType = model.GetTypeOf(argExprs[i]);
-            if (argType is null)
+            if(argType is null)
                 continue;
 
             // Only check if the argument's type is readonly (Req 14.5).
             // If the argument's type is mutable, either parameter kind is acceptable (Req 14.6).
-            if (!IsTypeReadonly(argType))
+            if(!IsTypeReadonly(argType))
                 continue;
 
             // If an implicit cast operator is recorded on this argument, the effective
@@ -13129,7 +13129,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             // If the target type is not readonly, the readonly constraint is satisfied
             // by the conversion (e.g., readonly Regex → mutable String via implicit cast).
             var resolvedOp = model.GetResolvedOperator(argExprs[i]);
-            if (resolvedOp is Symbol resolvedSym && resolvedSym.Name.StartsWith("operator_implicit_"))
+            if(resolvedOp is Symbol resolvedSym && resolvedSym.Name.StartsWith("operator_implicit_"))
             {
                 // The implicit cast produces a new value of the target type. The callee
                 // receives this new value, not the original readonly value, so the
@@ -13138,7 +13138,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             }
 
             // The argument's type is readonly — the parameter MUST be marked readonly.
-            if (!readonlyFlags[i])
+            if(!readonlyFlags[i])
             {
                 // Extract parameter name for the diagnostic message.
                 var paramName = GetParameterName(methodSymbol, i, model);
@@ -13168,15 +13168,15 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             _ => null,
         };
 
-        if (paramList is null)
+        if(paramList is null)
             return $"param{index}";
 
         var currentIndex = 0;
-        foreach (var child in paramList.Children())
+        foreach(var child in paramList.Children())
         {
-            if (child is ParameterNode paramNode)
+            if(child is ParameterNode paramNode)
             {
-                if (currentIndex == index)
+                if(currentIndex == index)
                     return paramNode.Name.Lexeme;
                 currentIndex++;
             }
@@ -13192,12 +13192,12 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     private static bool HasOnlyTypeReferenceArgs(TypeArgumentListNode typeArgList)
     {
-        if (typeArgList.TypeArgument is not TypeReferenceTypeArgumentTypeArgumentNode)
+        if(typeArgList.TypeArgument is not TypeReferenceTypeArgumentTypeArgumentNode)
             return false;
 
-        foreach (var arg in typeArgList.TypeArguments)
+        foreach(var arg in typeArgList.TypeArguments)
         {
-            if (arg is not TypeReferenceTypeArgumentTypeArgumentNode)
+            if(arg is not TypeReferenceTypeArgumentTypeArgumentNode)
                 return false;
         }
 
@@ -13216,7 +13216,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         var firstType = ResolveTypeReferenceToType(typeArgList.GetTypeReference(), model);
         result.Add(firstType);
 
-        foreach (var typeRef in typeArgList.GetTypeReferences())
+        foreach(var typeRef in typeArgList.GetTypeReferences())
         {
             var argType = ResolveTypeReferenceToType(typeRef, model);
             result.Add(argType);
@@ -13243,49 +13243,49 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     {
         // Try the expression type map first (may be populated for some nodes).
         var resolved = model.GetTypeOf(typeRef);
-        if (resolved is not null && resolved is not ErrorType)
+        if(resolved is not null && resolved is not ErrorType)
         {
             // Transparently unwrap type aliases (Requirement 5.1).
-            if (resolved is TypeAliasType aliasFromMap)
+            if(resolved is TypeAliasType aliasFromMap)
                 return aliasFromMap.UnderlyingType;
             return resolved;
         }
 
-        switch (typeRef.First)
+        switch(typeRef.First)
         {
             case PrimitiveSingleTypeRefSingleTypeRefNode primitiveRef:
-            {
-                var primType = ResolvePrimitiveType(primitiveRef.PrimitiveType);
-                if (primitiveRef.ArrayRank is not null && primType is not null)
-                    return new ArrayType(primType);
-                return primType ?? ErrorType.Instance;
-            }
+                {
+                    var primType = ResolvePrimitiveType(primitiveRef.PrimitiveType);
+                    if(primitiveRef.ArrayRank is not null && primType is not null)
+                        return new ArrayType(primType);
+                    return primType ?? ErrorType.Instance;
+                }
             case NamedSingleTypeRefSingleTypeRefNode namedRef:
-            {
-                var name = namedRef.Name.Children().FirstOrDefault()?.Span;
-                // Try to find the type by looking up the symbol. The semantic model
-                // keys declared symbols on the flat TypeReferenceNode, so look up via
-                // `typeRef` (not the SingleTypeRef child).
-                var symbol = model.GetDeclaredSymbol(typeRef);
-                if (symbol?.DeclaredType is not null)
                 {
-                    return ResolveTypeAliasMaybeGeneric(
-                        symbol.DeclaredType, namedRef, model, diagnostics);
-                }
-
-                // Fallback: search all symbols for a matching type name.
-                var typeName = ExtractTypeName(namedRef);
-                foreach (var sym in model.AllSymbols)
-                {
-                    if (sym.Name == typeName && sym.Kind is SymbolKind.Class or SymbolKind.Struct or SymbolKind.Abstract or SymbolKind.TypeAlias)
+                    var name = namedRef.Name.Children().FirstOrDefault()?.Span;
+                    // Try to find the type by looking up the symbol. The semantic model
+                    // keys declared symbols on the flat TypeReferenceNode, so look up via
+                    // `typeRef` (not the SingleTypeRef child).
+                    var symbol = model.GetDeclaredSymbol(typeRef);
+                    if(symbol?.DeclaredType is not null)
                     {
-                        var declaredType = sym.DeclaredType ?? ErrorType.Instance;
                         return ResolveTypeAliasMaybeGeneric(
-                            declaredType, namedRef, model, diagnostics);
+                            symbol.DeclaredType, namedRef, model, diagnostics);
                     }
+
+                    // Fallback: search all symbols for a matching type name.
+                    var typeName = ExtractTypeName(namedRef);
+                    foreach(var sym in model.AllSymbols)
+                    {
+                        if(sym.Name == typeName && sym.Kind is SymbolKind.Class or SymbolKind.Struct or SymbolKind.Abstract or SymbolKind.TypeAlias)
+                        {
+                            var declaredType = sym.DeclaredType ?? ErrorType.Instance;
+                            return ResolveTypeAliasMaybeGeneric(
+                                declaredType, namedRef, model, diagnostics);
+                        }
+                    }
+                    return ErrorType.Instance;
                 }
-                return ErrorType.Instance;
-            }
             case VoidSingleTypeRefSingleTypeRefNode:
                 return LegacyPrimitiveTypes.Void;
             default:
@@ -13306,18 +13306,18 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         ISemanticModel model,
         DiagnosticBag? diagnostics)
     {
-        if (type is not TypeAliasType aliasType)
+        if(type is not TypeAliasType aliasType)
             return type;
 
         var underlyingType = aliasType.UnderlyingType;
         var typeParams = aliasType.TypeParameters;
 
         // Non-generic alias — return the underlying type directly.
-        if (typeParams.Count == 0)
+        if(typeParams.Count == 0)
             return underlyingType;
 
         // Generic alias — check if type arguments are provided on the reference.
-        if (namedRef.TypeArgs is null)
+        if(namedRef.TypeArgs is null)
         {
             // No type arguments provided for a generic alias — return as-is
             // (the underlying type still contains unsubstituted type parameters).
@@ -13328,9 +13328,9 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         var typeArgs = ResolveTypeArgumentsFromAst(namedRef.TypeArgs, model);
 
         // Verify argument count matches parameter count (Requirement 5.3).
-        if (typeArgs.Count != typeParams.Count)
+        if(typeArgs.Count != typeParams.Count)
         {
-            if (diagnostics is not null)
+            if(diagnostics is not null)
             {
                 diagnostics.Add(MakeDiagnostic(
                     TypeAliasArgumentCountMismatch.Value,
@@ -13393,7 +13393,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         // Check element type is not void (MIST_TC_0034).
         var elementType = model.GetTypeOf(arrayCreation);
-        if (elementType is ArrayType at && at.ElementType.IsVoid())
+        if(elementType is ArrayType at && at.ElementType.IsVoid())
         {
             diagnostics.Add(MakeDiagnostic(
                 "MIST_TC_0034",
@@ -13411,7 +13411,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // SemanticModelBuilder produces for this node); nested
         // `unknown` occurrences inside a non-trivial element type like
         // `List<unknown>[]` also trip the ban via IsStorageBanned.
-        if (elementType is ArrayType arr && TypeContainment.IsStorageBanned(arr.ElementType))
+        if(elementType is ArrayType arr && TypeContainment.IsStorageBanned(arr.ElementType))
         {
             diagnostics.Add(MakeDiagnostic(
                 SemanticModelBuilder.UnknownAsArrayElement.Value,
@@ -13422,9 +13422,9 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         var sizeType = model.GetTypeOf(arrayCreation.Size);
-        if (sizeType is not null && !IsErrorType(sizeType))
+        if(sizeType is not null && !IsErrorType(sizeType))
         {
-            if (!IsIntLike(sizeType))
+            if(!IsIntLike(sizeType))
             {
                 diagnostics.Add(MakeDiagnostic(
                     "MIST_TC_0012",
@@ -13438,19 +13438,19 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // Requirement 4.1/4.2/4.5/4.6: bare array creation is restricted
         // to stampable element types (primitives and pure structs). All
         // other types require initializer-based construction.
-        if (elementType is ArrayType arrayType)
+        if(elementType is ArrayType arrayType)
         {
             var elemType = arrayType.ElementType;
 
             // Skip the gate if the element type is unresolved/error.
-            if (elemType is null || IsErrorType(elemType))
+            if(elemType is null || IsErrorType(elemType))
                 return;
 
             // Accept stampable struct types (includes primitives like int,
             // bool, char, float — all modeled as StructType with IsStampable = true).
             // Also accept legacy primitive struct singletons that may not have
             // had IsStampable set (they are intrinsically stampable by name).
-            if (elemType is StructType st && (st.IsStampable || IsPrimitiveStructByName(st)))
+            if(elemType is StructType st && (st.IsStampable || IsPrimitiveStructByName(st)))
                 return;
 
             // All other element types are not stampable — emit the diagnostic.
@@ -13486,9 +13486,9 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // Uses the same `IsIntLike` predicate that array creation uses at
         // MIST_TC_0012 for `new T[n]`.
         var sizeType = model.GetTypeOf(stackallocExpr.Size);
-        if (sizeType is not null && !IsErrorType(sizeType))
+        if(sizeType is not null && !IsErrorType(sizeType))
         {
-            if (!IsIntLike(sizeType))
+            if(!IsIntLike(sizeType))
             {
                 diagnostics.Add(MakeDiagnostic(
                     "MIST_TC_0151",
@@ -13507,18 +13507,18 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         //   MIST_TC_0154 — ref struct
         //   MIST_TC_0155 — unconstrained type parameter
         var spanType = model.GetTypeOf(stackallocExpr);
-        if (spanType is SpanType span)
+        if(spanType is SpanType span)
         {
             var elemType = span.ElementType;
 
             // Skip the gate if the element type is unresolved/error.
-            if (elemType is null || IsErrorType(elemType))
+            if(elemType is null || IsErrorType(elemType))
                 return;
 
             // Reject ref structs unconditionally BEFORE the stampability check:
             // a ref struct cannot be used as a span element type even if its
             // fields happen to be all primitives (R5.6, MIST_TC_0154).
-            if (IsRefStructType(elemType))
+            if(IsRefStructType(elemType))
             {
                 diagnostics.Add(MakeDiagnostic(
                     "MIST_TC_0154",
@@ -13533,7 +13533,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             // bool, char, float — all modeled as StructType with IsStampable = true).
             // Also accept legacy primitive struct singletons that may not have
             // had IsStampable set (they are intrinsically stampable by name).
-            if (elemType is StructType st && (st.IsStampable || IsPrimitiveStructByName(st)))
+            if(elemType is StructType st && (st.IsStampable || IsPrimitiveStructByName(st)))
                 return;
 
             // Reject: determine the specific reason and diagnostic ID.
@@ -13582,7 +13582,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         DiagnosticBag diagnostics,
         ISemanticModel model)
     {
-        if (source is SpanType && target is not SpanType)
+        if(source is SpanType && target is not SpanType)
         {
             diagnostics.Add(MakeDiagnostic(
                 "MIST_TC_0150",
@@ -13611,11 +13611,11 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         DiagnosticBag diagnostics,
         ISemanticModel model)
     {
-        if (source is SpanType sourceSpan && target is SpanType targetSpan)
+        if(source is SpanType sourceSpan && target is SpanType targetSpan)
         {
             // Both are SpanType but IsAssignable returned false.
             // Identify the reason: kind mismatch or element type mismatch.
-            if (sourceSpan.IsReadOnly != targetSpan.IsReadOnly)
+            if(sourceSpan.IsReadOnly != targetSpan.IsReadOnly)
             {
                 var sourceKind = sourceSpan.IsReadOnly ? "ReadOnlySpan" : "Span";
                 var targetKind = targetSpan.IsReadOnly ? "ReadOnlySpan" : "Span";
@@ -13656,7 +13656,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         CheckExpression(arrayLiteral.First, model, diagnostics);
 
         // Recursively type-check each remaining element expression.
-        foreach (var elem in arrayLiteral.Expressions)
+        foreach(var elem in arrayLiteral.Expressions)
         {
             CheckExpression(elem, model, diagnostics);
         }
@@ -13665,7 +13665,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         var firstType = model.GetTypeOf(arrayLiteral.First);
 
         // Validate the first element is not void (MIST_TC_0034).
-        if (firstType is not null && !IsErrorType(firstType) && firstType.IsVoid())
+        if(firstType is not null && !IsErrorType(firstType) && firstType.IsVoid())
         {
             diagnostics.Add(MakeDiagnostic(
                 "MIST_TC_0034",
@@ -13675,7 +13675,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         // Validate the first element does not contain unknown (MIST_SB_0055).
-        if (firstType is not null && !IsErrorType(firstType) && TypeContainment.IsStorageBanned(firstType))
+        if(firstType is not null && !IsErrorType(firstType) && TypeContainment.IsStorageBanned(firstType))
         {
             diagnostics.Add(MakeDiagnostic(
                 SemanticModelBuilder.UnknownAsArrayElement.Value,
@@ -13685,14 +13685,14 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         // Validate each remaining element.
-        foreach (var elem in arrayLiteral.Expressions)
+        foreach(var elem in arrayLiteral.Expressions)
         {
             var elemType = model.GetTypeOf(elem);
-            if (elemType is null || IsErrorType(elemType))
+            if(elemType is null || IsErrorType(elemType))
                 continue;
 
             // Reject void elements (MIST_TC_0034).
-            if (elemType.IsVoid())
+            if(elemType.IsVoid())
             {
                 diagnostics.Add(MakeDiagnostic(
                     "MIST_TC_0034",
@@ -13703,7 +13703,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             }
 
             // Reject unknown elements (MIST_SB_0055).
-            if (TypeContainment.IsStorageBanned(elemType))
+            if(TypeContainment.IsStorageBanned(elemType))
             {
                 diagnostics.Add(MakeDiagnostic(
                     SemanticModelBuilder.UnknownAsArrayElement.Value,
@@ -13714,10 +13714,10 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             }
 
             // Validate element type compatibility with the first element (MIST_TC_0095).
-            if (firstType is not null && !IsErrorType(firstType) && !firstType.IsVoid()
+            if(firstType is not null && !IsErrorType(firstType) && !firstType.IsVoid()
                 && !TypeContainment.IsStorageBanned(firstType))
             {
-                if (!IsAssignable(elemType, firstType, model) && !IsAssignable(firstType, elemType, model))
+                if(!IsAssignable(elemType, firstType, model) && !IsAssignable(firstType, elemType, model))
                 {
                     diagnostics.Add(MakeDiagnostic(
                         ArrayLiteralIncompatibleTypes.Value,
@@ -13731,17 +13731,17 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // When the array literal has a known target type (from the semantic model),
         // validate each element is assignable to the target element type.
         var arrayType = model.GetTypeOf(arrayLiteral);
-        if (arrayType is ArrayType targetArrayType)
+        if(arrayType is ArrayType targetArrayType)
         {
             var targetElementType = targetArrayType.ElementType;
-            if (!IsErrorType(targetElementType) && !targetElementType.IsVoid()
+            if(!IsErrorType(targetElementType) && !targetElementType.IsVoid()
                 && !TypeContainment.IsStorageBanned(targetElementType))
             {
                 // Check first element against target element type.
-                if (firstType is not null && !IsErrorType(firstType) && !firstType.IsVoid()
+                if(firstType is not null && !IsErrorType(firstType) && !firstType.IsVoid()
                     && !TypeContainment.IsStorageBanned(firstType))
                 {
-                    if (!IsAssignable(firstType, targetElementType, model))
+                    if(!IsAssignable(firstType, targetElementType, model))
                     {
                         diagnostics.Add(MakeDiagnostic(
                             ArrayLiteralIncompatibleTypes.Value,
@@ -13752,14 +13752,14 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 }
 
                 // Check remaining elements against target element type.
-                foreach (var elem in arrayLiteral.Expressions)
+                foreach(var elem in arrayLiteral.Expressions)
                 {
                     var elemType = model.GetTypeOf(elem);
-                    if (elemType is null || IsErrorType(elemType) || elemType.IsVoid()
+                    if(elemType is null || IsErrorType(elemType) || elemType.IsVoid()
                         || TypeContainment.IsStorageBanned(elemType))
                         continue;
 
-                    if (!IsAssignable(elemType, targetElementType, model))
+                    if(!IsAssignable(elemType, targetElementType, model))
                     {
                         diagnostics.Add(MakeDiagnostic(
                             ArrayLiteralIncompatibleTypes.Value,
@@ -13787,7 +13787,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // If the target type has a custom indexer (e.g., Dictionary<TKey, TValue>),
         // validate the index type against the indexer's parameter type instead of
         // requiring int.
-        if (targetType is not null && targetType is not ArrayType)
+        if(targetType is not null && targetType is not ArrayType)
         {
             var indexerLookupType = targetType is ConstructedType ict ? ict.GenericDefinition : targetType;
             IScope? indexerScope = indexerLookupType switch
@@ -13798,37 +13798,37 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 _ => null,
             };
 
-            if (indexerScope is not null)
+            if(indexerScope is not null)
             {
                 ISymbol? indexerSymbol = null;
-                foreach (var member in indexerScope.Members)
+                foreach(var member in indexerScope.Members)
                 {
-                    if (member.Kind == SymbolKind.Indexer)
+                    if(member.Kind == SymbolKind.Indexer)
                     {
                         indexerSymbol = member;
                         break;
                     }
                 }
 
-                if (indexerSymbol is not null)
+                if(indexerSymbol is not null)
                 {
                     hasCustomIndexer = true;
                     // Custom indexer found — validate index type against indexer parameter type.
                     // The indexer's parameter types are stored in Symbol.Parameters (CLR types).
-                    if (indexerSymbol is Symbol { Parameters.Count: > 0 } indexerSym && indexType is not null && !IsErrorType(indexType))
+                    if(indexerSymbol is Symbol { Parameters.Count: > 0 } indexerSym && indexType is not null && !IsErrorType(indexType))
                     {
                         var expectedParamType = indexerSym.Parameters[0].DeclaredType;
-                        if (expectedParamType is not null)
+                        if(expectedParamType is not null)
                         {
                             // Apply type substitution for ConstructedType.
-                            if (targetType is ConstructedType ict2)
+                            if(targetType is ConstructedType ict2)
                             {
                                 var typeParams = GetTypeParameters(ict2.GenericDefinition);
-                                if (typeParams is not null)
+                                if(typeParams is not null)
                                     expectedParamType = SubstituteType(expectedParamType, typeParams, ict2.TypeArguments);
                             }
 
-                            if (!IsAssignable(indexType, expectedParamType))
+                            if(!IsAssignable(indexType, expectedParamType))
                             {
                                 diagnostics.Add(MakeDiagnostic(
                                     "MIST_TC_0010",
@@ -13842,9 +13842,9 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             }
         }
 
-        if (!hasCustomIndexer && indexType is not null && !IsErrorType(indexType))
+        if(!hasCustomIndexer && indexType is not null && !IsErrorType(indexType))
         {
-            if (!IsIntLike(indexType))
+            if(!IsIntLike(indexType))
             {
                 diagnostics.Add(MakeDiagnostic(
                     "MIST_TC_0010",
@@ -13856,17 +13856,17 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         // Validate refinement constraint on the indexer parameter.
         // Arrays, spans, and custom indexers use the same validation path (Requirement 2.1).
-        if (targetType is ArrayType arrayTarget)
+        if(targetType is ArrayType arrayTarget)
         {
             ValidateArrayIndexRefinement(indexSuffix, arrayTarget, model, diagnostics);
         }
-        else if (targetType is SpanType spanTarget)
+        else if(targetType is SpanType spanTarget)
         {
             // Spans reuse the exact array bounds machinery (Requirements 1.5, 2.5, 14.6).
             ValidateLengthIndexRefinement(
                 indexSuffix, spanTarget.KnownLength, spanTarget.SymbolicLengthId, spanTarget.DisplayName, model, diagnostics);
         }
-        else if (targetType is not null)
+        else if(targetType is not null)
         {
             ValidateIndexerParameterRefinement(indexSuffix, targetType, model, diagnostics);
         }
@@ -13919,14 +13919,14 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         var targetConstraints = new List<ConditionConstraint>();
         targetConstraints.Add(new ConditionConstraint(ConditionRelOp.Gte, 0));
 
-        if (knownLength.HasValue)
+        if(knownLength.HasValue)
             targetConstraints.Add(new ConditionConstraint(ConditionRelOp.Lt, knownLength.Value));
-        else if (symbolicLengthId.HasValue)
+        else if(symbolicLengthId.HasValue)
             targetConstraints.Add(new ConditionConstraint(ConditionRelOp.Lt, 0, symbolicLengthId.Value));
 
         // Case 1 (literal): Evaluate predicate directly.
         var constantValue = TryExtractLiteralConstantValue(indexSuffix.Index);
-        if (constantValue is not null)
+        if(constantValue is not null)
         {
             var longVal = constantValue switch
             {
@@ -13937,13 +13937,13 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 _ => (long?)null
             };
 
-            if (longVal.HasValue)
+            if(longVal.HasValue)
             {
                 // Check the literal against all target constraints.
                 var allSatisfied = true;
-                foreach (var target in targetConstraints)
+                foreach(var target in targetConstraints)
                 {
-                    if (target.SymbolicId is not null)
+                    if(target.SymbolicId is not null)
                     {
                         // Cannot prove a literal satisfies a symbolic constraint.
                         allSatisfied = false;
@@ -13959,21 +13959,21 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                         _ => false
                     };
 
-                    if (!satisfied)
+                    if(!satisfied)
                     {
                         allSatisfied = false;
                         break;
                     }
                 }
 
-                if (allSatisfied)
+                if(allSatisfied)
                     return; // Literal satisfies all constraints — accept.
             }
 
             // If the only unsatisfied constraint is a symbolic upper bound
             // (unresolvable at compile time), and the literal satisfies the
             // lower bound (>= 0), accept it — defer upper bound to runtime.
-            if (longVal.HasValue && longVal.Value >= 0 && !knownLength.HasValue)
+            if(longVal.HasValue && longVal.Value >= 0 && !knownLength.HasValue)
                 return;
 
             // Literal fails — emit diagnostic.
@@ -13992,60 +13992,60 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         // Case 2 (narrowing context): Check if _narrowingContext[varName] implies predicate.
         var varName = TryExtractIndexIdentifierName(indexSuffix.Index);
-        if (varName is not null && _narrowingContext.TryGetValue(varName, out var constraints))
+        if(varName is not null && _narrowingContext.TryGetValue(varName, out var constraints))
         {
             // Check if every target constraint is implied by at least one source constraint.
             var allImplied = true;
-            foreach (var target in targetConstraints)
+            foreach(var target in targetConstraints)
             {
                 var implied = false;
-                foreach (var source in constraints)
+                foreach(var source in constraints)
                 {
-                    if (ConditionConstraintImplies(source, target))
+                    if(ConditionConstraintImplies(source, target))
                     {
                         implied = true;
                         break;
                     }
                 }
 
-                if (!implied)
+                if(!implied)
                 {
                     allImplied = false;
                     break;
                 }
             }
 
-            if (allImplied)
+            if(allImplied)
                 return; // Narrowing context proves bounds — accept.
         }
 
         // Case 3 (refinement type): Check if argument's RefinementType implies predicate.
         var argType = model.GetTypeOf(indexSuffix.Index);
-        if (argType is RefinementType sourceRefinement)
+        if(argType is RefinementType sourceRefinement)
         {
             var predicateConstraints = ExtractPredicateConstraints(sourceRefinement.Predicate);
             // Check if the source refinement's constraints imply all target constraints.
             var allImplied = true;
-            foreach (var target in targetConstraints)
+            foreach(var target in targetConstraints)
             {
                 var implied = false;
-                foreach (var source in predicateConstraints)
+                foreach(var source in predicateConstraints)
                 {
-                    if (ConditionConstraintImplies(source, target))
+                    if(ConditionConstraintImplies(source, target))
                     {
                         implied = true;
                         break;
                     }
                 }
 
-                if (!implied)
+                if(!implied)
                 {
                     allImplied = false;
                     break;
                 }
             }
 
-            if (allImplied)
+            if(allImplied)
                 return; // Refinement type proves bounds — accept.
 
             // Refinement type doesn't imply — emit implication failure diagnostic.
@@ -14063,7 +14063,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // Case 4: Emit diagnostic — cannot prove bounds.
         // For unknown-length arrays (no KnownLength, no SymbolicLengthId), accept
         // non-constant indices — the upper bound is deferred to runtime.
-        if (!knownLength.HasValue && !symbolicLengthId.HasValue)
+        if(!knownLength.HasValue && !symbolicLengthId.HasValue)
             return;
 
         var boundsDescription = knownLength.HasValue
@@ -14084,7 +14084,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     private static string? TryExtractIndexIdentifierName(ExpressionNode expr)
     {
         var primary = UnwrapExpressionToPrimary(expr);
-        if (primary is IdentifierExpressionPrimaryNode identifier)
+        if(primary is IdentifierExpressionPrimaryNode identifier)
             return identifier.Name.Lexeme;
         return null;
     }
@@ -14109,20 +14109,20 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             _ => null,
         };
 
-        if (memberScope is null)
+        if(memberScope is null)
             return;
 
         ISymbol? indexerSymbol = null;
-        foreach (var member in memberScope.Members)
+        foreach(var member in memberScope.Members)
         {
-            if (member.Kind == SymbolKind.Indexer)
+            if(member.Kind == SymbolKind.Indexer)
             {
                 indexerSymbol = member;
                 break;
             }
         }
 
-        if (indexerSymbol is null)
+        if(indexerSymbol is null)
             return;
 
         // Get the declaring node to find parameter symbols.
@@ -14130,28 +14130,28 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         try { declaringNode = model.GetDeclaringNode(indexerSymbol); }
         catch { return; }
 
-        if (declaringNode is not IndexerDeclarationNode indexerDecl || indexerDecl.Parameters is null)
+        if(declaringNode is not IndexerDeclarationNode indexerDecl || indexerDecl.Parameters is null)
             return;
 
         // Get the first parameter symbol and check its refinement.
-        foreach (var child in indexerDecl.Parameters.Children())
+        foreach(var child in indexerDecl.Parameters.Children())
         {
-            if (child is ParameterNode paramNode)
+            if(child is ParameterNode paramNode)
             {
                 var paramSym = model.GetDeclaredSymbol(paramNode);
-                if (paramSym is null)
+                if(paramSym is null)
                     break;
 
                 var paramRefinement = model.GetParameterRefinement(paramSym);
-                if (paramRefinement is null)
+                if(paramRefinement is null)
                     break;
 
                 var argType = model.GetTypeOf(indexSuffix.Index);
 
                 // Case 1: Argument's type is a named refinement type — check implication.
-                if (argType is RefinementType sourceRefinement)
+                if(argType is RefinementType sourceRefinement)
                 {
-                    if (RefinementSolver.Implies(sourceRefinement.Predicate, paramRefinement))
+                    if(RefinementSolver.Implies(sourceRefinement.Predicate, paramRefinement))
                         break; // Implication holds — accept.
                     // Implication not provable — emit compile-time error.
                     var typeName2 = FindDeclaringType(indexerSymbol)?.DisplayName ?? targetType.DisplayName;
@@ -14165,9 +14165,9 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
                 // Case 2: Argument is a compile-time constant — evaluate predicate.
                 var constantValue = TryExtractLiteralConstantValue(indexSuffix.Index);
-                if (constantValue is not null)
+                if(constantValue is not null)
                 {
-                    if (!paramRefinement.Evaluate(constantValue))
+                    if(!paramRefinement.Evaluate(constantValue))
                     {
                         var typeName = FindDeclaringType(indexerSymbol)?.DisplayName ?? targetType.DisplayName;
                         diagnostics.Add(MakeDiagnostic(
@@ -14201,19 +14201,19 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         DiagnosticBag diagnostics)
     {
         // Check argument expressions.
-        if (objectCreation.Arguments is not null)
+        if(objectCreation.Arguments is not null)
         {
             CheckArgumentListExpressions(objectCreation.Arguments, model, diagnostics);
         }
 
         // Get the type being constructed.
         var createdType = model.GetTypeOf(objectCreation);
-        if (createdType is null || IsErrorType(createdType))
+        if(createdType is null || IsErrorType(createdType))
             return;
 
         // Type aliases are transparent — unwrap to the underlying type
         // so constructor lookup finds the actual class/struct constructors.
-        if (createdType is TypeAliasType aliasCreated)
+        if(createdType is TypeAliasType aliasCreated)
             createdType = aliasCreated.UnderlyingType;
 
         // ── new Array<T, Size>(fn) — initializer-based array construction ──
@@ -14224,12 +14224,12 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // semantic model construction, so argument type resolution has
         // inferred the lambda's type. We validate the resolved argument type
         // here.
-        if (createdType is ArrayType arrayCtorType)
+        if(createdType is ArrayType arrayCtorType)
         {
             var arrayCtorArgTypes = CollectArgumentTypes(objectCreation.Arguments, model);
 
             // Validate: exactly one argument, which must be a Func<int, T>.
-            if (arrayCtorArgTypes.Count != 1)
+            if(arrayCtorArgTypes.Count != 1)
             {
                 diagnostics.Add(MakeDiagnostic(
                     "MIST_TC_0011",
@@ -14240,12 +14240,12 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             }
 
             var argType = arrayCtorArgTypes[0];
-            if (IsErrorType(argType))
+            if(IsErrorType(argType))
                 return; // Error already reported during argument resolution.
 
             // Check that the argument is a Func type with the right shape:
             // Func<int, TReturn> where TReturn is assignable to elementType.
-            if (!SemanticModelBuilder.IsFuncType(argType) || argType is not ConstructedType funcCt)
+            if(!SemanticModelBuilder.IsFuncType(argType) || argType is not ConstructedType funcCt)
             {
                 diagnostics.Add(MakeDiagnostic(
                     "MIST_TC_0011",
@@ -14256,7 +14256,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             }
 
             // Func<int, T> has 2 type arguments: [int, T].
-            if (funcCt.TypeArguments.Count != 2)
+            if(funcCt.TypeArguments.Count != 2)
             {
                 diagnostics.Add(MakeDiagnostic(
                     "MIST_TC_0011",
@@ -14268,7 +14268,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
             // Check that the first parameter is int.
             var paramType = funcCt.TypeArguments[0];
-            if (!IsIntType(paramType))
+            if(!IsIntType(paramType))
             {
                 diagnostics.Add(MakeDiagnostic(
                     "MIST_TC_0011",
@@ -14280,7 +14280,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
             // Check that the return type is assignable to the element type.
             var returnType = funcCt.TypeArguments[1];
-            if (!IsAssignable(returnType, arrayCtorType.ElementType, model))
+            if(!IsAssignable(returnType, arrayCtorType.ElementType, model))
             {
                 diagnostics.Add(MakeDiagnostic(
                     "MIST_TC_0011",
@@ -14300,7 +14300,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // — Requirement 3.4 — and the constructed generic's constructor
         // would require storing an `unknown`-typed argument into a
         // T-typed slot, which is forbidden).
-        if (createdType is UnknownType)
+        if(createdType is UnknownType)
         {
             // Requirement 5.4 — `new unknown(...)` is categorically
             // forbidden. In practice the grammar rejects this form
@@ -14316,7 +14316,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             return;
         }
 
-        if (TypeContainment.IsStorageBanned(createdType))
+        if(TypeContainment.IsStorageBanned(createdType))
         {
             // Requirement 5.7 — a generic construction whose substituted
             // type contains `unknown` at one or more positions is
@@ -14336,12 +14336,12 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // When the type being constructed is a TypeParameterType, validate
         // the call against the declared constructor constraints on that type
         // parameter (Requirements 6.5, 6.6, 10.8).
-        if (createdType is TypeParameterType typeParam)
+        if(createdType is TypeParameterType typeParam)
         {
             var constraints = typeParam.Constraints;
 
             // If no constructor constraints exist, we cannot use new T(...).
-            if (constraints is null || constraints.ConstructorConstraints.Count == 0)
+            if(constraints is null || constraints.ConstructorConstraints.Count == 0)
             {
                 diagnostics.Add(MakeDiagnostic(
                     ConstraintNewTNoMatch.Value,
@@ -14356,29 +14356,29 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
             // Check if any declared constructor constraint signature matches.
             var matched = false;
-            foreach (var requiredParams in constraints.ConstructorConstraints)
+            foreach(var requiredParams in constraints.ConstructorConstraints)
             {
-                if (requiredParams.Count != ctorArgTypes.Count)
+                if(requiredParams.Count != ctorArgTypes.Count)
                     continue;
 
                 var allMatch = true;
-                for (var i = 0; i < requiredParams.Count; i++)
+                for(var i = 0; i < requiredParams.Count; i++)
                 {
-                    if (!IsAssignable(ctorArgTypes[i], requiredParams[i], model))
+                    if(!IsAssignable(ctorArgTypes[i], requiredParams[i], model))
                     {
                         allMatch = false;
                         break;
                     }
                 }
 
-                if (allMatch)
+                if(allMatch)
                 {
                     matched = true;
                     break;
                 }
             }
 
-            if (!matched)
+            if(!matched)
             {
                 var argTypeNames = FormatArgTypes(objectCreation.Arguments, model);
                 var signatures = string.Join(", ",
@@ -14398,16 +14398,16 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // When constructing a generic type (e.g., new Box<int>()), verify that
         // each type argument satisfies the constraints on the corresponding
         // type parameter of the generic definition.
-        if (createdType is ConstructedType constructedForConstraints)
+        if(createdType is ConstructedType constructedForConstraints)
         {
             var typeParams = GetTypeParameters(constructedForConstraints.GenericDefinition);
-            if (typeParams is not null)
+            if(typeParams is not null)
             {
                 var typeArgs = constructedForConstraints.TypeArguments;
                 var genericName = constructedForConstraints.GenericDefinition.DisplayName;
-                for (var i = 0; i < typeParams.Count && i < typeArgs.Count; i++)
+                for(var i = 0; i < typeParams.Count && i < typeArgs.Count; i++)
                 {
-                    if (typeParams[i] is TypeParameterType tp5848)
+                    if(typeParams[i] is TypeParameterType tp5848)
                         CheckConstraintSatisfaction(typeArgs[i], tp5848, objectCreation, genericName, model, diagnostics);
                 }
             }
@@ -14428,11 +14428,11 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // Collect argument types.
         var argTypes = CollectArgumentTypes(objectCreation.Arguments, model);
 
-        if (constructors.Count == 0)
+        if(constructors.Count == 0)
         {
             // If no constructors are defined and there are no arguments, it's OK
             // (default constructor). Otherwise, emit diagnostic.
-            if (argTypes.Count > 0)
+            if(argTypes.Count > 0)
             {
                 diagnostics.Add(MakeDiagnostic(
                     "MIST_TC_0011",
@@ -14442,17 +14442,17 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 return;
             }
         }
-        else if (constructors.Count > 1)
+        else if(constructors.Count > 1)
         {
             // When multiple constructors exist, use overload resolution.
             // When the created type is a ConstructedType (e.g., Optional<int>),
             // pass the type substitution context so the resolver maps T → Int32
             // in constructor parameter types before the applicability check.
             (IReadOnlyList<IType> TypeParams, IReadOnlyList<IType> TypeArgs)? typeSubstitution = null;
-            if (createdType is ConstructedType ctForSubst)
+            if(createdType is ConstructedType ctForSubst)
             {
                 var tp = GetTypeParameters(ctForSubst.GenericDefinition);
-                if (tp is not null)
+                if(tp is not null)
                     typeSubstitution = (tp, ctForSubst.TypeArguments);
             }
 
@@ -14460,7 +14460,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             var result = OverloadResolver.Resolve(constructors, argTypes, model, typeSubstitution: typeSubstitution, argumentRefKinds: argRefKinds);
             var typeName = createdType.DisplayName;
 
-            switch (result.Status)
+            switch(result.Status)
             {
                 case OverloadResolutionStatus.NoApplicableCandidate:
                     var argTypeNames = string.Join(", ", argTypes.Select(t => t.DisplayName));
@@ -14486,7 +14486,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     // Validate parameter refinement constraints on the resolved constructor.
                     ValidateParameterRefinementConstraints(objectCreation.Arguments, result.BestCandidate!, model, diagnostics, objectCreation);
                     // ── ref call-site annotation enforcement (MIST_REF_0002, MIST_REF_0003) ──
-                    if (objectCreation.Arguments is not null)
+                    if(objectCreation.Arguments is not null)
                     {
                         CheckRefCallSiteAnnotationsForSymbol(objectCreation.Arguments, result.BestCandidate!, model, diagnostics);
                     }
@@ -14497,7 +14497,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         {
             // Single constructor — preserve existing behavior with MIST_TC_0011.
             var hasMatch = ConstructorMatches(constructors[0], argTypes, createdType, model);
-            if (!hasMatch)
+            if(!hasMatch)
             {
                 diagnostics.Add(MakeDiagnostic(
                     "MIST_TC_0011",
@@ -14510,7 +14510,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 // Constructor matches — validate parameter refinement constraints.
                 ValidateParameterRefinementConstraints(objectCreation.Arguments, constructors[0], model, diagnostics, objectCreation);
                 // ── ref call-site annotation enforcement (MIST_REF_0002, MIST_REF_0003) ──
-                if (objectCreation.Arguments is not null)
+                if(objectCreation.Arguments is not null)
                 {
                     CheckRefCallSiteAnnotationsForSymbol(objectCreation.Arguments, constructors[0], model, diagnostics);
                 }
@@ -14518,7 +14518,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         // ── Property initializer block validation ────────────────────────
-        if (objectCreation.Initializer is not null)
+        if(objectCreation.Initializer is not null)
         {
             CheckPropertyInitializerBlock(objectCreation.Initializer, createdType, objectCreation, model, diagnostics);
         }
@@ -14536,15 +14536,15 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     {
         // Get the type being constructed.
         var createdType = model.GetTypeOf(objectCreation);
-        if (createdType is null || IsErrorType(createdType))
+        if(createdType is null || IsErrorType(createdType))
             return;
 
         // Type aliases are transparent — unwrap to the underlying type.
-        if (createdType is TypeAliasType aliasCreated)
+        if(createdType is TypeAliasType aliasCreated)
             createdType = aliasCreated.UnderlyingType;
 
         // ── unknown-type storage ban ─────────────────────────────────────
-        if (createdType is UnknownType)
+        if(createdType is UnknownType)
         {
             diagnostics.Add(MakeDiagnostic(
                 SemanticModelBuilder.UnknownCannotBeInstantiated.Value,
@@ -14554,7 +14554,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             return;
         }
 
-        if (TypeContainment.IsStorageBanned(createdType))
+        if(TypeContainment.IsStorageBanned(createdType))
         {
             diagnostics.Add(MakeDiagnostic(
                 SemanticModelBuilder.UnknownInGenericConstruction.Value,
@@ -14565,16 +14565,16 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         // ── Constraint satisfaction checking for generic type arguments ──
-        if (createdType is ConstructedType constructedForConstraints)
+        if(createdType is ConstructedType constructedForConstraints)
         {
             var typeParams = GetTypeParameters(constructedForConstraints.GenericDefinition);
-            if (typeParams is not null)
+            if(typeParams is not null)
             {
                 var typeArgs = constructedForConstraints.TypeArguments;
                 var genericName = constructedForConstraints.GenericDefinition.DisplayName;
-                for (var i = 0; i < typeParams.Count && i < typeArgs.Count; i++)
+                for(var i = 0; i < typeParams.Count && i < typeArgs.Count; i++)
                 {
-                    if (typeParams[i] is TypeParameterType tp)
+                    if(typeParams[i] is TypeParameterType tp)
                         CheckConstraintSatisfaction(typeArgs[i], tp, objectCreation, genericName, model, diagnostics);
                 }
             }
@@ -14585,20 +14585,20 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // If no constructors are defined, a default parameterless constructor
         // is implied. If constructors exist, at least one must be parameterless.
         var constructors = CollectConstructorOverloads(createdType, model);
-        if (constructors.Count > 0)
+        if(constructors.Count > 0)
         {
             var hasParameterless = false;
-            foreach (var ctor in constructors)
+            foreach(var ctor in constructors)
             {
                 var paramTypes = ParameterSignature.Extract(ctor, model);
-                if (paramTypes.Count == 0)
+                if(paramTypes.Count == 0)
                 {
                     hasParameterless = true;
                     break;
                 }
             }
 
-            if (!hasParameterless)
+            if(!hasParameterless)
             {
                 diagnostics.Add(MakeDiagnostic(
                     "MIST_TC_0011",
@@ -14632,14 +14632,14 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         DiagnosticBag diagnostics)
     {
         // Check argument expressions first (for nested expression validation).
-        if (targetNew.Arguments is not null)
+        if(targetNew.Arguments is not null)
         {
             CheckArgumentListExpressions(targetNew.Arguments, model, diagnostics);
         }
 
         // Detect var context: if the parent chain leads to an InferredVariableDeclaration,
         // the target type is unknowable and we emit a specific diagnostic.
-        if (IsInVarDeclarationContext(targetNew))
+        if(IsInVarDeclarationContext(targetNew))
         {
             diagnostics.Add(MakeDiagnostic(
                 DiagnosticId.TargetNewWithVar.Value,
@@ -14651,7 +14651,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         // Get the resolved type from the semantic model.
         var resolvedType = model.GetTypeOf(targetNew);
-        if (resolvedType is null || IsErrorType(resolvedType))
+        if(resolvedType is null || IsErrorType(resolvedType))
         {
             diagnostics.Add(MakeDiagnostic(
                 DiagnosticId.TargetNewNoContext.Value,
@@ -14663,11 +14663,11 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         // Unwrap type aliases for validation.
         var validationType = resolvedType;
-        if (validationType is TypeAliasType aliasType)
+        if(validationType is TypeAliasType aliasType)
             validationType = aliasType.UnderlyingType;
 
         // Check for non-instantiable types.
-        if (IsAbstractTargetType(validationType))
+        if(IsAbstractTargetType(validationType))
         {
             diagnostics.Add(MakeDiagnostic(
                 DiagnosticId.TargetNewAbstract.Value,
@@ -14677,7 +14677,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             return;
         }
 
-        if (validationType is ClassType { IsAbstract: true })
+        if(validationType is ClassType { IsAbstract: true })
         {
             diagnostics.Add(MakeDiagnostic(
                 "MIST_ABSTRACT_INSTANTIATION",
@@ -14691,10 +14691,10 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         var constructors = CollectConstructorOverloads(validationType, model);
         var argTypes = CollectArgumentTypes(targetNew.Arguments, model);
 
-        if (constructors.Count == 0)
+        if(constructors.Count == 0)
         {
             // No constructors defined — default parameterless constructor implied.
-            if (argTypes.Count > 0)
+            if(argTypes.Count > 0)
             {
                 diagnostics.Add(MakeDiagnostic(
                     "MIST_TC_0011",
@@ -14704,21 +14704,21 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 return;
             }
         }
-        else if (constructors.Count > 1)
+        else if(constructors.Count > 1)
         {
             // Multiple constructors — use overload resolution.
             (IReadOnlyList<IType> TypeParams, IReadOnlyList<IType> TypeArgs)? typeSubstitution = null;
-            if (validationType is ConstructedType ctForSubst)
+            if(validationType is ConstructedType ctForSubst)
             {
                 var tp = GetTypeParameters(ctForSubst.GenericDefinition);
-                if (tp is not null)
+                if(tp is not null)
                     typeSubstitution = (tp, ctForSubst.TypeArguments);
             }
 
             var argRefKinds = CollectArgumentRefKinds(targetNew.Arguments);
             var result = OverloadResolver.Resolve(constructors, argTypes, model, typeSubstitution: typeSubstitution, argumentRefKinds: argRefKinds);
 
-            switch (result.Status)
+            switch(result.Status)
             {
                 case OverloadResolutionStatus.NoApplicableCandidate:
                     var argTypeNames = string.Join(", ", argTypes.Select(t => t.DisplayName));
@@ -14741,7 +14741,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
                 case OverloadResolutionStatus.Success:
                     ValidateParameterRefinementConstraints(targetNew.Arguments, result.BestCandidate!, model, diagnostics, targetNew);
-                    if (targetNew.Arguments is not null)
+                    if(targetNew.Arguments is not null)
                     {
                         CheckRefCallSiteAnnotationsForSymbol(targetNew.Arguments, result.BestCandidate!, model, diagnostics);
                     }
@@ -14752,7 +14752,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         {
             // Single constructor — check match.
             var hasMatch = ConstructorMatches(constructors[0], argTypes, validationType, model);
-            if (!hasMatch)
+            if(!hasMatch)
             {
                 diagnostics.Add(MakeDiagnostic(
                     "MIST_TC_0011",
@@ -14763,7 +14763,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             else
             {
                 ValidateParameterRefinementConstraints(targetNew.Arguments, constructors[0], model, diagnostics, targetNew);
-                if (targetNew.Arguments is not null)
+                if(targetNew.Arguments is not null)
                 {
                     CheckRefCallSiteAnnotationsForSymbol(targetNew.Arguments, constructors[0], model, diagnostics);
                 }
@@ -14771,7 +14771,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         // Property initializer block validation.
-        if (targetNew.Initializer is not null)
+        if(targetNew.Initializer is not null)
         {
             CheckPropertyInitializerBlock(targetNew.Initializer, validationType, targetNew, model, diagnostics);
         }
@@ -14788,7 +14788,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         DiagnosticBag diagnostics)
     {
         // Detect var context.
-        if (IsInVarDeclarationContext(targetNewNoArgs))
+        if(IsInVarDeclarationContext(targetNewNoArgs))
         {
             diagnostics.Add(MakeDiagnostic(
                 DiagnosticId.TargetNewWithVar.Value,
@@ -14800,7 +14800,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         // Get the resolved type from the semantic model.
         var resolvedType = model.GetTypeOf(targetNewNoArgs);
-        if (resolvedType is null || IsErrorType(resolvedType))
+        if(resolvedType is null || IsErrorType(resolvedType))
         {
             diagnostics.Add(MakeDiagnostic(
                 DiagnosticId.TargetNewNoContext.Value,
@@ -14812,11 +14812,11 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         // Unwrap type aliases for validation.
         var validationType = resolvedType;
-        if (validationType is TypeAliasType aliasType)
+        if(validationType is TypeAliasType aliasType)
             validationType = aliasType.UnderlyingType;
 
         // Check for non-instantiable types.
-        if (IsAbstractTargetType(validationType))
+        if(IsAbstractTargetType(validationType))
         {
             diagnostics.Add(MakeDiagnostic(
                 DiagnosticId.TargetNewAbstract.Value,
@@ -14826,7 +14826,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             return;
         }
 
-        if (validationType is ClassType { IsAbstract: true })
+        if(validationType is ClassType { IsAbstract: true })
         {
             diagnostics.Add(MakeDiagnostic(
                 "MIST_ABSTRACT_INSTANTIATION",
@@ -14838,20 +14838,20 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         // Verify parameterless constructor exists.
         var constructors = CollectConstructorOverloads(validationType, model);
-        if (constructors.Count > 0)
+        if(constructors.Count > 0)
         {
             var hasParameterless = false;
-            foreach (var ctor in constructors)
+            foreach(var ctor in constructors)
             {
                 var paramTypes = ParameterSignature.Extract(ctor, model);
-                if (paramTypes.Count == 0)
+                if(paramTypes.Count == 0)
                 {
                     hasParameterless = true;
                     break;
                 }
             }
 
-            if (!hasParameterless)
+            if(!hasParameterless)
             {
                 diagnostics.Add(MakeDiagnostic(
                     "MIST_TC_0011",
@@ -14874,13 +14874,13 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // Walk up the parent chain looking for InferredVariableDeclarationVariableDeclarationStatementNode.
         // The typical chain is: TargetTypedNew → Primary → Postfix → Unary → ... → Expression → InferredVarDecl.
         var current = node.Parent;
-        while (current is not null)
+        while(current is not null)
         {
-            if (current is InferredVariableDeclarationVariableDeclarationStatementNode)
+            if(current is InferredVariableDeclarationVariableDeclarationStatementNode)
                 return true;
 
             // Stop at statement or declaration boundaries to avoid false positives.
-            if (current is TypedVariableDeclarationVariableDeclarationStatementNode)
+            if(current is TypedVariableDeclarationVariableDeclarationStatementNode)
                 return false;
 
             current = current.Parent;
@@ -14905,12 +14905,12 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         ISemanticModel model,
         DiagnosticBag diagnostics)
     {
-        if (initializerBlock.Assignments is null)
+        if(initializerBlock.Assignments is null)
             return;
 
         // Unwrap type aliases and ConstructedType for member lookup.
         var lookupType = constructedType;
-        if (lookupType is TypeAliasType aliasType)
+        if(lookupType is TypeAliasType aliasType)
             lookupType = aliasType.UnderlyingType;
 
         // For ConstructedType, look up members on the generic definition.
@@ -14923,7 +14923,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             _ => null,
         };
 
-        if (memberScope is null)
+        if(memberScope is null)
             return;
 
         var seenNames = new HashSet<string>(StringComparer.Ordinal);
@@ -14931,7 +14931,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // Iterate over all assignments: first + rest.
         var assignments = initializerBlock.Assignments;
         CheckSinglePropertyAssignment(assignments.PropertyAssignment, memberScope, memberLookupType, seenNames, model, diagnostics);
-        foreach (var assignment in assignments.PropertyAssignments)
+        foreach(var assignment in assignments.PropertyAssignments)
         {
             CheckSinglePropertyAssignment(assignment, memberScope, memberLookupType, seenNames, model, diagnostics);
         }
@@ -14951,16 +14951,16 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // Collection element assignments (bare expressions in collection initializers)
         // are not property assignments — they don't target named members.
         // Skip property-initializer validation for them.
-        if (assignment is CollectionElementAssignmentPropertyAssignmentNode)
+        if(assignment is CollectionElementAssignmentPropertyAssignmentNode)
             return;
 
-        if (assignment is not NamedPropertyAssignmentPropertyAssignmentNode namedAssignment)
+        if(assignment is not NamedPropertyAssignmentPropertyAssignmentNode namedAssignment)
             return;
 
         var memberName = namedAssignment.Name.Lexeme;
 
         // ── 6. Duplicate detection ───────────────────────────────────────
-        if (!seenNames.Add(memberName))
+        if(!seenNames.Add(memberName))
         {
             diagnostics.Add(MakeDiagnostic(
                 PropertyInitializerDuplicate.Value,
@@ -14972,7 +14972,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         // ── 1. Member existence ──────────────────────────────────────────
         var symbol = memberScope.Lookup(memberName);
-        if (symbol is null || symbol.Kind is not (SymbolKind.Property or SymbolKind.Field))
+        if(symbol is null || symbol.Kind is not (SymbolKind.Property or SymbolKind.Field))
         {
             diagnostics.Add(MakeDiagnostic(
                 PropertyInitializerMemberNotFound.Value,
@@ -14984,18 +14984,18 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         // ── 5. Accessibility ─────────────────────────────────────────────
         // Backend symbols are assumed public; only check user-defined members.
-        if (symbol.Origin != SymbolOrigin.Backend)
+        if(symbol.Origin != SymbolOrigin.Backend)
         {
             SyntaxNode? declaringNode;
             try { declaringNode = model.GetDeclaringNode(symbol); }
             catch { declaringNode = null; }
 
             var modifiers = GetMemberModifiers(declaringNode);
-            if (!modifiers.IsPublic)
+            if(!modifiers.IsPublic)
             {
                 // Private members are only accessible within the declaring type.
                 var declaringType = GetDeclaringTypeOfMember(symbol);
-                if (declaringType is not null && !IsSameType(declaringType, _currentEnclosingType))
+                if(declaringType is not null && !IsSameType(declaringType, _currentEnclosingType))
                 {
                     diagnostics.Add(MakeDiagnostic(
                         PropertyInitializerInaccessible.Value,
@@ -15008,10 +15008,10 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         // ── 3. Writability (property) ────────────────────────────────────
-        if (symbol.Kind == SymbolKind.Property)
+        if(symbol.Kind == SymbolKind.Property)
         {
             var propInfo = GetPropertyMetadata(symbol);
-            if (propInfo is not null && !propInfo.HasSet && !propInfo.HasInit)
+            if(propInfo is not null && !propInfo.HasSet && !propInfo.HasInit)
             {
                 diagnostics.Add(MakeDiagnostic(
                     PropertyInitializerNoSetOrInit.Value,
@@ -15023,9 +15023,9 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         // ── 4. Writability (field) ───────────────────────────────────────
-        if (symbol.Kind == SymbolKind.Field && symbol is Symbol concreteField)
+        if(symbol.Kind == SymbolKind.Field && symbol is Symbol concreteField)
         {
-            if (concreteField.ReadonlyStatus is ReadonlyStatus.ExplicitReadonly
+            if(concreteField.ReadonlyStatus is ReadonlyStatus.ExplicitReadonly
                 or ReadonlyStatus.InferredReadonly
                 or ReadonlyStatus.ImplicitReadonly)
             {
@@ -15041,10 +15041,10 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // ── 2. Type compatibility ────────────────────────────────────────
         var memberType = symbol.DeclaredType;
         var valueType = model.GetTypeOf(namedAssignment.Value);
-        if (memberType is not null && valueType is not null
+        if(memberType is not null && valueType is not null
             && !IsErrorType(memberType) && !IsErrorType(valueType))
         {
-            if (!IsAssignable(valueType, memberType, model))
+            if(!IsAssignable(valueType, memberType, model))
             {
                 diagnostics.Add(MakeDiagnostic(
                     PropertyInitializerTypeMismatch.Value,
@@ -15074,24 +15074,24 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         };
 
         // Check argument expressions.
-        if (arguments is not null)
+        if(arguments is not null)
         {
             CheckArgumentListExpressions(arguments, model, diagnostics);
         }
 
         // Find the enclosing type.
         var enclosingType = FindDeclaringType(ctorSymbol);
-        if (enclosingType is null || IsErrorType(enclosingType))
+        if(enclosingType is null || IsErrorType(enclosingType))
             return;
 
         // For `: base(...)` chains, resolve the base type and search its constructors.
         // For `: this(...)` chains, search the declaring type's own constructors.
         IType targetType = enclosingType;
-        if (chain is BaseChainConstructorChainNode && enclosingType is ClassType ct && ct.BaseType is not null)
+        if(chain is BaseChainConstructorChainNode && enclosingType is ClassType ct && ct.BaseType is not null)
         {
             targetType = ct.BaseType;
         }
-        else if (chain is BaseChainConstructorChainNode && enclosingType is StructType st && st.BaseType is not null)
+        else if(chain is BaseChainConstructorChainNode && enclosingType is StructType st && st.BaseType is not null)
         {
             targetType = st.BaseType;
         }
@@ -15104,7 +15104,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             _ => null,
         };
 
-        if (memberScope is null)
+        if(memberScope is null)
             return;
 
         var argTypes = CollectArgumentTypes(arguments, model);
@@ -15115,10 +15115,10 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             ? memberScope.Members.Where(m => m.Kind == SymbolKind.Constructor).ToList()
             : memberScope.Members.Where(m => m.Kind == SymbolKind.Constructor && !ReferenceEquals(m, ctorSymbol)).ToList();
 
-        if (candidateConstructors.Count == 0)
+        if(candidateConstructors.Count == 0)
         {
             // No constructors available — only an error if arguments were provided.
-            if (argTypes.Count > 0)
+            if(argTypes.Count > 0)
             {
                 var diagnosticId = chain is BaseChainConstructorChainNode && enclosingType is StructType
                     ? "MIST_STRUCT_BASE_CTOR_MISMATCH"
@@ -15136,17 +15136,17 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         // When multiple constructors exist, use overload resolution.
-        if (candidateConstructors.Count > 1)
+        if(candidateConstructors.Count > 1)
         {
             var argRefKinds = CollectArgumentRefKinds(arguments);
             var result = OverloadResolver.Resolve(candidateConstructors, argTypes, model, argumentRefKinds: argRefKinds);
             var typeName = targetType.DisplayName;
 
-            switch (result.Status)
+            switch(result.Status)
             {
                 case OverloadResolutionStatus.NoApplicableCandidate:
                     var argTypeNames = string.Join(", ", argTypes.Select(t => t.DisplayName));
-                    if (chain is BaseChainConstructorChainNode && enclosingType is StructType)
+                    if(chain is BaseChainConstructorChainNode && enclosingType is StructType)
                     {
                         diagnostics.Add(MakeDiagnostic(
                             "MIST_STRUCT_BASE_CTOR_MISMATCH",
@@ -15184,9 +15184,9 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         {
             // Single constructor — preserve existing behavior with MIST_TC_0013.
             var hasMatch = ConstructorMatches(candidateConstructors[0], argTypes, targetType, model);
-            if (!hasMatch)
+            if(!hasMatch)
             {
-                if (chain is BaseChainConstructorChainNode && enclosingType is StructType)
+                if(chain is BaseChainConstructorChainNode && enclosingType is StructType)
                 {
                     diagnostics.Add(MakeDiagnostic(
                         "MIST_STRUCT_BASE_CTOR_MISMATCH",
@@ -15220,19 +15220,19 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         try { ctorNode = model.GetDeclaringNode(ctor); }
         catch { ctorNode = null; }
 
-        if (ctorNode is null && createdType is NewtypeType nt)
+        if(ctorNode is null && createdType is NewtypeType nt)
         {
             // Find the matching original constructor in the source type's scope.
             var sourceScope = GetMemberScope(nt.SourceType);
-            if (sourceScope is not null)
+            if(sourceScope is not null)
             {
-                foreach (var member in sourceScope.Members)
+                foreach(var member in sourceScope.Members)
                 {
-                    if (member.Kind == SymbolKind.Constructor)
+                    if(member.Kind == SymbolKind.Constructor)
                     {
                         try { ctorNode = model.GetDeclaringNode(member); }
                         catch { continue; }
-                        if (ctorNode is not null) break;
+                        if(ctorNode is not null) break;
                     }
                 }
             }
@@ -15240,48 +15240,48 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         // For ambient/backend-projected constructors (no AST declaring node),
         // extract parameter types from the symbol's ParameterSignature directly.
-        if (ctorNode is not ConstructorDeclarationNode ctorDecl)
+        if(ctorNode is not ConstructorDeclarationNode ctorDecl)
         {
             var extractedParamTypes = ParameterSignature.Extract(ctor, model);
-            if (extractedParamTypes.Count == 0 && argTypes.Count == 0)
+            if(extractedParamTypes.Count == 0 && argTypes.Count == 0)
                 return true;
-            if (extractedParamTypes.Count != argTypes.Count)
+            if(extractedParamTypes.Count != argTypes.Count)
                 return false;
 
             IReadOnlyList<IType>? typeParamsFallback = null;
             IReadOnlyList<IType>? typeArgsFallback = null;
-            if (createdType is ConstructedType ctFallback)
+            if(createdType is ConstructedType ctFallback)
             {
                 typeParamsFallback = GetTypeParameters(ctFallback.GenericDefinition);
                 typeArgsFallback = ctFallback.TypeArguments;
             }
 
-            for (var i = 0; i < argTypes.Count; i++)
+            for(var i = 0; i < argTypes.Count; i++)
             {
                 var paramType = extractedParamTypes[i];
-                if (typeParamsFallback is not null && typeArgsFallback is not null)
+                if(typeParamsFallback is not null && typeArgsFallback is not null)
                     paramType = SubstituteType(paramType, typeParamsFallback, typeArgsFallback);
-                if (!IsAssignable(argTypes[i], paramType))
+                if(!IsAssignable(argTypes[i], paramType))
                     return false;
             }
             return true;
         }
 
         var paramTypes = new List<IType>();
-        if (ctorDecl.Parameters is not null)
+        if(ctorDecl.Parameters is not null)
         {
-            foreach (var child in ctorDecl.Parameters.Children())
+            foreach(var child in ctorDecl.Parameters.Children())
             {
-                if (child is ParameterNode paramNode)
+                if(child is ParameterNode paramNode)
                 {
                     var paramSym = model.GetDeclaredSymbol(paramNode);
-                    if (paramSym?.DeclaredType is not null)
+                    if(paramSym?.DeclaredType is not null)
                         paramTypes.Add(paramSym.DeclaredType);
                 }
             }
         }
 
-        if (argTypes.Count != paramTypes.Count)
+        if(argTypes.Count != paramTypes.Count)
             return false;
 
         // When the created type is a ConstructedType (e.g., GenericBox<int>),
@@ -15289,43 +15289,43 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // actual type arguments before comparing.
         IReadOnlyList<IType>? typeParams = null;
         IReadOnlyList<IType>? typeArgs = null;
-        if (createdType is ConstructedType ct)
+        if(createdType is ConstructedType ct)
         {
             typeParams = GetTypeParameters(ct.GenericDefinition);
             typeArgs = ct.TypeArguments;
         }
-        else if (createdType is Semantics.Model.Types.SpanType spanCreated)
+        else if(createdType is Semantics.Model.Types.SpanType spanCreated)
         {
             // Bridge: SpanType is a dedicated IType without a GenericDefinition.
             // The constructor lives on the registered StructType (Span or ReadOnlySpan)
             // whose type parameters are [T, Length]. Build the substitution mapping
             // T → ElementType, Length → UnknownType (since Span<T> aliases Span<T, unknown>).
             var declaringType = FindDeclaringType(ctor);
-            if (declaringType is not null)
+            if(declaringType is not null)
             {
                 typeParams = GetTypeParameters(declaringType);
-                if (typeParams is not null)
+                if(typeParams is not null)
                 {
                     var args = new IType[typeParams.Count];
                     // First type parameter is the element type T.
                     args[0] = spanCreated.ElementType;
                     // Remaining type parameters (Length) map to UnknownType
                     // unless the SpanType has a known length.
-                    for (var j = 1; j < args.Length; j++)
+                    for(var j = 1; j < args.Length; j++)
                         args[j] = UnknownType.Instance;
                     typeArgs = args;
                 }
             }
         }
 
-        for (var i = 0; i < argTypes.Count; i++)
+        for(var i = 0; i < argTypes.Count; i++)
         {
             var paramType = paramTypes[i];
-            if (typeParams is not null && typeArgs is not null)
+            if(typeParams is not null && typeArgs is not null)
             {
                 paramType = SubstituteType(paramType, typeParams, typeArgs);
             }
-            if (!IsAssignable(argTypes[i], paramType))
+            if(!IsAssignable(argTypes[i], paramType))
                 return false;
         }
 
@@ -15342,7 +15342,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     private static bool IsTargetTypeName(PrimaryNode target, ISemanticModel model)
     {
-        if (target is not IdentifierExpressionPrimaryNode identifier)
+        if(target is not IdentifierExpressionPrimaryNode identifier)
             return false;
 
         // Check the resolved symbol for this identifier expression. The semantic model
@@ -15350,7 +15350,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // returns the symbol the identifier was bound to (field, variable, type, etc.).
         // Fields/variables/parameters indicate an instance; class/struct/enum indicate a type name.
         var resolvedSymbol = model.GetDeclaredSymbol(target);
-        if (resolvedSymbol is not null)
+        if(resolvedSymbol is not null)
         {
             return resolvedSymbol.Kind is SymbolKind.Class or SymbolKind.Struct or SymbolKind.Enum;
         }
@@ -15374,19 +15374,19 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         ISemanticModel model,
         DiagnosticBag diagnostics)
     {
-        if (targetType is null || IsErrorType(targetType))
+        if(targetType is null || IsErrorType(targetType))
             return;
 
         // Find the member symbol on the target type.
         var memberSymbol = FindMemberSymbol(targetType, memberName, model);
-        if (memberSymbol is null)
+        if(memberSymbol is null)
             return;
 
         // Backend symbols are assumed public and valid — skip access modifier checks
         // for them since they have no AST declaring node with modifiers.
         // The type checker treats all symbols uniformly for type checking, but
         // access modifier enforcement only applies to user-defined members.
-        if (memberSymbol.Origin == SymbolOrigin.Backend)
+        if(memberSymbol.Origin == SymbolOrigin.Backend)
             return;
 
         // Get the declaring AST node to inspect modifiers.
@@ -15399,11 +15399,11 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         // R9.1, R9.3: Private member access check.
         // Members with no modifier default to private (R9.3).
-        if (!modifiers.IsPublic)
+        if(!modifiers.IsPublic)
         {
             // Private members are only accessible within the declaring type.
             var declaringType = GetDeclaringTypeOfMember(memberSymbol);
-            if (declaringType is not null && !IsSameType(declaringType, _currentEnclosingType))
+            if(declaringType is not null && !IsSameType(declaringType, _currentEnclosingType))
             {
                 diagnostics.Add(MakeDiagnostic(
                     "MIST_TC_0014",
@@ -15415,7 +15415,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         // R9.4: Static members must be accessed via type name, not instance.
-        if (modifiers.IsStatic && !targetIsTypeName)
+        if(modifiers.IsStatic && !targetIsTypeName)
         {
             diagnostics.Add(MakeDiagnostic(
                 "MIST_TC_0015",
@@ -15426,7 +15426,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         // R9.5: Instance members must be accessed via instance, not type name.
-        if (!modifiers.IsStatic && targetIsTypeName)
+        if(!modifiers.IsStatic && targetIsTypeName)
         {
             diagnostics.Add(MakeDiagnostic(
                 "MIST_TC_0016",
@@ -15437,13 +15437,13 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         // ── Property-specific access checks ──────────────────────────────
 
-        if (memberSymbol.Kind == SymbolKind.Property)
+        if(memberSymbol.Kind == SymbolKind.Property)
         {
             var propInfo = GetPropertyMetadata(memberSymbol);
-            if (propInfo is not null)
+            if(propInfo is not null)
             {
                 // MIST_TC_0027: Static property accessed through instance reference.
-                if (modifiers.IsStatic && !targetIsTypeName)
+                if(modifiers.IsStatic && !targetIsTypeName)
                 {
                     diagnostics.Add(MakeDiagnostic(
                         "MIST_TC_0027",
@@ -15462,7 +15462,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     private static ISymbol? FindMemberSymbol(IType targetType, string memberName, ISemanticModel model)
     {
         // Unwrap ConstructedType to look up in the generic definition's member scope.
-        if (targetType is ConstructedType ct)
+        if(targetType is ConstructedType ct)
             targetType = ct.GenericDefinition;
 
         IScope? memberScope = targetType switch
@@ -15474,22 +15474,22 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             _ => null,
         };
 
-        if (memberScope is null)
+        if(memberScope is null)
             return null;
 
-        foreach (var member in memberScope.Members)
+        foreach(var member in memberScope.Members)
         {
-            if (member.Name == memberName)
+            if(member.Name == memberName)
                 return member;
         }
 
         // For abstract types, also search inherited abstract type member scopes.
-        if (targetType is AbstractType abstractType)
+        if(targetType is AbstractType abstractType)
         {
-            foreach (var parentAbstract in abstractType.Abstracts)
+            foreach(var parentAbstract in abstractType.Abstracts)
             {
                 var found = FindMemberSymbol(parentAbstract, memberName, model);
-                if (found is not null)
+                if(found is not null)
                     return found;
             }
         }
@@ -15505,12 +15505,12 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     {
         var typeScope = memberSymbol.ContainingScope;
         var parentScope = typeScope?.Parent;
-        if (parentScope is null)
+        if(parentScope is null)
             return null;
 
-        foreach (var member in parentScope.Members)
+        foreach(var member in parentScope.Members)
         {
-            if (member.Kind is SymbolKind.Class or SymbolKind.Struct
+            if(member.Kind is SymbolKind.Class or SymbolKind.Struct
                 && member.DeclaredType is ClassType or StructType)
             {
                 var scope = member.DeclaredType switch
@@ -15519,7 +15519,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     StructType st => st.MemberScope,
                     _ => null,
                 };
-                if (ReferenceEquals(scope, typeScope))
+                if(ReferenceEquals(scope, typeScope))
                     return member.DeclaredType;
             }
         }
@@ -15532,12 +15532,12 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     private static bool IsSameType(IType? a, IType? b)
     {
-        if (a is null || b is null)
+        if(a is null || b is null)
             return false;
-        if (ReferenceEquals(a, b))
+        if(ReferenceEquals(a, b))
             return true;
         // Fallback: compare by display name for types that may not be reference-equal.
-        if (a.DisplayName == b.DisplayName)
+        if(a.DisplayName == b.DisplayName)
             return true;
         // Migration-window equivalence: legacy `int` matches stdlib `Int32`
         // and so on for every primitive alias in KeywordAliases.Map.
@@ -15572,7 +15572,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             _ => null,
         };
 
-        if (modifiers is null || modifiers.Count == 0)
+        if(modifiers is null || modifiers.Count == 0)
         {
             // No modifiers → defaults to private (R9.3), not static.
             return new MemberModifiers(IsPublic: false, IsPrivate: false, IsStatic: false);
@@ -15582,9 +15582,9 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         var isPrivate = false;
         var isStatic = false;
 
-        foreach (var mod in modifiers)
+        foreach(var mod in modifiers)
         {
-            switch (mod)
+            switch(mod)
             {
                 case PublicModifierModifierNode:
                     isPublic = true;
@@ -15626,24 +15626,24 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     {
         // Handle union-of-refinements: when the target is a UnionType with RefinementType
         // constituents, check if the literal satisfies at least one constituent's predicate.
-        if (targetType is UnionType targetUnion && targetUnion.Constituents.Any(c => c is RefinementType))
+        if(targetType is UnionType targetUnion && targetUnion.Constituents.Any(c => c is RefinementType))
         {
             var unionConstantValue = TryExtractLiteralConstantValue(expression);
-            if (unionConstantValue is not null)
+            if(unionConstantValue is not null)
             {
                 // Check if the literal satisfies any constituent's refinement predicate.
                 var satisfiesAny = false;
-                foreach (var constituent in targetUnion.Constituents)
+                foreach(var constituent in targetUnion.Constituents)
                 {
-                    if (constituent is RefinementType refinementConstituent)
+                    if(constituent is RefinementType refinementConstituent)
                     {
-                        if (refinementConstituent.Predicate.Evaluate(unionConstantValue))
+                        if(refinementConstituent.Predicate.Evaluate(unionConstantValue))
                         {
                             satisfiesAny = true;
                             break;
                         }
                     }
-                    else if (IsAssignable(sourceType, constituent, model))
+                    else if(IsAssignable(sourceType, constituent, model))
                     {
                         // Non-refinement constituent that the source is assignable to.
                         satisfiesAny = true;
@@ -15651,7 +15651,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     }
                 }
 
-                if (!satisfiesAny)
+                if(!satisfiesAny)
                 {
                     diagnostics.Add(MakeDiagnostic(
                         RefinementLiteralViolation.Value,
@@ -15666,12 +15666,12 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             }
 
             // Non-constant expression assigned to union-of-refinements: require pattern matching.
-            if (sourceType is not UnionType && sourceType is not RefinementType)
+            if(sourceType is not UnionType && sourceType is not RefinementType)
             {
                 var isBaseOfAnyConstituent = targetUnion.Constituents
                     .OfType<RefinementType>()
                     .Any(r => IsAssignable(sourceType, r.BaseType, model));
-                if (isBaseOfAnyConstituent)
+                if(isBaseOfAnyConstituent)
                 {
                     diagnostics.Add(MakeDiagnostic(
                         RefinementNonConstantAssignment.Value,
@@ -15686,22 +15686,22 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         // Only applies when the target is a RefinementType.
-        if (targetType is not RefinementType targetRefinement)
+        if(targetType is not RefinementType targetRefinement)
             return false;
 
         // If the source is already the same RefinementType, accept without re-checking.
         // The source type already guarantees compliance (Requirement 5.5).
-        if (sourceType is RefinementType sourceRefinement &&
+        if(sourceType is RefinementType sourceRefinement &&
             sourceRefinement.Name == targetRefinement.Name)
             return false;
 
         // If the source is a RefinementType with a different name but the same
         // base type, attempt subset proving via the RefinementSolver (Requirement 9.1, 9.3).
-        if (sourceType is RefinementType sourceRefinementDifferent)
+        if(sourceType is RefinementType sourceRefinementDifferent)
         {
-            if (IsAssignable(sourceRefinementDifferent.BaseType, targetRefinement.BaseType, model))
+            if(IsAssignable(sourceRefinementDifferent.BaseType, targetRefinement.BaseType, model))
             {
-                if (RefinementSolver.Implies(sourceRefinementDifferent.Predicate, targetRefinement.Predicate))
+                if(RefinementSolver.Implies(sourceRefinementDifferent.Predicate, targetRefinement.Predicate))
                 {
                     // Subset proven — accept the assignment.
                     return false;
@@ -15722,10 +15722,10 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         // Check if the source is a compile-time constant literal.
         var constantValue = TryExtractLiteralConstantValue(expression);
-        if (constantValue is not null)
+        if(constantValue is not null)
         {
             // Evaluate the predicate against the literal value.
-            if (!targetRefinement.Predicate.Evaluate(constantValue))
+            if(!targetRefinement.Predicate.Evaluate(constantValue))
             {
                 diagnostics.Add(MakeDiagnostic(
                     RefinementLiteralViolation.Value,
@@ -15742,14 +15742,14 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // Non-constant expression: check if the source type is the base type
         // (or assignable to the base type). If so, check flow narrowing constraints
         // before emitting the non-constant diagnostic.
-        if (IsAssignable(sourceType, targetRefinement.BaseType, model))
+        if(IsAssignable(sourceType, targetRefinement.BaseType, model))
         {
             // ── Flow narrowing: check if the variable has constraints that prove the target ──
             var narrowedVarName = TryExtractNarrowedIdentifierName(expression);
-            if (narrowedVarName is not null &&
+            if(narrowedVarName is not null &&
                 _narrowingContext.TryGetValue(narrowedVarName, out var constraints))
             {
-                if (ConstraintsImplyPredicate(constraints, targetRefinement.Predicate))
+                if(ConstraintsImplyPredicate(constraints, targetRefinement.Predicate))
                 {
                     // Constraints prove the target refinement — accept the assignment.
                     return false;
@@ -15781,21 +15781,21 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         ISemanticModel model)
     {
         // Only applies when the target is a RefinementType.
-        if (targetType is not RefinementType targetRefinement)
+        if(targetType is not RefinementType targetRefinement)
             return false;
 
         // If the source is already the same RefinementType, accept without re-checking.
-        if (sourceType is RefinementType sourceRefinement &&
+        if(sourceType is RefinementType sourceRefinement &&
             sourceRefinement.Name == targetRefinement.Name)
             return false;
 
         // If the source is a RefinementType with a different name but the same
         // base type, attempt subset proving via the RefinementSolver (Requirement 9.1, 9.3).
-        if (sourceType is RefinementType sourceRefinementDifferent)
+        if(sourceType is RefinementType sourceRefinementDifferent)
         {
-            if (IsAssignable(sourceRefinementDifferent.BaseType, targetRefinement.BaseType, model))
+            if(IsAssignable(sourceRefinementDifferent.BaseType, targetRefinement.BaseType, model))
             {
-                if (RefinementSolver.Implies(sourceRefinementDifferent.Predicate, targetRefinement.Predicate))
+                if(RefinementSolver.Implies(sourceRefinementDifferent.Predicate, targetRefinement.Predicate))
                 {
                     // Subset proven — accept the assignment.
                     return false;
@@ -15817,9 +15817,9 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // Try to extract a literal constant from the assignment value's target.
         // An AssignmentNode without a Value (no chaining) has its expression in Target.
         var constantValue = TryExtractLiteralConstantFromAssignmentTarget(assignmentValue);
-        if (constantValue is not null)
+        if(constantValue is not null)
         {
-            if (!targetRefinement.Predicate.Evaluate(constantValue))
+            if(!targetRefinement.Predicate.Evaluate(constantValue))
             {
                 diagnostics.Add(MakeDiagnostic(
                     RefinementLiteralViolation.Value,
@@ -15833,16 +15833,16 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         // Non-constant expression.
-        if (IsAssignable(sourceType, targetRefinement.BaseType, model))
+        if(IsAssignable(sourceType, targetRefinement.BaseType, model))
         {
             // ── Flow narrowing: check if the variable has constraints that prove the target ──
-            if (assignmentValue.Value is null)
+            if(assignmentValue.Value is null)
             {
                 var varName = TryExtractIdentifierFromLogicalOr(assignmentValue.Target.Left);
-                if (varName is not null &&
+                if(varName is not null &&
                     _narrowingContext.TryGetValue(varName, out var constraints))
                 {
-                    if (ConstraintsImplyPredicate(constraints, targetRefinement.Predicate))
+                    if(ConstraintsImplyPredicate(constraints, targetRefinement.Predicate))
                     {
                         // Constraints prove the target refinement — accept the assignment.
                         return false;
@@ -15893,12 +15893,12 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         ISemanticModel model)
     {
         // Only applies when target is regex-like and source is string-like.
-        if (!IsRegexLike(targetType) || !IsStringLike(sourceType))
+        if(!IsRegexLike(targetType) || !IsStringLike(sourceType))
             return false;
 
         // Check if the source expression is a string literal.
         var primary = UnwrapExpressionToPrimary(expression);
-        if (primary is StringLiteralExpressionPrimaryNode stringLiteral)
+        if(primary is StringLiteralExpressionPrimaryNode stringLiteral)
         {
             // String literal shorthand: validate the pattern at compile time.
             var content = ExtractStringContent(stringLiteral.StringLiteral.Lexeme);
@@ -15913,11 +15913,11 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 // to wrap it in `new Regex(...)`).
                 var explicitOpName = $"operator_explicit_{targetType.DisplayName}";
                 var targetScope = GetMemberScope(targetType);
-                if (targetScope is not null)
+                if(targetScope is not null)
                 {
-                    foreach (var member in targetScope.Members)
+                    foreach(var member in targetScope.Members)
                     {
-                        if (member.Kind == SymbolKind.Method && member.Name == explicitOpName)
+                        if(member.Kind == SymbolKind.Method && member.Name == explicitOpName)
                         {
                             model.RecordResolvedOperator(expression, member);
                             break;
@@ -15926,7 +15926,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 }
                 return true;
             }
-            catch (ArgumentException ex)
+            catch(ArgumentException ex)
             {
                 // Invalid regex pattern — emit diagnostic.
                 var offset = ex is RegexParseException parseEx ? parseEx.Offset : 0;
@@ -15962,13 +15962,13 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         ISemanticModel model)
     {
         // Only applies when target is regex-like and source is string-like.
-        if (!IsRegexLike(targetType) || !IsStringLike(sourceType))
+        if(!IsRegexLike(targetType) || !IsStringLike(sourceType))
             return false;
 
         // Navigate through the assignment to find a string literal.
         // For a simple assignment RHS, the AssignmentNode has no Value
         // and the Target is a LogicalOrNode wrapping the literal.
-        if (assignmentValue.Value is not null)
+        if(assignmentValue.Value is not null)
         {
             // Chained assignment — not a simple literal. Reject.
             diagnostics.Add(MakeDiagnostic(
@@ -15984,7 +15984,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // TryExtractLiteralConstantFromAssignmentTarget).
         StringLiteralExpressionPrimaryNode? stringLiteral = FindStringLiteralInAssignment(assignmentValue);
 
-        if (stringLiteral is not null)
+        if(stringLiteral is not null)
         {
             // String literal shorthand: validate the pattern at compile time.
             var content = ExtractStringContent(stringLiteral.StringLiteral.Lexeme);
@@ -15996,11 +15996,11 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 // Record the explicit cast operator so the emitter can emit the conversion.
                 var explicitOpName = $"operator_explicit_{targetType.DisplayName}";
                 var targetScope = GetMemberScope(targetType);
-                if (targetScope is not null)
+                if(targetScope is not null)
                 {
-                    foreach (var member in targetScope.Members)
+                    foreach(var member in targetScope.Members)
                     {
-                        if (member.Kind == SymbolKind.Method && member.Name == explicitOpName)
+                        if(member.Kind == SymbolKind.Method && member.Name == explicitOpName)
                         {
                             model.RecordResolvedOperator(assignmentValue, member);
                             break;
@@ -16009,7 +16009,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 }
                 return true;
             }
-            catch (ArgumentException ex)
+            catch(ArgumentException ex)
             {
                 // Invalid regex pattern — emit diagnostic.
                 var offset = ex is RegexParseException parseEx ? parseEx.Offset : 0;
@@ -16038,32 +16038,32 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     private static StringLiteralExpressionPrimaryNode? FindStringLiteralInAssignment(AssignmentNode assignment)
     {
-        if (assignment.Value is not null)
+        if(assignment.Value is not null)
             return null; // Chained assignment.
 
         Storm.Runtime.SyntaxNode current = assignment.Target;
-        for (var depth = 0; depth < 20; depth++)
+        for(var depth = 0; depth < 20; depth++)
         {
-            if (current is StringLiteralExpressionPrimaryNode strLit)
+            if(current is StringLiteralExpressionPrimaryNode strLit)
                 return strLit;
 
-            if (current is PrimaryNode)
+            if(current is PrimaryNode)
                 return null; // Found a primary but it's not a string literal.
 
             Storm.Runtime.SyntaxNode? next = null;
             var childCount = 0;
-            foreach (var child in current.Children())
+            foreach(var child in current.Children())
             {
-                if (child is null) continue;
+                if(child is null) continue;
                 childCount++;
-                if (child is StringLiteralExpressionPrimaryNode childStrLit)
+                if(child is StringLiteralExpressionPrimaryNode childStrLit)
                     return childStrLit;
-                if (child is PrimaryNode)
+                if(child is PrimaryNode)
                     return null; // Found a primary but it's not a string literal.
-                if (next is null) next = child;
+                if(next is null) next = child;
             }
 
-            if (childCount > 1 || next is null) return null;
+            if(childCount > 1 || next is null) return null;
             current = next;
         }
 
@@ -16079,13 +16079,13 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // For a simple assignment RHS like `5`, the AssignmentNode has no Value
         // and the Target is a LogicalOrNode wrapping the literal.
         // Navigate through the single-child chain to find a PrimaryNode.
-        if (assignment.Value is not null)
+        if(assignment.Value is not null)
             return null; // Chained assignment — not a simple literal.
 
         Storm.Runtime.SyntaxNode current = assignment.Target;
-        for (var depth = 0; depth < 20; depth++)
+        for(var depth = 0; depth < 20; depth++)
         {
-            if (current is PrimaryNode primary)
+            if(current is PrimaryNode primary)
             {
                 return primary switch
                 {
@@ -16102,11 +16102,11 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
             Storm.Runtime.SyntaxNode? next = null;
             var childCount = 0;
-            foreach (var child in current.Children())
+            foreach(var child in current.Children())
             {
-                if (child is null) continue;
+                if(child is null) continue;
                 childCount++;
-                if (child is PrimaryNode childPrimary)
+                if(child is PrimaryNode childPrimary)
                 {
                     return childPrimary switch
                     {
@@ -16120,10 +16120,10 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                         _ => null,
                     };
                 }
-                if (next is null) next = child;
+                if(next is null) next = child;
             }
 
-            if (childCount > 1 || next is null)
+            if(childCount > 1 || next is null)
                 return null;
 
             current = next;
@@ -16145,16 +16145,16 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     private static void CheckRefinementPredicateReadonly(ISemanticModel model, DiagnosticBag diagnostics)
     {
-        foreach (var symbol in model.AllSymbols)
+        foreach(var symbol in model.AllSymbols)
         {
-            if (symbol.Origin == SymbolOrigin.Backend)
+            if(symbol.Origin == SymbolOrigin.Backend)
                 continue;
 
-            if (symbol.Kind != SymbolKind.TypeAlias)
+            if(symbol.Kind != SymbolKind.TypeAlias)
                 continue;
 
             var declaredType = symbol.DeclaredType;
-            if (declaredType is RefinementType refinementType)
+            if(declaredType is RefinementType refinementType)
             {
                 ValidateRefinementPredicateMembers(
                     refinementType.Name,
@@ -16163,11 +16163,11 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     model,
                     diagnostics);
             }
-            else if (declaredType is UnionType unionType)
+            else if(declaredType is UnionType unionType)
             {
-                foreach (var constituent in unionType.Constituents)
+                foreach(var constituent in unionType.Constituents)
                 {
-                    if (constituent is RefinementType constituentRefinement)
+                    if(constituent is RefinementType constituentRefinement)
                     {
                         ValidateRefinementPredicateMembers(
                             constituentRefinement.Name,
@@ -16195,20 +16195,20 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         DiagnosticBag diagnostics)
     {
         // Primitive types are inherently immutable — no readonly check needed (Requirement 3.3).
-        if (IsPrimitiveImmutableType(baseType))
+        if(IsPrimitiveImmutableType(baseType))
             return;
 
         // Walk the and-pattern looking for property patterns.
         ValidateUnaryPatternReadonly(typeName, baseType, andPattern.Left, model, diagnostics);
 
-        if (andPattern.Right is not null && !ReferenceEquals(andPattern.Right, andPattern.Left))
+        if(andPattern.Right is not null && !ReferenceEquals(andPattern.Right, andPattern.Left))
         {
             ValidateUnaryPatternReadonly(typeName, baseType, andPattern.Right, model, diagnostics);
         }
 
-        if (!andPattern.UnaryPatterns.IsDefaultOrEmpty)
+        if(!andPattern.UnaryPatterns.IsDefaultOrEmpty)
         {
-            foreach (var part in andPattern.UnaryPatterns)
+            foreach(var part in andPattern.UnaryPatterns)
             {
                 ValidateUnaryPatternReadonly(typeName, baseType, part, model, diagnostics);
             }
@@ -16226,11 +16226,11 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         ISemanticModel model,
         DiagnosticBag diagnostics)
     {
-        if (unary is DirectPatternUnaryPatternNode direct)
+        if(unary is DirectPatternUnaryPatternNode direct)
         {
             ValidatePrimaryPatternReadonly(typeName, baseType, direct.Primary, model, diagnostics);
         }
-        else if (unary is NotPatternUnaryPatternNode not)
+        else if(unary is NotPatternUnaryPatternNode not)
         {
             ValidatePrimaryPatternReadonly(typeName, baseType, not.Operand, model, diagnostics);
         }
@@ -16248,10 +16248,10 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         ISemanticModel model,
         DiagnosticBag diagnostics)
     {
-        if (primary is not PropertyPatternPrimaryPatternNode propertyPattern)
+        if(primary is not PropertyPatternPrimaryPatternNode propertyPattern)
             return;
 
-        if (propertyPattern.Subpatterns is null)
+        if(propertyPattern.Subpatterns is null)
             return;
 
         ValidatePropertySubpatternListReadonly(
@@ -16271,7 +16271,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         ValidatePropertySubpatternReadonly(
             typeName, patternType, subpatternList.PropertySubpattern, model, diagnostics);
 
-        foreach (var subpattern in subpatternList.PropertySubpatterns)
+        foreach(var subpattern in subpatternList.PropertySubpatterns)
         {
             ValidatePropertySubpatternReadonly(typeName, patternType, subpattern, model, diagnostics);
         }
@@ -16293,15 +16293,15 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         var memberScope = GetMemberScope(patternType);
 
         ISymbol? member = null;
-        if (memberScope is not null)
+        if(memberScope is not null)
         {
             member = memberScope.Lookup(memberName);
         }
 
-        if (member is not null)
+        if(member is not null)
         {
             // Check if the member is readonly.
-            if (!IsMemberReadonly(member))
+            if(!IsMemberReadonly(member))
             {
                 diagnostics.Add(MakeDiagnostic(
                     RefinementMutableMember.Value,
@@ -16329,19 +16329,19 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         DiagnosticBag diagnostics)
     {
         var orPattern = pattern.OrPattern;
-        if (orPattern is null)
+        if(orPattern is null)
             return;
 
         ValidateNestedAndPatternReadonly(typeName, memberType, orPattern.Left, model, diagnostics);
 
-        if (orPattern.Right is not null && !ReferenceEquals(orPattern.Right, orPattern.Left))
+        if(orPattern.Right is not null && !ReferenceEquals(orPattern.Right, orPattern.Left))
         {
             ValidateNestedAndPatternReadonly(typeName, memberType, orPattern.Right, model, diagnostics);
         }
 
-        if (!orPattern.AndPatterns.IsDefaultOrEmpty)
+        if(!orPattern.AndPatterns.IsDefaultOrEmpty)
         {
-            foreach (var andAlt in orPattern.AndPatterns)
+            foreach(var andAlt in orPattern.AndPatterns)
             {
                 ValidateNestedAndPatternReadonly(typeName, memberType, andAlt, model, diagnostics);
             }
@@ -16360,19 +16360,19 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         DiagnosticBag diagnostics)
     {
         // Skip readonly checks for primitive member types (inherently immutable).
-        if (IsPrimitiveImmutableType(memberType))
+        if(IsPrimitiveImmutableType(memberType))
             return;
 
         ValidateUnaryPatternReadonly(typeName, memberType, andPattern.Left, model, diagnostics);
 
-        if (andPattern.Right is not null && !ReferenceEquals(andPattern.Right, andPattern.Left))
+        if(andPattern.Right is not null && !ReferenceEquals(andPattern.Right, andPattern.Left))
         {
             ValidateUnaryPatternReadonly(typeName, memberType, andPattern.Right, model, diagnostics);
         }
 
-        if (!andPattern.UnaryPatterns.IsDefaultOrEmpty)
+        if(!andPattern.UnaryPatterns.IsDefaultOrEmpty)
         {
-            foreach (var part in andPattern.UnaryPatterns)
+            foreach(var part in andPattern.UnaryPatterns)
             {
                 ValidateUnaryPatternReadonly(typeName, memberType, part, model, diagnostics);
             }
@@ -16415,24 +16415,24 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     private static void CheckEnumBaseTypeReadonly(ISemanticModel model, DiagnosticBag diagnostics)
     {
-        foreach (var symbol in model.AllSymbols)
+        foreach(var symbol in model.AllSymbols)
         {
-            if (symbol.Kind != SymbolKind.Enum)
+            if(symbol.Kind != SymbolKind.Enum)
                 continue;
 
-            if (symbol.DeclaredType is not EnumType enumType)
+            if(symbol.DeclaredType is not EnumType enumType)
                 continue;
 
             var underlyingType = enumType.UnderlyingType;
-            if (underlyingType is null || underlyingType is ErrorType)
+            if(underlyingType is null || underlyingType is ErrorType)
                 continue;
 
-            if (underlyingType is UnionType unionType)
+            if(underlyingType is UnionType unionType)
             {
                 // Check each constituent individually.
-                foreach (var constituent in unionType.Constituents)
+                foreach(var constituent in unionType.Constituents)
                 {
-                    if (!IsTypeReadonly(constituent))
+                    if(!IsTypeReadonly(constituent))
                     {
                         diagnostics.Add(MakeDiagnostic(
                             EnumUnionConstituentNotReadonly.Value,
@@ -16446,7 +16446,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             }
             else
             {
-                if (!IsTypeReadonly(underlyingType))
+                if(!IsTypeReadonly(underlyingType))
                 {
                     diagnostics.Add(MakeDiagnostic(
                         EnumBaseTypeNotReadonly.Value,
@@ -16474,7 +16474,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // that would require boxing (heap allocation), violating the stack-only constraint.
         // The restriction is at the usage site — declaring that a ref struct implements
         // an abstract is permitted.
-        if (IsRefStructType(source) && IsAbstractTargetType(target))
+        if(IsRefStructType(source) && IsAbstractTargetType(target))
         {
             var abstractName = target.DisplayName;
             diagnostics.Add(MakeDiagnostic(
@@ -16485,45 +16485,45 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             return;
         }
 
-        if (!IsAssignable(source, target, model))
+        if(!IsAssignable(source, target, model))
         {
             // stack-only-types feature (R4.6): before falling back to the
             // generic type-mismatch diagnostic, detect when a stackalloc
             // result (SpanType) is assigned to a non-span target.
-            if (TryEmitStackallocTargetMismatchDiagnostic(source, target, node, diagnostics, model))
+            if(TryEmitStackallocTargetMismatchDiagnostic(source, target, node, diagnostics, model))
                 return;
 
             // stack-only-types feature (R7.7): detect span-to-span mismatch
             // (kind differs or element types not reconcilable) and emit a
             // targeted diagnostic before the generic type-mismatch.
-            if (TryEmitSpanInteropMismatchDiagnostic(source, target, node, diagnostics, model))
+            if(TryEmitSpanInteropMismatchDiagnostic(source, target, node, diagnostics, model))
                 return;
 
             // unknown-type feature (Req 4.2, 4.4): before falling back to
             // the generic type-mismatch diagnostic, detect the two specific
             // unknown-related failure modes and emit the targeted code.
-            if (TryEmitUnknownAssignabilityDiagnostic(source, target, node, diagnostics, model))
+            if(TryEmitUnknownAssignabilityDiagnostic(source, target, node, diagnostics, model))
                 return;
 
             // type-unions feature (Req 6.3, 6.4): before falling back to
             // the generic type-mismatch diagnostic, detect union-specific
             // failure modes and emit the targeted code.
-            if (TryEmitUnionAssignabilityDiagnostic(source, target, node, diagnostics, model))
+            if(TryEmitUnionAssignabilityDiagnostic(source, target, node, diagnostics, model))
                 return;
 
             // enums feature (Req 7.3): detect reverse conversion from
             // underlying type to enum type and emit the targeted diagnostic.
-            if (TryEmitEnumAssignabilityDiagnostic(source, target, node, diagnostics, model))
+            if(TryEmitEnumAssignabilityDiagnostic(source, target, node, diagnostics, model))
                 return;
 
             // newtypes feature (Req 2.1, 2.3, 2.4, 2.5): detect newtype↔source
             // and cross-newtype assignments and emit the targeted diagnostic.
-            if (TryEmitNewtypeAssignabilityDiagnostic(source, target, node, diagnostics, model))
+            if(TryEmitNewtypeAssignabilityDiagnostic(source, target, node, diagnostics, model))
                 return;
 
             // delegate-func-conversion (Req 2.5, 6.1, 6.6, 6.7): detect
             // delegate-specific failure modes and emit the targeted diagnostic.
-            if (TryEmitDelegateAssignabilityDiagnostic(source, target, node, diagnostics, model))
+            if(TryEmitDelegateAssignabilityDiagnostic(source, target, node, diagnostics, model))
                 return;
 
             diagnostics.Add(MakeDiagnostic(
@@ -16540,7 +16540,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             // record it on the AST node so the emitter can later emit the
             // conversion call. Direct assignability takes precedence over
             // implicit casts (Requirements 14.1, 14.2, 14.3).
-            if (!IsDirectlyAssignable(source, target, model))
+            if(!IsDirectlyAssignable(source, target, model))
             {
                 TryResolveImplicitCast(source, target, node, model, diagnostics);
             }
@@ -16578,7 +16578,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     {
         // void → unknown (Req 4.2). The top-type clause in IsAssignable
         // explicitly rejects this and leaves the emission to the caller.
-        if (target is UnknownType && source.IsVoid())
+        if(target is UnknownType && source.IsVoid())
         {
             diagnostics.Add(MakeDiagnostic(
                 VoidToUnknown.Value,
@@ -16589,7 +16589,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         // unknown → non-unknown (Req 4.4). Use `is T t` to narrow first.
-        if (source is UnknownType && target is not UnknownType)
+        if(source is UnknownType && target is not UnknownType)
         {
             diagnostics.Add(MakeDiagnostic(
                 UnknownToNonUnknown.Value,
@@ -16604,7 +16604,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // definition being widened is a struct rather than a class, emit
         // the explanatory MIST_TC_0058 so the error points at the rule
         // rather than cascading a generic type-mismatch diagnostic.
-        if (WouldAssignableWithUnknownWideningIfClass(source, target))
+        if(WouldAssignableWithUnknownWideningIfClass(source, target))
         {
             diagnostics.Add(MakeDiagnostic(
                 StructGenericUnknownWidening.Value,
@@ -16652,7 +16652,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     internal static ISymbol? TryFindImplicitCast(IType source, IType target, out bool ambiguous)
     {
         ambiguous = false;
-        if (IsErrorType(source) || IsErrorType(target))
+        if(IsErrorType(source) || IsErrorType(target))
             return null;
 
         var candidates = new List<ISymbol>();
@@ -16660,34 +16660,34 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         // 1. Search the source type's member scope.
         var sourceScope = GetMemberScope(source);
-        if (sourceScope is not null)
+        if(sourceScope is not null)
         {
-            foreach (var member in sourceScope.Members)
+            foreach(var member in sourceScope.Members)
             {
-                if (member.Kind == SymbolKind.Method && member.Name == opName)
+                if(member.Kind == SymbolKind.Method && member.Name == opName)
                     candidates.Add(member);
             }
         }
 
         // 2. Search the target type's member scope.
         var targetScope = GetMemberScope(target);
-        if (targetScope is not null && !ReferenceEquals(sourceScope, targetScope))
+        if(targetScope is not null && !ReferenceEquals(sourceScope, targetScope))
         {
-            foreach (var member in targetScope.Members)
+            foreach(var member in targetScope.Members)
             {
-                if (member.Kind == SymbolKind.Method && member.Name == opName)
+                if(member.Kind == SymbolKind.Method && member.Name == opName)
                 {
                     // Avoid duplicates if the same symbol appears in both scopes.
-                    if (!candidates.Any(c => ReferenceEquals(c, member)))
+                    if(!candidates.Any(c => ReferenceEquals(c, member)))
                         candidates.Add(member);
                 }
             }
         }
 
-        if (candidates.Count == 1)
+        if(candidates.Count == 1)
             return candidates[0];
 
-        if (candidates.Count > 1)
+        if(candidates.Count > 1)
             ambiguous = true;
 
         return null;
@@ -16712,7 +16712,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     {
         var resolved = TryFindImplicitCast(source, target, out var ambiguous);
 
-        if (ambiguous)
+        if(ambiguous)
         {
             diagnostics.Add(MakeDiagnostic(
                 AmbiguousImplicitCast.Value,
@@ -16722,7 +16722,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             return null;
         }
 
-        if (resolved is not null)
+        if(resolved is not null)
         {
             model.RecordResolvedOperator(node, resolved);
         }
@@ -16753,29 +16753,29 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // Type aliases are fully transparent — unwrap to the underlying type
         // before any comparison so that using an alias is semantically
         // identical to using the underlying type directly.
-        if (source is TypeAliasType sourceAlias)
+        if(source is TypeAliasType sourceAlias)
             source = sourceAlias.UnderlyingType;
-        if (target is TypeAliasType targetAlias)
+        if(target is TypeAliasType targetAlias)
             target = targetAlias.UnderlyingType;
 
         // ── refinement-types feature: nominal subtyping (Requirement 8.3) ──
         // A RefinementType is a nominal subtype of its BaseType. Widening
         // from refinement to base is always safe. Same-name refinement types
         // are identity-assignable.
-        if (source is RefinementType sourceRefinement)
+        if(source is RefinementType sourceRefinement)
         {
-            if (target is RefinementType targetRefinement)
+            if(target is RefinementType targetRefinement)
             {
                 // Same refinement type: accept (identity).
-                if (sourceRefinement.Name == targetRefinement.Name)
+                if(sourceRefinement.Name == targetRefinement.Name)
                     return true;
 
                 // Different refinement types with same base: use subset proving.
                 // If the source predicate implies the target predicate, the
                 // assignment is safe (Requirement 9.1, 9.2).
-                if (IsAssignable(sourceRefinement.BaseType, targetRefinement.BaseType, model))
+                if(IsAssignable(sourceRefinement.BaseType, targetRefinement.BaseType, model))
                 {
-                    if (RefinementSolver.Implies(sourceRefinement.Predicate, targetRefinement.Predicate))
+                    if(RefinementSolver.Implies(sourceRefinement.Predicate, targetRefinement.Predicate))
                         return true;
                 }
 
@@ -16792,13 +16792,13 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // to the base type, IsAssignable returns true. The actual predicate
         // enforcement (literal evaluation or non-constant rejection) is
         // handled by TryCheckRefinementAssignment at the call site.
-        if (target is RefinementType targetRefinementForBase)
+        if(target is RefinementType targetRefinementForBase)
         {
             return IsAssignable(source, targetRefinementForBase.BaseType, model);
         }
 
         // ErrorType suppresses cascading errors.
-        if (IsErrorType(source) || IsErrorType(target))
+        if(IsErrorType(source) || IsErrorType(target))
             return true;
 
         // ── unknown-type feature (Req 4.1, 4.2, 4.3, 4.4, 4.5) ──────────
@@ -16819,13 +16819,13 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // suppression and before every other rule so that UnknownType is
         // handled uniformly across identity, ConstructedType, abstract,
         // subtype, and implicit-cast branches.
-        if (target is UnknownType)
+        if(target is UnknownType)
         {
-            if (source.IsVoid())
+            if(source.IsVoid())
                 return false;
             return true;
         }
-        if (source is UnknownType)
+        if(source is UnknownType)
         {
             // target is not UnknownType (checked above); reject.
             return false;
@@ -16847,22 +16847,22 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         //
         // A union containing ErrorType is treated as "poisoned" — accept
         // any assignment to suppress cascading errors.
-        if (target is UnionType targetUnion)
+        if(target is UnionType targetUnion)
         {
             // Poisoned union target: suppress cascading errors.
-            if (HasErrorConstituent(targetUnion))
+            if(HasErrorConstituent(targetUnion))
                 return true;
 
-            if (source is UnionType sourceUnionForTarget)
+            if(source is UnionType sourceUnionForTarget)
             {
                 // Poisoned union source: suppress cascading errors.
-                if (HasErrorConstituent(sourceUnionForTarget))
+                if(HasErrorConstituent(sourceUnionForTarget))
                     return true;
 
                 // Union → Union: every source constituent must be in target.
-                foreach (var constituent in sourceUnionForTarget.Constituents)
+                foreach(var constituent in sourceUnionForTarget.Constituents)
                 {
-                    if (!IsConstituentOf(constituent, targetUnion))
+                    if(!IsConstituentOf(constituent, targetUnion))
                         return false;
                 }
                 return true;
@@ -16872,25 +16872,25 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             // Special case: if the union contains UnknownType (e.g., `unknown | void`),
             // any non-void source is assignable — this mirrors the direct UnknownType
             // target rule and handles CLR reference-type parameters projected as T?.
-            if (!source.IsVoid() && targetUnion.Constituents.Any(c => c is UnknownType))
+            if(!source.IsVoid() && targetUnion.Constituents.Any(c => c is UnknownType))
                 return true;
-            if (IsConstituentOf(source, targetUnion))
+            if(IsConstituentOf(source, targetUnion))
                 return true;
 
             // Subtype fallback: if the source is assignable to any non-void constituent
             // via inheritance (e.g., ConstructedType<T> assignable to its non-generic base),
             // accept the assignment. This avoids infinite recursion by only checking
             // constituents that are class/struct types (not other unions or error types).
-            foreach (var constituent in targetUnion.Constituents)
+            foreach(var constituent in targetUnion.Constituents)
             {
-                if (constituent.IsVoid() || constituent is UnionType || constituent is ErrorType)
+                if(constituent.IsVoid() || constituent is UnionType || constituent is ErrorType)
                     continue;
-                if (IsAssignable(source, constituent, model))
+                if(IsAssignable(source, constituent, model))
                     return true;
             }
             return false;
         }
-        if (source is UnionType)
+        if(source is UnionType)
         {
             // Union → non-union: rejected (must narrow first).
             // The only exception is if the target is UnknownType, but that
@@ -16907,43 +16907,43 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // DelegateType(A) → DelegateType(B) where A ≠ B: REJECTED (nominal distinctness)
         // BaseDelegateType → DelegateType: REJECTED (cannot narrow)
         // BaseDelegateType → func<...>: REJECTED (cannot narrow)
-        if (target is DelegateType targetDelegate)
+        if(target is DelegateType targetDelegate)
         {
-            if (source is DelegateType sourceDelegate)
+            if(source is DelegateType sourceDelegate)
             {
                 // Same delegate type → accept
-                if (sourceDelegate.ClrFullName == targetDelegate.ClrFullName
+                if(sourceDelegate.ClrFullName == targetDelegate.ClrFullName
                     && DelegateTypeArgumentsMatch(sourceDelegate, targetDelegate))
                     return true;
                 // Different named delegates → reject (nominal distinctness, Req 6.1)
                 return false;
             }
             // func<...> → DelegateType: check signature compatibility
-            if (SemanticModelBuilder.IsFuncType(source))
+            if(SemanticModelBuilder.IsFuncType(source))
                 return IsSignatureCompatible(source, targetDelegate.FuncSignature);
             return false;
         }
 
-        if (source is DelegateType sourceDelegate2)
+        if(source is DelegateType sourceDelegate2)
         {
-            if (target is BaseDelegateType)
+            if(target is BaseDelegateType)
                 return true;  // Any delegate → System.Delegate
             // DelegateType → func<...>: check signature compatibility
-            if (SemanticModelBuilder.IsFuncType(target))
+            if(SemanticModelBuilder.IsFuncType(target))
                 return IsSignatureCompatible(sourceDelegate2.FuncSignature, target);
             return false;
         }
 
-        if (target is BaseDelegateType)
+        if(target is BaseDelegateType)
         {
             // func<...> → System.Delegate: always accepted
-            if (SemanticModelBuilder.IsFuncType(source))
+            if(SemanticModelBuilder.IsFuncType(source))
                 return true;
             // DelegateType → System.Delegate handled above
             return false;
         }
 
-        if (source is BaseDelegateType)
+        if(source is BaseDelegateType)
         {
             // System.Delegate cannot be narrowed to anything
             return false;
@@ -16961,18 +16961,18 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // before the TryFindImplicitCast fallback at the end of this method,
         // because cloned implicit cast operators on the newtype's member scope
         // could otherwise accidentally allow the assignment.
-        if (source is NewtypeType || target is NewtypeType)
+        if(source is NewtypeType || target is NewtypeType)
         {
             // Only the same newtype instance is assignable to itself.
             return ReferenceEquals(source, target);
         }
 
         // Identity.
-        if (ReferenceEquals(source, target))
+        if(ReferenceEquals(source, target))
             return true;
 
         // Same display name (for types that may not be reference-equal).
-        if (source.DisplayName == target.DisplayName)
+        if(source.DisplayName == target.DisplayName)
             return true;
 
         // ── anonymous-types feature: structural equality (Requirement 4.6) ──
@@ -16980,7 +16980,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // order are the same type and are assignable to each other.
         // This explicit check ensures correctness regardless of DisplayName
         // formatting and makes the structural equality contract visible.
-        if (source is AnonymousType sourceAnon && target is AnonymousType targetAnon)
+        if(source is AnonymousType sourceAnon && target is AnonymousType targetAnon)
         {
             return sourceAnon.StructurallyEquals(targetAnon);
         }
@@ -16991,19 +16991,19 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // array. Two arrays with the same concrete length are assignable.
         // This is a natural subtype relationship — a sized array is a more
         // specific version of an unsized array.
-        if (source is ArrayType sourceArray && target is ArrayType targetArray)
+        if(source is ArrayType sourceArray && target is ArrayType targetArray)
         {
-            if (IsAssignable(sourceArray.ElementType, targetArray.ElementType, model))
+            if(IsAssignable(sourceArray.ElementType, targetArray.ElementType, model))
             {
                 // Target is unsized (no known length, no symbolic ID) — any source matches.
-                if (targetArray.KnownLength is null && targetArray.SymbolicLengthId is null)
+                if(targetArray.KnownLength is null && targetArray.SymbolicLengthId is null)
                     return true;
                 // Target has a symbolic length — any source with same element type is
                 // acceptable (symbolic just means "unknown at compile time").
-                if (targetArray.SymbolicLengthId is not null)
+                if(targetArray.SymbolicLengthId is not null)
                     return true;
                 // Target has a concrete length — source must have the same concrete length.
-                if (targetArray.KnownLength is not null
+                if(targetArray.KnownLength is not null
                     && sourceArray.KnownLength == targetArray.KnownLength)
                     return true;
             }
@@ -17015,23 +17015,23 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // or symbolic-length span (Span<int>) with the same element type and matching
         // kind (mutable/read-only). Two spans with the same concrete length are assignable.
         // This is the permitted known→unknown widening that erases the known length.
-        if (source is SpanType sourceSpan && target is SpanType targetSpan)
+        if(source is SpanType sourceSpan && target is SpanType targetSpan)
         {
             // Kind must match: Span→Span or ReadOnlySpan→ReadOnlySpan.
-            if (sourceSpan.IsReadOnly != targetSpan.IsReadOnly)
+            if(sourceSpan.IsReadOnly != targetSpan.IsReadOnly)
                 return false;
 
-            if (IsAssignable(sourceSpan.ElementType, targetSpan.ElementType, model))
+            if(IsAssignable(sourceSpan.ElementType, targetSpan.ElementType, model))
             {
                 // Target is unsized (no known length, no symbolic ID) — any source matches.
-                if (targetSpan.KnownLength is null && targetSpan.SymbolicLengthId is null)
+                if(targetSpan.KnownLength is null && targetSpan.SymbolicLengthId is null)
                     return true;
                 // Target has a symbolic length — any source with same element type is
                 // acceptable (symbolic just means "unknown at compile time").
-                if (targetSpan.SymbolicLengthId is not null)
+                if(targetSpan.SymbolicLengthId is not null)
                     return true;
                 // Target has a concrete length — source must have the same concrete length.
-                if (targetSpan.KnownLength is not null
+                if(targetSpan.KnownLength is not null
                     && sourceSpan.KnownLength == targetSpan.KnownLength)
                     return true;
             }
@@ -17044,7 +17044,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // used in constructor parameter declarations (e.g., Span's ctor).
         // A known-length or unsized ArrayType widens to Array<T, unknown>
         // when element types are compatible.
-        if (source is ArrayType sourceArrayForCt
+        if(source is ArrayType sourceArrayForCt
             && target is ConstructedType targetArrayCt
             && targetArrayCt.GenericDefinition is ClassType targetArrayClass
             && targetArrayClass.DisplayName == "Array"
@@ -17054,10 +17054,10 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             var targetElementType = targetArrayCt.TypeArguments[0];
             var targetLengthType = targetArrayCt.TypeArguments[1];
 
-            if (IsAssignable(sourceArrayForCt.ElementType, targetElementType, model))
+            if(IsAssignable(sourceArrayForCt.ElementType, targetElementType, model))
             {
                 // Target length is unknown — any source length is accepted (widening).
-                if (targetLengthType is UnknownType)
+                if(targetLengthType is UnknownType)
                     return true;
             }
         }
@@ -17068,48 +17068,48 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // legacy PrimitiveType singletons and another via the stdlib
         // types. Treat them as equivalent so assignability doesn't
         // spuriously reject `int` to `Int32` (or vice versa).
-        if (ArePrimitiveEquivalent(source, target))
+        if(ArePrimitiveEquivalent(source, target))
             return true;
 
         // Dependent type parameters are assignable to their value type.
         // E.g., a dependent parameter `Size:int` resolves to DependentTypeParameterType
         // but should be assignable to `int`/`Int32` (its ValueType).
-        if (source is DependentTypeParameterType depSource && depSource.ValueType is not DependentTypeParameterType)
+        if(source is DependentTypeParameterType depSource && depSource.ValueType is not DependentTypeParameterType)
             return IsAssignable(depSource.ValueType, target, model);
-        if (target is DependentTypeParameterType depTarget && depTarget.ValueType is not DependentTypeParameterType)
+        if(target is DependentTypeParameterType depTarget && depTarget.ValueType is not DependentTypeParameterType)
             return IsAssignable(source, depTarget.ValueType, model);
 
         // Tuple assignability with name erasure: two TupleType instances are
         // assignable if they have the same arity and each element type is
         // assignable. Element names are ignored (name erasure).
-        if (source is TupleType sourceTuple && target is TupleType targetTuple)
+        if(source is TupleType sourceTuple && target is TupleType targetTuple)
         {
-            if (sourceTuple.Arity == targetTuple.Arity)
+            if(sourceTuple.Arity == targetTuple.Arity)
             {
                 var allElementsAssignable = true;
-                for (var i = 0; i < sourceTuple.Arity; i++)
+                for(var i = 0; i < sourceTuple.Arity; i++)
                 {
-                    if (!IsAssignable(sourceTuple.ElementTypes[i], targetTuple.ElementTypes[i], model))
+                    if(!IsAssignable(sourceTuple.ElementTypes[i], targetTuple.ElementTypes[i], model))
                     {
                         allElementsAssignable = false;
                         break;
                     }
                 }
-                if (allElementsAssignable) return true;
+                if(allElementsAssignable) return true;
             }
             return false;
         }
 
         // ConstructedType identity: same generic definition + same type arguments + same dependent arguments.
-        if (source is ConstructedType sourceConstructed && target is ConstructedType targetConstructed)
+        if(source is ConstructedType sourceConstructed && target is ConstructedType targetConstructed)
         {
-            if (ReferenceEquals(sourceConstructed.GenericDefinition, targetConstructed.GenericDefinition)
+            if(ReferenceEquals(sourceConstructed.GenericDefinition, targetConstructed.GenericDefinition)
                 && sourceConstructed.TypeArguments.Count == targetConstructed.TypeArguments.Count)
             {
                 var allMatch = true;
-                for (var i = 0; i < sourceConstructed.TypeArguments.Count; i++)
+                for(var i = 0; i < sourceConstructed.TypeArguments.Count; i++)
                 {
-                    if (!TypesEqual(sourceConstructed.TypeArguments[i], targetConstructed.TypeArguments[i]))
+                    if(!TypesEqual(sourceConstructed.TypeArguments[i], targetConstructed.TypeArguments[i]))
                     {
                         allMatch = false;
                         break;
@@ -17118,10 +17118,10 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
                 // Compare dependent value arguments (Requirements 8.1, 8.2).
                 // FixedBuffer<5> ≠ FixedBuffer<6> even though both have TypeArguments=[int].
-                if (allMatch && !DependentArgumentsEqual(sourceConstructed.DependentArguments, targetConstructed.DependentArguments))
+                if(allMatch && !DependentArgumentsEqual(sourceConstructed.DependentArguments, targetConstructed.DependentArguments))
                     allMatch = false;
 
-                if (allMatch) return true;
+                if(allMatch) return true;
 
                 // Covariant unknown widening (unknown-type feature, Task 23.2).
                 // Req 8.1–8.3: after the identity check, try the position-wise
@@ -17131,7 +17131,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 // constructions recurse through the same rule. Transitive
                 // widening along the base-type / abstract chain is picked
                 // up by the existing loops below.
-                if (AssignableWithUnknownWidening(
+                if(AssignableWithUnknownWidening(
                         sourceConstructed.GenericDefinition,
                         sourceConstructed.TypeArguments,
                         targetConstructed.TypeArguments))
@@ -17142,22 +17142,22 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         // ConstructedType inheritance: walk the base type chain with substitution.
-        if (source is ConstructedType sourceConst && target is ConstructedType)
+        if(source is ConstructedType sourceConst && target is ConstructedType)
         {
             var baseType = GetSubstitutedBaseType(sourceConst);
-            if (baseType is not null && IsAssignable(baseType, target))
+            if(baseType is not null && IsAssignable(baseType, target))
                 return true;
         }
 
         // ConstructedType (struct) to plain StructType assignability:
         // When source is a ConstructedType wrapping a StructType (e.g., Point3D<int>),
         // walk the definition's ancestor chain to check if any ancestor matches the target.
-        if (source is ConstructedType sourceStructConst
+        if(source is ConstructedType sourceStructConst
             && sourceStructConst.GenericDefinition is StructType
             && target is StructType)
         {
             var baseType = GetSubstitutedBaseType(sourceStructConst);
-            if (baseType is not null && IsAssignable(baseType, target))
+            if(baseType is not null && IsAssignable(baseType, target))
                 return true;
         }
 
@@ -17166,21 +17166,21 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // check if the generic definition IS the target or has the target in its base chain.
         // This handles the CLR pattern where a generic type inherits from a non-generic base
         // (e.g., DbContextOptions<T> : DbContextOptions).
-        if (source is ConstructedType sourceClassConst
+        if(source is ConstructedType sourceClassConst
             && sourceClassConst.GenericDefinition is ClassType sourceClassDef
             && target is ClassType targetClassType
             && target is not ConstructedType)
         {
             // Check if the generic definition itself is the target.
-            if (ReferenceEquals(sourceClassDef, targetClassType)
+            if(ReferenceEquals(sourceClassDef, targetClassType)
                 || sourceClassDef.DisplayName == targetClassType.DisplayName)
                 return true;
 
             // Walk the generic definition's base type chain.
             var ancestor = sourceClassDef.BaseType as ClassType;
-            while (ancestor is not null)
+            while(ancestor is not null)
             {
-                if (ReferenceEquals(ancestor, targetClassType)
+                if(ReferenceEquals(ancestor, targetClassType)
                     || ancestor.DisplayName == targetClassType.DisplayName)
                     return true;
                 ancestor = ancestor.BaseType as ClassType;
@@ -17188,9 +17188,9 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         // ConstructedType to constructed abstract assignability.
-        if (target is ConstructedType targetConst && targetConst.GenericDefinition is AbstractType)
+        if(target is ConstructedType targetConst && targetConst.GenericDefinition is AbstractType)
         {
-            if (ImplementsConstructedAbstract(source, targetConst))
+            if(ImplementsConstructedAbstract(source, targetConst))
                 return true;
         }
 
@@ -17202,7 +17202,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // to smaller integer types when the target is a backend-projected numeric type.
         // This mirrors C#'s implicit narrowing of constant expressions and is safe
         // because the generated C# will emit the appropriate cast.
-        if (IsIntegerNumericType(source) && IsIntegerNumericType(target)
+        if(IsIntegerNumericType(source) && IsIntegerNumericType(target)
             && source.DisplayName != target.DisplayName)
         {
             return true;
@@ -17212,20 +17212,20 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // A class/struct implementing an abstract (directly or transitively) is assignable to that abstract.
         // An abstract is assignable to any abstract it inherits from (directly or transitively).
         // Also checks with-block conformance via ConformanceMap when model is available.
-        if (target is AbstractType targetAbstract)
+        if(target is AbstractType targetAbstract)
         {
-            if (ImplementsAbstract(source, targetAbstract, model))
+            if(ImplementsAbstract(source, targetAbstract, model))
                 return true;
         }
 
         // Subtype assignability — walk the inheritance chain.
         // A derived class is assignable to any of its ancestor classes.
-        if (source is ClassType sourceClass && target is ClassType)
+        if(source is ClassType sourceClass && target is ClassType)
         {
             var current = sourceClass.BaseType as ClassType;
-            while (current is not null)
+            while(current is not null)
             {
-                if (ReferenceEquals(current, target) || current.DisplayName == target.DisplayName)
+                if(ReferenceEquals(current, target) || current.DisplayName == target.DisplayName)
                     return true;
                 current = current.BaseType as ClassType;
             }
@@ -17233,12 +17233,12 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         // Struct subtype assignability — walk the inheritance chain.
         // A derived struct is assignable to any of its ancestor structs.
-        if (source is StructType sourceStruct && target is StructType)
+        if(source is StructType sourceStruct && target is StructType)
         {
             var current = sourceStruct.BaseType as StructType;
-            while (current is not null)
+            while(current is not null)
             {
-                if (ReferenceEquals(current, target) || current.DisplayName == target.DisplayName)
+                if(ReferenceEquals(current, target) || current.DisplayName == target.DisplayName)
                     return true;
                 current = current.BaseType as StructType;
             }
@@ -17248,13 +17248,13 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // When source is a plain StructType whose ancestor chain contains a
         // ConstructedType (e.g., Derived : Base<int>), check if any ancestor
         // matches the target ConstructedType.
-        if (source is StructType sourceStructForCt && target is ConstructedType targetStructCt
+        if(source is StructType sourceStructForCt && target is ConstructedType targetStructCt
             && targetStructCt.GenericDefinition is StructType)
         {
             var currentBase = sourceStructForCt.BaseType;
-            while (currentBase is not null)
+            while(currentBase is not null)
             {
-                if (IsAssignable(currentBase, target))
+                if(IsAssignable(currentBase, target))
                     return true;
                 currentBase = currentBase switch
                 {
@@ -17269,12 +17269,12 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // An enum value is assignable to its underlying type. This is a direct
         // structural rule (not an implicit cast operator) so it takes precedence
         // over the operator fallback below.
-        if (source is EnumType sourceEnum && IsAssignable(sourceEnum.UnderlyingType, target, model))
+        if(source is EnumType sourceEnum && IsAssignable(sourceEnum.UnderlyingType, target, model))
             return true;
 
         // Implicit cast operator search (fallback after all other assignability checks).
         // Search both source type and target type for an implicit cast operator.
-        if (TryFindImplicitCast(source, target, out _) is not null)
+        if(TryFindImplicitCast(source, target, out _) is not null)
             return true;
 
         return false;
@@ -17286,11 +17286,11 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     private static IType SubstituteType(IType type, Dictionary<string, IType>? substitutions)
     {
-        if (substitutions is null || substitutions.Count == 0)
+        if(substitutions is null || substitutions.Count == 0)
             return type;
 
         // Direct type parameter substitution.
-        if (type is TypeParameterType && substitutions.TryGetValue(type.DisplayName, out var substituted))
+        if(type is TypeParameterType && substitutions.TryGetValue(type.DisplayName, out var substituted))
             return substituted;
 
         return type;
@@ -17304,34 +17304,34 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     internal static bool TypesEqual(IType a, IType b)
     {
-        if (ReferenceEquals(a, b))
+        if(ReferenceEquals(a, b))
             return true;
 
-        if (a is ConstructedType aCt && b is ConstructedType bCt)
+        if(a is ConstructedType aCt && b is ConstructedType bCt)
         {
-            if (!ReferenceEquals(aCt.GenericDefinition, bCt.GenericDefinition))
+            if(!ReferenceEquals(aCt.GenericDefinition, bCt.GenericDefinition))
                 return false;
-            if (aCt.TypeArguments.Count != bCt.TypeArguments.Count)
+            if(aCt.TypeArguments.Count != bCt.TypeArguments.Count)
                 return false;
-            for (var i = 0; i < aCt.TypeArguments.Count; i++)
+            for(var i = 0; i < aCt.TypeArguments.Count; i++)
             {
-                if (!TypesEqual(aCt.TypeArguments[i], bCt.TypeArguments[i]))
+                if(!TypesEqual(aCt.TypeArguments[i], bCt.TypeArguments[i]))
                     return false;
             }
 
             // Compare dependent value arguments (Requirements 8.1, 8.2).
-            if (!DependentArgumentsEqual(aCt.DependentArguments, bCt.DependentArguments))
+            if(!DependentArgumentsEqual(aCt.DependentArguments, bCt.DependentArguments))
                 return false;
 
             return true;
         }
 
-        if (a is TypeParameterType aTp && b is TypeParameterType bTp)
+        if(a is TypeParameterType aTp && b is TypeParameterType bTp)
             return aTp.Name == bTp.Name && aTp.Ordinal == bTp.Ordinal;
 
         // DisplayName equality — the common fallback for non-reference-
         // equal primitives within the same migration flavour.
-        if (a.DisplayName == b.DisplayName)
+        if(a.DisplayName == b.DisplayName)
             return true;
 
         // Migration-window shim: legacy `int` and stdlib `Int32` denote
@@ -17351,20 +17351,20 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     private static bool RefTypesCompatible(IType argType, IType paramType)
     {
         // Strip nullable union: if paramType is T | void, compare against T.
-        if (paramType is UnionType paramUnion && paramUnion.Constituents.Count == 2
+        if(paramType is UnionType paramUnion && paramUnion.Constituents.Count == 2
             && paramUnion.Constituents.Any(c => c.IsVoid()))
         {
             paramType = paramUnion.Constituents.First(c => !c.IsVoid());
         }
 
         // For arrays, use assignability (handles sized → unsized).
-        if (argType is ArrayType && paramType is ArrayType)
+        if(argType is ArrayType && paramType is ArrayType)
         {
             return IsAssignable(argType, paramType);
         }
 
         // For spans, use assignability (handles sized → unsized, same kind).
-        if (argType is SpanType && paramType is SpanType)
+        if(argType is SpanType && paramType is SpanType)
         {
             return IsAssignable(argType, paramType);
         }
@@ -17381,21 +17381,21 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         IReadOnlyList<DependentValueArgument?>? a,
         IReadOnlyList<DependentValueArgument?>? b)
     {
-        if (a is null && b is null)
+        if(a is null && b is null)
             return true;
-        if (a is null || b is null)
+        if(a is null || b is null)
             return false;
-        if (a.Count != b.Count)
+        if(a.Count != b.Count)
             return false;
-        for (var i = 0; i < a.Count; i++)
+        for(var i = 0; i < a.Count; i++)
         {
             var argA = a[i];
             var argB = b[i];
-            if (argA is null && argB is null)
+            if(argA is null && argB is null)
                 continue;
-            if (argA is null || argB is null)
+            if(argA is null || argB is null)
                 return false;
-            if (!Equals(argA.Value, argB.Value))
+            if(!Equals(argA.Value, argB.Value))
                 return false;
         }
         return true;
@@ -17448,24 +17448,24 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         IReadOnlyList<IType> argsT,
         bool ignoreClassRestriction = false)
     {
-        if (argsS.Count != argsT.Count)
+        if(argsS.Count != argsT.Count)
             return false;
 
-        for (var i = 0; i < argsS.Count; i++)
+        for(var i = 0; i < argsS.Count; i++)
         {
             var s = argsS[i];
             var t = argsT[i];
 
             // Identity at this position — no widening happens here.
-            if (TypesEqual(s, t))
+            if(TypesEqual(s, t))
                 continue;
 
             // Widening: target is `unknown`. The class-only rule (Req 8.1,
             // 8.6) is enforced at the level where widening happens unless
             // the caller is probing the "would widen if class" case.
-            if (t is UnknownType)
+            if(t is UnknownType)
             {
-                if (!ignoreClassRestriction && defCtx.Kind != TypeKind.Class)
+                if(!ignoreClassRestriction && defCtx.Kind != TypeKind.Class)
                     return false;
                 continue;
             }
@@ -17473,11 +17473,11 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             // Nested widening: both sides are constructed from the same
             // generic definition. Recurse with the nested definition as
             // the new defCtx so the class-only rule is checked there.
-            if (s is ConstructedType sc
+            if(s is ConstructedType sc
                 && t is ConstructedType tc
                 && ReferenceEquals(sc.GenericDefinition, tc.GenericDefinition))
             {
-                if (!AssignableWithUnknownWidening(
+                if(!AssignableWithUnknownWidening(
                         sc.GenericDefinition,
                         sc.TypeArguments,
                         tc.TypeArguments,
@@ -17508,16 +17508,16 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     private static bool WouldAssignableWithUnknownWideningIfClass(IType source, IType target)
     {
-        if (source is not ConstructedType sc || target is not ConstructedType tc)
+        if(source is not ConstructedType sc || target is not ConstructedType tc)
             return false;
-        if (!ReferenceEquals(sc.GenericDefinition, tc.GenericDefinition))
+        if(!ReferenceEquals(sc.GenericDefinition, tc.GenericDefinition))
             return false;
-        if (sc.TypeArguments.Count != tc.TypeArguments.Count)
+        if(sc.TypeArguments.Count != tc.TypeArguments.Count)
             return false;
 
         // If the strict widening already succeeds, this is not a
         // "would widen if class" case.
-        if (AssignableWithUnknownWidening(
+        if(AssignableWithUnknownWidening(
                 sc.GenericDefinition, sc.TypeArguments, tc.TypeArguments))
         {
             return false;
@@ -17541,10 +17541,10 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     private static IType? GetSubstitutedBaseType(ConstructedType constructedType)
     {
-        if (constructedType.GenericDefinition is ClassType classDef)
+        if(constructedType.GenericDefinition is ClassType classDef)
         {
             var baseType = classDef.BaseType;
-            if (baseType is null)
+            if(baseType is null)
                 return null;
 
             var typeParams = classDef.TypeParameters;
@@ -17553,10 +17553,10 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             return SubstituteType(baseType, typeParams, typeArgs);
         }
 
-        if (constructedType.GenericDefinition is StructType structDef)
+        if(constructedType.GenericDefinition is StructType structDef)
         {
             var baseType = structDef.BaseType;
-            if (baseType is null)
+            if(baseType is null)
                 return null;
 
             var typeParams = structDef.TypeParameters;
@@ -17582,7 +17582,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // refers to itself as a generic argument in its own base/abstract chain.
         _abstractCheckVisited ??= new HashSet<string>(StringComparer.Ordinal);
         var key = $"{source.DisplayName}→{targetConstructedAbstract.DisplayName}";
-        if (!_abstractCheckVisited.Add(key))
+        if(!_abstractCheckVisited.Add(key))
             return false; // Already checking this pair — cycle detected.
 
         try
@@ -17602,55 +17602,55 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         IReadOnlyList<IType>? typeParams = null;
         IReadOnlyList<IType>? typeArgs = null;
 
-        switch (source)
+        switch(source)
         {
             case ConstructedType sourceCt:
-            {
-                switch (sourceCt.GenericDefinition)
                 {
-                    case ClassType classDef:
-                        abstracts = classDef.Abstracts;
-                        typeParams = classDef.TypeParameters;
-                        typeArgs = sourceCt.TypeArguments;
-                        // Also check base type chain.
-                        var baseType = GetSubstitutedBaseType(sourceCt);
-                        if (baseType is not null && ImplementsConstructedAbstract(baseType, targetConstructedAbstract))
-                            return true;
-                        break;
-                    case StructType structDef:
-                        abstracts = structDef.Abstracts;
-                        typeParams = structDef.TypeParameters;
-                        typeArgs = sourceCt.TypeArguments;
-                        // Also check struct base type chain.
-                        var structBaseType = GetSubstitutedBaseType(sourceCt);
-                        if (structBaseType is not null && ImplementsConstructedAbstract(structBaseType, targetConstructedAbstract))
-                            return true;
-                        break;
-                    case AbstractType abstractDef:
-                        // Check if the source abstract itself matches the target.
-                        if (IsAssignable(source, targetConstructedAbstract))
-                            return true;
-                        abstracts = abstractDef.Abstracts;
-                        typeParams = abstractDef.TypeParameters;
-                        typeArgs = sourceCt.TypeArguments;
-                        break;
+                    switch(sourceCt.GenericDefinition)
+                    {
+                        case ClassType classDef:
+                            abstracts = classDef.Abstracts;
+                            typeParams = classDef.TypeParameters;
+                            typeArgs = sourceCt.TypeArguments;
+                            // Also check base type chain.
+                            var baseType = GetSubstitutedBaseType(sourceCt);
+                            if(baseType is not null && ImplementsConstructedAbstract(baseType, targetConstructedAbstract))
+                                return true;
+                            break;
+                        case StructType structDef:
+                            abstracts = structDef.Abstracts;
+                            typeParams = structDef.TypeParameters;
+                            typeArgs = sourceCt.TypeArguments;
+                            // Also check struct base type chain.
+                            var structBaseType = GetSubstitutedBaseType(sourceCt);
+                            if(structBaseType is not null && ImplementsConstructedAbstract(structBaseType, targetConstructedAbstract))
+                                return true;
+                            break;
+                        case AbstractType abstractDef:
+                            // Check if the source abstract itself matches the target.
+                            if(IsAssignable(source, targetConstructedAbstract))
+                                return true;
+                            abstracts = abstractDef.Abstracts;
+                            typeParams = abstractDef.TypeParameters;
+                            typeArgs = sourceCt.TypeArguments;
+                            break;
+                    }
+                    break;
                 }
-                break;
-            }
             case ClassType classType:
                 abstracts = classType.Abstracts;
                 // Also check base type chain.
                 var current = classType.BaseType;
-                while (current is not null)
+                while(current is not null)
                 {
-                    if (current is ConstructedType baseCt && IsAssignable(baseCt, targetConstructedAbstract))
+                    if(current is ConstructedType baseCt && IsAssignable(baseCt, targetConstructedAbstract))
                         return true;
-                    if (current is ClassType baseClass)
+                    if(current is ClassType baseClass)
                     {
-                        foreach (var abs in baseClass.Abstracts)
+                        foreach(var abs in baseClass.Abstracts)
                         {
                             var substituted = abs;
-                            if (substituted is ConstructedType absCt && IsAssignable(absCt, targetConstructedAbstract))
+                            if(substituted is ConstructedType absCt && IsAssignable(absCt, targetConstructedAbstract))
                                 return true;
                         }
                         current = baseClass.BaseType;
@@ -17663,13 +17663,13 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 abstracts = structType.Abstracts;
                 // Also check struct base type chain.
                 var currentStructBase = structType.BaseType;
-                while (currentStructBase is not null)
+                while(currentStructBase is not null)
                 {
-                    if (currentStructBase is StructType baseStruct)
+                    if(currentStructBase is StructType baseStruct)
                     {
-                        foreach (var abs in baseStruct.Abstracts)
+                        foreach(var abs in baseStruct.Abstracts)
                         {
-                            if (abs is ConstructedType absCt && IsAssignable(absCt, targetConstructedAbstract))
+                            if(abs is ConstructedType absCt && IsAssignable(absCt, targetConstructedAbstract))
                                 return true;
                         }
                         currentStructBase = baseStruct.BaseType;
@@ -17683,22 +17683,22 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 break;
         }
 
-        if (abstracts is null)
+        if(abstracts is null)
             return false;
 
-        foreach (var abs in abstracts)
+        foreach(var abs in abstracts)
         {
             // Substitute type parameters if we have a mapping.
             var substitutedAbs = (typeParams is not null && typeArgs is not null)
                 ? SubstituteType(abs, typeParams, typeArgs)
                 : abs;
 
-            if (substitutedAbs is ConstructedType substitutedCt)
+            if(substitutedAbs is ConstructedType substitutedCt)
             {
-                if (IsAssignable(substitutedCt, targetConstructedAbstract))
+                if(IsAssignable(substitutedCt, targetConstructedAbstract))
                     return true;
                 // Transitively check the abstract's own inherited abstracts.
-                if (ImplementsConstructedAbstract(substitutedCt, targetConstructedAbstract))
+                if(ImplementsConstructedAbstract(substitutedCt, targetConstructedAbstract))
                     return true;
             }
         }
@@ -17715,31 +17715,31 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     internal static IType SubstituteType(IType type, IReadOnlyList<IType> typeParams, IReadOnlyList<IType> typeArgs)
     {
-        if (type is TypeParameterType tpt)
+        if(type is TypeParameterType tpt)
         {
-            for (var i = 0; i < typeParams.Count; i++)
+            for(var i = 0; i < typeParams.Count; i++)
             {
-                if (typeParams[i] is TypeParameterType tp && tpt.Name == tp.Name && tpt.Ordinal == tp.Ordinal)
+                if(typeParams[i] is TypeParameterType tp && tpt.Name == tp.Name && tpt.Ordinal == tp.Ordinal)
                     return i < typeArgs.Count ? typeArgs[i] : type;
             }
             return type;
         }
 
-        if (type is ConstructedType ct)
+        if(type is ConstructedType ct)
         {
             var substitutedArgs = new IType[ct.TypeArguments.Count];
             var changed = false;
-            for (var i = 0; i < ct.TypeArguments.Count; i++)
+            for(var i = 0; i < ct.TypeArguments.Count; i++)
             {
                 substitutedArgs[i] = SubstituteType(ct.TypeArguments[i], typeParams, typeArgs);
-                if (!ReferenceEquals(substitutedArgs[i], ct.TypeArguments[i]))
+                if(!ReferenceEquals(substitutedArgs[i], ct.TypeArguments[i]))
                     changed = true;
             }
             return changed ? new ConstructedType(ct.GenericDefinition, substitutedArgs) : ct;
         }
 
         // Substitute inside array element types (e.g., T[] → string[] when T = string).
-        if (type is ArrayType arrayType)
+        if(type is ArrayType arrayType)
         {
             var substitutedElement = SubstituteType(arrayType.ElementType, typeParams, typeArgs);
             return ReferenceEquals(substitutedElement, arrayType.ElementType)
@@ -17748,30 +17748,30 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         // Substitute inside span element types (e.g., Span<T> → Span<int> when T = int).
-        if (type is SpanType spanType)
+        if(type is SpanType spanType)
         {
             var substitutedElement = SubstituteType(spanType.ElementType, typeParams, typeArgs);
-            if (ReferenceEquals(substitutedElement, spanType.ElementType))
+            if(ReferenceEquals(substitutedElement, spanType.ElementType))
                 return spanType;
-            if (spanType.KnownLength.HasValue)
+            if(spanType.KnownLength.HasValue)
                 return new SpanType(substitutedElement, spanType.KnownLength.Value, spanType.IsReadOnly);
-            if (spanType.SymbolicLengthId.HasValue)
+            if(spanType.SymbolicLengthId.HasValue)
                 return new SpanType(substitutedElement, spanType.SymbolicLengthId.Value, spanType.IsReadOnly);
             return new SpanType(substitutedElement, spanType.IsReadOnly);
         }
 
         // Substitute inside union type constituents (e.g., T | void → string | void when T = string).
-        if (type is UnionType unionType)
+        if(type is UnionType unionType)
         {
             var substitutedConstituents = new IType[unionType.Constituents.Count];
             var changed = false;
-            for (var i = 0; i < unionType.Constituents.Count; i++)
+            for(var i = 0; i < unionType.Constituents.Count; i++)
             {
                 substitutedConstituents[i] = SubstituteType(unionType.Constituents[i], typeParams, typeArgs);
-                if (!ReferenceEquals(substitutedConstituents[i], unionType.Constituents[i]))
+                if(!ReferenceEquals(substitutedConstituents[i], unionType.Constituents[i]))
                     changed = true;
             }
-            if (!changed)
+            if(!changed)
                 return unionType;
             var result = new UnionType(substitutedConstituents);
             result.NullableProjection = unionType.NullableProjection;
@@ -17788,45 +17788,45 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     private static bool ImplementsAbstract(IType source, AbstractType targetAbstract, ISemanticModel? model = null)
     {
-        switch (source)
+        switch(source)
         {
             case ClassType classType:
                 // Check the class's own abstracts (recursively through abstract inheritance).
-                if (AbstractListContains(classType.Abstracts, targetAbstract))
+                if(AbstractListContains(classType.Abstracts, targetAbstract))
                     return true;
                 // Walk the base type chain and check each ancestor's abstracts.
                 var current = classType.BaseType as ClassType;
-                while (current is not null)
+                while(current is not null)
                 {
-                    if (AbstractListContains(current.Abstracts, targetAbstract))
+                    if(AbstractListContains(current.Abstracts, targetAbstract))
                         return true;
                     current = current.BaseType as ClassType;
                 }
                 // Check with-block conformance via ConformanceMap.
-                if (model?.ConformanceMap.HasConformance(classType, targetAbstract) == true)
+                if(model?.ConformanceMap.HasConformance(classType, targetAbstract) == true)
                     return true;
                 return false;
 
             case StructType structType:
                 // Check the struct's own abstracts (recursively through abstract inheritance).
-                if (AbstractListContains(structType.Abstracts, targetAbstract))
+                if(AbstractListContains(structType.Abstracts, targetAbstract))
                     return true;
                 // Walk the struct base type chain and check each ancestor's abstracts.
                 var currentStruct = structType.BaseType as StructType;
-                while (currentStruct is not null)
+                while(currentStruct is not null)
                 {
-                    if (AbstractListContains(currentStruct.Abstracts, targetAbstract))
+                    if(AbstractListContains(currentStruct.Abstracts, targetAbstract))
                         return true;
                     currentStruct = currentStruct.BaseType as StructType;
                 }
                 // Check with-block conformance via ConformanceMap.
-                if (model?.ConformanceMap.HasConformance(structType, targetAbstract) == true)
+                if(model?.ConformanceMap.HasConformance(structType, targetAbstract) == true)
                     return true;
                 return false;
 
             case AbstractType sourceAbstract:
                 // An abstract is assignable to itself or any abstract it inherits from.
-                if (ReferenceEquals(sourceAbstract, targetAbstract)
+                if(ReferenceEquals(sourceAbstract, targetAbstract)
                     || sourceAbstract.DisplayName == targetAbstract.DisplayName)
                     return true;
                 return AbstractListContains(sourceAbstract.Abstracts, targetAbstract);
@@ -17846,19 +17846,19 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         AbstractType target,
         HashSet<AbstractType>? visited = null)
     {
-        foreach (var absType in abstracts)
+        foreach(var absType in abstracts)
         {
-            if (absType is not AbstractType abs)
+            if(absType is not AbstractType abs)
                 continue;
 
-            if (ReferenceEquals(abs, target) || abs.DisplayName == target.DisplayName)
+            if(ReferenceEquals(abs, target) || abs.DisplayName == target.DisplayName)
                 return true;
 
             // Recursively check inherited abstracts, guarding against cycles.
             visited ??= new HashSet<AbstractType>(ReferenceEqualityComparer.Instance);
-            if (visited.Add(abs))
+            if(visited.Add(abs))
             {
-                if (AbstractListContains(abs.Abstracts, target, visited))
+                if(AbstractListContains(abs.Abstracts, target, visited))
                     return true;
             }
         }
@@ -17873,17 +17873,17 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     private static bool AreEqualityCompatible(IType left, IType right)
     {
-        if (IsErrorType(left) || IsErrorType(right))
+        if(IsErrorType(left) || IsErrorType(right))
             return true;
 
-        if (ReferenceEquals(left, right))
+        if(ReferenceEquals(left, right))
             return true;
 
-        if (left.DisplayName == right.DisplayName)
+        if(left.DisplayName == right.DisplayName)
             return true;
 
         // Both numeric.
-        if (NumericDisplayNames.Contains(left.DisplayName)
+        if(NumericDisplayNames.Contains(left.DisplayName)
             && NumericDisplayNames.Contains(right.DisplayName))
             return true;
 
@@ -17892,7 +17892,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // Standard.String is a ClassType, so it's already covered by
         // the ClassType branch. LegacyPrimitiveTypes.String is also a
         // ClassType.
-        if (left is ClassType or ArrayType
+        if(left is ClassType or ArrayType
             && right is ClassType or ArrayType)
             return true;
 
@@ -17909,16 +17909,16 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     private static bool IsStringLike(IType type)
     {
-        if (type is ClassType ct)
+        if(type is ClassType ct)
         {
-            if (ct.IsBackendBacked
+            if(ct.IsBackendBacked
                 && ct.ContainingNamespace == "Standard"
                 && ct.DisplayName == "String")
             {
                 return true;
             }
             // Legacy fallback: LegacyPrimitiveTypes.String has DisplayName "string"
-            if (ct.DisplayName == "string")
+            if(ct.DisplayName == "string")
             {
                 return true;
             }
@@ -17935,16 +17935,16 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     private static bool IsRegexLike(IType type)
     {
-        if (type is ClassType ct)
+        if(type is ClassType ct)
         {
-            if (ct.IsBackendBacked
+            if(ct.IsBackendBacked
                 && ct.ContainingNamespace == "Standard"
                 && ct.DisplayName == "Regex")
             {
                 return true;
             }
             // Legacy fallback: LegacyPrimitiveTypes.Regex has DisplayName "regex"
-            if (ct.DisplayName == "regex")
+            if(ct.DisplayName == "regex")
             {
                 return true;
             }
@@ -17964,8 +17964,8 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     private static bool IsBoolLike(IType type)
     {
         var name = type.DisplayName;
-        if (name == "bool" || name == "Boolean") return true;
-        if (type is StructType st
+        if(name == "bool" || name == "Boolean") return true;
+        if(type is StructType st
             && st.IsBackendBacked
             && st.ContainingNamespace == "Standard"
             && st.DisplayName == "Boolean")
@@ -17983,8 +17983,8 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     private static bool IsIntLike(IType type)
     {
         var name = type.DisplayName;
-        if (name == "int" || name == "Int32") return true;
-        if (type is StructType st
+        if(name == "int" || name == "Int32") return true;
+        if(type is StructType st
             && st.IsBackendBacked
             && st.ContainingNamespace == "Standard"
             && st.DisplayName == "Int32")
@@ -18003,12 +18003,12 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     private static bool HasCustomIndexer(IType type)
     {
         var memberScope = GetMemberScope(type);
-        if (memberScope is null)
+        if(memberScope is null)
             return false;
 
-        foreach (var member in memberScope.Members)
+        foreach(var member in memberScope.Members)
         {
-            if (member.Kind == SymbolKind.Indexer)
+            if(member.Kind == SymbolKind.Indexer)
                 return true;
         }
         return false;
@@ -18053,12 +18053,12 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     private static bool ArePrimitiveEquivalent(IType a, IType b)
     {
         // Try both directions — a is legacy / b is stdlib, and vice versa.
-        if (LegacyToStdlibName.TryGetValue(a.DisplayName, out var aStdlib)
+        if(LegacyToStdlibName.TryGetValue(a.DisplayName, out var aStdlib)
             && aStdlib == b.DisplayName)
         {
             return true;
         }
-        if (LegacyToStdlibName.TryGetValue(b.DisplayName, out var bStdlib)
+        if(LegacyToStdlibName.TryGetValue(b.DisplayName, out var bStdlib)
             && bStdlib == a.DisplayName)
         {
             return true;
@@ -18077,7 +18077,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     private static bool IsIntType(IType type)
     {
-        if (type is TypeAliasType alias)
+        if(type is TypeAliasType alias)
             type = alias.UnderlyingType;
         return type is StructType st && st.DisplayName == "Int32";
     }
@@ -18088,9 +18088,9 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     private static bool IsIntegerNumericType(IType type)
     {
-        if (type is TypeAliasType alias)
+        if(type is TypeAliasType alias)
             type = alias.UnderlyingType;
-        if (type is not StructType st)
+        if(type is not StructType st)
             return false;
         return st.DisplayName is "Byte" or "SByte" or "Int16" or "UInt16"
             or "Int32" or "UInt32" or "Int64" or "UInt64";
@@ -18129,11 +18129,11 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     private static bool DelegateTypeArgumentsMatch(DelegateType a, DelegateType b)
     {
-        if (a.TypeArguments.Count != b.TypeArguments.Count)
+        if(a.TypeArguments.Count != b.TypeArguments.Count)
             return false;
-        for (var i = 0; i < a.TypeArguments.Count; i++)
+        for(var i = 0; i < a.TypeArguments.Count; i++)
         {
-            if (!TypesEqual(a.TypeArguments[i], b.TypeArguments[i]))
+            if(!TypesEqual(a.TypeArguments[i], b.TypeArguments[i]))
                 return false;
         }
         return true;
@@ -18146,13 +18146,13 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     private static bool IsSignatureCompatible(IType sourceFunc, IType targetFunc)
     {
-        if (sourceFunc is not ConstructedType sourceCt || targetFunc is not ConstructedType targetCt)
+        if(sourceFunc is not ConstructedType sourceCt || targetFunc is not ConstructedType targetCt)
             return false;
-        if (sourceCt.TypeArguments.Count != targetCt.TypeArguments.Count)
+        if(sourceCt.TypeArguments.Count != targetCt.TypeArguments.Count)
             return false;
-        for (var i = 0; i < sourceCt.TypeArguments.Count; i++)
+        for(var i = 0; i < sourceCt.TypeArguments.Count; i++)
         {
-            if (!IsAssignable(sourceCt.TypeArguments[i], targetCt.TypeArguments[i]))
+            if(!IsAssignable(sourceCt.TypeArguments[i], targetCt.TypeArguments[i]))
                 return false;
         }
         return true;
@@ -18169,7 +18169,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     private static bool IsDelegateOverloadAmbiguity(IReadOnlyList<ISymbol> ambiguousCandidates, ISemanticModel model)
     {
-        if (ambiguousCandidates.Count < 2)
+        if(ambiguousCandidates.Count < 2)
             return false;
 
         // Check if at least one parameter position has different DelegateType values across candidates.
@@ -18178,29 +18178,29 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             .ToList();
 
         var paramCount = paramSets[0].Count;
-        if (paramSets.Any(ps => ps.Count != paramCount))
+        if(paramSets.Any(ps => ps.Count != paramCount))
             return false;
 
-        for (var i = 0; i < paramCount; i++)
+        for(var i = 0; i < paramCount; i++)
         {
             var delegateCount = 0;
             DelegateType? firstDelegate = null;
             var hasDifferentDelegates = false;
 
-            foreach (var ps in paramSets)
+            foreach(var ps in paramSets)
             {
-                if (ps[i] is DelegateType dt)
+                if(ps[i] is DelegateType dt)
                 {
                     delegateCount++;
-                    if (firstDelegate is null)
+                    if(firstDelegate is null)
                         firstDelegate = dt;
-                    else if (firstDelegate.ClrFullName != dt.ClrFullName)
+                    else if(firstDelegate.ClrFullName != dt.ClrFullName)
                         hasDifferentDelegates = true;
                 }
             }
 
             // Ambiguity across multiple distinct DelegateTypes at this position.
-            if (hasDifferentDelegates && delegateCount >= 2)
+            if(hasDifferentDelegates && delegateCount >= 2)
                 return true;
         }
 
@@ -18215,15 +18215,15 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     {
         var delegateNames = new List<string>();
 
-        foreach (var candidate in ambiguousCandidates)
+        foreach(var candidate in ambiguousCandidates)
         {
             var paramTypes = ParameterSignature.Extract(candidate, model);
-            foreach (var paramType in paramTypes)
+            foreach(var paramType in paramTypes)
             {
-                if (paramType is DelegateType dt && !delegateNames.Contains(dt.DisplayName))
+                if(paramType is DelegateType dt && !delegateNames.Contains(dt.DisplayName))
                 {
                     delegateNames.Add(dt.DisplayName);
-                    if (delegateNames.Count >= 2)
+                    if(delegateNames.Count >= 2)
                         return (delegateNames[0], delegateNames[1]);
                 }
             }
@@ -18241,10 +18241,10 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     private static List<IType> CollectArgumentTypes(ArgumentListNode? argList, ISemanticModel model)
     {
         var types = new List<IType>();
-        if (argList is null)
+        if(argList is null)
             return types;
 
-        foreach (var expr in argList.GetAllExpressions())
+        foreach(var expr in argList.GetAllExpressions())
         {
             var type = model.GetTypeOf(expr);
             types.Add(type ?? ErrorType.Instance);
@@ -18262,14 +18262,14 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     private static List<RefKind> CollectArgumentRefKinds(ArgumentListNode? argList)
     {
         var refKinds = new List<RefKind>();
-        if (argList is null)
+        if(argList is null)
             return refKinds;
 
         // First argument
         refKinds.Add(argList.Argument is RefArgumentArgumentNode ? RefKind.Ref : RefKind.None);
 
         // Remaining arguments
-        foreach (var arg in argList.Arguments)
+        foreach(var arg in argList.Arguments)
         {
             refKinds.Add(arg is RefArgumentArgumentNode ? RefKind.Ref : RefKind.None);
         }
@@ -18322,7 +18322,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     private static List<ISymbol> CollectMethodOverloads(IType? targetType, string methodName)
     {
         var results = new List<ISymbol>();
-        if (targetType is null)
+        if(targetType is null)
             return results;
 
         // Tracks the full signatures of Backend (CLR-projected) candidates already kept, so a
@@ -18334,10 +18334,10 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             // Only CLR-projected (Backend) methods are flattened onto every level of the chain,
             // so only they can produce same-signature cross-level duplicates. Mist-source methods
             // are added verbatim (their signatures live in AST scopes, not on Symbol.Parameters).
-            if (member.Origin == SymbolOrigin.Backend
+            if(member.Origin == SymbolOrigin.Backend
                 && BuildBackendOverloadSignatureKey(member) is { } signatureKey)
             {
-                if (!seenBackendSignatures.Add(signatureKey))
+                if(!seenBackendSignatures.Add(signatureKey))
                     return; // A more-derived copy of this exact signature was already kept.
             }
 
@@ -18353,25 +18353,25 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             _ => null,
         };
 
-        if (memberScope is not null)
+        if(memberScope is not null)
         {
-            foreach (var member in memberScope.Members)
+            foreach(var member in memberScope.Members)
             {
-                if (member.Kind == SymbolKind.Method && member.Name == methodName)
+                if(member.Kind == SymbolKind.Method && member.Name == methodName)
                     AddIfNotDuplicate(member);
             }
         }
 
         // Walk the base type chain to collect inherited methods (less-derived levels).
-        if (targetType is ClassType classType)
+        if(targetType is ClassType classType)
         {
             var baseType = classType.BaseType as ClassType;
-            while (baseType is not null)
+            while(baseType is not null)
             {
                 var baseScope = baseType.MemberScope;
-                foreach (var member in baseScope.Members)
+                foreach(var member in baseScope.Members)
                 {
-                    if (member.Kind == SymbolKind.Method && member.Name == methodName)
+                    if(member.Kind == SymbolKind.Method && member.Name == methodName)
                         AddIfNotDuplicate(member);
                 }
                 baseType = baseType.BaseType as ClassType;
@@ -18395,16 +18395,16 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </returns>
     private static string? BuildBackendOverloadSignatureKey(ISymbol member)
     {
-        if (member is not Symbol sym)
+        if(member is not Symbol sym)
             return null;
 
         var builder = new System.Text.StringBuilder();
         builder.Append(sym.TypeParameters.Count).Append('|');
 
-        foreach (var parameter in sym.Parameters)
+        foreach(var parameter in sym.Parameters)
         {
             builder.Append(parameter.DeclaredType?.DisplayName ?? "?");
-            if (parameter is Symbol paramSym && paramSym.RefKind != RefKind.None)
+            if(parameter is Symbol paramSym && paramSym.RefKind != RefKind.None)
                 builder.Append('#').Append(paramSym.RefKind);
             builder.Append(',');
         }
@@ -18419,7 +18419,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     private List<ISymbol> CollectConstructorOverloads(IType? targetType, ISemanticModel? model = null)
     {
         var results = new List<ISymbol>();
-        if (targetType is null)
+        if(targetType is null)
             return results;
 
         // For ConstructedType (e.g., GenericBox<int>), unwrap to the generic
@@ -18428,7 +18428,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         IScope? memberScope;
 
-        if (lookupType is Semantics.Model.Types.SpanType spanLookup && model is not null)
+        if(lookupType is Semantics.Model.Types.SpanType spanLookup && model is not null)
         {
             // Bridge: SpanType is a dedicated IType without a member scope.
             // Look up the corresponding registered StructType in the Standard namespace
@@ -18448,12 +18448,12 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             };
         }
 
-        if (memberScope is null)
+        if(memberScope is null)
             return results;
 
-        foreach (var member in memberScope.Members)
+        foreach(var member in memberScope.Members)
         {
-            if (member.Kind == SymbolKind.Constructor)
+            if(member.Kind == SymbolKind.Constructor)
                 results.Add(member);
         }
 
@@ -18469,13 +18469,13 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     private StructType? FindRegisteredStructType(string name, string namespaceName, ISemanticModel model)
     {
         var cacheKey = $"{namespaceName}.{name}";
-        if (_registeredStructTypeCache.TryGetValue(cacheKey, out var cached))
+        if(_registeredStructTypeCache.TryGetValue(cacheKey, out var cached))
             return cached;
 
         StructType? result = null;
-        foreach (var symbol in model.AllSymbols)
+        foreach(var symbol in model.AllSymbols)
         {
-            if (symbol.Kind == SymbolKind.Struct
+            if(symbol.Kind == SymbolKind.Struct
                 && symbol.Name == name
                 && symbol.DeclaredType is StructType st
                 && st.ContainingNamespace == namespaceName)
@@ -18498,13 +18498,13 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     private ClassType? FindRegisteredClassType(string name, string namespaceName, ISemanticModel model)
     {
         var cacheKey = $"{namespaceName}.{name}";
-        if (_registeredClassTypeCache.TryGetValue(cacheKey, out var cached))
+        if(_registeredClassTypeCache.TryGetValue(cacheKey, out var cached))
             return cached;
 
         ClassType? result = null;
-        foreach (var symbol in model.AllSymbols)
+        foreach(var symbol in model.AllSymbols)
         {
-            if (symbol.Kind == SymbolKind.Class
+            if(symbol.Kind == SymbolKind.Class
                 && symbol.Name == name
                 && symbol.DeclaredType is ClassType ct
                 && ct.ContainingNamespace == namespaceName)
@@ -18577,7 +18577,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         // Suppress cascading errors — if either operand's type is unknown we
         // rely on an earlier diagnostic to explain the real problem.
-        if (leftType is null || rightType is null
+        if(leftType is null || rightType is null
             || IsErrorType(leftType) || IsErrorType(rightType))
             return;
 
@@ -18589,7 +18589,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // unknown operand(s) and suggests using an `is` pattern
         // (Req 16.4). Short-circuit before candidate collection to
         // suppress cascading.
-        if (leftType is UnknownType || rightType is UnknownType)
+        if(leftType is UnknownType || rightType is UnknownType)
         {
             diagnostics.Add(MakeDiagnostic(
                 BareUnknownOperator.Value,
@@ -18615,17 +18615,17 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         var candidates = new List<ISymbol>();
         var candidateOrigin = new List<int>();
 
-        foreach (var candidate in GetOperatorMembers(leftType, opName))
+        foreach(var candidate in GetOperatorMembers(leftType, opName))
         {
             candidates.Add(candidate);
             candidateOrigin.Add(0);
         }
 
-        if (!ReferenceEquals(leftType, rightType))
+        if(!ReferenceEquals(leftType, rightType))
         {
-            foreach (var candidate in GetOperatorMembers(rightType, opName))
+            foreach(var candidate in GetOperatorMembers(rightType, opName))
             {
-                if (!candidates.Any(existing => ReferenceEquals(existing, candidate)))
+                if(!candidates.Any(existing => ReferenceEquals(existing, candidate)))
                 {
                     candidates.Add(candidate);
                     candidateOrigin.Add(1);
@@ -18633,7 +18633,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             }
         }
 
-        if (candidates.Count == 0)
+        if(candidates.Count == 0)
         {
             diagnostics.Add(MakeDiagnostic(
                 noApplicableDiagnosticId,
@@ -18652,16 +18652,16 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             model,
             candidateOrigin);
 
-        switch (result.Status)
+        switch(result.Status)
         {
             case OverloadResolutionStatus.Success:
-            {
-                var best = result.BestCandidate!;
-                model.RecordResolvedOperator(surrounding, best);
-                if (best.DeclaredType is not null)
-                    model.SetTypeOf(surrounding, best.DeclaredType);
-                break;
-            }
+                {
+                    var best = result.BestCandidate!;
+                    model.RecordResolvedOperator(surrounding, best);
+                    if(best.DeclaredType is not null)
+                        model.SetTypeOf(surrounding, best.DeclaredType);
+                    break;
+                }
 
             case OverloadResolutionStatus.NoApplicableCandidate:
                 diagnostics.Add(MakeDiagnostic(
@@ -18711,7 +18711,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     {
         var operandType = model.GetTypeOf(operand);
 
-        if (operandType is null || IsErrorType(operandType))
+        if(operandType is null || IsErrorType(operandType))
             return;
 
         // Task 25.2: bare-unknown operator rejection (Req 13.2).
@@ -18722,7 +18722,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // unknown operand and suggests using an `is` pattern
         // (Req 16.4). Short-circuit before candidate collection to
         // suppress cascading.
-        if (operandType is UnknownType)
+        if(operandType is UnknownType)
         {
             diagnostics.Add(MakeDiagnostic(
                 BareUnknownOperator.Value,
@@ -18735,10 +18735,10 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         var opName = "operator" + op;
 
         var candidates = new List<ISymbol>();
-        foreach (var candidate in GetOperatorMembers(operandType, opName))
+        foreach(var candidate in GetOperatorMembers(operandType, opName))
             candidates.Add(candidate);
 
-        if (candidates.Count == 0)
+        if(candidates.Count == 0)
         {
             diagnostics.Add(MakeDiagnostic(
                 noApplicableDiagnosticId,
@@ -18753,16 +18753,16 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             argumentTypes: new[] { operandType },
             model);
 
-        switch (result.Status)
+        switch(result.Status)
         {
             case OverloadResolutionStatus.Success:
-            {
-                var best = result.BestCandidate!;
-                model.RecordResolvedOperator(surrounding, best);
-                if (best.DeclaredType is not null)
-                    model.SetTypeOf(surrounding, best.DeclaredType);
-                break;
-            }
+                {
+                    var best = result.BestCandidate!;
+                    model.RecordResolvedOperator(surrounding, best);
+                    if(best.DeclaredType is not null)
+                        model.SetTypeOf(surrounding, best.DeclaredType);
+                    break;
+                }
 
             case OverloadResolutionStatus.NoApplicableCandidate:
                 diagnostics.Add(MakeDiagnostic(
@@ -18796,7 +18796,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // so that operator lookup finds the base type's operators. The result
         // type of the resolved operator will naturally be the BaseType, which
         // implements the "arithmetic erases refinements" rule.
-        if (type is RefinementType refinement)
+        if(type is RefinementType refinement)
             type = refinement.BaseType;
 
         var scope = type switch
@@ -18808,12 +18808,12 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             _ => null,
         };
 
-        if (scope is null)
+        if(scope is null)
             yield break;
 
-        foreach (var member in scope.Members)
+        foreach(var member in scope.Members)
         {
-            if (member.Kind == SymbolKind.Method && member.Name == operatorName)
+            if(member.Kind == SymbolKind.Method && member.Name == operatorName)
                 yield return member;
         }
     }
@@ -18879,12 +18879,12 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     private static void ValidateDefaultBlocks(ISemanticModel model, DiagnosticBag diagnostics)
     {
-        foreach (var symbol in model.AllSymbols)
+        foreach(var symbol in model.AllSymbols)
         {
-            if (symbol.Origin == SymbolOrigin.Backend)
+            if(symbol.Origin == SymbolOrigin.Backend)
                 continue;
 
-            if (symbol.Kind is not (SymbolKind.Class or SymbolKind.Struct))
+            if(symbol.Kind is not (SymbolKind.Class or SymbolKind.Struct))
                 continue;
 
             var type = symbol.DeclaredType;
@@ -18895,7 +18895,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             IScope? memberScope;
             ClassType? baseClass;
 
-            switch (type)
+            switch(type)
             {
                 case ClassType ct:
                     defaultability = ct.Defaultability;
@@ -18914,140 +18914,140 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             }
 
             // Only validate types with explicit default blocks.
-            if (defaultability != DefaultabilityStatus.Explicit || defaultBlockNode is null)
+            if(defaultability != DefaultabilityStatus.Explicit || defaultBlockNode is null)
                 continue;
 
             // Collect the set of field names declared directly on this type (not inherited).
             var ownFieldNames = new HashSet<string>(StringComparer.Ordinal);
-            foreach (var member in memberScope.Members)
+            foreach(var member in memberScope.Members)
             {
-                if (member.Kind == SymbolKind.Field)
+                if(member.Kind == SymbolKind.Field)
                     ownFieldNames.Add(member.Name);
             }
 
             var hasNonRedundantEntry = false;
 
-            foreach (var entry in defaultBlockNode.Entries)
+            foreach(var entry in defaultBlockNode.Entries)
             {
-                switch (entry)
+                switch(entry)
                 {
                     case DefaultFieldOverrideDefaultFieldInitializerNode fieldOverride:
-                    {
-                        var fieldName = fieldOverride.FieldName.Lexeme;
-
-                        // 1. Check field exists in the type's member scope (including inherited).
-                        var fieldSymbol = memberScope.Lookup(fieldName);
-                        if (fieldSymbol is null || fieldSymbol.Kind != SymbolKind.Field)
                         {
-                            // Field not found — the semantic model builder already handles
-                            // this during default value computation, but we still mark as
-                            // non-redundant to avoid a false redundancy diagnostic.
-                            hasNonRedundantEntry = true;
-                            break;
-                        }
+                            var fieldName = fieldOverride.FieldName.Lexeme;
 
-                        // 2. Validate visibility: if the field is from a base type, it must be public.
-                        if (!ownFieldNames.Contains(fieldName))
-                        {
-                            // Field is inherited — check visibility.
-                            if (!IsMemberPublicViaModel(fieldSymbol, model))
+                            // 1. Check field exists in the type's member scope (including inherited).
+                            var fieldSymbol = memberScope.Lookup(fieldName);
+                            if(fieldSymbol is null || fieldSymbol.Kind != SymbolKind.Field)
                             {
-                                diagnostics.Add(MakeDiagnostic(
-                                    DiagnosticId.DefaultFieldNotVisible.Value,
-                                    $"Field '{fieldName}' is not accessible from the default block of '{type!.DisplayName}' because it is not public in the base type",
-                                    fieldOverride,
-                                    model));
+                                // Field not found — the semantic model builder already handles
+                                // this during default value computation, but we still mark as
+                                // non-redundant to avoid a false redundancy diagnostic.
+                                hasNonRedundantEntry = true;
+                                break;
                             }
-                        }
 
-                        // 3. Validate compile-time constant expression (v1: only literals).
-                        if (!IsLiteralExpression(fieldOverride.Value))
-                        {
-                            diagnostics.Add(MakeDiagnostic(
-                                DiagnosticId.DefaultNotConstant.Value,
-                                $"Default value for field '{fieldName}' must be a compile-time constant expression",
-                                fieldOverride.Value,
-                                model));
-                        }
-
-                        // Track whether this override differs from the inferred default.
-                        hasNonRedundantEntry = hasNonRedundantEntry || IsOverrideNonRedundant(fieldName, fieldOverride.Value, fieldSymbol, model);
-                        break;
-                    }
-
-                    case DefaultTypeBindingDefaultFieldInitializerNode typeBinding:
-                    {
-                        var fieldName = typeBinding.FieldName.Lexeme;
-
-                        // 1. Check field exists.
-                        var fieldSymbol = memberScope.Lookup(fieldName);
-                        if (fieldSymbol is null || fieldSymbol.Kind != SymbolKind.Field)
-                        {
-                            hasNonRedundantEntry = true;
-                            break;
-                        }
-
-                        // 2. Validate visibility for inherited fields.
-                        if (!ownFieldNames.Contains(fieldName))
-                        {
-                            if (!IsMemberPublicViaModel(fieldSymbol, model))
+                            // 2. Validate visibility: if the field is from a base type, it must be public.
+                            if(!ownFieldNames.Contains(fieldName))
                             {
-                                diagnostics.Add(MakeDiagnostic(
-                                    DiagnosticId.DefaultFieldNotVisible.Value,
-                                    $"Field '{fieldName}' is not accessible from the default block of '{type!.DisplayName}' because it is not public in the base type",
-                                    typeBinding,
-                                    model));
+                                // Field is inherited — check visibility.
+                                if(!IsMemberPublicViaModel(fieldSymbol, model))
+                                {
+                                    diagnostics.Add(MakeDiagnostic(
+                                        DiagnosticId.DefaultFieldNotVisible.Value,
+                                        $"Field '{fieldName}' is not accessible from the default block of '{type!.DisplayName}' because it is not public in the base type",
+                                        fieldOverride,
+                                        model));
+                                }
                             }
-                        }
 
-                        // 3. Validate the concrete type is a defaultable ClassType or StructType.
-                        var concreteType = ResolveTypeBindingConcreteType(typeBinding, memberScope);
-                        if (concreteType is not null)
-                        {
-                            switch (concreteType)
-                            {
-                                case ClassType ct when ct.Defaultability == DefaultabilityStatus.NotDefaultable:
-                                    diagnostics.Add(MakeDiagnostic(
-                                        DiagnosticId.DefaultNotSupported.Value,
-                                        $"Type '{ct.DisplayName}' used as a type binding for field '{fieldName}' is not defaultable",
-                                        typeBinding,
-                                        model));
-                                    break;
-                                case StructType st when st.Defaultability == DefaultabilityStatus.NotDefaultable:
-                                    diagnostics.Add(MakeDiagnostic(
-                                        DiagnosticId.DefaultNotSupported.Value,
-                                        $"Type '{st.DisplayName}' used as a type binding for field '{fieldName}' is not defaultable",
-                                        typeBinding,
-                                        model));
-                                    break;
-                                case not ClassType and not StructType:
-                                    diagnostics.Add(MakeDiagnostic(
-                                        DiagnosticId.DefaultNotSupported.Value,
-                                        $"Type binding for field '{fieldName}' must reference a class or struct type, not '{concreteType.DisplayName}'",
-                                        typeBinding,
-                                        model));
-                                    break;
-                            }
-                        }
-
-                        // 4. Validate nested override expressions are compile-time constants.
-                        foreach (var nested in typeBinding.NestedEntries)
-                        {
-                            if (!IsLiteralExpression(nested.Value))
+                            // 3. Validate compile-time constant expression (v1: only literals).
+                            if(!IsLiteralExpression(fieldOverride.Value))
                             {
                                 diagnostics.Add(MakeDiagnostic(
                                     DiagnosticId.DefaultNotConstant.Value,
-                                    $"Default value for nested field '{nested.FieldName.Lexeme}' must be a compile-time constant expression",
-                                    nested.Value,
+                                    $"Default value for field '{fieldName}' must be a compile-time constant expression",
+                                    fieldOverride.Value,
                                     model));
                             }
+
+                            // Track whether this override differs from the inferred default.
+                            hasNonRedundantEntry = hasNonRedundantEntry || IsOverrideNonRedundant(fieldName, fieldOverride.Value, fieldSymbol, model);
+                            break;
                         }
 
-                        // Type bindings are always non-redundant (inferred defaults
-                        // cannot produce type bindings).
-                        hasNonRedundantEntry = true;
-                        break;
-                    }
+                    case DefaultTypeBindingDefaultFieldInitializerNode typeBinding:
+                        {
+                            var fieldName = typeBinding.FieldName.Lexeme;
+
+                            // 1. Check field exists.
+                            var fieldSymbol = memberScope.Lookup(fieldName);
+                            if(fieldSymbol is null || fieldSymbol.Kind != SymbolKind.Field)
+                            {
+                                hasNonRedundantEntry = true;
+                                break;
+                            }
+
+                            // 2. Validate visibility for inherited fields.
+                            if(!ownFieldNames.Contains(fieldName))
+                            {
+                                if(!IsMemberPublicViaModel(fieldSymbol, model))
+                                {
+                                    diagnostics.Add(MakeDiagnostic(
+                                        DiagnosticId.DefaultFieldNotVisible.Value,
+                                        $"Field '{fieldName}' is not accessible from the default block of '{type!.DisplayName}' because it is not public in the base type",
+                                        typeBinding,
+                                        model));
+                                }
+                            }
+
+                            // 3. Validate the concrete type is a defaultable ClassType or StructType.
+                            var concreteType = ResolveTypeBindingConcreteType(typeBinding, memberScope);
+                            if(concreteType is not null)
+                            {
+                                switch(concreteType)
+                                {
+                                    case ClassType ct when ct.Defaultability == DefaultabilityStatus.NotDefaultable:
+                                        diagnostics.Add(MakeDiagnostic(
+                                            DiagnosticId.DefaultNotSupported.Value,
+                                            $"Type '{ct.DisplayName}' used as a type binding for field '{fieldName}' is not defaultable",
+                                            typeBinding,
+                                            model));
+                                        break;
+                                    case StructType st when st.Defaultability == DefaultabilityStatus.NotDefaultable:
+                                        diagnostics.Add(MakeDiagnostic(
+                                            DiagnosticId.DefaultNotSupported.Value,
+                                            $"Type '{st.DisplayName}' used as a type binding for field '{fieldName}' is not defaultable",
+                                            typeBinding,
+                                            model));
+                                        break;
+                                    case not ClassType and not StructType:
+                                        diagnostics.Add(MakeDiagnostic(
+                                            DiagnosticId.DefaultNotSupported.Value,
+                                            $"Type binding for field '{fieldName}' must reference a class or struct type, not '{concreteType.DisplayName}'",
+                                            typeBinding,
+                                            model));
+                                        break;
+                                }
+                            }
+
+                            // 4. Validate nested override expressions are compile-time constants.
+                            foreach(var nested in typeBinding.NestedEntries)
+                            {
+                                if(!IsLiteralExpression(nested.Value))
+                                {
+                                    diagnostics.Add(MakeDiagnostic(
+                                        DiagnosticId.DefaultNotConstant.Value,
+                                        $"Default value for nested field '{nested.FieldName.Lexeme}' must be a compile-time constant expression",
+                                        nested.Value,
+                                        model));
+                                }
+                            }
+
+                            // Type bindings are always non-redundant (inferred defaults
+                            // cannot produce type bindings).
+                            hasNonRedundantEntry = true;
+                            break;
+                        }
                 }
             }
 
@@ -19056,10 +19056,10 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             //    Exception: types with constructors NEED the explicit default block as an
             //    opt-in mechanism — without it they become NotDefaultable. In that case
             //    the block is structurally necessary and not redundant.
-            if (!hasNonRedundantEntry)
+            if(!hasNonRedundantEntry)
             {
                 var hasConstructors = memberScope.Members.Any(m => m.Kind == SymbolKind.Constructor);
-                if (!hasConstructors)
+                if(!hasConstructors)
                 {
                     diagnostics.Add(MakeDiagnosticWithSeverity(
                         DiagnosticId.DefaultRedundantBlock.Value,
@@ -19094,7 +19094,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     private static bool IsLiteralExpression(ExpressionNode expression)
     {
         var primary = UnwrapExpressionToPrimary(expression);
-        if (primary is null)
+        if(primary is null)
             return false;
 
         return primary is IntegerLiteralExpressionPrimaryNode
@@ -19115,9 +19115,9 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     {
         Storm.Runtime.SyntaxNode current = expression;
 
-        for (var depth = 0; depth < 20; depth++)
+        for(var depth = 0; depth < 20; depth++)
         {
-            if (current is PrimaryNode primary)
+            if(current is PrimaryNode primary)
                 return primary;
 
             // Look for a single non-token child to follow.
@@ -19125,20 +19125,20 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             // whose optional properties are typed as non-nullable.
             Storm.Runtime.SyntaxNode? next = null;
             var childCount = 0;
-            foreach (var child in current.Children())
+            foreach(var child in current.Children())
             {
-                if (child is null)
+                if(child is null)
                     continue;
 
                 childCount++;
-                if (child is PrimaryNode childPrimary)
+                if(child is PrimaryNode childPrimary)
                     return childPrimary;
 
-                if (next is null)
+                if(next is null)
                     next = child;
             }
 
-            if (childCount > 1 || next is null)
+            if(childCount > 1 || next is null)
                 return null;
 
             current = next;
@@ -19165,7 +19165,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         try { fieldDeclNode = model.GetDeclaringNode(fieldSymbol); }
         catch { return true; } // Can't determine — assume non-redundant.
 
-        if (fieldDeclNode is FieldDeclarationNode fieldDecl && fieldDecl.Initializer is ExpressionNode initExpr)
+        if(fieldDeclNode is FieldDeclarationNode fieldDecl && fieldDecl.Initializer is ExpressionNode initExpr)
         {
             // Field has an initializer — compare override value with initializer value.
             var initValue = TryExtractLiteralConstantValue(initExpr);
@@ -19174,7 +19174,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         // Field has no initializer — compare override value with zero-init value.
         var fieldType = fieldSymbol.DeclaredType;
-        if (fieldType is null)
+        if(fieldType is null)
             return true;
 
         var zeroValue = GetZeroInitValue(fieldType);
@@ -19188,7 +19188,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     private static object? TryExtractLiteralConstantValue(ExpressionNode expression)
     {
         var primary = UnwrapExpressionToPrimary(expression);
-        if (primary is null)
+        if(primary is null)
             return null;
 
         return primary switch
@@ -19213,28 +19213,28 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         var cleaned = lexeme.Replace("_", "");
         var upper = cleaned.ToUpperInvariant();
 
-        if (upper.StartsWith("0X"))
+        if(upper.StartsWith("0X"))
             cleaned = cleaned[2..];
-        else if (upper.StartsWith("0B"))
+        else if(upper.StartsWith("0B"))
             cleaned = cleaned[2..];
 
         // Remove suffix for comparison.
-        if (upper.EndsWith("UL") || upper.EndsWith("LU"))
+        if(upper.EndsWith("UL") || upper.EndsWith("LU"))
         {
-            if (ulong.TryParse(cleaned[..^2], out var val)) return val;
+            if(ulong.TryParse(cleaned[..^2], out var val)) return val;
         }
-        else if (upper.EndsWith("L"))
+        else if(upper.EndsWith("L"))
         {
-            if (long.TryParse(cleaned[..^1], out var val)) return val;
+            if(long.TryParse(cleaned[..^1], out var val)) return val;
         }
-        else if (upper.EndsWith("U"))
+        else if(upper.EndsWith("U"))
         {
-            if (uint.TryParse(cleaned[..^1], out var val)) return val;
+            if(uint.TryParse(cleaned[..^1], out var val)) return val;
         }
         else
         {
-            if (int.TryParse(cleaned, out var val)) return val;
-            if (long.TryParse(cleaned, out var lval)) return lval;
+            if(int.TryParse(cleaned, out var val)) return val;
+            if(long.TryParse(cleaned, out var lval)) return lval;
         }
 
         return null;
@@ -19248,21 +19248,21 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         var cleaned = lexeme.Replace("_", "");
         var upper = cleaned.ToUpperInvariant();
 
-        if (upper.EndsWith("F"))
+        if(upper.EndsWith("F"))
         {
-            if (float.TryParse(cleaned[..^1], System.Globalization.NumberStyles.Float,
+            if(float.TryParse(cleaned[..^1], System.Globalization.NumberStyles.Float,
                 System.Globalization.CultureInfo.InvariantCulture, out var val))
                 return val;
         }
-        else if (upper.EndsWith("M"))
+        else if(upper.EndsWith("M"))
         {
-            if (decimal.TryParse(cleaned[..^1], System.Globalization.NumberStyles.Float,
+            if(decimal.TryParse(cleaned[..^1], System.Globalization.NumberStyles.Float,
                 System.Globalization.CultureInfo.InvariantCulture, out var val))
                 return val;
         }
         else
         {
-            if (double.TryParse(cleaned, System.Globalization.NumberStyles.Float,
+            if(double.TryParse(cleaned, System.Globalization.NumberStyles.Float,
                 System.Globalization.CultureInfo.InvariantCulture, out var val))
                 return val;
         }
@@ -19275,7 +19275,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     private static string ExtractStringContent(string lexeme)
     {
-        if (lexeme.Length >= 2 && lexeme[0] == '"' && lexeme[^1] == '"')
+        if(lexeme.Length >= 2 && lexeme[0] == '"' && lexeme[^1] == '"')
             return lexeme[1..^1];
         return lexeme;
     }
@@ -19285,10 +19285,10 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     private static object ExtractCharContent(string lexeme)
     {
-        if (lexeme.Length >= 3 && lexeme[0] == '\'' && lexeme[^1] == '\'')
+        if(lexeme.Length >= 3 && lexeme[0] == '\'' && lexeme[^1] == '\'')
         {
             var inner = lexeme[1..^1];
-            if (inner.Length == 1)
+            if(inner.Length == 1)
                 return inner[0];
         }
         return '\0';
@@ -19329,16 +19329,16 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         IScope memberScope)
     {
         var typeName = ExtractTypeBindingName(typeBinding.TypeName);
-        if (string.IsNullOrEmpty(typeName))
+        if(string.IsNullOrEmpty(typeName))
             return null;
 
         // Search up the scope chain for a type with the given name.
         var scope = memberScope.Parent;
-        while (scope is not null)
+        while(scope is not null)
         {
-            foreach (var member in scope.Members)
+            foreach(var member in scope.Members)
             {
-                if (member.Kind is SymbolKind.Class or SymbolKind.Struct
+                if(member.Kind is SymbolKind.Class or SymbolKind.Struct
                     && member.Name == typeName)
                 {
                     return member.DeclaredType;
@@ -19392,9 +19392,9 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     private static bool HasErrorConstituent(UnionType union)
     {
-        foreach (var constituent in union.Constituents)
+        foreach(var constituent in union.Constituents)
         {
-            if (IsErrorType(constituent))
+            if(IsErrorType(constituent))
                 return true;
         }
         return false;
@@ -19407,18 +19407,18 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     private static bool IsConstituentOf(IType type, UnionType union)
     {
-        foreach (var constituent in union.Constituents)
+        foreach(var constituent in union.Constituents)
         {
-            if (ReferenceEquals(type, constituent))
+            if(ReferenceEquals(type, constituent))
                 return true;
-            if (type.DisplayName == constituent.DisplayName)
+            if(type.DisplayName == constituent.DisplayName)
                 return true;
-            if (ArePrimitiveEquivalent(type, constituent))
+            if(ArePrimitiveEquivalent(type, constituent))
                 return true;
             // Refinement type constituent: the source is a constituent if it matches
             // the refinement's base type (e.g., int is a constituent of a union
             // containing RefinementType with BaseType=int).
-            if (constituent is RefinementType refinement
+            if(constituent is RefinementType refinement
                 && (type.DisplayName == refinement.BaseType.DisplayName
                     || ArePrimitiveEquivalent(type, refinement.BaseType)))
                 return true;
@@ -19428,7 +19428,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             // Func but the method parameter was projected as CLR Action. The type
             // checker already validated parameter type compatibility during lambda
             // inference, so arg-count matching is sufficient here.
-            if (SemanticModelBuilder.IsFuncType(type) && type is ConstructedType funcCt
+            if(SemanticModelBuilder.IsFuncType(type) && type is ConstructedType funcCt
                 && constituent is ConstructedType ctConstituent
                 && !SemanticModelBuilder.IsFuncType(constituent)
                 && constituent.DisplayName != "Void" && !constituent.IsVoid())
@@ -19437,7 +19437,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 var lastFuncArg = funcArgs.Count > 0 ? funcArgs[funcArgs.Count - 1] : null;
                 var isVoidReturn = lastFuncArg is not null && lastFuncArg.IsVoid();
 
-                if (isVoidReturn && funcArgs.Count - 1 == ctConstituent.TypeArguments.Count)
+                if(isVoidReturn && funcArgs.Count - 1 == ctConstituent.TypeArguments.Count)
                     return true;
             }
         }
@@ -19461,28 +19461,28 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     {
         // If the union is poisoned (contains ErrorType), suppress cascading
         // diagnostics and return ErrorType.
-        if (HasErrorConstituent(unionType))
+        if(HasErrorConstituent(unionType))
             return ErrorType.Instance;
 
         var missingOn = new List<string>();
         var memberTypes = new List<IType>();
 
-        foreach (var constituent in unionType.Constituents)
+        foreach(var constituent in unionType.Constituents)
         {
             var memberSymbol = FindMemberSymbol(constituent, memberName, model);
-            if (memberSymbol is null)
+            if(memberSymbol is null)
             {
                 missingOn.Add(constituent.DisplayName);
             }
             else
             {
                 var memberType = memberSymbol.DeclaredType;
-                if (memberType is not null)
+                if(memberType is not null)
                     memberTypes.Add(memberType);
             }
         }
 
-        if (missingOn.Count > 0)
+        if(missingOn.Count > 0)
         {
             var missingList = string.Join(", ", missingOn.Select(t => $"'{t}'"));
             diagnostics.Add(MakeDiagnostic(
@@ -19496,35 +19496,35 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // All constituents have the member. Compute the result type:
         // if all member types are identical, return that type; otherwise
         // return a union of the distinct member types.
-        if (memberTypes.Count == 0)
+        if(memberTypes.Count == 0)
             return ErrorType.Instance;
 
         // Check if all member types are the same.
         var allSame = true;
         var firstDisplayName = memberTypes[0].DisplayName;
-        for (var i = 1; i < memberTypes.Count; i++)
+        for(var i = 1; i < memberTypes.Count; i++)
         {
-            if (memberTypes[i].DisplayName != firstDisplayName)
+            if(memberTypes[i].DisplayName != firstDisplayName)
             {
                 allSame = false;
                 break;
             }
         }
 
-        if (allSame)
+        if(allSame)
             return memberTypes[0];
 
         // Distinct member types — build a union of the return types.
         // Deduplicate by DisplayName to avoid redundant constituents.
         var distinctTypes = new List<IType>();
         var seenDisplayNames = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var memberType in memberTypes)
+        foreach(var memberType in memberTypes)
         {
-            if (seenDisplayNames.Add(memberType.DisplayName))
+            if(seenDisplayNames.Add(memberType.DisplayName))
                 distinctTypes.Add(memberType);
         }
 
-        if (distinctTypes.Count == 1)
+        if(distinctTypes.Count == 1)
             return distinctTypes[0];
 
         return new UnionType(distinctTypes);
@@ -19543,7 +19543,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         ISemanticModel model)
     {
         // Union → non-union (Req 6.4): must narrow first.
-        if (source is UnionType sourceUnion && target is not UnionType)
+        if(source is UnionType sourceUnion && target is not UnionType)
         {
             diagnostics.Add(MakeDiagnostic(
                 UnionToNonUnionAssignment.Value,
@@ -19554,7 +19554,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         // Non-constituent → union (Req 6.3): source is not a constituent.
-        if (source is not UnionType && target is UnionType targetUnion)
+        if(source is not UnionType && target is UnionType targetUnion)
         {
             diagnostics.Add(MakeDiagnostic(
                 UnionNonConstituentAssignment.Value,
@@ -19565,16 +19565,16 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         // Union → narrower union (Req 6.3): some source constituents missing.
-        if (source is UnionType srcUnion && target is UnionType tgtUnion)
+        if(source is UnionType srcUnion && target is UnionType tgtUnion)
         {
             var missing = new List<string>();
-            foreach (var constituent in srcUnion.Constituents)
+            foreach(var constituent in srcUnion.Constituents)
             {
-                if (!IsConstituentOf(constituent, tgtUnion))
+                if(!IsConstituentOf(constituent, tgtUnion))
                     missing.Add(constituent.DisplayName);
             }
 
-            if (missing.Count > 0)
+            if(missing.Count > 0)
             {
                 var missingList = string.Join(", ", missing);
                 diagnostics.Add(MakeDiagnostic(
@@ -19604,14 +19604,14 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     {
         // Unwrap type aliases for both source and target before checking.
         var unwrappedSource = source;
-        while (unwrappedSource is TypeAliasType srcAlias)
+        while(unwrappedSource is TypeAliasType srcAlias)
             unwrappedSource = srcAlias.UnderlyingType;
         var unwrappedTarget = target;
-        while (unwrappedTarget is TypeAliasType tgtAlias)
+        while(unwrappedTarget is TypeAliasType tgtAlias)
             unwrappedTarget = tgtAlias.UnderlyingType;
 
         // underlying type → enum (Req 7.3): reverse conversion rejected.
-        if (unwrappedTarget is EnumType targetEnum &&
+        if(unwrappedTarget is EnumType targetEnum &&
             unwrappedSource is not EnumType &&
             IsAssignable(unwrappedSource, targetEnum.UnderlyingType, model))
         {
@@ -19647,17 +19647,17 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     {
         // Unwrap type aliases before checking.
         var unwrappedSource = source;
-        while (unwrappedSource is TypeAliasType srcAlias)
+        while(unwrappedSource is TypeAliasType srcAlias)
             unwrappedSource = srcAlias.UnderlyingType;
         var unwrappedTarget = target;
-        while (unwrappedTarget is TypeAliasType tgtAlias)
+        while(unwrappedTarget is TypeAliasType tgtAlias)
             unwrappedTarget = tgtAlias.UnderlyingType;
 
         // ── MIST_TC_0131: System.Delegate cannot be narrowed ──
         // Source is BaseDelegateType and target is a specific DelegateType or func<...>.
-        if (unwrappedSource is BaseDelegateType)
+        if(unwrappedSource is BaseDelegateType)
         {
-            if (unwrappedTarget is DelegateType narrowTarget)
+            if(unwrappedTarget is DelegateType narrowTarget)
             {
                 diagnostics.Add(MakeDiagnostic(
                     DelegateCannotNarrowBaseDelegate.Value,
@@ -19667,7 +19667,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 return true;
             }
 
-            if (SemanticModelBuilder.IsFuncType(unwrappedTarget))
+            if(SemanticModelBuilder.IsFuncType(unwrappedTarget))
             {
                 diagnostics.Add(MakeDiagnostic(
                     DelegateCannotNarrowBaseDelegate.Value,
@@ -19681,7 +19681,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         // ── MIST_TC_0130: Nominal mismatch between two distinct named delegates ──
-        if (unwrappedTarget is DelegateType targetDelegate && unwrappedSource is DelegateType sourceDelegate)
+        if(unwrappedTarget is DelegateType targetDelegate && unwrappedSource is DelegateType sourceDelegate)
         {
             // If we reach here, assignability already failed — they must be different.
             diagnostics.Add(MakeDiagnostic(
@@ -19693,9 +19693,9 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         // ── MIST_TC_0129: Signature mismatch (func → DelegateType) ──
-        if (unwrappedTarget is DelegateType targetDelegateForSig)
+        if(unwrappedTarget is DelegateType targetDelegateForSig)
         {
-            if (SemanticModelBuilder.IsFuncType(unwrappedSource))
+            if(SemanticModelBuilder.IsFuncType(unwrappedSource))
             {
                 // Signature mismatch: provide details about the incompatibility.
                 var mismatchReason = DescribeSignatureMismatch(unwrappedSource, targetDelegateForSig.FuncSignature);
@@ -19719,9 +19719,9 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     private static string DescribeSignatureMismatch(IType sourceFunc, IType targetFunc)
     {
-        if (sourceFunc is ConstructedType sourceCt && targetFunc is ConstructedType targetCt)
+        if(sourceFunc is ConstructedType sourceCt && targetFunc is ConstructedType targetCt)
         {
-            if (sourceCt.TypeArguments.Count != targetCt.TypeArguments.Count)
+            if(sourceCt.TypeArguments.Count != targetCt.TypeArguments.Count)
             {
                 // Parameter count difference: func arity includes return type, so parameter count is arity - 1
                 var sourceParamCount = sourceCt.TypeArguments.Count - 1;
@@ -19729,11 +19729,11 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 return $"parameter count mismatch (expected {targetParamCount}, got {sourceParamCount})";
             }
 
-            for (var i = 0; i < sourceCt.TypeArguments.Count; i++)
+            for(var i = 0; i < sourceCt.TypeArguments.Count; i++)
             {
-                if (!IsAssignable(sourceCt.TypeArguments[i], targetCt.TypeArguments[i]))
+                if(!IsAssignable(sourceCt.TypeArguments[i], targetCt.TypeArguments[i]))
                 {
-                    if (i == sourceCt.TypeArguments.Count - 1)
+                    if(i == sourceCt.TypeArguments.Count - 1)
                     {
                         return $"return type '{sourceCt.TypeArguments[i].DisplayName}' is not compatible with '{targetCt.TypeArguments[i].DisplayName}'";
                     }
@@ -19764,14 +19764,14 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     {
         // Unwrap type aliases before checking.
         var unwrappedSource = source;
-        while (unwrappedSource is TypeAliasType srcAlias)
+        while(unwrappedSource is TypeAliasType srcAlias)
             unwrappedSource = srcAlias.UnderlyingType;
         var unwrappedTarget = target;
-        while (unwrappedTarget is TypeAliasType tgtAlias)
+        while(unwrappedTarget is TypeAliasType tgtAlias)
             unwrappedTarget = tgtAlias.UnderlyingType;
 
         // Cross-newtype assignment (Req 2.5): two different newtypes.
-        if (unwrappedSource is NewtypeType sourceNewtype && unwrappedTarget is NewtypeType targetNewtype)
+        if(unwrappedSource is NewtypeType sourceNewtype && unwrappedTarget is NewtypeType targetNewtype)
         {
             diagnostics.Add(MakeDiagnostic(
                 "MIST_TC_0001",
@@ -19782,7 +19782,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         // Newtype → Source type (Req 2.4): newtype assigned where source type expected.
-        if (unwrappedSource is NewtypeType newtypeSource)
+        if(unwrappedSource is NewtypeType newtypeSource)
         {
             diagnostics.Add(MakeDiagnostic(
                 "MIST_TC_0001",
@@ -19793,7 +19793,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         // Source type → Newtype (Req 2.3): source type assigned where newtype expected.
-        if (unwrappedTarget is NewtypeType newtypeTarget)
+        if(unwrappedTarget is NewtypeType newtypeTarget)
         {
             diagnostics.Add(MakeDiagnostic(
                 "MIST_TC_0001",
@@ -19848,9 +19848,9 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     private static bool IsConstituentOfUnion(IType type, UnionType union)
     {
-        foreach (var constituent in union.Constituents)
+        foreach(var constituent in union.Constituents)
         {
-            if (string.Equals(constituent.DisplayName, type.DisplayName, StringComparison.Ordinal))
+            if(string.Equals(constituent.DisplayName, type.DisplayName, StringComparison.Ordinal))
                 return true;
         }
         return false;
@@ -19872,7 +19872,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         ISemanticModel model,
         DiagnosticBag diagnostics)
     {
-        if (inferenceResult.Conflicts is { Count: > 0 })
+        if(inferenceResult.Conflicts is { Count: > 0 })
         {
             var conflict = inferenceResult.Conflicts[0];
             diagnostics.Add(MakeDiagnostic(
@@ -19881,7 +19881,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 (SyntaxNode)methodCall,
                 model));
         }
-        else if (inferenceResult.UninferrableTypeParameters is { Count: > 0 })
+        else if(inferenceResult.UninferrableTypeParameters is { Count: > 0 })
         {
             var names = string.Join(", ", inferenceResult.UninferrableTypeParameters.Select(n => $"'{n}'"));
             diagnostics.Add(MakeDiagnostic(
@@ -19916,7 +19916,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         DiagnosticBag diagnostics)
     {
         // Suppress cascading errors for error types.
-        if (IsErrorType(typeArgument))
+        if(IsErrorType(typeArgument))
             return;
 
         // Unwrap type aliases to their underlying type for constraint checking.
@@ -19927,7 +19927,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // ── MIST2004: Ref struct generic type argument restriction (Requirement 3.7) ──
         // A ref struct type cannot be used as a generic type argument, since generic
         // instantiation may box or store the value on the heap.
-        if (IsRefStructType(effectiveTypeArgument))
+        if(IsRefStructType(effectiveTypeArgument))
         {
             diagnostics.Add(MakeDiagnostic(
                 "MIST2004",
@@ -19938,7 +19938,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         // ── MIST_ANON_ESCAPE_GENERIC: Anonymous type generic argument restriction (Requirement 4.7) ──
         // Anonymous types have no denotable name and cannot be used as generic type arguments.
-        if (effectiveTypeArgument is AnonymousType)
+        if(effectiveTypeArgument is AnonymousType)
         {
             diagnostics.Add(MakeDiagnostic(
                 "MIST_ANON_ESCAPE_GENERIC",
@@ -19948,17 +19948,17 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         var constraints = typeParameter.Constraints;
-        if (constraints is null)
+        if(constraints is null)
             return;
 
         // Unwrap type aliases to their underlying type for constraint checking.
-        if (typeArgument is TypeAliasType aliasArg)
+        if(typeArgument is TypeAliasType aliasArg)
             typeArgument = aliasArg.UnderlyingType;
 
         // Check class constraint: type argument must be a reference type.
-        if (constraints.HasClassConstraint)
+        if(constraints.HasClassConstraint)
         {
-            if (typeArgument.Kind == TypeKind.Struct)
+            if(typeArgument.Kind == TypeKind.Struct)
             {
                 diagnostics.Add(MakeDiagnostic(
                     ConstraintClassViolation.Value,
@@ -19969,9 +19969,9 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         // Check struct constraint: type argument must be a value type.
-        if (constraints.HasStructConstraint)
+        if(constraints.HasStructConstraint)
         {
-            if (typeArgument.Kind != TypeKind.Struct)
+            if(typeArgument.Kind != TypeKind.Struct)
             {
                 diagnostics.Add(MakeDiagnostic(
                     ConstraintStructViolation.Value,
@@ -19982,9 +19982,9 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         // Check base class constraint: type argument must derive from the base class.
-        if (constraints.BaseClassConstraint is not null)
+        if(constraints.BaseClassConstraint is not null)
         {
-            if (!DerivesFromClass(typeArgument, constraints.BaseClassConstraint))
+            if(!DerivesFromClass(typeArgument, constraints.BaseClassConstraint))
             {
                 diagnostics.Add(MakeDiagnostic(
                     ConstraintBaseClassNotDerived.Value,
@@ -19995,9 +19995,9 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         // Check abstract constraints: type argument must implement each abstract.
-        foreach (var abs in constraints.AbstractConstraints)
+        foreach(var abs in constraints.AbstractConstraints)
         {
-            if (!ImplementsAbstractConstraint(typeArgument, abs, model))
+            if(!ImplementsAbstractConstraint(typeArgument, abs, model))
             {
                 diagnostics.Add(MakeDiagnostic(
                     ConstraintAbstractNotImplemented.Value,
@@ -20009,7 +20009,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         // Check constructor constraints (OR semantics): type argument must have
         // at least one matching public constructor.
-        if (constraints.ConstructorConstraints.Count > 0)
+        if(constraints.ConstructorConstraints.Count > 0)
         {
             CheckConstructorConstraints(
                 typeArgument, typeParameter, constraints.ConstructorConstraints,
@@ -20017,9 +20017,9 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         // Check readonly constraint: type argument must be a readonly type.
-        if (constraints.HasReadonlyConstraint)
+        if(constraints.HasReadonlyConstraint)
         {
-            if (!IsTypeReadonly(typeArgument))
+            if(!IsTypeReadonly(typeArgument))
             {
                 diagnostics.Add(MakeDiagnostic(
                     ConstraintReadonlyViolation.Value,
@@ -20030,9 +20030,9 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         // Check mutable constraint: type argument must NOT be a readonly type.
-        if (constraints.HasMutableConstraint)
+        if(constraints.HasMutableConstraint)
         {
-            if (IsTypeReadonly(typeArgument))
+            if(IsTypeReadonly(typeArgument))
             {
                 diagnostics.Add(MakeDiagnostic(
                     ConstraintMutableViolation.Value,
@@ -20043,9 +20043,9 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         // Check owned constraint: type argument must be an owned type.
-        if (constraints.HasOwnedConstraint)
+        if(constraints.HasOwnedConstraint)
         {
-            if (!IsTypeOwned(typeArgument))
+            if(!IsTypeOwned(typeArgument))
             {
                 diagnostics.Add(MakeDiagnostic(
                     ConstraintOwnedViolation.Value,
@@ -20056,9 +20056,9 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         // Check default constraint: type argument must be a defaultable type.
-        if (constraints.HasDefaultConstraint)
+        if(constraints.HasDefaultConstraint)
         {
-            if (!IsTypeDefaultable(typeArgument))
+            if(!IsTypeDefaultable(typeArgument))
             {
                 diagnostics.Add(MakeDiagnostic(
                     DiagnosticId.DefaultConstraintNotSatisfied.Value,
@@ -20071,10 +20071,10 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // Check substructural constraint: type argument's discipline must satisfy
         // the constraint discipline per the satisfaction lattice.
         var requiredDiscipline = GetConstraintDiscipline(constraints);
-        if (requiredDiscipline != SubstructuralDiscipline.None)
+        if(requiredDiscipline != SubstructuralDiscipline.None)
         {
             var argDiscipline = GetArgumentDiscipline(typeArgument);
-            if (!SatisfiesSubstructuralConstraint(argDiscipline, requiredDiscipline))
+            if(!SatisfiesSubstructuralConstraint(argDiscipline, requiredDiscipline))
             {
                 var constraintKeyword = requiredDiscipline switch
                 {
@@ -20098,11 +20098,11 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     private static SubstructuralDiscipline GetConstraintDiscipline(TypeParameterConstraints constraints)
     {
-        if (constraints.HasLinearConstraint)
+        if(constraints.HasLinearConstraint)
             return SubstructuralDiscipline.Linear;
-        if (constraints.HasAffineConstraint)
+        if(constraints.HasAffineConstraint)
             return SubstructuralDiscipline.Affine;
-        if (constraints.HasRelevantConstraint)
+        if(constraints.HasRelevantConstraint)
             return SubstructuralDiscipline.Relevant;
         return SubstructuralDiscipline.None;
     }
@@ -20114,16 +20114,16 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     private static SubstructuralDiscipline GetArgumentDiscipline(IType type)
     {
-        if (type is TypeParameterType tpType)
+        if(type is TypeParameterType tpType)
         {
             var tpConstraints = tpType.Constraints;
-            if (tpConstraints is null)
+            if(tpConstraints is null)
                 return SubstructuralDiscipline.None;
-            if (tpConstraints.HasLinearConstraint)
+            if(tpConstraints.HasLinearConstraint)
                 return SubstructuralDiscipline.Linear;
-            if (tpConstraints.HasAffineConstraint)
+            if(tpConstraints.HasAffineConstraint)
                 return SubstructuralDiscipline.Affine;
-            if (tpConstraints.HasRelevantConstraint)
+            if(tpConstraints.HasRelevantConstraint)
                 return SubstructuralDiscipline.Relevant;
             return SubstructuralDiscipline.None;
         }
@@ -20178,20 +20178,20 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         var publicConstructors = CollectPublicConstructors(typeArgument, model);
 
         // For each constructor constraint, check if at least one public constructor matches.
-        foreach (var requiredParams in constructorConstraints)
+        foreach(var requiredParams in constructorConstraints)
         {
             var matched = false;
 
             // Structs always have a parameterless constructor.
-            if (requiredParams.Count == 0 && typeArgument.Kind == TypeKind.Struct)
+            if(requiredParams.Count == 0 && typeArgument.Kind == TypeKind.Struct)
             {
                 matched = true;
             }
             else
             {
-                foreach (var ctor in publicConstructors)
+                foreach(var ctor in publicConstructors)
                 {
-                    if (ConstructorMatchesConstraint(ctor, requiredParams, model))
+                    if(ConstructorMatchesConstraint(ctor, requiredParams, model))
                     {
                         matched = true;
                         break;
@@ -20200,7 +20200,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
                 // If no explicit constructors are defined and the constraint is
                 // parameterless, the default constructor satisfies it.
-                if (!matched && requiredParams.Count == 0 && publicConstructors.Count == 0)
+                if(!matched && requiredParams.Count == 0 && publicConstructors.Count == 0)
                 {
                     // Types with no declared constructors have an implicit
                     // public parameterless constructor.
@@ -20208,9 +20208,9 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 }
             }
 
-            if (!matched)
+            if(!matched)
             {
-                if (requiredParams.Count == 0)
+                if(requiredParams.Count == 0)
                 {
                     diagnostics.Add(MakeDiagnostic(
                         ConstraintParameterlessCtorViolation.Value,
@@ -20237,17 +20237,17 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     private static bool DerivesFromClass(IType typeArgument, IType baseClassConstraint)
     {
         // The type argument itself matches the base class.
-        if (ReferenceEquals(typeArgument, baseClassConstraint)
+        if(ReferenceEquals(typeArgument, baseClassConstraint)
             || typeArgument.DisplayName == baseClassConstraint.DisplayName)
             return true;
 
         // Walk the inheritance chain for ClassType.
-        if (typeArgument is ClassType classType)
+        if(typeArgument is ClassType classType)
         {
             var current = classType.BaseType as ClassType;
-            while (current is not null)
+            while(current is not null)
             {
-                if (ReferenceEquals(current, baseClassConstraint)
+                if(ReferenceEquals(current, baseClassConstraint)
                     || current.DisplayName == baseClassConstraint.DisplayName)
                     return true;
                 current = current.BaseType as ClassType;
@@ -20267,12 +20267,12 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     private static bool ImplementsAbstractConstraint(IType typeArgument, IType abstractConstraint, ISemanticModel? model = null)
     {
         // If the constraint is a plain AbstractType, use the existing helper.
-        if (abstractConstraint is AbstractType abstractType)
+        if(abstractConstraint is AbstractType abstractType)
             return ImplementsAbstract(typeArgument, abstractType, model);
 
         // For ConstructedType abstract constraints (e.g., IComparable<int>),
         // check if the type argument implements a matching constructed abstract.
-        if (abstractConstraint is ConstructedType constructedAbstract
+        if(abstractConstraint is ConstructedType constructedAbstract
             && constructedAbstract.GenericDefinition is AbstractType)
         {
             return ImplementsConstructedAbstract(typeArgument, constructedAbstract);
@@ -20306,17 +20306,17 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     private IReadOnlyList<IType> GetAbstractList(IType type, ISemanticModel model)
     {
         // Bridge: for dedicated intrinsic types, look up the registered declaration's abstracts.
-        if (type is ArrayType)
+        if(type is ArrayType)
         {
             var registeredClass = FindRegisteredClassType("Array", "Standard", model);
-            if (registeredClass != null) return registeredClass.Abstracts;
+            if(registeredClass != null) return registeredClass.Abstracts;
         }
 
-        if (type is Semantics.Model.Types.SpanType spanType)
+        if(type is Semantics.Model.Types.SpanType spanType)
         {
             var name = spanType.IsReadOnly ? "ReadOnlySpan" : "Span";
             var registeredStruct = FindRegisteredStructType(name, "Standard", model);
-            if (registeredStruct != null) return registeredStruct.Abstracts;
+            if(registeredStruct != null) return registeredStruct.Abstracts;
         }
 
         return type switch
@@ -20343,12 +20343,12 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             _ => null,
         };
 
-        if (memberScope is null)
+        if(memberScope is null)
             return results;
 
-        foreach (var member in memberScope.Members)
+        foreach(var member in memberScope.Members)
         {
-            if (member.Kind != SymbolKind.Constructor)
+            if(member.Kind != SymbolKind.Constructor)
                 continue;
 
             // Check if the constructor is public.
@@ -20357,7 +20357,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             catch { continue; }
 
             var modifiers = GetMemberModifiers(ctorNode);
-            if (modifiers.IsPublic)
+            if(modifiers.IsPublic)
                 results.Add(member);
         }
 
@@ -20377,32 +20377,32 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         try { ctorNode = model.GetDeclaringNode(ctor); }
         catch { return false; }
 
-        if (ctorNode is not ConstructorDeclarationNode ctorDecl)
+        if(ctorNode is not ConstructorDeclarationNode ctorDecl)
             return false;
 
         var paramTypes = new List<IType>();
-        if (ctorDecl.Parameters is not null)
+        if(ctorDecl.Parameters is not null)
         {
-            foreach (var child in ctorDecl.Parameters.Children())
+            foreach(var child in ctorDecl.Parameters.Children())
             {
-                if (child is ParameterNode paramNode)
+                if(child is ParameterNode paramNode)
                 {
                     var paramSym = model.GetDeclaredSymbol(paramNode);
-                    if (paramSym?.DeclaredType is not null)
+                    if(paramSym?.DeclaredType is not null)
                         paramTypes.Add(paramSym.DeclaredType);
                 }
             }
         }
 
-        if (paramTypes.Count != requiredParams.Count)
+        if(paramTypes.Count != requiredParams.Count)
             return false;
 
-        for (var i = 0; i < requiredParams.Count; i++)
+        for(var i = 0; i < requiredParams.Count; i++)
         {
             // For constructor constraints, we check exact type match
             // (by display name) since the constraint specifies the
             // exact parameter types required.
-            if (paramTypes[i].DisplayName != requiredParams[i].DisplayName)
+            if(paramTypes[i].DisplayName != requiredParams[i].DisplayName)
                 return false;
         }
 
@@ -20426,7 +20426,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     private static void ValidateDependentTypeArguments(ISemanticModel model, DiagnosticBag diagnostics)
     {
-        foreach (var ast in model.Asts)
+        foreach(var ast in model.Asts)
         {
             ValidateDependentTypeArgumentsInTree(ast, model, diagnostics);
         }
@@ -20440,7 +20440,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         SyntaxNode node, ISemanticModel model, DiagnosticBag diagnostics)
     {
         // Check if this node carries a type argument list that needs validation.
-        switch (node)
+        switch(node)
         {
             case ObjectCreationExpressionPrimaryNode objCreation when objCreation.TypeArgs is not null:
                 ValidateTypeArgListForNode(objCreation, objCreation.TypeArgs, model, diagnostics);
@@ -20460,9 +20460,9 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         // Recurse into children.
-        foreach (var child in node.Children())
+        foreach(var child in node.Children())
         {
-            if (child is not null)
+            if(child is not null)
                 ValidateDependentTypeArgumentsInTree(child, model, diagnostics);
         }
     }
@@ -20480,18 +20480,18 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     {
         // Resolve the type that this type argument list belongs to.
         var resolvedType = model.GetTypeOf(ownerNode);
-        if (resolvedType is null || resolvedType is ErrorType)
+        if(resolvedType is null || resolvedType is ErrorType)
             return;
 
         // Unwrap type aliases to get the underlying constructed type.
-        if (resolvedType is TypeAliasType alias)
+        if(resolvedType is TypeAliasType alias)
             resolvedType = alias.UnderlyingType;
 
         // We need a ConstructedType to get the generic definition's type parameters.
         ConstructedType? constructedType = null;
         IReadOnlyList<IType>? typeParams = null;
 
-        if (resolvedType is ConstructedType ct)
+        if(resolvedType is ConstructedType ct)
         {
             constructedType = ct;
             typeParams = GetTypeParameters(ct.GenericDefinition);
@@ -20502,24 +20502,24 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             typeParams = GetTypeParameters(resolvedType);
         }
 
-        if (typeParams is null || typeParams.Count == 0)
+        if(typeParams is null || typeParams.Count == 0)
             return;
 
         // Collect all type argument nodes.
         var argNodes = new List<TypeArgumentNode> { typeArgList.TypeArgument };
-        foreach (var extra in typeArgList.TypeArguments)
+        foreach(var extra in typeArgList.TypeArguments)
             argNodes.Add(extra);
 
         // Validate each position.
-        for (var i = 0; i < argNodes.Count && i < typeParams.Count; i++)
+        for(var i = 0; i < argNodes.Count && i < typeParams.Count; i++)
         {
-            if (typeParams[i] is not DependentTypeParameterType depParam)
+            if(typeParams[i] is not DependentTypeParameterType depParam)
                 continue;
 
             var argNode = argNodes[i];
 
             // Check MIST_DT_0002: Is the argument a compile-time constant?
-            if (!IsDependentArgCompileTimeConstant(argNode, model))
+            if(!IsDependentArgCompileTimeConstant(argNode, model))
             {
                 var exprText = ExtractTypeArgumentText(argNode);
                 diagnostics.Add(MakeDiagnostic(
@@ -20531,11 +20531,11 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             }
 
             // Check MIST_DT_0003: Does the argument's type match the parameter's value type?
-            if (constructedType?.DependentArguments is not null
+            if(constructedType?.DependentArguments is not null
                 && i < constructedType.DependentArguments.Count
                 && constructedType.DependentArguments[i] is { } depArg)
             {
-                if (!DependentValueTypeMatches(depArg, depParam))
+                if(!DependentValueTypeMatches(depArg, depParam))
                 {
                     diagnostics.Add(MakeDiagnostic(
                         DependentArgTypeMismatch.Value,
@@ -20571,20 +20571,20 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         DiagnosticBag diagnostics)
     {
         var targetConstraint = depParam.AdhocConstraint;
-        if (targetConstraint is null)
+        if(targetConstraint is null)
             return;
 
         // Determine if this is a forwarded dependent parameter or a concrete constant.
         var isForwarded = argIndex < constructedType.TypeArguments.Count
                           && constructedType.TypeArguments[argIndex] is DependentTypeParameterType forwardedParam;
 
-        if (isForwarded)
+        if(isForwarded)
         {
             // Forwarding case: check implication between source and target constraints.
             var sourceParam = (DependentTypeParameterType)constructedType.TypeArguments[argIndex];
             var sourceConstraint = sourceParam.AdhocConstraint;
 
-            if (sourceConstraint is null)
+            if(sourceConstraint is null)
             {
                 // MIST_REFINEMENT_0008: Source has no constraint, target requires one.
                 diagnostics.Add(MakeDiagnostic(
@@ -20593,7 +20593,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     argNode,
                     model));
             }
-            else if (!RefinementSolver.Implies(sourceConstraint, targetConstraint))
+            else if(!RefinementSolver.Implies(sourceConstraint, targetConstraint))
             {
                 // MIST_REFINEMENT_0006: Source constraint does not imply target constraint.
                 diagnostics.Add(MakeDiagnostic(
@@ -20606,7 +20606,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         else
         {
             // Concrete constant case: evaluate the predicate against the value.
-            if (!targetConstraint.Evaluate(depArg.Value))
+            if(!targetConstraint.Evaluate(depArg.Value))
             {
                 var typeName = constructedType.GenericDefinition.DisplayName;
                 diagnostics.Add(MakeDiagnostic(
@@ -20629,7 +20629,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     {
         // Try to resolve the method symbol to get its type parameters.
         var methodSymbol = model.GetDeclaredSymbol(methodCall);
-        if (methodSymbol is not Symbol sym || sym.TypeParameters.Count == 0)
+        if(methodSymbol is not Symbol sym || sym.TypeParameters.Count == 0)
             return;
 
         var typeParams = sym.TypeParameters;
@@ -20637,19 +20637,19 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         // Collect all type argument nodes.
         var argNodes = new List<TypeArgumentNode> { typeArgList.TypeArgument };
-        foreach (var extra in typeArgList.TypeArguments)
+        foreach(var extra in typeArgList.TypeArguments)
             argNodes.Add(extra);
 
         // Validate each position.
-        for (var i = 0; i < argNodes.Count && i < typeParams.Count; i++)
+        for(var i = 0; i < argNodes.Count && i < typeParams.Count; i++)
         {
-            if (typeParams[i] is not DependentTypeParameterType depParam)
+            if(typeParams[i] is not DependentTypeParameterType depParam)
                 continue;
 
             var argNode = argNodes[i];
 
             // Check MIST_DT_0002: Is the argument a compile-time constant?
-            if (!IsDependentArgCompileTimeConstant(argNode, model))
+            if(!IsDependentArgCompileTimeConstant(argNode, model))
             {
                 var exprText = ExtractTypeArgumentText(argNode);
                 diagnostics.Add(MakeDiagnostic(
@@ -20666,7 +20666,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             // during resolution, so mismatches are caught at the semantic level.
 
             // Check adhoc refinement constraint on the dependent parameter.
-            if (depParam.AdhocConstraint is { } constraint)
+            if(depParam.AdhocConstraint is { } constraint)
             {
                 ValidateMethodCallAdhocConstraint(depParam, constraint, argNode, model, diagnostics);
             }
@@ -20686,17 +20686,17 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         DiagnosticBag diagnostics)
     {
         // Check if this is a forwarded dependent parameter.
-        if (argNode is TypeReferenceTypeArgumentTypeArgumentNode typeRefArg
+        if(argNode is TypeReferenceTypeArgumentTypeArgumentNode typeRefArg
             && typeRefArg.Type.First is NamedSingleTypeRefSingleTypeRefNode namedRef
             && namedRef.TypeArgs is null
             && namedRef.ArrayRank is null)
         {
             var resolvedType = model.GetTypeOf(namedRef);
-            if (resolvedType is DependentTypeParameterType forwardedParam)
+            if(resolvedType is DependentTypeParameterType forwardedParam)
             {
                 // Forwarding case: check implication.
                 var sourceConstraint = forwardedParam.AdhocConstraint;
-                if (sourceConstraint is null)
+                if(sourceConstraint is null)
                 {
                     diagnostics.Add(MakeDiagnostic(
                         RefinementUnconstrainedForwarding.Value,
@@ -20704,7 +20704,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                         argNode,
                         model));
                 }
-                else if (!RefinementSolver.Implies(sourceConstraint, constraint))
+                else if(!RefinementSolver.Implies(sourceConstraint, constraint))
                 {
                     diagnostics.Add(MakeDiagnostic(
                         RefinementImplicationFailure.Value,
@@ -20718,7 +20718,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         // Concrete constant case: extract the value and evaluate.
         var constantValue = TryExtractConstantFromTypeArgNode(argNode);
-        if (constantValue is not null && !constraint.Evaluate(constantValue))
+        if(constantValue is not null && !constraint.Evaluate(constantValue))
         {
             var displayValue = ExtractTypeArgumentText(argNode);
             diagnostics.Add(MakeDiagnostic(
@@ -20784,7 +20784,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     private static bool IsDependentArgCompileTimeConstant(TypeArgumentNode argNode, ISemanticModel model)
     {
-        switch (argNode)
+        switch(argNode)
         {
             // All literal forms are compile-time constants.
             case IntegerLiteralTypeArgumentTypeArgumentNode:
@@ -20798,73 +20798,73 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
             // A type reference in a dependent position needs disambiguation.
             case TypeReferenceTypeArgumentTypeArgumentNode typeRefArg:
-            {
-                // A bare identifier could be a const reference or a forwarded dependent parameter.
-                if (typeRefArg.Type.First is NamedSingleTypeRefSingleTypeRefNode namedRef
-                    && namedRef.TypeArgs is null
-                    && namedRef.ArrayRank is null)
                 {
-                    // Check what the semantic model resolved this to. The model keys
-                    // declared symbols / types on the flat TypeReferenceNode, so look
-                    // up via `typeRefArg.Type` (not the SingleTypeRef child).
-                    var symbol = model.GetDeclaredSymbol(typeRefArg.Type);
-                    if (symbol is not null)
+                    // A bare identifier could be a const reference or a forwarded dependent parameter.
+                    if(typeRefArg.Type.First is NamedSingleTypeRefSingleTypeRefNode namedRef
+                        && namedRef.TypeArgs is null
+                        && namedRef.ArrayRank is null)
                     {
-                        // Type symbols are not constants — they shouldn't be in a dependent position.
-                        if (symbol.Kind is SymbolKind.Class or SymbolKind.Struct or SymbolKind.Abstract
-                            or SymbolKind.TypeAlias or SymbolKind.Enum)
+                        // Check what the semantic model resolved this to. The model keys
+                        // declared symbols / types on the flat TypeReferenceNode, so look
+                        // up via `typeRefArg.Type` (not the SingleTypeRef child).
+                        var symbol = model.GetDeclaredSymbol(typeRefArg.Type);
+                        if(symbol is not null)
                         {
-                            return false;
+                            // Type symbols are not constants — they shouldn't be in a dependent position.
+                            if(symbol.Kind is SymbolKind.Class or SymbolKind.Struct or SymbolKind.Abstract
+                                or SymbolKind.TypeAlias or SymbolKind.Enum)
+                            {
+                                return false;
+                            }
+
+                            // Dependent type parameters (forwarded) are compile-time constants.
+                            if(symbol.DeclaredType is DependentTypeParameterType)
+                                return true;
+
+                            // Static get-only properties generated for dependent parameters are constants.
+                            if(symbol.Kind == SymbolKind.Property)
+                                return true;
+
+                            // Fields marked as const are compile-time constants.
+                            // In Mist, fields used as dependent arguments are accepted by the
+                            // semantic model builder — the type checker trusts that resolution.
+                            if(symbol.Kind == SymbolKind.Field)
+                                return true;
+
+                            // Local variables are NOT compile-time constants.
+                            if(symbol.Kind == SymbolKind.LocalVariable)
+                                return false;
+
+                            // Method symbols are not constants.
+                            if(symbol.Kind == SymbolKind.Method)
+                                return false;
                         }
 
-                        // Dependent type parameters (forwarded) are compile-time constants.
-                        if (symbol.DeclaredType is DependentTypeParameterType)
-                            return true;
-
-                        // Static get-only properties generated for dependent parameters are constants.
-                        if (symbol.Kind == SymbolKind.Property)
-                            return true;
-
-                        // Fields marked as const are compile-time constants.
-                        // In Mist, fields used as dependent arguments are accepted by the
-                        // semantic model builder — the type checker trusts that resolution.
-                        if (symbol.Kind == SymbolKind.Field)
-                            return true;
-
-                        // Local variables are NOT compile-time constants.
-                        if (symbol.Kind == SymbolKind.LocalVariable)
-                            return false;
-
-                        // Method symbols are not constants.
-                        if (symbol.Kind == SymbolKind.Method)
-                            return false;
-                    }
-
-                    // If the symbol wasn't found via GetDeclaredSymbol, check the type map.
-                    // If the type reference resolved to a type, it's not a constant.
-                    var resolvedType = model.GetTypeOf(typeRefArg.Type);
-                    if (resolvedType is not null && resolvedType is not ErrorType)
-                    {
-                        // If it resolved to a DependentTypeParameterType, it's a forwarded param.
-                        if (resolvedType is DependentTypeParameterType)
-                            return true;
-
-                        // If it resolved to a concrete type, it's not a constant in a dependent position.
-                        if (resolvedType is ClassType or StructType or AbstractType
-                            or TypeAliasType or TypeParameterType)
+                        // If the symbol wasn't found via GetDeclaredSymbol, check the type map.
+                        // If the type reference resolved to a type, it's not a constant.
+                        var resolvedType = model.GetTypeOf(typeRefArg.Type);
+                        if(resolvedType is not null && resolvedType is not ErrorType)
                         {
-                            return false;
+                            // If it resolved to a DependentTypeParameterType, it's a forwarded param.
+                            if(resolvedType is DependentTypeParameterType)
+                                return true;
+
+                            // If it resolved to a concrete type, it's not a constant in a dependent position.
+                            if(resolvedType is ClassType or StructType or AbstractType
+                                or TypeAliasType or TypeParameterType)
+                            {
+                                return false;
+                            }
                         }
+
+                        // Bare identifier that didn't resolve to a type — assume it's a const reference
+                        // (the semantic model builder would have emitted an unresolved diagnostic already).
+                        return true;
                     }
 
-                    // Bare identifier that didn't resolve to a type — assume it's a const reference
-                    // (the semantic model builder would have emitted an unresolved diagnostic already).
-                    return true;
+                    // Complex type references (qualified names, generic types, arrays) are not constants.
+                    return false;
                 }
-
-                // Complex type references (qualified names, generic types, arrays) are not constants.
-                return false;
-            }
 
             default:
                 return false;
@@ -20881,7 +20881,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         var expectedType = depParam.ValueType;
 
         // ErrorType matches anything (error recovery).
-        if (actualType is ErrorType || expectedType is ErrorType)
+        if(actualType is ErrorType || expectedType is ErrorType)
             return true;
 
         // Forwarded dependent parameters: the value is a string (the parameter name)
@@ -20922,16 +20922,16 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     private static void ValidateDependentParameterForwarding(ISemanticModel model, DiagnosticBag diagnostics)
     {
-        foreach (var symbol in model.AllSymbols)
+        foreach(var symbol in model.AllSymbols)
         {
-            if (symbol.Origin == SymbolOrigin.Backend)
+            if(symbol.Origin == SymbolOrigin.Backend)
                 continue;
 
-            if (symbol.Kind is not (SymbolKind.Class or SymbolKind.Struct))
+            if(symbol.Kind is not (SymbolKind.Class or SymbolKind.Struct))
                 continue;
 
             var declaredType = symbol.DeclaredType;
-            if (declaredType is null)
+            if(declaredType is null)
                 continue;
 
             // Get the declaring node for diagnostic location.
@@ -20940,7 +20940,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             catch { continue; }
 
             // Check base type (classes only).
-            if (declaredType is ClassType classType && classType.BaseType is ConstructedType baseConstructed)
+            if(declaredType is ClassType classType && classType.BaseType is ConstructedType baseConstructed)
             {
                 ValidateDependentForwardingForConstructedBase(
                     declaredType, baseConstructed, declaringNode, model, diagnostics);
@@ -20954,9 +20954,9 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 _ => Array.Empty<IType>()
             };
 
-            foreach (var abs in abstracts)
+            foreach(var abs in abstracts)
             {
-                if (abs is ConstructedType absConstructed)
+                if(abs is ConstructedType absConstructed)
                 {
                     ValidateDependentForwardingForConstructedBase(
                         declaredType, absConstructed, declaringNode, model, diagnostics);
@@ -20981,24 +20981,24 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         DiagnosticBag diagnostics)
     {
         var baseTypeParams = GetTypeParameters(baseConstructed.GenericDefinition);
-        if (baseTypeParams is null)
+        if(baseTypeParams is null)
             return;
 
         var baseTypeArgs = baseConstructed.TypeArguments;
 
-        for (var i = 0; i < baseTypeParams.Count && i < baseTypeArgs.Count; i++)
+        for(var i = 0; i < baseTypeParams.Count && i < baseTypeArgs.Count; i++)
         {
             // Only check positions where the base parameter is a dependent type parameter.
-            if (baseTypeParams[i] is not DependentTypeParameterType baseDepParam)
+            if(baseTypeParams[i] is not DependentTypeParameterType baseDepParam)
                 continue;
 
-            if (baseTypeArgs[i] is DependentTypeParameterType derivedDepParam)
+            if(baseTypeArgs[i] is DependentTypeParameterType derivedDepParam)
             {
                 // Forwarded parameter case.
 
                 // Validate widening: derived parameter's value type must be implicitly
                 // convertible (widenable) to the base parameter's value type.
-                if (!IsImplicitlyWidenable(derivedDepParam.ValueType, baseDepParam.ValueType))
+                if(!IsImplicitlyWidenable(derivedDepParam.ValueType, baseDepParam.ValueType))
                 {
                     var derivedTypeName = derivedType.DisplayName;
                     var baseTypeName = baseConstructed.GenericDefinition.DisplayName;
@@ -21012,10 +21012,10 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
                 // Validate adhoc refinement constraint implication for forwarded parameters.
                 var targetConstraint = baseDepParam.AdhocConstraint;
-                if (targetConstraint is not null)
+                if(targetConstraint is not null)
                 {
                     var sourceConstraint = derivedDepParam.AdhocConstraint;
-                    if (sourceConstraint is null)
+                    if(sourceConstraint is null)
                     {
                         // MIST_REFINEMENT_0008: Source has no constraint, target requires one.
                         diagnostics.Add(MakeDiagnostic(
@@ -21024,7 +21024,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                             declaringNode,
                             model));
                     }
-                    else if (!RefinementSolver.Implies(sourceConstraint, targetConstraint))
+                    else if(!RefinementSolver.Implies(sourceConstraint, targetConstraint))
                     {
                         // MIST_REFINEMENT_0006: Source constraint does not imply target constraint.
                         diagnostics.Add(MakeDiagnostic(
@@ -21040,12 +21040,12 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 // Fixed value case: a concrete value is provided for the base's dependent parameter.
                 // Validate that the fixed value satisfies the base parameter's adhoc constraint.
                 var targetConstraint = baseDepParam.AdhocConstraint;
-                if (targetConstraint is not null
+                if(targetConstraint is not null
                     && baseConstructed.DependentArguments is not null
                     && i < baseConstructed.DependentArguments.Count
                     && baseConstructed.DependentArguments[i] is { } depArg)
                 {
-                    if (!targetConstraint.Evaluate(depArg.Value))
+                    if(!targetConstraint.Evaluate(depArg.Value))
                     {
                         var typeName = baseConstructed.GenericDefinition.DisplayName;
                         diagnostics.Add(MakeDiagnostic(
@@ -21075,11 +21075,11 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     private static bool IsImplicitlyWidenable(IType sourceType, IType targetType)
     {
         // Same type is always OK.
-        if (TypesEqual(sourceType, targetType))
+        if(TypesEqual(sourceType, targetType))
             return true;
 
         // ErrorType matches anything (error recovery).
-        if (sourceType is ErrorType || targetType is ErrorType)
+        if(sourceType is ErrorType || targetType is ErrorType)
             return true;
 
         // Normalize display names to canonical (legacy keyword) form for comparison.
@@ -21087,7 +21087,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         var target = NormalizePrimitiveDisplayName(targetType.DisplayName);
 
         // Same canonical name after normalization.
-        if (source == target)
+        if(source == target)
             return true;
 
         // Apply widening rules.
@@ -21156,22 +21156,22 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     private static void ValidatePredicateTypeCompatibility(ISemanticModel model, DiagnosticBag diagnostics)
     {
-        foreach (var symbol in model.AllSymbols)
+        foreach(var symbol in model.AllSymbols)
         {
-            if (symbol.Origin == SymbolOrigin.Backend)
+            if(symbol.Origin == SymbolOrigin.Backend)
                 continue;
 
             var declaringNode = model.GetDeclaringNode(symbol);
 
             // Check dependent type parameters with adhoc constraints.
             var typeParams = GetTypeParametersForSymbol(symbol);
-            if (typeParams is not null)
+            if(typeParams is not null)
             {
-                foreach (var tp in typeParams)
+                foreach(var tp in typeParams)
                 {
-                    if (tp is DependentTypeParameterType depParam && depParam.AdhocConstraint is { } constraint)
+                    if(tp is DependentTypeParameterType depParam && depParam.AdhocConstraint is { } constraint)
                     {
-                        if (PredicateContainsRelationalPattern(constraint.AstNode)
+                        if(PredicateContainsRelationalPattern(constraint.AstNode)
                             && !IsComparableRefinementType(depParam.ValueType))
                         {
                             var clauseNode = FindAdhocConstraintClauseNode(declaringNode, depParam.Name);
@@ -21186,7 +21186,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             }
 
             // Check parameter refinements.
-            switch (symbol.Kind)
+            switch(symbol.Kind)
             {
                 case SymbolKind.Method:
                 case SymbolKind.Constructor:
@@ -21210,28 +21210,28 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     {
         // Get the parameter list from the declaring node.
         var paramNodes = GetParameterNodes(declaringNode);
-        if (paramNodes is null)
+        if(paramNodes is null)
             return;
 
-        foreach (var paramNode in paramNodes)
+        foreach(var paramNode in paramNodes)
         {
-            if (paramNode is not ParameterNode param)
+            if(paramNode is not ParameterNode param)
                 continue;
 
             // Look up the parameter symbol in the semantic model.
             var paramSymbol = model.GetDeclaredSymbol(param);
-            if (paramSymbol is null)
+            if(paramSymbol is null)
                 continue;
 
             var refinement = model.GetParameterRefinement(paramSymbol);
-            if (refinement is null)
+            if(refinement is null)
                 continue;
 
             var paramType = paramSymbol.DeclaredType;
-            if (paramType is null)
+            if(paramType is null)
                 continue;
 
-            if (PredicateContainsRelationalPattern(refinement.AstNode)
+            if(PredicateContainsRelationalPattern(refinement.AstNode)
                 && !IsComparableRefinementType(paramType))
             {
                 var clauseNode = FindAdhocConstraintClauseNode(declaringNode, param.Name.Lexeme);
@@ -21282,7 +21282,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     private static bool IsComparableRefinementType(IType type)
     {
-        if (IsErrorType(type))
+        if(IsErrorType(type))
             return true; // Suppress cascading errors.
 
         return ComparableRefinementTypeNames.Contains(type.DisplayName);
@@ -21295,20 +21295,20 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     private static bool PredicateContainsRelationalPattern(AndPatternNode andPattern)
     {
-        if (UnaryPatternContainsRelational(andPattern.Left))
+        if(UnaryPatternContainsRelational(andPattern.Left))
             return true;
 
-        if (andPattern.Right is not null && !ReferenceEquals(andPattern.Right, andPattern.Left))
+        if(andPattern.Right is not null && !ReferenceEquals(andPattern.Right, andPattern.Left))
         {
-            if (UnaryPatternContainsRelational(andPattern.Right))
+            if(UnaryPatternContainsRelational(andPattern.Right))
                 return true;
         }
 
-        if (!andPattern.UnaryPatterns.IsDefaultOrEmpty)
+        if(!andPattern.UnaryPatterns.IsDefaultOrEmpty)
         {
-            foreach (var part in andPattern.UnaryPatterns)
+            foreach(var part in andPattern.UnaryPatterns)
             {
-                if (UnaryPatternContainsRelational(part))
+                if(UnaryPatternContainsRelational(part))
                     return true;
             }
         }
@@ -21347,12 +21347,12 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     private static SyntaxNode? FindAdhocConstraintClauseNode(SyntaxNode declaringNode, string name)
     {
         var constraints = GetWhereClausesFromDeclaration(declaringNode);
-        if (constraints.IsDefaultOrEmpty)
+        if(constraints.IsDefaultOrEmpty)
             return null;
 
-        foreach (var clause in constraints)
+        foreach(var clause in constraints)
         {
-            if (clause is AdhocRefinementConstraintWhereClauseNode refinement
+            if(clause is AdhocRefinementConstraintWhereClauseNode refinement
                 && refinement.Name.Lexeme == name)
             {
                 return refinement;

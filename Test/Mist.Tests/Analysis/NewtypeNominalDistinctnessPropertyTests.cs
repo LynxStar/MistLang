@@ -56,7 +56,7 @@ public sealed class NewtypeNominalDistinctnessPropertyTests
 
         var parseDiag = new DiagnosticBag();
         var parseResult = Parser.Parse(tokens, parseDiag);
-        if (parseResult.Root is null)
+        if(parseResult.Root is null)
             return lexDiag.ToImmutableArray().AddRange(parseDiag.ToImmutableArray());
 
         var buildDiag = new DiagnosticBag();
@@ -212,7 +212,7 @@ class Program {{
             .ToList();
 
         // Each invalid assignment scenario should produce exactly one type mismatch
-        if (typeMismatchDiags.Count != scenario.InvalidAssignmentCount)
+        if(typeMismatchDiags.Count != scenario.InvalidAssignmentCount)
         {
             var allErrors = diagnostics
                 .Where(d => d.Severity == DiagnosticSeverity.Error)

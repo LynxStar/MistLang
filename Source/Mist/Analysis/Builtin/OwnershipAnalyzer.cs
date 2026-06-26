@@ -230,7 +230,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
     /// </summary>
     private static bool IsActionPermitted(VariableOwnershipState state, AccessKind action)
     {
-        if (TruthTable.TryGetValue((state, action), out var permitted))
+        if(TruthTable.TryGetValue((state, action), out var permitted))
             return permitted;
 
         // If not in the table, conservatively deny.
@@ -322,7 +322,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         // Pass C: field-type restriction for owned types (Req 4, Req 5).
         // The behavioral cooperation contract is subsumed by provenance on owned fields
         // (Req 8 + Req 3). Only the field-type restriction survives as a standalone check.
-        foreach (var ownedType in OwnedTypes(model))
+        foreach(var ownedType in OwnedTypes(model))
             FieldTypeRestrictionVerifier.Verify(ownedType, model, diagnostics);
 
         // Pass 3: ownership signature matching validation (abstract type satisfaction).
@@ -353,12 +353,12 @@ public sealed class OwnershipAnalyzer : IAnalyzer
     /// </summary>
     private static void RejectOwnedOnAbstracts(ISemanticModel model, DiagnosticBag diagnostics)
     {
-        foreach (var symbol in model.AllSymbols)
+        foreach(var symbol in model.AllSymbols)
         {
-            if (symbol.Origin != SymbolOrigin.UserCode)
+            if(symbol.Origin != SymbolOrigin.UserCode)
                 continue;
 
-            switch (symbol.Kind)
+            switch(symbol.Kind)
             {
                 case SymbolKind.Abstract:
                     RejectOwnedOnInterface(symbol, model, diagnostics);
@@ -376,10 +376,10 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         try { declaringNode = model.GetDeclaringNode(symbol); }
         catch { return; }
 
-        if (declaringNode is not AbstractDeclarationNode abstractDecl)
+        if(declaringNode is not AbstractDeclarationNode abstractDecl)
             return;
 
-        if (!HasOwnedModifier(abstractDecl.Modifiers))
+        if(!HasOwnedModifier(abstractDecl.Modifiers))
             return;
 
         diagnostics.Add(MakeDiagnostic(
@@ -398,23 +398,23 @@ public sealed class OwnershipAnalyzer : IAnalyzer
     /// </summary>
     private static void RejectOwnedOnStaticFields(ISemanticModel model, DiagnosticBag diagnostics)
     {
-        foreach (var symbol in model.AllSymbols)
+        foreach(var symbol in model.AllSymbols)
         {
-            if (symbol.Origin != SymbolOrigin.UserCode)
+            if(symbol.Origin != SymbolOrigin.UserCode)
                 continue;
-            if (symbol.Kind != SymbolKind.Field)
+            if(symbol.Kind != SymbolKind.Field)
                 continue;
-            if (symbol is not Symbol fieldSym || !fieldSym.IsOwnedField)
+            if(symbol is not Symbol fieldSym || !fieldSym.IsOwnedField)
                 continue;
 
             SyntaxNode declaringNode;
             try { declaringNode = model.GetDeclaringNode(symbol); }
             catch { continue; }
 
-            if (declaringNode is not FieldDeclarationNode fieldDecl)
+            if(declaringNode is not FieldDeclarationNode fieldDecl)
                 continue;
 
-            if (!fieldDecl.Modifiers.Any(m => m is StaticModifierModifierNode))
+            if(!fieldDecl.Modifiers.Any(m => m is StaticModifierModifierNode))
                 continue;
 
             diagnostics.Add(MakeDiagnostic(
@@ -440,23 +440,23 @@ public sealed class OwnershipAnalyzer : IAnalyzer
     /// </summary>
     private static void RejectOwnedBindingOnSubstructuralTypes(ISemanticModel model, DiagnosticBag diagnostics)
     {
-        foreach (var symbol in model.AllSymbols)
+        foreach(var symbol in model.AllSymbols)
         {
-            if (symbol.Origin != SymbolOrigin.UserCode)
+            if(symbol.Origin != SymbolOrigin.UserCode)
                 continue;
 
-            if (symbol.Kind is not (SymbolKind.LocalVariable or SymbolKind.Parameter))
+            if(symbol.Kind is not (SymbolKind.LocalVariable or SymbolKind.Parameter))
                 continue;
 
-            if (symbol is not Symbol sym || sym.OwnershipTier != OwnershipTier.Owned)
+            if(symbol is not Symbol sym || sym.OwnershipTier != OwnershipTier.Owned)
                 continue;
 
             var declaredType = symbol.DeclaredType;
-            if (declaredType is null)
+            if(declaredType is null)
                 continue;
 
             var discipline = GetDisciplineForType(declaredType);
-            if (discipline is SubstructuralDiscipline.None)
+            if(discipline is SubstructuralDiscipline.None)
                 continue;
 
             // The type is linear, affine, or relevant — reject the owned binding.
@@ -498,24 +498,24 @@ public sealed class OwnershipAnalyzer : IAnalyzer
     /// </summary>
     private static IEnumerable<IType> OwnedTypes(ISemanticModel model)
     {
-        foreach (var symbol in model.AllSymbols)
+        foreach(var symbol in model.AllSymbols)
         {
-            if (symbol.Origin != SymbolOrigin.UserCode)
+            if(symbol.Origin != SymbolOrigin.UserCode)
                 continue;
 
-            if (symbol.Kind is not (SymbolKind.Class or SymbolKind.Struct))
+            if(symbol.Kind is not (SymbolKind.Class or SymbolKind.Struct))
                 continue;
 
             var declaredType = symbol.DeclaredType;
-            if (declaredType is null)
+            if(declaredType is null)
                 continue;
 
-            if (!IsOwnedType(declaredType))
+            if(!IsOwnedType(declaredType))
                 continue;
 
             // Substructural types (linear/affine/relevant) inherit IsOwnedType but are
             // not subject to the cooperation contract — their own discipline governs them.
-            if (IsSubstructural(declaredType))
+            if(IsSubstructural(declaredType))
                 continue;
 
             yield return declaredType;
@@ -548,12 +548,12 @@ public sealed class OwnershipAnalyzer : IAnalyzer
     /// </summary>
     private void AnalyzeFlowSensitive(ISemanticModel model, DiagnosticBag diagnostics)
     {
-        foreach (var symbol in model.AllSymbols)
+        foreach(var symbol in model.AllSymbols)
         {
-            if (symbol.Origin != SymbolOrigin.UserCode)
+            if(symbol.Origin != SymbolOrigin.UserCode)
                 continue;
 
-            switch (symbol.Kind)
+            switch(symbol.Kind)
             {
                 case SymbolKind.Method:
                 case SymbolKind.Constructor:
@@ -580,7 +580,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
             _ => null,
         };
 
-        if (body is null)
+        if(body is null)
             return;
 
         var state = new MethodFlowState();
@@ -596,9 +596,9 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         // because that would affect move/clone semantics — inference only gates
         // which methods are callable, not whether assignments are moves or clones.
         var inferredBindings = OwnershipInferencePass.InferBindings(body, model, diagnostics);
-        foreach (var (symbol, binding) in inferredBindings)
+        foreach(var (symbol, binding) in inferredBindings)
         {
-            if (binding.InferredTier != OwnershipTier.Unrestricted)
+            if(binding.InferredTier != OwnershipTier.Unrestricted)
             {
                 // Store the inferred tier for this-tier call-site checking only.
                 state.InferredTiers[symbol] = binding.InferredTier;
@@ -620,21 +620,21 @@ public sealed class OwnershipAnalyzer : IAnalyzer
             _ => null,
         };
 
-        if (paramList is null)
+        if(paramList is null)
             return;
 
-        foreach (var child in paramList.Children())
+        foreach(var child in paramList.Children())
         {
-            if (child is ParameterNode paramNode)
+            if(child is ParameterNode paramNode)
             {
                 var paramSymbol = model.GetDeclaredSymbol(paramNode);
-                if (paramSymbol is Symbol sym && sym.OwnershipTier == OwnershipTier.Owned)
+                if(paramSymbol is Symbol sym && sym.OwnershipTier == OwnershipTier.Owned)
                 {
                     state.VariableStates[paramSymbol] = VariableOwnershipState.Live;
                     state.BindingKinds[paramSymbol] = BindingKind.Owned;
 
                     // Initialize per-field state for owned parameters whose type has owned fields (Req 16 AC 1).
-                    if (sym.DeclaredType is not null)
+                    if(sym.DeclaredType is not null)
                         state.InitializeFieldStates(paramSymbol, sym.DeclaredType);
                 }
             }
@@ -651,7 +651,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         DiagnosticBag diagnostics,
         bool isLoop)
     {
-        foreach (var stmt in block.Statements)
+        foreach(var stmt in block.Statements)
         {
             WalkStatement(stmt, state, model, diagnostics, isLoop);
         }
@@ -669,7 +669,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         DiagnosticBag diagnostics,
         bool isLoop)
     {
-        switch (stmt)
+        switch(stmt)
         {
             case VariableDeclarationStatementStatementNode varDeclStmt:
                 AnalyzeVariableDeclaration(varDeclStmt.VariableDeclaration, state, model, diagnostics, isLoop);
@@ -719,46 +719,61 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         DiagnosticBag diagnostics,
         bool isLoop)
     {
-        switch (varDecl)
+        switch(varDecl)
         {
             case TypedVariableDeclarationVariableDeclarationStatementNode typed:
-            {
-                // Check the initializer for use-after-move before processing the move.
-                CheckExpressionForUseAfterMove(typed.Initializer, state, model, diagnostics);
-
-                // Check the initializer for method/constructor calls that take owned parameters.
-                CheckMethodCallsForMoves(typed.Initializer, state, model, diagnostics, isLoop);
-
-                // Get the declared variable symbol.
-                var declaredSymbol = model.GetDeclaredSymbol(typed);
-                if (declaredSymbol is Symbol sym && sym.OwnershipTier == OwnershipTier.Owned)
                 {
-                    // ── Shared parent extraction blocking (Req 2 AC 4–5) ──────────────
-                    // Moving out of an owned field through a shared parent is blocked.
-                    if (IsOwnedFieldAccessOnSharedParent(typed.Initializer, state, model, out var sharedFieldSym, out var sharedRecvSym))
-                    {
-                        diagnostics.Add(MakeDiagnostic(
-                            SharedExtract,
-                            $"Cannot move out of owned field '{sharedFieldSym!.Name}' through shared binding " +
-                            $"'{sharedRecvSym!.Name}' — extracting data from an owned field requires an owned " +
-                            $"binding to the parent.",
-                            typed,
-                            model));
-                        break;
-                    }
+                    // Check the initializer for use-after-move before processing the move.
+                    CheckExpressionForUseAfterMove(typed.Initializer, state, model, diagnostics);
 
-                    // ── Owned parent field move-out (Req 2 AC 1, Req 16 AC 2) ────────
-                    // Moving out of an owned field through an owned parent is permitted
-                    // subject to per-field state. Check field state is Live first; if
-                    // Moved, emit use-after-move. Then update per-field state to Moved.
-                    if (IsOwnedFieldAccessOnOwnedParent(typed.Initializer, state, model, out var ownedFieldSym, out var ownedRecvSym))
+                    // Check the initializer for method/constructor calls that take owned parameters.
+                    CheckMethodCallsForMoves(typed.Initializer, state, model, diagnostics, isLoop);
+
+                    // Get the declared variable symbol.
+                    var declaredSymbol = model.GetDeclaredSymbol(typed);
+                    if(declaredSymbol is Symbol sym && sym.OwnershipTier == OwnershipTier.Owned)
                     {
-                        var fieldState = state.GetFieldState(ownedRecvSym!, ownedFieldSym!);
-                        if (fieldState is not null && fieldState != VariableOwnershipState.Live)
+                        // ── Shared parent extraction blocking (Req 2 AC 4–5) ──────────────
+                        // Moving out of an owned field through a shared parent is blocked.
+                        if(IsOwnedFieldAccessOnSharedParent(typed.Initializer, state, model, out var sharedFieldSym, out var sharedRecvSym))
                         {
-                            // Field is not Live — report appropriate violation.
-                            ReportFieldStateViolation(ownedRecvSym!, ownedFieldSym!, fieldState.Value,
-                                AccessKind.Move, typed, state, model, diagnostics);
+                            diagnostics.Add(MakeDiagnostic(
+                                SharedExtract,
+                                $"Cannot move out of owned field '{sharedFieldSym!.Name}' through shared binding " +
+                                $"'{sharedRecvSym!.Name}' — extracting data from an owned field requires an owned " +
+                                $"binding to the parent.",
+                                typed,
+                                model));
+                            break;
+                        }
+
+                        // ── Owned parent field move-out (Req 2 AC 1, Req 16 AC 2) ────────
+                        // Moving out of an owned field through an owned parent is permitted
+                        // subject to per-field state. Check field state is Live first; if
+                        // Moved, emit use-after-move. Then update per-field state to Moved.
+                        if(IsOwnedFieldAccessOnOwnedParent(typed.Initializer, state, model, out var ownedFieldSym, out var ownedRecvSym))
+                        {
+                            var fieldState = state.GetFieldState(ownedRecvSym!, ownedFieldSym!);
+                            if(fieldState is not null && fieldState != VariableOwnershipState.Live)
+                            {
+                                // Field is not Live — report appropriate violation.
+                                ReportFieldStateViolation(ownedRecvSym!, ownedFieldSym!, fieldState.Value,
+                                    AccessKind.Move, typed, state, model, diagnostics);
+                                break;
+                            }
+
+                            // Register the new owned variable as Live.
+                            state.VariableStates[declaredSymbol] = VariableOwnershipState.Live;
+                            state.BindingKinds[declaredSymbol] = BindingKind.Owned;
+
+                            // Initialize per-field state for the new binding if the moved-in type has owned fields.
+                            if(declaredSymbol.DeclaredType is not null)
+                                state.InitializeFieldStates(declaredSymbol, declaredSymbol.DeclaredType);
+
+                            // Transition the source field to Moved (Req 16 AC 2).
+                            var moveSpan = new Common.Text.SourceSpan(
+                                typed.Initializer.Span.Start, typed.Initializer.Span.Length);
+                            state.MoveField(ownedRecvSym!, ownedFieldSym!, moveSpan);
                             break;
                         }
 
@@ -766,174 +781,179 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                         state.VariableStates[declaredSymbol] = VariableOwnershipState.Live;
                         state.BindingKinds[declaredSymbol] = BindingKind.Owned;
 
-                        // Initialize per-field state for the new binding if the moved-in type has owned fields.
-                        if (declaredSymbol.DeclaredType is not null)
-                            state.InitializeFieldStates(declaredSymbol, declaredSymbol.DeclaredType);
+                        // Initialize per-field state for the new owned binding if the type has owned fields (Req 16 AC 1).
+                        if(sym.DeclaredType is not null)
+                            state.InitializeFieldStates(declaredSymbol, sym.DeclaredType);
 
-                        // Transition the source field to Moved (Req 16 AC 2).
-                        var moveSpan = new Common.Text.SourceSpan(
-                            typed.Initializer.Span.Start, typed.Initializer.Span.Length);
-                        state.MoveField(ownedRecvSym!, ownedFieldSym!, moveSpan);
-                        break;
+                        // Route the initializer through the single move boundary (Req 6 AC 9):
+                        // it resolves provenance (owned move / value copy / clone / default),
+                        // marks a consumed owned source Moved, records implicit-clone
+                        // annotations, and emits MIST_OWN_REQUIRES_OWNED / MIST_OWN_NOT_CLONABLE
+                        // for a non-owned, non-clonable source.
+                        ResolveOwnedBindingInit(typed.Initializer, sym, state, model, diagnostics);
                     }
-
-                    // Register the new owned variable as Live.
-                    state.VariableStates[declaredSymbol] = VariableOwnershipState.Live;
-                    state.BindingKinds[declaredSymbol] = BindingKind.Owned;
-
-                    // Initialize per-field state for the new owned binding if the type has owned fields (Req 16 AC 1).
-                    if (sym.DeclaredType is not null)
-                        state.InitializeFieldStates(declaredSymbol, sym.DeclaredType);
-
-                    // Route the initializer through the single move boundary (Req 6 AC 9):
-                    // it resolves provenance (owned move / value copy / clone / default),
-                    // marks a consumed owned source Moved, records implicit-clone
-                    // annotations, and emits MIST_OWN_REQUIRES_OWNED / MIST_OWN_NOT_CLONABLE
-                    // for a non-owned, non-clonable source.
-                    ResolveOwnedBindingInit(typed.Initializer, sym, state, model, diagnostics);
-                }
-                else if (declaredSymbol is Symbol refSym &&
-                         refSym.OwnershipTier is OwnershipTier.Frozen or OwnershipTier.Borrowed or OwnershipTier.ReadonlyRef)
-                {
-                    // ── Shared parent extraction blocking (Req 2 AC 4–5) ──────────────
-                    // Borrowing, freezing, or taking a readonly ref of an owned field through
-                    // a shared parent is blocked — these operations require exclusive access
-                    // that only an owned parent can guarantee.
-                    if (IsOwnedFieldAccessOnSharedParent(typed.Initializer, state, model, out var sharedFieldSym, out var sharedRecvSym))
+                    else if(declaredSymbol is Symbol refSym &&
+                             refSym.OwnershipTier is OwnershipTier.Frozen or OwnershipTier.Borrowed or OwnershipTier.ReadonlyRef)
                     {
-                        var tierName = FormatOwnershipTier(refSym.OwnershipTier);
-                        diagnostics.Add(MakeDiagnostic(
-                            SharedExtract,
-                            $"Cannot take '{tierName}' reference to owned field '{sharedFieldSym!.Name}' through " +
-                            $"shared binding '{sharedRecvSym!.Name}' — extracting data from an owned field requires " +
-                            $"an owned binding to the parent.",
-                            typed,
-                            model));
-                        break;
-                    }
-
-                    // Local frozen, borrowed, or readonly ref variable declaration creates a borrow from the initializer.
-                    var sourceSymbol = TryResolveIdentifierSymbol(typed.Initializer, model);
-
-                    // ── Owned parent field borrow/freeze/readonly-ref (Req 2 AC 1, Req 16) ──
-                    // If the initializer is a field access on an owned parent, handle per-field
-                    // state tracking for borrow, freeze, and readonly ref operations.
-                    if (sourceSymbol is null &&
-                        IsOwnedFieldAccessOnOwnedParent(typed.Initializer, state, model, out var ownedFieldRefSym, out var ownedRecvRefSym))
-                    {
-                        var fieldState = state.GetFieldState(ownedRecvRefSym!, ownedFieldRefSym!);
-                        if (refSym.OwnershipTier == OwnershipTier.ReadonlyRef)
+                        // ── Shared parent extraction blocking (Req 2 AC 4–5) ──────────────
+                        // Borrowing, freezing, or taking a readonly ref of an owned field through
+                        // a shared parent is blocked — these operations require exclusive access
+                        // that only an owned parent can guarantee.
+                        if(IsOwnedFieldAccessOnSharedParent(typed.Initializer, state, model, out var sharedFieldSym, out var sharedRecvSym))
                         {
-                            // Readonly ref of field: check field state permits LiveView.
-                            if (fieldState is not null && !IsActionPermitted(fieldState.Value, AccessKind.LiveView))
-                            {
-                                ReportFieldStateViolation(ownedRecvRefSym!, ownedFieldRefSym!, fieldState.Value,
-                                    AccessKind.LiveView, typed, state, model, diagnostics);
-                            }
-                            else
-                            {
-                                state.ReadonlyRefField(ownedRecvRefSym!, ownedFieldRefSym!, declaredSymbol);
-                            }
+                            var tierName = FormatOwnershipTier(refSym.OwnershipTier);
+                            diagnostics.Add(MakeDiagnostic(
+                                SharedExtract,
+                                $"Cannot take '{tierName}' reference to owned field '{sharedFieldSym!.Name}' through " +
+                                $"shared binding '{sharedRecvSym!.Name}' — extracting data from an owned field requires " +
+                                $"an owned binding to the parent.",
+                                typed,
+                                model));
+                            break;
                         }
-                        else if (refSym.OwnershipTier == OwnershipTier.Frozen)
-                        {
-                            // Freeze field: check field state permits Freeze.
-                            if (fieldState is not null && !IsActionPermitted(fieldState.Value, AccessKind.Freeze))
-                            {
-                                ReportFieldStateViolation(ownedRecvRefSym!, ownedFieldRefSym!, fieldState.Value,
-                                    AccessKind.Freeze, typed, state, model, diagnostics);
-                            }
-                            else
-                            {
-                                state.FreezeField(ownedRecvRefSym!, ownedFieldRefSym!, declaredSymbol);
-                            }
-                        }
-                        else // Borrowed
-                        {
-                            // Borrow field: check field state permits Borrow.
-                            if (fieldState is not null && !IsActionPermitted(fieldState.Value, AccessKind.Borrow))
-                            {
-                                ReportFieldStateViolation(ownedRecvRefSym!, ownedFieldRefSym!, fieldState.Value,
-                                    AccessKind.Borrow, typed, state, model, diagnostics);
-                            }
-                            else
-                            {
-                                state.BorrowField(ownedRecvRefSym!, ownedFieldRefSym!, declaredSymbol);
-                            }
-                        }
-                        break;
-                    }
 
-                    if (sourceSymbol is not null &&
-                        sourceSymbol is Symbol sourceSym &&
-                        sourceSym.OwnershipTier is OwnershipTier.Owned or OwnershipTier.Borrowed)
-                    {
-                        if (refSym.OwnershipTier == OwnershipTier.ReadonlyRef)
+                        // Local frozen, borrowed, or readonly ref variable declaration creates a borrow from the initializer.
+                        var sourceSymbol = TryResolveIdentifierSymbol(typed.Initializer, model);
+
+                        // ── Owned parent field borrow/freeze/readonly-ref (Req 2 AC 1, Req 16) ──
+                        // If the initializer is a field access on an owned parent, handle per-field
+                        // state tracking for borrow, freeze, and readonly ref operations.
+                        if(sourceSymbol is null &&
+                            IsOwnedFieldAccessOnOwnedParent(typed.Initializer, state, model, out var ownedFieldRefSym, out var ownedRecvRefSym))
                         {
-                            // Readonly ref: lender transitions to LentReadonly.
-                            // Check truth table: is LiveView permitted in the current state?
-                            if (state.VariableStates.TryGetValue(sourceSymbol, out var currentState))
+                            var fieldState = state.GetFieldState(ownedRecvRefSym!, ownedFieldRefSym!);
+                            if(refSym.OwnershipTier == OwnershipTier.ReadonlyRef)
                             {
-                                if (!IsActionPermitted(currentState, AccessKind.LiveView))
+                                // Readonly ref of field: check field state permits LiveView.
+                                if(fieldState is not null && !IsActionPermitted(fieldState.Value, AccessKind.LiveView))
                                 {
-                                    ReportTruthTableViolation(sourceSymbol, currentState, AccessKind.LiveView, typed, state, model, diagnostics);
+                                    ReportFieldStateViolation(ownedRecvRefSym!, ownedFieldRefSym!, fieldState.Value,
+                                        AccessKind.LiveView, typed, state, model, diagnostics);
                                 }
                                 else
                                 {
-                                    // Only transition to LentReadonly if currently Live.
-                                    // If already LentReadonly or LentFrozen, stay in that state (more restrictive).
-                                    if (currentState == VariableOwnershipState.Live)
+                                    state.ReadonlyRefField(ownedRecvRefSym!, ownedFieldRefSym!, declaredSymbol);
+                                }
+                            }
+                            else if(refSym.OwnershipTier == OwnershipTier.Frozen)
+                            {
+                                // Freeze field: check field state permits Freeze.
+                                if(fieldState is not null && !IsActionPermitted(fieldState.Value, AccessKind.Freeze))
+                                {
+                                    ReportFieldStateViolation(ownedRecvRefSym!, ownedFieldRefSym!, fieldState.Value,
+                                        AccessKind.Freeze, typed, state, model, diagnostics);
+                                }
+                                else
+                                {
+                                    state.FreezeField(ownedRecvRefSym!, ownedFieldRefSym!, declaredSymbol);
+                                }
+                            }
+                            else // Borrowed
+                            {
+                                // Borrow field: check field state permits Borrow.
+                                if(fieldState is not null && !IsActionPermitted(fieldState.Value, AccessKind.Borrow))
+                                {
+                                    ReportFieldStateViolation(ownedRecvRefSym!, ownedFieldRefSym!, fieldState.Value,
+                                        AccessKind.Borrow, typed, state, model, diagnostics);
+                                }
+                                else
+                                {
+                                    state.BorrowField(ownedRecvRefSym!, ownedFieldRefSym!, declaredSymbol);
+                                }
+                            }
+                            break;
+                        }
+
+                        if(sourceSymbol is not null &&
+                            sourceSymbol is Symbol sourceSym &&
+                            sourceSym.OwnershipTier is OwnershipTier.Owned or OwnershipTier.Borrowed)
+                        {
+                            if(refSym.OwnershipTier == OwnershipTier.ReadonlyRef)
+                            {
+                                // Readonly ref: lender transitions to LentReadonly.
+                                // Check truth table: is LiveView permitted in the current state?
+                                if(state.VariableStates.TryGetValue(sourceSymbol, out var currentState))
+                                {
+                                    if(!IsActionPermitted(currentState, AccessKind.LiveView))
                                     {
-                                        state.VariableStates[sourceSymbol] = VariableOwnershipState.LentReadonly;
+                                        ReportTruthTableViolation(sourceSymbol, currentState, AccessKind.LiveView, typed, state, model, diagnostics);
                                     }
+                                    else
+                                    {
+                                        // Only transition to LentReadonly if currently Live.
+                                        // If already LentReadonly or LentFrozen, stay in that state (more restrictive).
+                                        if(currentState == VariableOwnershipState.Live)
+                                        {
+                                            state.VariableStates[sourceSymbol] = VariableOwnershipState.LentReadonly;
+                                        }
+                                        state.ActiveBorrows.Add(new BorrowEntry(
+                                            sourceSymbol, declaredSymbol, OwnershipTier.ReadonlyRef, state.ScopeDepth));
+                                    }
+                                }
+                                else
+                                {
+                                    // Variable not tracked yet — register the borrow without state transition.
                                     state.ActiveBorrows.Add(new BorrowEntry(
                                         sourceSymbol, declaredSymbol, OwnershipTier.ReadonlyRef, state.ScopeDepth));
                                 }
                             }
-                            else
+                            else if(refSym.OwnershipTier == OwnershipTier.Frozen)
                             {
-                                // Variable not tracked yet — register the borrow without state transition.
-                                state.ActiveBorrows.Add(new BorrowEntry(
-                                    sourceSymbol, declaredSymbol, OwnershipTier.ReadonlyRef, state.ScopeDepth));
-                            }
-                        }
-                        else if (refSym.OwnershipTier == OwnershipTier.Frozen)
-                        {
-                            // Frozen borrow: check truth table before transitioning.
-                            if (state.VariableStates.TryGetValue(sourceSymbol, out var currentState))
-                            {
-                                if (!IsActionPermitted(currentState, AccessKind.Freeze))
+                                // Frozen borrow: check truth table before transitioning.
+                                if(state.VariableStates.TryGetValue(sourceSymbol, out var currentState))
                                 {
-                                    ReportTruthTableViolation(sourceSymbol, currentState, AccessKind.Freeze, typed, state, model, diagnostics);
+                                    if(!IsActionPermitted(currentState, AccessKind.Freeze))
+                                    {
+                                        ReportTruthTableViolation(sourceSymbol, currentState, AccessKind.Freeze, typed, state, model, diagnostics);
+                                    }
+                                    else
+                                    {
+                                        state.VariableStates[sourceSymbol] = VariableOwnershipState.LentFrozen;
+                                        state.ActiveBorrows.Add(new BorrowEntry(
+                                            sourceSymbol, declaredSymbol, OwnershipTier.Frozen, state.ScopeDepth));
+                                    }
                                 }
                                 else
                                 {
+                                    // Not tracked — apply the transition.
                                     state.VariableStates[sourceSymbol] = VariableOwnershipState.LentFrozen;
                                     state.ActiveBorrows.Add(new BorrowEntry(
                                         sourceSymbol, declaredSymbol, OwnershipTier.Frozen, state.ScopeDepth));
                                 }
                             }
-                            else
+                            else // Borrowed
                             {
-                                // Not tracked — apply the transition.
-                                state.VariableStates[sourceSymbol] = VariableOwnershipState.LentFrozen;
-                                state.ActiveBorrows.Add(new BorrowEntry(
-                                    sourceSymbol, declaredSymbol, OwnershipTier.Frozen, state.ScopeDepth));
-                            }
-                        }
-                        else // Borrowed
-                        {
-                            // Borrowed: check truth table before transitioning.
-                            if (state.VariableStates.TryGetValue(sourceSymbol, out var currentState))
-                            {
-                                if (!IsActionPermitted(currentState, AccessKind.Borrow))
+                                // Borrowed: check truth table before transitioning.
+                                if(state.VariableStates.TryGetValue(sourceSymbol, out var currentState))
                                 {
-                                    ReportTruthTableViolation(sourceSymbol, currentState, AccessKind.Borrow, typed, state, model, diagnostics);
+                                    if(!IsActionPermitted(currentState, AccessKind.Borrow))
+                                    {
+                                        ReportTruthTableViolation(sourceSymbol, currentState, AccessKind.Borrow, typed, state, model, diagnostics);
+                                    }
+                                    else
+                                    {
+                                        // Check for existing ref borrow (only one at a time).
+                                        if(HasActiveRefBorrow(sourceSymbol, state))
+                                        {
+                                            diagnostics.Add(MakeDiagnostic(
+                                                ExclusiveViolation,
+                                                $"Cannot lend variable '{sourceSymbol.Name}' as 'borrowed' — another borrow is already outstanding. " +
+                                                $"Only one mutable borrow is permitted at a time.",
+                                                typed,
+                                                model));
+                                        }
+                                        else
+                                        {
+                                            state.VariableStates[sourceSymbol] = VariableOwnershipState.LentRef;
+                                            state.ActiveBorrows.Add(new BorrowEntry(
+                                                sourceSymbol, declaredSymbol, OwnershipTier.Borrowed, state.ScopeDepth));
+                                        }
+                                    }
                                 }
                                 else
                                 {
-                                    // Check for existing ref borrow (only one at a time).
-                                    if (HasActiveRefBorrow(sourceSymbol, state))
+                                    // Not tracked — apply the transition.
+                                    if(HasActiveRefBorrow(sourceSymbol, state))
                                     {
                                         diagnostics.Add(MakeDiagnostic(
                                             ExclusiveViolation,
@@ -950,119 +970,114 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                                     }
                                 }
                             }
-                            else
-                            {
-                                // Not tracked — apply the transition.
-                                if (HasActiveRefBorrow(sourceSymbol, state))
-                                {
-                                    diagnostics.Add(MakeDiagnostic(
-                                        ExclusiveViolation,
-                                        $"Cannot lend variable '{sourceSymbol.Name}' as 'borrowed' — another borrow is already outstanding. " +
-                                        $"Only one mutable borrow is permitted at a time.",
-                                        typed,
-                                        model));
-                                }
-                                else
-                                {
-                                    state.VariableStates[sourceSymbol] = VariableOwnershipState.LentRef;
-                                    state.ActiveBorrows.Add(new BorrowEntry(
-                                        sourceSymbol, declaredSymbol, OwnershipTier.Borrowed, state.ScopeDepth));
-                                }
-                            }
                         }
-                    }
-                    else if (sourceSymbol is not null &&
-                             state.BindingKinds.TryGetValue(sourceSymbol, out var sourceBindingKind) &&
-                             sourceBindingKind == BindingKind.Unrestricted)
-                    {
-                        // Unrestricted binding restriction: cannot take borrowed or frozen reference
-                        // to an unrestricted binding. Readonly ref to the variable itself is permitted.
-                        if (refSym.OwnershipTier is OwnershipTier.Borrowed or OwnershipTier.Frozen)
+                        else if(sourceSymbol is not null &&
+                                 state.BindingKinds.TryGetValue(sourceSymbol, out var sourceBindingKind) &&
+                                 sourceBindingKind == BindingKind.Unrestricted)
                         {
-                            diagnostics.Add(MakeDiagnostic(
-                                UnrestrictedToRef,
-                                $"Cannot lend unrestricted binding '{sourceSymbol.Name}' as '{FormatOwnershipTier(refSym.OwnershipTier)}' — " +
-                                $"only owned bindings can guarantee exclusive access.",
-                                typed,
-                                model));
-                        }
-                        // Readonly ref to an unrestricted binding (direct/top-level) is permitted — no error.
-                    }
-                    else
-                    {
-                        // Check if the initializer is a field access on an unrestricted binding.
-                        // e.g., borrowed var y = x.field where x is unrestricted.
-                        var receiverSymbol = TryResolveFieldAccessReceiver(typed.Initializer, model);
-                        if (receiverSymbol is not null &&
-                            state.BindingKinds.TryGetValue(receiverSymbol, out var receiverBindingKind) &&
-                            receiverBindingKind == BindingKind.Unrestricted)
-                        {
-                            if (refSym.OwnershipTier is OwnershipTier.Borrowed or OwnershipTier.Frozen)
+                            // Unrestricted binding restriction: cannot take borrowed or frozen reference
+                            // to an unrestricted binding. Readonly ref to the variable itself is permitted.
+                            if(refSym.OwnershipTier is OwnershipTier.Borrowed or OwnershipTier.Frozen)
                             {
-                                // Cannot take borrowed or frozen reference to any field in the
-                                // object graph of an unrestricted binding.
                                 diagnostics.Add(MakeDiagnostic(
                                     UnrestrictedToRef,
-                                    $"Cannot take '{FormatOwnershipTier(refSym.OwnershipTier)}' reference to a field of " +
-                                    $"unrestricted binding '{receiverSymbol.Name}' — only owned bindings can borrow into the object graph.",
+                                    $"Cannot lend unrestricted binding '{sourceSymbol.Name}' as '{FormatOwnershipTier(refSym.OwnershipTier)}' — " +
+                                    $"only owned bindings can guarantee exclusive access.",
                                     typed,
                                     model));
                             }
-                            // Readonly ref to direct (top-level) fields of an unrestricted binding is permitted.
+                            // Readonly ref to an unrestricted binding (direct/top-level) is permitted — no error.
+                        }
+                        else
+                        {
+                            // Check if the initializer is a field access on an unrestricted binding.
+                            // e.g., borrowed var y = x.field where x is unrestricted.
+                            var receiverSymbol = TryResolveFieldAccessReceiver(typed.Initializer, model);
+                            if(receiverSymbol is not null &&
+                                state.BindingKinds.TryGetValue(receiverSymbol, out var receiverBindingKind) &&
+                                receiverBindingKind == BindingKind.Unrestricted)
+                            {
+                                if(refSym.OwnershipTier is OwnershipTier.Borrowed or OwnershipTier.Frozen)
+                                {
+                                    // Cannot take borrowed or frozen reference to any field in the
+                                    // object graph of an unrestricted binding.
+                                    diagnostics.Add(MakeDiagnostic(
+                                        UnrestrictedToRef,
+                                        $"Cannot take '{FormatOwnershipTier(refSym.OwnershipTier)}' reference to a field of " +
+                                        $"unrestricted binding '{receiverSymbol.Name}' — only owned bindings can borrow into the object graph.",
+                                        typed,
+                                        model));
+                                }
+                                // Readonly ref to direct (top-level) fields of an unrestricted binding is permitted.
+                            }
                         }
                     }
-                }
-                else if (declaredSymbol is not null)
-                {
-                    // Unrestricted binding — register binding kind for access rule enforcement.
-                    state.BindingKinds[declaredSymbol] = BindingKind.Unrestricted;
-
-                    // If the initializer is an owned variable, this is a move (owned → unrestricted).
-                    // The source becomes dead — the destination holds the value without ownership tracking.
-                    var sourceSymbol = TryResolveIdentifierSymbol(typed.Initializer, model);
-                    if (sourceSymbol is not null && IsOwnedVariable(sourceSymbol))
+                    else if(declaredSymbol is not null)
                     {
-                        PerformMove(sourceSymbol, typed.Initializer, state, model, diagnostics);
-                    }
-                }
-                break;
-            }
-            case InferredVariableDeclarationVariableDeclarationStatementNode inferred:
-            {
-                // Check the initializer for use-after-move.
-                CheckExpressionForUseAfterMove(inferred.Initializer, state, model, diagnostics);
+                        // Unrestricted binding — register binding kind for access rule enforcement.
+                        state.BindingKinds[declaredSymbol] = BindingKind.Unrestricted;
 
-                // Check the initializer for method/constructor calls that take owned parameters.
-                CheckMethodCallsForMoves(inferred.Initializer, state, model, diagnostics, isLoop);
-
-                // Get the declared variable symbol.
-                var declaredSymbol = model.GetDeclaredSymbol(inferred);
-                if (declaredSymbol is Symbol sym && sym.OwnershipTier == OwnershipTier.Owned)
-                {
-                    // ── Shared parent extraction blocking (Req 2 AC 4–5) ──────────────
-                    // Moving out of an owned field through a shared parent is blocked.
-                    if (IsOwnedFieldAccessOnSharedParent(inferred.Initializer, state, model, out var sharedFieldSym, out var sharedRecvSym))
-                    {
-                        diagnostics.Add(MakeDiagnostic(
-                            SharedExtract,
-                            $"Cannot move out of owned field '{sharedFieldSym!.Name}' through shared binding " +
-                            $"'{sharedRecvSym!.Name}' — extracting data from an owned field requires an owned " +
-                            $"binding to the parent.",
-                            inferred,
-                            model));
-                        break;
-                    }
-
-                    // ── Owned parent field move-out (Req 2 AC 1, Req 16 AC 2) ────────
-                    // Moving out of an owned field through an owned parent is permitted
-                    // subject to per-field state. Check field state is Live first.
-                    if (IsOwnedFieldAccessOnOwnedParent(inferred.Initializer, state, model, out var ownedFieldSym, out var ownedRecvSym))
-                    {
-                        var fieldState = state.GetFieldState(ownedRecvSym!, ownedFieldSym!);
-                        if (fieldState is not null && fieldState != VariableOwnershipState.Live)
+                        // If the initializer is an owned variable, this is a move (owned → unrestricted).
+                        // The source becomes dead — the destination holds the value without ownership tracking.
+                        var sourceSymbol = TryResolveIdentifierSymbol(typed.Initializer, model);
+                        if(sourceSymbol is not null && IsOwnedVariable(sourceSymbol))
                         {
-                            ReportFieldStateViolation(ownedRecvSym!, ownedFieldSym!, fieldState.Value,
-                                AccessKind.Move, inferred, state, model, diagnostics);
+                            PerformMove(sourceSymbol, typed.Initializer, state, model, diagnostics);
+                        }
+                    }
+                    break;
+                }
+            case InferredVariableDeclarationVariableDeclarationStatementNode inferred:
+                {
+                    // Check the initializer for use-after-move.
+                    CheckExpressionForUseAfterMove(inferred.Initializer, state, model, diagnostics);
+
+                    // Check the initializer for method/constructor calls that take owned parameters.
+                    CheckMethodCallsForMoves(inferred.Initializer, state, model, diagnostics, isLoop);
+
+                    // Get the declared variable symbol.
+                    var declaredSymbol = model.GetDeclaredSymbol(inferred);
+                    if(declaredSymbol is Symbol sym && sym.OwnershipTier == OwnershipTier.Owned)
+                    {
+                        // ── Shared parent extraction blocking (Req 2 AC 4–5) ──────────────
+                        // Moving out of an owned field through a shared parent is blocked.
+                        if(IsOwnedFieldAccessOnSharedParent(inferred.Initializer, state, model, out var sharedFieldSym, out var sharedRecvSym))
+                        {
+                            diagnostics.Add(MakeDiagnostic(
+                                SharedExtract,
+                                $"Cannot move out of owned field '{sharedFieldSym!.Name}' through shared binding " +
+                                $"'{sharedRecvSym!.Name}' — extracting data from an owned field requires an owned " +
+                                $"binding to the parent.",
+                                inferred,
+                                model));
+                            break;
+                        }
+
+                        // ── Owned parent field move-out (Req 2 AC 1, Req 16 AC 2) ────────
+                        // Moving out of an owned field through an owned parent is permitted
+                        // subject to per-field state. Check field state is Live first.
+                        if(IsOwnedFieldAccessOnOwnedParent(inferred.Initializer, state, model, out var ownedFieldSym, out var ownedRecvSym))
+                        {
+                            var fieldState = state.GetFieldState(ownedRecvSym!, ownedFieldSym!);
+                            if(fieldState is not null && fieldState != VariableOwnershipState.Live)
+                            {
+                                ReportFieldStateViolation(ownedRecvSym!, ownedFieldSym!, fieldState.Value,
+                                    AccessKind.Move, inferred, state, model, diagnostics);
+                                break;
+                            }
+
+                            // Register the new owned variable as Live.
+                            state.VariableStates[declaredSymbol] = VariableOwnershipState.Live;
+                            state.BindingKinds[declaredSymbol] = BindingKind.Owned;
+
+                            // Initialize per-field state for the new binding if the moved-in type has owned fields.
+                            if(declaredSymbol.DeclaredType is not null)
+                                state.InitializeFieldStates(declaredSymbol, declaredSymbol.DeclaredType);
+
+                            // Transition the source field to Moved (Req 16 AC 2).
+                            var moveSpan = new Common.Text.SourceSpan(
+                                inferred.Initializer.Span.Start, inferred.Initializer.Span.Length);
+                            state.MoveField(ownedRecvSym!, ownedFieldSym!, moveSpan);
                             break;
                         }
 
@@ -1070,80 +1085,72 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                         state.VariableStates[declaredSymbol] = VariableOwnershipState.Live;
                         state.BindingKinds[declaredSymbol] = BindingKind.Owned;
 
-                        // Initialize per-field state for the new binding if the moved-in type has owned fields.
-                        if (declaredSymbol.DeclaredType is not null)
-                            state.InitializeFieldStates(declaredSymbol, declaredSymbol.DeclaredType);
+                        // Initialize per-field state for the new owned binding if the type has owned fields (Req 16 AC 1).
+                        if(sym.DeclaredType is not null)
+                            state.InitializeFieldStates(declaredSymbol, sym.DeclaredType);
 
-                        // Transition the source field to Moved (Req 16 AC 2).
-                        var moveSpan = new Common.Text.SourceSpan(
-                            inferred.Initializer.Span.Start, inferred.Initializer.Span.Length);
-                        state.MoveField(ownedRecvSym!, ownedFieldSym!, moveSpan);
-                        break;
+                        // Route the initializer through the single move boundary (Req 6 AC 9).
+                        ResolveOwnedBindingInit(inferred.Initializer, sym, state, model, diagnostics);
                     }
-
-                    // Register the new owned variable as Live.
-                    state.VariableStates[declaredSymbol] = VariableOwnershipState.Live;
-                    state.BindingKinds[declaredSymbol] = BindingKind.Owned;
-
-                    // Initialize per-field state for the new owned binding if the type has owned fields (Req 16 AC 1).
-                    if (sym.DeclaredType is not null)
-                        state.InitializeFieldStates(declaredSymbol, sym.DeclaredType);
-
-                    // Route the initializer through the single move boundary (Req 6 AC 9).
-                    ResolveOwnedBindingInit(inferred.Initializer, sym, state, model, diagnostics);
-                }
-                else if (declaredSymbol is Symbol refSym &&
-                         refSym.OwnershipTier is OwnershipTier.Frozen or OwnershipTier.Borrowed or OwnershipTier.ReadonlyRef)
-                {
-                    // ── Shared parent extraction blocking (Req 2 AC 4–5) ──────────────
-                    // Borrowing, freezing, or taking a readonly ref of an owned field through
-                    // a shared parent is blocked — these operations require exclusive access
-                    // that only an owned parent can guarantee.
-                    if (IsOwnedFieldAccessOnSharedParent(inferred.Initializer, state, model, out var sharedFieldSym3, out var sharedRecvSym3))
+                    else if(declaredSymbol is Symbol refSym &&
+                             refSym.OwnershipTier is OwnershipTier.Frozen or OwnershipTier.Borrowed or OwnershipTier.ReadonlyRef)
                     {
-                        var tierName = FormatOwnershipTier(refSym.OwnershipTier);
-                        diagnostics.Add(MakeDiagnostic(
-                            SharedExtract,
-                            $"Cannot take '{tierName}' reference to owned field '{sharedFieldSym3!.Name}' through " +
-                            $"shared binding '{sharedRecvSym3!.Name}' — extracting data from an owned field requires " +
-                            $"an owned binding to the parent.",
-                            inferred,
-                            model));
-                        break;
-                    }
-
-                    // For ref-tier inferred bindings, handle lending from owned/borrowed sources.
-                    var sourceSymbolRef = TryResolveIdentifierSymbol(inferred.Initializer, model);
-                    if (sourceSymbolRef is not null &&
-                        sourceSymbolRef is Symbol sourceRefSym &&
-                        sourceRefSym.OwnershipTier is OwnershipTier.Owned or OwnershipTier.Borrowed)
-                    {
-                        if (refSym.OwnershipTier == OwnershipTier.ReadonlyRef)
+                        // ── Shared parent extraction blocking (Req 2 AC 4–5) ──────────────
+                        // Borrowing, freezing, or taking a readonly ref of an owned field through
+                        // a shared parent is blocked — these operations require exclusive access
+                        // that only an owned parent can guarantee.
+                        if(IsOwnedFieldAccessOnSharedParent(inferred.Initializer, state, model, out var sharedFieldSym3, out var sharedRecvSym3))
                         {
-                            if (state.VariableStates.TryGetValue(sourceSymbolRef, out var currentState))
+                            var tierName = FormatOwnershipTier(refSym.OwnershipTier);
+                            diagnostics.Add(MakeDiagnostic(
+                                SharedExtract,
+                                $"Cannot take '{tierName}' reference to owned field '{sharedFieldSym3!.Name}' through " +
+                                $"shared binding '{sharedRecvSym3!.Name}' — extracting data from an owned field requires " +
+                                $"an owned binding to the parent.",
+                                inferred,
+                                model));
+                            break;
+                        }
+
+                        // For ref-tier inferred bindings, handle lending from owned/borrowed sources.
+                        var sourceSymbolRef = TryResolveIdentifierSymbol(inferred.Initializer, model);
+                        if(sourceSymbolRef is not null &&
+                            sourceSymbolRef is Symbol sourceRefSym &&
+                            sourceRefSym.OwnershipTier is OwnershipTier.Owned or OwnershipTier.Borrowed)
+                        {
+                            if(refSym.OwnershipTier == OwnershipTier.ReadonlyRef)
                             {
-                                if (!IsActionPermitted(currentState, AccessKind.LiveView))
-                                    ReportTruthTableViolation(sourceSymbolRef, currentState, AccessKind.LiveView, inferred, state, model, diagnostics);
+                                if(state.VariableStates.TryGetValue(sourceSymbolRef, out var currentState))
+                                {
+                                    if(!IsActionPermitted(currentState, AccessKind.LiveView))
+                                        ReportTruthTableViolation(sourceSymbolRef, currentState, AccessKind.LiveView, inferred, state, model, diagnostics);
+                                    else
+                                    {
+                                        if(currentState == VariableOwnershipState.Live)
+                                            state.VariableStates[sourceSymbolRef] = VariableOwnershipState.LentReadonly;
+                                        state.ActiveBorrows.Add(new BorrowEntry(
+                                            sourceSymbolRef, declaredSymbol, OwnershipTier.ReadonlyRef, state.ScopeDepth));
+                                    }
+                                }
                                 else
                                 {
-                                    if (currentState == VariableOwnershipState.Live)
-                                        state.VariableStates[sourceSymbolRef] = VariableOwnershipState.LentReadonly;
                                     state.ActiveBorrows.Add(new BorrowEntry(
                                         sourceSymbolRef, declaredSymbol, OwnershipTier.ReadonlyRef, state.ScopeDepth));
                                 }
                             }
-                            else
+                            else if(refSym.OwnershipTier == OwnershipTier.Frozen)
                             {
-                                state.ActiveBorrows.Add(new BorrowEntry(
-                                    sourceSymbolRef, declaredSymbol, OwnershipTier.ReadonlyRef, state.ScopeDepth));
-                            }
-                        }
-                        else if (refSym.OwnershipTier == OwnershipTier.Frozen)
-                        {
-                            if (state.VariableStates.TryGetValue(sourceSymbolRef, out var currentState))
-                            {
-                                if (!IsActionPermitted(currentState, AccessKind.Freeze))
-                                    ReportTruthTableViolation(sourceSymbolRef, currentState, AccessKind.Freeze, inferred, state, model, diagnostics);
+                                if(state.VariableStates.TryGetValue(sourceSymbolRef, out var currentState))
+                                {
+                                    if(!IsActionPermitted(currentState, AccessKind.Freeze))
+                                        ReportTruthTableViolation(sourceSymbolRef, currentState, AccessKind.Freeze, inferred, state, model, diagnostics);
+                                    else
+                                    {
+                                        state.VariableStates[sourceSymbolRef] = VariableOwnershipState.LentFrozen;
+                                        state.ActiveBorrows.Add(new BorrowEntry(
+                                            sourceSymbolRef, declaredSymbol, OwnershipTier.Frozen, state.ScopeDepth));
+                                    }
+                                }
                                 else
                                 {
                                     state.VariableStates[sourceSymbolRef] = VariableOwnershipState.LentFrozen;
@@ -1151,22 +1158,34 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                                         sourceSymbolRef, declaredSymbol, OwnershipTier.Frozen, state.ScopeDepth));
                                 }
                             }
-                            else
+                            else // Borrowed
                             {
-                                state.VariableStates[sourceSymbolRef] = VariableOwnershipState.LentFrozen;
-                                state.ActiveBorrows.Add(new BorrowEntry(
-                                    sourceSymbolRef, declaredSymbol, OwnershipTier.Frozen, state.ScopeDepth));
-                            }
-                        }
-                        else // Borrowed
-                        {
-                            if (state.VariableStates.TryGetValue(sourceSymbolRef, out var currentState))
-                            {
-                                if (!IsActionPermitted(currentState, AccessKind.Borrow))
-                                    ReportTruthTableViolation(sourceSymbolRef, currentState, AccessKind.Borrow, inferred, state, model, diagnostics);
+                                if(state.VariableStates.TryGetValue(sourceSymbolRef, out var currentState))
+                                {
+                                    if(!IsActionPermitted(currentState, AccessKind.Borrow))
+                                        ReportTruthTableViolation(sourceSymbolRef, currentState, AccessKind.Borrow, inferred, state, model, diagnostics);
+                                    else
+                                    {
+                                        if(HasActiveRefBorrow(sourceSymbolRef, state))
+                                        {
+                                            diagnostics.Add(MakeDiagnostic(
+                                                ExclusiveViolation,
+                                                $"Cannot lend variable '{sourceSymbolRef.Name}' as 'borrowed' — another borrow is already outstanding. " +
+                                                $"Only one mutable borrow is permitted at a time.",
+                                                inferred,
+                                                model));
+                                        }
+                                        else
+                                        {
+                                            state.VariableStates[sourceSymbolRef] = VariableOwnershipState.LentRef;
+                                            state.ActiveBorrows.Add(new BorrowEntry(
+                                                sourceSymbolRef, declaredSymbol, OwnershipTier.Borrowed, state.ScopeDepth));
+                                        }
+                                    }
+                                }
                                 else
                                 {
-                                    if (HasActiveRefBorrow(sourceSymbolRef, state))
+                                    if(HasActiveRefBorrow(sourceSymbolRef, state))
                                     {
                                         diagnostics.Add(MakeDiagnostic(
                                             ExclusiveViolation,
@@ -1183,96 +1202,77 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                                     }
                                 }
                             }
-                            else
-                            {
-                                if (HasActiveRefBorrow(sourceSymbolRef, state))
-                                {
-                                    diagnostics.Add(MakeDiagnostic(
-                                        ExclusiveViolation,
-                                        $"Cannot lend variable '{sourceSymbolRef.Name}' as 'borrowed' — another borrow is already outstanding. " +
-                                        $"Only one mutable borrow is permitted at a time.",
-                                        inferred,
-                                        model));
-                                }
-                                else
-                                {
-                                    state.VariableStates[sourceSymbolRef] = VariableOwnershipState.LentRef;
-                                    state.ActiveBorrows.Add(new BorrowEntry(
-                                        sourceSymbolRef, declaredSymbol, OwnershipTier.Borrowed, state.ScopeDepth));
-                                }
-                            }
                         }
-                    }
-                    else if (sourceSymbolRef is not null &&
-                             state.BindingKinds.TryGetValue(sourceSymbolRef, out var sourceBindingKindRef) &&
-                             sourceBindingKindRef == BindingKind.Unrestricted)
-                    {
-                        if (refSym.OwnershipTier is OwnershipTier.Borrowed or OwnershipTier.Frozen)
+                        else if(sourceSymbolRef is not null &&
+                                 state.BindingKinds.TryGetValue(sourceSymbolRef, out var sourceBindingKindRef) &&
+                                 sourceBindingKindRef == BindingKind.Unrestricted)
                         {
-                            diagnostics.Add(MakeDiagnostic(
-                                UnrestrictedToRef,
-                                $"Cannot lend unrestricted binding '{sourceSymbolRef.Name}' as '{FormatOwnershipTier(refSym.OwnershipTier)}' — " +
-                                $"only owned bindings can guarantee exclusive access.",
-                                inferred,
-                                model));
-                        }
-                    }
-                    else
-                    {
-                        // Check if the initializer is a field access on an unrestricted binding.
-                        var receiverSymbol = TryResolveFieldAccessReceiver(inferred.Initializer, model);
-                        if (receiverSymbol is not null &&
-                            state.BindingKinds.TryGetValue(receiverSymbol, out var receiverBindingKind) &&
-                            receiverBindingKind == BindingKind.Unrestricted)
-                        {
-                            if (refSym.OwnershipTier is OwnershipTier.Borrowed or OwnershipTier.Frozen)
+                            if(refSym.OwnershipTier is OwnershipTier.Borrowed or OwnershipTier.Frozen)
                             {
                                 diagnostics.Add(MakeDiagnostic(
                                     UnrestrictedToRef,
-                                    $"Cannot take '{FormatOwnershipTier(refSym.OwnershipTier)}' reference to a field of " +
-                                    $"unrestricted binding '{receiverSymbol.Name}' — only owned bindings can borrow into the object graph.",
+                                    $"Cannot lend unrestricted binding '{sourceSymbolRef.Name}' as '{FormatOwnershipTier(refSym.OwnershipTier)}' — " +
+                                    $"only owned bindings can guarantee exclusive access.",
                                     inferred,
                                     model));
                             }
                         }
-                    }
-                }
-                else if (declaredSymbol is not null)
-                {
-                    // Unrestricted binding — register binding kind for access rule enforcement.
-                    state.BindingKinds[declaredSymbol] = BindingKind.Unrestricted;
-
-                    // ── Shared parent read-not-clonable check (Req 2 AC 6) ───────────
-                    // Reading an owned field through a shared parent requires the field's type
-                    // to implement IClonable. If NOT IClonable, the field cannot be cloned and
-                    // cannot be moved out through a shared parent.
-                    if (IsOwnedFieldAccessOnSharedParent(inferred.Initializer, state, model, out var sharedFieldSym2, out var sharedRecvSym2))
-                    {
-                        var fieldType = sharedFieldSym2!.DeclaredType;
-                        if (fieldType is not null && !ImplementsIClonable(fieldType) && !IsValueType(fieldType))
+                        else
                         {
-                            diagnostics.Add(MakeDiagnostic(
-                                SharedReadNotClonable,
-                                $"Cannot read owned field '{sharedFieldSym2.Name}' through shared binding " +
-                                $"'{sharedRecvSym2!.Name}' — the field's type '{fieldType.DisplayName}' does not " +
-                                $"implement 'IClonable<{fieldType.DisplayName}>' and cannot be moved out without " +
-                                $"an owned binding to the parent.",
-                                inferred,
-                                model));
-                            break;
+                            // Check if the initializer is a field access on an unrestricted binding.
+                            var receiverSymbol = TryResolveFieldAccessReceiver(inferred.Initializer, model);
+                            if(receiverSymbol is not null &&
+                                state.BindingKinds.TryGetValue(receiverSymbol, out var receiverBindingKind) &&
+                                receiverBindingKind == BindingKind.Unrestricted)
+                            {
+                                if(refSym.OwnershipTier is OwnershipTier.Borrowed or OwnershipTier.Frozen)
+                                {
+                                    diagnostics.Add(MakeDiagnostic(
+                                        UnrestrictedToRef,
+                                        $"Cannot take '{FormatOwnershipTier(refSym.OwnershipTier)}' reference to a field of " +
+                                        $"unrestricted binding '{receiverSymbol.Name}' — only owned bindings can borrow into the object graph.",
+                                        inferred,
+                                        model));
+                                }
+                            }
                         }
                     }
-
-                    // If the initializer is an owned variable, this is a move (owned → unrestricted).
-                    // The source becomes dead — the destination holds the value without ownership tracking.
-                    var sourceSymbol = TryResolveIdentifierSymbol(inferred.Initializer, model);
-                    if (sourceSymbol is not null && IsOwnedVariable(sourceSymbol))
+                    else if(declaredSymbol is not null)
                     {
-                        PerformMove(sourceSymbol, inferred.Initializer, state, model, diagnostics);
+                        // Unrestricted binding — register binding kind for access rule enforcement.
+                        state.BindingKinds[declaredSymbol] = BindingKind.Unrestricted;
+
+                        // ── Shared parent read-not-clonable check (Req 2 AC 6) ───────────
+                        // Reading an owned field through a shared parent requires the field's type
+                        // to implement IClonable. If NOT IClonable, the field cannot be cloned and
+                        // cannot be moved out through a shared parent.
+                        if(IsOwnedFieldAccessOnSharedParent(inferred.Initializer, state, model, out var sharedFieldSym2, out var sharedRecvSym2))
+                        {
+                            var fieldType = sharedFieldSym2!.DeclaredType;
+                            if(fieldType is not null && !ImplementsIClonable(fieldType) && !IsValueType(fieldType))
+                            {
+                                diagnostics.Add(MakeDiagnostic(
+                                    SharedReadNotClonable,
+                                    $"Cannot read owned field '{sharedFieldSym2.Name}' through shared binding " +
+                                    $"'{sharedRecvSym2!.Name}' — the field's type '{fieldType.DisplayName}' does not " +
+                                    $"implement 'IClonable<{fieldType.DisplayName}>' and cannot be moved out without " +
+                                    $"an owned binding to the parent.",
+                                    inferred,
+                                    model));
+                                break;
+                            }
+                        }
+
+                        // If the initializer is an owned variable, this is a move (owned → unrestricted).
+                        // The source becomes dead — the destination holds the value without ownership tracking.
+                        var sourceSymbol = TryResolveIdentifierSymbol(inferred.Initializer, model);
+                        if(sourceSymbol is not null && IsOwnedVariable(sourceSymbol))
+                        {
+                            PerformMove(sourceSymbol, inferred.Initializer, state, model, diagnostics);
+                        }
                     }
+                    break;
                 }
-                break;
-            }
         }
     }
 
@@ -1319,7 +1319,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
     {
         // Lambda-form expressions introduce their own body scope; closure capture
         // ownership is handled by the type checker's capture rules, not flow analysis.
-        if (expr.AsAssignmentOrNull() is { } assignment)
+        if(expr.AsAssignmentOrNull() is { } assignment)
             AnalyzeAssignment(assignment, state, model, diagnostics, isLoop);
     }
 
@@ -1334,7 +1334,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         DiagnosticBag diagnostics,
         bool isLoop)
     {
-        if (assignment.Value is not null)
+        if(assignment.Value is not null)
         {
             // This is an assignment: target = value. The RHS is now a full
             // ExpressionNode (widened to reach lambdas). A lambda RHS has no
@@ -1343,7 +1343,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
             var rhsAssignment = assignment.Value.AsAssignmentOrNull();
 
             // First, check the RHS for use-after-move.
-            if (rhsAssignment is not null)
+            if(rhsAssignment is not null)
                 CheckAssignmentValueForUseAfterMove(rhsAssignment, state, model, diagnostics);
 
             // Resolve the LHS target symbol.
@@ -1356,11 +1356,11 @@ public sealed class OwnershipAnalyzer : IAnalyzer
 
             // Non-storability check: if the RHS is a ref-tier variable and the LHS
             // is a field, emit MIST_OWN_NOT_STORABLE.
-            if (rhsSymbol is Symbol rhsSym &&
+            if(rhsSymbol is Symbol rhsSym &&
                 rhsSym.OwnershipTier is OwnershipTier.Borrowed or OwnershipTier.ReadonlyRef or OwnershipTier.Frozen)
             {
                 var targetFieldSymbol = TryResolveFieldTarget(assignment.Target, model);
-                if (targetFieldSymbol is not null && targetFieldSymbol.Kind == SymbolKind.Field)
+                if(targetFieldSymbol is not null && targetFieldSymbol.Kind == SymbolKind.Field)
                 {
                     var tierName = FormatOwnershipTier(rhsSym.OwnershipTier);
                     diagnostics.Add(MakeDiagnostic(
@@ -1372,7 +1372,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
             }
 
             // If the LHS is an owned variable, this assignment restores it to Live.
-            if (lhsSymbol is not null && IsOwnedVariable(lhsSymbol))
+            if(lhsSymbol is not null && IsOwnedVariable(lhsSymbol))
             {
                 state.VariableStates[lhsSymbol] = VariableOwnershipState.Live;
                 state.MoveLocations.Remove(lhsSymbol);
@@ -1381,10 +1381,10 @@ public sealed class OwnershipAnalyzer : IAnalyzer
             // Mutation blocking check: if the assignment target is a field access on a
             // variable in a restricted state, use the truth table to check Write permission.
             var receiverOfFieldAssign = TryResolveFieldAccessReceiver(assignment.Target, model);
-            if (receiverOfFieldAssign is not null &&
+            if(receiverOfFieldAssign is not null &&
                 state.VariableStates.TryGetValue(receiverOfFieldAssign, out var recvState))
             {
-                if (!IsActionPermitted(recvState, AccessKind.Write))
+                if(!IsActionPermitted(recvState, AccessKind.Write))
                 {
                     ReportTruthTableViolation(receiverOfFieldAssign, recvState, AccessKind.Write, assignment, state, model, diagnostics);
                 }
@@ -1397,22 +1397,22 @@ public sealed class OwnershipAnalyzer : IAnalyzer
             // OwnedFieldAssignment). The resolver emits MIST_OWN_REQUIRES_OWNED /
             // MIST_OWN_NOT_CLONABLE for a non-owned, non-clonable source, records
             // implicit-clone annotations, and consumes an owned source.
-            if (assignment.Value is not null &&
+            if(assignment.Value is not null &&
                 receiverOfFieldAssign is not null)
             {
                 var targetField = TryResolveFieldTarget(assignment.Target, model);
                 var isOwnedParent = IsOwnedVariable(receiverOfFieldAssign);
                 var isOwnedField = targetField is Symbol tfCheck && tfCheck.IsOwnedField;
 
-                if (isOwnedParent || isOwnedField)
+                if(isOwnedParent || isOwnedField)
                 {
                     // Per-field write state check (Req 16 AC 3–5, Req 2 AC 1):
                     // Fields in LentRef or LentFrozen cannot be written to (outstanding borrow blocks mutation).
                     // Fields in Moved CAN be written to — that's the restoration mechanism (Req 16 AC 6).
-                    if (targetField is Symbol tfs && tfs.IsOwnedField && isOwnedParent)
+                    if(targetField is Symbol tfs && tfs.IsOwnedField && isOwnedParent)
                     {
                         var currentFieldState = state.GetFieldState(receiverOfFieldAssign, targetField);
-                        if (currentFieldState is VariableOwnershipState.LentRef or VariableOwnershipState.LentFrozen)
+                        if(currentFieldState is VariableOwnershipState.LentRef or VariableOwnershipState.LentFrozen)
                         {
                             ReportFieldStateViolation(receiverOfFieldAssign, targetField, currentFieldState.Value,
                                 AccessKind.Write, assignment, state, model, diagnostics);
@@ -1430,7 +1430,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                     // Per-field state restoration (Req 16 AC 6, Req 2 AC 1):
                     // After the resolver approves a write to an owned field through an owned parent,
                     // restore the field from Moved to Live (if it was Moved).
-                    if (isOwnedParent && targetField is Symbol restoredField && restoredField.IsOwnedField &&
+                    if(isOwnedParent && targetField is Symbol restoredField && restoredField.IsOwnedField &&
                         resolution.Outcome != MoveOutcome.Error)
                     {
                         state.RestoreField(receiverOfFieldAssign, targetField);
@@ -1442,17 +1442,17 @@ public sealed class OwnershipAnalyzer : IAnalyzer
             // by TryResolveFieldAccessReceiver since ThisExpressionPrimaryNode is not an identifier),
             // resolve the field directly and route through the move boundary if it's an owned field.
             // This replaces the old CooperationContractVerifier's per-method provenance check.
-            if (assignment.Value is not null && receiverOfFieldAssign is null)
+            if(assignment.Value is not null && receiverOfFieldAssign is null)
             {
                 var thisField = TryResolveThisFieldTarget(assignment.Target, model);
-                if (thisField is Symbol thisFieldSym && thisFieldSym.IsOwnedField)
+                if(thisField is Symbol thisFieldSym && thisFieldSym.IsOwnedField)
                 {
                     // Guard: only process if the source expression has a concrete resolvable type.
                     // Skip TypeParameterType (unsubstituted generic parameters from open generic
                     // methods/types) — these are processed during monomorphization and don't need
                     // provenance enforcement at the generic definition level.
                     var sourceType = model.GetTypeOf(assignment.Value);
-                    if (sourceType is not null && sourceType is not ErrorType
+                    if(sourceType is not null && sourceType is not ErrorType
                         && sourceType is not TypeParameterType)
                     {
                         _resolver.Resolve(
@@ -1468,13 +1468,13 @@ public sealed class OwnershipAnalyzer : IAnalyzer
 
             // If the RHS is an owned variable being assigned to an owned or unrestricted LHS, it's a move.
             // Owned → owned: ownership transfers. Owned → unrestricted: source becomes dead.
-            if (rhsSymbol is not null && IsOwnedVariable(rhsSymbol) && lhsSymbol is not null)
+            if(rhsSymbol is not null && IsOwnedVariable(rhsSymbol) && lhsSymbol is not null)
             {
-                if (IsOwnedVariable(lhsSymbol))
+                if(IsOwnedVariable(lhsSymbol))
                 {
                     PerformMove(rhsSymbol, assignment, state, model, diagnostics);
                 }
-                else if (state.BindingKinds.TryGetValue(lhsSymbol, out var lhsKind) &&
+                else if(state.BindingKinds.TryGetValue(lhsSymbol, out var lhsKind) &&
                          lhsKind == BindingKind.Unrestricted)
                 {
                     PerformMove(rhsSymbol, assignment, state, model, diagnostics);
@@ -1516,7 +1516,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         state.ExitScope();
 
         // Handle else branch.
-        if (ifStmt.ElseBranch is ElseBlockElseClauseNode elseBlock)
+        if(ifStmt.ElseBranch is ElseBlockElseClauseNode elseBlock)
         {
             // Fork from the pre-if state for the else branch.
             var elseState = thenState.Fork();
@@ -1532,7 +1532,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
             // Merge: state (then result) merges with thenState (else result).
             state.Merge(thenState);
         }
-        else if (ifStmt.ElseBranch is ElseIfElseClauseNode elseIf)
+        else if(ifStmt.ElseBranch is ElseIfElseClauseNode elseIf)
         {
             // Treat else-if as a nested if in the else branch.
             var elseIfState = thenState.Fork();
@@ -1564,9 +1564,9 @@ public sealed class OwnershipAnalyzer : IAnalyzer
 
         // Snapshot which owned variables are Live before the loop body.
         var liveBeforeLoop = new Dictionary<ISymbol, VariableOwnershipState>();
-        foreach (var (symbol, varState) in state.VariableStates)
+        foreach(var (symbol, varState) in state.VariableStates)
         {
-            if (varState == VariableOwnershipState.Live && IsOwnedVariable(symbol))
+            if(varState == VariableOwnershipState.Live && IsOwnedVariable(symbol))
             {
                 liveBeforeLoop[symbol] = varState;
             }
@@ -1593,24 +1593,24 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         DiagnosticBag diagnostics)
     {
         // Check initializer for use-after-move.
-        if (forStmt.Initializer is not null)
+        if(forStmt.Initializer is not null)
         {
-            foreach (var child in forStmt.Initializer.Children())
+            foreach(var child in forStmt.Initializer.Children())
             {
-                if (child is ExpressionNode expr)
+                if(child is ExpressionNode expr)
                     CheckExpressionForUseAfterMove(expr, state, model, diagnostics);
             }
         }
 
         // Check condition for use-after-move.
-        if (forStmt.Condition is not null)
+        if(forStmt.Condition is not null)
             CheckExpressionForUseAfterMove(forStmt.Condition, state, model, diagnostics);
 
         // Snapshot which owned variables are Live before the loop body.
         var liveBeforeLoop = new Dictionary<ISymbol, VariableOwnershipState>();
-        foreach (var (symbol, varState) in state.VariableStates)
+        foreach(var (symbol, varState) in state.VariableStates)
         {
-            if (varState == VariableOwnershipState.Live && IsOwnedVariable(symbol))
+            if(varState == VariableOwnershipState.Live && IsOwnedVariable(symbol))
             {
                 liveBeforeLoop[symbol] = varState;
             }
@@ -1626,7 +1626,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         ReportUnresolvedLoopMoves(liveBeforeLoop, state, forStmt, model, diagnostics);
 
         // Check iterator for use-after-move.
-        if (forStmt.Iterator is not null)
+        if(forStmt.Iterator is not null)
             CheckExpressionForUseAfterMove(forStmt.Iterator, state, model, diagnostics);
     }
 
@@ -1645,9 +1645,9 @@ public sealed class OwnershipAnalyzer : IAnalyzer
 
         // Snapshot which owned variables are Live before the loop body.
         var liveBeforeLoop = new Dictionary<ISymbol, VariableOwnershipState>();
-        foreach (var (symbol, varState) in state.VariableStates)
+        foreach(var (symbol, varState) in state.VariableStates)
         {
-            if (varState == VariableOwnershipState.Live && IsOwnedVariable(symbol))
+            if(varState == VariableOwnershipState.Live && IsOwnedVariable(symbol))
             {
                 liveBeforeLoop[symbol] = varState;
             }
@@ -1673,13 +1673,13 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         DiagnosticBag diagnostics,
         bool isLoop)
     {
-        if (returnStmt.Value is not null)
+        if(returnStmt.Value is not null)
         {
             CheckExpressionForUseAfterMove(returnStmt.Value, state, model, diagnostics);
 
             // If returning an owned variable, it's a move out of the method.
             var sourceSymbol = TryResolveIdentifierSymbol(returnStmt.Value, model);
-            if (sourceSymbol is not null && IsOwnedVariable(sourceSymbol))
+            if(sourceSymbol is not null && IsOwnedVariable(sourceSymbol))
             {
                 PerformMove(sourceSymbol, returnStmt.Value, state, model, diagnostics);
             }
@@ -1703,9 +1703,9 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         DiagnosticBag diagnostics)
     {
         // Check truth table: is Move permitted in the current state?
-        if (state.VariableStates.TryGetValue(sourceSymbol, out var currentState))
+        if(state.VariableStates.TryGetValue(sourceSymbol, out var currentState))
         {
-            if (!IsActionPermitted(currentState, AccessKind.Move))
+            if(!IsActionPermitted(currentState, AccessKind.Move))
             {
                 ReportTruthTableViolation(sourceSymbol, currentState, AccessKind.Move, moveNode, state, model, diagnostics);
                 return;
@@ -1728,9 +1728,9 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         ISemanticModel model,
         DiagnosticBag diagnostics)
     {
-        foreach (var (symbol, _) in liveBeforeLoop)
+        foreach(var (symbol, _) in liveBeforeLoop)
         {
-            if (state.VariableStates.TryGetValue(symbol, out var afterState) &&
+            if(state.VariableStates.TryGetValue(symbol, out var afterState) &&
                 afterState == VariableOwnershipState.Moved)
             {
                 // The variable was moved inside the loop without re-assignment.
@@ -1756,7 +1756,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         DiagnosticBag diagnostics)
     {
         // Lambda-form expressions are handled by the type checker's capture rules.
-        if (expr.AsAssignmentOrNull() is { } assignment)
+        if(expr.AsAssignmentOrNull() is { } assignment)
             CheckAssignmentValueForUseAfterMove(assignment, state, model, diagnostics);
     }
 
@@ -1774,7 +1774,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
 
         // If there's a chained assignment, check it recursively. The RHS is now a
         // full ExpressionNode; a lambda RHS has no use-after-move effect here.
-        if (assignment.Value is not null && assignment.Value.AsAssignmentOrNull() is { } rhsAssignment)
+        if(assignment.Value is not null && assignment.Value.AsAssignmentOrNull() is { } rhsAssignment)
         {
             CheckAssignmentValueForUseAfterMove(rhsAssignment, state, model, diagnostics);
         }
@@ -1791,12 +1791,12 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         DiagnosticBag diagnostics)
     {
         // Check if this node is an identifier referencing a variable in a restricted state.
-        if (node is IdentifierExpressionPrimaryNode identifier)
+        if(node is IdentifierExpressionPrimaryNode identifier)
         {
             var symbol = model.GetDeclaredSymbol(identifier);
-            if (symbol is not null && IsOwnedVariable(symbol))
+            if(symbol is not null && IsOwnedVariable(symbol))
             {
-                if (state.VariableStates.TryGetValue(symbol, out var varState) &&
+                if(state.VariableStates.TryGetValue(symbol, out var varState) &&
                     !IsActionPermitted(varState, AccessKind.Read))
                 {
                     ReportTruthTableViolation(symbol, varState, AccessKind.Read, identifier, state, model, diagnostics);
@@ -1805,9 +1805,9 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         }
 
         // Recursively check children.
-        foreach (var child in node.Children())
+        foreach(var child in node.Children())
         {
-            if (child is not null)
+            if(child is not null)
             {
                 CheckLogicalOrForUseAfterMove(child, state, model, diagnostics);
             }
@@ -1826,11 +1826,11 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         bool isLoop)
     {
         // Look for PostfixNode with method call suffixes.
-        if (node is PostfixNode postfix)
+        if(node is PostfixNode postfix)
         {
             // Check mutation blocking: if the receiver is in a restricted state,
             // use the truth table to check whether the access is permitted.
-            if (postfix.Suffix.Length > 0 && postfix.Suffix[0] is MethodCallSuffixPostfixSuffixNode firstMethodCall)
+            if(postfix.Suffix.Length > 0 && postfix.Suffix[0] is MethodCallSuffixPostfixSuffixNode firstMethodCall)
             {
                 var receiverSymbol = model.GetDeclaredSymbol(postfix.Target);
 
@@ -1840,34 +1840,34 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                 // emit MIST_OWN_THIS_TIER_MISMATCH. This replaces the old
                 // MethodTierVisibilityFilter blanket hiding (Req 6).
                 var consumedByWithOwned = false;
-                if (receiverSymbol is not null)
+                if(receiverSymbol is not null)
                 {
                     var receiverType = receiverSymbol.DeclaredType;
-                    if (receiverType is not null)
+                    if(receiverType is not null)
                     {
                         var calledMethod = LookupMemberByName(receiverType, firstMethodCall.Name.Lexeme);
-                        if (calledMethod is not null)
+                        if(calledMethod is not null)
                         {
                             var requiredTier = ThisTierInferencePass.GetThisTier(calledMethod);
-                            if (requiredTier != ThisTier.None)
+                            if(requiredTier != ThisTier.None)
                             {
                                 // Determine the caller's effective tier from the receiver symbol.
                                 var callerTier = ThisTier.None;
-                                if (state.BindingKinds.TryGetValue(receiverSymbol, out var receiverBinding) &&
+                                if(state.BindingKinds.TryGetValue(receiverSymbol, out var receiverBinding) &&
                                     receiverBinding == BindingKind.Owned)
                                 {
                                     callerTier = ThisTier.Owned;
                                 }
-                                else if (state.InferredTiers.TryGetValue(receiverSymbol, out var inferredTier))
+                                else if(state.InferredTiers.TryGetValue(receiverSymbol, out var inferredTier))
                                 {
                                     callerTier = ThisTierExtensions.FromOwnershipTier(inferredTier);
                                 }
-                                else if (receiverSymbol is Symbol recvSym)
+                                else if(receiverSymbol is Symbol recvSym)
                                 {
                                     callerTier = ThisTierExtensions.FromOwnershipTier(recvSym.OwnershipTier);
                                 }
 
-                                if (!ThisTierExtensions.Satisfies(callerTier, requiredTier))
+                                if(!ThisTierExtensions.Satisfies(callerTier, requiredTier))
                                 {
                                     diagnostics.Add(MakeDiagnostic(
                                         ThisTierMismatch,
@@ -1879,7 +1879,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                                         firstMethodCall,
                                         model));
                                 }
-                                else if (requiredTier == ThisTier.Owned)
+                                else if(requiredTier == ThisTier.Owned)
                                 {
                                     // 'with owned' method consumes the receiver (Req 17 AC 13):
                                     // the caller's binding is moved into the method and becomes
@@ -1892,27 +1892,27 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                     }
                 }
 
-                if (!consumedByWithOwned && receiverSymbol is not null &&
+                if(!consumedByWithOwned && receiverSymbol is not null &&
                     state.VariableStates.TryGetValue(receiverSymbol, out var receiverState))
                 {
-                    if (receiverState == VariableOwnershipState.LentRef)
+                    if(receiverState == VariableOwnershipState.LentRef)
                     {
                         // LentRef: all access is blocked (Read is false in truth table).
-                        if (!IsActionPermitted(receiverState, AccessKind.Read))
+                        if(!IsActionPermitted(receiverState, AccessKind.Read))
                         {
                             ReportTruthTableViolation(receiverSymbol, receiverState, AccessKind.Read, firstMethodCall, state, model, diagnostics);
                         }
                     }
-                    else if (receiverState == VariableOwnershipState.LentFrozen)
+                    else if(receiverState == VariableOwnershipState.LentFrozen)
                     {
                         // LentFrozen: check if the method is non-readonly (mutation attempt = Write).
                         var receiverType = receiverSymbol.DeclaredType;
-                        if (receiverType is not null)
+                        if(receiverType is not null)
                         {
                             var methodSym = LookupMemberByName(receiverType, firstMethodCall.Name.Lexeme);
-                            if (methodSym is not null && !IsReadonlyMember(methodSym))
+                            if(methodSym is not null && !IsReadonlyMember(methodSym))
                             {
-                                if (!IsActionPermitted(receiverState, AccessKind.Write))
+                                if(!IsActionPermitted(receiverState, AccessKind.Write))
                                 {
                                     diagnostics.Add(MakeDiagnostic(
                                         MutationBlocked,
@@ -1924,10 +1924,10 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                             }
                         }
                     }
-                    else if (receiverState == VariableOwnershipState.Moved)
+                    else if(receiverState == VariableOwnershipState.Moved)
                     {
                         // Moved: all access is blocked.
-                        if (!IsActionPermitted(receiverState, AccessKind.Read))
+                        if(!IsActionPermitted(receiverState, AccessKind.Read))
                         {
                             ReportTruthTableViolation(receiverSymbol, receiverState, AccessKind.Read, firstMethodCall, state, model, diagnostics);
                         }
@@ -1939,23 +1939,23 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                 // field is non-Live, check whether the called method accesses any field
                 // whose current state does not permit the required action. A method that
                 // only touches Live fields is permitted.
-                if (receiverSymbol is not null &&
+                if(receiverSymbol is not null &&
                     state.FieldStates.TryGetValue(receiverSymbol, out var receiverFieldStates) &&
                     HasNonLiveField(receiverFieldStates))
                 {
                     var receiverType = receiverSymbol.DeclaredType;
-                    if (receiverType is not null)
+                    if(receiverType is not null)
                     {
                         var calledMethodSym = LookupMemberByName(receiverType, firstMethodCall.Name.Lexeme);
-                        if (calledMethodSym is not null)
+                        if(calledMethodSym is not null)
                         {
                             // Use ThisTierInferencePass to determine which owned fields the method accesses.
                             var accessedFields = ThisTierInferencePass.GetAccessedFields(calledMethodSym, model);
 
-                            foreach (var (fieldSym, accessKind) in accessedFields)
+                            foreach(var (fieldSym, accessKind) in accessedFields)
                             {
                                 var fieldState = state.GetFieldState(receiverSymbol, fieldSym);
-                                if (fieldState is null || fieldState == VariableOwnershipState.Live)
+                                if(fieldState is null || fieldState == VariableOwnershipState.Live)
                                     continue;
 
                                 // Map FieldAccessKind to AccessKind for truth table lookup.
@@ -1963,7 +1963,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                                     ? AccessKind.Write
                                     : AccessKind.Read;
 
-                                if (!IsActionPermitted(fieldState.Value, requiredAction))
+                                if(!IsActionPermitted(fieldState.Value, requiredAction))
                                 {
                                     ReportFieldStateViolation(
                                         receiverSymbol, fieldSym, fieldState.Value, requiredAction,
@@ -1976,13 +1976,13 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                 }
             }
 
-            foreach (var suffix in postfix.Suffix)
+            foreach(var suffix in postfix.Suffix)
             {
-                if (suffix is MethodCallSuffixPostfixSuffixNode methodCall)
+                if(suffix is MethodCallSuffixPostfixSuffixNode methodCall)
                 {
                     CheckMethodCallArgumentsForMoves(methodCall, state, model, diagnostics, isLoop);
                 }
-                else if (suffix is InvocationSuffixPostfixSuffixNode invocation)
+                else if(suffix is InvocationSuffixPostfixSuffixNode invocation)
                 {
                     CheckInvocationArgumentsForMoves(invocation, postfix.Target, state, model, diagnostics, isLoop);
                 }
@@ -1990,15 +1990,15 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         }
 
         // Check constructor calls (new T(...)) for owned parameter passing.
-        if (node is ObjectCreationExpressionPrimaryNode objectCreation)
+        if(node is ObjectCreationExpressionPrimaryNode objectCreation)
         {
             CheckConstructorArgumentsForMoves(objectCreation, state, model, diagnostics);
         }
 
         // Recursively check children.
-        foreach (var child in node.Children())
+        foreach(var child in node.Children())
         {
-            if (child is not null)
+            if(child is not null)
             {
                 CheckMethodCallsForMoves(child, state, model, diagnostics, isLoop);
             }
@@ -2018,7 +2018,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
     {
         // Resolve the method symbol to get parameter ownership tiers.
         var methodSymbol = model.GetDeclaredSymbol(methodCall);
-        if (methodSymbol is null)
+        if(methodSymbol is null)
             return;
 
         // Get parameter symbols.
@@ -2027,23 +2027,23 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         catch { return; }
 
         var paramSymbols = GetParameterSymbols(methodDeclNode, model);
-        if (paramSymbols is null)
+        if(paramSymbols is null)
             return;
 
         // Get argument expressions.
         var argExprs = CollectArgumentExpressions(methodCall.Arguments);
 
         var count = Math.Min(paramSymbols.Count, argExprs.Count);
-        for (var i = 0; i < count; i++)
+        for(var i = 0; i < count; i++)
         {
-            if (paramSymbols[i] is Symbol paramSym)
+            if(paramSymbols[i] is Symbol paramSym)
             {
                 // Skip ownership checks for ref parameters — they use a different
                 // mechanism (variable-level indirection) that is orthogonal to ownership lending.
-                if (paramSym.RefKind != RefKind.None)
+                if(paramSym.RefKind != RefKind.None)
                     continue;
 
-                if (paramSym.OwnershipTier == OwnershipTier.Owned)
+                if(paramSym.OwnershipTier == OwnershipTier.Owned)
                 {
                     // Owned parameter pass is an owned-move site (Req 6 AC 3, Req 9 AC 4):
                     // route the argument through the single move boundary. The resolver
@@ -2086,12 +2086,12 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         // Resolve the invoked symbol from the target identifier first,
         // then fall back to the invocation node itself.
         ISymbol? invokedSymbol = null;
-        if (target is IdentifierExpressionPrimaryNode targetId)
+        if(target is IdentifierExpressionPrimaryNode targetId)
         {
             invokedSymbol = model.GetDeclaredSymbol(targetId);
         }
         invokedSymbol ??= model.GetDeclaredSymbol(invocation);
-        if (invokedSymbol is null)
+        if(invokedSymbol is null)
             return;
 
         // Get parameter symbols.
@@ -2100,23 +2100,23 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         catch { return; }
 
         var paramSymbols = GetParameterSymbols(declNode, model);
-        if (paramSymbols is null)
+        if(paramSymbols is null)
             return;
 
         // Get argument expressions.
         var argExprs = CollectArgumentExpressions(invocation.Arguments);
 
         var count = Math.Min(paramSymbols.Count, argExprs.Count);
-        for (var i = 0; i < count; i++)
+        for(var i = 0; i < count; i++)
         {
-            if (paramSymbols[i] is Symbol paramSym)
+            if(paramSymbols[i] is Symbol paramSym)
             {
                 // Skip ownership checks for ref parameters — they use a different
                 // mechanism (variable-level indirection) that is orthogonal to ownership lending.
-                if (paramSym.RefKind != RefKind.None)
+                if(paramSym.RefKind != RefKind.None)
                     continue;
 
-                if (paramSym.OwnershipTier == OwnershipTier.Owned)
+                if(paramSym.OwnershipTier == OwnershipTier.Owned)
                 {
                     // Owned parameter pass is an owned-move site (Req 6 AC 3, Req 9 AC 4):
                     // route the argument through the single move boundary.
@@ -2150,12 +2150,12 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         ISemanticModel model,
         DiagnosticBag diagnostics)
     {
-        if (objectCreation.Arguments is null)
+        if(objectCreation.Arguments is null)
             return;
 
         // Resolve the type being constructed and find the matching constructor.
         var createdType = model.GetTypeOf(objectCreation);
-        if (createdType is null)
+        if(createdType is null)
             return;
 
         // Unwrap constructed types to get the definition.
@@ -2168,7 +2168,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
             _ => null,
         };
 
-        if (memberScope is null)
+        if(memberScope is null)
             return;
 
         // Find constructor symbols.
@@ -2176,9 +2176,9 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         var argCount = argExprs.Count;
 
         ISymbol? matchedCtor = null;
-        foreach (var member in memberScope.Members)
+        foreach(var member in memberScope.Members)
         {
-            if (member.Kind != SymbolKind.Constructor)
+            if(member.Kind != SymbolKind.Constructor)
                 continue;
 
             // Get the constructor's declaring node to count parameters.
@@ -2187,14 +2187,14 @@ public sealed class OwnershipAnalyzer : IAnalyzer
             catch { continue; }
 
             var ctorParams = GetParameterSymbols(ctorDeclNode, model);
-            if (ctorParams is not null && ctorParams.Count == argCount)
+            if(ctorParams is not null && ctorParams.Count == argCount)
             {
                 matchedCtor = member;
                 break;
             }
         }
 
-        if (matchedCtor is null)
+        if(matchedCtor is null)
             return;
 
         // Get parameter symbols from the matched constructor.
@@ -2203,18 +2203,18 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         catch { return; }
 
         var paramSymbols = GetParameterSymbols(declNode, model);
-        if (paramSymbols is null)
+        if(paramSymbols is null)
             return;
 
         var count = Math.Min(paramSymbols.Count, argExprs.Count);
-        for (var i = 0; i < count; i++)
+        for(var i = 0; i < count; i++)
         {
-            if (paramSymbols[i] is Symbol paramSym)
+            if(paramSymbols[i] is Symbol paramSym)
             {
-                if (paramSym.RefKind != RefKind.None)
+                if(paramSym.RefKind != RefKind.None)
                     continue;
 
-                if (paramSym.OwnershipTier == OwnershipTier.Owned)
+                if(paramSym.OwnershipTier == OwnershipTier.Owned)
                 {
                     // Owned parameter pass: route through the move boundary.
                     _resolver.Resolve(
@@ -2273,11 +2273,11 @@ public sealed class OwnershipAnalyzer : IAnalyzer
 
         // Resolve the argument to a symbol to get its ownership tier.
         var argSymbol = TryResolveIdentifierSymbol(argExpr, model);
-        if (argSymbol is not Symbol argSym)
+        if(argSymbol is not Symbol argSym)
             return;
 
         // Value types always satisfy any tier requirement.
-        if (argSym.DeclaredType is not null && IsValueType(argSym.DeclaredType))
+        if(argSym.DeclaredType is not null && IsValueType(argSym.DeclaredType))
             return;
 
         var sourceTier = argSym.OwnershipTier;
@@ -2285,7 +2285,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         // Use BindingKind from MethodFlowState to determine if the argument is an
         // unrestricted binding. This provides flow-sensitive detection that covers
         // cases where the symbol's declared tier alone may not tell the full story.
-        if (targetTier is OwnershipTier.Borrowed or OwnershipTier.Frozen &&
+        if(targetTier is OwnershipTier.Borrowed or OwnershipTier.Frozen &&
             state.BindingKinds.TryGetValue(argSymbol, out var argBindingKind) &&
             argBindingKind == BindingKind.Unrestricted)
         {
@@ -2299,11 +2299,11 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         }
 
         // Check if the pair is permitted.
-        if (PermittedLendingPairs.Contains((sourceTier, targetTier)))
+        if(PermittedLendingPairs.Contains((sourceTier, targetTier)))
             return;
 
         // Emit the appropriate diagnostic.
-        if (sourceTier == OwnershipTier.Unrestricted &&
+        if(sourceTier == OwnershipTier.Unrestricted &&
             targetTier is OwnershipTier.Borrowed or OwnershipTier.Frozen or OwnershipTier.Owned)
         {
             diagnostics.Add(MakeDiagnostic(
@@ -2334,30 +2334,30 @@ public sealed class OwnershipAnalyzer : IAnalyzer
     private static ISymbol? TryResolveIdentifierSymbol(SyntaxNode node, ISemanticModel model)
     {
         // Unwrap expression chain: ExpressionNode → AssignmentNode → LogicalOrNode → ... → PostfixNode → PrimaryNode
-        if (node is ExpressionNode expr)
+        if(node is ExpressionNode expr)
             return expr.AsAssignmentOrNull() is { } exprAssignment
                 ? TryResolveIdentifierSymbol(exprAssignment, model)
                 : null; // Lambda form is not a simple identifier reference.
 
-        if (node is AssignmentNode assignment)
+        if(node is AssignmentNode assignment)
         {
-            if (assignment.Value is not null)
+            if(assignment.Value is not null)
                 return null; // Chained assignment, not a simple identifier.
             return TryResolveIdentifierSymbol(assignment.Target, model);
         }
 
         // Walk down the single-child chain to find a PostfixNode with no suffixes.
-        if (node is PostfixNode postfix)
+        if(node is PostfixNode postfix)
         {
-            if (postfix.Suffix.Length > 0)
+            if(postfix.Suffix.Length > 0)
                 return null; // Has suffixes (member access, method call, etc.)
             return TryResolveIdentifierSymbol(postfix.Target, model);
         }
 
-        if (node is IdentifierExpressionPrimaryNode identifier)
+        if(node is IdentifierExpressionPrimaryNode identifier)
         {
             var symbol = model.GetDeclaredSymbol(identifier);
-            if (symbol is not null &&
+            if(symbol is not null &&
                 symbol.Kind is SymbolKind.LocalVariable or SymbolKind.Parameter)
             {
                 return symbol;
@@ -2371,13 +2371,13 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         // These generated nodes may report null Right properties as children,
         // so we filter to non-null children only.
         var nonNullChildren = new List<SyntaxNode>();
-        foreach (var child in node.Children())
+        foreach(var child in node.Children())
         {
-            if (child is not null)
+            if(child is not null)
                 nonNullChildren.Add(child);
         }
 
-        if (nonNullChildren.Count == 1)
+        if(nonNullChildren.Count == 1)
             return TryResolveIdentifierSymbol(nonNullChildren[0], model);
 
         return null;
@@ -2398,42 +2398,42 @@ public sealed class OwnershipAnalyzer : IAnalyzer
     private static ISymbol? TryResolveFieldTarget(SyntaxNode target, ISemanticModel model)
     {
         // Unwrap expression chain to find the identifier.
-        if (target is ExpressionNode expr)
+        if(target is ExpressionNode expr)
             return expr.AsAssignmentOrNull() is { } exprAssignment
                 ? TryResolveFieldTarget(exprAssignment, model)
                 : null; // Lambda form is not a field target.
 
-        if (target is AssignmentNode assignment)
+        if(target is AssignmentNode assignment)
         {
-            if (assignment.Value is not null)
+            if(assignment.Value is not null)
                 return null;
             return TryResolveFieldTarget(assignment.Target, model);
         }
 
-        if (target is PostfixNode postfix)
+        if(target is PostfixNode postfix)
         {
-            if (postfix.Suffix.Length > 0)
+            if(postfix.Suffix.Length > 0)
                 return null;
             return TryResolveFieldTarget(postfix.Target, model);
         }
 
-        if (target is IdentifierExpressionPrimaryNode identifier)
+        if(target is IdentifierExpressionPrimaryNode identifier)
         {
             var symbol = model.GetDeclaredSymbol(identifier);
-            if (symbol is not null && symbol.Kind == SymbolKind.Field)
+            if(symbol is not null && symbol.Kind == SymbolKind.Field)
                 return symbol;
             return null;
         }
 
         // Walk single-child chains.
         var nonNullChildren = new List<SyntaxNode>();
-        foreach (var child in target.Children())
+        foreach(var child in target.Children())
         {
-            if (child is not null)
+            if(child is not null)
                 nonNullChildren.Add(child);
         }
 
-        if (nonNullChildren.Count == 1)
+        if(nonNullChildren.Count == 1)
             return TryResolveFieldTarget(nonNullChildren[0], model);
 
         return null;
@@ -2444,7 +2444,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
     /// </summary>
     private static ISymbol? TryResolveAssignmentValueSymbol(AssignmentNode value, ISemanticModel model)
     {
-        if (value.Value is not null)
+        if(value.Value is not null)
             return null; // Chained assignment.
         return TryResolveIdentifierSymbol(value.Target, model);
     }
@@ -2455,13 +2455,13 @@ public sealed class OwnershipAnalyzer : IAnalyzer
     private static List<SyntaxNode> CollectArgumentExpressions(ArgumentListNode? argList)
     {
         var result = new List<SyntaxNode>();
-        if (argList is null)
+        if(argList is null)
             return result;
 
         // The ArgumentListNode has Argument (first) and Arguments (rest),
         // each wrapping an ExpressionNode.
         result.Add(ArgumentListNodeExtensions.ExtractExpression(argList.Argument));
-        foreach (var restArg in argList.Arguments)
+        foreach(var restArg in argList.Arguments)
         {
             result.Add(ArgumentListNodeExtensions.ExtractExpression(restArg));
         }
@@ -2474,9 +2474,9 @@ public sealed class OwnershipAnalyzer : IAnalyzer
     /// </summary>
     private static bool IsOwnedVariable(ISymbol symbol)
     {
-        if (symbol is not Symbol sym)
+        if(symbol is not Symbol sym)
             return false;
-        if (sym.Kind is not (SymbolKind.LocalVariable or SymbolKind.Parameter))
+        if(sym.Kind is not (SymbolKind.LocalVariable or SymbolKind.Parameter))
             return false;
         return sym.OwnershipTier == OwnershipTier.Owned;
     }
@@ -2503,7 +2503,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
     /// </summary>
     private static bool IsReadonlyMember(ISymbol symbol)
     {
-        if (symbol is not Symbol sym)
+        if(symbol is not Symbol sym)
             return false;
         return sym.ReadonlyStatus is ReadonlyStatus.ExplicitReadonly or ReadonlyStatus.InferredReadonly;
     }
@@ -2514,9 +2514,9 @@ public sealed class OwnershipAnalyzer : IAnalyzer
     /// </summary>
     private static bool HasNonLiveField(Dictionary<ISymbol, VariableOwnershipState> fieldStates)
     {
-        foreach (var (_, fieldState) in fieldStates)
+        foreach(var (_, fieldState) in fieldStates)
         {
-            if (fieldState != VariableOwnershipState.Live)
+            if(fieldState != VariableOwnershipState.Live)
                 return true;
         }
         return false;
@@ -2527,9 +2527,9 @@ public sealed class OwnershipAnalyzer : IAnalyzer
     /// </summary>
     private static bool HasActiveRefBorrow(ISymbol lender, MethodFlowState state)
     {
-        foreach (var borrow in state.ActiveBorrows)
+        foreach(var borrow in state.ActiveBorrows)
         {
-            if (ReferenceEquals(borrow.Lender, lender) && borrow.BorrowTier == OwnershipTier.Borrowed)
+            if(ReferenceEquals(borrow.Lender, lender) && borrow.BorrowTier == OwnershipTier.Borrowed)
                 return true;
         }
         return false;
@@ -2545,27 +2545,27 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         // Unwrap the expression chain to find a PostfixNode with a MemberAccessSuffix.
         var nonNullChildren = new List<SyntaxNode>();
         var current = target;
-        while (current is not PostfixNode)
+        while(current is not PostfixNode)
         {
             nonNullChildren.Clear();
-            foreach (var child in current.Children())
+            foreach(var child in current.Children())
             {
-                if (child is not null)
+                if(child is not null)
                     nonNullChildren.Add(child);
             }
-            if (nonNullChildren.Count != 1)
+            if(nonNullChildren.Count != 1)
                 return null;
             current = nonNullChildren[0];
         }
 
-        if (current is PostfixNode postfix && postfix.Suffix.Length > 0 &&
+        if(current is PostfixNode postfix && postfix.Suffix.Length > 0 &&
             postfix.Suffix[^1] is MemberAccessSuffixPostfixSuffixNode)
         {
             // The receiver is the PostfixNode's target (the identifier before the dot).
-            if (postfix.Target is IdentifierExpressionPrimaryNode receiverId)
+            if(postfix.Target is IdentifierExpressionPrimaryNode receiverId)
             {
                 var symbol = model.GetDeclaredSymbol(receiverId);
-                if (symbol is not null &&
+                if(symbol is not null &&
                     symbol.Kind is SymbolKind.LocalVariable or SymbolKind.Parameter)
                 {
                     return symbol;
@@ -2587,29 +2587,29 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         // Unwrap expression chain to find a PostfixNode.
         var nonNullChildren = new List<SyntaxNode>();
         var current = target;
-        while (current is not PostfixNode)
+        while(current is not PostfixNode)
         {
             nonNullChildren.Clear();
-            foreach (var child in current.Children())
+            foreach(var child in current.Children())
             {
-                if (child is not null)
+                if(child is not null)
                     nonNullChildren.Add(child);
             }
-            if (nonNullChildren.Count != 1)
+            if(nonNullChildren.Count != 1)
                 return null;
             current = nonNullChildren[0];
         }
 
-        if (current is PostfixNode postfix &&
+        if(current is PostfixNode postfix &&
             postfix.Suffix.Length == 1 &&
             postfix.Target is ThisExpressionPrimaryNode &&
             postfix.Suffix[0] is MemberAccessSuffixPostfixSuffixNode memberAccess)
         {
             var receiverType = model.GetTypeOf(postfix.Target);
-            if (receiverType is null)
+            if(receiverType is null)
                 return null;
             var member = LookupMemberByName(receiverType, memberAccess.Name.Lexeme);
-            if (member is not null && member.Kind == SymbolKind.Field)
+            if(member is not null && member.Kind == SymbolKind.Field)
                 return member;
         }
 
@@ -2627,31 +2627,31 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         // Unwrap the expression chain to find a PostfixNode with a MemberAccessSuffix.
         var nonNullChildren = new List<SyntaxNode>();
         var current = target;
-        while (current is not PostfixNode)
+        while(current is not PostfixNode)
         {
             nonNullChildren.Clear();
-            foreach (var child in current.Children())
+            foreach(var child in current.Children())
             {
-                if (child is not null)
+                if(child is not null)
                     nonNullChildren.Add(child);
             }
-            if (nonNullChildren.Count != 1)
+            if(nonNullChildren.Count != 1)
                 return null;
             current = nonNullChildren[0];
         }
 
-        if (current is PostfixNode postfix && postfix.Suffix.Length > 0 &&
+        if(current is PostfixNode postfix && postfix.Suffix.Length > 0 &&
             postfix.Suffix[^1] is MemberAccessSuffixPostfixSuffixNode memberAccess)
         {
             // The receiver is the PostfixNode's target (the identifier before the dot).
-            if (postfix.Target is IdentifierExpressionPrimaryNode receiverId)
+            if(postfix.Target is IdentifierExpressionPrimaryNode receiverId)
             {
                 var receiverSymbol = model.GetDeclaredSymbol(receiverId);
-                if (receiverSymbol is null)
+                if(receiverSymbol is null)
                     return null;
 
                 var receiverType = receiverSymbol.DeclaredType;
-                if (receiverType is null)
+                if(receiverType is null)
                     return null;
 
                 // Unwrap ConstructedType to get the generic definition for member lookup.
@@ -2714,9 +2714,9 @@ public sealed class OwnershipAnalyzer : IAnalyzer
     /// </summary>
     private static bool HasOwnedModifier(System.Collections.Immutable.ImmutableArray<ModifierNode> modifiers)
     {
-        foreach (var modifier in modifiers)
+        foreach(var modifier in modifiers)
         {
-            if (modifier is OwnedModifierModifierNode)
+            if(modifier is OwnedModifierModifierNode)
                 return true;
         }
         return false;
@@ -2747,19 +2747,19 @@ public sealed class OwnershipAnalyzer : IAnalyzer
     /// </summary>
     private static void ValidateReturnTypeSpecifiers(ISemanticModel model, DiagnosticBag diagnostics)
     {
-        foreach (var symbol in model.AllSymbols)
+        foreach(var symbol in model.AllSymbols)
         {
-            if (symbol.Origin == SymbolOrigin.Backend)
+            if(symbol.Origin == SymbolOrigin.Backend)
                 continue;
 
-            if (symbol.Kind != SymbolKind.Method)
+            if(symbol.Kind != SymbolKind.Method)
                 continue;
 
-            if (symbol is not Symbol methodSymbol)
+            if(symbol is not Symbol methodSymbol)
                 continue;
 
             // Only non-owned specifiers on return types are invalid.
-            if (methodSymbol.OwnershipTier is OwnershipTier.Borrowed
+            if(methodSymbol.OwnershipTier is OwnershipTier.Borrowed
                 or OwnershipTier.ReadonlyRef
                 or OwnershipTier.Frozen)
             {
@@ -2783,12 +2783,12 @@ public sealed class OwnershipAnalyzer : IAnalyzer
     /// </summary>
     private static void ValidateInterfaceOwnershipMatching(ISemanticModel model, DiagnosticBag diagnostics)
     {
-        foreach (var symbol in model.AllSymbols)
+        foreach(var symbol in model.AllSymbols)
         {
-            if (symbol.Origin == SymbolOrigin.Backend)
+            if(symbol.Origin == SymbolOrigin.Backend)
                 continue;
 
-            if (symbol.Kind is not (SymbolKind.Class or SymbolKind.Struct))
+            if(symbol.Kind is not (SymbolKind.Class or SymbolKind.Struct))
                 continue;
 
             var type = symbol.DeclaredType;
@@ -2799,7 +2799,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                 _ => null,
             };
 
-            if (abstracts is null || abstracts.Count == 0)
+            if(abstracts is null || abstracts.Count == 0)
                 continue;
 
             IScope? memberScope = type switch
@@ -2809,7 +2809,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                 _ => null,
             };
 
-            if (memberScope is null)
+            if(memberScope is null)
                 continue;
 
             var visited = new HashSet<AbstractType>(ReferenceEqualityComparer.Instance);
@@ -2828,22 +2828,22 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         DiagnosticBag diagnostics,
         HashSet<AbstractType> visited)
     {
-        foreach (var abstractType in abstracts)
+        foreach(var abstractType in abstracts)
         {
-            if (abstractType is not AbstractType abs)
+            if(abstractType is not AbstractType abs)
                 continue;
 
-            if (!visited.Add(abs))
+            if(!visited.Add(abs))
                 continue;
 
-            foreach (var absMember in abs.MemberScope.Members)
+            foreach(var absMember in abs.MemberScope.Members)
             {
-                if (absMember.Kind != SymbolKind.Method)
+                if(absMember.Kind != SymbolKind.Method)
                     continue;
 
                 // Find the implementing method in the type's member scope.
                 var implMember = FindMethodInScope(absMember.Name, memberScope);
-                if (implMember is null)
+                if(implMember is null)
                     continue; // Missing implementation is reported by the type checker.
 
                 CheckMethodOwnershipMatch(
@@ -2851,7 +2851,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
             }
 
             // Recurse into parent abstract types.
-            if (abs.Abstracts.Count > 0)
+            if(abs.Abstracts.Count > 0)
             {
                 CheckAbstractOwnershipContracts(typeSymbol, abs.Abstracts, memberScope, model, diagnostics, visited);
             }
@@ -2885,9 +2885,9 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         }
 
         // Check return type ownership match.
-        if (implMethod is Symbol implSym && contractMethod is Symbol contractSym)
+        if(implMethod is Symbol implSym && contractMethod is Symbol contractSym)
         {
-            if (implSym.OwnershipTier != contractSym.OwnershipTier)
+            if(implSym.OwnershipTier != contractSym.OwnershipTier)
             {
                 var expectedTier = FormatOwnershipTier(contractSym.OwnershipTier);
                 var actualTier = FormatOwnershipTier(implSym.OwnershipTier);
@@ -2903,19 +2903,19 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         var contractParams = GetParameterSymbols(contractNode, model);
         var implParams = GetParameterSymbols(implNode, model);
 
-        if (contractParams is null || implParams is null)
+        if(contractParams is null || implParams is null)
             return;
 
         var count = Math.Min(contractParams.Count, implParams.Count);
-        for (var i = 0; i < count; i++)
+        for(var i = 0; i < count; i++)
         {
             var contractParam = contractParams[i] as Symbol;
             var implParam = implParams[i] as Symbol;
 
-            if (contractParam is null || implParam is null)
+            if(contractParam is null || implParam is null)
                 continue;
 
-            if (contractParam.OwnershipTier != implParam.OwnershipTier)
+            if(contractParam.OwnershipTier != implParam.OwnershipTier)
             {
                 var expectedTier = FormatOwnershipTier(contractParam.OwnershipTier);
                 var actualTier = FormatOwnershipTier(implParam.OwnershipTier);
@@ -2942,16 +2942,16 @@ public sealed class OwnershipAnalyzer : IAnalyzer
             _ => null,
         };
 
-        if (paramList is null)
+        if(paramList is null)
             return null;
 
         var result = new List<ISymbol>();
-        foreach (var child in paramList.Children())
+        foreach(var child in paramList.Children())
         {
-            if (child is ParameterNode paramNode)
+            if(child is ParameterNode paramNode)
             {
                 var paramSymbol = model.GetDeclaredSymbol(paramNode);
-                if (paramSymbol is not null)
+                if(paramSymbol is not null)
                     result.Add(paramSymbol);
             }
         }
@@ -2964,9 +2964,9 @@ public sealed class OwnershipAnalyzer : IAnalyzer
     /// </summary>
     private static ISymbol? FindMethodInScope(string name, IScope scope)
     {
-        foreach (var member in scope.Members)
+        foreach(var member in scope.Members)
         {
-            if (member.Name == name && member.Kind == SymbolKind.Method)
+            if(member.Name == name && member.Kind == SymbolKind.Method)
                 return member;
         }
         return null;
@@ -3001,23 +3001,23 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         string? compilationUnitPath = null;
 
         var span = node.Span;
-        if (span.Length > 0)
+        if(span.Length > 0)
         {
             var asts = model.Asts;
             var units = model.Units;
             var astIndex = -1;
 
-            for (var i = 0; i < asts.Length; i++)
+            for(var i = 0; i < asts.Length; i++)
             {
                 var astSpan = asts[i].Span;
-                if (span.Start >= astSpan.Start && span.Start + span.Length <= astSpan.Start + astSpan.Length)
+                if(span.Start >= astSpan.Start && span.Start + span.Length <= astSpan.Start + astSpan.Length)
                 {
                     astIndex = i;
                     break;
                 }
             }
 
-            if (astIndex >= 0 && astIndex < units.Count)
+            if(astIndex >= 0 && astIndex < units.Count)
             {
                 var source = units[astIndex].Source;
                 compilationUnitPath = source.Path;
@@ -3045,20 +3045,20 @@ public sealed class OwnershipAnalyzer : IAnalyzer
     /// </summary>
     private static void ValidateNonStorability(ISemanticModel model, DiagnosticBag diagnostics)
     {
-        foreach (var symbol in model.AllSymbols)
+        foreach(var symbol in model.AllSymbols)
         {
-            if (symbol.Origin != SymbolOrigin.UserCode)
+            if(symbol.Origin != SymbolOrigin.UserCode)
                 continue;
 
             // Only check field declarations.
-            if (symbol.Kind != SymbolKind.Field)
+            if(symbol.Kind != SymbolKind.Field)
                 continue;
 
-            if (symbol is not Symbol fieldSymbol)
+            if(symbol is not Symbol fieldSymbol)
                 continue;
 
             // If the field has a non-storable ownership tier, emit MIST_OWN_NOT_STORABLE.
-            if (fieldSymbol.OwnershipTier is OwnershipTier.Borrowed
+            if(fieldSymbol.OwnershipTier is OwnershipTier.Borrowed
                 or OwnershipTier.ReadonlyRef
                 or OwnershipTier.Frozen)
             {
@@ -3092,14 +3092,14 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         var refLentSymbols = new HashSet<ISymbol>(ReferenceEqualityComparer.Instance);
 
         var count = Math.Min(argExprs.Count, paramSymbols.Count);
-        for (var i = 0; i < count; i++)
+        for(var i = 0; i < count; i++)
         {
-            if (paramSymbols[i] is Symbol paramSym && paramSym.OwnershipTier == OwnershipTier.Borrowed)
+            if(paramSymbols[i] is Symbol paramSym && paramSym.OwnershipTier == OwnershipTier.Borrowed)
             {
                 var argSymbol = TryResolveIdentifierSymbol(argExprs[i], model);
-                if (argSymbol is not null)
+                if(argSymbol is not null)
                 {
-                    if (!refLentSymbols.Add(argSymbol))
+                    if(!refLentSymbols.Add(argSymbol))
                     {
                         // Same variable passed to multiple ref parameters — exclusivity violation.
                         diagnostics.Add(MakeDiagnostic(
@@ -3134,19 +3134,19 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         receiverSymbol = null;
 
         var receiver = TryResolveFieldAccessReceiver(node, model);
-        if (receiver is null)
+        if(receiver is null)
             return false;
 
         // Try both resolution strategies: TryResolveFieldTarget works for assignment
         // targets (LHS); TryResolveFieldAccessField works for read expressions (RHS/initializers).
         var field = TryResolveFieldTarget(node, model) ?? TryResolveFieldAccessField(node, model);
-        if (field is null || field.Kind != SymbolKind.Field)
+        if(field is null || field.Kind != SymbolKind.Field)
             return false;
 
-        if (field is not Symbol fieldSym || !fieldSym.IsOwnedField)
+        if(field is not Symbol fieldSym || !fieldSym.IsOwnedField)
             return false;
 
-        if (!state.BindingKinds.TryGetValue(receiver, out var parentKind) || parentKind != BindingKind.Owned)
+        if(!state.BindingKinds.TryGetValue(receiver, out var parentKind) || parentKind != BindingKind.Owned)
             return false;
 
         fieldSymbol = field;
@@ -3170,20 +3170,20 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         receiverSymbol = null;
 
         var receiver = TryResolveFieldAccessReceiver(node, model);
-        if (receiver is null)
+        if(receiver is null)
             return false;
 
         // Try both resolution strategies: TryResolveFieldTarget works for assignment
         // targets (LHS); TryResolveFieldAccessField works for read expressions (RHS/initializers).
         var field = TryResolveFieldTarget(node, model) ?? TryResolveFieldAccessField(node, model);
-        if (field is null || field.Kind != SymbolKind.Field)
+        if(field is null || field.Kind != SymbolKind.Field)
             return false;
 
-        if (field is not Symbol fieldSym || !fieldSym.IsOwnedField)
+        if(field is not Symbol fieldSym || !fieldSym.IsOwnedField)
             return false;
 
         // The parent is "shared" if it's not an owned binding (unrestricted or not tracked).
-        if (state.BindingKinds.TryGetValue(receiver, out var parentKind) && parentKind == BindingKind.Owned)
+        if(state.BindingKinds.TryGetValue(receiver, out var parentKind) && parentKind == BindingKind.Owned)
             return false;
 
         fieldSymbol = field;
@@ -3216,7 +3216,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
             _ => "access"
         };
 
-        if (fieldState == VariableOwnershipState.Moved)
+        if(fieldState == VariableOwnershipState.Moved)
         {
             diagnostics.Add(MakeDiagnostic(
                 UseAfterMove,
@@ -3225,7 +3225,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                 node,
                 model));
         }
-        else if (fieldState == VariableOwnershipState.LentRef)
+        else if(fieldState == VariableOwnershipState.LentRef)
         {
             diagnostics.Add(MakeDiagnostic(
                 ExclusiveViolation,
@@ -3233,7 +3233,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                 node,
                 model));
         }
-        else if (fieldState == VariableOwnershipState.LentFrozen)
+        else if(fieldState == VariableOwnershipState.LentFrozen)
         {
             diagnostics.Add(MakeDiagnostic(
                 MutationBlocked,
@@ -3241,7 +3241,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                 node,
                 model));
         }
-        else if (fieldState == VariableOwnershipState.LentReadonly)
+        else if(fieldState == VariableOwnershipState.LentReadonly)
         {
             diagnostics.Add(MakeDiagnostic(
                 MutationBlocked,

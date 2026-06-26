@@ -44,7 +44,7 @@ public sealed class TypeLiteralEmitterPropertyTests : IDisposable
 
     public void Dispose()
     {
-        if (Directory.Exists(_outputDir))
+        if(Directory.Exists(_outputDir))
         {
             try { Directory.Delete(_outputDir, recursive: true); } catch { /* best effort */ }
         }
@@ -120,18 +120,18 @@ public sealed class TypeLiteralEmitterPropertyTests : IDisposable
     private string? CompileAndGetCSharpOutput(string mistSource)
     {
         // Clean output directory
-        foreach (var file in Directory.GetFiles(_outputDir))
+        foreach(var file in Directory.GetFiles(_outputDir))
             File.Delete(file);
 
         // 1. Lex
         var sourceText = new SourceText("test.mist", mistSource);
         var bag = new DiagnosticBag();
         var tokens = Lexer.Lex(sourceText, bag);
-        if (bag.HasErrors) return null;
+        if(bag.HasErrors) return null;
 
         // 2. Parse
         var parseResult = Parser.Parse(tokens, bag);
-        if (parseResult.Root is null || bag.HasErrors) return null;
+        if(parseResult.Root is null || bag.HasErrors) return null;
 
         // 3. Build semantic model
         var compilation = new MistCompilation(
@@ -174,7 +174,7 @@ public sealed class TypeLiteralEmitterPropertyTests : IDisposable
         var csOutput = CompileAndGetCSharpOutput(testCase.Source);
 
         // Compilation must succeed and produce output
-        if (csOutput is null)
+        if(csOutput is null)
             return false;
 
         // The emitted C# must contain the expected fragment

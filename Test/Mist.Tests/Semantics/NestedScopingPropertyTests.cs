@@ -106,7 +106,7 @@ public sealed class NestedScopingPropertyTests
     /// </summary>
     private static bool HasNestedTypeMember(CompilationUnitNode cu)
     {
-        if (cu.Items.Length == 0)
+        if(cu.Items.Length == 0)
             return false;
 
         var topLevelItem = cu.Items[0];
@@ -116,11 +116,11 @@ public sealed class NestedScopingPropertyTests
             _ => null,
         };
 
-        if (typeDecl is null)
+        if(typeDecl is null)
             return false;
 
         var members = GetMembers(typeDecl);
-        if (members is null)
+        if(members is null)
             return false;
 
         return members.Value.Any(m => m is NestedTypeMemberMemberDeclarationNode);
@@ -165,7 +165,7 @@ public sealed class NestedScopingPropertyTests
         var result = ParseSource(input.Source);
 
         // Parser should return a non-null result with a CompilationUnitNode root
-        if (result.Root is not CompilationUnitNode cu)
+        if(result.Root is not CompilationUnitNode cu)
             return false;
 
         // No parse errors should be reported
@@ -173,7 +173,7 @@ public sealed class NestedScopingPropertyTests
             .Where(d => d.Severity == DiagnosticSeverity.Error)
             .ToList();
 
-        if (parseErrors.Count > 0)
+        if(parseErrors.Count > 0)
             return false;
 
         // The AST should contain a NestedTypeMemberMemberDeclarationNode
@@ -200,14 +200,14 @@ public sealed class NestedScopingPropertyTests
 
         var failures = new List<string>();
 
-        foreach (var containerKind in containerKinds)
+        foreach(var containerKind in containerKinds)
         {
-            foreach (var nestedKind in allKinds)
+            foreach(var nestedKind in allKinds)
             {
                 var source = BuildNestedSource(containerKind, nestedKind);
                 var result = ParseSource(source);
 
-                if (result.Root is not CompilationUnitNode cu)
+                if(result.Root is not CompilationUnitNode cu)
                 {
                     failures.Add($"{containerKind} containing {nestedKind}: parse returned null root");
                     continue;
@@ -217,13 +217,13 @@ public sealed class NestedScopingPropertyTests
                     .Where(d => d.Severity == DiagnosticSeverity.Error)
                     .ToList();
 
-                if (parseErrors.Count > 0)
+                if(parseErrors.Count > 0)
                 {
                     failures.Add($"{containerKind} containing {nestedKind}: parse errors: {string.Join("; ", parseErrors.Select(e => e.Message))}");
                     continue;
                 }
 
-                if (!HasNestedTypeMember(cu))
+                if(!HasNestedTypeMember(cu))
                 {
                     failures.Add($"{containerKind} containing {nestedKind}: no NestedTypeMemberMemberDeclarationNode found");
                 }
@@ -255,14 +255,14 @@ public sealed class NestedScopingPropertyTests
         var result = ParseSource(input.Source);
 
         // Parser should produce a valid AST without errors
-        if (result.Root is not CompilationUnitNode cu)
+        if(result.Root is not CompilationUnitNode cu)
             return false;
 
         var parseErrors = result.Diagnostics
             .Where(d => d.Severity == DiagnosticSeverity.Error)
             .ToList();
 
-        if (parseErrors.Count > 0)
+        if(parseErrors.Count > 0)
             return false;
 
         // Verify the AST has exactly the expected nesting depth
@@ -278,12 +278,12 @@ public sealed class NestedScopingPropertyTests
     {
         var maxDepth = 0;
 
-        foreach (var item in cu.Items)
+        foreach(var item in cu.Items)
         {
-            if (item is TypeItemTopLevelItemNode typeItem)
+            if(item is TypeItemTopLevelItemNode typeItem)
             {
                 var depth = MeasureTypeDepth(typeItem.TypeDeclaration, 1);
-                if (depth > maxDepth)
+                if(depth > maxDepth)
                     maxDepth = depth;
             }
         }
@@ -297,17 +297,17 @@ public sealed class NestedScopingPropertyTests
     private static int MeasureTypeDepth(TypeDeclarationNode typeDecl, int currentDepth)
     {
         var members = GetMembers(typeDecl);
-        if (members is null || members.Value.IsEmpty)
+        if(members is null || members.Value.IsEmpty)
             return currentDepth;
 
         var maxChildDepth = currentDepth;
 
-        foreach (var member in members.Value)
+        foreach(var member in members.Value)
         {
-            if (member is NestedTypeMemberMemberDeclarationNode nestedType)
+            if(member is NestedTypeMemberMemberDeclarationNode nestedType)
             {
                 var childDepth = MeasureTypeDepth(nestedType.NestedType, currentDepth + 1);
-                if (childDepth > maxChildDepth)
+                if(childDepth > maxChildDepth)
                     maxChildDepth = childDepth;
             }
         }
@@ -368,24 +368,24 @@ public sealed class NestedScopingPropertyTests
         var result = ParseSource(source);
 
         // Parse must succeed without errors
-        if (result.Root is not CompilationUnitNode cu)
+        if(result.Root is not CompilationUnitNode cu)
             return false;
 
-        if (result.Diagnostics.Any(d => d.Severity == DiagnosticSeverity.Error))
+        if(result.Diagnostics.Any(d => d.Severity == DiagnosticSeverity.Error))
             return false;
 
         var types = cu.GetTypes();
-        if (types.Length == 0)
+        if(types.Length == 0)
             return false;
 
         // Get the outer type's members
         var members = GetMembers(types[0]);
-        if (members is null || members.Value.Length == 0)
+        if(members is null || members.Value.Length == 0)
             return false;
 
         // Find the nested type member
         var nestedMember = members.Value.OfType<NestedTypeMemberMemberDeclarationNode>().FirstOrDefault();
-        if (nestedMember is null)
+        if(nestedMember is null)
             return false;
 
         // Get the modifiers from the nested type declaration
@@ -393,7 +393,7 @@ public sealed class NestedScopingPropertyTests
 
         // Verify count matches
         var expectedCount = MistNestedScopingGenerator.ModifierCount(expectedMods);
-        if (actualModifiers.Length != expectedCount)
+        if(actualModifiers.Length != expectedCount)
             return false;
 
         // Verify each expected modifier is present by type
@@ -438,11 +438,11 @@ public sealed class NestedScopingPropertyTests
         var tokens = Lexer.Lex(sourceText, bag);
         var parseResult = Parser.Parse(tokens, bag);
 
-        if (parseResult.Root is null)
+        if(parseResult.Root is null)
             return false;
 
         // Check for parse errors
-        if (bag.ToImmutableArray().Any(d => d.Severity == DiagnosticSeverity.Error))
+        if(bag.ToImmutableArray().Any(d => d.Severity == DiagnosticSeverity.Error))
             return false;
 
         var compilation = new MistCompilation(
@@ -459,7 +459,7 @@ public sealed class NestedScopingPropertyTests
             semanticBag);
 
         // Check for semantic errors
-        if (semanticBag.ToImmutableArray().Any(d => d.Severity == DiagnosticSeverity.Error))
+        if(semanticBag.ToImmutableArray().Any(d => d.Severity == DiagnosticSeverity.Error))
             return false;
 
         // Find the type symbol by name (user-defined types only)
@@ -469,16 +469,16 @@ public sealed class NestedScopingPropertyTests
             s.Kind is SymbolKind.Class or SymbolKind.Struct or SymbolKind.Abstract
                 or SymbolKind.Enum);
 
-        if (typeSymbol is null)
+        if(typeSymbol is null)
             return false;
 
         // Extract ContainingNamespace from the declared type
         var containingNamespace = GetContainingNamespace(typeSymbol.DeclaredType);
-        if (containingNamespace is null)
+        if(containingNamespace is null)
             return false;
 
         // Verify ContainingNamespace matches the expected namespace path
-        if (containingNamespace != input.NamespacePath)
+        if(containingNamespace != input.NamespacePath)
             return false;
 
         // Verify FQN = namespace + "." + DisplayName
@@ -595,7 +595,7 @@ public sealed class NestedScopingPropertyTests
         var (result, model) = CompileAndCapture(input.Source);
 
         // Compilation should succeed (no semantic errors for valid namespace nesting)
-        if (model is null)
+        if(model is null)
             return false;
 
         // Check that all expected namespace FQNs are registered as symbols in the GlobalScope
@@ -604,9 +604,9 @@ public sealed class NestedScopingPropertyTests
             .Select(s => s.Name)
             .ToHashSet();
 
-        foreach (var expectedFqn in input.ExpectedFqns)
+        foreach(var expectedFqn in input.ExpectedFqns)
         {
-            if (!namespaceSymbols.Contains(expectedFqn))
+            if(!namespaceSymbols.Contains(expectedFqn))
                 return false;
         }
 
@@ -653,11 +653,11 @@ public sealed class NestedScopingPropertyTests
         // because the generated source doesn't include an entry point (Main method)
         // and the full pipeline's type checker would reject it.
         var model = BuildSemanticModel(input.Source);
-        if (model is null)
+        if(model is null)
             return false;
 
         // Step 1: Verify each parent type has the expected number of type parameters
-        for (var i = 0; i < input.ParentTypeNames.Count; i++)
+        for(var i = 0; i < input.ParentTypeNames.Count; i++)
         {
             var parentName = input.ParentTypeNames[i];
             var expectedParamCount = input.ParentTypeParamCounts[i];
@@ -667,13 +667,13 @@ public sealed class NestedScopingPropertyTests
                 s.Kind == SymbolKind.Class &&
                 s.Origin == SymbolOrigin.UserCode);
 
-            if (parentSymbol is null)
+            if(parentSymbol is null)
                 return false;
 
             var parentType = parentSymbol.DeclaredType;
             var actualParamCount = GetTypeParameterCount(parentType);
 
-            if (actualParamCount != expectedParamCount)
+            if(actualParamCount != expectedParamCount)
                 return false;
         }
 
@@ -683,16 +683,16 @@ public sealed class NestedScopingPropertyTests
             s.Kind == SymbolKind.Class &&
             s.Origin == SymbolOrigin.UserCode);
 
-        if (nestedSymbol is null)
+        if(nestedSymbol is null)
             return false;
 
         // Step 3: If the nested type is itself generic, verify its type parameter count
-        if (input.NestedTypeParamCount > 0)
+        if(input.NestedTypeParamCount > 0)
         {
             var nestedType = nestedSymbol.DeclaredType;
             var actualNestedParamCount = GetTypeParameterCount(nestedType);
 
-            if (actualNestedParamCount != input.NestedTypeParamCount)
+            if(actualNestedParamCount != input.NestedTypeParamCount)
                 return false;
         }
 
@@ -703,14 +703,14 @@ public sealed class NestedScopingPropertyTests
             s.Kind == SymbolKind.Class &&
             s.Origin == SymbolOrigin.UserCode);
 
-        if (innermostParentSymbol?.DeclaredType is not ClassType innermostParentClassType)
+        if(innermostParentSymbol?.DeclaredType is not ClassType innermostParentClassType)
             return false;
 
         // The nested type should be registered in the innermost parent's member scope
         var nestedInParentScope = innermostParentClassType.MemberScope.Members.Any(m =>
             m.Name == input.NestedTypeName && m.Kind == SymbolKind.Class);
 
-        if (!nestedInParentScope)
+        if(!nestedInParentScope)
             return false;
 
         // TODO: Once ComputeNestedTypeFqn is implemented, verify the FQN uses closed
@@ -736,7 +736,7 @@ public sealed class NestedScopingPropertyTests
         var tokens = Lexer.Lex(sourceText, bag);
         var parseResult = Parser.Parse(tokens, bag);
 
-        if (parseResult.Root is null)
+        if(parseResult.Root is null)
             return null;
 
         var compilation = new MistCompilation(
@@ -996,24 +996,24 @@ public sealed class NestedScopingPropertyTests
             .Where(d => d.Id.Value != "MIST_TC_0017")
             .ToList();
 
-        if (errors.Count > 0)
+        if(errors.Count > 0)
             return false;
 
         // Get the emitted C# source
         var csharpSource = GetEmittedCSharp(result);
-        if (csharpSource is null)
+        if(csharpSource is null)
             return false;
 
         // Verify 1: The nested type declaration appears INSIDE the parent type's body.
-        if (!NestedTypeIsInsideParentBody(csharpSource, input))
+        if(!NestedTypeIsInsideParentBody(csharpSource, input))
             return false;
 
         // Verify 2: The nested type does NOT re-declare the parent's type parameters.
         // If the parent has type params <T0, T1, ...>, the nested type's declaration
         // line should NOT contain those params (unless they are the nested type's own).
-        if (input.ParentTypeParams.Count > 0)
+        if(input.ParentTypeParams.Count > 0)
         {
-            if (NestedTypeRedeclaresParentTypeParams(csharpSource, input))
+            if(NestedTypeRedeclaresParentTypeParams(csharpSource, input))
                 return false;
         }
 
@@ -1028,12 +1028,12 @@ public sealed class NestedScopingPropertyTests
     /// </summary>
     private static string? GetEmittedCSharp(CompilerResult result)
     {
-        if (result.EmittedFiles is null)
+        if(result.EmittedFiles is null)
             return null;
 
-        foreach (var (_, content) in result.EmittedFiles)
+        foreach(var (_, content) in result.EmittedFiles)
         {
-            if (content.Contains("namespace TestProgram"))
+            if(content.Contains("namespace TestProgram"))
                 return content;
         }
 
@@ -1065,17 +1065,17 @@ public sealed class NestedScopingPropertyTests
         var parentKeyword = GetCSharpKeyword(input.ContainerKind);
         var parentDeclPattern = $"{parentKeyword} {input.ParentName}";
         var parentDeclIndex = csharpSource.IndexOf(parentDeclPattern, StringComparison.Ordinal);
-        if (parentDeclIndex < 0)
+        if(parentDeclIndex < 0)
             return false;
 
         // Find the parent's opening brace after the declaration
         var parentOpenBrace = csharpSource.IndexOf('{', parentDeclIndex);
-        if (parentOpenBrace < 0)
+        if(parentOpenBrace < 0)
             return false;
 
         // Find the matching closing brace for the parent (track brace depth)
         var parentCloseBrace = FindMatchingCloseBrace(csharpSource, parentOpenBrace);
-        if (parentCloseBrace < 0)
+        if(parentCloseBrace < 0)
             return false;
 
         // The nested type declaration should appear between the parent's braces
@@ -1096,25 +1096,25 @@ public sealed class NestedScopingPropertyTests
         var nestedDeclPattern = $"{nestedCSharpKeyword} {input.NestedName}";
 
         var nestedDeclIndex = csharpSource.IndexOf(nestedDeclPattern, StringComparison.Ordinal);
-        if (nestedDeclIndex < 0)
+        if(nestedDeclIndex < 0)
             return false;
 
         // Extract the rest of the line from the nested type declaration
         var lineEnd = csharpSource.IndexOf('\n', nestedDeclIndex);
-        if (lineEnd < 0) lineEnd = csharpSource.Length;
+        if(lineEnd < 0) lineEnd = csharpSource.Length;
         var nestedDeclLine = csharpSource.Substring(nestedDeclIndex, lineEnd - nestedDeclIndex);
 
         // Check if the nested type's declaration line contains a type parameter list
         // that includes any of the parent's type parameters (but not the nested type's own)
         var angleBracketStart = nestedDeclLine.IndexOf('<');
-        if (angleBracketStart < 0)
+        if(angleBracketStart < 0)
         {
             // No type params on nested type — correct (parent params not re-declared)
             return false;
         }
 
         var angleBracketEnd = nestedDeclLine.IndexOf('>', angleBracketStart);
-        if (angleBracketEnd < 0)
+        if(angleBracketEnd < 0)
             return false;
 
         var typeParamSection = nestedDeclLine.Substring(
@@ -1127,9 +1127,9 @@ public sealed class NestedScopingPropertyTests
         // Check if any parent type params appear that are NOT the nested type's own.
         var nestedOwnParams = input.NestedTypeParams.ToHashSet();
 
-        foreach (var parentParam in input.ParentTypeParams)
+        foreach(var parentParam in input.ParentTypeParams)
         {
-            if (declaredParams.Contains(parentParam) && !nestedOwnParams.Contains(parentParam))
+            if(declaredParams.Contains(parentParam) && !nestedOwnParams.Contains(parentParam))
                 return true; // Parent param was re-declared — violation
         }
 
@@ -1142,12 +1142,12 @@ public sealed class NestedScopingPropertyTests
     private static int FindMatchingCloseBrace(string source, int openBraceIndex)
     {
         var depth = 0;
-        for (var i = openBraceIndex; i < source.Length; i++)
+        for(var i = openBraceIndex; i < source.Length; i++)
         {
-            if (source[i] == '{') depth++;
-            else if (source[i] == '}') depth--;
+            if(source[i] == '{') depth++;
+            else if(source[i] == '}') depth--;
 
-            if (depth == 0)
+            if(depth == 0)
                 return i;
         }
         return -1;
@@ -1181,25 +1181,25 @@ public sealed class NestedScopingPropertyTests
     {
         // Step 1: Parse the generated source to get AST1
         var result1 = ParseSource(input.Source);
-        if (result1.Root is not CompilationUnitNode ast1)
+        if(result1.Root is not CompilationUnitNode ast1)
             return false;
 
         // No parse errors
-        if (result1.Diagnostics.Any(d => d.Severity == DiagnosticSeverity.Error))
+        if(result1.Diagnostics.Any(d => d.Severity == DiagnosticSeverity.Error))
             return false;
 
         // Step 2: Pretty-print AST1 to get printed1
         var printed1 = MistPrettyPrinter.Print(ast1, input.Source);
-        if (string.IsNullOrWhiteSpace(printed1))
+        if(string.IsNullOrWhiteSpace(printed1))
             return false;
 
         // Step 3: Parse printed1 to get AST2
         var result2 = ParseSource(printed1);
-        if (result2.Root is not CompilationUnitNode ast2)
+        if(result2.Root is not CompilationUnitNode ast2)
             return false;
 
         // No parse errors on the re-parsed output
-        if (result2.Diagnostics.Any(d => d.Severity == DiagnosticSeverity.Error))
+        if(result2.Diagnostics.Any(d => d.Severity == DiagnosticSeverity.Error))
             return false;
 
         // Step 4: Pretty-print AST2 to get printed2

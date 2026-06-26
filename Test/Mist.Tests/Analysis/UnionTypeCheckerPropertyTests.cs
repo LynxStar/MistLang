@@ -64,7 +64,7 @@ public class UnionTypeCheckerPropertyTests
 
         var parseDiag = new DiagnosticBag();
         var parseResult = Parser.Parse(tokens, parseDiag);
-        if (parseResult.Root is null)
+        if(parseResult.Root is null)
             return (null!, ImmutableArray<Diagnostic>.Empty);
 
         var buildDiag = new DiagnosticBag();
@@ -398,13 +398,13 @@ class Program {{
         var (model, diagnostics) = Compile(scenario.Source);
 
         // No MIST_TC_0074 warning (constituent IS a valid pattern type).
-        if (HasDiagnostic(diagnostics, "MIST_TC_0074"))
+        if(HasDiagnostic(diagnostics, "MIST_TC_0074"))
             return false;
 
         // The pattern variable should have the constituent type, not the union.
         // Verify by checking that assigning the pattern variable to a variable
         // of the constituent type produces no type mismatch error.
-        if (HasDiagnostic(diagnostics, "MIST_TC_0001"))
+        if(HasDiagnostic(diagnostics, "MIST_TC_0001"))
             return false;
 
         return true;

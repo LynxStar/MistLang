@@ -120,7 +120,7 @@ public class OverlappingSpanResolutionPropertyTests
 
         // For each file, create a node with the same span but different Origin
         // and verify each resolves to its own file
-        for (var i = 0; i < scenario.FileCount; i++)
+        for(var i = 0; i < scenario.FileCount; i++)
         {
             var node = new BlockNode();
             node.Span = new Storm.Runtime.SourceSpan(scenario.SpanStart, scenario.SpanLength);
@@ -128,7 +128,7 @@ public class OverlappingSpanResolutionPropertyTests
 
             var (path, _, _) = DiagnosticHelper.ResolveLocation(node);
 
-            if (path != sourceTexts[i].Path)
+            if(path != sourceTexts[i].Path)
             {
                 return false;
             }

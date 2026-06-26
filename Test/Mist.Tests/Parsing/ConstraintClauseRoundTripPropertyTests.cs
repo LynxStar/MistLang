@@ -72,7 +72,7 @@ public class ConstraintClauseRoundTripPropertyTests
     {
         return Gen.Choose(0, 3).SelectMany(paramCount =>
         {
-            if (paramCount == 0)
+            if(paramCount == 0)
                 return Gen.Constant("new()");
 
             return Gen.ArrayOf(Gen.Elements(PrimitiveTypes), paramCount)
@@ -112,7 +112,7 @@ public class ConstraintClauseRoundTripPropertyTests
 
         return Gen.Choose(0, maxClauses).SelectMany(clauseCount =>
         {
-            if (clauseCount == 0)
+            if(clauseCount == 0)
                 return Gen.Constant("");
 
             // Build a generator that produces all clauses for the selected type params
@@ -120,10 +120,10 @@ public class ConstraintClauseRoundTripPropertyTests
 
             // Chain generators for each type param
             Gen<string> result = Gen.Constant("");
-            for (var i = 0; i < selectedParams.Length; i++)
+            for(var i = 0; i < selectedParams.Length; i++)
             {
                 var tp = selectedParams[i];
-                if (i == 0)
+                if(i == 0)
                 {
                     result = GenWhereClause(tp).Select(c => " " + c);
                 }
@@ -232,7 +232,7 @@ public class ConstraintClauseRoundTripPropertyTests
             .Where(d => d.Severity == DiagnosticSeverity.Error)
             .ToList();
 
-        if (errors.Count > 0)
+        if(errors.Count > 0)
             throw new InvalidOperationException(
                 $"Unexpected parse errors:\n  {string.Join("\n  ", errors.Select(e => e.Message))}\nSource:\n{source}");
 
@@ -259,7 +259,7 @@ public class ConstraintClauseRoundTripPropertyTests
         // Step 2: Pretty-print AST1 → printed1
         var printed1 = MistPrettyPrinter.Print(ast1, scenario.Source);
 
-        if (string.IsNullOrWhiteSpace(printed1))
+        if(string.IsNullOrWhiteSpace(printed1))
             return false.ToProperty().Label("printed1 was empty");
 
         // Step 3: Parse printed1 → AST2

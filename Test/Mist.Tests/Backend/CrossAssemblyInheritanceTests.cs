@@ -123,9 +123,9 @@ public sealed class CrossAssemblyInheritanceTests : IDisposable
         // Walk the BaseType chain from NetworkStream; it must contain the projected Stream instance.
         var found = false;
         var current = networkStream as ClassType;
-        while (current?.BaseType is not null)
+        while(current?.BaseType is not null)
         {
-            if (ReferenceEquals(current.BaseType, stream))
+            if(ReferenceEquals(current.BaseType, stream))
             {
                 found = true;
                 break;
@@ -149,9 +149,9 @@ public sealed class CrossAssemblyInheritanceTests : IDisposable
 
         var found = false;
         var current = ipEndPoint as ClassType;
-        while (current?.BaseType is not null)
+        while(current?.BaseType is not null)
         {
-            if (ReferenceEquals(current.BaseType, endPoint))
+            if(ReferenceEquals(current.BaseType, endPoint))
             {
                 found = true;
                 break;
@@ -247,12 +247,12 @@ public sealed class CrossAssemblyInheritanceTests : IDisposable
         // We expect at least some members to be hidden (e.g., pointer-based or
         // ref-readonly-return methods). If none are hidden, that itself is informative
         // but we still verify that no hidden member leaks through.
-        foreach (var hidden in hiddenMembers)
+        foreach(var hidden in hiddenMembers)
         {
             // A hidden member's name should not appear in GetMembers UNLESS another
             // (visible) overload with the same name exists. So check that if the name
             // appears, at least one visible overload exists for it.
-            if (memberNames.Contains(hidden.Name))
+            if(memberNames.Contains(hidden.Name))
             {
                 // There must be a visible overload with that name (per Req 7.4)
                 var visibleOverloadExists = allInheritedMembers
@@ -270,7 +270,7 @@ public sealed class CrossAssemblyInheritanceTests : IDisposable
             .Select(g => g.Key)
             .ToList();
 
-        foreach (var groupName in allHiddenGroups)
+        foreach(var groupName in allHiddenGroups)
         {
             Assert.DoesNotContain(groupName, memberNames);
         }

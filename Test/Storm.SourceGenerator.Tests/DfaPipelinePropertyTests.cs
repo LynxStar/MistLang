@@ -23,7 +23,7 @@ public class DfaPipelinePropertyTests
     /// </summary>
     private static Gen<ExpressionIR> GenExpressionIR(int maxDepth = 3)
     {
-        if (maxDepth <= 0)
+        if(maxDepth <= 0)
             return GenLeafExpression();
 
         return Gen.Frequency<ExpressionIR>(
@@ -132,13 +132,13 @@ public class DfaPipelinePropertyTests
     /// </summary>
     private static Gen<string> GenMatchingString(ExpressionIR expr)
     {
-        switch (expr)
+        switch(expr)
         {
             case StringLiteralIR lit:
                 return Gen.Constant(lit.Value);
             case CharClassIR cc:
                 var ranges = NfaBuilder.ParseCharClassRanges(cc.Text);
-                if (ranges.Length == 0)
+                if(ranges.Length == 0)
                     return Gen.Constant("a");
                 return Gen.Elements(ranges).Select(r =>
                 {
@@ -146,12 +146,12 @@ public class DfaPipelinePropertyTests
                     return c.ToString();
                 });
             case SequenceIR seq:
-                if (seq.Elements.Count == 0)
+                if(seq.Elements.Count == 0)
                     return Gen.Constant("");
                 // Generate matching string for first element only (keep it simple)
                 return GenMatchingString(seq.Elements[0]).SelectMany(first =>
                 {
-                    if (seq.Elements.Count == 1) return Gen.Constant(first);
+                    if(seq.Elements.Count == 1) return Gen.Constant(first);
                     return GenMatchingString(seq.Elements[1]).Select(second => first + second);
                 });
             case AlternationIR alt:
@@ -184,25 +184,25 @@ public class DfaPipelinePropertyTests
     private static bool NfaAccepts(Nfa nfa, string input)
     {
         var statesById = new Dictionary<int, NfaState>();
-        foreach (var state in nfa.States)
+        foreach(var state in nfa.States)
             statesById[state.Id] = state;
 
         var currentStates = SubsetConstructor.EpsilonClosure(
             new HashSet<int> { nfa.StartState.Id }, statesById);
 
-        foreach (var ch in input)
+        foreach(var ch in input)
         {
             var nextStates = new HashSet<int>();
-            foreach (var stateId in currentStates)
+            foreach(var stateId in currentStates)
             {
-                if (!statesById.TryGetValue(stateId, out var state))
+                if(!statesById.TryGetValue(stateId, out var state))
                     continue;
-                foreach (var transition in state.Transitions)
+                foreach(var transition in state.Transitions)
                 {
-                    if (transition.Ranges == null) continue; // skip epsilon
-                    foreach (var range in transition.Ranges)
+                    if(transition.Ranges == null) continue; // skip epsilon
+                    foreach(var range in transition.Ranges)
                     {
-                        if (range.Contains(ch))
+                        if(range.Contains(ch))
                         {
                             nextStates.Add(transition.Target.Id);
                             break;
@@ -211,14 +211,14 @@ public class DfaPipelinePropertyTests
                 }
             }
             currentStates = SubsetConstructor.EpsilonClosure(nextStates, statesById);
-            if (currentStates.Count == 0)
+            if(currentStates.Count == 0)
                 return false;
         }
 
         // Check if any current state is accepting
-        foreach (var stateId in currentStates)
+        foreach(var stateId in currentStates)
         {
-            if (statesById.TryGetValue(stateId, out var state) && state.AcceptingTokenIndex >= 0)
+            if(statesById.TryGetValue(stateId, out var state) && state.AcceptingTokenIndex >= 0)
                 return true;
         }
         return false;
@@ -231,25 +231,25 @@ public class DfaPipelinePropertyTests
     private static int NfaAcceptingToken(Nfa nfa, string input)
     {
         var statesById = new Dictionary<int, NfaState>();
-        foreach (var state in nfa.States)
+        foreach(var state in nfa.States)
             statesById[state.Id] = state;
 
         var currentStates = SubsetConstructor.EpsilonClosure(
             new HashSet<int> { nfa.StartState.Id }, statesById);
 
-        foreach (var ch in input)
+        foreach(var ch in input)
         {
             var nextStates = new HashSet<int>();
-            foreach (var stateId in currentStates)
+            foreach(var stateId in currentStates)
             {
-                if (!statesById.TryGetValue(stateId, out var state))
+                if(!statesById.TryGetValue(stateId, out var state))
                     continue;
-                foreach (var transition in state.Transitions)
+                foreach(var transition in state.Transitions)
                 {
-                    if (transition.Ranges == null) continue;
-                    foreach (var range in transition.Ranges)
+                    if(transition.Ranges == null) continue;
+                    foreach(var range in transition.Ranges)
                     {
-                        if (range.Contains(ch))
+                        if(range.Contains(ch))
                         {
                             nextStates.Add(transition.Target.Id);
                             break;
@@ -258,16 +258,16 @@ public class DfaPipelinePropertyTests
                 }
             }
             currentStates = SubsetConstructor.EpsilonClosure(nextStates, statesById);
-            if (currentStates.Count == 0)
+            if(currentStates.Count == 0)
                 return -1;
         }
 
         int bestToken = -1;
-        foreach (var stateId in currentStates)
+        foreach(var stateId in currentStates)
         {
-            if (statesById.TryGetValue(stateId, out var state) && state.AcceptingTokenIndex >= 0)
+            if(statesById.TryGetValue(stateId, out var state) && state.AcceptingTokenIndex >= 0)
             {
-                if (bestToken < 0 || state.AcceptingTokenIndex < bestToken)
+                if(bestToken < 0 || state.AcceptingTokenIndex < bestToken)
                     bestToken = state.AcceptingTokenIndex;
             }
         }
@@ -289,24 +289,24 @@ public class DfaPipelinePropertyTests
     private static int DfaAcceptingToken(Dfa dfa, string input)
     {
         var stateById = new Dictionary<int, DfaState>();
-        foreach (var state in dfa.States)
+        foreach(var state in dfa.States)
             stateById[state.Id] = state;
 
-        if (!stateById.TryGetValue(dfa.StartStateId, out var current))
+        if(!stateById.TryGetValue(dfa.StartStateId, out var current))
             return -1;
 
-        foreach (var ch in input)
+        foreach(var ch in input)
         {
             DfaState? next = null;
-            foreach (var transition in current.Transitions)
+            foreach(var transition in current.Transitions)
             {
-                if (transition.Range.Contains(ch))
+                if(transition.Range.Contains(ch))
                 {
                     stateById.TryGetValue(transition.TargetStateId, out next);
                     break;
                 }
             }
-            if (next == null)
+            if(next == null)
                 return -1;
             current = next;
         }
@@ -321,7 +321,7 @@ public class DfaPipelinePropertyTests
     private static void RunProperty<T>(Gen<T> gen, Action<T> check, int maxTests = 100)
     {
         var samples = gen.Sample(maxTests);
-        foreach (var sample in samples)
+        foreach(var sample in samples)
         {
             check(sample);
         }
@@ -395,13 +395,13 @@ public class DfaPipelinePropertyTests
 
             // Build individual NFAs and check acceptance
             bool anyIndividualAccepts = false;
-            for (int i = 0; i < exprs.Length; i++)
+            for(int i = 0; i < exprs.Length; i++)
             {
                 var builder = new NfaBuilder();
                 var fragment = builder.BuildFragment(exprs[i]);
                 fragment.Accept.AcceptingTokenIndex = i;
                 var individualNfa = new Nfa(fragment.Start);
-                if (NfaAccepts(individualNfa, input))
+                if(NfaAccepts(individualNfa, input))
                 {
                     anyIndividualAccepts = true;
                     break;
@@ -464,7 +464,7 @@ public class DfaPipelinePropertyTests
             Assert.Equal(nfaToken >= 0, dfaToken >= 0);
 
             // When both accept, DFA should return the lowest declaration index
-            if (nfaToken >= 0 && dfaToken >= 0)
+            if(nfaToken >= 0 && dfaToken >= 0)
             {
                 Assert.Equal(nfaToken, dfaToken);
             }
@@ -514,7 +514,7 @@ public class DfaPipelinePropertyTests
             Assert.Equal(originalToken >= 0, minimizedToken >= 0);
 
             // When both accept, same token
-            if (originalToken >= 0 && minimizedToken >= 0)
+            if(originalToken >= 0 && minimizedToken >= 0)
             {
                 Assert.Equal(originalToken, minimizedToken);
             }
@@ -589,31 +589,31 @@ public class DfaPipelinePropertyTests
 
         // Build transition and accepting tables
         var stateIdToIndex = new Dictionary<int, int>();
-        for (int i = 0; i < minimized.States.Count; i++)
+        for(int i = 0; i < minimized.States.Count; i++)
             stateIdToIndex[minimized.States[i].Id] = i;
 
         var transTable = new short[minimized.States.Count, classCount];
         var acceptTable = new short[minimized.States.Count];
 
-        for (int s = 0; s < minimized.States.Count; s++)
-            for (int c = 0; c < classCount; c++)
+        for(int s = 0; s < minimized.States.Count; s++)
+            for(int c = 0; c < classCount; c++)
                 transTable[s, c] = -1;
 
-        for (int i = 0; i < minimized.States.Count; i++)
+        for(int i = 0; i < minimized.States.Count; i++)
         {
             var state = minimized.States[i];
             int si = stateIdToIndex[state.Id];
             acceptTable[si] = (short)state.AcceptingTokenIndex;
 
-            foreach (var trans in state.Transitions)
+            foreach(var trans in state.Transitions)
             {
-                if (!stateIdToIndex.TryGetValue(trans.TargetStateId, out var ti))
+                if(!stateIdToIndex.TryGetValue(trans.TargetStateId, out var ti))
                     continue;
                 var seenClasses = new HashSet<int>();
-                for (int c = trans.Range.Lo; c <= trans.Range.Hi; c++)
+                for(int c = trans.Range.Lo; c <= trans.Range.Hi; c++)
                 {
                     int eqClass = charToClass[c];
-                    if (seenClasses.Add(eqClass))
+                    if(seenClasses.Add(eqClass))
                         transTable[si, eqClass] = (short)ti;
                 }
             }
@@ -634,35 +634,35 @@ public class DfaPipelinePropertyTests
             // Table-driven lexing (simulating the emitted code)
             var tableLexTokens = new List<(int tokenKind, string lexeme)>();
             int pos = 0;
-            while (pos < input.Length)
+            while(pos < input.Length)
             {
                 int state = startIndex;
                 int lastAcceptKind = -1;
                 int lastAcceptPos = pos;
                 int scanPos = pos;
 
-                if (acceptTable[state] >= 0)
+                if(acceptTable[state] >= 0)
                 {
                     lastAcceptKind = acceptTable[state];
                     lastAcceptPos = scanPos;
                 }
 
-                while (scanPos < input.Length)
+                while(scanPos < input.Length)
                 {
                     var ch = input[scanPos];
                     var cls = charToClass[(int)ch];
                     var next = transTable[state, cls];
-                    if (next < 0) break;
+                    if(next < 0) break;
                     state = next;
                     scanPos++;
-                    if (acceptTable[state] >= 0)
+                    if(acceptTable[state] >= 0)
                     {
                         lastAcceptKind = acceptTable[state];
                         lastAcceptPos = scanPos;
                     }
                 }
 
-                if (lastAcceptKind >= 0 && lastAcceptPos > pos)
+                if(lastAcceptKind >= 0 && lastAcceptPos > pos)
                 {
                     tableLexTokens.Add((lastAcceptKind, input.Substring(pos, lastAcceptPos - pos)));
                     pos = lastAcceptPos;
@@ -677,24 +677,24 @@ public class DfaPipelinePropertyTests
             // NFA-based lexing (oracle): same maximal munch strategy
             var nfaLexTokens = new List<(int tokenKind, string lexeme)>();
             pos = 0;
-            while (pos < input.Length)
+            while(pos < input.Length)
             {
                 int bestToken = -1;
                 int bestLen = 0;
 
                 // Try each length from 1 to remaining, find longest match
-                for (int len = 1; len <= input.Length - pos; len++)
+                for(int len = 1; len <= input.Length - pos; len++)
                 {
                     var substr = input.Substring(pos, len);
                     int token = NfaAcceptingToken(combinedNfa, substr);
-                    if (token >= 0)
+                    if(token >= 0)
                     {
                         bestToken = token;
                         bestLen = len;
                     }
                 }
 
-                if (bestLen > 0)
+                if(bestLen > 0)
                 {
                     nfaLexTokens.Add((bestToken, input.Substring(pos, bestLen)));
                     pos += bestLen;
@@ -708,7 +708,7 @@ public class DfaPipelinePropertyTests
 
             // Compare token streams
             Assert.Equal(nfaLexTokens.Count, tableLexTokens.Count);
-            for (int i = 0; i < nfaLexTokens.Count; i++)
+            for(int i = 0; i < nfaLexTokens.Count; i++)
             {
                 Assert.Equal(nfaLexTokens[i].lexeme, tableLexTokens[i].lexeme);
                 Assert.Equal(nfaLexTokens[i].tokenKind, tableLexTokens[i].tokenKind);

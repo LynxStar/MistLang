@@ -51,7 +51,7 @@ public static partial class ProjectFileParser
         var filePath = Path.Combine(projectFolder, FileName);
 
         // 1. File existence check
-        if (!File.Exists(filePath))
+        if(!File.Exists(filePath))
         {
             diagnostics.Add(new Diagnostic(
                 new DiagnosticId("MIST_PROJECT_FILE_NOT_FOUND"),
@@ -70,7 +70,7 @@ public static partial class ProjectFileParser
         {
             content = File.ReadAllText(filePath);
         }
-        catch (Exception ex)
+        catch(Exception ex)
         {
             diagnostics.Add(new Diagnostic(
                 new DiagnosticId("MIST_PROJECT_FILE_READ_ERROR"),
@@ -89,7 +89,7 @@ public static partial class ProjectFileParser
         {
             model = Toml.ToModel(content);
         }
-        catch (TomlException ex)
+        catch(TomlException ex)
         {
             diagnostics.Add(new Diagnostic(
                 new DiagnosticId("MIST_PROJECT_TOML_ERROR"),
@@ -103,7 +103,7 @@ public static partial class ProjectFileParser
         }
 
         // 4. name field presence check
-        if (!model.TryGetValue("name", out var nameObj) || nameObj is not string)
+        if(!model.TryGetValue("name", out var nameObj) || nameObj is not string)
         {
             diagnostics.Add(new Diagnostic(
                 new DiagnosticId("MIST_PROJECT_MISSING_NAME"),
@@ -119,7 +119,7 @@ public static partial class ProjectFileParser
         var name = (string)nameObj;
 
         // 5. name non-empty/non-whitespace check
-        if (string.IsNullOrWhiteSpace(name))
+        if(string.IsNullOrWhiteSpace(name))
         {
             diagnostics.Add(new Diagnostic(
                 new DiagnosticId("MIST_PROJECT_EMPTY_NAME"),
@@ -133,7 +133,7 @@ public static partial class ProjectFileParser
         }
 
         // 6. name character validation
-        if (!ValidNamePattern().IsMatch(name))
+        if(!ValidNamePattern().IsMatch(name))
         {
             var invalidChars = name
                 .Where(c => !char.IsLetterOrDigit(c) && c != '-' && c != '_' && c != '.')
@@ -153,7 +153,7 @@ public static partial class ProjectFileParser
         }
 
         // 7. name length check
-        if (name.Length > MaxNameLength)
+        if(name.Length > MaxNameLength)
         {
             diagnostics.Add(new Diagnostic(
                 new DiagnosticId("MIST_PROJECT_NAME_TOO_LONG"),
@@ -168,10 +168,10 @@ public static partial class ProjectFileParser
 
         // 8. namespace_root field (optional)
         string namespaceRoot;
-        if (model.TryGetValue("namespace_root", out var nsRootObj) && nsRootObj is string nsRootStr)
+        if(model.TryGetValue("namespace_root", out var nsRootObj) && nsRootObj is string nsRootStr)
         {
             // 8a. non-empty/non-whitespace check
-            if (string.IsNullOrWhiteSpace(nsRootStr))
+            if(string.IsNullOrWhiteSpace(nsRootStr))
             {
                 diagnostics.Add(new Diagnostic(
                     new DiagnosticId("MIST_PROJECT_EMPTY_NAMESPACE_ROOT"),
@@ -185,7 +185,7 @@ public static partial class ProjectFileParser
             }
 
             // 8b. character validation (same regex as name)
-            if (!ValidNamePattern().IsMatch(nsRootStr))
+            if(!ValidNamePattern().IsMatch(nsRootStr))
             {
                 var invalidChars = nsRootStr
                     .Where(c => !char.IsLetterOrDigit(c) && c != '-' && c != '_' && c != '.')
@@ -214,9 +214,9 @@ public static partial class ProjectFileParser
 
         // 8.5. entry_point field (optional)
         string? entryPoint = null;
-        if (model.TryGetValue("entry_point", out var epObj) && epObj is string epStr)
+        if(model.TryGetValue("entry_point", out var epObj) && epObj is string epStr)
         {
-            if (string.IsNullOrWhiteSpace(epStr))
+            if(string.IsNullOrWhiteSpace(epStr))
             {
                 diagnostics.Add(new Diagnostic(
                     DiagnosticId.ProjectEmptyEntryPoint,
@@ -235,9 +235,9 @@ public static partial class ProjectFileParser
         // 9. Read [references] table (optional)
         var references = ImmutableArray.CreateBuilder<ProjectReference>();
 
-        if (model.TryGetValue("references", out var refsObj))
+        if(model.TryGetValue("references", out var refsObj))
         {
-            if (refsObj is not TomlTable refsTable)
+            if(refsObj is not TomlTable refsTable)
             {
                 diagnostics.Add(new Diagnostic(
                     DiagnosticId.ProjectReferenceInvalidFormat,
@@ -250,10 +250,10 @@ public static partial class ProjectFileParser
                 return null;
             }
 
-            foreach (var (refName, refValue) in refsTable)
+            foreach(var (refName, refValue) in refsTable)
             {
                 // 9a. Validate reference key name (empty → pattern → length)
-                if (string.IsNullOrWhiteSpace(refName))
+                if(string.IsNullOrWhiteSpace(refName))
                 {
                     diagnostics.Add(new Diagnostic(
                         DiagnosticId.ProjectReferenceInvalidName,
@@ -266,7 +266,7 @@ public static partial class ProjectFileParser
                     return null;
                 }
 
-                if (!ValidNamePattern().IsMatch(refName))
+                if(!ValidNamePattern().IsMatch(refName))
                 {
                     diagnostics.Add(new Diagnostic(
                         DiagnosticId.ProjectReferenceInvalidName,
@@ -279,7 +279,7 @@ public static partial class ProjectFileParser
                     return null;
                 }
 
-                if (refName.Length > MaxNameLength)
+                if(refName.Length > MaxNameLength)
                 {
                     diagnostics.Add(new Diagnostic(
                         DiagnosticId.ProjectReferenceInvalidName,
@@ -293,7 +293,7 @@ public static partial class ProjectFileParser
                 }
 
                 // 9b. Validate reference value is a table
-                if (refValue is not TomlTable refEntry)
+                if(refValue is not TomlTable refEntry)
                 {
                     diagnostics.Add(new Diagnostic(
                         DiagnosticId.ProjectReferenceInvalidFormat,
@@ -307,7 +307,7 @@ public static partial class ProjectFileParser
                 }
 
                 // 9c. Extract and validate 'path' field
-                if (!refEntry.TryGetValue("path", out var pathObj) || pathObj is not string rawPath)
+                if(!refEntry.TryGetValue("path", out var pathObj) || pathObj is not string rawPath)
                 {
                     diagnostics.Add(new Diagnostic(
                         DiagnosticId.ProjectReferenceMissingPath,
@@ -320,7 +320,7 @@ public static partial class ProjectFileParser
                     return null;
                 }
 
-                if (string.IsNullOrWhiteSpace(rawPath))
+                if(string.IsNullOrWhiteSpace(rawPath))
                 {
                     diagnostics.Add(new Diagnostic(
                         DiagnosticId.ProjectReferenceEmptyPath,
@@ -335,7 +335,7 @@ public static partial class ProjectFileParser
 
                 // 9d. Normalize path (unchanged logic)
                 string normalizedPath;
-                if (Path.IsPathRooted(rawPath))
+                if(Path.IsPathRooted(rawPath))
                 {
                     normalizedPath = Path.GetFullPath(rawPath);
                 }
@@ -347,7 +347,7 @@ public static partial class ProjectFileParser
                 // If normalized path does not already end with "mist.toml",
                 // treat it as a directory and append "mist.toml".
                 // Existence checks are NOT performed here — deferred to resolver.
-                if (!Path.GetFileName(normalizedPath)
+                if(!Path.GetFileName(normalizedPath)
                          .Equals(FileName, StringComparison.Ordinal))
                 {
                     normalizedPath = Path.Combine(normalizedPath, FileName);
@@ -360,9 +360,9 @@ public static partial class ProjectFileParser
         // 10. Read [global_usings] section (optional)
         var globalUsings = ImmutableArray<string>.Empty;
 
-        if (model.TryGetValue("global_usings", out var guObj))
+        if(model.TryGetValue("global_usings", out var guObj))
         {
-            if (guObj is not TomlTable guTable)
+            if(guObj is not TomlTable guTable)
             {
                 diagnostics.Add(new Diagnostic(
                     new DiagnosticId("MIST_GLOBAL_USING_INVALID_FORMAT"),
@@ -375,7 +375,7 @@ public static partial class ProjectFileParser
                 return null;
             }
 
-            if (!guTable.TryGetValue("namespaces", out var nsObj))
+            if(!guTable.TryGetValue("namespaces", out var nsObj))
             {
                 diagnostics.Add(new Diagnostic(
                     new DiagnosticId("MIST_GLOBAL_USING_MISSING_NAMESPACES"),
@@ -388,7 +388,7 @@ public static partial class ProjectFileParser
                 return null;
             }
 
-            if (nsObj is not TomlArray nsArray)
+            if(nsObj is not TomlArray nsArray)
             {
                 diagnostics.Add(new Diagnostic(
                     new DiagnosticId("MIST_GLOBAL_USING_INVALID_FORMAT"),
@@ -404,9 +404,9 @@ public static partial class ProjectFileParser
             var builder = ImmutableArray.CreateBuilder<string>();
             var seen = new HashSet<string>(StringComparer.Ordinal);
 
-            for (var i = 0; i < nsArray.Count; i++)
+            for(var i = 0; i < nsArray.Count; i++)
             {
-                if (nsArray[i] is not string entry)
+                if(nsArray[i] is not string entry)
                 {
                     diagnostics.Add(new Diagnostic(
                         new DiagnosticId("MIST_GLOBAL_USING_INVALID_FORMAT"),
@@ -419,7 +419,7 @@ public static partial class ProjectFileParser
                     return null;
                 }
 
-                if (string.IsNullOrWhiteSpace(entry))
+                if(string.IsNullOrWhiteSpace(entry))
                 {
                     diagnostics.Add(new Diagnostic(
                         new DiagnosticId("MIST_GLOBAL_USING_EMPTY_NAMESPACE"),
@@ -432,7 +432,7 @@ public static partial class ProjectFileParser
                     return null;
                 }
 
-                if (!ValidNamespacePattern().IsMatch(entry))
+                if(!ValidNamespacePattern().IsMatch(entry))
                 {
                     var invalidChars = entry
                         .Where(c => !char.IsLetterOrDigit(c) && c != '_' && c != '.')
@@ -451,7 +451,7 @@ public static partial class ProjectFileParser
                     return null;
                 }
 
-                if (!seen.Add(entry))
+                if(!seen.Add(entry))
                 {
                     diagnostics.Add(new Diagnostic(
                         new DiagnosticId("MIST_GLOBAL_USING_DUPLICATE_NAMESPACE"),
@@ -473,9 +473,9 @@ public static partial class ProjectFileParser
         // 11. Read [packages] table (optional)
         var packages = ImmutableArray<NuGetPackageReference>.Empty;
 
-        if (model.TryGetValue("packages", out var pkgsObj))
+        if(model.TryGetValue("packages", out var pkgsObj))
         {
-            if (pkgsObj is not TomlTable pkgsTable)
+            if(pkgsObj is not TomlTable pkgsTable)
             {
                 diagnostics.Add(new Diagnostic(
                     new DiagnosticId("MIST_PKG_TABLE_EXPECTED"),
@@ -490,10 +490,10 @@ public static partial class ProjectFileParser
 
             var pkgBuilder = ImmutableArray.CreateBuilder<NuGetPackageReference>();
 
-            foreach (var (pkgName, pkgValue) in pkgsTable)
+            foreach(var (pkgName, pkgValue) in pkgsTable)
             {
                 // 11a. Validate package name: pattern check
-                if (!ValidNamePattern().IsMatch(pkgName))
+                if(!ValidNamePattern().IsMatch(pkgName))
                 {
                     var invalidChars = pkgName
                         .Where(c => !char.IsLetterOrDigit(c) && c != '-' && c != '_' && c != '.')
@@ -513,7 +513,7 @@ public static partial class ProjectFileParser
                 }
 
                 // 11b. Validate package name: length check
-                if (pkgName.Length > MaxNameLength)
+                if(pkgName.Length > MaxNameLength)
                 {
                     diagnostics.Add(new Diagnostic(
                         new DiagnosticId("MIST_PKG_INVALID_NAME"),
@@ -527,7 +527,7 @@ public static partial class ProjectFileParser
                 }
 
                 // 11c. Validate version value: must be a non-empty string
-                if (pkgValue is not string versionStr)
+                if(pkgValue is not string versionStr)
                 {
                     diagnostics.Add(new Diagnostic(
                         new DiagnosticId("MIST_PKG_INVALID_VERSION"),
@@ -540,7 +540,7 @@ public static partial class ProjectFileParser
                     continue;
                 }
 
-                if (string.IsNullOrWhiteSpace(versionStr))
+                if(string.IsNullOrWhiteSpace(versionStr))
                 {
                     diagnostics.Add(new Diagnostic(
                         new DiagnosticId("MIST_PKG_INVALID_VERSION"),
@@ -561,7 +561,7 @@ public static partial class ProjectFileParser
 
         // 12. Read target_framework field (optional string), defaulting to net10.0
         var targetFramework = "net10.0";
-        if (model.TryGetValue("target_framework", out var tfObj)
+        if(model.TryGetValue("target_framework", out var tfObj)
             && tfObj is string tfStr
             && !string.IsNullOrWhiteSpace(tfStr))
         {
@@ -571,9 +571,9 @@ public static partial class ProjectFileParser
         // 13. Read [framework_references] table (optional)
         var frameworkReferences = ImmutableArray<FrameworkReference>.Empty;
 
-        if (model.TryGetValue("framework_references", out var fwrefsObj))
+        if(model.TryGetValue("framework_references", out var fwrefsObj))
         {
-            if (fwrefsObj is not TomlTable fwrefsTable)
+            if(fwrefsObj is not TomlTable fwrefsTable)
             {
                 // Present but not a table → emit diagnostic, produce empty list,
                 // and continue (do not abort the parse).
@@ -591,12 +591,12 @@ public static partial class ProjectFileParser
                 var fwrefBuilder = ImmutableArray.CreateBuilder<FrameworkReference>();
                 var seenFrameworks = new HashSet<string>(StringComparer.Ordinal);
 
-                foreach (var (rawFwName, fwValue) in fwrefsTable)
+                foreach(var (rawFwName, fwValue) in fwrefsTable)
                 {
                     var fwName = rawFwName.Trim();
 
                     // 13a. Validate framework name: empty/whitespace after trim
-                    if (fwName.Length == 0)
+                    if(fwName.Length == 0)
                     {
                         diagnostics.Add(new Diagnostic(
                             new DiagnosticId("MIST_FWREF_INVALID_NAME"),
@@ -610,7 +610,7 @@ public static partial class ProjectFileParser
                     }
 
                     // 13b. Validate framework name: length check (after trim)
-                    if (fwName.Length > MaxFrameworkReferenceNameLength)
+                    if(fwName.Length > MaxFrameworkReferenceNameLength)
                     {
                         diagnostics.Add(new Diagnostic(
                             new DiagnosticId("MIST_FWREF_INVALID_NAME"),
@@ -624,7 +624,7 @@ public static partial class ProjectFileParser
                     }
 
                     // 13c. Validate value: must be a TOML boolean
-                    if (fwValue is not bool enabled)
+                    if(fwValue is not bool enabled)
                     {
                         diagnostics.Add(new Diagnostic(
                             new DiagnosticId("MIST_FWREF_INVALID_VALUE"),
@@ -638,13 +638,13 @@ public static partial class ProjectFileParser
                     }
 
                     // 13d. false → exclude from the list.
-                    if (!enabled)
+                    if(!enabled)
                     {
                         continue;
                     }
 
                     // 13e. true → include exactly once (dedupe by trimmed name).
-                    if (seenFrameworks.Add(fwName))
+                    if(seenFrameworks.Add(fwName))
                     {
                         fwrefBuilder.Add(new FrameworkReference(fwName));
                     }
@@ -657,9 +657,9 @@ public static partial class ProjectFileParser
         // 14. Read [csproj_properties] table (optional)
         var csprojProperties = ImmutableArray<CsprojProperty>.Empty;
 
-        if (model.TryGetValue("csproj_properties", out var csprojPropsObj))
+        if(model.TryGetValue("csproj_properties", out var csprojPropsObj))
         {
-            if (csprojPropsObj is not TomlTable csprojPropsTable)
+            if(csprojPropsObj is not TomlTable csprojPropsTable)
             {
                 diagnostics.Add(new Diagnostic(
                     new DiagnosticId("MIST_CSPROJ_PROP_TABLE_EXPECTED"),
@@ -674,10 +674,10 @@ public static partial class ProjectFileParser
             {
                 var csprojPropBuilder = ImmutableArray.CreateBuilder<CsprojProperty>();
 
-                foreach (var (rawKey, propValue) in csprojPropsTable)
+                foreach(var (rawKey, propValue) in csprojPropsTable)
                 {
                     // 14a. Validate key: empty/whitespace
-                    if (string.IsNullOrWhiteSpace(rawKey))
+                    if(string.IsNullOrWhiteSpace(rawKey))
                     {
                         diagnostics.Add(new Diagnostic(
                             new DiagnosticId("MIST_CSPROJ_PROP_EMPTY_KEY"),
@@ -691,7 +691,7 @@ public static partial class ProjectFileParser
                     }
 
                     // 14b. Validate key: character pattern
-                    if (!ValidNamePattern().IsMatch(rawKey))
+                    if(!ValidNamePattern().IsMatch(rawKey))
                     {
                         var invalidChars = rawKey
                             .Where(c => !char.IsLetterOrDigit(c) && c != '-' && c != '_' && c != '.')
@@ -711,7 +711,7 @@ public static partial class ProjectFileParser
                     }
 
                     // 14c. Validate key: length check
-                    if (rawKey.Length > MaxNameLength)
+                    if(rawKey.Length > MaxNameLength)
                     {
                         diagnostics.Add(new Diagnostic(
                             new DiagnosticId("MIST_CSPROJ_PROP_KEY_TOO_LONG"),
@@ -725,7 +725,7 @@ public static partial class ProjectFileParser
                     }
 
                     // 14d. Validate value: must be a string
-                    if (propValue is not string valueStr)
+                    if(propValue is not string valueStr)
                     {
                         diagnostics.Add(new Diagnostic(
                             new DiagnosticId("MIST_CSPROJ_PROP_INVALID_VALUE"),
@@ -739,7 +739,7 @@ public static partial class ProjectFileParser
                     }
 
                     // 14e. Validate value: non-empty/non-whitespace
-                    if (string.IsNullOrWhiteSpace(valueStr))
+                    if(string.IsNullOrWhiteSpace(valueStr))
                     {
                         diagnostics.Add(new Diagnostic(
                             new DiagnosticId("MIST_CSPROJ_PROP_EMPTY_VALUE"),
@@ -753,7 +753,7 @@ public static partial class ProjectFileParser
                     }
 
                     // 14f. Warn if key shadows a compiler-managed property
-                    if (CompilerManagedProperties.Contains(rawKey))
+                    if(CompilerManagedProperties.Contains(rawKey))
                     {
                         diagnostics.Add(new Diagnostic(
                             new DiagnosticId("MIST_CSPROJ_PROP_MANAGED_OVERRIDE"),

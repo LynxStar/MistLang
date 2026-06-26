@@ -34,7 +34,7 @@ namespace Storm.SourceGenerator.Emit
             var parser = new Parser(pattern);
             var result = parser.ParseExpression();
 
-            if (parser.Position < pattern.Length)
+            if(parser.Position < pattern.Length)
             {
                 throw new FormatException(
                     $"Unexpected character '{pattern[parser.Position]}' at position {parser.Position} in regex pattern: {pattern}");
@@ -85,12 +85,12 @@ namespace Storm.SourceGenerator.Emit
             {
                 var first = ParseConcatenation();
 
-                if (!HasMore || Peek() != '|')
+                if(!HasMore || Peek() != '|')
                     return first;
 
                 var alternatives = new List<ExpressionIR> { first };
 
-                while (HasMore && Peek() == '|')
+                while(HasMore && Peek() == '|')
                 {
                     Advance(); // consume '|'
                     alternatives.Add(ParseConcatenation());
@@ -106,19 +106,19 @@ namespace Storm.SourceGenerator.Emit
             {
                 var elements = new List<ExpressionIR>();
 
-                while (HasMore && Peek() != '|' && Peek() != ')')
+                while(HasMore && Peek() != '|' && Peek() != ')')
                 {
                     elements.Add(ParseQuantified());
                 }
 
-                if (elements.Count == 0)
+                if(elements.Count == 0)
                 {
                     // Empty concatenation (e.g., empty alternative in "a|")
                     // Return an empty string literal
                     return new StringLiteralIR("");
                 }
 
-                if (elements.Count == 1)
+                if(elements.Count == 1)
                     return elements[0];
 
                 return new SequenceIR(elements);
@@ -131,10 +131,10 @@ namespace Storm.SourceGenerator.Emit
             {
                 var atom = ParseAtom();
 
-                if (!HasMore)
+                if(!HasMore)
                     return atom;
 
-                switch (Peek())
+                switch(Peek())
                 {
                     case '+':
                         Advance();
@@ -155,13 +155,13 @@ namespace Storm.SourceGenerator.Emit
             /// </summary>
             private ExpressionIR ParseAtom()
             {
-                if (!HasMore)
+                if(!HasMore)
                     throw new FormatException(
                         $"Unexpected end of regex pattern: {_pattern}");
 
                 var ch = Peek();
 
-                switch (ch)
+                switch(ch)
                 {
                     case '[':
                         return ParseCharClass();
@@ -192,17 +192,17 @@ namespace Storm.SourceGenerator.Emit
                 Advance(); // consume '['
 
                 // Handle negation
-                if (HasMore && Peek() == '^')
+                if(HasMore && Peek() == '^')
                     Advance();
 
                 // Handle ']' as first character in class (literal ']')
-                if (HasMore && Peek() == ']')
+                if(HasMore && Peek() == ']')
                     Advance();
 
                 // Read until closing ']'
-                while (HasMore && Peek() != ']')
+                while(HasMore && Peek() != ']')
                 {
-                    if (Peek() == '\\' && Position + 1 < _pattern.Length)
+                    if(Peek() == '\\' && Position + 1 < _pattern.Length)
                     {
                         Advance(); // skip backslash
                         Advance(); // skip escaped char
@@ -213,7 +213,7 @@ namespace Storm.SourceGenerator.Emit
                     }
                 }
 
-                if (!HasMore)
+                if(!HasMore)
                     throw new FormatException(
                         $"Unterminated character class starting at position {startPos} in regex pattern: {_pattern}");
 
@@ -232,7 +232,7 @@ namespace Storm.SourceGenerator.Emit
 
                 var inner = ParseExpression();
 
-                if (!HasMore || Peek() != ')')
+                if(!HasMore || Peek() != ')')
                     throw new FormatException(
                         $"Unterminated group in regex pattern: {_pattern}");
 
@@ -250,13 +250,13 @@ namespace Storm.SourceGenerator.Emit
             {
                 Advance(); // consume '\'
 
-                if (!HasMore)
+                if(!HasMore)
                     throw new FormatException(
                         $"Unexpected end of regex pattern after backslash: {_pattern}");
 
                 var escaped = Advance();
 
-                switch (escaped)
+                switch(escaped)
                 {
                     // Shorthand character classes → CharClassIR
                     case 's':

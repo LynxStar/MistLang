@@ -227,11 +227,11 @@ public static class ReadonlyParsingGenerators
     {
         return Gen.OneOf(
             from name in Gen.Elements(ClassNames)
-               let source = $"readonly class {name} {{\n}}"
-               select new ReadonlyRoundTripScenario(source, $"readonly class: {name}"),
+            let source = $"readonly class {name} {{\n}}"
+            select new ReadonlyRoundTripScenario(source, $"readonly class: {name}"),
             from name in Gen.Elements(StructNames)
-               let source = $"readonly struct {name} {{\n}}"
-               select new ReadonlyRoundTripScenario(source, $"readonly struct: {name}"));
+            let source = $"readonly struct {name} {{\n}}"
+            select new ReadonlyRoundTripScenario(source, $"readonly struct: {name}"));
     }
 
     /// <summary>Generates a readonly block statement for round-trip testing.</summary>
@@ -259,11 +259,11 @@ public static class ReadonlyParsingGenerators
     {
         return Gen.OneOf(
             from className in Gen.Elements(ClassNames)
-               let source = $"class {className}<T> where T : readonly {{\n}}"
-               select new ReadonlyRoundTripScenario(source, $"readonly constraint: {className}<T>"),
+            let source = $"class {className}<T> where T : readonly {{\n}}"
+            select new ReadonlyRoundTripScenario(source, $"readonly constraint: {className}<T>"),
             from className in Gen.Elements(ClassNames)
-               let source = $"class {className}<T> where T : mutable {{\n}}"
-               select new ReadonlyRoundTripScenario(source, $"mutable constraint: {className}<T>"));
+            let source = $"class {className}<T> where T : mutable {{\n}}"
+            select new ReadonlyRoundTripScenario(source, $"mutable constraint: {className}<T>"));
     }
 
     /// <summary>Combined generator for all round-trip scenarios.</summary>
@@ -314,7 +314,7 @@ public class ReadonlyParsingPropertyTests
             .Where(d => d.Severity == DiagnosticSeverity.Error)
             .ToList();
 
-        if (errors.Count > 0)
+        if(errors.Count > 0)
             throw new InvalidOperationException(
                 $"Unexpected parse errors:\n  {string.Join("\n  ", errors.Select(e => e.Message))}\nSource:\n{source}");
 
@@ -327,10 +327,10 @@ public class ReadonlyParsingPropertyTests
     /// </summary>
     private static bool ContainsNodeOfType<T>(Storm.Runtime.SyntaxNode node) where T : Storm.Runtime.SyntaxNode
     {
-        if (node is T) return true;
-        foreach (var child in node.Children())
+        if(node is T) return true;
+        foreach(var child in node.Children())
         {
-            if (child is not null && ContainsNodeOfType<T>(child))
+            if(child is not null && ContainsNodeOfType<T>(child))
                 return true;
         }
         return false;
@@ -341,12 +341,12 @@ public class ReadonlyParsingPropertyTests
     /// </summary>
     private static T? FindFirstNode<T>(Storm.Runtime.SyntaxNode node) where T : Storm.Runtime.SyntaxNode
     {
-        if (node is T match) return match;
-        foreach (var child in node.Children())
+        if(node is T match) return match;
+        foreach(var child in node.Children())
         {
-            if (child is null) continue;
+            if(child is null) continue;
             var found = FindFirstNode<T>(child);
-            if (found is not null) return found;
+            if(found is not null) return found;
         }
         return null;
     }
@@ -389,7 +389,7 @@ public class ReadonlyParsingPropertyTests
 
         var readonlyBlockNode = FindFirstNode<ReadonlyBlockStatementStatementNode>(ast);
 
-        if (readonlyBlockNode is null)
+        if(readonlyBlockNode is null)
             return false.ToProperty()
                 .Label($"No ReadonlyBlockStatementStatementNode found.\nSource:\n{scenario.Source}");
 
@@ -418,7 +418,7 @@ public class ReadonlyParsingPropertyTests
         // Step 2: Pretty-print AST1 → printed1
         var printed1 = MistPrettyPrinter.Print(ast1, scenario.Source);
 
-        if (string.IsNullOrWhiteSpace(printed1))
+        if(string.IsNullOrWhiteSpace(printed1))
             return false.ToProperty().Label("printed1 was empty");
 
         // Step 3: Parse printed1 → AST2

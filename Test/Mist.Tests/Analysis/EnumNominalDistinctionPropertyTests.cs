@@ -159,20 +159,26 @@ public class EnumNominalDistinctionPropertyTests
     }
 
     private static TypeReferenceNode MakeIntTypeRef() =>
-        new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
+        new TypeReferenceNode
         {
-            PrimitiveType = new IntTypePrimitiveTypeNode(),
-        } };
+            First = new PrimitiveSingleTypeRefSingleTypeRefNode
+            {
+                PrimitiveType = new IntTypePrimitiveTypeNode(),
+            }
+        };
 
     private static TypeReferenceNode MakeEnumTypeRef(string enumName) =>
-        new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
+        new TypeReferenceNode
         {
-            Name = new QualifiedIdentifierNode
+            First = new NamedSingleTypeRefSingleTypeRefNode
             {
-                IDENTIFIER = Tok(enumName),
-                Span = new Storm.Runtime.SourceSpan(0, enumName.Length),
-            },
-        } };
+                Name = new QualifiedIdentifierNode
+                {
+                    IDENTIFIER = Tok(enumName),
+                    Span = new Storm.Runtime.SourceSpan(0, enumName.Length),
+                },
+            }
+        };
 
     private static ExpressionNode MakeMemberAccessExpression(string target, string memberName)
     {
@@ -204,7 +210,7 @@ public class EnumNominalDistinctionPropertyTests
     {
         // Build two enum declarations with the same underlying type (int).
         var membersA = new List<EnumMemberNode>();
-        for (var i = 0; i < scenario.MemberNamesA.Count; i++)
+        for(var i = 0; i < scenario.MemberNamesA.Count; i++)
         {
             membersA.Add(MakeEnumMember(scenario.MemberNamesA[i], i));
         }
@@ -223,7 +229,7 @@ public class EnumNominalDistinctionPropertyTests
         };
 
         var membersB = new List<EnumMemberNode>();
-        for (var i = 0; i < scenario.MemberNamesB.Count; i++)
+        for(var i = 0; i < scenario.MemberNamesB.Count; i++)
         {
             membersB.Add(MakeEnumMember(scenario.MemberNamesB[i], i));
         }
@@ -321,7 +327,7 @@ public class EnumNominalDistinctionPropertyTests
             d.Severity == DiagnosticSeverity.Error &&
             d.Id.Value != "MIST_TC_0017"); // Ignore entry point diagnostic
 
-        if (!hasTypeError)
+        if(!hasTypeError)
             return false.ToProperty()
                 .Label($"Expected type error for assigning {scenario.EnumNameA} to {scenario.EnumNameB}, " +
                        $"got: [{string.Join("; ", combined.Where(d => d.Severity == DiagnosticSeverity.Error).Select(e => $"{e.Id.Value}: {e.Message}"))}]");

@@ -29,7 +29,7 @@ public sealed class TupleEmitterOutputTests : IDisposable
 
     public void Dispose()
     {
-        if (Directory.Exists(_outputDir))
+        if(Directory.Exists(_outputDir))
         {
             try { Directory.Delete(_outputDir, recursive: true); } catch { /* best effort */ }
         }
@@ -70,7 +70,7 @@ public sealed class TupleEmitterOutputTests : IDisposable
 
     private void CleanOutputDir()
     {
-        foreach (var file in Directory.GetFiles(_outputDir))
+        foreach(var file in Directory.GetFiles(_outputDir))
             File.Delete(file);
     }
 
@@ -194,9 +194,9 @@ public sealed class TupleEmitterOutputTests : IDisposable
         var tupleLit = new TupleLiteralExpressionPrimaryNode
         {
             First = new UnnamedTupleLiteralElementTupleLiteralElementNode
-                { Value = MakeIntLiteralExpression("1") },
+            { Value = MakeIntLiteralExpression("1") },
             Rest = new UnnamedTupleLiteralElementTupleLiteralElementNode
-                { Value = MakeIntLiteralExpression("2") },
+            { Value = MakeIntLiteralExpression("2") },
             TupleLiteralElements = ImmutableArray<TupleLiteralElementNode>.Empty,
         };
 
@@ -226,9 +226,9 @@ public sealed class TupleEmitterOutputTests : IDisposable
         var tupleLit = new TupleLiteralExpressionPrimaryNode
         {
             First = new UnnamedTupleLiteralElementTupleLiteralElementNode
-                { Value = MakeIntLiteralExpression("1") },
+            { Value = MakeIntLiteralExpression("1") },
             Rest = new UnnamedTupleLiteralElementTupleLiteralElementNode
-                { Value = WrapPrimaryAsExpression(new TrueLiteralExpressionPrimaryNode()) },
+            { Value = WrapPrimaryAsExpression(new TrueLiteralExpressionPrimaryNode()) },
             TupleLiteralElements = ImmutableArray<TupleLiteralElementNode>.Empty,
         };
 

@@ -131,7 +131,7 @@ public class RefinementImplicationPropertyTests
 
         var firstUnary = MakeUnaryPattern(constraints[0]);
 
-        if (constraints.Length == 1)
+        if(constraints.Length == 1)
         {
             var andNode = new AndPatternNode { Left = firstUnary };
             return new RefinementPredicate(andNode);
@@ -139,7 +139,7 @@ public class RefinementImplicationPropertyTests
 
         var secondUnary = MakeUnaryPattern(constraints[1]);
 
-        if (constraints.Length == 2)
+        if(constraints.Length == 2)
         {
             var andNode = new AndPatternNode { Left = firstUnary, Right = secondUnary };
             return new RefinementPredicate(andNode);
@@ -196,12 +196,12 @@ public class RefinementImplicationPropertyTests
     {
         var sourceHasAnySatisfyingValue = false;
 
-        for (var v = rangeMin; v <= rangeMax; v++)
+        for(var v = rangeMin; v <= rangeMax; v++)
         {
-            if (source.Evaluate(v))
+            if(source.Evaluate(v))
             {
                 sourceHasAnySatisfyingValue = true;
-                if (!target.Evaluate(v))
+                if(!target.Evaluate(v))
                     return false;
             }
         }
@@ -218,9 +218,9 @@ public class RefinementImplicationPropertyTests
     /// </summary>
     private static bool HasSatisfyingValues(RefinementPredicate predicate, int rangeMin, int rangeMax)
     {
-        for (var v = rangeMin; v <= rangeMax; v++)
+        for(var v = rangeMin; v <= rangeMax; v++)
         {
-            if (predicate.Evaluate(v))
+            if(predicate.Evaluate(v))
                 return true;
         }
 
@@ -249,14 +249,14 @@ public class RefinementImplicationPropertyTests
 
         var impliesResult = source.Implies(target);
 
-        if (!impliesResult)
+        if(!impliesResult)
             return true; // Not testing the false case here
 
         // If Implies returns true, verify with brute force:
         // every value satisfying source must also satisfy target.
-        for (var v = RangeMin; v <= RangeMax; v++)
+        for(var v = RangeMin; v <= RangeMax; v++)
         {
-            if (source.Evaluate(v) && !target.Evaluate(v))
+            if(source.Evaluate(v) && !target.Evaluate(v))
                 return false; // Found a counterexample — Implies is wrong
         }
 
@@ -279,12 +279,12 @@ public class RefinementImplicationPropertyTests
         var target = BuildPredicate(scenario.Target);
 
         // Only test when source has satisfying values (non-vacuous case)
-        if (!HasSatisfyingValues(source, RangeMin, RangeMax))
+        if(!HasSatisfyingValues(source, RangeMin, RangeMax))
             return true; // Skip vacuous cases
 
         var bruteForceResult = BruteForceImplies(source, target, RangeMin, RangeMax);
 
-        if (!bruteForceResult)
+        if(!bruteForceResult)
             return true; // Not testing the "doesn't imply" case here
 
         // Brute force says implication holds — solver should agree

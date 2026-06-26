@@ -37,9 +37,9 @@ public sealed class StdlibCompilesTest
     private static string FindRepoRoot()
     {
         var dir = AppContext.BaseDirectory;
-        while (dir is not null)
+        while(dir is not null)
         {
-            if (File.Exists(Path.Combine(dir, "Mist.slnx")))
+            if(File.Exists(Path.Combine(dir, "Mist.slnx")))
                 return dir;
             dir = Directory.GetParent(dir)?.FullName;
         }
@@ -75,7 +75,7 @@ public sealed class StdlibCompilesTest
         var pipelineDiagnostics = new DiagnosticBag();
         var asts = ImmutableArray.CreateBuilder<Storm.Runtime.SyntaxNode>(units.Length);
 
-        foreach (var unit in units)
+        foreach(var unit in units)
         {
             var tokens = lexer.Lex(unit.Source, pipelineDiagnostics);
             var parseResult = parser.Parse(tokens, pipelineDiagnostics);

@@ -51,7 +51,7 @@ public sealed class UnionSemanticEquivalencePropertyTests : IDisposable
 
     public void Dispose()
     {
-        if (Directory.Exists(_outputDir))
+        if(Directory.Exists(_outputDir))
         {
             try { Directory.Delete(_outputDir, recursive: true); } catch { /* best effort */ }
         }
@@ -475,7 +475,7 @@ public sealed class UnionSemanticEquivalencePropertyTests : IDisposable
     {
         var scenarioMethods = new System.Text.StringBuilder();
 
-        for (var i = 0; i < scenarios.Count; i++)
+        for(var i = 0; i < scenarios.Count; i++)
         {
             scenarioMethods.AppendLine($"    public static void RunScenario{i + 1}() {{");
             scenarioMethods.AppendLine(scenarios[i].MethodBody);
@@ -484,7 +484,7 @@ public sealed class UnionSemanticEquivalencePropertyTests : IDisposable
         }
 
         var mainCalls = new System.Text.StringBuilder();
-        for (var i = 0; i < scenarios.Count; i++)
+        for(var i = 0; i < scenarios.Count; i++)
         {
             mainCalls.AppendLine($"        Program.RunScenario{i + 1}();");
         }
@@ -562,7 +562,7 @@ public sealed class UnionSemanticEquivalencePropertyTests : IDisposable
 
             var result = SharedDriver.Compile(options);
 
-            if (!result.Succeeded || result.PrimaryOutputArtifactPath is null)
+            if(!result.Succeeded || result.PrimaryOutputArtifactPath is null)
             {
                 var diagnosticText = string.Join("\n",
                     result.Diagnostics.Select(d => $"  {d.Severity} {d.Id.Value}: {d.Message}"));
@@ -580,13 +580,13 @@ public sealed class UnionSemanticEquivalencePropertyTests : IDisposable
             };
 
             using var process = Process.Start(psi);
-            if (process is null)
+            if(process is null)
                 return (-1, "", "Failed to start dotnet process");
 
             var stdoutTask = process.StandardOutput.ReadToEndAsync();
             var stderrTask = process.StandardError.ReadToEndAsync();
 
-            if (!process.WaitForExit(30_000))
+            if(!process.WaitForExit(30_000))
             {
                 try { process.Kill(entireProcessTree: true); } catch { /* best effort */ }
                 return (-1, "", "Process timed out after 30 seconds");
@@ -635,7 +635,7 @@ public sealed class UnionSemanticEquivalencePropertyTests : IDisposable
         Assert.True(lines.Length == scenarios.Count,
             $"Expected {scenarios.Count} output lines, got {lines.Length}.\nStdout:\n{stdout}");
 
-        for (var i = 0; i < scenarios.Count; i++)
+        for(var i = 0; i < scenarios.Count; i++)
         {
             Assert.True(lines[i] == scenarios[i].ExpectedOutput,
                 $"Scenario {i + 1} ({scenarios[i].Description}) failed: " +

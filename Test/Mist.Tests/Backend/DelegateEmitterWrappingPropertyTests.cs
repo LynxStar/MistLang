@@ -114,12 +114,12 @@ public sealed class DelegateEmitterWrappingPropertyTests
         var totalArity = scenario.TypeArguments.Length + 1;
         var funcDef = new ClassType("Func", new Scope(null), "Standard", isBackendBacked: true);
         var tps = new IType[totalArity];
-        for (var i = 0; i < totalArity; i++)
+        for(var i = 0; i < totalArity; i++)
             tps[i] = new TypeParameterType($"T{i}", i);
         funcDef.TypeParameters = tps;
 
         var funcTypeArgs = new IType[totalArity];
-        for (var i = 0; i < scenario.TypeArguments.Length; i++)
+        for(var i = 0; i < scenario.TypeArguments.Length; i++)
             funcTypeArgs[i] = scenario.TypeArguments[i];
         funcTypeArgs[totalArity - 1] = new StructType("Boolean", new Scope(null), "Standard", isBackendBacked: true);
 
@@ -169,7 +169,7 @@ public sealed class DelegateEmitterWrappingPropertyTests
     public void P8a_WrappedOutput_StartsWithNew()
     {
         var samples = GenWrappingScenario().Sample(100);
-        foreach (var scenario in samples)
+        foreach(var scenario in samples)
         {
             var dt = BuildDelegateType(scenario);
             var wrapped = SimulateWrapping(dt, scenario.EmittedExpression);
@@ -182,7 +182,7 @@ public sealed class DelegateEmitterWrappingPropertyTests
     public void P8b_WrappedOutput_ContainsDelegateTypeName()
     {
         var samples = GenWrappingScenario().Sample(100);
-        foreach (var scenario in samples)
+        foreach(var scenario in samples)
         {
             var dt = BuildDelegateType(scenario);
             var wrapped = SimulateWrapping(dt, scenario.EmittedExpression);
@@ -196,7 +196,7 @@ public sealed class DelegateEmitterWrappingPropertyTests
     public void P8c_WrappedOutput_ContainsEmittedExpressionInsideParens()
     {
         var samples = GenWrappingScenario().Sample(100);
-        foreach (var scenario in samples)
+        foreach(var scenario in samples)
         {
             var dt = BuildDelegateType(scenario);
             var wrapped = SimulateWrapping(dt, scenario.EmittedExpression);
@@ -212,7 +212,7 @@ public sealed class DelegateEmitterWrappingPropertyTests
     public void P8d_WrappedOutput_EndsWithClosingParen()
     {
         var samples = GenWrappingScenario().Sample(100);
-        foreach (var scenario in samples)
+        foreach(var scenario in samples)
         {
             var dt = BuildDelegateType(scenario);
             var wrapped = SimulateWrapping(dt, scenario.EmittedExpression);
@@ -225,7 +225,7 @@ public sealed class DelegateEmitterWrappingPropertyTests
     public void P8e_WrappedOutput_MatchesExactPattern()
     {
         var samples = GenWrappingScenario().Sample(100);
-        foreach (var scenario in samples)
+        foreach(var scenario in samples)
         {
             var dt = BuildDelegateType(scenario);
             var wrapped = SimulateWrapping(dt, scenario.EmittedExpression);
@@ -243,7 +243,7 @@ public sealed class DelegateEmitterWrappingPropertyTests
         // never System.Func or System.Action (those are structural func types,
         // not named delegates).
         var samples = GenWrappingScenario().Sample(100);
-        foreach (var scenario in samples)
+        foreach(var scenario in samples)
         {
             var dt = BuildDelegateType(scenario);
             var wrapped = SimulateWrapping(dt, scenario.EmittedExpression);
@@ -264,7 +264,7 @@ public sealed class DelegateEmitterWrappingPropertyTests
         // The delegate type name portion must start with the CLR namespace,
         // ensuring the fully qualified name is used.
         var samples = GenWrappingScenario().Sample(100);
-        foreach (var scenario in samples)
+        foreach(var scenario in samples)
         {
             var dt = BuildDelegateType(scenario);
             var wrapped = SimulateWrapping(dt, scenario.EmittedExpression);

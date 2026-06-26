@@ -71,7 +71,7 @@ public class TuplePositionalPatternPerElementDiagnosticPropertyTests
     private static Gen<bool[]> GenAtLeastOneTrue(int length)
     {
         return from flags in Gen.ArrayOf(Gen.Elements(true, false), length)
-               // If no true values, force the first element to be true
+                   // If no true values, force the first element to be true
                let adjusted = flags.Any(f => f) ? flags : SetFirst(flags)
                select adjusted;
     }
@@ -94,7 +94,7 @@ public class TuplePositionalPatternPerElementDiagnosticPropertyTests
         var parseBag = new DiagnosticBag();
         var parseResult = Parser.Parse(tokens, parseBag);
 
-        if (parseResult.Root is null)
+        if(parseResult.Root is null)
             return lexBag.ToImmutableArray().AddRange(parseBag.ToImmutableArray());
 
         var compilation = new MistCompilation(
@@ -128,7 +128,7 @@ public class TuplePositionalPatternPerElementDiagnosticPropertyTests
         // Build pattern elements: compatible positions get an int constant,
         // incompatible positions get a string constant (type mismatch with int).
         var patternElements = new List<string>();
-        for (var i = 0; i < scenario.Arity; i++)
+        for(var i = 0; i < scenario.Arity; i++)
         {
             patternElements.Add(scenario.IsIncompatible[i] ? $"\"bad{i}\"" : $"{i + 1}");
         }

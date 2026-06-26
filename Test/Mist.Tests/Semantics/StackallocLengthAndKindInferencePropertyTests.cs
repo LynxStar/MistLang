@@ -76,7 +76,7 @@ public sealed class StackallocLengthAndKindInferencePropertyTests : IDisposable
 
     public void Dispose()
     {
-        if (Directory.Exists(_outputDir))
+        if(Directory.Exists(_outputDir))
         {
             try { Directory.Delete(_outputDir, recursive: true); } catch { /* best effort */ }
         }
@@ -262,12 +262,12 @@ public sealed class StackallocLengthAndKindInferencePropertyTests : IDisposable
 
         void Walk(SyntaxNode node)
         {
-            if (node is StackallocExpressionPrimaryNode stackallocNode)
+            if(node is StackallocExpressionPrimaryNode stackallocNode)
                 result.Add(stackallocNode);
 
-            foreach (var child in node.Children())
+            foreach(var child in node.Children())
             {
-                if (child is not null)
+                if(child is not null)
                     Walk(child);
             }
         }
@@ -301,7 +301,7 @@ public sealed class StackallocLengthAndKindInferencePropertyTests : IDisposable
 
         // The program should compile successfully (no semantic/type-checker errors
         // preventing model construction).
-        if (model is null)
+        if(model is null)
         {
             var errors = string.Join("; ", result.Diagnostics
                 .Where(d => d.Severity == DiagnosticSeverity.Error)
@@ -314,7 +314,7 @@ public sealed class StackallocLengthAndKindInferencePropertyTests : IDisposable
         var userAst = model.Asts[^1];
         var stackallocNodes = FindStackallocNodes(userAst);
 
-        if (stackallocNodes.Count == 0)
+        if(stackallocNodes.Count == 0)
         {
             return false.ToProperty()
                 .Label($"No StackallocExpressionPrimaryNode found in AST. Scenario: {scenario}");
@@ -333,7 +333,7 @@ public sealed class StackallocLengthAndKindInferencePropertyTests : IDisposable
                 .Label($"GetTypeOf threw for stackalloc node. Scenario: {scenario}");
         }
 
-        if (resolvedType is not SpanType spanType)
+        if(resolvedType is not SpanType spanType)
         {
             return false.ToProperty()
                 .Label($"Expected SpanType but got {resolvedType?.GetType().Name ?? "null"} " +
@@ -369,7 +369,7 @@ public sealed class StackallocLengthAndKindInferencePropertyTests : IDisposable
     {
         var (result, model) = CompileAndCapture(scenario.Source);
 
-        if (model is null)
+        if(model is null)
         {
             return false.ToProperty()
                 .Label($"Model is null — compilation failed.");
@@ -378,7 +378,7 @@ public sealed class StackallocLengthAndKindInferencePropertyTests : IDisposable
         var userAst = model.Asts[^1];
         var stackallocNodes = FindStackallocNodes(userAst);
 
-        if (stackallocNodes.Count == 0)
+        if(stackallocNodes.Count == 0)
         {
             return false.ToProperty()
                 .Label($"No StackallocExpressionPrimaryNode found in AST.");
@@ -396,7 +396,7 @@ public sealed class StackallocLengthAndKindInferencePropertyTests : IDisposable
                 .Label($"GetTypeOf threw for stackalloc node.");
         }
 
-        if (resolvedType is not SpanType spanType)
+        if(resolvedType is not SpanType spanType)
         {
             return false.ToProperty()
                 .Label($"Expected SpanType but got {resolvedType?.GetType().Name ?? "null"}.");

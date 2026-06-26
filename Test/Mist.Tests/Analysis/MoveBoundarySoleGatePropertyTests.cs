@@ -82,7 +82,7 @@ public sealed class MoveBoundarySoleGatePropertyTests : IDisposable
 
     public void Dispose()
     {
-        if (Directory.Exists(_outputDir))
+        if(Directory.Exists(_outputDir))
         {
             try { Directory.Delete(_outputDir, recursive: true); } catch { /* best effort */ }
         }
@@ -152,12 +152,12 @@ public sealed class MoveBoundarySoleGatePropertyTests : IDisposable
 
     private static IEnumerable<StormSyntaxNode> Descendants(StormSyntaxNode node)
     {
-        foreach (var child in node.Children())
+        foreach(var child in node.Children())
         {
-            if (child is null)
+            if(child is null)
                 continue;
             yield return child;
-            foreach (var d in Descendants(child))
+            foreach(var d in Descendants(child))
                 yield return d;
         }
     }
@@ -182,15 +182,15 @@ public sealed class MoveBoundarySoleGatePropertyTests : IDisposable
     {
         var result = new List<(StormSyntaxNode, IType?)>();
 
-        foreach (var ast in model.Asts)
+        foreach(var ast in model.Asts)
         {
-            foreach (var node in Descendants(ast))
+            foreach(var node in Descendants(ast))
             {
                 var initializer = GetInitializer(node);
-                if (initializer is null)
+                if(initializer is null)
                     continue;
 
-                if (model.GetDeclaredSymbol(node) is Symbol sym && sym.OwnershipTier == OwnershipTier.Owned)
+                if(model.GetDeclaredSymbol(node) is Symbol sym && sym.OwnershipTier == OwnershipTier.Owned)
                 {
                     result.Add((initializer, sym.DeclaredType));
                 }
@@ -221,7 +221,7 @@ public sealed class MoveBoundarySoleGatePropertyTests : IDisposable
     private static MethodFlowState FreshFlowState(IEnumerable<ISymbol> ownedSymbols)
     {
         var state = new MethodFlowState();
-        foreach (var sym in ownedSymbols)
+        foreach(var sym in ownedSymbols)
             state.VariableStates[sym] = VariableOwnershipState.Live;
         return state;
     }
@@ -291,7 +291,7 @@ public sealed class MoveBoundarySoleGatePropertyTests : IDisposable
     /// </summary>
     private static void EmitScenario(System.Text.StringBuilder sb, SourceKind kind, int i)
     {
-        switch (kind)
+        switch(kind)
         {
             case SourceKind.ConstructorNonOwnedType:
                 sb.Append($"        owned var v{i} = new Widget();\n");
@@ -348,7 +348,7 @@ public sealed class MoveBoundarySoleGatePropertyTests : IDisposable
 
         sb.Append("public class Program\n{\n    public static void Main()\n    {\n");
 
-        for (var i = 0; i < kinds.Length; i++)
+        for(var i = 0; i < kinds.Length; i++)
             EmitScenario(sb, kinds[i], i);
 
         sb.Append("    }\n}\n");
@@ -374,14 +374,14 @@ public sealed class MoveBoundarySoleGatePropertyTests : IDisposable
     {
         var model = CompileAndCapture(scenario.Source);
 
-        if (model is null)
+        if(model is null)
             return false.ToProperty().Label($"Semantic model was null (compilation failed early).\nSource:\n{scenario.Source}");
 
         var ownedInitializers = CollectOwnedBindingInitializers(model);
 
         // No owned bindings to exercise (should not happen given the generator, but keep the
         // property well-defined): vacuously true.
-        if (ownedInitializers.Count == 0)
+        if(ownedInitializers.Count == 0)
             return true.ToProperty();
 
         var ownedSymbols = CollectOwnedLocals(model);
@@ -394,11 +394,11 @@ public sealed class MoveBoundarySoleGatePropertyTests : IDisposable
             OwnedMoveSite.OwnedParameterPass,
         };
 
-        foreach (var (source, destinationType) in ownedInitializers)
+        foreach(var (source, destinationType) in ownedInitializers)
         {
             var perSite = new MoveResolution[sites.Length];
 
-            for (var s = 0; s < sites.Length; s++)
+            for(var s = 0; s < sites.Length; s++)
             {
                 var flowState = FreshFlowState(ownedSymbols);
                 var diagnostics = new DiagnosticBag();
@@ -408,9 +408,9 @@ public sealed class MoveBoundarySoleGatePropertyTests : IDisposable
             // (a) SITE-INDEPENDENCE: every site must reach the same accept/reject + clone
             //     decision. A divergence here would mean a site has its own provenance logic
             //     — exactly what "sole gate" forbids.
-            for (var s = 1; s < sites.Length; s++)
+            for(var s = 1; s < sites.Length; s++)
             {
-                if (perSite[s].Outcome != perSite[0].Outcome)
+                if(perSite[s].Outcome != perSite[0].Outcome)
                 {
                     return false.ToProperty().Label(
                         $"Site-dependence detected: {sites[0]} => {perSite[0].Outcome} but "
@@ -424,7 +424,7 @@ public sealed class MoveBoundarySoleGatePropertyTests : IDisposable
             var repeatFlowState = FreshFlowState(ownedSymbols);
             var repeat = resolver.Resolve(source, destinationType, sites[0], repeatFlowState, model, new DiagnosticBag());
 
-            if (repeat.Outcome != perSite[0].Outcome ||
+            if(repeat.Outcome != perSite[0].Outcome ||
                 !ReferenceEquals(repeat.ConsumedBinding, perSite[0].ConsumedBinding))
             {
                 return false.ToProperty().Label(

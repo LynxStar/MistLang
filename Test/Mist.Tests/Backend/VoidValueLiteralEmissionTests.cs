@@ -37,7 +37,7 @@ public sealed class VoidValueLiteralEmissionTests : IDisposable
 
     public void Dispose()
     {
-        if (Directory.Exists(_scratchDir))
+        if(Directory.Exists(_scratchDir))
         {
             try { Directory.Delete(_scratchDir, recursive: true); } catch { /* best effort */ }
         }
@@ -79,24 +79,24 @@ public sealed class VoidValueLiteralEmissionTests : IDisposable
     /// </summary>
     private static string? GetEmittedCSharp(CompilerResult result)
     {
-        if (result.EmittedFiles is null)
+        if(result.EmittedFiles is null)
             return null;
 
         // The source file is Program.mist, so the emitted file is Program.cs
-        if (result.EmittedFiles.TryGetValue("Program.cs", out var content))
+        if(result.EmittedFiles.TryGetValue("Program.cs", out var content))
             return content;
 
         // Fallback: look for any file containing "namespace TestProgram"
-        foreach (var (_, fileContent) in result.EmittedFiles)
+        foreach(var (_, fileContent) in result.EmittedFiles)
         {
-            if (fileContent.Contains("namespace TestProgram"))
+            if(fileContent.Contains("namespace TestProgram"))
                 return fileContent;
         }
 
         // Last resort: return the first non-helper .cs file
-        foreach (var (fileName, fileContent) in result.EmittedFiles)
+        foreach(var (fileName, fileContent) in result.EmittedFiles)
         {
-            if (fileName.EndsWith(".cs", StringComparison.Ordinal)
+            if(fileName.EndsWith(".cs", StringComparison.Ordinal)
                 && !fileName.EndsWith(".g.cs", StringComparison.Ordinal)
                 && !fileName.EndsWith(".csproj", StringComparison.Ordinal))
                 return fileContent;
@@ -110,10 +110,10 @@ public sealed class VoidValueLiteralEmissionTests : IDisposable
     /// </summary>
     private static string? GetMistVoidContent(CompilerResult result)
     {
-        if (result.EmittedFiles is null)
+        if(result.EmittedFiles is null)
             return null;
 
-        if (result.EmittedFiles.TryGetValue("MistVoid.g.cs", out var content))
+        if(result.EmittedFiles.TryGetValue("MistVoid.g.cs", out var content))
             return content;
 
         return null;

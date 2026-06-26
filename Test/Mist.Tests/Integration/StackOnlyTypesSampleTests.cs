@@ -159,7 +159,7 @@ public sealed class StackOnlyTypesSampleTests
             var actualLines = stdout.TrimEnd().Split('\n').Select(l => l.TrimEnd('\r')).ToArray();
 
             Assert.Equal(ExpectedOutput.Length, actualLines.Length);
-            for (var i = 0; i < ExpectedOutput.Length; i++)
+            for(var i = 0; i < ExpectedOutput.Length; i++)
             {
                 Assert.True(ExpectedOutput[i] == actualLines[i],
                     $"Line {i + 1} mismatch.\n  Expected: \"{ExpectedOutput[i]}\"\n  Actual:   \"{actualLines[i]}\"");
@@ -168,7 +168,7 @@ public sealed class StackOnlyTypesSampleTests
         finally
         {
             // Cleanup temp directory
-            if (Directory.Exists(outputDir))
+            if(Directory.Exists(outputDir))
             {
                 try { Directory.Delete(outputDir, recursive: true); } catch { /* best effort */ }
             }
@@ -178,17 +178,17 @@ public sealed class StackOnlyTypesSampleTests
     private static string FindRepoRoot()
     {
         var dir = AppContext.BaseDirectory;
-        while (dir is not null)
+        while(dir is not null)
         {
-            if (File.Exists(Path.Combine(dir, "Mist.slnx")))
+            if(File.Exists(Path.Combine(dir, "Mist.slnx")))
                 return dir;
             dir = Directory.GetParent(dir)?.FullName;
         }
 
         dir = Directory.GetCurrentDirectory();
-        while (dir is not null)
+        while(dir is not null)
         {
-            if (File.Exists(Path.Combine(dir, "Mist.slnx")))
+            if(File.Exists(Path.Combine(dir, "Mist.slnx")))
                 return dir;
             dir = Directory.GetParent(dir)?.FullName;
         }

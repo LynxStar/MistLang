@@ -40,17 +40,17 @@ internal static class DependentTypeHelpersGenerator
     {
         var usedKeywords = new HashSet<string>(StringComparer.Ordinal);
 
-        foreach (var symbol in model.AllSymbols)
+        foreach(var symbol in model.AllSymbols)
         {
             // Check type-level type parameters
             var typeParams = GetTypeParameters(symbol.DeclaredType);
-            if (typeParams is not null)
+            if(typeParams is not null)
             {
                 CollectFromTypeParameters(typeParams, usedKeywords);
             }
 
             // Check method-level type parameters
-            if (symbol is Symbol { TypeParameters: { Count: > 0 } methodTypeParams })
+            if(symbol is Symbol { TypeParameters: { Count: > 0 } methodTypeParams })
             {
                 CollectFromTypeParameters(methodTypeParams, usedKeywords);
             }
@@ -77,12 +77,12 @@ internal static class DependentTypeHelpersGenerator
     /// </summary>
     private static void CollectFromTypeParameters(IReadOnlyList<IType> typeParameters, HashSet<string> usedKeywords)
     {
-        foreach (var typeParam in typeParameters)
+        foreach(var typeParam in typeParameters)
         {
-            if (typeParam is DependentTypeParameterType depParam)
+            if(typeParam is DependentTypeParameterType depParam)
             {
                 var keyword = CSharpTypeMap.GetKeyword(depParam.ValueType);
-                if (KeywordToCapitalized.ContainsKey(keyword))
+                if(KeywordToCapitalized.ContainsKey(keyword))
                 {
                     usedKeywords.Add(keyword);
                 }
@@ -102,9 +102,9 @@ internal static class DependentTypeHelpersGenerator
         sb.AppendLine();
 
         // Emit interfaces in a stable order (alphabetical by keyword).
-        foreach (var keyword in usedKeywords.OrderBy(k => k, StringComparer.Ordinal))
+        foreach(var keyword in usedKeywords.OrderBy(k => k, StringComparer.Ordinal))
         {
-            if (KeywordToCapitalized.TryGetValue(keyword, out var capitalized))
+            if(KeywordToCapitalized.TryGetValue(keyword, out var capitalized))
             {
                 sb.AppendLine("[System.Runtime.CompilerServices.CompilerGenerated]");
                 sb.AppendLine($"public interface IConst{capitalized}");
@@ -116,7 +116,7 @@ internal static class DependentTypeHelpersGenerator
         }
 
         // Emit carrier structs for each unique (type, value) pair.
-        if (carrierRegistry is not null)
+        if(carrierRegistry is not null)
         {
             sb.Append(carrierRegistry.GenerateCarrierStructs());
         }

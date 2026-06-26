@@ -53,9 +53,9 @@ public static class MemoizationAnalysisPass
 
         // Phase 4 — @memo-annotated rules.
         var memoCandidates = new HashSet<string>();
-        foreach (var rule in grammar.Rules)
+        foreach(var rule in grammar.Rules)
         {
-            if (rule.IsMemo)
+            if(rule.IsMemo)
             {
                 memoCandidates.Add(rule.Name);
             }
@@ -69,15 +69,15 @@ public static class MemoizationAnalysisPass
         // Phase 6 — apply IsSpeculativeSafe filter, emit warnings for @memo failures.
         // Iterate in DECLARATION ORDER so ids are stable and deterministic across builds.
         var marked = new List<string>();
-        foreach (var rule in grammar.Rules)
+        foreach(var rule in grammar.Rules)
         {
-            if (allCandidates.Contains(rule.Name))
+            if(allCandidates.Contains(rule.Name))
             {
-                if (IsSpeculativeSafe(rule))
+                if(IsSpeculativeSafe(rule))
                 {
                     marked.Add(rule.Name);
                 }
-                else if (rule.IsMemo && diagnostics != null)
+                else if(rule.IsMemo && diagnostics != null)
                 {
                     diagnostics.Add(new StormDiagnostic(
                         StormDiagnosticIds.STORM_MEMO_IGNORED,
@@ -100,10 +100,10 @@ public static class MemoizationAnalysisPass
     private static Dictionary<string, HashSet<string>> BuildReferenceGraph(GrammarIR grammar)
     {
         var graph = new Dictionary<string, HashSet<string>>(grammar.Rules.Count);
-        foreach (var rule in grammar.Rules)
+        foreach(var rule in grammar.Rules)
         {
             var refs = new HashSet<string>();
-            foreach (var alternative in rule.Alternatives)
+            foreach(var alternative in rule.Alternatives)
             {
                 CollectRuleRefs(alternative.Expression, refs);
             }
@@ -129,18 +129,18 @@ public static class MemoizationAnalysisPass
         // Keep only cycles that cross a backtracking construct.
         // For each SCC, record whether ANY member rule contains a backtracking construct.
         var backtracks = new HashSet<string>();
-        foreach (var rule in grammar.Rules)
+        foreach(var rule in grammar.Rules)
         {
-            if (HasBacktrackingConstruct(rule))
+            if(HasBacktrackingConstruct(rule))
             {
                 _ = backtracks.Add(rule.Name);
             }
         }
 
         var sccHasBacktracking = new HashSet<int>();
-        foreach (var ruleName in cyclic)
+        foreach(var ruleName in cyclic)
         {
-            if (backtracks.Contains(ruleName) && sccOf.TryGetValue(ruleName, out var sccIndex))
+            if(backtracks.Contains(ruleName) && sccOf.TryGetValue(ruleName, out var sccIndex))
             {
                 _ = sccHasBacktracking.Add(sccIndex);
             }
@@ -148,9 +148,9 @@ public static class MemoizationAnalysisPass
 
         // Collect every rule whose SCC is cyclic AND crosses a backtracking construct.
         var candidates = new HashSet<string>();
-        foreach (var ruleName in cyclic)
+        foreach(var ruleName in cyclic)
         {
-            if (sccOf.TryGetValue(ruleName, out var sccIndex)
+            if(sccOf.TryGetValue(ruleName, out var sccIndex)
                 && sccHasBacktracking.Contains(sccIndex))
             {
                 candidates.Add(ruleName);
@@ -167,14 +167,14 @@ public static class MemoizationAnalysisPass
     /// </summary>
     private static void CollectRuleRefs(ExpressionIR expression, HashSet<string> refs)
     {
-        switch (expression)
+        switch(expression)
         {
             case RuleRefIR ruleRef:
                 _ = refs.Add(ruleRef.Rule.Name);
                 break;
 
             case SequenceIR sequence:
-                foreach (var element in sequence.Elements)
+                foreach(var element in sequence.Elements)
                 {
                     CollectRuleRefs(element, refs);
                 }
@@ -182,7 +182,7 @@ public static class MemoizationAnalysisPass
                 break;
 
             case AlternationIR alternation:
-                foreach (var alternative in alternation.Alternatives)
+                foreach(var alternative in alternation.Alternatives)
                 {
                     CollectRuleRefs(alternative, refs);
                 }
@@ -222,9 +222,9 @@ public static class MemoizationAnalysisPass
     {
         var candidates = new HashSet<string>();
 
-        foreach (var parentRule in grammar.Rules)
+        foreach(var parentRule in grammar.Rules)
         {
-            if (parentRule.Alternatives.Count < 2)
+            if(parentRule.Alternatives.Count < 2)
             {
                 continue; // single-alternative rules can't trigger redundant calls
             }
@@ -232,7 +232,7 @@ public static class MemoizationAnalysisPass
             // For each alternative, collect the set of rules reachable from it
             // through direct references or single-path sequences.
             var perAlternativeRefs = new List<HashSet<string>>();
-            foreach (var alt in parentRule.Alternatives)
+            foreach(var alt in parentRule.Alternatives)
             {
                 var refs = new HashSet<string>();
                 CollectRuleRefs(alt.Expression, refs);
@@ -241,18 +241,18 @@ public static class MemoizationAnalysisPass
 
             // A rule appearing in 2+ alternative ref-sets is a multi-caller candidate
             var seen = new Dictionary<string, int>();
-            foreach (var refSet in perAlternativeRefs)
+            foreach(var refSet in perAlternativeRefs)
             {
-                foreach (var ruleName in refSet)
+                foreach(var ruleName in refSet)
                 {
                     seen.TryGetValue(ruleName, out var count);
                     seen[ruleName] = count + 1;
                 }
             }
 
-            foreach (var kvp in seen)
+            foreach(var kvp in seen)
             {
-                if (kvp.Value >= 2)
+                if(kvp.Value >= 2)
                 {
                     candidates.Add(kvp.Key);
                 }
@@ -278,15 +278,15 @@ public static class MemoizationAnalysisPass
         var cyclic = new HashSet<string>();
         var sccOf = new Dictionary<string, int>();
 
-        for (var i = 0; i < components.Count; i++)
+        for(var i = 0; i < components.Count; i++)
         {
             var component = components[i];
-            foreach (var ruleName in component)
+            foreach(var ruleName in component)
             {
                 sccOf[ruleName] = i;
             }
 
-            if (component.Count > 1)
+            if(component.Count > 1)
             {
                 // Mutual recursion: every member is on a cycle.
                 cyclic.UnionWith(component);
@@ -295,7 +295,7 @@ public static class MemoizationAnalysisPass
             {
                 // Length-1 SCC: on a cycle only if it has a self-edge.
                 var ruleName = component[0];
-                if (graph.TryGetValue(ruleName, out var edges) && edges.Contains(ruleName))
+                if(graph.TryGetValue(ruleName, out var edges) && edges.Contains(ruleName))
                 {
                     _ = cyclic.Add(ruleName);
                 }
@@ -315,15 +315,15 @@ public static class MemoizationAnalysisPass
     private static bool HasBacktrackingConstruct(RuleIR rule)
     {
         // (a) ordered choice: more than one alternative.
-        if (rule.Alternatives.Count > 1)
+        if(rule.Alternatives.Count > 1)
         {
             return true;
         }
 
         // (b) optional or repetition anywhere in the (single) alternative body.
-        foreach (var alternative in rule.Alternatives)
+        foreach(var alternative in rule.Alternatives)
         {
-            if (ContainsOptionalOrRepetition(alternative.Expression))
+            if(ContainsOptionalOrRepetition(alternative.Expression))
             {
                 return true;
             }
@@ -365,7 +365,7 @@ public static class MemoizationAnalysisPass
         // Multi-alternative rules are bracketed per-alternative by the emitter: each
         // alternative saves/restores _pos and _hasError and truncates the diagnostic bag,
         // and the final fall-through restores to the entry state. They are always safe.
-        if (rule.Alternatives.Count > 1)
+        if(rule.Alternatives.Count > 1)
         {
             return true;
         }
@@ -429,9 +429,9 @@ public static class MemoizationAnalysisPass
 
         public List<List<string>> Run()
         {
-            foreach (var node in _graph.Keys)
+            foreach(var node in _graph.Keys)
             {
-                if (!_indexOf.ContainsKey(node))
+                if(!_indexOf.ContainsKey(node))
                 {
                     StrongConnect(node);
                 }
@@ -453,15 +453,15 @@ public static class MemoizationAnalysisPass
             _ = _onStack.Add(root);
             work.Push((root, GetEdges(root)));
 
-            while (work.Count > 0)
+            while(work.Count > 0)
             {
                 var (node, edges) = work.Peek();
 
                 var pushedChild = false;
-                while (edges.MoveNext())
+                while(edges.MoveNext())
                 {
                     var next = edges.Current;
-                    if (!_indexOf.ContainsKey(next))
+                    if(!_indexOf.ContainsKey(next))
                     {
                         _indexOf[next] = _index;
                         _lowLink[next] = _index;
@@ -473,13 +473,13 @@ public static class MemoizationAnalysisPass
                         break;
                     }
 
-                    if (_onStack.Contains(next))
+                    if(_onStack.Contains(next))
                     {
                         _lowLink[node] = System.Math.Min(_lowLink[node], _indexOf[next]);
                     }
                 }
 
-                if (pushedChild)
+                if(pushedChild)
                 {
                     continue;
                 }
@@ -487,13 +487,13 @@ public static class MemoizationAnalysisPass
                 // All edges processed for `node`: finalize it.
                 _ = work.Pop();
 
-                if (work.Count > 0)
+                if(work.Count > 0)
                 {
                     var parent = work.Peek().Node;
                     _lowLink[parent] = System.Math.Min(_lowLink[parent], _lowLink[node]);
                 }
 
-                if (_lowLink[node] == _indexOf[node])
+                if(_lowLink[node] == _indexOf[node])
                 {
                     var component = new List<string>();
                     string member;
@@ -503,7 +503,7 @@ public static class MemoizationAnalysisPass
                         _ = _onStack.Remove(member);
                         component.Add(member);
                     }
-                    while (member != node);
+                    while(member != node);
 
                     _components.Add(component);
                 }

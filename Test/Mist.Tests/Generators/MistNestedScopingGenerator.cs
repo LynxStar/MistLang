@@ -37,9 +37,9 @@ public record ModifierSubset(bool IsPublic, bool IsPrivate, bool IsStatic)
     public override string ToString()
     {
         var parts = new List<string>();
-        if (IsPublic) parts.Add("public");
-        if (IsPrivate) parts.Add("private");
-        if (IsStatic) parts.Add("static");
+        if(IsPublic) parts.Add("public");
+        if(IsPrivate) parts.Add("private");
+        if(IsStatic) parts.Add("static");
         return parts.Count == 0 ? "(none)" : string.Join(" ", parts);
     }
 }
@@ -131,7 +131,7 @@ public static class MistNestedScopingGenerator
         return from isPublic in Gen.Elements(true, false)
                from isPrivate in Gen.Elements(true, false)
                from isStatic in Gen.Elements(true, false)
-               // Exclude public+private (mutually exclusive)
+                   // Exclude public+private (mutually exclusive)
                where !(isPublic && isPrivate)
                select new ModifierSubset(isPublic, isPrivate, isStatic);
     }
@@ -155,9 +155,9 @@ public static class MistNestedScopingGenerator
     public static string ModifierSetToSource(ModifierSubset mods)
     {
         var parts = new List<string>();
-        if (mods.IsPublic) parts.Add("public");
-        if (mods.IsPrivate) parts.Add("private");
-        if (mods.IsStatic) parts.Add("static");
+        if(mods.IsPublic) parts.Add("public");
+        if(mods.IsPrivate) parts.Add("private");
+        if(mods.IsStatic) parts.Add("static");
         return parts.Count == 0 ? "" : string.Join(" ", parts) + " ";
     }
 
@@ -167,9 +167,9 @@ public static class MistNestedScopingGenerator
     public static int ModifierCount(ModifierSubset mods)
     {
         var count = 0;
-        if (mods.IsPublic) count++;
-        if (mods.IsPrivate) count++;
-        if (mods.IsStatic) count++;
+        if(mods.IsPublic) count++;
+        if(mods.IsPrivate) count++;
+        if(mods.IsStatic) count++;
         return count;
     }
 
@@ -179,9 +179,9 @@ public static class MistNestedScopingGenerator
     public static HashSet<Type> ExpectedModifierNodeTypes(ModifierSubset mods)
     {
         var types = new HashSet<Type>();
-        if (mods.IsPublic) types.Add(typeof(Mist.Generated.PublicModifierModifierNode));
-        if (mods.IsPrivate) types.Add(typeof(Mist.Generated.PrivateModifierModifierNode));
-        if (mods.IsStatic) types.Add(typeof(Mist.Generated.StaticModifierModifierNode));
+        if(mods.IsPublic) types.Add(typeof(Mist.Generated.PublicModifierModifierNode));
+        if(mods.IsPrivate) types.Add(typeof(Mist.Generated.PrivateModifierModifierNode));
+        if(mods.IsStatic) types.Add(typeof(Mist.Generated.StaticModifierModifierNode));
         return types;
     }
 
@@ -227,7 +227,7 @@ public static class MistNestedScopingGenerator
     private static string BuildNestedSourceAtDepth(AllTypeKind[] kinds)
     {
         var sb = new System.Text.StringBuilder();
-        for (var i = 0; i < kinds.Length; i++)
+        for(var i = 0; i < kinds.Length; i++)
         {
             var indent = new string(' ', i * 4);
             var keyword = AllTypeKindKeyword(kinds[i]);
@@ -236,7 +236,7 @@ public static class MistNestedScopingGenerator
         }
 
         // Close all braces in reverse order
-        for (var i = kinds.Length - 1; i >= 0; i--)
+        for(var i = kinds.Length - 1; i >= 0; i--)
         {
             var indent = new string(' ', i * 4);
             sb.AppendLine($"{indent}}}");
@@ -307,13 +307,13 @@ public static class MistNestedScopingGenerator
     {
         var sb = new System.Text.StringBuilder();
 
-        if (fileScopedPrefix is not null)
+        if(fileScopedPrefix is not null)
         {
             sb.AppendLine($"namespace {fileScopedPrefix};");
             sb.AppendLine();
         }
 
-        for (var i = 0; i < names.Length; i++)
+        for(var i = 0; i < names.Length; i++)
         {
             var indent = new string(' ', i * 4);
             sb.AppendLine($"{indent}namespace {names[i]} {{");
@@ -324,7 +324,7 @@ public static class MistNestedScopingGenerator
         sb.AppendLine($"{innerIndent}class Marker {{ }}");
 
         // Close all braces in reverse order
-        for (var i = names.Length - 1; i >= 0; i--)
+        for(var i = names.Length - 1; i >= 0; i--)
         {
             var indent = new string(' ', i * 4);
             sb.AppendLine($"{indent}}}");
@@ -341,7 +341,7 @@ public static class MistNestedScopingGenerator
     internal static string[] ComputeExpectedFqns(string[] names, string? fileScopedPrefix)
     {
         var fqns = new string[names.Length];
-        for (var i = 0; i < names.Length; i++)
+        for(var i = 0; i < names.Length; i++)
         {
             var segments = names.Take(i + 1).ToArray();
             var joined = string.Join(".", segments);
@@ -433,7 +433,7 @@ public static class MistNestedScopingGenerator
         var sb = new System.Text.StringBuilder();
 
         // Open each level: class Level0<T0> { class Level1<T1> { ... class Inner { fields } } }
-        for (var i = 0; i < depth; i++)
+        for(var i = 0; i < depth; i++)
         {
             var indent = new string(' ', i * 4);
             var name = $"Level{i}";
@@ -444,7 +444,7 @@ public static class MistNestedScopingGenerator
         // Innermost nested type uses all ancestor type parameters as field types
         var innerIndent = new string(' ', depth * 4);
         sb.AppendLine($"{innerIndent}class Inner {{");
-        for (var i = 0; i < depth; i++)
+        for(var i = 0; i < depth; i++)
         {
             var fieldIndent = new string(' ', (depth + 1) * 4);
             sb.AppendLine($"{fieldIndent}public T{i} field{i};");
@@ -452,7 +452,7 @@ public static class MistNestedScopingGenerator
         sb.AppendLine($"{innerIndent}}}");
 
         // Close all braces in reverse order
-        for (var i = depth - 1; i >= 0; i--)
+        for(var i = depth - 1; i >= 0; i--)
         {
             var indent = new string(' ', i * 4);
             sb.AppendLine($"{indent}}}");
@@ -502,7 +502,7 @@ public static class MistNestedScopingGenerator
         var typeNames = new List<string>();
 
         // Generate N-1 blocks, each with a simple class
-        for (var i = 0; i < blockCount - 1; i++)
+        for(var i = 0; i < blockCount - 1; i++)
         {
             var typeName = $"Type{(char)('A' + i)}";
             typeNames.Add(typeName);
@@ -516,7 +516,7 @@ public static class MistNestedScopingGenerator
         // Last block declares a class that references all types from earlier blocks
         sb.AppendLine($"namespace {nsName} {{");
         sb.AppendLine($"    class Consumer {{");
-        for (var i = 0; i < typeNames.Count; i++)
+        for(var i = 0; i < typeNames.Count; i++)
         {
             sb.AppendLine($"        {typeNames[i]} field{i};");
         }
@@ -615,7 +615,7 @@ public static class MistNestedScopingGenerator
         var sb = new System.Text.StringBuilder();
         var paramOrdinal = 0;
 
-        for (var i = 0; i < depth; i++)
+        for(var i = 0; i < depth; i++)
         {
             var indent = new string(' ', i * 4);
             var name = $"Level{i}";
@@ -629,7 +629,7 @@ public static class MistNestedScopingGenerator
         sb.AppendLine($"{innerIndent}class Inner {{ }}");
 
         // Close all braces in reverse order
-        for (var i = depth - 1; i >= 0; i--)
+        for(var i = depth - 1; i >= 0; i--)
         {
             var indent = new string(' ', i * 4);
             sb.AppendLine($"{indent}}}");
@@ -809,7 +809,7 @@ public static class MistNestedScopingGenerator
                    AllTypeKind.Abstract, AllTypeKind.Enum)
                from parentParamCount in Gen.Choose(1, 3)
                from hasNestedParams in Gen.Elements(true, false)
-               // Enums cannot have type parameters
+                   // Enums cannot have type parameters
                let effectiveHasNestedParams = nestedKind == AllTypeKind.Enum ? false : hasNestedParams
                from nestedParamCount in effectiveHasNestedParams ? Gen.Choose(1, 2) : Gen.Constant(0)
                let containerKeyword = AllTypeKindKeyword(containerKind)
@@ -874,7 +874,7 @@ public static class MistNestedScopingGenerator
     {
         var sb = new System.Text.StringBuilder();
 
-        for (var i = 0; i < containerKinds.Length; i++)
+        for(var i = 0; i < containerKinds.Length; i++)
         {
             var indent = new string(' ', i * 4);
             var keyword = AllTypeKindKeyword(containerKinds[i]);
@@ -890,7 +890,7 @@ public static class MistNestedScopingGenerator
         sb.AppendLine($"{leafIndent}{modStr}{leafKeyword} Leaf {leafBody}");
 
         // Close all braces in reverse order
-        for (var i = containerKinds.Length - 1; i >= 0; i--)
+        for(var i = containerKinds.Length - 1; i >= 0; i--)
         {
             var indent = new string(' ', i * 4);
             sb.AppendLine($"{indent}}}");
@@ -918,7 +918,7 @@ public static class MistNestedScopingGenerator
     {
         var sb = new System.Text.StringBuilder();
 
-        for (var i = 0; i < names.Length; i++)
+        for(var i = 0; i < names.Length; i++)
         {
             var indent = new string(' ', i * 4);
             sb.AppendLine($"{indent}namespace {names[i]} {{");
@@ -927,7 +927,7 @@ public static class MistNestedScopingGenerator
         var innerIndent = new string(' ', names.Length * 4);
         sb.AppendLine($"{innerIndent}class Marker {{ }}");
 
-        for (var i = names.Length - 1; i >= 0; i--)
+        for(var i = names.Length - 1; i >= 0; i--)
         {
             var indent = new string(' ', i * 4);
             sb.AppendLine($"{indent}}}");

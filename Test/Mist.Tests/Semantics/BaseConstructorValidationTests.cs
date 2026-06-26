@@ -74,7 +74,7 @@ public class BaseConstructorValidationTests
             Members = members ?? ImmutableArray<MemberDeclarationNode>.Empty,
         };
 
-        if (baseClassName is not null)
+        if(baseClassName is not null)
         {
             var _baseList1 = MakeBaseList(baseClassName);
 
@@ -123,10 +123,13 @@ public class BaseConstructorValidationTests
         {
             Parameter = new ParameterNode
             {
-                Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                Type = new TypeReferenceNode
                 {
-                    PrimitiveType = new IntTypePrimitiveTypeNode(),
-                } },
+                    First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                    {
+                        PrimitiveType = new IntTypePrimitiveTypeNode(),
+                    }
+                },
                 Name = MakeToken(paramName),
             },
         };
@@ -326,7 +329,7 @@ public class BaseConstructorValidationTests
         // call it. No MIST_BASE_CTOR_UNSATISFIED for C.
         // B chains to A via `: base(0)`, so no diagnostic for B either.
         Assert.DoesNotContain(diagnostics, d => d.Id.Value == "MIST_BASE_CTOR_UNSATISFIED");
-    ;
+        ;
     }
 
 }

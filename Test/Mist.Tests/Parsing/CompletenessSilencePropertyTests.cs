@@ -282,7 +282,7 @@ public class CompletenessSilencePropertyTests
             "class Counter {\n    int count;\n    public int GetCount() {\n        return count;\n    }\n}",
         };
 
-        foreach (var source in validSources)
+        foreach(var source in validSources)
         {
             var diagnostics = ParseAndGetDiagnostics(source);
             var incompleteDiags = diagnostics

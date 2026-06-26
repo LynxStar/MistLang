@@ -71,7 +71,7 @@ public class ParserRuleTests
         var source = "class T { public void M() { int x = 1 + 2 * 3; } }";
         var result = ParseSource(source);
 
-        if (result.Root is CompilationUnitNode compilationUnit)
+        if(result.Root is CompilationUnitNode compilationUnit)
         {
             var typeDecl = compilationUnit.GetTypes()[0] as ClassTypeTypeDeclarationNode;
             Assert.NotNull(typeDecl);
@@ -107,7 +107,7 @@ public class ParserRuleTests
         var source = "class T { public void M() { bool x = a || b && c; } }";
         var result = ParseSource(source);
 
-        if (result.Root is CompilationUnitNode compilationUnit)
+        if(result.Root is CompilationUnitNode compilationUnit)
         {
             var typeDecl = compilationUnit.GetTypes()[0] as ClassTypeTypeDeclarationNode;
             var classDecl = typeDecl!.ClassDeclaration;
@@ -131,7 +131,7 @@ public class ParserRuleTests
         var source = "class T { public void M() { bool x = a && b == c; } }";
         var result = ParseSource(source);
 
-        if (result.Root is CompilationUnitNode compilationUnit)
+        if(result.Root is CompilationUnitNode compilationUnit)
         {
             var typeDecl = compilationUnit.GetTypes()[0] as ClassTypeTypeDeclarationNode;
             var classDecl = typeDecl!.ClassDeclaration;
@@ -158,7 +158,7 @@ public class ParserRuleTests
         var source = "class T { public void M() { if (true) { } } }";
         var result = ParseSource(source);
 
-        if (result.Root is CompilationUnitNode cu)
+        if(result.Root is CompilationUnitNode cu)
         {
             var typeDecl = cu.GetTypes()[0] as ClassTypeTypeDeclarationNode;
             var method = (typeDecl!.ClassDeclaration.Members[0] as MethodMemberMemberDeclarationNode)!.Method;
@@ -176,7 +176,7 @@ public class ParserRuleTests
         var source = "class T { public void M() { if (true) { } else { } } }";
         var result = ParseSource(source);
 
-        if (result.Root is CompilationUnitNode cu)
+        if(result.Root is CompilationUnitNode cu)
         {
             var typeDecl = cu.GetTypes()[0] as ClassTypeTypeDeclarationNode;
             var method = (typeDecl!.ClassDeclaration.Members[0] as MethodMemberMemberDeclarationNode)!.Method;
@@ -193,7 +193,7 @@ public class ParserRuleTests
         var source = "class T { public void M() { while (true) { } } }";
         var result = ParseSource(source);
 
-        if (result.Root is CompilationUnitNode cu)
+        if(result.Root is CompilationUnitNode cu)
         {
             var typeDecl = cu.GetTypes()[0] as ClassTypeTypeDeclarationNode;
             var method = (typeDecl!.ClassDeclaration.Members[0] as MethodMemberMemberDeclarationNode)!.Method;
@@ -210,7 +210,7 @@ public class ParserRuleTests
         var source = "class T { public void M() { for (int i = 0; i < 10; i) { } } }";
         var result = ParseSource(source);
 
-        if (result.Root is CompilationUnitNode cu)
+        if(result.Root is CompilationUnitNode cu)
         {
             var typeDecl = cu.GetTypes()[0] as ClassTypeTypeDeclarationNode;
             var method = (typeDecl!.ClassDeclaration.Members[0] as MethodMemberMemberDeclarationNode)!.Method;
@@ -229,7 +229,7 @@ public class ParserRuleTests
         var source = "class T { public void M() { foreach (int item in items) { } } }";
         var result = ParseSource(source);
 
-        if (result.Root is CompilationUnitNode cu)
+        if(result.Root is CompilationUnitNode cu)
         {
             var typeDecl = cu.GetTypes()[0] as ClassTypeTypeDeclarationNode;
             var method = (typeDecl!.ClassDeclaration.Members[0] as MethodMemberMemberDeclarationNode)!.Method;
@@ -247,7 +247,7 @@ public class ParserRuleTests
         var source = "class T { public int M() { return 42; } }";
         var result = ParseSource(source);
 
-        if (result.Root is CompilationUnitNode cu)
+        if(result.Root is CompilationUnitNode cu)
         {
             var typeDecl = cu.GetTypes()[0] as ClassTypeTypeDeclarationNode;
             var method = (typeDecl!.ClassDeclaration.Members[0] as MethodMemberMemberDeclarationNode)!.Method;
@@ -263,7 +263,7 @@ public class ParserRuleTests
         var source = "class T { public void M() { return; } }";
         var result = ParseSource(source);
 
-        if (result.Root is CompilationUnitNode cu)
+        if(result.Root is CompilationUnitNode cu)
         {
             var typeDecl = cu.GetTypes()[0] as ClassTypeTypeDeclarationNode;
             var method = (typeDecl!.ClassDeclaration.Members[0] as MethodMemberMemberDeclarationNode)!.Method;
@@ -279,7 +279,7 @@ public class ParserRuleTests
         var source = "class T { public void M() { while (true) { break; } } }";
         var result = ParseSource(source);
 
-        if (result.Root is CompilationUnitNode cu)
+        if(result.Root is CompilationUnitNode cu)
         {
             var typeDecl = cu.GetTypes()[0] as ClassTypeTypeDeclarationNode;
             var method = (typeDecl!.ClassDeclaration.Members[0] as MethodMemberMemberDeclarationNode)!.Method;
@@ -296,7 +296,7 @@ public class ParserRuleTests
         var source = "class T { public void M() { int x = 42; } }";
         var result = ParseSource(source);
 
-        if (result.Root is CompilationUnitNode cu)
+        if(result.Root is CompilationUnitNode cu)
         {
             var typeDecl = cu.GetTypes()[0] as ClassTypeTypeDeclarationNode;
             var method = (typeDecl!.ClassDeclaration.Members[0] as MethodMemberMemberDeclarationNode)!.Method;
@@ -312,7 +312,7 @@ public class ParserRuleTests
         var source = "class T { public void M() { var x = 42; } }";
         var result = ParseSource(source);
 
-        if (result.Root is CompilationUnitNode cu)
+        if(result.Root is CompilationUnitNode cu)
         {
             var typeDecl = cu.GetTypes()[0] as ClassTypeTypeDeclarationNode;
             var method = (typeDecl!.ClassDeclaration.Members[0] as MethodMemberMemberDeclarationNode)!.Method;
@@ -330,7 +330,7 @@ public class ParserRuleTests
         var source = "class Foo { }";
         var result = ParseSource(source);
 
-        if (result.Root is CompilationUnitNode cu)
+        if(result.Root is CompilationUnitNode cu)
         {
             Assert.Single(cu.GetTypes());
             Assert.IsType<ClassTypeTypeDeclarationNode>(cu.GetTypes()[0]);
@@ -345,7 +345,7 @@ public class ParserRuleTests
         var source = "struct Bar { }";
         var result = ParseSource(source);
 
-        if (result.Root is CompilationUnitNode cu)
+        if(result.Root is CompilationUnitNode cu)
         {
             Assert.Single(cu.GetTypes());
             Assert.IsType<StructTypeTypeDeclarationNode>(cu.GetTypes()[0]);
@@ -358,7 +358,7 @@ public class ParserRuleTests
         var source = "namespace MyApp; class Foo { }";
         var result = ParseSource(source);
 
-        if (result.Root is CompilationUnitNode cu)
+        if(result.Root is CompilationUnitNode cu)
         {
             Assert.NotNull(cu.GetNamespace());
             Assert.IsType<FileScopedNamespaceNamespaceDeclarationNode>(cu.GetNamespace());
@@ -371,7 +371,7 @@ public class ParserRuleTests
         var source = "using System; class Foo { }";
         var result = ParseSource(source);
 
-        if (result.Root is CompilationUnitNode cu)
+        if(result.Root is CompilationUnitNode cu)
         {
             Assert.Single(cu.Usings);
         }

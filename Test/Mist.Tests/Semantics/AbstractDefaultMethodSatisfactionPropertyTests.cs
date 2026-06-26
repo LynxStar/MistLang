@@ -136,12 +136,12 @@ public class AbstractDefaultMethodSatisfactionPropertyTests
     {
         var members = ImmutableArray.CreateBuilder<AbstractMemberDeclarationNode>();
 
-        foreach (var slot in slotNames)
+        foreach(var slot in slotNames)
         {
             members.Add(new AbstractMethodMemberAbstractMemberDeclarationNode { Method = MakeSlot(slot) });
         }
 
-        foreach (var def in defaultNames)
+        foreach(var def in defaultNames)
         {
             members.Add(new AbstractDefaultMethodMemberAbstractMemberDeclarationNode { DefaultMethod = MakeMethod(def) });
         }
@@ -152,7 +152,7 @@ public class AbstractDefaultMethodSatisfactionPropertyTests
             Members = members.ToImmutable(),
         };
 
-        if (parentAbstractName is not null)
+        if(parentAbstractName is not null)
         {
             var parentList = MakeBaseList(parentAbstractName);
             decl.AbstractList = parentList;
@@ -273,20 +273,20 @@ public class AbstractDefaultMethodSatisfactionPropertyTests
         var missing = diagnostics.Where(d => d.Id.Value == MissingMethodDiagnosticId).ToList();
 
         // Exactly one diagnostic per unfilled slot.
-        if (missing.Count != scenario.MissingSlotNames.Length)
+        if(missing.Count != scenario.MissingSlotNames.Length)
             return false;
 
         // Every unfilled slot name is reported.
-        foreach (var slot in scenario.MissingSlotNames)
+        foreach(var slot in scenario.MissingSlotNames)
         {
-            if (!missing.Any(d => d.Message.Contains(slot)))
+            if(!missing.Any(d => d.Message.Contains(slot)))
                 return false;
         }
 
         // No default method name ever appears in a missing-method diagnostic.
-        foreach (var def in scenario.DefaultNames)
+        foreach(var def in scenario.DefaultNames)
         {
-            if (missing.Any(d => d.Message.Contains(def)))
+            if(missing.Any(d => d.Message.Contains(def)))
                 return false;
         }
 
@@ -367,7 +367,7 @@ public class AbstractDefaultMethodSatisfactionPropertyTests
 
         // Always fill the required slot. Optionally also override the default.
         var methods = new List<MethodDeclarationNode> { MakeMethod("DoWork") };
-        if (overridesDefault)
+        if(overridesDefault)
             methods.Add(MakeMethod("Describe"));
 
         var classDecl = MakeClassDecl("Thing", "IThing", methods);

@@ -156,11 +156,14 @@ public class StructInheritanceAssignabilityTests
 
     private static TypeReferenceNode MakeNamedTypeRef(string name, TypeArgumentListNode? typeArgs = null)
     {
-        return new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
+        return new TypeReferenceNode
         {
-            Name = new QualifiedIdentifierNode { IDENTIFIER = MakeToken(name) },
-            TypeArgs = typeArgs,
-        } };
+            First = new NamedSingleTypeRefSingleTypeRefNode
+            {
+                Name = new QualifiedIdentifierNode { IDENTIFIER = MakeToken(name) },
+                TypeArgs = typeArgs,
+            }
+        };
     }
 
     private static TypeReferenceNode MakePrimitiveTypeRef(string primitiveName)
@@ -212,12 +215,12 @@ public class StructInheritanceAssignabilityTests
             Members = members ?? ImmutableArray<MemberDeclarationNode>.Empty,
         };
 
-        if (typeParams is not null)
+        if(typeParams is not null)
         {
             decl.TypeParams = typeParams;
         }
 
-        if (baseStructName is not null)
+        if(baseStructName is not null)
         {
             var baseList = MakeBaseList([MakeBaseTypeRef(baseStructName, baseTypeArgs)]);
             decl.AbstractList = baseList;

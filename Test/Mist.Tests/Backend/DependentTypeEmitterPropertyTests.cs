@@ -54,7 +54,7 @@ public sealed class DependentTypeEmitterPropertyTests : IDisposable
 
     public void Dispose()
     {
-        if (Directory.Exists(_outputDir))
+        if(Directory.Exists(_outputDir))
         {
             try { Directory.Delete(_outputDir, recursive: true); } catch { /* best effort */ }
         }
@@ -306,7 +306,7 @@ public sealed class DependentTypeEmitterPropertyTests : IDisposable
 
         var result = SharedDriver.Compile(options);
 
-        if (!result.Succeeded)
+        if(!result.Succeeded)
         {
             var diagnosticText = string.Join("\n",
                 result.Diagnostics
@@ -315,7 +315,7 @@ public sealed class DependentTypeEmitterPropertyTests : IDisposable
             return (null, diagnosticText);
         }
 
-        if (result.EmittedFiles is null || result.EmittedFiles.Count == 0)
+        if(result.EmittedFiles is null || result.EmittedFiles.Count == 0)
             return (null, "No files emitted");
 
         var combined = string.Join("\n", result.EmittedFiles.Values);
@@ -344,16 +344,16 @@ public sealed class DependentTypeEmitterPropertyTests : IDisposable
 
         var (emittedCSharp, error) = CompileAndGetEmittedCSharp(scenario.MistSource, scenarioDir);
 
-        if (emittedCSharp is null)
+        if(emittedCSharp is null)
         {
             return false.ToProperty()
                 .Label($"Compilation failed for: {scenario.Description}\nError: {error}");
         }
 
         // Verify all expected patterns are present in the emitted C#
-        foreach (var pattern in scenario.ExpectedPatterns)
+        foreach(var pattern in scenario.ExpectedPatterns)
         {
-            if (!emittedCSharp.Contains(pattern))
+            if(!emittedCSharp.Contains(pattern))
             {
                 return false.ToProperty()
                     .Label($"Expected pattern '{pattern}' not found in emitted C# for: {scenario.Description}\n" +
@@ -376,7 +376,7 @@ public sealed class DependentTypeEmitterPropertyTests : IDisposable
 
         var (emittedCSharp, error) = CompileAndGetEmittedCSharp(scenario.MistSource, scenarioDir);
 
-        if (emittedCSharp is null)
+        if(emittedCSharp is null)
         {
             return false.ToProperty()
                 .Label($"Compilation failed for: {scenario.Description}\nError: {error}");

@@ -67,7 +67,7 @@ public sealed class RefStructEmissionPropertyTests : IDisposable
 
     public void Dispose()
     {
-        if (Directory.Exists(_outputDir))
+        if(Directory.Exists(_outputDir))
         {
             try { Directory.Delete(_outputDir, recursive: true); } catch { /* best effort */ }
         }
@@ -177,7 +177,7 @@ public sealed class RefStructEmissionPropertyTests : IDisposable
 
     private static Gen<string[]> GenMethods(int count)
     {
-        if (count == 0)
+        if(count == 0)
             return Gen.Constant(Array.Empty<string>());
 
         return Gen.Shuffle(MethodNames)
@@ -189,7 +189,7 @@ public sealed class RefStructEmissionPropertyTests : IDisposable
 
     private static Gen<string[]> GenProperties(int count)
     {
-        if (count == 0)
+        if(count == 0)
             return Gen.Constant(Array.Empty<string>());
 
         return Gen.Shuffle(PropertyNames)
@@ -234,13 +234,13 @@ public sealed class RefStructEmissionPropertyTests : IDisposable
     /// </summary>
     private static string? GetEmittedCSharp(CompilerResult result)
     {
-        if (result.EmittedFiles is null)
+        if(result.EmittedFiles is null)
             return null;
 
         // Find the user file by looking for the one containing "namespace TestProgram"
-        foreach (var (_, content) in result.EmittedFiles)
+        foreach(var (_, content) in result.EmittedFiles)
         {
-            if (content.Contains("namespace TestProgram"))
+            if(content.Contains("namespace TestProgram"))
             {
                 return content;
             }
@@ -267,7 +267,7 @@ public sealed class RefStructEmissionPropertyTests : IDisposable
     {
         var result = CompileSource(scenario.Source);
 
-        if (!result.Succeeded)
+        if(!result.Succeeded)
         {
             var diagnostics = string.Join(", ",
                 result.Diagnostics.Select(d => $"{d.Id.Value}: {d.Message}"));
@@ -276,7 +276,7 @@ public sealed class RefStructEmissionPropertyTests : IDisposable
         }
 
         var emittedCSharp = GetEmittedCSharp(result);
-        if (emittedCSharp is null)
+        if(emittedCSharp is null)
         {
             return false.ToProperty()
                 .Label($"No emitted C# file found\nSource:\n{scenario.Source}");
@@ -285,18 +285,18 @@ public sealed class RefStructEmissionPropertyTests : IDisposable
         // Requirement 5.1: Emitted C# contains `ref struct` in the declaration
         var containsRefStruct = emittedCSharp.Contains($"ref struct {scenario.StructName}");
 
-        if (!containsRefStruct)
+        if(!containsRefStruct)
         {
             return false.ToProperty()
                 .Label($"Expected emitted C# to contain 'ref struct {scenario.StructName}' but it did not.\nEmitted C#:\n{emittedCSharp}");
         }
 
         // Requirement 5.1: Fields are emitted in the struct body
-        if (scenario.FieldCount > 0)
+        if(scenario.FieldCount > 0)
         {
             // Verify at least one field name from the pool exists in the emitted output
             var fieldHits = FieldNames.Count(f => emittedCSharp.Contains(f));
-            if (fieldHits < scenario.FieldCount)
+            if(fieldHits < scenario.FieldCount)
             {
                 return false.ToProperty()
                     .Label($"Expected at least {scenario.FieldCount} field names in emitted C# but found {fieldHits}.\nEmitted C#:\n{emittedCSharp}");
@@ -304,11 +304,11 @@ public sealed class RefStructEmissionPropertyTests : IDisposable
         }
 
         // Requirement 5.1: Methods are emitted in the struct body
-        if (scenario.MethodCount > 0)
+        if(scenario.MethodCount > 0)
         {
             // Verify at least one method name from the pool exists in the emitted output
             var methodHits = MethodNames.Count(m => emittedCSharp.Contains(m));
-            if (methodHits < scenario.MethodCount)
+            if(methodHits < scenario.MethodCount)
             {
                 return false.ToProperty()
                     .Label($"Expected at least {scenario.MethodCount} method names in emitted C# but found {methodHits}.\nEmitted C#:\n{emittedCSharp}");
@@ -316,11 +316,11 @@ public sealed class RefStructEmissionPropertyTests : IDisposable
         }
 
         // Requirement 5.1: Properties are emitted in the struct body
-        if (scenario.PropertyCount > 0)
+        if(scenario.PropertyCount > 0)
         {
             // Verify at least one property name from the pool exists in the emitted output
             var propertyHits = PropertyNames.Count(p => emittedCSharp.Contains(p));
-            if (propertyHits < scenario.PropertyCount)
+            if(propertyHits < scenario.PropertyCount)
             {
                 return false.ToProperty()
                     .Label($"Expected at least {scenario.PropertyCount} property names in emitted C# but found {propertyHits}.\nEmitted C#:\n{emittedCSharp}");

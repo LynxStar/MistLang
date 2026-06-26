@@ -239,7 +239,7 @@ public sealed class AnonymousTypeDuplicatePropertyPropertyTests
             .ToList();
 
         // Must have at least one MIST_ANON_DUPLICATE_PROP diagnostic.
-        if (duplicateDiags.Count == 0)
+        if(duplicateDiags.Count == 0)
         {
             var allIds = string.Join(", ", diagnostics.Select(d => d.Id.Value));
             return false.ToProperty().Label(
@@ -251,7 +251,7 @@ public sealed class AnonymousTypeDuplicatePropertyPropertyTests
         var mentionsDupName = duplicateDiags.Any(d =>
             d.Message.Contains(scenario.DuplicatedName, StringComparison.Ordinal));
 
-        if (!mentionsDupName)
+        if(!mentionsDupName)
         {
             var messages = string.Join("\n", duplicateDiags.Select(d => d.Message));
             return false.ToProperty().Label(

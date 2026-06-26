@@ -28,19 +28,19 @@ internal static class ExhaustivenessChecker
         IReadOnlyList<(PatternNode Pattern, bool HasGuard)> arms)
     {
         // Rule 1: Any arm that is a catch-all without a guard makes the switch exhaustive.
-        if (HasUnguardedCatchAll(arms))
+        if(HasUnguardedCatchAll(arms))
         {
             return Array.Empty<string>();
         }
 
         // Rule 2: Bool scrutinee — track true/false coverage.
-        if (IsBoolType(scrutineeType))
+        if(IsBoolType(scrutineeType))
         {
             return CheckBoolExhaustiveness(arms);
         }
 
         // Rule 3: Type union scrutinee — flatten and track constituent type coverage.
-        if (scrutineeType is UnionType unionType)
+        if(scrutineeType is UnionType unionType)
         {
             return CheckUnionExhaustiveness(unionType, arms);
         }
@@ -51,7 +51,7 @@ internal static class ExhaustivenessChecker
         // the exhaustiveness check (the checker would always report missing "_"
         // even when the arms are mathematically exhaustive). This matches C#'s
         // behavior where non-exhaustive tuple switches produce a warning at most.
-        if (scrutineeType is TupleType)
+        if(scrutineeType is TupleType)
         {
             return Array.Empty<string>();
         }
@@ -72,12 +72,12 @@ internal static class ExhaustivenessChecker
     /// </summary>
     private static bool HasUnguardedCatchAll(IReadOnlyList<(PatternNode Pattern, bool HasGuard)> arms)
     {
-        for (var i = 0; i < arms.Count; i++)
+        for(var i = 0; i < arms.Count; i++)
         {
-            if (arms[i].HasGuard)
+            if(arms[i].HasGuard)
                 continue;
 
-            if (IsCatchAllPattern(arms[i].Pattern))
+            if(IsCatchAllPattern(arms[i].Pattern))
                 return true;
         }
 
@@ -92,22 +92,22 @@ internal static class ExhaustivenessChecker
     {
         // Navigate the pattern hierarchy: PatternNode → OrPatternNode → AndPatternNode → UnaryPatternNode → PrimaryPatternNode
         var primary = TryGetSinglePrimaryPattern(pattern);
-        if (primary is null)
+        if(primary is null)
             return false;
 
-        if (primary is VarPatternPrimaryPatternNode or DiscardPatternPrimaryPatternNode)
+        if(primary is VarPatternPrimaryPatternNode or DiscardPatternPrimaryPatternNode)
             return true;
 
         // A tuple positional pattern with all catch-all elements is itself a catch-all.
-        if (primary is TuplePositionalPatternPrimaryPatternNode tuplePattern)
+        if(primary is TuplePositionalPatternPrimaryPatternNode tuplePattern)
         {
-            if (!IsCatchAllPattern(tuplePattern.First))
+            if(!IsCatchAllPattern(tuplePattern.First))
                 return false;
-            if (!IsCatchAllPattern(tuplePattern.Rest))
+            if(!IsCatchAllPattern(tuplePattern.Rest))
                 return false;
-            for (var i = 0; i < tuplePattern.Patterns.Length; i++)
+            for(var i = 0; i < tuplePattern.Patterns.Length; i++)
             {
-                if (!IsCatchAllPattern(tuplePattern.Patterns[i]))
+                if(!IsCatchAllPattern(tuplePattern.Patterns[i]))
                     return false;
             }
             return true;
@@ -126,31 +126,31 @@ internal static class ExhaustivenessChecker
         var trueFound = false;
         var falseFound = false;
 
-        for (var i = 0; i < arms.Count; i++)
+        for(var i = 0; i < arms.Count; i++)
         {
-            if (arms[i].HasGuard)
+            if(arms[i].HasGuard)
                 continue;
 
             var primary = TryGetSinglePrimaryPattern(arms[i].Pattern);
-            if (primary is null)
+            if(primary is null)
                 continue;
 
-            if (primary is ConstantPatternPrimaryPatternNode constantPattern)
+            if(primary is ConstantPatternPrimaryPatternNode constantPattern)
             {
-                if (constantPattern.Literal is TrueConstantConstantLiteralNode)
+                if(constantPattern.Literal is TrueConstantConstantLiteralNode)
                     trueFound = true;
-                else if (constantPattern.Literal is FalseConstantConstantLiteralNode)
+                else if(constantPattern.Literal is FalseConstantConstantLiteralNode)
                     falseFound = true;
             }
         }
 
-        if (trueFound && falseFound)
+        if(trueFound && falseFound)
             return Array.Empty<string>();
 
         var missing = new List<string>();
-        if (!trueFound)
+        if(!trueFound)
             missing.Add("true");
-        if (!falseFound)
+        if(!falseFound)
             missing.Add("false");
 
         return missing;
@@ -171,26 +171,26 @@ internal static class ExhaustivenessChecker
         // Track which leaf types are covered by unguarded type pattern arms.
         var coveredDisplayNames = new HashSet<string>(StringComparer.Ordinal);
 
-        for (var i = 0; i < arms.Count; i++)
+        for(var i = 0; i < arms.Count; i++)
         {
-            if (arms[i].HasGuard)
+            if(arms[i].HasGuard)
                 continue;
 
             var primary = TryGetSinglePrimaryPattern(arms[i].Pattern);
-            if (primary is null)
+            if(primary is null)
                 continue;
 
-            switch (primary)
+            switch(primary)
             {
                 case TypePatternPrimaryPatternNode typePattern:
                     var typeName = ExtractTypeDisplayName(typePattern.Type);
-                    if (typeName is not null)
+                    if(typeName is not null)
                         coveredDisplayNames.Add(typeName);
                     break;
 
                 case BareTypePatternPrimaryPatternNode bareTypePattern:
                     var bareTypeName = ExtractTypeDisplayName(bareTypePattern.Type);
-                    if (bareTypeName is not null)
+                    if(bareTypeName is not null)
                         coveredDisplayNames.Add(bareTypeName);
                     break;
             }
@@ -198,9 +198,9 @@ internal static class ExhaustivenessChecker
 
         // Check if all leaf types are covered.
         var uncovered = new List<string>();
-        foreach (var leafType in leafTypes)
+        foreach(var leafType in leafTypes)
         {
-            if (!coveredDisplayNames.Contains(leafType.DisplayName))
+            if(!coveredDisplayNames.Contains(leafType.DisplayName))
             {
                 uncovered.Add(leafType.DisplayName);
             }
@@ -214,9 +214,9 @@ internal static class ExhaustivenessChecker
     /// </summary>
     private static void FlattenUnionType(UnionType unionType, List<IType> leafTypes)
     {
-        foreach (var constituent in unionType.Constituents)
+        foreach(var constituent in unionType.Constituents)
         {
-            if (constituent is UnionType nestedUnion)
+            if(constituent is UnionType nestedUnion)
             {
                 FlattenUnionType(nestedUnion, leafTypes);
             }
@@ -269,23 +269,23 @@ internal static class ExhaustivenessChecker
         var orPattern = pattern.OrPattern;
 
         // If there are multiple or-alternatives, this is not a simple pattern.
-        if (orPattern.AndPatterns.Length > 0)
+        if(orPattern.AndPatterns.Length > 0)
             return null;
 
         var andPattern = orPattern.Left;
 
         // If there are multiple and-conjuncts, this is not a simple pattern.
-        if (andPattern.UnaryPatterns.Length > 0)
+        if(andPattern.UnaryPatterns.Length > 0)
             return null;
 
         var unaryPattern = andPattern.Left;
 
         // Only direct patterns (not negated) can be catch-alls or simple patterns.
-        if (unaryPattern is not DirectPatternUnaryPatternNode directPattern)
+        if(unaryPattern is not DirectPatternUnaryPatternNode directPattern)
             return null;
 
         // Handle parenthesized patterns by recursing into the inner pattern.
-        if (directPattern.Primary is ParenthesizedPatternPrimaryPatternNode parenthesized)
+        if(directPattern.Primary is ParenthesizedPatternPrimaryPatternNode parenthesized)
             return TryGetSinglePrimaryPattern(parenthesized.Inner);
 
         return directPattern.Primary;

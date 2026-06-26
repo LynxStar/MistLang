@@ -235,10 +235,13 @@ public class SemanticModelBuilderPass1Tests
         var fieldDecl = new FieldDeclarationNode
         {
             Name = MakeToken("_value"),
-            Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
+            Type = new TypeReferenceNode
             {
-                PrimitiveType = new IntTypePrimitiveTypeNode(),
-            } },
+                First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                {
+                    PrimitiveType = new IntTypePrimitiveTypeNode(),
+                }
+            },
         };
         var classDecl = new ClassDeclarationNode
         {
@@ -339,10 +342,13 @@ public class SemanticModelBuilderPass1Tests
         var fieldDecl = new FieldDeclarationNode
         {
             Name = MakeToken("_x"),
-            Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
+            Type = new TypeReferenceNode
             {
-                PrimitiveType = new IntTypePrimitiveTypeNode(),
-            } },
+                First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                {
+                    PrimitiveType = new IntTypePrimitiveTypeNode(),
+                }
+            },
         };
         var ctorDecl = new ConstructorDeclarationNode
         {
@@ -352,10 +358,13 @@ public class SemanticModelBuilderPass1Tests
         var methodDecl = new MethodDeclarationNode
         {
             Name = MakeToken("GetX"),
-            ReturnType = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
+            ReturnType = new TypeReferenceNode
             {
-                PrimitiveType = new IntTypePrimitiveTypeNode(),
-            } },
+                First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                {
+                    PrimitiveType = new IntTypePrimitiveTypeNode(),
+                }
+            },
             Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode() },
         };
         var classDecl = new ClassDeclarationNode
@@ -476,10 +485,13 @@ public class SemanticModelBuilderPass1Tests
         var fieldDecl = new FieldDeclarationNode
         {
             Name = MakeToken("_value"),
-            Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
+            Type = new TypeReferenceNode
             {
-                PrimitiveType = new IntTypePrimitiveTypeNode(),
-            } },
+                First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                {
+                    PrimitiveType = new IntTypePrimitiveTypeNode(),
+                }
+            },
         };
         var classDecl = new ClassDeclarationNode
         {
@@ -603,10 +615,13 @@ public class SemanticModelBuilderPass1Tests
         var fieldDecl = new FieldDeclarationNode
         {
             Name = MakeToken("X"),
-            Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
+            Type = new TypeReferenceNode
             {
-                PrimitiveType = new IntTypePrimitiveTypeNode(),
-            } },
+                First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                {
+                    PrimitiveType = new IntTypePrimitiveTypeNode(),
+                }
+            },
         };
         var ctorDecl = new ConstructorDeclarationNode
         {

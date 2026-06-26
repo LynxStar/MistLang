@@ -57,26 +57,26 @@ public static class SyntheticDropInferenceEngine
         var explicitDrop = new HashSet<IType>();
         var declaredTypes = new List<IType>();
 
-        foreach (var symbol in model.AllSymbols)
+        foreach(var symbol in model.AllSymbols)
         {
-            if (symbol.Kind is not (SymbolKind.Class or SymbolKind.Struct))
+            if(symbol.Kind is not (SymbolKind.Class or SymbolKind.Struct))
                 continue;
 
             var type = symbol.DeclaredType;
-            if (type is not (ClassType or StructType))
+            if(type is not (ClassType or StructType))
                 continue;
 
             declaredTypes.Add(type);
 
-            if (HasDrop(type))
+            if(HasDrop(type))
                 explicitDrop.Add(type);
         }
 
         var stateMap = new Dictionary<IType, InferenceState>();
 
-        foreach (var type in declaredTypes)
+        foreach(var type in declaredTypes)
         {
-            if (!stateMap.ContainsKey(type))
+            if(!stateMap.ContainsKey(type))
                 Resolve(type, explicitDrop, stateMap);
         }
     }
@@ -92,13 +92,13 @@ public static class SyntheticDropInferenceEngine
         Dictionary<IType, InferenceState> stateMap)
     {
         // Explicit Drop() always wins — never synthesize over it (Req 10.6).
-        if (explicitDrop.Contains(type))
+        if(explicitDrop.Contains(type))
         {
             stateMap[type] = InferenceState.Resolved;
             return true;
         }
 
-        if (stateMap.TryGetValue(type, out var state))
+        if(stateMap.TryGetValue(type, out var state))
         {
             return state switch
             {
@@ -111,7 +111,7 @@ public static class SyntheticDropInferenceEngine
         }
 
         var memberScope = MemberScopeOf(type);
-        if (memberScope is null)
+        if(memberScope is null)
         {
             stateMap[type] = InferenceState.Resolved;
             return HasDrop(type);
@@ -123,23 +123,23 @@ public static class SyntheticDropInferenceEngine
         // Collect droppable fields in declaration order. Member ordering preserves
         // declaration order (Req 10.2).
         var droppableFields = new List<ISymbol>();
-        foreach (var member in memberScope.Members)
+        foreach(var member in memberScope.Members)
         {
-            if (member.Kind != SymbolKind.Field)
+            if(member.Kind != SymbolKind.Field)
                 continue;
 
             var fieldType = member.DeclaredType;
-            if (fieldType is null)
+            if(fieldType is null)
                 continue;
 
-            if (IsDroppable(fieldType, explicitDrop, stateMap))
+            if(IsDroppable(fieldType, explicitDrop, stateMap))
                 droppableFields.Add(member);
         }
 
         // Synthesize a void Drop() when droppable fields exist (Req 10.1, 10.2, 10.3).
-        if (droppableFields.Count > 0)
+        if(droppableFields.Count > 0)
         {
-            switch (type)
+            switch(type)
             {
                 case ClassType ct:
                     ct.HasDrop = true;
@@ -168,7 +168,7 @@ public static class SyntheticDropInferenceEngine
         HashSet<IType> explicitDrop,
         Dictionary<IType, InferenceState> stateMap)
     {
-        switch (type)
+        switch(type)
         {
             case TypeAliasType alias:
                 return IsDroppable(alias.UnderlyingType, explicitDrop, stateMap);

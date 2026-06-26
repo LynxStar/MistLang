@@ -173,7 +173,7 @@ public class EnumInvalidMemberAccessPropertyTests
     {
         // Build enum declaration with integer values.
         var members = new List<EnumMemberNode>();
-        for (var i = 0; i < scenario.MemberNames.Count; i++)
+        for(var i = 0; i < scenario.MemberNames.Count; i++)
         {
             members.Add(MakeEnumMember(scenario.MemberNames[i], i));
         }
@@ -281,7 +281,7 @@ public class EnumInvalidMemberAccessPropertyTests
             d.Id.Value == "MIST_SB_0082" &&
             d.Severity == DiagnosticSeverity.Error);
 
-        if (!hasExpectedError)
+        if(!hasExpectedError)
             return false.ToProperty()
                 .Label($"Expected MIST_SB_0082 for {scenario.EnumName}.{scenario.InvalidMemberName}, " +
                        $"got: [{string.Join("; ", combined.Select(e => $"{e.Id.Value}: {e.Message}"))}]");

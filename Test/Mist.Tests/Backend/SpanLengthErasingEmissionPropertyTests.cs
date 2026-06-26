@@ -102,9 +102,9 @@ public class SpanLengthErasingEmissionPropertyTests
     private static bool HasTopLevelComma(string content)
     {
         var depth = 0;
-        foreach (var c in content)
+        foreach(var c in content)
         {
-            switch (c)
+            switch(c)
             {
                 case '<': depth++; break;
                 case '>': depth--; break;

@@ -68,7 +68,7 @@ public sealed class NoHiddenArrayFillPropertyTests
         var userTokens = Lexer.Lex(userSourceText, diagnostics);
         var userParseResult = Parser.Parse(userTokens, diagnostics);
 
-        if (userParseResult.Root is null)
+        if(userParseResult.Root is null)
             return (false, "", $"Failed to parse source:\n{mistSource}");
 
         var allUnits = stdlibUnits.Add(userUnit);
@@ -86,7 +86,7 @@ public sealed class NoHiddenArrayFillPropertyTests
         var buildErrors = diagnostics.ToImmutableArray()
             .Where(d => d.Severity == DiagnosticSeverity.Error)
             .ToList();
-        if (buildErrors.Count > 0)
+        if(buildErrors.Count > 0)
         {
             var errorText = string.Join("\n", buildErrors.Select(d => $"  {d.Id.Value}: {d.Message}"));
             return (false, "", $"Build errors:\n{errorText}");
@@ -98,7 +98,7 @@ public sealed class NoHiddenArrayFillPropertyTests
         var tcErrors = tcBag.ToImmutableArray()
             .Where(d => d.Severity == DiagnosticSeverity.Error)
             .ToList();
-        if (tcErrors.Count > 0)
+        if(tcErrors.Count > 0)
         {
             var errorText = string.Join("\n", tcErrors.Select(d => $"  {d.Id.Value}: {d.Message}"));
             return (false, "", $"Type-check errors:\n{errorText}");
@@ -108,7 +108,7 @@ public sealed class NoHiddenArrayFillPropertyTests
         var emitBag = new DiagnosticBag();
         var files = CSharpEmitter.EmitToMemory(model, "TestProject", emitBag);
 
-        if (emitBag.HasErrors)
+        if(emitBag.HasErrors)
         {
             var emitErrors = emitBag.ToImmutableArray()
                 .Where(d => d.Severity == DiagnosticSeverity.Error)
@@ -116,12 +116,12 @@ public sealed class NoHiddenArrayFillPropertyTests
             return (false, "", $"Emit errors:\n{string.Join("\n", emitErrors)}");
         }
 
-        if (files.TryGetValue("test.cs", out var testContent))
+        if(files.TryGetValue("test.cs", out var testContent))
             return (true, testContent, "");
 
         // Fallback: concatenate all emitted files
         var sb = new StringBuilder();
-        foreach (var (_, content) in files)
+        foreach(var (_, content) in files)
             sb.AppendLine(content);
 
         return (true, sb.ToString(), "");
@@ -335,7 +335,7 @@ public sealed class NoHiddenArrayFillPropertyTests
     {
         var (succeeded, csContent, errorText) = BuildAndEmit(scenario.Source);
 
-        if (!succeeded)
+        if(!succeeded)
         {
             return false
                 .ToProperty()
@@ -351,7 +351,7 @@ public sealed class NoHiddenArrayFillPropertyTests
         // contain any call to __CreateDefault as part of filling array elements.
         var mainCallsCreateDefault = mainBody.Contains("__CreateDefault");
 
-        if (mainCallsCreateDefault)
+        if(mainCallsCreateDefault)
         {
             return false
                 .ToProperty()
@@ -390,28 +390,28 @@ public sealed class NoHiddenArrayFillPropertyTests
         var braceDepth = 0;
         var bodyLines = new StringBuilder();
 
-        foreach (var line in lines)
+        foreach(var line in lines)
         {
-            if (!inMain)
+            if(!inMain)
             {
-                if (line.Contains("static void Main("))
+                if(line.Contains("static void Main("))
                 {
                     inMain = true;
                     // The opening brace may be on this line or the next
-                    if (line.Contains('{'))
+                    if(line.Contains('{'))
                         braceDepth = 1;
                 }
                 continue;
             }
 
             // Count braces to track when we exit Main
-            foreach (var ch in line)
+            foreach(var ch in line)
             {
-                if (ch == '{') braceDepth++;
-                else if (ch == '}') braceDepth--;
+                if(ch == '{') braceDepth++;
+                else if(ch == '}') braceDepth--;
             }
 
-            if (braceDepth <= 0)
+            if(braceDepth <= 0)
                 break;
 
             bodyLines.AppendLine(line);
@@ -433,7 +433,7 @@ public sealed class NoHiddenArrayFillPropertyTests
         // It should NOT have a for-loop that fills elements (__i_ pattern from initializer).
         var hasInitializerLoop = mainBody.Contains("__i_") && mainBody.Contains("__arr_");
 
-        if (hasInitializerLoop)
+        if(hasInitializerLoop)
         {
             return false
                 .ToProperty()
@@ -459,7 +459,7 @@ public sealed class NoHiddenArrayFillPropertyTests
         var hasLoop = mainBody.Contains("for (int __i_");
         var hasArrayAssignment = mainBody.Contains("__arr_");
 
-        if (!hasLoop || !hasArrayAssignment)
+        if(!hasLoop || !hasArrayAssignment)
         {
             return false
                 .ToProperty()

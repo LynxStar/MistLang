@@ -113,13 +113,13 @@ public sealed class PropertyInitializerReadonlyFieldPropertyTests
         // Lex
         var lexBag = new DiagnosticBag();
         var tokens = Lexer.Lex(sourceText, lexBag);
-        if (lexBag.HasErrors)
+        if(lexBag.HasErrors)
             return lexBag.ToImmutableArray();
 
         // Parse
         var parseBag = new DiagnosticBag();
         var parseResult = Parser.Parse(tokens, parseBag);
-        if (parseBag.HasErrors || parseResult.Root is null)
+        if(parseBag.HasErrors || parseResult.Root is null)
             return parseBag.ToImmutableArray();
 
         // Semantic model
@@ -159,7 +159,7 @@ public sealed class PropertyInitializerReadonlyFieldPropertyTests
             .Where(d => d.Id.Value == "MIST_PI_0004")
             .ToList();
 
-        if (piDiags.Count != 1)
+        if(piDiags.Count != 1)
         {
             return false.ToProperty()
                 .Label($"Expected exactly 1 MIST_PI_0004 diagnostic, got {piDiags.Count}.\n" +

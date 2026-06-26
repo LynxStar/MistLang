@@ -140,8 +140,8 @@ public class CastOperatorValidationPropertyTests
         return from castKind in Gen.Elements(CastKinds)
                from names in Gen.Shuffle(TypeNames).Select(a => a.Take(3).ToArray())
                from isStruct in Gen.Elements(true, false)
-               // names[0] = enclosing, names[1] = source, names[2] = target
-               // All three are distinct, so neither source nor target is enclosing.
+                   // names[0] = enclosing, names[1] = source, names[2] = target
+                   // All three are distinct, so neither source nor target is enclosing.
                select new InvalidEnclosingTypeScenario(
                    castKind, names[0], names[1], names[2], isStruct);
     }
@@ -179,10 +179,13 @@ public class CastOperatorValidationPropertyTests
             : (CastOperatorKindNode)new ExplicitCastCastOperatorKindNode();
 
     private static TypeReferenceNode MakeNamedTypeRef(string name) =>
-        new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
+        new TypeReferenceNode
         {
-            Name = new QualifiedIdentifierNode { IDENTIFIER = Tok(name) },
-        } };
+            First = new NamedSingleTypeRefSingleTypeRefNode
+            {
+                Name = new QualifiedIdentifierNode { IDENTIFIER = Tok(name) },
+            }
+        };
 
     private static ParameterNode MakeParameter(string typeName, string paramName) =>
         new()
@@ -261,7 +264,7 @@ public class CastOperatorValidationPropertyTests
 
         // Build the enclosing type declaration
         TypeDeclarationNode enclosingTypeDecl;
-        if (isStruct)
+        if(isStruct)
         {
             enclosingTypeDecl = new StructTypeTypeDeclarationNode
             {
@@ -289,9 +292,9 @@ public class CastOperatorValidationPropertyTests
         var typeDecls = new List<TypeDeclarationNode> { enclosingTypeDecl };
 
         // Add empty class declarations for any types that aren't the enclosing type
-        foreach (var typeName in allTypeNames)
+        foreach(var typeName in allTypeNames)
         {
-            if (typeName != enclosingTypeName)
+            if(typeName != enclosingTypeName)
             {
                 typeDecls.Add(MakeEmptyClassDecl(typeName));
             }
@@ -377,7 +380,7 @@ public class CastOperatorValidationPropertyTests
             $"the enclosing type '{scenario.EnclosingTypeName}'. " +
             $"Source: '{scenario.SourceTypeName}', Target: '{scenario.TargetTypeName}'.";
 
-        if (enclosingTypeDiags.Length != 1)
+        if(enclosingTypeDiags.Length != 1)
         {
             return false.ToProperty()
                 .Label($"Expected exactly 1 {DiagnosticId} diagnostic for cast operator where " +

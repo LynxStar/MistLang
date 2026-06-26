@@ -159,11 +159,14 @@ public class TypeCheckerConstructorChainBugTests
         {
             Name = MakeToken("Point"),
             Parameters = new ParameterListNode { Parameter = paramX },
-            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode
+            Body = new MethodBlockBodyMethodBodyNode
             {
-                Statements = ImmutableArray.Create(
+                Block = new BlockNode
+                {
+                    Statements = ImmutableArray.Create(
                     MakeExpressionStatement(MakeIdentifierExpression("x"))),
-            } },
+                }
+            },
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
         };
 
@@ -193,11 +196,14 @@ public class TypeCheckerConstructorChainBugTests
             Name = MakeToken("GetX"),
             ReturnType = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = new IntTypePrimitiveTypeNode() } },
             Parameters = null,
-            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode
+            Body = new MethodBlockBodyMethodBodyNode
             {
-                Statements = ImmutableArray.Create(
+                Block = new BlockNode
+                {
+                    Statements = ImmutableArray.Create(
                     MakeReturnStatement(MakeIntLiteralExpression("0"))),
-            } },
+                }
+            },
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
         };
 
@@ -215,13 +221,16 @@ public class TypeCheckerConstructorChainBugTests
         return new CompilationUnitNode
         {
             Usings = ImmutableArray.Create(MakeUsingDeclaration("System")),
-            Items = ImmutableArray.Create<TopLevelItemNode>(new NamespaceItemTopLevelItemNode { NamespaceDeclaration = new FileScopedNamespaceNamespaceDeclarationNode
+            Items = ImmutableArray.Create<TopLevelItemNode>(new NamespaceItemTopLevelItemNode
             {
-                Name = MakeQualifiedId("AllFeatures"),
-                Body = ImmutableArray.Create<TypeDeclarationNode>(
+                NamespaceDeclaration = new FileScopedNamespaceNamespaceDeclarationNode
+                {
+                    Name = MakeQualifiedId("AllFeatures"),
+                    Body = ImmutableArray.Create<TypeDeclarationNode>(
                     new ClassTypeTypeDeclarationNode { ClassDeclaration = pointClass }).AsNamespaceBodyItems(),
-                Span = new Storm.Runtime.SourceSpan(0, source.Length),
-            } }),
+                    Span = new Storm.Runtime.SourceSpan(0, source.Length),
+                }
+            }),
         };
     }
 
@@ -265,11 +274,14 @@ public class TypeCheckerConstructorChainBugTests
         {
             Name = MakeToken("Color"),
             Parameters = null,
-            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode
+            Body = new MethodBlockBodyMethodBodyNode
             {
-                Statements = ImmutableArray.Create(
+                Block = new BlockNode
+                {
+                    Statements = ImmutableArray.Create(
                     MakeExpressionStatement(MakeIdentifierExpression("r"))),
-            } },
+                }
+            },
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
         };
 
@@ -287,13 +299,16 @@ public class TypeCheckerConstructorChainBugTests
         return new CompilationUnitNode
         {
             Usings = ImmutableArray.Create(MakeUsingDeclaration("System")),
-            Items = ImmutableArray.Create<TopLevelItemNode>(new NamespaceItemTopLevelItemNode { NamespaceDeclaration = new FileScopedNamespaceNamespaceDeclarationNode
+            Items = ImmutableArray.Create<TopLevelItemNode>(new NamespaceItemTopLevelItemNode
             {
-                Name = MakeQualifiedId("AllFeatures"),
-                Body = ImmutableArray.Create<TypeDeclarationNode>(
+                NamespaceDeclaration = new FileScopedNamespaceNamespaceDeclarationNode
+                {
+                    Name = MakeQualifiedId("AllFeatures"),
+                    Body = ImmutableArray.Create<TypeDeclarationNode>(
                     new StructTypeTypeDeclarationNode { StructDeclaration = colorStruct }).AsNamespaceBodyItems(),
-                Span = new Storm.Runtime.SourceSpan(0, source.Length),
-            } }),
+                    Span = new Storm.Runtime.SourceSpan(0, source.Length),
+                }
+            }),
         };
     }
 
@@ -324,13 +339,16 @@ public class TypeCheckerConstructorChainBugTests
         return new CompilationUnitNode
         {
             Usings = ImmutableArray<UsingDeclarationNode>.Empty,
-            Items = ImmutableArray.Create<TopLevelItemNode>(new NamespaceItemTopLevelItemNode { NamespaceDeclaration = new FileScopedNamespaceNamespaceDeclarationNode
+            Items = ImmutableArray.Create<TopLevelItemNode>(new NamespaceItemTopLevelItemNode
             {
-                Name = MakeQualifiedId("AllFeatures"),
-                Body = ImmutableArray.Create<TypeDeclarationNode>(
+                NamespaceDeclaration = new FileScopedNamespaceNamespaceDeclarationNode
+                {
+                    Name = MakeQualifiedId("AllFeatures"),
+                    Body = ImmutableArray.Create<TypeDeclarationNode>(
                     new ClassTypeTypeDeclarationNode { ClassDeclaration = programClass }).AsNamespaceBodyItems(),
-                Span = new Storm.Runtime.SourceSpan(0, source.Length),
-            } }),
+                    Span = new Storm.Runtime.SourceSpan(0, source.Length),
+                }
+            }),
         };
     }
 
@@ -442,7 +460,7 @@ public class TypeCheckerConstructorChainBugTests
             .ToList();
 
         // If there are no type checker diagnostics, the property trivially holds
-        if (tcDiagnostics.Count == 0)
+        if(tcDiagnostics.Count == 0)
             return true;
 
         return tcDiagnostics.All(d => d.CompilationUnitPath != "<unknown>");
@@ -482,7 +500,7 @@ public class TypeCheckerConstructorChainBugTests
             .Where(d => d.AnalyzerName == "TypeChecker" && d.Location != default)
             .ToList();
 
-        if (tcDiagnostics.Count == 0)
+        if(tcDiagnostics.Count == 0)
             return true;
 
         return tcDiagnostics.All(d => d.Location.Start.Line >= 1);

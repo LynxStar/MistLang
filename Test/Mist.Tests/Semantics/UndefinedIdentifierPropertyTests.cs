@@ -130,10 +130,13 @@ public class UndefinedIdentifierPropertyTests
         {
             VariableDeclaration = new TypedVariableDeclarationVariableDeclarationStatementNode
             {
-                Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                Type = new TypeReferenceNode
                 {
-                    PrimitiveType = new IntTypePrimitiveTypeNode(),
-                } },
+                    First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                    {
+                        PrimitiveType = new IntTypePrimitiveTypeNode(),
+                    }
+                },
                 Name = MakeToken(name),
                 Initializer = MakeIntLiteralExpression(value),
             },
@@ -149,14 +152,17 @@ public class UndefinedIdentifierPropertyTests
         {
             VariableDeclaration = new TypedVariableDeclarationVariableDeclarationStatementNode
             {
-                Type = new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
+                Type = new TypeReferenceNode
                 {
-                    Name = new QualifiedIdentifierNode
+                    First = new NamedSingleTypeRefSingleTypeRefNode
                     {
-                        IDENTIFIER = MakeToken(typeName),
-                        Span = new Storm.Runtime.SourceSpan(0, typeName.Length),
-                    },
-                } },
+                        Name = new QualifiedIdentifierNode
+                        {
+                            IDENTIFIER = MakeToken(typeName),
+                            Span = new Storm.Runtime.SourceSpan(0, typeName.Length),
+                        },
+                    }
+                },
                 Name = MakeToken(varName),
                 Initializer = MakeIntLiteralExpression("0"),
             },
@@ -176,10 +182,13 @@ public class UndefinedIdentifierPropertyTests
             Name = MakeToken(methodName),
             ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
-            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode
+            Body = new MethodBlockBodyMethodBodyNode
             {
-                Statements = statements,
-            } },
+                Block = new BlockNode
+                {
+                    Statements = statements,
+                }
+            },
         };
 
         var classDecl = new ClassDeclarationNode
@@ -295,10 +304,13 @@ public class UndefinedIdentifierPropertyTests
                         Name = MakeToken("TestMethod"),
                         ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
                         Parameters = null,
-                        Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode
+                        Body = new MethodBlockBodyMethodBodyNode
                         {
-                            Statements = ImmutableArray<StatementNode>.Empty,
-                        } },
+                            Block = new BlockNode
+                            {
+                                Statements = ImmutableArray<StatementNode>.Empty,
+                            }
+                        },
                     },
                 }),
         };

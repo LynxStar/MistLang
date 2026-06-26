@@ -77,7 +77,7 @@ public sealed class NestedScopingUnitTests
     {
         Assert.NotNull(result.EmittedFiles);
         var sb = new StringBuilder();
-        foreach (var (_, content) in result.EmittedFiles!)
+        foreach(var (_, content) in result.EmittedFiles!)
         {
             sb.AppendLine(content);
         }
@@ -89,12 +89,12 @@ public sealed class NestedScopingUnitTests
     /// </summary>
     private static string? GetUserEmittedCSharp(CompilerResult result)
     {
-        if (result.EmittedFiles is null)
+        if(result.EmittedFiles is null)
             return null;
 
-        foreach (var (_, content) in result.EmittedFiles)
+        foreach(var (_, content) in result.EmittedFiles)
         {
-            if (content.Contains("namespace TestProgram"))
+            if(content.Contains("namespace TestProgram"))
                 return content;
         }
 
@@ -410,12 +410,12 @@ public sealed class NestedScopingUnitTests
     private static int FindMatchingCloseBrace(string source, int openBraceIndex)
     {
         var depth = 0;
-        for (var i = openBraceIndex; i < source.Length; i++)
+        for(var i = openBraceIndex; i < source.Length; i++)
         {
-            if (source[i] == '{') depth++;
-            else if (source[i] == '}') depth--;
+            if(source[i] == '{') depth++;
+            else if(source[i] == '}') depth--;
 
-            if (depth == 0)
+            if(depth == 0)
                 return i;
         }
         return -1;
@@ -425,7 +425,7 @@ public sealed class NestedScopingUnitTests
     {
         var count = 0;
         var index = 0;
-        while ((index = source.IndexOf(pattern, index, StringComparison.Ordinal)) >= 0)
+        while((index = source.IndexOf(pattern, index, StringComparison.Ordinal)) >= 0)
         {
             count++;
             index += pattern.Length;

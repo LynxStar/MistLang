@@ -84,10 +84,10 @@ public sealed class LendingRetainsDropResponsibilityTests
                 .Where(d => d.Id.Value != "MIST_TC_0017")
                 .ToList();
 
-            if (errors.Count > 0)
+            if(errors.Count > 0)
                 return (null, string.Join("\n", errors.Select(d => $"{d.Id.Value}: {d.Message}")));
 
-            if (result.EmittedFiles is null || result.EmittedFiles.Count == 0)
+            if(result.EmittedFiles is null || result.EmittedFiles.Count == 0)
                 return (null, "No emitted files produced.");
 
             var allContent = result.EmittedFiles

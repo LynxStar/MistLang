@@ -46,7 +46,7 @@ public sealed class AmbientExtensionIntegrationTests : IDisposable
 
     public void Dispose()
     {
-        if (Directory.Exists(_outputDir))
+        if(Directory.Exists(_outputDir))
         {
             try { Directory.Delete(_outputDir, recursive: true); } catch { /* best effort */ }
         }
@@ -297,7 +297,7 @@ public sealed class AmbientExtensionIntegrationTests : IDisposable
 
         var result = SharedDriver.Compile(options);
 
-        if (!result.Succeeded || result.PrimaryOutputArtifactPath is null)
+        if(!result.Succeeded || result.PrimaryOutputArtifactPath is null)
             return (result, string.Empty);
 
         // Run the compiled DLL (1 process spawn)

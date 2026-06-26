@@ -48,12 +48,12 @@ public class ArrayLiteralEmissionPropertyTests
         // Lex
         var lexBag = new DiagnosticBag();
         var tokens = Lexer.Lex(sourceText, lexBag);
-        if (lexBag.HasErrors) return null;
+        if(lexBag.HasErrors) return null;
 
         // Parse
         var parseBag = new DiagnosticBag();
         var parseResult = Parser.Parse(tokens, parseBag);
-        if (parseBag.HasErrors || parseResult.Root is null) return null;
+        if(parseBag.HasErrors || parseResult.Root is null) return null;
 
         // Semantic model
         var semBag = new DiagnosticBag();
@@ -64,7 +64,7 @@ public class ArrayLiteralEmissionPropertyTests
             namespaceRoot: "TestProgram",
             projectFolder: "/test",
             semBag);
-        if (semBag.HasErrors) return null;
+        if(semBag.HasErrors) return null;
 
         // Type checker
         var tcBag = new DiagnosticBag();
@@ -72,15 +72,15 @@ public class ArrayLiteralEmissionPropertyTests
         var tcErrors = tcBag.ToImmutableArray()
             .Where(d => d.Severity == DiagnosticSeverity.Error)
             .ToList();
-        if (tcErrors.Count > 0) return null;
+        if(tcErrors.Count > 0) return null;
 
         // Emit in-memory
         var emitBag = new DiagnosticBag();
         var files = CSharpEmitter.EmitToMemory(model, "TestProgram", emitBag);
-        if (emitBag.HasErrors) return null;
+        if(emitBag.HasErrors) return null;
 
         var sb = new StringBuilder();
-        foreach (var (_, content) in files)
+        foreach(var (_, content) in files)
             sb.AppendLine(content);
 
         return sb.ToString();

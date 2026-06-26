@@ -357,7 +357,7 @@ public class TypeProjectorTests
 
         // Array.Empty<T>() is a generic method
         var emptyMethod = members.FirstOrDefault(m => m.Name == "Empty");
-        if (emptyMethod is not null)
+        if(emptyMethod is not null)
         {
             var symbol = Assert.IsType<Symbol>(emptyMethod);
             Assert.NotEmpty(symbol.TypeParameters);

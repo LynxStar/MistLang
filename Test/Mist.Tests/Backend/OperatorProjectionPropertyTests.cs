@@ -100,12 +100,12 @@ public sealed class OperatorProjectionPropertyTests
 
         // Scan all public types in the InteropFixtures assembly for operator methods
         var fixtureAssembly = typeof(Operatable).Assembly;
-        foreach (var type in fixtureAssembly.GetExportedTypes())
+        foreach(var type in fixtureAssembly.GetExportedTypes())
         {
             var methods = type.GetMethods(BindingFlags.Public | BindingFlags.Static | BindingFlags.DeclaredOnly);
-            foreach (var method in methods)
+            foreach(var method in methods)
             {
-                if (method.IsSpecialName && RecognizedOperatorNames.Contains(method.Name))
+                if(method.IsSpecialName && RecognizedOperatorNames.Contains(method.Name))
                 {
                     scenarios.Add(new OperatorMethodScenario(type, method));
                 }
@@ -132,11 +132,11 @@ public sealed class OperatorProjectionPropertyTests
     /// </summary>
     private static string GetExpectedMistOperatorName(MethodInfo method)
     {
-        if (BinaryAndUnaryOperatorMap.TryGetValue(method.Name, out var mistName))
+        if(BinaryAndUnaryOperatorMap.TryGetValue(method.Name, out var mistName))
             return mistName;
 
         // Cast operators: operator_{kind}_{targetTypeName}
-        if (method.Name is "op_Implicit" or "op_Explicit")
+        if(method.Name is "op_Implicit" or "op_Explicit")
         {
             var kind = method.Name == "op_Implicit" ? "implicit" : "explicit";
             var targetTypeName = TypeProjector.StripGenericAritySuffix(method.ReturnType.Name);
@@ -162,7 +162,7 @@ public sealed class OperatorProjectionPropertyTests
             _ => null,
         };
 
-        if (memberScope is null)
+        if(memberScope is null)
             return ImmutableArray<ISymbol>.Empty;
 
         return _projector.ProjectOperators(clrType, memberScope, _stdlib);
@@ -219,7 +219,7 @@ public sealed class OperatorProjectionPropertyTests
         var operatorSymbol = operators
             .FirstOrDefault(m => m.Name == expectedName && m.Kind == SymbolKind.Method);
 
-        if (operatorSymbol is null)
+        if(operatorSymbol is null)
             return false.ToProperty().Label($"Operator symbol '{expectedName}' not found");
 
         // The DeclaredType on the operator symbol is the return type
@@ -245,7 +245,7 @@ public sealed class OperatorProjectionPropertyTests
         var operatorSymbol = operators
             .FirstOrDefault(m => m.Name == expectedName && m.Kind == SymbolKind.Method);
 
-        if (operatorSymbol is null)
+        if(operatorSymbol is null)
             return false.ToProperty().Label($"Operator symbol '{expectedName}' not found");
 
         return (operatorSymbol.Origin == SymbolOrigin.Backend).ToProperty()
@@ -269,7 +269,7 @@ public sealed class OperatorProjectionPropertyTests
             _ => null,
         };
 
-        if (memberScope is null)
+        if(memberScope is null)
             return false.ToProperty().Label("Could not get member scope");
 
         _projector.ProjectOperators(scenario.DeclaringType, memberScope, _stdlib);

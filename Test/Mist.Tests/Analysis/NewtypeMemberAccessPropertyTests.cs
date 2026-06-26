@@ -57,7 +57,7 @@ public sealed class NewtypeMemberAccessPropertyTests
 
         var parseDiag = new DiagnosticBag();
         var parseResult = Parser.Parse(tokens, parseDiag);
-        if (parseResult.Root is null)
+        if(parseResult.Root is null)
             return lexDiag.ToImmutableArray().AddRange(parseDiag.ToImmutableArray());
 
         var buildDiag = new DiagnosticBag();
@@ -192,7 +192,7 @@ class Program {{
         var keyword = scenario.Kind == SourceKind.Class ? "class" : "struct";
 
         var fields = new List<string>();
-        for (var i = 0; i < scenario.FieldCount; i++)
+        for(var i = 0; i < scenario.FieldCount; i++)
         {
             var fieldType = FieldTypes[scenario.FieldTypeIndices[i]];
             var fieldName = $"{FieldNames[scenario.FieldNameIndices[i]]}{index}_{i}";
@@ -200,7 +200,7 @@ class Program {{
         }
 
         var methods = new List<string>();
-        for (var i = 0; i < scenario.MethodCount; i++)
+        for(var i = 0; i < scenario.MethodCount; i++)
         {
             var retType = MethodReturnTypes[scenario.MethodReturnTypeIndices[i]];
             var methodName = $"{MethodNames[scenario.MethodNameIndices[i]]}{index}_{i}";
@@ -217,7 +217,7 @@ class Program {{
         // Add a constructor for struct types so we can instantiate them
         var ctorParams = new List<string>();
         var ctorBody = new List<string>();
-        for (var i = 0; i < scenario.FieldCount; i++)
+        for(var i = 0; i < scenario.FieldCount; i++)
         {
             var fieldType = FieldTypes[scenario.FieldTypeIndices[i]];
             var fieldName = $"{FieldNames[scenario.FieldNameIndices[i]]}{index}_{i}";
@@ -244,7 +244,7 @@ class Program {{
 
         // Create an instance of the newtype via constructor
         var ctorArgs = new List<string>();
-        for (var i = 0; i < scenario.FieldCount; i++)
+        for(var i = 0; i < scenario.FieldCount; i++)
         {
             var fieldType = FieldTypes[scenario.FieldTypeIndices[i]];
             var defaultVal = fieldType switch
@@ -260,7 +260,7 @@ class Program {{
         lines.Add($"        var inst{index} = new {newtypeName}({string.Join(", ", ctorArgs)});");
 
         // Access each field
-        for (var i = 0; i < scenario.FieldCount; i++)
+        for(var i = 0; i < scenario.FieldCount; i++)
         {
             var fieldType = FieldTypes[scenario.FieldTypeIndices[i]];
             var fieldName = $"{FieldNames[scenario.FieldNameIndices[i]]}{index}_{i}";
@@ -268,7 +268,7 @@ class Program {{
         }
 
         // Access each method
-        for (var i = 0; i < scenario.MethodCount; i++)
+        for(var i = 0; i < scenario.MethodCount; i++)
         {
             var retType = MethodReturnTypes[scenario.MethodReturnTypeIndices[i]];
             var methodName = $"{MethodNames[scenario.MethodNameIndices[i]]}{index}_{i}";
@@ -303,7 +303,7 @@ class Program {{
                 or "MIST_TC_0062" or "MIST_TC_0065")
             .ToList();
 
-        if (memberErrors.Count > 0)
+        if(memberErrors.Count > 0)
         {
             var errorMessages = string.Join("\n",
                 memberErrors.Select(d => $"  [{d.Id.Value}] {d.Message}"));

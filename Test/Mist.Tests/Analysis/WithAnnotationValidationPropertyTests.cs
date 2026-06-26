@@ -153,9 +153,9 @@ public sealed class WithAnnotationValidationPropertyTests
 
     public static IEnumerable<object[]> AllDeclaredVsRequiredCombinations()
     {
-        foreach (var declared in Enum.GetValues<ThisTier>())
+        foreach(var declared in Enum.GetValues<ThisTier>())
         {
-            foreach (var bodyReq in Enum.GetValues<BodyRequirement>())
+            foreach(var bodyReq in Enum.GetValues<BodyRequirement>())
             {
                 yield return new object[] { declared, bodyReq };
             }
@@ -185,7 +185,7 @@ public sealed class WithAnnotationValidationPropertyTests
         Assert.Equal(!shouldCompile, hasInsufficient);
 
         // When it compiles, the declared tier is used (Req 17.10 — annotation overrides inference)
-        if (shouldCompile)
+        if(shouldCompile)
         {
             Assert.Equal(declared, inferredTier);
         }

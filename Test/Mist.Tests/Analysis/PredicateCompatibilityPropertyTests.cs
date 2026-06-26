@@ -254,7 +254,7 @@ public class PredicateCompatibilityPropertyTests
             .Where(d => d.Id == TypeCheckerAnalyzer.RefinementPredicateIncompatible)
             .ToList();
 
-        if (scenario.ShouldAccept)
+        if(scenario.ShouldAccept)
         {
             // Compatible combination: no MIST_REFINEMENT_0007 diagnostic expected.
             return incompatibleDiagnostics.Count == 0;

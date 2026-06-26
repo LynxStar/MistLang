@@ -74,22 +74,22 @@ public class MistLexerMappingPropertyTests
             AnalyzerName: null);
 
         // Verify: Location.Start.Line == entry.Line
-        if (diagnostic.Location == default)
+        if(diagnostic.Location == default)
             return false;
 
-        if (diagnostic.Location.Start.Line != entryData.Line)
+        if(diagnostic.Location.Start.Line != entryData.Line)
             return false;
 
         // Verify: Location.Start.Column == entry.Column
-        if (diagnostic.Location.Start.Column != entryData.Column)
+        if(diagnostic.Location.Start.Column != entryData.Column)
             return false;
 
         // Verify: CompilationUnitPath == entry.FilePath
-        if (diagnostic.CompilationUnitPath != entryData.FilePath)
+        if(diagnostic.CompilationUnitPath != entryData.FilePath)
             return false;
 
         // Verify: Message is preserved
-        if (diagnostic.Message != entryData.Message)
+        if(diagnostic.Message != entryData.Message)
             return false;
 
         return true;

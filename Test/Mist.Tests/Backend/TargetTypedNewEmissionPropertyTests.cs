@@ -186,7 +186,7 @@ public sealed class TargetTypedNewEmissionPropertyTests
     {
         var sb = new StringBuilder();
         sb.AppendLine($"class {className} {{");
-        if (argCount > 0)
+        if(argCount > 0)
         {
             var parms = BuildCtorParams(argCount);
             sb.AppendLine($"    public {className}({parms}) {{ }}");
@@ -199,7 +199,7 @@ public sealed class TargetTypedNewEmissionPropertyTests
     {
         var sb = new StringBuilder();
         sb.AppendLine($"class {className} {{");
-        foreach (var prop in propNames)
+        foreach(var prop in propNames)
         {
             sb.AppendLine($"    public int {prop} {{ get; set; }}");
         }
@@ -212,12 +212,12 @@ public sealed class TargetTypedNewEmissionPropertyTests
     {
         var sb = new StringBuilder();
         sb.AppendLine($"class {className} {{");
-        if (argCount > 0)
+        if(argCount > 0)
         {
             var parms = BuildCtorParams(argCount);
             sb.AppendLine($"    public {className}({parms}) {{ }}");
         }
-        foreach (var prop in propNames)
+        foreach(var prop in propNames)
         {
             sb.AppendLine($"    public int {prop} {{ get; set; }}");
         }
@@ -246,13 +246,13 @@ public sealed class TargetTypedNewEmissionPropertyTests
         // Lex
         var lexBag = new DiagnosticBag();
         var tokens = Lexer.Lex(sourceText, lexBag);
-        if (lexBag.HasErrors)
+        if(lexBag.HasErrors)
             return (false, "", FormatDiagnostics(lexBag));
 
         // Parse
         var parseBag = new DiagnosticBag();
         var parseResult = Parser.Parse(tokens, parseBag);
-        if (parseBag.HasErrors || parseResult.Root is null)
+        if(parseBag.HasErrors || parseResult.Root is null)
             return (false, "", FormatDiagnostics(parseBag));
 
         // Semantic model
@@ -265,7 +265,7 @@ public sealed class TargetTypedNewEmissionPropertyTests
             projectFolder: "/test",
             semBag);
 
-        if (semBag.HasErrors)
+        if(semBag.HasErrors)
             return (false, "", FormatDiagnostics(semBag));
 
         // Type checker — filter out MIST_TC_0017 (entry point not found) since we're
@@ -275,19 +275,19 @@ public sealed class TargetTypedNewEmissionPropertyTests
         var tcErrors = tcBag.ToImmutableArray()
             .Where(d => d.Severity == DiagnosticSeverity.Error && d.Id.Value != "MIST_TC_0017")
             .ToList();
-        if (tcErrors.Count > 0)
+        if(tcErrors.Count > 0)
             return (false, "", string.Join("\n", tcErrors.Select(d => $"  {d.Id.Value}: {d.Message}")));
 
         // Emit in-memory (no disk I/O)
         var emitBag = new DiagnosticBag();
         var files = CSharpEmitter.EmitToMemory(model, "TestProgram", emitBag);
 
-        if (emitBag.HasErrors)
+        if(emitBag.HasErrors)
             return (false, "", FormatDiagnostics(emitBag));
 
         // Concatenate all emitted .cs content
         var sb = new StringBuilder();
-        foreach (var (_, content) in files)
+        foreach(var (_, content) in files)
             sb.AppendLine(content);
 
         return (true, sb.ToString(), "");
@@ -307,10 +307,10 @@ public sealed class TargetTypedNewEmissionPropertyTests
     private static string? ExtractNewExpressionLine(string csContent, string typeName)
     {
         var lines = csContent.Split('\n');
-        foreach (var line in lines)
+        foreach(var line in lines)
         {
             var trimmed = line.Trim();
-            if (trimmed.Contains($"new {typeName}(") || trimmed.Contains($"new {typeName}()"))
+            if(trimmed.Contains($"new {typeName}(") || trimmed.Contains($"new {typeName}()"))
                 return trimmed;
         }
         return null;
@@ -334,7 +334,7 @@ public sealed class TargetTypedNewEmissionPropertyTests
     {
         // Compile the target-typed version
         var (targetSucceeded, targetCs, targetDiag) = CompileInMemory(scenario.TargetTypedSource);
-        if (!targetSucceeded)
+        if(!targetSucceeded)
         {
             return false.ToProperty()
                 .Label($"Target-typed compilation failed: {scenario.Description}\n" +
@@ -343,7 +343,7 @@ public sealed class TargetTypedNewEmissionPropertyTests
 
         // Compile the fully-typed version
         var (fullySucceeded, fullyCs, fullyDiag) = CompileInMemory(scenario.FullyTypedSource);
-        if (!fullySucceeded)
+        if(!fullySucceeded)
         {
             return false.ToProperty()
                 .Label($"Fully-typed compilation failed: {scenario.Description}\n" +
@@ -354,14 +354,14 @@ public sealed class TargetTypedNewEmissionPropertyTests
         var targetLine = ExtractNewExpressionLine(targetCs, scenario.TypeName);
         var fullyLine = ExtractNewExpressionLine(fullyCs, scenario.TypeName);
 
-        if (targetLine is null)
+        if(targetLine is null)
         {
             return false.ToProperty()
                 .Label($"Could not find 'new {scenario.TypeName}' in target-typed output\n" +
                        $"Emitted:\n{targetCs}");
         }
 
-        if (fullyLine is null)
+        if(fullyLine is null)
         {
             return false.ToProperty()
                 .Label($"Could not find 'new {scenario.TypeName}' in fully-typed output\n" +

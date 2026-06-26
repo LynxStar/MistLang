@@ -132,25 +132,25 @@ public sealed class CompilerDriver : ICompilerDriver
             ? ImmutableArray<string>.Empty
             : options.GlobalUsings;
 
-        if (!string.IsNullOrEmpty(options.ProjectFolder)
+        if(!string.IsNullOrEmpty(options.ProjectFolder)
             && File.Exists(Path.Combine(options.ProjectFolder, ProjectFileParser.FileName)))
         {
             var refParseBag = new DiagnosticBag();
             var projectConfig = ProjectFileParser.Parse(options.ProjectFolder, refParseBag);
 
-            foreach (var d in refParseBag.ToImmutableArray())
+            foreach(var d in refParseBag.ToImmutableArray())
             {
                 allDiagnostics.Add(d);
             }
 
-            if (projectConfig is not null && !refParseBag.HasErrors)
+            if(projectConfig is not null && !refParseBag.HasErrors)
             {
                 // Use the root project config's GlobalUsings for user units.
                 userGlobalUsings = projectConfig.GlobalUsings.IsDefault
                     ? ImmutableArray<string>.Empty
                     : projectConfig.GlobalUsings;
 
-                if (!projectConfig.References.IsEmpty)
+                if(!projectConfig.References.IsEmpty)
                 {
                     // Build the set of directly-referenced canonical paths from
                     // the root project's declared references. This set is passed
@@ -167,21 +167,21 @@ public sealed class CompilerDriver : ICompilerDriver
                         projectConfig.References,
                         resolveBag);
 
-                    foreach (var d in resolveBag.ToImmutableArray())
+                    foreach(var d in resolveBag.ToImmutableArray())
                     {
                         allDiagnostics.Add(d);
                     }
 
-                    if (!resolveBag.HasErrors)
+                    if(!resolveBag.HasErrors)
                     {
                         var refUnitBuilder = ImmutableArray.CreateBuilder<CompilationUnit>();
-                        foreach (var proj in resolved)
+                        foreach(var proj in resolved)
                         {
                             var projGlobalUsings = proj.Configuration.GlobalUsings.IsDefault
                                 ? ImmutableArray<string>.Empty
                                 : proj.Configuration.GlobalUsings;
 
-                            foreach (var path in proj.SourcePaths)
+                            foreach(var path in proj.SourcePaths)
                             {
                                 try
                                 {
@@ -195,7 +195,7 @@ public sealed class CompilerDriver : ICompilerDriver
                                         GlobalUsings = projGlobalUsings,
                                     });
                                 }
-                                catch (Exception ex)
+                                catch(Exception ex)
                                 {
                                     allDiagnostics.Add(new Diagnostic(
                                         new DiagnosticId("MIST_FILE_ERROR"),
@@ -216,16 +216,16 @@ public sealed class CompilerDriver : ICompilerDriver
                     }
                 }
             }
-            else if (refParseBag.HasErrors)
+            else if(refParseBag.HasErrors)
             {
                 return new CompilerResult(false, null, allDiagnostics.ToImmutableArray());
             }
         }
 
         // Apply global usings to user compilation units.
-        if (!userGlobalUsings.IsEmpty)
+        if(!userGlobalUsings.IsEmpty)
         {
-            for (var i = 0; i < userUnits.Count; i++)
+            for(var i = 0; i < userUnits.Count; i++)
             {
                 userUnits[i] = userUnits[i] with { GlobalUsings = userGlobalUsings };
             }
@@ -258,11 +258,11 @@ public sealed class CompilerDriver : ICompilerDriver
         var hasPackages = !options.Packages.IsDefaultOrEmpty;
         var hasFrameworkRefs = !options.FrameworkReferences.IsDefaultOrEmpty;
 
-        if (hasPackages || hasFrameworkRefs)
+        if(hasPackages || hasFrameworkRefs)
         {
             var resolutionStopwatch = Stopwatch.StartNew();
 
-            if (options.VerboseResolution)
+            if(options.VerboseResolution)
                 progressReporter.ReportStageStart("1.5", "Package Resolution");
 
             var resolutionDiagnostics = new DiagnosticBag();
@@ -278,40 +278,40 @@ public sealed class CompilerDriver : ICompilerDriver
 
             // Merge assembly paths (union, dedupe by path)
             var mergedPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            foreach (var path in packageResult.AssemblyPaths)
+            foreach(var path in packageResult.AssemblyPaths)
                 mergedPaths.Add(path);
-            foreach (var path in frameworkResult.AssemblyPaths)
+            foreach(var path in frameworkResult.AssemblyPaths)
                 mergedPaths.Add(path);
             resolvedAssemblyPaths = [.. mergedPaths];
 
             // Add diagnostics to the shared bag (they always surface through
             // normal diagnostic printing regardless of verbose).
-            foreach (var d in resolutionDiagnostics.ToImmutableArray())
+            foreach(var d in resolutionDiagnostics.ToImmutableArray())
                 allDiagnostics.Add(d);
 
             resolutionStopwatch.Stop();
 
             // Verbose output: emit detail lines and summary
-            if (options.VerboseResolution)
+            if(options.VerboseResolution)
             {
                 var details = new List<string>();
 
                 // Per-package detail lines
-                foreach (var pkg in packageResult.Resolved)
+                foreach(var pkg in packageResult.Resolved)
                 {
                     details.Add($"Restored {pkg.Name} {pkg.Version} ({pkg.SelectedTfm})");
                 }
 
                 // Per-framework detail lines
-                foreach (var fw in frameworkResult.Resolved)
+                foreach(var fw in frameworkResult.Resolved)
                 {
                     details.Add($"Resolved {fw.Name} {fw.Version}");
                 }
 
                 // Zero-assemblies notes for packages with AssemblyCount == 0
-                foreach (var pkg in packageResult.Resolved)
+                foreach(var pkg in packageResult.Resolved)
                 {
-                    if (pkg.AssemblyCount == 0)
+                    if(pkg.AssemblyCount == 0)
                         details.Add($"{pkg.Name} contributed no assemblies for {options.TargetFramework}");
                 }
 
@@ -344,7 +344,7 @@ public sealed class CompilerDriver : ICompilerDriver
 
         foreach(var unit in compilation.Units)
         {
-            if (unit.IsStdlib && cachedStdlib.HasValue)
+            if(unit.IsStdlib && cachedStdlib.HasValue)
             {
                 // Stdlib tokens are already cached; skip lexing.
                 continue;
@@ -361,7 +361,7 @@ public sealed class CompilerDriver : ICompilerDriver
             if(!lexBag.HasErrors)
             {
                 tokenStreams[unit] = tokenStream;
-                if (unit.IsStdlib)
+                if(unit.IsStdlib)
                     stdlibTokensForCache?.Add(tokenStream);
             }
             // If lex errors, skip parse for this unit (R16.3)
@@ -369,7 +369,7 @@ public sealed class CompilerDriver : ICompilerDriver
 
         lexingStopwatch.Stop();
         var totalTokens = tokenStreams.Values.Sum(ts => ts.DefaultChannelTokens.Length);
-        if (cachedStdlib.HasValue)
+        if(cachedStdlib.HasValue)
             totalTokens += cachedStdlib.Value.Tokens.Sum(ts => ts.DefaultChannelTokens.Length);
         progressReporter.ReportStageComplete("2", lexingStopwatch.Elapsed, new[]
         {
@@ -386,7 +386,7 @@ public sealed class CompilerDriver : ICompilerDriver
             : ImmutableArray.CreateBuilder<Storm.Runtime.SyntaxNode>();
 
         // If we have cached stdlib ASTs, prepend them first.
-        if (cachedStdlib.HasValue)
+        if(cachedStdlib.HasValue)
         {
             asts.AddRange(cachedStdlib.Value.Asts);
         }
@@ -412,11 +412,11 @@ public sealed class CompilerDriver : ICompilerDriver
             {
                 parseResult.Root.SetParentLinks();
                 asts.Add(parseResult.Root);
-                if (unit.IsStdlib)
+                if(unit.IsStdlib)
                     stdlibAstsForCache?.Add(parseResult.Root);
 
                 // Detect top-level statements in the parsed AST.
-                if (parseResult.Root is CompilationUnitNode cu
+                if(parseResult.Root is CompilationUnitNode cu
                     && cu.Items.Any(item => item is StatementItemTopLevelItemNode))
                 {
                     unitsWithTopLevelStatements.Add(unit);
@@ -426,7 +426,7 @@ public sealed class CompilerDriver : ICompilerDriver
         }
 
         // Update CompilationUnits that contain top-level statements.
-        if (unitsWithTopLevelStatements.Count > 0)
+        if(unitsWithTopLevelStatements.Count > 0)
         {
             var updatedUnits = compilation.Units.Select(u =>
                 unitsWithTopLevelStatements.Contains(u)
@@ -436,11 +436,11 @@ public sealed class CompilerDriver : ICompilerDriver
         }
 
         // Populate the stdlib cache if this is the first successful compile.
-        if (!cachedStdlib.HasValue && stdlibTokensForCache is not null && stdlibAstsForCache is not null)
+        if(!cachedStdlib.HasValue && stdlibTokensForCache is not null && stdlibAstsForCache is not null)
         {
-            lock (_stdlibCacheLock)
+            lock(_stdlibCacheLock)
             {
-                if (!_stdlibCache.HasValue)
+                if(!_stdlibCache.HasValue)
                 {
                     _stdlibCache = (stdlibTokensForCache.ToImmutable(), stdlibAstsForCache.ToImmutable());
                 }
@@ -565,19 +565,19 @@ public sealed class CompilerDriver : ICompilerDriver
         IReadOnlyDictionary<string, string>? emittedFiles = null;
         BackendResult backendResult;
 
-        if (options.EmitToDisk)
+        if(options.EmitToDisk)
         {
             backendResult = backend.Emit(semanticModel, options.OutputDirectory, options.BinDirectory, projectName, backendBag);
 
             // Patch the emitted .csproj with declared NuGet packages and framework references
             // so the downstream C# compilation can resolve the referenced types.
-            if (backendResult.Succeeded && (hasPackages || hasFrameworkRefs))
+            if(backendResult.Succeeded && (hasPackages || hasFrameworkRefs))
             {
                 PatchCsprojWithReferences(options.OutputDirectory, projectName, options.Packages, options.FrameworkReferences);
             }
 
             // Patch the emitted .csproj with user-declared MSBuild properties from [csproj_properties].
-            if (backendResult.Succeeded)
+            if(backendResult.Succeeded)
             {
                 PatchCsprojWithProperties(options.OutputDirectory, projectName, options.CsprojProperties);
             }
@@ -596,7 +596,7 @@ public sealed class CompilerDriver : ICompilerDriver
 
         emitStopwatch.Stop();
         var emitDetails = new List<string> { $"{backendResult.EmittedFileCount} .cs files written" };
-        if (backendResult.PrimaryArtifactPath is not null)
+        if(backendResult.PrimaryArtifactPath is not null)
         {
             emitDetails.Add(backendResult.PrimaryArtifactPath);
         }
@@ -631,11 +631,11 @@ public sealed class CompilerDriver : ICompilerDriver
         string projectName,
         ImmutableArray<CsprojProperty> csprojProperties)
     {
-        if (csprojProperties.IsDefaultOrEmpty)
+        if(csprojProperties.IsDefaultOrEmpty)
             return;
 
         var csprojPath = Path.Combine(outputDirectory, $"{projectName}.csproj");
-        if (!File.Exists(csprojPath))
+        if(!File.Exists(csprojPath))
             return;
 
         var content = File.ReadAllText(csprojPath);
@@ -644,7 +644,7 @@ public sealed class CompilerDriver : ICompilerDriver
         var sb = new System.Text.StringBuilder();
         sb.AppendLine();
         sb.AppendLine("  <PropertyGroup>");
-        foreach (var prop in csprojProperties)
+        foreach(var prop in csprojProperties)
         {
             var escapedValue = System.Security.SecurityElement.Escape(prop.Value) ?? prop.Value;
             sb.AppendLine($"    <{prop.Key}>{escapedValue}</{prop.Key}>");
@@ -654,7 +654,7 @@ public sealed class CompilerDriver : ICompilerDriver
         // Insert after the first </PropertyGroup> tag.
         const string marker = "</PropertyGroup>";
         var insertionPoint = content.IndexOf(marker, StringComparison.Ordinal);
-        if (insertionPoint >= 0)
+        if(insertionPoint >= 0)
         {
             insertionPoint += marker.Length;
             content = content.Insert(insertionPoint, sb.ToString());
@@ -673,7 +673,7 @@ public sealed class CompilerDriver : ICompilerDriver
         ImmutableArray<FrameworkReference> frameworkReferences)
     {
         var csprojPath = Path.Combine(outputDirectory, $"{projectName}.csproj");
-        if (!File.Exists(csprojPath))
+        if(!File.Exists(csprojPath))
             return;
 
         var content = File.ReadAllText(csprojPath);
@@ -681,31 +681,31 @@ public sealed class CompilerDriver : ICompilerDriver
         // Build the additional ItemGroup entries.
         var sb = new System.Text.StringBuilder();
 
-        if (!packages.IsDefaultOrEmpty)
+        if(!packages.IsDefaultOrEmpty)
         {
             sb.AppendLine("  <ItemGroup>");
-            foreach (var pkg in packages)
+            foreach(var pkg in packages)
             {
                 sb.AppendLine($"    <PackageReference Include=\"{pkg.Name}\" Version=\"{pkg.Version}\" />");
             }
             sb.AppendLine("  </ItemGroup>");
         }
 
-        if (!frameworkReferences.IsDefaultOrEmpty)
+        if(!frameworkReferences.IsDefaultOrEmpty)
         {
             sb.AppendLine("  <ItemGroup>");
-            foreach (var fw in frameworkReferences)
+            foreach(var fw in frameworkReferences)
             {
                 sb.AppendLine($"    <FrameworkReference Include=\"{fw.Name}\" />");
             }
             sb.AppendLine("  </ItemGroup>");
         }
 
-        if (sb.Length > 0)
+        if(sb.Length > 0)
         {
             // Insert before the closing </Project> tag.
             var insertionPoint = content.LastIndexOf("</Project>", StringComparison.Ordinal);
-            if (insertionPoint >= 0)
+            if(insertionPoint >= 0)
             {
                 content = content.Insert(insertionPoint, sb.ToString());
                 File.WriteAllText(csprojPath, content);

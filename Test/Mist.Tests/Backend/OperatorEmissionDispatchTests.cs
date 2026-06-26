@@ -28,7 +28,7 @@ public sealed class OperatorEmissionDispatchTests : IDisposable
 
     public void Dispose()
     {
-        if (Directory.Exists(_outputDir))
+        if(Directory.Exists(_outputDir))
         {
             try { Directory.Delete(_outputDir, recursive: true); } catch { /* best effort */ }
         }
@@ -92,9 +92,9 @@ public sealed class OperatorEmissionDispatchTests : IDisposable
 
     private void CleanOutputDir()
     {
-        if (Directory.Exists(_outputDir))
+        if(Directory.Exists(_outputDir))
         {
-            foreach (var file in Directory.GetFiles(_outputDir))
+            foreach(var file in Directory.GetFiles(_outputDir))
                 File.Delete(file);
         }
     }
@@ -225,50 +225,62 @@ class Program {
         };
 
         // operator+ declaration: public static Vector3 operator +(Vector3 a, Vector3 b) { return a; }
-        var vector3TypeRef = new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
+        var vector3TypeRef = new TypeReferenceNode
         {
-            Name = new QualifiedIdentifierNode
-            {
-                IDENTIFIER = MakeToken("Vector3"),
-                Span = new Storm.Runtime.SourceSpan(0, 0),
-            },
-        } };
-
-        var paramA = new ParameterNode
-        {
-            Type = new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
+            First = new NamedSingleTypeRefSingleTypeRefNode
             {
                 Name = new QualifiedIdentifierNode
                 {
                     IDENTIFIER = MakeToken("Vector3"),
                     Span = new Storm.Runtime.SourceSpan(0, 0),
                 },
-            } },
+            }
+        };
+
+        var paramA = new ParameterNode
+        {
+            Type = new TypeReferenceNode
+            {
+                First = new NamedSingleTypeRefSingleTypeRefNode
+                {
+                    Name = new QualifiedIdentifierNode
+                    {
+                        IDENTIFIER = MakeToken("Vector3"),
+                        Span = new Storm.Runtime.SourceSpan(0, 0),
+                    },
+                }
+            },
             Name = MakeToken("a"),
         };
         var paramB = new ParameterNode
         {
-            Type = new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
+            Type = new TypeReferenceNode
             {
-                Name = new QualifiedIdentifierNode
+                First = new NamedSingleTypeRefSingleTypeRefNode
                 {
-                    IDENTIFIER = MakeToken("Vector3"),
-                    Span = new Storm.Runtime.SourceSpan(0, 0),
-                },
-            } },
+                    Name = new QualifiedIdentifierNode
+                    {
+                        IDENTIFIER = MakeToken("Vector3"),
+                        Span = new Storm.Runtime.SourceSpan(0, 0),
+                    },
+                }
+            },
             Name = MakeToken("b"),
         };
 
         var operatorDecl = new OperatorDeclarationNode
         {
-            ReturnType = new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
+            ReturnType = new TypeReferenceNode
             {
-                Name = new QualifiedIdentifierNode
+                First = new NamedSingleTypeRefSingleTypeRefNode
                 {
-                    IDENTIFIER = MakeToken("Vector3"),
-                    Span = new Storm.Runtime.SourceSpan(0, 0),
-                },
-            } },
+                    Name = new QualifiedIdentifierNode
+                    {
+                        IDENTIFIER = MakeToken("Vector3"),
+                        Span = new Storm.Runtime.SourceSpan(0, 0),
+                    },
+                }
+            },
             Symbol = new PlusOpOperatorSymbolNode(),
             Parameters = new ParameterListNode { Parameter = paramA, Parameters = ImmutableArray.Create(paramB) },
             Body = new OperatorBlockBodyOperatorBodyNode
@@ -307,14 +319,17 @@ class Program {
         {
             VariableDeclaration = new TypedVariableDeclarationVariableDeclarationStatementNode
             {
-                Type = new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
+                Type = new TypeReferenceNode
                 {
-                    Name = new QualifiedIdentifierNode
+                    First = new NamedSingleTypeRefSingleTypeRefNode
                     {
-                        IDENTIFIER = MakeToken("Vector3"),
-                        Span = new Storm.Runtime.SourceSpan(0, 0),
-                    },
-                } },
+                        Name = new QualifiedIdentifierNode
+                        {
+                            IDENTIFIER = MakeToken("Vector3"),
+                            Span = new Storm.Runtime.SourceSpan(0, 0),
+                        },
+                    }
+                },
                 Name = MakeToken("a"),
                 Initializer = MistAstGenerator.WrapPrimary(new ObjectCreationExpressionPrimaryNode
                 {
@@ -331,14 +346,17 @@ class Program {
         {
             VariableDeclaration = new TypedVariableDeclarationVariableDeclarationStatementNode
             {
-                Type = new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
+                Type = new TypeReferenceNode
                 {
-                    Name = new QualifiedIdentifierNode
+                    First = new NamedSingleTypeRefSingleTypeRefNode
                     {
-                        IDENTIFIER = MakeToken("Vector3"),
-                        Span = new Storm.Runtime.SourceSpan(0, 0),
-                    },
-                } },
+                        Name = new QualifiedIdentifierNode
+                        {
+                            IDENTIFIER = MakeToken("Vector3"),
+                            Span = new Storm.Runtime.SourceSpan(0, 0),
+                        },
+                    }
+                },
                 Name = MakeToken("b"),
                 Initializer = MistAstGenerator.WrapPrimary(new ObjectCreationExpressionPrimaryNode
                 {
@@ -361,14 +379,17 @@ class Program {
         {
             VariableDeclaration = new TypedVariableDeclarationVariableDeclarationStatementNode
             {
-                Type = new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
+                Type = new TypeReferenceNode
                 {
-                    Name = new QualifiedIdentifierNode
+                    First = new NamedSingleTypeRefSingleTypeRefNode
                     {
-                        IDENTIFIER = MakeToken("Vector3"),
-                        Span = new Storm.Runtime.SourceSpan(0, 0),
-                    },
-                } },
+                        Name = new QualifiedIdentifierNode
+                        {
+                            IDENTIFIER = MakeToken("Vector3"),
+                            Span = new Storm.Runtime.SourceSpan(0, 0),
+                        },
+                    }
+                },
                 Name = MakeToken("c"),
                 Initializer = addExpr,
             },
@@ -445,18 +466,18 @@ class Program {
     {
         var stack = new Stack<Storm.Runtime.SyntaxNode>();
         stack.Push(root);
-        while (stack.Count > 0)
+        while(stack.Count > 0)
         {
             var node = stack.Pop();
-            if (node is AdditiveNode add
+            if(node is AdditiveNode add
                 && add.Right is not null
                 && !ReferenceEquals(add.Right, add.Left))
             {
                 return add;
             }
-            foreach (var child in node.Children())
+            foreach(var child in node.Children())
             {
-                if (child is not null)
+                if(child is not null)
                     stack.Push(child);
             }
         }

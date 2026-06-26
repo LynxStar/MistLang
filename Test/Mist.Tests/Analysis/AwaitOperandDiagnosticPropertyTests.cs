@@ -45,7 +45,7 @@ public class AwaitOperandDiagnosticPropertyTests
 
         var parseDiag = new DiagnosticBag();
         var parseResult = Parser.Parse(tokens, parseDiag);
-        if (parseResult.Root is null)
+        if(parseResult.Root is null)
             return parseDiag.ToImmutableArray();
 
         var buildDiag = new DiagnosticBag();
@@ -195,7 +195,7 @@ public class AwaitOperandDiagnosticPropertyTests
         var matchingDiagnostic = diagnostics
             .FirstOrDefault(d => d.Id.Value == "MIST_TC_0105");
 
-        if (matchingDiagnostic is null)
+        if(matchingDiagnostic is null)
             return false.ToProperty()
                 .Label($"No MIST_TC_0105 diagnostic found for await on {scenario.OperandKind}.");
 

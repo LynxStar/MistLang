@@ -75,7 +75,7 @@ public sealed class ModifierErasurePropertyTests
 
             var result = SharedDriver.Compile(options);
 
-            if (!result.Succeeded || result.EmittedFiles is null)
+            if(!result.Succeeded || result.EmittedFiles is null)
                 return null;
 
             return result.EmittedFiles;
@@ -92,9 +92,9 @@ public sealed class ModifierErasurePropertyTests
     private static string ConcatEmittedCSharp(IReadOnlyDictionary<string, string> emittedFiles)
     {
         var sb = new StringBuilder();
-        foreach (var (fileName, content) in emittedFiles)
+        foreach(var (fileName, content) in emittedFiles)
         {
-            if (fileName.EndsWith(".csproj", StringComparison.OrdinalIgnoreCase))
+            if(fileName.EndsWith(".csproj", StringComparison.OrdinalIgnoreCase))
                 continue;
             sb.AppendLine(content);
         }
@@ -112,9 +112,9 @@ public sealed class ModifierErasurePropertyTests
     /// </summary>
     private static string? FindStandaloneKeyword(string emitted)
     {
-        foreach (var keyword in SubstructuralKeywords)
+        foreach(var keyword in SubstructuralKeywords)
         {
-            if (Regex.IsMatch(emitted, $@"\b{Regex.Escape(keyword)}\b"))
+            if(Regex.IsMatch(emitted, $@"\b{Regex.Escape(keyword)}\b"))
                 return keyword;
         }
         return null;
@@ -218,7 +218,7 @@ public sealed class ModifierErasurePropertyTests
     {
         var emittedFiles = CompileAndGetEmittedFiles(scenario.Source);
 
-        if (emittedFiles is null)
+        if(emittedFiles is null)
         {
             return false.ToProperty()
                 .Label($"Compilation failed for {scenario.Label}.\nSource:\n{scenario.Source}");

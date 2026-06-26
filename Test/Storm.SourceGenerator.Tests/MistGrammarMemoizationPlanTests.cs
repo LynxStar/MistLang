@@ -28,13 +28,13 @@ public class MistGrammarMemoizationPlanTests
     private static string FindGrammarDirectory()
     {
         var dir = AppContext.BaseDirectory;
-        while (dir != null)
+        while(dir != null)
         {
             var slnxPath = Path.Combine(dir, "Mist.slnx");
-            if (File.Exists(slnxPath))
+            if(File.Exists(slnxPath))
             {
                 var grammarDir = Path.Combine(dir, "Source", "Mist", "Grammar");
-                if (Directory.Exists(grammarDir))
+                if(Directory.Exists(grammarDir))
                 {
                     return grammarDir;
                 }
@@ -57,13 +57,13 @@ public class MistGrammarMemoizationPlanTests
         {
             var fsPath = path.Replace('/', Path.DirectorySeparatorChar);
 
-            if (Path.IsPathRooted(fsPath) && File.Exists(fsPath))
+            if(Path.IsPathRooted(fsPath) && File.Exists(fsPath))
             {
                 return File.ReadAllText(fsPath);
             }
 
             var fullPath = Path.GetFullPath(Path.Combine(grammarDir, fsPath));
-            if (File.Exists(fullPath))
+            if(File.Exists(fullPath))
             {
                 return File.ReadAllText(fullPath);
             }
@@ -107,7 +107,7 @@ public class MistGrammarMemoizationPlanTests
     {
         var plan = _plan.Value;
 
-        foreach (var ruleName in ExpectedMemoizedRules)
+        foreach(var ruleName in ExpectedMemoizedRules)
         {
             Assert.True(plan.IsMemoized(ruleName),
                 $"Expected rule '{ruleName}' to be in the MemoizationPlan, but it was not. " +
@@ -121,7 +121,7 @@ public class MistGrammarMemoizationPlanTests
         var plan = _plan.Value;
 
         // All 7 rules should have ids in the range [0..Count-1]
-        foreach (var ruleName in ExpectedMemoizedRules)
+        foreach(var ruleName in ExpectedMemoizedRules)
         {
             Assert.True(plan.RuleIds.ContainsKey(ruleName),
                 $"Expected rule '{ruleName}' to have an assigned id.");
@@ -133,7 +133,7 @@ public class MistGrammarMemoizationPlanTests
 
         // Verify dense assignment: ids should be 0..Count-1 with no gaps
         var allIds = plan.MemoizedRuleNames.Select((_, i) => i).ToHashSet();
-        for (var i = 0; i < plan.Count; i++)
+        for(var i = 0; i < plan.Count; i++)
         {
             Assert.Contains(i, allIds);
         }

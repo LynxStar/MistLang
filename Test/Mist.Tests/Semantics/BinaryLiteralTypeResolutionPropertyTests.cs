@@ -100,11 +100,11 @@ public class BinaryLiteralTypeResolutionPropertyTests
     private static string ExpectedTypeForSuffix(string suffix)
     {
         var upper = suffix.ToUpperInvariant();
-        if (upper is "UL" or "LU")
+        if(upper is "UL" or "LU")
             return "ulong";
-        if (upper == "L")
+        if(upper == "L")
             return "long";
-        if (upper == "U")
+        if(upper == "U")
             return "uint";
         return "int";
     }
@@ -116,7 +116,7 @@ public class BinaryLiteralTypeResolutionPropertyTests
         var sourceText = new SourceText("test.mist", source);
         var bag = new DiagnosticBag();
         var tokens = Lexer.Lex(sourceText, bag);
-        if (bag.HasErrors) return null;
+        if(bag.HasErrors) return null;
         var result = Parser.Parse(tokens, bag);
         return result.Root as CompilationUnitNode;
     }
@@ -151,17 +151,17 @@ public class BinaryLiteralTypeResolutionPropertyTests
         Storm.Runtime.SyntaxNode? node,
         List<InferredVariableDeclarationVariableDeclarationStatementNode> results)
     {
-        if (node is null) return;
+        if(node is null) return;
 
-        if (node is InferredVariableDeclarationVariableDeclarationStatementNode varDecl)
+        if(node is InferredVariableDeclarationVariableDeclarationStatementNode varDecl)
             results.Add(varDecl);
 
         try
         {
-            foreach (var child in node.Children())
+            foreach(var child in node.Children())
                 CollectVarDeclarations(child, results);
         }
-        catch (NullReferenceException)
+        catch(NullReferenceException)
         {
             // Guard against null children in AST traversal.
         }
@@ -184,19 +184,19 @@ public class BinaryLiteralTypeResolutionPropertyTests
         var source = $"class C {{ public static void Main() {{ var x = {scenario.Literal}; }} }}";
 
         var root = ParseSource(source);
-        if (root is null) return false;
+        if(root is null) return false;
 
         var model = BuildSemanticModel(root, source);
 
         // Find the "var x = <literal>;" declaration
         var varDecls = FindVarDeclarations(root);
-        if (varDecls.Count == 0) return false;
+        if(varDecls.Count == 0) return false;
 
         var xDecl = varDecls.FirstOrDefault(v => v.Name.Lexeme == "x");
-        if (xDecl is null) return false;
+        if(xDecl is null) return false;
 
         var symbol = model.GetDeclaredSymbol(xDecl);
-        if (symbol is null) return false;
+        if(symbol is null) return false;
 
         // The inferred type's DisplayName must match the expected type
         return symbol.DeclaredType?.DisplayName == scenario.ExpectedTypeName;

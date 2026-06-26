@@ -97,7 +97,7 @@ public class DiagnosticFormatterRoundTripPropertyTests
         var formatted = DiagnosticFormatter.Format(original);
         var parsed = RoslynDiagnosticMapper.TryParse(formatted);
 
-        if (parsed is null)
+        if(parsed is null)
             return false;
 
         return parsed.Severity == original.Severity

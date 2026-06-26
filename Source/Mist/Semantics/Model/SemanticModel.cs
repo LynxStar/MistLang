@@ -86,26 +86,26 @@ public sealed class SemanticModel : ISemanticModel
     public IType? GetTypeOf(Storm.Runtime.SyntaxNode node)
     {
         // First check the expression type map (populated by Pass 2).
-        if (_expressionTypes.TryGetValue(node, out var type))
+        if(_expressionTypes.TryGetValue(node, out var type))
         {
             // When the cached expression type is a TypeParameterType, the type checker
             // may have refined the variable's DeclaredType through type argument inference.
             // Check if this node references a local variable whose DeclaredType has been
             // updated to a concrete type, and prefer that over the stale cached type.
-            if (type is TypeParameterType)
+            if(type is TypeParameterType)
             {
                 var refinedType = TryGetRefinedTypeForLocalVariable(node);
-                if (refinedType is not null)
+                if(refinedType is not null)
                     return refinedType;
             }
 
             // When the cached expression type is a UnionType, the type checker may have
             // narrowed the variable's DeclaredType through ??= flow narrowing. Check if
             // the symbol's DeclaredType has been updated to a narrower type.
-            if (type is UnionType)
+            if(type is UnionType)
             {
                 var refinedType = TryGetRefinedTypeForLocalVariable(node);
-                if (refinedType is not null)
+                if(refinedType is not null)
                     return refinedType;
             }
 
@@ -113,10 +113,10 @@ public sealed class SemanticModel : ISemanticModel
             // DeclaredType has been widened to a union (e.g., by a non-provable `as`
             // expression producing T | void), prefer the widened type. This ensures
             // downstream member access sees the union and requires `?.` to unwrap.
-            if (type is not UnionType && type is not TypeParameterType)
+            if(type is not UnionType && type is not TypeParameterType)
             {
                 var refinedType = TryGetRefinedTypeForLocalVariable(node);
-                if (refinedType is UnionType)
+                if(refinedType is UnionType)
                     return refinedType;
             }
 
@@ -137,7 +137,7 @@ public sealed class SemanticModel : ISemanticModel
     {
         // Direct case: the node itself has a registered symbol (identifier node).
         var symbol = GetDeclaredSymbol(node);
-        if (symbol is not null
+        if(symbol is not null
             && symbol.Kind == SymbolKind.LocalVariable
             && symbol.DeclaredType is not null
             && symbol.DeclaredType is not TypeParameterType)
@@ -146,10 +146,10 @@ public sealed class SemanticModel : ISemanticModel
         }
 
         // PostfixNode case: check if the target identifier references a refined local.
-        if (node is PostfixNode postfixNode && postfixNode.Suffix.Length == 0)
+        if(node is PostfixNode postfixNode && postfixNode.Suffix.Length == 0)
         {
             var targetSymbol = GetDeclaredSymbol(postfixNode.Target);
-            if (targetSymbol is not null
+            if(targetSymbol is not null
                 && targetSymbol.Kind == SymbolKind.LocalVariable
                 && targetSymbol.DeclaredType is not null
                 && targetSymbol.DeclaredType is not TypeParameterType)
@@ -159,13 +159,13 @@ public sealed class SemanticModel : ISemanticModel
         }
 
         // PostfixExpressionUnaryNode case: delegate to the PostfixNode.
-        if (node is PostfixExpressionUnaryNode postfixExprNode)
+        if(node is PostfixExpressionUnaryNode postfixExprNode)
         {
             var postfix = postfixExprNode.Primary;
-            if (postfix.Suffix.Length == 0)
+            if(postfix.Suffix.Length == 0)
             {
                 var targetSymbol = GetDeclaredSymbol(postfix.Target);
-                if (targetSymbol is not null
+                if(targetSymbol is not null
                     && targetSymbol.Kind == SymbolKind.LocalVariable
                     && targetSymbol.DeclaredType is not null
                     && targetSymbol.DeclaredType is not TypeParameterType)
@@ -177,7 +177,7 @@ public sealed class SemanticModel : ISemanticModel
             {
                 // For postfix expressions with suffixes, check if the PostfixNode's
                 // type was updated by the type checker.
-                if (_expressionTypes.TryGetValue(postfix, out var postfixType)
+                if(_expressionTypes.TryGetValue(postfix, out var postfixType)
                     && postfixType is not TypeParameterType)
                 {
                     return postfixType;
@@ -188,15 +188,15 @@ public sealed class SemanticModel : ISemanticModel
         // Wrapper case: walk down expression wrappers to find the underlying identifier.
         // This handles ExpressionNode → AssignmentNode → ... → PostfixExpressionUnaryNode
         // → PostfixNode (target = identifier, no suffixes).
-        if (node is ExpressionNode expr)
+        if(node is ExpressionNode expr)
         {
             var assignment = expr.AsAssignmentOrNull();
-            if (assignment is null) return null; // Lambda form has no refined identifier.
-            if (assignment.Value is not null) return null;
+            if(assignment is null) return null; // Lambda form has no refined identifier.
+            if(assignment.Value is not null) return null;
 
             // Navigate through VoidCoalescing to the underlying LogicalOr.
             var voidCoalescing = assignment.Target;
-            if (voidCoalescing.LogicalOrs.Length > 0) return null;
+            if(voidCoalescing.LogicalOrs.Length > 0) return null;
             return TryGetRefinedTypeFromLogicalOr(voidCoalescing.Left);
         }
 
@@ -205,34 +205,34 @@ public sealed class SemanticModel : ISemanticModel
 
     private IType? TryGetRefinedTypeFromLogicalOr(LogicalOrNode logicalOr)
     {
-        if (logicalOr.Right is not null) return null;
+        if(logicalOr.Right is not null) return null;
 
         var logicalAnd = logicalOr.Left;
-        if (logicalAnd.Right is not null) return null;
+        if(logicalAnd.Right is not null) return null;
 
         var equality = logicalAnd.Left;
-        if (equality.Right is not null) return null;
+        if(equality.Right is not null) return null;
 
         var relational = equality.Left;
-        if (relational is not RelationalComparisonRelationalNode cmp) return null;
-        if (cmp.Right is not null) return null;
+        if(relational is not RelationalComparisonRelationalNode cmp) return null;
+        if(cmp.Right is not null) return null;
 
         var additive = cmp.Left;
-        if (additive.Right is not null) return null;
+        if(additive.Right is not null) return null;
 
         var multiplicative = additive.Left;
-        if (multiplicative.Right is not null) return null;
+        if(multiplicative.Right is not null) return null;
 
         var unary = multiplicative.Left;
-        if (unary is not PostfixExpressionUnaryNode postfixExpr) return null;
+        if(unary is not PostfixExpressionUnaryNode postfixExpr) return null;
 
         var postfix = postfixExpr.Primary;
 
         // For a simple identifier with no suffixes, check the target's symbol.
-        if (postfix.Suffix.Length == 0)
+        if(postfix.Suffix.Length == 0)
         {
             var targetSymbol = GetDeclaredSymbol(postfix.Target);
-            if (targetSymbol is not null
+            if(targetSymbol is not null
                 && targetSymbol.Kind == SymbolKind.LocalVariable
                 && targetSymbol.DeclaredType is not null
                 && targetSymbol.DeclaredType is not TypeParameterType)
@@ -244,7 +244,7 @@ public sealed class SemanticModel : ISemanticModel
         {
             // For postfix expressions with suffixes (e.g., method calls),
             // check if the PostfixNode's type was updated by the type checker.
-            if (_expressionTypes.TryGetValue(postfix, out var postfixType)
+            if(_expressionTypes.TryGetValue(postfix, out var postfixType)
                 && postfixType is not TypeParameterType)
             {
                 return postfixType;

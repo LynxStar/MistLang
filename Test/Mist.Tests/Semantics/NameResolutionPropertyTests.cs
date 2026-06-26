@@ -129,10 +129,13 @@ public class NameResolutionPropertyTests
         {
             VariableDeclaration = new TypedVariableDeclarationVariableDeclarationStatementNode
             {
-                Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                Type = new TypeReferenceNode
                 {
-                    PrimitiveType = new IntTypePrimitiveTypeNode(),
-                } },
+                    First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                    {
+                        PrimitiveType = new IntTypePrimitiveTypeNode(),
+                    }
+                },
                 Name = MakeToken(name),
                 Initializer = MakeIntLiteralExpression(value),
             },
@@ -163,7 +166,7 @@ public class NameResolutionPropertyTests
         ImmutableArray<ParameterNode>? parameters = null)
     {
         ParameterListNode? paramList = null;
-        if (parameters is { Length: > 0 } paramArray)
+        if(parameters is { Length: > 0 } paramArray)
         {
             paramList = new ParameterListNode
             {
@@ -176,10 +179,13 @@ public class NameResolutionPropertyTests
             Name = MakeToken(methodName),
             ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = paramList,
-            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode
+            Body = new MethodBlockBodyMethodBodyNode
             {
-                Statements = statements,
-            } },
+                Block = new BlockNode
+                {
+                    Statements = statements,
+                }
+            },
         };
 
         var classDecl = new ClassDeclarationNode
@@ -268,7 +274,7 @@ public class NameResolutionPropertyTests
         // Both the outer and inner variable declarations should produce LocalVariable symbols.
         var localVars = allSymbols.Where(s => s.Kind == SymbolKind.LocalVariable).ToList();
 
-        if (scenario.HasShadowing)
+        if(scenario.HasShadowing)
         {
             // With shadowing, there should be two LocalVariable symbols both named "x".
             var xVars = localVars.Where(s => s.Name == "x").ToList();
@@ -348,11 +354,14 @@ public class NameResolutionPropertyTests
             Name = MakeToken("TestMethod"),
             ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
-            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode
+            Body = new MethodBlockBodyMethodBodyNode
             {
-                Statements = ImmutableArray.Create(
+                Block = new BlockNode
+                {
+                    Statements = ImmutableArray.Create(
                     MakeIntVarDecl("localVar", scenario.OuterValue.ToString())),
-            } },
+                }
+            },
         };
 
         var classDecl = new ClassDeclarationNode
@@ -382,12 +391,12 @@ public class NameResolutionPropertyTests
         // containing scope chain has the expected depth:
         // localVar → block scope → method scope → type scope → namespace scope → global scope
         var localVar = allSymbols.FirstOrDefault(s => s.Name == "localVar" && s.Kind == SymbolKind.LocalVariable);
-        if (localVar is null) return false;
+        if(localVar is null) return false;
 
         // Walk up the scope chain and count depth.
         var depth = 0;
         var scope = localVar.ContainingScope;
-        while (scope is not null)
+        while(scope is not null)
         {
             depth++;
             scope = scope.Parent;
@@ -413,18 +422,24 @@ public class NameResolutionPropertyTests
         var fieldDecl = new FieldDeclarationNode
         {
             Name = MakeToken("x"),
-            Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
+            Type = new TypeReferenceNode
             {
-                PrimitiveType = new IntTypePrimitiveTypeNode(),
-            } },
+                First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                {
+                    PrimitiveType = new IntTypePrimitiveTypeNode(),
+                }
+            },
         };
 
         var paramNode = new ParameterNode
         {
-            Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
+            Type = new TypeReferenceNode
             {
-                PrimitiveType = new IntTypePrimitiveTypeNode(),
-            } },
+                First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                {
+                    PrimitiveType = new IntTypePrimitiveTypeNode(),
+                }
+            },
             Name = MakeToken("x"),
         };
 
@@ -433,11 +448,14 @@ public class NameResolutionPropertyTests
             Name = MakeToken("TestMethod"),
             ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = new ParameterListNode { Parameter = paramNode },
-            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode
+            Body = new MethodBlockBodyMethodBodyNode
             {
-                Statements = ImmutableArray.Create(
+                Block = new BlockNode
+                {
+                    Statements = ImmutableArray.Create(
                     MakeIdentifierStatement("x")),
-            } },
+                }
+            },
         };
 
         var classDecl = new ClassDeclarationNode
@@ -553,10 +571,13 @@ public class NameResolutionPropertyTests
         var fieldDecl = new FieldDeclarationNode
         {
             Name = MakeToken("NsItem"),
-            Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
+            Type = new TypeReferenceNode
             {
-                PrimitiveType = new IntTypePrimitiveTypeNode(),
-            } },
+                First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                {
+                    PrimitiveType = new IntTypePrimitiveTypeNode(),
+                }
+            },
         };
 
         var methodDecl = new MethodDeclarationNode
@@ -564,11 +585,14 @@ public class NameResolutionPropertyTests
             Name = MakeToken("TestMethod"),
             ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
-            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode
+            Body = new MethodBlockBodyMethodBodyNode
             {
-                Statements = ImmutableArray.Create(
+                Block = new BlockNode
+                {
+                    Statements = ImmutableArray.Create(
                     MakeIdentifierStatement("NsItem")),
-            } },
+                }
+            },
         };
 
         var classDecl = new ClassDeclarationNode
@@ -608,18 +632,24 @@ public class NameResolutionPropertyTests
         var fieldDecl = new FieldDeclarationNode
         {
             Name = MakeToken("x"),
-            Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
+            Type = new TypeReferenceNode
             {
-                PrimitiveType = new IntTypePrimitiveTypeNode(),
-            } },
+                First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                {
+                    PrimitiveType = new IntTypePrimitiveTypeNode(),
+                }
+            },
         };
 
         var paramNode = new ParameterNode
         {
-            Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
+            Type = new TypeReferenceNode
             {
-                PrimitiveType = new IntTypePrimitiveTypeNode(),
-            } },
+                First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                {
+                    PrimitiveType = new IntTypePrimitiveTypeNode(),
+                }
+            },
             Name = MakeToken("x"),
         };
 

@@ -70,7 +70,7 @@ public class ArrayLiteralDisambiguationPropertyTests
             .Where(d => d.Severity == DiagnosticSeverity.Error)
             .ToList();
 
-        if (errors.Count > 0)
+        if(errors.Count > 0)
             return null;
 
         return result.Root as CompilationUnitNode;
@@ -100,21 +100,21 @@ public class ArrayLiteralDisambiguationPropertyTests
     {
         Storm.Runtime.SyntaxNode current = expr;
 
-        for (var depth = 0; depth < 20; depth++)
+        for(var depth = 0; depth < 20; depth++)
         {
-            if (current is PostfixNode postfix)
+            if(current is PostfixNode postfix)
                 return postfix;
 
             Storm.Runtime.SyntaxNode? next = null;
-            foreach (var child in current.Children())
+            foreach(var child in current.Children())
             {
-                if (child is null) continue;
-                if (child is PostfixNode found)
+                if(child is null) continue;
+                if(child is PostfixNode found)
                     return found;
                 next ??= child;
             }
 
-            if (next is null)
+            if(next is null)
                 return null;
 
             current = next;
@@ -130,21 +130,21 @@ public class ArrayLiteralDisambiguationPropertyTests
     {
         Storm.Runtime.SyntaxNode current = expr;
 
-        for (var depth = 0; depth < 20; depth++)
+        for(var depth = 0; depth < 20; depth++)
         {
-            if (current is PrimaryNode primary)
+            if(current is PrimaryNode primary)
                 return primary;
 
             Storm.Runtime.SyntaxNode? next = null;
-            foreach (var child in current.Children())
+            foreach(var child in current.Children())
             {
-                if (child is null) continue;
-                if (child is PrimaryNode childPrimary)
+                if(child is null) continue;
+                if(child is PrimaryNode childPrimary)
                     return childPrimary;
                 next ??= child;
             }
 
-            if (next is null)
+            if(next is null)
                 return null;
 
             current = next;
@@ -159,22 +159,22 @@ public class ArrayLiteralDisambiguationPropertyTests
     private static ExpressionNode? ExtractSecondVarInitializer(CompilationUnitNode cu)
     {
         var typeDecl = cu.GetTypes()[0] as ClassTypeTypeDeclarationNode;
-        if (typeDecl is null) return null;
+        if(typeDecl is null) return null;
 
         var methodMember = typeDecl.ClassDeclaration.Members[0] as MethodMemberMemberDeclarationNode;
-        if (methodMember is null) return null;
+        if(methodMember is null) return null;
 
         var block = methodMember.Method.Body.GetBlock();
-        if (block is null) return null;
+        if(block is null) return null;
 
         // Second statement (index 1): var y = name[expr];
-        if (block.Statements.Length < 2) return null;
+        if(block.Statements.Length < 2) return null;
 
         var stmt = block.Statements[1] as VariableDeclarationStatementStatementNode;
-        if (stmt is null) return null;
+        if(stmt is null) return null;
 
         var varDecl = stmt.VariableDeclaration as InferredVariableDeclarationVariableDeclarationStatementNode;
-        if (varDecl is null) return null;
+        if(varDecl is null) return null;
 
         return varDecl.Initializer;
     }
@@ -185,19 +185,19 @@ public class ArrayLiteralDisambiguationPropertyTests
     private static ArrayLiteralExpressionPrimaryNode? ExtractArrayLiteralFromFirstVar(CompilationUnitNode cu)
     {
         var typeDecl = cu.GetTypes()[0] as ClassTypeTypeDeclarationNode;
-        if (typeDecl is null) return null;
+        if(typeDecl is null) return null;
 
         var methodMember = typeDecl.ClassDeclaration.Members[0] as MethodMemberMemberDeclarationNode;
-        if (methodMember is null) return null;
+        if(methodMember is null) return null;
 
         var block = methodMember.Method.Body.GetBlock();
-        if (block is null) return null;
+        if(block is null) return null;
 
         var stmt = block.Statements[0] as VariableDeclarationStatementStatementNode;
-        if (stmt is null) return null;
+        if(stmt is null) return null;
 
         var varDecl = stmt.VariableDeclaration as InferredVariableDeclarationVariableDeclarationStatementNode;
-        if (varDecl is null) return null;
+        if(varDecl is null) return null;
 
         var primary = UnwrapToPrimary(varDecl.Initializer);
         return primary as ArrayLiteralExpressionPrimaryNode;
@@ -219,19 +219,19 @@ public class ArrayLiteralDisambiguationPropertyTests
         var source = BuildIndexAccessSource(scenario.Name, scenario.IndexExpr);
         var root = ParseSource(source);
 
-        if (root is null)
+        if(root is null)
             return false.ToProperty().Label($"Failed to parse: {source}");
 
         var initializer = ExtractSecondVarInitializer(root);
-        if (initializer is null)
+        if(initializer is null)
             return false.ToProperty().Label($"Could not extract second var initializer from: {source}");
 
         // Find the PostfixNode — it should have an IndexSuffix
         var postfix = FindPostfixNode(initializer);
-        if (postfix is null)
+        if(postfix is null)
             return false.ToProperty().Label($"No PostfixNode found in: {source}");
 
-        if (postfix.Suffix.Length == 0)
+        if(postfix.Suffix.Length == 0)
             return false.ToProperty().Label($"PostfixNode has no suffixes in: {source}");
 
         var hasIndexSuffix = postfix.Suffix[0] is IndexSuffixPostfixSuffixNode;
@@ -257,7 +257,7 @@ public class ArrayLiteralDisambiguationPropertyTests
         var source = BuildArrayLiteralSource(scenario.IndexExpr);
         var root = ParseSource(source);
 
-        if (root is null)
+        if(root is null)
             return false.ToProperty().Label($"Failed to parse: {source}");
 
         var arrayLiteral = ExtractArrayLiteralFromFirstVar(root);

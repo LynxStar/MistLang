@@ -61,10 +61,10 @@ internal sealed class AmbientExtensionScanner
     {
         var results = new List<AmbientExtensionMethodInfo>();
 
-        foreach (var assembly in _assemblies)
+        foreach(var assembly in _assemblies)
         {
             // Only scan assemblies that contain types in the target namespace.
-            if (!assembly.NamespaceIndex.ContainsKey(namespaceName))
+            if(!assembly.NamespaceIndex.ContainsKey(namespaceName))
                 continue;
 
             ScanAssemblyNamespace(assembly, namespaceName, results);
@@ -96,18 +96,18 @@ internal sealed class AmbientExtensionScanner
             return;
         }
 
-        foreach (var type in exportedTypes)
+        foreach(var type in exportedTypes)
         {
             // Only examine types in the target namespace (Requirement 11.3).
-            if (type.Namespace != namespaceName)
+            if(type.Namespace != namespaceName)
                 continue;
 
             // Must be a static class: abstract + sealed in CLR terms.
-            if (!type.IsAbstract || !type.IsSealed)
+            if(!type.IsAbstract || !type.IsSealed)
                 continue;
 
             // Must have [ExtensionAttribute] on the class.
-            if (!HasExtensionAttribute(type))
+            if(!HasExtensionAttribute(type))
                 continue;
 
             // Scan the class's public static methods for extension methods.
@@ -137,10 +137,10 @@ internal sealed class AmbientExtensionScanner
             return;
         }
 
-        foreach (var method in methods)
+        foreach(var method in methods)
         {
             // Must have [ExtensionAttribute] on the method itself.
-            if (!HasExtensionAttribute(method))
+            if(!HasExtensionAttribute(method))
                 continue;
 
             ParameterInfo[] parameters;
@@ -155,7 +155,7 @@ internal sealed class AmbientExtensionScanner
             }
 
             // Must have at least 1 parameter (the receiver).
-            if (parameters.Length == 0)
+            if(parameters.Length == 0)
                 continue;
 
             var receiverParam = parameters[0];
@@ -193,9 +193,9 @@ internal sealed class AmbientExtensionScanner
         try
         {
             var attributes = member.GetCustomAttributesData();
-            foreach (var attr in attributes)
+            foreach(var attr in attributes)
             {
-                if (attr.AttributeType.FullName == ExtensionAttributeFullName)
+                if(attr.AttributeType.FullName == ExtensionAttributeFullName)
                     return true;
             }
         }

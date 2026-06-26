@@ -156,7 +156,7 @@ public class ReadonlyModifierPropagationPropertyTests
         var parseBag = new DiagnosticBag();
         var parseResult = Parser.Parse(tokens, parseBag);
 
-        if (parseResult.Root is null)
+        if(parseResult.Root is null)
             throw new InvalidOperationException(
                 $"Parse failed for source:\n{source}\nErrors: {string.Join("; ", parseBag.ToImmutableArray().Select(d => d.Message))}");
 
@@ -182,7 +182,7 @@ public class ReadonlyModifierPropagationPropertyTests
                 s.Kind is SymbolKind.Class or SymbolKind.Struct
                     or SymbolKind.Abstract);
 
-        if (symbol?.DeclaredType is null)
+        if(symbol?.DeclaredType is null)
             return null;
 
         return symbol.DeclaredType switch
@@ -212,7 +212,7 @@ public class ReadonlyModifierPropagationPropertyTests
         var model = BuildModel(scenario.Source);
         var isReadonly = GetIsReadonly(model, scenario.TypeName);
 
-        if (isReadonly is null)
+        if(isReadonly is null)
             return false.ToProperty()
                 .Label($"Could not find type '{scenario.TypeName}' in semantic model.\nSource:\n{scenario.Source}");
 

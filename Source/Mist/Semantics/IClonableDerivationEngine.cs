@@ -80,9 +80,9 @@ public static class IClonableDerivationEngine
         // and eliminate those proven otherwise.
         var clonable = new Dictionary<IType, bool>();
 
-        foreach (var type in allTypes)
+        foreach(var type in allTypes)
         {
-            if (DeclaresIClonableInAbstracts(type, new HashSet<IType>()))
+            if(DeclaresIClonableInAbstracts(type, new HashSet<IType>()))
             {
                 explicitDeclarers.Add(type);
                 clonable[type] = true;
@@ -100,29 +100,29 @@ public static class IClonableDerivationEngine
         {
             changed = false;
 
-            foreach (var type in allTypes)
+            foreach(var type in allTypes)
             {
                 // Explicit declarers are fixed-true and never eliminated.
-                if (explicitDeclarers.Contains(type))
+                if(explicitDeclarers.Contains(type))
                     continue;
 
-                if (!clonable[type])
+                if(!clonable[type])
                     continue;
 
-                if (!AllFieldsClonable(type, clonable, explicitDeclarers))
+                if(!AllFieldsClonable(type, clonable, explicitDeclarers))
                 {
                     clonable[type] = false;
                     changed = true;
                 }
             }
         }
-        while (changed);
+        while(changed);
 
         // Write the derived result back onto the type model.
-        foreach (var type in allTypes)
+        foreach(var type in allTypes)
         {
             var result = clonable[type];
-            switch (type)
+            switch(type)
             {
                 case ClassType ct:
                     ct.ImplementsIClonable = result;
@@ -145,23 +145,23 @@ public static class IClonableDerivationEngine
         HashSet<IType> explicitDeclarers)
     {
         var memberScope = GetMemberScope(type);
-        if (memberScope is null)
+        if(memberScope is null)
             return true;
 
-        foreach (var member in memberScope.Members)
+        foreach(var member in memberScope.Members)
         {
-            if (member.Kind != SymbolKind.Field)
+            if(member.Kind != SymbolKind.Field)
                 continue;
 
             // Static fields are not part of the value's clonable object graph.
-            if (member is Symbol symbol && symbol.IsStatic)
+            if(member is Symbol symbol && symbol.IsStatic)
                 continue;
 
             var fieldType = member.DeclaredType;
-            if (fieldType is null)
+            if(fieldType is null)
                 continue;
 
-            if (!IsTypeClonable(fieldType, clonable, explicitDeclarers))
+            if(!IsTypeClonable(fieldType, clonable, explicitDeclarers))
                 return false;
         }
 
@@ -180,23 +180,23 @@ public static class IClonableDerivationEngine
     {
         type = Unwrap(type);
 
-        switch (type)
+        switch(type)
         {
             case ClassType:
             case StructType:
                 // Legacy-primitive fallback singletons (stdlib not loaded).
-                if (LegacyPrimitiveNames.Contains(type.DisplayName))
+                if(LegacyPrimitiveNames.Contains(type.DisplayName))
                     return true;
 
                 // A type that explicitly declares IClonable is always clonable.
-                if (explicitDeclarers.Contains(type))
+                if(explicitDeclarers.Contains(type))
                     return true;
 
                 // Otherwise use the current candidate assumption. A type outside
                 // the model (no entry) is conservatively treated as not clonable
                 // unless it explicitly declares the abstract type, which is checked
                 // directly here to cover types reached only through fields.
-                if (clonable.TryGetValue(type, out var isClonable))
+                if(clonable.TryGetValue(type, out var isClonable))
                     return isClonable;
 
                 return DeclaresIClonableInAbstracts(type, new HashSet<IType>());
@@ -207,9 +207,9 @@ public static class IClonableDerivationEngine
 
             case TupleType tuple:
                 // A tuple (value type) is clonable iff all its elements are.
-                foreach (var element in tuple.ElementTypes)
+                foreach(var element in tuple.ElementTypes)
                 {
-                    if (!IsTypeClonable(element, clonable, explicitDeclarers))
+                    if(!IsTypeClonable(element, clonable, explicitDeclarers))
                         return false;
                 }
                 return true;
@@ -217,11 +217,11 @@ public static class IClonableDerivationEngine
             case ConstructedType constructed:
                 // A constructed generic type (e.g. Box<int>) is clonable iff its
                 // generic definition is clonable and every type argument is clonable.
-                if (!IsTypeClonable(constructed.GenericDefinition, clonable, explicitDeclarers))
+                if(!IsTypeClonable(constructed.GenericDefinition, clonable, explicitDeclarers))
                     return false;
-                foreach (var arg in constructed.TypeArguments)
+                foreach(var arg in constructed.TypeArguments)
                 {
-                    if (!IsTypeClonable(arg, clonable, explicitDeclarers))
+                    if(!IsTypeClonable(arg, clonable, explicitDeclarers))
                         return false;
                 }
                 return true;
@@ -246,10 +246,10 @@ public static class IClonableDerivationEngine
     {
         type = Unwrap(type);
 
-        if (!visited.Add(type))
+        if(!visited.Add(type))
             return false;
 
-        switch (type)
+        switch(type)
         {
             case ClassType ct:
                 return AbstractListHasIClonable(ct.Abstracts)
@@ -271,9 +271,9 @@ public static class IClonableDerivationEngine
     /// </summary>
     private static bool AbstractListHasIClonable(IReadOnlyList<IType> abstracts)
     {
-        foreach (var abs in abstracts)
+        foreach(var abs in abstracts)
         {
-            if (IsIClonableAbstract(abs))
+            if(IsIClonableAbstract(abs))
                 return true;
         }
         return false;
@@ -300,9 +300,9 @@ public static class IClonableDerivationEngine
     /// </summary>
     private static IType Unwrap(IType type)
     {
-        while (true)
+        while(true)
         {
-            switch (type)
+            switch(type)
             {
                 case TypeAliasType alias:
                     type = alias.UnderlyingType;

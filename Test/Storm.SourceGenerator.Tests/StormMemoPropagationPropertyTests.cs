@@ -47,9 +47,9 @@ public class StormMemoPropagationPropertyTests
                 // Deduplicate rule names — keep first occurrence
                 var seen = new HashSet<string>(StringComparer.Ordinal);
                 var unique = new List<(string Name, bool IsMemo)>();
-                foreach (var r in rules)
+                foreach(var r in rules)
                 {
-                    if (seen.Add(r.name))
+                    if(seen.Add(r.name))
                     {
                         unique.Add((r.name, r.isMemo));
                     }
@@ -68,9 +68,9 @@ public class StormMemoPropagationPropertyTests
         sb.AppendLine("grammar Test;");
         sb.AppendLine("token Tok = [a-z]+;");
 
-        foreach (var (name, isMemo) in rules)
+        foreach(var (name, isMemo) in rules)
         {
-            if (isMemo)
+            if(isMemo)
             {
                 sb.AppendLine($"@memo");
             }
@@ -89,7 +89,7 @@ public class StormMemoPropagationPropertyTests
         return path =>
         {
             var normalized = StormImportResolver.CanonicalizePath(path);
-            if (files.TryGetValue(normalized, out var contents))
+            if(files.TryGetValue(normalized, out var contents))
             {
                 return contents;
             }
@@ -122,9 +122,9 @@ public class StormMemoPropagationPropertyTests
     public void P3_MemoPropagation_RuleIR_IsMemo_MatchesSource()
     {
         var samples = GenRuleDeclarations().Sample(200);
-        foreach (var rules in samples)
+        foreach(var rules in samples)
         {
-            if (rules.Count == 0)
+            if(rules.Count == 0)
             {
                 continue;
             }
@@ -138,7 +138,7 @@ public class StormMemoPropagationPropertyTests
             Assert.NotNull(result.Grammar);
 
             // Verify each rule's IsMemo matches the source declaration
-            foreach (var (name, expectedIsMemo) in rules)
+            foreach(var (name, expectedIsMemo) in rules)
             {
                 var ruleIR = result.Grammar!.Rules.FirstOrDefault(r => r.Name == name);
                 Assert.True(ruleIR != null,

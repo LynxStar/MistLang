@@ -47,7 +47,7 @@ public class StormUnrecognizedAnnotationPropertyTests
     public void P2_UnrecognizedAnnotation_EmitsDiagnosticAndNoDeclaration()
     {
         var samples = GenNonMemoIdentifier().Sample(200);
-        foreach (var identifier in samples)
+        foreach(var identifier in samples)
         {
             var annotation = "@" + identifier;
             // Place the unrecognized annotation before a rule declaration

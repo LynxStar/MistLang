@@ -52,7 +52,7 @@ public sealed class CastOperatorEmissionPropertyTests : IDisposable
 
     public void Dispose()
     {
-        if (Directory.Exists(_outputDir))
+        if(Directory.Exists(_outputDir))
         {
             try { Directory.Delete(_outputDir, recursive: true); }
             catch { /* best effort */ }
@@ -147,10 +147,13 @@ public sealed class CastOperatorEmissionPropertyTests : IDisposable
             lexeme: lexeme);
 
     private static TypeReferenceNode NamedTypeRef(string name) =>
-        new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
+        new TypeReferenceNode
         {
-            Name = new QualifiedIdentifierNode { IDENTIFIER = Tok(name) },
-        } };
+            First = new NamedSingleTypeRefSingleTypeRefNode
+            {
+                Name = new QualifiedIdentifierNode { IDENTIFIER = Tok(name) },
+            }
+        };
 
     private static ParameterNode MakeParam(string typeName, string paramName) =>
         new() { Type = NamedTypeRef(typeName), Name = Tok(paramName) };
@@ -402,8 +405,8 @@ public sealed class CastOperatorEmissionPropertyTests : IDisposable
 
     private void CleanOutputDir()
     {
-        if (Directory.Exists(_outputDir))
-            foreach (var file in Directory.GetFiles(_outputDir))
+        if(Directory.Exists(_outputDir))
+            foreach(var file in Directory.GetFiles(_outputDir))
                 File.Delete(file);
     }
 
@@ -478,7 +481,7 @@ public sealed class CastOperatorEmissionPropertyTests : IDisposable
 
         var programMembers = new List<MemberDeclarationNode>();
 
-        switch (s.Site)
+        switch(s.Site)
         {
             case ImplicitSite.Assignment:
                 programMembers.Add(MainMethod(
@@ -518,7 +521,7 @@ public sealed class CastOperatorEmissionPropertyTests : IDisposable
         MaxTest = 100)]
     public Property ImplicitCastDecl_EmitsImplicitOperatorSyntax(CastDeclScenario scenario)
     {
-        if (scenario.Kind != CastKind.Implicit)
+        if(scenario.Kind != CastKind.Implicit)
             return true.ToProperty().Label("Skipped (explicit scenario)");
 
         var ast = BuildCastDeclAst(scenario);
@@ -541,7 +544,7 @@ public sealed class CastOperatorEmissionPropertyTests : IDisposable
         MaxTest = 100)]
     public Property ExplicitCastDecl_EmitsExplicitOperatorSyntax(CastDeclScenario scenario)
     {
-        if (scenario.Kind != CastKind.Explicit)
+        if(scenario.Kind != CastKind.Explicit)
             return true.ToProperty().Label("Skipped (implicit scenario)");
 
         var ast = BuildCastDeclAst(scenario);
@@ -570,7 +573,7 @@ public sealed class CastOperatorEmissionPropertyTests : IDisposable
 
         // If the type checker emits errors, skip — the scenario may not be valid
         // in the current implementation.
-        if (diags.Any(d => d.Severity == DiagnosticSeverity.Error))
+        if(diags.Any(d => d.Severity == DiagnosticSeverity.Error))
             return true.ToProperty().Label("Skipped (type checker errors)");
 
         var csOutput = EmitAndGetCsContent(model);
@@ -620,7 +623,7 @@ public sealed class CastOperatorEmissionPropertyTests : IDisposable
 
         // If the type checker emits errors, skip — the scenario may not be valid
         // in the current implementation.
-        if (diags.Any(d => d.Severity == DiagnosticSeverity.Error))
+        if(diags.Any(d => d.Severity == DiagnosticSeverity.Error))
             return true.ToProperty().Label("Skipped (type checker errors)");
 
         var csOutput = EmitAndGetCsContent(model);

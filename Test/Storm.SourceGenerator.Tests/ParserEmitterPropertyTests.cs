@@ -58,7 +58,7 @@ public class ParserEmitterPropertyTests
                 .ToArray();
 
             Gen<List<RuleAlternativeIR>> combined = Gen.Constant(new List<RuleAlternativeIR>());
-            foreach (var g in gens)
+            foreach(var g in gens)
             {
                 combined = combined.SelectMany(list =>
                     g.Select(item =>
@@ -99,7 +99,7 @@ public class ParserEmitterPropertyTests
     private static void RunProperty<T>(Gen<T> gen, Action<T> check, int maxTests = 100)
     {
         var samples = gen.Sample(maxTests);
-        foreach (var sample in samples)
+        foreach(var sample in samples)
         {
             check(sample);
         }
@@ -246,7 +246,7 @@ public class ParserEmitterPropertyTests
             var prefixBefore = bag.Take(truncateTarget).ToList();
 
             // TruncateTo: same logic as emitted DiagnosticBag
-            if (truncateTarget >= 0 && truncateTarget < bag.Count)
+            if(truncateTarget >= 0 && truncateTarget < bag.Count)
             {
                 bag.RemoveRange(truncateTarget, bag.Count - truncateTarget);
             }

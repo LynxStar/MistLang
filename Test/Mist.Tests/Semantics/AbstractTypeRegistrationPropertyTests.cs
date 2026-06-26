@@ -163,7 +163,7 @@ public class AbstractTypeRegistrationPropertyTests
     {
         var gen = Gen.Constant(new List<(string Name, ImmutableArray<string> MethodNames)>());
 
-        foreach (var name in abstractNames)
+        foreach(var name in abstractNames)
         {
             gen = from entries in gen
                   from methodCount in Gen.Choose(0, 4)
@@ -215,20 +215,20 @@ public class AbstractTypeRegistrationPropertyTests
         var ast = MakeCompilationUnit(abstractDecls);
         var (model, diagnostics) = BuildModelWithDiagnostics(ast);
 
-        foreach (var (name, methodNames) in abstractSet.Abstracts)
+        foreach(var (name, methodNames) in abstractSet.Abstracts)
         {
             // Requirement 4.2: A symbol with SymbolKind.Abstract is registered in the parent scope
             var abstractSymbol = model.AllSymbols
                 .FirstOrDefault(s => s.Name == name && s.Kind == SymbolKind.Abstract);
-            if (abstractSymbol is null)
+            if(abstractSymbol is null)
                 return false;
 
             // Requirement 4.1, 4.4: An AbstractType is created with TypeKind.Abstract
-            if (abstractSymbol.DeclaredType is not AbstractType abstractType)
+            if(abstractSymbol.DeclaredType is not AbstractType abstractType)
                 return false;
-            if (abstractType.Kind != TypeKind.Abstract)
+            if(abstractType.Kind != TypeKind.Abstract)
                 return false;
-            if (abstractType.DisplayName != name)
+            if(abstractType.DisplayName != name)
                 return false;
 
             // Requirement 4.3: Each abstract method is registered as SymbolKind.Method
@@ -239,13 +239,13 @@ public class AbstractTypeRegistrationPropertyTests
                 .ToList();
 
             // The count of method symbols SHALL equal the number of methods declared
-            if (methodSymbols.Count != methodNames.Length)
+            if(methodSymbols.Count != methodNames.Length)
                 return false;
 
             // Each declared method name should have a corresponding method symbol
-            foreach (var methodName in methodNames)
+            foreach(var methodName in methodNames)
             {
-                if (!methodSymbols.Any(m => m.Name == methodName))
+                if(!methodSymbols.Any(m => m.Name == methodName))
                     return false;
             }
         }

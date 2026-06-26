@@ -84,10 +84,13 @@ public class NewtypeSymbolRegistrationPropertyTests
     }
 
     private static TypeReferenceNode MakeNamedTypeRef(string name) =>
-        new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
+        new TypeReferenceNode
         {
-            Name = new QualifiedIdentifierNode { IDENTIFIER = Tok(name) },
-        } };
+            First = new NamedSingleTypeRefSingleTypeRefNode
+            {
+                Name = new QualifiedIdentifierNode { IDENTIFIER = Tok(name) },
+            }
+        };
 
     private static TypeReferenceNode MakeTypeRef(string typeName)
     {
@@ -152,7 +155,7 @@ public class NewtypeSymbolRegistrationPropertyTests
         var newtypeSymbol = model.AllSymbols
             .FirstOrDefault(s => s.Name == scenario.NewtypeName && s.Kind == SymbolKind.Newtype);
 
-        if (newtypeSymbol is null)
+        if(newtypeSymbol is null)
         {
             return false.ToProperty()
                 .Label($"Newtype '{scenario.NewtypeName}' not found with SymbolKind.Newtype. " +

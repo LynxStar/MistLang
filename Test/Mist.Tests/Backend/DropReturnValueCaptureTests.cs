@@ -167,7 +167,7 @@ public sealed class DropReturnValueCaptureTests : IDisposable
 
     public void Dispose()
     {
-        if (Directory.Exists(_outputDir))
+        if(Directory.Exists(_outputDir))
         {
             try { Directory.Delete(_outputDir, recursive: true); } catch { /* best effort */ }
         }
@@ -216,10 +216,10 @@ public sealed class DropReturnValueCaptureTests : IDisposable
             .Where(d => d.Id.Value != "MIST_TC_0017")
             .ToList();
 
-        if (errors.Count > 0)
+        if(errors.Count > 0)
             return (null, string.Join("\n", errors.Select(d => $"{d.Id.Value}: {d.Message}")));
 
-        if (result.EmittedFiles is null || result.EmittedFiles.Count == 0)
+        if(result.EmittedFiles is null || result.EmittedFiles.Count == 0)
             return (null, "No emitted files produced.");
 
         var allContent = result.EmittedFiles
@@ -270,7 +270,7 @@ public sealed class DropReturnValueCaptureTests : IDisposable
     {
         var (emitted, error) = CompileAndGetEmittedCSharp(scenario.Source);
 
-        if (emitted is null)
+        if(emitted is null)
         {
             return false.ToProperty()
                 .Label($"Compilation failed: [{error}]\nSource:\n{scenario.Source}");
@@ -278,7 +278,7 @@ public sealed class DropReturnValueCaptureTests : IDisposable
 
         var hasCapturedAssignment = ContainsDropReturnCapture(emitted, scenario.LocalName, scenario.ResultName);
 
-        if (!hasCapturedAssignment)
+        if(!hasCapturedAssignment)
         {
             return false.ToProperty()
                 .Label($"Expected '{scenario.ResultName} = {scenario.LocalName}.Drop()' in emitted C#.\n" +

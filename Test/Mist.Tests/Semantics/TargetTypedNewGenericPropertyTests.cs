@@ -108,7 +108,7 @@ public sealed class TargetTypedNewGenericPropertyTests : IDisposable
 
     public void Dispose()
     {
-        if (Directory.Exists(_outputDir))
+        if(Directory.Exists(_outputDir))
         {
             try { Directory.Delete(_outputDir, recursive: true); } catch { /* best effort */ }
         }
@@ -303,19 +303,19 @@ class Program
 
     private static void CollectTargetTypedNewNodes(Storm.Runtime.SyntaxNode? node, List<TargetTypedNewExpressionPrimaryNode> results)
     {
-        if (node is null) return;
+        if(node is null) return;
 
-        if (node is TargetTypedNewExpressionPrimaryNode targetNew)
+        if(node is TargetTypedNewExpressionPrimaryNode targetNew)
         {
             results.Add(targetNew);
         }
 
         try
         {
-            foreach (var child in node.Children())
+            foreach(var child in node.Children())
                 CollectTargetTypedNewNodes(child, results);
         }
-        catch (NullReferenceException)
+        catch(NullReferenceException)
         {
             // Some AST nodes may have null children that Children() doesn't guard against.
         }
@@ -342,13 +342,13 @@ class Program
             .Where(d => d.Severity == DiagnosticSeverity.Error)
             .ToList();
 
-        if (errors.Count > 0)
+        if(errors.Count > 0)
         {
             return false.ToProperty()
                 .Label($"Compilation failed with errors:\n{string.Join("\n", errors.Select(e => $"  {e.Id.Value}: {e.Message}"))}\nSource:\n{scenario.Source}");
         }
 
-        if (model is null)
+        if(model is null)
         {
             return false.ToProperty()
                 .Label($"Semantic model was not captured.\nSource:\n{scenario.Source}");
@@ -358,7 +358,7 @@ class Program
         var userAst = model.Asts[^1];
         var targetNewNodes = FindTargetTypedNewNodes(userAst);
 
-        if (targetNewNodes.Count == 0)
+        if(targetNewNodes.Count == 0)
         {
             return false.ToProperty()
                 .Label($"No TargetTypedNewExpression nodes found in user AST.\nSource:\n{scenario.Source}");
@@ -367,34 +367,34 @@ class Program
         var targetNewNode = targetNewNodes[0];
         var exprType = model.GetTypeOf(targetNewNode);
 
-        if (exprType is null)
+        if(exprType is null)
         {
             return false.ToProperty()
                 .Label($"Expression type is null for target-typed new node.\nSource:\n{scenario.Source}");
         }
 
         // Must be a ConstructedType (fully-constructed generic, not the open definition)
-        if (exprType is not ConstructedType constructedType)
+        if(exprType is not ConstructedType constructedType)
         {
             return false.ToProperty()
                 .Label($"Expected ConstructedType but got {exprType.GetType().Name} ({exprType.DisplayName}).\nSource:\n{scenario.Source}");
         }
 
         // GenericDefinition should be a ClassType with the correct name
-        if (constructedType.GenericDefinition is not ClassType genericDef)
+        if(constructedType.GenericDefinition is not ClassType genericDef)
         {
             return false.ToProperty()
                 .Label($"GenericDefinition is not a ClassType, got {constructedType.GenericDefinition.GetType().Name}.\nSource:\n{scenario.Source}");
         }
 
-        if (genericDef.DisplayName != scenario.GenericClassName)
+        if(genericDef.DisplayName != scenario.GenericClassName)
         {
             return false.ToProperty()
                 .Label($"Expected GenericDefinition name '{scenario.GenericClassName}' but got '{genericDef.DisplayName}'.\nSource:\n{scenario.Source}");
         }
 
         // Should have exactly 1 type argument
-        if (constructedType.TypeArguments.Count != 1)
+        if(constructedType.TypeArguments.Count != 1)
         {
             return false.ToProperty()
                 .Label($"Expected 1 type argument but got {constructedType.TypeArguments.Count}.\nSource:\n{scenario.Source}");
@@ -402,7 +402,7 @@ class Program
 
         // Type argument should match the expected primitive type
         var typeArgName = constructedType.TypeArguments[0].DisplayName;
-        if (!MatchesPrimitiveType(typeArgName, scenario.TypeArgPrimitive))
+        if(!MatchesPrimitiveType(typeArgName, scenario.TypeArgPrimitive))
         {
             return false.ToProperty()
                 .Label($"Expected type argument '{scenario.TypeArgPrimitive}' (or '{GetClrName(scenario.TypeArgPrimitive)}') but got '{typeArgName}'.\nSource:\n{scenario.Source}");
@@ -411,7 +411,7 @@ class Program
         // DisplayName should be the fully-constructed form (either keyword or CLR name)
         var expectedKeyword = $"{scenario.GenericClassName}<{scenario.TypeArgPrimitive}>";
         var expectedClr = $"{scenario.GenericClassName}<{GetClrName(scenario.TypeArgPrimitive)}>";
-        if (constructedType.DisplayName != expectedKeyword && constructedType.DisplayName != expectedClr)
+        if(constructedType.DisplayName != expectedKeyword && constructedType.DisplayName != expectedClr)
         {
             return false.ToProperty()
                 .Label($"Expected DisplayName '{expectedKeyword}' or '{expectedClr}' but got '{constructedType.DisplayName}'.\nSource:\n{scenario.Source}");
@@ -440,13 +440,13 @@ class Program
             .Where(d => d.Severity == DiagnosticSeverity.Error)
             .ToList();
 
-        if (errors.Count > 0)
+        if(errors.Count > 0)
         {
             return false.ToProperty()
                 .Label($"Compilation failed with errors:\n{string.Join("\n", errors.Select(e => $"  {e.Id.Value}: {e.Message}"))}\nSource:\n{scenario.Source}");
         }
 
-        if (model is null)
+        if(model is null)
         {
             return false.ToProperty()
                 .Label($"Semantic model was not captured.\nSource:\n{scenario.Source}");
@@ -456,7 +456,7 @@ class Program
         var userAst = model.Asts[^1];
         var targetNewNodes = FindTargetTypedNewNodes(userAst);
 
-        if (targetNewNodes.Count == 0)
+        if(targetNewNodes.Count == 0)
         {
             return false.ToProperty()
                 .Label($"No TargetTypedNewExpression nodes found in user AST.\nSource:\n{scenario.Source}");
@@ -465,34 +465,34 @@ class Program
         var targetNewNode = targetNewNodes[0];
         var exprType = model.GetTypeOf(targetNewNode);
 
-        if (exprType is null)
+        if(exprType is null)
         {
             return false.ToProperty()
                 .Label($"Expression type is null for target-typed new node.\nSource:\n{scenario.Source}");
         }
 
         // Must be a ConstructedType
-        if (exprType is not ConstructedType constructedType)
+        if(exprType is not ConstructedType constructedType)
         {
             return false.ToProperty()
                 .Label($"Expected ConstructedType but got {exprType.GetType().Name} ({exprType.DisplayName}).\nSource:\n{scenario.Source}");
         }
 
         // GenericDefinition should be a ClassType with the correct name
-        if (constructedType.GenericDefinition is not ClassType genericDef)
+        if(constructedType.GenericDefinition is not ClassType genericDef)
         {
             return false.ToProperty()
                 .Label($"GenericDefinition is not a ClassType, got {constructedType.GenericDefinition.GetType().Name}.\nSource:\n{scenario.Source}");
         }
 
-        if (genericDef.DisplayName != scenario.GenericClassName)
+        if(genericDef.DisplayName != scenario.GenericClassName)
         {
             return false.ToProperty()
                 .Label($"Expected GenericDefinition name '{scenario.GenericClassName}' but got '{genericDef.DisplayName}'.\nSource:\n{scenario.Source}");
         }
 
         // Should have exactly 2 type arguments
-        if (constructedType.TypeArguments.Count != 2)
+        if(constructedType.TypeArguments.Count != 2)
         {
             return false.ToProperty()
                 .Label($"Expected 2 type arguments but got {constructedType.TypeArguments.Count}.\nSource:\n{scenario.Source}");
@@ -500,7 +500,7 @@ class Program
 
         // First type argument should match
         var firstArgName = constructedType.TypeArguments[0].DisplayName;
-        if (!MatchesPrimitiveType(firstArgName, scenario.FirstTypeArg))
+        if(!MatchesPrimitiveType(firstArgName, scenario.FirstTypeArg))
         {
             return false.ToProperty()
                 .Label($"Expected first type argument '{scenario.FirstTypeArg}' (or '{GetClrName(scenario.FirstTypeArg)}') but got '{firstArgName}'.\nSource:\n{scenario.Source}");
@@ -508,7 +508,7 @@ class Program
 
         // Second type argument should match
         var secondArgName = constructedType.TypeArguments[1].DisplayName;
-        if (!MatchesPrimitiveType(secondArgName, scenario.SecondTypeArg))
+        if(!MatchesPrimitiveType(secondArgName, scenario.SecondTypeArg))
         {
             return false.ToProperty()
                 .Label($"Expected second type argument '{scenario.SecondTypeArg}' (or '{GetClrName(scenario.SecondTypeArg)}') but got '{secondArgName}'.\nSource:\n{scenario.Source}");
@@ -517,7 +517,7 @@ class Program
         // DisplayName should be the fully-constructed form (either keyword or CLR name)
         var expectedKeyword = $"{scenario.GenericClassName}<{scenario.FirstTypeArg}, {scenario.SecondTypeArg}>";
         var expectedClr = $"{scenario.GenericClassName}<{GetClrName(scenario.FirstTypeArg)}, {GetClrName(scenario.SecondTypeArg)}>";
-        if (constructedType.DisplayName != expectedKeyword && constructedType.DisplayName != expectedClr)
+        if(constructedType.DisplayName != expectedKeyword && constructedType.DisplayName != expectedClr)
         {
             return false.ToProperty()
                 .Label($"Expected DisplayName '{expectedKeyword}' or '{expectedClr}' but got '{constructedType.DisplayName}'.\nSource:\n{scenario.Source}");

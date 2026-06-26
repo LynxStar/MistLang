@@ -126,10 +126,13 @@ public class StringLengthTests
         // Parameter: string input
         var param = new ParameterNode
         {
-            Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
+            Type = new TypeReferenceNode
             {
-                PrimitiveType = new StringTypePrimitiveTypeNode(),
-            } },
+                First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                {
+                    PrimitiveType = new StringTypePrimitiveTypeNode(),
+                }
+            },
             Name = MakeToken("input"),
         };
 

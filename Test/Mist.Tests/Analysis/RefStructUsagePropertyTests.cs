@@ -52,7 +52,7 @@ public sealed class RefStructUsagePropertyTests
 
         var parseDiag = new DiagnosticBag();
         var parseResult = SharedParser.Parse(tokens, parseDiag);
-        if (parseResult.Root is null)
+        if(parseResult.Root is null)
             return parseDiag.ToImmutableArray();
 
         var (model, buildDiag) = StdlibTestHelper.BuildModelWithStdlib(
@@ -235,7 +235,7 @@ public class Program
 
         var hasDiagnostic = mist2004Diags.Count > 0;
 
-        if (!hasDiagnostic)
+        if(!hasDiagnostic)
         {
             return false.ToProperty()
                 .Label($"Expected MIST2004 but got none.\n" +
@@ -412,7 +412,7 @@ public class Program
             .Where(d => d.Severity == DiagnosticSeverity.Error)
             .ToList();
 
-        if (errors.Count > 0)
+        if(errors.Count > 0)
         {
             var errorText = string.Join("\n", errors.Select(d => $"  {d.Id.Value}: {d.Message}"));
             return false.ToProperty()

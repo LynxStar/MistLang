@@ -180,7 +180,7 @@ public class RefinementSubsetPropertyTests
             .Where(d => d.Id.Value == "MIST_TC_0099")
             .ToList();
 
-        if (scenario.ShouldAccept)
+        if(scenario.ShouldAccept)
         {
             // Source is more constrained: no subset error expected
             return subsetErrors.Count == 0;
@@ -229,7 +229,7 @@ public class RefinementSubsetPropertyTests
             .Where(d => d.Id.Value == "MIST_TC_0099")
             .ToList();
 
-        if (scenario.ShouldAccept)
+        if(scenario.ShouldAccept)
         {
             // Source range is within target range: no subset error expected
             return subsetErrors.Count == 0;

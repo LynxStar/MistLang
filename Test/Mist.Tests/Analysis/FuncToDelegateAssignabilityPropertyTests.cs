@@ -49,7 +49,7 @@ public sealed class FuncToDelegateAssignabilityPropertyTests
     {
         var funcDef = new ClassType("Func", new Scope(null), "Standard", isBackendBacked: true);
         var tps = new IType[arity];
-        for (var i = 0; i < arity; i++)
+        for(var i = 0; i < arity; i++)
             tps[i] = new TypeParameterType($"T{i}", i);
         funcDef.TypeParameters = tps;
         return funcDef;
@@ -159,7 +159,7 @@ public sealed class FuncToDelegateAssignabilityPropertyTests
     public void P3_SignatureCompatibleFunc_IsAssignableToDelegateType()
     {
         var samples = GenCompatiblePair().Sample(100);
-        foreach (var pair in samples)
+        foreach(var pair in samples)
         {
             var result = TypeCheckerAnalyzer.IsAssignable(pair.FuncType, pair.Delegate);
 
@@ -174,7 +174,7 @@ public sealed class FuncToDelegateAssignabilityPropertyTests
     public void P3_DifferentArityFunc_IsNotAssignableToDelegateType()
     {
         var samples = GenIncompatibleArityPair().Sample(100);
-        foreach (var pair in samples)
+        foreach(var pair in samples)
         {
             var result = TypeCheckerAnalyzer.IsAssignable(pair.FuncType, pair.Delegate);
 
@@ -188,7 +188,7 @@ public sealed class FuncToDelegateAssignabilityPropertyTests
     public void P3_SameArityDifferentTypes_IsNotAssignableToDelegateType()
     {
         var samples = GenIncompatibleTypePair().Sample(100);
-        foreach (var pair in samples)
+        foreach(var pair in samples)
         {
             var result = TypeCheckerAnalyzer.IsAssignable(pair.FuncType, pair.Delegate);
 
@@ -204,7 +204,7 @@ public sealed class FuncToDelegateAssignabilityPropertyTests
     {
         // Reverse direction: DelegateType → func<...> should also be signature-compatible
         var samples = GenCompatiblePair().Sample(100);
-        foreach (var pair in samples)
+        foreach(var pair in samples)
         {
             var result = TypeCheckerAnalyzer.IsAssignable(pair.Delegate, pair.FuncType);
 

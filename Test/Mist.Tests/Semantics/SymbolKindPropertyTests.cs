@@ -122,9 +122,9 @@ public class SymbolKindPropertyTests
             .Select(mask =>
             {
                 var subset = new List<DeclarationScenario>();
-                for (var i = 0; i < AllScenarios.Length; i++)
+                for(var i = 0; i < AllScenarios.Length; i++)
                 {
-                    if ((mask & (1 << i)) != 0)
+                    if((mask & (1 << i)) != 0)
                         subset.Add(AllScenarios[i]);
                 }
                 return subset.ToArray();
@@ -162,38 +162,44 @@ public class SymbolKindPropertyTests
         // Build class members
         var classMembers = ImmutableArray.CreateBuilder<MemberDeclarationNode>();
 
-        if (hasField)
+        if(hasField)
         {
             var fieldDecl = new FieldDeclarationNode
             {
                 Name = MakeToken("_testField"),
-                Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                Type = new TypeReferenceNode
                 {
-                    PrimitiveType = new IntTypePrimitiveTypeNode(),
-                } },
+                    First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                    {
+                        PrimitiveType = new IntTypePrimitiveTypeNode(),
+                    }
+                },
             };
             classMembers.Add(new FieldMemberMemberDeclarationNode { Field = fieldDecl });
             expected.Add(("_testField", SymbolKind.Field));
         }
 
-        if (hasConstructor)
+        if(hasConstructor)
         {
             var ctorParams = hasParameter
                 ? new ParameterListNode
                 {
                     Parameter = new ParameterNode
                     {
-                        Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                        Type = new TypeReferenceNode
                         {
-                            PrimitiveType = new IntTypePrimitiveTypeNode(),
-                        } },
+                            First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                            {
+                                PrimitiveType = new IntTypePrimitiveTypeNode(),
+                            }
+                        },
                         Name = MakeToken("ctorParam"),
                     },
                 }
                 : null;
 
             var ctorBody = new BlockNode();
-            if (hasLocalVariable)
+            if(hasLocalVariable)
             {
                 ctorBody = new BlockNode
                 {
@@ -202,10 +208,13 @@ public class SymbolKindPropertyTests
                         {
                             VariableDeclaration = new TypedVariableDeclarationVariableDeclarationStatementNode
                             {
-                                Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                                Type = new TypeReferenceNode
                                 {
-                                    PrimitiveType = new IntTypePrimitiveTypeNode(),
-                                } },
+                                    First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                                    {
+                                        PrimitiveType = new IntTypePrimitiveTypeNode(),
+                                    }
+                                },
                                 Name = MakeToken("localInCtor"),
                                 Initializer = MakeIntLiteralExpression("42"),
                             },
@@ -223,30 +232,33 @@ public class SymbolKindPropertyTests
             classMembers.Add(new ConstructorMemberMemberDeclarationNode { Constructor = ctorDecl });
             expected.Add(("TestClass", SymbolKind.Constructor));
 
-            if (hasParameter)
+            if(hasParameter)
             {
                 expected.Add(("ctorParam", SymbolKind.Parameter));
             }
         }
 
-        if (hasMethod)
+        if(hasMethod)
         {
             var methodParams = (!hasConstructor && hasParameter)
                 ? new ParameterListNode
                 {
                     Parameter = new ParameterNode
                     {
-                        Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                        Type = new TypeReferenceNode
                         {
-                            PrimitiveType = new IntTypePrimitiveTypeNode(),
-                        } },
+                            First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                            {
+                                PrimitiveType = new IntTypePrimitiveTypeNode(),
+                            }
+                        },
                         Name = MakeToken("methodParam"),
                     },
                 }
                 : null;
 
             var methodBody = new BlockNode();
-            if (!hasConstructor && hasLocalVariable)
+            if(!hasConstructor && hasLocalVariable)
             {
                 methodBody = new BlockNode
                 {
@@ -255,10 +267,13 @@ public class SymbolKindPropertyTests
                         {
                             VariableDeclaration = new TypedVariableDeclarationVariableDeclarationStatementNode
                             {
-                                Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                                Type = new TypeReferenceNode
                                 {
-                                    PrimitiveType = new IntTypePrimitiveTypeNode(),
-                                } },
+                                    First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                                    {
+                                        PrimitiveType = new IntTypePrimitiveTypeNode(),
+                                    }
+                                },
                                 Name = MakeToken("localInMethod"),
                                 Initializer = MakeIntLiteralExpression("99"),
                             },
@@ -277,7 +292,7 @@ public class SymbolKindPropertyTests
             classMembers.Add(new MethodMemberMemberDeclarationNode { Method = methodDecl });
             expected.Add(("TestMethod", SymbolKind.Method));
 
-            if (!hasConstructor && hasParameter)
+            if(!hasConstructor && hasParameter)
             {
                 expected.Add(("methodParam", SymbolKind.Parameter));
             }
@@ -285,24 +300,27 @@ public class SymbolKindPropertyTests
 
         // If parameter or local variable is requested but no constructor or method hosts them,
         // create a method to host them.
-        if ((hasParameter || hasLocalVariable) && !hasConstructor && !hasMethod)
+        if((hasParameter || hasLocalVariable) && !hasConstructor && !hasMethod)
         {
             var hostParams = hasParameter
                 ? new ParameterListNode
                 {
                     Parameter = new ParameterNode
                     {
-                        Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                        Type = new TypeReferenceNode
                         {
-                            PrimitiveType = new IntTypePrimitiveTypeNode(),
-                        } },
+                            First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                            {
+                                PrimitiveType = new IntTypePrimitiveTypeNode(),
+                            }
+                        },
                         Name = MakeToken("hostParam"),
                     },
                 }
                 : null;
 
             var hostBody = new BlockNode();
-            if (hasLocalVariable)
+            if(hasLocalVariable)
             {
                 hostBody = new BlockNode
                 {
@@ -311,10 +329,13 @@ public class SymbolKindPropertyTests
                         {
                             VariableDeclaration = new TypedVariableDeclarationVariableDeclarationStatementNode
                             {
-                                Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                                Type = new TypeReferenceNode
                                 {
-                                    PrimitiveType = new IntTypePrimitiveTypeNode(),
-                                } },
+                                    First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                                    {
+                                        PrimitiveType = new IntTypePrimitiveTypeNode(),
+                                    }
+                                },
                                 Name = MakeToken("hostLocal"),
                                 Initializer = MakeIntLiteralExpression("1"),
                             },
@@ -332,7 +353,7 @@ public class SymbolKindPropertyTests
             };
             classMembers.Add(new MethodMemberMemberDeclarationNode { Method = hostMethod });
 
-            if (hasParameter)
+            if(hasParameter)
             {
                 expected.Add(("hostParam", SymbolKind.Parameter));
             }
@@ -341,7 +362,7 @@ public class SymbolKindPropertyTests
         // Build type declarations
         var typeDecls = ImmutableArray.CreateBuilder<TypeDeclarationNode>();
 
-        if (needsClass || (!needsStruct && !hasNamespace))
+        if(needsClass || (!needsStruct && !hasNamespace))
         {
             var classDecl = new ClassDeclarationNode
             {
@@ -352,17 +373,20 @@ public class SymbolKindPropertyTests
             expected.Add(("TestClass", SymbolKind.Class));
         }
 
-        if (needsStruct)
+        if(needsStruct)
         {
             var structMembers = ImmutableArray.CreateBuilder<MemberDeclarationNode>();
             // Add a field to the struct so it's not empty
             var structField = new FieldDeclarationNode
             {
                 Name = MakeToken("StructValue"),
-                Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                Type = new TypeReferenceNode
                 {
-                    PrimitiveType = new IntTypePrimitiveTypeNode(),
-                } },
+                    First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                    {
+                        PrimitiveType = new IntTypePrimitiveTypeNode(),
+                    }
+                },
             };
             structMembers.Add(new FieldMemberMemberDeclarationNode { Field = structField });
 
@@ -378,7 +402,7 @@ public class SymbolKindPropertyTests
         // Build the compilation unit
         CompilationUnitNode ast;
 
-        if (hasNamespace)
+        if(hasNamespace)
         {
             source = "namespace TestNs;";
             var qualifiedId = new QualifiedIdentifierNode
@@ -422,10 +446,10 @@ public class SymbolKindPropertyTests
         var model = BuildModel(ast, source);
         var allSymbols = model.AllSymbols;
 
-        foreach (var (name, expectedKind) in expectedSymbols)
+        foreach(var (name, expectedKind) in expectedSymbols)
         {
             var matchingSymbol = allSymbols.FirstOrDefault(s => s.Name == name && s.Kind == expectedKind);
-            if (matchingSymbol is null)
+            if(matchingSymbol is null)
             {
                 return false;
             }
@@ -533,7 +557,7 @@ public class SymbolKindPropertyTests
         var model = BuildModel(ast, source);
         var allSymbols = model.AllSymbols;
 
-        foreach (var (name, expectedKind) in expected)
+        foreach(var (name, expectedKind) in expected)
         {
             Assert.Contains(allSymbols, s => s.Name == name && s.Kind == expectedKind);
         }

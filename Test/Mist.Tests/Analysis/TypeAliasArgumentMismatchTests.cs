@@ -42,7 +42,7 @@ public class TypeAliasArgumentMismatchTests
 
         var parseDiag = new DiagnosticBag();
         var parseResult = Parser.Parse(tokens, parseDiag);
-        if (parseResult.Root is null)
+        if(parseResult.Root is null)
             return parseDiag.ToImmutableArray();
 
         var buildDiag = new DiagnosticBag();

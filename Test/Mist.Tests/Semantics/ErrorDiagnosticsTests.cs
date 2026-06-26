@@ -125,7 +125,7 @@ public sealed class ErrorDiagnosticsTests
 
         public void RegisterType(string namespaceName, string typeName, IType type)
         {
-            if (!_namespaceTypes.ContainsKey(namespaceName))
+            if(!_namespaceTypes.ContainsKey(namespaceName))
                 _namespaceTypes[namespaceName] = new HashSet<string>();
             _namespaceTypes[namespaceName].Add(typeName);
             _types[(namespaceName, typeName)] = type;
@@ -142,7 +142,7 @@ public sealed class ErrorDiagnosticsTests
 
         public ImmutableArray<string> GetTypeNamesInNamespace(string namespaceName)
         {
-            if (_namespaceTypes.TryGetValue(namespaceName, out var types))
+            if(_namespaceTypes.TryGetValue(namespaceName, out var types))
                 return types.ToImmutableArray();
             return ImmutableArray<string>.Empty;
         }
@@ -459,14 +459,17 @@ public sealed class ErrorDiagnosticsTests
         var fieldDecl = new FieldDeclarationNode
         {
             Name = MakeToken("myField"),
-            Type = new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
+            Type = new TypeReferenceNode
             {
-                Name = new QualifiedIdentifierNode
+                First = new NamedSingleTypeRefSingleTypeRefNode
                 {
-                    IDENTIFIER = MakeToken("Widget", start: 60),
-                    Span = new Storm.Runtime.SourceSpan(60, 6),
-                },
-            } },
+                    Name = new QualifiedIdentifierNode
+                    {
+                        IDENTIFIER = MakeToken("Widget", start: 60),
+                        Span = new Storm.Runtime.SourceSpan(60, 6),
+                    },
+                }
+            },
         };
 
         var classDecl = new ClassDeclarationNode

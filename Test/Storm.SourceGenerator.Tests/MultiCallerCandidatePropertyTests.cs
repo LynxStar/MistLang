@@ -87,15 +87,15 @@ public class MultiCallerCandidatePropertyTests
 
                     // Ensure at least one leaf rule appears in 2+ alternatives of some parent.
                     // Pick leaf 0 and ensure it appears in at least 2 alternatives of parent 0.
-                    if (alts.Count > 0 && alts[0].Count >= 2)
+                    if(alts.Count > 0 && alts[0].Count >= 2)
                     {
                         // Force leaf 0 into the first two alternatives of parent 0
-                        if (!alts[0][0].Contains(0))
+                        if(!alts[0][0].Contains(0))
                         {
                             alts[0][0].Add(0);
                         }
 
-                        if (!alts[0][1].Contains(0))
+                        if(!alts[0][1].Contains(0))
                         {
                             alts[0][1].Add(0);
                         }
@@ -128,7 +128,7 @@ public class MultiCallerCandidatePropertyTests
 
         // Create leaf rules (single-alternative, referencing only a token — always speculative-safe)
         var leafRules = new List<RuleIR>();
-        for (var i = 0; i < desc.LeafCount; i++)
+        for(var i = 0; i < desc.LeafCount; i++)
         {
             var name = $"Rule{(char)('A' + i)}";
             var alt = new RuleAlternativeIR(null, Array.Empty<FieldLabelIR>(), new TokenRefIR(sharedToken));
@@ -138,20 +138,20 @@ public class MultiCallerCandidatePropertyTests
 
         // Create parent rules with multiple alternatives referencing leaf rules
         var parentRules = new List<RuleIR>();
-        for (var p = 0; p < desc.ParentCount; p++)
+        for(var p = 0; p < desc.ParentCount; p++)
         {
             var parentName = $"Parent{(char)('A' + p)}";
             var alternatives = new List<RuleAlternativeIR>();
 
-            foreach (var altRefs in desc.ParentAlternatives[p])
+            foreach(var altRefs in desc.ParentAlternatives[p])
             {
                 ExpressionIR expr;
-                if (altRefs.Count == 0)
+                if(altRefs.Count == 0)
                 {
                     // Empty alternative just references the token
                     expr = new TokenRefIR(sharedToken);
                 }
-                else if (altRefs.Count == 1)
+                else if(altRefs.Count == 1)
                 {
                     expr = new RuleRefIR(leafRules[altRefs[0]]);
                 }
@@ -187,24 +187,24 @@ public class MultiCallerCandidatePropertyTests
     {
         var candidates = new HashSet<string>();
 
-        foreach (var parentAlts in desc.ParentAlternatives)
+        foreach(var parentAlts in desc.ParentAlternatives)
         {
             // For each leaf rule, count how many distinct alternatives reference it
             var leafAltCount = new Dictionary<int, int>();
-            foreach (var altRefs in parentAlts)
+            foreach(var altRefs in parentAlts)
             {
                 // Each alternative's distinct leaf indices
                 var distinctInAlt = new HashSet<int>(altRefs);
-                foreach (var leafIdx in distinctInAlt)
+                foreach(var leafIdx in distinctInAlt)
                 {
                     leafAltCount.TryGetValue(leafIdx, out var count);
                     leafAltCount[leafIdx] = count + 1;
                 }
             }
 
-            foreach (var (leafIdx, count) in leafAltCount)
+            foreach(var (leafIdx, count) in leafAltCount)
             {
-                if (count >= 2)
+                if(count >= 2)
                 {
                     candidates.Add($"Rule{(char)('A' + leafIdx)}");
                 }
@@ -226,7 +226,7 @@ public class MultiCallerCandidatePropertyTests
     public void P4_MultiCallerDetection_RulesIn2PlusAlternatives_AppearInPlan()
     {
         var samples = GenMultiCallerGrammar().Sample(200);
-        foreach (var desc in samples)
+        foreach(var desc in samples)
         {
             var grammar = BuildGrammarIR(desc);
             var plan = MemoizationAnalysisPass.Run(grammar);
@@ -235,7 +235,7 @@ public class MultiCallerCandidatePropertyTests
 
             // Every expected multi-caller candidate must appear in the plan.
             // (All leaf rules are speculative-safe, so no filtering occurs.)
-            foreach (var candidateName in expectedCandidates)
+            foreach(var candidateName in expectedCandidates)
             {
                 Assert.True(plan.IsMemoized(candidateName),
                     $"Rule '{candidateName}' is referenced from 2+ distinct alternatives " +

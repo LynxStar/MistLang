@@ -126,14 +126,17 @@ public class SubtypeAssignabilityPropertyTests
         {
             VariableDeclaration = new TypedVariableDeclarationVariableDeclarationStatementNode
             {
-                Type = new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
+                Type = new TypeReferenceNode
                 {
-                    Name = new QualifiedIdentifierNode
+                    First = new NamedSingleTypeRefSingleTypeRefNode
                     {
-                        IDENTIFIER = MakeToken(declaredTypeName),
-                        Span = new Storm.Runtime.SourceSpan(0, declaredTypeName.Length),
-                    },
-                } },
+                        Name = new QualifiedIdentifierNode
+                        {
+                            IDENTIFIER = MakeToken(declaredTypeName),
+                            Span = new Storm.Runtime.SourceSpan(0, declaredTypeName.Length),
+                        },
+                    }
+                },
                 Name = MakeToken(varName),
                 Initializer = MakeNewObjectExpression(initializedTypeName),
             },
@@ -175,7 +178,7 @@ public class SubtypeAssignabilityPropertyTests
             Members = members ?? ImmutableArray<MemberDeclarationNode>.Empty,
         };
 
-        if (baseClassName is not null)
+        if(baseClassName is not null)
         {
             var _baseList1 = MakeBaseList(baseClassName);
 
@@ -237,7 +240,7 @@ public class SubtypeAssignabilityPropertyTests
         // Build a linear chain: classNames[0] is root, classNames[1] : classNames[0], etc.
         var classes = new List<(string Name, string? BaseName)>();
         classes.Add((classNames[0], null));
-        for (var i = 1; i < classNames.Length; i++)
+        for(var i = 1; i < classNames.Length; i++)
         {
             classes.Add((classNames[i], classNames[i - 1]));
         }
@@ -269,7 +272,7 @@ public class SubtypeAssignabilityPropertyTests
         var typeDecls = new List<TypeDeclarationNode>();
 
         // Create the class hierarchy
-        foreach (var (name, baseName) in scenario.Classes)
+        foreach(var (name, baseName) in scenario.Classes)
         {
             var classDecl = MakeClassDecl(name, baseName);
             typeDecls.Add(new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl });
@@ -295,7 +298,7 @@ public class SubtypeAssignabilityPropertyTests
         };
 
         // For MethodParameter scenarios, add a helper method that accepts a base-typed parameter
-        if (scenario.Kind == AssignmentKind.MethodParameter)
+        if(scenario.Kind == AssignmentKind.MethodParameter)
         {
             var paramMethod = BuildAcceptBaseMethod(scenario.BaseClassName);
             programMembers.Add(new MethodMemberMemberDeclarationNode { Method = paramMethod });
@@ -314,7 +317,7 @@ public class SubtypeAssignabilityPropertyTests
     {
         var statements = new List<StatementNode>();
 
-        switch (scenario.Kind)
+        switch(scenario.Kind)
         {
             case AssignmentKind.VariableDeclaration:
                 // BaseType x = new DerivedType();
@@ -345,14 +348,17 @@ public class SubtypeAssignabilityPropertyTests
     {
         var param = new ParameterNode
         {
-            Type = new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
+            Type = new TypeReferenceNode
             {
-                Name = new QualifiedIdentifierNode
+                First = new NamedSingleTypeRefSingleTypeRefNode
                 {
-                    IDENTIFIER = MakeToken(baseClassName),
-                    Span = new Storm.Runtime.SourceSpan(0, baseClassName.Length),
-                },
-            } },
+                    Name = new QualifiedIdentifierNode
+                    {
+                        IDENTIFIER = MakeToken(baseClassName),
+                        Span = new Storm.Runtime.SourceSpan(0, baseClassName.Length),
+                    },
+                }
+            },
             Name = MakeToken("param"),
         };
 
@@ -422,7 +428,7 @@ public class SubtypeAssignabilityPropertyTests
 
         // No type mismatch diagnostic should be emitted for valid derived-to-base assignments
         return typeMismatchDiags.Count == 0;
-    ;
+        ;
     }
 
 }

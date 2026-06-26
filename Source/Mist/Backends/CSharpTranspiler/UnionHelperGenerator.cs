@@ -54,15 +54,15 @@ internal static class UnionHelperGenerator
 
         var emitted = new Dictionary<string, bool>(StringComparer.Ordinal);
 
-        foreach (var unionType in unionTypes)
+        foreach(var unionType in unionTypes)
         {
             // Skip two-constituent void unions — these use Nullable<T> or null
             // instead of a generated helper struct (Requirement 7.1, 7.8).
-            if (CSharpTypeMap.IsOptionalUnion(unionType))
+            if(CSharpTypeMap.IsOptionalUnion(unionType))
                 continue;
 
             var helperName = GetHelperTypeName(unionType);
-            if (emitted.ContainsKey(helperName))
+            if(emitted.ContainsKey(helperName))
                 continue;
 
             emitted[helperName] = true;
@@ -95,7 +95,7 @@ internal static class UnionHelperGenerator
         sb.AppendLine("    }");
 
         // Is* properties and As* properties
-        for (var i = 0; i < unionType.Constituents.Count; i++)
+        for(var i = 0; i < unionType.Constituents.Count; i++)
         {
             var constituent = unionType.Constituents[i];
             var csharpName = GetConstituentCSharpName(constituent);
@@ -111,7 +111,7 @@ internal static class UnionHelperGenerator
         }
 
         // Implicit conversion operators
-        for (var i = 0; i < unionType.Constituents.Count; i++)
+        for(var i = 0; i < unionType.Constituents.Count; i++)
         {
             var constituent = unionType.Constituents[i];
             var csharpTypeName = CSharpTypeMap.GetTypeName(constituent);
@@ -133,9 +133,9 @@ internal static class UnionHelperGenerator
     {
         var seen = new Dictionary<string, UnionType>(StringComparer.Ordinal);
 
-        foreach (var symbol in model.AllSymbols)
+        foreach(var symbol in model.AllSymbols)
         {
-            if (symbol.DeclaredType is not null)
+            if(symbol.DeclaredType is not null)
             {
                 CollectFromType(symbol.DeclaredType, seen);
             }
@@ -150,16 +150,16 @@ internal static class UnionHelperGenerator
     /// </summary>
     private static void CollectFromType(IType type, Dictionary<string, UnionType> seen)
     {
-        switch (type)
+        switch(type)
         {
             case UnionType ut:
                 var name = GetHelperTypeName(ut);
-                if (!seen.ContainsKey(name))
+                if(!seen.ContainsKey(name))
                 {
                     seen[name] = ut;
                 }
                 // Also collect from constituents (in case they contain nested unions)
-                foreach (var constituent in ut.Constituents)
+                foreach(var constituent in ut.Constituents)
                 {
                     CollectFromType(constituent, seen);
                 }
@@ -171,14 +171,14 @@ internal static class UnionHelperGenerator
 
             case ConstructedType ct:
                 CollectFromType(ct.GenericDefinition, seen);
-                foreach (var arg in ct.TypeArguments)
+                foreach(var arg in ct.TypeArguments)
                 {
                     CollectFromType(arg, seen);
                 }
                 break;
 
             case TupleType tt:
-                foreach (var elementType in tt.ElementTypes)
+                foreach(var elementType in tt.ElementTypes)
                 {
                     CollectFromType(elementType, seen);
                 }
@@ -189,7 +189,7 @@ internal static class UnionHelperGenerator
                 break;
 
             case EnumType enumType:
-                if (enumType.UnderlyingType is not null)
+                if(enumType.UnderlyingType is not null)
                 {
                     CollectFromType(enumType.UnderlyingType, seen);
                 }

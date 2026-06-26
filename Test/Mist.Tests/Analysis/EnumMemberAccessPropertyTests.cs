@@ -170,7 +170,7 @@ public class EnumMemberAccessPropertyTests
     {
         // Build enum declaration with integer values.
         var members = new List<EnumMemberNode>();
-        for (var i = 0; i < scenario.MemberNames.Count; i++)
+        for(var i = 0; i < scenario.MemberNames.Count; i++)
         {
             members.Add(MakeEnumMember(scenario.MemberNames[i], i));
         }
@@ -196,14 +196,17 @@ public class EnumMemberAccessPropertyTests
         {
             VariableDeclaration = new TypedVariableDeclarationVariableDeclarationStatementNode
             {
-                Type = new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
+                Type = new TypeReferenceNode
                 {
-                    Name = new QualifiedIdentifierNode
+                    First = new NamedSingleTypeRefSingleTypeRefNode
                     {
-                        IDENTIFIER = Tok(scenario.EnumName),
-                        Span = new Storm.Runtime.SourceSpan(0, scenario.EnumName.Length),
-                    },
-                } },
+                        Name = new QualifiedIdentifierNode
+                        {
+                            IDENTIFIER = Tok(scenario.EnumName),
+                            Span = new Storm.Runtime.SourceSpan(0, scenario.EnumName.Length),
+                        },
+                    }
+                },
                 Name = Tok("x"),
                 Initializer = accessExpr,
             },
@@ -271,7 +274,7 @@ public class EnumMemberAccessPropertyTests
             .Where(d => d.Id.Value != "MIST_TC_0017") // Ignore entry point diagnostic
             .ToList();
 
-        if (errors.Count > 0)
+        if(errors.Count > 0)
             return false.ToProperty()
                 .Label($"Expected no errors for {scenario.EnumName}.{scenario.AccessedMemberName}, " +
                        $"got: [{string.Join("; ", errors.Select(e => $"{e.Id.Value}: {e.Message}"))}]");
@@ -280,11 +283,11 @@ public class EnumMemberAccessPropertyTests
         var enumSymbol = model.AllSymbols
             .FirstOrDefault(s => s.Name == scenario.EnumName && s.Kind == SymbolKind.Enum);
 
-        if (enumSymbol is null)
+        if(enumSymbol is null)
             return false.ToProperty()
                 .Label($"Enum '{scenario.EnumName}' not found in semantic model");
 
-        if (enumSymbol.DeclaredType is not EnumType)
+        if(enumSymbol.DeclaredType is not EnumType)
             return false.ToProperty()
                 .Label($"Enum '{scenario.EnumName}' DeclaredType is not EnumType");
 

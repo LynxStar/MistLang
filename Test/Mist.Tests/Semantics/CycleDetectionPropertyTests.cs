@@ -75,7 +75,7 @@ public class CycleDetectionPropertyTests
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
         };
 
-        if (baseClassName is not null)
+        if(baseClassName is not null)
         {
             var _baseList1 = MakeBaseList(baseClassName);
 
@@ -161,7 +161,7 @@ public class CycleDetectionPropertyTests
     {
         // Create a cycle: names[0] → names[1] → ... → names[n-1] → names[0]
         var entries = new List<(string Name, string BaseName)>();
-        for (var i = 0; i < names.Length; i++)
+        for(var i = 0; i < names.Length; i++)
         {
             var baseName = names[(i + 1) % names.Length];
             entries.Add((names[i], baseName));
@@ -270,13 +270,13 @@ public class CycleDetectionPropertyTests
             .Where(ct => ct is not null)
             .ToList();
 
-        foreach (var classType in classTypes)
+        foreach(var classType in classTypes)
         {
             var visited = new HashSet<ClassType>();
             var current = classType;
-            while (current is not null)
+            while(current is not null)
             {
-                if (!visited.Add(current!))
+                if(!visited.Add(current!))
                 {
                     // Still a cycle — chain did not terminate
                     return false;
@@ -286,7 +286,7 @@ public class CycleDetectionPropertyTests
         }
 
         return true;
-    ;
+        ;
     }
 
 }

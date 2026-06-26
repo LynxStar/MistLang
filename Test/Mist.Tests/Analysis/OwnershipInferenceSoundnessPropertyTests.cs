@@ -59,11 +59,11 @@ public sealed class OwnershipInferenceSoundnessPropertyTests
         var sourceText = new SourceText("test.mist", source);
         var lexBag = new DiagnosticBag();
         var tokens = Lexer.Lex(sourceText, lexBag);
-        if (lexBag.HasErrors) return null;
+        if(lexBag.HasErrors) return null;
 
         var parseBag = new DiagnosticBag();
         var parseResult = Parser.Parse(tokens, parseBag);
-        if (parseBag.HasErrors || parseResult.Root is null) return null;
+        if(parseBag.HasErrors || parseResult.Root is null) return null;
 
         var builder = new SemanticModelBuilder();
         var compilation = new MistCompilation(
@@ -83,31 +83,31 @@ public sealed class OwnershipInferenceSoundnessPropertyTests
 
         // Find the Main method body
         SyntaxNode? mainBody = null;
-        foreach (var symbol in model.AllSymbols)
+        foreach(var symbol in model.AllSymbols)
         {
-            if (symbol.Origin != SymbolOrigin.UserCode) continue;
-            if (symbol.Kind != SymbolKind.Method) continue;
-            if (symbol.Name != "Main") continue;
+            if(symbol.Origin != SymbolOrigin.UserCode) continue;
+            if(symbol.Kind != SymbolKind.Method) continue;
+            if(symbol.Name != "Main") continue;
 
             SyntaxNode declaringNode;
             try { declaringNode = model.GetDeclaringNode(symbol); }
             catch { continue; }
 
-            if (declaringNode is MethodDeclarationNode methodDecl)
+            if(declaringNode is MethodDeclarationNode methodDecl)
             {
                 mainBody = methodDecl.Body.GetBlock();
                 break;
             }
         }
 
-        if (mainBody is null) return null;
+        if(mainBody is null) return null;
 
         var infBag = new DiagnosticBag();
         var bindings = OwnershipInferencePass.InferBindings(mainBody, model, infBag);
 
-        foreach (var (symbol, binding) in bindings)
+        foreach(var (symbol, binding) in bindings)
         {
-            if (symbol.Name == variableName)
+            if(symbol.Name == variableName)
                 return binding;
         }
 
@@ -127,7 +127,7 @@ public sealed class OwnershipInferenceSoundnessPropertyTests
         var parseBag = new DiagnosticBag();
         var parseResult = Parser.Parse(tokens, parseBag);
 
-        if (parseResult.Root is null)
+        if(parseResult.Root is null)
             return lexBag.ToImmutableArray().AddRange(parseBag.ToImmutableArray());
 
         var builder = new SemanticModelBuilder();
@@ -178,7 +178,7 @@ public sealed class OwnershipInferenceSoundnessPropertyTests
         // If tier == Shared (Unrestricted), can't go lower — trivially minimal.
         // If tier != Shared, the algorithm reached this tier because a lower tier
         // would create a conflict. The fixed-point guarantees minimality.
-        if (binding.Value.InferredTier != OwnershipTier.Unrestricted)
+        if(binding.Value.InferredTier != OwnershipTier.Unrestricted)
         {
             Assert.True(
                 binding.Value.Reason is InferenceReason.OwnedInit or InferenceReason.Downgraded,

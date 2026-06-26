@@ -39,7 +39,7 @@ internal sealed class ScopeBasedStdlibTypeProvider : IStdlibTypeProvider
             return SemanticModelBuilder.LookupQualifiedStdlibType(
                 _globalScope, _symbolTable, qualifiedName, typeArgumentCount);
         }
-        catch (StdlibMissingException)
+        catch(StdlibMissingException)
         {
             // Stdlib not loaded — fall back to legacy singletons.
             return FallbackStdlibTypeProvider.Instance.LookupStandardType(simpleName, typeArgumentCount);

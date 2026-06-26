@@ -106,17 +106,17 @@ public class TypeLiteralPrettyPrinterPropertyTests
 
     private static void CollectTypeLiterals(Storm.Runtime.SyntaxNode? node, List<TypeLiteralExpressionPrimaryNode> results)
     {
-        if (node is null) return;
+        if(node is null) return;
 
-        if (node is TypeLiteralExpressionPrimaryNode typeLiteral)
+        if(node is TypeLiteralExpressionPrimaryNode typeLiteral)
             results.Add(typeLiteral);
 
         try
         {
-            foreach (var child in node.Children())
+            foreach(var child in node.Children())
                 CollectTypeLiterals(child, results);
         }
-        catch (NullReferenceException)
+        catch(NullReferenceException)
         {
             // Some AST nodes may have null children that Children() doesn't guard against.
         }
@@ -128,17 +128,17 @@ public class TypeLiteralPrettyPrinterPropertyTests
     /// </summary>
     private static (string TypeNodeName, bool IsArray) DescribeTypeLiteral(TypeLiteralExpressionPrimaryNode tl)
     {
-        if (tl.TypeRef.First is PrimitiveSingleTypeRefSingleTypeRefNode primitiveRef)
+        if(tl.TypeRef.First is PrimitiveSingleTypeRefSingleTypeRefNode primitiveRef)
         {
             return (primitiveRef.PrimitiveType.GetType().Name, primitiveRef.ArrayRank is not null);
         }
 
-        if (tl.TypeRef.First is NamedSingleTypeRefSingleTypeRefNode namedRef)
+        if(tl.TypeRef.First is NamedSingleTypeRefSingleTypeRefNode namedRef)
         {
             return (namedRef.Name.IDENTIFIER.Lexeme, namedRef.ArrayRank is not null);
         }
 
-        if (tl.TypeRef.First is VoidSingleTypeRefSingleTypeRefNode)
+        if(tl.TypeRef.First is VoidSingleTypeRefSingleTypeRefNode)
         {
             return ("VoidTypeRef", false);
         }
@@ -163,30 +163,30 @@ public class TypeLiteralPrettyPrinterPropertyTests
     {
         // Step 1: Parse the original source to get AST1
         var ast1 = ParseSource(testCase.Source);
-        if (ast1 is null) return false;
+        if(ast1 is null) return false;
 
         // Step 2: Pretty-print AST1 to get new source text
         var printed = MistPrettyPrinter.Print(ast1);
-        if (string.IsNullOrWhiteSpace(printed)) return false;
+        if(string.IsNullOrWhiteSpace(printed)) return false;
 
         // Step 3: Parse the pretty-printed source to get AST2
         var ast2 = ParseSource(printed);
-        if (ast2 is null) return false;
+        if(ast2 is null) return false;
 
         // Step 4: Find TypeLiteralExpression nodes in both ASTs
         var literals1 = FindTypeLiterals(ast1);
         var literals2 = FindTypeLiterals(ast2);
 
         // Both ASTs must have the same number of type literal nodes
-        if (literals1.Count != literals2.Count) return false;
+        if(literals1.Count != literals2.Count) return false;
 
         // Step 5: Verify each TypeLiteralExpression is structurally equivalent
-        for (var i = 0; i < literals1.Count; i++)
+        for(var i = 0; i < literals1.Count; i++)
         {
             var desc1 = DescribeTypeLiteral(literals1[i]);
             var desc2 = DescribeTypeLiteral(literals2[i]);
 
-            if (desc1 != desc2) return false;
+            if(desc1 != desc2) return false;
         }
 
         return true;

@@ -61,7 +61,7 @@ public class OwnershipErasurePropertyTests
 
             var result = SharedDriver.Compile(options);
 
-            if (!result.Succeeded)
+            if(!result.Succeeded)
                 return null;
 
             return result.EmittedFiles;
@@ -454,7 +454,7 @@ public class OwnershipErasurePropertyTests
         var withoutFiles = CompileAndGetEmittedFiles(scenario.WithoutOwnership);
 
         // Both must compile successfully
-        if (withFiles is null || withoutFiles is null)
+        if(withFiles is null || withoutFiles is null)
         {
             return false.Label(
                 $"Compilation failed. With ownership: {(withFiles is null ? "FAILED" : "OK")}, " +
@@ -462,21 +462,21 @@ public class OwnershipErasurePropertyTests
         }
 
         // Same number of emitted files
-        if (withFiles.Count != withoutFiles.Count)
+        if(withFiles.Count != withoutFiles.Count)
         {
             return false.Label(
                 $"File count mismatch: with={withFiles.Count}, without={withoutFiles.Count}");
         }
 
         // Compare each emitted file's content
-        foreach (var (fileName, withContent) in withFiles)
+        foreach(var (fileName, withContent) in withFiles)
         {
-            if (!withoutFiles.TryGetValue(fileName, out var withoutContent))
+            if(!withoutFiles.TryGetValue(fileName, out var withoutContent))
             {
                 return false.Label($"File '{fileName}' present with ownership but missing without");
             }
 
-            if (withContent != withoutContent)
+            if(withContent != withoutContent)
             {
                 return false.Label(
                     $"File '{fileName}' differs.\n" +
@@ -500,7 +500,7 @@ public class OwnershipErasurePropertyTests
     {
         var emittedFiles = CompileAndGetEmittedFiles(scenario.WithOwnership);
 
-        if (emittedFiles is null)
+        if(emittedFiles is null)
             return false.Label("Compilation failed");
 
         // Check that no emitted file contains ownership runtime artifacts
@@ -516,15 +516,15 @@ public class OwnershipErasurePropertyTests
             "Debug.Assert", // No runtime assertions for ownership
         };
 
-        foreach (var (fileName, content) in emittedFiles)
+        foreach(var (fileName, content) in emittedFiles)
         {
             // Skip .csproj files
-            if (fileName.EndsWith(".csproj", StringComparison.OrdinalIgnoreCase))
+            if(fileName.EndsWith(".csproj", StringComparison.OrdinalIgnoreCase))
                 continue;
 
-            foreach (var pattern in forbiddenPatterns)
+            foreach(var pattern in forbiddenPatterns)
             {
-                if (content.Contains(pattern, StringComparison.Ordinal))
+                if(content.Contains(pattern, StringComparison.Ordinal))
                 {
                     return false.Label(
                         $"File '{fileName}' contains forbidden runtime artifact: '{pattern}'");
@@ -547,7 +547,7 @@ public class OwnershipErasurePropertyTests
     {
         var emittedFiles = CompileAndGetEmittedFiles(scenario.WithOwnership);
 
-        if (emittedFiles is null)
+        if(emittedFiles is null)
             return false.Label("Compilation failed");
 
         // Ownership keywords that must not appear in emitted C#.
@@ -561,14 +561,14 @@ public class OwnershipErasurePropertyTests
             "readonly ref ", // as a Mist ownership specifier (C# has "ref readonly" but not "readonly ref")
         };
 
-        foreach (var (fileName, content) in emittedFiles)
+        foreach(var (fileName, content) in emittedFiles)
         {
-            if (fileName.EndsWith(".csproj", StringComparison.OrdinalIgnoreCase))
+            if(fileName.EndsWith(".csproj", StringComparison.OrdinalIgnoreCase))
                 continue;
 
-            foreach (var keyword in forbiddenKeywords)
+            foreach(var keyword in forbiddenKeywords)
             {
-                if (content.Contains(keyword, StringComparison.Ordinal))
+                if(content.Contains(keyword, StringComparison.Ordinal))
                 {
                     return false.Label(
                         $"File '{fileName}' contains ownership keyword: '{keyword}'");

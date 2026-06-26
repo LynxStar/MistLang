@@ -122,7 +122,7 @@ public sealed class InvalidEnumerableImplementationPropertyTests : IDisposable
 
     public void Dispose()
     {
-        if (Directory.Exists(_tempDir))
+        if(Directory.Exists(_tempDir))
         {
             try { Directory.Delete(_tempDir, recursive: true); } catch { /* best effort */ }
         }
@@ -350,7 +350,7 @@ public sealed class InvalidEnumerableImplementationPropertyTests : IDisposable
 
         var hasDiagnostic = abstractDiagnostics.Count > 0;
 
-        if (!hasDiagnostic)
+        if(!hasDiagnostic)
         {
             var allDiags = result.Diagnostics.Any()
                 ? string.Join("\n", result.Diagnostics.Select(d => $"  {d.Id.Value}: {d.Message}"))
@@ -390,7 +390,7 @@ public sealed class InvalidEnumerableImplementationPropertyTests : IDisposable
         var hasErrorDiagnostic = abstractDiagnostics.Count > 0
             || result.Diagnostics.Any(d => d.Severity == DiagnosticSeverity.Error);
 
-        if (!hasErrorDiagnostic)
+        if(!hasErrorDiagnostic)
         {
             var allDiags = result.Diagnostics.Any()
                 ? string.Join("\n", result.Diagnostics.Select(d => $"  {d.Id.Value}: {d.Message}"))

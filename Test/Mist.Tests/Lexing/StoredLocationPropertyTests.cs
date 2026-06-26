@@ -78,7 +78,7 @@ public class StoredLocationPropertyTests
         Mist.Generated.MistLexer.Lex(stormSource, stormDiagnostics);
 
         // The lexer should have produced at least one diagnostic for the invalid character
-        if (!stormDiagnostics.HasErrors)
+        if(!stormDiagnostics.HasErrors)
             return false;
 
         // Find the diagnostic entry for our invalid character.
@@ -86,16 +86,16 @@ public class StoredLocationPropertyTests
         // characters that form partial tokens. We look for the first diagnostic
         // whose message mentions the invalid character.
         Storm.Runtime.DiagnosticEntry? targetEntry = null;
-        foreach (var entry in stormDiagnostics.Entries)
+        foreach(var entry in stormDiagnostics.Entries)
         {
-            if (entry.Message.Contains(InvalidChar))
+            if(entry.Message.Contains(InvalidChar))
             {
                 targetEntry = entry;
                 break;
             }
         }
 
-        if (targetEntry is null)
+        if(targetEntry is null)
             return false;
 
         var diagnosticEntry = targetEntry.Value;
@@ -106,11 +106,11 @@ public class StoredLocationPropertyTests
         var computedPosition = mistSourceText.ToLinePositionSpan(span);
 
         // Verify: stored line matches computed line
-        if (diagnosticEntry.Line != computedPosition.Start.Line)
+        if(diagnosticEntry.Line != computedPosition.Start.Line)
             return false;
 
         // Verify: stored column matches computed column
-        if (diagnosticEntry.Column != computedPosition.Start.Column)
+        if(diagnosticEntry.Column != computedPosition.Start.Column)
             return false;
 
         return true;

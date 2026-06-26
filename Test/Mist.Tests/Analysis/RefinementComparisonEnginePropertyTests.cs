@@ -285,18 +285,18 @@ public class RefinementComparisonEnginePropertyTests
     private static Gen<AnyPredicate> GenAnyPredicate()
     {
         var genRelational = from op in Gen.Elements(RelationalOperators)
-                           from value in Gen.Choose(-50, 50)
-                           select AnyPredicate.Relational(op, value);
+                            from value in Gen.Choose(-50, 50)
+                            select AnyPredicate.Relational(op, value);
 
         var genEquality = from value in Gen.Choose(-50, 50)
-                         select AnyPredicate.Equality(value);
+                          select AnyPredicate.Equality(value);
 
         var genNot = from value in Gen.Choose(-50, 50)
-                    select AnyPredicate.Not(value);
+                     select AnyPredicate.Not(value);
 
         var genOr = from values in Gen.Choose(-50, 50).ListOf()
                         .Where(list => list.Count >= 2 && list.Count <= 5)
-                   select AnyPredicate.Or(values.ToImmutableArray());
+                    select AnyPredicate.Or(values.ToImmutableArray());
 
         return Gen.OneOf(genRelational, genEquality, genNot, genOr);
     }
@@ -405,10 +405,10 @@ public class RefinementComparisonEnginePropertyTests
         // Build the OrPatternNode with Left, Right, and AndPatterns.
         var orNode = new OrPatternNode { Left = BuildConstantAlternative(values[0]) };
 
-        if (values.Length >= 2)
+        if(values.Length >= 2)
             orNode.Right = BuildConstantAlternative(values[1]);
 
-        if (values.Length > 2)
+        if(values.Length > 2)
             orNode.AndPatterns = values.Skip(2).Select(BuildConstantAlternative).ToImmutableArray();
 
         // Wrap in PatternNode → ParenthesizedPatternPrimaryPatternNode → DirectPatternUnaryPatternNode → AndPatternNode
@@ -475,19 +475,19 @@ public class RefinementComparisonEnginePropertyTests
         // Sub-property 1: not a implies not a (identity) → true
         var notIdentityTarget = BuildNotPredicate(scenario.NotValue);
         var identityResult = notPredicate.Implies(notIdentityTarget);
-        if (!identityResult)
+        if(!identityResult)
             return false;
 
         // Sub-property 2: not a implies any relational target → false
         var relationalTarget = BuildRelationalPredicate(scenario.RelationalTarget.Operator, scenario.RelationalTarget.Value);
         var relationalResult = notPredicate.Implies(relationalTarget);
-        if (relationalResult)
+        if(relationalResult)
             return false;
 
         // Sub-property 3: not a implies == b → false (for any b)
         var equalityTarget = BuildEqualityPredicate(scenario.EqualityTarget);
         var equalityResult = notPredicate.Implies(equalityTarget);
-        if (equalityResult)
+        if(equalityResult)
             return false;
 
         return true;
@@ -699,7 +699,7 @@ public class RefinementComparisonEnginePropertyTests
         var impliesResult = sourcePredicate.Implies(targetPredicate);
 
         // Only check soundness when Implies returns true.
-        if (!impliesResult)
+        if(!impliesResult)
             return true;
 
         // Brute-force: for every v in [-100, 100], source(v) → target(v).
@@ -712,9 +712,9 @@ public class RefinementComparisonEnginePropertyTests
     /// </summary>
     private static bool BruteForceImplies(RefinementPredicate source, RefinementPredicate target, int lo, int hi)
     {
-        for (var v = lo; v <= hi; v++)
+        for(var v = lo; v <= hi; v++)
         {
-            if (source.Evaluate(v) && !target.Evaluate(v))
+            if(source.Evaluate(v) && !target.Evaluate(v))
                 return false;
         }
 

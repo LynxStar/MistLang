@@ -50,7 +50,7 @@ public class ConstraintSatisfactionLatticePropertyTests
         var parseBag = new DiagnosticBag();
         var parseResult = Parser.Parse(tokens, parseBag);
 
-        if (parseResult.Root is null)
+        if(parseResult.Root is null)
             return lexBag.ToImmutableArray().AddRange(parseBag.ToImmutableArray());
 
         var compilation = new Mist.Driver.Contracts.MistCompilation(
@@ -230,7 +230,7 @@ public class ConstraintSatisfactionLatticePropertyTests
             .Where(d => d.Id.Value == "MIST_CONSTRAINT_0018")
             .ToList();
 
-        if (scenario.IsPermitted)
+        if(scenario.IsPermitted)
         {
             // Lattice permits → zero MIST_CONSTRAINT_0018 diagnostics
             var hasNone = constraintViolations.Count == 0;

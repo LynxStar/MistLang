@@ -34,7 +34,7 @@ public sealed class VoidValueLiteralResolutionTests : IDisposable
 
     public void Dispose()
     {
-        if (Directory.Exists(_scratchDir))
+        if(Directory.Exists(_scratchDir))
         {
             try { Directory.Delete(_scratchDir, recursive: true); } catch { /* best effort */ }
         }
@@ -150,17 +150,17 @@ public sealed class VoidValueLiteralResolutionTests : IDisposable
 
     private static void CollectTypeLiterals(Storm.Runtime.SyntaxNode? node, List<TypeLiteralExpressionPrimaryNode> results)
     {
-        if (node is null) return;
+        if(node is null) return;
 
-        if (node is TypeLiteralExpressionPrimaryNode typeLiteral)
+        if(node is TypeLiteralExpressionPrimaryNode typeLiteral)
             results.Add(typeLiteral);
 
         try
         {
-            foreach (var child in node.Children())
+            foreach(var child in node.Children())
                 CollectTypeLiterals(child, results);
         }
-        catch (NullReferenceException)
+        catch(NullReferenceException)
         {
             // Some AST nodes may have null children that Children() doesn't guard against.
         }
@@ -178,17 +178,17 @@ public sealed class VoidValueLiteralResolutionTests : IDisposable
 
     private static void CollectMemberAccessSuffixes(Storm.Runtime.SyntaxNode? node, List<MemberAccessSuffixPostfixSuffixNode> results)
     {
-        if (node is null) return;
+        if(node is null) return;
 
-        if (node is MemberAccessSuffixPostfixSuffixNode suffix)
+        if(node is MemberAccessSuffixPostfixSuffixNode suffix)
             results.Add(suffix);
 
         try
         {
-            foreach (var child in node.Children())
+            foreach(var child in node.Children())
                 CollectMemberAccessSuffixes(child, results);
         }
-        catch (NullReferenceException)
+        catch(NullReferenceException)
         {
             // Some AST nodes may have null children that Children() doesn't guard against.
         }

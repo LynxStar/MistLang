@@ -130,15 +130,15 @@ public class DuplicateTypeParameterPropertyTests
         var names = new List<string> { duplicateName, duplicateName };
 
         // Fill remaining slots with other unique names
-        foreach (var other in otherNames)
+        foreach(var other in otherNames)
         {
-            if (names.Count >= totalCount)
+            if(names.Count >= totalCount)
                 break;
             names.Add(other);
         }
 
         // Ensure we have exactly totalCount names
-        while (names.Count < totalCount)
+        while(names.Count < totalCount)
             names.Add(duplicateName);
 
         return names.ToImmutableArray();
@@ -161,64 +161,64 @@ public class DuplicateTypeParameterPropertyTests
     {
         Storm.Runtime.SyntaxNode ast;
 
-        switch (decl.Kind)
+        switch(decl.Kind)
         {
             case DuplicateDeclKind.Class:
-            {
-                var classDecl = new ClassDeclarationNode
                 {
-                    Name = MakeToken(decl.DeclName),
-                    TypeParams = MakeTypeParamList(decl.TypeParamNames.ToArray()),
-                    Members = ImmutableArray<MemberDeclarationNode>.Empty,
-                };
-                ast = MakeCompilationUnit(
-                    new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl });
-                break;
-            }
+                    var classDecl = new ClassDeclarationNode
+                    {
+                        Name = MakeToken(decl.DeclName),
+                        TypeParams = MakeTypeParamList(decl.TypeParamNames.ToArray()),
+                        Members = ImmutableArray<MemberDeclarationNode>.Empty,
+                    };
+                    ast = MakeCompilationUnit(
+                        new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl });
+                    break;
+                }
             case DuplicateDeclKind.Struct:
-            {
-                var structDecl = new StructDeclarationNode
                 {
-                    Name = MakeToken(decl.DeclName),
-                    TypeParams = MakeTypeParamList(decl.TypeParamNames.ToArray()),
-                    Members = ImmutableArray<MemberDeclarationNode>.Empty,
-                };
-                ast = MakeCompilationUnit(
-                    new StructTypeTypeDeclarationNode { StructDeclaration = structDecl });
-                break;
-            }
+                    var structDecl = new StructDeclarationNode
+                    {
+                        Name = MakeToken(decl.DeclName),
+                        TypeParams = MakeTypeParamList(decl.TypeParamNames.ToArray()),
+                        Members = ImmutableArray<MemberDeclarationNode>.Empty,
+                    };
+                    ast = MakeCompilationUnit(
+                        new StructTypeTypeDeclarationNode { StructDeclaration = structDecl });
+                    break;
+                }
             case DuplicateDeclKind.Abstract:
-            {
-                var abstractDecl = new AbstractDeclarationNode
                 {
-                    Name = MakeToken(decl.DeclName),
-                    TypeParams = MakeTypeParamList(decl.TypeParamNames.ToArray()),
-                    Members = ImmutableArray<AbstractMemberDeclarationNode>.Empty,
-                };
-                ast = MakeCompilationUnit(
-                    new AbstractTypeTypeDeclarationNode { AbstractDeclaration = abstractDecl });
-                break;
-            }
+                    var abstractDecl = new AbstractDeclarationNode
+                    {
+                        Name = MakeToken(decl.DeclName),
+                        TypeParams = MakeTypeParamList(decl.TypeParamNames.ToArray()),
+                        Members = ImmutableArray<AbstractMemberDeclarationNode>.Empty,
+                    };
+                    ast = MakeCompilationUnit(
+                        new AbstractTypeTypeDeclarationNode { AbstractDeclaration = abstractDecl });
+                    break;
+                }
             case DuplicateDeclKind.Method:
-            {
-                var method = new MethodDeclarationNode
                 {
-                    Name = MakeToken(decl.DeclName),
-                    ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
-                    TypeParams = MakeTypeParamList(decl.TypeParamNames.ToArray()),
-                    Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty } },
-                    Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
-                };
-                var classDecl = new ClassDeclarationNode
-                {
-                    Name = MakeToken("Host"),
-                    Members = ImmutableArray.Create<MemberDeclarationNode>(
-                        new MethodMemberMemberDeclarationNode { Method = method }),
-                };
-                ast = MakeCompilationUnit(
-                    new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl });
-                break;
-            }
+                    var method = new MethodDeclarationNode
+                    {
+                        Name = MakeToken(decl.DeclName),
+                        ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
+                        TypeParams = MakeTypeParamList(decl.TypeParamNames.ToArray()),
+                        Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty } },
+                        Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
+                    };
+                    var classDecl = new ClassDeclarationNode
+                    {
+                        Name = MakeToken("Host"),
+                        Members = ImmutableArray.Create<MemberDeclarationNode>(
+                            new MethodMemberMemberDeclarationNode { Method = method }),
+                    };
+                    ast = MakeCompilationUnit(
+                        new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl });
+                    break;
+                }
             default:
                 throw new InvalidOperationException();
         }

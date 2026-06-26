@@ -35,13 +35,13 @@ public sealed class MemoizationCorrectnessAndPerformanceTests
         var parser = new MistParser();
         var parseErrors = new List<string>();
 
-        foreach (var path in sourceFiles)
+        foreach(var path in sourceFiles)
         {
             var source = new Mist.Common.Text.SourceText(path, File.ReadAllText(path));
             var lexBag = new DiagnosticBag();
             var tokens = lexer.Lex(source, lexBag);
 
-            if (lexBag.ToImmutableArray().Any(d => d.Severity == DiagnosticSeverity.Error))
+            if(lexBag.ToImmutableArray().Any(d => d.Severity == DiagnosticSeverity.Error))
             {
                 parseErrors.Add($"[LEX] {path}: {string.Join("; ", lexBag.ToImmutableArray().Where(d => d.Severity == DiagnosticSeverity.Error).Select(d => d.Message))}");
                 continue;
@@ -54,7 +54,7 @@ public sealed class MemoizationCorrectnessAndPerformanceTests
                 .Where(d => d.Severity == DiagnosticSeverity.Error)
                 .ToList();
 
-            if (errors.Count > 0)
+            if(errors.Count > 0)
             {
                 parseErrors.Add($"[PARSE] {path}: {string.Join("; ", errors.Select(d => d.Message))}");
             }
@@ -64,7 +64,7 @@ public sealed class MemoizationCorrectnessAndPerformanceTests
                 .Where(d => d.Id.Value == "MIST_PARSE_STUB")
                 .ToList();
 
-            if (stubs.Count > 0)
+            if(stubs.Count > 0)
             {
                 parseErrors.Add($"[STUB] {path}: parser returned stub warning");
             }
@@ -103,7 +103,7 @@ public sealed class MemoizationCorrectnessAndPerformanceTests
             .ToList();
 
         // Warm-up pass: JIT the lex+parse code paths
-        foreach (var source in sources)
+        foreach(var source in sources)
         {
             var warmLexBag = new DiagnosticBag();
             var warmTokens = lexer.Lex(source, warmLexBag);
@@ -113,7 +113,7 @@ public sealed class MemoizationCorrectnessAndPerformanceTests
 
         // Measured pass: lex + parse only
         var stopwatch = Stopwatch.StartNew();
-        foreach (var source in sources)
+        foreach(var source in sources)
         {
             var lexBag = new DiagnosticBag();
             var tokens = lexer.Lex(source, lexBag);
@@ -150,11 +150,11 @@ public sealed class MemoizationCorrectnessAndPerformanceTests
         var samplesDir = Path.Combine(repoRoot, "samples");
         var files = new List<string>();
 
-        foreach (var sampleProject in Directory.GetDirectories(samplesDir))
+        foreach(var sampleProject in Directory.GetDirectories(samplesDir))
         {
             var dirName = Path.GetFileName(sampleProject);
             // Skip baseline and build artifact directories
-            if (dirName.StartsWith("__") || dirName.Equals("bin", StringComparison.OrdinalIgnoreCase)
+            if(dirName.StartsWith("__") || dirName.Equals("bin", StringComparison.OrdinalIgnoreCase)
                 || dirName.Equals("obj", StringComparison.OrdinalIgnoreCase)
                 || dirName.Equals("out", StringComparison.OrdinalIgnoreCase))
             {
@@ -171,17 +171,17 @@ public sealed class MemoizationCorrectnessAndPerformanceTests
     private static string FindRepoRoot()
     {
         var dir = AppContext.BaseDirectory;
-        while (dir is not null)
+        while(dir is not null)
         {
-            if (File.Exists(Path.Combine(dir, "Mist.slnx")))
+            if(File.Exists(Path.Combine(dir, "Mist.slnx")))
                 return dir;
             dir = Directory.GetParent(dir)?.FullName;
         }
 
         dir = Directory.GetCurrentDirectory();
-        while (dir is not null)
+        while(dir is not null)
         {
-            if (File.Exists(Path.Combine(dir, "Mist.slnx")))
+            if(File.Exists(Path.Combine(dir, "Mist.slnx")))
                 return dir;
             dir = Directory.GetParent(dir)?.FullName;
         }

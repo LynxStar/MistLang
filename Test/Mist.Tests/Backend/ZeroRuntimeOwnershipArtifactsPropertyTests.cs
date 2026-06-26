@@ -50,7 +50,7 @@ public sealed class ZeroRuntimeOwnershipArtifactsPropertyTests : IDisposable
 
     public void Dispose()
     {
-        if (Directory.Exists(_outputDir))
+        if(Directory.Exists(_outputDir))
         {
             try { Directory.Delete(_outputDir, recursive: true); } catch { /* best effort */ }
         }
@@ -75,7 +75,7 @@ public sealed class ZeroRuntimeOwnershipArtifactsPropertyTests : IDisposable
 
         var result = SharedDriver.Compile(options);
 
-        if (!result.Succeeded)
+        if(!result.Succeeded)
             return null;
 
         return result.EmittedFiles;
@@ -340,18 +340,18 @@ public sealed class ZeroRuntimeOwnershipArtifactsPropertyTests : IDisposable
     {
         var emittedFiles = CompileAndGetEmittedFiles(program.Source);
 
-        if (emittedFiles is null)
+        if(emittedFiles is null)
             return false.ToProperty().Label($"Compilation failed for: {program.Label}");
 
-        foreach (var (fileName, content) in emittedFiles)
+        foreach(var (fileName, content) in emittedFiles)
         {
             // Skip .csproj files — they aren't emitted code
-            if (fileName.EndsWith(".csproj", StringComparison.OrdinalIgnoreCase))
+            if(fileName.EndsWith(".csproj", StringComparison.OrdinalIgnoreCase))
                 continue;
 
-            foreach (var pattern in ForbiddenPatterns)
+            foreach(var pattern in ForbiddenPatterns)
             {
-                if (content.Contains(pattern, StringComparison.Ordinal))
+                if(content.Contains(pattern, StringComparison.Ordinal))
                 {
                     return false.ToProperty().Label(
                         $"File '{fileName}' contains forbidden artifact: '{pattern}'\n" +
@@ -374,11 +374,11 @@ public sealed class ZeroRuntimeOwnershipArtifactsPropertyTests : IDisposable
         Arbitrary = new[] { typeof(ZeroRuntimeOwnershipArtifactsPropertyTests) })]
     public Property EmittedCSharp_ContainsCloneAtResolvedCloneSites(OwnershipProgram program)
     {
-        if (!program.ExpectsClone)
+        if(!program.ExpectsClone)
         {
             // For non-clone scenarios, just verify compilation succeeds and no artifacts
             var files = CompileAndGetEmittedFiles(program.Source);
-            if (files is null)
+            if(files is null)
                 return false.ToProperty().Label($"Compilation failed for: {program.Label}");
             return true.ToProperty().Label("No clone expected — compilation succeeded");
         }
@@ -386,16 +386,16 @@ public sealed class ZeroRuntimeOwnershipArtifactsPropertyTests : IDisposable
         // For clone scenarios, verify .Clone() appears in the emitted C#
         var emittedFiles = CompileAndGetEmittedFiles(program.Source);
 
-        if (emittedFiles is null)
+        if(emittedFiles is null)
             return false.ToProperty().Label($"Compilation failed for: {program.Label}");
 
         var hasCloneCall = false;
-        foreach (var (fileName, content) in emittedFiles)
+        foreach(var (fileName, content) in emittedFiles)
         {
-            if (fileName.EndsWith(".csproj", StringComparison.OrdinalIgnoreCase))
+            if(fileName.EndsWith(".csproj", StringComparison.OrdinalIgnoreCase))
                 continue;
 
-            if (content.Contains(".Clone()", StringComparison.Ordinal))
+            if(content.Contains(".Clone()", StringComparison.Ordinal))
             {
                 hasCloneCall = true;
                 break;
@@ -413,7 +413,7 @@ public sealed class ZeroRuntimeOwnershipArtifactsPropertyTests : IDisposable
     private static string GetContextAround(string content, string pattern)
     {
         var idx = content.IndexOf(pattern, StringComparison.Ordinal);
-        if (idx < 0) return "(not found)";
+        if(idx < 0) return "(not found)";
 
         var start = Math.Max(0, idx - 40);
         var end = Math.Min(content.Length, idx + pattern.Length + 40);

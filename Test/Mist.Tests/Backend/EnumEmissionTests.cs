@@ -80,7 +80,7 @@ public sealed class EnumEmissionTests
         Assert.False(emitBag.HasErrors, $"Emit errors: {FormatDiagnostics(emitBag)}");
 
         var sb = new StringBuilder();
-        foreach (var (_, content) in files)
+        foreach(var (_, content) in files)
             sb.AppendLine(content);
 
         return sb.ToString();

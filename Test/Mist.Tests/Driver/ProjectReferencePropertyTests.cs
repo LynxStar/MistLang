@@ -42,7 +42,7 @@ public sealed class ProjectReferencePropertyTests
     private static void RunProperty<T>(Gen<T> gen, Action<T> check, int maxTests = 100)
     {
         var samples = gen.Sample(maxTests);
-        foreach (var sample in samples)
+        foreach(var sample in samples)
         {
             check(sample);
         }
@@ -64,13 +64,13 @@ public sealed class ProjectReferencePropertyTests
             try
             {
                 // Create N directories forming a cycle
-                for (var i = 0; i < cycleLength; i++)
+                for(var i = 0; i < cycleLength; i++)
                 {
                     dirs.Add(CreateTempDir());
                 }
 
                 // Each directory references the next; the last references the first
-                for (var i = 0; i < cycleLength; i++)
+                for(var i = 0; i < cycleLength; i++)
                 {
                     var nextIdx = (i + 1) % cycleLength;
                     var nextDir = dirs[nextIdx];
@@ -108,7 +108,7 @@ public sealed class ProjectReferencePropertyTests
             finally
             {
                 try { Directory.Delete(rootDir, recursive: true); } catch { }
-                foreach (var d in dirs)
+                foreach(var d in dirs)
                 {
                     try { Directory.Delete(d, recursive: true); } catch { }
                 }
@@ -134,7 +134,7 @@ public sealed class ProjectReferencePropertyTests
             try
             {
                 // Create shared dependencies (leaf nodes)
-                for (var i = 0; i < sharedCount; i++)
+                for(var i = 0; i < sharedCount; i++)
                 {
                     var sharedDir = CreateTempDir();
                     sharedDirs.Add(sharedDir);
@@ -186,7 +186,7 @@ public sealed class ProjectReferencePropertyTests
                 try { Directory.Delete(rootDir, recursive: true); } catch { }
                 try { Directory.Delete(leftDir, recursive: true); } catch { }
                 try { Directory.Delete(rightDir, recursive: true); } catch { }
-                foreach (var d in sharedDirs)
+                foreach(var d in sharedDirs)
                 {
                     try { Directory.Delete(d, recursive: true); } catch { }
                 }
@@ -212,7 +212,7 @@ public sealed class ProjectReferencePropertyTests
 
                 // Create N independent non-existent paths
                 var refs = new List<ProjectReference>();
-                for (var i = 0; i < errorCount; i++)
+                for(var i = 0; i < errorCount; i++)
                 {
                     var bogusPath = Path.Combine(
                         Path.GetTempPath(),
@@ -308,7 +308,7 @@ public sealed class ProjectReferencePropertyTests
             {
                 // Create referenced project with random name and source files
                 WriteToml(refDir, $"name = \"{refName}\"\nnamespace_root = \"{refName}\"");
-                for (var i = 0; i < fileCount; i++)
+                for(var i = 0; i < fileCount; i++)
                 {
                     File.WriteAllText(
                         Path.Combine(refDir, $"file{i}.mist"),
@@ -349,7 +349,7 @@ public sealed class ProjectReferencePropertyTests
 
                 Assert.Equal(fileCount, refUnits.Count);
 
-                foreach (var unit in refUnits)
+                foreach(var unit in refUnits)
                 {
                     Assert.Equal(refName, unit.NamespaceRoot);
                     Assert.Equal(refDir, unit.ProjectFolder);
@@ -380,7 +380,7 @@ public sealed class ProjectReferencePropertyTests
             try
             {
                 // Create chain of projects: chain[0] is deepest, chain[depth-1] is shallowest
-                for (var i = 0; i < depth; i++)
+                for(var i = 0; i < depth; i++)
                 {
                     chainDirs.Add(CreateTempDir());
                 }
@@ -391,7 +391,7 @@ public sealed class ProjectReferencePropertyTests
                     Path.Combine(chainDirs[0], "d0.mist"), "// depth 0");
 
                 // Each subsequent project references the previous one
-                for (var i = 1; i < depth; i++)
+                for(var i = 1; i < depth; i++)
                 {
                     var prevToml = Path.GetFullPath(
                         Path.Combine(chainDirs[i - 1], "mist.toml")).Replace("\\", "/");
@@ -427,7 +427,7 @@ public sealed class ProjectReferencePropertyTests
                 var units = capture.CapturedCompilation!.Units;
 
                 // Verify ordering: units from deeper projects appear before shallower
-                for (var i = 0; i < depth - 1; i++)
+                for(var i = 0; i < depth - 1; i++)
                 {
                     var deeperToml = Path.GetFullPath(
                         Path.Combine(chainDirs[i], "mist.toml"));
@@ -457,7 +457,7 @@ public sealed class ProjectReferencePropertyTests
             finally
             {
                 try { Directory.Delete(rootDir, recursive: true); } catch { }
-                foreach (var d in chainDirs)
+                foreach(var d in chainDirs)
                 {
                     try { Directory.Delete(d, recursive: true); } catch { }
                 }

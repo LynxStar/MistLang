@@ -18,18 +18,18 @@ public static class DiagnosticHelper
     {
         var origin = node.Origin;
 
-        if (origin is null or TestOrigin)
+        if(origin is null or TestOrigin)
         {
             return ("<unknown>", default, null);
         }
 
-        if (origin is ParsedOrigin parsed)
+        if(origin is ParsedOrigin parsed)
         {
             var location = ComputeLocation(parsed.Source, node.Span);
             return (parsed.Source.Path, location, null);
         }
 
-        if (origin is SyntheticOrigin synthetic)
+        if(origin is SyntheticOrigin synthetic)
         {
             return ResolveSyntheticChain(synthetic, node.Span);
         }
@@ -43,9 +43,9 @@ public static class DiagnosticHelper
         var reasons = new List<string> { synthetic.Reason };
         var current = synthetic.DerivedFrom;
 
-        for (var depth = 0; depth < MaxChainDepth; depth++)
+        for(var depth = 0; depth < MaxChainDepth; depth++)
         {
-            switch (current)
+            switch(current)
             {
                 case ParsedOrigin parsed:
                     var location = ComputeLocation(parsed.Source, span);
@@ -75,7 +75,7 @@ public static class DiagnosticHelper
 
     private static LinePositionSpan ComputeLocation(SourceText source, Storm.Runtime.SourceSpan span)
     {
-        if (span.Start + span.Length > source.Contents.Length)
+        if(span.Start + span.Length > source.Contents.Length)
         {
             return default;
         }

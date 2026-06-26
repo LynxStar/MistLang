@@ -80,11 +80,11 @@ public class ConstraintResolutionTests
     private static TypeParameterType? FindTypeParameter(ISemanticModel model, string typeName, string typeParamName)
     {
         var typeSymbol = model.AllSymbols.FirstOrDefault(s => s.Name == typeName);
-        if (typeSymbol?.DeclaredType is ClassType classType)
+        if(typeSymbol?.DeclaredType is ClassType classType)
             return classType.TypeParameters.OfType<TypeParameterType>().FirstOrDefault(tp => tp.Name == typeParamName);
-        if (typeSymbol?.DeclaredType is StructType structType)
+        if(typeSymbol?.DeclaredType is StructType structType)
             return structType.TypeParameters.OfType<TypeParameterType>().FirstOrDefault(tp => tp.Name == typeParamName);
-        if (typeSymbol?.DeclaredType is AbstractType abstractType)
+        if(typeSymbol?.DeclaredType is AbstractType abstractType)
             return abstractType.TypeParameters.OfType<TypeParameterType>().FirstOrDefault(tp => tp.Name == typeParamName);
         return null;
     }

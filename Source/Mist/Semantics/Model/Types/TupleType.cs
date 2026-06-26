@@ -31,7 +31,7 @@ public sealed class TupleType : IType
 
         // Build display name: "(int, string)" or "(int x, string y)"
         var parts = new string[elementTypes.Count];
-        for (var i = 0; i < elementTypes.Count; i++)
+        for(var i = 0; i < elementTypes.Count; i++)
         {
             var name = elementNames is not null && i < elementNames.Count ? elementNames[i] : null;
             parts[i] = name is not null

@@ -201,7 +201,7 @@ public sealed class DependentTypeCarrierStructPropertyTests
     {
         var sb = new System.Text.StringBuilder();
         sb.AppendLine($"class {baseName}<P:{valueType}> {{ }}");
-        for (var i = 0; i < numUsages; i++)
+        for(var i = 0; i < numUsages; i++)
         {
             sb.AppendLine($"class Use{i}{baseName} : {baseName}<{value}> {{ }}");
         }
@@ -237,7 +237,7 @@ public sealed class DependentTypeCarrierStructPropertyTests
 
             var result = SharedDriver.Compile(options);
 
-            if (!result.Succeeded)
+            if(!result.Succeeded)
             {
                 var diagnosticText = string.Join("\n",
                     result.Diagnostics
@@ -285,27 +285,27 @@ public sealed class DependentTypeCarrierStructPropertyTests
 
         var failures = new List<string>();
 
-        for (var i = 0; i < scenarios.Count; i++)
+        for(var i = 0; i < scenarios.Count; i++)
         {
             var scenario = scenarios[i];
             var (files, error) = CompileInProcess(scenario.MistSource);
 
-            if (files is null)
+            if(files is null)
             {
                 failures.Add($"Scenario {i} ({scenario.Description}): compilation failed:\n{error}");
                 continue;
             }
 
-            if (!files.TryGetValue("DependentTypeHelpers.g.cs", out var helpersContent))
+            if(!files.TryGetValue("DependentTypeHelpers.g.cs", out var helpersContent))
             {
                 failures.Add($"Scenario {i} ({scenario.Description}): DependentTypeHelpers.g.cs not emitted");
                 continue;
             }
 
-            foreach (var expected in scenario.ExpectedCarriers)
+            foreach(var expected in scenario.ExpectedCarriers)
             {
                 var count = CountCarrierStructDefinitions(helpersContent, expected.StructName);
-                if (count != 1)
+                if(count != 1)
                 {
                     failures.Add(
                         $"Scenario {i} ({scenario.Description}): " +

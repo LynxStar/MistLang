@@ -55,7 +55,7 @@ public sealed partial class OverloadEmissionPropertyTests : IDisposable
 
     public void Dispose()
     {
-        if (Directory.Exists(_outputDir))
+        if(Directory.Exists(_outputDir))
         {
             try { Directory.Delete(_outputDir, recursive: true); } catch { /* best effort */ }
         }
@@ -83,14 +83,14 @@ public sealed partial class OverloadEmissionPropertyTests : IDisposable
     {
         PrimitiveTypeNode primitiveType = typeName switch
         {
-            "int"    => new IntTypePrimitiveTypeNode(),
-            "bool"   => new BoolTypePrimitiveTypeNode(),
+            "int" => new IntTypePrimitiveTypeNode(),
+            "bool" => new BoolTypePrimitiveTypeNode(),
             "double" => new DoubleTypePrimitiveTypeNode(),
-            "float"  => new FloatTypePrimitiveTypeNode(),
-            "char"   => new CharTypePrimitiveTypeNode(),
-            "long"   => new LongTypePrimitiveTypeNode(),
+            "float" => new FloatTypePrimitiveTypeNode(),
+            "char" => new CharTypePrimitiveTypeNode(),
+            "long" => new LongTypePrimitiveTypeNode(),
             "string" => new StringTypePrimitiveTypeNode(),
-            _        => new IntTypePrimitiveTypeNode(),
+            _ => new IntTypePrimitiveTypeNode(),
         };
         return new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = primitiveType } };
     }
@@ -120,9 +120,9 @@ public sealed partial class OverloadEmissionPropertyTests : IDisposable
 
     private void CleanOutputDir()
     {
-        if (Directory.Exists(_outputDir))
+        if(Directory.Exists(_outputDir))
         {
-            foreach (var file in Directory.GetFiles(_outputDir))
+            foreach(var file in Directory.GetFiles(_outputDir))
                 File.Delete(file);
         }
     }
@@ -157,7 +157,7 @@ public sealed partial class OverloadEmissionPropertyTests : IDisposable
             }
         });
 
-        for (var i = 0; i < paramTypes.Count; i++)
+        for(var i = 0; i < paramTypes.Count; i++)
         {
             var typeName = paramTypes[i];
             var paramName = $"p{i}";
@@ -223,7 +223,7 @@ public sealed partial class OverloadEmissionPropertyTests : IDisposable
             }
         });
 
-        for (var i = 0; i < paramTypes.Count; i++)
+        for(var i = 0; i < paramTypes.Count; i++)
         {
             var typeName = paramTypes[i];
             var paramName = $"p{i}";
@@ -272,7 +272,7 @@ public sealed partial class OverloadEmissionPropertyTests : IDisposable
         sb.AppendLine("class Program {");
         sb.AppendLine("    public static void Main() { }");
         sb.AppendLine();
-        for (var i = 0; i < paramTypes.Count; i++)
+        for(var i = 0; i < paramTypes.Count; i++)
             sb.AppendLine($"    public void DoWork({paramTypes[i]} p{i}) {{ }}");
         sb.AppendLine("}");
         return sb.ToString();

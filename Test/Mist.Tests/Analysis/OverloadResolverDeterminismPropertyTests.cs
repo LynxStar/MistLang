@@ -167,7 +167,7 @@ public class OverloadResolverDeterminismPropertyTests
         // pin the signatures here.
         var aType = typesByName["A"];
         var bType = typesByName["B"];
-        foreach (var op in operators)
+        foreach(var op in operators)
         {
             var paramTypes = ParameterSignature.Extract(op, model);
             Assert.Equal(2, paramTypes.Count);
@@ -296,14 +296,14 @@ public class OverloadResolverDeterminismPropertyTests
             permutedOrigins);
 
         // Both resolutions must agree on status.
-        if (resultOriginal.Status != resultPermuted.Status)
+        if(resultOriginal.Status != resultPermuted.Status)
             return false;
 
         // On Success, both must select the same symbol. ReferenceEquals is
         // appropriate: resolution returns whichever ISymbol instance is in
         // the candidate list, and permuting a list does not clone its
         // entries.
-        if (resultOriginal.Status == OverloadResolutionStatus.Success)
+        if(resultOriginal.Status == OverloadResolutionStatus.Success)
         {
             return ReferenceEquals(
                 resultOriginal.BestCandidate,

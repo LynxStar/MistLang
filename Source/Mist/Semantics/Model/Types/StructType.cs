@@ -125,7 +125,7 @@ public sealed class StructType : IType
     {
         var ancestors = new List<StructType>();
         var current = BaseType as StructType;
-        while (current is not null)
+        while(current is not null)
         {
             ancestors.Add(current);
             current = current.BaseType as StructType;

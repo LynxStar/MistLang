@@ -22,13 +22,13 @@ namespace Storm.SourceGenerator.Tests
         private static string FindGrammarDirectory()
         {
             var dir = AppContext.BaseDirectory;
-            while (dir != null)
+            while(dir != null)
             {
                 var slnxPath = Path.Combine(dir, "Mist.slnx");
-                if (File.Exists(slnxPath))
+                if(File.Exists(slnxPath))
                 {
                     var grammarDir = Path.Combine(dir, "Source", "Mist", "Grammar");
-                    if (Directory.Exists(grammarDir))
+                    if(Directory.Exists(grammarDir))
                     {
                         return grammarDir;
                     }
@@ -54,14 +54,14 @@ namespace Storm.SourceGenerator.Tests
                 var fsPath = path.Replace('/', Path.DirectorySeparatorChar);
 
                 // If the path is already absolute, try it directly
-                if (Path.IsPathRooted(fsPath) && File.Exists(fsPath))
+                if(Path.IsPathRooted(fsPath) && File.Exists(fsPath))
                 {
                     return File.ReadAllText(fsPath);
                 }
 
                 // Otherwise resolve relative to the grammar directory
                 var fullPath = Path.GetFullPath(Path.Combine(grammarDir, fsPath));
-                if (File.Exists(fullPath))
+                if(File.Exists(fullPath))
                 {
                     return File.ReadAllText(fullPath);
                 }
@@ -196,9 +196,9 @@ namespace Storm.SourceGenerator.Tests
 
             // Find the end of the class (next "public sealed class" or "public abstract class")
             var fieldNodeEnd = output.IndexOf("public sealed class", fieldNodeStart + 1);
-            if (fieldNodeEnd < 0)
+            if(fieldNodeEnd < 0)
                 fieldNodeEnd = output.IndexOf("public abstract class", fieldNodeStart + 1);
-            if (fieldNodeEnd < 0)
+            if(fieldNodeEnd < 0)
                 fieldNodeEnd = output.Length;
 
             var fieldNodeSection = output.Substring(fieldNodeStart, fieldNodeEnd - fieldNodeStart);
@@ -218,9 +218,9 @@ namespace Storm.SourceGenerator.Tests
             Assert.True(fieldNodeStart >= 0, "Expected FieldDeclarationNode in AST output");
 
             var fieldNodeEnd = output.IndexOf("public sealed class", fieldNodeStart + 1);
-            if (fieldNodeEnd < 0)
+            if(fieldNodeEnd < 0)
                 fieldNodeEnd = output.IndexOf("public abstract class", fieldNodeStart + 1);
-            if (fieldNodeEnd < 0)
+            if(fieldNodeEnd < 0)
                 fieldNodeEnd = output.Length;
 
             var fieldNodeSection = output.Substring(fieldNodeStart, fieldNodeEnd - fieldNodeStart);

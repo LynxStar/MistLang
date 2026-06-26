@@ -163,7 +163,7 @@ public class InheritanceDefaultabilityPropertyTests
             Members = members,
         };
 
-        if (baseClassName is not null)
+        if(baseClassName is not null)
         {
             var baseList = MakeBaseList(baseClassName);
             classDecl.BaseClause = baseList;
@@ -246,13 +246,13 @@ public class InheritanceDefaultabilityPropertyTests
     private static Gen<ImmutableArray<(string FieldName, string FieldType)>> GenPrimitiveFields(
         int count)
     {
-        if (count == 0)
+        if(count == 0)
             return Gen.Constant(ImmutableArray<(string, string)>.Empty);
 
         Gen<ImmutableArray<(string, string)>> result =
             Gen.Constant(ImmutableArray<(string, string)>.Empty);
 
-        for (var i = 0; i < count; i++)
+        for(var i = 0; i < count; i++)
         {
             var idx = i;
             result = from arr in result
@@ -355,7 +355,7 @@ public class InheritanceDefaultabilityPropertyTests
             .Append(MakeDefaultBlockMember(defaultEntries))
             .ToList();
 
-        if (scenario.HasConstructor)
+        if(scenario.HasConstructor)
         {
             derivedMembers.Add(MakeConstructorMember(scenario.DerivedTypeName));
         }
@@ -393,12 +393,12 @@ public class InheritanceDefaultabilityPropertyTests
         var derivedSymbol = model.AllSymbols
             .FirstOrDefault(s => s.Name == scenario.DerivedTypeName && s.Kind == SymbolKind.Class);
 
-        if (derivedSymbol is null)
+        if(derivedSymbol is null)
             return false;
 
         // The derived type should be NotDefaultable
         var status = (derivedSymbol.DeclaredType as ClassType)?.Defaultability;
-        if (status != DefaultabilityStatus.NotDefaultable)
+        if(status != DefaultabilityStatus.NotDefaultable)
             return false;
 
         // No MIST_DEFAULT_BASE_NOT_DEFAULTABLE diagnostic should be emitted
@@ -436,12 +436,12 @@ public class InheritanceDefaultabilityPropertyTests
         var derivedSymbol = model.AllSymbols
             .FirstOrDefault(s => s.Name == scenario.DerivedTypeName && s.Kind == SymbolKind.Class);
 
-        if (derivedSymbol is null)
+        if(derivedSymbol is null)
             return false;
 
         // The derived type should be NotDefaultable
         var status = (derivedSymbol.DeclaredType as ClassType)?.Defaultability;
-        if (status != DefaultabilityStatus.NotDefaultable)
+        if(status != DefaultabilityStatus.NotDefaultable)
             return false;
 
         // MIST_DEFAULT_BASE_NOT_DEFAULTABLE diagnostic SHOULD be emitted

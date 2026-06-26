@@ -71,17 +71,20 @@ public class EntryPointPropertyTests
     private static MethodDeclarationNode MakeMainMethod(bool withStringArrayParam = false)
     {
         ParameterListNode? parameters = null;
-        if (withStringArrayParam)
+        if(withStringArrayParam)
         {
             parameters = new ParameterListNode
             {
                 Parameter = new ParameterNode
                 {
-                    Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                    Type = new TypeReferenceNode
                     {
-                        PrimitiveType = new StringTypePrimitiveTypeNode(),
-                        ArrayRank = new UnsizedArrayRankArrayRankSuffixNode(),
-                    } },
+                        First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                        {
+                            PrimitiveType = new StringTypePrimitiveTypeNode(),
+                            ArrayRank = new UnsizedArrayRankArrayRankSuffixNode(),
+                        }
+                    },
                     Name = MakeToken("args"),
                 },
             };
@@ -249,7 +252,7 @@ public class EntryPointPropertyTests
         var model = BuildModel(ast);
         var diagnostics = RunTypeChecker(model);
 
-        if (scenario.ExpectedDiagnosticId is null)
+        if(scenario.ExpectedDiagnosticId is null)
         {
             // No entry point error expected
             return !diagnostics.Any(d =>
@@ -375,10 +378,13 @@ public class EntryPointPropertyTests
         var method = new MethodDeclarationNode
         {
             Name = MakeToken("Main"),
-            ReturnType = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
+            ReturnType = new TypeReferenceNode
             {
-                PrimitiveType = new IntTypePrimitiveTypeNode(),
-            } },
+                First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                {
+                    PrimitiveType = new IntTypePrimitiveTypeNode(),
+                }
+            },
             Parameters = null,
             Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode() },
             Modifiers = ImmutableArray.Create<ModifierNode>(

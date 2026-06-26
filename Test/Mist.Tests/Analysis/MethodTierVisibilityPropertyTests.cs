@@ -229,7 +229,7 @@ public sealed class MethodTierVisibilityPropertyTests
         }
         finally
         {
-            if (Directory.Exists(scratchDir))
+            if(Directory.Exists(scratchDir))
             {
                 try { Directory.Delete(scratchDir, recursive: true); } catch { /* best effort */ }
             }
@@ -329,7 +329,7 @@ public sealed class MethodTierVisibilityPropertyTests
             scenario.ReceiverIsOwnedBinding,
             model);
 
-        if (!scenario.ReceiverIsOwnedBinding)
+        if(!scenario.ReceiverIsOwnedBinding)
         {
             // A receiver that is not an owned binding always has full method access.
             return verdict == MethodVisibility.Allowed;

@@ -157,7 +157,7 @@ public class NoBackingTypeLeakPropertyTests
         sb.AppendLine("public class Program {");
         sb.AppendLine("    public static void Main(string[] args) {");
 
-        for (var i = 0; i < scenario.FragmentIndices.Count; i++)
+        for(var i = 0; i < scenario.FragmentIndices.Count; i++)
         {
             var idx = scenario.FragmentIndices[i];
             // Generate fragment with unique variable names using suffix
@@ -210,7 +210,7 @@ public class NoBackingTypeLeakPropertyTests
         var userTokens = Lexer.Lex(userSourceText, diagnostics);
         var userParseResult = Parser.Parse(userTokens, diagnostics);
 
-        if (userParseResult.Root is null)
+        if(userParseResult.Root is null)
             throw new InvalidOperationException("Failed to parse user source");
 
         var allUnits = stdlibUnits.Add(userUnit);
@@ -245,22 +245,22 @@ public class NoBackingTypeLeakPropertyTests
     {
         // Phase B will reintroduce UnknownType as the user-facing top type, distinct from this ErrorType sentinel.
         // Void, ErrorType, TypeParameterType, ArrayType are fine
-        if (type.IsVoid() || type is ErrorType or TypeParameterType or ArrayType)
+        if(type.IsVoid() || type is ErrorType or TypeParameterType or ArrayType)
             return false;
 
         string? containingNamespace = null;
         var displayName = type.DisplayName;
 
-        if (type is ClassType ct)
+        if(type is ClassType ct)
             containingNamespace = ct.ContainingNamespace;
-        else if (type is StructType st)
+        else if(type is StructType st)
             containingNamespace = st.ContainingNamespace;
 
         // Check if the type's namespace starts with "System"
-        if (containingNamespace is not null && containingNamespace.StartsWith("System"))
+        if(containingNamespace is not null && containingNamespace.StartsWith("System"))
         {
             // Allow known ambient types (Console, Math, Convert)
-            if (AllowedAmbientTypeNames.Contains(displayName))
+            if(AllowedAmbientTypeNames.Contains(displayName))
                 return false;
 
             // This is a CLR type leak
@@ -268,7 +268,7 @@ public class NoBackingTypeLeakPropertyTests
         }
 
         // Check if the display name itself looks like a CLR type
-        if (displayName.StartsWith("System."))
+        if(displayName.StartsWith("System."))
             return true;
 
         return false;
@@ -285,28 +285,28 @@ public class NoBackingTypeLeakPropertyTests
         var result = new List<(string, IType)>();
 
         // 1. All symbol declared types
-        foreach (var symbol in model.AllSymbols)
+        foreach(var symbol in model.AllSymbols)
         {
-            if (symbol.DeclaredType is { } declType)
+            if(symbol.DeclaredType is { } declType)
             {
                 result.Add(($"Symbol '{symbol.Name}' (kind={symbol.Kind}) declared type", declType));
 
                 // Check member types for class/struct types
-                if (declType is ClassType ct)
+                if(declType is ClassType ct)
                 {
-                    foreach (var member in ct.MemberScope.Members)
+                    foreach(var member in ct.MemberScope.Members)
                     {
-                        if (member.DeclaredType is { } memberType)
+                        if(member.DeclaredType is { } memberType)
                         {
                             result.Add(($"Member '{ct.DisplayName}.{member.Name}' declared type", memberType));
                         }
                     }
                 }
-                else if (declType is StructType st)
+                else if(declType is StructType st)
                 {
-                    foreach (var member in st.MemberScope.Members)
+                    foreach(var member in st.MemberScope.Members)
                     {
-                        if (member.DeclaredType is { } memberType)
+                        if(member.DeclaredType is { } memberType)
                         {
                             result.Add(($"Member '{st.DisplayName}.{member.Name}' declared type", memberType));
                         }
@@ -334,14 +334,14 @@ public class NoBackingTypeLeakPropertyTests
         var stack = new Stack<Storm.Runtime.SyntaxNode>();
         stack.Push(root);
 
-        while (stack.Count > 0)
+        while(stack.Count > 0)
         {
             var node = stack.Pop();
 
             try
             {
                 var exprType = model.GetTypeOf(node);
-                if (exprType is not null)
+                if(exprType is not null)
                 {
                     result.Add(($"Expression node {node.GetType().Name} type", exprType));
                 }
@@ -352,9 +352,9 @@ public class NoBackingTypeLeakPropertyTests
                 // skip them safely.
             }
 
-            foreach (var child in node.Children())
+            foreach(var child in node.Children())
             {
-                if (child is not null)
+                if(child is not null)
                     stack.Push(child);
             }
         }
@@ -389,7 +389,7 @@ public class NoBackingTypeLeakPropertyTests
                             && !d.Id.Value.StartsWith("MIST_SM"))
                 .ToList();
 
-            if (fatalErrors.Count > 0)
+            if(fatalErrors.Count > 0)
             {
                 return false.ToProperty()
                     .Label($"Fatal build errors: {string.Join("; ", fatalErrors.Select(e => $"[{e.Id.Value}] {e.Message}"))}\nSource:\n{source}");
@@ -399,13 +399,13 @@ public class NoBackingTypeLeakPropertyTests
             var allTypes = CollectAllReachableTypes(model);
 
             // Check each type for CLR leaks
-            foreach (var (description, type) in allTypes)
+            foreach(var (description, type) in allTypes)
             {
-                if (IsClrLeak(type))
+                if(IsClrLeak(type))
                 {
                     string? ns = null;
-                    if (type is ClassType ct) ns = ct.ContainingNamespace;
-                    else if (type is StructType st) ns = st.ContainingNamespace;
+                    if(type is ClassType ct) ns = ct.ContainingNamespace;
+                    else if(type is StructType st) ns = st.ContainingNamespace;
 
                     return false.ToProperty()
                         .Label($"CLR type leak detected!\n" +

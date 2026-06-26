@@ -26,13 +26,13 @@ public sealed class ProjectFileParserGlobalUsingsDuplicatePropertyTests
     private static void RunProperty<T>(Gen<T> gen, Action<T> check, int maxTests = 100)
     {
         var samples = gen.Sample(maxTests).ToList();
-        for (var idx = 0; idx < samples.Count; idx++)
+        for(var idx = 0; idx < samples.Count; idx++)
         {
             try
             {
                 check(samples[idx]);
             }
-            catch (Exception ex)
+            catch(Exception ex)
             {
                 throw new Exception(
                     $"Property failed on sample {idx}/{samples.Count}: {samples[idx]}\n" +
@@ -84,7 +84,7 @@ public sealed class ProjectFileParserGlobalUsingsDuplicatePropertyTests
                     {
                         // Start with the base namespaces, then append duplicates
                         var result = new List<string>(baseNamespaces);
-                        for (var i = 0; i < dupCount; i++)
+                        for(var i = 0; i < dupCount; i++)
                         {
                             result.Add(baseNamespaces[dupIdx]);
                         }
@@ -135,7 +135,7 @@ public sealed class ProjectFileParserGlobalUsingsDuplicatePropertyTests
                 Assert.NotEmpty(duplicateWarnings);
 
                 // Assert: all duplicate diagnostics are warnings (not errors)
-                foreach (var warning in duplicateWarnings)
+                foreach(var warning in duplicateWarnings)
                 {
                     Assert.Equal(DiagnosticSeverity.Warning, warning.Severity);
                 }
@@ -148,16 +148,16 @@ public sealed class ProjectFileParserGlobalUsingsDuplicatePropertyTests
                 // Assert: order preserves first-occurrence order
                 var expectedOrder = new List<string>();
                 var seen = new HashSet<string>(StringComparer.Ordinal);
-                foreach (var ns in namespaces)
+                foreach(var ns in namespaces)
                 {
-                    if (seen.Add(ns))
+                    if(seen.Add(ns))
                     {
                         expectedOrder.Add(ns);
                     }
                 }
 
                 Assert.Equal(expectedOrder.Count, resultNamespaces.Length);
-                for (var i = 0; i < expectedOrder.Count; i++)
+                for(var i = 0; i < expectedOrder.Count; i++)
                 {
                     Assert.Equal(expectedOrder[i], resultNamespaces[i]);
                 }

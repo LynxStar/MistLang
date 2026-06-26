@@ -54,7 +54,7 @@ public sealed class FuncTypeResolutionTests
         var userTokens = Lexer.Lex(userSourceText, diagnostics);
         var userParseResult = Parser.Parse(userTokens, diagnostics);
 
-        if (userParseResult.Root is null)
+        if(userParseResult.Root is null)
             throw new InvalidOperationException($"Failed to parse user source:\n{source}");
 
         var allUnits = stdlibUnits.Add(userUnit);
@@ -413,7 +413,7 @@ public sealed class FuncTypeResolutionTests
 
         // Three type arguments: [int, int, int].
         Assert.Equal(3, funcType.TypeArguments.Count);
-        foreach (var typeArg in funcType.TypeArguments)
+        foreach(var typeArg in funcType.TypeArguments)
         {
             Assert.True(
                 typeArg.DisplayName == "int" || typeArg.DisplayName == "Int32",

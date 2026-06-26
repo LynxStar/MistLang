@@ -124,10 +124,13 @@ public class TypeUnionExhaustivenessPropertyTests
         var keyword = TypePool[typeIndex].Keyword;
         PrimaryPatternNode primary = new TypePatternPrimaryPatternNode
         {
-            Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
+            Type = new TypeReferenceNode
             {
-                PrimitiveType = MakePrimitiveTypeNode(keyword),
-            } },
+                First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                {
+                    PrimitiveType = MakePrimitiveTypeNode(keyword),
+                }
+            },
             Name = Tok("x"),
         };
         var unary = new DirectPatternUnaryPatternNode { Primary = primary };
@@ -156,9 +159,9 @@ public class TypeUnionExhaustivenessPropertyTests
     private static List<IType> FlattenUnion(UnionType union)
     {
         var leaves = new List<IType>();
-        foreach (var constituent in union.Constituents)
+        foreach(var constituent in union.Constituents)
         {
-            if (constituent is UnionType nested)
+            if(constituent is UnionType nested)
                 leaves.AddRange(FlattenUnion(nested));
             else
                 leaves.Add(constituent);
@@ -171,16 +174,16 @@ public class TypeUnionExhaustivenessPropertyTests
         IReadOnlyList<(ArmKind Kind, int TypeIndex, bool HasGuard)> arms)
     {
         // An unguarded catch-all makes it exhaustive
-        if (arms.Any(a => a.Kind == ArmKind.CatchAll && !a.HasGuard))
+        if(arms.Any(a => a.Kind == ArmKind.CatchAll && !a.HasGuard))
             return true;
 
         // All leaf types must be covered by unguarded type patterns
         var leafTypes = FlattenUnion(scrutineeType);
         var coveredDisplayNames = new HashSet<string>(StringComparer.Ordinal);
 
-        foreach (var arm in arms)
+        foreach(var arm in arms)
         {
-            if (arm.HasGuard || arm.Kind != ArmKind.TypePattern)
+            if(arm.HasGuard || arm.Kind != ArmKind.TypePattern)
                 continue;
 
             var typeName = TypePool[arm.TypeIndex].Type.DisplayName;

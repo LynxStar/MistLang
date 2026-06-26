@@ -229,7 +229,7 @@ public class AwaitUnwrapTypePropertyTests
         // Query the semantic model for the type of the await expression node
         var exprType = model.GetTypeOf(awaitExprNode);
 
-        if (exprType is null)
+        if(exprType is null)
             return false.ToProperty()
                 .Label($"GetTypeOf returned null for await expression in scenario: {scenario}");
 
@@ -237,7 +237,7 @@ public class AwaitUnwrapTypePropertyTests
         var expectedDisplayName = ResolvedDisplayNames[scenario.ReturnTypeName];
 
         // Verify the type is NOT a Task<T> (it should be unwrapped)
-        if (exprType is ConstructedType constructedType &&
+        if(exprType is ConstructedType constructedType &&
             constructedType.GenericDefinition is ClassType classType &&
             classType.DisplayName == "Task" &&
             classType.ContainingNamespace == "Standard")
@@ -248,7 +248,7 @@ public class AwaitUnwrapTypePropertyTests
         }
 
         // Verify the display name matches the expected unwrapped type
-        if (exprType.DisplayName != expectedDisplayName)
+        if(exprType.DisplayName != expectedDisplayName)
             return false.ToProperty()
                 .Label($"Await expression type mismatch. Expected '{expectedDisplayName}' " +
                        $"(from return type '{scenario.ReturnTypeName}'), " +

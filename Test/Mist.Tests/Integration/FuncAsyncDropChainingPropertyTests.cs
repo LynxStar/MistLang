@@ -58,7 +58,7 @@ public class FuncAsyncDropChainingPropertyTests
         var userTokens = Lexer.Lex(userSourceText, diagnostics);
         var userParseResult = Parser.Parse(userTokens, diagnostics);
 
-        if (userParseResult.Root is null)
+        if(userParseResult.Root is null)
             throw new InvalidOperationException($"Failed to parse user source:\n{source}");
 
         var allUnits = stdlibUnits.Add(userUnit);
@@ -88,7 +88,7 @@ public class FuncAsyncDropChainingPropertyTests
         var userTokens = Lexer.Lex(userSourceText, diagnostics);
         var userParseResult = Parser.Parse(userTokens, diagnostics);
 
-        if (userParseResult.Root is null)
+        if(userParseResult.Root is null)
             return (false, "", $"Failed to parse source:\n{source}");
 
         var allUnits = stdlibUnits.Add(userUnit);
@@ -106,7 +106,7 @@ public class FuncAsyncDropChainingPropertyTests
         var buildErrors = diagnostics.ToImmutableArray()
             .Where(d => d.Severity == DiagnosticSeverity.Error)
             .ToList();
-        if (buildErrors.Count > 0)
+        if(buildErrors.Count > 0)
         {
             var errorText = string.Join("\n", buildErrors.Select(d => $"  {d.Id.Value}: {d.Message}"));
             return (false, "", $"Build errors:\n{errorText}");
@@ -115,7 +115,7 @@ public class FuncAsyncDropChainingPropertyTests
         var emitBag = new DiagnosticBag();
         var files = CSharpEmitter.EmitToMemory(model, "TestProgram", emitBag);
 
-        if (emitBag.HasErrors)
+        if(emitBag.HasErrors)
         {
             var emitErrors = emitBag.ToImmutableArray()
                 .Where(d => d.Severity == DiagnosticSeverity.Error)
@@ -123,11 +123,11 @@ public class FuncAsyncDropChainingPropertyTests
             return (false, "", $"Emit errors:\n{string.Join("\n", emitErrors)}");
         }
 
-        if (files.TryGetValue("test.cs", out var testContent))
+        if(files.TryGetValue("test.cs", out var testContent))
             return (true, testContent, "");
 
         var sb = new StringBuilder();
-        foreach (var (_, content) in files)
+        foreach(var (_, content) in files)
             sb.AppendLine(content);
 
         return (true, sb.ToString(), "");
@@ -249,21 +249,21 @@ public class FuncAsyncDropChainingPropertyTests
         var (model, _) = BuildModelAndRunPass(source);
 
         var resultSymbol = FindLocal(model, "result");
-        if (resultSymbol is null)
+        if(resultSymbol is null)
             return false.ToProperty()
                 .Label($"Could not find local 'result' in scenario: {scenario}");
 
         var resultType = resultSymbol.DeclaredType;
-        if (resultType is null)
+        if(resultType is null)
             return false.ToProperty()
                 .Label($"result.DeclaredType is null in scenario: {scenario}");
 
         var isTaskType = IsStandardTaskType(resultType);
 
-        if (scenario.IsAsyncLambda && !scenario.InAsyncContext)
+        if(scenario.IsAsyncLambda && !scenario.InAsyncContext)
         {
             // Defect 1 fix: async lambda in sync context should unwrap Task<T> → T
-            if (isTaskType)
+            if(isTaskType)
                 return false.ToProperty()
                     .Label($"DEFECT 1 REGRESSION: Async lambda in sync context returned Task<T>. " +
                            $"Type = {resultType.DisplayName}. Scenario: {scenario}");
@@ -272,10 +272,10 @@ public class FuncAsyncDropChainingPropertyTests
                 .Label($"Correctly unwrapped to '{resultType.DisplayName}': {scenario}");
         }
 
-        if (scenario.IsAsyncLambda && scenario.InAsyncContext)
+        if(scenario.IsAsyncLambda && scenario.InAsyncContext)
         {
             // Preservation 3.1: async lambda in async context stays Task<T>
-            if (!isTaskType)
+            if(!isTaskType)
                 return false.ToProperty()
                     .Label($"PRESERVATION REGRESSION 3.1: Async lambda in async context did NOT return Task<T>. " +
                            $"Type = {resultType.DisplayName}. Scenario: {scenario}");
@@ -285,7 +285,7 @@ public class FuncAsyncDropChainingPropertyTests
         }
 
         // Non-async lambda: should return direct type (never Task<T>)
-        if (isTaskType)
+        if(isTaskType)
             return false.ToProperty()
                 .Label($"PRESERVATION REGRESSION 3.3: Non-async lambda returned Task<T>. " +
                        $"Type = {resultType.DisplayName}. Scenario: {scenario}");
@@ -325,10 +325,10 @@ public class FuncAsyncDropChainingPropertyTests
         public override string ToString()
         {
             var parts = new List<string>();
-            if (HasAsyncFunctor) parts.Add($"{AsyncFunctorCount} async functor(s)");
-            if (HasDirectAsyncCall) parts.Add("direct async call");
-            if (HasExplicitAwait) parts.Add("explicit await");
-            if (parts.Count == 0) parts.Add("no async seeds");
+            if(HasAsyncFunctor) parts.Add($"{AsyncFunctorCount} async functor(s)");
+            if(HasDirectAsyncCall) parts.Add("direct async call");
+            if(HasExplicitAwait) parts.Add("explicit await");
+            if(parts.Count == 0) parts.Add("no async seeds");
             return $"method with [{string.Join(", ", parts)}] returning {HelperReturnType}";
         }
     }
@@ -383,16 +383,16 @@ public class FuncAsyncDropChainingPropertyTests
         sb.AppendLine("    public static void TargetMethod()");
         sb.AppendLine("    {");
 
-        if (scenario.HasAsyncFunctor)
+        if(scenario.HasAsyncFunctor)
         {
-            for (var i = 0; i < scenario.AsyncFunctorCount; i++)
+            for(var i = 0; i < scenario.AsyncFunctorCount; i++)
                 sb.AppendLine($"        var functorTask{i} = async SyncHelper();");
         }
 
-        if (scenario.HasDirectAsyncCall)
+        if(scenario.HasDirectAsyncCall)
             sb.AppendLine("        var directResult = AsyncHelper();");
 
-        if (scenario.HasExplicitAwait)
+        if(scenario.HasExplicitAwait)
             sb.AppendLine("        var awaitResult = await AsyncHelper();");
 
         sb.AppendLine("    }");
@@ -412,11 +412,11 @@ public class FuncAsyncDropChainingPropertyTests
         var (model, _) = BuildModelAndRunPass(source);
 
         var methodSymbol = FindMethod(model, "TargetMethod");
-        if (methodSymbol is null)
+        if(methodSymbol is null)
             return false.ToProperty()
                 .Label($"Could not find method 'TargetMethod' in scenario: {scenario}");
 
-        if (methodSymbol.NeedsCSharpAsync != scenario.ExpectedNeedsCSharpAsync)
+        if(methodSymbol.NeedsCSharpAsync != scenario.ExpectedNeedsCSharpAsync)
         {
             var label = scenario.ExpectedNeedsCSharpAsync
                 ? $"DEFECT 2: Method with async seeds has NeedsCSharpAsync = false. Scenario: {scenario}"
@@ -627,7 +627,7 @@ public class FuncAsyncDropChainingPropertyTests
         var source = BuildWiderDropChainSource(scenario);
         var (succeeded, csContent, errorText) = BuildAndEmit(source);
 
-        if (!succeeded)
+        if(!succeeded)
             return false.ToProperty()
                 .Label($"Compilation/emission failed for scenario: {scenario}\n{errorText}");
 
@@ -643,7 +643,7 @@ public class FuncAsyncDropChainingPropertyTests
     private static Property VerifyNestedTaskChain(string csContent, WiderDropChainScenario scenario)
     {
         // After fix: `await (await nested);` — the inner Task is also awaited
-        if (!csContent.Contains("await (await"))
+        if(!csContent.Contains("await (await"))
             return false.ToProperty()
                 .Label($"DEFECT 3 REGRESSION: Nested Task<Task<T>> does not emit double-await. " +
                        $"Expected 'await (await' pattern. Scenario: {scenario}\n" +
@@ -658,7 +658,7 @@ public class FuncAsyncDropChainingPropertyTests
         // After fix: `await box.Drop();` — the Task<T> returned by Drop() is awaited
         var hasAwaitedDrop = csContent.Contains("await box.Drop()")
                              || csContent.Contains("await (box.Drop()");
-        if (!hasAwaitedDrop)
+        if(!hasAwaitedDrop)
             return false.ToProperty()
                 .Label($"DEFECT 3 REGRESSION: Custom type Drop()->Task<T> not awaited. " +
                        $"Expected 'await box.Drop()' pattern. Scenario: {scenario}\n" +
@@ -672,14 +672,14 @@ public class FuncAsyncDropChainingPropertyTests
     {
         // Preservation 3.8: void-returning Drop() emits single drop, no chaining
         var hasSimpleDrop = csContent.Contains("resource.Drop();");
-        if (!hasSimpleDrop)
+        if(!hasSimpleDrop)
             return false.ToProperty()
                 .Label($"PRESERVATION REGRESSION 3.8: Void-returning Drop() missing 'resource.Drop();'. " +
                        $"Scenario: {scenario}");
 
         // Should NOT have await applied to the void Drop()
         var hasAwaitedDrop = csContent.Contains("await resource.Drop()");
-        if (hasAwaitedDrop)
+        if(hasAwaitedDrop)
             return false.ToProperty()
                 .Label($"PRESERVATION REGRESSION 3.8: Void-returning Drop() was incorrectly awaited. " +
                        $"Scenario: {scenario}");
@@ -758,24 +758,24 @@ public class FuncAsyncDropChainingPropertyTests
         var (model, _) = BuildModelAndRunPass(source);
 
         var resultSymbol = FindLocal(model, "result");
-        if (resultSymbol is null)
+        if(resultSymbol is null)
             return false.ToProperty()
                 .Label($"Could not find local 'result' in scenario: {scenario}");
 
         var resultType = resultSymbol.DeclaredType;
-        if (resultType is null)
+        if(resultType is null)
             return false.ToProperty()
                 .Label($"result.DeclaredType is null in scenario: {scenario}");
 
         // Preservation 3.2: direct async call unwraps
-        if (IsStandardTaskType(resultType))
+        if(IsStandardTaskType(resultType))
             return false.ToProperty()
                 .Label($"PRESERVATION REGRESSION 3.2: Direct async call in sync context returned Task<T>. " +
                        $"Type = {resultType.DisplayName}. Scenario: {scenario}");
 
         // Preservation 3.4: method gets NeedsCSharpAsync
         var callerSymbol = FindMethod(model, "Caller");
-        if (callerSymbol is not null && !callerSymbol.NeedsCSharpAsync)
+        if(callerSymbol is not null && !callerSymbol.NeedsCSharpAsync)
             return false.ToProperty()
                 .Label($"PRESERVATION REGRESSION 3.4: Method with direct async call missing NeedsCSharpAsync. " +
                        $"Scenario: {scenario}");
@@ -863,7 +863,7 @@ public class FuncAsyncDropChainingPropertyTests
         var source = BuildExplicitCapturePreservationSource(scenario);
         var (succeeded, csContent, errorText) = BuildAndEmit(source);
 
-        if (!succeeded)
+        if(!succeeded)
             return false.ToProperty()
                 .Label($"Compilation/emission failed for scenario: {scenario}\n{errorText}");
 
@@ -873,18 +873,18 @@ public class FuncAsyncDropChainingPropertyTests
         var outerDropInFinally = false;
         var inFinally = false;
 
-        for (var i = 0; i < lines.Length; i++)
+        for(var i = 0; i < lines.Length; i++)
         {
-            if (lines[i].Contains("finally"))
+            if(lines[i].Contains("finally"))
                 inFinally = true;
-            else if (inFinally && lines[i].Trim() == "}")
+            else if(inFinally && lines[i].Trim() == "}")
                 inFinally = false;
 
-            if (inFinally && lines[i].Contains("outer.Drop()"))
+            if(inFinally && lines[i].Contains("outer.Drop()"))
                 outerDropInFinally = true;
         }
 
-        if (outerDropInFinally)
+        if(outerDropInFinally)
             return false.ToProperty()
                 .Label($"PRESERVATION REGRESSION 3.7: Explicit capture still triggered scope-exit drop " +
                        $"for 'outer' in finally block. Scenario: {scenario}");
@@ -899,14 +899,14 @@ public class FuncAsyncDropChainingPropertyTests
     {
         var lines = csContent.Split('\n');
         var sb = new StringBuilder();
-        for (var i = 0; i < lines.Length; i++)
+        for(var i = 0; i < lines.Length; i++)
         {
-            if (lines[i].Contains("finally"))
+            if(lines[i].Contains("finally"))
             {
-                for (var j = i; j < Math.Min(i + 6, lines.Length); j++)
+                for(var j = i; j < Math.Min(i + 6, lines.Length); j++)
                 {
                     sb.AppendLine(lines[j]);
-                    if (lines[j].Contains(localName))
+                    if(lines[j].Contains(localName))
                         break;
                 }
                 break;

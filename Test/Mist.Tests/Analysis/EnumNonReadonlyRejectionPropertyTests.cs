@@ -193,13 +193,13 @@ public sealed class EnumNonReadonlyRejectionPropertyTests
         // Lex
         var lexBag = new DiagnosticBag();
         var tokens = Lexer.Lex(sourceText, lexBag);
-        if (lexBag.HasErrors)
+        if(lexBag.HasErrors)
             return lexBag.ToImmutableArray();
 
         // Parse
         var parseBag = new DiagnosticBag();
         var parseResult = Parser.Parse(tokens, parseBag);
-        if (parseBag.HasErrors || parseResult.Root is null)
+        if(parseBag.HasErrors || parseResult.Root is null)
             return parseBag.ToImmutableArray();
 
         // Semantic model
@@ -244,7 +244,7 @@ public sealed class EnumNonReadonlyRejectionPropertyTests
             .ToList();
 
         // Must have exactly one MIST_TC_0102 diagnostic.
-        if (rejectionDiags.Count != 1)
+        if(rejectionDiags.Count != 1)
         {
             return false.ToProperty()
                 .Label($"Expected exactly 1 MIST_TC_0102 diagnostic, got {rejectionDiags.Count}.\n" +
@@ -256,7 +256,7 @@ public sealed class EnumNonReadonlyRejectionPropertyTests
         var diag = rejectionDiags[0];
 
         // Verify severity is Error.
-        if (diag.Severity != DiagnosticSeverity.Error)
+        if(diag.Severity != DiagnosticSeverity.Error)
         {
             return false.ToProperty()
                 .Label($"Expected severity Error, got {diag.Severity}.\n" +
@@ -264,7 +264,7 @@ public sealed class EnumNonReadonlyRejectionPropertyTests
         }
 
         // Verify message contains the enum name.
-        if (!diag.Message.Contains(scenario.EnumName))
+        if(!diag.Message.Contains(scenario.EnumName))
         {
             return false.ToProperty()
                 .Label($"Diagnostic message does not contain enum name '{scenario.EnumName}'.\n" +
@@ -273,7 +273,7 @@ public sealed class EnumNonReadonlyRejectionPropertyTests
         }
 
         // Verify message contains the non-readonly base type name.
-        if (!diag.Message.Contains(scenario.BaseTypeName))
+        if(!diag.Message.Contains(scenario.BaseTypeName))
         {
             return false.ToProperty()
                 .Label($"Diagnostic message does not contain base type name '{scenario.BaseTypeName}'.\n" +

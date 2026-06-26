@@ -74,7 +74,7 @@ public class TopLevelStatementRoundTripTests
         Assert.Equal(ast1.Items.Length, ast2.Items.Length);
 
         // Verify same item types in same order
-        for (var i = 0; i < ast1.Items.Length; i++)
+        for(var i = 0; i < ast1.Items.Length; i++)
         {
             Assert.Equal(ast1.Items[i].GetType(), ast2.Items[i].GetType());
         }
@@ -225,7 +225,7 @@ public class TopLevelStatementRoundTripTests
             .ToList();
 
         Assert.NotEmpty(lines);
-        foreach (var line in lines)
+        foreach(var line in lines)
         {
             Assert.False(char.IsWhiteSpace(line[0]),
                 $"Top-level statement has unexpected leading indentation: \"{line}\"");

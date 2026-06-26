@@ -46,7 +46,7 @@ public sealed class FieldContainmentPropertyTests : IDisposable
 
     public void Dispose()
     {
-        if (Directory.Exists(_outputDir))
+        if(Directory.Exists(_outputDir))
         {
             try { Directory.Delete(_outputDir, recursive: true); } catch { /* best effort */ }
         }
@@ -137,7 +137,7 @@ public sealed class FieldContainmentPropertyTests : IDisposable
     private static bool MatrixExpectsError(ContainerDisciplineKind container, FieldDisciplineKind field)
     {
         // Unrestricted fields are always permitted.
-        if (field == FieldDisciplineKind.None)
+        if(field == FieldDisciplineKind.None)
             return false;
 
         return container switch
@@ -222,7 +222,7 @@ public sealed class FieldContainmentPropertyTests : IDisposable
         var diagnostics = Compile(scenario.Source);
         var count = CountFieldNotOwned(diagnostics);
 
-        if (scenario.ExpectError)
+        if(scenario.ExpectError)
         {
             return (count == 1).ToProperty()
                 .Label($"Expected exactly one {FieldNotOwnedId} for {scenario.Label}, got {count}.\n"
@@ -292,7 +292,7 @@ public sealed class FieldContainmentPropertyTests : IDisposable
 
         var count = CountFieldNotOwned(Compile(source));
 
-        if (expectError)
+        if(expectError)
             Assert.Equal(1, count);
         else
             Assert.Equal(0, count);

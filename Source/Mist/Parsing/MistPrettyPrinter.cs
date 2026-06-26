@@ -46,7 +46,7 @@ public sealed class MistPrettyPrinter
 
     private void Visit(SyntaxNode node)
     {
-        switch (node)
+        switch(node)
         {
             case CompilationUnitNode cu:
                 EmitCompilationUnit(cu);
@@ -61,19 +61,19 @@ public sealed class MistPrettyPrinter
 
     private void EmitCompilationUnit(CompilationUnitNode cu)
     {
-        foreach (var usingDecl in cu.Usings)
+        foreach(var usingDecl in cu.Usings)
         {
             EmitUsingDeclaration(usingDecl);
         }
 
-        if (cu.Usings.Length > 0 && cu.Items.Length > 0)
+        if(cu.Usings.Length > 0 && cu.Items.Length > 0)
         {
             AppendLine();
         }
 
-        foreach (var item in cu.Items)
+        foreach(var item in cu.Items)
         {
-            switch (item)
+            switch(item)
             {
                 case NamespaceItemTopLevelItemNode nsItem:
                     EmitNamespaceDeclaration(nsItem.NamespaceDeclaration);
@@ -112,41 +112,41 @@ public sealed class MistPrettyPrinter
 
     private void EmitNamespaceDeclaration(NamespaceDeclarationNode ns)
     {
-        switch (ns)
+        switch(ns)
         {
             case FileScopedNamespaceNamespaceDeclarationNode fileScopedNs:
-            {
-                var name = ExtractQualifiedName(fileScopedNs.Name);
-                AppendLine($"namespace {name};");
-                AppendLine();
-
-                foreach (var bodyItem in fileScopedNs.Body)
                 {
-                    EmitNamespaceBodyItem(bodyItem);
+                    var name = ExtractQualifiedName(fileScopedNs.Name);
+                    AppendLine($"namespace {name};");
+                    AppendLine();
+
+                    foreach(var bodyItem in fileScopedNs.Body)
+                    {
+                        EmitNamespaceBodyItem(bodyItem);
+                    }
+                    break;
                 }
-                break;
-            }
             case BlockNamespaceNamespaceDeclarationNode blockNs:
-            {
-                var name = ExtractQualifiedName(blockNs.Name);
-                AppendLine($"namespace {name} {{");
-                _indentLevel++;
-
-                foreach (var bodyItem in blockNs.Body)
                 {
-                    EmitNamespaceBodyItem(bodyItem);
-                }
+                    var name = ExtractQualifiedName(blockNs.Name);
+                    AppendLine($"namespace {name} {{");
+                    _indentLevel++;
 
-                _indentLevel--;
-                AppendLine("}");
-                break;
-            }
+                    foreach(var bodyItem in blockNs.Body)
+                    {
+                        EmitNamespaceBodyItem(bodyItem);
+                    }
+
+                    _indentLevel--;
+                    AppendLine("}");
+                    break;
+                }
         }
     }
 
     private void EmitNamespaceBodyItem(NamespaceBodyItemNode bodyItem)
     {
-        switch (bodyItem)
+        switch(bodyItem)
         {
             case NamespaceTypeItemNamespaceBodyItemNode typeItem:
                 EmitTypeDeclaration(typeItem.TypeDeclaration);
@@ -190,11 +190,11 @@ public sealed class MistPrettyPrinter
     private string EmitRefinableTypeExpression(RefinableTypeExpressionNode node)
     {
         // Union when there are PIPE-separated continuations; otherwise a single (optionally refined) type.
-        if (node.RefinableSingleTypeExprs.Length > 0)
+        if(node.RefinableSingleTypeExprs.Length > 0)
         {
             var parts = new List<string>();
             parts.Add(EmitRefinableSingle(node.First));
-            foreach (var constituent in node.RefinableSingleTypeExprs)
+            foreach(var constituent in node.RefinableSingleTypeExprs)
             {
                 parts.Add(EmitRefinableSingle(constituent));
             }
@@ -207,7 +207,7 @@ public sealed class MistPrettyPrinter
     private string EmitRefinableSingle(RefinableSingleTypeExprNode expr)
     {
         var type = EmitSingleTypeRef(expr.Type);
-        if (expr.Refinement is null) return type;
+        if(expr.Refinement is null) return type;
         var predicate = EmitRefinementPredicate(expr.Refinement);
         return $"{type} {predicate}";
     }
@@ -225,7 +225,7 @@ public sealed class MistPrettyPrinter
 
     private void EmitTypeDeclaration(TypeDeclarationNode typeDecl)
     {
-        switch (typeDecl)
+        switch(typeDecl)
         {
             case ClassTypeTypeDeclarationNode classType:
                 EmitClassDeclaration(classType.ClassDeclaration);
@@ -248,7 +248,7 @@ public sealed class MistPrettyPrinter
         var name = classDecl.Name.Lexeme;
         var typeParams = EmitTypeParameterList(classDecl.TypeParams);
         var baseClause = "";
-        if (classDecl.BaseList is not null)
+        if(classDecl.BaseList is not null)
         {
             baseClause = $" : {EmitBaseList(classDecl.BaseList)}";
         }
@@ -268,7 +268,7 @@ public sealed class MistPrettyPrinter
         var name = structDecl.Name.Lexeme;
         var typeParams = EmitTypeParameterList(structDecl.TypeParams);
         var abstractClause = "";
-        if (structDecl.Abstracts is not null)
+        if(structDecl.Abstracts is not null)
         {
             abstractClause = $" : {EmitBaseList(structDecl.Abstracts)}";
         }
@@ -287,7 +287,7 @@ public sealed class MistPrettyPrinter
         var name = abstractDecl.Name.Lexeme;
         var typeParams = EmitTypeParameterList(abstractDecl.TypeParams);
         var abstractClause = "";
-        if (abstractDecl.Abstracts is not null)
+        if(abstractDecl.Abstracts is not null)
         {
             abstractClause = $" : {EmitBaseList(abstractDecl.Abstracts)}";
         }
@@ -295,7 +295,7 @@ public sealed class MistPrettyPrinter
         AppendLine($"abstract {name}{typeParams}{abstractClause}{constraints} {{");
         _indentLevel++;
 
-        for (var i = 0; i < abstractDecl.Members.Length; i++)
+        for(var i = 0; i < abstractDecl.Members.Length; i++)
         {
             EmitAbstractMemberDeclaration(abstractDecl.Members[i]);
         }
@@ -318,9 +318,9 @@ public sealed class MistPrettyPrinter
 
     private void EmitMembers(ImmutableArray<MemberDeclarationNode> members)
     {
-        for (var i = 0; i < members.Length; i++)
+        for(var i = 0; i < members.Length; i++)
         {
-            if (i > 0)
+            if(i > 0)
             {
                 AppendLine();
             }
@@ -332,7 +332,7 @@ public sealed class MistPrettyPrinter
 
     private void EmitMemberDeclaration(MemberDeclarationNode memberDecl)
     {
-        switch (memberDecl)
+        switch(memberDecl)
         {
             case FieldMemberMemberDeclarationNode fieldMember:
                 EmitFieldDeclaration(fieldMember.Field);
@@ -380,7 +380,7 @@ public sealed class MistPrettyPrinter
         var type = EmitTypeReference(fieldDecl.Type);
         var name = fieldDecl.Name.Lexeme;
 
-        if (fieldDecl.Initializer is not null)
+        if(fieldDecl.Initializer is not null)
         {
             AppendLine($"{modifiers}{ownership}{type} {name} = {EmitExpression(fieldDecl.Initializer)};");
         }
@@ -399,11 +399,11 @@ public sealed class MistPrettyPrinter
         var constraints = EmitConstraintClauses(ctorDecl.Constraints);
 
         var chain = "";
-        if (ctorDecl.Chain is ThisChainConstructorChainNode thisChain)
+        if(ctorDecl.Chain is ThisChainConstructorChainNode thisChain)
         {
             chain = " : this(" + EmitArgumentList(thisChain.Arguments) + ")";
         }
-        else if (ctorDecl.Chain is BaseChainConstructorChainNode baseChain)
+        else if(ctorDecl.Chain is BaseChainConstructorChainNode baseChain)
         {
             chain = " : base(" + EmitArgumentList(baseChain.Arguments) + ")";
         }
@@ -411,9 +411,9 @@ public sealed class MistPrettyPrinter
         AppendLine($"{modifiers}{name}({parameters}){withClauses}{constraints}{chain} {{");
         _indentLevel++;
 
-        if (ctorDecl.Body.GetBlock() is BlockNode ctorBlock)
+        if(ctorDecl.Body.GetBlock() is BlockNode ctorBlock)
         {
-            foreach (var stmt in ctorBlock.Statements)
+            foreach(var stmt in ctorBlock.Statements)
             {
                 EmitStatement(stmt);
             }
@@ -437,9 +437,9 @@ public sealed class MistPrettyPrinter
         AppendLine($"{modifiers}{returnOwnership}{returnType} {name}{typeParams}({parameters}){withClauses}{constraints} {{");
         _indentLevel++;
 
-        if (methodDecl.Body.GetBlock() is BlockNode methodBlock)
+        if(methodDecl.Body.GetBlock() is BlockNode methodBlock)
         {
-            foreach (var stmt in methodBlock.Statements)
+            foreach(var stmt in methodBlock.Statements)
             {
                 EmitStatement(stmt);
             }
@@ -453,7 +453,7 @@ public sealed class MistPrettyPrinter
 
     private void EmitPropertyDeclaration(PropertyDeclarationNode propertyDecl)
     {
-        switch (propertyDecl)
+        switch(propertyDecl)
         {
             case BlockPropertyPropertyDeclarationNode blockProp:
                 EmitBlockPropertyDeclaration(blockProp);
@@ -472,7 +472,7 @@ public sealed class MistPrettyPrinter
 
         // Build accessor list.
         var accessorParts = new List<string>();
-        foreach (var accessor in blockProp.Accessors)
+        foreach(var accessor in blockProp.Accessors)
         {
             accessorParts.Add(EmitAccessorDeclaration(accessor));
         }
@@ -480,7 +480,7 @@ public sealed class MistPrettyPrinter
         var accessorBody = string.Join(" ", accessorParts);
 
         // Emit initializer if present.
-        if (blockProp.Initializer is not null)
+        if(blockProp.Initializer is not null)
         {
             var init = EmitExpression(blockProp.Initializer);
             AppendLine($"{modifiers}{type} {name} {{ {accessorBody} }} = {init};");
@@ -503,64 +503,64 @@ public sealed class MistPrettyPrinter
 
     private string EmitAccessorDeclaration(AccessorDeclarationNode accessor)
     {
-        switch (accessor)
+        switch(accessor)
         {
             // ── Get accessors ──
             case AutoGetAccessorAccessorDeclarationNode autoGet:
-            {
-                var mod = EmitAccessorModifier(autoGet.AccessorModifier);
-                return $"{mod}get;";
-            }
+                {
+                    var mod = EmitAccessorModifier(autoGet.AccessorModifier);
+                    return $"{mod}get;";
+                }
             case BlockGetAccessorAccessorDeclarationNode blockGet:
-            {
-                var mod = EmitAccessorModifier(blockGet.AccessorModifier);
-                var body = EmitBlockBody(blockGet.Body);
-                return $"{mod}get {body}";
-            }
+                {
+                    var mod = EmitAccessorModifier(blockGet.AccessorModifier);
+                    var body = EmitBlockBody(blockGet.Body);
+                    return $"{mod}get {body}";
+                }
             case ExpressionGetAccessorAccessorDeclarationNode exprGet:
-            {
-                var mod = EmitAccessorModifier(exprGet.AccessorModifier);
-                var expr = EmitExpression(exprGet.Expression);
-                return $"{mod}get => {expr};";
-            }
+                {
+                    var mod = EmitAccessorModifier(exprGet.AccessorModifier);
+                    var expr = EmitExpression(exprGet.Expression);
+                    return $"{mod}get => {expr};";
+                }
 
             // ── Set accessors ──
             case AutoSetAccessorAccessorDeclarationNode autoSet:
-            {
-                var mod = EmitAccessorModifier(autoSet.AccessorModifier);
-                return $"{mod}set;";
-            }
+                {
+                    var mod = EmitAccessorModifier(autoSet.AccessorModifier);
+                    return $"{mod}set;";
+                }
             case BlockSetAccessorAccessorDeclarationNode blockSet:
-            {
-                var mod = EmitAccessorModifier(blockSet.AccessorModifier);
-                var body = EmitBlockBody(blockSet.Body);
-                return $"{mod}set {body}";
-            }
+                {
+                    var mod = EmitAccessorModifier(blockSet.AccessorModifier);
+                    var body = EmitBlockBody(blockSet.Body);
+                    return $"{mod}set {body}";
+                }
             case ExpressionSetAccessorAccessorDeclarationNode exprSet:
-            {
-                var mod = EmitAccessorModifier(exprSet.AccessorModifier);
-                var expr = EmitExpression(exprSet.Expression);
-                return $"{mod}set => {expr};";
-            }
+                {
+                    var mod = EmitAccessorModifier(exprSet.AccessorModifier);
+                    var expr = EmitExpression(exprSet.Expression);
+                    return $"{mod}set => {expr};";
+                }
 
             // ── Init accessors ──
             case AutoInitAccessorAccessorDeclarationNode autoInit:
-            {
-                var mod = EmitAccessorModifier(autoInit.AccessorModifier);
-                return $"{mod}init;";
-            }
+                {
+                    var mod = EmitAccessorModifier(autoInit.AccessorModifier);
+                    return $"{mod}init;";
+                }
             case BlockInitAccessorAccessorDeclarationNode blockInit:
-            {
-                var mod = EmitAccessorModifier(blockInit.AccessorModifier);
-                var body = EmitBlockBody(blockInit.Body);
-                return $"{mod}init {body}";
-            }
+                {
+                    var mod = EmitAccessorModifier(blockInit.AccessorModifier);
+                    var body = EmitBlockBody(blockInit.Body);
+                    return $"{mod}init {body}";
+                }
             case ExpressionInitAccessorAccessorDeclarationNode exprInit:
-            {
-                var mod = EmitAccessorModifier(exprInit.AccessorModifier);
-                var expr = EmitExpression(exprInit.Expression);
-                return $"{mod}init => {expr};";
-            }
+                {
+                    var mod = EmitAccessorModifier(exprInit.AccessorModifier);
+                    var expr = EmitExpression(exprInit.Expression);
+                    return $"{mod}init => {expr};";
+                }
 
             default:
                 return "";
@@ -569,7 +569,7 @@ public sealed class MistPrettyPrinter
 
     private static string EmitAccessorModifier(ModifierNode? modifier)
     {
-        if (modifier is null) return "";
+        if(modifier is null) return "";
 
         return modifier switch
         {
@@ -586,13 +586,13 @@ public sealed class MistPrettyPrinter
     /// </summary>
     private string EmitBlockBody(BlockNode block)
     {
-        if (block.Statements.IsEmpty)
+        if(block.Statements.IsEmpty)
         {
             return "{ }";
         }
 
         var parts = new List<string>();
-        foreach (var stmt in block.Statements)
+        foreach(var stmt in block.Statements)
         {
             parts.Add(EmitStatementInline(stmt));
         }
@@ -606,51 +606,51 @@ public sealed class MistPrettyPrinter
     /// </summary>
     private string EmitStatementInline(StatementNode stmt)
     {
-        switch (stmt)
+        switch(stmt)
         {
             case ReturnStatementStatementNode returnStmt:
-            {
-                if (returnStmt.ReturnStatement.Value is not null)
                 {
-                    return $"return {EmitExpression(returnStmt.ReturnStatement.Value)};";
+                    if(returnStmt.ReturnStatement.Value is not null)
+                    {
+                        return $"return {EmitExpression(returnStmt.ReturnStatement.Value)};";
+                    }
+                    return "return;";
                 }
-                return "return;";
-            }
             case ExpressionStatementStatementNode exprStmt:
                 return $"{EmitExpression(exprStmt.ExpressionStatement.Expression)};";
             case VariableDeclarationStatementStatementNode varDeclStmt:
-            {
-                switch (varDeclStmt.VariableDeclaration)
                 {
-                    case TypedVariableDeclarationVariableDeclarationStatementNode typed:
+                    switch(varDeclStmt.VariableDeclaration)
                     {
-                        var readonlyPrefix = typed.ReadonlyModifier is not null ? "readonly " : "";
-                        var type = EmitTypeReference(typed.Type);
-                        var name = typed.Name.Lexeme;
-                        var init = EmitExpression(typed.Initializer);
-                        return $"{readonlyPrefix}{type} {name} = {init};";
+                        case TypedVariableDeclarationVariableDeclarationStatementNode typed:
+                            {
+                                var readonlyPrefix = typed.ReadonlyModifier is not null ? "readonly " : "";
+                                var type = EmitTypeReference(typed.Type);
+                                var name = typed.Name.Lexeme;
+                                var init = EmitExpression(typed.Initializer);
+                                return $"{readonlyPrefix}{type} {name} = {init};";
+                            }
+                        case InferredVariableDeclarationVariableDeclarationStatementNode inferred:
+                            {
+                                var readonlyPrefix = inferred.ReadonlyModifier is not null ? "readonly " : "";
+                                var name = inferred.Name.Lexeme;
+                                var init = EmitExpression(inferred.Initializer);
+                                return $"{readonlyPrefix}var {name} = {init};";
+                            }
+                        default:
+                            return "";
                     }
-                    case InferredVariableDeclarationVariableDeclarationStatementNode inferred:
-                    {
-                        var readonlyPrefix = inferred.ReadonlyModifier is not null ? "readonly " : "";
-                        var name = inferred.Name.Lexeme;
-                        var init = EmitExpression(inferred.Initializer);
-                        return $"{readonlyPrefix}var {name} = {init};";
-                    }
-                    default:
-                        return "";
                 }
-            }
             case IfStatementStatementNode ifStmt:
-            {
-                var condition = EmitExpression(ifStmt.IfStatement.Condition);
-                return $"if ({condition}) {{ ... }}";
-            }
+                {
+                    var condition = EmitExpression(ifStmt.IfStatement.Condition);
+                    return $"if ({condition}) {{ ... }}";
+                }
             case WhileStatementStatementNode whileStmt:
-            {
-                var condition = EmitExpression(whileStmt.WhileStatement.Condition);
-                return $"while ({condition}) {{ ... }}";
-            }
+                {
+                    var condition = EmitExpression(whileStmt.WhileStatement.Condition);
+                    return $"while ({condition}) {{ ... }}";
+                }
             case BreakStatementStatementNode:
                 return "break;";
             default:
@@ -667,11 +667,11 @@ public sealed class MistPrettyPrinter
         var parameters = EmitParameterList(indexerDecl.Parameters);
         var constraints = EmitConstraintClauses(indexerDecl.Constraints);
 
-        if (indexerDecl.Body is BlockIndexerBodyIndexerBodyNode blockBody)
+        if(indexerDecl.Body is BlockIndexerBodyIndexerBodyNode blockBody)
         {
             // Build accessor list.
             var accessorParts = new List<string>();
-            foreach (var accessor in blockBody.Accessors)
+            foreach(var accessor in blockBody.Accessors)
             {
                 accessorParts.Add(EmitAccessorDeclaration(accessor));
             }
@@ -712,12 +712,12 @@ public sealed class MistPrettyPrinter
         };
         var parameters = EmitParameterList(opDecl.Parameters);
 
-        if (opDecl.Body is OperatorBlockBodyOperatorBodyNode blockBody)
+        if(opDecl.Body is OperatorBlockBodyOperatorBodyNode blockBody)
         {
             AppendLine($"{modifiers}{returnType} operator {symbol}({parameters}) {{");
             _indentLevel++;
 
-            foreach (var stmt in blockBody.Block.Statements)
+            foreach(var stmt in blockBody.Block.Statements)
             {
                 EmitStatement(stmt);
             }
@@ -739,12 +739,12 @@ public sealed class MistPrettyPrinter
         var targetType = EmitTypeReference(castOpDecl.TargetType);
         var parameters = EmitParameterList(castOpDecl.Parameters);
 
-        if (castOpDecl.Body is OperatorBlockBodyOperatorBodyNode blockBody)
+        if(castOpDecl.Body is OperatorBlockBodyOperatorBodyNode blockBody)
         {
             AppendLine($"{modifiers}{castKind} operator {targetType}({parameters}) {{");
             _indentLevel++;
 
-            foreach (var stmt in blockBody.Block.Statements)
+            foreach(var stmt in blockBody.Block.Statements)
             {
                 EmitStatement(stmt);
             }
@@ -762,7 +762,7 @@ public sealed class MistPrettyPrinter
 
     private void EmitDefaultBlockDeclaration(DefaultBlockDeclarationNode defaultBlock)
     {
-        if (defaultBlock.Entries.IsEmpty)
+        if(defaultBlock.Entries.IsEmpty)
         {
             AppendLine("default { }");
             return;
@@ -771,39 +771,39 @@ public sealed class MistPrettyPrinter
         AppendLine("default {");
         _indentLevel++;
 
-        foreach (var entry in defaultBlock.Entries)
+        foreach(var entry in defaultBlock.Entries)
         {
-            switch (entry)
+            switch(entry)
             {
                 case DefaultFieldOverrideDefaultFieldInitializerNode fieldOverride:
-                {
-                    var fieldName = fieldOverride.FieldName.Lexeme;
-                    var value = EmitExpression(fieldOverride.Value);
-                    AppendLine($"{fieldName} = {value}");
-                    break;
-                }
+                    {
+                        var fieldName = fieldOverride.FieldName.Lexeme;
+                        var value = EmitExpression(fieldOverride.Value);
+                        AppendLine($"{fieldName} = {value}");
+                        break;
+                    }
                 case DefaultTypeBindingDefaultFieldInitializerNode typeBinding:
-                {
-                    var fieldName = typeBinding.FieldName.Lexeme;
-                    var typeName = EmitTypeReference(typeBinding.TypeName);
+                    {
+                        var fieldName = typeBinding.FieldName.Lexeme;
+                        var typeName = EmitTypeReference(typeBinding.TypeName);
 
-                    if (typeBinding.NestedEntries.IsDefaultOrEmpty)
-                    {
-                        AppendLine($"{fieldName}: {typeName}");
-                    }
-                    else
-                    {
-                        var overrides = new List<string>();
-                        foreach (var nested in typeBinding.NestedEntries)
+                        if(typeBinding.NestedEntries.IsDefaultOrEmpty)
                         {
-                            var nestedFieldName = nested.FieldName.Lexeme;
-                            var nestedValue = EmitExpression(nested.Value);
-                            overrides.Add($"{nestedFieldName} = {nestedValue}");
+                            AppendLine($"{fieldName}: {typeName}");
                         }
-                        AppendLine($"{fieldName}: {typeName} {{ {string.Join(", ", overrides)} }}");
+                        else
+                        {
+                            var overrides = new List<string>();
+                            foreach(var nested in typeBinding.NestedEntries)
+                            {
+                                var nestedFieldName = nested.FieldName.Lexeme;
+                                var nestedValue = EmitExpression(nested.Value);
+                                overrides.Add($"{nestedFieldName} = {nestedValue}");
+                            }
+                            AppendLine($"{fieldName}: {typeName} {{ {string.Join(", ", overrides)} }}");
+                        }
+                        break;
                     }
-                    break;
-                }
             }
         }
 
@@ -815,7 +815,7 @@ public sealed class MistPrettyPrinter
 
     private void EmitAbstractMemberDeclaration(AbstractMemberDeclarationNode memberDecl)
     {
-        switch (memberDecl)
+        switch(memberDecl)
         {
             case AbstractMethodMemberAbstractMemberDeclarationNode methodMember:
                 EmitAbstractMethodDeclaration(methodMember.Method);
@@ -841,9 +841,9 @@ public sealed class MistPrettyPrinter
         var name = propertyDecl.Name.Lexeme;
 
         var accessors = new List<string>();
-        foreach (var accessor in propertyDecl.Accessors)
+        foreach(var accessor in propertyDecl.Accessors)
         {
-            switch (accessor)
+            switch(accessor)
             {
                 case AbstractGetAccessorAbstractAccessorDeclarationNode:
                     accessors.Add("get;");
@@ -880,7 +880,7 @@ public sealed class MistPrettyPrinter
         var modifiers = EmitModifiers(slotDecl.Modifiers);
         var name = slotDecl.Name.Lexeme;
         var typeParams = EmitTypeParameterList(slotDecl.TypeParams);
-        if (slotDecl.Constraints is not null)
+        if(slotDecl.Constraints is not null)
         {
             var constraints = EmitConstraintList(slotDecl.Constraints);
             var whereClauses = EmitConstraintClauses(slotDecl.SlotWhereConstraints);
@@ -900,12 +900,12 @@ public sealed class MistPrettyPrinter
         var name = enumDecl.Name.Lexeme;
 
         var typeAnnotation = "";
-        if (enumDecl.TypeAnnotation is not null)
+        if(enumDecl.TypeAnnotation is not null)
         {
             typeAnnotation = $" : {EmitTypeReference(enumDecl.TypeAnnotation)}";
         }
 
-        if (enumDecl.Members is null)
+        if(enumDecl.Members is null)
         {
             AppendLine($"{modifiers}enum {name}{typeAnnotation} {{");
             AppendLine("}");
@@ -924,24 +924,24 @@ public sealed class MistPrettyPrinter
     private void EmitEnumMemberList(EnumMemberListNode memberList)
     {
         var members = new List<EnumMemberNode> { memberList.EnumMember };
-        foreach (var member in memberList.EnumMembers)
+        foreach(var member in memberList.EnumMembers)
         {
             members.Add(member);
         }
 
         var hasTrailingComma = memberList.COMMA.HasValue;
 
-        for (var i = 0; i < members.Count; i++)
+        for(var i = 0; i < members.Count; i++)
         {
             var member = members[i];
             var memberText = EmitEnumMember(member);
 
             var isLast = i == members.Count - 1;
-            if (!isLast)
+            if(!isLast)
             {
                 AppendLine($"{memberText},");
             }
-            else if (hasTrailingComma)
+            else if(hasTrailingComma)
             {
                 AppendLine($"{memberText},");
             }
@@ -957,7 +957,7 @@ public sealed class MistPrettyPrinter
         var prefix = member.IsDefault is not null ? "default " : "";
         var name = member.Name.Lexeme;
 
-        if (member.Value is not null)
+        if(member.Value is not null)
         {
             return $"{prefix}{name} = {EmitExpression(member.Value)}";
         }
@@ -978,9 +978,9 @@ public sealed class MistPrettyPrinter
         AppendLine($"{prefix}extension({receiverType} {receiverName}) {{");
         _indentLevel++;
 
-        for (var i = 0; i < extDecl.Members.Length; i++)
+        for(var i = 0; i < extDecl.Members.Length; i++)
         {
-            if (i > 0) AppendLine();
+            if(i > 0) AppendLine();
             EmitExtensionMemberDeclaration(extDecl.Members[i]);
         }
 
@@ -990,7 +990,7 @@ public sealed class MistPrettyPrinter
 
     private void EmitExtensionMemberDeclaration(ExtensionMemberDeclarationNode member)
     {
-        switch (member)
+        switch(member)
         {
             case ExtensionMethodMemberExtensionMemberDeclarationNode methodMember:
                 EmitMethodDeclaration(methodMember.Method);
@@ -1005,14 +1005,14 @@ public sealed class MistPrettyPrinter
 
     private string EmitParameterList(ParameterListNode? paramList)
     {
-        if (paramList is null) return "";
+        if(paramList is null) return "";
 
         var parameters = new List<string>();
         parameters.Add(EmitParameter(paramList.Parameter));
 
-        foreach (var child in paramList.Children())
+        foreach(var child in paramList.Children())
         {
-            if (child is ParameterNode param && !ReferenceEquals(param, paramList.Parameter))
+            if(child is ParameterNode param && !ReferenceEquals(param, paramList.Parameter))
             {
                 parameters.Add(EmitParameter(param));
             }
@@ -1024,7 +1024,7 @@ public sealed class MistPrettyPrinter
     private string EmitParameter(ParameterNode param)
     {
         var prefix = param.Modifier is not null ? "readonly " : "";
-        if (param.RefModifier is not null)
+        if(param.RefModifier is not null)
             prefix += "ref ";
         prefix += EmitOwnershipSpecifier(param.OwnershipSpecifier);
         var type = EmitTypeReference(param.Type);
@@ -1047,12 +1047,12 @@ public sealed class MistPrettyPrinter
 
     private string EmitArgumentList(ArgumentListNode? argList)
     {
-        if (argList is null) return "";
+        if(argList is null) return "";
 
         var arguments = new List<string>();
         arguments.Add(EmitArgument(argList.Argument));
 
-        foreach (var arg in argList.Arguments)
+        foreach(var arg in argList.Arguments)
         {
             arguments.Add(EmitArgument(arg));
         }
@@ -1087,11 +1087,11 @@ public sealed class MistPrettyPrinter
     {
         // Union (non-empty PIPE-separated continuation list): emit constituents
         // joined by " | ". A single (non-union) type ref delegates to EmitSingleTypeRef.
-        if (typeRef.SingleTypeRefs.Length > 0)
+        if(typeRef.SingleTypeRefs.Length > 0)
         {
             var parts = new List<string>();
             parts.Add(EmitSingleTypeRef(typeRef.First));
-            foreach (var constituent in typeRef.SingleTypeRefs)
+            foreach(var constituent in typeRef.SingleTypeRefs)
             {
                 parts.Add(EmitSingleTypeRef(constituent));
             }
@@ -1103,78 +1103,78 @@ public sealed class MistPrettyPrinter
 
     private string EmitSingleTypeRef(SingleTypeRefNode singleTypeRef)
     {
-        switch (singleTypeRef)
+        switch(singleTypeRef)
         {
             case PrimitiveSingleTypeRefSingleTypeRefNode primitiveRef:
-            {
-                var keyword = EmitPrimitiveType(primitiveRef.PrimitiveType);
-                if (primitiveRef.ArrayRank is SizedArrayRankArrayRankSuffixNode sizedRank)
                 {
-                    return $"{keyword}[{sizedRank.Size.Lexeme}]";
+                    var keyword = EmitPrimitiveType(primitiveRef.PrimitiveType);
+                    if(primitiveRef.ArrayRank is SizedArrayRankArrayRankSuffixNode sizedRank)
+                    {
+                        return $"{keyword}[{sizedRank.Size.Lexeme}]";
+                    }
+                    else if(primitiveRef.ArrayRank is not null)
+                    {
+                        return $"{keyword}[]";
+                    }
+                    return keyword;
                 }
-                else if (primitiveRef.ArrayRank is not null)
-                {
-                    return $"{keyword}[]";
-                }
-                return keyword;
-            }
             case VoidSingleTypeRefSingleTypeRefNode:
                 return "void";
             case UnknownSingleTypeRefSingleTypeRefNode:
                 return "unknown";
             case NamedSingleTypeRefSingleTypeRefNode namedRef:
-            {
-                var name = ExtractQualifiedName(namedRef.Name);
-                var typeArgs = EmitTypeArgumentList(namedRef.TypeArgs);
-                if (namedRef.ArrayRank is SizedArrayRankArrayRankSuffixNode sizedRank)
                 {
-                    return $"{name}{typeArgs}[{sizedRank.Size.Lexeme}]";
+                    var name = ExtractQualifiedName(namedRef.Name);
+                    var typeArgs = EmitTypeArgumentList(namedRef.TypeArgs);
+                    if(namedRef.ArrayRank is SizedArrayRankArrayRankSuffixNode sizedRank)
+                    {
+                        return $"{name}{typeArgs}[{sizedRank.Size.Lexeme}]";
+                    }
+                    else if(namedRef.ArrayRank is not null)
+                    {
+                        return $"{name}{typeArgs}[]";
+                    }
+                    return $"{name}{typeArgs}";
                 }
-                else if (namedRef.ArrayRank is not null)
-                {
-                    return $"{name}{typeArgs}[]";
-                }
-                return $"{name}{typeArgs}";
-            }
             case ParenthesizedTypeRefSingleTypeRefNode parenRef:
-            {
-                var inner = EmitTypeReference(parenRef.Inner);
-                if (parenRef.ArrayRank is SizedArrayRankArrayRankSuffixNode sizedRank)
                 {
-                    return $"({inner})[{sizedRank.Size.Lexeme}]";
+                    var inner = EmitTypeReference(parenRef.Inner);
+                    if(parenRef.ArrayRank is SizedArrayRankArrayRankSuffixNode sizedRank)
+                    {
+                        return $"({inner})[{sizedRank.Size.Lexeme}]";
+                    }
+                    else if(parenRef.ArrayRank is not null)
+                    {
+                        return $"({inner})[]";
+                    }
+                    return $"({inner})";
                 }
-                else if (parenRef.ArrayRank is not null)
-                {
-                    return $"({inner})[]";
-                }
-                return $"({inner})";
-            }
             case TupleSingleTypeRefSingleTypeRefNode tupleRef:
-            {
-                var parts = new List<string>();
-
-                string FormatTupleElement(TupleTypeElementNode element)
                 {
-                    var type = EmitTypeReference(element.Type);
-                    return element.Name.HasValue ? $"{type} {element.Name.Value.Lexeme}" : type;
-                }
+                    var parts = new List<string>();
 
-                parts.Add(FormatTupleElement(tupleRef.First));
-                parts.Add(FormatTupleElement(tupleRef.Rest));
-                foreach (var additional in tupleRef.TupleTypeElements)
-                {
-                    parts.Add(FormatTupleElement(additional));
-                }
+                    string FormatTupleElement(TupleTypeElementNode element)
+                    {
+                        var type = EmitTypeReference(element.Type);
+                        return element.Name.HasValue ? $"{type} {element.Name.Value.Lexeme}" : type;
+                    }
 
-                return $"({string.Join(", ", parts)})";
-            }
+                    parts.Add(FormatTupleElement(tupleRef.First));
+                    parts.Add(FormatTupleElement(tupleRef.Rest));
+                    foreach(var additional in tupleRef.TupleTypeElements)
+                    {
+                        parts.Add(FormatTupleElement(additional));
+                    }
+
+                    return $"({string.Join(", ", parts)})";
+                }
             case FuncSingleTypeRefSingleTypeRefNode funcRef:
-            {
-                // Emit the lowercase `func` keyword form with its type arguments
-                // (e.g., func<int, string>). The last type argument is the return type.
-                var typeArgs = EmitTypeArgumentList(funcRef.TypeArgs);
-                return $"func{typeArgs}";
-            }
+                {
+                    // Emit the lowercase `func` keyword form with its type arguments
+                    // (e.g., func<int, string>). The last type argument is the return type.
+                    var typeArgs = EmitTypeArgumentList(funcRef.TypeArgs);
+                    return $"func{typeArgs}";
+                }
             default:
                 return "object";
         }
@@ -1207,7 +1207,7 @@ public sealed class MistPrettyPrinter
 
     private void EmitStatement(StatementNode stmt)
     {
-        switch (stmt)
+        switch(stmt)
         {
             case VariableDeclarationStatementStatementNode varDeclStmt:
                 EmitVariableDeclaration(varDeclStmt.VariableDeclaration);
@@ -1233,7 +1233,7 @@ public sealed class MistPrettyPrinter
             case ReadonlyBlockStatementStatementNode readonlyBlockStmt:
                 AppendLine("readonly {");
                 _indentLevel++;
-                foreach (var bodyStmt in readonlyBlockStmt.ReadonlyBlock.Body.Statements)
+                foreach(var bodyStmt in readonlyBlockStmt.ReadonlyBlock.Body.Statements)
                 {
                     EmitStatement(bodyStmt);
                 }
@@ -1243,7 +1243,7 @@ public sealed class MistPrettyPrinter
             case BlockStatementStatementNode blockStmt:
                 AppendLine("{");
                 _indentLevel++;
-                foreach (var bodyStmt in blockStmt.BlockStatement.Statements)
+                foreach(var bodyStmt in blockStmt.BlockStatement.Statements)
                 {
                     EmitStatement(bodyStmt);
                 }
@@ -1306,7 +1306,7 @@ public sealed class MistPrettyPrinter
         var expr = EmitExpression(withBlockStmt.Expression);
         AppendLine($"with ({expr}) {{");
         _indentLevel++;
-        foreach (var bodyStmt in withBlockStmt.Body.Statements)
+        foreach(var bodyStmt in withBlockStmt.Body.Statements)
         {
             EmitStatement(bodyStmt);
         }
@@ -1318,12 +1318,12 @@ public sealed class MistPrettyPrinter
 
     private string EmitWithClauses(ImmutableArray<WithClauseNode> withClauses)
     {
-        if (withClauses.IsDefaultOrEmpty) return "";
+        if(withClauses.IsDefaultOrEmpty) return "";
 
         var sb = new StringBuilder();
-        foreach (var clause in withClauses)
+        foreach(var clause in withClauses)
         {
-            switch (clause)
+            switch(clause)
             {
                 case ThisTierWithClauseWithClauseNode tierClause:
                     sb.Append(" with ");
@@ -1342,67 +1342,67 @@ public sealed class MistPrettyPrinter
 
     private void EmitVariableDeclaration(VariableDeclarationStatementNode varDecl)
     {
-        switch (varDecl)
+        switch(varDecl)
         {
             case TypedVariableDeclarationVariableDeclarationStatementNode typed:
-            {
-                var readonlyPrefix = typed.ReadonlyModifier is not null ? "readonly " : "";
-                var ownership = EmitOwnershipSpecifier(typed.OwnershipSpecifier);
-                var type = EmitTypeReference(typed.Type);
-                var name = typed.Name.Lexeme;
-                var init = EmitExpression(typed.Initializer);
-                AppendLine($"{readonlyPrefix}{ownership}{type} {name} = {init};");
-                break;
-            }
+                {
+                    var readonlyPrefix = typed.ReadonlyModifier is not null ? "readonly " : "";
+                    var ownership = EmitOwnershipSpecifier(typed.OwnershipSpecifier);
+                    var type = EmitTypeReference(typed.Type);
+                    var name = typed.Name.Lexeme;
+                    var init = EmitExpression(typed.Initializer);
+                    AppendLine($"{readonlyPrefix}{ownership}{type} {name} = {init};");
+                    break;
+                }
             case InferredVariableDeclarationVariableDeclarationStatementNode inferred:
-            {
-                var readonlyPrefix = inferred.ReadonlyModifier is not null ? "readonly " : "";
-                var ownership = EmitOwnershipSpecifier(inferred.OwnershipSpecifier);
-                var name = inferred.Name.Lexeme;
-                var init = EmitExpression(inferred.Initializer);
-                AppendLine($"{readonlyPrefix}{ownership}var {name} = {init};");
-                break;
-            }
+                {
+                    var readonlyPrefix = inferred.ReadonlyModifier is not null ? "readonly " : "";
+                    var ownership = EmitOwnershipSpecifier(inferred.OwnershipSpecifier);
+                    var name = inferred.Name.Lexeme;
+                    var init = EmitExpression(inferred.Initializer);
+                    AppendLine($"{readonlyPrefix}{ownership}var {name} = {init};");
+                    break;
+                }
             case VarTupleDeconstructionVariableDeclarationStatementNode varTuple:
-            {
-                var readonlyPrefix = varTuple.ReadonlyModifier is not null ? "readonly " : "";
-                var names = new List<string> { varTuple.FirstName.Lexeme };
-                foreach (var restName in varTuple.RestNames)
                 {
-                    names.Add(restName.Lexeme);
+                    var readonlyPrefix = varTuple.ReadonlyModifier is not null ? "readonly " : "";
+                    var names = new List<string> { varTuple.FirstName.Lexeme };
+                    foreach(var restName in varTuple.RestNames)
+                    {
+                        names.Add(restName.Lexeme);
+                    }
+                    var init = EmitExpression(varTuple.Initializer);
+                    AppendLine($"{readonlyPrefix}var ({string.Join(", ", names)}) = {init};");
+                    break;
                 }
-                var init = EmitExpression(varTuple.Initializer);
-                AppendLine($"{readonlyPrefix}var ({string.Join(", ", names)}) = {init};");
-                break;
-            }
             case TypedTupleDeconstructionVariableDeclarationStatementNode typedTuple:
-            {
-                var readonlyPrefix = typedTuple.ReadonlyModifier is not null ? "readonly " : "";
-                var parts = new List<string>();
-
-                string FormatDeconstructionElement(TupleDeconstructionElementNode element)
                 {
-                    var type = EmitTypeReference(element.Type);
-                    return $"{type} {element.Name.Lexeme}";
-                }
+                    var readonlyPrefix = typedTuple.ReadonlyModifier is not null ? "readonly " : "";
+                    var parts = new List<string>();
 
-                parts.Add(FormatDeconstructionElement(typedTuple.First));
-                parts.Add(FormatDeconstructionElement(typedTuple.Rest));
-                foreach (var additional in typedTuple.TupleDeconstructionElements)
-                {
-                    parts.Add(FormatDeconstructionElement(additional));
-                }
+                    string FormatDeconstructionElement(TupleDeconstructionElementNode element)
+                    {
+                        var type = EmitTypeReference(element.Type);
+                        return $"{type} {element.Name.Lexeme}";
+                    }
 
-                var init = EmitExpression(typedTuple.Initializer);
-                AppendLine($"{readonlyPrefix}({string.Join(", ", parts)}) = {init};");
-                break;
-            }
+                    parts.Add(FormatDeconstructionElement(typedTuple.First));
+                    parts.Add(FormatDeconstructionElement(typedTuple.Rest));
+                    foreach(var additional in typedTuple.TupleDeconstructionElements)
+                    {
+                        parts.Add(FormatDeconstructionElement(additional));
+                    }
+
+                    var init = EmitExpression(typedTuple.Initializer);
+                    AppendLine($"{readonlyPrefix}({string.Join(", ", parts)}) = {init};");
+                    break;
+                }
         }
     }
 
     private void EmitReturnStatement(ReturnStatementNode returnStmt)
     {
-        if (returnStmt.Value is not null)
+        if(returnStmt.Value is not null)
         {
             var refPrefix = returnStmt.RefKeyword is not null ? "ref " : "";
             AppendLine($"return {refPrefix}{EmitExpression(returnStmt.Value)};");
@@ -1419,14 +1419,14 @@ public sealed class MistPrettyPrinter
         AppendLine($"if ({condition}) {{");
         _indentLevel++;
 
-        foreach (var stmt in ifStmt.ThenBranch.Statements)
+        foreach(var stmt in ifStmt.ThenBranch.Statements)
         {
             EmitStatement(stmt);
         }
 
         _indentLevel--;
 
-        if (ifStmt.ElseBranch is not null)
+        if(ifStmt.ElseBranch is not null)
         {
             EmitElseClause(ifStmt.ElseBranch);
         }
@@ -1438,45 +1438,45 @@ public sealed class MistPrettyPrinter
 
     private void EmitElseClause(ElseClauseNode elseClause)
     {
-        switch (elseClause)
+        switch(elseClause)
         {
             case ElseIfElseClauseNode elseIf:
-            {
-                var condition = EmitExpression(elseIf.ElseIf.Condition);
-                AppendLine($"}} else if ({condition}) {{");
-                _indentLevel++;
-
-                foreach (var stmt in elseIf.ElseIf.ThenBranch.Statements)
                 {
-                    EmitStatement(stmt);
-                }
+                    var condition = EmitExpression(elseIf.ElseIf.Condition);
+                    AppendLine($"}} else if ({condition}) {{");
+                    _indentLevel++;
 
-                _indentLevel--;
+                    foreach(var stmt in elseIf.ElseIf.ThenBranch.Statements)
+                    {
+                        EmitStatement(stmt);
+                    }
 
-                if (elseIf.ElseIf.ElseBranch is not null)
-                {
-                    EmitElseClause(elseIf.ElseIf.ElseBranch);
+                    _indentLevel--;
+
+                    if(elseIf.ElseIf.ElseBranch is not null)
+                    {
+                        EmitElseClause(elseIf.ElseIf.ElseBranch);
+                    }
+                    else
+                    {
+                        AppendLine("}");
+                    }
+                    break;
                 }
-                else
-                {
-                    AppendLine("}");
-                }
-                break;
-            }
             case ElseBlockElseClauseNode elseBlock:
-            {
-                AppendLine("} else {");
-                _indentLevel++;
-
-                foreach (var stmt in elseBlock.ElseBlock.Statements)
                 {
-                    EmitStatement(stmt);
-                }
+                    AppendLine("} else {");
+                    _indentLevel++;
 
-                _indentLevel--;
-                AppendLine("}");
-                break;
-            }
+                    foreach(var stmt in elseBlock.ElseBlock.Statements)
+                    {
+                        EmitStatement(stmt);
+                    }
+
+                    _indentLevel--;
+                    AppendLine("}");
+                    break;
+                }
         }
     }
 
@@ -1486,7 +1486,7 @@ public sealed class MistPrettyPrinter
         AppendLine($"while ({condition}) {{");
         _indentLevel++;
 
-        foreach (var stmt in whileStmt.Body.Statements)
+        foreach(var stmt in whileStmt.Body.Statements)
         {
             EmitStatement(stmt);
         }
@@ -1504,7 +1504,7 @@ public sealed class MistPrettyPrinter
         AppendLine($"for ({init}; {condition}; {iterator}) {{");
         _indentLevel++;
 
-        foreach (var stmt in forStmt.Body.Statements)
+        foreach(var stmt in forStmt.Body.Statements)
         {
             EmitStatement(stmt);
         }
@@ -1515,23 +1515,23 @@ public sealed class MistPrettyPrinter
 
     private string EmitForInitializer(ForInitializerNode? initializer)
     {
-        if (initializer is null) return "";
+        if(initializer is null) return "";
 
-        switch (initializer)
+        switch(initializer)
         {
             case ForInitializerVariableDeclarationForInitializerNode varDecl:
-            {
-                var type = EmitTypeReference(varDecl.VariableDeclaration);
-                var name = varDecl.Name.Lexeme;
-                var init = EmitExpression(varDecl.Initializer);
-                return $"{type} {name} = {init}";
-            }
+                {
+                    var type = EmitTypeReference(varDecl.VariableDeclaration);
+                    var name = varDecl.Name.Lexeme;
+                    var init = EmitExpression(varDecl.Initializer);
+                    return $"{type} {name} = {init}";
+                }
             case ForInitializerVarDeclarationForInitializerNode varDeclInit:
-            {
-                var name = varDeclInit.Name.Lexeme;
-                var init = EmitExpression(varDeclInit.Initializer);
-                return $"var {name} = {init}";
-            }
+                {
+                    var name = varDeclInit.Name.Lexeme;
+                    var init = EmitExpression(varDeclInit.Initializer);
+                    return $"var {name} = {init}";
+                }
             case ForInitializerExpressionForInitializerNode exprInit:
                 return EmitExpression(exprInit.Expression);
             default:
@@ -1548,7 +1548,7 @@ public sealed class MistPrettyPrinter
         AppendLine($"foreach ({type} {name} in {collection}) {{");
         _indentLevel++;
 
-        foreach (var stmt in foreachStmt.Body.Statements)
+        foreach(var stmt in foreachStmt.Body.Statements)
         {
             EmitStatement(stmt);
         }
@@ -1585,10 +1585,10 @@ public sealed class MistPrettyPrinter
 
     private static string EmitLambdaModifiers(ImmutableArray<LambdaModifierNode> modifiers)
     {
-        if (modifiers.IsDefaultOrEmpty) return "";
+        if(modifiers.IsDefaultOrEmpty) return "";
 
         var parts = new List<string>();
-        foreach (var modifier in modifiers)
+        foreach(var modifier in modifiers)
         {
             parts.Add(modifier switch
             {
@@ -1614,14 +1614,14 @@ public sealed class MistPrettyPrinter
 
     private string EmitParenthesizedLambdaParams(ParenthesizedLambdaParamsLambdaParameterListNode parenParams)
     {
-        if (parenParams.Params is null)
+        if(parenParams.Params is null)
         {
             return "()";
         }
 
         var parts = new List<string>();
         parts.Add(EmitLambdaParam(parenParams.Params.LambdaParam));
-        foreach (var param in parenParams.Params.LambdaParams)
+        foreach(var param in parenParams.Params.LambdaParams)
         {
             parts.Add(EmitLambdaParam(param));
         }
@@ -1644,7 +1644,7 @@ public sealed class MistPrettyPrinter
     {
         var target = EmitVoidCoalescing(assignment.Target);
 
-        if (assignment.Value is not null && !ReferenceEquals(GetAssignmentValueTarget(assignment.Value), assignment.Target))
+        if(assignment.Value is not null && !ReferenceEquals(GetAssignmentValueTarget(assignment.Value), assignment.Target))
         {
             var value = EmitExpression(assignment.Value);
             return $"{target} = {value}";
@@ -1666,10 +1666,10 @@ public sealed class MistPrettyPrinter
     {
         var left = EmitLogicalOr(voidCoalescing.Left);
 
-        if (voidCoalescing.LogicalOrs.Length > 0)
+        if(voidCoalescing.LogicalOrs.Length > 0)
         {
             var parts = new List<string> { left };
-            foreach (var right in voidCoalescing.LogicalOrs)
+            foreach(var right in voidCoalescing.LogicalOrs)
             {
                 parts.Add(EmitLogicalOr(right));
             }
@@ -1683,7 +1683,7 @@ public sealed class MistPrettyPrinter
     {
         var left = EmitLogicalAnd(logicalOr.Left);
 
-        if (logicalOr.Right is not null && !ReferenceEquals(logicalOr.Right, logicalOr.Left))
+        if(logicalOr.Right is not null && !ReferenceEquals(logicalOr.Right, logicalOr.Left))
         {
             var right = EmitLogicalAnd(logicalOr.Right);
             return $"{left} || {right}";
@@ -1696,7 +1696,7 @@ public sealed class MistPrettyPrinter
     {
         var left = EmitEquality(logicalAnd.Left);
 
-        if (logicalAnd.Right is not null && !ReferenceEquals(logicalAnd.Right, logicalAnd.Left))
+        if(logicalAnd.Right is not null && !ReferenceEquals(logicalAnd.Right, logicalAnd.Left))
         {
             var right = EmitEquality(logicalAnd.Right);
             return $"{left} && {right}";
@@ -1709,7 +1709,7 @@ public sealed class MistPrettyPrinter
     {
         var left = EmitRelational(equality.Left);
 
-        if (equality.Right is not null && !ReferenceEquals(equality.Right, equality.Left))
+        if(equality.Right is not null && !ReferenceEquals(equality.Right, equality.Left))
         {
             var op = equality.Operator.Lexeme;
             var right = EmitRelational(equality.Right);
@@ -1721,28 +1721,28 @@ public sealed class MistPrettyPrinter
 
     private string EmitRelational(RelationalNode relational)
     {
-        switch (relational)
+        switch(relational)
         {
             case RelationalComparisonRelationalNode cmp:
-            {
-                var left = EmitAdditive(cmp.Left);
-
-                if (cmp.Right is not null && !ReferenceEquals(cmp.Right, cmp.Left))
                 {
-                    var op = cmp.Operator.Lexeme;
-                    var right = EmitAdditive(cmp.Right);
-                    return $"{left} {op} {right}";
+                    var left = EmitAdditive(cmp.Left);
+
+                    if(cmp.Right is not null && !ReferenceEquals(cmp.Right, cmp.Left))
+                    {
+                        var op = cmp.Operator.Lexeme;
+                        var right = EmitAdditive(cmp.Right);
+                        return $"{left} {op} {right}";
+                    }
+
+                    return left;
                 }
 
-                return left;
-            }
-
             case IsExpressionRelationalNode isExpr:
-            {
-                var scrutinee = EmitAdditive(isExpr.Left);
-                var pattern = EmitPattern(isExpr.Pattern);
-                return $"{scrutinee} is {pattern}";
-            }
+                {
+                    var scrutinee = EmitAdditive(isExpr.Left);
+                    var pattern = EmitPattern(isExpr.Pattern);
+                    return $"{scrutinee} is {pattern}";
+                }
 
             case AsExpressionRelationalNode asExpr:
                 return $"{EmitAdditive(asExpr.Left)} as {EmitTypeReference(asExpr.TargetType)}";
@@ -1763,11 +1763,11 @@ public sealed class MistPrettyPrinter
     {
         var left = EmitAndPattern(orPattern.Left);
 
-        if (orPattern.AndPatterns.IsDefaultOrEmpty)
+        if(orPattern.AndPatterns.IsDefaultOrEmpty)
             return left;
 
         var parts = new List<string> { left };
-        foreach (var part in orPattern.AndPatterns)
+        foreach(var part in orPattern.AndPatterns)
         {
             parts.Add(EmitAndPattern(part));
         }
@@ -1776,13 +1776,13 @@ public sealed class MistPrettyPrinter
 
     private string EmitRefinementPredicate(RefinementPredicateNode node)
     {
-        switch (node)
+        switch(node)
         {
             case SimpleRefinementPredicateRefinementPredicateNode simple:
                 return EmitAndPattern(simple.Predicate);
             case CompoundRefinementPredicateRefinementPredicateNode compound:
                 var parts = new List<string> { EmitUnaryPattern(compound.First) };
-                foreach (var rest in compound.UnaryPatterns)
+                foreach(var rest in compound.UnaryPatterns)
                 {
                     parts.Add(EmitUnaryPattern(rest));
                 }
@@ -1796,11 +1796,11 @@ public sealed class MistPrettyPrinter
     {
         var left = EmitUnaryPattern(andPattern.Left);
 
-        if (andPattern.UnaryPatterns.IsDefaultOrEmpty)
+        if(andPattern.UnaryPatterns.IsDefaultOrEmpty)
             return left;
 
         var parts = new List<string> { left };
-        foreach (var part in andPattern.UnaryPatterns)
+        foreach(var part in andPattern.UnaryPatterns)
         {
             parts.Add(EmitUnaryPattern(part));
         }
@@ -1809,7 +1809,7 @@ public sealed class MistPrettyPrinter
 
     private string EmitUnaryPattern(UnaryPatternNode unaryPattern)
     {
-        switch (unaryPattern)
+        switch(unaryPattern)
         {
             case NotPatternUnaryPatternNode notPattern:
                 return $"not {EmitPrimaryPattern(notPattern.Operand)}";
@@ -1822,19 +1822,19 @@ public sealed class MistPrettyPrinter
 
     private string EmitPrimaryPattern(PrimaryPatternNode primaryPattern)
     {
-        switch (primaryPattern)
+        switch(primaryPattern)
         {
             case TypePatternPrimaryPatternNode typePattern:
-            {
-                var type = EmitTypeReference(typePattern.Type);
-                var name = typePattern.Name.Lexeme;
-                return $"{type} {name}";
-            }
+                {
+                    var type = EmitTypeReference(typePattern.Type);
+                    var name = typePattern.Name.Lexeme;
+                    return $"{type} {name}";
+                }
             case BareTypePatternPrimaryPatternNode bareTypePattern:
-            {
-                var type = EmitTypeReference(bareTypePattern.Type);
-                return type;
-            }
+                {
+                    var type = EmitTypeReference(bareTypePattern.Type);
+                    return type;
+                }
             case VarPatternPrimaryPatternNode varPattern:
                 return $"var {varPattern.Name.Lexeme}";
             case DiscardPatternPrimaryPatternNode:
@@ -1850,49 +1850,49 @@ public sealed class MistPrettyPrinter
             case GreaterThanOrEqualRelationalPatternPrimaryPatternNode gtePattern:
                 return $">= {EmitVoidCoalescing(gtePattern.Constant)}";
             case PropertyPatternPrimaryPatternNode propertyPattern:
-            {
-                var sb = new StringBuilder();
-
-                if (propertyPattern.TypeName is not null)
                 {
-                    sb.Append(ExtractQualifiedName(propertyPattern.TypeName));
-                    sb.Append(' ');
-                }
+                    var sb = new StringBuilder();
 
-                sb.Append("{ ");
-                if (propertyPattern.Subpatterns is not null)
-                {
-                    sb.Append(EmitPropertySubpatternList(propertyPattern.Subpatterns));
-                    sb.Append(' ');
-                }
-                sb.Append('}');
+                    if(propertyPattern.TypeName is not null)
+                    {
+                        sb.Append(ExtractQualifiedName(propertyPattern.TypeName));
+                        sb.Append(' ');
+                    }
 
-                if (propertyPattern.Name.HasValue)
-                {
-                    sb.Append(' ');
-                    sb.Append(propertyPattern.Name.Value.Lexeme);
-                }
+                    sb.Append("{ ");
+                    if(propertyPattern.Subpatterns is not null)
+                    {
+                        sb.Append(EmitPropertySubpatternList(propertyPattern.Subpatterns));
+                        sb.Append(' ');
+                    }
+                    sb.Append('}');
 
-                return sb.ToString();
-            }
+                    if(propertyPattern.Name.HasValue)
+                    {
+                        sb.Append(' ');
+                        sb.Append(propertyPattern.Name.Value.Lexeme);
+                    }
+
+                    return sb.ToString();
+                }
             case ListPatternPrimaryPatternNode listPattern:
-            {
-                if (listPattern.Elements is null)
-                    return "[]";
-
-                return $"[{EmitListPatternElementList(listPattern.Elements)}]";
-            }
-            case TuplePositionalPatternPrimaryPatternNode tuplePattern:
-            {
-                var elements = new List<string>();
-                elements.Add(EmitPattern(tuplePattern.First));
-                elements.Add(EmitPattern(tuplePattern.Rest));
-                foreach (var additional in tuplePattern.Patterns)
                 {
-                    elements.Add(EmitPattern(additional));
+                    if(listPattern.Elements is null)
+                        return "[]";
+
+                    return $"[{EmitListPatternElementList(listPattern.Elements)}]";
                 }
-                return $"({string.Join(", ", elements)})";
-            }
+            case TuplePositionalPatternPrimaryPatternNode tuplePattern:
+                {
+                    var elements = new List<string>();
+                    elements.Add(EmitPattern(tuplePattern.First));
+                    elements.Add(EmitPattern(tuplePattern.Rest));
+                    foreach(var additional in tuplePattern.Patterns)
+                    {
+                        elements.Add(EmitPattern(additional));
+                    }
+                    return $"({string.Join(", ", elements)})";
+                }
             case ParenthesizedPatternPrimaryPatternNode parenPattern:
                 return $"({EmitPattern(parenPattern.Inner)})";
             default:
@@ -1920,7 +1920,7 @@ public sealed class MistPrettyPrinter
         var parts = new List<string>();
         parts.Add(EmitPropertySubpattern(subpatternList.PropertySubpattern));
 
-        foreach (var subpattern in subpatternList.PropertySubpatterns)
+        foreach(var subpattern in subpatternList.PropertySubpatterns)
         {
             parts.Add(EmitPropertySubpattern(subpattern));
         }
@@ -1940,7 +1940,7 @@ public sealed class MistPrettyPrinter
         var parts = new List<string>();
         parts.Add(EmitListPatternElement(elementList.ListPatternElement));
 
-        foreach (var element in elementList.ListPatternElements)
+        foreach(var element in elementList.ListPatternElements)
         {
             parts.Add(EmitListPatternElement(element));
         }
@@ -1950,16 +1950,16 @@ public sealed class MistPrettyPrinter
 
     private string EmitListPatternElement(ListPatternElementNode element)
     {
-        switch (element)
+        switch(element)
         {
             case PatternElementListPatternElementNode patternElement:
                 return EmitPattern(patternElement.Pattern);
             case SliceElementListPatternElementNode sliceElement:
-            {
-                if (sliceElement.Name.HasValue)
-                    return $".. {sliceElement.Name.Value.Lexeme}";
-                return "..";
-            }
+                {
+                    if(sliceElement.Name.HasValue)
+                        return $".. {sliceElement.Name.Value.Lexeme}";
+                    return "..";
+                }
             default:
                 return "";
         }
@@ -1969,7 +1969,7 @@ public sealed class MistPrettyPrinter
     {
         var left = EmitMultiplicative(additive.Left);
 
-        if (additive.Right is not null && !ReferenceEquals(additive.Right, additive.Left))
+        if(additive.Right is not null && !ReferenceEquals(additive.Right, additive.Left))
         {
             var op = additive.Operator.Lexeme;
             var right = EmitMultiplicative(additive.Right);
@@ -1983,7 +1983,7 @@ public sealed class MistPrettyPrinter
     {
         var left = EmitUnary(multiplicative.Left);
 
-        if (multiplicative.Right is not null && !ReferenceEquals(multiplicative.Right, multiplicative.Left))
+        if(multiplicative.Right is not null && !ReferenceEquals(multiplicative.Right, multiplicative.Left))
         {
             var op = multiplicative.Operator.Lexeme;
             var right = EmitUnary(multiplicative.Right);
@@ -1995,7 +1995,7 @@ public sealed class MistPrettyPrinter
 
     private string EmitUnary(UnaryNode unary)
     {
-        switch (unary)
+        switch(unary)
         {
             case AsyncExpressionUnaryNode asyncExpr:
                 return $"async {EmitUnary(asyncExpr.Operand)}";
@@ -2018,7 +2018,7 @@ public sealed class MistPrettyPrinter
     {
         var result = EmitPrimary(postfix.Target);
 
-        foreach (var suffix in postfix.Suffix)
+        foreach(var suffix in postfix.Suffix)
         {
             result = EmitPostfixSuffix(result, suffix);
         }
@@ -2028,59 +2028,59 @@ public sealed class MistPrettyPrinter
 
     private string EmitPostfixSuffix(string target, PostfixSuffixNode suffix)
     {
-        switch (suffix)
+        switch(suffix)
         {
             case MethodCallSuffixPostfixSuffixNode methodCall:
-            {
-                var name = methodCall.Name.Lexeme;
-                var typeArgs = EmitTypeArgumentList(methodCall.TypeArgs);
-                var args = EmitArgumentList(methodCall.Arguments);
-                return $"{target}.{name}{typeArgs}({args})";
-            }
-            case MemberAccessSuffixPostfixSuffixNode memberAccess:
-            {
-                var name = memberAccess.Name.Lexeme;
-                return $"{target}.{name}";
-            }
-            case IndexSuffixPostfixSuffixNode indexSuffix:
-            {
-                var index = EmitExpression(indexSuffix.Index);
-                return $"{target}[{index}]";
-            }
-            case InvocationSuffixPostfixSuffixNode invocation:
-            {
-                var args = EmitArgumentList(invocation.Arguments);
-                return $"{target}({args})";
-            }
-            case SwitchExpressionSuffixPostfixSuffixNode switchExpr:
-            {
-                var sb = new StringBuilder();
-                sb.Append($"{target} switch {{");
-
-                if (switchExpr.Arms is not null)
                 {
-                    void AppendArm(StringBuilder builder, SwitchArmNode arm)
-                    {
-                        builder.Append(' ');
-                        builder.Append(EmitPattern(arm.Pattern));
-                        if (arm.Guard is not null)
-                        {
-                            builder.Append($" when {EmitVoidCoalescing(arm.Guard.Condition)}");
-                        }
-                        builder.Append($" => {EmitExpression(arm.Result)}");
-                        builder.Append(',');
-                    }
-
-                    AppendArm(sb, switchExpr.Arms.SwitchArm);
-                    foreach (var arm in switchExpr.Arms.SwitchArms)
-                    {
-                        AppendArm(sb, arm);
-                    }
+                    var name = methodCall.Name.Lexeme;
+                    var typeArgs = EmitTypeArgumentList(methodCall.TypeArgs);
+                    var args = EmitArgumentList(methodCall.Arguments);
+                    return $"{target}.{name}{typeArgs}({args})";
                 }
+            case MemberAccessSuffixPostfixSuffixNode memberAccess:
+                {
+                    var name = memberAccess.Name.Lexeme;
+                    return $"{target}.{name}";
+                }
+            case IndexSuffixPostfixSuffixNode indexSuffix:
+                {
+                    var index = EmitExpression(indexSuffix.Index);
+                    return $"{target}[{index}]";
+                }
+            case InvocationSuffixPostfixSuffixNode invocation:
+                {
+                    var args = EmitArgumentList(invocation.Arguments);
+                    return $"{target}({args})";
+                }
+            case SwitchExpressionSuffixPostfixSuffixNode switchExpr:
+                {
+                    var sb = new StringBuilder();
+                    sb.Append($"{target} switch {{");
 
-                sb.Append(" }");
-                return sb.ToString();
-            }
+                    if(switchExpr.Arms is not null)
+                    {
+                        void AppendArm(StringBuilder builder, SwitchArmNode arm)
+                        {
+                            builder.Append(' ');
+                            builder.Append(EmitPattern(arm.Pattern));
+                            if(arm.Guard is not null)
+                            {
+                                builder.Append($" when {EmitVoidCoalescing(arm.Guard.Condition)}");
+                            }
+                            builder.Append($" => {EmitExpression(arm.Result)}");
+                            builder.Append(',');
+                        }
+
+                        AppendArm(sb, switchExpr.Arms.SwitchArm);
+                        foreach(var arm in switchExpr.Arms.SwitchArms)
+                        {
+                            AppendArm(sb, arm);
+                        }
+                    }
+
+                    sb.Append(" }");
+                    return sb.ToString();
+                }
             default:
                 return target;
         }
@@ -2088,7 +2088,7 @@ public sealed class MistPrettyPrinter
 
     private string EmitPrimary(PrimaryNode primary)
     {
-        switch (primary)
+        switch(primary)
         {
             case IntegerLiteralExpressionPrimaryNode intLit:
                 return intLit.IntegerLiteral.Lexeme;
@@ -2113,104 +2113,104 @@ public sealed class MistPrettyPrinter
             case ThisExpressionPrimaryNode:
                 return "this";
             case ArrayCreationExpressionPrimaryNode arrayCreation:
-            {
-                var type = EmitElementTypeRef(arrayCreation.Type);
-                var size = EmitExpression(arrayCreation.Size);
-                return $"new {type}[{size}]";
-            }
+                {
+                    var type = EmitElementTypeRef(arrayCreation.Type);
+                    var size = EmitExpression(arrayCreation.Size);
+                    return $"new {type}[{size}]";
+                }
             case StackallocExpressionPrimaryNode stackallocExpr:
-            {
-                // Mirror the array-creation case: stackalloc T[n] reprints with the
-                // element type and bracketed size so parse→print→parse round-trips.
-                var type = EmitElementTypeRef(stackallocExpr.Type);
-                var size = EmitExpression(stackallocExpr.Size);
-                return $"stackalloc {type}[{size}]";
-            }
+                {
+                    // Mirror the array-creation case: stackalloc T[n] reprints with the
+                    // element type and bracketed size so parse→print→parse round-trips.
+                    var type = EmitElementTypeRef(stackallocExpr.Type);
+                    var size = EmitExpression(stackallocExpr.Size);
+                    return $"stackalloc {type}[{size}]";
+                }
             case ObjectCreationExpressionPrimaryNode objCreation:
-            {
-                var type = ExtractQualifiedName(objCreation.Type);
-                var typeArgs = EmitTypeArgumentList(objCreation.TypeArgs);
-                var args = EmitArgumentList(objCreation.Arguments);
-                if (objCreation.Initializer is not null)
                 {
-                    var assignments = EmitPropertyAssignmentList(objCreation.Initializer);
-                    return $"new {type}{typeArgs}({args}) {{ {assignments} }}";
-                }
-                return $"new {type}{typeArgs}({args})";
-            }
-            case ObjectCreationExpressionNoArgsPrimaryNode objCreationNoArgs:
-            {
-                var type = ExtractQualifiedName(objCreationNoArgs.Type);
-                var typeArgs = EmitTypeArgumentList(objCreationNoArgs.TypeArgs);
-                var assignments = EmitPropertyAssignmentList(objCreationNoArgs.Initializer);
-                return $"new {type}{typeArgs} {{ {assignments} }}";
-            }
-            case TargetTypedNewExpressionPrimaryNode targetNew:
-            {
-                var args = EmitArgumentList(targetNew.Arguments);
-                if (targetNew.Initializer is not null)
-                {
-                    var assignments = EmitPropertyAssignmentList(targetNew.Initializer);
-                    return $"new({args}) {{ {assignments} }}";
-                }
-                return $"new({args})";
-            }
-            case TargetTypedNewExpressionNoArgsPrimaryNode targetNewNoArgs:
-            {
-                var assignments = EmitPropertyAssignmentList(targetNewNoArgs.Initializer);
-                return $"new {{ {assignments} }}";
-            }
-            case AnonymousTypeExpressionPrimaryNode anonType:
-            {
-                var parts = new List<string>();
-
-                string FormatAnonymousProperty(AnonymousPropertyNode prop)
-                {
-                    return prop switch
+                    var type = ExtractQualifiedName(objCreation.Type);
+                    var typeArgs = EmitTypeArgumentList(objCreation.TypeArgs);
+                    var args = EmitArgumentList(objCreation.Arguments);
+                    if(objCreation.Initializer is not null)
                     {
-                        ExplicitAnonymousPropertyAnonymousPropertyNode explicit_ =>
-                            $"{explicit_.Name.Lexeme} = {EmitExpression(explicit_.Value)}",
-                        ProjectedAnonymousPropertyAnonymousPropertyNode projected =>
-                            EmitPostfix(projected.Projection),
-                        _ => ""
-                    };
+                        var assignments = EmitPropertyAssignmentList(objCreation.Initializer);
+                        return $"new {type}{typeArgs}({args}) {{ {assignments} }}";
+                    }
+                    return $"new {type}{typeArgs}({args})";
                 }
-
-                parts.Add(FormatAnonymousProperty(anonType.Properties.AnonymousProperty));
-                foreach (var additional in anonType.Properties.AnonymousPropertys)
+            case ObjectCreationExpressionNoArgsPrimaryNode objCreationNoArgs:
                 {
-                    parts.Add(FormatAnonymousProperty(additional));
+                    var type = ExtractQualifiedName(objCreationNoArgs.Type);
+                    var typeArgs = EmitTypeArgumentList(objCreationNoArgs.TypeArgs);
+                    var assignments = EmitPropertyAssignmentList(objCreationNoArgs.Initializer);
+                    return $"new {type}{typeArgs} {{ {assignments} }}";
                 }
+            case TargetTypedNewExpressionPrimaryNode targetNew:
+                {
+                    var args = EmitArgumentList(targetNew.Arguments);
+                    if(targetNew.Initializer is not null)
+                    {
+                        var assignments = EmitPropertyAssignmentList(targetNew.Initializer);
+                        return $"new({args}) {{ {assignments} }}";
+                    }
+                    return $"new({args})";
+                }
+            case TargetTypedNewExpressionNoArgsPrimaryNode targetNewNoArgs:
+                {
+                    var assignments = EmitPropertyAssignmentList(targetNewNoArgs.Initializer);
+                    return $"new {{ {assignments} }}";
+                }
+            case AnonymousTypeExpressionPrimaryNode anonType:
+                {
+                    var parts = new List<string>();
 
-                return $"new {{ {string.Join(", ", parts)} }}";
-            }
+                    string FormatAnonymousProperty(AnonymousPropertyNode prop)
+                    {
+                        return prop switch
+                        {
+                            ExplicitAnonymousPropertyAnonymousPropertyNode explicit_ =>
+                                $"{explicit_.Name.Lexeme} = {EmitExpression(explicit_.Value)}",
+                            ProjectedAnonymousPropertyAnonymousPropertyNode projected =>
+                                EmitPostfix(projected.Projection),
+                            _ => ""
+                        };
+                    }
+
+                    parts.Add(FormatAnonymousProperty(anonType.Properties.AnonymousProperty));
+                    foreach(var additional in anonType.Properties.AnonymousPropertys)
+                    {
+                        parts.Add(FormatAnonymousProperty(additional));
+                    }
+
+                    return $"new {{ {string.Join(", ", parts)} }}";
+                }
             case ParenthesizedExpressionPrimaryNode paren:
                 return $"({EmitExpression(paren.Inner)})";
             case TupleLiteralExpressionPrimaryNode tupleLit:
-            {
-                var parts = new List<string>();
-
-                string FormatTupleLiteralElement(TupleLiteralElementNode element)
                 {
-                    return element switch
+                    var parts = new List<string>();
+
+                    string FormatTupleLiteralElement(TupleLiteralElementNode element)
                     {
-                        NamedTupleLiteralElementTupleLiteralElementNode named =>
-                            $"{named.Name.Lexeme}: {EmitExpression(named.Value)}",
-                        UnnamedTupleLiteralElementTupleLiteralElementNode unnamed =>
-                            EmitExpression(unnamed.Value),
-                        _ => ""
-                    };
-                }
+                        return element switch
+                        {
+                            NamedTupleLiteralElementTupleLiteralElementNode named =>
+                                $"{named.Name.Lexeme}: {EmitExpression(named.Value)}",
+                            UnnamedTupleLiteralElementTupleLiteralElementNode unnamed =>
+                                EmitExpression(unnamed.Value),
+                            _ => ""
+                        };
+                    }
 
-                parts.Add(FormatTupleLiteralElement(tupleLit.First));
-                parts.Add(FormatTupleLiteralElement(tupleLit.Rest));
-                foreach (var additional in tupleLit.TupleLiteralElements)
-                {
-                    parts.Add(FormatTupleLiteralElement(additional));
-                }
+                    parts.Add(FormatTupleLiteralElement(tupleLit.First));
+                    parts.Add(FormatTupleLiteralElement(tupleLit.Rest));
+                    foreach(var additional in tupleLit.TupleLiteralElements)
+                    {
+                        parts.Add(FormatTupleLiteralElement(additional));
+                    }
 
-                return $"({string.Join(", ", parts)})";
-            }
+                    return $"({string.Join(", ", parts)})";
+                }
             case IdentifierExpressionPrimaryNode ident:
                 return ident.Name.Lexeme;
             case FieldKeywordExpressionPrimaryNode:
@@ -2222,12 +2222,12 @@ public sealed class MistPrettyPrinter
             case DefaultLiteralExpressionPrimaryNode:
                 return "default";
             case ArrayLiteralExpressionPrimaryNode arrayLiteral:
-            {
-                var elements = new List<string> { EmitExpression(arrayLiteral.First) };
-                foreach (var elem in arrayLiteral.Expressions)
-                    elements.Add(EmitExpression(elem));
-                return $"[{string.Join(", ", elements)}]";
-            }
+                {
+                    var elements = new List<string> { EmitExpression(arrayLiteral.First) };
+                    foreach(var elem in arrayLiteral.Expressions)
+                        elements.Add(EmitExpression(elem));
+                    return $"[{string.Join(", ", elements)}]";
+                }
             case EmptyArrayLiteralExpressionPrimaryNode:
                 return "[]";
             default:
@@ -2240,9 +2240,9 @@ public sealed class MistPrettyPrinter
         var sb = new StringBuilder();
         sb.Append("$\"");
 
-        foreach (var part in interpolated.Parts)
+        foreach(var part in interpolated.Parts)
         {
-            switch (part)
+            switch(part)
             {
                 case TextPartInterpolatedPartNode textPart:
                     sb.Append(textPart.Text.Lexeme);
@@ -2263,12 +2263,12 @@ public sealed class MistPrettyPrinter
 
     private static string EmitModifiers(ImmutableArray<ModifierNode> modifiers)
     {
-        if (modifiers.IsEmpty) return "";
+        if(modifiers.IsEmpty) return "";
 
         var parts = new List<string>();
-        foreach (var mod in modifiers)
+        foreach(var mod in modifiers)
         {
-            switch (mod)
+            switch(mod)
             {
                 case PublicModifierModifierNode:
                     parts.Add("public");
@@ -2319,7 +2319,7 @@ public sealed class MistPrettyPrinter
     {
         var parts = new List<string>();
         parts.Add(EmitBaseTypeRef(baseList.First));
-        foreach (var rest in baseList.BaseTypeRefs)
+        foreach(var rest in baseList.BaseTypeRefs)
         {
             parts.Add(EmitBaseTypeRef(rest));
         }
@@ -2340,11 +2340,11 @@ public sealed class MistPrettyPrinter
     /// </summary>
     private static string EmitTypeParameterList(TypeParameterListNode? typeParams)
     {
-        if (typeParams is null) return "";
+        if(typeParams is null) return "";
 
         var parts = new List<string>();
         parts.Add(EmitTypeParameter(typeParams.TypeParameter));
-        foreach (var tp in typeParams.TypeParameters)
+        foreach(var tp in typeParams.TypeParameters)
         {
             parts.Add(EmitTypeParameter(tp));
         }
@@ -2371,11 +2371,11 @@ public sealed class MistPrettyPrinter
     /// </summary>
     private string EmitTypeArgumentList(TypeArgumentListNode? typeArgs)
     {
-        if (typeArgs is null) return "";
+        if(typeArgs is null) return "";
 
         var parts = new List<string>();
         parts.Add(EmitTypeArgument(typeArgs.TypeArgument));
-        foreach (var arg in typeArgs.TypeArguments)
+        foreach(var arg in typeArgs.TypeArguments)
         {
             parts.Add(EmitTypeArgument(arg));
         }
@@ -2409,10 +2409,10 @@ public sealed class MistPrettyPrinter
     private string ExtractQualifiedName(QualifiedIdentifierNode qualifiedId)
     {
         // Prefer extracting from source text via Span (handles dotted names correctly)
-        if (_sourceText is not null)
+        if(_sourceText is not null)
         {
             var span = qualifiedId.Span;
-            if (span.Length > 0 && span.Start + span.Length <= _sourceText.Length)
+            if(span.Length > 0 && span.Start + span.Length <= _sourceText.Length)
             {
                 return _sourceText.Substring(span.Start, span.Length);
             }
@@ -2420,21 +2420,21 @@ public sealed class MistPrettyPrinter
 
         // Fall back to reconstructing from token properties (for hand-crafted ASTs)
         var first = qualifiedId.IDENTIFIER.Lexeme;
-        if (string.IsNullOrEmpty(first))
+        if(string.IsNullOrEmpty(first))
         {
             return "";
         }
 
-        if (qualifiedId.IDENTIFIERs.IsDefaultOrEmpty)
+        if(qualifiedId.IDENTIFIERs.IsDefaultOrEmpty)
         {
             return first;
         }
 
         // Reconstruct the dotted name: first.second.third...
         var sb = new StringBuilder(first);
-        foreach (var token in qualifiedId.IDENTIFIERs)
+        foreach(var token in qualifiedId.IDENTIFIERs)
         {
-            if (!string.IsNullOrEmpty(token.Lexeme))
+            if(!string.IsNullOrEmpty(token.Lexeme))
             {
                 sb.Append('.');
                 sb.Append(token.Lexeme);
@@ -2452,12 +2452,12 @@ public sealed class MistPrettyPrinter
     /// </summary>
     private string EmitConstraintClauses(ImmutableArray<WhereClauseNode> constraints)
     {
-        if (constraints.IsDefaultOrEmpty) return "";
+        if(constraints.IsDefaultOrEmpty) return "";
 
         var sb = new StringBuilder();
-        foreach (var clause in constraints)
+        foreach(var clause in constraints)
         {
-            switch (clause)
+            switch(clause)
             {
                 case GenericConstraintClauseWhereClauseNode generic:
                     sb.Append(" where ");
@@ -2483,7 +2483,7 @@ public sealed class MistPrettyPrinter
     {
         var parts = new List<string>();
         parts.Add(EmitConstraint(constraintList.Constraint));
-        foreach (var constraint in constraintList.Constraints)
+        foreach(var constraint in constraintList.Constraints)
         {
             parts.Add(EmitConstraint(constraint));
         }
@@ -2495,7 +2495,7 @@ public sealed class MistPrettyPrinter
     /// </summary>
     private string EmitConstraint(ConstraintNode constraint)
     {
-        switch (constraint)
+        switch(constraint)
         {
             case ClassConstraintConstraintNode:
                 return "class";
@@ -2510,19 +2510,19 @@ public sealed class MistPrettyPrinter
             case DefaultConstraintConstraintNode:
                 return "default";
             case ConstructorConstraintConstraintNode ctorConstraint:
-            {
-                if (ctorConstraint.ParamTypes is null)
                 {
-                    return "new()";
+                    if(ctorConstraint.ParamTypes is null)
+                    {
+                        return "new()";
+                    }
+                    var paramTypes = new List<string>();
+                    paramTypes.Add(EmitTypeReference(ctorConstraint.ParamTypes.TypeReference));
+                    foreach(var typeRef in ctorConstraint.ParamTypes.TypeReferences)
+                    {
+                        paramTypes.Add(EmitTypeReference(typeRef));
+                    }
+                    return $"new({string.Join(", ", paramTypes)})";
                 }
-                var paramTypes = new List<string>();
-                paramTypes.Add(EmitTypeReference(ctorConstraint.ParamTypes.TypeReference));
-                foreach (var typeRef in ctorConstraint.ParamTypes.TypeReferences)
-                {
-                    paramTypes.Add(EmitTypeReference(typeRef));
-                }
-                return $"new({string.Join(", ", paramTypes)})";
-            }
             case TypeConstraintConstraintNode typeConstraint:
                 return EmitTypeReference(typeConstraint.Type);
             default:
@@ -2534,12 +2534,12 @@ public sealed class MistPrettyPrinter
 
     private string EmitPropertyAssignmentList(PropertyInitializerBlockNode block)
     {
-        if (block.Assignments is null)
+        if(block.Assignments is null)
             return "";
 
         var parts = new List<string>();
         parts.Add(EmitSinglePropertyAssignment(block.Assignments.PropertyAssignment));
-        foreach (var assignment in block.Assignments.PropertyAssignments)
+        foreach(var assignment in block.Assignments.PropertyAssignments)
         {
             parts.Add(EmitSinglePropertyAssignment(assignment));
         }
@@ -2558,13 +2558,13 @@ public sealed class MistPrettyPrinter
 
     private void AppendLine(string text = "")
     {
-        if (string.IsNullOrEmpty(text))
+        if(string.IsNullOrEmpty(text))
         {
             _sb.AppendLine();
         }
         else
         {
-            for (var i = 0; i < _indentLevel; i++)
+            for(var i = 0; i < _indentLevel; i++)
             {
                 _sb.Append(IndentUnit);
             }

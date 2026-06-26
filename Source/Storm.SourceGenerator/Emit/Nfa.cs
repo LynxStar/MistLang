@@ -36,18 +36,18 @@ namespace Storm.SourceGenerator.Emit
 
             worklist.Push(start);
 
-            while (worklist.Count > 0)
+            while(worklist.Count > 0)
             {
                 var state = worklist.Pop();
 
-                if (!visited.Add(state.Id))
+                if(!visited.Add(state.Id))
                     continue;
 
                 result.Add(state);
 
-                foreach (var transition in state.Transitions)
+                foreach(var transition in state.Transitions)
                 {
-                    if (!visited.Contains(transition.Target.Id))
+                    if(!visited.Contains(transition.Target.Id))
                     {
                         worklist.Push(transition.Target);
                     }

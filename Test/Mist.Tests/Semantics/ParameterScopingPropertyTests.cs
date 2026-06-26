@@ -183,7 +183,7 @@ public class ParameterScopingPropertyTests
         var members = ImmutableArray.CreateBuilder<MemberDeclarationNode>();
         var paramNames = new string[scenario.ParamCount];
 
-        for (var i = 0; i < scenario.ParamCount; i++)
+        for(var i = 0; i < scenario.ParamCount; i++)
         {
             var paramName = $"p{i}";
             paramNames[i] = paramName;
@@ -222,13 +222,13 @@ public class ParameterScopingPropertyTests
             d.Id.Value == "MIST_UNDEFINED_IDENTIFIER" &&
             paramNames.Any(name => d.Message.Contains($"'{name}'")));
 
-        if (hasUndefinedParam)
+        if(hasUndefinedParam)
             return false;
 
         // Assert: all parameters are registered as symbols
-        foreach (var name in paramNames)
+        foreach(var name in paramNames)
         {
-            if (!model.AllSymbols.Any(s => s.Name == name && s.Kind == SymbolKind.Parameter))
+            if(!model.AllSymbols.Any(s => s.Name == name && s.Kind == SymbolKind.Parameter))
                 return false;
         }
 
@@ -253,7 +253,7 @@ public class ParameterScopingPropertyTests
         var body = ImmutableArray.Create(MakeIdentifierStatement(scenario.ParamName));
 
         MemberDeclarationNode member;
-        if (scenario.IsConstructor)
+        if(scenario.IsConstructor)
         {
             var ctor = new ConstructorDeclarationNode
             {
@@ -295,11 +295,11 @@ public class ParameterScopingPropertyTests
             d.Id.Value == "MIST_UNDEFINED_IDENTIFIER" &&
             d.Message.Contains($"'{scenario.ParamName}'"));
 
-        if (hasUndefined)
+        if(hasUndefined)
             return false;
 
         // Parameter is registered as a symbol
-        if (!model.AllSymbols.Any(s => s.Name == scenario.ParamName && s.Kind == SymbolKind.Parameter))
+        if(!model.AllSymbols.Any(s => s.Name == scenario.ParamName && s.Kind == SymbolKind.Parameter))
             return false;
 
         return true;

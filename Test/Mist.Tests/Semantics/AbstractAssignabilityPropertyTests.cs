@@ -129,14 +129,17 @@ public class AbstractAssignabilityPropertyTests
         {
             VariableDeclaration = new TypedVariableDeclarationVariableDeclarationStatementNode
             {
-                Type = new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
+                Type = new TypeReferenceNode
                 {
-                    Name = new QualifiedIdentifierNode
+                    First = new NamedSingleTypeRefSingleTypeRefNode
                     {
-                        IDENTIFIER = MakeToken(declaredTypeName),
-                        Span = new Storm.Runtime.SourceSpan(0, declaredTypeName.Length),
-                    },
-                } },
+                        Name = new QualifiedIdentifierNode
+                        {
+                            IDENTIFIER = MakeToken(declaredTypeName),
+                            Span = new Storm.Runtime.SourceSpan(0, declaredTypeName.Length),
+                        },
+                    }
+                },
                 Name = MakeToken(varName),
                 Initializer = MakeNewObjectExpression(initializedTypeName),
             },
@@ -191,7 +194,7 @@ public class AbstractAssignabilityPropertyTests
             Members = members,
         };
 
-        if (parentAbstractName is not null)
+        if(parentAbstractName is not null)
         {
             var _abstractList1 = MakeBaseList(parentAbstractName);
 
@@ -211,7 +214,7 @@ public class AbstractAssignabilityPropertyTests
         bool isStatic = false)
     {
         var modifiers = new List<ModifierNode> { new PublicModifierModifierNode() };
-        if (isStatic)
+        if(isStatic)
             modifiers.Add(new StaticModifierModifierNode());
 
         return new MethodDeclarationNode
@@ -219,10 +222,13 @@ public class AbstractAssignabilityPropertyTests
             Name = MakeToken(name),
             ReturnType = returnType ?? new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = parameters,
-            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode
+            Body = new MethodBlockBodyMethodBodyNode
             {
-                Statements = bodyStatements ?? ImmutableArray<StatementNode>.Empty,
-            } },
+                Block = new BlockNode
+                {
+                    Statements = bodyStatements ?? ImmutableArray<StatementNode>.Empty,
+                }
+            },
             Modifiers = modifiers.ToImmutableArray(),
         };
     }
@@ -238,7 +244,7 @@ public class AbstractAssignabilityPropertyTests
             Members = members ?? ImmutableArray<MemberDeclarationNode>.Empty,
         };
 
-        if (baseOrAbstractName is not null)
+        if(baseOrAbstractName is not null)
         {
             var _baseList1 = MakeBaseList(baseOrAbstractName);
 
@@ -261,7 +267,7 @@ public class AbstractAssignabilityPropertyTests
             Members = members ?? ImmutableArray<MemberDeclarationNode>.Empty,
         };
 
-        if (abstractName is not null)
+        if(abstractName is not null)
         {
             var _abstractList2 = MakeBaseList(abstractName);
 
@@ -475,7 +481,7 @@ public class AbstractAssignabilityPropertyTests
             .Select(m => WrapMethod(MakeMethodDecl(m)))
             .ToImmutableArray();
 
-        switch (scenario.TypeKind)
+        switch(scenario.TypeKind)
         {
             case ImplTypeKind.Class:
                 typeDecls.Add(WrapClass(
@@ -491,7 +497,7 @@ public class AbstractAssignabilityPropertyTests
         var programMembers = new List<MemberDeclarationNode>();
         var mainStatements = new List<StatementNode>();
 
-        switch (scenario.Kind)
+        switch(scenario.Kind)
         {
             case AssignmentKind.VariableDeclaration:
                 // IFoo x = new Foo();
@@ -511,14 +517,17 @@ public class AbstractAssignabilityPropertyTests
                 // Add the helper method: static void AcceptAbstract(IFoo param) { }
                 var param = new ParameterNode
                 {
-                    Type = new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
+                    Type = new TypeReferenceNode
                     {
-                        Name = new QualifiedIdentifierNode
+                        First = new NamedSingleTypeRefSingleTypeRefNode
                         {
-                            IDENTIFIER = MakeToken(scenario.AbstractName),
-                            Span = new Storm.Runtime.SourceSpan(0, scenario.AbstractName.Length),
-                        },
-                    } },
+                            Name = new QualifiedIdentifierNode
+                            {
+                                IDENTIFIER = MakeToken(scenario.AbstractName),
+                                Span = new Storm.Runtime.SourceSpan(0, scenario.AbstractName.Length),
+                            },
+                        }
+                    },
                     Name = MakeToken("param"),
                 };
                 programMembers.Add(WrapMethod(MakeMethodDecl(
@@ -532,14 +541,17 @@ public class AbstractAssignabilityPropertyTests
                 // static IFoo GetInstance() { return new Foo(); }
                 var returnStmt = MakeReturnStatement(
                     MakeNewObjectExpression(scenario.ImplementingTypeName));
-                var returnTypeRef = new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
+                var returnTypeRef = new TypeReferenceNode
                 {
-                    Name = new QualifiedIdentifierNode
+                    First = new NamedSingleTypeRefSingleTypeRefNode
                     {
-                        IDENTIFIER = MakeToken(scenario.AbstractName),
-                        Span = new Storm.Runtime.SourceSpan(0, scenario.AbstractName.Length),
-                    },
-                } };
+                        Name = new QualifiedIdentifierNode
+                        {
+                            IDENTIFIER = MakeToken(scenario.AbstractName),
+                            Span = new Storm.Runtime.SourceSpan(0, scenario.AbstractName.Length),
+                        },
+                    }
+                };
                 programMembers.Add(WrapMethod(MakeMethodDecl(
                     "GetInstance",
                     returnType: returnTypeRef,
@@ -593,7 +605,7 @@ public class AbstractAssignabilityPropertyTests
             .Select(m => WrapMethod(MakeMethodDecl(m)))
             .ToImmutableArray();
 
-        switch (scenario.TypeKind)
+        switch(scenario.TypeKind)
         {
             case ImplTypeKind.Class:
                 typeDecls.Add(WrapClass(
@@ -803,7 +815,7 @@ public class AbstractAssignabilityPropertyTests
         var diagnostics = RunTypeChecker(model);
 
         Assert.DoesNotContain(diagnostics, d => d.Id.Value == "MIST_TC_0001");
-    ;
+        ;
     }
 
 }

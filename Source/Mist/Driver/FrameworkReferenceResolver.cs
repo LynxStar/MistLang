@@ -58,7 +58,7 @@ public static class FrameworkReferenceResolver
         string targetFramework,
         DiagnosticBag diagnostics)
     {
-        if (frameworks.IsDefaultOrEmpty)
+        if(frameworks.IsDefaultOrEmpty)
             return new FrameworkResolutionResult(
                 ImmutableArray<string>.Empty,
                 ImmutableArray<ResolvedFrameworkInfo>.Empty,
@@ -73,11 +73,11 @@ public static class FrameworkReferenceResolver
         // Each enabled framework resolves independently; a failure to resolve one
         // framework never short-circuits the remaining frameworks. Exactly one
         // diagnostic is emitted per failing framework.
-        foreach (var framework in frameworks)
+        foreach(var framework in frameworks)
         {
             // Unknown shared-framework name: report MIST_FWREF_002 and do not
             // attempt to locate a pack (we have no canonical pack name to search).
-            if (!KnownFrameworks.Contains(framework.Name))
+            if(!KnownFrameworks.Contains(framework.Name))
             {
                 diagnostics.Add(new Diagnostic(
                     DiagnosticId.FrameworkReferenceUnknownName,
@@ -95,7 +95,7 @@ public static class FrameworkReferenceResolver
                 ? null
                 : ResolvePack(dotnetRoot, framework.Name, targetFramework);
 
-            if (resolved is null)
+            if(resolved is null)
             {
                 // Known shared framework, but its reference pack is not installed
                 // for the target framework: report MIST_FWREF_001, naming the
@@ -137,7 +137,7 @@ public static class FrameworkReferenceResolver
         string targetFramework)
     {
         var packsDir = Path.Combine(dotnetRoot, "packs", $"{frameworkName}.Ref");
-        if (!Directory.Exists(packsDir))
+        if(!Directory.Exists(packsDir))
             return null;
 
         string[] versionDirs;
@@ -157,25 +157,25 @@ public static class FrameworkReferenceResolver
         string? highestVersionName = null;
         ImmutableArray<string> highestAssemblies = default;
 
-        foreach (var versionDir in versionDirs)
+        foreach(var versionDir in versionDirs)
         {
             var dirName = Path.GetFileName(versionDir);
-            if (!Version.TryParse(dirName, out var version))
+            if(!Version.TryParse(dirName, out var version))
                 continue;
 
-            if (tfmMajor.HasValue && version.Major != tfmMajor.Value)
+            if(tfmMajor.HasValue && version.Major != tfmMajor.Value)
                 continue;
 
             var refPath = Path.Combine(versionDir, "ref", targetFramework);
-            if (!Directory.Exists(refPath))
+            if(!Directory.Exists(refPath))
                 continue;
 
             // Success requires at least one reference assembly in the pack.
             var dlls = Directory.GetFiles(refPath, "*.dll");
-            if (dlls.Length == 0)
+            if(dlls.Length == 0)
                 continue;
 
-            if (highestVersion is null || version > highestVersion)
+            if(highestVersion is null || version > highestVersion)
             {
                 highestVersion = version;
                 highestVersionName = dirName;
@@ -183,7 +183,7 @@ public static class FrameworkReferenceResolver
             }
         }
 
-        if (highestVersionName is null)
+        if(highestVersionName is null)
             return null;
 
         return (highestAssemblies, highestVersionName);

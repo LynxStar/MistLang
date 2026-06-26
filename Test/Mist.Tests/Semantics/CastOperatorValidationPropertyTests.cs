@@ -181,10 +181,13 @@ public class CastOperatorValidationPropertyTests
             : (CastOperatorKindNode)new ExplicitCastCastOperatorKindNode();
 
     private static TypeReferenceNode MakeNamedTypeRef(string name) =>
-        new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
+        new TypeReferenceNode
         {
-            Name = new QualifiedIdentifierNode { IDENTIFIER = Tok(name) },
-        } };
+            First = new NamedSingleTypeRefSingleTypeRefNode
+            {
+                Name = new QualifiedIdentifierNode { IDENTIFIER = Tok(name) },
+            }
+        };
 
     private static ParameterNode MakeParameter(string typeName, string paramName) =>
         new()
@@ -235,7 +238,7 @@ public class CastOperatorValidationPropertyTests
     {
         ParameterListNode? parameterList;
 
-        if (!scenario.HasParameterList)
+        if(!scenario.HasParameterList)
         {
             // 0 parameters: null ParameterList
             parameterList = null;
@@ -291,7 +294,7 @@ public class CastOperatorValidationPropertyTests
             });
 
         TypeDeclarationNode typeDecl;
-        if (isStruct)
+        if(isStruct)
         {
             typeDecl = new StructTypeTypeDeclarationNode
             {
@@ -377,7 +380,7 @@ public class CastOperatorValidationPropertyTests
         var expectedCount = scenario.TotalParamCount;
         var expectedMessage = $"Cast operator must have exactly one parameter; found {expectedCount}.";
 
-        if (paramCountDiags.Length != 1)
+        if(paramCountDiags.Length != 1)
         {
             return false.ToProperty()
                 .Label($"Expected exactly 1 {DiagnosticId} diagnostic for {expectedCount}-parameter " +

@@ -220,10 +220,13 @@ public class ImplicitCastResolutionPropertyTests
     }
 
     private static TypeReferenceNode MakeNamedTypeRef(string name) =>
-        new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
+        new TypeReferenceNode
         {
-            Name = new QualifiedIdentifierNode { IDENTIFIER = Tok(name) },
-        } };
+            First = new NamedSingleTypeRefSingleTypeRefNode
+            {
+                Name = new QualifiedIdentifierNode { IDENTIFIER = Tok(name) },
+            }
+        };
 
     private static ParameterNode MakeParameter(string typeName, string paramName) =>
         new()
@@ -447,7 +450,7 @@ public class ImplicitCastResolutionPropertyTests
 
         // Place the implicit cast operator on the appropriate type
         var castMember = MakeCastOperatorMember(scenario.TargetTypeName, scenario.SourceTypeName);
-        if (scenario.Location == OperatorLocation.OnSourceType)
+        if(scenario.Location == OperatorLocation.OnSourceType)
             sourceMembers.Add(castMember);
         else
             targetMembers.Add(castMember);
@@ -456,7 +459,7 @@ public class ImplicitCastResolutionPropertyTests
         var programMembers = new List<MemberDeclarationNode>();
         var mainStatements = new List<StatementNode>();
 
-        switch (scenario.Site)
+        switch(scenario.Site)
         {
             case ConversionSite.Assignment:
                 // SourceType src = new SourceType();

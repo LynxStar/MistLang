@@ -36,7 +36,7 @@ public sealed class EmitterFileCountPropertyTests : IDisposable
 
     public void Dispose()
     {
-        if (Directory.Exists(_outputDir))
+        if(Directory.Exists(_outputDir))
         {
             try { Directory.Delete(_outputDir, recursive: true); } catch { /* best effort */ }
         }
@@ -90,14 +90,17 @@ public sealed class EmitterFileCountPropertyTests : IDisposable
         var field = new FieldDeclarationNode
         {
             Name = MakeToken("value"),
-            Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
+            Type = new TypeReferenceNode
             {
-                PrimitiveType = new IntTypePrimitiveTypeNode(),
-            } },
+                First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                {
+                    PrimitiveType = new IntTypePrimitiveTypeNode(),
+                }
+            },
         };
         members.Add(new FieldMemberMemberDeclarationNode { Field = field });
 
-        if (hasMain)
+        if(hasMain)
         {
             var mainMethod = new MethodDeclarationNode
             {
@@ -134,7 +137,7 @@ public sealed class EmitterFileCountPropertyTests : IDisposable
         var units = new List<CompilationUnit>();
         var asts = new List<Storm.Runtime.SyntaxNode>();
 
-        for (var i = 0; i < fileCount; i++)
+        for(var i = 0; i < fileCount; i++)
         {
             var className = $"Class{i}";
             var hasMain = i == 0; // Only the first class has Main.
@@ -156,9 +159,9 @@ public sealed class EmitterFileCountPropertyTests : IDisposable
 
     private void CleanOutputDir()
     {
-        if (Directory.Exists(_outputDir))
+        if(Directory.Exists(_outputDir))
         {
-            foreach (var file in Directory.GetFiles(_outputDir))
+            foreach(var file in Directory.GetFiles(_outputDir))
                 File.Delete(file);
         }
     }
@@ -226,12 +229,12 @@ public sealed class EmitterFileCountPropertyTests : IDisposable
             .OrderBy(n => n)
             .ToList();
 
-        if (csFileNames.Count != expectedNames.Count)
+        if(csFileNames.Count != expectedNames.Count)
             return false;
 
-        for (var i = 0; i < csFileNames.Count; i++)
+        for(var i = 0; i < csFileNames.Count; i++)
         {
-            if (csFileNames[i] != expectedNames[i])
+            if(csFileNames[i] != expectedNames[i])
                 return false;
         }
 

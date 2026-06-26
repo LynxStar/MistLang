@@ -111,7 +111,7 @@ public class SyntheticChainResolutionPropertyTests
     {
         // Start from the terminal and wrap outward
         NodeOrigin current = terminal;
-        for (var i = reasons.Length - 1; i >= 0; i--)
+        for(var i = reasons.Length - 1; i >= 0; i--)
         {
             current = new SyntheticOrigin(current, reasons[i]);
         }

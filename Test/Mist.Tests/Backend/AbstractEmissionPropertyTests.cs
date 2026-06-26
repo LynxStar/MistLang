@@ -43,7 +43,7 @@ public sealed partial class AbstractEmissionPropertyTests : IDisposable
 
     public void Dispose()
     {
-        if (Directory.Exists(_outputDir))
+        if(Directory.Exists(_outputDir))
         {
             try { Directory.Delete(_outputDir, recursive: true); } catch { /* best effort */ }
         }
@@ -100,7 +100,7 @@ public sealed partial class AbstractEmissionPropertyTests : IDisposable
             Members = members,
         };
 
-        if (parentAbstractName is not null)
+        if(parentAbstractName is not null)
         {
             var _abstractList1 = MakeBaseList(parentAbstractName);
 
@@ -123,7 +123,7 @@ public sealed partial class AbstractEmissionPropertyTests : IDisposable
             Members = members ?? ImmutableArray<MemberDeclarationNode>.Empty,
         };
 
-        if (baseClassName is not null)
+        if(baseClassName is not null)
         {
             var _baseList1 = MakeBaseList(baseClassName);
 
@@ -146,7 +146,7 @@ public sealed partial class AbstractEmissionPropertyTests : IDisposable
             Members = members ?? ImmutableArray<MemberDeclarationNode>.Empty,
         };
 
-        if (abstractName is not null)
+        if(abstractName is not null)
         {
             var _abstractList2 = MakeBaseList(abstractName);
 
@@ -193,9 +193,9 @@ public sealed partial class AbstractEmissionPropertyTests : IDisposable
 
     private void CleanOutputDir()
     {
-        if (Directory.Exists(_outputDir))
+        if(Directory.Exists(_outputDir))
         {
-            foreach (var file in Directory.GetFiles(_outputDir))
+            foreach(var file in Directory.GetFiles(_outputDir))
                 File.Delete(file);
         }
     }
@@ -313,21 +313,21 @@ public sealed partial class AbstractEmissionPropertyTests : IDisposable
         // Build abstracts with random methods
         var abstractsGen = Gen.Constant(ImmutableArray.CreateBuilder<AbstractInfo>());
 
-        foreach (var abstractName in abstractNames)
+        foreach(var abstractName in abstractNames)
         {
             abstractsGen = from builder in abstractsGen
-                            from methodCount in Gen.Choose(0, 3)
-                            from methods in Gen.Shuffle(MethodNamePool)
-                                .Select(m => m.Take(methodCount).ToImmutableArray())
-                            select AddAbstract(builder, abstractName, methods, null);
+                           from methodCount in Gen.Choose(0, 3)
+                           from methods in Gen.Shuffle(MethodNamePool)
+                               .Select(m => m.Take(methodCount).ToImmutableArray())
+                           select AddAbstract(builder, abstractName, methods, null);
         }
 
         // Optionally add an abstract that inherits from the first abstract
         var withInheritanceGen = from builder in abstractsGen
-                                from addInheritance in Gen.Elements(true, false)
-                                select addInheritance && builder.Count > 0
-                                    ? AddAbstract(builder, "IChild", ImmutableArray<string>.Empty, builder[0].Name)
-                                    : builder;
+                                 from addInheritance in Gen.Elements(true, false)
+                                 select addInheritance && builder.Count > 0
+                                     ? AddAbstract(builder, "IChild", ImmutableArray<string>.Empty, builder[0].Name)
+                                     : builder;
 
         // Build implementors (classes and structs)
         var fullGen = from abstracts in withInheritanceGen
@@ -352,12 +352,12 @@ public sealed partial class AbstractEmissionPropertyTests : IDisposable
         ImmutableArray<AbstractInfo> abstracts,
         int count)
     {
-        if (count == 0 || abstracts.Length == 0)
+        if(count == 0 || abstracts.Length == 0)
             return Gen.Constant(ImmutableArray<ImplementorInfo>.Empty);
 
         var gen = Gen.Constant(ImmutableArray.CreateBuilder<ImplementorInfo>());
 
-        for (var i = 0; i < count; i++)
+        for(var i = 0; i < count; i++)
         {
             var idx = i;
             gen = from builder in gen
@@ -394,7 +394,7 @@ public sealed partial class AbstractEmissionPropertyTests : IDisposable
         var typeDecls = new List<TypeDeclarationNode>();
 
         // Add abstract declarations
-        foreach (var abs in scenario.Abstracts)
+        foreach(var abs in scenario.Abstracts)
         {
             var methods = abs.MethodNames
                 .Select(m => MakeAbstractMethod(m))
@@ -404,9 +404,9 @@ public sealed partial class AbstractEmissionPropertyTests : IDisposable
         }
 
         // Add implementing types (classes and structs)
-        foreach (var impl in scenario.Implementors)
+        foreach(var impl in scenario.Implementors)
         {
-            switch (impl.Kind)
+            switch(impl.Kind)
             {
                 case EmissionTypeKind.ClassWithAbstract:
                     // Class implementing an abstract: uses BaseClause/BaseClassName
@@ -431,20 +431,20 @@ public sealed partial class AbstractEmissionPropertyTests : IDisposable
     {
         var sb = new System.Text.StringBuilder();
 
-        foreach (var abs in scenario.Abstracts)
+        foreach(var abs in scenario.Abstracts)
         {
             var parent = abs.ParentAbstractName is not null ? $" : {abs.ParentAbstractName}" : "";
             sb.AppendLine($"abstract {abs.Name}{parent} {{");
-            foreach (var method in abs.MethodNames)
+            foreach(var method in abs.MethodNames)
             {
                 sb.AppendLine($"    void {method}();");
             }
             sb.AppendLine("}");
         }
 
-        foreach (var impl in scenario.Implementors)
+        foreach(var impl in scenario.Implementors)
         {
-            switch (impl.Kind)
+            switch(impl.Kind)
             {
                 case EmissionTypeKind.ClassWithAbstract:
                     sb.AppendLine($"class {impl.Name} : {impl.AbstractName} {{ }}");
@@ -483,47 +483,47 @@ public sealed partial class AbstractEmissionPropertyTests : IDisposable
         var model = BuildModel(ast, source);
         var csContent = EmitAndGetCsContent(model);
 
-        if (string.IsNullOrEmpty(csContent))
+        if(string.IsNullOrEmpty(csContent))
             return false;
 
         // ── Requirement 9.1: Each abstract declaration emitted as C# interface ──
         var interfaceMatches = InterfaceDeclPattern().Matches(csContent);
         var emittedAbstracts = new Dictionary<string, string?>();
-        foreach (Match match in interfaceMatches)
+        foreach(Match match in interfaceMatches)
         {
             var abstractName = match.Groups[1].Value;
             var parentName = match.Groups[2].Success ? match.Groups[2].Value : null;
             emittedAbstracts[abstractName] = parentName;
         }
 
-        foreach (var abs in scenario.Abstracts)
+        foreach(var abs in scenario.Abstracts)
         {
             // Verify the abstract declaration exists in emitted C#
-            if (!emittedAbstracts.ContainsKey(abs.Name))
+            if(!emittedAbstracts.ContainsKey(abs.Name))
                 return false;
 
             // ── Requirement 9.6: Abstract inheritance emitted correctly ──
-            if (abs.ParentAbstractName is not null)
+            if(abs.ParentAbstractName is not null)
             {
-                if (emittedAbstracts[abs.Name] != abs.ParentAbstractName)
+                if(emittedAbstracts[abs.Name] != abs.ParentAbstractName)
                     return false;
             }
             else
             {
                 // No parent abstract: should not have an inheritance clause
-                if (emittedAbstracts[abs.Name] is not null)
+                if(emittedAbstracts[abs.Name] is not null)
                     return false;
             }
         }
 
         // ── Requirement 9.2: Abstract methods emitted as C# method signatures ──
-        foreach (var abs in scenario.Abstracts)
+        foreach(var abs in scenario.Abstracts)
         {
-            foreach (var methodName in abs.MethodNames)
+            foreach(var methodName in abs.MethodNames)
             {
                 // Verify the method signature appears in the emitted C#
                 // Pattern: "void MethodName();" (with possible indentation)
-                if (!csContent.Contains($"void {methodName}("))
+                if(!csContent.Contains($"void {methodName}("))
                     return false;
             }
         }
@@ -531,21 +531,21 @@ public sealed partial class AbstractEmissionPropertyTests : IDisposable
         // ── Requirements 9.3, 9.4: Classes with abstract lists ──
         var classMatches = ClassDeclPattern().Matches(csContent);
         var emittedClasses = new Dictionary<string, string?>();
-        foreach (Match match in classMatches)
+        foreach(Match match in classMatches)
         {
             var className = match.Groups[1].Value;
             var baseName = match.Groups[2].Success ? match.Groups[2].Value : null;
             emittedClasses[className] = baseName;
         }
 
-        foreach (var impl in scenario.Implementors)
+        foreach(var impl in scenario.Implementors)
         {
-            if (impl.Kind == EmissionTypeKind.ClassWithAbstract)
+            if(impl.Kind == EmissionTypeKind.ClassWithAbstract)
             {
-                if (!emittedClasses.TryGetValue(impl.Name, out var actualBase))
+                if(!emittedClasses.TryGetValue(impl.Name, out var actualBase))
                     return false;
                 // The class should have `: AbstractName` in its declaration
-                if (actualBase != impl.AbstractName)
+                if(actualBase != impl.AbstractName)
                     return false;
             }
         }
@@ -553,21 +553,21 @@ public sealed partial class AbstractEmissionPropertyTests : IDisposable
         // ── Requirement 9.5: Structs with abstract lists ──
         var structMatches = StructDeclPattern().Matches(csContent);
         var emittedStructs = new Dictionary<string, string?>();
-        foreach (Match match in structMatches)
+        foreach(Match match in structMatches)
         {
             var structName = match.Groups[1].Value;
             var abstractName = match.Groups[2].Success ? match.Groups[2].Value : null;
             emittedStructs[structName] = abstractName;
         }
 
-        foreach (var impl in scenario.Implementors)
+        foreach(var impl in scenario.Implementors)
         {
-            if (impl.Kind == EmissionTypeKind.StructWithAbstract)
+            if(impl.Kind == EmissionTypeKind.StructWithAbstract)
             {
-                if (!emittedStructs.TryGetValue(impl.Name, out var actualAbstract))
+                if(!emittedStructs.TryGetValue(impl.Name, out var actualAbstract))
                     return false;
                 // The struct should have `: AbstractName` in its declaration
-                if (actualAbstract != impl.AbstractName)
+                if(actualAbstract != impl.AbstractName)
                     return false;
             }
         }
@@ -719,10 +719,13 @@ public sealed partial class AbstractEmissionPropertyTests : IDisposable
     {
         CleanOutputDir();
 
-        var intReturnType = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
+        var intReturnType = new TypeReferenceNode
         {
-            PrimitiveType = new IntTypePrimitiveTypeNode(),
-        } };
+            First = new PrimitiveSingleTypeRefSingleTypeRefNode
+            {
+                PrimitiveType = new IntTypePrimitiveTypeNode(),
+            }
+        };
         var abstractDecl = MakeAbstractDecl("ICalculator",
             ImmutableArray.Create(MakeAbstractMethod("Calculate", intReturnType)));
 
@@ -740,7 +743,7 @@ public sealed partial class AbstractEmissionPropertyTests : IDisposable
 
         Assert.Contains("interface ICalculator", csContent);
         Assert.Contains("int Calculate()", csContent);
-    ;
+        ;
     }
 
 }

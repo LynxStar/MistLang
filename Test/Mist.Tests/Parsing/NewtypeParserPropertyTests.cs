@@ -45,7 +45,7 @@ public class NewtypeParserPropertyTests
             .Where(d => d.Severity == DiagnosticSeverity.Error)
             .ToList();
 
-        if (errors.Count > 0)
+        if(errors.Count > 0)
             throw new InvalidOperationException(
                 $"Unexpected parse errors:\n  {string.Join("\n  ", errors.Select(e => e.Message))}\nSource:\n{source}");
 
@@ -80,7 +80,7 @@ public class NewtypeParserPropertyTests
     private static string ExtractSpanText(Storm.Runtime.SyntaxNode node, string source)
     {
         var span = node.Span;
-        if (span.Length > 0 && span.Start + span.Length <= source.Length)
+        if(span.Length > 0 && span.Start + span.Length <= source.Length)
             return source.Substring(span.Start, span.Length);
         return "";
     }

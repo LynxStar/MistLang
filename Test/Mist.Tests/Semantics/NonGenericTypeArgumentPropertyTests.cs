@@ -68,11 +68,14 @@ public class NonGenericTypeArgumentPropertyTests
 
     private static TypeReferenceNode MakeNamedTypeRef(string name, TypeArgumentListNode? typeArgs = null)
     {
-        return new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
+        return new TypeReferenceNode
         {
-            Name = new QualifiedIdentifierNode { IDENTIFIER = MakeToken(name) },
-            TypeArgs = typeArgs,
-        } };
+            First = new NamedSingleTypeRefSingleTypeRefNode
+            {
+                Name = new QualifiedIdentifierNode { IDENTIFIER = MakeToken(name) },
+                TypeArgs = typeArgs,
+            }
+        };
     }
 
     private static TypeReferenceNode MakePrimitiveTypeRef(string primitiveName)
@@ -165,38 +168,38 @@ public class NonGenericTypeArgumentPropertyTests
         // Build AST: non-generic type + holder class with a field using type args on it
         TypeDeclarationNode nonGenericTypeDecl;
 
-        switch (scenario.Kind)
+        switch(scenario.Kind)
         {
             case NonGenericDeclKind.Class:
-            {
-                var classDecl = new ClassDeclarationNode
                 {
-                    Name = MakeToken(scenario.NonGenericTypeName),
-                    Members = ImmutableArray<MemberDeclarationNode>.Empty,
-                };
-                nonGenericTypeDecl = new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl };
-                break;
-            }
+                    var classDecl = new ClassDeclarationNode
+                    {
+                        Name = MakeToken(scenario.NonGenericTypeName),
+                        Members = ImmutableArray<MemberDeclarationNode>.Empty,
+                    };
+                    nonGenericTypeDecl = new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl };
+                    break;
+                }
             case NonGenericDeclKind.Struct:
-            {
-                var structDecl = new StructDeclarationNode
                 {
-                    Name = MakeToken(scenario.NonGenericTypeName),
-                    Members = ImmutableArray<MemberDeclarationNode>.Empty,
-                };
-                nonGenericTypeDecl = new StructTypeTypeDeclarationNode { StructDeclaration = structDecl };
-                break;
-            }
+                    var structDecl = new StructDeclarationNode
+                    {
+                        Name = MakeToken(scenario.NonGenericTypeName),
+                        Members = ImmutableArray<MemberDeclarationNode>.Empty,
+                    };
+                    nonGenericTypeDecl = new StructTypeTypeDeclarationNode { StructDeclaration = structDecl };
+                    break;
+                }
             case NonGenericDeclKind.Abstract:
-            {
-                var abstractDecl = new AbstractDeclarationNode
                 {
-                    Name = MakeToken(scenario.NonGenericTypeName),
-                    Members = ImmutableArray<AbstractMemberDeclarationNode>.Empty,
-                };
-                nonGenericTypeDecl = new AbstractTypeTypeDeclarationNode { AbstractDeclaration = abstractDecl };
-                break;
-            }
+                    var abstractDecl = new AbstractDeclarationNode
+                    {
+                        Name = MakeToken(scenario.NonGenericTypeName),
+                        Members = ImmutableArray<AbstractMemberDeclarationNode>.Empty,
+                    };
+                    nonGenericTypeDecl = new AbstractTypeTypeDeclarationNode { AbstractDeclaration = abstractDecl };
+                    break;
+                }
             default:
                 throw new InvalidOperationException();
         }

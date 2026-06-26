@@ -250,7 +250,7 @@ public class StackallocSizeIntegerTypednessPropertyTests
         var diagnostics = CompileAndGetDiagnostics(scenario.Source);
         var sizeTypeDiags = ExtractSizeTypeDiagnostics(diagnostics);
 
-        if (scenario.ShouldAccept)
+        if(scenario.ShouldAccept)
         {
             // No MIST_TC_0151 should be emitted for integer-typed sizes.
             var passed = sizeTypeDiags.Count == 0;

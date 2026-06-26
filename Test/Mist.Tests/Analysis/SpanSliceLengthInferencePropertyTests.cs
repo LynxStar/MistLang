@@ -133,7 +133,7 @@ public sealed class SpanSliceLengthInferencePropertyTests
         // Use int specifically since the RefStructs sample proves it works.
         // The element type variation tests the generator's T substitution but
         // only int[] → Span<int> is proven to work via the full pipeline.
-        if (scenario.IsLiteralLength)
+        if(scenario.IsLiteralLength)
         {
             return $$"""
                 class Program
@@ -214,7 +214,7 @@ public sealed class SpanSliceLengthInferencePropertyTests
 
             // Find the 'sliceResult' local variable symbol in the captured model.
             IType? sliceResultType = null;
-            if (capture.CapturedModel is not null)
+            if(capture.CapturedModel is not null)
             {
                 var symbol = capture.CapturedModel.AllSymbols
                     .FirstOrDefault(s => s.Name == "sliceResult" && s.Kind == SymbolKind.LocalVariable);
@@ -283,14 +283,14 @@ public sealed class SpanSliceLengthInferencePropertyTests
             .Where(d => d.Severity == DiagnosticSeverity.Error)
             .ToList();
 
-        if (errors.Count > 0)
+        if(errors.Count > 0)
         {
             var errorStr = string.Join("; ", errors.Select(d => $"{d.Id.Value}: {d.Message}"));
             return false.ToProperty()
                 .Label($"Compilation errors: [{errorStr}]. Source:\n{source}");
         }
 
-        if (resolvedType is not SpanType spanType)
+        if(resolvedType is not SpanType spanType)
         {
             return false.ToProperty()
                 .Label($"Expected SpanType for 'sliceResult' but got " +

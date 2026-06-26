@@ -40,7 +40,7 @@ public static class TypeInspector
         var backend = new CSharpTranspilerBackend();
         var resolver = backend.GetAmbientTypeResolver(targetFramework, additionalAssemblyPaths);
 
-        if (resolver is not AssemblyTypeProvider provider)
+        if(resolver is not AssemblyTypeProvider provider)
         {
             Console.Error.WriteLine("error: Failed to initialize the assembly type provider. Ensure the .NET SDK is installed.");
             return 1;
@@ -48,7 +48,7 @@ public static class TypeInspector
 
         // Resolve the type: split on last '.' to get namespace + name
         var lastDot = typeName.LastIndexOf('.');
-        if (lastDot <= 0)
+        if(lastDot <= 0)
         {
             Console.Error.WriteLine($"error: Could not resolve type '{typeName}'. Provide a fully-qualified CLR type name (e.g., System.Text.Encoding).");
             return 1;
@@ -58,7 +58,7 @@ public static class TypeInspector
         var typeSimpleName = typeName[(lastDot + 1)..];
 
         var resolvedType = provider.ResolveType(typeNamespace, typeSimpleName);
-        if (resolvedType is null)
+        if(resolvedType is null)
         {
             Console.Error.WriteLine($"error: Could not resolve type '{typeName}' from any loaded assembly.");
             return 1;
@@ -93,7 +93,7 @@ public static class TypeInspector
 
         // Find the CLR type through the provider's loaded assemblies for member enumeration
         var clrType = FindClrType(provider, typeNamespace, typeSimpleName);
-        if (clrType is null)
+        if(clrType is null)
         {
             // Shouldn't happen if ResolveType succeeded, but handle gracefully
             output.WriteLine("  (unable to enumerate CLR members)");
@@ -114,12 +114,12 @@ public static class TypeInspector
         var visibleMethods = new List<InspectedMember>();
         var hiddenMembers = new List<InspectedMember>();
 
-        foreach (var member in clrMembers)
+        foreach(var member in clrMembers)
         {
             var classification = filter.Classify(member);
             var declaringFqn = GetDeclaringTypeFqn(member, clrType);
 
-            if (classification.Hidden)
+            if(classification.Hidden)
             {
                 var reasonText = FormatHiddenReason(classification);
                 hiddenMembers.Add(new InspectedMember(
@@ -131,7 +131,7 @@ public static class TypeInspector
             else
             {
                 // Visible member — project its Mist type
-                switch (member)
+                switch(member)
                 {
                     case ReflectionPropertyInfo property when property.GetIndexParameters().Length == 0:
                         var propType = projector.ProjectMemberType(property.PropertyType, stdlib);
@@ -168,25 +168,25 @@ public static class TypeInspector
         hiddenMembers.Sort((a, b) => string.Compare(a.Name, b.Name, StringComparison.Ordinal));
 
         // Check if empty
-        if (visibleProperties.Count == 0 && visibleMethods.Count == 0 && hiddenMembers.Count == 0)
+        if(visibleProperties.Count == 0 && visibleMethods.Count == 0 && hiddenMembers.Count == 0)
         {
             output.WriteLine("  no members");
             return;
         }
 
         // Print visible members
-        if (visibleProperties.Count > 0 || visibleMethods.Count > 0)
+        if(visibleProperties.Count > 0 || visibleMethods.Count > 0)
         {
             output.WriteLine();
             output.WriteLine("  VISIBLE:");
 
-            foreach (var prop in visibleProperties)
+            foreach(var prop in visibleProperties)
             {
                 var inherited = prop.DeclaringBaseFqn is not null ? $" [from {prop.DeclaringBaseFqn}]" : "";
                 output.WriteLine($"    property {prop.Name}: {prop.TypeInfo}{inherited}");
             }
 
-            foreach (var method in visibleMethods)
+            foreach(var method in visibleMethods)
             {
                 var inherited = method.DeclaringBaseFqn is not null ? $" [from {method.DeclaringBaseFqn}]" : "";
                 output.WriteLine($"    method {method.Name}{method.TypeInfo}{inherited}");
@@ -194,12 +194,12 @@ public static class TypeInspector
         }
 
         // Print hidden members
-        if (hiddenMembers.Count > 0)
+        if(hiddenMembers.Count > 0)
         {
             output.WriteLine();
             output.WriteLine("  HIDDEN:");
 
-            foreach (var hidden in hiddenMembers)
+            foreach(var hidden in hiddenMembers)
             {
                 var inherited = hidden.DeclaringBaseFqn is not null ? $" [from {hidden.DeclaringBaseFqn}]" : "";
                 output.WriteLine($"    {hidden.Name}: {hidden.TypeInfo}{inherited}");
@@ -231,7 +231,7 @@ public static class TypeInspector
     /// </summary>
     private static IType? ResolveProjectedTypeForInspection(AssemblyTypeProvider provider, Type clrType)
     {
-        if (clrType.Namespace is null || clrType.IsGenericParameter || clrType.IsArray)
+        if(clrType.Namespace is null || clrType.IsGenericParameter || clrType.IsArray)
             return null;
 
         var typeName = TypeProjector.StripGenericAritySuffix(clrType.Name);
@@ -255,11 +255,11 @@ public static class TypeInspector
 
         // Get methods (including inherited, including non-public for hidden classification)
         var methods = clrType.GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static);
-        foreach (var method in methods)
+        foreach(var method in methods)
         {
             // Skip property accessors, event accessors, and operators (they are surfaced
             // via their property/event parent or as operators, not as standalone methods)
-            if (method.IsSpecialName)
+            if(method.IsSpecialName)
                 continue;
 
             members.Add(method);
@@ -279,7 +279,7 @@ public static class TypeInspector
     private static string? GetDeclaringTypeFqn(MemberInfo member, Type inspectedType)
     {
         var declaringType = member.DeclaringType;
-        if (declaringType is null || declaringType == inspectedType)
+        if(declaringType is null || declaringType == inspectedType)
             return null;
 
         // Return the FQN of the declaring base type

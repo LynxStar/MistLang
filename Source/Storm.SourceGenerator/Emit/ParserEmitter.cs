@@ -50,14 +50,14 @@ namespace Storm.SourceGenerator.Emit
                 EmitHelpers(writer, context);
 
                 // One public parse method per rule
-                foreach (var rule in context.Grammar.Rules)
+                foreach(var rule in context.Grammar.Rules)
                 {
                     writer.WriteEmptyLine();
                     EmitPublicParseMethod(writer, context, rule);
                 }
 
                 // Internal parse methods
-                foreach (var rule in context.Grammar.Rules)
+                foreach(var rule in context.Grammar.Rules)
                 {
                     writer.WriteEmptyLine();
                     EmitInternalParseMethod(writer, context, rule);
@@ -80,7 +80,7 @@ namespace Storm.SourceGenerator.Emit
             // Selective packrat memo table: per-parse, thread-local, keyed by (ruleId, pos).
             // Emitted only when at least one rule is memoized so the zero-memo path is
             // byte-for-byte identical to the pre-feature parser source.
-            if (context.Memoization.Count > 0)
+            if(context.Memoization.Count > 0)
             {
                 writer.WriteLine("[ThreadStatic] private static Dictionary<long, (SyntaxNode? Node, int End)>? _memo;");
             }
@@ -116,7 +116,7 @@ namespace Storm.SourceGenerator.Emit
                     writer.WriteLine("_defaultToAllIndex[defIdx] = allIdx;");
                     writer.WriteLine("allIdx++;");
                 });
-                if (context.Memoization.Count > 0)
+                if(context.Memoization.Count > 0)
                 {
                     writer.WriteLine("_memo = new Dictionary<long, (SyntaxNode?, int)>();");
                 }
@@ -198,7 +198,7 @@ namespace Storm.SourceGenerator.Emit
 
             // Memo-table key helper: packs (ruleId, pos) into a long. Emitted only
             // when at least one rule is memoized so the zero-memo path is unchanged.
-            if (context.Memoization.Count > 0)
+            if(context.Memoization.Count > 0)
             {
                 writer.WriteEmptyLine();
                 writer.WriteLine("private static long MemoKey(int ruleId, int pos) => ((long)ruleId << 32) | (uint)pos;");
@@ -302,7 +302,7 @@ namespace Storm.SourceGenerator.Emit
             // caller already calls _ParseR() and is unchanged. Non-memoized rules (and
             // every rule when no plan is present) are emitted exactly as before, so the
             // zero-memo path stays byte-for-byte identical to the pre-feature parser.
-            if (context.Memoization.IsMemoized(rule.Name))
+            if(context.Memoization.IsMemoized(rule.Name))
             {
                 EmitMemoizedInternalParseMethod(writer, context, rule, nodeName, hasNamedAlts);
                 return;
@@ -313,7 +313,7 @@ namespace Storm.SourceGenerator.Emit
             writer.WriteBlock($"private static {nodeName}? {methodName}()", () =>
             {
                 writer.WriteLine("if (_hasError) return null;");
-                if (rule.Alternatives.Count == 1 && !hasNamedAlts)
+                if(rule.Alternatives.Count == 1 && !hasNamedAlts)
                 {
                     EmitSingleAlt(writer, context, rule.Alternatives[0], nodeName);
                 }
@@ -367,7 +367,7 @@ namespace Storm.SourceGenerator.Emit
             writer.WriteBlock($"private static {nodeName}? {bodyName}()", () =>
             {
                 writer.WriteLine("if (_hasError) return null;");
-                if (rule.Alternatives.Count == 1 && !hasNamedAlts)
+                if(rule.Alternatives.Count == 1 && !hasNamedAlts)
                 {
                     EmitSingleAlt(writer, context, rule.Alternatives[0], nodeName);
                 }
@@ -397,7 +397,7 @@ namespace Storm.SourceGenerator.Emit
             writer.WriteLine("var savedError = _hasError;");
             writer.WriteLine("var savedDiagCount = _diagnostics?.Count ?? 0;");
 
-            for (int i = 0; i < rule.Alternatives.Count; i++)
+            for(int i = 0; i < rule.Alternatives.Count; i++)
             {
                 var alt = rule.Alternatives[i];
                 var altName = alt.AlternativeName ?? $"Alt{i}";
@@ -430,7 +430,7 @@ namespace Storm.SourceGenerator.Emit
         {
             var labels = alt.FieldLabels;
             var labelMap = new Dictionary<ExpressionIR, string>();
-            foreach (var label in labels)
+            foreach(var label in labels)
             {
                 labelMap[label.Expression] = label.Label;
             }
@@ -444,7 +444,7 @@ namespace Storm.SourceGenerator.Emit
             });
 
             writer.WriteLine($"var node = new {typeName}();");
-            foreach (var (propName, localVar) in assignedProps)
+            foreach(var (propName, localVar) in assignedProps)
             {
                 writer.WriteLine($"node.{propName} = {localVar};");
             }
@@ -457,7 +457,7 @@ namespace Storm.SourceGenerator.Emit
         {
             var labels = alt.FieldLabels;
             var labelMap = new Dictionary<ExpressionIR, string>();
-            foreach (var label in labels)
+            foreach(var label in labels)
             {
                 labelMap[label.Expression] = label.Label;
             }
@@ -468,7 +468,7 @@ namespace Storm.SourceGenerator.Emit
             writer.WriteBlock($"if ({okVar} && !_hasError)", () =>
             {
                 writer.WriteLine($"var node = new {typeName}();");
-                foreach (var (propName, localVar) in assignedProps)
+                foreach(var (propName, localVar) in assignedProps)
                 {
                     writer.WriteLine($"node.{propName} = {localVar};");
                 }
@@ -486,7 +486,7 @@ namespace Storm.SourceGenerator.Emit
             List<(string PropName, string LocalVar)> assignedProps,
             bool withCheck, string? okVar)
         {
-            if (labelMap.TryGetValue(expr, out var label))
+            if(labelMap.TryGetValue(expr, out var label))
             {
                 var propName = PascalCase(label);
                 var localVar = "_" + propName;
@@ -495,54 +495,19 @@ namespace Storm.SourceGenerator.Emit
                 return;
             }
 
-            switch (expr)
+            switch(expr)
             {
                 case SequenceIR seq:
-                    foreach (var elem in seq.Elements)
+                    foreach(var elem in seq.Elements)
                     {
                         EmitFullExprParse(writer, context, elem, labelMap, assignedProps, withCheck, okVar);
                     }
                     break;
 
                 case TokenRefIR tokenRef:
-                {
-                    var kind = TokenKindRef(tokenRef.Token.Name);
-                    if (withCheck)
                     {
-                        writer.WriteLine($"if ({okVar} && Peek() != (int){kind}) {okVar} = false;");
-                        writer.WriteLine($"if ({okVar}) Eat();");
-                    }
-                    else
-                    {
-                        writer.WriteLine($"Require((int){kind});");
-                    }
-                    break;
-                }
-
-                case RuleRefIR ruleRef:
-                {
-                    var propName = PascalCase(ruleRef.Rule.Name);
-                    var localVar = "_" + propName;
-                    if (withCheck)
-                    {
-                        writer.WriteLine($"var {localVar} = {okVar} ? _Parse{ruleRef.Rule.Name}() : null;");
-                        writer.WriteBlock($"if ({localVar} == null)", () => writer.WriteLine($"{okVar} = false;"));
-                    }
-                    else
-                    {
-                        writer.WriteLine($"var {localVar} = _Parse{ruleRef.Rule.Name}();");
-                    }
-                    assignedProps.Add((propName, localVar));
-                    break;
-                }
-
-                case StringLiteralIR lit:
-                {
-                    var token = FindTokenForLiteral(context, lit.Value);
-                    if (token != null)
-                    {
-                        var kind = TokenKindRef(token.Name);
-                        if (withCheck)
+                        var kind = TokenKindRef(tokenRef.Token.Name);
+                        if(withCheck)
                         {
                             writer.WriteLine($"if ({okVar} && Peek() != (int){kind}) {okVar} = false;");
                             writer.WriteLine($"if ({okVar}) Eat();");
@@ -551,35 +516,82 @@ namespace Storm.SourceGenerator.Emit
                         {
                             writer.WriteLine($"Require((int){kind});");
                         }
+                        break;
                     }
-                    break;
-                }
+
+                case RuleRefIR ruleRef:
+                    {
+                        var propName = PascalCase(ruleRef.Rule.Name);
+                        var localVar = "_" + propName;
+                        if(withCheck)
+                        {
+                            writer.WriteLine($"var {localVar} = {okVar} ? _Parse{ruleRef.Rule.Name}() : null;");
+                            writer.WriteBlock($"if ({localVar} == null)", () => writer.WriteLine($"{okVar} = false;"));
+                        }
+                        else
+                        {
+                            writer.WriteLine($"var {localVar} = _Parse{ruleRef.Rule.Name}();");
+                        }
+                        assignedProps.Add((propName, localVar));
+                        break;
+                    }
+
+                case StringLiteralIR lit:
+                    {
+                        var token = FindTokenForLiteral(context, lit.Value);
+                        if(token != null)
+                        {
+                            var kind = TokenKindRef(token.Name);
+                            if(withCheck)
+                            {
+                                writer.WriteLine($"if ({okVar} && Peek() != (int){kind}) {okVar} = false;");
+                                writer.WriteLine($"if ({okVar}) Eat();");
+                            }
+                            else
+                            {
+                                writer.WriteLine($"Require((int){kind});");
+                            }
+                        }
+                        break;
+                    }
 
                 case OptionalIR opt:
-                {
-                    // Unlabeled optional that may contain labeled sub-expressions.
-                    // Pre-declare variables for any labeled sub-expressions so they're
-                    // accessible after the if-block for node property assignment.
-                    var innerLabeled = new List<(string Label, ExpressionIR Expr)>();
-                    CollectLabeledExprs(opt.Inner, labelMap, innerLabeled);
-                    foreach (var (lbl, lexpr) in innerLabeled)
                     {
-                        var propName = PascalCase(lbl);
-                        var localVar = "_" + propName;
-                        var typeName = GetExprTypeName(lexpr);
-                        var defaultVal = GetExprDefaultValue(lexpr);
-                        writer.WriteLine($"{typeName} {localVar} = {defaultVal};");
-                        assignedProps.Add((propName, localVar));
-                    }
+                        // Unlabeled optional that may contain labeled sub-expressions.
+                        // Pre-declare variables for any labeled sub-expressions so they're
+                        // accessible after the if-block for node property assignment.
+                        var innerLabeled = new List<(string Label, ExpressionIR Expr)>();
+                        CollectLabeledExprs(opt.Inner, labelMap, innerLabeled);
+                        foreach(var (lbl, lexpr) in innerLabeled)
+                        {
+                            var propName = PascalCase(lbl);
+                            var localVar = "_" + propName;
+                            var typeName = GetExprTypeName(lexpr);
+                            var defaultVal = GetExprDefaultValue(lexpr);
+                            writer.WriteLine($"{typeName} {localVar} = {defaultVal};");
+                            assignedProps.Add((propName, localVar));
+                        }
 
-                    // Position-save/restore approach: try the inner parse, restore on failure
-                    writer.WriteLine("var _optSaved = _pos;");
-                    writer.WriteLine("var _optSavedError = _hasError;");
-                    writer.WriteLine("var _optSavedDiagCount = _diagnostics?.Count ?? 0;");
-                    var innerAssignedProps = new List<(string PropName, string LocalVar)>();
-                    if (withCheck)
-                    {
-                        writer.WriteBlock($"if ({okVar})", () =>
+                        // Position-save/restore approach: try the inner parse, restore on failure
+                        writer.WriteLine("var _optSaved = _pos;");
+                        writer.WriteLine("var _optSavedError = _hasError;");
+                        writer.WriteLine("var _optSavedDiagCount = _diagnostics?.Count ?? 0;");
+                        var innerAssignedProps = new List<(string PropName, string LocalVar)>();
+                        if(withCheck)
+                        {
+                            writer.WriteBlock($"if ({okVar})", () =>
+                            {
+                                writer.WriteLine("var _optOk = true;");
+                                EmitFullExprParseAssignOnly(writer, context, opt.Inner, labelMap, innerAssignedProps, true, "_optOk");
+                                writer.WriteBlock("if (!_optOk || _hasError)", () =>
+                                {
+                                    writer.WriteLine("_pos = _optSaved;");
+                                    writer.WriteLine("_hasError = _optSavedError;");
+                                    writer.WriteLine("_diagnostics?.TruncateTo(_optSavedDiagCount);");
+                                });
+                            });
+                        }
+                        else
                         {
                             writer.WriteLine("var _optOk = true;");
                             EmitFullExprParseAssignOnly(writer, context, opt.Inner, labelMap, innerAssignedProps, true, "_optOk");
@@ -589,258 +601,246 @@ namespace Storm.SourceGenerator.Emit
                                 writer.WriteLine("_hasError = _optSavedError;");
                                 writer.WriteLine("_diagnostics?.TruncateTo(_optSavedDiagCount);");
                             });
-                        });
+                        }
+                        break;
                     }
-                    else
-                    {
-                        writer.WriteLine("var _optOk = true;");
-                        EmitFullExprParseAssignOnly(writer, context, opt.Inner, labelMap, innerAssignedProps, true, "_optOk");
-                        writer.WriteBlock("if (!_optOk || _hasError)", () =>
-                        {
-                            writer.WriteLine("_pos = _optSaved;");
-                            writer.WriteLine("_hasError = _optSavedError;");
-                            writer.WriteLine("_diagnostics?.TruncateTo(_optSavedDiagCount);");
-                        });
-                    }
-                    break;
-                }
 
                 case ZeroOrMoreIR star:
-                {
-                    // Unlabeled zero-or-more that may contain labeled sub-expressions.
-                    // Pre-declare variables for labeled sub-expressions so they're
-                    // accessible after the loop for node property assignment.
-                    //
-                    // Labeled tokens inside a repetition are promoted to
-                    // ImmutableArray<Token> (matching the AST property type).
-                    // We track which labels are token-list so we can accumulate
-                    // them in the loop body and finalize after the loop.
-                    var innerLabeled = new List<(string Label, ExpressionIR Expr)>();
-                    CollectLabeledExprs(star.Inner, labelMap, innerLabeled);
-                    var tokenListLabels = new List<(string PropName, string BuilderVar, string ScalarVar)>();
-                    foreach (var (lbl, lexpr) in innerLabeled)
                     {
-                        var propName = PascalCase(lbl);
-                        var localVar = "_" + propName;
-                        if (lexpr is TokenRefIR)
+                        // Unlabeled zero-or-more that may contain labeled sub-expressions.
+                        // Pre-declare variables for labeled sub-expressions so they're
+                        // accessible after the loop for node property assignment.
+                        //
+                        // Labeled tokens inside a repetition are promoted to
+                        // ImmutableArray<Token> (matching the AST property type).
+                        // We track which labels are token-list so we can accumulate
+                        // them in the loop body and finalize after the loop.
+                        var innerLabeled = new List<(string Label, ExpressionIR Expr)>();
+                        CollectLabeledExprs(star.Inner, labelMap, innerLabeled);
+                        var tokenListLabels = new List<(string PropName, string BuilderVar, string ScalarVar)>();
+                        foreach(var (lbl, lexpr) in innerLabeled)
                         {
-                            // Labeled token inside repetition → accumulate into ImmutableArray<Token>
-                            var builderVar = localVar + "Builder";
-                            writer.WriteLine($"var {builderVar} = ImmutableArray.CreateBuilder<Token>();");
-                            tokenListLabels.Add((propName, builderVar, localVar));
-                            // Declare the scalar variable as Token? for the loop body assignment
-                            writer.WriteLine($"Token? {localVar} = null;");
-                            // Do NOT add to assignedProps here — we'll add the finalized list after the loop
+                            var propName = PascalCase(lbl);
+                            var localVar = "_" + propName;
+                            if(lexpr is TokenRefIR)
+                            {
+                                // Labeled token inside repetition → accumulate into ImmutableArray<Token>
+                                var builderVar = localVar + "Builder";
+                                writer.WriteLine($"var {builderVar} = ImmutableArray.CreateBuilder<Token>();");
+                                tokenListLabels.Add((propName, builderVar, localVar));
+                                // Declare the scalar variable as Token? for the loop body assignment
+                                writer.WriteLine($"Token? {localVar} = null;");
+                                // Do NOT add to assignedProps here — we'll add the finalized list after the loop
+                            }
+                            else
+                            {
+                                var typeName = GetExprTypeName(lexpr, nullable: false);
+                                var defaultVal = GetExprDefaultValue(lexpr, nullable: false);
+                                writer.WriteLine($"{typeName} {localVar} = {defaultVal};");
+                                assignedProps.Add((propName, localVar));
+                            }
                         }
-                        else
-                        {
-                            var typeName = GetExprTypeName(lexpr, nullable: false);
-                            var defaultVal = GetExprDefaultValue(lexpr, nullable: false);
-                            writer.WriteLine($"{typeName} {localVar} = {defaultVal};");
-                            assignedProps.Add((propName, localVar));
-                        }
-                    }
 
-                    // Detect if the inner SequenceIR contains a RuleRefIR that needs
-                    // accumulation into a list builder.
-                    RuleRefIR? starRuleRef = null;
-                    if (star.Inner is SequenceIR starSeq)
-                    {
-                        starRuleRef = starSeq.Elements.OfType<RuleRefIR>().FirstOrDefault();
-                    }
-
-                    string? ruleBuilderVar = null;
-                    string? parsedItemVar = null;
-                    if (starRuleRef != null)
-                    {
-                        var nodeType = starRuleRef.Rule.Name + "Node";
-                        var propName = PascalCase(starRuleRef.Rule.Name) + "s";
-                        ruleBuilderVar = "_" + propName + "Builder";
-                        // If the RuleRefIR has a label, the parsed result is assigned to the
-                        // labeled variable (e.g., _Right) rather than _parsed{RuleName}.
-                        if (labelMap.TryGetValue(starRuleRef, out var ruleRefLabel))
+                        // Detect if the inner SequenceIR contains a RuleRefIR that needs
+                        // accumulation into a list builder.
+                        RuleRefIR? starRuleRef = null;
+                        if(star.Inner is SequenceIR starSeq)
                         {
-                            parsedItemVar = "_" + PascalCase(ruleRefLabel);
+                            starRuleRef = starSeq.Elements.OfType<RuleRefIR>().FirstOrDefault();
                         }
-                        else
-                        {
-                            parsedItemVar = "_parsed" + PascalCase(starRuleRef.Rule.Name);
-                        }
-                        writer.WriteLine($"var {ruleBuilderVar} = ImmutableArray.CreateBuilder<{nodeType}>();");
-                    }
 
-                    // Position-progress loop with ok flag: keep parsing while making progress
-                    writer.WriteBlock("while (!_hasError)", () =>
-                    {
-                        writer.WriteLine("var _starSaved = _pos;");
-                        writer.WriteLine("var _starSavedError = _hasError;");
-                        writer.WriteLine("var _starSavedDiagCount = _diagnostics?.Count ?? 0;");
-                        writer.WriteLine("var _starOk = true;");
-                        var innerAssignedProps = new List<(string PropName, string LocalVar)>();
-                        EmitFullExprParseAssignOnly(writer, context, star.Inner, labelMap, innerAssignedProps, true, "_starOk");
-                        writer.WriteBlock("if (!_starOk || _hasError || _pos == _starSaved)", () =>
+                        string? ruleBuilderVar = null;
+                        string? parsedItemVar = null;
+                        if(starRuleRef != null)
                         {
-                            writer.WriteLine("_hasError = _starSavedError;");
-                            writer.WriteLine("_pos = _starSaved;");
-                            writer.WriteLine("_diagnostics?.TruncateTo(_starSavedDiagCount);");
-                            writer.WriteLine("break;");
+                            var nodeType = starRuleRef.Rule.Name + "Node";
+                            var propName = PascalCase(starRuleRef.Rule.Name) + "s";
+                            ruleBuilderVar = "_" + propName + "Builder";
+                            // If the RuleRefIR has a label, the parsed result is assigned to the
+                            // labeled variable (e.g., _Right) rather than _parsed{RuleName}.
+                            if(labelMap.TryGetValue(starRuleRef, out var ruleRefLabel))
+                            {
+                                parsedItemVar = "_" + PascalCase(ruleRefLabel);
+                            }
+                            else
+                            {
+                                parsedItemVar = "_parsed" + PascalCase(starRuleRef.Rule.Name);
+                            }
+                            writer.WriteLine($"var {ruleBuilderVar} = ImmutableArray.CreateBuilder<{nodeType}>();");
+                        }
+
+                        // Position-progress loop with ok flag: keep parsing while making progress
+                        writer.WriteBlock("while (!_hasError)", () =>
+                        {
+                            writer.WriteLine("var _starSaved = _pos;");
+                            writer.WriteLine("var _starSavedError = _hasError;");
+                            writer.WriteLine("var _starSavedDiagCount = _diagnostics?.Count ?? 0;");
+                            writer.WriteLine("var _starOk = true;");
+                            var innerAssignedProps = new List<(string PropName, string LocalVar)>();
+                            EmitFullExprParseAssignOnly(writer, context, star.Inner, labelMap, innerAssignedProps, true, "_starOk");
+                            writer.WriteBlock("if (!_starOk || _hasError || _pos == _starSaved)", () =>
+                            {
+                                writer.WriteLine("_hasError = _starSavedError;");
+                                writer.WriteLine("_pos = _starSaved;");
+                                writer.WriteLine("_diagnostics?.TruncateTo(_starSavedDiagCount);");
+                                writer.WriteLine("break;");
+                            });
+
+                            // Accumulate the parsed rule-ref node into the builder
+                            if(ruleBuilderVar != null && parsedItemVar != null)
+                            {
+                                writer.WriteBlock($"if ({parsedItemVar} != null)", () =>
+                                {
+                                    writer.WriteLine($"{ruleBuilderVar}.Add({parsedItemVar});");
+                                });
+                            }
+
+                            // Accumulate labeled tokens into their builders
+                            foreach(var (propName, builderVar, scalarVar) in tokenListLabels)
+                            {
+                                writer.WriteBlock($"if ({scalarVar} != null)", () =>
+                                {
+                                    writer.WriteLine($"{builderVar}.Add({scalarVar}.Value);");
+                                });
+                            }
                         });
 
-                        // Accumulate the parsed rule-ref node into the builder
-                        if (ruleBuilderVar != null && parsedItemVar != null)
+                        // Finalize the rule-ref builder and add to assignedProps
+                        if(ruleBuilderVar != null && starRuleRef != null)
                         {
-                            writer.WriteBlock($"if ({parsedItemVar} != null)", () =>
-                            {
-                                writer.WriteLine($"{ruleBuilderVar}.Add({parsedItemVar});");
-                            });
+                            var propName = PascalCase(starRuleRef.Rule.Name) + "s";
+                            var finalVar = "_" + propName;
+                            writer.WriteLine($"var {finalVar} = {ruleBuilderVar}.ToImmutable();");
+                            assignedProps.Add((propName, finalVar));
                         }
 
-                        // Accumulate labeled tokens into their builders
-                        foreach (var (propName, builderVar, scalarVar) in tokenListLabels)
+                        // Finalize token-list builders and add to assignedProps
+                        foreach(var (propName, builderVar, _) in tokenListLabels)
                         {
-                            writer.WriteBlock($"if ({scalarVar} != null)", () =>
-                            {
-                                writer.WriteLine($"{builderVar}.Add({scalarVar}.Value);");
-                            });
+                            var finalVar = "_" + propName + "List";
+                            writer.WriteLine($"var {finalVar} = {builderVar}.ToImmutable();");
+                            assignedProps.Add((propName, finalVar));
                         }
-                    });
-
-                    // Finalize the rule-ref builder and add to assignedProps
-                    if (ruleBuilderVar != null && starRuleRef != null)
-                    {
-                        var propName = PascalCase(starRuleRef.Rule.Name) + "s";
-                        var finalVar = "_" + propName;
-                        writer.WriteLine($"var {finalVar} = {ruleBuilderVar}.ToImmutable();");
-                        assignedProps.Add((propName, finalVar));
+                        break;
                     }
-
-                    // Finalize token-list builders and add to assignedProps
-                    foreach (var (propName, builderVar, _) in tokenListLabels)
-                    {
-                        var finalVar = "_" + propName + "List";
-                        writer.WriteLine($"var {finalVar} = {builderVar}.ToImmutable();");
-                        assignedProps.Add((propName, finalVar));
-                    }
-                    break;
-                }
 
                 case OneOrMoreIR plus:
-                {
-                    // Unlabeled one-or-more that may contain labeled sub-expressions.
-                    // Same as ZeroOrMoreIR but requires at least one successful iteration.
-                    var innerLabeled = new List<(string Label, ExpressionIR Expr)>();
-                    CollectLabeledExprs(plus.Inner, labelMap, innerLabeled);
-                    var tokenListLabels = new List<(string PropName, string BuilderVar, string ScalarVar)>();
-                    foreach (var (lbl, lexpr) in innerLabeled)
                     {
-                        var propName = PascalCase(lbl);
-                        var localVar = "_" + propName;
-                        if (lexpr is TokenRefIR)
+                        // Unlabeled one-or-more that may contain labeled sub-expressions.
+                        // Same as ZeroOrMoreIR but requires at least one successful iteration.
+                        var innerLabeled = new List<(string Label, ExpressionIR Expr)>();
+                        CollectLabeledExprs(plus.Inner, labelMap, innerLabeled);
+                        var tokenListLabels = new List<(string PropName, string BuilderVar, string ScalarVar)>();
+                        foreach(var (lbl, lexpr) in innerLabeled)
                         {
-                            var builderVar = localVar + "Builder";
-                            writer.WriteLine($"var {builderVar} = ImmutableArray.CreateBuilder<Token>();");
-                            tokenListLabels.Add((propName, builderVar, localVar));
-                            writer.WriteLine($"Token? {localVar} = null;");
+                            var propName = PascalCase(lbl);
+                            var localVar = "_" + propName;
+                            if(lexpr is TokenRefIR)
+                            {
+                                var builderVar = localVar + "Builder";
+                                writer.WriteLine($"var {builderVar} = ImmutableArray.CreateBuilder<Token>();");
+                                tokenListLabels.Add((propName, builderVar, localVar));
+                                writer.WriteLine($"Token? {localVar} = null;");
+                            }
+                            else
+                            {
+                                var typeName = GetExprTypeName(lexpr, nullable: false);
+                                var defaultVal = GetExprDefaultValue(lexpr, nullable: false);
+                                writer.WriteLine($"{typeName} {localVar} = {defaultVal};");
+                                assignedProps.Add((propName, localVar));
+                            }
                         }
-                        else
+
+                        // Detect if the inner SequenceIR contains a RuleRefIR that needs
+                        // accumulation into a list builder.
+                        RuleRefIR? plusRuleRef = null;
+                        if(plus.Inner is SequenceIR plusSeq)
                         {
-                            var typeName = GetExprTypeName(lexpr, nullable: false);
-                            var defaultVal = GetExprDefaultValue(lexpr, nullable: false);
-                            writer.WriteLine($"{typeName} {localVar} = {defaultVal};");
-                            assignedProps.Add((propName, localVar));
+                            plusRuleRef = plusSeq.Elements.OfType<RuleRefIR>().FirstOrDefault();
                         }
-                    }
 
-                    // Detect if the inner SequenceIR contains a RuleRefIR that needs
-                    // accumulation into a list builder.
-                    RuleRefIR? plusRuleRef = null;
-                    if (plus.Inner is SequenceIR plusSeq)
-                    {
-                        plusRuleRef = plusSeq.Elements.OfType<RuleRefIR>().FirstOrDefault();
-                    }
-
-                    string? ruleBuilderVar = null;
-                    string? parsedItemVar = null;
-                    if (plusRuleRef != null)
-                    {
-                        var nodeType = plusRuleRef.Rule.Name + "Node";
-                        var propName = PascalCase(plusRuleRef.Rule.Name) + "s";
-                        ruleBuilderVar = "_" + propName + "Builder";
-                        if (labelMap.TryGetValue(plusRuleRef, out var ruleRefLabel))
+                        string? ruleBuilderVar = null;
+                        string? parsedItemVar = null;
+                        if(plusRuleRef != null)
                         {
-                            parsedItemVar = "_" + PascalCase(ruleRefLabel);
+                            var nodeType = plusRuleRef.Rule.Name + "Node";
+                            var propName = PascalCase(plusRuleRef.Rule.Name) + "s";
+                            ruleBuilderVar = "_" + propName + "Builder";
+                            if(labelMap.TryGetValue(plusRuleRef, out var ruleRefLabel))
+                            {
+                                parsedItemVar = "_" + PascalCase(ruleRefLabel);
+                            }
+                            else
+                            {
+                                parsedItemVar = "_parsed" + PascalCase(plusRuleRef.Rule.Name);
+                            }
+                            writer.WriteLine($"var {ruleBuilderVar} = ImmutableArray.CreateBuilder<{nodeType}>();");
                         }
-                        else
-                        {
-                            parsedItemVar = "_parsed" + PascalCase(plusRuleRef.Rule.Name);
-                        }
-                        writer.WriteLine($"var {ruleBuilderVar} = ImmutableArray.CreateBuilder<{nodeType}>();");
-                    }
 
-                    // Track iteration count for the one-or-more requirement
-                    writer.WriteLine("var _plusCount = 0;");
+                        // Track iteration count for the one-or-more requirement
+                        writer.WriteLine("var _plusCount = 0;");
 
-                    // Position-progress loop with ok flag: keep parsing while making progress
-                    writer.WriteBlock("while (!_hasError)", () =>
-                    {
-                        writer.WriteLine("var _starSaved = _pos;");
-                        writer.WriteLine("var _starSavedError = _hasError;");
-                        writer.WriteLine("var _starSavedDiagCount = _diagnostics?.Count ?? 0;");
-                        writer.WriteLine("var _starOk = true;");
-                        var innerAssignedProps = new List<(string PropName, string LocalVar)>();
-                        EmitFullExprParseAssignOnly(writer, context, plus.Inner, labelMap, innerAssignedProps, true, "_starOk");
-                        writer.WriteBlock("if (!_starOk || _hasError || _pos == _starSaved)", () =>
+                        // Position-progress loop with ok flag: keep parsing while making progress
+                        writer.WriteBlock("while (!_hasError)", () =>
                         {
-                            writer.WriteLine("_hasError = _starSavedError;");
-                            writer.WriteLine("_pos = _starSaved;");
-                            writer.WriteLine("_diagnostics?.TruncateTo(_starSavedDiagCount);");
-                            writer.WriteLine("break;");
+                            writer.WriteLine("var _starSaved = _pos;");
+                            writer.WriteLine("var _starSavedError = _hasError;");
+                            writer.WriteLine("var _starSavedDiagCount = _diagnostics?.Count ?? 0;");
+                            writer.WriteLine("var _starOk = true;");
+                            var innerAssignedProps = new List<(string PropName, string LocalVar)>();
+                            EmitFullExprParseAssignOnly(writer, context, plus.Inner, labelMap, innerAssignedProps, true, "_starOk");
+                            writer.WriteBlock("if (!_starOk || _hasError || _pos == _starSaved)", () =>
+                            {
+                                writer.WriteLine("_hasError = _starSavedError;");
+                                writer.WriteLine("_pos = _starSaved;");
+                                writer.WriteLine("_diagnostics?.TruncateTo(_starSavedDiagCount);");
+                                writer.WriteLine("break;");
+                            });
+                            writer.WriteLine("_plusCount++;");
+
+                            // Accumulate the parsed rule-ref node into the builder
+                            if(ruleBuilderVar != null && parsedItemVar != null)
+                            {
+                                writer.WriteBlock($"if ({parsedItemVar} != null)", () =>
+                                {
+                                    writer.WriteLine($"{ruleBuilderVar}.Add({parsedItemVar});");
+                                });
+                            }
+
+                            // Accumulate labeled tokens into their builders
+                            foreach(var (propName, builderVar, scalarVar) in tokenListLabels)
+                            {
+                                writer.WriteBlock($"if ({scalarVar} != null)", () =>
+                                {
+                                    writer.WriteLine($"{builderVar}.Add({scalarVar}.Value);");
+                                });
+                            }
                         });
-                        writer.WriteLine("_plusCount++;");
 
-                        // Accumulate the parsed rule-ref node into the builder
-                        if (ruleBuilderVar != null && parsedItemVar != null)
+                        // Require at least one iteration
+                        if(withCheck)
                         {
-                            writer.WriteBlock($"if ({parsedItemVar} != null)", () =>
-                            {
-                                writer.WriteLine($"{ruleBuilderVar}.Add({parsedItemVar});");
-                            });
+                            writer.WriteBlock("if (_plusCount == 0)", () => writer.WriteLine($"{okVar} = false;"));
                         }
 
-                        // Accumulate labeled tokens into their builders
-                        foreach (var (propName, builderVar, scalarVar) in tokenListLabels)
+                        // Finalize the rule-ref builder and add to assignedProps
+                        if(ruleBuilderVar != null && plusRuleRef != null)
                         {
-                            writer.WriteBlock($"if ({scalarVar} != null)", () =>
-                            {
-                                writer.WriteLine($"{builderVar}.Add({scalarVar}.Value);");
-                            });
+                            var propName = PascalCase(plusRuleRef.Rule.Name) + "s";
+                            var finalVar = "_" + propName;
+                            writer.WriteLine($"var {finalVar} = {ruleBuilderVar}.ToImmutable();");
+                            assignedProps.Add((propName, finalVar));
                         }
-                    });
 
-                    // Require at least one iteration
-                    if (withCheck)
-                    {
-                        writer.WriteBlock("if (_plusCount == 0)", () => writer.WriteLine($"{okVar} = false;"));
+                        // Finalize token-list builders and add to assignedProps
+                        foreach(var (propName, builderVar, _) in tokenListLabels)
+                        {
+                            var finalVar = "_" + propName + "List";
+                            writer.WriteLine($"var {finalVar} = {builderVar}.ToImmutable();");
+                            assignedProps.Add((propName, finalVar));
+                        }
+                        break;
                     }
-
-                    // Finalize the rule-ref builder and add to assignedProps
-                    if (ruleBuilderVar != null && plusRuleRef != null)
-                    {
-                        var propName = PascalCase(plusRuleRef.Rule.Name) + "s";
-                        var finalVar = "_" + propName;
-                        writer.WriteLine($"var {finalVar} = {ruleBuilderVar}.ToImmutable();");
-                        assignedProps.Add((propName, finalVar));
-                    }
-
-                    // Finalize token-list builders and add to assignedProps
-                    foreach (var (propName, builderVar, _) in tokenListLabels)
-                    {
-                        var finalVar = "_" + propName + "List";
-                        writer.WriteLine($"var {finalVar} = {builderVar}.ToImmutable();");
-                        assignedProps.Add((propName, finalVar));
-                    }
-                    break;
-                }
 
                 default:
                     break;
@@ -853,16 +853,16 @@ namespace Storm.SourceGenerator.Emit
         /// </summary>
         private static void CollectLabeledExprs(ExpressionIR expr, Dictionary<ExpressionIR, string> labelMap, List<(string Label, ExpressionIR Expr)> result)
         {
-            if (labelMap.TryGetValue(expr, out var label))
+            if(labelMap.TryGetValue(expr, out var label))
             {
                 result.Add((label, expr));
                 return;
             }
 
-            switch (expr)
+            switch(expr)
             {
                 case SequenceIR seq:
-                    foreach (var elem in seq.Elements)
+                    foreach(var elem in seq.Elements)
                     {
                         CollectLabeledExprs(elem, labelMap, result);
                     }
@@ -886,7 +886,7 @@ namespace Storm.SourceGenerator.Emit
         /// </summary>
         private static string GetExprTypeName(ExpressionIR expr, bool nullable = true)
         {
-            switch (expr)
+            switch(expr)
             {
                 case TokenRefIR _:
                     return nullable ? "Token?" : "Token";
@@ -894,7 +894,7 @@ namespace Storm.SourceGenerator.Emit
                     return nullable ? ruleRef.Rule.Name + "Node?" : ruleRef.Rule.Name + "Node";
                 case AlternationIR altIR:
                     // If all alternatives are token refs, the type is Token
-                    if (altIR.Alternatives.All(a => a is TokenRefIR || a is StringLiteralIR))
+                    if(altIR.Alternatives.All(a => a is TokenRefIR || a is StringLiteralIR))
                         return nullable ? "Token?" : "Token";
                     return "object?";
                 case ZeroOrMoreIR zom:
@@ -912,12 +912,12 @@ namespace Storm.SourceGenerator.Emit
         private static string GetExprDefaultValue(ExpressionIR expr, bool nullable = true)
         {
             // List types (ImmutableArray) are value types and cannot be null
-            if (expr is ZeroOrMoreIR zom)
+            if(expr is ZeroOrMoreIR zom)
                 return GetListDefaultValue(zom.Inner);
-            if (expr is OneOrMoreIR oom)
+            if(expr is OneOrMoreIR oom)
                 return GetListDefaultValue(oom.Inner);
-            if (nullable) return "null";
-            switch (expr)
+            if(nullable) return "null";
+            switch(expr)
             {
                 case TokenRefIR _:
                     return "default";
@@ -935,7 +935,7 @@ namespace Storm.SourceGenerator.Emit
         /// </summary>
         private static string GetListTypeName(ExpressionIR inner)
         {
-            switch (inner)
+            switch(inner)
             {
                 case RuleRefIR ruleRef:
                     var elementType = ruleRef.Rule.Name + "Node";
@@ -952,7 +952,7 @@ namespace Storm.SourceGenerator.Emit
         /// </summary>
         private static string GetListDefaultValue(ExpressionIR inner)
         {
-            switch (inner)
+            switch(inner)
             {
                 case RuleRefIR ruleRef:
                     var elementType = ruleRef.Rule.Name + "Node";
@@ -974,7 +974,7 @@ namespace Storm.SourceGenerator.Emit
             List<(string PropName, string LocalVar)> assignedProps,
             bool withCheck, string? okVar)
         {
-            if (labelMap.TryGetValue(expr, out var label))
+            if(labelMap.TryGetValue(expr, out var label))
             {
                 var propName = PascalCase(label);
                 var localVar = "_" + propName;
@@ -983,37 +983,19 @@ namespace Storm.SourceGenerator.Emit
                 return;
             }
 
-            switch (expr)
+            switch(expr)
             {
                 case SequenceIR seq:
-                    foreach (var elem in seq.Elements)
+                    foreach(var elem in seq.Elements)
                     {
                         EmitFullExprParseAssignOnly(writer, context, elem, labelMap, assignedProps, withCheck, okVar);
                     }
                     break;
 
                 case TokenRefIR tokenRef:
-                {
-                    var kind = TokenKindRef(tokenRef.Token.Name);
-                    if (withCheck)
                     {
-                        writer.WriteLine($"if ({okVar} && Peek() != (int){kind}) {okVar} = false;");
-                        writer.WriteLine($"if ({okVar}) Eat();");
-                    }
-                    else
-                    {
-                        writer.WriteLine($"Require((int){kind});");
-                    }
-                    break;
-                }
-
-                case StringLiteralIR lit:
-                {
-                    var token = FindTokenForLiteral(context, lit.Value);
-                    if (token != null)
-                    {
-                        var kind = TokenKindRef(token.Name);
-                        if (withCheck)
+                        var kind = TokenKindRef(tokenRef.Token.Name);
+                        if(withCheck)
                         {
                             writer.WriteLine($"if ({okVar} && Peek() != (int){kind}) {okVar} = false;");
                             writer.WriteLine($"if ({okVar}) Eat();");
@@ -1022,33 +1004,51 @@ namespace Storm.SourceGenerator.Emit
                         {
                             writer.WriteLine($"Require((int){kind});");
                         }
+                        break;
                     }
-                    break;
-                }
+
+                case StringLiteralIR lit:
+                    {
+                        var token = FindTokenForLiteral(context, lit.Value);
+                        if(token != null)
+                        {
+                            var kind = TokenKindRef(token.Name);
+                            if(withCheck)
+                            {
+                                writer.WriteLine($"if ({okVar} && Peek() != (int){kind}) {okVar} = false;");
+                                writer.WriteLine($"if ({okVar}) Eat();");
+                            }
+                            else
+                            {
+                                writer.WriteLine($"Require((int){kind});");
+                            }
+                        }
+                        break;
+                    }
 
                 case RuleRefIR ruleRef:
-                {
-                    // Unlabeled rule reference — parse and assign to a local variable
-                    // so the ZeroOrMoreIR handler can accumulate it into a builder.
-                    var parsedVar = "_parsed" + PascalCase(ruleRef.Rule.Name);
-                    if (withCheck)
                     {
-                        writer.WriteLine($"{ruleRef.Rule.Name}Node? {parsedVar} = null;");
-                        writer.WriteBlock($"if ({okVar})", () =>
+                        // Unlabeled rule reference — parse and assign to a local variable
+                        // so the ZeroOrMoreIR handler can accumulate it into a builder.
+                        var parsedVar = "_parsed" + PascalCase(ruleRef.Rule.Name);
+                        if(withCheck)
                         {
-                            writer.WriteLine($"{parsedVar} = _Parse{ruleRef.Rule.Name}();");
-                            writer.WriteBlock($"if ({parsedVar} == null)", () =>
+                            writer.WriteLine($"{ruleRef.Rule.Name}Node? {parsedVar} = null;");
+                            writer.WriteBlock($"if ({okVar})", () =>
                             {
-                                writer.WriteLine($"{okVar} = false;");
+                                writer.WriteLine($"{parsedVar} = _Parse{ruleRef.Rule.Name}();");
+                                writer.WriteBlock($"if ({parsedVar} == null)", () =>
+                                {
+                                    writer.WriteLine($"{okVar} = false;");
+                                });
                             });
-                        });
+                        }
+                        else
+                        {
+                            writer.WriteLine($"var {parsedVar} = _Parse{ruleRef.Rule.Name}();");
+                        }
+                        break;
                     }
-                    else
-                    {
-                        writer.WriteLine($"var {parsedVar} = _Parse{ruleRef.Rule.Name}();");
-                    }
-                    break;
-                }
 
                 default:
                     break;
@@ -1060,95 +1060,95 @@ namespace Storm.SourceGenerator.Emit
         /// </summary>
         private static void EmitExprParseAssignOnly(CodeWriter writer, EmissionContext context, ExpressionIR expr, string varName, bool withCheck, string? okVar)
         {
-            switch (expr)
+            switch(expr)
             {
                 case TokenRefIR tokenRef:
-                {
-                    var kind = TokenKindRef(tokenRef.Token.Name);
-                    if (withCheck)
                     {
-                        writer.WriteLine($"_{varName} = Match((int){kind});");
-                        writer.WriteBlock($"if (_{varName} == null)", () => writer.WriteLine($"{okVar} = false;"));
+                        var kind = TokenKindRef(tokenRef.Token.Name);
+                        if(withCheck)
+                        {
+                            writer.WriteLine($"_{varName} = Match((int){kind});");
+                            writer.WriteBlock($"if (_{varName} == null)", () => writer.WriteLine($"{okVar} = false;"));
+                        }
+                        else
+                        {
+                            writer.WriteLine($"_{varName} = Require((int){kind});");
+                        }
+                        break;
                     }
-                    else
-                    {
-                        writer.WriteLine($"_{varName} = Require((int){kind});");
-                    }
-                    break;
-                }
 
                 case RuleRefIR ruleRef:
-                {
-                    if (withCheck)
                     {
-                        writer.WriteBlock($"if ({okVar})", () =>
+                        if(withCheck)
                         {
-                            writer.WriteLine($"_{varName} = _Parse{ruleRef.Rule.Name}();");
-                            writer.WriteBlock($"if (_{varName} == null)", () => writer.WriteLine($"{okVar} = false;"));
-                        });
-                    }
-                    else
-                    {
-                        writer.WriteLine($"_{varName} = _Parse{ruleRef.Rule.Name}();");
-                    }
-                    break;
-                }
-
-                case AlternationIR altIR:
-                {
-                    // Alternation of tokens — assign the matched token
-                    writer.WriteLine("var _altFound = false;");
-                    foreach (var alt in altIR.Alternatives)
-                    {
-                        if (alt is TokenRefIR tokenRef2)
-                        {
-                            var kind = TokenKindRef(tokenRef2.Token.Name);
-                            writer.WriteBlock($"if (!_altFound && Peek() == (int){kind})", () =>
+                            writer.WriteBlock($"if ({okVar})", () =>
                             {
-                                writer.WriteLine($"_{varName} = Eat();");
-                                writer.WriteLine("_altFound = true;");
+                                writer.WriteLine($"_{varName} = _Parse{ruleRef.Rule.Name}();");
+                                writer.WriteBlock($"if (_{varName} == null)", () => writer.WriteLine($"{okVar} = false;"));
                             });
                         }
-                        else if (alt is StringLiteralIR lit)
+                        else
                         {
-                            var token = FindTokenForLiteral(context, lit.Value);
-                            if (token != null)
+                            writer.WriteLine($"_{varName} = _Parse{ruleRef.Rule.Name}();");
+                        }
+                        break;
+                    }
+
+                case AlternationIR altIR:
+                    {
+                        // Alternation of tokens — assign the matched token
+                        writer.WriteLine("var _altFound = false;");
+                        foreach(var alt in altIR.Alternatives)
+                        {
+                            if(alt is TokenRefIR tokenRef2)
                             {
-                                var kind = TokenKindRef(token.Name);
+                                var kind = TokenKindRef(tokenRef2.Token.Name);
                                 writer.WriteBlock($"if (!_altFound && Peek() == (int){kind})", () =>
                                 {
                                     writer.WriteLine($"_{varName} = Eat();");
                                     writer.WriteLine("_altFound = true;");
                                 });
                             }
+                            else if(alt is StringLiteralIR lit)
+                            {
+                                var token = FindTokenForLiteral(context, lit.Value);
+                                if(token != null)
+                                {
+                                    var kind = TokenKindRef(token.Name);
+                                    writer.WriteBlock($"if (!_altFound && Peek() == (int){kind})", () =>
+                                    {
+                                        writer.WriteLine($"_{varName} = Eat();");
+                                        writer.WriteLine("_altFound = true;");
+                                    });
+                                }
+                            }
                         }
+                        if(withCheck)
+                        {
+                            writer.WriteBlock("if (!_altFound)", () => writer.WriteLine($"{okVar} = false;"));
+                        }
+                        break;
                     }
-                    if (withCheck)
-                    {
-                        writer.WriteBlock("if (!_altFound)", () => writer.WriteLine($"{okVar} = false;"));
-                    }
-                    break;
-                }
 
                 case ZeroOrMoreIR zom:
-                {
-                    // ZeroOrMore assign-only: parse the repetition and assign to the pre-declared variable.
-                    if (zom.Inner is RuleRefIR zomRuleRef)
                     {
-                        var nodeType = zomRuleRef.Rule.Name + "Node";
-                        var builderVar = $"_{varName}_b";
-                        writer.WriteLine($"var {builderVar} = ImmutableArray.CreateBuilder<{nodeType}>();");
-                        writer.WriteBlock("while (!_hasError)", () =>
+                        // ZeroOrMore assign-only: parse the repetition and assign to the pre-declared variable.
+                        if(zom.Inner is RuleRefIR zomRuleRef)
                         {
-                            writer.WriteLine($"var _item = _Parse{zomRuleRef.Rule.Name}();");
-                            writer.WriteBlock("if (_item == null)", () => writer.WriteLine("break;"));
-                            writer.WriteLine($"{builderVar}.Add(_item);");
-                        });
-                        writer.WriteLine($"_{varName} = {builderVar}.ToImmutable();");
-                        writer.WriteLine("_hasError = false;");
+                            var nodeType = zomRuleRef.Rule.Name + "Node";
+                            var builderVar = $"_{varName}_b";
+                            writer.WriteLine($"var {builderVar} = ImmutableArray.CreateBuilder<{nodeType}>();");
+                            writer.WriteBlock("while (!_hasError)", () =>
+                            {
+                                writer.WriteLine($"var _item = _Parse{zomRuleRef.Rule.Name}();");
+                                writer.WriteBlock("if (_item == null)", () => writer.WriteLine("break;"));
+                                writer.WriteLine($"{builderVar}.Add(_item);");
+                            });
+                            writer.WriteLine($"_{varName} = {builderVar}.ToImmutable();");
+                            writer.WriteLine("_hasError = false;");
+                        }
+                        break;
                     }
-                    break;
-                }
 
                 default:
                     break;
@@ -1159,79 +1159,12 @@ namespace Storm.SourceGenerator.Emit
 
         private static void EmitExprParse(CodeWriter writer, EmissionContext context, ExpressionIR expr, string varName, bool withCheck, string? okVar, Dictionary<ExpressionIR, string>? labelMap = null, List<(string PropName, string LocalVar)>? assignedProps = null)
         {
-            switch (expr)
+            switch(expr)
             {
                 case TokenRefIR tokenRef:
-                {
-                    var kind = TokenKindRef(tokenRef.Token.Name);
-                    if (withCheck)
                     {
-                        writer.WriteLine($"var _{varName}_raw = Match((int){kind});");
-                        writer.WriteBlock($"if (_{varName}_raw == null)", () => writer.WriteLine($"{okVar} = false;"));
-                        writer.WriteLine($"var _{varName} = _{varName}_raw ?? Cur();");
-                    }
-                    else
-                    {
-                        writer.WriteLine($"var _{varName} = Require((int){kind});");
-                    }
-                    break;
-                }
-
-                case RuleRefIR ruleRef:
-                {
-                    if (withCheck)
-                    {
-                        writer.WriteLine($"var _{varName} = {okVar} ? _Parse{ruleRef.Rule.Name}() : null;");
-                        writer.WriteBlock($"if (_{varName} == null)", () => writer.WriteLine($"{okVar} = false;"));
-                    }
-                    else
-                    {
-                        writer.WriteLine($"var _{varName} = _Parse{ruleRef.Rule.Name}();");
-                    }
-                    break;
-                }
-
-                case OptionalIR opt:
-                {
-                    EmitOptionalExprParse(writer, context, opt.Inner, varName, withCheck, okVar, labelMap, assignedProps);
-                    break;
-                }
-
-                case ZeroOrMoreIR star:
-                {
-                    EmitListExprParse(writer, context, star.Inner, varName, false, withCheck, okVar);
-                    break;
-                }
-
-                case OneOrMoreIR plus:
-                {
-                    EmitListExprParse(writer, context, plus.Inner, varName, true, withCheck, okVar);
-                    if (withCheck)
-                    {
-                        writer.WriteBlock($"if (_{varName}.Length == 0)", () => writer.WriteLine($"{okVar} = false;"));
-                    }
-                    break;
-                }
-
-                case SequenceIR seq:
-                {
-                    EmitSequenceExprParse(writer, context, seq, varName, withCheck, okVar);
-                    break;
-                }
-
-                case AlternationIR altIR:
-                {
-                    EmitAlternationExprParse(writer, context, altIR, varName, withCheck, okVar);
-                    break;
-                }
-
-                case StringLiteralIR lit:
-                {
-                    var token = FindTokenForLiteral(context, lit.Value);
-                    if (token != null)
-                    {
-                        var kind = TokenKindRef(token.Name);
-                        if (withCheck)
+                        var kind = TokenKindRef(tokenRef.Token.Name);
+                        if(withCheck)
                         {
                             writer.WriteLine($"var _{varName}_raw = Match((int){kind});");
                             writer.WriteBlock($"if (_{varName}_raw == null)", () => writer.WriteLine($"{okVar} = false;"));
@@ -1241,13 +1174,80 @@ namespace Storm.SourceGenerator.Emit
                         {
                             writer.WriteLine($"var _{varName} = Require((int){kind});");
                         }
+                        break;
                     }
-                    else
+
+                case RuleRefIR ruleRef:
                     {
-                        writer.WriteLine($"var _{varName} = Cur(); // unresolved literal \"{LexerEmitter.EscapeStringForCSharp(lit.Value)}\"");
+                        if(withCheck)
+                        {
+                            writer.WriteLine($"var _{varName} = {okVar} ? _Parse{ruleRef.Rule.Name}() : null;");
+                            writer.WriteBlock($"if (_{varName} == null)", () => writer.WriteLine($"{okVar} = false;"));
+                        }
+                        else
+                        {
+                            writer.WriteLine($"var _{varName} = _Parse{ruleRef.Rule.Name}();");
+                        }
+                        break;
                     }
-                    break;
-                }
+
+                case OptionalIR opt:
+                    {
+                        EmitOptionalExprParse(writer, context, opt.Inner, varName, withCheck, okVar, labelMap, assignedProps);
+                        break;
+                    }
+
+                case ZeroOrMoreIR star:
+                    {
+                        EmitListExprParse(writer, context, star.Inner, varName, false, withCheck, okVar);
+                        break;
+                    }
+
+                case OneOrMoreIR plus:
+                    {
+                        EmitListExprParse(writer, context, plus.Inner, varName, true, withCheck, okVar);
+                        if(withCheck)
+                        {
+                            writer.WriteBlock($"if (_{varName}.Length == 0)", () => writer.WriteLine($"{okVar} = false;"));
+                        }
+                        break;
+                    }
+
+                case SequenceIR seq:
+                    {
+                        EmitSequenceExprParse(writer, context, seq, varName, withCheck, okVar);
+                        break;
+                    }
+
+                case AlternationIR altIR:
+                    {
+                        EmitAlternationExprParse(writer, context, altIR, varName, withCheck, okVar);
+                        break;
+                    }
+
+                case StringLiteralIR lit:
+                    {
+                        var token = FindTokenForLiteral(context, lit.Value);
+                        if(token != null)
+                        {
+                            var kind = TokenKindRef(token.Name);
+                            if(withCheck)
+                            {
+                                writer.WriteLine($"var _{varName}_raw = Match((int){kind});");
+                                writer.WriteBlock($"if (_{varName}_raw == null)", () => writer.WriteLine($"{okVar} = false;"));
+                                writer.WriteLine($"var _{varName} = _{varName}_raw ?? Cur();");
+                            }
+                            else
+                            {
+                                writer.WriteLine($"var _{varName} = Require((int){kind});");
+                            }
+                        }
+                        else
+                        {
+                            writer.WriteLine($"var _{varName} = Cur(); // unresolved literal \"{LexerEmitter.EscapeStringForCSharp(lit.Value)}\"");
+                        }
+                        break;
+                    }
 
                 case InlineFragmentIR frag:
                     EmitExprParse(writer, context, frag.Body, varName, withCheck, okVar, labelMap, assignedProps);
@@ -1262,197 +1262,197 @@ namespace Storm.SourceGenerator.Emit
 
         private static void EmitOptionalExprParse(CodeWriter writer, EmissionContext context, ExpressionIR inner, string varName, bool withCheck = false, string? okVar = null, Dictionary<ExpressionIR, string>? labelMap = null, List<(string PropName, string LocalVar)>? assignedProps = null)
         {
-            switch (inner)
+            switch(inner)
             {
                 case TokenRefIR tokenRef:
-                {
-                    var kind = TokenKindRef(tokenRef.Token.Name);
-                    if (withCheck)
                     {
-                        writer.WriteLine($"var _{varName} = {okVar} ? Match((int){kind}) : null;");
-                    }
-                    else
-                    {
-                        writer.WriteLine($"var _{varName} = Match((int){kind});");
-                    }
-                    break;
-                }
-                case RuleRefIR ruleRef:
-                {
-                    // Save state before attempting the optional rule parse.
-                    // If the rule fails (sets _hasError), restore state so the
-                    // optional element is treated as absent rather than an error.
-                    writer.WriteLine($"var _optRuleSaved_{varName} = _pos;");
-                    writer.WriteLine($"var _optRuleSavedError_{varName} = _hasError;");
-                    writer.WriteLine($"var _optRuleSavedDiagCount_{varName} = _diagnostics?.Count ?? 0;");
-                    if (withCheck)
-                    {
-                        writer.WriteLine($"var _{varName} = {okVar} ? _Parse{ruleRef.Rule.Name}() : null;");
-                    }
-                    else
-                    {
-                        writer.WriteLine($"var _{varName} = _Parse{ruleRef.Rule.Name}();");
-                    }
-                    writer.WriteBlock($"if (_{varName} == null)", () =>
-                    {
-                        writer.WriteLine($"_pos = _optRuleSaved_{varName};");
-                        writer.WriteLine($"_hasError = _optRuleSavedError_{varName};");
-                        writer.WriteLine($"_diagnostics?.TruncateTo(_optRuleSavedDiagCount_{varName});");
-                    });
-                    break;
-                }
-                case SequenceIR seq:
-                {
-                    // Optional sequences must be atomic: either match the entire
-                    // sequence or consume nothing. Save position before attempting
-                    // and restore on partial match failure.
-                    writer.WriteLine($"// Optional sequence (atomic)");
-
-                    // Pre-declare variables for any inner labeled expressions so they
-                    // are accessible in the outer scope for node property assignment.
-                    if (labelMap != null && assignedProps != null)
-                    {
-                        var innerLabeled = new List<(string Label, ExpressionIR Expr)>();
-                        CollectLabeledExprs(seq, labelMap, innerLabeled);
-                        foreach (var (lbl, lexpr) in innerLabeled)
+                        var kind = TokenKindRef(tokenRef.Token.Name);
+                        if(withCheck)
                         {
-                            var propName = PascalCase(lbl);
-                            var localVar = "_" + propName;
-                            // Use non-nullable Token with default initializer to match
-                            // the AST node property type (Token, not Token?).
-                            var typeName = GetExprTypeName(lexpr, nullable: false);
-                            var defaultVal = GetExprDefaultValue(lexpr, nullable: false);
-                            writer.WriteLine($"{typeName} {localVar} = {defaultVal};");
-                            assignedProps.Add((propName, localVar));
-                        }
-                    }
-
-                    // Check if the sequence contains a RuleRefIR — if so, the labeled
-                    // variable should be typed as the rule-ref's node type, not Token?.
-                    // We use a separate tracking variable for the token match.
-                    var seqRuleRef = seq.Elements.OfType<RuleRefIR>().FirstOrDefault();
-                    var trackingVar = varName;
-                    if (seqRuleRef != null)
-                    {
-                        // Declare the labeled variable with the correct node type
-                        var nodeType = seqRuleRef.Rule.Name + "Node";
-                        writer.WriteLine($"{nodeType}? _{varName} = null;");
-                        // Use a separate tracking variable for the token sequence match
-                        trackingVar = "seq_" + varName;
-                    }
-
-                    // Determine the first token kind in the sequence for the guard check
-                    var seqFirstToken = GetFirstTokenInExpr(seq, context);
-                    if (seqFirstToken != null)
-                    {
-                        var guardKind = TokenKindRef(seqFirstToken);
-                        writer.WriteLine($"Token? _{trackingVar} = null;");
-                        if (withCheck)
-                        {
-                            writer.WriteBlock($"if ({okVar} && Peek() == (int){guardKind})", () =>
-                            {
-                                writer.WriteLine($"var _optSaved_{varName} = _pos;");
-                                EmitAtomicSequenceBody(writer, context, seq, trackingVar, varName, labelMap);
-                                // If the sequence didn't fully match, restore position
-                                writer.WriteBlock($"if (_{trackingVar} == null)", () =>
-                                {
-                                    writer.WriteLine($"_pos = _optSaved_{varName};");
-                                    if (seqRuleRef != null)
-                                    {
-                                        writer.WriteLine($"_{varName} = null;");
-                                    }
-                                });
-                            });
+                            writer.WriteLine($"var _{varName} = {okVar} ? Match((int){kind}) : null;");
                         }
                         else
                         {
-                            writer.WriteBlock($"if (Peek() == (int){guardKind})", () =>
+                            writer.WriteLine($"var _{varName} = Match((int){kind});");
+                        }
+                        break;
+                    }
+                case RuleRefIR ruleRef:
+                    {
+                        // Save state before attempting the optional rule parse.
+                        // If the rule fails (sets _hasError), restore state so the
+                        // optional element is treated as absent rather than an error.
+                        writer.WriteLine($"var _optRuleSaved_{varName} = _pos;");
+                        writer.WriteLine($"var _optRuleSavedError_{varName} = _hasError;");
+                        writer.WriteLine($"var _optRuleSavedDiagCount_{varName} = _diagnostics?.Count ?? 0;");
+                        if(withCheck)
+                        {
+                            writer.WriteLine($"var _{varName} = {okVar} ? _Parse{ruleRef.Rule.Name}() : null;");
+                        }
+                        else
+                        {
+                            writer.WriteLine($"var _{varName} = _Parse{ruleRef.Rule.Name}();");
+                        }
+                        writer.WriteBlock($"if (_{varName} == null)", () =>
+                        {
+                            writer.WriteLine($"_pos = _optRuleSaved_{varName};");
+                            writer.WriteLine($"_hasError = _optRuleSavedError_{varName};");
+                            writer.WriteLine($"_diagnostics?.TruncateTo(_optRuleSavedDiagCount_{varName});");
+                        });
+                        break;
+                    }
+                case SequenceIR seq:
+                    {
+                        // Optional sequences must be atomic: either match the entire
+                        // sequence or consume nothing. Save position before attempting
+                        // and restore on partial match failure.
+                        writer.WriteLine($"// Optional sequence (atomic)");
+
+                        // Pre-declare variables for any inner labeled expressions so they
+                        // are accessible in the outer scope for node property assignment.
+                        if(labelMap != null && assignedProps != null)
+                        {
+                            var innerLabeled = new List<(string Label, ExpressionIR Expr)>();
+                            CollectLabeledExprs(seq, labelMap, innerLabeled);
+                            foreach(var (lbl, lexpr) in innerLabeled)
                             {
-                                writer.WriteLine($"var _optSaved_{varName} = _pos;");
-                                EmitAtomicSequenceBody(writer, context, seq, trackingVar, varName, labelMap);
-                                writer.WriteBlock($"if (_{trackingVar} == null)", () =>
+                                var propName = PascalCase(lbl);
+                                var localVar = "_" + propName;
+                                // Use non-nullable Token with default initializer to match
+                                // the AST node property type (Token, not Token?).
+                                var typeName = GetExprTypeName(lexpr, nullable: false);
+                                var defaultVal = GetExprDefaultValue(lexpr, nullable: false);
+                                writer.WriteLine($"{typeName} {localVar} = {defaultVal};");
+                                assignedProps.Add((propName, localVar));
+                            }
+                        }
+
+                        // Check if the sequence contains a RuleRefIR — if so, the labeled
+                        // variable should be typed as the rule-ref's node type, not Token?.
+                        // We use a separate tracking variable for the token match.
+                        var seqRuleRef = seq.Elements.OfType<RuleRefIR>().FirstOrDefault();
+                        var trackingVar = varName;
+                        if(seqRuleRef != null)
+                        {
+                            // Declare the labeled variable with the correct node type
+                            var nodeType = seqRuleRef.Rule.Name + "Node";
+                            writer.WriteLine($"{nodeType}? _{varName} = null;");
+                            // Use a separate tracking variable for the token sequence match
+                            trackingVar = "seq_" + varName;
+                        }
+
+                        // Determine the first token kind in the sequence for the guard check
+                        var seqFirstToken = GetFirstTokenInExpr(seq, context);
+                        if(seqFirstToken != null)
+                        {
+                            var guardKind = TokenKindRef(seqFirstToken);
+                            writer.WriteLine($"Token? _{trackingVar} = null;");
+                            if(withCheck)
+                            {
+                                writer.WriteBlock($"if ({okVar} && Peek() == (int){guardKind})", () =>
                                 {
-                                    writer.WriteLine($"_pos = _optSaved_{varName};");
-                                    if (seqRuleRef != null)
+                                    writer.WriteLine($"var _optSaved_{varName} = _pos;");
+                                    EmitAtomicSequenceBody(writer, context, seq, trackingVar, varName, labelMap);
+                                    // If the sequence didn't fully match, restore position
+                                    writer.WriteBlock($"if (_{trackingVar} == null)", () =>
                                     {
-                                        writer.WriteLine($"_{varName} = null;");
-                                    }
+                                        writer.WriteLine($"_pos = _optSaved_{varName};");
+                                        if(seqRuleRef != null)
+                                        {
+                                            writer.WriteLine($"_{varName} = null;");
+                                        }
+                                    });
                                 });
+                            }
+                            else
+                            {
+                                writer.WriteBlock($"if (Peek() == (int){guardKind})", () =>
+                                {
+                                    writer.WriteLine($"var _optSaved_{varName} = _pos;");
+                                    EmitAtomicSequenceBody(writer, context, seq, trackingVar, varName, labelMap);
+                                    writer.WriteBlock($"if (_{trackingVar} == null)", () =>
+                                    {
+                                        writer.WriteLine($"_pos = _optSaved_{varName};");
+                                        if(seqRuleRef != null)
+                                        {
+                                            writer.WriteLine($"_{varName} = null;");
+                                        }
+                                    });
+                                });
+                            }
+                        }
+                        else
+                        {
+                            // Fallback: can't determine guard token, use position save/restore
+                            writer.WriteLine($"Token? _{trackingVar} = null;");
+                            writer.WriteLine($"var _optSaved_{varName} = _pos;");
+                            EmitAtomicSequenceBody(writer, context, seq, trackingVar, varName, labelMap);
+                            writer.WriteBlock($"if (_{trackingVar} == null)", () =>
+                            {
+                                writer.WriteLine($"_pos = _optSaved_{varName};");
+                                if(seqRuleRef != null)
+                                {
+                                    writer.WriteLine($"_{varName} = null;");
+                                }
                             });
                         }
+                        break;
                     }
-                    else
-                    {
-                        // Fallback: can't determine guard token, use position save/restore
-                        writer.WriteLine($"Token? _{trackingVar} = null;");
-                        writer.WriteLine($"var _optSaved_{varName} = _pos;");
-                        EmitAtomicSequenceBody(writer, context, seq, trackingVar, varName, labelMap);
-                        writer.WriteBlock($"if (_{trackingVar} == null)", () =>
-                        {
-                            writer.WriteLine($"_pos = _optSaved_{varName};");
-                            if (seqRuleRef != null)
-                            {
-                                writer.WriteLine($"_{varName} = null;");
-                            }
-                        });
-                    }
-                    break;
-                }
                 default:
-                {
-                    writer.WriteLine($"// Optional complex expression");
-                    writer.WriteLine($"Token? _{varName} = null;");
-                    break;
-                }
+                    {
+                        writer.WriteLine($"// Optional complex expression");
+                        writer.WriteLine($"Token? _{varName} = null;");
+                        break;
+                    }
             }
         }
 
         private static void EmitListExprParse(CodeWriter writer, EmissionContext context, ExpressionIR inner, string varName, bool requireOne, bool withCheck = false, string? okVar = null)
         {
-            switch (inner)
+            switch(inner)
             {
                 case RuleRefIR ruleRef:
-                {
-                    var nodeType = ruleRef.Rule.Name + "Node";
-                    writer.WriteLine($"var _{varName}_b = ImmutableArray.CreateBuilder<{nodeType}>();");
-                    var loopCondition = withCheck && okVar != null
-                        ? $"while (!_hasError && {okVar})"
-                        : "while (!_hasError)";
-                    writer.WriteBlock(loopCondition, () =>
                     {
-                        writer.WriteLine("var _listSaved = _pos;");
-                        writer.WriteLine("var _savedError = _hasError;");
-                        writer.WriteLine("var _savedDiagCount = _diagnostics?.Count ?? 0;");
-                        writer.WriteLine($"var _item = _Parse{ruleRef.Rule.Name}();");
-                        writer.WriteBlock("if (_item == null || _pos == _listSaved)", () =>
+                        var nodeType = ruleRef.Rule.Name + "Node";
+                        writer.WriteLine($"var _{varName}_b = ImmutableArray.CreateBuilder<{nodeType}>();");
+                        var loopCondition = withCheck && okVar != null
+                            ? $"while (!_hasError && {okVar})"
+                            : "while (!_hasError)";
+                        writer.WriteBlock(loopCondition, () =>
                         {
-                            writer.WriteLine("_hasError = _savedError;");
-                            writer.WriteLine("_pos = _listSaved;");
-                            writer.WriteLine("_diagnostics?.TruncateTo(_savedDiagCount);");
-                            writer.WriteLine("break;");
+                            writer.WriteLine("var _listSaved = _pos;");
+                            writer.WriteLine("var _savedError = _hasError;");
+                            writer.WriteLine("var _savedDiagCount = _diagnostics?.Count ?? 0;");
+                            writer.WriteLine($"var _item = _Parse{ruleRef.Rule.Name}();");
+                            writer.WriteBlock("if (_item == null || _pos == _listSaved)", () =>
+                            {
+                                writer.WriteLine("_hasError = _savedError;");
+                                writer.WriteLine("_pos = _listSaved;");
+                                writer.WriteLine("_diagnostics?.TruncateTo(_savedDiagCount);");
+                                writer.WriteLine("break;");
+                            });
+                            writer.WriteLine($"_{varName}_b.Add(_item);");
                         });
-                        writer.WriteLine($"_{varName}_b.Add(_item);");
-                    });
-                    writer.WriteLine($"var _{varName} = _{varName}_b.ToImmutable();");
-                    break;
-                }
+                        writer.WriteLine($"var _{varName} = _{varName}_b.ToImmutable();");
+                        break;
+                    }
                 case TokenRefIR tokenRef:
-                {
-                    var kind = TokenKindRef(tokenRef.Token.Name);
-                    writer.WriteLine($"var _{varName}_b = ImmutableArray.CreateBuilder<Token>();");
-                    writer.WriteBlock($"while (!_hasError && Peek() == (int){kind})", () =>
                     {
-                        writer.WriteLine($"_{varName}_b.Add(Eat());");
-                    });
-                    writer.WriteLine($"var _{varName} = _{varName}_b.ToImmutable();");
-                    break;
-                }
+                        var kind = TokenKindRef(tokenRef.Token.Name);
+                        writer.WriteLine($"var _{varName}_b = ImmutableArray.CreateBuilder<Token>();");
+                        writer.WriteBlock($"while (!_hasError && Peek() == (int){kind})", () =>
+                        {
+                            writer.WriteLine($"_{varName}_b.Add(Eat());");
+                        });
+                        writer.WriteLine($"var _{varName} = _{varName}_b.ToImmutable();");
+                        break;
+                    }
                 default:
-                {
-                    writer.WriteLine($"// Complex list expression");
-                    writer.WriteLine($"var _{varName} = ImmutableArray<SyntaxNode>.Empty;");
-                    break;
-                }
+                    {
+                        writer.WriteLine($"// Complex list expression");
+                        writer.WriteLine($"var _{varName} = ImmutableArray<SyntaxNode>.Empty;");
+                        break;
+                    }
             }
         }
 
@@ -1460,24 +1460,24 @@ namespace Storm.SourceGenerator.Emit
         {
             writer.WriteLine($"// Sequence expression for {varName}");
             var found = false;
-            foreach (var elem in seq.Elements)
+            foreach(var elem in seq.Elements)
             {
-                if (elem is RuleRefIR ruleRef && !found)
+                if(elem is RuleRefIR ruleRef && !found)
                 {
                     writer.WriteLine($"var _{varName} = _Parse{ruleRef.Rule.Name}();");
-                    if (withCheck)
+                    if(withCheck)
                     {
                         writer.WriteBlock($"if (_{varName} == null)", () => writer.WriteLine($"{okVar} = false;"));
                     }
                     found = true;
                 }
-                else if (elem is TokenRefIR tokenRef)
+                else if(elem is TokenRefIR tokenRef)
                 {
                     var kind = TokenKindRef(tokenRef.Token.Name);
-                    if (!found)
+                    if(!found)
                     {
                         writer.WriteLine($"var _{varName} = Match((int){kind});");
-                        if (withCheck)
+                        if(withCheck)
                         {
                             writer.WriteBlock($"if (_{varName} == null)", () => writer.WriteLine($"{okVar} = false;"));
                         }
@@ -1488,17 +1488,17 @@ namespace Storm.SourceGenerator.Emit
                         writer.WriteLine($"Match((int){kind}); // consume");
                     }
                 }
-                else if (elem is StringLiteralIR lit)
+                else if(elem is StringLiteralIR lit)
                 {
                     var token = FindTokenForLiteral(context, lit.Value);
-                    if (token != null)
+                    if(token != null)
                     {
                         var kind = TokenKindRef(token.Name);
                         writer.WriteLine($"Match((int){kind}); // consume literal");
                     }
                 }
             }
-            if (!found)
+            if(!found)
             {
                 writer.WriteLine($"object? _{varName} = null;");
             }
@@ -1519,30 +1519,30 @@ namespace Storm.SourceGenerator.Emit
             var isFirst = true;
             var allTokens = new List<string>();
 
-            foreach (var elem in seq.Elements)
+            foreach(var elem in seq.Elements)
             {
                 // Check if this element has a label in the label map
                 string? elemLabel = null;
-                if (labelMap != null)
+                if(labelMap != null)
                 {
                     labelMap.TryGetValue(elem, out elemLabel);
                 }
 
                 string? kindStr = null;
-                if (elem is TokenRefIR tokenRef)
+                if(elem is TokenRefIR tokenRef)
                 {
                     kindStr = TokenKindRef(tokenRef.Token.Name);
                 }
-                else if (elem is StringLiteralIR lit)
+                else if(elem is StringLiteralIR lit)
                 {
                     var token = FindTokenForLiteral(context, lit.Value);
-                    if (token != null)
+                    if(token != null)
                         kindStr = TokenKindRef(token.Name);
                 }
 
-                if (kindStr != null)
+                if(kindStr != null)
                 {
-                    if (isFirst)
+                    if(isFirst)
                     {
                         // First token: try to match and assign to tracking variable
                         writer.WriteLine($"_{trackingVarName} = Match((int){kindStr});");
@@ -1555,7 +1555,7 @@ namespace Storm.SourceGenerator.Emit
                         {
                             writer.WriteLine($"_{trackingVarName} = null; // sequence incomplete, will restore position");
                         });
-                        if (elemLabel != null)
+                        if(elemLabel != null)
                         {
                             // Named element: capture the token into the labeled variable
                             var propName = PascalCase(elemLabel);
@@ -1573,13 +1573,13 @@ namespace Storm.SourceGenerator.Emit
                         }
                     }
                 }
-                else if (elem is RuleRefIR ruleRef)
+                else if(elem is RuleRefIR ruleRef)
                 {
                     // Rule reference inside an atomic optional sequence:
                     // parse the rule and, if it fails, mark the sequence as incomplete.
                     var parseCall = $"_Parse{ruleRef.Rule.Name}()";
 
-                    if (elemLabel != null)
+                    if(elemLabel != null)
                     {
                         // Labeled rule-ref: assign the parsed result to the pre-declared labeled variable
                         var propName = PascalCase(elemLabel);
@@ -1605,19 +1605,19 @@ namespace Storm.SourceGenerator.Emit
                         });
                     }
 
-                    if (isFirst)
+                    if(isFirst)
                     {
                         isFirst = false;
                     }
                 }
-                else if (elem is ZeroOrMoreIR zom)
+                else if(elem is ZeroOrMoreIR zom)
                 {
                     // ZeroOrMore inside an atomic optional sequence:
                     // parse the repetition and assign to the labeled variable if present.
-                    if (zom.Inner is RuleRefIR zomRuleRef)
+                    if(zom.Inner is RuleRefIR zomRuleRef)
                     {
                         var nodeType = zomRuleRef.Rule.Name + "Node";
-                        if (elemLabel != null)
+                        if(elemLabel != null)
                         {
                             var propName = PascalCase(elemLabel);
                             writer.WriteBlock($"if (_{trackingVarName} != null)", () =>
@@ -1635,7 +1635,7 @@ namespace Storm.SourceGenerator.Emit
                         }
                     }
 
-                    if (isFirst)
+                    if(isFirst)
                     {
                         isFirst = false;
                     }
@@ -1649,7 +1649,7 @@ namespace Storm.SourceGenerator.Emit
         /// </summary>
         private static string? GetFirstTokenInExpr(ExpressionIR expr, EmissionContext context)
         {
-            switch (expr)
+            switch(expr)
             {
                 case TokenRefIR tokenRef:
                     return tokenRef.Token.Name;
@@ -1657,7 +1657,7 @@ namespace Storm.SourceGenerator.Emit
                     var token = FindTokenForLiteral(context, lit.Value);
                     return token?.Name;
                 case SequenceIR seq:
-                    if (seq.Elements.Count > 0)
+                    if(seq.Elements.Count > 0)
                         return GetFirstTokenInExpr(seq.Elements[0], context);
                     return null;
                 default:
@@ -1670,9 +1670,9 @@ namespace Storm.SourceGenerator.Emit
             writer.WriteLine($"// Alternation for {varName}");
             writer.WriteLine($"Token _{varName} = default;");
             writer.WriteLine("var _altFound = false;");
-            foreach (var alt in altIR.Alternatives)
+            foreach(var alt in altIR.Alternatives)
             {
-                if (alt is TokenRefIR tokenRef)
+                if(alt is TokenRefIR tokenRef)
                 {
                     var kind = TokenKindRef(tokenRef.Token.Name);
                     writer.WriteBlock($"if (!_altFound && Peek() == (int){kind})", () =>
@@ -1681,10 +1681,10 @@ namespace Storm.SourceGenerator.Emit
                         writer.WriteLine("_altFound = true;");
                     });
                 }
-                else if (alt is StringLiteralIR lit)
+                else if(alt is StringLiteralIR lit)
                 {
                     var token = FindTokenForLiteral(context, lit.Value);
-                    if (token != null)
+                    if(token != null)
                     {
                         var kind = TokenKindRef(token.Name);
                         writer.WriteBlock($"if (!_altFound && Peek() == (int){kind})", () =>
@@ -1694,7 +1694,7 @@ namespace Storm.SourceGenerator.Emit
                         });
                     }
                 }
-                else if (alt is RuleRefIR ruleRef)
+                else if(alt is RuleRefIR ruleRef)
                 {
                     writer.WriteBlock("if (!_altFound)", () =>
                     {
@@ -1702,7 +1702,7 @@ namespace Storm.SourceGenerator.Emit
                     });
                 }
             }
-            if (withCheck)
+            if(withCheck)
             {
                 writer.WriteBlock("if (!_altFound)", () => writer.WriteLine($"{okVar} = false;"));
             }
@@ -1712,9 +1712,9 @@ namespace Storm.SourceGenerator.Emit
 
         private static TokenIR? FindTokenForLiteral(EmissionContext context, string value)
         {
-            foreach (var token in context.Grammar.Tokens)
+            foreach(var token in context.Grammar.Tokens)
             {
-                if (token.Expression is StringLiteralIR lit && lit.Value == value)
+                if(token.Expression is StringLiteralIR lit && lit.Value == value)
                     return token;
             }
             return null;
@@ -1727,7 +1727,7 @@ namespace Storm.SourceGenerator.Emit
 
         private static string PascalCase(string name)
         {
-            if (string.IsNullOrEmpty(name)) return name;
+            if(string.IsNullOrEmpty(name)) return name;
             return char.ToUpperInvariant(name[0]) + name.Substring(1);
         }
 
@@ -1735,7 +1735,7 @@ namespace Storm.SourceGenerator.Emit
         {
             var result = name;
             var counter = 2;
-            while (!usedNames.Add(result))
+            while(!usedNames.Add(result))
             {
                 result = name + counter;
                 counter++;

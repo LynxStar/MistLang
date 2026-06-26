@@ -63,7 +63,7 @@ public class TypeContainmentTests
     {
         var c = new ClassType(name, new Scope(parent: null), containingNamespace: "TestPool");
         var tps = new TypeParameterType[arity];
-        for (var i = 0; i < arity; i++)
+        for(var i = 0; i < arity; i++)
             tps[i] = new TypeParameterType($"T{i}", i);
         c.TypeParameters = tps;
         return c;
@@ -73,7 +73,7 @@ public class TypeContainmentTests
     {
         var s = new StructType(name, new Scope(parent: null), containingNamespace: "TestPool");
         var tps = new TypeParameterType[arity];
-        for (var i = 0; i < arity; i++)
+        for(var i = 0; i < arity; i++)
             tps[i] = new TypeParameterType($"T{i}", i);
         s.TypeParameters = tps;
         return s;
@@ -392,7 +392,7 @@ public class TypeContainmentTests
     /// </summary>
     private static Gen<IType> GenCleanType(int depth)
     {
-        if (depth <= 0)
+        if(depth <= 0)
             return Gen.Elements(CleanLeafTypes);
 
         // Branching: leaf, array-of-cleaner, List<cleaner>, Map<cleaner, cleaner>,
@@ -422,24 +422,24 @@ public class TypeContainmentTests
     /// </summary>
     private static IEnumerable<ImmutableArray<PathStep>> EnumerateSubstitutionPaths(IType t)
     {
-        switch (t)
+        switch(t)
         {
             case ArrayType array:
                 // Direct substitution at the element level.
                 yield return ImmutableArray.Create(new PathStep(StepKind.ArrayElement, -1));
                 // Deeper substitutions inside the element.
-                foreach (var sub in EnumerateSubstitutionPaths(array.ElementType))
+                foreach(var sub in EnumerateSubstitutionPaths(array.ElementType))
                     yield return ImmutableArray.Create(new PathStep(StepKind.ArrayElement, -1))
                         .AddRange(sub);
                 break;
 
             case ConstructedType constructed:
-                for (var i = 0; i < constructed.TypeArguments.Count; i++)
+                for(var i = 0; i < constructed.TypeArguments.Count; i++)
                 {
                     // Direct substitution at position i.
                     yield return ImmutableArray.Create(new PathStep(StepKind.TypeArgument, i));
                     // Deeper substitutions inside the i-th argument.
-                    foreach (var sub in EnumerateSubstitutionPaths(constructed.TypeArguments[i]))
+                    foreach(var sub in EnumerateSubstitutionPaths(constructed.TypeArguments[i]))
                         yield return ImmutableArray.Create(new PathStep(StepKind.TypeArgument, i))
                             .AddRange(sub);
                 }
@@ -461,20 +461,20 @@ public class TypeContainmentTests
     /// </summary>
     private static IType SubstituteAtPath(IType t, ReadOnlySpan<PathStep> path)
     {
-        if (path.Length == 0)
+        if(path.Length == 0)
             return UnknownType.Instance;
 
         var head = path[0];
         var tail = path.Slice(1);
 
-        switch (t)
+        switch(t)
         {
             case ArrayType array when head.Kind == StepKind.ArrayElement:
                 return new ArrayType(SubstituteAtPath(array.ElementType, tail));
 
             case ConstructedType constructed when head.Kind == StepKind.TypeArgument:
                 var newArgs = new IType[constructed.TypeArguments.Count];
-                for (var i = 0; i < newArgs.Length; i++)
+                for(var i = 0; i < newArgs.Length; i++)
                 {
                     newArgs[i] = i == head.TypeArgumentIndex
                         ? SubstituteAtPath(constructed.TypeArguments[i], tail)
@@ -532,7 +532,7 @@ public class TypeContainmentTests
     {
         // Conjunct (a): the generated type is clean.
         var cleanIsNotBanned = !TypeContainment.IsStorageBanned(scenario.CleanType);
-        if (!cleanIsNotBanned)
+        if(!cleanIsNotBanned)
         {
             return false.ToProperty()
                 .Label($"Expected IsStorageBanned(clean) == false, was true. Clean type: {scenario.CleanType.DisplayName}");
@@ -542,10 +542,10 @@ public class TypeContainmentTests
         // If the scenario has no substitution paths (leaf case), (a) alone
         // is the full property — skip (b) by returning true for the empty
         // quantifier.
-        foreach (var path in scenario.SubstitutionPaths)
+        foreach(var path in scenario.SubstitutionPaths)
         {
             var substituted = SubstituteAtPath(scenario.CleanType, path.AsSpan());
-            if (!TypeContainment.IsStorageBanned(substituted))
+            if(!TypeContainment.IsStorageBanned(substituted))
             {
                 return false.ToProperty()
                     .Label(

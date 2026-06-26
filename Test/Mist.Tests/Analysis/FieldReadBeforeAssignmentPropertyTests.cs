@@ -246,7 +246,7 @@ public sealed class FieldReadBeforeAssignmentPropertyTests
         // references a constructor parameter via a workaround — actually Mist
         // field initializers are constant-like. Let's use a simpler approach:
         // a defaultable field with an initializer. Use int with default value.
-        if (pattern == FieldAccessPattern.InitializerThenRead)
+        if(pattern == FieldAccessPattern.InitializerThenRead)
         {
             // Use an int field with an initializer = 42, read in ctor — no diagnostic.
             return $$"""

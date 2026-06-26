@@ -34,7 +34,7 @@ public sealed class TypeArgumentParsingPerformanceTest
         double? previousMs = null;
         var bailedAt = -1;
 
-        for (var n = 0; n <= maxN; n++)
+        for(var n = 0; n <= maxN; n++)
         {
             var source = GenerateClassWithNTypeParams(n);
             var sourceText = new SourceText("perf_test.mist", source);
@@ -52,7 +52,7 @@ public sealed class TypeArgumentParsingPerformanceTest
 
             _output.WriteLine($"{n,-4} {elapsedMs,-12:F2} {ratio,8}");
 
-            if (elapsedMs > timeoutMs)
+            if(elapsedMs > timeoutMs)
             {
                 bailedAt = n;
                 _output.WriteLine($"\nBailed out at N={n} (exceeded {timeoutMs}ms)");
@@ -64,7 +64,7 @@ public sealed class TypeArgumentParsingPerformanceTest
 
         // If we bailed before N=16, there's a serious exponential issue.
         // A healthy parser should handle 20 type params in well under 1 second.
-        if (bailedAt >= 0)
+        if(bailedAt >= 0)
         {
             Assert.Fail(
                 $"Parser took >{timeoutMs}ms at N={bailedAt} type parameters. " +
@@ -99,7 +99,7 @@ public sealed class TypeArgumentParsingPerformanceTest
         double? previousMs = null;
         var bailedAt = -1;
 
-        for (var n = 0; n <= maxN; n++)
+        for(var n = 0; n <= maxN; n++)
         {
             var source = GenerateFuncActionSource(n);
             var sourceText = new SourceText("perf_test.mist", source);
@@ -117,7 +117,7 @@ public sealed class TypeArgumentParsingPerformanceTest
 
             _output.WriteLine($"{n,-4} {elapsedMs,-12:F2} {ratio,8}");
 
-            if (elapsedMs > timeoutMs)
+            if(elapsedMs > timeoutMs)
             {
                 bailedAt = n;
                 _output.WriteLine($"\nBailed out at N={n} (exceeded {timeoutMs}ms)");
@@ -127,7 +127,7 @@ public sealed class TypeArgumentParsingPerformanceTest
             previousMs = elapsedMs;
         }
 
-        if (bailedAt >= 0)
+        if(bailedAt >= 0)
         {
             Assert.Fail(
                 $"Parser took >{timeoutMs}ms at N={bailedAt} Func/Action arity overloads. " +
@@ -143,7 +143,7 @@ public sealed class TypeArgumentParsingPerformanceTest
     /// </summary>
     private static string GenerateClassWithNTypeParams(int n)
     {
-        if (n == 0)
+        if(n == 0)
         {
             return "namespace Test;\nclass Foo {\n    public int Value;\n}\nclass Program {\n    public Foo field;\n}\n";
         }
@@ -174,9 +174,9 @@ public sealed class TypeArgumentParsingPerformanceTest
         sb.AppendLine();
 
         // Generate Func<TResult>, Func<T1, TResult>, ..., Func<T1..Tn, TResult>
-        for (var i = 0; i <= n; i++)
+        for(var i = 0; i <= n; i++)
         {
-            if (i == 0)
+            if(i == 0)
             {
                 sb.AppendLine("intrinsic class Func<TResult> { }");
             }
@@ -190,9 +190,9 @@ public sealed class TypeArgumentParsingPerformanceTest
         sb.AppendLine();
 
         // Generate type Action = Func<void>, type Action<T1> = Func<T1, void>, ...
-        for (var i = 0; i <= n; i++)
+        for(var i = 0; i <= n; i++)
         {
-            if (i == 0)
+            if(i == 0)
             {
                 sb.AppendLine("type Action = Func<void>;");
             }

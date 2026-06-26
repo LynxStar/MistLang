@@ -79,15 +79,18 @@ public class ExtensionTypeCheckerPropertyTests
     // ─── AST construction helpers ────────────────────────────────────────
 
     private static TypeReferenceNode MakeNamedTypeRef(string name, TypeArgumentListNode? typeArgs = null) =>
-        new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
+        new TypeReferenceNode
         {
-            Name = new QualifiedIdentifierNode
+            First = new NamedSingleTypeRefSingleTypeRefNode
             {
-                IDENTIFIER = Tok(name),
-                Span = new Storm.Runtime.SourceSpan(0, name.Length),
-            },
-            TypeArgs = typeArgs,
-        } };
+                Name = new QualifiedIdentifierNode
+                {
+                    IDENTIFIER = Tok(name),
+                    Span = new Storm.Runtime.SourceSpan(0, name.Length),
+                },
+                TypeArgs = typeArgs,
+            }
+        };
 
     private static TypeReferenceNode MakeUnknownTypeRef() =>
         new TypeReferenceNode { First = new UnknownSingleTypeRefSingleTypeRefNode() };
@@ -260,11 +263,11 @@ public class ExtensionTypeCheckerPropertyTests
             : ImmutableArray<ModifierNode>.Empty;
 
         BlockNode body;
-        if (bodyStatements is not null)
+        if(bodyStatements is not null)
         {
             body = new BlockNode { Statements = bodyStatements.Value };
         }
-        else if (returnType == "void")
+        else if(returnType == "void")
         {
             body = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty };
         }
@@ -354,7 +357,7 @@ public class ExtensionTypeCheckerPropertyTests
     private static MemberDeclarationNode MakeClassMethod(string name, string returnType = "void", bool isStatic = false)
     {
         var modifiers = new List<ModifierNode> { new PublicModifierModifierNode() };
-        if (isStatic) modifiers.Add(new StaticModifierModifierNode());
+        if(isStatic) modifiers.Add(new StaticModifierModifierNode());
 
         BlockNode body = returnType == "void"
             ? new BlockNode { Statements = ImmutableArray<StatementNode>.Empty }
@@ -737,13 +740,13 @@ public class ExtensionTypeCheckerPropertyTests
         // Verify no errors during registration
         var hasRegistrationErrors = diagnostics.Any(d =>
             d.Id.Value == "MIST_SB_0070" || d.Id.Value == "MIST_SB_0074");
-        if (hasRegistrationErrors)
+        if(hasRegistrationErrors)
             return false;
 
         // Find the generic class type
         var genericClassSymbol = model.AllSymbols
             .FirstOrDefault(s => s.Name == scenario.GenericClassName && s.Kind == SymbolKind.Class);
-        if (genericClassSymbol?.DeclaredType is not ClassType genericClassType)
+        if(genericClassSymbol?.DeclaredType is not ClassType genericClassType)
             return false;
 
         // Verify the extension is registered with type parameters
@@ -754,15 +757,15 @@ public class ExtensionTypeCheckerPropertyTests
             ext.TypeParameters.Count > 0 &&
             ext.MemberScope.Lookup(scenario.MethodName) is not null);
 
-        if (genericExtension is null)
+        if(genericExtension is null)
             return false;
 
         // Verify the extension has the correct type parameter count
-        if (genericExtension.TypeParameters.Count != 1)
+        if(genericExtension.TypeParameters.Count != 1)
             return false;
 
         // Verify the receiver type is a ConstructedType based on the generic class
-        if (genericExtension.ReceiverType is not ConstructedType constructedReceiver)
+        if(genericExtension.ReceiverType is not ConstructedType constructedReceiver)
             return false;
 
         // The generic definition of the constructed receiver should be our generic class
@@ -1063,7 +1066,7 @@ public class ExtensionTypeCheckerPropertyTests
         items.Add(MakeClassTopLevelItem(classA));
         items.Add(MakeClassTopLevelItem(classB));
 
-        if (scenario.ApplicableToBoth)
+        if(scenario.ApplicableToBoth)
         {
             // Universal extension — applicable to all types including unions
             var extUniversal = MakeExtensionBlock(
@@ -1089,7 +1092,7 @@ public class ExtensionTypeCheckerPropertyTests
         var typeB = model.AllSymbols
             .FirstOrDefault(s => s.Name == scenario.ClassB && s.Kind == SymbolKind.Class)?.DeclaredType;
 
-        if (typeA is null || typeB is null)
+        if(typeA is null || typeB is null)
             return true; // Skip if types not found (shouldn't happen)
 
         // Query the extension registry for the union
@@ -1100,7 +1103,7 @@ public class ExtensionTypeCheckerPropertyTests
         var methodFound = unionExtensions.Any(ext =>
             ext.MemberScope.Lookup(scenario.MethodName) is not null);
 
-        if (scenario.ApplicableToBoth)
+        if(scenario.ApplicableToBoth)
         {
             // Universal extension should be discoverable on the union
             return methodFound;

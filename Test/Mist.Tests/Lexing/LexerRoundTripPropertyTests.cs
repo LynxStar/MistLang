@@ -78,7 +78,7 @@ public class LexerRoundTripPropertyTests
     [Property(MaxTest = 100, Arbitrary = new[] { typeof(LexerRoundTripPropertyTests) })]
     public bool LexerRoundTrip_ConcatenatedLexemesReproduceSource(string source)
     {
-        if (string.IsNullOrEmpty(source))
+        if(string.IsNullOrEmpty(source))
             return true;
 
         var sourceText = new Mist.Common.Text.SourceText("test.mist", source);
@@ -94,7 +94,7 @@ public class LexerRoundTripPropertyTests
         // with an empty lexeme. When the full lexer is implemented, the concatenation
         // of all token lexemes (including hidden tokens like whitespace and comments)
         // must reproduce the original source exactly.
-        if (tokenStream.AllTokens.Length <= 1 &&
+        if(tokenStream.AllTokens.Length <= 1 &&
             tokenStream.AllTokens.All(t => t.Kind == (int)Mist.Generated.TokenKind.EndOfFile))
         {
             // Skeletal lexer: only EOF token present. The round-trip property
@@ -114,7 +114,7 @@ public class LexerRoundTripPropertyTests
     [Property(MaxTest = 50, Arbitrary = new[] { typeof(LexerRoundTripPropertyTests) })]
     public bool LexerProducesNonNegativeTokenCount(string source)
     {
-        if (string.IsNullOrEmpty(source))
+        if(string.IsNullOrEmpty(source))
             return true;
 
         var sourceText = new Mist.Common.Text.SourceText("test.mist", source);

@@ -29,13 +29,13 @@ public sealed class UnionType : IType, IEquatable<UnionType>
 
     public bool Equals(UnionType? other)
     {
-        if (other is null) return false;
-        if (ReferenceEquals(this, other)) return true;
-        if (Constituents.Count != other.Constituents.Count) return false;
+        if(other is null) return false;
+        if(ReferenceEquals(this, other)) return true;
+        if(Constituents.Count != other.Constituents.Count) return false;
 
-        for (var i = 0; i < Constituents.Count; i++)
+        for(var i = 0; i < Constituents.Count; i++)
         {
-            if (Constituents[i].DisplayName != other.Constituents[i].DisplayName)
+            if(Constituents[i].DisplayName != other.Constituents[i].DisplayName)
                 return false;
         }
 
@@ -47,7 +47,7 @@ public sealed class UnionType : IType, IEquatable<UnionType>
     public override int GetHashCode()
     {
         var hash = new HashCode();
-        foreach (var constituent in Constituents)
+        foreach(var constituent in Constituents)
         {
             hash.Add(constituent.DisplayName, StringComparer.Ordinal);
         }

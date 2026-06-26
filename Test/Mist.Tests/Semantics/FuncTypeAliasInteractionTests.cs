@@ -48,7 +48,7 @@ public sealed class FuncTypeAliasInteractionTests
         var userTokens = Lexer.Lex(userSourceText, diagnostics);
         var userParseResult = Parser.Parse(userTokens, diagnostics);
 
-        if (userParseResult.Root is null)
+        if(userParseResult.Root is null)
             throw new InvalidOperationException($"Failed to parse user source:\n{source}");
 
         var allUnits = stdlibUnits.Add(userUnit);
@@ -87,7 +87,7 @@ public sealed class FuncTypeAliasInteractionTests
         Assert.Equal("Standard", funcDef.ContainingNamespace);
         Assert.Equal(expectedTypeArgDisplayNames.Length, constructedType.TypeArguments.Count);
 
-        for (var i = 0; i < expectedTypeArgDisplayNames.Length; i++)
+        for(var i = 0; i < expectedTypeArgDisplayNames.Length; i++)
         {
             var expected = expectedTypeArgDisplayNames[i];
             var actual = constructedType.TypeArguments[i].DisplayName;
@@ -99,7 +99,7 @@ public sealed class FuncTypeAliasInteractionTests
 
     private static bool MatchesTypeName(string actual, string expected)
     {
-        if (actual == expected) return true;
+        if(actual == expected) return true;
         return expected switch
         {
             "int" => actual is "Int32" or "int",

@@ -80,25 +80,25 @@ public sealed class ContextCheckerAnalyzer : IAnalyzer
     /// </summary>
     private static void CheckDuplicateContextBindings(ISemanticModel model, DiagnosticBag diagnostics)
     {
-        foreach (var symbol in model.AllSymbols)
+        foreach(var symbol in model.AllSymbols)
         {
-            if (symbol is not Symbol sym)
+            if(symbol is not Symbol sym)
                 continue;
-            if (sym.Origin == SymbolOrigin.Backend)
+            if(sym.Origin == SymbolOrigin.Backend)
                 continue;
-            if (sym.Kind is not (SymbolKind.Method or SymbolKind.Constructor))
+            if(sym.Kind is not (SymbolKind.Method or SymbolKind.Constructor))
                 continue;
-            if (sym.WithClauses.Count < 2)
+            if(sym.WithClauses.Count < 2)
                 continue;
 
             // Check for duplicate resolved types among the with-clauses.
-            for (var i = 0; i < sym.WithClauses.Count; i++)
+            for(var i = 0; i < sym.WithClauses.Count; i++)
             {
                 var typeI = ResolveContextType(sym.WithClauses[i].ContextType);
-                for (var j = i + 1; j < sym.WithClauses.Count; j++)
+                for(var j = i + 1; j < sym.WithClauses.Count; j++)
                 {
                     var typeJ = ResolveContextType(sym.WithClauses[j].ContextType);
-                    if (ContextTypesMatch(typeI, typeJ))
+                    if(ContextTypesMatch(typeI, typeJ))
                     {
                         // Emit on the second (duplicate) clause.
                         var clause = sym.WithClauses[j];
@@ -106,7 +106,7 @@ public sealed class ContextCheckerAnalyzer : IAnalyzer
                         try { declaringNode = model.GetDeclaringNode(sym); }
                         catch { declaringNode = null; }
 
-                        if (declaringNode is not null)
+                        if(declaringNode is not null)
                         {
                             var (path, location, _) = DiagnosticHelper.ResolveLocation(declaringNode);
                             diagnostics.Add(new Diagnostic(
@@ -148,7 +148,7 @@ public sealed class ContextCheckerAnalyzer : IAnalyzer
     {
         // Walk all ASTs looking for context declaration nodes that are not
         // inside a method or constructor body.
-        foreach (var ast in model.Asts)
+        foreach(var ast in model.Asts)
         {
             WalkForContextDeclarationsOutsideMethod(ast, insideMethodBody: false, diagnostics);
         }
@@ -163,10 +163,10 @@ public sealed class ContextCheckerAnalyzer : IAnalyzer
         bool insideMethodBody,
         DiagnosticBag diagnostics)
     {
-        if (node is null)
+        if(node is null)
             return;
 
-        switch (node)
+        switch(node)
         {
             case MethodDeclarationNode:
             case ConstructorDeclarationNode:
@@ -196,9 +196,9 @@ public sealed class ContextCheckerAnalyzer : IAnalyzer
         }
 
         // Recurse into children.
-        foreach (var child in node.Children())
+        foreach(var child in node.Children())
         {
-            if (child is not null)
+            if(child is not null)
             {
                 WalkForContextDeclarationsOutsideMethod(child, insideMethodBody, diagnostics);
             }
@@ -229,13 +229,13 @@ public sealed class ContextCheckerAnalyzer : IAnalyzer
     /// </summary>
     private static void CheckCannotInferContextType(ISemanticModel model, DiagnosticBag diagnostics)
     {
-        foreach (var symbol in model.AllSymbols)
+        foreach(var symbol in model.AllSymbols)
         {
-            if (symbol is not Symbol sym)
+            if(symbol is not Symbol sym)
                 continue;
-            if (sym.Origin == SymbolOrigin.Backend)
+            if(sym.Origin == SymbolOrigin.Backend)
                 continue;
-            if (sym.Kind is not (SymbolKind.Method or SymbolKind.Constructor))
+            if(sym.Kind is not (SymbolKind.Method or SymbolKind.Constructor))
                 continue;
 
             SyntaxNode declaringNode;
@@ -249,7 +249,7 @@ public sealed class ContextCheckerAnalyzer : IAnalyzer
                 _ => null,
             };
 
-            if (body is null)
+            if(body is null)
                 continue;
 
             WalkBlockForUninferredContextTypes(body, model, diagnostics);
@@ -265,48 +265,48 @@ public sealed class ContextCheckerAnalyzer : IAnalyzer
         ISemanticModel model,
         DiagnosticBag diagnostics)
     {
-        foreach (var stmt in block.Statements)
+        foreach(var stmt in block.Statements)
         {
-            switch (stmt)
+            switch(stmt)
             {
                 case WithPushStatementStatementNode withPush:
-                {
-                    var type = model.GetTypeOf(withPush.WithPushStatement.Value);
-                    if (type is null)
                     {
-                        var (path, location, _) = DiagnosticHelper.ResolveLocation(withPush.WithPushStatement.Value);
-                        diagnostics.Add(new Diagnostic(
-                            CannotInferContextType,
-                            DiagnosticSeverity.Error,
-                            PipelineStage.Analysis,
-                            "Cannot determine context type from expression.",
-                            Location: location,
-                            CompilationUnitPath: path,
-                            AnalyzerName: "ContextChecker"));
+                        var type = model.GetTypeOf(withPush.WithPushStatement.Value);
+                        if(type is null)
+                        {
+                            var (path, location, _) = DiagnosticHelper.ResolveLocation(withPush.WithPushStatement.Value);
+                            diagnostics.Add(new Diagnostic(
+                                CannotInferContextType,
+                                DiagnosticSeverity.Error,
+                                PipelineStage.Analysis,
+                                "Cannot determine context type from expression.",
+                                Location: location,
+                                CompilationUnitPath: path,
+                                AnalyzerName: "ContextChecker"));
+                        }
+                        break;
                     }
-                    break;
-                }
 
                 case WithBlockStatementStatementNode withBlock:
-                {
-                    var type = model.GetTypeOf(withBlock.WithBlockStatement.Expression);
-                    if (type is null)
                     {
-                        var (path, location, _) = DiagnosticHelper.ResolveLocation(withBlock.WithBlockStatement.Expression);
-                        diagnostics.Add(new Diagnostic(
-                            CannotInferContextType,
-                            DiagnosticSeverity.Error,
-                            PipelineStage.Analysis,
-                            "Cannot determine context type from expression.",
-                            Location: location,
-                            CompilationUnitPath: path,
-                            AnalyzerName: "ContextChecker"));
-                    }
+                        var type = model.GetTypeOf(withBlock.WithBlockStatement.Expression);
+                        if(type is null)
+                        {
+                            var (path, location, _) = DiagnosticHelper.ResolveLocation(withBlock.WithBlockStatement.Expression);
+                            diagnostics.Add(new Diagnostic(
+                                CannotInferContextType,
+                                DiagnosticSeverity.Error,
+                                PipelineStage.Analysis,
+                                "Cannot determine context type from expression.",
+                                Location: location,
+                                CompilationUnitPath: path,
+                                AnalyzerName: "ContextChecker"));
+                        }
 
-                    // Also walk the block body for nested statements.
-                    WalkBlockForUninferredContextTypes(withBlock.WithBlockStatement.Body, model, diagnostics);
-                    break;
-                }
+                        // Also walk the block body for nested statements.
+                        WalkBlockForUninferredContextTypes(withBlock.WithBlockStatement.Body, model, diagnostics);
+                        break;
+                    }
 
                 default:
                     // Walk nested blocks (if, while, for, foreach, etc.)
@@ -327,18 +327,18 @@ public sealed class ContextCheckerAnalyzer : IAnalyzer
     {
         // StatementNode wraps inner nodes (e.g., IfStatementStatementNode wraps IfStatementNode).
         // Walk into children to find nested blocks.
-        foreach (var child in stmt.Children())
+        foreach(var child in stmt.Children())
         {
-            if (child is null)
+            if(child is null)
                 continue;
 
-            switch (child)
+            switch(child)
             {
                 case IfStatementNode ifStmt:
                     WalkBlockForUninferredContextTypes(ifStmt.ThenBranch, model, diagnostics);
-                    if (ifStmt.ElseBranch is ElseIfElseClauseNode elseIf)
+                    if(ifStmt.ElseBranch is ElseIfElseClauseNode elseIf)
                         WalkStatementForUninferredContextTypes(elseIf.ElseIf, model, diagnostics);
-                    else if (ifStmt.ElseBranch is ElseBlockElseClauseNode elseBlock)
+                    else if(ifStmt.ElseBranch is ElseBlockElseClauseNode elseBlock)
                         WalkBlockForUninferredContextTypes(elseBlock.ElseBlock, model, diagnostics);
                     break;
 
@@ -372,20 +372,20 @@ public sealed class ContextCheckerAnalyzer : IAnalyzer
     /// </summary>
     private static void CheckContextBoundVariableAssignments(ISemanticModel model, DiagnosticBag diagnostics)
     {
-        foreach (var symbol in model.AllSymbols)
+        foreach(var symbol in model.AllSymbols)
         {
-            if (symbol is not Symbol sym)
+            if(symbol is not Symbol sym)
                 continue;
-            if (sym.Origin == SymbolOrigin.Backend)
+            if(sym.Origin == SymbolOrigin.Backend)
                 continue;
-            if (sym.Kind is not (SymbolKind.Method or SymbolKind.Constructor))
+            if(sym.Kind is not (SymbolKind.Method or SymbolKind.Constructor))
                 continue;
-            if (sym.WithClauses.Count == 0)
+            if(sym.WithClauses.Count == 0)
                 continue;
 
             // Collect the names of context-bound variables for this method.
             var contextBoundNames = new HashSet<string>();
-            foreach (var clause in sym.WithClauses)
+            foreach(var clause in sym.WithClauses)
             {
                 contextBoundNames.Add(clause.Identifier);
             }
@@ -401,7 +401,7 @@ public sealed class ContextCheckerAnalyzer : IAnalyzer
                 _ => null,
             };
 
-            if (body is null)
+            if(body is null)
                 continue;
 
             WalkBlockForContextBoundAssignments(body, contextBoundNames, model, diagnostics);
@@ -417,7 +417,7 @@ public sealed class ContextCheckerAnalyzer : IAnalyzer
         ISemanticModel model,
         DiagnosticBag diagnostics)
     {
-        foreach (var stmt in block.Statements)
+        foreach(var stmt in block.Statements)
         {
             WalkNodeForContextBoundAssignments(stmt, contextBoundNames, model, diagnostics);
         }
@@ -433,10 +433,10 @@ public sealed class ContextCheckerAnalyzer : IAnalyzer
         ISemanticModel model,
         DiagnosticBag diagnostics)
     {
-        if (node is null)
+        if(node is null)
             return;
 
-        switch (node)
+        switch(node)
         {
             case AssignmentNode assignment when assignment.Value is not null:
                 CheckContextBoundAssignment(assignment, contextBoundNames, model, diagnostics);
@@ -448,9 +448,9 @@ public sealed class ContextCheckerAnalyzer : IAnalyzer
         }
 
         // Recurse into children.
-        foreach (var child in node.Children())
+        foreach(var child in node.Children())
         {
-            if (child is not null)
+            if(child is not null)
             {
                 WalkNodeForContextBoundAssignments(child, contextBoundNames, model, diagnostics);
             }
@@ -471,10 +471,10 @@ public sealed class ContextCheckerAnalyzer : IAnalyzer
         // the target chain is: LogicalOr -> LogicalAnd -> Equality -> Relational
         // -> Additive -> Multiplicative -> Unary -> Postfix -> Primary (Identifier).
         var identifierName = ExtractSimpleAssignmentTargetName(assignment.Target);
-        if (identifierName is null)
+        if(identifierName is null)
             return;
 
-        if (contextBoundNames.Contains(identifierName))
+        if(contextBoundNames.Contains(identifierName))
         {
             var (path, location, _) = DiagnosticHelper.ResolveLocation(assignment);
             diagnostics.Add(new Diagnostic(
@@ -496,11 +496,11 @@ public sealed class ContextCheckerAnalyzer : IAnalyzer
     {
         // Walk through the expression precedence chain to find the PostfixNode.
         var postfix = FindPostfixInTarget(targetNode);
-        if (postfix is null)
+        if(postfix is null)
             return null;
 
         // A bare identifier assignment has no suffixes and an IdentifierExpressionPrimaryNode target.
-        if (postfix.Suffix.Length == 0 && postfix.Target is IdentifierExpressionPrimaryNode identifier)
+        if(postfix.Suffix.Length == 0 && postfix.Target is IdentifierExpressionPrimaryNode identifier)
         {
             return identifier.Name.Lexeme;
         }
@@ -515,7 +515,7 @@ public sealed class ContextCheckerAnalyzer : IAnalyzer
     /// </summary>
     private static PostfixNode? FindPostfixInTarget(SyntaxNode node)
     {
-        switch (node)
+        switch(node)
         {
             case PostfixNode postfix:
                 return postfix;
@@ -535,12 +535,12 @@ public sealed class ContextCheckerAnalyzer : IAnalyzer
                 return postfixUnary.Primary;
             default:
                 // Try children as fallback.
-                foreach (var child in node.Children())
+                foreach(var child in node.Children())
                 {
-                    if (child is not null)
+                    if(child is not null)
                     {
                         var result = FindPostfixInTarget(child);
-                        if (result is not null)
+                        if(result is not null)
                             return result;
                     }
                 }
@@ -561,18 +561,18 @@ public sealed class ContextCheckerAnalyzer : IAnalyzer
     {
         // Step 1: Collect all method/constructor symbols that have WithClauses.
         var methodsWithContext = new Dictionary<string, List<Symbol>>();
-        foreach (var symbol in model.AllSymbols)
+        foreach(var symbol in model.AllSymbols)
         {
-            if (symbol is not Symbol sym)
+            if(symbol is not Symbol sym)
                 continue;
-            if (sym.Origin == SymbolOrigin.Backend)
+            if(sym.Origin == SymbolOrigin.Backend)
                 continue;
-            if (sym.Kind is not (SymbolKind.Method or SymbolKind.Constructor))
+            if(sym.Kind is not (SymbolKind.Method or SymbolKind.Constructor))
                 continue;
-            if (sym.WithClauses.Count == 0)
+            if(sym.WithClauses.Count == 0)
                 continue;
 
-            if (!methodsWithContext.TryGetValue(sym.Name, out var list))
+            if(!methodsWithContext.TryGetValue(sym.Name, out var list))
             {
                 list = [];
                 methodsWithContext[sym.Name] = list;
@@ -580,17 +580,17 @@ public sealed class ContextCheckerAnalyzer : IAnalyzer
             list.Add(sym);
         }
 
-        if (methodsWithContext.Count == 0)
+        if(methodsWithContext.Count == 0)
             return;
 
         // Step 2: Walk each method/constructor body to find call sites.
-        foreach (var symbol in model.AllSymbols)
+        foreach(var symbol in model.AllSymbols)
         {
-            if (symbol is not Symbol sym)
+            if(symbol is not Symbol sym)
                 continue;
-            if (sym.Origin == SymbolOrigin.Backend)
+            if(sym.Origin == SymbolOrigin.Backend)
                 continue;
-            if (sym.Kind is not (SymbolKind.Method or SymbolKind.Constructor))
+            if(sym.Kind is not (SymbolKind.Method or SymbolKind.Constructor))
                 continue;
 
             SyntaxNode declaringNode;
@@ -604,7 +604,7 @@ public sealed class ContextCheckerAnalyzer : IAnalyzer
                 _ => null,
             };
 
-            if (body is null)
+            if(body is null)
                 continue;
 
             // Walk the body looking for call sites.
@@ -628,11 +628,11 @@ public sealed class ContextCheckerAnalyzer : IAnalyzer
         // for subsequent statements in the same block.
         var localContextTypes = new List<IType>();
 
-        foreach (var stmt in block.Statements)
+        foreach(var stmt in block.Statements)
         {
             // First, check if this statement is a context declaration.
             var contextType = TryGetContextDeclarationType(stmt, model);
-            if (contextType is not null)
+            if(contextType is not null)
             {
                 localContextTypes.Add(contextType);
             }
@@ -642,7 +642,7 @@ public sealed class ContextCheckerAnalyzer : IAnalyzer
             combinedContext.AddRange(localContextTypes);
 
             // Also add context types from the enclosing method's own with-clauses.
-            foreach (var clause in enclosingMethod.WithClauses)
+            foreach(var clause in enclosingMethod.WithClauses)
             {
                 combinedContext.Add(clause.ContextType);
             }
@@ -664,11 +664,11 @@ public sealed class ContextCheckerAnalyzer : IAnalyzer
         DiagnosticBag diagnostics)
     {
         // Handle with-block statements specially: they add context for their body.
-        if (stmt is WithBlockStatementStatementNode withBlockStmt)
+        if(stmt is WithBlockStatementStatementNode withBlockStmt)
         {
             var withBlock = withBlockStmt.WithBlockStatement;
             var blockContextType = model.GetTypeOf(withBlock.Expression);
-            if (blockContextType is not null)
+            if(blockContextType is not null)
             {
                 var innerContext = new List<IType>(availableContextTypes) { ResolveContextType(blockContextType) };
                 WalkBlockForCallSites(withBlock.Body, innerContext, enclosingMethod, model, methodsWithContext, diagnostics);
@@ -699,9 +699,9 @@ public sealed class ContextCheckerAnalyzer : IAnalyzer
         Dictionary<string, List<Symbol>> methodsWithContext,
         DiagnosticBag diagnostics)
     {
-        if (node is null)
+        if(node is null)
             return;
-        switch (node)
+        switch(node)
         {
             case PostfixNode postfix:
                 WalkPostfixForCallSites(postfix, availableContextTypes, enclosingMethod, model, methodsWithContext, diagnostics);
@@ -710,7 +710,7 @@ public sealed class ContextCheckerAnalyzer : IAnalyzer
             case ObjectCreationExpressionPrimaryNode objectCreation:
                 CheckObjectCreationCallSite(objectCreation, availableContextTypes, enclosingMethod, model, methodsWithContext, diagnostics);
                 // Also walk arguments for nested call sites.
-                if (objectCreation.Arguments is not null)
+                if(objectCreation.Arguments is not null)
                     WalkNodeForCallSites(objectCreation.Arguments, availableContextTypes, enclosingMethod, model, methodsWithContext, diagnostics);
                 return;
 
@@ -722,7 +722,7 @@ public sealed class ContextCheckerAnalyzer : IAnalyzer
             case IfStatementNode ifStmt:
                 WalkNodeForCallSites(ifStmt.Condition, availableContextTypes, enclosingMethod, model, methodsWithContext, diagnostics);
                 WalkBlockForCallSites(ifStmt.ThenBranch, availableContextTypes, enclosingMethod, model, methodsWithContext, diagnostics);
-                if (ifStmt.ElseBranch is not null)
+                if(ifStmt.ElseBranch is not null)
                     WalkNodeForCallSites(ifStmt.ElseBranch, availableContextTypes, enclosingMethod, model, methodsWithContext, diagnostics);
                 return;
 
@@ -732,11 +732,11 @@ public sealed class ContextCheckerAnalyzer : IAnalyzer
                 return;
 
             case ForStatementNode forStmt:
-                if (forStmt.Initializer is not null)
+                if(forStmt.Initializer is not null)
                     WalkNodeForCallSites(forStmt.Initializer, availableContextTypes, enclosingMethod, model, methodsWithContext, diagnostics);
-                if (forStmt.Condition is not null)
+                if(forStmt.Condition is not null)
                     WalkNodeForCallSites(forStmt.Condition, availableContextTypes, enclosingMethod, model, methodsWithContext, diagnostics);
-                if (forStmt.Iterator is not null)
+                if(forStmt.Iterator is not null)
                     WalkNodeForCallSites(forStmt.Iterator, availableContextTypes, enclosingMethod, model, methodsWithContext, diagnostics);
                 WalkBlockForCallSites(forStmt.Body, availableContextTypes, enclosingMethod, model, methodsWithContext, diagnostics);
                 return;
@@ -752,9 +752,9 @@ public sealed class ContextCheckerAnalyzer : IAnalyzer
         }
 
         // Default: recurse into children.
-        foreach (var child in node.Children())
+        foreach(var child in node.Children())
         {
-            if (child is null)
+            if(child is null)
                 continue;
             WalkNodeForCallSites(child, availableContextTypes, enclosingMethod, model, methodsWithContext, diagnostics);
         }
@@ -778,52 +778,52 @@ public sealed class ContextCheckerAnalyzer : IAnalyzer
         // Track the receiver type as we walk through suffixes.
         IType? currentType = model.GetTypeOf(postfix.Target);
 
-        for (var i = 0; i < postfix.Suffix.Length; i++)
+        for(var i = 0; i < postfix.Suffix.Length; i++)
         {
             var suffix = postfix.Suffix[i];
 
-            switch (suffix)
+            switch(suffix)
             {
                 case MethodCallSuffixPostfixSuffixNode methodCall:
-                {
-                    var methodName = methodCall.Name.Lexeme;
-
-                    // Check if this method call targets a method with WithClauses.
-                    var targetMethod = ResolveMethodCallTarget(methodName, currentType, model, methodsWithContext);
-                    if (targetMethod is not null)
                     {
-                        CheckContextRequirements(targetMethod, methodCall, availableContextTypes, model, diagnostics);
+                        var methodName = methodCall.Name.Lexeme;
+
+                        // Check if this method call targets a method with WithClauses.
+                        var targetMethod = ResolveMethodCallTarget(methodName, currentType, model, methodsWithContext);
+                        if(targetMethod is not null)
+                        {
+                            CheckContextRequirements(targetMethod, methodCall, availableContextTypes, model, diagnostics);
+                        }
+
+                        // Walk arguments for nested call sites.
+                        if(methodCall.Arguments is not null)
+                            WalkNodeForCallSites(methodCall.Arguments, availableContextTypes, enclosingMethod, model, methodsWithContext, diagnostics);
+
+                        // Update current type for next suffix.
+                        currentType = model.GetTypeOf(suffix);
+                        break;
                     }
-
-                    // Walk arguments for nested call sites.
-                    if (methodCall.Arguments is not null)
-                        WalkNodeForCallSites(methodCall.Arguments, availableContextTypes, enclosingMethod, model, methodsWithContext, diagnostics);
-
-                    // Update current type for next suffix.
-                    currentType = model.GetTypeOf(suffix);
-                    break;
-                }
 
                 case InvocationSuffixPostfixSuffixNode invocation:
-                {
-                    // Direct invocation: target identifier is the method name.
-                    if (postfix.Target is IdentifierExpressionPrimaryNode identifier && i == 0)
                     {
-                        var methodName = identifier.Name.Lexeme;
-                        var targetMethod = ResolveStandaloneCallTarget(methodName, enclosingMethod, model, methodsWithContext);
-                        if (targetMethod is not null)
+                        // Direct invocation: target identifier is the method name.
+                        if(postfix.Target is IdentifierExpressionPrimaryNode identifier && i == 0)
                         {
-                            CheckContextRequirements(targetMethod, invocation, availableContextTypes, model, diagnostics);
+                            var methodName = identifier.Name.Lexeme;
+                            var targetMethod = ResolveStandaloneCallTarget(methodName, enclosingMethod, model, methodsWithContext);
+                            if(targetMethod is not null)
+                            {
+                                CheckContextRequirements(targetMethod, invocation, availableContextTypes, model, diagnostics);
+                            }
                         }
+
+                        // Walk arguments for nested call sites.
+                        if(invocation.Arguments is not null)
+                            WalkNodeForCallSites(invocation.Arguments, availableContextTypes, enclosingMethod, model, methodsWithContext, diagnostics);
+
+                        currentType = model.GetTypeOf(suffix);
+                        break;
                     }
-
-                    // Walk arguments for nested call sites.
-                    if (invocation.Arguments is not null)
-                        WalkNodeForCallSites(invocation.Arguments, availableContextTypes, enclosingMethod, model, methodsWithContext, diagnostics);
-
-                    currentType = model.GetTypeOf(suffix);
-                    break;
-                }
 
                 default:
                     // For member access, index, etc., just update the type.
@@ -863,28 +863,28 @@ public sealed class ContextCheckerAnalyzer : IAnalyzer
         Dictionary<string, List<Symbol>> methodsWithContext)
     {
         // Quick check: if no method with this name has WithClauses, skip resolution.
-        if (!methodsWithContext.ContainsKey(methodName))
+        if(!methodsWithContext.ContainsKey(methodName))
             return null;
 
-        if (receiverType is null)
+        if(receiverType is null)
             return null;
 
         var scope = GetMemberScope(receiverType);
-        if (scope is not null)
+        if(scope is not null)
         {
-            foreach (var member in scope.Members)
+            foreach(var member in scope.Members)
             {
-                if (member.Name == methodName && member is Symbol sym && sym.WithClauses.Count > 0)
+                if(member.Name == methodName && member is Symbol sym && sym.WithClauses.Count > 0)
                     return sym;
             }
         }
 
         // For abstract type dispatch, use the abstract type method's with-clauses.
-        if (receiverType is AbstractType abstractType)
+        if(receiverType is AbstractType abstractType)
         {
-            foreach (var member in abstractType.MemberScope.Members)
+            foreach(var member in abstractType.MemberScope.Members)
             {
-                if (member.Name == methodName && member is Symbol sym && sym.WithClauses.Count > 0)
+                if(member.Name == methodName && member is Symbol sym && sym.WithClauses.Count > 0)
                     return sym;
             }
         }
@@ -903,25 +903,25 @@ public sealed class ContextCheckerAnalyzer : IAnalyzer
         Dictionary<string, List<Symbol>> methodsWithContext)
     {
         // Quick check: if no method with this name has WithClauses, skip resolution.
-        if (!methodsWithContext.ContainsKey(methodName))
+        if(!methodsWithContext.ContainsKey(methodName))
             return null;
 
         // Look in the enclosing type's scope first.
         var enclosingTypeScope = FindEnclosingTypeScope(enclosingMethod);
-        if (enclosingTypeScope is not null)
+        if(enclosingTypeScope is not null)
         {
-            foreach (var member in enclosingTypeScope.Members)
+            foreach(var member in enclosingTypeScope.Members)
             {
-                if (member.Name == methodName && member is Symbol sym && sym.WithClauses.Count > 0)
+                if(member.Name == methodName && member is Symbol sym && sym.WithClauses.Count > 0)
                     return sym;
             }
         }
 
         // Fall back to all symbols (for methods in the same type or accessible types).
-        if (methodsWithContext.TryGetValue(methodName, out var candidates))
+        if(methodsWithContext.TryGetValue(methodName, out var candidates))
         {
             // Return the first candidate (in practice there should be one matching).
-            foreach (var candidate in candidates)
+            foreach(var candidate in candidates)
             {
                 return candidate;
             }
@@ -944,17 +944,17 @@ public sealed class ContextCheckerAnalyzer : IAnalyzer
     {
         // Resolve the type being constructed.
         var createdType = model.GetTypeOf(objectCreation);
-        if (createdType is null)
+        if(createdType is null)
             return;
 
         // Look for constructors with WithClauses on the created type.
         var scope = GetMemberScope(createdType);
-        if (scope is null)
+        if(scope is null)
             return;
 
-        foreach (var member in scope.Members)
+        foreach(var member in scope.Members)
         {
-            if (member is Symbol sym && sym.Kind == SymbolKind.Constructor && sym.WithClauses.Count > 0)
+            if(member is Symbol sym && sym.Kind == SymbolKind.Constructor && sym.WithClauses.Count > 0)
             {
                 CheckContextRequirements(sym, objectCreation, availableContextTypes, model, diagnostics);
                 break; // Only check the first matching constructor.
@@ -975,16 +975,16 @@ public sealed class ContextCheckerAnalyzer : IAnalyzer
         DiagnosticBag diagnostics)
     {
         var createdType = model.GetTypeOf(objectCreation);
-        if (createdType is null)
+        if(createdType is null)
             return;
 
         var scope = GetMemberScope(createdType);
-        if (scope is null)
+        if(scope is null)
             return;
 
-        foreach (var member in scope.Members)
+        foreach(var member in scope.Members)
         {
-            if (member is Symbol sym && sym.Kind == SymbolKind.Constructor && sym.WithClauses.Count > 0)
+            if(member is Symbol sym && sym.Kind == SymbolKind.Constructor && sym.WithClauses.Count > 0)
             {
                 CheckContextRequirements(sym, objectCreation, availableContextTypes, model, diagnostics);
                 break;
@@ -1005,11 +1005,11 @@ public sealed class ContextCheckerAnalyzer : IAnalyzer
         ISemanticModel model,
         DiagnosticBag diagnostics)
     {
-        foreach (var clause in targetMethod.WithClauses)
+        foreach(var clause in targetMethod.WithClauses)
         {
             var requiredType = ResolveContextType(clause.ContextType);
 
-            if (!IsContextTypeSatisfied(requiredType, availableContextTypes))
+            if(!IsContextTypeSatisfied(requiredType, availableContextTypes))
             {
                 var (path, location, _) = DiagnosticHelper.ResolveLocation(callSiteNode);
                 diagnostics.Add(new Diagnostic(
@@ -1029,9 +1029,9 @@ public sealed class ContextCheckerAnalyzer : IAnalyzer
     /// </summary>
     private static bool IsContextTypeSatisfied(IType requiredType, List<IType> availableContextTypes)
     {
-        foreach (var available in availableContextTypes)
+        foreach(var available in availableContextTypes)
         {
-            if (ContextTypesMatch(requiredType, available))
+            if(ContextTypesMatch(requiredType, available))
                 return true;
         }
         return false;
@@ -1049,7 +1049,7 @@ public sealed class ContextCheckerAnalyzer : IAnalyzer
     private static IType ResolveContextType(IType type)
     {
         // Resolve type aliases recursively.
-        while (type is TypeAliasType alias)
+        while(type is TypeAliasType alias)
         {
             type = alias.UnderlyingType;
         }
@@ -1068,7 +1068,7 @@ public sealed class ContextCheckerAnalyzer : IAnalyzer
         var resolvedAvailable = ResolveContextType(available);
 
         // Reference equality (canonical types).
-        if (ReferenceEquals(resolvedRequired, resolvedAvailable))
+        if(ReferenceEquals(resolvedRequired, resolvedAvailable))
             return true;
 
         // Fall back to DisplayName comparison for structural equality.
@@ -1083,43 +1083,43 @@ public sealed class ContextCheckerAnalyzer : IAnalyzer
     /// </summary>
     private static IType? TryGetContextDeclarationType(StatementNode stmt, ISemanticModel model)
     {
-        switch (stmt)
+        switch(stmt)
         {
             case WithVarDeclarationStatementStatementNode withVar:
-            {
-                // Type is inferred from the initializer expression.
-                var type = model.GetTypeOf(withVar.WithVarDeclaration.Initializer);
-                return type is not null ? ResolveContextType(type) : null;
-            }
+                {
+                    // Type is inferred from the initializer expression.
+                    var type = model.GetTypeOf(withVar.WithVarDeclaration.Initializer);
+                    return type is not null ? ResolveContextType(type) : null;
+                }
 
             case WithTypedDeclarationStatementStatementNode withTyped:
-            {
-                // Type is the explicit type reference.
-                var type = model.GetTypeOf(withTyped.WithTypedDeclaration.Type);
-                if (type is not null)
-                    return ResolveContextType(type);
-                // Fall back to looking up the declared symbol's type.
-                var sym = model.GetDeclaredSymbol(withTyped.WithTypedDeclaration);
-                return sym?.DeclaredType is not null ? ResolveContextType(sym.DeclaredType) : null;
-            }
+                {
+                    // Type is the explicit type reference.
+                    var type = model.GetTypeOf(withTyped.WithTypedDeclaration.Type);
+                    if(type is not null)
+                        return ResolveContextType(type);
+                    // Fall back to looking up the declared symbol's type.
+                    var sym = model.GetDeclaredSymbol(withTyped.WithTypedDeclaration);
+                    return sym?.DeclaredType is not null ? ResolveContextType(sym.DeclaredType) : null;
+                }
 
             case WithDiscardDeclarationStatementStatementNode withDiscard:
-            {
-                // Type is the explicit type reference.
-                var type = model.GetTypeOf(withDiscard.WithDiscardDeclaration.Type);
-                if (type is not null)
-                    return ResolveContextType(type);
-                // Try resolving from the initializer as fallback.
-                var initType = model.GetTypeOf(withDiscard.WithDiscardDeclaration.Initializer);
-                return initType is not null ? ResolveContextType(initType) : null;
-            }
+                {
+                    // Type is the explicit type reference.
+                    var type = model.GetTypeOf(withDiscard.WithDiscardDeclaration.Type);
+                    if(type is not null)
+                        return ResolveContextType(type);
+                    // Try resolving from the initializer as fallback.
+                    var initType = model.GetTypeOf(withDiscard.WithDiscardDeclaration.Initializer);
+                    return initType is not null ? ResolveContextType(initType) : null;
+                }
 
             case WithPushStatementStatementNode withPush:
-            {
-                // Type is inferred from the expression.
-                var type = model.GetTypeOf(withPush.WithPushStatement.Value);
-                return type is not null ? ResolveContextType(type) : null;
-            }
+                {
+                    // Type is inferred from the expression.
+                    var type = model.GetTypeOf(withPush.WithPushStatement.Value);
+                    return type is not null ? ResolveContextType(type) : null;
+                }
 
             // WithBlockStatement is handled separately in WalkStatementForCallSites
             // because it provides context only for its body, not for subsequent statements.
@@ -1137,7 +1137,7 @@ public sealed class ContextCheckerAnalyzer : IAnalyzer
     /// </summary>
     private static IScope? GetMemberScope(IType type)
     {
-        if (type is ConstructedType constructed)
+        if(type is ConstructedType constructed)
             type = constructed.GenericDefinition;
 
         return type switch
@@ -1173,39 +1173,39 @@ public sealed class ContextCheckerAnalyzer : IAnalyzer
     {
         // Step 1: Collect all abstract type methods that have WithClauses.
         var abstractMethodsWithClauses = new List<(AbstractType Abstract, Symbol Method)>();
-        foreach (var symbol in model.AllSymbols)
+        foreach(var symbol in model.AllSymbols)
         {
-            if (symbol is not Symbol sym)
+            if(symbol is not Symbol sym)
                 continue;
-            if (sym.Origin == SymbolOrigin.Backend)
+            if(sym.Origin == SymbolOrigin.Backend)
                 continue;
-            if (sym.Kind != SymbolKind.Method)
+            if(sym.Kind != SymbolKind.Method)
                 continue;
-            if (sym.WithClauses.Count == 0)
+            if(sym.WithClauses.Count == 0)
                 continue;
 
             // Check if this method belongs to an abstract type.
-            if (sym.ContainingScope is IScope scope)
+            if(sym.ContainingScope is IScope scope)
             {
                 var ownerType = FindOwnerType(scope, model);
-                if (ownerType is AbstractType abstractType)
+                if(ownerType is AbstractType abstractType)
                 {
                     abstractMethodsWithClauses.Add((abstractType, sym));
                 }
             }
         }
 
-        if (abstractMethodsWithClauses.Count == 0)
+        if(abstractMethodsWithClauses.Count == 0)
             return;
 
         // Step 2: For each class/struct that implements an abstract type, check its methods.
-        foreach (var symbol in model.AllSymbols)
+        foreach(var symbol in model.AllSymbols)
         {
-            if (symbol is not Symbol typeSym)
+            if(symbol is not Symbol typeSym)
                 continue;
-            if (typeSym.Origin == SymbolOrigin.Backend)
+            if(typeSym.Origin == SymbolOrigin.Backend)
                 continue;
-            if (typeSym.Kind is not (SymbolKind.Class or SymbolKind.Struct))
+            if(typeSym.Kind is not (SymbolKind.Class or SymbolKind.Struct))
                 continue;
 
             var type = typeSym.DeclaredType;
@@ -1216,7 +1216,7 @@ public sealed class ContextCheckerAnalyzer : IAnalyzer
                 _ => null,
             };
 
-            if (abstracts is null || abstracts.Count == 0)
+            if(abstracts is null || abstracts.Count == 0)
                 continue;
 
             IScope? memberScope = type switch
@@ -1226,18 +1226,18 @@ public sealed class ContextCheckerAnalyzer : IAnalyzer
                 _ => null,
             };
 
-            if (memberScope is null)
+            if(memberScope is null)
                 continue;
 
             // Check each abstract type method with with-clauses.
-            foreach (var (abstractType, abstractMethod) in abstractMethodsWithClauses)
+            foreach(var (abstractType, abstractMethod) in abstractMethodsWithClauses)
             {
-                if (!ImplementsAbstract(abstracts, abstractType))
+                if(!ImplementsAbstract(abstracts, abstractType))
                     continue;
 
                 // Find the implementing method on this type.
                 var implMethod = FindImplementingMethod(abstractMethod, memberScope);
-                if (implMethod is null)
+                if(implMethod is null)
                     continue; // Missing method implementation is reported by the type checker.
 
                 // Verify with-clause contract.
@@ -1252,13 +1252,13 @@ public sealed class ContextCheckerAnalyzer : IAnalyzer
     /// </summary>
     private static IType? FindOwnerType(IScope memberScope, ISemanticModel model)
     {
-        foreach (var symbol in model.AllSymbols)
+        foreach(var symbol in model.AllSymbols)
         {
-            if (symbol.DeclaredType is AbstractType it && it.MemberScope == memberScope)
+            if(symbol.DeclaredType is AbstractType it && it.MemberScope == memberScope)
                 return it;
-            if (symbol.DeclaredType is ClassType ct && ct.MemberScope == memberScope)
+            if(symbol.DeclaredType is ClassType ct && ct.MemberScope == memberScope)
                 return ct;
-            if (symbol.DeclaredType is StructType st && st.MemberScope == memberScope)
+            if(symbol.DeclaredType is StructType st && st.MemberScope == memberScope)
                 return st;
         }
         return null;
@@ -1270,14 +1270,14 @@ public sealed class ContextCheckerAnalyzer : IAnalyzer
     /// </summary>
     private static bool ImplementsAbstract(IReadOnlyList<IType> abstracts, AbstractType target)
     {
-        foreach (var abs in abstracts)
+        foreach(var abs in abstracts)
         {
-            if (abs is AbstractType at)
+            if(abs is AbstractType at)
             {
-                if (ReferenceEquals(at, target))
+                if(ReferenceEquals(at, target))
                     return true;
                 // Check parent abstract types recursively.
-                if (at.Abstracts.Count > 0 && ImplementsAbstract(at.Abstracts, target))
+                if(at.Abstracts.Count > 0 && ImplementsAbstract(at.Abstracts, target))
                     return true;
             }
         }
@@ -1290,9 +1290,9 @@ public sealed class ContextCheckerAnalyzer : IAnalyzer
     /// </summary>
     private static Symbol? FindImplementingMethod(Symbol abstractMethod, IScope memberScope)
     {
-        foreach (var member in memberScope.Members)
+        foreach(var member in memberScope.Members)
         {
-            if (member is Symbol sym
+            if(member is Symbol sym
                 && sym.Kind == SymbolKind.Method
                 && sym.Name == abstractMethod.Name)
             {
@@ -1314,30 +1314,30 @@ public sealed class ContextCheckerAnalyzer : IAnalyzer
         ISemanticModel model,
         DiagnosticBag diagnostics)
     {
-        foreach (var requiredClause in abstractMethod.WithClauses)
+        foreach(var requiredClause in abstractMethod.WithClauses)
         {
             var requiredType = ResolveContextType(requiredClause.ContextType);
 
             // Check if the implementing method has a matching with-clause.
             var found = false;
-            foreach (var implClause in implMethod.WithClauses)
+            foreach(var implClause in implMethod.WithClauses)
             {
                 var implType = ResolveContextType(implClause.ContextType);
-                if (ContextTypesMatch(requiredType, implType))
+                if(ContextTypesMatch(requiredType, implType))
                 {
                     found = true;
                     break;
                 }
             }
 
-            if (!found)
+            if(!found)
             {
                 // Emit MIST_CTX_0006: implementing method is missing a required with-clause.
                 SyntaxNode? implNode;
                 try { implNode = model.GetDeclaringNode(implMethod); }
                 catch { implNode = null; }
 
-                if (implNode is not null)
+                if(implNode is not null)
                 {
                     var (path, location, _) = DiagnosticHelper.ResolveLocation(implNode);
                     diagnostics.Add(new Diagnostic(

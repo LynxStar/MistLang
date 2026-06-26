@@ -33,7 +33,7 @@ public sealed class ManualDropFieldCompletionTests : IDisposable
 
     public void Dispose()
     {
-        if (Directory.Exists(_outputDir))
+        if(Directory.Exists(_outputDir))
         {
             try { Directory.Delete(_outputDir, recursive: true); } catch { /* best effort */ }
         }
@@ -78,9 +78,9 @@ public sealed class ManualDropFieldCompletionTests : IDisposable
             $"Compilation produced errors:\n{string.Join("\n", errors.Select(e => $"  {e.Id.Value}: {e.Message}"))}");
 
         Assert.NotNull(result.EmittedFiles);
-        foreach (var (_, content) in result.EmittedFiles!)
+        foreach(var (_, content) in result.EmittedFiles!)
         {
-            if (content.Contains("namespace TestProgram"))
+            if(content.Contains("namespace TestProgram"))
                 return content;
         }
 
@@ -350,28 +350,28 @@ public sealed class ManualDropFieldCompletionTests : IDisposable
     {
         // Find the class
         var classIdx = emitted.IndexOf($"class {className}", StringComparison.Ordinal);
-        if (classIdx < 0)
+        if(classIdx < 0)
             return null;
 
         // Find the method within the class region
         var methodPattern = $"void {methodName}()";
         var searchStart = classIdx;
         var methodIdx = emitted.IndexOf(methodPattern, searchStart, StringComparison.Ordinal);
-        if (methodIdx < 0)
+        if(methodIdx < 0)
             return null;
 
         // Find the opening brace of the method body
         var braceIdx = emitted.IndexOf('{', methodIdx);
-        if (braceIdx < 0)
+        if(braceIdx < 0)
             return null;
 
         // Find the matching closing brace
         var depth = 1;
         var pos = braceIdx + 1;
-        while (pos < emitted.Length && depth > 0)
+        while(pos < emitted.Length && depth > 0)
         {
-            if (emitted[pos] == '{') depth++;
-            else if (emitted[pos] == '}') depth--;
+            if(emitted[pos] == '{') depth++;
+            else if(emitted[pos] == '}') depth--;
             pos++;
         }
 
@@ -382,7 +382,7 @@ public sealed class ManualDropFieldCompletionTests : IDisposable
     {
         var count = 0;
         var idx = 0;
-        while ((idx = text.IndexOf(pattern, idx, StringComparison.Ordinal)) >= 0)
+        while((idx = text.IndexOf(pattern, idx, StringComparison.Ordinal)) >= 0)
         {
             count++;
             idx += pattern.Length;

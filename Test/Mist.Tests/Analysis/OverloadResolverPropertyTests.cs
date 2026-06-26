@@ -209,26 +209,40 @@ public class OverloadResolverPropertyTests
     /// </summary>
     private static bool ArePrimitiveEquivalent(IType a, IType b)
     {
-        if (a.DisplayName == b.DisplayName)
+        if(a.DisplayName == b.DisplayName)
             return true;
 
         // Map legacy display names to stdlib names and vice versa.
         var map = new Dictionary<string, string>
         {
-            ["int"] = "Int32", ["Int32"] = "int",
-            ["long"] = "Int64", ["Int64"] = "long",
-            ["short"] = "Int16", ["Int16"] = "short",
-            ["float"] = "Single", ["Single"] = "float",
-            ["double"] = "Double", ["Double"] = "double",
-            ["decimal"] = "Decimal", ["Decimal"] = "decimal",
-            ["bool"] = "Boolean", ["Boolean"] = "bool",
-            ["char"] = "Char", ["Char"] = "char",
-            ["string"] = "String", ["String"] = "string",
-            ["byte"] = "Byte", ["Byte"] = "byte",
-            ["sbyte"] = "SByte", ["SByte"] = "sbyte",
-            ["ushort"] = "UInt16", ["UInt16"] = "ushort",
-            ["uint"] = "UInt32", ["UInt32"] = "uint",
-            ["ulong"] = "UInt64", ["UInt64"] = "ulong",
+            ["int"] = "Int32",
+            ["Int32"] = "int",
+            ["long"] = "Int64",
+            ["Int64"] = "long",
+            ["short"] = "Int16",
+            ["Int16"] = "short",
+            ["float"] = "Single",
+            ["Single"] = "float",
+            ["double"] = "Double",
+            ["Double"] = "double",
+            ["decimal"] = "Decimal",
+            ["Decimal"] = "decimal",
+            ["bool"] = "Boolean",
+            ["Boolean"] = "bool",
+            ["char"] = "Char",
+            ["Char"] = "char",
+            ["string"] = "String",
+            ["String"] = "string",
+            ["byte"] = "Byte",
+            ["Byte"] = "byte",
+            ["sbyte"] = "SByte",
+            ["SByte"] = "sbyte",
+            ["ushort"] = "UInt16",
+            ["UInt16"] = "ushort",
+            ["uint"] = "UInt32",
+            ["UInt32"] = "uint",
+            ["ulong"] = "UInt64",
+            ["UInt64"] = "ulong",
         };
 
         return map.TryGetValue(a.DisplayName, out var mapped) && mapped == b.DisplayName;
@@ -432,7 +446,7 @@ public class OverloadResolverPropertyTests
     {
         // Arrange: build methods with distinct single-parameter types
         var methods = new List<MethodDeclarationNode>();
-        for (var i = 0; i < scenario.OverloadParamTypes.Count; i++)
+        for(var i = 0; i < scenario.OverloadParamTypes.Count; i++)
         {
             methods.Add(MakeMethod("M", scenario.OverloadParamTypes[i]));
         }
@@ -441,7 +455,7 @@ public class OverloadResolverPropertyTests
         var candidates = GetMethodCandidates(model, "M");
 
         // Verify we got the expected number of candidates
-        if (candidates.Count != scenario.OverloadParamTypes.Count)
+        if(candidates.Count != scenario.OverloadParamTypes.Count)
             return false;
 
         // Act: call with the exact type of the matching overload
@@ -449,11 +463,11 @@ public class OverloadResolverPropertyTests
         var result = OverloadResolver.Resolve(candidates, argTypes, model);
 
         // Assert: resolution succeeds
-        if (result.Status != OverloadResolutionStatus.Success)
+        if(result.Status != OverloadResolutionStatus.Success)
             return false;
 
         // Assert: the selected candidate has the expected parameter type
-        if (result.BestCandidate is null)
+        if(result.BestCandidate is null)
             return false;
 
         var selectedSig = ParameterSignature.Extract(result.BestCandidate, model);
@@ -482,7 +496,7 @@ public class OverloadResolverPropertyTests
         var model = BuildClassWithMethods("C", new[] { specificMethod, broadMethod });
         var candidates = GetMethodCandidates(model, "M");
 
-        if (candidates.Count != 2)
+        if(candidates.Count != 2)
             return false;
 
         // Act: call with the specific type as argument
@@ -490,10 +504,10 @@ public class OverloadResolverPropertyTests
         var result = OverloadResolver.Resolve(candidates, argTypes, model);
 
         // Assert: resolution succeeds and picks the specific overload
-        if (result.Status != OverloadResolutionStatus.Success)
+        if(result.Status != OverloadResolutionStatus.Success)
             return false;
 
-        if (result.BestCandidate is null)
+        if(result.BestCandidate is null)
             return false;
 
         var selectedSig = ParameterSignature.Extract(result.BestCandidate, model);
@@ -516,7 +530,7 @@ public class OverloadResolverPropertyTests
     {
         // Arrange: build methods with the given parameter types
         var methods = new List<MethodDeclarationNode>();
-        for (var i = 0; i < scenario.OverloadParamTypes.Count; i++)
+        for(var i = 0; i < scenario.OverloadParamTypes.Count; i++)
         {
             methods.Add(MakeMethod("M", scenario.OverloadParamTypes[i]));
         }
@@ -524,18 +538,18 @@ public class OverloadResolverPropertyTests
         var model = BuildClassWithMethods("C", methods);
         var candidates = GetMethodCandidates(model, "M");
 
-        if (candidates.Count != scenario.OverloadParamTypes.Count)
+        if(candidates.Count != scenario.OverloadParamTypes.Count)
             return false;
 
         // Act
         var result = OverloadResolver.Resolve(candidates, scenario.ArgumentTypes, model);
 
         // Assert: no applicable candidate
-        if (result.Status != OverloadResolutionStatus.NoApplicableCandidate)
+        if(result.Status != OverloadResolutionStatus.NoApplicableCandidate)
             return false;
 
         // Assert: no best candidate selected
-        if (result.BestCandidate is not null)
+        if(result.BestCandidate is not null)
             return false;
 
         return true;
@@ -565,7 +579,7 @@ public class OverloadResolverPropertyTests
         var model = BuildClassWithMethodsWithStdlib("C", new[] { method1, method2 });
         var candidates = GetMethodCandidates(model, "M");
 
-        if (candidates.Count != 2)
+        if(candidates.Count != 2)
             return false;
 
         // Look up the actual stdlib type for the argument so that
@@ -576,15 +590,15 @@ public class OverloadResolverPropertyTests
         var result = OverloadResolver.Resolve(candidates, argTypes, model);
 
         // Assert: ambiguous call
-        if (result.Status != OverloadResolutionStatus.AmbiguousCall)
+        if(result.Status != OverloadResolutionStatus.AmbiguousCall)
             return false;
 
         // Assert: no single best candidate
-        if (result.BestCandidate is not null)
+        if(result.BestCandidate is not null)
             return false;
 
         // Assert: ambiguous candidates list is populated with at least 2 candidates
-        if (result.AmbiguousCandidates is null || result.AmbiguousCandidates.Count < 2)
+        if(result.AmbiguousCandidates is null || result.AmbiguousCandidates.Count < 2)
             return false;
 
         return true;

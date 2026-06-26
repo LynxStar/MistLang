@@ -109,20 +109,26 @@ public static class MistPatternGenerator
         var intTypePattern = from bindName in Gen.Elements(BindingNames)
                              select (PrimaryPatternNode)new TypePatternPrimaryPatternNode
                              {
-                                 Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                                 Type = new TypeReferenceNode
                                  {
-                                     PrimitiveType = new IntTypePrimitiveTypeNode(),
-                                 } },
+                                     First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                                     {
+                                         PrimitiveType = new IntTypePrimitiveTypeNode(),
+                                     }
+                                 },
                                  Name = Tok(bindName),
                              };
 
         var stringTypePattern = from bindName in Gen.Elements(BindingNames)
                                 select (PrimaryPatternNode)new TypePatternPrimaryPatternNode
                                 {
-                                    Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                                    Type = new TypeReferenceNode
                                     {
-                                        PrimitiveType = new StringTypePrimitiveTypeNode(),
-                                    } },
+                                        First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                                        {
+                                            PrimitiveType = new StringTypePrimitiveTypeNode(),
+                                        }
+                                    },
                                     Name = Tok(bindName),
                                 };
 
@@ -368,18 +374,24 @@ public static class MistPatternGenerator
                select MakeOrPattern(
                    new TypePatternPrimaryPatternNode
                    {
-                       Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                       Type = new TypeReferenceNode
                        {
-                           PrimitiveType = new IntTypePrimitiveTypeNode(),
-                       } },
+                           First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                           {
+                               PrimitiveType = new IntTypePrimitiveTypeNode(),
+                           }
+                       },
                        Name = Tok(leftBind),
                    },
                    new TypePatternPrimaryPatternNode
                    {
-                       Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                       Type = new TypeReferenceNode
                        {
-                           PrimitiveType = new StringTypePrimitiveTypeNode(),
-                       } },
+                           First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                           {
+                               PrimitiveType = new StringTypePrimitiveTypeNode(),
+                           }
+                       },
                        Name = Tok(rightBind),
                    });
     }
@@ -601,9 +613,9 @@ public static class MistPatternGenerator
     /// </summary>
     private static StatementNode RebuildDeclarationWithName(StatementNode decl, string newName)
     {
-        if (decl is VariableDeclarationStatementStatementNode varDeclStmt)
+        if(decl is VariableDeclarationStatementStatementNode varDeclStmt)
         {
-            if (varDeclStmt.VariableDeclaration is TypedVariableDeclarationVariableDeclarationStatementNode typed)
+            if(varDeclStmt.VariableDeclaration is TypedVariableDeclarationVariableDeclarationStatementNode typed)
             {
                 return new VariableDeclarationStatementStatementNode
                 {

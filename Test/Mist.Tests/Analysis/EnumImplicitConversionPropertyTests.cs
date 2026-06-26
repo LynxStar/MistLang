@@ -168,16 +168,19 @@ public class EnumImplicitConversionPropertyTests
     }
 
     private static TypeReferenceNode MakeIntTypeRef() =>
-        new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
+        new TypeReferenceNode
         {
-            PrimitiveType = new IntTypePrimitiveTypeNode(),
-        } };
+            First = new PrimitiveSingleTypeRefSingleTypeRefNode
+            {
+                PrimitiveType = new IntTypePrimitiveTypeNode(),
+            }
+        };
 
     private static CompilationUnitNode BuildAst(EnumImplicitConversionScenario scenario)
     {
         // Build enum declaration with integer values.
         var members = new List<EnumMemberNode>();
-        for (var i = 0; i < scenario.MemberNames.Count; i++)
+        for(var i = 0; i < scenario.MemberNames.Count; i++)
         {
             members.Add(MakeEnumMember(scenario.MemberNames[i], i));
         }
@@ -271,7 +274,7 @@ public class EnumImplicitConversionPropertyTests
             .Where(d => d.Id.Value != "MIST_TC_0017")
             .ToList();
 
-        if (allErrors.Count > 0)
+        if(allErrors.Count > 0)
             return false.ToProperty()
                 .Label($"Expected no errors for implicit conversion of {scenario.EnumName} to int, " +
                        $"got: [{string.Join("; ", allErrors.Select(e => $"{e.Id.Value}: {e.Message}"))}]");

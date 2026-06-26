@@ -276,7 +276,7 @@ public sealed class AnonymousTypeEqualityOperatorPropertyTests
             .Where(d => d.Id.Value == EqualityMismatchId)
             .ToList();
 
-        if (mismatchDiags.Count > 0)
+        if(mismatchDiags.Count > 0)
         {
             var messages = string.Join("\n", mismatchDiags.Select(d => $"  {d.Message}"));
             return false.ToProperty().Label(
@@ -305,7 +305,7 @@ public sealed class AnonymousTypeEqualityOperatorPropertyTests
             .Where(d => d.Id.Value == EqualityMismatchId)
             .ToList();
 
-        if (mismatchDiags.Count == 0)
+        if(mismatchDiags.Count == 0)
         {
             var allDiags = string.Join("\n", diagnostics.Select(d => $"  {d.Id.Value}: {d.Message}"));
             return false.ToProperty().Label(
@@ -317,7 +317,7 @@ public sealed class AnonymousTypeEqualityOperatorPropertyTests
         var mentionsShape = mismatchDiags.Any(d =>
             d.Message.Contains("different shapes", StringComparison.OrdinalIgnoreCase));
 
-        if (!mentionsShape)
+        if(!mentionsShape)
         {
             var messages = string.Join("\n", mismatchDiags.Select(d => d.Message));
             return false.ToProperty().Label(

@@ -404,12 +404,12 @@ public static class AstEmitter
             var propName = PascalCase(label.Label);
             propName = EnsureUnique(propName, usedNames);
             PropertyInfo propInfo;
-            if (tokensInsideRepetition.Contains(label.Expression))
+            if(tokensInsideRepetition.Contains(label.Expression))
             {
                 // The labeled token is inside a * or + repetition — generate a list property
                 propInfo = new PropertyInfo(propName, "ImmutableArray<Token>", false, false, true, " = ImmutableArray<Token>.Empty;");
             }
-            else if (exprsInsideOptional.Contains(label.Expression))
+            else if(exprsInsideOptional.Contains(label.Expression))
             {
                 // The labeled expression is inside an optional group — make it nullable
                 propInfo = GetPropertyInfo(label.Expression, propName) switch
@@ -440,19 +440,19 @@ public static class AstEmitter
     /// </summary>
     private static void CollectTokensInsideRepetition(ExpressionIR expr, bool insideRep, HashSet<ExpressionIR> result)
     {
-        if (insideRep && expr is TokenRefIR)
+        if(insideRep && expr is TokenRefIR)
         {
             result.Add(expr);
         }
 
-        switch (expr)
+        switch(expr)
         {
             case SequenceIR seq:
-                foreach (var elem in seq.Elements)
+                foreach(var elem in seq.Elements)
                     CollectTokensInsideRepetition(elem, insideRep, result);
                 break;
             case AlternationIR alt:
-                foreach (var a in alt.Alternatives)
+                foreach(var a in alt.Alternatives)
                     CollectTokensInsideRepetition(a, insideRep, result);
                 break;
             case OptionalIR opt:
@@ -476,19 +476,19 @@ public static class AstEmitter
     /// </summary>
     private static void CollectExpressionsInsideOptional(ExpressionIR expr, bool insideOpt, HashSet<ExpressionIR> result)
     {
-        if (insideOpt && (expr is TokenRefIR || expr is AlternationIR))
+        if(insideOpt && (expr is TokenRefIR || expr is AlternationIR))
         {
             result.Add(expr);
         }
 
-        switch (expr)
+        switch(expr)
         {
             case SequenceIR seq:
-                foreach (var elem in seq.Elements)
+                foreach(var elem in seq.Elements)
                     CollectExpressionsInsideOptional(elem, insideOpt, result);
                 break;
             case AlternationIR alt:
-                foreach (var a in alt.Alternatives)
+                foreach(var a in alt.Alternatives)
                     CollectExpressionsInsideOptional(a, insideOpt, result);
                 break;
             case OptionalIR opt:
@@ -617,13 +617,13 @@ public static class AstEmitter
             case SequenceIR seq:
                 {
                     var seqRuleRef = seq.Elements.OfType<RuleRefIR>().FirstOrDefault();
-                    if (seqRuleRef != null)
+                    if(seqRuleRef != null)
                     {
                         var name = EnsureUnique(PascalCase(seqRuleRef.Rule.Name), usedNames);
                         return new PropertyInfo(name, seqRuleRef.Rule.Name + "Node?", true, true, false, "");
                     }
                     var seqTokenRef = seq.Elements.OfType<TokenRefIR>().LastOrDefault();
-                    if (seqTokenRef != null)
+                    if(seqTokenRef != null)
                     {
                         var name = EnsureUnique(PascalCase(seqTokenRef.Token.Name), usedNames);
                         return new PropertyInfo(name, "Token?", true, false, false, "");
@@ -649,7 +649,7 @@ public static class AstEmitter
     private static PropertyInfo GetPropertyInfoForOptionalSequence(SequenceIR seq, string propName)
     {
         var seqRuleRef = seq.Elements.OfType<RuleRefIR>().FirstOrDefault();
-        if (seqRuleRef != null)
+        if(seqRuleRef != null)
             return new PropertyInfo(propName, seqRuleRef.Rule.Name + "Node?", true, true, false, "");
         return new PropertyInfo(propName, "Token?", true, false, false, "");
     }
@@ -672,14 +672,14 @@ public static class AstEmitter
             case SequenceIR seq:
                 {
                     var seqRuleRef = seq.Elements.OfType<RuleRefIR>().FirstOrDefault();
-                    if (seqRuleRef != null)
+                    if(seqRuleRef != null)
                     {
                         var name = EnsureUnique(PascalCase(seqRuleRef.Rule.Name) + "s", usedNames);
                         var elementType = seqRuleRef.Rule.Name + "Node";
                         return new PropertyInfo(name, $"ImmutableArray<{elementType}>", false, true, true, $" = ImmutableArray<{elementType}>.Empty;");
                     }
                     var seqTokenRef = seq.Elements.OfType<TokenRefIR>().LastOrDefault();
-                    if (seqTokenRef != null)
+                    if(seqTokenRef != null)
                     {
                         var name = EnsureUnique(PascalCase(seqTokenRef.Token.Name) + "s", usedNames);
                         return new PropertyInfo(name, "ImmutableArray<Token>", false, false, true, " = ImmutableArray<Token>.Empty;");
@@ -705,7 +705,7 @@ public static class AstEmitter
             case SequenceIR seq:
                 {
                     var seqRuleRef = seq.Elements.OfType<RuleRefIR>().FirstOrDefault();
-                    if (seqRuleRef != null)
+                    if(seqRuleRef != null)
                     {
                         var elementType = seqRuleRef.Rule.Name + "Node";
                         return new PropertyInfo(propName, $"ImmutableArray<{elementType}>", false, true, true, $" = ImmutableArray<{elementType}>.Empty;");

@@ -118,10 +118,13 @@ public static class MistCastOperatorGenerator
     public static Gen<TypeReferenceNode> GenNamedTypeRef()
     {
         return Gen.Elements(ClassNames).Select(name =>
-            (TypeReferenceNode)new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
+            (TypeReferenceNode)new TypeReferenceNode
             {
-                Name = new QualifiedIdentifierNode { IDENTIFIER = Tok(name) },
-            } });
+                First = new NamedSingleTypeRefSingleTypeRefNode
+                {
+                    Name = new QualifiedIdentifierNode { IDENTIFIER = Tok(name) },
+                }
+            });
     }
 
     /// <summary>

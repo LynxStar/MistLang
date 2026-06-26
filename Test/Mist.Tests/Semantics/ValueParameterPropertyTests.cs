@@ -205,11 +205,11 @@ public class ValueParameterPropertyTests
             .Where(s => s.Kind == SymbolKind.Property)
             .ToList();
 
-        if (propSymbols.Count == 0)
+        if(propSymbols.Count == 0)
             return false.ToProperty().Label("No property symbols found");
 
         var metadata = (propSymbols.First() as Symbol)?.PropertyMetadata;
-        if (metadata is null)
+        if(metadata is null)
             return false.ToProperty().Label("PropertyMetadata is null");
 
         var hasSetOrInit = metadata.HasSet || metadata.HasInit;
@@ -228,7 +228,7 @@ public class ValueParameterPropertyTests
             .Where(s => s.Kind == SymbolKind.Property)
             .ToList();
 
-        if (propSymbols.Count == 0)
+        if(propSymbols.Count == 0)
             return false.ToProperty().Label("No property symbols found");
 
         // The property symbol should exist and have metadata

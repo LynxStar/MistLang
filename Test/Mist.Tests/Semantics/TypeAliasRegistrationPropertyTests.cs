@@ -207,7 +207,7 @@ public class TypeAliasRegistrationPropertyTests
         var aliasSymbol = model.AllSymbols
             .FirstOrDefault(s => s.Name == scenario.AliasName && s.Kind == SymbolKind.TypeAlias);
 
-        if (aliasSymbol is null)
+        if(aliasSymbol is null)
             return false.ToProperty()
                 .Label($"Type alias '{scenario.AliasName}' not found with SymbolKind.TypeAlias. " +
                        $"All symbols: [{string.Join(", ", model.AllSymbols.Select(s => $"{s.Name}:{s.Kind}"))}]");
@@ -237,22 +237,22 @@ public class TypeAliasRegistrationPropertyTests
             .OfType<Symbol>()
             .FirstOrDefault(s => s.Name == scenario.AliasName && s.Kind == SymbolKind.TypeAlias);
 
-        if (aliasSymbol is null)
+        if(aliasSymbol is null)
             return false.ToProperty()
                 .Label($"Type alias '{scenario.AliasName}' not found in model");
 
         var registeredParams = aliasSymbol.TypeParameters;
         var expectedCount = scenario.TypeParameterNames.Count;
 
-        if (registeredParams.Count != expectedCount)
+        if(registeredParams.Count != expectedCount)
             return false.ToProperty()
                 .Label($"Expected {expectedCount} type parameters, got {registeredParams.Count}. " +
                        $"Scenario: {scenario}");
 
         // Verify each type parameter name matches
-        for (var i = 0; i < expectedCount; i++)
+        for(var i = 0; i < expectedCount; i++)
         {
-            if (registeredParams[i].DisplayName != scenario.TypeParameterNames[i])
+            if(registeredParams[i].DisplayName != scenario.TypeParameterNames[i])
                 return false.ToProperty()
                     .Label($"Type parameter at index {i}: expected '{scenario.TypeParameterNames[i]}', " +
                            $"got '{registeredParams[i].DisplayName}'. Scenario: {scenario}");

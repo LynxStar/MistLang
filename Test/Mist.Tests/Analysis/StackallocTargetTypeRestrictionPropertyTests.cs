@@ -293,7 +293,7 @@ public class StackallocTargetTypeRestrictionPropertyTests
             .Where(d => d.Id.Value == "MIST_TC_0150")
             .ToList();
 
-        if (scenario.ShouldBeAccepted)
+        if(scenario.ShouldBeAccepted)
         {
             // Valid target: no MIST_TC_0150 should be emitted.
             var passed = targetMismatchDiagnostics.Count == 0;
@@ -344,7 +344,7 @@ public class StackallocTargetTypeRestrictionPropertyTests
         StackallocTargetTypeScenario scenario)
     {
         // Only test rejection scenarios.
-        if (scenario.ShouldBeAccepted)
+        if(scenario.ShouldBeAccepted)
             return true.ToProperty().Label("Skipped: valid target scenario");
 
         var diagnostics = CompileAndGetDiagnostics(scenario.Source);
@@ -353,7 +353,7 @@ public class StackallocTargetTypeRestrictionPropertyTests
             .Where(d => d.Id.Value == "MIST_TC_0150")
             .ToList();
 
-        if (targetMismatchDiagnostics.Count == 0)
+        if(targetMismatchDiagnostics.Count == 0)
         {
             return false.ToProperty()
                 .Label(

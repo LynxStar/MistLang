@@ -231,7 +231,7 @@ public static class MistAstGenerator
     /// </summary>
     public static Gen<ExpressionNode> GenExpression(int depth = 2)
     {
-        if (depth <= 0)
+        if(depth <= 0)
         {
             return Gen.OneOf(
                 GenIntLiteral(),
@@ -366,8 +366,8 @@ public static class MistAstGenerator
         var varNames = new[] { "v0", "v1", "v2", "v3", "v4" };
 
         var intVarDecl = from name in Gen.Elements(varNames)
-                        from val in Gen.Choose(0, 100)
-                        select MakeIntVarDecl(name, val.ToString());
+                         from val in Gen.Choose(0, 100)
+                         select MakeIntVarDecl(name, val.ToString());
 
         var boolVarDecl = from name in Gen.Elements(varNames)
                           from val in Gen.Elements(true, false)
@@ -379,17 +379,17 @@ public static class MistAstGenerator
         var returnStmt = Gen.Constant(MakeReturnStatement());
 
         var exprStmt = from e in GenIntLiteral()
-                      select MakeExpressionStatement(e);
+                       select MakeExpressionStatement(e);
 
-        if (depth <= 0)
+        if(depth <= 0)
         {
             return Gen.OneOf(intVarDecl, boolVarDecl, stringVarDecl, exprStmt);
         }
 
         var ifStmt = from inner in GenStatement(depth - 1)
-                    select MakeIfStatement(
-                        WrapPrimary(new TrueLiteralExpressionPrimaryNode()),
-                        ImmutableArray.Create(inner));
+                     select MakeIfStatement(
+                         WrapPrimary(new TrueLiteralExpressionPrimaryNode()),
+                         ImmutableArray.Create(inner));
 
         var whileStmt = Gen.Constant(
             MakeWhileStatement(

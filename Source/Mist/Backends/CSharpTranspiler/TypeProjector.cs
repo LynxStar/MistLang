@@ -129,28 +129,28 @@ internal sealed class TypeProjector
         var displayName = StripGenericAritySuffix(clrType.Name);
         var containingNamespace = clrType.Namespace;
 
-        if (clrType.IsEnum)
+        if(clrType.IsEnum)
         {
             return ProjectEnum(clrType, displayName, containingNamespace, stdlib);
         }
 
-        if (clrType.IsInterface)
+        if(clrType.IsInterface)
         {
             return ProjectAbstract(clrType, displayName, containingNamespace, stdlib);
         }
 
-        if (clrType.IsValueType)
+        if(clrType.IsValueType)
         {
             return ProjectStruct(clrType, displayName, containingNamespace, stdlib);
         }
 
         // Project System.Delegate / System.MulticastDelegate as BaseDelegateType singleton
         // (Requirement 3.1). Must appear before the named delegate and generic class checks.
-        if (clrType.FullName == "System.Delegate" || clrType.FullName == "System.MulticastDelegate")
+        if(clrType.FullName == "System.Delegate" || clrType.FullName == "System.MulticastDelegate")
         {
             // Initialize the MemberScope if this is the first time we project System.Delegate.
             // The scope will be populated by the member projection phase in AssemblyTypeProvider.
-            if (BaseDelegateType.Instance.MemberScope is null)
+            if(BaseDelegateType.Instance.MemberScope is null)
             {
                 BaseDelegateType.Instance.MemberScope = new Scope(parent: null);
             }
@@ -162,7 +162,7 @@ internal sealed class TypeProjector
         // Func/Action families are excluded (handled via TryProjectStandardFuncDelegate
         // in ProjectTypeReference). This check must come before the generic class fallback
         // so that delegate type definitions resolve to DelegateType, not ClassType.
-        if (TryProjectNamedDelegate(clrType, stdlib, out var namedDelegateType))
+        if(TryProjectNamedDelegate(clrType, stdlib, out var namedDelegateType))
         {
             return (namedDelegateType, ImmutableArray<ISymbol>.Empty);
         }
@@ -195,7 +195,7 @@ internal sealed class TypeProjector
         var members = new List<EnumMemberInfo>(fields.Length);
         var symbols = ImmutableArray.CreateBuilder<ISymbol>();
 
-        foreach (var field in fields)
+        foreach(var field in fields)
         {
             var memberInfo = new EnumMemberInfo(field.Name);
             memberInfo.ResolvedValue = field.GetRawConstantValue();
@@ -232,7 +232,7 @@ internal sealed class TypeProjector
         var abstractType = new AbstractType(displayName, memberScope, containingNamespace);
 
         // Project type parameters for generic interfaces
-        if (clrType.IsGenericTypeDefinition)
+        if(clrType.IsGenericTypeDefinition)
         {
             abstractType.TypeParameters = ProjectTypeParameters(clrType, stdlib);
         }
@@ -264,13 +264,13 @@ internal sealed class TypeProjector
         // runs under a MetadataLoadContext where IsByRefLike is not guaranteed reliable. Mist
         // does not yet perform ref-struct escape/lifetime analysis; the downstream C# compiler
         // is the safety backstop for any misuse of the projected type.
-        if (IsRefStruct(clrType))
+        if(IsRefStruct(clrType))
         {
             structType.IsRefStruct = true;
         }
 
         // Project type parameters for generic structs
-        if (clrType.IsGenericTypeDefinition)
+        if(clrType.IsGenericTypeDefinition)
         {
             structType.TypeParameters = ProjectTypeParameters(clrType, stdlib);
         }
@@ -287,9 +287,9 @@ internal sealed class TypeProjector
 
         // IDisposable detection: recognize CLR types implementing System.IDisposable as droppable.
         // An explicit Drop() method takes precedence over IDisposable-based synthetic drop.
-        if (ImplementsIDisposable(clrType))
+        if(ImplementsIDisposable(clrType))
         {
-            if (HasExplicitDropMethod(clrType))
+            if(HasExplicitDropMethod(clrType))
             {
                 structType.HasDrop = true;
                 structType.IsDisposableDrop = false;
@@ -380,7 +380,7 @@ internal sealed class TypeProjector
         classType.IsSealed = clrType.IsSealed;
 
         // Project type parameters for generic classes
-        if (clrType.IsGenericTypeDefinition)
+        if(clrType.IsGenericTypeDefinition)
         {
             classType.TypeParameters = ProjectTypeParameters(clrType, stdlib);
         }
@@ -392,11 +392,11 @@ internal sealed class TypeProjector
         // provider cannot project (e.g. it lives in an assembly that was not supplied), the
         // relationship is omitted entirely — BaseType is left unset rather than connected to a
         // disconnected shell — and a diagnostic indication is recorded (Requirement 6.6).
-        if (clrType.BaseType is not null && clrType.BaseType != typeof(object))
+        if(clrType.BaseType is not null && clrType.BaseType != typeof(object))
         {
             var resolvedBase = ResolveInheritanceReference(
                 clrType.BaseType, stdlib, InheritanceRelationshipKind.BaseType, displayName);
-            if (resolvedBase is not null)
+            if(resolvedBase is not null)
             {
                 classType.BaseType = resolvedBase;
             }
@@ -415,9 +415,9 @@ internal sealed class TypeProjector
 
         // IDisposable detection: recognize CLR types implementing System.IDisposable as droppable.
         // An explicit Drop() method takes precedence over IDisposable-based synthetic drop.
-        if (ImplementsIDisposable(clrType))
+        if(ImplementsIDisposable(clrType))
         {
-            if (HasExplicitDropMethod(clrType))
+            if(HasExplicitDropMethod(clrType))
             {
                 classType.HasDrop = true;
                 classType.IsDisposableDrop = false;
@@ -441,7 +441,7 @@ internal sealed class TypeProjector
         var genericArgs = clrType.GetGenericArguments();
         var typeParams = new IType[genericArgs.Length];
 
-        for (var i = 0; i < genericArgs.Length; i++)
+        for(var i = 0; i < genericArgs.Length; i++)
         {
             var clrParam = genericArgs[i];
             var typeParam = new TypeParameterType(clrParam.Name, i);
@@ -474,15 +474,15 @@ internal sealed class TypeProjector
         IType? baseClassConstraint = null;
         var abstractConstraints = new List<IType>();
 
-        foreach (var constraint in constraints)
+        foreach(var constraint in constraints)
         {
             // Skip System.ValueType which is the implicit base for struct constraint
-            if (constraint == typeof(ValueType))
+            if(constraint == typeof(ValueType))
                 continue;
 
             var projectedConstraint = ProjectTypeReference(constraint, stdlib);
 
-            if (constraint.IsInterface)
+            if(constraint.IsInterface)
             {
                 abstractConstraints.Add(projectedConstraint);
             }
@@ -494,14 +494,14 @@ internal sealed class TypeProjector
 
         // Build constructor constraints: new() → empty parameter list
         var constructorConstraints = new List<IReadOnlyList<IType>>();
-        if (hasNewConstraint && !hasStructConstraint)
+        if(hasNewConstraint && !hasStructConstraint)
         {
             // new() constraint (struct implicitly has new(), so only add if not struct)
             constructorConstraints.Add(Array.Empty<IType>());
         }
 
         // If no constraints at all, return null (unconstrained)
-        if (!hasClassConstraint && !hasStructConstraint &&
+        if(!hasClassConstraint && !hasStructConstraint &&
             baseClassConstraint is null && abstractConstraints.Count == 0 &&
             constructorConstraints.Count == 0)
         {
@@ -531,14 +531,14 @@ internal sealed class TypeProjector
     private IReadOnlyList<IType> ProjectInterfaces(ClrType clrType, IStdlibTypeProvider stdlib)
     {
         var interfaces = clrType.GetInterfaces();
-        if (interfaces.Length == 0)
+        if(interfaces.Length == 0)
             return Array.Empty<IType>();
 
         // Get interfaces declared by parent to exclude inherited ones
         var parentInterfaces = new HashSet<ClrType>();
-        if (clrType.BaseType is not null)
+        if(clrType.BaseType is not null)
         {
-            foreach (var parentIface in clrType.BaseType.GetInterfaces())
+            foreach(var parentIface in clrType.BaseType.GetInterfaces())
             {
                 parentInterfaces.Add(parentIface);
             }
@@ -556,21 +556,21 @@ internal sealed class TypeProjector
         var seenIdentity = new HashSet<IType>(ReferenceEqualityComparer.Instance);
         var seenStructural = new HashSet<string>(StringComparer.Ordinal);
 
-        foreach (var iface in interfaces)
+        foreach(var iface in interfaces)
         {
             // Skip interfaces inherited from base type
-            if (parentInterfaces.Contains(iface))
+            if(parentInterfaces.Contains(iface))
                 continue;
 
             // Skip the non-generic System.Collections.IEnumerable (Requirement 18.1)
-            if (IsNonGenericIEnumerable(iface))
+            if(IsNonGenericIEnumerable(iface))
                 continue;
 
             // Skip excluded interfaces
             var ifaceToCheck = iface.IsConstructedGenericType
                 ? iface.GetGenericTypeDefinition()
                 : iface;
-            if (_filter.IsTypeExcluded(ifaceToCheck))
+            if(_filter.IsTypeExcluded(ifaceToCheck))
                 continue;
 
             // Resolve the interface through the type-reference resolver so a cross-assembly
@@ -581,13 +581,13 @@ internal sealed class TypeProjector
             // diagnostic indication is recorded (Requirement 6.6).
             var resolved = ResolveInheritanceReference(
                 iface, stdlib, InheritanceRelationshipKind.Abstract, StripGenericAritySuffix(clrType.Name));
-            if (resolved is null)
+            if(resolved is null)
                 continue;
 
             // Each resolved interface exactly once (Requirement 6.2).
-            if (!seenIdentity.Add(resolved))
+            if(!seenIdentity.Add(resolved))
                 continue;
-            if (!seenStructural.Add(BuildInterfaceIdentityKey(resolved)))
+            if(!seenStructural.Add(BuildInterfaceIdentityKey(resolved)))
                 continue;
 
             result.Add(resolved);
@@ -663,10 +663,10 @@ internal sealed class TypeProjector
             && !clrType.IsConstructedGenericType
             && !clrType.IsGenericTypeDefinition;
 
-        if (_typeReferenceResolver is not null && isNamedNonGeneric)
+        if(_typeReferenceResolver is not null && isNamedNonGeneric)
         {
             var resolved = _typeReferenceResolver(clrType);
-            if (resolved is not null)
+            if(resolved is not null)
             {
                 // Return the cached instance directly: the whole point is reference identity
                 // with the provider's projected type. Base types and interfaces are never
@@ -728,7 +728,7 @@ internal sealed class TypeProjector
         IStdlibTypeProvider stdlib)
     {
         var enumerableImpls = GetGenericIEnumerableImplementations(clrType);
-        if (enumerableImpls.Count == 0)
+        if(enumerableImpls.Count == 0)
             return;
 
         // Extract the member scope and namespace from the concrete projected type
@@ -740,13 +740,13 @@ internal sealed class TypeProjector
             _ => (null, (string?)null),
         };
 
-        if (memberScope is null)
+        if(memberScope is null)
             return;
 
-        foreach (var enumerableImpl in enumerableImpls)
+        foreach(var enumerableImpl in enumerableImpls)
         {
             var enumeratorType = ResolveEnumeratorType(clrType, enumerableImpl, stdlib);
-            if (enumeratorType is null)
+            if(enumeratorType is null)
                 continue;
 
             // Create the AssociatedTypeSlotType for the Enumerator slot
@@ -763,7 +763,7 @@ internal sealed class TypeProjector
             {
                 iEnumeratorStdlib = stdlib.LookupStandardType("IEnumerator");
             }
-            catch (InvalidOperationException)
+            catch(InvalidOperationException)
             {
                 // FallbackStdlibTypeProvider doesn't have IEnumerator.
                 // Skip slot synthesis; it will be available after UpdateStdlibProvider.
@@ -843,7 +843,7 @@ internal sealed class TypeProjector
     {
         // Only applies if the type does NOT already implement IEnumerable<T>
         var enumerableImpls = GetGenericIEnumerableImplementations(clrType);
-        if (enumerableImpls.Count > 0)
+        if(enumerableImpls.Count > 0)
             return;
 
         // Guard against double-synthesis: if the Mist type already has IEnumerable
@@ -854,7 +854,7 @@ internal sealed class TypeProjector
             ClassType ct => ct.Abstracts,
             _ => (IReadOnlyList<IType>)Array.Empty<IType>(),
         };
-        if (existingInterfaces.Any(i => i is ConstructedType ci
+        if(existingInterfaces.Any(i => i is ConstructedType ci
             && ci.GenericDefinition is AbstractType iface
             && iface.DisplayName == "IEnumerable"))
             return;
@@ -867,7 +867,7 @@ internal sealed class TypeProjector
             Type.EmptyTypes,
             null);
 
-        if (getEnumeratorMethod is null)
+        if(getEnumeratorMethod is null)
             return;
 
         var enumeratorClrType = getEnumeratorMethod.ReturnType;
@@ -880,7 +880,7 @@ internal sealed class TypeProjector
             Type.EmptyTypes,
             null);
 
-        if (moveNextMethod is null || moveNextMethod.ReturnType.FullName != "System.Boolean")
+        if(moveNextMethod is null || moveNextMethod.ReturnType.FullName != "System.Boolean")
             return;
 
         // Verify the enumerator type has a public Current property
@@ -888,13 +888,13 @@ internal sealed class TypeProjector
             "Current",
             BindingFlags.Public | BindingFlags.Instance);
 
-        if (currentProperty is null)
+        if(currentProperty is null)
             return;
 
         // Resolve TElement from Current's return type
         // Unwrap by-ref wrapper (e.g., Span<T>.Enumerator.Current returns T&)
         var elementClrType = currentProperty.PropertyType;
-        if (elementClrType.IsByRef)
+        if(elementClrType.IsByRef)
             elementClrType = elementClrType.GetElementType()!;
         var projectedElementType = ProjectTypeReference(elementClrType, stdlib);
         projectedElementType = _intrinsicMap.SubstituteIntrinsics(projectedElementType, stdlib);
@@ -905,7 +905,7 @@ internal sealed class TypeProjector
         {
             iEnumerableStdlib = stdlib.LookupStandardType("IEnumerable");
         }
-        catch (InvalidOperationException)
+        catch(InvalidOperationException)
         {
             // Stdlib not loaded yet — skip synthesis.
             return;
@@ -914,7 +914,7 @@ internal sealed class TypeProjector
         var synthesizedIEnumerable = new ConstructedType(iEnumerableStdlib, new[] { projectedElementType });
 
         // Add the synthesized IEnumerable<TElement> to the type's interface list
-        switch (projectedType)
+        switch(projectedType)
         {
             case StructType st:
                 var stInterfaces = new List<IType>(st.Abstracts) { synthesizedIEnumerable };
@@ -936,7 +936,7 @@ internal sealed class TypeProjector
             _ => (null, (string?)null),
         };
 
-        if (memberScope is null)
+        if(memberScope is null)
             return;
 
         // Resolve the enumerator type for the slot
@@ -948,7 +948,7 @@ internal sealed class TypeProjector
         {
             iEnumeratorStdlib = stdlib.LookupStandardType("IEnumerator");
         }
-        catch (InvalidOperationException)
+        catch(InvalidOperationException)
         {
             return;
         }
@@ -1000,9 +1000,9 @@ internal sealed class TypeProjector
     private static List<Type> GetGenericIEnumerableImplementations(Type clrType)
     {
         var result = new List<Type>();
-        foreach (var iface in clrType.GetInterfaces())
+        foreach(var iface in clrType.GetInterfaces())
         {
-            if (iface.IsConstructedGenericType
+            if(iface.IsConstructedGenericType
                 && iface.GetGenericTypeDefinition().FullName == "System.Collections.Generic.IEnumerable`1")
             {
                 result.Add(iface);
@@ -1039,7 +1039,7 @@ internal sealed class TypeProjector
             Type.EmptyTypes,
             null);
 
-        if (getEnumeratorMethod is null)
+        if(getEnumeratorMethod is null)
         {
             // Fall back: use Standard.IEnumerator<TElement>
             return BuildStandardIEnumeratorType(elementClrType, stdlib);
@@ -1048,7 +1048,7 @@ internal sealed class TypeProjector
         var returnType = getEnumeratorMethod.ReturnType;
 
         // Check if the return type is IEnumerator<T> (the interface itself)
-        if (returnType.IsInterface
+        if(returnType.IsInterface
             && returnType.IsConstructedGenericType
             && returnType.GetGenericTypeDefinition().FullName == "System.Collections.Generic.IEnumerator`1")
         {
@@ -1075,7 +1075,7 @@ internal sealed class TypeProjector
         {
             iEnumeratorStdlib = stdlib.LookupStandardType("IEnumerator");
         }
-        catch (InvalidOperationException)
+        catch(InvalidOperationException)
         {
             return null;
         }
@@ -1129,17 +1129,17 @@ internal sealed class TypeProjector
         var operators = ImmutableArray.CreateBuilder<ISymbol>();
 
         var methods = clrType.GetMethods(BindingFlags.Public | BindingFlags.Static | BindingFlags.DeclaredOnly);
-        foreach (var method in methods)
+        foreach(var method in methods)
         {
-            if (!method.IsSpecialName)
+            if(!method.IsSpecialName)
                 continue;
 
             // Skip operators excluded by the visibility filter
-            if (_filter.IsMemberExcluded(method))
+            if(_filter.IsMemberExcluded(method))
                 continue;
 
             var mistOpName = MapClrOperatorName(method);
-            if (mistOpName is null)
+            if(mistOpName is null)
                 continue;
 
             // Project the return type through intrinsic substitution
@@ -1158,7 +1158,7 @@ internal sealed class TypeProjector
             // Project parameters and register them in a method scope
             var parameters = method.GetParameters();
             var methodScope = new Scope(parent: memberScope);
-            foreach (var param in parameters)
+            foreach(var param in parameters)
             {
                 var paramType = ProjectTypeReference(param.ParameterType, stdlib);
                 paramType = _intrinsicMap.SubstituteIntrinsics(paramType, stdlib);
@@ -1191,11 +1191,11 @@ internal sealed class TypeProjector
         // Binary arithmetic operators (Requirement 12.1)
         // Comparison operators (Requirement 12.2)
         // Unary operators (Requirement 12.4)
-        if (BinaryAndUnaryOperatorMap.TryGetValue(clrName, out var mistSymbol))
+        if(BinaryAndUnaryOperatorMap.TryGetValue(clrName, out var mistSymbol))
             return "operator" + mistSymbol;
 
         // Cast/conversion operators (Requirement 12.3)
-        if (clrName is "op_Implicit" or "op_Explicit")
+        if(clrName is "op_Implicit" or "op_Explicit")
         {
             var kind = clrName == "op_Implicit" ? "implicit" : "explicit";
             var targetTypeName = StripGenericAritySuffix(method.ReturnType.Name);
@@ -1239,14 +1239,14 @@ internal sealed class TypeProjector
     internal IType ProjectTypeReference(Type clrType, IStdlibTypeProvider stdlib)
     {
         // Handle generic type parameters (T, TKey, etc.)
-        if (clrType.IsGenericParameter)
+        if(clrType.IsGenericParameter)
         {
             return new TypeParameterType(clrType.Name, clrType.GenericParameterPosition);
         }
 
         // System.Object → Mist UnknownType (the top type). Every non-void value is
         // assignable to `unknown`, mirroring how C# treats `object` as the universal base.
-        if (clrType.Namespace == "System" && clrType.Name == "Object" && !clrType.IsGenericType)
+        if(clrType.Namespace == "System" && clrType.Name == "Object" && !clrType.IsGenericType)
         {
             return UnknownType.Instance;
         }
@@ -1254,7 +1254,7 @@ internal sealed class TypeProjector
         // Project System.Delegate / System.MulticastDelegate as BaseDelegateType (Requirement 3.1).
         // This must appear before the standard func/named delegate dispatch so that the
         // hierarchy root types are caught early and returned as the singleton.
-        if (clrType.FullName == "System.Delegate" || clrType.FullName == "System.MulticastDelegate")
+        if(clrType.FullName == "System.Delegate" || clrType.FullName == "System.MulticastDelegate")
         {
             return BaseDelegateType.Instance;
         }
@@ -1266,7 +1266,7 @@ internal sealed class TypeProjector
         //   System.Action (non-generic)       → Standard.Func<Void>
         // Done before the constructed-generic / simple-type branches so the delegate
         // types are never projected as plain CLR classes.
-        if (TryProjectStandardFuncDelegate(clrType, stdlib, out var funcType))
+        if(TryProjectStandardFuncDelegate(clrType, stdlib, out var funcType))
         {
             return funcType;
         }
@@ -1274,7 +1274,7 @@ internal sealed class TypeProjector
         // Project named delegate types (Predicate<T>, Comparison<T>, EventHandler, etc.)
         // as DelegateType instances preserving CLR identity with equivalent func<...> signature
         // (Requirements 1.1, 1.2, 1.5).
-        if (TryProjectNamedDelegate(clrType, stdlib, out var namedDelegateType))
+        if(TryProjectNamedDelegate(clrType, stdlib, out var namedDelegateType))
         {
             return namedDelegateType;
         }
@@ -1287,13 +1287,13 @@ internal sealed class TypeProjector
         // so no Length argument is fabricated; the projected SpanType is always
         // unknown-length. Done before the constructed-generic branch so the spans are
         // never projected as plain ConstructedType<StructType>. (Requirements 7.3, 9.1)
-        if (TryProjectClrSpan(clrType, stdlib, out var spanType))
+        if(TryProjectClrSpan(clrType, stdlib, out var spanType))
         {
             return spanType;
         }
 
         // Handle constructed generic types (e.g., List<int>, Dictionary<string, int>)
-        if (clrType.IsConstructedGenericType)
+        if(clrType.IsConstructedGenericType)
         {
             return ProjectConstructedGenericType(clrType, stdlib);
         }
@@ -1304,19 +1304,19 @@ internal sealed class TypeProjector
         // (projected as ConstructedType(List, [T])) use the same ClassType instance that the
         // provider returns from ResolveType, so downstream member lookup (e.g., .Count) works
         // correctly when the result is stored in a var-inferred variable.
-        if (clrType.IsGenericTypeDefinition)
+        if(clrType.IsGenericTypeDefinition)
         {
-            if (_typeReferenceResolverCacheOnly is not null && clrType.Namespace is not null)
+            if(_typeReferenceResolverCacheOnly is not null && clrType.Namespace is not null)
             {
                 var cached = _typeReferenceResolverCacheOnly(clrType);
-                if (cached is not null)
+                if(cached is not null)
                     return cached;
             }
             return ProjectGenericDefinitionReference(clrType, stdlib);
         }
 
         // Handle arrays
-        if (clrType.IsArray)
+        if(clrType.IsArray)
         {
             var elementType = clrType.GetElementType()!;
             var projectedElement = ProjectTypeReference(elementType, stdlib);
@@ -1333,7 +1333,7 @@ internal sealed class TypeProjector
         // type projection. Types not yet cached will get a disconnected shell here; the
         // ProjectMemberType method will attempt a full resolve as a second pass for member
         // signatures where a populated scope is critical for var-inference.
-        if (_typeReferenceResolver is not null
+        if(_typeReferenceResolver is not null
             && !clrType.IsGenericParameter
             && !clrType.IsArray
             && clrType.Namespace is not null
@@ -1341,7 +1341,7 @@ internal sealed class TypeProjector
             && !clrType.IsGenericTypeDefinition)
         {
             var resolved = _typeReferenceResolverCacheOnly?.Invoke(clrType);
-            if (resolved is not null)
+            if(resolved is not null)
             {
                 return resolved;
             }
@@ -1363,7 +1363,7 @@ internal sealed class TypeProjector
 
         var typeArgs = clrType.GetGenericArguments();
         var projectedArgs = new IType[typeArgs.Length];
-        for (var i = 0; i < typeArgs.Length; i++)
+        for(var i = 0; i < typeArgs.Length; i++)
         {
             var projectedArg = ProjectTypeReference(typeArgs[i], stdlib);
             projectedArgs[i] = _intrinsicMap.SubstituteIntrinsics(projectedArg, stdlib);
@@ -1402,16 +1402,16 @@ internal sealed class TypeProjector
     {
         spanType = null!;
 
-        if (!clrType.IsConstructedGenericType)
+        if(!clrType.IsConstructedGenericType)
             return false;
 
         var genericDefName = clrType.GetGenericTypeDefinition().FullName;
         bool isReadOnly;
-        if (genericDefName == "System.Span`1")
+        if(genericDefName == "System.Span`1")
         {
             isReadOnly = false;
         }
-        else if (genericDefName == "System.ReadOnlySpan`1")
+        else if(genericDefName == "System.ReadOnlySpan`1")
         {
             isReadOnly = true;
         }
@@ -1462,38 +1462,38 @@ internal sealed class TypeProjector
     {
         funcType = null!;
 
-        if (clrType.Namespace != "System")
+        if(clrType.Namespace != "System")
             return false;
 
         // The Func type arguments, in Mist order (parameter types followed by the
         // return type). For Action, the synthesized return type is Void.
         IType[] funcTypeArguments;
 
-        if (clrType.IsConstructedGenericType)
+        if(clrType.IsConstructedGenericType)
         {
             var genericName = clrType.GetGenericTypeDefinition().Name;
             var clrArgs = clrType.GetGenericArguments();
 
-            if (genericName.StartsWith("Func`", StringComparison.Ordinal))
+            if(genericName.StartsWith("Func`", StringComparison.Ordinal))
             {
                 // System.Func<T1, ..., TN, TResult> → Standard.Func<T1, ..., TN, TResult>.
                 // CLR Func already places the return type last, matching Mist's convention.
                 funcTypeArguments = new IType[clrArgs.Length];
-                for (var i = 0; i < clrArgs.Length; i++)
+                for(var i = 0; i < clrArgs.Length; i++)
                 {
                     var projectedArg = ProjectTypeReference(clrArgs[i], stdlib);
                     funcTypeArguments[i] = _intrinsicMap.SubstituteIntrinsics(projectedArg, stdlib);
                 }
             }
-            else if (genericName.StartsWith("Action`", StringComparison.Ordinal))
+            else if(genericName.StartsWith("Action`", StringComparison.Ordinal))
             {
                 // System.Action<T1, ..., TN> → Standard.Func<T1, ..., TN, Void>.
                 // Append Void as the trailing return type.
-                if (!TryLookupVoid(stdlib, out var voidType))
+                if(!TryLookupVoid(stdlib, out var voidType))
                     return false;
 
                 funcTypeArguments = new IType[clrArgs.Length + 1];
-                for (var i = 0; i < clrArgs.Length; i++)
+                for(var i = 0; i < clrArgs.Length; i++)
                 {
                     var projectedArg = ProjectTypeReference(clrArgs[i], stdlib);
                     funcTypeArguments[i] = _intrinsicMap.SubstituteIntrinsics(projectedArg, stdlib);
@@ -1505,10 +1505,10 @@ internal sealed class TypeProjector
                 return false;
             }
         }
-        else if (clrType.Name == "Action" && !clrType.IsGenericType)
+        else if(clrType.Name == "Action" && !clrType.IsGenericType)
         {
             // System.Action (non-generic) → Standard.Func<Void>.
-            if (!TryLookupVoid(stdlib, out var voidType))
+            if(!TryLookupVoid(stdlib, out var voidType))
                 return false;
 
             funcTypeArguments = new[] { voidType };
@@ -1525,7 +1525,7 @@ internal sealed class TypeProjector
         {
             funcDefinition = stdlib.LookupStandardType("Func", funcTypeArguments.Length);
         }
-        catch (InvalidOperationException)
+        catch(InvalidOperationException)
         {
             // Stdlib doesn't have the Func family yet (fallback provider before Pass 1).
             // Skip projection; the type is re-resolved after UpdateStdlibProvider.
@@ -1535,7 +1535,7 @@ internal sealed class TypeProjector
         // Guard: ensure we resolved the real Standard.Func family and not a fallback
         // (e.g., the fallback provider has no Func and would not reach here, but a
         // wrong-arity fallback would produce a structurally incorrect type).
-        if (funcDefinition is not ClassType { DisplayName: "Func", ContainingNamespace: "Standard" })
+        if(funcDefinition is not ClassType { DisplayName: "Func", ContainingNamespace: "Standard" })
             return false;
 
         funcType = new ConstructedType(funcDefinition, funcTypeArguments);
@@ -1553,7 +1553,7 @@ internal sealed class TypeProjector
             voidType = stdlib.LookupStandardType("Void");
             return true;
         }
-        catch (InvalidOperationException)
+        catch(InvalidOperationException)
         {
             voidType = null!;
             return false;
@@ -1589,12 +1589,12 @@ internal sealed class TypeProjector
         delegateType = null!;
 
         // All delegates inherit from System.MulticastDelegate.
-        if (clrType.BaseType?.FullName != "System.MulticastDelegate")
+        if(clrType.BaseType?.FullName != "System.MulticastDelegate")
             return false;
 
         // Get the Invoke method that defines the delegate's signature.
         var invokeMethod = clrType.GetMethod("Invoke");
-        if (invokeMethod is null)
+        if(invokeMethod is null)
             return false;
 
         var parameters = invokeMethod.GetParameters();
@@ -1610,27 +1610,27 @@ internal sealed class TypeProjector
         {
             funcDefinition = stdlib.LookupStandardType("Func", arity);
         }
-        catch (InvalidOperationException)
+        catch(InvalidOperationException)
         {
             // Stdlib doesn't have the Func family yet (fallback provider before Pass 1).
             return false;
         }
 
         // Guard: ensure we resolved the real Standard.Func family.
-        if (funcDefinition is not ClassType { DisplayName: "Func", ContainingNamespace: "Standard" })
+        if(funcDefinition is not ClassType { DisplayName: "Func", ContainingNamespace: "Standard" })
             return false;
 
         // Build the type arguments: parameter types followed by return type (or Void).
         var funcTypeArguments = new IType[arity];
-        for (var i = 0; i < parameters.Length; i++)
+        for(var i = 0; i < parameters.Length; i++)
         {
             var projectedArg = ProjectTypeReference(parameters[i].ParameterType, stdlib);
             funcTypeArguments[i] = _intrinsicMap.SubstituteIntrinsics(projectedArg, stdlib);
         }
 
-        if (isVoidReturn)
+        if(isVoidReturn)
         {
-            if (!TryLookupVoid(stdlib, out var voidType))
+            if(!TryLookupVoid(stdlib, out var voidType))
                 return false;
             funcTypeArguments[parameters.Length] = voidType;
         }
@@ -1652,21 +1652,21 @@ internal sealed class TypeProjector
         IReadOnlyList<IType> typeParameters;
         IReadOnlyList<IType> typeArguments;
 
-        if (clrType.IsGenericTypeDefinition)
+        if(clrType.IsGenericTypeDefinition)
         {
             // Open generic delegate definition (e.g., Predicate<T>, Comparison<T>).
             // TypeParameters carry the open type parameter placeholders.
             typeParameters = ProjectTypeParameters(clrType, stdlib);
             typeArguments = Array.Empty<IType>();
         }
-        else if (clrType.IsConstructedGenericType)
+        else if(clrType.IsConstructedGenericType)
         {
             // Constructed generic delegate (e.g., Predicate<int>).
             // TypeParameters are empty; TypeArguments carry the concrete types.
             typeParameters = Array.Empty<IType>();
             var clrArgs = clrType.GetGenericArguments();
             var projectedArgs = new IType[clrArgs.Length];
-            for (var i = 0; i < clrArgs.Length; i++)
+            for(var i = 0; i < clrArgs.Length; i++)
             {
                 var projectedArg = ProjectTypeReference(clrArgs[i], stdlib);
                 projectedArgs[i] = _intrinsicMap.SubstituteIntrinsics(projectedArg, stdlib);
@@ -1709,26 +1709,26 @@ internal sealed class TypeProjector
         // Cycle detection: if we're already projecting this type's constraints,
         // return a minimal shell without type parameters to break the recursion.
         var stack = _projectionStack ??= new HashSet<Type>(ReferenceEqualityComparer.Instance);
-        if (!stack.Add(clrType))
+        if(!stack.Add(clrType))
         {
             // Already projecting this type — return a minimal shell to break the cycle.
-            if (clrType.IsInterface)
+            if(clrType.IsInterface)
                 return new AbstractType(displayName, new Scope(null), containingNamespace);
-            if (clrType.IsValueType)
+            if(clrType.IsValueType)
                 return new StructType(displayName, new Scope(null), containingNamespace);
             return new ClassType(displayName, new Scope(null), containingNamespace);
         }
 
         try
         {
-            if (clrType.IsInterface)
+            if(clrType.IsInterface)
             {
                 var iface = new AbstractType(displayName, new Scope(null), containingNamespace);
                 iface.TypeParameters = ProjectTypeParameters(clrType, stdlib);
                 return iface;
             }
 
-            if (clrType.IsValueType)
+            if(clrType.IsValueType)
             {
                 var structType = new StructType(displayName, new Scope(null), containingNamespace);
                 structType.TypeParameters = ProjectTypeParameters(clrType, stdlib);
@@ -1754,17 +1754,17 @@ internal sealed class TypeProjector
         var displayName = clrType.Name;
         var containingNamespace = clrType.Namespace;
 
-        if (clrType.IsInterface)
+        if(clrType.IsInterface)
         {
             return new AbstractType(displayName, new Scope(null), containingNamespace);
         }
 
-        if (clrType.IsEnum)
+        if(clrType.IsEnum)
         {
             return new EnumType(displayName, new Scope(null), containingNamespace);
         }
 
-        if (clrType.IsValueType)
+        if(clrType.IsValueType)
         {
             return new StructType(displayName, new Scope(null), containingNamespace);
         }
@@ -1796,7 +1796,7 @@ internal sealed class TypeProjector
     {
         // Case 1: Nullable<T> (e.g., int?, bool?)
         var underlyingNullable = NullableReflection.GetUnderlyingType(clrType);
-        if (underlyingNullable is not null)
+        if(underlyingNullable is not null)
         {
             var innerMistType = ProjectTypeReference(underlyingNullable, stdlib);
             innerMistType = _intrinsicMap.SubstituteIntrinsics(innerMistType, stdlib);
@@ -1804,7 +1804,7 @@ internal sealed class TypeProjector
         }
 
         // Case 2: Reference types (class, interface, string, array, delegate)
-        if (IsReferenceType(clrType))
+        if(IsReferenceType(clrType))
         {
             var projectedType = ProjectTypeReference(clrType, stdlib);
             return CreateNullableUnion(projectedType, NullableOrigin.ReferenceType, stdlib);
@@ -1822,11 +1822,11 @@ internal sealed class TypeProjector
     private static bool IsReferenceType(Type clrType)
     {
         // Generic type parameters are handled separately — don't wrap them
-        if (clrType.IsGenericParameter)
+        if(clrType.IsGenericParameter)
             return false;
 
         // Arrays are always reference types
-        if (clrType.IsArray)
+        if(clrType.IsArray)
             return true;
 
         // Classes (including string, delegates) and interfaces are reference types.
@@ -1908,7 +1908,7 @@ internal sealed class TypeProjector
         var symbols = ImmutableArray.CreateBuilder<ISymbol>();
 
         var memberScope = GetMemberScope(projectedMistType);
-        if (memberScope is null)
+        if(memberScope is null)
             return symbols.ToImmutable();
 
         // Project constructors
@@ -1946,9 +1946,9 @@ internal sealed class TypeProjector
     {
         var constructors = clrType.GetConstructors(BindingFlags.Public | BindingFlags.Instance);
 
-        foreach (var ctor in constructors)
+        foreach(var ctor in constructors)
         {
-            if (_filter.IsMemberExcluded(ctor))
+            if(_filter.IsMemberExcluded(ctor))
                 continue;
 
             var ctorScope = new Scope(memberScope);
@@ -1986,19 +1986,19 @@ internal sealed class TypeProjector
     {
         var methods = clrType.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static);
 
-        foreach (var method in methods)
+        foreach(var method in methods)
         {
             // Skip property accessors, event accessors, and operators
-            if (method.IsSpecialName)
+            if(method.IsSpecialName)
                 continue;
 
-            if (_filter.IsMemberExcluded(method))
+            if(_filter.IsMemberExcluded(method))
                 continue;
 
             // Project return type — unwrap by-ref returns to get the element type.
             IType returnType;
             var isRefReturn = method.ReturnType.IsByRef;
-            if (isRefReturn)
+            if(isRefReturn)
             {
                 var elementType = method.ReturnType.GetElementType()!;
                 returnType = ProjectMemberType(elementType, stdlib);
@@ -2023,20 +2023,20 @@ internal sealed class TypeProjector
             methodSymbol.IsStatic = method.IsStatic;
 
             // Mark virtual/abstract public methods for implicit override matching.
-            if (method.IsVirtual || method.IsAbstract)
+            if(method.IsVirtual || method.IsAbstract)
             {
                 methodSymbol.IsVirtualOrAbstract = true;
                 methodSymbol.ClrAccessModifier = "public";
             }
 
             // Mark mutable ref returns (Requirements 5.1, 5.2).
-            if (isRefReturn)
+            if(isRefReturn)
             {
                 methodSymbol.ReturnRefKind = RefKind.Ref;
             }
 
             // Project generic method type parameters
-            if (method.IsGenericMethodDefinition)
+            if(method.IsGenericMethodDefinition)
             {
                 methodSymbol.TypeParameters = ProjectMethodTypeParameters(method, stdlib);
             }
@@ -2057,18 +2057,18 @@ internal sealed class TypeProjector
         var protectedMethods = clrType.GetMethods(
             BindingFlags.NonPublic | BindingFlags.Instance);
 
-        foreach (var method in protectedMethods)
+        foreach(var method in protectedMethods)
         {
             // Only project virtual/abstract methods (override slots).
-            if (!method.IsVirtual && !method.IsAbstract)
+            if(!method.IsVirtual && !method.IsAbstract)
                 continue;
 
             // Only project protected and protected internal methods.
-            if (!method.IsFamily && !method.IsFamilyOrAssembly)
+            if(!method.IsFamily && !method.IsFamilyOrAssembly)
                 continue;
 
             // Skip property accessors, event accessors, and operators.
-            if (method.IsSpecialName)
+            if(method.IsSpecialName)
                 continue;
 
             // Note: We do NOT call _filter.IsMemberExcluded() here because that filter
@@ -2078,13 +2078,13 @@ internal sealed class TypeProjector
 
             // Skip if a public method with the same name already exists (the public
             // projection already covers it).
-            if (memberScope.Lookup(method.Name) is not null)
+            if(memberScope.Lookup(method.Name) is not null)
                 continue;
 
             // Project return type.
             IType returnType;
             var isRefReturn = method.ReturnType.IsByRef;
-            if (isRefReturn)
+            if(isRefReturn)
             {
                 var elementType = method.ReturnType.GetElementType()!;
                 returnType = ProjectMemberType(elementType, stdlib);
@@ -2109,12 +2109,12 @@ internal sealed class TypeProjector
                 ? "protected"  // protected internal from another assembly is overridden as just "protected"
                 : "protected";
 
-            if (isRefReturn)
+            if(isRefReturn)
             {
                 methodSymbol.ReturnRefKind = RefKind.Ref;
             }
 
-            if (method.IsGenericMethodDefinition)
+            if(method.IsGenericMethodDefinition)
             {
                 methodSymbol.TypeParameters = ProjectMethodTypeParameters(method, stdlib);
             }
@@ -2146,13 +2146,13 @@ internal sealed class TypeProjector
     {
         var properties = clrType.GetProperties(BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static);
 
-        foreach (var property in properties)
+        foreach(var property in properties)
         {
             // Skip indexers — they are projected separately
-            if (property.GetIndexParameters().Length > 0)
+            if(property.GetIndexParameters().Length > 0)
                 continue;
 
-            if (_filter.IsMemberExcluded(property))
+            if(_filter.IsMemberExcluded(property))
                 continue;
 
             var propertyType = ProjectMemberType(property.PropertyType, stdlib);
@@ -2201,13 +2201,13 @@ internal sealed class TypeProjector
     {
         var fields = clrType.GetFields(BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static);
 
-        foreach (var field in fields)
+        foreach(var field in fields)
         {
             // Skip enum backing fields (already handled in ProjectEnum)
-            if (clrType.IsEnum)
+            if(clrType.IsEnum)
                 continue;
 
-            if (_filter.IsMemberExcluded(field))
+            if(_filter.IsMemberExcluded(field))
                 continue;
 
             var fieldType = ProjectMemberType(field.FieldType, stdlib);
@@ -2243,19 +2243,19 @@ internal sealed class TypeProjector
     {
         var properties = clrType.GetProperties(BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static);
 
-        foreach (var property in properties)
+        foreach(var property in properties)
         {
             var indexParams = property.GetIndexParameters();
-            if (indexParams.Length == 0)
+            if(indexParams.Length == 0)
                 continue;
 
-            if (_filter.IsMemberExcluded(property))
+            if(_filter.IsMemberExcluded(property))
                 continue;
 
             // Unwrap by-ref property types (e.g., Span<T>.this[int] returns T&).
             var isRefReturn = property.PropertyType.IsByRef;
             IType elementType;
-            if (isRefReturn)
+            if(isRefReturn)
             {
                 var unwrappedType = property.PropertyType.GetElementType()!;
                 elementType = ProjectMemberType(unwrappedType, stdlib);
@@ -2276,7 +2276,7 @@ internal sealed class TypeProjector
                 null);
 
             // Mark mutable ref returns on indexers (Requirements 5.1, 5.2).
-            if (isRefReturn)
+            if(isRefReturn)
             {
                 indexerSymbol.ReturnRefKind = RefKind.Ref;
             }
@@ -2317,7 +2317,7 @@ internal sealed class TypeProjector
         Scope targetScope,
         IStdlibTypeProvider stdlib)
     {
-        foreach (var param in parameters)
+        foreach(var param in parameters)
         {
             var paramType = ProjectMemberType(param.ParameterType, stdlib);
 
@@ -2330,7 +2330,7 @@ internal sealed class TypeProjector
                 null);
 
             // Mark optional parameters (those with default values)
-            if (param.HasDefaultValue)
+            if(param.HasDefaultValue)
             {
                 paramSymbol.ReadonlyStatus = ReadonlyStatus.ExplicitReadonly;
             }
@@ -2356,7 +2356,7 @@ internal sealed class TypeProjector
         IStdlibTypeProvider stdlib)
     {
         var result = new List<ISymbol>(parameters.Length);
-        foreach (var param in parameters)
+        foreach(var param in parameters)
         {
             // Detect CLR ref/in/out parameters (IsByRef) and unwrap the by-ref type.
             var isByRef = param.ParameterType.IsByRef;
@@ -2376,7 +2376,7 @@ internal sealed class TypeProjector
                 null);
 
             // Set RefKind and ClrCallingConvention for ref/in/out parameters.
-            if (isByRef)
+            if(isByRef)
             {
                 scopeParamSymbol.RefKind = RefKind.Ref;
                 scopeParamSymbol.ClrCallingConvention = param.IsOut
@@ -2387,7 +2387,7 @@ internal sealed class TypeProjector
             }
 
             // Mark optional parameters (those with default values)
-            if (param.HasDefaultValue)
+            if(param.HasDefaultValue)
             {
                 scopeParamSymbol.ReadonlyStatus = ReadonlyStatus.ExplicitReadonly;
             }
@@ -2406,7 +2406,7 @@ internal sealed class TypeProjector
                 null);
 
             // Propagate RefKind and ClrCallingConvention to the emitter symbol as well.
-            if (isByRef)
+            if(isByRef)
             {
                 emitterParamSymbol.RefKind = RefKind.Ref;
                 emitterParamSymbol.ClrCallingConvention = param.IsOut
@@ -2440,7 +2440,7 @@ internal sealed class TypeProjector
         // Without this, var-inferred variables whose type comes from a method return type
         // (e.g., `var builder = WebApplication.CreateBuilder()` returning WebApplicationBuilder)
         // get a disconnected shell with no members, causing MIST_UNDEFINED_MEMBER errors.
-        if (_typeReferenceResolver is not null
+        if(_typeReferenceResolver is not null
             && IsDisconnectedShell(projected)
             && !clrType.IsGenericParameter
             && !clrType.IsArray
@@ -2449,7 +2449,7 @@ internal sealed class TypeProjector
             && !clrType.IsGenericTypeDefinition)
         {
             var resolved = _typeReferenceResolver(clrType);
-            if (resolved is not null)
+            if(resolved is not null)
             {
                 return resolved;
             }
@@ -2458,16 +2458,16 @@ internal sealed class TypeProjector
         // For constructed generic types (e.g., EntityTypeBuilder<TEntity>), check if
         // the generic definition inside the ConstructedType is a disconnected shell.
         // If so, attempt a full resolve of the generic definition to get its members.
-        if (_typeReferenceResolver is not null
+        if(_typeReferenceResolver is not null
             && projected is ConstructedType projectedCt
             && IsDisconnectedShell(projectedCt.GenericDefinition)
             && clrType.IsConstructedGenericType)
         {
             var genericDef = clrType.GetGenericTypeDefinition();
-            if (genericDef.Namespace is not null)
+            if(genericDef.Namespace is not null)
             {
                 var resolvedDef = _typeReferenceResolver(genericDef);
-                if (resolvedDef is not null)
+                if(resolvedDef is not null)
                 {
                     // Reconstruct the ConstructedType with the fully-populated definition.
                     projected = new ConstructedType(resolvedDef, projectedCt.TypeArguments);
@@ -2503,7 +2503,7 @@ internal sealed class TypeProjector
         var genericArgs = method.GetGenericArguments();
         var typeParams = new IType[genericArgs.Length];
 
-        for (var i = 0; i < genericArgs.Length; i++)
+        for(var i = 0; i < genericArgs.Length; i++)
         {
             var clrParam = genericArgs[i];
             var typeParam = new TypeParameterType(clrParam.Name, i);

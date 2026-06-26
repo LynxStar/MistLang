@@ -28,7 +28,7 @@ public sealed class CSharpSourceWriterGlobalUsingsEmissionTests : IDisposable
 
     public void Dispose()
     {
-        if (Directory.Exists(_outputDir))
+        if(Directory.Exists(_outputDir))
         {
             try { Directory.Delete(_outputDir, recursive: true); } catch { /* best effort */ }
         }
@@ -40,18 +40,18 @@ public sealed class CSharpSourceWriterGlobalUsingsEmissionTests : IDisposable
     private string? CompileWithGlobalUsings(string mistSource, ImmutableArray<string> globalUsings)
     {
         // Clean output directory
-        foreach (var file in Directory.GetFiles(_outputDir))
+        foreach(var file in Directory.GetFiles(_outputDir))
             File.Delete(file);
 
         // 1. Lex
         var sourceText = new SourceText("test.mist", mistSource);
         var bag = new DiagnosticBag();
         var tokens = Lexer.Lex(sourceText, bag);
-        if (bag.HasErrors) return null;
+        if(bag.HasErrors) return null;
 
         // 2. Parse
         var parseResult = Parser.Parse(tokens, bag);
-        if (parseResult.Root is null || bag.HasErrors) return null;
+        if(parseResult.Root is null || bag.HasErrors) return null;
 
         // 3. Build semantic model with global usings on the compilation unit
         var compilationUnit = new CompilationUnit(sourceText)

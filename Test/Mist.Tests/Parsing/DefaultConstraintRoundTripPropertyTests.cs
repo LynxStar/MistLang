@@ -76,7 +76,7 @@ public class DefaultConstraintRoundTripPropertyTests
     {
         return Gen.Choose(0, 2).SelectMany(extraCount =>
         {
-            if (extraCount == 0)
+            if(extraCount == 0)
                 return Gen.Constant("default");
 
             return Gen.ArrayOf(GenNonDefaultConstraint(), extraCount)
@@ -110,14 +110,14 @@ public class DefaultConstraintRoundTripPropertyTests
             {
                 Gen<string> result = Gen.Constant("");
 
-                for (var i = 0; i < selectedParams.Length; i++)
+                for(var i = 0; i < selectedParams.Length; i++)
                 {
                     var tp = selectedParams[i];
                     var constraintGen = (i == defaultClauseIdx)
                         ? GenConstraintListWithDefault()
                         : Gen.OneOf(GenConstraintListWithDefault(), GenNonDefaultConstraint());
 
-                    if (i == 0)
+                    if(i == 0)
                     {
                         result = constraintGen.Select(cl => $" where {tp} : {cl}");
                     }
@@ -233,7 +233,7 @@ public class DefaultConstraintRoundTripPropertyTests
             .Where(d => d.Severity == DiagnosticSeverity.Error)
             .ToList();
 
-        if (errors.Count > 0)
+        if(errors.Count > 0)
             throw new InvalidOperationException(
                 $"Unexpected parse errors:\n  {string.Join("\n  ", errors.Select(e => e.Message))}\nSource:\n{source}");
 
@@ -260,7 +260,7 @@ public class DefaultConstraintRoundTripPropertyTests
         // Step 2: Pretty-print AST1 → printed1
         var printed1 = MistPrettyPrinter.Print(ast1, scenario.Source);
 
-        if (string.IsNullOrWhiteSpace(printed1))
+        if(string.IsNullOrWhiteSpace(printed1))
             return false.ToProperty().Label("printed1 was empty");
 
         // Step 3: Parse printed1 → AST2

@@ -46,16 +46,16 @@ public class StormDenseIdAssignmentPropertyTests
                 // Deduplicate rule names — keep first occurrence
                 var seen = new HashSet<string>(StringComparer.Ordinal);
                 var unique = new List<(string Name, bool IsMemo)>();
-                foreach (var r in rules)
+                foreach(var r in rules)
                 {
-                    if (seen.Add(r.name))
+                    if(seen.Add(r.name))
                     {
                         unique.Add((r.name, r.isMemo));
                     }
                 }
 
                 // Ensure at least one rule is @memo-annotated
-                if (unique.Count > 0 && !unique.Any(r => r.IsMemo))
+                if(unique.Count > 0 && !unique.Any(r => r.IsMemo))
                 {
                     unique[0] = (unique[0].Name, true);
                 }
@@ -79,9 +79,9 @@ public class StormDenseIdAssignmentPropertyTests
         sb.AppendLine("token Tok = [a-z]+;");
         sb.AppendLine("token Num = [0-9]+;");
 
-        foreach (var (name, isMemo) in rules)
+        foreach(var (name, isMemo) in rules)
         {
-            if (isMemo)
+            if(isMemo)
             {
                 sb.AppendLine("@memo");
             }
@@ -119,14 +119,14 @@ public class StormDenseIdAssignmentPropertyTests
     public void P6_DenseDeclarationOrderIdAssignment_IdsAreDenseZeroToNMinus1_InDeclarationOrder()
     {
         var samples = GenMemoGrammarRules().Sample(200);
-        foreach (var rules in samples)
+        foreach(var rules in samples)
         {
             var source = BuildGrammarSource(rules);
             var grammar = BuildGrammarIR(source);
             var plan = MemoizationAnalysisPass.Run(grammar);
 
             // Only verify non-empty plans (property precondition)
-            if (plan.Count == 0)
+            if(plan.Count == 0)
             {
                 continue;
             }
@@ -153,7 +153,7 @@ public class StormDenseIdAssignmentPropertyTests
                 $"{memoizedInDeclarationOrder.Count} but plan has {plan.Count}.\nSource:\n{source}");
 
             // Each rule at position i in declaration order must have id == i
-            for (var i = 0; i < memoizedInDeclarationOrder.Count; i++)
+            for(var i = 0; i < memoizedInDeclarationOrder.Count; i++)
             {
                 var name = memoizedInDeclarationOrder[i];
                 var actualId = plan.RuleIds[name];

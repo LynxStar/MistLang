@@ -187,7 +187,7 @@ public class AsyncFunctorOperandPropertyTests
         var statements = ImmutableArray.CreateBuilder<StatementNode>();
 
         // For variable reference scenarios, declare the variable first
-        if (scenario.OperandKind == NonInvocationKind.VariableReference)
+        if(scenario.OperandKind == NonInvocationKind.VariableReference)
         {
             statements.Add(MistAstGenerator.MakeIntVarDecl(scenario.VarName, "42"));
         }
@@ -222,15 +222,18 @@ public class AsyncFunctorOperandPropertyTests
         var members = ImmutableArray.CreateBuilder<MemberDeclarationNode>();
 
         // For property access, add a Value property to the class
-        if (scenario.OperandKind == NonInvocationKind.PropertyAccess)
+        if(scenario.OperandKind == NonInvocationKind.PropertyAccess)
         {
             var valueField = new FieldDeclarationNode
             {
                 Name = Tok("Value"),
-                Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                Type = new TypeReferenceNode
                 {
-                    PrimitiveType = new IntTypePrimitiveTypeNode(),
-                } },
+                    First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                    {
+                        PrimitiveType = new IntTypePrimitiveTypeNode(),
+                    }
+                },
                 Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
             };
             members.Add(new FieldMemberMemberDeclarationNode { Field = valueField });
@@ -301,7 +304,7 @@ public class AsyncFunctorOperandPropertyTests
             .Where(d => d.Id.Value == "MIST_TC_0107")
             .ToList();
 
-        if (matchingDiagnostics.Count == 0)
+        if(matchingDiagnostics.Count == 0)
             return false.ToProperty()
                 .Label($"Expected MIST_TC_0107 but no such diagnostic was emitted. " +
                        $"All diagnostics: [{string.Join(", ", allDiagnostics.Select(d => $"{d.Id.Value}: {d.Message}"))}]. " +
@@ -313,7 +316,7 @@ public class AsyncFunctorOperandPropertyTests
         var mentionsInvocation = diag.Message.Contains("method invocation") ||
                                  diag.Message.Contains("invocation");
 
-        if (!mentionsAsync || !mentionsInvocation)
+        if(!mentionsAsync || !mentionsInvocation)
             return false.ToProperty()
                 .Label($"MIST_TC_0107 emitted but message doesn't mention 'async' and 'invocation'. " +
                        $"Message: '{diag.Message}'. Scenario: {scenario}");

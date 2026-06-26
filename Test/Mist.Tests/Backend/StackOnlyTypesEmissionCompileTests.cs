@@ -45,7 +45,7 @@ public sealed class StackOnlyTypesEmissionCompileTests : IDisposable
 
     public void Dispose()
     {
-        if (Directory.Exists(_outputDir))
+        if(Directory.Exists(_outputDir))
         {
             try { Directory.Delete(_outputDir, recursive: true); } catch { /* best effort */ }
         }
@@ -254,11 +254,11 @@ public sealed class StackOnlyTypesEmissionCompileTests : IDisposable
         // to combine all programs into ONE valid compilation.
         var seenFileNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        foreach (var (name, source) in programs)
+        foreach(var (name, source) in programs)
         {
             var result = CompileSource(source, name);
 
-            if (!result.Succeeded || result.EmittedFiles is null)
+            if(!result.Succeeded || result.EmittedFiles is null)
             {
                 var diagnostics = string.Join("\n",
                     result.Diagnostics
@@ -273,9 +273,9 @@ public sealed class StackOnlyTypesEmissionCompileTests : IDisposable
             // Each emitted file becomes its own syntax tree.
             // Deduplicate shared infrastructure files (MistVoid.g.cs, Unknown.cs, etc.)
             // by only including the first occurrence of each filename.
-            foreach (var (fileName, content) in result.EmittedFiles)
+            foreach(var (fileName, content) in result.EmittedFiles)
             {
-                if (!seenFileNames.Add(fileName))
+                if(!seenFileNames.Add(fileName))
                     continue; // already included from a previous program
 
                 emittedSyntaxTrees.Add(CSharpSyntaxTree.ParseText(

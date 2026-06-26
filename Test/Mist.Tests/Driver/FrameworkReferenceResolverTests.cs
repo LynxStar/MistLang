@@ -46,11 +46,11 @@ public sealed class FrameworkReferenceResolverTests
         string tfm)
     {
         var dotnetRoot = SdkDiscovery.FindDotnetRoot();
-        if (dotnetRoot is null)
+        if(dotnetRoot is null)
             return (false, null);
 
         var packsDir = Path.Combine(dotnetRoot, "packs", $"{frameworkName}.Ref");
-        if (!Directory.Exists(packsDir))
+        if(!Directory.Exists(packsDir))
             return (false, null);
 
         var tfmMajor = SdkDiscovery.ExtractTfmMajorVersion(tfm);
@@ -58,23 +58,23 @@ public sealed class FrameworkReferenceResolverTests
         Version? highest = null;
         string? highestName = null;
 
-        foreach (var versionDir in Directory.GetDirectories(packsDir))
+        foreach(var versionDir in Directory.GetDirectories(packsDir))
         {
             var dirName = Path.GetFileName(versionDir);
-            if (!Version.TryParse(dirName, out var version))
+            if(!Version.TryParse(dirName, out var version))
                 continue;
 
-            if (tfmMajor.HasValue && version.Major != tfmMajor.Value)
+            if(tfmMajor.HasValue && version.Major != tfmMajor.Value)
                 continue;
 
             var refPath = Path.Combine(versionDir, "ref", tfm);
-            if (!Directory.Exists(refPath))
+            if(!Directory.Exists(refPath))
                 continue;
 
-            if (Directory.GetFiles(refPath, "*.dll").Length == 0)
+            if(Directory.GetFiles(refPath, "*.dll").Length == 0)
                 continue;
 
-            if (highest is null || version > highest)
+            if(highest is null || version > highest)
             {
                 highest = version;
                 highestName = dirName;
@@ -137,7 +137,7 @@ public sealed class FrameworkReferenceResolverTests
             TargetFramework,
             diagnostics);
 
-        if (installed)
+        if(installed)
         {
             // Success path (Req 5.1): non-empty assembly paths, a resolved-info
             // entry whose major matches the TFM major, and no failures.
@@ -183,7 +183,7 @@ public sealed class FrameworkReferenceResolverTests
         // Skip the meaningful selection assertion only when the pack is entirely
         // absent — there is nothing to select. The dedicated MIST_FWREF_001 test
         // covers the not-installed behavior.
-        if (!installed)
+        if(!installed)
             return;
 
         var diagnostics = new DiagnosticBag();
@@ -228,7 +228,7 @@ public sealed class FrameworkReferenceResolverTests
             unavailableTfm,
             diagnostics);
 
-        if (installed)
+        if(installed)
         {
             // Pack IS installed for net5.0 on this machine — resolution succeeds.
             Assert.NotEmpty(result.Resolved);
@@ -306,7 +306,7 @@ public sealed class FrameworkReferenceResolverTests
         var diags = diagnostics.ToImmutableArray();
         Assert.Contains(diags, d => d.Id.Value == "MIST_FWREF_002" && d.Message.Contains(unknown, StringComparison.Ordinal));
 
-        if (aspNetInstalled)
+        if(aspNetInstalled)
         {
             // AspNetCore pack IS installed for net5.0 — it resolves successfully.
             Assert.NotEmpty(result.Resolved);

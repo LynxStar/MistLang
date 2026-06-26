@@ -117,9 +117,9 @@ public class TuplePositionalPatternExhaustivenessPropertyTests
     {
         var elementPatterns = new List<PatternNode>();
 
-        for (var i = 0; i < elementTypes.Count; i++)
+        for(var i = 0; i < elementTypes.Count; i++)
         {
-            if (elementTypes[i] is TupleType nestedTuple && useNestedTuplePattern[i])
+            if(elementTypes[i] is TupleType nestedTuple && useNestedTuplePattern[i])
             {
                 // Recursively create a nested all-catch-all tuple pattern
                 var nestedKinds = Enumerable.Range(0, nestedTuple.Arity)
@@ -177,7 +177,7 @@ public class TuplePositionalPatternExhaustivenessPropertyTests
                from nestedTypeIndices in Gen.ArrayOf(Gen.Choose(0, LeafTypes.Length - 1), nestedArity)
                let elementTypes = elementTypeIndices.Select((ti, i) =>
                {
-                   if (hasNested[i] && i == 0) // Only nest at first position to keep it manageable
+                   if(hasNested[i] && i == 0) // Only nest at first position to keep it manageable
                    {
                        var nestedElements = nestedTypeIndices
                            .Select(nti => LeafTypes[nti])

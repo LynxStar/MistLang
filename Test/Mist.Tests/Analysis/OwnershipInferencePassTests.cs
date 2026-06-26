@@ -113,20 +113,20 @@ public sealed class OwnershipInferencePassTests : IDisposable
     /// </summary>
     private static SyntaxNode? FindMainMethodBody(ISemanticModel model)
     {
-        foreach (var symbol in model.AllSymbols)
+        foreach(var symbol in model.AllSymbols)
         {
-            if (symbol.Origin != SymbolOrigin.UserCode)
+            if(symbol.Origin != SymbolOrigin.UserCode)
                 continue;
-            if (symbol.Kind != SymbolKind.Method)
+            if(symbol.Kind != SymbolKind.Method)
                 continue;
-            if (symbol.Name != "Main")
+            if(symbol.Name != "Main")
                 continue;
 
             SyntaxNode declaringNode;
             try { declaringNode = model.GetDeclaringNode(symbol); }
             catch { continue; }
 
-            if (declaringNode is MethodDeclarationNode methodDecl)
+            if(declaringNode is MethodDeclarationNode methodDecl)
                 return methodDecl.Body.GetBlock();
         }
         return null;
@@ -138,10 +138,10 @@ public sealed class OwnershipInferencePassTests : IDisposable
     private IReadOnlyDictionary<ISymbol, InferredBinding>? InferForMain(string source)
     {
         var (model, _) = CompileAndCapture(source);
-        if (model is null) return null;
+        if(model is null) return null;
 
         var body = FindMainMethodBody(model);
-        if (body is null) return null;
+        if(body is null) return null;
 
         var diagnostics = new DiagnosticBag();
         return OwnershipInferencePass.InferBindings(body, model, diagnostics);
@@ -153,10 +153,10 @@ public sealed class OwnershipInferencePassTests : IDisposable
     private (IReadOnlyDictionary<ISymbol, InferredBinding>? Bindings, ImmutableArray<Diagnostic> InferenceDiagnostics) InferForMainWithDiagnostics(string source)
     {
         var (model, _) = CompileAndCapture(source);
-        if (model is null) return (null, ImmutableArray<Diagnostic>.Empty);
+        if(model is null) return (null, ImmutableArray<Diagnostic>.Empty);
 
         var body = FindMainMethodBody(model);
-        if (body is null) return (null, ImmutableArray<Diagnostic>.Empty);
+        if(body is null) return (null, ImmutableArray<Diagnostic>.Empty);
 
         var diagnostics = new DiagnosticBag();
         var bindings = OwnershipInferencePass.InferBindings(body, model, diagnostics);
@@ -168,9 +168,9 @@ public sealed class OwnershipInferencePassTests : IDisposable
     /// </summary>
     private static InferredBinding? FindByName(IReadOnlyDictionary<ISymbol, InferredBinding> bindings, string name)
     {
-        foreach (var (symbol, binding) in bindings)
+        foreach(var (symbol, binding) in bindings)
         {
-            if (symbol.Name == name)
+            if(symbol.Name == name)
                 return binding;
         }
         return null;
@@ -383,7 +383,7 @@ public sealed class OwnershipInferencePassTests : IDisposable
         var xBinding = FindByName(bindings!, "x");
         // x may or may not be a candidate (int is a value type). If present,
         // with no uses it stays at Owned (no conflict to trigger downgrade).
-        if (xBinding is not null)
+        if(xBinding is not null)
         {
             Assert.True(
                 xBinding.Value.InferredTier is OwnershipTier.Owned or OwnershipTier.Unrestricted,
@@ -515,10 +515,10 @@ public sealed class OwnershipInferencePassTests : IDisposable
 
         // The inference may or may not emit MIST_OWN_INFERENCE_FAILURE depending on
         // how the pass handles this scenario. Check what the pass produces:
-        if (model is not null)
+        if(model is not null)
         {
             var body = FindMainMethodBody(model);
-            if (body is not null)
+            if(body is not null)
             {
                 var infDiag = new DiagnosticBag();
                 var bindings = OwnershipInferencePass.InferBindings(body, model, infDiag);
@@ -532,7 +532,7 @@ public sealed class OwnershipInferencePassTests : IDisposable
                 // (b) x was downgraded to Shared because read-after-consume conflicts with Owned
                 var hasInferenceFailure = infDiagArray.Any(d => d.Id.Value == "MIST_OWN_INFERENCE_FAILURE");
 
-                if (hasInferenceFailure)
+                if(hasInferenceFailure)
                 {
                     // The pass detected a true conflict and reported it.
                     Assert.Equal(OwnershipTier.Unrestricted, xBinding!.Value.InferredTier);

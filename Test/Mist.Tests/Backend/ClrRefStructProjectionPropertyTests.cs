@@ -59,21 +59,21 @@ public sealed class ClrRefStructProjectionPropertyTests
     /// </summary>
     private static bool IsNonSpanRefStruct(Type t)
     {
-        if (!t.IsByRefLike) return false;
+        if(!t.IsByRefLike) return false;
 
         // Exclude System.Span<> and System.ReadOnlySpan<> (they project to SpanType)
-        if (t.IsConstructedGenericType)
+        if(t.IsConstructedGenericType)
         {
             var genericDef = t.GetGenericTypeDefinition();
-            if (genericDef == typeof(Span<>) || genericDef == typeof(ReadOnlySpan<>))
+            if(genericDef == typeof(Span<>) || genericDef == typeof(ReadOnlySpan<>))
                 return false;
         }
 
         // Also exclude the open generic definitions themselves
-        if (t.IsGenericTypeDefinition)
+        if(t.IsGenericTypeDefinition)
         {
             var fullName = t.FullName;
-            if (fullName == "System.Span`1" || fullName == "System.ReadOnlySpan`1")
+            if(fullName == "System.Span`1" || fullName == "System.ReadOnlySpan`1")
                 return false;
         }
 
@@ -92,13 +92,13 @@ public sealed class ClrRefStructProjectionPropertyTests
     private static void RunProperty<T>(Gen<T> gen, Action<T> check, int maxTests = 100)
     {
         var samples = gen.Sample(maxTests).ToList();
-        for (var idx = 0; idx < samples.Count; idx++)
+        for(var idx = 0; idx < samples.Count; idx++)
         {
             try
             {
                 check(samples[idx]);
             }
-            catch (Exception ex)
+            catch(Exception ex)
             {
                 throw new Exception(
                     $"Property failed on sample {idx}/{samples.Count}: {samples[idx]}\n" +

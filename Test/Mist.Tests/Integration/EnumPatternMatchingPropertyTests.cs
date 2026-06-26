@@ -84,7 +84,7 @@ public sealed class EnumPatternMatchingPropertyTests : IDisposable
 
     public void Dispose()
     {
-        if (Directory.Exists(_outputDir))
+        if(Directory.Exists(_outputDir))
         {
             try { Directory.Delete(_outputDir, recursive: true); } catch { /* best effort */ }
         }
@@ -130,19 +130,19 @@ public sealed class EnumPatternMatchingPropertyTests : IDisposable
         // Since multiple scenarios may use the same enum name with different members,
         // we group by enum name and use the first occurrence's members.
         var enumDefs = new Dictionary<string, IReadOnlyList<(string Name, int Value)>>();
-        foreach (var scenario in scenarios)
+        foreach(var scenario in scenarios)
         {
-            if (!enumDefs.ContainsKey(scenario.EnumName))
+            if(!enumDefs.ContainsKey(scenario.EnumName))
             {
                 enumDefs[scenario.EnumName] = scenario.Members;
             }
         }
 
         // Emit enum declarations
-        foreach (var (enumName, members) in enumDefs)
+        foreach(var (enumName, members) in enumDefs)
         {
             sb.AppendLine($"public enum {enumName} : int {{");
-            for (var i = 0; i < members.Count; i++)
+            for(var i = 0; i < members.Count; i++)
             {
                 var comma = i < members.Count - 1 ? "," : "";
                 sb.AppendLine($"    {members[i].Name} = {members[i].Value}{comma}");
@@ -155,7 +155,7 @@ public sealed class EnumPatternMatchingPropertyTests : IDisposable
         sb.AppendLine("class Program {");
         sb.AppendLine("    static void Main() {");
 
-        for (var i = 0; i < scenarios.Count; i++)
+        for(var i = 0; i < scenarios.Count; i++)
         {
             var s = scenarios[i];
             // Use the enum definition that was actually emitted (first occurrence for this name)
@@ -204,7 +204,7 @@ public sealed class EnumPatternMatchingPropertyTests : IDisposable
 
             var result = SharedDriver.Compile(options);
 
-            if (!result.Succeeded || result.PrimaryOutputArtifactPath is null)
+            if(!result.Succeeded || result.PrimaryOutputArtifactPath is null)
             {
                 var diagnosticText = string.Join("\n",
                     result.Diagnostics.Select(d => $"  {d.Severity} {d.Id.Value}: {d.Message}"));
@@ -222,13 +222,13 @@ public sealed class EnumPatternMatchingPropertyTests : IDisposable
             };
 
             using var process = Process.Start(psi);
-            if (process is null)
+            if(process is null)
                 return (-1, "", "Failed to start dotnet process");
 
             var stdoutTask = process.StandardOutput.ReadToEndAsync();
             var stderrTask = process.StandardError.ReadToEndAsync();
 
-            if (!process.WaitForExit(30_000))
+            if(!process.WaitForExit(30_000))
             {
                 try { process.Kill(entireProcessTree: true); } catch { /* best effort */ }
                 return (-1, "", "Process timed out after 30 seconds");
@@ -269,7 +269,7 @@ public sealed class EnumPatternMatchingPropertyTests : IDisposable
         var lines = stdout.TrimEnd().Split('\n', StringSplitOptions.None);
         Assert.Equal(scenarios.Count, lines.Length);
 
-        for (var i = 0; i < scenarios.Count; i++)
+        for(var i = 0; i < scenarios.Count; i++)
         {
             var expected = scenarios[i].ExpectedResult ? "True" : "False";
             var actual = lines[i].TrimEnd('\r');
@@ -290,7 +290,7 @@ public sealed class EnumPatternMatchingPropertyTests : IDisposable
         var random = new Random(42); // deterministic seed for reproducibility
         var enumDefs = new Dictionary<string, (string Name, int Value)[]>();
 
-        foreach (var enumName in EnumNames)
+        foreach(var enumName in EnumNames)
         {
             var memberCount = random.Next(2, 6); // 2-5 members
             var shuffled = MemberNamePool.OrderBy(_ => random.Next()).Take(memberCount).ToArray();
@@ -300,7 +300,7 @@ public sealed class EnumPatternMatchingPropertyTests : IDisposable
 
         // Now generate scenarios that reference these fixed definitions.
         var scenarios = new List<PatternMatchScenario>(count);
-        for (var i = 0; i < count; i++)
+        for(var i = 0; i < count; i++)
         {
             var enumName = EnumNames[random.Next(EnumNames.Length)];
             var members = enumDefs[enumName];
@@ -308,7 +308,7 @@ public sealed class EnumPatternMatchingPropertyTests : IDisposable
             var shouldMatch = random.Next(2) == 0;
 
             int scrutineeValue;
-            if (shouldMatch)
+            if(shouldMatch)
             {
                 scrutineeValue = members[testedIdx].Value;
             }

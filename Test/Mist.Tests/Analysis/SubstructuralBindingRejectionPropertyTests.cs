@@ -223,7 +223,7 @@ public sealed class SubstructuralBindingRejectionPropertyTests
         var diagnostics = CompileAndGetDiagnostics(scenario.Source);
         var hasRejection = diagnostics.Any(d => d.Id.Value == SubstructuralBindingId);
 
-        if (hasRejection != scenario.ExpectRejection)
+        if(hasRejection != scenario.ExpectRejection)
         {
             var ids = string.Join(", ", diagnostics.Select(d => d.Id.Value));
             return false.ToProperty().Label(

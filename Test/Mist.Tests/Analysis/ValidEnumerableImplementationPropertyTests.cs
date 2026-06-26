@@ -74,7 +74,7 @@ public sealed class ValidEnumerableImplementationPropertyTests : IDisposable
 
     public void Dispose()
     {
-        if (Directory.Exists(_tempDir))
+        if(Directory.Exists(_tempDir))
         {
             try { Directory.Delete(_tempDir, recursive: true); } catch { /* best effort */ }
         }
@@ -213,7 +213,7 @@ public sealed class ValidEnumerableImplementationPropertyTests : IDisposable
 
         var hasAbstractDiagnostics = abstractDiagnostics.Count > 0;
 
-        if (hasAbstractDiagnostics)
+        if(hasAbstractDiagnostics)
         {
             var diagMessages = string.Join("\n", abstractDiagnostics.Select(d => $"  {d.Id.Value}: {d.Message}"));
             return false.ToProperty()
@@ -223,7 +223,7 @@ public sealed class ValidEnumerableImplementationPropertyTests : IDisposable
 
         // Also verify the compilation succeeded overall (no other errors that would
         // indicate a broken test scenario rather than an abstract type validation issue)
-        if (!result.Succeeded)
+        if(!result.Succeeded)
         {
             var allDiags = string.Join("\n", result.Diagnostics.Select(d => $"  {d.Id.Value}: {d.Message}"));
             return false.ToProperty()

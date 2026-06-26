@@ -184,7 +184,7 @@ public class TypeArgumentInferenceConstructedTypePropertyTests
                let declaredParam = new ConstructedType(TripleDef, [tpX, tpY, tpZ])
                let argumentType = new ConstructedType(TripleDef, [c1, c2, c3])
                let bindings = new Dictionary<string, IType>
-                   { ["X"] = c1, ["Y"] = c2, ["Z"] = c3 }
+               { ["X"] = c1, ["Y"] = c2, ["Z"] = c3 }
                select new ConstructedTypeScenario(
                    [tpX, tpY, tpZ],
                    declaredParam,
@@ -352,16 +352,16 @@ public class TypeArgumentInferenceConstructedTypePropertyTests
         var bindingsCorrect = true;
         var mismatchDetails = "";
 
-        if (result.Success && result.InferredTypeArguments is not null)
+        if(result.Success && result.InferredTypeArguments is not null)
         {
-            foreach (var (name, expectedType) in scenario.ExpectedBindings)
+            foreach(var (name, expectedType) in scenario.ExpectedBindings)
             {
                 // Find the type parameter by name to get its ordinal
                 var tp = scenario.TypeParameters
                     .OfType<TypeParameterType>()
                     .FirstOrDefault(t => t.Name == name);
 
-                if (tp is null)
+                if(tp is null)
                 {
                     bindingsCorrect = false;
                     mismatchDetails += $"Type parameter '{name}' not found in declaration. ";
@@ -369,7 +369,7 @@ public class TypeArgumentInferenceConstructedTypePropertyTests
                 }
 
                 var inferredType = result.InferredTypeArguments[tp.Ordinal];
-                if (!ReferenceEquals(inferredType, expectedType))
+                if(!ReferenceEquals(inferredType, expectedType))
                 {
                     bindingsCorrect = false;
                     mismatchDetails +=

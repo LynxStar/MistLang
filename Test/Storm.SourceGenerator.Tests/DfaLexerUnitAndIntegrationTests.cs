@@ -20,7 +20,7 @@ namespace Storm.SourceGenerator.Tests
             return path =>
             {
                 var normalized = StormImportResolver.CanonicalizePath(path);
-                if (files.TryGetValue(normalized, out var contents))
+                if(files.TryGetValue(normalized, out var contents))
                 {
                     return contents;
                 }
@@ -214,13 +214,13 @@ rule Start = IDENT;
         private static string FindGrammarDirectory()
         {
             var dir = AppContext.BaseDirectory;
-            while (dir != null)
+            while(dir != null)
             {
                 var slnxPath = Path.Combine(dir, "Mist.slnx");
-                if (File.Exists(slnxPath))
+                if(File.Exists(slnxPath))
                 {
                     var grammarDir = Path.Combine(dir, "Source", "Mist", "Grammar");
-                    if (Directory.Exists(grammarDir))
+                    if(Directory.Exists(grammarDir))
                     {
                         return grammarDir;
                     }
@@ -239,11 +239,11 @@ rule Start = IDENT;
             {
                 var fsPath = path.Replace('/', Path.DirectorySeparatorChar);
 
-                if (Path.IsPathRooted(fsPath) && File.Exists(fsPath))
+                if(Path.IsPathRooted(fsPath) && File.Exists(fsPath))
                     return File.ReadAllText(fsPath);
 
                 var fullPath = Path.GetFullPath(Path.Combine(grammarDir, fsPath));
-                if (File.Exists(fullPath))
+                if(File.Exists(fullPath))
                     return File.ReadAllText(fullPath);
 
                 return null;

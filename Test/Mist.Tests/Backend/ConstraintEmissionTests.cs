@@ -45,7 +45,7 @@ public sealed class ConstraintEmissionTests : IDisposable
 
     public void Dispose()
     {
-        if (Directory.Exists(_outputDir))
+        if(Directory.Exists(_outputDir))
         {
             try { Directory.Delete(_outputDir, recursive: true); } catch { /* best effort */ }
         }
@@ -62,7 +62,7 @@ public sealed class ConstraintEmissionTests : IDisposable
         var parseBag = new DiagnosticBag();
         var parseResult = Parser.Parse(tokens, parseBag);
 
-        if (parseResult.Root is null)
+        if(parseResult.Root is null)
             return "";
 
         var compilation = new MistCompilation(
@@ -77,7 +77,7 @@ public sealed class ConstraintEmissionTests : IDisposable
             semBag);
 
         // Clean output dir
-        foreach (var file in Directory.GetFiles(_outputDir))
+        foreach(var file in Directory.GetFiles(_outputDir))
             File.Delete(file);
 
         var emitBag = new DiagnosticBag();

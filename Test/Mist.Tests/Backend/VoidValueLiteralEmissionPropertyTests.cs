@@ -183,7 +183,7 @@ public sealed class VoidValueLiteralEmissionPropertyTests : IDisposable
 
     public void Dispose()
     {
-        if (Directory.Exists(_outputDir))
+        if(Directory.Exists(_outputDir))
         {
             try { Directory.Delete(_outputDir, recursive: true); } catch { /* best effort */ }
         }
@@ -227,20 +227,20 @@ public sealed class VoidValueLiteralEmissionPropertyTests : IDisposable
     /// </summary>
     private static string? GetEmittedCSharp(CompilerResult result)
     {
-        if (result.EmittedFiles is null)
+        if(result.EmittedFiles is null)
             return null;
 
         // Look for the test file's emitted output
-        foreach (var (fileName, fileContent) in result.EmittedFiles)
+        foreach(var (fileName, fileContent) in result.EmittedFiles)
         {
-            if (fileContent.Contains("namespace TestProject"))
+            if(fileContent.Contains("namespace TestProject"))
                 return fileContent;
         }
 
         // Fallback: return the first non-helper .cs file
-        foreach (var (fileName, fileContent) in result.EmittedFiles)
+        foreach(var (fileName, fileContent) in result.EmittedFiles)
         {
-            if (fileName.EndsWith(".cs", StringComparison.Ordinal)
+            if(fileName.EndsWith(".cs", StringComparison.Ordinal)
                 && !fileName.EndsWith(".g.cs", StringComparison.Ordinal)
                 && !fileName.EndsWith(".csproj", StringComparison.Ordinal))
                 return fileContent;
@@ -271,7 +271,7 @@ public sealed class VoidValueLiteralEmissionPropertyTests : IDisposable
             .Where(d => d.Severity == DiagnosticSeverity.Error)
             .ToList();
 
-        if (errors.Count > 0)
+        if(errors.Count > 0)
         {
             return false.ToProperty()
                 .Label($"Compilation failed with errors:\n{string.Join("\n", errors.Select(e => $"  {e.Id.Value}: {e.Message}"))}\nSource:\n{scenario.Source}");
@@ -279,7 +279,7 @@ public sealed class VoidValueLiteralEmissionPropertyTests : IDisposable
 
         var csContent = GetEmittedCSharp(result);
 
-        if (csContent is null)
+        if(csContent is null)
         {
             return false.ToProperty()
                 .Label($"No emitted C# content found.\nEmitted files: {(result.EmittedFiles is null ? "null" : string.Join(", ", result.EmittedFiles.Keys))}\nSource:\n{scenario.Source}");
@@ -289,13 +289,13 @@ public sealed class VoidValueLiteralEmissionPropertyTests : IDisposable
         var containsForbidden = !string.IsNullOrEmpty(scenario.ForbiddenPattern)
             && csContent.Contains(scenario.ForbiddenPattern);
 
-        if (!containsExpected)
+        if(!containsExpected)
         {
             return false.ToProperty()
                 .Label($"Expected emitted C# to contain '{scenario.ExpectedPattern}' but it did not.\nContext: {scenario.Context}\nEmitted:\n{csContent}\nSource:\n{scenario.Source}");
         }
 
-        if (containsForbidden)
+        if(containsForbidden)
         {
             return false.ToProperty()
                 .Label($"Emitted C# should NOT contain '{scenario.ForbiddenPattern}' but it does.\nContext: {scenario.Context}\nEmitted:\n{csContent}\nSource:\n{scenario.Source}");

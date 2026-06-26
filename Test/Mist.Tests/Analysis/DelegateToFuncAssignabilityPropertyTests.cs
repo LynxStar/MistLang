@@ -60,7 +60,7 @@ public sealed class DelegateToFuncAssignabilityPropertyTests
     {
         var funcDef = new ClassType("Func", new Scope(null), "Standard", isBackendBacked: true);
         var tps = new IType[typeArgs.Length];
-        for (var i = 0; i < typeArgs.Length; i++)
+        for(var i = 0; i < typeArgs.Length; i++)
             tps[i] = new TypeParameterType($"T{i}", i);
         funcDef.TypeParameters = tps;
 
@@ -113,7 +113,7 @@ public sealed class DelegateToFuncAssignabilityPropertyTests
     public void P4_DelegateToFunc_IsAlwaysAssignable()
     {
         var samples = GenDelegateTypeInput().Sample(100);
-        foreach (var input in samples)
+        foreach(var input in samples)
         {
             var delegateType = BuildDelegateType(input);
 

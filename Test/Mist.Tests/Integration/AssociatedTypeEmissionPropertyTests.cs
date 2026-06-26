@@ -134,7 +134,7 @@ public sealed class AssociatedTypeEmissionPropertyTests : IDisposable
 
     public void Dispose()
     {
-        if (Directory.Exists(_outputDir))
+        if(Directory.Exists(_outputDir))
         {
             try { Directory.Delete(_outputDir, recursive: true); } catch { /* best effort */ }
         }
@@ -283,7 +283,7 @@ public sealed class AssociatedTypeEmissionPropertyTests : IDisposable
         sb.AppendLine("    public static void Main(string[] args) {");
 
         // Emit inline scenario execution
-        for (var i = 0; i < scenarios.Count; i++)
+        for(var i = 0; i < scenarios.Count; i++)
         {
             scenarios[i].Index = i;
             EmitScenarioInline(sb, scenarios[i]);
@@ -302,7 +302,7 @@ public sealed class AssociatedTypeEmissionPropertyTests : IDisposable
     {
         var i = scenario.Index;
 
-        switch (scenario.Kind)
+        switch(scenario.Kind)
         {
             case AssociatedTypeEmissionKind.UnconstrainedSlotWithStruct:
                 sb.AppendLine($"        var h{i} = new Holder({scenario.IntValue});");
@@ -350,7 +350,7 @@ public sealed class AssociatedTypeEmissionPropertyTests : IDisposable
 
             var result = SharedDriver.Compile(options);
 
-            if (!result.Succeeded || result.PrimaryOutputArtifactPath is null)
+            if(!result.Succeeded || result.PrimaryOutputArtifactPath is null)
             {
                 var diagnosticText = string.Join("\n",
                     result.Diagnostics
@@ -370,13 +370,13 @@ public sealed class AssociatedTypeEmissionPropertyTests : IDisposable
             };
 
             using var process = Process.Start(psi);
-            if (process is null)
+            if(process is null)
                 return (-1, "", "Failed to start dotnet process");
 
             var stdoutTask = process.StandardOutput.ReadToEndAsync();
             var stderrTask = process.StandardError.ReadToEndAsync();
 
-            if (!process.WaitForExit(30_000))
+            if(!process.WaitForExit(30_000))
             {
                 try { process.Kill(entireProcessTree: true); } catch { /* best effort */ }
                 return (-1, "", "Process timed out after 30 seconds");
@@ -419,7 +419,7 @@ public sealed class AssociatedTypeEmissionPropertyTests : IDisposable
         var lines = stdout.TrimEnd().Split('\n', StringSplitOptions.None);
         Assert.Equal(scenarios.Count, lines.Length);
 
-        for (var i = 0; i < scenarios.Count; i++)
+        for(var i = 0; i < scenarios.Count; i++)
         {
             var expected = scenarios[i].ExpectedOutput;
             var actual = lines[i].TrimEnd('\r');

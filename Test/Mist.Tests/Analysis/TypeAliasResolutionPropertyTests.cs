@@ -90,7 +90,7 @@ public class TypeAliasResolutionPropertyTests
 
         var lexBag = new DiagnosticBag();
         var tokens = Lexer.Lex(sourceText, lexBag);
-        if (lexBag.HasErrors)
+        if(lexBag.HasErrors)
         {
             diagnostics = lexBag.ToImmutableArray();
             return null;
@@ -98,7 +98,7 @@ public class TypeAliasResolutionPropertyTests
 
         var parseBag = new DiagnosticBag();
         var parseResult = Parser.Parse(tokens, parseBag);
-        if (parseBag.HasErrors || parseResult.Root is null)
+        if(parseBag.HasErrors || parseResult.Root is null)
         {
             diagnostics = parseBag.ToImmutableArray();
             return null;
@@ -189,26 +189,26 @@ public class TypeAliasResolutionPropertyTests
 
         // Build semantic models for both programs
         var modelA = BuildModelFromSource(sourceWithAlias, out var diagsA);
-        if (modelA is null)
+        if(modelA is null)
             return false.ToProperty()
                 .Label($"Failed to build model for alias program. Diagnostics: " +
                        $"{string.Join("; ", diagsA.Select(d => d.Message))}");
 
         var modelB = BuildModelFromSource(sourceWithDirect, out var diagsB);
-        if (modelB is null)
+        if(modelB is null)
             return false.ToProperty()
                 .Label($"Failed to build model for direct program. Diagnostics: " +
                        $"{string.Join("; ", diagsB.Select(d => d.Message))}");
 
         // Find the variable symbols
         var aliasVarSymbol = FindLocalVariable(modelA, "aliasVar");
-        if (aliasVarSymbol is null)
+        if(aliasVarSymbol is null)
             return false.ToProperty()
                 .Label($"Variable 'aliasVar' not found in alias program model. " +
                        $"All symbols: [{string.Join(", ", modelA.AllSymbols.Select(s => $"{s.Name}:{s.Kind}"))}]");
 
         var directVarSymbol = FindLocalVariable(modelB, "directVar");
-        if (directVarSymbol is null)
+        if(directVarSymbol is null)
             return false.ToProperty()
                 .Label($"Variable 'directVar' not found in direct program model. " +
                        $"All symbols: [{string.Join(", ", modelB.AllSymbols.Select(s => $"{s.Name}:{s.Kind}"))}]");
@@ -217,11 +217,11 @@ public class TypeAliasResolutionPropertyTests
         var aliasVarType = aliasVarSymbol.DeclaredType;
         var directVarType = directVarSymbol.DeclaredType;
 
-        if (aliasVarType is null)
+        if(aliasVarType is null)
             return false.ToProperty()
                 .Label($"Variable 'aliasVar' has null DeclaredType. Scenario: {scenario}");
 
-        if (directVarType is null)
+        if(directVarType is null)
             return false.ToProperty()
                 .Label($"Variable 'directVar' has null DeclaredType. Scenario: {scenario}");
 
@@ -230,7 +230,7 @@ public class TypeAliasResolutionPropertyTests
         // Alternatively, if the type checker has already resolved the alias
         // transparently, the types should match directly.
         IType resolvedAliasType;
-        if (aliasVarType is TypeAliasType aliasType)
+        if(aliasVarType is TypeAliasType aliasType)
         {
             resolvedAliasType = aliasType.UnderlyingType;
         }
@@ -245,7 +245,7 @@ public class TypeAliasResolutionPropertyTests
         var displayNameMatch = resolvedAliasType.DisplayName == directVarType.DisplayName;
         var kindMatch = resolvedAliasType.Kind == directVarType.Kind;
 
-        if (!displayNameMatch || !kindMatch)
+        if(!displayNameMatch || !kindMatch)
             return false.ToProperty()
                 .Label($"Type mismatch. Alias resolved to: {resolvedAliasType.DisplayName} (Kind={resolvedAliasType.Kind}), " +
                        $"Direct type: {directVarType.DisplayName} (Kind={directVarType.Kind}). " +

@@ -92,10 +92,13 @@ public class RefLocalRequiresInitializerTests
 
     private static TypeReferenceNode MakeIntTypeRef()
     {
-        return new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
+        return new TypeReferenceNode
         {
-            PrimitiveType = new IntTypePrimitiveTypeNode(),
-        } };
+            First = new PrimitiveSingleTypeRefSingleTypeRefNode
+            {
+                PrimitiveType = new IntTypePrimitiveTypeNode(),
+            }
+        };
     }
 
     private static MethodDeclarationNode MakeMainMethod(ImmutableArray<StatementNode> body)

@@ -95,11 +95,11 @@ public class ScopeChainTraversalPropertyTests
         var allExpectedSymbols = new List<ISymbol>();
         Scope? currentScope = null;
 
-        for (var level = 0; level < scenario.ChainDepth; level++)
+        for(var level = 0; level < scenario.ChainDepth; level++)
         {
             currentScope = new Scope(parent: currentScope);
 
-            for (var i = 0; i < scenario.SymbolCountsPerLevel[level]; i++)
+            for(var i = 0; i < scenario.SymbolCountsPerLevel[level]; i++)
             {
                 var symbol = MakeSymbol(scenario.TargetName, SymbolKind.Method, currentScope);
                 currentScope.AddMember(symbol);
@@ -111,11 +111,11 @@ public class ScopeChainTraversalPropertyTests
         var results = currentScope!.LookupAll(scenario.TargetName);
 
         // Assert: total count matches sum across all levels
-        if (results.Count != scenario.TotalExpected)
+        if(results.Count != scenario.TotalExpected)
             return false;
 
         // Assert: every returned symbol has the correct name
-        if (results.Any(s => s.Name != scenario.TargetName))
+        if(results.Any(s => s.Name != scenario.TargetName))
             return false;
 
         // Assert: every expected symbol is present in the results
@@ -136,14 +136,14 @@ public class ScopeChainTraversalPropertyTests
         Scope? currentScope = null;
         var expectedCount = 0;
 
-        for (var level = 0; level < scenario.ChainDepth; level++)
+        for(var level = 0; level < scenario.ChainDepth; level++)
         {
             currentScope = new Scope(parent: currentScope);
 
-            if (level % 2 == 0)
+            if(level % 2 == 0)
             {
                 // Add target symbols at even levels
-                for (var i = 0; i < scenario.SymbolCountsPerLevel[level]; i++)
+                for(var i = 0; i < scenario.SymbolCountsPerLevel[level]; i++)
                 {
                     var symbol = MakeSymbol(scenario.TargetName, SymbolKind.Method, currentScope);
                     currentScope.AddMember(symbol);
@@ -154,7 +154,7 @@ public class ScopeChainTraversalPropertyTests
             else
             {
                 // Add unrelated symbols at odd levels
-                for (var i = 0; i < scenario.SymbolCountsPerLevel[level]; i++)
+                for(var i = 0; i < scenario.SymbolCountsPerLevel[level]; i++)
                 {
                     var otherSymbol = MakeSymbol($"unrelated_{level}_{i}", SymbolKind.Field, currentScope);
                     currentScope.AddMember(otherSymbol);
@@ -166,11 +166,11 @@ public class ScopeChainTraversalPropertyTests
         var results = currentScope!.LookupAll(scenario.TargetName);
 
         // Assert: count matches only the even-level symbols
-        if (results.Count != expectedCount)
+        if(results.Count != expectedCount)
             return false;
 
         // Assert: every returned symbol has the correct name
-        if (results.Any(s => s.Name != scenario.TargetName))
+        if(results.Any(s => s.Name != scenario.TargetName))
             return false;
 
         // Assert: every expected symbol is present

@@ -23,9 +23,9 @@ internal static class StdlibTestHelper
     private static string FindRepoRoot()
     {
         var dir = AppContext.BaseDirectory;
-        while (dir is not null)
+        while(dir is not null)
         {
-            if (File.Exists(Path.Combine(dir, "Mist.slnx")))
+            if(File.Exists(Path.Combine(dir, "Mist.slnx")))
                 return dir;
             dir = Directory.GetParent(dir)?.FullName;
         }
@@ -41,7 +41,7 @@ internal static class StdlibTestHelper
     /// </summary>
     public static (ImmutableArray<CompilationUnit> Units, ImmutableArray<Storm.Runtime.SyntaxNode> Asts) LoadStdlib()
     {
-        if (_cachedUnits.HasValue)
+        if(_cachedUnits.HasValue)
             return (_cachedUnits.Value, _cachedAsts!.Value);
 
         var repoRoot = FindRepoRoot();
@@ -55,11 +55,11 @@ internal static class StdlibTestHelper
         var parseDiag = new DiagnosticBag();
         var asts = ImmutableArray.CreateBuilder<Storm.Runtime.SyntaxNode>(units.Length);
 
-        foreach (var unit in units)
+        foreach(var unit in units)
         {
             var tokens = lexer.Lex(unit.Source, parseDiag);
             var parseResult = parser.Parse(tokens, parseDiag);
-            if (parseResult.Root is not null)
+            if(parseResult.Root is not null)
                 asts.Add(parseResult.Root);
         }
 

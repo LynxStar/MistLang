@@ -96,7 +96,7 @@ public class AbstractMemberLookupPropertyTests
             Members = members,
         };
 
-        if (parentAbstractName is not null)
+        if(parentAbstractName is not null)
         {
             var _abstractList1 = MakeBaseList(parentAbstractName);
 
@@ -114,17 +114,20 @@ public class AbstractMemberLookupPropertyTests
         bool isStatic = false)
     {
         var modifiers = new List<ModifierNode> { new PublicModifierModifierNode() };
-        if (isStatic)
+        if(isStatic)
             modifiers.Add(new StaticModifierModifierNode());
 
         return new MethodDeclarationNode
         {
             Name = MakeToken(name),
             ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
-            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode
+            Body = new MethodBlockBodyMethodBodyNode
             {
-                Statements = bodyStatements ?? ImmutableArray<StatementNode>.Empty,
-            } },
+                Block = new BlockNode
+                {
+                    Statements = bodyStatements ?? ImmutableArray<StatementNode>.Empty,
+                }
+            },
             Modifiers = modifiers.ToImmutableArray(),
         };
     }
@@ -140,7 +143,7 @@ public class AbstractMemberLookupPropertyTests
             Members = members ?? ImmutableArray<MemberDeclarationNode>.Empty,
         };
 
-        if (baseOrAbstractName is not null)
+        if(baseOrAbstractName is not null)
         {
             var _baseList1 = MakeBaseList(baseOrAbstractName);
 
@@ -234,14 +237,17 @@ public class AbstractMemberLookupPropertyTests
         {
             VariableDeclaration = new TypedVariableDeclarationVariableDeclarationStatementNode
             {
-                Type = new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
+                Type = new TypeReferenceNode
                 {
-                    Name = new QualifiedIdentifierNode
+                    First = new NamedSingleTypeRefSingleTypeRefNode
                     {
-                        IDENTIFIER = MakeToken(declaredTypeName),
-                        Span = new Storm.Runtime.SourceSpan(0, declaredTypeName.Length),
-                    },
-                } },
+                        Name = new QualifiedIdentifierNode
+                        {
+                            IDENTIFIER = MakeToken(declaredTypeName),
+                            Span = new Storm.Runtime.SourceSpan(0, declaredTypeName.Length),
+                        },
+                    }
+                },
                 Name = MakeToken(varName),
                 Initializer = MakeNewObjectExpression(initializedTypeName),
             },
@@ -378,7 +384,7 @@ public class AbstractMemberLookupPropertyTests
         var abstracts = new List<AbstractInfo>();
         var methodIdx = 0;
 
-        for (var i = 0; i < names.Length; i++)
+        for(var i = 0; i < names.Length; i++)
         {
             var count = splits[i];
             var methods = allMethods.Skip(methodIdx).Take(count).ToImmutableArray();
@@ -422,7 +428,7 @@ public class AbstractMemberLookupPropertyTests
     /// </summary>
     private static Gen<int[]> GenSplitPoints(int total, int buckets)
     {
-        if (buckets <= 0 || total < buckets)
+        if(buckets <= 0 || total < buckets)
             return Gen.Constant(Array.Empty<int>());
 
         // Give each bucket 1, then distribute the remainder randomly
@@ -432,7 +438,7 @@ public class AbstractMemberLookupPropertyTests
             {
                 // Normalize extras to sum to remainder
                 var sum = extras.Sum();
-                if (sum == 0)
+                if(sum == 0)
                 {
                     var result = new int[buckets];
                     Array.Fill(result, 1);
@@ -443,7 +449,7 @@ public class AbstractMemberLookupPropertyTests
 
                 var normalized = new int[buckets];
                 var distributed = 0;
-                for (var i = 0; i < buckets; i++)
+                for(var i = 0; i < buckets; i++)
                 {
                     normalized[i] = 1 + (int)Math.Round((double)extras[i] / sum * remainder);
                     distributed += normalized[i];
@@ -451,7 +457,7 @@ public class AbstractMemberLookupPropertyTests
 
                 // Fix rounding errors
                 normalized[^1] += total - distributed;
-                if (normalized[^1] < 1) normalized[^1] = 1;
+                if(normalized[^1] < 1) normalized[^1] = 1;
 
                 return normalized;
             })
@@ -479,7 +485,7 @@ public class AbstractMemberLookupPropertyTests
         var typeDecls = new List<TypeDeclarationNode>();
 
         // 1. Declare all abstracts in order (parents before children)
-        foreach (var abstractInfo in scenario.Abstracts)
+        foreach(var abstractInfo in scenario.Abstracts)
         {
             var methods = abstractInfo.Methods
                 .Select(m => MakeAbstractMethod(m))
@@ -545,7 +551,7 @@ public class AbstractMemberLookupPropertyTests
             .ToList();
 
         return undefinedMemberDiags.Count == 0;
-    ;
+        ;
     }
 
 }

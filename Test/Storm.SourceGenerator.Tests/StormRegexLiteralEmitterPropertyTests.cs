@@ -17,7 +17,7 @@ public class StormRegexLiteralEmitterPropertyTests
         return path =>
         {
             var normalized = StormImportResolver.CanonicalizePath(path);
-            if (files.TryGetValue(normalized, out var contents))
+            if(files.TryGetValue(normalized, out var contents))
                 return contents;
             return null;
         };
@@ -87,7 +87,7 @@ public class StormRegexLiteralEmitterPropertyTests
     {
         var patterns = GenRegexPattern().Sample(100);
         var testedCount = 0;
-        foreach (var pattern in patterns)
+        foreach(var pattern in patterns)
         {
             var grammarSource = $"token T = `{pattern}`;\nrule Start = T;";
 
@@ -107,7 +107,7 @@ public class StormRegexLiteralEmitterPropertyTests
             {
                 output = LexerEmitter.Emit(ctx);
             }
-            catch (FormatException)
+            catch(FormatException)
             {
                 // Skip patterns that are not valid for the RegexParser
                 // (e.g., unterminated character classes from random generation)

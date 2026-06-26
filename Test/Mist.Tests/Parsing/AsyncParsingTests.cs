@@ -319,7 +319,7 @@ public class AsyncParsingTests
     private static UnaryNode? GetUnaryFromAssignment(AssignmentNode assignment)
     {
         var additive = GetAdditiveFromAssignment(assignment);
-        if (additive is null) return null;
+        if(additive is null) return null;
         return GetUnaryFromAdditiveLeft(additive);
     }
 
@@ -329,7 +329,7 @@ public class AsyncParsingTests
         var logicalAnd = logicalOr.Left;
         var equality = logicalAnd.Left;
 
-        if (equality.Left is not RelationalComparisonRelationalNode relational)
+        if(equality.Left is not RelationalComparisonRelationalNode relational)
             return null;
 
         return relational.Left;

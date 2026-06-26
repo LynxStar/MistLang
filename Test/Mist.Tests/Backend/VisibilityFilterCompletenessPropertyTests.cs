@@ -37,7 +37,7 @@ public sealed class VisibilityFilterCompletenessPropertyTests
         var assembly = typeof(Mist.Tests.InteropFixtures.SimpleClass).Assembly;
         var members = new List<MemberInfo>();
 
-        foreach (var type in assembly.GetTypes())
+        foreach(var type in assembly.GetTypes())
         {
             // Include all members with all binding flags to cover public, non-public, static, instance
             var typeMembers = type.GetMembers(
@@ -84,26 +84,26 @@ public sealed class VisibilityFilterCompletenessPropertyTests
     private static bool ShouldBeExcluded(MemberInfo member)
     {
         // Rule (a): Non-public accessibility → exclude (Requirement 6.7)
-        if (!IsMemberPublic(member))
+        if(!IsMemberPublic(member))
             return true;
 
         // Rule (b): Events → exclude (Requirement 5.8 / design doc)
-        if (member is EventInfo)
+        if(member is EventInfo)
             return true;
 
         // Rule (c): out parameters — no longer excluded (projected as ref with ClrCallingConvention.Out)
 
         // Rule (d): ref readonly return type → exclude (Requirement 4.3, 6.3)
         // Mutable ref returns now pass through (CLR Ref Interop feature)
-        if (HasRefReadonlyReturn(member))
+        if(HasRefReadonlyReturn(member))
             return true;
 
         // Rule (f): Pointer types in signature → exclude (Requirement 6.4)
-        if (HasPointerTypes(member))
+        if(HasPointerTypes(member))
             return true;
 
         // Rule (g): Signature references an excluded type → exclude (Requirement 6.6)
-        if (ReferencesExcludedType(member))
+        if(ReferencesExcludedType(member))
             return true;
 
         return false;
@@ -134,7 +134,7 @@ public sealed class VisibilityFilterCompletenessPropertyTests
 
     private static bool IsTypePublic(Type type)
     {
-        if (type.IsNested)
+        if(type.IsNested)
             return type.IsNestedPublic && type.DeclaringType is not null && IsTypePublic(type.DeclaringType);
         return type.IsPublic;
     }
@@ -142,12 +142,12 @@ public sealed class VisibilityFilterCompletenessPropertyTests
     private static bool HasOutParameters(MemberInfo member)
     {
         var parameters = GetParameters(member);
-        if (parameters is null)
+        if(parameters is null)
             return false;
 
-        foreach (var param in parameters)
+        foreach(var param in parameters)
         {
-            if (param.IsOut)
+            if(param.IsOut)
                 return true;
         }
 
@@ -188,26 +188,26 @@ public sealed class VisibilityFilterCompletenessPropertyTests
 
     private static bool ContainsPointerType(Type type)
     {
-        if (type.IsPointer)
+        if(type.IsPointer)
             return true;
 
-        if (type.IsByRef)
+        if(type.IsByRef)
         {
             var elementType = type.GetElementType();
             return elementType is not null && ContainsPointerType(elementType);
         }
 
-        if (type.IsArray)
+        if(type.IsArray)
         {
             var elementType = type.GetElementType();
             return elementType is not null && ContainsPointerType(elementType);
         }
 
-        if (type.IsConstructedGenericType)
+        if(type.IsConstructedGenericType)
         {
-            foreach (var arg in type.GetGenericArguments())
+            foreach(var arg in type.GetGenericArguments())
             {
-                if (ContainsPointerType(arg))
+                if(ContainsPointerType(arg))
                     return true;
             }
         }
@@ -230,43 +230,43 @@ public sealed class VisibilityFilterCompletenessPropertyTests
 
     private static bool IsTypeExcludedInSignature(Type type)
     {
-        if (type.IsByRef)
+        if(type.IsByRef)
         {
             var elementType = type.GetElementType();
-            if (elementType is not null)
+            if(elementType is not null)
                 return IsTypeExcludedInSignature(elementType);
         }
 
-        if (type.IsPointer)
+        if(type.IsPointer)
         {
             var elementType = type.GetElementType();
-            if (elementType is not null)
+            if(elementType is not null)
                 return IsTypeExcludedInSignature(elementType);
         }
 
-        if (type.IsArray)
+        if(type.IsArray)
         {
             var elementType = type.GetElementType();
-            if (elementType is not null)
+            if(elementType is not null)
                 return IsTypeExcludedInSignature(elementType);
         }
 
-        if (type.IsConstructedGenericType)
+        if(type.IsConstructedGenericType)
         {
-            foreach (var arg in type.GetGenericArguments())
+            foreach(var arg in type.GetGenericArguments())
             {
-                if (IsTypeExcludedInSignature(arg))
+                if(IsTypeExcludedInSignature(arg))
                     return true;
             }
 
             var genericDef = type.GetGenericTypeDefinition();
-            if (IsTypeExcludedByRules(genericDef))
+            if(IsTypeExcludedByRules(genericDef))
                 return true;
 
             return false;
         }
 
-        if (type.IsGenericParameter)
+        if(type.IsGenericParameter)
             return false;
 
         return IsTypeExcludedByRules(type);
@@ -274,7 +274,7 @@ public sealed class VisibilityFilterCompletenessPropertyTests
 
     private static bool IsTypeExcludedByRules(Type type)
     {
-        if (!IsTypePublic(type))
+        if(!IsTypePublic(type))
             return true;
 
         // Ref-struct types (carry IsByRefLikeAttribute, e.g. Span<T>/ReadOnlySpan<T>) are NOT
@@ -283,7 +283,7 @@ public sealed class VisibilityFilterCompletenessPropertyTests
 
         // Delegate-specific check: named delegates whose Invoke method references excluded
         // types (pointers, ref readonly return) are excluded (Requirements 5.2, 5.3, 5.4).
-        if (IsDelegateWithExcludedInvokeSignature(type))
+        if(IsDelegateWithExcludedInvokeSignature(type))
             return true;
 
         return false;
@@ -296,38 +296,38 @@ public sealed class VisibilityFilterCompletenessPropertyTests
     /// </summary>
     private static bool IsDelegateWithExcludedInvokeSignature(Type type)
     {
-        if (type.BaseType?.FullName != "System.MulticastDelegate")
+        if(type.BaseType?.FullName != "System.MulticastDelegate")
             return false;
 
         // System.Delegate and System.MulticastDelegate themselves are never excluded.
         var fullName = type.FullName ?? "";
-        if (fullName is "System.Delegate" or "System.MulticastDelegate")
+        if(fullName is "System.Delegate" or "System.MulticastDelegate")
             return false;
 
         // System.Func/Action families are not named delegates for this purpose.
         var name = type.Name;
-        if (name.StartsWith("Func`") || name.StartsWith("Action`") || name == "Action")
+        if(name.StartsWith("Func`") || name.StartsWith("Action`") || name == "Action")
             return false;
 
         var invokeMethod = type.GetMethod("Invoke");
-        if (invokeMethod is null)
+        if(invokeMethod is null)
             return false;
 
         // Check for pointer types in Invoke parameters
-        foreach (var p in invokeMethod.GetParameters())
+        foreach(var p in invokeMethod.GetParameters())
         {
-            if (ContainsPointerType(p.ParameterType))
+            if(ContainsPointerType(p.ParameterType))
                 return true;
         }
 
         // Check for pointer type in return
-        if (ContainsPointerType(invokeMethod.ReturnType))
+        if(ContainsPointerType(invokeMethod.ReturnType))
             return true;
 
         // Check for ref readonly return on Invoke
-        if (invokeMethod.ReturnType.IsByRef)
+        if(invokeMethod.ReturnType.IsByRef)
         {
-            if (invokeMethod.ReturnParameter
+            if(invokeMethod.ReturnParameter
                 .GetCustomAttributesData()
                 .Any(a => a.AttributeType.FullName ==
                     "System.Runtime.CompilerServices.IsReadOnlyAttribute"))

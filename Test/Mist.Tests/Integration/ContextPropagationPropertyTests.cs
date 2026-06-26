@@ -135,7 +135,7 @@ public sealed class ContextPropagationPropertyTests : IDisposable
 
     public void Dispose()
     {
-        if (Directory.Exists(_outputDir))
+        if(Directory.Exists(_outputDir))
         {
             try { Directory.Delete(_outputDir, recursive: true); } catch { /* best effort */ }
         }
@@ -236,21 +236,21 @@ public sealed class ContextPropagationPropertyTests : IDisposable
         sb.AppendLine("class Program {");
 
         // Emit consumer/intermediate methods for each scenario
-        for (var i = 0; i < scenarios.Count; i++)
+        for(var i = 0; i < scenarios.Count; i++)
         {
             scenarios[i].Index = i;
             EmitScenarioHelpers(sb, scenarios[i]);
         }
 
         // Emit per-scenario runner methods
-        for (var i = 0; i < scenarios.Count; i++)
+        for(var i = 0; i < scenarios.Count; i++)
         {
             EmitScenarioRunnerMethod(sb, scenarios[i]);
         }
 
         // Emit Main
         sb.AppendLine("    public static void Main() {");
-        for (var i = 0; i < scenarios.Count; i++)
+        for(var i = 0; i < scenarios.Count; i++)
         {
             sb.AppendLine($"        Run{i}();");
         }
@@ -269,7 +269,7 @@ public sealed class ContextPropagationPropertyTests : IDisposable
     {
         var i = scenario.Index;
 
-        switch (scenario.Kind)
+        switch(scenario.Kind)
         {
             case ContextPropagationScenarioKind.DirectConsumption:
                 sb.AppendLine($"    public static void Consume{i}() with int ctx {{");
@@ -325,60 +325,60 @@ public sealed class ContextPropagationPropertyTests : IDisposable
         var i = scenario.Index;
         sb.AppendLine($"    public static void Run{i}() {{");
 
-        switch (scenario.Kind)
+        switch(scenario.Kind)
         {
             case ContextPropagationScenarioKind.DirectConsumption:
-            {
-                var value = int.Parse(scenario.ExpectedOutput);
-                sb.AppendLine($"        with {value};");
-                sb.AppendLine($"        Consume{i}();");
-                break;
-            }
+                {
+                    var value = int.Parse(scenario.ExpectedOutput);
+                    sb.AppendLine($"        with {value};");
+                    sb.AppendLine($"        Consume{i}();");
+                    break;
+                }
 
             case ContextPropagationScenarioKind.PropagationThroughCaller:
-            {
-                var value = int.Parse(scenario.ExpectedOutput);
-                sb.AppendLine($"        with {value};");
-                sb.AppendLine($"        Caller{i}();");
-                break;
-            }
+                {
+                    var value = int.Parse(scenario.ExpectedOutput);
+                    sb.AppendLine($"        with {value};");
+                    sb.AppendLine($"        Caller{i}();");
+                    break;
+                }
 
             case ContextPropagationScenarioKind.ShadowingAndRestoration:
-            {
-                var parts = scenario.ExpectedOutput.Split(',');
-                var innerValue = int.Parse(parts[0]);
-                var outerValue = int.Parse(parts[1]);
-                sb.AppendLine($"        with {outerValue};");
-                sb.AppendLine($"        with({innerValue}) {{");
-                sb.AppendLine($"            Consume{i}();");
-                sb.AppendLine($"        }}");
-                sb.AppendLine($"        Console.Write(\",\");");
-                sb.AppendLine($"        Consume{i}();");
-                sb.AppendLine($"        Console.WriteLine();");
-                break;
-            }
+                {
+                    var parts = scenario.ExpectedOutput.Split(',');
+                    var innerValue = int.Parse(parts[0]);
+                    var outerValue = int.Parse(parts[1]);
+                    sb.AppendLine($"        with {outerValue};");
+                    sb.AppendLine($"        with({innerValue}) {{");
+                    sb.AppendLine($"            Consume{i}();");
+                    sb.AppendLine($"        }}");
+                    sb.AppendLine($"        Console.Write(\",\");");
+                    sb.AppendLine($"        Consume{i}();");
+                    sb.AppendLine($"        Console.WriteLine();");
+                    break;
+                }
 
             case ContextPropagationScenarioKind.IndependentTypes:
-            {
-                var parts = scenario.ExpectedOutput.Split(',');
-                var intValue = int.Parse(parts[0]);
-                var strValue = parts[1];
-                sb.AppendLine($"        with {intValue};");
-                sb.AppendLine($"        with StrCtx _ = new StrCtx(\"{strValue}\");");
-                sb.AppendLine($"        Consume{i}();");
-                break;
-            }
+                {
+                    var parts = scenario.ExpectedOutput.Split(',');
+                    var intValue = int.Parse(parts[0]);
+                    var strValue = parts[1];
+                    sb.AppendLine($"        with {intValue};");
+                    sb.AppendLine($"        with StrCtx _ = new StrCtx(\"{strValue}\");");
+                    sb.AppendLine($"        Consume{i}();");
+                    break;
+                }
 
             case ContextPropagationScenarioKind.MultipleSameTypePushes:
-            {
-                var secondValue = int.Parse(scenario.ExpectedOutput);
-                var firstStr = scenario.Label.Split("first=")[1].Split(' ')[0];
-                var firstValue = int.Parse(firstStr);
-                sb.AppendLine($"        with {firstValue};");
-                sb.AppendLine($"        with {secondValue};");
-                sb.AppendLine($"        Consume{i}();");
-                break;
-            }
+                {
+                    var secondValue = int.Parse(scenario.ExpectedOutput);
+                    var firstStr = scenario.Label.Split("first=")[1].Split(' ')[0];
+                    var firstValue = int.Parse(firstStr);
+                    sb.AppendLine($"        with {firstValue};");
+                    sb.AppendLine($"        with {secondValue};");
+                    sb.AppendLine($"        Consume{i}();");
+                    break;
+                }
         }
 
         sb.AppendLine($"    }}");
@@ -414,7 +414,7 @@ public sealed class ContextPropagationPropertyTests : IDisposable
 
             var result = SharedDriver.Compile(options);
 
-            if (!result.Succeeded || result.PrimaryOutputArtifactPath is null)
+            if(!result.Succeeded || result.PrimaryOutputArtifactPath is null)
             {
                 var diagnosticText = string.Join("\n",
                     result.Diagnostics.Select(d => $"  {d.Severity} {d.Id.Value}: {d.Message}"));
@@ -432,13 +432,13 @@ public sealed class ContextPropagationPropertyTests : IDisposable
             };
 
             using var process = Process.Start(psi);
-            if (process is null)
+            if(process is null)
                 return (-1, "", "Failed to start dotnet process");
 
             var stdoutTask = process.StandardOutput.ReadToEndAsync();
             var stderrTask = process.StandardError.ReadToEndAsync();
 
-            if (!process.WaitForExit(30_000))
+            if(!process.WaitForExit(30_000))
             {
                 try { process.Kill(entireProcessTree: true); } catch { /* best effort */ }
                 return (-1, "", "Process timed out after 30 seconds");
@@ -490,7 +490,7 @@ public sealed class ContextPropagationPropertyTests : IDisposable
         var lines = stdout.TrimEnd().Split('\n', StringSplitOptions.None);
         Assert.Equal(scenarios.Count, lines.Length);
 
-        for (var i = 0; i < scenarios.Count; i++)
+        for(var i = 0; i < scenarios.Count; i++)
         {
             var expected = scenarios[i].ExpectedOutput;
             var actual = lines[i].TrimEnd('\r');

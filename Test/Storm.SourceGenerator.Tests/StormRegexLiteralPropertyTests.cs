@@ -57,7 +57,7 @@ public class StormRegexLiteralPropertyTests
     public void LexParseRoundTrip_PreservesRegexPattern()
     {
         var samples = GenRegexPattern().Sample(100);
-        foreach (var pattern in samples)
+        foreach(var pattern in samples)
         {
             var input = $"token T = `{pattern}`;";
             var diagnostics = new List<StormDiagnostic>();

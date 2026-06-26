@@ -75,20 +75,20 @@ internal sealed class AssignmentState
     /// <param name="other">The assignment state from the other branch at the merge point.</param>
     public void IntersectWith(AssignmentState other)
     {
-        if (other.Terminated && Terminated)
+        if(other.Terminated && Terminated)
         {
             // Both branches terminated — no live path. Keep terminated.
             return;
         }
 
-        if (other.Terminated)
+        if(other.Terminated)
         {
             // The other branch is dead; this branch is the only live path.
             // Keep this state as-is (all assignments from this branch survive).
             return;
         }
 
-        if (Terminated)
+        if(Terminated)
         {
             // This branch is dead; the other branch is the only live path.
             // Adopt the other branch's assignments entirely.

@@ -45,7 +45,7 @@ public class NewtypeMissingSemicolonPropertyTests
     private static string RemoveTrailingSemicolon(string source)
     {
         var lastSemicolon = source.LastIndexOf(';');
-        if (lastSemicolon < 0)
+        if(lastSemicolon < 0)
             return source;
 
         return source[..lastSemicolon] + source[(lastSemicolon + 1)..];

@@ -81,7 +81,7 @@ public sealed class SpanConstructorResolutionPropertyTests : IDisposable
 
     public void Dispose()
     {
-        if (Directory.Exists(_tempDir))
+        if(Directory.Exists(_tempDir))
         {
             try { Directory.Delete(_tempDir, recursive: true); } catch { /* best effort */ }
         }
@@ -263,7 +263,7 @@ public sealed class SpanConstructorResolutionPropertyTests : IDisposable
         // Write a mist.toml to trigger full project-mode compilation,
         // matching the path that samples use (with global usings resolved from config).
         var tomlPath = Path.Combine(_tempDir, "mist.toml");
-        if (!File.Exists(tomlPath))
+        if(!File.Exists(tomlPath))
         {
             File.WriteAllText(tomlPath, """
                 name = "SpanTest"
@@ -325,7 +325,7 @@ public sealed class SpanConstructorResolutionPropertyTests : IDisposable
             .ToList();
 
         bool passed;
-        if (scenario.ExpectsError)
+        if(scenario.ExpectsError)
         {
             // Invalid constructions must produce at least one MIST_TC_0011.
             passed = constructorErrors.Count >= 1;
@@ -366,7 +366,7 @@ public sealed class SpanConstructorResolutionPropertyTests : IDisposable
     public Property SpanConstructor_RejectionDiagnosticMentionsSpanType(
         SpanConstructorScenario scenario)
     {
-        if (!scenario.ExpectsError)
+        if(!scenario.ExpectsError)
         {
             // Only test error scenarios for message content.
             return true.ToProperty().Label("Skipped: valid scenario");
@@ -379,7 +379,7 @@ public sealed class SpanConstructorResolutionPropertyTests : IDisposable
                         && d.CompilationUnitPath == filePath)
             .ToList();
 
-        if (constructorErrors.Count == 0)
+        if(constructorErrors.Count == 0)
         {
             return false.ToProperty()
                 .Label(

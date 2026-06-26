@@ -169,7 +169,7 @@ public static class MistOverloadGenerator
             Members = members,
         };
 
-        if (baseClassName is not null)
+        if(baseClassName is not null)
         {
             var baseList = MakeBaseList(baseClassName);
             classDecl.BaseClause = baseList;

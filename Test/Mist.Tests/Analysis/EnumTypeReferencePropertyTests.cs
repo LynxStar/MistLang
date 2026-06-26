@@ -163,14 +163,17 @@ public class EnumTypeReferencePropertyTests
     }
 
     private static TypeReferenceNode MakeEnumTypeRef(string enumName) =>
-        new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
+        new TypeReferenceNode
         {
-            Name = new QualifiedIdentifierNode
+            First = new NamedSingleTypeRefSingleTypeRefNode
             {
-                IDENTIFIER = Tok(enumName),
-                Span = new Storm.Runtime.SourceSpan(0, enumName.Length),
-            },
-        } };
+                Name = new QualifiedIdentifierNode
+                {
+                    IDENTIFIER = Tok(enumName),
+                    Span = new Storm.Runtime.SourceSpan(0, enumName.Length),
+                },
+            }
+        };
 
     private static ExpressionNode MakeMemberAccessExpression(string target, string memberName)
     {
@@ -202,7 +205,7 @@ public class EnumTypeReferencePropertyTests
     {
         // Build enum declaration.
         var members = new List<EnumMemberNode>();
-        for (var i = 0; i < scenario.MemberNames.Count; i++)
+        for(var i = 0; i < scenario.MemberNames.Count; i++)
         {
             members.Add(MakeEnumMember(scenario.MemberNames[i], i));
         }
@@ -225,144 +228,144 @@ public class EnumTypeReferencePropertyTests
         var memberAccessExpr = MakeMemberAccessExpression(scenario.EnumName, firstMember);
         var classMembers = ImmutableArray.CreateBuilder<MemberDeclarationNode>();
 
-        switch (scenario.Position)
+        switch(scenario.Position)
         {
             case TypePosition.Variable:
-            {
-                // static void Main() { EnumName x = EnumName.FirstMember; }
-                var varDecl = new VariableDeclarationStatementStatementNode
                 {
-                    VariableDeclaration = new TypedVariableDeclarationVariableDeclarationStatementNode
+                    // static void Main() { EnumName x = EnumName.FirstMember; }
+                    var varDecl = new VariableDeclarationStatementStatementNode
                     {
-                        Type = MakeEnumTypeRef(scenario.EnumName),
-                        Name = Tok("x"),
-                        Initializer = memberAccessExpr,
-                    },
-                };
-
-                var mainMethod = new MethodDeclarationNode
-                {
-                    Name = Tok("Main"),
-                    ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
-                    Parameters = null,
-                    Body = new MethodBlockBodyMethodBodyNode
-                    {
-                        Block = new BlockNode
+                        VariableDeclaration = new TypedVariableDeclarationVariableDeclarationStatementNode
                         {
-                            Statements = ImmutableArray.Create<StatementNode>(varDecl),
+                            Type = MakeEnumTypeRef(scenario.EnumName),
+                            Name = Tok("x"),
+                            Initializer = memberAccessExpr,
                         },
-                    },
-                    Modifiers = ImmutableArray.Create<ModifierNode>(
-                        new PublicModifierModifierNode(),
-                        new StaticModifierModifierNode()),
-                };
-                classMembers.Add(new MethodMemberMemberDeclarationNode { Method = mainMethod });
-                break;
-            }
+                    };
+
+                    var mainMethod = new MethodDeclarationNode
+                    {
+                        Name = Tok("Main"),
+                        ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
+                        Parameters = null,
+                        Body = new MethodBlockBodyMethodBodyNode
+                        {
+                            Block = new BlockNode
+                            {
+                                Statements = ImmutableArray.Create<StatementNode>(varDecl),
+                            },
+                        },
+                        Modifiers = ImmutableArray.Create<ModifierNode>(
+                            new PublicModifierModifierNode(),
+                            new StaticModifierModifierNode()),
+                    };
+                    classMembers.Add(new MethodMemberMemberDeclarationNode { Method = mainMethod });
+                    break;
+                }
 
             case TypePosition.Parameter:
-            {
-                // static void UseEnum(EnumName p) { }
-                var param = new ParameterNode
                 {
-                    Type = MakeEnumTypeRef(scenario.EnumName),
-                    Name = Tok("p"),
-                };
-                var paramList = new ParameterListNode { Parameter = param };
+                    // static void UseEnum(EnumName p) { }
+                    var param = new ParameterNode
+                    {
+                        Type = MakeEnumTypeRef(scenario.EnumName),
+                        Name = Tok("p"),
+                    };
+                    var paramList = new ParameterListNode { Parameter = param };
 
-                var useMethod = new MethodDeclarationNode
-                {
-                    Name = Tok("UseEnum"),
-                    ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
-                    Parameters = paramList,
-                    Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode() },
-                    Modifiers = ImmutableArray.Create<ModifierNode>(
-                        new PublicModifierModifierNode(),
-                        new StaticModifierModifierNode()),
-                };
-                classMembers.Add(new MethodMemberMemberDeclarationNode { Method = useMethod });
+                    var useMethod = new MethodDeclarationNode
+                    {
+                        Name = Tok("UseEnum"),
+                        ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
+                        Parameters = paramList,
+                        Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode() },
+                        Modifiers = ImmutableArray.Create<ModifierNode>(
+                            new PublicModifierModifierNode(),
+                            new StaticModifierModifierNode()),
+                    };
+                    classMembers.Add(new MethodMemberMemberDeclarationNode { Method = useMethod });
 
-                // static void Main() { }
-                var mainMethod = new MethodDeclarationNode
-                {
-                    Name = Tok("Main"),
-                    ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
-                    Parameters = null,
-                    Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode() },
-                    Modifiers = ImmutableArray.Create<ModifierNode>(
-                        new PublicModifierModifierNode(),
-                        new StaticModifierModifierNode()),
-                };
-                classMembers.Add(new MethodMemberMemberDeclarationNode { Method = mainMethod });
-                break;
-            }
+                    // static void Main() { }
+                    var mainMethod = new MethodDeclarationNode
+                    {
+                        Name = Tok("Main"),
+                        ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
+                        Parameters = null,
+                        Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode() },
+                        Modifiers = ImmutableArray.Create<ModifierNode>(
+                            new PublicModifierModifierNode(),
+                            new StaticModifierModifierNode()),
+                    };
+                    classMembers.Add(new MethodMemberMemberDeclarationNode { Method = mainMethod });
+                    break;
+                }
 
             case TypePosition.ReturnType:
-            {
-                // static EnumName GetValue() { return EnumName.FirstMember; }
-                var returnStmt = new ReturnStatementStatementNode
                 {
-                    ReturnStatement = new ReturnStatementNode { Value = memberAccessExpr },
-                };
-
-                var getMethod = new MethodDeclarationNode
-                {
-                    Name = Tok("GetValue"),
-                    ReturnType = MakeEnumTypeRef(scenario.EnumName),
-                    Parameters = null,
-                    Body = new MethodBlockBodyMethodBodyNode
+                    // static EnumName GetValue() { return EnumName.FirstMember; }
+                    var returnStmt = new ReturnStatementStatementNode
                     {
-                        Block = new BlockNode
-                        {
-                            Statements = ImmutableArray.Create<StatementNode>(returnStmt),
-                        },
-                    },
-                    Modifiers = ImmutableArray.Create<ModifierNode>(
-                        new PublicModifierModifierNode(),
-                        new StaticModifierModifierNode()),
-                };
-                classMembers.Add(new MethodMemberMemberDeclarationNode { Method = getMethod });
+                        ReturnStatement = new ReturnStatementNode { Value = memberAccessExpr },
+                    };
 
-                // static void Main() { }
-                var mainMethod = new MethodDeclarationNode
-                {
-                    Name = Tok("Main"),
-                    ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
-                    Parameters = null,
-                    Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode() },
-                    Modifiers = ImmutableArray.Create<ModifierNode>(
-                        new PublicModifierModifierNode(),
-                        new StaticModifierModifierNode()),
-                };
-                classMembers.Add(new MethodMemberMemberDeclarationNode { Method = mainMethod });
-                break;
-            }
+                    var getMethod = new MethodDeclarationNode
+                    {
+                        Name = Tok("GetValue"),
+                        ReturnType = MakeEnumTypeRef(scenario.EnumName),
+                        Parameters = null,
+                        Body = new MethodBlockBodyMethodBodyNode
+                        {
+                            Block = new BlockNode
+                            {
+                                Statements = ImmutableArray.Create<StatementNode>(returnStmt),
+                            },
+                        },
+                        Modifiers = ImmutableArray.Create<ModifierNode>(
+                            new PublicModifierModifierNode(),
+                            new StaticModifierModifierNode()),
+                    };
+                    classMembers.Add(new MethodMemberMemberDeclarationNode { Method = getMethod });
+
+                    // static void Main() { }
+                    var mainMethod = new MethodDeclarationNode
+                    {
+                        Name = Tok("Main"),
+                        ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
+                        Parameters = null,
+                        Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode() },
+                        Modifiers = ImmutableArray.Create<ModifierNode>(
+                            new PublicModifierModifierNode(),
+                            new StaticModifierModifierNode()),
+                    };
+                    classMembers.Add(new MethodMemberMemberDeclarationNode { Method = mainMethod });
+                    break;
+                }
 
             case TypePosition.Field:
-            {
-                // EnumName f;
-                var fieldDecl = new FieldDeclarationNode
                 {
-                    Name = Tok("f"),
-                    Type = MakeEnumTypeRef(scenario.EnumName),
-                    Modifiers = ImmutableArray<ModifierNode>.Empty,
-                };
-                classMembers.Add(new FieldMemberMemberDeclarationNode { Field = fieldDecl });
+                    // EnumName f;
+                    var fieldDecl = new FieldDeclarationNode
+                    {
+                        Name = Tok("f"),
+                        Type = MakeEnumTypeRef(scenario.EnumName),
+                        Modifiers = ImmutableArray<ModifierNode>.Empty,
+                    };
+                    classMembers.Add(new FieldMemberMemberDeclarationNode { Field = fieldDecl });
 
-                // static void Main() { }
-                var mainMethod = new MethodDeclarationNode
-                {
-                    Name = Tok("Main"),
-                    ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
-                    Parameters = null,
-                    Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode() },
-                    Modifiers = ImmutableArray.Create<ModifierNode>(
-                        new PublicModifierModifierNode(),
-                        new StaticModifierModifierNode()),
-                };
-                classMembers.Add(new MethodMemberMemberDeclarationNode { Method = mainMethod });
-                break;
-            }
+                    // static void Main() { }
+                    var mainMethod = new MethodDeclarationNode
+                    {
+                        Name = Tok("Main"),
+                        ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
+                        Parameters = null,
+                        Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode() },
+                        Modifiers = ImmutableArray.Create<ModifierNode>(
+                            new PublicModifierModifierNode(),
+                            new StaticModifierModifierNode()),
+                    };
+                    classMembers.Add(new MethodMemberMemberDeclarationNode { Method = mainMethod });
+                    break;
+                }
         }
 
         var classDecl = new ClassDeclarationNode
@@ -409,7 +412,7 @@ public class EnumTypeReferencePropertyTests
             .Where(d => d.Id.Value != "MIST_TC_0017")
             .ToList();
 
-        if (allErrors.Count > 0)
+        if(allErrors.Count > 0)
             return false.ToProperty()
                 .Label($"Expected no errors for enum '{scenario.EnumName}' as {scenario.Position}, " +
                        $"got: [{string.Join("; ", allErrors.Select(e => $"{e.Id.Value}: {e.Message}"))}]");

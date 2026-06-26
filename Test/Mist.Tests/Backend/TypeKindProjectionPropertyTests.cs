@@ -58,13 +58,13 @@ public sealed class TypeKindProjectionPropertyTests
     private static void RunProperty<T>(Gen<T> gen, Action<T> check, int maxTests = 100)
     {
         var samples = gen.Sample(maxTests).ToList();
-        for (var idx = 0; idx < samples.Count; idx++)
+        for(var idx = 0; idx < samples.Count; idx++)
         {
             try
             {
                 check(samples[idx]);
             }
-            catch (Exception ex)
+            catch(Exception ex)
             {
                 throw new Exception(
                     $"Property failed on sample {idx}/{samples.Count}: {samples[idx]}\n" +
@@ -78,9 +78,9 @@ public sealed class TypeKindProjectionPropertyTests
     /// </summary>
     private static Type ExpectedMistTypeKind(Type clrType)
     {
-        if (clrType.IsEnum) return typeof(EnumType);
-        if (clrType.IsInterface) return typeof(AbstractType);
-        if (clrType.IsValueType) return typeof(StructType);
+        if(clrType.IsEnum) return typeof(EnumType);
+        if(clrType.IsInterface) return typeof(AbstractType);
+        if(clrType.IsValueType) return typeof(StructType);
         return typeof(ClassType);
     }
 

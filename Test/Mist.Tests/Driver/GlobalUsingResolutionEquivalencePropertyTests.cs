@@ -48,7 +48,7 @@ public sealed class GlobalUsingResolutionEquivalencePropertyTests : IDisposable
 
     public void Dispose()
     {
-        if (Directory.Exists(_scratchDir))
+        if(Directory.Exists(_scratchDir))
         {
             try { Directory.Delete(_scratchDir, recursive: true); } catch { /* best effort */ }
         }
@@ -171,7 +171,7 @@ public sealed class GlobalUsingResolutionEquivalencePropertyTests : IDisposable
         Assert.True(validSamples.Count >= 50,
             $"Expected at least 50 valid samples but got {validSamples.Count}");
 
-        for (var idx = 0; idx < validSamples.Count; idx++)
+        for(var idx = 0; idx < validSamples.Count; idx++)
         {
             var (ns, typeName) = validSamples[idx];
 
@@ -211,7 +211,7 @@ public sealed class GlobalUsingResolutionEquivalencePropertyTests : IDisposable
                     .Where(d => d.Id.Value == "MIST_UNDEFINED_TYPE" && d.Message.Contains(typeName))
                     .ToList();
 
-                if (undefinedTypeErrors.Count > 0)
+                if(undefinedTypeErrors.Count > 0)
                 {
                     var allDiags = string.Join("\n  ",
                         result.Diagnostics.Select(d => $"{d.Id.Value}: {d.Message}"));

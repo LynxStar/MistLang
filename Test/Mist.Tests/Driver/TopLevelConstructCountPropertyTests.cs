@@ -44,11 +44,11 @@ public class TopLevelConstructCountPropertyTests
     private static int ManualCount(IReadOnlyList<(SymbolKind Kind, SymbolOrigin Origin)> pairs)
     {
         var count = 0;
-        foreach (var (kind, origin) in pairs)
+        foreach(var (kind, origin) in pairs)
         {
-            if (origin != SymbolOrigin.UserCode)
+            if(origin != SymbolOrigin.UserCode)
                 continue;
-            if (kind == SymbolKind.Class || kind == SymbolKind.Struct ||
+            if(kind == SymbolKind.Class || kind == SymbolKind.Struct ||
                 kind == SymbolKind.Abstract)
             {
                 count++;

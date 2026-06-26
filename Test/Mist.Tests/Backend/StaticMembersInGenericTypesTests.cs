@@ -32,7 +32,7 @@ public sealed class StaticMembersInGenericTypesTests : IDisposable
 
     public void Dispose()
     {
-        if (Directory.Exists(_outputDir))
+        if(Directory.Exists(_outputDir))
         {
             try { Directory.Delete(_outputDir, recursive: true); } catch { /* best effort */ }
         }
@@ -95,10 +95,13 @@ public sealed class StaticMembersInGenericTypesTests : IDisposable
         var fieldDecl = new FieldDeclarationNode
         {
             Modifiers = ImmutableArray.Create<ModifierNode>(staticModifier),
-            Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
+            Type = new TypeReferenceNode
             {
-                PrimitiveType = new IntTypePrimitiveTypeNode(),
-            } },
+                First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                {
+                    PrimitiveType = new IntTypePrimitiveTypeNode(),
+                }
+            },
             Name = Tok("count"),
         };
 
@@ -135,10 +138,13 @@ public sealed class StaticMembersInGenericTypesTests : IDisposable
             Modifiers = ImmutableArray.Create<ModifierNode>(staticModifier),
             ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Name = Tok("Reset"),
-            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode
+            Body = new MethodBlockBodyMethodBodyNode
             {
-                Statements = ImmutableArray<StatementNode>.Empty,
-            } },
+                Block = new BlockNode
+                {
+                    Statements = ImmutableArray<StatementNode>.Empty,
+                }
+            },
         };
 
         var classDecl = new ClassDeclarationNode
@@ -173,10 +179,13 @@ public sealed class StaticMembersInGenericTypesTests : IDisposable
         var fieldDecl = new FieldDeclarationNode
         {
             Modifiers = ImmutableArray.Create<ModifierNode>(new StaticModifierModifierNode()),
-            Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
+            Type = new TypeReferenceNode
             {
-                PrimitiveType = new IntTypePrimitiveTypeNode(),
-            } },
+                First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                {
+                    PrimitiveType = new IntTypePrimitiveTypeNode(),
+                }
+            },
             Name = Tok("size"),
         };
 
@@ -185,10 +194,13 @@ public sealed class StaticMembersInGenericTypesTests : IDisposable
             Modifiers = ImmutableArray.Create<ModifierNode>(staticMod),
             ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Name = Tok("Clear"),
-            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode
+            Body = new MethodBlockBodyMethodBodyNode
             {
-                Statements = ImmutableArray<StatementNode>.Empty,
-            } },
+                Block = new BlockNode
+                {
+                    Statements = ImmutableArray<StatementNode>.Empty,
+                }
+            },
         };
 
         var classDecl = new ClassDeclarationNode

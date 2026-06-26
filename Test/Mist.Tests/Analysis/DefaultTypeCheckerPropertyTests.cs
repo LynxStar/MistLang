@@ -96,18 +96,24 @@ public class DefaultTypeCheckerPropertyTests
 
     private static TypeReferenceNode MakePrimitiveTypeRef(string typeName)
     {
-        return new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
+        return new TypeReferenceNode
         {
-            PrimitiveType = MakePrimitiveType(typeName),
-        } };
+            First = new PrimitiveSingleTypeRefSingleTypeRefNode
+            {
+                PrimitiveType = MakePrimitiveType(typeName),
+            }
+        };
     }
 
     private static TypeReferenceNode MakeNamedTypeRef(string typeName)
     {
-        return new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
+        return new TypeReferenceNode
         {
-            Name = new QualifiedIdentifierNode { IDENTIFIER = MakeToken(typeName) },
-        } };
+            First = new NamedSingleTypeRefSingleTypeRefNode
+            {
+                Name = new QualifiedIdentifierNode { IDENTIFIER = MakeToken(typeName) },
+            }
+        };
     }
 
     private static FieldDeclarationNode MakeField(
@@ -506,14 +512,14 @@ public class DefaultTypeCheckerPropertyTests
 
     private static Gen<ImmutableArray<(string FieldName, string FieldType)>> GenPrimitiveFields(int count)
     {
-        if (count == 0)
+        if(count == 0)
             return Gen.Constant(ImmutableArray<(string, string)>.Empty);
 
         Gen<ImmutableArray<(string, string)>> result =
             from fieldType in Gen.Elements(PrimitiveTypes)
             select ImmutableArray.Create<(string, string)>((FieldNames[0], fieldType));
 
-        for (var i = 1; i < count; i++)
+        for(var i = 1; i < count; i++)
         {
             var idx = i;
             result = from arr in result
@@ -578,7 +584,7 @@ public class DefaultTypeCheckerPropertyTests
         TypeReferenceNode varTypeRef;
         var additionalTypes = new List<TypeDeclarationNode>();
 
-        if (scenario.IsPrimitive)
+        if(scenario.IsPrimitive)
         {
             varTypeRef = MakePrimitiveTypeRef(scenario.VarType);
         }
@@ -730,7 +736,7 @@ public class DefaultTypeCheckerPropertyTests
                         && d.Id.Value.StartsWith("MIST_DEFAULT"))
             .ToList();
 
-        if (defaultErrors.Count > 0)
+        if(defaultErrors.Count > 0)
             return false;
 
         // Verify the type was resolved on the semantic model: look up the type
@@ -739,7 +745,7 @@ public class DefaultTypeCheckerPropertyTests
         var typeSymbol = model.AllSymbols
             .FirstOrDefault(s => s.Name == scenario.TypeName && s.Kind == expectedKind);
 
-        if (typeSymbol is null)
+        if(typeSymbol is null)
             return false;
 
         var defaultability = typeSymbol.DeclaredType switch
@@ -868,7 +874,7 @@ public class DefaultTypeCheckerPropertyTests
         var redundantDiag = tcDiagnostics
             .FirstOrDefault(d => d.Id == DiagnosticId.DefaultRedundantBlock);
 
-        if (redundantDiag is null)
+        if(redundantDiag is null)
             return false;
 
         // The diagnostic must have Info severity (not Warning or Error)

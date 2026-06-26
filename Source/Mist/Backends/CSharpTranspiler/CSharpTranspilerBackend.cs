@@ -43,7 +43,7 @@ public sealed class CSharpTranspilerBackend : IBackend
 
         // Discover SDK reference assembly path for the specified TFM.
         var sdkRefPath = SdkDiscovery.FindReferenceAssemblyPath(targetFramework, diagnostics);
-        if (sdkRefPath is null)
+        if(sdkRefPath is null)
         {
             // SDK not found — fall back to no assembly types.
             // The diagnostics are lost here but the compilation will still proceed
@@ -57,12 +57,12 @@ public sealed class CSharpTranspilerBackend : IBackend
         // Union SDK paths with additional assembly paths and de-duplicate
         // by file path (case-insensitive).
         var mergedSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var path in sdkPaths)
+        foreach(var path in sdkPaths)
             mergedSet.Add(path);
 
-        if (!additionalAssemblyPaths.IsDefaultOrEmpty)
+        if(!additionalAssemblyPaths.IsDefaultOrEmpty)
         {
-            foreach (var path in additionalAssemblyPaths)
+            foreach(var path in additionalAssemblyPaths)
                 mergedSet.Add(path);
         }
 
@@ -74,9 +74,9 @@ public sealed class CSharpTranspilerBackend : IBackend
             : additionalAssemblyPaths;
 
         // Reuse cached provider if the merged path set is identical.
-        lock (_providerCacheLock)
+        lock(_providerCacheLock)
         {
-            if (_cachedProvider is not null
+            if(_cachedProvider is not null
                 && _cachedMergedPaths.Length == mergedPaths.Length
                 && _cachedMergedPaths.All(p => mergedSet.Contains(p)))
             {
@@ -100,9 +100,9 @@ public sealed class CSharpTranspilerBackend : IBackend
 
     private static ImmutableArray<string> GetCachedSdkAssemblyPaths(string sdkRefPath)
     {
-        lock (_sdkAssemblyPathsCacheLock)
+        lock(_sdkAssemblyPathsCacheLock)
         {
-            if (_sdkAssemblyPathsCache.HasValue && _sdkAssemblyPathsCacheKey == sdkRefPath)
+            if(_sdkAssemblyPathsCache.HasValue && _sdkAssemblyPathsCacheKey == sdkRefPath)
             {
                 return _sdkAssemblyPathsCache.Value;
             }
@@ -188,7 +188,7 @@ public sealed class CSharpTranspilerBackend : IBackend
         var hasRootTls = model.Compilation.Units
             .Any(u => !u.IsStdlib && u.OriginProjectPath is null && u.HasTopLevelStatements);
 
-        if (hasRootTls)
+        if(hasRootTls)
             return null;
 
         // Check if any referenced project has a Main method. If so, we need to
@@ -196,11 +196,11 @@ public sealed class CSharpTranspilerBackend : IBackend
         var hasReferencedMain = false;
         string? rootMainClass = null;
 
-        foreach (var symbol in model.AllSymbols)
+        foreach(var symbol in model.AllSymbols)
         {
-            if (symbol.Origin == SymbolOrigin.Backend)
+            if(symbol.Origin == SymbolOrigin.Backend)
                 continue;
-            if (symbol.Kind != SymbolKind.Method || symbol.Name != "Main")
+            if(symbol.Kind != SymbolKind.Method || symbol.Name != "Main")
                 continue;
 
             // Find which unit this symbol belongs to.
@@ -208,11 +208,11 @@ public sealed class CSharpTranspilerBackend : IBackend
             try { declaringNode = model.GetDeclaringNode(symbol); }
             catch { continue; }
 
-            if (declaringNode is not MethodDeclarationNode methodDecl)
+            if(declaringNode is not MethodDeclarationNode methodDecl)
                 continue;
 
             // Must be static.
-            if (!methodDecl.Modifiers.Any(m => m is StaticModifierModifierNode))
+            if(!methodDecl.Modifiers.Any(m => m is StaticModifierModifierNode))
                 continue;
 
             // Valid entry point return types:
@@ -225,27 +225,27 @@ public sealed class CSharpTranspilerBackend : IBackend
                 && primitiveRef.PrimitiveType is IntTypePrimitiveTypeNode
                 && primitiveRef.ArrayRank is null;
 
-            if (!isVoidReturn && !isIntReturn)
+            if(!isVoidReturn && !isIntReturn)
                 continue;
 
             // int return type is only valid with the async modifier.
-            if (isIntReturn && !methodDecl.Modifiers.Any(m => m is AsyncModifierModifierNode))
+            if(isIntReturn && !methodDecl.Modifiers.Any(m => m is AsyncModifierModifierNode))
                 continue;
 
             // Determine if this is from a referenced project or the root project.
             var isFromReference = false;
-            for (var i = 0; i < model.Asts.Length && i < model.Units.Count; i++)
+            for(var i = 0; i < model.Asts.Length && i < model.Units.Count; i++)
             {
-                if (model.Units[i].OriginProjectPath is null)
+                if(model.Units[i].OriginProjectPath is null)
                     continue;
-                if (IsNodeInAst(declaringNode, model.Asts[i]))
+                if(IsNodeInAst(declaringNode, model.Asts[i]))
                 {
                     isFromReference = true;
                     break;
                 }
             }
 
-            if (isFromReference)
+            if(isFromReference)
             {
                 hasReferencedMain = true;
             }
@@ -254,11 +254,11 @@ public sealed class CSharpTranspilerBackend : IBackend
                 // This is a Main in the root project. Find its containing class.
                 var typeScope = symbol.ContainingScope;
                 var parentScope = typeScope?.Parent;
-                if (parentScope is not null)
+                if(parentScope is not null)
                 {
-                    foreach (var member in parentScope.Members)
+                    foreach(var member in parentScope.Members)
                     {
-                        if (member.Kind is not (SymbolKind.Class or SymbolKind.Struct))
+                        if(member.Kind is not (SymbolKind.Class or SymbolKind.Struct))
                             continue;
 
                         var memberScope = member.DeclaredType switch
@@ -268,7 +268,7 @@ public sealed class CSharpTranspilerBackend : IBackend
                             _ => null,
                         };
 
-                        if (memberScope == typeScope)
+                        if(memberScope == typeScope)
                         {
                             var containingNamespace = member.DeclaredType switch
                             {
@@ -289,7 +289,7 @@ public sealed class CSharpTranspilerBackend : IBackend
 
         // Only specify mainTypeName if there are multiple Main methods
         // (one in root + one or more in referenced projects).
-        if (hasReferencedMain && rootMainClass is not null)
+        if(hasReferencedMain && rootMainClass is not null)
             return rootMainClass;
 
         return null;
@@ -300,7 +300,7 @@ public sealed class CSharpTranspilerBackend : IBackend
         // Walk up via Parent links to find the root — O(depth) instead of O(N) tree walk.
         // Parent links are set during parsing (SetParentLinks), so this is always valid.
         var current = target;
-        while (current.Parent is not null)
+        while(current.Parent is not null)
             current = current.Parent;
 
         return ReferenceEquals(current, root);
@@ -315,9 +315,9 @@ public sealed class CSharpTranspilerBackend : IBackend
     {
         try
         {
-            if (Directory.Exists(outputDirectory))
+            if(Directory.Exists(outputDirectory))
             {
-                foreach (var file in Directory.GetFiles(outputDirectory))
+                foreach(var file in Directory.GetFiles(outputDirectory))
                     File.Delete(file);
             }
         }

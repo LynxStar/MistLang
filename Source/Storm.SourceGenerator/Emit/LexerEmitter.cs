@@ -41,7 +41,7 @@ namespace Storm.SourceGenerator.Emit
         {
             writer.WriteBlock("public enum TokenKind", () =>
             {
-                foreach (var token in context.Grammar.Tokens.OrderBy(t => t.DeclarationIndex))
+                foreach(var token in context.Grammar.Tokens.OrderBy(t => t.DeclarationIndex))
                 {
                     writer.WriteLine($"{SanitizeIdentifier(token.Name)},");
                 }
@@ -64,17 +64,17 @@ namespace Storm.SourceGenerator.Emit
 
             // Build mode index map
             var modeIndexMap = new Dictionary<string, int>();
-            for (int i = 0; i < modes.Count; i++)
+            for(int i = 0; i < modes.Count; i++)
                 modeIndexMap[modes[i]] = i;
 
             // Group tokens by mode
             var tokensByMode = new Dictionary<string, List<TokenIR>>();
-            foreach (var mode in modes)
+            foreach(var mode in modes)
                 tokensByMode[mode] = new List<TokenIR>();
-            foreach (var token in tokens)
+            foreach(var token in tokens)
             {
                 var mode = token.Mode;
-                if (!tokensByMode.ContainsKey(mode))
+                if(!tokensByMode.ContainsKey(mode))
                     tokensByMode[mode] = new List<TokenIR>();
                 tokensByMode[mode].Add(token);
             }
@@ -93,10 +93,10 @@ namespace Storm.SourceGenerator.Emit
             // for all modes. The simplest approach: compute per-mode DFAs first,
             // then compute a unified equivalence class from all DFAs combined.
 
-            foreach (var mode in modes)
+            foreach(var mode in modes)
             {
                 var modeTokens = tokensByMode[mode];
-                if (modeTokens.Count == 0)
+                if(modeTokens.Count == 0)
                 {
                     // Empty mode: create a trivial DFA with just a start state
                     var emptyState = new DfaState(0);
@@ -117,7 +117,7 @@ namespace Storm.SourceGenerator.Emit
             var perModeTransTable = new Dictionary<string, short[,]>();
             var perModeAcceptTable = new Dictionary<string, short[]>();
 
-            foreach (var mode in modes)
+            foreach(var mode in modes)
             {
                 var dfa = perModeDfa[mode];
                 var (transTable, acceptTable) = BuildModeTables(dfa, charToClass, classCount);
@@ -132,7 +132,7 @@ namespace Storm.SourceGenerator.Emit
                 writer.WriteEmptyLine();
 
                 // Emit per-mode transition and accepting tables
-                foreach (var mode in modes)
+                foreach(var mode in modes)
                 {
                     var modeName = SanitizeIdentifier(mode);
                     var dfa = perModeDfa[mode];
@@ -186,12 +186,12 @@ namespace Storm.SourceGenerator.Emit
         {
             // Compute per-mode equivalence classes
             var perModeResults = new List<(int[] charToClass, int classCount)>();
-            foreach (var mode in modes)
+            foreach(var mode in modes)
             {
                 perModeResults.Add(EquivalenceClassComputer.Compute(perModeDfa[mode]));
             }
 
-            if (perModeResults.Count == 1)
+            if(perModeResults.Count == 1)
                 return perModeResults[0];
 
             // Combine: two characters are in the same unified class only if they
@@ -201,18 +201,18 @@ namespace Storm.SourceGenerator.Emit
             int nextClass = 0;
 
             var sb = new StringBuilder();
-            for (int c = 0; c < 65536; c++)
+            for(int c = 0; c < 65536; c++)
             {
                 sb.Clear();
-                for (int m = 0; m < perModeResults.Count; m++)
+                for(int m = 0; m < perModeResults.Count; m++)
                 {
-                    if (m > 0) sb.Append(',');
+                    if(m > 0) sb.Append(',');
                     sb.Append(perModeResults[m].charToClass[c]);
                 }
                 var key = sb.ToString();
 
                 int classIndex;
-                if (!signatureToClass.TryGetValue(key, out classIndex))
+                if(!signatureToClass.TryGetValue(key, out classIndex))
                 {
                     classIndex = nextClass++;
                     signatureToClass[key] = classIndex;
@@ -233,9 +233,9 @@ namespace Storm.SourceGenerator.Emit
             var acceptTable = new short[stateCount];
 
             // Initialize all transitions to -1 (no transition)
-            for (int s = 0; s < stateCount; s++)
+            for(int s = 0; s < stateCount; s++)
             {
-                for (int c = 0; c < classCount; c++)
+                for(int c = 0; c < classCount; c++)
                 {
                     transTable[s, c] = -1;
                 }
@@ -243,21 +243,21 @@ namespace Storm.SourceGenerator.Emit
 
             // Build state ID to index mapping (states may not be contiguous)
             var stateIdToIndex = new Dictionary<int, int>();
-            for (int i = 0; i < dfa.States.Count; i++)
+            for(int i = 0; i < dfa.States.Count; i++)
             {
                 stateIdToIndex[dfa.States[i].Id] = i;
             }
 
             // Fill transition table
-            for (int i = 0; i < dfa.States.Count; i++)
+            for(int i = 0; i < dfa.States.Count; i++)
             {
                 var state = dfa.States[i];
                 int stateIndex = stateIdToIndex[state.Id];
 
-                foreach (var transition in state.Transitions)
+                foreach(var transition in state.Transitions)
                 {
                     int targetIndex;
-                    if (!stateIdToIndex.TryGetValue(transition.TargetStateId, out targetIndex))
+                    if(!stateIdToIndex.TryGetValue(transition.TargetStateId, out targetIndex))
                         continue;
 
                     // The DFA transition covers a character range [Lo, Hi].
@@ -266,10 +266,10 @@ namespace Storm.SourceGenerator.Emit
                     // that fall within this range.
                     // Optimization: scan through the range and collect distinct classes.
                     var seenClasses = new HashSet<int>();
-                    for (int c = transition.Range.Lo; c <= transition.Range.Hi; c++)
+                    for(int c = transition.Range.Lo; c <= transition.Range.Hi; c++)
                     {
                         int eqClass = charToClass[c];
-                        if (seenClasses.Add(eqClass))
+                        if(seenClasses.Add(eqClass))
                         {
                             transTable[stateIndex, eqClass] = (short)targetIndex;
                         }
@@ -278,7 +278,7 @@ namespace Storm.SourceGenerator.Emit
             }
 
             // Fill accepting table
-            for (int i = 0; i < dfa.States.Count; i++)
+            for(int i = 0; i < dfa.States.Count; i++)
             {
                 var state = dfa.States[i];
                 int stateIndex = stateIdToIndex[state.Id];
@@ -298,9 +298,9 @@ namespace Storm.SourceGenerator.Emit
             var sb = new StringBuilder();
             sb.Append("private static readonly int[] _charClass = new int[]");
             sb.Append(" { ");
-            for (int i = 0; i < 65536; i++)
+            for(int i = 0; i < 65536; i++)
             {
-                if (i > 0) sb.Append(", ");
+                if(i > 0) sb.Append(", ");
                 sb.Append(charToClass[i]);
             }
             sb.Append(" };");
@@ -315,13 +315,13 @@ namespace Storm.SourceGenerator.Emit
             var sb = new StringBuilder();
             sb.Append($"private static readonly short[,] _trans_{modeName} = new short[,]");
             sb.Append(" { ");
-            for (int s = 0; s < stateCount; s++)
+            for(int s = 0; s < stateCount; s++)
             {
-                if (s > 0) sb.Append(", ");
+                if(s > 0) sb.Append(", ");
                 sb.Append("{ ");
-                for (int c = 0; c < classCount; c++)
+                for(int c = 0; c < classCount; c++)
                 {
-                    if (c > 0) sb.Append(", ");
+                    if(c > 0) sb.Append(", ");
                     sb.Append(transTable[s, c]);
                 }
                 sb.Append(" }");
@@ -338,9 +338,9 @@ namespace Storm.SourceGenerator.Emit
             var sb = new StringBuilder();
             sb.Append($"private static readonly short[] _accept_{modeName} = new short[]");
             sb.Append(" { ");
-            for (int i = 0; i < acceptTable.Length; i++)
+            for(int i = 0; i < acceptTable.Length; i++)
             {
-                if (i > 0) sb.Append(", ");
+                if(i > 0) sb.Append(", ");
                 sb.Append(acceptTable[i]);
             }
             sb.Append(" };");
@@ -355,7 +355,7 @@ namespace Storm.SourceGenerator.Emit
         private static void EmitModeConstants(CodeWriter writer, EmissionContext context)
         {
             var modes = context.Grammar.Modes;
-            for (int i = 0; i < modes.Count; i++)
+            for(int i = 0; i < modes.Count; i++)
             {
                 var modeName = SanitizeIdentifier(modes[i]);
                 writer.WriteLine($"private const int Mode_{modeName} = {i};");
@@ -369,11 +369,11 @@ namespace Storm.SourceGenerator.Emit
         {
             var modes = context.Grammar.Modes;
             var modeIndexMap = new Dictionary<string, int>();
-            for (int i = 0; i < modes.Count; i++)
+            for(int i = 0; i < modes.Count; i++)
                 modeIndexMap[modes[i]] = i;
 
             var entries = new List<string>();
-            foreach (var token in tokens)
+            foreach(var token in tokens)
             {
                 var modeIndex = modeIndexMap.TryGetValue(token.Mode, out var idx) ? idx : 0;
                 entries.Add(modeIndex.ToString());
@@ -526,7 +526,7 @@ namespace Storm.SourceGenerator.Emit
         /// </summary>
         private static void EmitModeTableSelection(CodeWriter writer, IReadOnlyList<string> modes)
         {
-            if (modes.Count == 1)
+            if(modes.Count == 1)
             {
                 // Single mode: no need for a switch
                 return;
@@ -535,7 +535,7 @@ namespace Storm.SourceGenerator.Emit
             writer.WriteLine("var currentMode = modeStack.Peek();");
             writer.WriteBlock("switch (currentMode)", () =>
             {
-                for (int i = 0; i < modes.Count; i++)
+                for(int i = 0; i < modes.Count; i++)
                 {
                     var modeName = SanitizeIdentifier(modes[i]);
                     writer.WriteBlock($"case Mode_{modeName}:", () =>
@@ -557,19 +557,19 @@ namespace Storm.SourceGenerator.Emit
         {
             // Check if any tokens have mode actions
             var hasActions = tokens.Any(t => t.ModeAction is PushModeIR || t.ModeAction is PopModeIR);
-            if (!hasActions) return;
+            if(!hasActions) return;
 
             writer.WriteBlock("switch (lastAcceptKind)", () =>
             {
-                for (int i = 0; i < tokens.Count; i++)
+                for(int i = 0; i < tokens.Count; i++)
                 {
                     var token = tokens[i];
-                    if (token.ModeAction is PushModeIR push)
+                    if(token.ModeAction is PushModeIR push)
                     {
                         var targetMode = SanitizeIdentifier(push.ModeName);
                         writer.WriteLine($"case {i}: modeStack.Push(Mode_{targetMode}); break;");
                     }
-                    else if (token.ModeAction is PopModeIR)
+                    else if(token.ModeAction is PopModeIR)
                     {
                         writer.WriteLine($"case {i}: if (modeStack.Count > 1) modeStack.Pop(); break;");
                     }
@@ -586,7 +586,7 @@ namespace Storm.SourceGenerator.Emit
                 .OrderBy(t => t.DeclarationIndex)
                 .ToList();
 
-            if (hiddenTokens.Count == 0)
+            if(hiddenTokens.Count == 0)
             {
                 writer.WriteLine("private static System.Collections.Generic.HashSet<int> HiddenKinds = new System.Collections.Generic.HashSet<int>();");
                 return;
@@ -595,7 +595,7 @@ namespace Storm.SourceGenerator.Emit
             writer.WriteLine("private static System.Collections.Generic.HashSet<int> HiddenKinds = new System.Collections.Generic.HashSet<int>");
             writer.WriteLine("{");
             writer.Indent();
-            foreach (var token in hiddenTokens)
+            foreach(var token in hiddenTokens)
             {
                 writer.WriteLine($"(int)TokenKind.{SanitizeIdentifier(token.Name)},");
             }
@@ -627,7 +627,7 @@ namespace Storm.SourceGenerator.Emit
 
         private static string EscapeCharForCSharp(char c)
         {
-            switch (c)
+            switch(c)
             {
                 case '\\': return "\\\\";
                 case '\'': return "\\'";
@@ -642,19 +642,19 @@ namespace Storm.SourceGenerator.Emit
 
         internal static string SanitizeIdentifier(string name)
         {
-            if (string.IsNullOrEmpty(name)) return "_";
+            if(string.IsNullOrEmpty(name)) return "_";
 
             var sb = new StringBuilder();
-            for (var i = 0; i < name.Length; i++)
+            for(var i = 0; i < name.Length; i++)
             {
                 var c = name[i];
-                if (char.IsLetterOrDigit(c) || c == '_')
+                if(char.IsLetterOrDigit(c) || c == '_')
                     sb.Append(c);
                 else
                     sb.Append('_');
             }
 
-            if (sb.Length > 0 && char.IsDigit(sb[0]))
+            if(sb.Length > 0 && char.IsDigit(sb[0]))
                 sb.Insert(0, '_');
 
             return sb.Length == 0 ? "_" : sb.ToString();

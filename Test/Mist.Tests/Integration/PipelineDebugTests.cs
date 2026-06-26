@@ -28,7 +28,7 @@ public sealed class PipelineDebugTests : IDisposable
 
     public void Dispose()
     {
-        if (Directory.Exists(_outputDir))
+        if(Directory.Exists(_outputDir))
             try { Directory.Delete(_outputDir, recursive: true); } catch { }
         GC.SuppressFinalize(this);
     }
@@ -36,9 +36,9 @@ public sealed class PipelineDebugTests : IDisposable
     private static string FindRepoRoot()
     {
         var dir = Directory.GetCurrentDirectory();
-        while (dir != null)
+        while(dir != null)
         {
-            if (File.Exists(Path.Combine(dir, "Mist.slnx")))
+            if(File.Exists(Path.Combine(dir, "Mist.slnx")))
                 return dir;
             dir = Directory.GetParent(dir)?.FullName;
         }
@@ -214,7 +214,7 @@ public sealed class PipelineDebugTests : IDisposable
         var asts = ImmutableArray.CreateBuilder<Storm.Runtime.SyntaxNode>();
         var units = ImmutableArray.CreateBuilder<CompilationUnit>();
 
-        foreach (var file in sourceFiles)
+        foreach(var file in sourceFiles)
         {
             var contents = File.ReadAllText(file);
             var sourceText = new SourceText(file, contents);
@@ -228,12 +228,12 @@ public sealed class PipelineDebugTests : IDisposable
             var parseResult = parser.Parse(tokenStream, parseBag);
 
             var parseErrors = parseBag.ToImmutableArray().Where(d => d.Severity == DiagnosticSeverity.Error).ToList();
-            if (parseErrors.Any())
+            if(parseErrors.Any())
             {
                 Assert.Fail($"Parse errors for {file}: {string.Join(", ", parseErrors.Select(d => d.Message))}");
             }
 
-            if (parseResult.Root is not null)
+            if(parseResult.Root is not null)
             {
                 asts.Add(parseResult.Root);
             }

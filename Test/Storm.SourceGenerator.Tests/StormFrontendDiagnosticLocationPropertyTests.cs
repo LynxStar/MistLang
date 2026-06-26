@@ -133,7 +133,7 @@ public class StormFrontendDiagnosticLocationPropertyTests
     private static void RunProperty<T>(Gen<T> gen, Action<T> check, int maxTests = 100)
     {
         var samples = gen.Sample(maxTests);
-        foreach (var sample in samples)
+        foreach(var sample in samples)
         {
             check(sample);
         }
@@ -164,7 +164,7 @@ public class StormFrontendDiagnosticLocationPropertyTests
 
             StormLexer.Tokenize(source, diagnostics);
 
-            foreach (var diag in diagnostics)
+            foreach(var diag in diagnostics)
             {
                 Assert.NotNull(diag.FilePath);
                 Assert.True(diag.Line > 0,
@@ -193,7 +193,7 @@ public class StormFrontendDiagnosticLocationPropertyTests
             StormParser.Parse(tokens, source, parserDiagnostics);
 
             // Verify all parser diagnostics have valid location
-            foreach (var diag in parserDiagnostics)
+            foreach(var diag in parserDiagnostics)
             {
                 Assert.NotNull(diag.FilePath);
                 Assert.True(diag.Line > 0,
@@ -224,7 +224,7 @@ public class StormFrontendDiagnosticLocationPropertyTests
             // (not strictly required by the property, but validates our generators)
 
             // The core property: every diagnostic has valid location data
-            foreach (var diag in diagnostics)
+            foreach(var diag in diagnostics)
             {
                 Assert.NotNull(diag.FilePath);
                 Assert.True(diag.Line > 0,

@@ -164,7 +164,7 @@ public sealed class NewtypeMemberCloningPropertyTests
         var parseBag = new DiagnosticBag();
         var parseResult = Parser.Parse(tokens, parseBag);
 
-        if (parseResult.Root is null)
+        if(parseResult.Root is null)
         {
             return (null!, lexBag.ToImmutableArray().AddRange(parseBag.ToImmutableArray()));
         }
@@ -198,7 +198,7 @@ public sealed class NewtypeMemberCloningPropertyTests
         var (model, diagnostics) = BuildModel(scenario.Source);
 
         // If the model failed to build, report the diagnostics.
-        if (model is null)
+        if(model is null)
         {
             return false.ToProperty()
                 .Label($"Model build failed. Diagnostics: [{string.Join(", ", diagnostics.Select(d => $"{d.Id.Value}: {d.Message}"))}]");
@@ -209,7 +209,7 @@ public sealed class NewtypeMemberCloningPropertyTests
             .FirstOrDefault(s => s.Name == scenario.SourceTypeName &&
                 (s.Kind == SymbolKind.Class || s.Kind == SymbolKind.Struct));
 
-        if (sourceSymbol is null)
+        if(sourceSymbol is null)
         {
             return false.ToProperty()
                 .Label($"Source type '{scenario.SourceTypeName}' not found in symbol table.");
@@ -224,7 +224,7 @@ public sealed class NewtypeMemberCloningPropertyTests
             _ => null,
         };
 
-        if (sourceMemberScope is null)
+        if(sourceMemberScope is null)
         {
             return false.ToProperty()
                 .Label($"Source type '{scenario.SourceTypeName}' has no member scope.");
@@ -234,7 +234,7 @@ public sealed class NewtypeMemberCloningPropertyTests
         var newtypeSymbol = model.AllSymbols
             .FirstOrDefault(s => s.Name == scenario.NewtypeName && s.Kind == SymbolKind.Newtype);
 
-        if (newtypeSymbol is null)
+        if(newtypeSymbol is null)
         {
             return false.ToProperty()
                 .Label($"Newtype '{scenario.NewtypeName}' not found in symbol table. " +
@@ -242,7 +242,7 @@ public sealed class NewtypeMemberCloningPropertyTests
         }
 
         // Get the newtype's member scope.
-        if (newtypeSymbol.DeclaredType is not NewtypeType newtypeType)
+        if(newtypeSymbol.DeclaredType is not NewtypeType newtypeType)
         {
             return false.ToProperty()
                 .Label($"Newtype '{scenario.NewtypeName}' DeclaredType is not NewtypeType.");

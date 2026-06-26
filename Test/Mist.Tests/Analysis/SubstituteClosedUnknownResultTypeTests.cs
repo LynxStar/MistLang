@@ -89,17 +89,17 @@ public class SubstituteClosedUnknownResultTypeTests
     {
         var stack = new Stack<SyntaxNode>();
         stack.Push(root);
-        while (stack.Count > 0)
+        while(stack.Count > 0)
         {
             var node = stack.Pop();
-            if (node is MemberAccessSuffixPostfixSuffixNode suffix
+            if(node is MemberAccessSuffixPostfixSuffixNode suffix
                 && suffix.Name.Lexeme == memberName)
             {
                 yield return suffix;
             }
-            foreach (var child in node.Children())
+            foreach(var child in node.Children())
             {
-                if (child is not null)
+                if(child is not null)
                     stack.Push(child);
             }
         }

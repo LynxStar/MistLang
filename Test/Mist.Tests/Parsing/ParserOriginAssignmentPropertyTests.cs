@@ -100,11 +100,11 @@ public class ParserOriginAssignmentPropertyTests
     private static IEnumerable<SyntaxNode> WalkAllNodes(SyntaxNode root)
     {
         yield return root;
-        foreach (var child in root.Children())
+        foreach(var child in root.Children())
         {
-            if (child is not null)
+            if(child is not null)
             {
-                foreach (var descendant in WalkAllNodes(child))
+                foreach(var descendant in WalkAllNodes(child))
                 {
                     yield return descendant;
                 }
@@ -130,15 +130,15 @@ public class ParserOriginAssignmentPropertyTests
         var result = Parser.Parse(tokens, bag);
 
         // If parsing produced no root (skeletal parser), skip this scenario
-        if (result.Root is null)
+        if(result.Root is null)
             return true.ToProperty().Label("Skipped: parser returned null root (skeletal)");
 
         var allNodes = WalkAllNodes(result.Root).ToList();
 
         // Verify every node has a ParsedOrigin
-        foreach (var node in allNodes)
+        foreach(var node in allNodes)
         {
-            if (node.Origin is not ParsedOrigin parsedOrigin)
+            if(node.Origin is not ParsedOrigin parsedOrigin)
             {
                 return false.ToProperty()
                     .Label($"Node of type {node.GetType().Name} has Origin of type " +
@@ -147,7 +147,7 @@ public class ParserOriginAssignmentPropertyTests
             }
 
             // Verify the Source is reference-equal to the SourceText passed to the parser
-            if (!ReferenceEquals(parsedOrigin.Source, sourceText))
+            if(!ReferenceEquals(parsedOrigin.Source, sourceText))
             {
                 return false.ToProperty()
                     .Label($"Node of type {node.GetType().Name} has ParsedOrigin with different " +
@@ -172,19 +172,19 @@ public class ParserOriginAssignmentPropertyTests
         var tokens = Lexer.Lex(sourceText, bag);
         var result = Parser.Parse(tokens, bag);
 
-        if (result.Root is null)
+        if(result.Root is null)
             return true.ToProperty().Label("Skipped: parser returned null root (skeletal)");
 
         var allNodes = WalkAllNodes(result.Root).ToList();
 
-        if (allNodes.Count == 0)
+        if(allNodes.Count == 0)
             return true.ToProperty().Label("Skipped: no nodes in tree");
 
         // All nodes should share the exact same Origin instance
         var firstOrigin = allNodes[0].Origin;
-        foreach (var node in allNodes.Skip(1))
+        foreach(var node in allNodes.Skip(1))
         {
-            if (!ReferenceEquals(node.Origin, firstOrigin))
+            if(!ReferenceEquals(node.Origin, firstOrigin))
             {
                 return false.ToProperty()
                     .Label($"Node of type {node.GetType().Name} has a different Origin instance " +

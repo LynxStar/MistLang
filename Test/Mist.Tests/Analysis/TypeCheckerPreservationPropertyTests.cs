@@ -193,18 +193,21 @@ public class TypeCheckerPreservationPropertyTests
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
         };
 
-        if (namespaceName.Length > 0)
+        if(namespaceName.Length > 0)
         {
             return new CompilationUnitNode
             {
                 Usings = ImmutableArray<UsingDeclarationNode>.Empty,
-                Items = ImmutableArray.Create<TopLevelItemNode>(new NamespaceItemTopLevelItemNode { NamespaceDeclaration = new FileScopedNamespaceNamespaceDeclarationNode
+                Items = ImmutableArray.Create<TopLevelItemNode>(new NamespaceItemTopLevelItemNode
                 {
-                    Name = MakeQualifiedId(namespaceName),
-                    Body = ImmutableArray.Create<TypeDeclarationNode>(
+                    NamespaceDeclaration = new FileScopedNamespaceNamespaceDeclarationNode
+                    {
+                        Name = MakeQualifiedId(namespaceName),
+                        Body = ImmutableArray.Create<TypeDeclarationNode>(
                         new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsNamespaceBodyItems(),
-                    Span = new Storm.Runtime.SourceSpan(0, 100),
-                } }),
+                        Span = new Storm.Runtime.SourceSpan(0, 100),
+                    }
+                }),
             };
         }
 
@@ -226,11 +229,14 @@ public class TypeCheckerPreservationPropertyTests
             Name = MakeToken("Main"),
             ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
-            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode
+            Body = new MethodBlockBodyMethodBodyNode
             {
-                Statements = ImmutableArray.Create(
+                Block = new BlockNode
+                {
+                    Statements = ImmutableArray.Create(
                     MakeReturnStatement(MakeIntLiteralExpression("42"))),
-            } },
+                }
+            },
             Modifiers = ImmutableArray.Create<ModifierNode>(
                 new PublicModifierModifierNode(),
                 new StaticModifierModifierNode()),
@@ -260,10 +266,13 @@ public class TypeCheckerPreservationPropertyTests
         {
             VariableDeclaration = new TypedVariableDeclarationVariableDeclarationStatementNode
             {
-                Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                Type = new TypeReferenceNode
                 {
-                    PrimitiveType = new IntTypePrimitiveTypeNode(),
-                } },
+                    First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                    {
+                        PrimitiveType = new IntTypePrimitiveTypeNode(),
+                    }
+                },
                 Name = MakeToken("x"),
                 Initializer = WrapPrimaryAsExpression(new TrueLiteralExpressionPrimaryNode()),
             },
@@ -274,10 +283,13 @@ public class TypeCheckerPreservationPropertyTests
             Name = MakeToken("Main"),
             ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
-            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode
+            Body = new MethodBlockBodyMethodBodyNode
             {
-                Statements = ImmutableArray.Create<StatementNode>(varDecl),
-            } },
+                Block = new BlockNode
+                {
+                    Statements = ImmutableArray.Create<StatementNode>(varDecl),
+                }
+            },
             Modifiers = ImmutableArray.Create<ModifierNode>(
                 new PublicModifierModifierNode(),
                 new StaticModifierModifierNode()),
@@ -341,10 +353,13 @@ public class TypeCheckerPreservationPropertyTests
             Name = MakeToken("Main"),
             ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
-            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode
+            Body = new MethodBlockBodyMethodBodyNode
             {
-                Statements = ImmutableArray.Create<StatementNode>(varDecl),
-            } },
+                Block = new BlockNode
+                {
+                    Statements = ImmutableArray.Create<StatementNode>(varDecl),
+                }
+            },
             Modifiers = ImmutableArray.Create<ModifierNode>(
                 new PublicModifierModifierNode(),
                 new StaticModifierModifierNode()),
@@ -376,10 +391,13 @@ public class TypeCheckerPreservationPropertyTests
         {
             VariableDeclaration = new TypedVariableDeclarationVariableDeclarationStatementNode
             {
-                Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                Type = new TypeReferenceNode
                 {
-                    PrimitiveType = new BoolTypePrimitiveTypeNode(),
-                } },
+                    First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                    {
+                        PrimitiveType = new BoolTypePrimitiveTypeNode(),
+                    }
+                },
                 Name = MakeToken("a"),
                 Initializer = WrapPrimaryAsExpression(new TrueLiteralExpressionPrimaryNode()),
             },
@@ -389,10 +407,13 @@ public class TypeCheckerPreservationPropertyTests
         {
             VariableDeclaration = new TypedVariableDeclarationVariableDeclarationStatementNode
             {
-                Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                Type = new TypeReferenceNode
                 {
-                    PrimitiveType = new BoolTypePrimitiveTypeNode(),
-                } },
+                    First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                    {
+                        PrimitiveType = new BoolTypePrimitiveTypeNode(),
+                    }
+                },
                 Name = MakeToken("b"),
                 Initializer = WrapPrimaryAsExpression(new FalseLiteralExpressionPrimaryNode()),
             },
@@ -421,12 +442,15 @@ public class TypeCheckerPreservationPropertyTests
             Name = MakeToken("Main"),
             ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             Parameters = null,
-            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode
+            Body = new MethodBlockBodyMethodBodyNode
             {
-                Statements = ImmutableArray.Create<StatementNode>(
+                Block = new BlockNode
+                {
+                    Statements = ImmutableArray.Create<StatementNode>(
                     varA, varB,
                     MakeExpressionStatement(addExpr)),
-            } },
+                }
+            },
             Modifiers = ImmutableArray.Create<ModifierNode>(
                 new PublicModifierModifierNode(),
                 new StaticModifierModifierNode()),
@@ -505,7 +529,7 @@ public class TypeCheckerPreservationPropertyTests
             .Where(d => d.Id.Value == "MIST_TC_0013")
             .ToList();
 
-        if (tc0013.Count == 0)
+        if(tc0013.Count == 0)
             return false;
 
         // The error message must reference the correct type name
@@ -632,7 +656,7 @@ public class TypeCheckerPreservationPropertyTests
             .Where(d => d.Id.Value == scenario.ExpectedDiagnosticId)
             .ToList();
 
-        if (matchingDiagnostics.Count == 0)
+        if(matchingDiagnostics.Count == 0)
             return false;
 
         // The message must contain the expected fragment
@@ -657,7 +681,7 @@ public class TypeCheckerPreservationPropertyTests
             .Where(d => d.Id.Value == scenario.ExpectedDiagnosticId)
             .ToList();
 
-        if (matchingDiagnostics.Count == 0)
+        if(matchingDiagnostics.Count == 0)
             return false;
 
         return matchingDiagnostics.All(d => d.AnalyzerName == "TypeChecker");

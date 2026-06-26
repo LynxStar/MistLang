@@ -82,11 +82,11 @@ public static class OverloadResolver
         // candidate when they opt into the tiebreaker. Mismatched lengths are
         // a caller bug; fall back to the null-origin path so behavior stays
         // predictable.
-        if (candidateOrigin is not null && candidateOrigin.Count != candidates.Count)
+        if(candidateOrigin is not null && candidateOrigin.Count != candidates.Count)
             candidateOrigin = null;
 
         // Validate inference results vector length — must match candidates count.
-        if (inferenceResults is not null && inferenceResults.Count != candidates.Count)
+        if(inferenceResults is not null && inferenceResults.Count != candidates.Count)
             inferenceResults = null;
 
         // Step 1: Filter to applicable candidates — parameter count must match
@@ -95,7 +95,7 @@ public static class OverloadResolver
         // the origin-based tiebreaker later, we can look up its origin value.
         var applicable = new List<(ISymbol Symbol, IReadOnlyList<IType> ParamTypes, int OriginalIndex)>();
 
-        for (var c = 0; c < candidates.Count; c++)
+        for(var c = 0; c < candidates.Count; c++)
         {
             var candidate = candidates[c];
 
@@ -103,11 +103,11 @@ public static class OverloadResolver
             // exclude candidates where inference was attempted but failed.
             // A null entry means the candidate is non-generic (no inference needed)
             // and passes through unchanged.
-            if (inferenceResults is not null && inferenceResults[c] is { } ir && !ir.Success)
+            if(inferenceResults is not null && inferenceResults[c] is { } ir && !ir.Success)
                 continue;
             var paramTypes = ParameterSignature.Extract(candidate, model);
 
-            if (paramTypes.Count != argumentTypes.Count)
+            if(paramTypes.Count != argumentTypes.Count)
                 continue;
 
             // When a type substitution context is provided (e.g., for
@@ -115,10 +115,10 @@ public static class OverloadResolver
             // substitute type parameters in the extracted parameter types
             // before the applicability check. This maps T → Int32 so that
             // Optional(T value) becomes Optional(Int32 value).
-            if (typeSubstitution is var (typeParams, typeArgs))
+            if(typeSubstitution is var (typeParams, typeArgs))
             {
                 var substituted = new IType[paramTypes.Count];
-                for (var i = 0; i < paramTypes.Count; i++)
+                for(var i = 0; i < paramTypes.Count; i++)
                     substituted[i] = TypeCheckerAnalyzer.SubstituteType(
                         paramTypes[i], typeParams, typeArgs);
                 paramTypes = substituted;
@@ -128,11 +128,11 @@ public static class OverloadResolver
             // type arguments into the parameter types before the assignability check.
             // This maps T → Int32 so that Process<T>(T value) becomes Process(Int32 value)
             // when inference determined T = Int32.
-            if (inferenceResults is not null && inferenceResults[c] is { Success: true } successfulInference
+            if(inferenceResults is not null && inferenceResults[c] is { Success: true } successfulInference
                 && candidate is Symbol candidateSymForSubst && candidateSymForSubst.TypeParameters.Count > 0)
             {
                 var substituted = new IType[paramTypes.Count];
-                for (var i = 0; i < paramTypes.Count; i++)
+                for(var i = 0; i < paramTypes.Count; i++)
                     substituted[i] = TypeCheckerAnalyzer.SubstituteType(
                         paramTypes[i], candidateSymForSubst.TypeParameters, successfulInference.InferredTypeArguments!);
                 paramTypes = substituted;
@@ -142,26 +142,26 @@ public static class OverloadResolver
             // is only applicable if each parameter's RefKind matches the corresponding
             // argument's RefKind. A ref parameter requires a ref argument and vice versa
             // (Requirement 7.4).
-            if (argumentRefKinds is not null)
+            if(argumentRefKinds is not null)
             {
                 var paramRefKinds = ParameterSignature.ExtractRefKinds(candidate, model);
                 var refKindMismatch = false;
-                for (var i = 0; i < argumentTypes.Count; i++)
+                for(var i = 0; i < argumentTypes.Count; i++)
                 {
                     var paramRefKind = i < paramRefKinds.Count ? paramRefKinds[i] : RefKind.None;
                     var argRefKind = i < argumentRefKinds.Count ? argumentRefKinds[i] : RefKind.None;
-                    if (paramRefKind != argRefKind)
+                    if(paramRefKind != argRefKind)
                     {
                         refKindMismatch = true;
                         break;
                     }
                 }
-                if (refKindMismatch)
+                if(refKindMismatch)
                     continue;
             }
 
             var allAssignable = true;
-            for (var i = 0; i < argumentTypes.Count; i++)
+            for(var i = 0; i < argumentTypes.Count; i++)
             {
                 // For ref parameters, require exact type match (no implicit conversions).
                 // C# §12.6.4.2: For ref/out arguments, the parameter type must match
@@ -170,27 +170,27 @@ public static class OverloadResolver
                     && i < argumentRefKinds.Count
                     && argumentRefKinds[i] != RefKind.None;
 
-                if (isRefArg)
+                if(isRefArg)
                 {
-                    if (!TypeCheckerAnalyzer.TypesEqual(argumentTypes[i], paramTypes[i]))
+                    if(!TypeCheckerAnalyzer.TypesEqual(argumentTypes[i], paramTypes[i]))
                     {
                         allAssignable = false;
                         break;
                     }
                 }
-                else if (!TypeCheckerAnalyzer.IsAssignable(argumentTypes[i], paramTypes[i]))
+                else if(!TypeCheckerAnalyzer.IsAssignable(argumentTypes[i], paramTypes[i]))
                 {
                     allAssignable = false;
                     break;
                 }
             }
 
-            if (allAssignable)
+            if(allAssignable)
                 applicable.Add((candidate, paramTypes, c));
         }
 
         // Step 2: No applicable candidates.
-        if (applicable.Count == 0)
+        if(applicable.Count == 0)
         {
             return new OverloadResolutionResult(
                 OverloadResolutionStatus.NoApplicableCandidate,
@@ -199,7 +199,7 @@ public static class OverloadResolver
         }
 
         // Step 3: Exactly one applicable candidate.
-        if (applicable.Count == 1)
+        if(applicable.Count == 1)
         {
             return new OverloadResolutionResult(
                 OverloadResolutionStatus.Success,
@@ -211,32 +211,32 @@ public static class OverloadResolver
         var best = applicable[0];
         var bestIsValid = true;
 
-        for (var i = 1; i < applicable.Count; i++)
+        for(var i = 1; i < applicable.Count; i++)
         {
-            if (!bestIsValid)
+            if(!bestIsValid)
                 break;
 
-            if (MoreSpecific(applicable[i].ParamTypes, best.ParamTypes))
+            if(MoreSpecific(applicable[i].ParamTypes, best.ParamTypes))
             {
                 // applicable[i] is more specific than current best — it becomes the new best.
                 best = applicable[i];
             }
-            else if (!MoreSpecific(best.ParamTypes, applicable[i].ParamTypes))
+            else if(!MoreSpecific(best.ParamTypes, applicable[i].ParamTypes))
             {
                 // Neither is more specific than the other — potential ambiguity.
                 bestIsValid = false;
             }
         }
 
-        if (bestIsValid)
+        if(bestIsValid)
         {
             // Step 5: Verify best is more specific than ALL other applicable candidates.
-            foreach (var other in applicable)
+            foreach(var other in applicable)
             {
-                if (ReferenceEquals(other.Symbol, best.Symbol))
+                if(ReferenceEquals(other.Symbol, best.Symbol))
                     continue;
 
-                if (!MoreSpecific(best.ParamTypes, other.ParamTypes))
+                if(!MoreSpecific(best.ParamTypes, other.ParamTypes))
                 {
                     // best is not more specific than this other candidate — ambiguous.
                     return MakeAmbiguousOrTiebreak(applicable, candidateOrigin, argumentTypes);
@@ -298,7 +298,7 @@ public static class OverloadResolver
             .Where(a => a.Symbol is Symbol s && s.TypeParameters.Count == 0)
             .ToList();
 
-        if (nonGenericCandidates.Count == 1 && applicable.Count > 1)
+        if(nonGenericCandidates.Count == 1 && applicable.Count > 1)
         {
             return new OverloadResolutionResult(
                 OverloadResolutionStatus.Success,
@@ -310,10 +310,10 @@ public static class OverloadResolver
         // When multiple candidates differ in delegate-typed vs func-typed parameters,
         // apply delegate-specific scoring to pick the preferred overload.
         var delegateResult = TryResolveDelegatePreference(applicable, argumentTypes);
-        if (delegateResult is not null)
+        if(delegateResult is not null)
             return delegateResult.Value;
 
-        if (candidateOrigin is null)
+        if(candidateOrigin is null)
         {
             return new OverloadResolutionResult(
                 OverloadResolutionStatus.AmbiguousCall,
@@ -323,10 +323,10 @@ public static class OverloadResolver
 
         // Tiebreaker 3: Find the minimum origin value across the applicable candidates.
         var minOrigin = int.MaxValue;
-        foreach (var entry in applicable)
+        foreach(var entry in applicable)
         {
             var origin = candidateOrigin[entry.OriginalIndex];
-            if (origin < minOrigin)
+            if(origin < minOrigin)
                 minOrigin = origin;
         }
 
@@ -335,18 +335,18 @@ public static class OverloadResolver
         // persists (the tiebreaker cannot disambiguate same-origin candidates).
         ISymbol? sole = null;
         var soleCount = 0;
-        foreach (var entry in applicable)
+        foreach(var entry in applicable)
         {
-            if (candidateOrigin[entry.OriginalIndex] != minOrigin)
+            if(candidateOrigin[entry.OriginalIndex] != minOrigin)
                 continue;
 
             sole = entry.Symbol;
             soleCount++;
-            if (soleCount > 1)
+            if(soleCount > 1)
                 break;
         }
 
-        if (soleCount == 1 && sole is not null)
+        if(soleCount == 1 && sole is not null)
         {
             return new OverloadResolutionResult(
                 OverloadResolutionStatus.Success,
@@ -383,7 +383,7 @@ public static class OverloadResolver
         var scores = new int[applicable.Count];
         var hasDelegateRelevance = false;
 
-        for (var argIdx = 0; argIdx < argumentTypes.Count; argIdx++)
+        for(var argIdx = 0; argIdx < argumentTypes.Count; argIdx++)
         {
             var argType = argumentTypes[argIdx];
 
@@ -392,60 +392,60 @@ public static class OverloadResolver
             var hasFuncParam = false;
             var hasBaseDelegateParam = false;
 
-            for (var candIdx = 0; candIdx < applicable.Count; candIdx++)
+            for(var candIdx = 0; candIdx < applicable.Count; candIdx++)
             {
-                if (argIdx >= applicable[candIdx].ParamTypes.Count) continue;
+                if(argIdx >= applicable[candIdx].ParamTypes.Count) continue;
                 var paramType = applicable[candIdx].ParamTypes[argIdx];
 
-                if (paramType is DelegateType)
+                if(paramType is DelegateType)
                     hasDelegateParam = true;
-                else if (paramType is BaseDelegateType)
+                else if(paramType is BaseDelegateType)
                     hasBaseDelegateParam = true;
-                else if (SemanticModelBuilder.IsFuncType(paramType))
+                else if(SemanticModelBuilder.IsFuncType(paramType))
                     hasFuncParam = true;
             }
 
             // Only apply delegate preference when candidates differ at this position
             // with delegate-related types.
-            if (!hasDelegateParam && !hasBaseDelegateParam)
+            if(!hasDelegateParam && !hasBaseDelegateParam)
                 continue;
-            if (!hasFuncParam && !hasBaseDelegateParam && !hasDelegateParam)
+            if(!hasFuncParam && !hasBaseDelegateParam && !hasDelegateParam)
                 continue;
 
             hasDelegateRelevance = true;
 
             // Score each candidate based on the argument kind at this position.
-            for (var candIdx = 0; candIdx < applicable.Count; candIdx++)
+            for(var candIdx = 0; candIdx < applicable.Count; candIdx++)
             {
-                if (argIdx >= applicable[candIdx].ParamTypes.Count) continue;
+                if(argIdx >= applicable[candIdx].ParamTypes.Count) continue;
                 var paramType = applicable[candIdx].ParamTypes[argIdx];
 
                 // Rule 1: DelegateType-typed argument → prefer exact nominal match.
-                if (argType is DelegateType argDelegate)
+                if(argType is DelegateType argDelegate)
                 {
-                    if (paramType is DelegateType paramDelegate
+                    if(paramType is DelegateType paramDelegate
                         && argDelegate.ClrFullName == paramDelegate.ClrFullName)
                     {
                         scores[candIdx] += 2; // Strong preference for exact match.
                     }
-                    else if (paramType is BaseDelegateType)
+                    else if(paramType is BaseDelegateType)
                     {
                         scores[candIdx] -= 1; // Penalize BaseDelegateType (less specific).
                     }
                     // func<...> or different DelegateType: no bonus.
                 }
                 // Rule 2: func<...> argument → prefer func<...> overload over DelegateType.
-                else if (SemanticModelBuilder.IsFuncType(argType))
+                else if(SemanticModelBuilder.IsFuncType(argType))
                 {
-                    if (SemanticModelBuilder.IsFuncType(paramType))
+                    if(SemanticModelBuilder.IsFuncType(paramType))
                     {
                         scores[candIdx] += 2; // Strong preference for structural match.
                     }
-                    else if (paramType is DelegateType)
+                    else if(paramType is DelegateType)
                     {
                         scores[candIdx] += 0; // Neutral — delegate accepts func but not preferred.
                     }
-                    else if (paramType is BaseDelegateType)
+                    else if(paramType is BaseDelegateType)
                     {
                         scores[candIdx] -= 1; // Penalize BaseDelegateType (less specific).
                     }
@@ -461,11 +461,11 @@ public static class OverloadResolver
                 {
                     // For any other argument type (e.g., lambda resolved as func),
                     // DelegateType is preferred over BaseDelegateType.
-                    if (paramType is DelegateType)
+                    if(paramType is DelegateType)
                     {
                         scores[candIdx] += 1;
                     }
-                    else if (paramType is BaseDelegateType)
+                    else if(paramType is BaseDelegateType)
                     {
                         scores[candIdx] -= 1;
                     }
@@ -473,7 +473,7 @@ public static class OverloadResolver
             }
         }
 
-        if (!hasDelegateRelevance)
+        if(!hasDelegateRelevance)
             return null;
 
         // Find the candidate with the highest score.
@@ -481,22 +481,22 @@ public static class OverloadResolver
         var bestIdx = -1;
         var tieCount = 0;
 
-        for (var i = 0; i < scores.Length; i++)
+        for(var i = 0; i < scores.Length; i++)
         {
-            if (scores[i] > bestScore)
+            if(scores[i] > bestScore)
             {
                 bestScore = scores[i];
                 bestIdx = i;
                 tieCount = 1;
             }
-            else if (scores[i] == bestScore)
+            else if(scores[i] == bestScore)
             {
                 tieCount++;
             }
         }
 
         // If exactly one candidate has the highest score, it wins.
-        if (tieCount == 1 && bestIdx >= 0)
+        if(tieCount == 1 && bestIdx >= 0)
         {
             return new OverloadResolutionResult(
                 OverloadResolutionStatus.Success,
@@ -518,18 +518,18 @@ public static class OverloadResolver
     /// </summary>
     private static bool MoreSpecific(IReadOnlyList<IType> aParams, IReadOnlyList<IType> bParams)
     {
-        if (aParams.Count != bParams.Count)
+        if(aParams.Count != bParams.Count)
             return false;
 
         var allAtoB = true;
         var anyBnotToA = false;
 
-        for (var i = 0; i < aParams.Count; i++)
+        for(var i = 0; i < aParams.Count; i++)
         {
-            if (!TypeCheckerAnalyzer.IsAssignable(aParams[i], bParams[i]))
+            if(!TypeCheckerAnalyzer.IsAssignable(aParams[i], bParams[i]))
                 allAtoB = false;
 
-            if (!TypeCheckerAnalyzer.IsAssignable(bParams[i], aParams[i]))
+            if(!TypeCheckerAnalyzer.IsAssignable(bParams[i], aParams[i]))
                 anyBnotToA = true;
         }
 

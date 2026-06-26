@@ -110,9 +110,9 @@ public class EnumSequentialValuePropertyTests
         var expected = new List<long>();
         long nextValue = 0;
 
-        foreach (var member in members)
+        foreach(var member in members)
         {
-            if (member.ExplicitValue.HasValue)
+            if(member.ExplicitValue.HasValue)
             {
                 expected.Add(member.ExplicitValue.Value);
                 nextValue = member.ExplicitValue.Value + 1;
@@ -207,9 +207,9 @@ public class EnumSequentialValuePropertyTests
         var members = new List<(string Name, long? ExplicitValue)>();
         var nextExplicit = (long)baseValue;
 
-        for (var i = 0; i < memberNames.Length; i++)
+        for(var i = 0; i < memberNames.Length; i++)
         {
-            if (explicitIndices.Contains(i))
+            if(explicitIndices.Contains(i))
             {
                 members.Add((memberNames[i], nextExplicit));
                 nextExplicit += 10; // Gap of 10 to make sequencing visible.
@@ -267,7 +267,7 @@ public class EnumSequentialValuePropertyTests
     {
         var members = new List<EnumMemberNode>();
 
-        foreach (var (name, explicitValue) in scenario.Members)
+        foreach(var (name, explicitValue) in scenario.Members)
         {
             var value = explicitValue.HasValue
                 ? MakeIntLiteralExpression(explicitValue.Value)
@@ -322,32 +322,32 @@ public class EnumSequentialValuePropertyTests
         var enumSymbol = model.AllSymbols
             .FirstOrDefault(s => s.Name == scenario.EnumName && s.Kind == SymbolKind.Enum);
 
-        if (enumSymbol is null)
+        if(enumSymbol is null)
             return false.ToProperty()
                 .Label($"Enum '{scenario.EnumName}' not found in semantic model. " +
                        $"All symbols: [{string.Join(", ", model.AllSymbols.Select(s => $"{s.Name}:{s.Kind}"))}]");
 
-        if (enumSymbol.DeclaredType is not EnumType enumType)
+        if(enumSymbol.DeclaredType is not EnumType enumType)
             return false.ToProperty()
                 .Label($"Enum '{scenario.EnumName}' DeclaredType is not EnumType, got: {enumSymbol.DeclaredType?.GetType().Name ?? "null"}");
 
-        if (enumType.Members.Count != scenario.Members.Count)
+        if(enumType.Members.Count != scenario.Members.Count)
             return false.ToProperty()
                 .Label($"Expected {scenario.Members.Count} members, got {enumType.Members.Count}");
 
         // Verify each member's resolved value matches the expected sequential value.
-        for (var i = 0; i < scenario.Members.Count; i++)
+        for(var i = 0; i < scenario.Members.Count; i++)
         {
             var member = enumType.Members[i];
             var expectedValue = scenario.ExpectedValues[i];
 
-            if (member.ResolvedValue is not long actualValue)
+            if(member.ResolvedValue is not long actualValue)
                 return false.ToProperty()
                     .Label($"Member '{member.Name}' at index {i}: ResolvedValue is not a long. " +
                            $"Got: {member.ResolvedValue?.GetType().Name ?? "null"} = {member.ResolvedValue}. " +
                            $"Scenario: {scenario}");
 
-            if (actualValue != expectedValue)
+            if(actualValue != expectedValue)
                 return false.ToProperty()
                     .Label($"Member '{member.Name}' at index {i}: expected value {expectedValue}, " +
                            $"got {actualValue}. Scenario: {scenario}");

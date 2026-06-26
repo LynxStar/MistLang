@@ -35,7 +35,7 @@ namespace Storm.SourceGenerator.Emit
             var start = NewState();
             var current = start;
 
-            foreach (var ch in literal.Value)
+            foreach(var ch in literal.Value)
             {
                 var next = NewState();
                 current.Transitions.Add(new NfaTransition(
@@ -67,7 +67,7 @@ namespace Storm.SourceGenerator.Emit
         /// </summary>
         public NfaFragment BuildFragment(SequenceIR sequence)
         {
-            if (sequence.Elements.Count == 0)
+            if(sequence.Elements.Count == 0)
             {
                 // Empty sequence: single epsilon fragment
                 var s = NewState();
@@ -78,11 +78,11 @@ namespace Storm.SourceGenerator.Emit
 
             NfaFragment? combined = null;
 
-            foreach (var element in sequence.Elements)
+            foreach(var element in sequence.Elements)
             {
                 var frag = BuildFragment(element);
 
-                if (combined == null)
+                if(combined == null)
                 {
                     combined = frag;
                 }
@@ -108,7 +108,7 @@ namespace Storm.SourceGenerator.Emit
             var start = NewState();
             var accept = NewState();
 
-            foreach (var alt in alternation.Alternatives)
+            foreach(var alt in alternation.Alternatives)
             {
                 var frag = BuildFragment(alt);
                 start.Transitions.Add(new NfaTransition(frag.Start));
@@ -208,7 +208,7 @@ namespace Storm.SourceGenerator.Emit
         /// </summary>
         public NfaFragment BuildFragment(ExpressionIR expression)
         {
-            switch (expression)
+            switch(expression)
             {
                 case StringLiteralIR literal:
                     return BuildFragment(literal);
@@ -256,7 +256,7 @@ namespace Storm.SourceGenerator.Emit
         {
             var start = NewState();
 
-            foreach (var token in tokens)
+            foreach(var token in tokens)
             {
                 var fragment = BuildFragment(token.Expression);
                 fragment.Accept.AcceptingTokenIndex = token.DeclarationIndex;
@@ -282,23 +282,23 @@ namespace Storm.SourceGenerator.Emit
             var ranges = new List<CharRange>();
 
             // Strip outer [ ]
-            if (text.Length < 2 || text[0] != '[')
+            if(text.Length < 2 || text[0] != '[')
                 return Array.Empty<CharRange>();
 
             var inner = text.Substring(1, text.Length - 2);
 
             var i = 0;
-            if (inner.Length > 0 && inner[0] == '^')
+            if(inner.Length > 0 && inner[0] == '^')
             {
                 negated = true;
                 i = 1;
             }
 
-            while (i < inner.Length)
+            while(i < inner.Length)
             {
                 var ch = ReadCharClassChar(inner, ref i);
 
-                if (i < inner.Length && inner[i] == '-' && i + 1 < inner.Length)
+                if(i < inner.Length && inner[i] == '-' && i + 1 < inner.Length)
                 {
                     i++; // skip -
                     var ch2 = ReadCharClassChar(inner, ref i);
@@ -310,7 +310,7 @@ namespace Storm.SourceGenerator.Emit
                 }
             }
 
-            if (negated)
+            if(negated)
             {
                 ranges = ComputeNegatedRanges(ranges);
             }
@@ -324,14 +324,14 @@ namespace Storm.SourceGenerator.Emit
         /// </summary>
         private static char ReadCharClassChar(string text, ref int i)
         {
-            if (i >= text.Length) return '\0';
+            if(i >= text.Length) return '\0';
 
-            if (text[i] == '\\' && i + 1 < text.Length)
+            if(text[i] == '\\' && i + 1 < text.Length)
             {
                 i++; // skip backslash
                 var escaped = text[i];
                 i++;
-                switch (escaped)
+                switch(escaped)
                 {
                     case 'n': return '\n';
                     case 'r': return '\r';
@@ -371,13 +371,13 @@ namespace Storm.SourceGenerator.Emit
 
             // Merge overlapping/adjacent ranges
             var merged = new List<CharRange>();
-            foreach (var r in positiveRanges)
+            foreach(var r in positiveRanges)
             {
-                if (merged.Count > 0)
+                if(merged.Count > 0)
                 {
                     var last = merged[merged.Count - 1];
                     // Adjacent or overlapping: last.Hi + 1 >= r.Lo
-                    if (last.Hi >= r.Lo || (int)last.Hi + 1 >= (int)r.Lo)
+                    if(last.Hi >= r.Lo || (int)last.Hi + 1 >= (int)r.Lo)
                     {
                         merged[merged.Count - 1] = new CharRange(
                             last.Lo, (char)Math.Max(last.Hi, r.Hi));
@@ -391,16 +391,16 @@ namespace Storm.SourceGenerator.Emit
             var result = new List<CharRange>();
             int next = 0; // next char to potentially include
 
-            foreach (var r in merged)
+            foreach(var r in merged)
             {
-                if (next < (int)r.Lo)
+                if(next < (int)r.Lo)
                 {
                     result.Add(new CharRange((char)next, (char)((int)r.Lo - 1)));
                 }
                 next = (int)r.Hi + 1;
             }
 
-            if (next <= 0xFFFF)
+            if(next <= 0xFFFF)
             {
                 result.Add(new CharRange((char)next, '\uFFFF'));
             }

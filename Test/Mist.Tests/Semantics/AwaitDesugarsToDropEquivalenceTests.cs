@@ -230,13 +230,13 @@ public class AwaitDesugarsToDropEquivalenceTests
 
         // 1. Get the type that `await` resolves to
         var awaitResolvedType = model.GetTypeOf(awaitNode);
-        if (awaitResolvedType is null)
+        if(awaitResolvedType is null)
             return false.ToProperty()
                 .Label($"GetTypeOf(awaitNode) returned null. Scenario: {scenario}");
 
         var expectedDisplayName = ResolvedDisplayNames[scenario.ReturnTypeName];
 
-        if (awaitResolvedType.DisplayName != expectedDisplayName)
+        if(awaitResolvedType.DisplayName != expectedDisplayName)
             return false.ToProperty()
                 .Label($"await resolved to '{awaitResolvedType.DisplayName}', " +
                        $"expected '{expectedDisplayName}'. Scenario: {scenario}");
@@ -251,28 +251,28 @@ public class AwaitDesugarsToDropEquivalenceTests
                 && ct.ContainingNamespace == "Standard"
                 && ct.IsBackendBacked);
 
-        if (taskSymbol is null)
+        if(taskSymbol is null)
             return false.ToProperty()
                 .Label($"Could not find Standard.Task type in model. Scenario: {scenario}");
 
         var taskClassType = (ClassType)taskSymbol.DeclaredType!;
 
         // Verify Task has Drop recognized
-        if (!taskClassType.HasDrop)
+        if(!taskClassType.HasDrop)
             return false.ToProperty()
                 .Label($"Task<TResult>.HasDrop is false — Drop() not recognized. Scenario: {scenario}");
 
         // The DropReturnType on the generic definition is the type parameter TResult.
         // When constructed as Task<int>, Drop() returns int. This is the same T that
         // await unwraps to — proving the semantic equivalence.
-        if (taskClassType.DropReturnType is null)
+        if(taskClassType.DropReturnType is null)
             return false.ToProperty()
                 .Label($"Task<TResult>.DropReturnType is null (void) — expected TResult. Scenario: {scenario}");
 
         // The DropReturnType should be the type parameter TResult (a TypeParameterType)
         // on the generic definition. The concrete type after construction matches what
         // await resolves to.
-        if (taskClassType.DropReturnType is not TypeParameterType)
+        if(taskClassType.DropReturnType is not TypeParameterType)
             return false.ToProperty()
                 .Label($"Task<TResult>.DropReturnType is not a TypeParameterType. " +
                        $"Actual: {taskClassType.DropReturnType.GetType().Name} " +
@@ -404,7 +404,7 @@ public class AwaitDesugarsToDropEquivalenceTests
         var (model, _) = StdlibTestHelper.BuildModelWithStdlib(ast);
 
         // Verify both Task and ValueTask
-        foreach (var typeName in new[] { "Task", "ValueTask" })
+        foreach(var typeName in new[] { "Task", "ValueTask" })
         {
             var symbol = model.AllSymbols
                 .FirstOrDefault(s => s.Kind == SymbolKind.Class

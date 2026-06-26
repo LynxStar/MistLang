@@ -30,9 +30,9 @@ public sealed class StdlibPublishLayoutTest
     private static string FindRepoRoot()
     {
         var dir = AppContext.BaseDirectory;
-        while (dir is not null)
+        while(dir is not null)
         {
-            if (File.Exists(Path.Combine(dir, "Mist.slnx")))
+            if(File.Exists(Path.Combine(dir, "Mist.slnx")))
                 return dir;
             dir = Directory.GetParent(dir)?.FullName;
         }
@@ -91,7 +91,7 @@ public sealed class StdlibPublishLayoutTest
         var sourceFiles = Directory.GetFiles(sourceStdlibRoot, "*.mist", SearchOption.AllDirectories);
         Assert.NotEmpty(sourceFiles);
 
-        foreach (var sourcePath in sourceFiles)
+        foreach(var sourcePath in sourceFiles)
         {
             var relative = Path.GetRelativePath(sourceStdlibRoot, sourcePath);
             var runtimePath = Path.Combine(runtimeStdlibRoot, relative);

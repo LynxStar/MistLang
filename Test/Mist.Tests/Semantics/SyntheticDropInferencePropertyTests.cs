@@ -48,7 +48,7 @@ public sealed class SyntheticDropInferencePropertyTests : IDisposable
 
     public void Dispose()
     {
-        if (Directory.Exists(_outputDir))
+        if(Directory.Exists(_outputDir))
         {
             try { Directory.Delete(_outputDir, recursive: true); } catch { /* best effort */ }
         }
@@ -183,7 +183,7 @@ public sealed class SyntheticDropInferencePropertyTests : IDisposable
         var fieldLines = new List<string>();
         var expected = new List<string>();
 
-        for (var i = 0; i < kinds.Length; i++)
+        for(var i = 0; i < kinds.Length; i++)
         {
             var fieldName = $"f{i}";
             var (typeName, isDroppable) = kinds[i] switch
@@ -194,7 +194,7 @@ public sealed class SyntheticDropInferencePropertyTests : IDisposable
             };
 
             fieldLines.Add($"    {typeName} {fieldName};");
-            if (isDroppable)
+            if(isDroppable)
                 expected.Add(fieldName);
         }
 
@@ -247,38 +247,38 @@ public sealed class SyntheticDropInferencePropertyTests : IDisposable
     {
         var model = CompileAndCapture(scenario.Source);
 
-        if (model is null)
+        if(model is null)
             return false.ToProperty().Label("Semantic model was null (compilation failed early)");
 
         var leaf = FindClassType(model, "Leaf");
         var mid = FindClassType(model, "Mid");
         var container = FindClassType(model, "Container");
 
-        if (leaf is null || mid is null || container is null)
+        if(leaf is null || mid is null || container is null)
             return false.ToProperty().Label($"Missing type(s) in model.\nSource:\n{scenario.Source}");
 
         // ── Leaf: explicit Drop() — droppable, never synthesized (Req 10.6). ──
-        if (!leaf.HasDrop)
+        if(!leaf.HasDrop)
             return false.ToProperty().Label("Leaf with explicit Drop() should have HasDrop == true.");
-        if (leaf.SyntheticDropFields is not null)
+        if(leaf.SyntheticDropFields is not null)
             return false.ToProperty().Label("Leaf has an explicit Drop(); SyntheticDropFields must be null (no synthesis).");
-        if (leaf.DropReturnType is not null)
+        if(leaf.DropReturnType is not null)
             return false.ToProperty().Label("Leaf.Drop() returns void; DropReturnType must be null.");
 
         // ── Mid: synthesized over a single Leaf field (cascade base, Req 10.1-10.3). ──
-        if (!mid.HasDrop)
+        if(!mid.HasDrop)
             return false.ToProperty().Label("Mid contains a droppable Leaf field and should have a synthesized Drop().");
-        if (mid.DropReturnType is not null)
+        if(mid.DropReturnType is not null)
             return false.ToProperty().Label("Synthesized Mid.Drop() must return void (DropReturnType == null).");
         var midFields = (mid.SyntheticDropFields ?? []).Select(f => f.Name).ToList();
-        if (!midFields.SequenceEqual(new[] { "inner" }))
+        if(!midFields.SequenceEqual(new[] { "inner" }))
             return false.ToProperty().Label($"Mid.SyntheticDropFields expected [inner], got [{string.Join(",", midFields)}].");
 
         // ── Container: synthesized iff it has >= 1 droppable field; declaration order. ──
         var expected = scenario.ExpectedDroppableFieldNames;
         var actual = (container.SyntheticDropFields ?? Array.Empty<ISymbol>()).Select(f => f.Name).ToList();
 
-        if (expected.Count == 0)
+        if(expected.Count == 0)
         {
             // No droppable fields → no synthesis (Req 10.1 only fires when droppable fields exist).
             var ok = !container.HasDrop && container.SyntheticDropFields is null;

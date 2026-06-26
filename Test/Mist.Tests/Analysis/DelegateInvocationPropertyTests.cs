@@ -75,7 +75,7 @@ public sealed class DelegateInvocationPropertyTests
     {
         var funcDef = new ClassType("Func", new Scope(null), "Standard", isBackendBacked: true);
         var tps = new IType[arity];
-        for (var i = 0; i < arity; i++)
+        for(var i = 0; i < arity; i++)
             tps[i] = new TypeParameterType($"T{i}", i);
         funcDef.TypeParameters = tps;
         return funcDef;
@@ -133,7 +133,7 @@ public sealed class DelegateInvocationPropertyTests
         // For any DelegateType D, D.FuncSignature.TypeArguments.Count >= 1.
         // This guarantees at least a return type is present, enabling invocation.
         var samples = GenDelegateTypeInput().Sample(100);
-        foreach (var input in samples)
+        foreach(var input in samples)
         {
             var delegateType = BuildDelegateType(input);
 
@@ -149,7 +149,7 @@ public sealed class DelegateInvocationPropertyTests
         // For any DelegateType D with FuncSignature = func<P1, ..., PN, R>,
         // the parameter types are TypeArguments[0..N-2] and the return type is TypeArguments[N-1].
         var samples = GenDelegateTypeInput().Sample(100);
-        foreach (var input in samples)
+        foreach(var input in samples)
         {
             var delegateType = BuildDelegateType(input);
             var typeArgs = delegateType.FuncSignature.TypeArguments;
@@ -161,7 +161,7 @@ public sealed class DelegateInvocationPropertyTests
 
             // The parameter types are the first N-1 type arguments
             var paramCount = totalArgs - 1;
-            for (var i = 0; i < paramCount; i++)
+            for(var i = 0; i < paramCount; i++)
             {
                 Assert.NotNull(typeArgs[i]);
                 // Each parameter type should be from our type pool
@@ -183,7 +183,7 @@ public sealed class DelegateInvocationPropertyTests
         // value in any position requiring its equivalent func<...> signature,
         // which is the mechanism enabling invocation type-checking.
         var samples = GenDelegateTypeInput().Sample(100);
-        foreach (var input in samples)
+        foreach(var input in samples)
         {
             var delegateType = BuildDelegateType(input);
 
@@ -205,7 +205,7 @@ public sealed class DelegateInvocationPropertyTests
         // different arity M (M != N) is NOT assignable to the DelegateType.
         // This proves that wrong argument count invocations are rejected.
         var samples = GenWrongArityPair().Sample(100);
-        foreach (var pair in samples)
+        foreach(var pair in samples)
         {
             var result = TypeCheckerAnalyzer.IsAssignable(pair.WrongArityFunc, pair.Delegate);
 

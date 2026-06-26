@@ -68,7 +68,7 @@ public sealed class BaseDelegateTypeAssignabilityPropertyTests
     {
         var funcDef = new ClassType("Func", new Scope(null), "Standard", isBackendBacked: true);
         var tps = new IType[arity];
-        for (var i = 0; i < arity; i++)
+        for(var i = 0; i < arity; i++)
             tps[i] = new TypeParameterType($"T{i}", i);
         funcDef.TypeParameters = tps;
         return funcDef;
@@ -137,7 +137,7 @@ public sealed class BaseDelegateTypeAssignabilityPropertyTests
     public void P5_AnyDelegateType_IsAssignableToBaseDelegateType()
     {
         var samples = GenDelegateTypeInput().Sample(100);
-        foreach (var input in samples)
+        foreach(var input in samples)
         {
             var delegateType = BuildDelegateType(input);
 
@@ -154,7 +154,7 @@ public sealed class BaseDelegateTypeAssignabilityPropertyTests
     public void P5_AnyFuncType_IsAssignableToBaseDelegateType()
     {
         var samples = GenFuncType().Sample(100);
-        foreach (var funcType in samples)
+        foreach(var funcType in samples)
         {
             var result = TypeCheckerAnalyzer.IsAssignable(funcType, BaseDelegateType.Instance);
 

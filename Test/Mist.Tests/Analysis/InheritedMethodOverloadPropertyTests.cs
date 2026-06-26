@@ -113,7 +113,7 @@ public class InheritedMethodOverloadPropertyTests
             Members = members,
         };
 
-        if (baseClassName is not null)
+        if(baseClassName is not null)
         {
             var baseList = MakeBaseList(baseClassName);
             classDecl.BaseClause = baseList;
@@ -165,25 +165,25 @@ public class InheritedMethodOverloadPropertyTests
     private static List<ISymbol> CollectMethodOverloads(IType? targetType, string methodName)
     {
         var results = new List<ISymbol>();
-        if (targetType is null)
+        if(targetType is null)
             return results;
 
         // Collect from the target type's own member scope.
-        if (targetType is ClassType ct)
+        if(targetType is ClassType ct)
         {
-            foreach (var member in ct.MemberScope.Members)
+            foreach(var member in ct.MemberScope.Members)
             {
-                if (member.Kind == SymbolKind.Method && member.Name == methodName)
+                if(member.Kind == SymbolKind.Method && member.Name == methodName)
                     results.Add(member);
             }
 
             // Walk the base type chain to collect inherited methods.
             var baseType = ct.BaseType as ClassType;
-            while (baseType is not null)
+            while(baseType is not null)
             {
-                foreach (var member in baseType.MemberScope.Members)
+                foreach(var member in baseType.MemberScope.Members)
                 {
-                    if (member.Kind == SymbolKind.Method && member.Name == methodName)
+                    if(member.Kind == SymbolKind.Method && member.Name == methodName)
                         results.Add(member);
                 }
                 baseType = baseType.BaseType as ClassType;
@@ -282,14 +282,14 @@ public class InheritedMethodOverloadPropertyTests
 
         // Find the Derived class type
         var derivedType = FindClassType(model, "Derived");
-        if (derivedType is null)
+        if(derivedType is null)
             return false;
 
         // Collect the full overload set from Derived (including inherited from Base)
         var candidates = CollectMethodOverloads(derivedType, "M");
 
         // We expect 2 candidates: one from Derived, one from Base
-        if (candidates.Count != 2)
+        if(candidates.Count != 2)
             return false;
 
         // Resolve with argument type matching the base class's parameter type
@@ -297,10 +297,10 @@ public class InheritedMethodOverloadPropertyTests
         var result = OverloadResolver.Resolve(candidates, argTypes, model);
 
         // Assert: resolution succeeds
-        if (result.Status != OverloadResolutionStatus.Success)
+        if(result.Status != OverloadResolutionStatus.Success)
             return false;
 
-        if (result.BestCandidate is null)
+        if(result.BestCandidate is null)
             return false;
 
         // Assert: the selected candidate has the base class's parameter type

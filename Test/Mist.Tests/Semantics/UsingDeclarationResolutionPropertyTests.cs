@@ -78,14 +78,17 @@ public sealed class UsingDeclarationResolutionPropertyTests
         var fieldDecl = new FieldDeclarationNode
         {
             Name = MakeToken("myField"),
-            Type = new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
+            Type = new TypeReferenceNode
             {
-                Name = new QualifiedIdentifierNode
+                First = new NamedSingleTypeRefSingleTypeRefNode
                 {
-                    IDENTIFIER = MakeToken(fieldTypeName, start: typeSpanStart),
-                    Span = new Storm.Runtime.SourceSpan(typeSpanStart, fieldTypeName.Length),
-                },
-            } },
+                    Name = new QualifiedIdentifierNode
+                    {
+                        IDENTIFIER = MakeToken(fieldTypeName, start: typeSpanStart),
+                        Span = new Storm.Runtime.SourceSpan(typeSpanStart, fieldTypeName.Length),
+                    },
+                }
+            },
         };
 
         return new ClassDeclarationNode
@@ -137,7 +140,7 @@ public sealed class UsingDeclarationResolutionPropertyTests
         ValidNamespaceName targetNs, ValidNamespaceName consumerNs)
     {
         // Skip if namespaces are the same — that's the same-namespace case.
-        if (targetNs.Value == consumerNs.Value) return true;
+        if(targetNs.Value == consumerNs.Value) return true;
 
         var nsOffset = "namespace ".Length;
 

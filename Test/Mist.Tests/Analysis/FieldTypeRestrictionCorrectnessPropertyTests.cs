@@ -514,7 +514,7 @@ public sealed class FieldTypeRestrictionCorrectnessPropertyTests
 
     public static IEnumerable<object[]> SingleFieldCategories()
     {
-        foreach (var category in Enum.GetValues<FieldCategory>())
+        foreach(var category in Enum.GetValues<FieldCategory>())
         {
             yield return new object[] { category };
         }
@@ -547,7 +547,7 @@ public sealed class FieldTypeRestrictionCorrectnessPropertyTests
         var diagnostics = CompileAndGetDiagnostics(source);
         var violations = FindFieldTypeViolations(diagnostics).ToList();
 
-        if (shouldPass)
+        if(shouldPass)
         {
             Assert.Empty(violations);
         }
@@ -560,9 +560,9 @@ public sealed class FieldTypeRestrictionCorrectnessPropertyTests
 
     public static IEnumerable<object[]> TwoFieldCombinations()
     {
-        foreach (var catA in Enum.GetValues<FieldCategory>())
+        foreach(var catA in Enum.GetValues<FieldCategory>())
         {
-            foreach (var catB in Enum.GetValues<FieldCategory>())
+            foreach(var catB in Enum.GetValues<FieldCategory>())
             {
                 yield return new object[] { catA, catB };
             }
@@ -608,7 +608,7 @@ public sealed class FieldTypeRestrictionCorrectnessPropertyTests
 
         Assert.Equal(expectedViolationCount, violations.Count);
 
-        if (expectedViolationCount == 0)
+        if(expectedViolationCount == 0)
         {
             // Forward: all fields valid → no violations
             Assert.Empty(violations);

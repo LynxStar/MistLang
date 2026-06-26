@@ -106,7 +106,7 @@ public sealed class TaskVoidLoweringPropertyTests
         // Build the async void target method
         var targetModifiers = ImmutableArray.CreateBuilder<ModifierNode>();
         targetModifiers.Add(new PublicModifierModifierNode());
-        if (scenario.IsStatic)
+        if(scenario.IsStatic)
             targetModifiers.Add(new StaticModifierModifierNode());
         targetModifiers.Add(new AsyncModifierModifierNode());
 
@@ -195,7 +195,7 @@ public sealed class TaskVoidLoweringPropertyTests
             .Where(d => d.Severity == DiagnosticSeverity.Error)
             .ToList();
 
-        if (buildErrors.Count > 0)
+        if(buildErrors.Count > 0)
         {
             var errorText = string.Join("\n", buildErrors.Select(d => $"  {d.Id.Value}: {d.Message}"));
             return (false, "", $"Build errors:\n{errorText}");
@@ -205,7 +205,7 @@ public sealed class TaskVoidLoweringPropertyTests
         var emitBag = new DiagnosticBag();
         var files = CSharpEmitter.EmitToMemory(model, "TestProgram", emitBag);
 
-        if (emitBag.HasErrors)
+        if(emitBag.HasErrors)
         {
             var emitErrors = emitBag.ToImmutableArray()
                 .Where(d => d.Severity == DiagnosticSeverity.Error)
@@ -215,7 +215,7 @@ public sealed class TaskVoidLoweringPropertyTests
 
         // Concatenate all emitted .cs content
         var sb = new StringBuilder();
-        foreach (var (_, content) in files)
+        foreach(var (_, content) in files)
             sb.AppendLine(content);
 
         return (true, sb.ToString(), "");
@@ -236,13 +236,13 @@ public sealed class TaskVoidLoweringPropertyTests
     {
         var (succeeded, csContent, diagnosticText) = CompileAndEmit(scenario);
 
-        if (!succeeded)
+        if(!succeeded)
         {
             return false.ToProperty()
                 .Label($"Compilation failed for scenario: {scenario}\n{diagnosticText}");
         }
 
-        if (string.IsNullOrWhiteSpace(csContent))
+        if(string.IsNullOrWhiteSpace(csContent))
         {
             return false.ToProperty()
                 .Label($"C# output was empty for scenario: {scenario}");
@@ -252,7 +252,7 @@ public sealed class TaskVoidLoweringPropertyTests
         // for the async void methods.
         var containsNonGenericTask = csContent.Contains("async System.Threading.Tasks.Task ");
 
-        if (!containsNonGenericTask)
+        if(!containsNonGenericTask)
         {
             // Also check for the pattern at end of line or before method name
             containsNonGenericTask = csContent.Contains("async System.Threading.Tasks.Task\n") ||
@@ -260,7 +260,7 @@ public sealed class TaskVoidLoweringPropertyTests
                                      csContent.Contains($"async System.Threading.Tasks.Task {scenario.CallerMethodName}");
         }
 
-        if (!containsNonGenericTask)
+        if(!containsNonGenericTask)
         {
             return false.ToProperty()
                 .Label($"Missing non-generic 'async System.Threading.Tasks.Task' in emitted C#.\n" +
@@ -269,7 +269,7 @@ public sealed class TaskVoidLoweringPropertyTests
         }
 
         // The emitted C# MUST NOT contain `Task<MistVoid>` — that would be incorrect lowering
-        if (csContent.Contains("Task<MistVoid>"))
+        if(csContent.Contains("Task<MistVoid>"))
         {
             return false.ToProperty()
                 .Label($"Found forbidden 'Task<MistVoid>' in emitted C#.\n" +
@@ -278,7 +278,7 @@ public sealed class TaskVoidLoweringPropertyTests
         }
 
         // The emitted C# MUST NOT contain `Task<void>` — that's invalid C#
-        if (csContent.Contains("Task<void>"))
+        if(csContent.Contains("Task<void>"))
         {
             return false.ToProperty()
                 .Label($"Found forbidden 'Task<void>' in emitted C#.\n" +

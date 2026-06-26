@@ -54,7 +54,7 @@ public sealed class RefStructParsingPropertyTests
         var parseBag = new DiagnosticBag();
         var parseResult = SharedParser.Parse(tokens, parseBag);
 
-        if (parseResult.Root is null)
+        if(parseResult.Root is null)
         {
             var allDiags = lexBag.ToImmutableArray().AddRange(parseBag.ToImmutableArray());
             return (null!, allDiags);
@@ -139,13 +139,13 @@ public sealed class RefStructParsingPropertyTests
         var members = new System.Text.StringBuilder();
 
         // Fields
-        foreach (var field in scenario.FieldNames)
+        foreach(var field in scenario.FieldNames)
         {
             members.AppendLine($"    public int {field};");
         }
 
         // Methods
-        foreach (var method in scenario.MethodNames)
+        foreach(var method in scenario.MethodNames)
         {
             members.AppendLine($"    public int {method}()");
             members.AppendLine("    {");
@@ -154,7 +154,7 @@ public sealed class RefStructParsingPropertyTests
         }
 
         // Properties (get-only)
-        foreach (var prop in scenario.PropertyNames)
+        foreach(var prop in scenario.PropertyNames)
         {
             members.AppendLine($"    public int {prop}");
             members.AppendLine("    {");
@@ -200,7 +200,7 @@ public sealed class RefStructParsingPropertyTests
         var source = BuildSource(scenario);
         var (model, diagnostics) = CompileSource(source);
 
-        if (model is null)
+        if(model is null)
         {
             var errorText = string.Join("\n", diagnostics.Select(e => $"  {e.Id.Value}: {e.Message}"));
             return false.ToProperty()
@@ -213,7 +213,7 @@ public sealed class RefStructParsingPropertyTests
             .Where(d => d.Severity == DiagnosticSeverity.Error)
             .ToList();
 
-        if (errors.Count > 0)
+        if(errors.Count > 0)
         {
             var errorText = string.Join("\n", errors.Select(e => $"  {e.Id.Value}: {e.Message}"));
             return false.ToProperty()
@@ -224,7 +224,7 @@ public sealed class RefStructParsingPropertyTests
         var structSymbol = model.AllSymbols
             .FirstOrDefault(s => s.Name == scenario.StructName && s.Kind == SymbolKind.Struct);
 
-        if (structSymbol is null)
+        if(structSymbol is null)
         {
             return false.ToProperty()
                 .Label($"Struct '{scenario.StructName}' not found in semantic model. " +
@@ -232,7 +232,7 @@ public sealed class RefStructParsingPropertyTests
         }
 
         // Requirement 1.3: StructType with IsRefStruct = true
-        if (structSymbol.DeclaredType is not StructType structType)
+        if(structSymbol.DeclaredType is not StructType structType)
         {
             return false.ToProperty()
                 .Label($"'{scenario.StructName}' DeclaredType is not StructType, " +
@@ -240,7 +240,7 @@ public sealed class RefStructParsingPropertyTests
         }
 
         // Requirement 1.1: IsRefStruct must be true
-        if (!structType.IsRefStruct)
+        if(!structType.IsRefStruct)
         {
             return false.ToProperty()
                 .Label($"'{scenario.StructName}' has IsRefStruct = false, expected true");
@@ -254,9 +254,9 @@ public sealed class RefStructParsingPropertyTests
             .ToHashSet();
 
         // Verify fields
-        foreach (var field in scenario.FieldNames)
+        foreach(var field in scenario.FieldNames)
         {
-            if (!memberNames.Contains(field))
+            if(!memberNames.Contains(field))
             {
                 return false.ToProperty()
                     .Label($"Field '{field}' not found in struct '{scenario.StructName}' members. " +
@@ -265,9 +265,9 @@ public sealed class RefStructParsingPropertyTests
         }
 
         // Verify methods
-        foreach (var method in scenario.MethodNames)
+        foreach(var method in scenario.MethodNames)
         {
-            if (!memberNames.Contains(method))
+            if(!memberNames.Contains(method))
             {
                 return false.ToProperty()
                     .Label($"Method '{method}' not found in struct '{scenario.StructName}' members. " +
@@ -276,9 +276,9 @@ public sealed class RefStructParsingPropertyTests
         }
 
         // Verify properties
-        foreach (var prop in scenario.PropertyNames)
+        foreach(var prop in scenario.PropertyNames)
         {
-            if (!memberNames.Contains(prop))
+            if(!memberNames.Contains(prop))
             {
                 return false.ToProperty()
                     .Label($"Property '{prop}' not found in struct '{scenario.StructName}' members. " +

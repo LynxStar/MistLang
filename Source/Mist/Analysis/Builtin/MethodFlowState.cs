@@ -140,9 +140,9 @@ public sealed class MethodFlowState
     {
         // Collect borrows at the current depth to release.
         var toRelease = new List<BorrowEntry>();
-        for (var i = ActiveBorrows.Count - 1; i >= 0; i--)
+        for(var i = ActiveBorrows.Count - 1; i >= 0; i--)
         {
-            if (ActiveBorrows[i].ScopeDepth == ScopeDepth)
+            if(ActiveBorrows[i].ScopeDepth == ScopeDepth)
             {
                 toRelease.Add(ActiveBorrows[i]);
                 ActiveBorrows.RemoveAt(i);
@@ -150,21 +150,21 @@ public sealed class MethodFlowState
         }
 
         // Restore lender states for released borrows.
-        foreach (var entry in toRelease)
+        foreach(var entry in toRelease)
         {
             RestoreLenderState(entry);
         }
 
         // Release field borrows at the current scope depth (Req 16 AC 7–8).
-        for (var i = ActiveFieldBorrows.Count - 1; i >= 0; i--)
+        for(var i = ActiveFieldBorrows.Count - 1; i >= 0; i--)
         {
-            if (ActiveFieldBorrows[i].ScopeDepth == ScopeDepth)
+            if(ActiveFieldBorrows[i].ScopeDepth == ScopeDepth)
             {
                 var fieldBorrow = ActiveFieldBorrows[i];
                 ActiveFieldBorrows.RemoveAt(i);
 
                 // Restore field to Live if no other borrows on this field remain.
-                if (!HasRemainingFieldBorrows(fieldBorrow.Parent, fieldBorrow.Field))
+                if(!HasRemainingFieldBorrows(fieldBorrow.Parent, fieldBorrow.Field))
                 {
                     SetFieldState(fieldBorrow.Parent, fieldBorrow.Field, VariableOwnershipState.Live);
                 }
@@ -184,7 +184,7 @@ public sealed class MethodFlowState
         // Deep-clone FieldStates: each inner dictionary must be independently mutable.
         var clonedFieldStates = new Dictionary<ISymbol, Dictionary<ISymbol, VariableOwnershipState>>(
             FieldStates.Count, ReferenceEqualityComparer.Instance);
-        foreach (var (parent, fields) in FieldStates)
+        foreach(var (parent, fields) in FieldStates)
             clonedFieldStates[parent] = new Dictionary<ISymbol, VariableOwnershipState>(fields);
 
         return new MethodFlowState(
@@ -212,13 +212,13 @@ public sealed class MethodFlowState
     public void Merge(MethodFlowState other)
     {
         // Merge variable states conservatively.
-        foreach (var (symbol, otherState) in other.VariableStates)
+        foreach(var (symbol, otherState) in other.VariableStates)
         {
-            if (!VariableStates.TryGetValue(symbol, out var thisState))
+            if(!VariableStates.TryGetValue(symbol, out var thisState))
             {
                 // Variable only exists in the other branch — take its state.
                 VariableStates[symbol] = otherState;
-                if (otherState == VariableOwnershipState.Moved &&
+                if(otherState == VariableOwnershipState.Moved &&
                     other.MoveLocations.TryGetValue(symbol, out var otherSpan))
                 {
                     MoveLocations[symbol] = otherSpan;
@@ -227,18 +227,18 @@ public sealed class MethodFlowState
             }
 
             // Conservative merge: Moved in any branch → Moved at join.
-            if (thisState == VariableOwnershipState.Moved || otherState == VariableOwnershipState.Moved)
+            if(thisState == VariableOwnershipState.Moved || otherState == VariableOwnershipState.Moved)
             {
                 VariableStates[symbol] = VariableOwnershipState.Moved;
 
                 // Preserve the move location from whichever branch has it.
-                if (!MoveLocations.ContainsKey(symbol) &&
+                if(!MoveLocations.ContainsKey(symbol) &&
                     other.MoveLocations.TryGetValue(symbol, out var span))
                 {
                     MoveLocations[symbol] = span;
                 }
             }
-            else if (thisState != otherState)
+            else if(thisState != otherState)
             {
                 // If states differ but neither is Moved, take the more restrictive state.
                 // LentRef > LentFrozen > LentReadonly > Live (more restrictive first).
@@ -254,15 +254,15 @@ public sealed class MethodFlowState
         // an error. Live in both branches stays Live. When the two branches disagree on
         // WHICH consumed state applies, the specific state is not material to use-after
         // checks, so the existing state is retained (any non-Live state blocks use).
-        foreach (var (symbol, otherDropState) in other.DropStates)
+        foreach(var (symbol, otherDropState) in other.DropStates)
         {
-            if (!DropStates.TryGetValue(symbol, out var thisDropState))
+            if(!DropStates.TryGetValue(symbol, out var thisDropState))
             {
                 DropStates[symbol] = otherDropState;
                 continue;
             }
 
-            if (thisDropState == VariableDropState.Live && otherDropState != VariableDropState.Live)
+            if(thisDropState == VariableDropState.Live && otherDropState != VariableDropState.Live)
             {
                 DropStates[symbol] = otherDropState;
             }
@@ -270,23 +270,23 @@ public sealed class MethodFlowState
 
         // Merge binding kinds — binding kind is immutable after declaration,
         // so we just ensure variables from the other branch are included.
-        foreach (var (symbol, kind) in other.BindingKinds)
+        foreach(var (symbol, kind) in other.BindingKinds)
         {
             BindingKinds.TryAdd(symbol, kind);
         }
 
         // Merge per-field states: for each parent, for each field, take the more restrictive state.
-        foreach (var (parent, otherFields) in other.FieldStates)
+        foreach(var (parent, otherFields) in other.FieldStates)
         {
-            if (!FieldStates.TryGetValue(parent, out var thisFields))
+            if(!FieldStates.TryGetValue(parent, out var thisFields))
             {
                 FieldStates[parent] = new Dictionary<ISymbol, VariableOwnershipState>(otherFields);
                 continue;
             }
 
-            foreach (var (field, otherFieldState) in otherFields)
+            foreach(var (field, otherFieldState) in otherFields)
             {
-                if (!thisFields.TryGetValue(field, out var thisFieldState))
+                if(!thisFields.TryGetValue(field, out var thisFieldState))
                 {
                     thisFields[field] = otherFieldState;
                 }
@@ -298,7 +298,7 @@ public sealed class MethodFlowState
         }
 
         // Merge field move locations.
-        foreach (var (key, span) in other.FieldMoveLocations)
+        foreach(var (key, span) in other.FieldMoveLocations)
         {
             FieldMoveLocations.TryAdd(key, span);
         }
@@ -325,7 +325,7 @@ public sealed class MethodFlowState
     /// </summary>
     private void RestoreLenderState(BorrowEntry entry)
     {
-        switch (entry.BorrowTier)
+        switch(entry.BorrowTier)
         {
             case OwnershipTier.Borrowed:
                 // Borrowed borrow released: restore lender to Live.
@@ -335,10 +335,10 @@ public sealed class MethodFlowState
             case OwnershipTier.Frozen:
                 // Frozen borrow released: restore lender to Live only if no other
                 // frozen borrows from the same lender remain.
-                if (!HasRemainingFrozenBorrows(entry.Lender))
+                if(!HasRemainingFrozenBorrows(entry.Lender))
                 {
                     // If there are still readonly ref borrows, transition to LentReadonly.
-                    if (HasRemainingReadonlyRefBorrows(entry.Lender))
+                    if(HasRemainingReadonlyRefBorrows(entry.Lender))
                     {
                         VariableStates[entry.Lender] = VariableOwnershipState.LentReadonly;
                     }
@@ -352,9 +352,9 @@ public sealed class MethodFlowState
             case OwnershipTier.ReadonlyRef:
                 // Readonly ref borrow released: restore lender to Live only if no other
                 // readonly ref or frozen borrows from the same lender remain.
-                if (!HasRemainingReadonlyRefBorrows(entry.Lender))
+                if(!HasRemainingReadonlyRefBorrows(entry.Lender))
                 {
-                    if (!HasRemainingFrozenBorrows(entry.Lender))
+                    if(!HasRemainingFrozenBorrows(entry.Lender))
                     {
                         VariableStates[entry.Lender] = VariableOwnershipState.Live;
                     }
@@ -369,9 +369,9 @@ public sealed class MethodFlowState
     /// </summary>
     private bool HasRemainingFrozenBorrows(ISymbol lender)
     {
-        foreach (var borrow in ActiveBorrows)
+        foreach(var borrow in ActiveBorrows)
         {
-            if (ReferenceEquals(borrow.Lender, lender) && borrow.BorrowTier == OwnershipTier.Frozen)
+            if(ReferenceEquals(borrow.Lender, lender) && borrow.BorrowTier == OwnershipTier.Frozen)
             {
                 return true;
             }
@@ -384,9 +384,9 @@ public sealed class MethodFlowState
     /// </summary>
     private bool HasRemainingReadonlyRefBorrows(ISymbol lender)
     {
-        foreach (var borrow in ActiveBorrows)
+        foreach(var borrow in ActiveBorrows)
         {
-            if (ReferenceEquals(borrow.Lender, lender) && borrow.BorrowTier == OwnershipTier.ReadonlyRef)
+            if(ReferenceEquals(borrow.Lender, lender) && borrow.BorrowTier == OwnershipTier.ReadonlyRef)
             {
                 return true;
             }
@@ -399,9 +399,9 @@ public sealed class MethodFlowState
     /// </summary>
     private bool HasRemainingFieldBorrows(ISymbol parent, ISymbol field)
     {
-        foreach (var borrow in ActiveFieldBorrows)
+        foreach(var borrow in ActiveFieldBorrows)
         {
-            if (ReferenceEquals(borrow.Parent, parent) && ReferenceEquals(borrow.Field, field))
+            if(ReferenceEquals(borrow.Parent, parent) && ReferenceEquals(borrow.Field, field))
             {
                 return true;
             }
@@ -417,7 +417,7 @@ public sealed class MethodFlowState
     /// </summary>
     public VariableOwnershipState? GetFieldState(ISymbol parent, ISymbol field)
     {
-        if (FieldStates.TryGetValue(parent, out var fields) &&
+        if(FieldStates.TryGetValue(parent, out var fields) &&
             fields.TryGetValue(field, out var state))
         {
             return state;
@@ -431,7 +431,7 @@ public sealed class MethodFlowState
     /// </summary>
     public void RestoreField(ISymbol parent, ISymbol field)
     {
-        if (FieldStates.TryGetValue(parent, out var fields) &&
+        if(FieldStates.TryGetValue(parent, out var fields) &&
             fields.TryGetValue(field, out var state) &&
             state == VariableOwnershipState.Moved)
         {
@@ -445,7 +445,7 @@ public sealed class MethodFlowState
     /// </summary>
     public void SetFieldState(ISymbol parent, ISymbol field, VariableOwnershipState newState)
     {
-        if (FieldStates.TryGetValue(parent, out var fields))
+        if(FieldStates.TryGetValue(parent, out var fields))
         {
             fields[field] = newState;
         }
@@ -458,13 +458,13 @@ public sealed class MethodFlowState
     /// </summary>
     public VariableOwnershipState CompositeState(ISymbol parent)
     {
-        if (!FieldStates.TryGetValue(parent, out var fields))
+        if(!FieldStates.TryGetValue(parent, out var fields))
             return VariableOwnershipState.Live;
 
         var max = VariableOwnershipState.Live;
-        foreach (var state in fields.Values)
+        foreach(var state in fields.Values)
         {
-            if (FieldStateRestrictiveness(state) > FieldStateRestrictiveness(max))
+            if(FieldStateRestrictiveness(state) > FieldStateRestrictiveness(max))
                 max = state;
         }
         return max;
@@ -496,7 +496,7 @@ public sealed class MethodFlowState
     public void InitializeFieldStates(ISymbol parent, IEnumerable<ISymbol> ownedFields)
     {
         var fields = new Dictionary<ISymbol, VariableOwnershipState>(ReferenceEqualityComparer.Instance);
-        foreach (var field in ownedFields)
+        foreach(var field in ownedFields)
         {
             fields[field] = VariableOwnershipState.Live;
         }
@@ -510,19 +510,19 @@ public sealed class MethodFlowState
     public void InitializeFieldStates(ISymbol parent, IType type)
     {
         var scope = GetMemberScope(type);
-        if (scope is null)
+        if(scope is null)
             return;
 
         var fields = new Dictionary<ISymbol, VariableOwnershipState>(ReferenceEqualityComparer.Instance);
-        foreach (var member in scope.Members)
+        foreach(var member in scope.Members)
         {
-            if (member.Kind == SymbolKind.Field && member is Symbol sym && sym.IsOwnedField && !sym.IsStatic)
+            if(member.Kind == SymbolKind.Field && member is Symbol sym && sym.IsOwnedField && !sym.IsStatic)
             {
                 fields[member] = VariableOwnershipState.Live;
             }
         }
 
-        if (fields.Count > 0)
+        if(fields.Count > 0)
             FieldStates[parent] = fields;
     }
 
@@ -531,7 +531,7 @@ public sealed class MethodFlowState
     /// </summary>
     public void MoveField(ISymbol parent, ISymbol field, SourceSpan moveLocation)
     {
-        if (FieldStates.TryGetValue(parent, out var fields))
+        if(FieldStates.TryGetValue(parent, out var fields))
         {
             fields[field] = VariableOwnershipState.Moved;
             FieldMoveLocations[(parent, field)] = moveLocation;
@@ -543,10 +543,10 @@ public sealed class MethodFlowState
     /// </summary>
     public void BorrowField(ISymbol parent, ISymbol field, ISymbol? borrower = null)
     {
-        if (FieldStates.TryGetValue(parent, out var fields))
+        if(FieldStates.TryGetValue(parent, out var fields))
         {
             fields[field] = VariableOwnershipState.LentRef;
-            if (borrower is not null)
+            if(borrower is not null)
                 ActiveFieldBorrows.Add(new FieldBorrowEntry(parent, field, borrower, OwnershipTier.Borrowed, ScopeDepth));
         }
     }
@@ -556,10 +556,10 @@ public sealed class MethodFlowState
     /// </summary>
     public void FreezeField(ISymbol parent, ISymbol field, ISymbol? borrower = null)
     {
-        if (FieldStates.TryGetValue(parent, out var fields))
+        if(FieldStates.TryGetValue(parent, out var fields))
         {
             fields[field] = VariableOwnershipState.LentFrozen;
-            if (borrower is not null)
+            if(borrower is not null)
                 ActiveFieldBorrows.Add(new FieldBorrowEntry(parent, field, borrower, OwnershipTier.Frozen, ScopeDepth));
         }
     }
@@ -569,10 +569,10 @@ public sealed class MethodFlowState
     /// </summary>
     public void ReadonlyRefField(ISymbol parent, ISymbol field, ISymbol? borrower = null)
     {
-        if (FieldStates.TryGetValue(parent, out var fields))
+        if(FieldStates.TryGetValue(parent, out var fields))
         {
             fields[field] = VariableOwnershipState.LentReadonly;
-            if (borrower is not null)
+            if(borrower is not null)
                 ActiveFieldBorrows.Add(new FieldBorrowEntry(parent, field, borrower, OwnershipTier.ReadonlyRef, ScopeDepth));
         }
     }

@@ -59,7 +59,7 @@ public sealed class DefaultInstanceIndependenceTests : IDisposable
 
     public void Dispose()
     {
-        if (Directory.Exists(_outputDir))
+        if(Directory.Exists(_outputDir))
         {
             try { Directory.Delete(_outputDir, recursive: true); } catch { /* best effort */ }
         }
@@ -196,7 +196,7 @@ public sealed class DefaultInstanceIndependenceTests : IDisposable
 
             var result = SharedDriver.Compile(options);
 
-            if (!result.Succeeded || result.PrimaryOutputArtifactPath is null)
+            if(!result.Succeeded || result.PrimaryOutputArtifactPath is null)
             {
                 var diagnosticText = string.Join("\n",
                     result.Diagnostics.Select(d => $"  {d.Severity} {d.Id.Value}: {d.Message}"));
@@ -214,13 +214,13 @@ public sealed class DefaultInstanceIndependenceTests : IDisposable
             };
 
             using var process = Process.Start(psi);
-            if (process is null)
+            if(process is null)
                 return (-1, "", "Failed to start dotnet process");
 
             var stdoutTask = process.StandardOutput.ReadToEndAsync();
             var stderrTask = process.StandardError.ReadToEndAsync();
 
-            if (!process.WaitForExit(30_000))
+            if(!process.WaitForExit(30_000))
             {
                 try { process.Kill(entireProcessTree: true); } catch { /* best effort */ }
                 return (-1, "", "Process timed out after 30 seconds");
@@ -264,7 +264,7 @@ public sealed class DefaultInstanceIndependenceTests : IDisposable
             $"Expected {ExpectedLines.Length} output lines but got {lines.Length}.\n" +
             $"Stdout:\n{stdout}");
 
-        for (var i = 0; i < ExpectedLines.Length; i++)
+        for(var i = 0; i < ExpectedLines.Length; i++)
         {
             var actual = lines[i].TrimEnd('\r');
             Assert.True(ExpectedLines[i] == actual,

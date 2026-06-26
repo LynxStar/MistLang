@@ -44,7 +44,7 @@ public sealed class CrossFileTypeResolutionTests : IDisposable
 
     public void Dispose()
     {
-        if (Directory.Exists(_tempDir))
+        if(Directory.Exists(_tempDir))
         {
             try { Directory.Delete(_tempDir, recursive: true); }
             catch { /* best effort */ }
@@ -62,7 +62,7 @@ public sealed class CrossFileTypeResolutionTests : IDisposable
         Directory.CreateDirectory(scenarioDir);
 
         var sourcePaths = new List<string>();
-        foreach (var (fileName, source) in files)
+        foreach(var (fileName, source) in files)
         {
             var path = Path.Combine(scenarioDir, fileName);
             File.WriteAllText(path, source);

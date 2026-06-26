@@ -83,15 +83,15 @@ public class BinaryLiteralTokenPropertyTests
             .ToList();
 
         // Must produce exactly one token
-        if (tokens.Count != 1)
+        if(tokens.Count != 1)
             return false;
 
         // Token must be BINARY_LITERAL
-        if (tokens[0].Kind != (int)TokenKind.BINARY_LITERAL)
+        if(tokens[0].Kind != (int)TokenKind.BINARY_LITERAL)
             return false;
 
         // Lexeme must match the input exactly
-        if (tokens[0].Lexeme != literal)
+        if(tokens[0].Lexeme != literal)
             return false;
 
         return true;

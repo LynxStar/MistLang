@@ -79,7 +79,7 @@ public class InheritedMemberResolutionPropertyTests
             Members = members,
         };
 
-        if (baseClassName is not null)
+        if(baseClassName is not null)
         {
             var _baseList1 = MakeBaseList(baseClassName);
 
@@ -98,10 +98,13 @@ public class InheritedMemberResolutionPropertyTests
             Field = new FieldDeclarationNode
             {
                 Name = MakeToken(name),
-                Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                Type = new TypeReferenceNode
                 {
-                    PrimitiveType = new IntTypePrimitiveTypeNode(),
-                } },
+                    First = new PrimitiveSingleTypeRefSingleTypeRefNode
+                    {
+                        PrimitiveType = new IntTypePrimitiveTypeNode(),
+                    }
+                },
             },
         };
     }
@@ -294,13 +297,13 @@ public class InheritedMemberResolutionPropertyTests
         var usedMembers = new HashSet<string>();
         var valid = true;
 
-        for (var i = 0; i < classNames.Length; i++)
+        for(var i = 0; i < classNames.Length; i++)
         {
             var fields = new List<string>();
-            for (var f = 0; f < fieldCounts[i] && fieldIdx < shuffledFields.Length; f++)
+            for(var f = 0; f < fieldCounts[i] && fieldIdx < shuffledFields.Length; f++)
             {
                 var fieldName = shuffledFields[fieldIdx++];
-                if (!usedMembers.Add(fieldName))
+                if(!usedMembers.Add(fieldName))
                 {
                     valid = false;
                     break;
@@ -308,13 +311,13 @@ public class InheritedMemberResolutionPropertyTests
                 fields.Add(fieldName);
             }
 
-            if (!valid) break;
+            if(!valid) break;
 
             var methods = new List<string>();
-            for (var m = 0; m < methodCounts[i] && methodIdx < shuffledMethods.Length; m++)
+            for(var m = 0; m < methodCounts[i] && methodIdx < shuffledMethods.Length; m++)
             {
                 var methodName = shuffledMethods[methodIdx++];
-                if (!usedMembers.Add(methodName))
+                if(!usedMembers.Add(methodName))
                 {
                     valid = false;
                     break;
@@ -322,7 +325,7 @@ public class InheritedMemberResolutionPropertyTests
                 methods.Add(methodName);
             }
 
-            if (!valid) break;
+            if(!valid) break;
 
             var baseName = i > 0 ? classNames[i - 1] : null;
             classes.Add(new ClassInfo(
@@ -332,7 +335,7 @@ public class InheritedMemberResolutionPropertyTests
                 methods.ToImmutableArray()));
         }
 
-        if (!valid || classes.Count != classNames.Length)
+        if(!valid || classes.Count != classNames.Length)
             return ImmutableArray<ClassInfo>.Empty;
 
         return classes.ToImmutableArray();
@@ -341,7 +344,7 @@ public class InheritedMemberResolutionPropertyTests
     private static List<string> CollectAllMembers(ImmutableArray<ClassInfo> classes)
     {
         var members = new List<string>();
-        foreach (var cls in classes)
+        foreach(var cls in classes)
         {
             members.AddRange(cls.Fields);
             members.AddRange(cls.Methods);
@@ -363,32 +366,35 @@ public class InheritedMemberResolutionPropertyTests
     {
         var typeDecls = new List<TypeDeclarationNode>();
 
-        foreach (var cls in scenario.Classes)
+        foreach(var cls in scenario.Classes)
         {
             var members = new List<MemberDeclarationNode>();
 
-            foreach (var field in cls.Fields)
+            foreach(var field in cls.Fields)
             {
                 members.Add(MakeFieldMember(field));
             }
 
-            foreach (var method in cls.Methods)
+            foreach(var method in cls.Methods)
             {
                 members.Add(MakeMethodMember(method));
             }
 
             // If this is the leaf class, add a probe method that accesses this.memberName
-            if (cls.Name == scenario.LeafClassName)
+            if(cls.Name == scenario.LeafClassName)
             {
                 var accessExpr = MakeThisMemberAccessExpression(scenario.AccessedMemberName);
                 var probeMethod = new MethodDeclarationNode
                 {
                     Name = MakeToken("_probe_"),
                     ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
-                    Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode
+                    Body = new MethodBlockBodyMethodBodyNode
                     {
-                        Statements = ImmutableArray.Create(MakeExpressionStatement(accessExpr)),
-                    } },
+                        Block = new BlockNode
+                        {
+                            Statements = ImmutableArray.Create(MakeExpressionStatement(accessExpr)),
+                        }
+                    },
                 };
                 members.Add(new MethodMemberMemberDeclarationNode { Method = probeMethod });
             }
@@ -415,7 +421,7 @@ public class InheritedMemberResolutionPropertyTests
     [Property(Arbitrary = new[] { typeof(InheritedMemberResolutionPropertyTests) }, MaxTest = 100)]
     public bool InheritedMember_ResolvesWithoutUndefinedDiagnostic(MemberAccessScenario scenario)
     {
-        if (!scenario.ShouldResolve)
+        if(!scenario.ShouldResolve)
             return true; // Skip unresolvable scenarios for this property
 
         var ast = BuildAst(scenario);
@@ -441,7 +447,7 @@ public class InheritedMemberResolutionPropertyTests
     [Property(Arbitrary = new[] { typeof(InheritedMemberResolutionPropertyTests) }, MaxTest = 100)]
     public bool UndefinedMember_ProducesUndefinedMemberDiagnostic(MemberAccessScenario scenario)
     {
-        if (scenario.ShouldResolve)
+        if(scenario.ShouldResolve)
             return true; // Skip resolvable scenarios for this property
 
         var ast = BuildAst(scenario);
@@ -466,7 +472,7 @@ public class InheritedMemberResolutionPropertyTests
     [Property(Arbitrary = new[] { typeof(InheritedMemberResolutionPropertyTests) }, MaxTest = 100)]
     public bool InheritedMember_ResolvesToConcreteType(MemberAccessScenario scenario)
     {
-        if (!scenario.ShouldResolve)
+        if(!scenario.ShouldResolve)
             return true; // Skip unresolvable scenarios for this property
 
         var ast = BuildAst(scenario);
@@ -477,7 +483,7 @@ public class InheritedMemberResolutionPropertyTests
             d.Id.Value == "MIST_UNDEFINED_MEMBER"
             && d.Message.Contains(scenario.AccessedMemberName));
 
-        if (hasUndefined)
+        if(hasUndefined)
             return false;
 
         // Verify the member access expression was resolved to a non-unknown type.
@@ -487,16 +493,16 @@ public class InheritedMemberResolutionPropertyTests
         var leafSymbol = model.AllSymbols
             .FirstOrDefault(s => s.Name == scenario.LeafClassName && s.Kind == SymbolKind.Class);
 
-        if (leafSymbol?.DeclaredType is not ClassType leafType)
+        if(leafSymbol?.DeclaredType is not ClassType leafType)
             return false;
 
         // Walk the chain to verify the member exists somewhere
         var current = leafType;
-        while (current is not null)
+        while(current is not null)
         {
-            foreach (var member in current.MemberScope.Members)
+            foreach(var member in current.MemberScope.Members)
             {
-                if (member.Name == scenario.AccessedMemberName)
+                if(member.Name == scenario.AccessedMemberName)
                     return true; // Found the member in the chain
             }
             current = current.BaseType as ClassType;
@@ -504,7 +510,7 @@ public class InheritedMemberResolutionPropertyTests
 
         // Member should have been found in the chain
         return false;
-    ;
+        ;
     }
 
 }

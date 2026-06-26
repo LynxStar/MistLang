@@ -230,7 +230,7 @@ public class TypeParameterRoundTripPropertyTests
     {
         // Step 1: Pretty-print the generated AST to source text
         var printed1 = MistPrettyPrinter.Print(testCase.Ast);
-        if (string.IsNullOrWhiteSpace(printed1))
+        if(string.IsNullOrWhiteSpace(printed1))
             return false.ToProperty().Label("printed1 was empty");
 
         // Step 2: Parse the printed source text back to an AST
@@ -243,19 +243,19 @@ public class TypeParameterRoundTripPropertyTests
             .Where(d => d.Severity == DiagnosticSeverity.Error)
             .ToList();
 
-        if (errors.Count > 0)
+        if(errors.Count > 0)
             return false.ToProperty()
                 .Label($"Parse errors: {string.Join("; ", errors.Select(e => e.Message))}\nSource:\n{printed1}");
 
         var reparsed = result.Root as CompilationUnitNode;
-        if (reparsed is null)
+        if(reparsed is null)
             return false.ToProperty().Label($"Reparsed root was null.\nSource:\n{printed1}");
 
         // Step 3: Pretty-print the reparsed AST
         var printed2 = MistPrettyPrinter.Print(reparsed, printed1);
 
         // Step 4: Compare the two printed outputs — they must be identical
-        if (printed1 != printed2)
+        if(printed1 != printed2)
             return false.ToProperty()
                 .Label($"Pretty-print mismatch.\nPrinted1:\n{printed1}\nPrinted2:\n{printed2}");
 
@@ -263,26 +263,26 @@ public class TypeParameterRoundTripPropertyTests
         var originalParams = ExtractTypeParameters(testCase.Ast);
         var reparsedParams = ExtractTypeParameters(reparsed);
 
-        if (originalParams.Count != reparsedParams.Count)
+        if(originalParams.Count != reparsedParams.Count)
             return false.ToProperty()
                 .Label($"TypeParameter count mismatch: {originalParams.Count} vs {reparsedParams.Count}");
 
-        for (var i = 0; i < originalParams.Count; i++)
+        for(var i = 0; i < originalParams.Count; i++)
         {
             var orig = originalParams[i];
             var repr = reparsedParams[i];
 
-            if (orig.GetType() != repr.GetType())
+            if(orig.GetType() != repr.GetType())
                 return false.ToProperty()
                     .Label($"TypeParameter[{i}] type mismatch: {orig.GetType().Name} vs {repr.GetType().Name}\nSource:\n{printed1}");
 
-            if (orig.GetName().Lexeme != repr.GetName().Lexeme)
+            if(orig.GetName().Lexeme != repr.GetName().Lexeme)
                 return false.ToProperty()
                     .Label($"TypeParameter[{i}] name mismatch: '{orig.GetName().Lexeme}' vs '{repr.GetName().Lexeme}'");
 
             // Verify constraint equivalence for dependent variants
             var constraintCheck = CheckConstraintEquivalence(orig, repr);
-            if (constraintCheck is not null)
+            if(constraintCheck is not null)
                 return false.ToProperty().Label(constraintCheck);
         }
 
@@ -295,9 +295,9 @@ public class TypeParameterRoundTripPropertyTests
     {
         var result = new List<TypeParameterNode>();
 
-        foreach (var item in cu.Items)
+        foreach(var item in cu.Items)
         {
-            if (item is not TypeItemTopLevelItemNode typeItem) continue;
+            if(item is not TypeItemTopLevelItemNode typeItem) continue;
 
             TypeParameterListNode? typeParams = typeItem.TypeDeclaration switch
             {
@@ -307,7 +307,7 @@ public class TypeParameterRoundTripPropertyTests
                 _ => null,
             };
 
-            if (typeParams is null) continue;
+            if(typeParams is null) continue;
 
             result.Add(typeParams.TypeParameter);
             result.AddRange(typeParams.TypeParameters);
@@ -322,17 +322,17 @@ public class TypeParameterRoundTripPropertyTests
     /// </summary>
     private static string? CheckConstraintEquivalence(TypeParameterNode orig, TypeParameterNode repr)
     {
-        switch (orig)
+        switch(orig)
         {
             case DependentTypeParameterTypeParameterNode depOrig:
                 var depRepr = (DependentTypeParameterTypeParameterNode)repr;
-                if (depOrig.ValueType.GetType() != depRepr.ValueType.GetType())
+                if(depOrig.ValueType.GetType() != depRepr.ValueType.GetType())
                     return $"DependentTypeParameter constraint type mismatch: {depOrig.ValueType.GetType().Name} vs {depRepr.ValueType.GetType().Name}";
                 break;
 
             case NamedConstraintDependentTypeParameterTypeParameterNode namedOrig:
                 var namedRepr = (NamedConstraintDependentTypeParameterTypeParameterNode)repr;
-                if (namedOrig.ConstraintName.Lexeme != namedRepr.ConstraintName.Lexeme)
+                if(namedOrig.ConstraintName.Lexeme != namedRepr.ConstraintName.Lexeme)
                     return $"NamedConstraintDependentTypeParameter constraint mismatch: '{namedOrig.ConstraintName.Lexeme}' vs '{namedRepr.ConstraintName.Lexeme}'";
                 break;
 
@@ -349,7 +349,7 @@ public class TypeParameterRoundTripPropertyTests
     private static string DescribeTypeParams(TypeParameterListNode typeParams)
     {
         var parts = new List<string> { DescribeParam(typeParams.TypeParameter) };
-        foreach (var tp in typeParams.TypeParameters)
+        foreach(var tp in typeParams.TypeParameters)
             parts.Add(DescribeParam(tp));
         return string.Join(", ", parts);
     }

@@ -61,13 +61,13 @@ public sealed class InheritanceChainProjectionPropertyTests
     private static void RunProperty<T>(Gen<T> gen, Action<T> check, int maxTests = 100)
     {
         var samples = gen.Sample(maxTests).ToList();
-        for (var idx = 0; idx < samples.Count; idx++)
+        for(var idx = 0; idx < samples.Count; idx++)
         {
             try
             {
                 check(samples[idx]);
             }
-            catch (Exception ex)
+            catch(Exception ex)
             {
                 throw new Exception(
                     $"Property failed on sample {idx}/{samples.Count}: {samples[idx]}\n" +
@@ -95,7 +95,7 @@ public sealed class InheritanceChainProjectionPropertyTests
     {
         var chain = new List<Type> { type };
         var current = type.BaseType;
-        while (current is not null && current != typeof(object))
+        while(current is not null && current != typeof(object))
         {
             chain.Add(current);
             current = current.BaseType;
@@ -111,7 +111,7 @@ public sealed class InheritanceChainProjectionPropertyTests
     private Dictionary<string, (IType Type, Type ClrType)> ProjectFullChain(List<Type> clrChain)
     {
         var projected = new Dictionary<string, (IType, Type)>();
-        foreach (var clrType in clrChain)
+        foreach(var clrType in clrChain)
         {
             var (mistType, _) = _projector.ProjectType(clrType, _stdlib);
             var name = TypeProjector.StripGenericAritySuffix(clrType.Name);
@@ -136,39 +136,39 @@ public sealed class InheritanceChainProjectionPropertyTests
         Dictionary<string, (IType Type, Type ClrType)> projectedChain)
     {
         // Check if the derived type itself matches
-        if (derivedType.DisplayName == targetDisplayName)
+        if(derivedType.DisplayName == targetDisplayName)
             return true;
 
         // DelegateType is always assignable to BaseDelegateType ("Delegate") and
         // to "MulticastDelegate" (flattened hierarchy — both resolve to BaseDelegateType).
-        if (derivedType is DelegateType &&
+        if(derivedType is DelegateType &&
             (targetDisplayName == "Delegate" || targetDisplayName == "MulticastDelegate"))
             return true;
 
         // BaseDelegateType is assignable to "Delegate" and "MulticastDelegate" (flattened)
-        if (derivedType is BaseDelegateType &&
+        if(derivedType is BaseDelegateType &&
             (targetDisplayName == "Delegate" || targetDisplayName == "MulticastDelegate"))
             return true;
 
         // Walk the base type chain via the independently projected types
         var current = derivedType;
-        while (current is ClassType classType && classType.BaseType is not null)
+        while(current is ClassType classType && classType.BaseType is not null)
         {
             var baseType = classType.BaseType;
             var baseName = baseType.DisplayName;
 
             // When the base type is BaseDelegateType (DisplayName="Delegate"), it
             // represents both System.Delegate and System.MulticastDelegate (flattened).
-            if (baseType is BaseDelegateType &&
+            if(baseType is BaseDelegateType &&
                 (targetDisplayName == "Delegate" || targetDisplayName == "MulticastDelegate"))
                 return true;
 
-            if (baseName == targetDisplayName)
+            if(baseName == targetDisplayName)
                 return true;
 
             // Move to the independently projected version of the base type
             // to continue walking the chain
-            if (projectedChain.TryGetValue(baseName, out var baseEntry))
+            if(projectedChain.TryGetValue(baseName, out var baseEntry))
             {
                 current = baseEntry.Type;
             }
@@ -202,11 +202,11 @@ public sealed class InheritanceChainProjectionPropertyTests
             // DelegateType does not carry a BaseType — its relationship to
             // BaseDelegateType is expressed through assignability rules, not
             // through a structural BaseType chain. Skip the ClassType assertion.
-            if (projectedType is DelegateType)
+            if(projectedType is DelegateType)
                 return;
 
             // BaseDelegateType is a singleton and has no base type chain.
-            if (projectedType is BaseDelegateType)
+            if(projectedType is BaseDelegateType)
                 return;
 
             // The projected type should be a ClassType with a non-null BaseType
@@ -221,7 +221,7 @@ public sealed class InheritanceChainProjectionPropertyTests
             // (DisplayName="Delegate") in the Mist type system, so when the CLR base
             // type is MulticastDelegate, the expected projected name is "Delegate".
             var expectedBaseName = TypeProjector.StripGenericAritySuffix(clrType.BaseType.Name);
-            if (expectedBaseName == "MulticastDelegate")
+            if(expectedBaseName == "MulticastDelegate")
                 expectedBaseName = "Delegate";
             Assert.True(
                 classType.BaseType!.DisplayName == expectedBaseName,
@@ -251,7 +251,7 @@ public sealed class InheritanceChainProjectionPropertyTests
             var (derivedMistType, _) = projectedChain[derivedName];
 
             // Verify assignability to each ancestor
-            foreach (var ancestorClrType in clrChain.Skip(1))
+            foreach(var ancestorClrType in clrChain.Skip(1))
             {
                 var ancestorName = TypeProjector.StripGenericAritySuffix(ancestorClrType.Name);
                 Assert.True(
@@ -286,14 +286,14 @@ public sealed class InheritanceChainProjectionPropertyTests
                 .ToHashSet();
 
             // For each ancestor, check that its declared public members appear on the derived type
-            foreach (var ancestorClrType in clrChain.Skip(1))
+            foreach(var ancestorClrType in clrChain.Skip(1))
             {
                 var (ancestorType, _) = _projector.ProjectType(ancestorClrType, _stdlib);
                 var ancestorMembers = _projector.ProjectMembers(ancestorClrType, ancestorType, _stdlib);
 
-                foreach (var ancestorMember in ancestorMembers)
+                foreach(var ancestorMember in ancestorMembers)
                 {
-                    if (ancestorMember.Kind is SymbolKind.Method or SymbolKind.Property)
+                    if(ancestorMember.Kind is SymbolKind.Method or SymbolKind.Property)
                     {
                         Assert.True(
                             derivedMemberNames.Contains(ancestorMember.Name),
@@ -327,7 +327,7 @@ public sealed class InheritanceChainProjectionPropertyTests
 
             // If the CLR type implements interfaces, the projected type should have them
             // (Note: some interfaces may be filtered by the VisibilityFilter, e.g., non-generic IEnumerable)
-            if (clrInterfaces.Count > 0)
+            if(clrInterfaces.Count > 0)
             {
                 // At minimum, the projected type should have some interfaces
                 // (exact count may differ due to filtering of non-generic IEnumerable, etc.)
@@ -339,7 +339,7 @@ public sealed class InheritanceChainProjectionPropertyTests
                     i == typeof(System.Collections.IEnumerable));
 
                 // Only assert if there are interfaces that should survive filtering
-                if (hasPublicGenericInterfaces && !hasProjectedInterfaces)
+                if(hasPublicGenericInterfaces && !hasProjectedInterfaces)
                 {
                     // This is acceptable — some types may only implement filtered interfaces
                     // (e.g., non-generic IEnumerable is filtered out)

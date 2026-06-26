@@ -161,10 +161,13 @@ public class CastOperatorRegistrationPropertyTests
             : (CastOperatorKindNode)new ExplicitCastCastOperatorKindNode();
 
     private static TypeReferenceNode MakeNamedTypeRef(string name) =>
-        new TypeReferenceNode { First = new NamedSingleTypeRefSingleTypeRefNode
+        new TypeReferenceNode
         {
-            Name = new QualifiedIdentifierNode { IDENTIFIER = Tok(name) },
-        } };
+            First = new NamedSingleTypeRefSingleTypeRefNode
+            {
+                Name = new QualifiedIdentifierNode { IDENTIFIER = Tok(name) },
+            }
+        };
 
     private static CastOperatorDeclarationNode MakeCastOperatorDecl(CastOperatorScenario scenario)
     {
@@ -224,7 +227,7 @@ public class CastOperatorRegistrationPropertyTests
             .ToImmutableArray();
 
         TypeDeclarationNode typeDecl;
-        if (isStruct)
+        if(isStruct)
         {
             typeDecl = new StructTypeTypeDeclarationNode
             {
@@ -274,13 +277,13 @@ public class CastOperatorRegistrationPropertyTests
         var ast = BuildAst(scenarios);
         var model = BuildModel(ast);
 
-        foreach (var scenario in scenarios)
+        foreach(var scenario in scenarios)
         {
             var expectedName = scenario.ExpectedSymbolName;
             var symbol = model.AllSymbols
                 .FirstOrDefault(s => s.Name == expectedName && s.Kind == SymbolKind.Method);
 
-            if (symbol is null)
+            if(symbol is null)
                 return false.ToProperty()
                     .Label($"No SymbolKind.Method symbol named '{expectedName}' found. " +
                            $"All symbols: [{string.Join(", ", model.AllSymbols.Select(s => $"{s.Name}:{s.Kind}"))}]");
@@ -313,7 +316,7 @@ public class CastOperatorRegistrationPropertyTests
             .FirstOrDefault(s => s.Name == enclosingName &&
                                  s.Kind == (isStruct ? SymbolKind.Struct : SymbolKind.Class));
 
-        if (typeSymbol is null)
+        if(typeSymbol is null)
             return false.ToProperty()
                 .Label($"Enclosing type '{enclosingName}' not found in model");
 
@@ -325,17 +328,17 @@ public class CastOperatorRegistrationPropertyTests
             _ => null,
         };
 
-        if (memberScope is null)
+        if(memberScope is null)
             return false.ToProperty()
                 .Label($"Could not get MemberScope from type '{enclosingName}'");
 
-        foreach (var scenario in scenarios)
+        foreach(var scenario in scenarios)
         {
             var expectedName = scenario.ExpectedSymbolName;
             var member = memberScope.Members
                 .FirstOrDefault(m => m.Name == expectedName && m.Kind == SymbolKind.Method);
 
-            if (member is null)
+            if(member is null)
                 return false.ToProperty()
                     .Label($"Symbol '{expectedName}' not found in {enclosingName}'s member scope. " +
                            $"Members: [{string.Join(", ", memberScope.Members.Select(m => $"{m.Name}:{m.Kind}"))}]");
@@ -360,25 +363,25 @@ public class CastOperatorRegistrationPropertyTests
         var ast = BuildAst(scenarios);
         var model = BuildModel(ast);
 
-        foreach (var scenario in scenarios)
+        foreach(var scenario in scenarios)
         {
             var expectedName = scenario.ExpectedSymbolName;
             var symbol = model.AllSymbols
                 .FirstOrDefault(s => s.Name == expectedName && s.Kind == SymbolKind.Method);
 
-            if (symbol is null)
+            if(symbol is null)
                 return false.ToProperty()
                     .Label($"Symbol '{expectedName}' not found");
 
             // Verify the name encodes the cast kind
             var expectedPrefix = $"operator_{scenario.CastKind}_";
-            if (!symbol.Name.StartsWith(expectedPrefix))
+            if(!symbol.Name.StartsWith(expectedPrefix))
                 return false.ToProperty()
                     .Label($"Symbol name '{symbol.Name}' does not start with '{expectedPrefix}'");
 
             // Verify the name encodes the target type
             var encodedTarget = symbol.Name.Substring(expectedPrefix.Length);
-            if (encodedTarget != scenario.TargetTypeName)
+            if(encodedTarget != scenario.TargetTypeName)
                 return false.ToProperty()
                     .Label($"Encoded target type '{encodedTarget}' does not match expected '{scenario.TargetTypeName}'");
         }
@@ -402,24 +405,24 @@ public class CastOperatorRegistrationPropertyTests
         var ast = BuildAst(scenarios);
         var model = BuildModel(ast);
 
-        foreach (var scenario in scenarios)
+        foreach(var scenario in scenarios)
         {
             var expectedName = scenario.ExpectedSymbolName;
             var symbol = model.AllSymbols
                 .OfType<Symbol>()
                 .FirstOrDefault(s => s.Name == expectedName && s.Kind == SymbolKind.Method);
 
-            if (symbol is null)
+            if(symbol is null)
                 return false.ToProperty()
                     .Label($"Symbol '{expectedName}' not found");
 
-            if (symbol.IsIntrinsic != scenario.IsIntrinsic)
+            if(symbol.IsIntrinsic != scenario.IsIntrinsic)
                 return false.ToProperty()
                     .Label($"Symbol '{expectedName}' has IsIntrinsic={symbol.IsIntrinsic}, " +
                            $"expected {scenario.IsIntrinsic}");
 
             // HasBody should be the inverse of IsIntrinsic
-            if (symbol.HasBody == scenario.IsIntrinsic)
+            if(symbol.HasBody == scenario.IsIntrinsic)
                 return false.ToProperty()
                     .Label($"Symbol '{expectedName}' has HasBody={symbol.HasBody}, " +
                            $"expected {!scenario.IsIntrinsic}");

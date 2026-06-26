@@ -8,16 +8,25 @@ public struct Operatable
 {
     public int Value { get; }
 
-    public Operatable(int value) => Value = value;
+    public Operatable(int value)
+    {
+        Value = value;
+    }
 
     public static Operatable operator +(Operatable left, Operatable right)
-        => new(left.Value + right.Value);
+    {
+        return new(left.Value + right.Value);
+    }
 
     public static bool operator ==(Operatable left, Operatable right)
-        => left.Value == right.Value;
+    {
+        return left.Value == right.Value;
+    }
 
     public static bool operator !=(Operatable left, Operatable right)
-        => left.Value != right.Value;
+    {
+        return left.Value != right.Value;
+    }
 
     public static implicit operator int(Operatable op) => op.Value;
 

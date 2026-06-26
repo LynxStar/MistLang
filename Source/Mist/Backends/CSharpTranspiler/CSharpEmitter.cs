@@ -265,11 +265,10 @@ internal sealed class CSharpSourceWriter
     private readonly StringBuilder sb = new();
     private readonly ISemanticModel model;
     private readonly ImmutableArray<string> backendNamespaces;
-    private readonly Common.Text.SourceText sourceText;
+    private readonly Common.Source.SourceText sourceText;
     private readonly IIntrinsicEmissionRegistry intrinsicRegistry;
     private readonly DiagnosticBag diagnostics;
     private int indentLevel;
-    private bool needsMistVoidStruct;
     private bool inValueReturningVoidMethod;
     /// <summary>
     /// When <c>true</c>, <c>Void.Void</c> expressions emit <c>null</c> instead of
@@ -455,12 +454,12 @@ internal sealed class CSharpSourceWriter
     /// Indicates whether this compilation unit requires the MistVoid helper struct.
     /// Checked by the emitter after emission to decide whether to generate the shared MistVoid file.
     /// </summary>
-    public bool NeedsMistVoidStruct => needsMistVoidStruct;
+    public bool NeedsMistVoidStruct { get; private set; }
 
     public CSharpSourceWriter(
         ISemanticModel model,
         ImmutableArray<string> backendNamespaces,
-        Common.Text.SourceText sourceText,
+        Common.Source.SourceText sourceText,
         DiagnosticBag diagnostics,
         bool isReferencedProject = false)
     {
@@ -2755,7 +2754,7 @@ internal sealed class CSharpSourceWriter
         var span = extDecl.Span;
         if(span.Length > 0)
         {
-            var linePos = sourceText.ToLinePositionSpan(new Common.Text.SourceSpan(span.Start, span.Length));
+            var linePos = sourceText.ToLinePositionSpan(new Common.Source.SourceSpan(span.Start, span.Length));
             return linePos.Start.Line;
         }
 
@@ -2832,7 +2831,7 @@ internal sealed class CSharpSourceWriter
                     if(span.Length > 0)
                     {
                         var linePos = unit.Source.ToLinePositionSpan(
-                            new Common.Text.SourceSpan(span.Start, span.Length));
+                            new Common.Source.SourceSpan(span.Start, span.Length));
                         lineNumber = linePos.Start.Line;
                     }
 
@@ -4096,7 +4095,7 @@ internal sealed class CSharpSourceWriter
         if(symbol?.DeclaredType is StructType voidSt && voidSt.IsVoid()
             && voidSt.ContainingNamespace == "Standard")
         {
-            needsMistVoidStruct = true;
+            NeedsMistVoidStruct = true;
             return;
         }
 
@@ -5402,7 +5401,7 @@ internal sealed class CSharpSourceWriter
         if(isValueReturningVoid)
         {
             returnType = "MistVoid";
-            needsMistVoidStruct = true;
+            NeedsMistVoidStruct = true;
         }
 
         // For generic methods with parameterized constructor constraints,
@@ -7111,7 +7110,7 @@ internal sealed class CSharpSourceWriter
                         return rawText.Replace("Void.Void", "null");
                     }
 
-                    needsMistVoidStruct = true;
+                    NeedsMistVoidStruct = true;
                     return rawText.Replace("Void.Void", "MistVoid.Instance");
                 }
                 // Bypass the fast path if the source contains the `regex` keyword,
@@ -7428,7 +7427,7 @@ internal sealed class CSharpSourceWriter
             case VoidSingleTypeRefSingleTypeRefNode:
                 if(isValueContext)
                 {
-                    needsMistVoidStruct = true;
+                    NeedsMistVoidStruct = true;
                     return "MistVoid";
                 }
 
@@ -7559,7 +7558,7 @@ internal sealed class CSharpSourceWriter
                         // (e.g., Action vs Action<T1> vs Action<T1, T2>).
                         var aliasSymbol = model.AllSymbols
                             .FirstOrDefault(s => s.Name == name && s.Kind == SymbolKind.TypeAlias
-                                && (s.DeclaredType is TypeAliasType at && at.TypeParameters.Count == refArity
+                                && ((s.DeclaredType is TypeAliasType at && at.TypeParameters.Count == refArity)
                                     || s.DeclaredType is RefinementType
                                     || s.DeclaredType is UnionType));
                         if(aliasSymbol?.DeclaredType is TypeAliasType aliasType)
@@ -7623,7 +7622,7 @@ internal sealed class CSharpSourceWriter
                     {
                         if(isValueContext)
                         {
-                            needsMistVoidStruct = true;
+                            NeedsMistVoidStruct = true;
                             return "MistVoid";
                         }
 
@@ -13242,7 +13241,7 @@ internal sealed class CSharpSourceWriter
                             return "null";
                         }
 
-                        needsMistVoidStruct = true;
+                        NeedsMistVoidStruct = true;
                         return "MistVoid.Instance";
                     }
 
@@ -13986,7 +13985,7 @@ internal sealed class CSharpSourceWriter
                             return "null";
                         }
 
-                        needsMistVoidStruct = true;
+                        NeedsMistVoidStruct = true;
                         return "MistVoid.Instance";
                     }
 

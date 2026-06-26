@@ -43,7 +43,7 @@ public class UnknownTypeRoundTripPropertyTests
 
     private static CompilationUnitNode ParseOrFail(string source)
     {
-        var sourceText = new Mist.Common.Text.SourceText("test.mist", source);
+        var sourceText = new Mist.Common.Source.SourceText("test.mist", source);
         var bag = new DiagnosticBag();
         var tokens = Lexer.Lex(sourceText, bag);
         var result = Parser.Parse(tokens, bag);
@@ -381,7 +381,7 @@ public class UnknownTypeRoundTripPropertyTests
         var source = scenario.ToSource();
 
         // Parse₁
-        var sourceText = new Mist.Common.Text.SourceText("test.mist", source);
+        var sourceText = new Mist.Common.Source.SourceText("test.mist", source);
         var bag1 = new DiagnosticBag();
         var tokens1 = Lexer.Lex(sourceText, bag1);
         var result1 = Parser.Parse(tokens1, bag1);
@@ -413,7 +413,7 @@ public class UnknownTypeRoundTripPropertyTests
         }
 
         // Parse₂
-        var sourceText2 = new Mist.Common.Text.SourceText("test.mist", printed1);
+        var sourceText2 = new Mist.Common.Source.SourceText("test.mist", printed1);
         var bag2 = new DiagnosticBag();
         var tokens2 = Lexer.Lex(sourceText2, bag2);
         var result2 = Parser.Parse(tokens2, bag2);

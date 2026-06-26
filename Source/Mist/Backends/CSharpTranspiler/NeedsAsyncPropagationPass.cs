@@ -271,10 +271,7 @@ internal static class NeedsAsyncPropagationPass
                 // Fallback: if standard resolution fails (e.g., for namespace-qualified
                 // calls like Namespace.Type.Method()), try to find the method symbol
                 // by reconstructing the qualified type name from the suffix chain.
-                if(calleeSym is null)
-                {
-                    calleeSym = TryResolveQualifiedMethodCall(methodCall, postfix, model);
-                }
+                calleeSym ??= TryResolveQualifiedMethodCall(methodCall, postfix, model);
 
                 if(calleeSym is not null)
                 {

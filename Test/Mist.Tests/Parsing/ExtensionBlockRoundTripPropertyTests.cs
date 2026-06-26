@@ -304,7 +304,7 @@ public class ExtensionBlockRoundTripPropertyTests
         var source = scenario.Source;
 
         // Parse₁
-        var sourceText1 = new Mist.Common.Text.SourceText("test.mist", source);
+        var sourceText1 = new Mist.Common.Source.SourceText("test.mist", source);
         var bag1 = new DiagnosticBag();
         var tokens1 = Lexer.Lex(sourceText1, bag1);
         var result1 = Parser.Parse(tokens1, bag1);
@@ -339,7 +339,7 @@ public class ExtensionBlockRoundTripPropertyTests
         }
 
         // Parse₂
-        var sourceText2 = new Mist.Common.Text.SourceText("test.mist", printed1);
+        var sourceText2 = new Mist.Common.Source.SourceText("test.mist", printed1);
         var bag2 = new DiagnosticBag();
         var tokens2 = Lexer.Lex(sourceText2, bag2);
         var result2 = Parser.Parse(tokens2, bag2);

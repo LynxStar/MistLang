@@ -12,7 +12,6 @@ namespace Mist.Semantics.Model;
 /// </summary>
 public sealed class SemanticModel : ISemanticModel
 {
-    private SymbolTable symbolTable;
     private Dictionary<Storm.Runtime.SyntaxNode, IType> expressionTypes;
     private Dictionary<Storm.Runtime.SyntaxNode, ISymbol> resolvedOperators;
     private Dictionary<ISymbol, RefinementPredicate> parameterRefinements;
@@ -38,7 +37,7 @@ public sealed class SemanticModel : ISemanticModel
         Units = units;
         Asts = asts;
         GlobalScope = globalScope;
-        this.symbolTable = symbolTable;
+        SymbolTable = symbolTable;
         this.expressionTypes = expressionTypes ?? new Dictionary<Storm.Runtime.SyntaxNode, IType>();
         resolvedOperators = new Dictionary<Storm.Runtime.SyntaxNode, ISymbol>();
         this.parameterRefinements = parameterRefinements ?? new Dictionary<ISymbol, RefinementPredicate>();
@@ -61,7 +60,7 @@ public sealed class SemanticModel : ISemanticModel
     /// <c>SemanticModelBuilder.LookupQualifiedStdlibType</c> that need to
     /// walk symbol metadata rather than flatten via <see cref="AllSymbols"/>.
     /// </summary>
-    internal SymbolTable SymbolTable => symbolTable;
+    internal SymbolTable SymbolTable { get; }
 
     /// <summary>
     /// The expression-type map populated by Pass 2, exposed internally so
@@ -70,17 +69,17 @@ public sealed class SemanticModel : ISemanticModel
     /// </summary>
     internal IReadOnlyDictionary<Storm.Runtime.SyntaxNode, IType> ExpressionTypes => expressionTypes;
 
-    public ImmutableArray<ISymbol> AllSymbols => [.. symbolTable.AllSymbols];
+    public ImmutableArray<ISymbol> AllSymbols => [.. SymbolTable.AllSymbols];
 
     public Storm.Runtime.SyntaxNode GetDeclaringNode(ISymbol symbol)
     {
-        return symbolTable.GetDeclaringNode(symbol)
+        return SymbolTable.GetDeclaringNode(symbol)
             ?? throw new InvalidOperationException($"No declaring node found for symbol '{symbol.Name}'.");
     }
 
     public ISymbol? GetDeclaredSymbol(Storm.Runtime.SyntaxNode node)
     {
-        return symbolTable.GetDeclaredSymbol(node);
+        return SymbolTable.GetDeclaredSymbol(node);
     }
 
     public IType? GetTypeOf(Storm.Runtime.SyntaxNode node)

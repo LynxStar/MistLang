@@ -12,7 +12,7 @@ public sealed class TokenStream
     /// <summary>
     /// The source text that was lexed.
     /// </summary>
-    public Common.Text.SourceText Source { get; }
+    public Common.Source.SourceText Source { get; }
 
     /// <summary>
     /// All tokens including hidden-channel tokens.
@@ -25,7 +25,7 @@ public sealed class TokenStream
     /// </summary>
     public ImmutableArray<Storm.Runtime.Token> DefaultChannelTokens { get; }
 
-    public TokenStream(Common.Text.SourceText source, ImmutableArray<Storm.Runtime.Token> tokens)
+    public TokenStream(Common.Source.SourceText source, ImmutableArray<Storm.Runtime.Token> tokens)
     {
         Source = source;
         AllTokens = tokens;

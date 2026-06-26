@@ -6,7 +6,7 @@ using FsCheck;
 using FsCheck.Fluent;
 using FsCheck.Xunit;
 using Mist.Common.Diagnostics;
-using Mist.Common.Text;
+using Mist.Common.Source;
 using Mist.Driver.Contracts;
 using Mist.Lexing;
 using Mist.Lexing.Contracts;

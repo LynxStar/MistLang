@@ -5,7 +5,7 @@ namespace Mist.Driver.Contracts;
 /// <summary>
 /// A single Mist source file passed through the compilation pipeline.
 /// </summary>
-public sealed record CompilationUnit(Common.Text.SourceText Source)
+public sealed record CompilationUnit(Common.Source.SourceText Source)
 {
     /// <summary>
     /// <c>true</c> if this unit was loaded from the Standard Library (see

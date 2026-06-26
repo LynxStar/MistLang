@@ -1,6 +1,6 @@
 using System.Collections.Immutable;
 using Mist.Common.Diagnostics;
-using Mist.Common.Text;
+using Mist.Common.Source;
 using Mist.Driver;
 using Mist.Driver.Contracts;
 using Mist.Lexing;

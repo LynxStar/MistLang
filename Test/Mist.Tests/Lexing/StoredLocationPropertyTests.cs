@@ -2,7 +2,7 @@
 using FsCheck;
 using FsCheck.Fluent;
 using FsCheck.Xunit;
-using Mist.Common.Text;
+using Mist.Common.Source;
 
 namespace Mist.Tests.Lexing;
 

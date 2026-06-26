@@ -181,11 +181,11 @@ rule Start = IDENTIFIER;
     }
 
     /// <summary>
-    /// Minimal stub for Mist.Common.Text.NodeOrigin so the emitted SyntaxNode compiles
+    /// Minimal stub for Mist.Common.Source.NodeOrigin so the emitted SyntaxNode compiles
     /// without requiring a reference to the full Mist assembly.
     /// </summary>
     private const string NodeOriginStub = @"
-namespace Mist.Common.Text
+namespace Mist.Common.Source
 {
     public abstract record NodeOrigin;
 }

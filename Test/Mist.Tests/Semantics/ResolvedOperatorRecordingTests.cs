@@ -1,5 +1,5 @@
 using System.Collections.Immutable;
-using Mist.Common.Text;
+using Mist.Common.Source;
 using Mist.Driver.Contracts;
 using Mist.Generated;
 using Mist.Semantics.Contracts;

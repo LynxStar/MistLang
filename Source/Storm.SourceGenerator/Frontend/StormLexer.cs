@@ -383,7 +383,7 @@ public static class StormLexer
 
     private static bool IsIdentStart(char c)
     {
-        return c is >= 'a' and <= 'z' or >= 'A' and <= 'Z' or '_';
+        return c is (>= 'a' and <= 'z') or (>= 'A' and <= 'Z') or '_';
     }
 
     private static bool IsIdentPart(char c)

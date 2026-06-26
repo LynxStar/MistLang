@@ -5,7 +5,7 @@ using FsCheck;
 using FsCheck.Fluent;
 using FsCheck.Xunit;
 using Mist.Common.Diagnostics;
-using Mist.Common.Text;
+using Mist.Common.Source;
 using Mist.Generated;
 
 namespace Mist.Tests.Common.SourceText;
@@ -29,7 +29,7 @@ public class SyntheticChainResolutionPropertyTests
     /// </summary>
 #pragma warning disable CA1034, CA1819 // CA1034: nested type, CA1819: array property in test input record
     public record SyntheticChainInput(
-        Mist.Common.Text.SourceText TerminalSource,
+        Mist.Common.Source.SourceText TerminalSource,
         int SpanStart,
         int SpanLength,
         int ChainDepth,
@@ -90,7 +90,7 @@ public class SyntheticChainResolutionPropertyTests
                from start in Gen.Choose(0, contents.Length - 1)
                from length in Gen.Choose(1, contents.Length - start)
                select new SyntheticChainInput(
-                   new Mist.Common.Text.SourceText(path, contents),
+                   new Mist.Common.Source.SourceText(path, contents),
                    start,
                    length,
                    chainDepth,

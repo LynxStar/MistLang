@@ -36,7 +36,7 @@ public class ParserAstPropertyTests
 
         foreach(var input in inputs)
         {
-            var source = new Mist.Common.Text.SourceText("test.mist", input);
+            var source = new Mist.Common.Source.SourceText("test.mist", input);
             var lexBag = new DiagnosticBag();
             var tokenStream = Lexer.Lex(source, lexBag);
 
@@ -87,7 +87,7 @@ public class ParserAstPropertyTests
 
         foreach(var input in inputs)
         {
-            var source = new Mist.Common.Text.SourceText("test.mist", input);
+            var source = new Mist.Common.Source.SourceText("test.mist", input);
             var lexBag = new DiagnosticBag();
             var tokenStream = Lexer.Lex(source, lexBag);
 

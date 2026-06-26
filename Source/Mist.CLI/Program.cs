@@ -142,7 +142,7 @@ internal class Program
                 continue;
             }
 
-            var sourceText = new Mist.Common.Text.SourceText(filePath, source);
+            var sourceText = new Mist.Common.Source.SourceText(filePath, source);
             var diags = new DiagnosticBag();
             var tokenStream = lexer.Lex(sourceText, diags);
 

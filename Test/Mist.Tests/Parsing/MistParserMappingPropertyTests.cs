@@ -3,7 +3,7 @@ using FsCheck;
 using FsCheck.Fluent;
 using FsCheck.Xunit;
 using Mist.Common.Diagnostics;
-using Mist.Common.Text;
+using Mist.Common.Source;
 using Mist.Tests.Lexing;
 
 namespace Mist.Tests.Parsing;
@@ -58,7 +58,7 @@ public class MistParserMappingPropertyTests
             ? new LinePositionSpan(
                 new LinePosition(entry.Line, entry.Column),
                 new LinePosition(entry.Line, entry.Column))
-            : default(LinePositionSpan);
+            : default;
 
         var diagnostic = new Diagnostic(
             new DiagnosticId("MIST_PARSE_ERROR"),
@@ -115,10 +115,10 @@ public class MistParserMappingPropertyTests
             ? new LinePositionSpan(
                 new LinePosition(entryData.Line, entryData.Column),
                 new LinePosition(entryData.Line, entryData.Column))
-            : default(LinePositionSpan);
+            : default;
 
         // Since our generator always produces positive line/column, location must be non-null
-        return location != default(LinePositionSpan);
+        return location != default;
     }
 
     /// <summary>

@@ -639,10 +639,7 @@ public class RefinementComparisonEnginePropertyTests
         var gteImpliesNot = BuildRelationalPredicate(">=", a).Implies(notPredicate);
         var lteImpliesNot = BuildRelationalPredicate("<=", a).Implies(notPredicate);
 
-        return gtImpliesNot == true
-            && ltImpliesNot == true
-            && gteImpliesNot == false
-            && lteImpliesNot == false;
+        return gtImpliesNot && ltImpliesNot && !gteImpliesNot && !lteImpliesNot;
     }
 
     // ─── Property 6: Or-pattern source requires all alternatives to imply target ─

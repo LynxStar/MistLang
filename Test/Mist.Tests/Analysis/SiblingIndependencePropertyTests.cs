@@ -13,7 +13,7 @@ using FsCheck;
 using FsCheck.Fluent;
 using FsCheck.Xunit;
 using Mist.Analysis.Builtin;
-using Mist.Common.Text;
+using Mist.Common.Source;
 using Mist.Semantics;
 using Mist.Semantics.Contracts;
 using Mist.Semantics.Model;

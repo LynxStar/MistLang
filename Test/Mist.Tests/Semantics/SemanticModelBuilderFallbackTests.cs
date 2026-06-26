@@ -2,7 +2,7 @@
 // Unit tests for SemanticModelBuilder null SourceText fallback
 // Validates: Requirements 4.4
 using Mist.Common.Diagnostics;
-using Mist.Common.Text;
+using Mist.Common.Source;
 
 namespace Mist.Tests.Semantics;
 

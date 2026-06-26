@@ -2802,7 +2802,7 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
         SyntaxNode node,
         ISemanticModel model)
     {
-        Common.Text.LinePositionSpan? location = null;
+        Common.Source.LinePositionSpan? location = null;
         string? compilationUnitPath = null;
 
         var span = node.Span;
@@ -2827,7 +2827,7 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
                 var source = units[astIndex].Source;
                 compilationUnitPath = source.Path;
 
-                var sourceSpan = new Common.Text.SourceSpan(span.Start, span.Length);
+                var sourceSpan = new Common.Source.SourceSpan(span.Start, span.Length);
                 location = source.ToLinePositionSpan(sourceSpan);
             }
         }

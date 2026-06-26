@@ -43,7 +43,7 @@ public class StackallocMissingSizeRecoveryPropertyTests
     public Property MissingOrEmptySize_ProducesNoNode_EmitsRecoveryDiagnostic_AndContinues(
         StackallocSourceScenario scenario)
     {
-        var sourceText = new Mist.Common.Text.SourceText("test.mist", scenario.Source);
+        var sourceText = new Mist.Common.Source.SourceText("test.mist", scenario.Source);
         var bag = new DiagnosticBag();
         var tokens = Lexer.Lex(sourceText, bag);
         var result = Parser.Parse(tokens, bag);

@@ -8,7 +8,10 @@ public class GenericClass<T> where T : class
     public T? Item { get; set; }
 
     public GenericClass() { }
-    public GenericClass(T item) => Item = item;
+    public GenericClass(T item)
+    {
+        Item = item;
+    }
 
     public T? GetItem()
     {
@@ -33,7 +36,10 @@ public class MultiConstraint<T> where T : struct, IComparable<T>
 {
     public T Value { get; }
 
-    public MultiConstraint(T value) => Value = value;
+    public MultiConstraint(T value)
+    {
+        Value = value;
+    }
 
     public int CompareTo(T other)
     {

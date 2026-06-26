@@ -1,7 +1,7 @@
 using System.Collections.Immutable;
 using Mist.Analysis.Builtin;
 using Mist.Common.Diagnostics;
-using Mist.Common.Text;
+using Mist.Common.Source;
 using Mist.Driver.Contracts;
 using Mist.Generated;
 using Mist.Semantics.Contracts;
@@ -17527,13 +17527,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
         // Walk directly to the target namespace scope. No file scope, no
         // using-directive, no scope chain.
-        var namespaceScope = FindExistingNamespaceScope(globalScope, symbolTable, namespaceName);
-        if(namespaceScope is null)
-        {
-            throw new StdlibMissingException(
+        var namespaceScope = FindExistingNamespaceScope(globalScope, symbolTable, namespaceName) ?? throw new StdlibMissingException(
                 qualifiedName,
                 $"MIST_STDLIB_MISSING: Standard Library namespace '{namespaceName}' is not present in the semantic model (stdlib not loaded?).");
-        }
 
         // Look up the simple name among the namespace's direct members.
         // `Scope.Lookup` would walk up to the parent on a miss; here we
@@ -21292,10 +21288,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         // did not find the method (e.g., non-method cases).
                         var providedArity = CountTypeArgs(methodCall.TypeArgs);
                         var methodSymbol = unifiedResult?.Symbol;
-                        if(methodSymbol is null)
-                        {
-                            methodSymbol = LookupGenericMemberSymbol(targetType, memberName, providedArity, ambientTypeResolver, fileScope, symbolTable);
-                        }
+                        methodSymbol ??= LookupGenericMemberSymbol(targetType, memberName, providedArity, ambientTypeResolver, fileScope, symbolTable);
 
                         if(methodSymbol is Symbol sym && sym.TypeParameters.Count > 0)
                         {
@@ -27208,10 +27201,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 }
 
                 // Follow the first (and hopefully only) syntax node child.
-                if(next is null)
-                {
-                    next = child;
-                }
+                next ??= child;
             }
 
             // If there are multiple children, this is not a simple literal expression.

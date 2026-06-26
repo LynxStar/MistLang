@@ -64,7 +64,7 @@ public class LambdaRoundTripPropertyTests
     /// </summary>
     private static CompilationUnitNode ParseOrFail(string source)
     {
-        var sourceText = new Mist.Common.Text.SourceText("test.mist", source);
+        var sourceText = new Mist.Common.Source.SourceText("test.mist", source);
         var bag = new DiagnosticBag();
         var tokens = Lexer.Lex(sourceText, bag);
         var result = Parser.Parse(tokens, bag);
@@ -208,8 +208,8 @@ public static class RoundTripGenerator
                    Gen.Constant("()"),
                    Gen.Elements(Identifiers).Select(n => $"({n})"),
                    from n1 in Gen.Elements(Identifiers)
-                    from n2 in Gen.Elements(Identifiers)
-                    select $"({n1}, {n2})")
+                   from n2 in Gen.Elements(Identifiers)
+                   select $"({n1}, {n2})")
                from body in Gen.Elements(ExpressionBodies)
                select $"{modifier}{paramForm} => {body}";
     }
@@ -220,13 +220,13 @@ public static class RoundTripGenerator
         return from modifier in Gen.Elements(Modifiers)
                from paramForm in Gen.OneOf(
                    from t in Gen.Elements(SimpleTypes)
-                    from n in Gen.Elements(Identifiers)
-                    select $"({t} {n})",
+                   from n in Gen.Elements(Identifiers)
+                   select $"({t} {n})",
                    from t1 in Gen.Elements(SimpleTypes)
-                    from n1 in Gen.Elements(Identifiers)
-                    from t2 in Gen.Elements(SimpleTypes)
-                    from n2 in Gen.Elements(Identifiers)
-                    select $"({t1} {n1}, {t2} {n2})")
+                   from n1 in Gen.Elements(Identifiers)
+                   from t2 in Gen.Elements(SimpleTypes)
+                   from n2 in Gen.Elements(Identifiers)
+                   select $"({t1} {n1}, {t2} {n2})")
                from body in Gen.Elements(ExpressionBodies)
                select $"{modifier}{paramForm} => {body}";
     }
@@ -238,8 +238,8 @@ public static class RoundTripGenerator
                from paramForm in Gen.OneOf(
                    Gen.Elements(Identifiers).Select(n => $"({n})"),
                    from t in Gen.Elements(SimpleTypes)
-                    from n in Gen.Elements(Identifiers)
-                    select $"({t} {n})",
+                   from n in Gen.Elements(Identifiers)
+                   select $"({t} {n})",
                    Gen.Constant("()"))
                from body in Gen.Elements(BlockBodies)
                select $"{modifier}{paramForm} => {body}";

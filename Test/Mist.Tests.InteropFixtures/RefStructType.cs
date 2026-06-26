@@ -9,7 +9,10 @@ public ref struct RefStructType
 {
     public int Value;
 
-    public RefStructType(int value) => Value = value;
+    public RefStructType(int value)
+    {
+        Value = value;
+    }
 
     public int GetValue()
     {
@@ -25,7 +28,10 @@ public ref struct GenericRefStruct<T>
 {
     public T Item;
 
-    public GenericRefStruct(T item) => Item = item;
+    public GenericRefStruct(T item)
+    {
+        Item = item;
+    }
 }
 
 /// <summary>

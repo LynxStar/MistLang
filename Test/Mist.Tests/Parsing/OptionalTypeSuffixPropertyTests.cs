@@ -140,7 +140,7 @@ public sealed class OptionalTypeSuffixPropertyTests
 
     private static CompilationUnitNode ParseOrFail(string source)
     {
-        var sourceText = new Mist.Common.Text.SourceText("test.mist", source);
+        var sourceText = new Mist.Common.Source.SourceText("test.mist", source);
         var bag = new DiagnosticBag();
         var tokens = Lexer.Lex(sourceText, bag);
         var result = Parser.Parse(tokens, bag);
@@ -217,7 +217,7 @@ public sealed class OptionalTypeSuffixPropertyTests
     [Property(MaxTest = 100, Arbitrary = new[] { typeof(OptionalTypeSuffixPropertyTests) })]
     public Property OptionalSuffix_ParsesInAllTypePositions(TypePositionScenario scenario)
     {
-        var sourceText = new Mist.Common.Text.SourceText("test.mist", scenario.Source);
+        var sourceText = new Mist.Common.Source.SourceText("test.mist", scenario.Source);
         var bag = new DiagnosticBag();
         var tokens = Lexer.Lex(sourceText, bag);
         var result = Parser.Parse(tokens, bag);
@@ -349,7 +349,7 @@ public sealed class OptionalTypeSuffixPropertyTests
         // This is the fundamental reason why `T??` cannot produce a double-optional
         // type at the parser level — the error must come from the semantic model.
         var source = $"{typeName}??";
-        var sourceText = new Mist.Common.Text.SourceText("test.mist", source);
+        var sourceText = new Mist.Common.Source.SourceText("test.mist", source);
         var bag = new DiagnosticBag();
         var tokens = Lexer.Lex(sourceText, bag);
 

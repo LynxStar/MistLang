@@ -128,7 +128,7 @@ public sealed class EntryPointWithAbstractBugTests : IDisposable
         var parser = new Mist.Parsing.MistParser();
         var builder = new SemanticModelBuilder();
 
-        var sourceText = new Mist.Common.Text.SourceText(filePath, source);
+        var sourceText = new Mist.Common.Source.SourceText(filePath, source);
         var compilation = new MistCompilation(
             ImmutableArray.Create(new CompilationUnit(sourceText)));
 

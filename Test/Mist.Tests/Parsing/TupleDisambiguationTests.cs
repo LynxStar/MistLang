@@ -20,7 +20,7 @@ public class TupleDisambiguationTests
 
     private static CompilationUnitNode ParseOrFail(string source)
     {
-        var sourceText = new Mist.Common.Text.SourceText("test.mist", source);
+        var sourceText = new Mist.Common.Source.SourceText("test.mist", source);
         var bag = new DiagnosticBag();
         var tokens = Lexer.Lex(sourceText, bag);
         var result = Parser.Parse(tokens, bag);
@@ -213,10 +213,7 @@ public class TupleDisambiguationTests
                     return childPrimary;
                 }
 
-                if(next is null)
-                {
-                    next = child;
-                }
+                next ??= child;
             }
 
             if(childCount > 1 || next is null)

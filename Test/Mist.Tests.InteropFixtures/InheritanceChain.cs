@@ -8,7 +8,10 @@ public class Base
     public int Id { get; set; }
 
     public Base() { }
-    public Base(int id) => Id = id;
+    public Base(int id)
+    {
+        Id = id;
+    }
 
     public virtual string Describe()
     {
@@ -24,7 +27,10 @@ public class Middle : Base
     public string Label { get; set; } = "";
 
     public Middle() { }
-    public Middle(int id, string label) : base(id) => Label = label;
+    public Middle(int id, string label) : base(id)
+    {
+        Label = label;
+    }
 
     public override string Describe()
     {
@@ -40,7 +46,10 @@ public class Derived : Middle
     public double Score { get; set; }
 
     public Derived() { }
-    public Derived(int id, string label, double score) : base(id, label) => Score = score;
+    public Derived(int id, string label, double score) : base(id, label)
+    {
+        Score = score;
+    }
 
     public override string Describe()
     {

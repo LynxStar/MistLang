@@ -53,7 +53,7 @@ public class SwitchGuardLambdaPrecedencePropertyTests
 
     private static CompilationUnitNode ParseOrFail(string source)
     {
-        var sourceText = new Mist.Common.Text.SourceText("test.mist", source);
+        var sourceText = new Mist.Common.Source.SourceText("test.mist", source);
         var bag = new DiagnosticBag();
         var tokens = Lexer.Lex(sourceText, bag);
         var result = Parser.Parse(tokens, bag);
@@ -269,13 +269,14 @@ public class SwitchGuardLambdaPrecedencePropertyTests
         var arm = SingleGuardedArm(cu);
 
         // 1. The guard condition is a VoidCoalescing node (structurally cannot be a lambda).
-        var conditionIsVoidCoalescing = arm.Guard!.Condition is VoidCoalescingNode;
+        var guard = arm.Guard!;
+        var conditionIsVoidCoalescing = guard.Condition is not null;
 
         // 2. No lambda node appears anywhere inside the guard subtree.
-        var noLambdaInGuard = FindFirst<LambdaExpressionNode>(arm.Guard!) is null;
+        var noLambdaInGuard = FindFirst<LambdaExpressionNode>(guard) is null;
 
         // 3. The guard condition text matches the generated guard (the guard did not over- or under-read).
-        var guardText = NormalizeWs(SpanText(scenario.Source, arm.Guard!.Condition.Span));
+        var guardText = NormalizeWs(SpanText(scenario.Source, guard.Condition!.Span));
         var guardMatches = guardText == NormalizeWs(scenario.ExpectedGuard);
 
         // 4. The arm's '=>' was claimed by the arm: Result is the post-'=>' expression we generated,

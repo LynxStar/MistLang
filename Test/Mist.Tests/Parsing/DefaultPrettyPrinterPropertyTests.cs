@@ -485,7 +485,7 @@ public class DefaultPrettyPrinterPropertyTests
     /// </summary>
     private static string? ParseAndPrint(string source)
     {
-        var sourceText = new Mist.Common.Text.SourceText("test.mist", source);
+        var sourceText = new Mist.Common.Source.SourceText("test.mist", source);
         var bag = new DiagnosticBag();
         var tokens = Lexer.Lex(sourceText, bag);
         var result = Parser.Parse(tokens, bag);

@@ -150,10 +150,7 @@ internal sealed class TypeProjector
         {
             // Initialize the MemberScope if this is the first time we project System.Delegate.
             // The scope will be populated by the member projection phase in AssemblyTypeProvider.
-            if(BaseDelegateType.Instance.MemberScope is null)
-            {
-                BaseDelegateType.Instance.MemberScope = new Scope(parent: null);
-            }
+            BaseDelegateType.Instance.MemberScope ??= new Scope(parent: null);
 
             return (BaseDelegateType.Instance, ImmutableArray<ISymbol>.Empty);
         }

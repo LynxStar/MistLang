@@ -5,7 +5,7 @@ using FsCheck;
 using FsCheck.Fluent;
 using FsCheck.Xunit;
 using Mist.Common.Diagnostics;
-using Mist.Common.Text;
+using Mist.Common.Source;
 using Mist.Generated;
 
 namespace Mist.Tests.Common.SourceText;
@@ -92,7 +92,7 @@ public class OverlappingSpanResolutionPropertyTests
         // Create N source files, all with content large enough to contain the same span
         var minContentLength = scenario.SpanStart + scenario.SpanLength + 1;
         var sourceTexts = Enumerable.Range(0, scenario.FileCount)
-            .Select(i => new Mist.Common.Text.SourceText(MakePath(i), MakeContent(minContentLength)))
+            .Select(i => new Mist.Common.Source.SourceText(MakePath(i), MakeContent(minContentLength)))
             .ToArray();
 
         // Create a node with a span that overlaps across all files
@@ -123,7 +123,7 @@ public class OverlappingSpanResolutionPropertyTests
         var minContentLength = scenario.SpanStart + scenario.SpanLength + 1;
         var content = MakeContent(minContentLength);
         var sourceTexts = Enumerable.Range(0, scenario.FileCount)
-            .Select(i => new Mist.Common.Text.SourceText(MakePath(i), content))
+            .Select(i => new Mist.Common.Source.SourceText(MakePath(i), content))
             .ToArray();
 
         // For each file, create a node with the same span but different Origin

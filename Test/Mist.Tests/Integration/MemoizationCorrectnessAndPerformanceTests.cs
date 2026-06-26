@@ -36,7 +36,7 @@ public sealed class MemoizationCorrectnessAndPerformanceTests
 
         foreach(var path in sourceFiles)
         {
-            var source = new Mist.Common.Text.SourceText(path, File.ReadAllText(path));
+            var source = new Mist.Common.Source.SourceText(path, File.ReadAllText(path));
             var lexBag = new DiagnosticBag();
             var tokens = lexer.Lex(source, lexBag);
 
@@ -98,7 +98,7 @@ public sealed class MemoizationCorrectnessAndPerformanceTests
 
         // Load source texts into memory first (exclude I/O from timing)
         var sources = sourceFiles
-            .Select(path => new Mist.Common.Text.SourceText(path, File.ReadAllText(path)))
+            .Select(path => new Mist.Common.Source.SourceText(path, File.ReadAllText(path)))
             .ToList();
 
         // Warm-up pass: JIT the lex+parse code paths

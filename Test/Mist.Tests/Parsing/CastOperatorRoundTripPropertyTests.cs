@@ -58,7 +58,7 @@ public class CastOperatorRoundTripPropertyTests
         }
 
         // Step 2: Parse the printed source text back to an AST
-        var sourceText = new Mist.Common.Text.SourceText("test.mist", printed1);
+        var sourceText = new Mist.Common.Source.SourceText("test.mist", printed1);
         var bag = new DiagnosticBag();
         var tokens = Lexer.Lex(sourceText, bag);
         var result = Parser.Parse(tokens, bag);

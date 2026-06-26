@@ -31,7 +31,6 @@ internal sealed class AssemblyTypeProvider : IAmbientTypeResolver, IDisposable
     private readonly MetadataLoadContext metadataContext;
     private readonly IntrinsicTypeMap intrinsicMap;
     private readonly VisibilityFilter filter;
-    private readonly TypeProjector projector;
     private readonly AmbientExtensionScanner extensionScanner;
 
     /// <summary>
@@ -63,12 +62,7 @@ internal sealed class AssemblyTypeProvider : IAmbientTypeResolver, IDisposable
     [ThreadStatic]
     private static IStdlibTypeProvider? stdlibThreadLocal;
 
-    /// <summary>
-    /// Fallback provider used when no thread-local provider has been set.
-    /// </summary>
-    private readonly IStdlibTypeProvider stdlibFallback = FallbackStdlibTypeProvider.Instance;
-
-    private IStdlibTypeProvider Stdlib => stdlibThreadLocal ?? stdlibFallback;
+    private IStdlibTypeProvider Stdlib { get => stdlibThreadLocal ?? field; } = FallbackStdlibTypeProvider.Instance;
 
     /// <summary>
     /// Creates a new <see cref="AssemblyTypeProvider"/> from the given assembly paths.
@@ -91,7 +85,7 @@ internal sealed class AssemblyTypeProvider : IAmbientTypeResolver, IDisposable
         // (Requirements 6.1, 6.2, 6.3). The delegate captures `this`; it is only invoked
         // later during projection, after the constructor has finished wiring the cache and
         // loaded assemblies below.
-        projector = new TypeProjector(intrinsicMap, filter, ResolveProjectedType, ResolveProjectedTypeCacheOnly);
+        Projector = new TypeProjector(intrinsicMap, filter, ResolveProjectedType, ResolveProjectedTypeCacheOnly);
 
         // Create MetadataLoadContext with a PathAssemblyResolver for all assembly paths.
         var resolver = new PathAssemblyResolver(assemblyPaths);
@@ -131,7 +125,7 @@ internal sealed class AssemblyTypeProvider : IAmbientTypeResolver, IDisposable
     /// <summary>
     /// Exposes the type projector for ambient extension registration.
     /// </summary>
-    internal TypeProjector Projector => projector;
+    internal TypeProjector Projector { get; }
 
     /// <summary>
     /// Surfaces the inheritance relationships that were omitted during projection because the
@@ -141,7 +135,7 @@ internal sealed class AssemblyTypeProvider : IAmbientTypeResolver, IDisposable
     /// types are projected through <see cref="ResolveType(string, string, int)"/>.
     /// </summary>
     internal IReadOnlyCollection<UnresolvedRelationship> UnresolvedRelationships
-        => projector.UnresolvedRelationships;
+        => Projector.UnresolvedRelationships;
 
     /// <summary>
     /// Exposes the current stdlib type provider for ambient extension registration.
@@ -237,7 +231,7 @@ internal sealed class AssemblyTypeProvider : IAmbientTypeResolver, IDisposable
 
         // Project the type lazily on first access (Requirement 3.3).
         var stdlib = Stdlib;
-        var (projectedType, members) = projector.ProjectType(clrType, stdlib);
+        var (projectedType, members) = Projector.ProjectType(clrType, stdlib);
 
         // Insert the in-progress type into the cache BEFORE projecting members so that a
         // base-type or interface reference that resolves back to a type already on the
@@ -251,13 +245,13 @@ internal sealed class AssemblyTypeProvider : IAmbientTypeResolver, IDisposable
         }
 
         // Project members (methods, properties, fields, constructors, indexers).
-        var projectedMembers = projector.ProjectMembers(clrType, projectedType, stdlib);
+        var projectedMembers = Projector.ProjectMembers(clrType, projectedType, stdlib);
 
         // Project operators and add them to the member list.
         var memberScope = GetMemberScope(projectedType);
         if(memberScope is not null)
         {
-            var operators = projector.ProjectOperators(clrType, memberScope, stdlib);
+            var operators = Projector.ProjectOperators(clrType, memberScope, stdlib);
             if(operators.Length > 0)
             {
                 projectedMembers = projectedMembers.AddRange(operators);
@@ -266,10 +260,10 @@ internal sealed class AssemblyTypeProvider : IAmbientTypeResolver, IDisposable
             // Synthesize duck-typed IEnumerable<T> for types that have
             // GetEnumerator()/MoveNext()/Current but don't implement IEnumerable<T>.
             // Called here (after UpdateStdlibProvider) to ensure the stdlib is available.
-            projector.SynthesizeDuckTypedIEnumerable(clrType, projectedType, stdlib);
+            Projector.SynthesizeDuckTypedIEnumerable(clrType, projectedType, stdlib);
 
             // Synthesize IEnumerable interop slots.
-            projector.SynthesizeEnumeratorSlots(clrType, projectedType, stdlib);
+            Projector.SynthesizeEnumeratorSlots(clrType, projectedType, stdlib);
         }
 
         // Combine initial members from ProjectType (e.g., enum fields) with projected members.

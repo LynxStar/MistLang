@@ -1,5 +1,5 @@
 using Mist.Common.Diagnostics;
-using Mist.Common.Text;
+using Mist.Common.Source;
 using Mist.Lexing.Contracts;
 
 namespace Mist.Lexing;

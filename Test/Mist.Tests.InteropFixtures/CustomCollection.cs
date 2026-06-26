@@ -10,7 +10,10 @@ public class CustomCollection : IEnumerable<int>
 {
     private readonly int[] items;
 
-    public CustomCollection(params int[] items) => this.items = items;
+    public CustomCollection(params int[] items)
+    {
+        this.items = items;
+    }
 
     public int Count => items.Length;
 

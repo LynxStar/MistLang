@@ -1,4 +1,4 @@
-using Mist.Common.Text;
+using Mist.Common.Source;
 
 namespace Mist.Common.Diagnostics;
 

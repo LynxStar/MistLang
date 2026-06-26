@@ -196,7 +196,7 @@ public sealed class MoveBoundaryResolver
                 // Consume the owned binding: mark it Moved (Req 6 AC 1–4).
                 flowState.VariableStates[refSym] = VariableOwnershipState.Moved;
                 flowState.MoveLocations[refSym] =
-                    new Common.Text.SourceSpan(source.Span.Start, source.Span.Length);
+                    new Common.Source.SourceSpan(source.Span.Start, source.Span.Length);
 
                 return new MoveResolution(MoveOutcome.MovedFromOwned, ConsumedBinding: refSym);
             }
@@ -668,7 +668,7 @@ public sealed class MoveBoundaryResolver
         SyntaxNode node,
         ISemanticModel model)
     {
-        Common.Text.LinePositionSpan? location = null;
+        Common.Source.LinePositionSpan? location = null;
         string? compilationUnitPath = null;
 
         var span = node.Span;
@@ -693,7 +693,7 @@ public sealed class MoveBoundaryResolver
                 var source = units[astIndex].Source;
                 compilationUnitPath = source.Path;
 
-                var sourceSpan = new Common.Text.SourceSpan(span.Start, span.Length);
+                var sourceSpan = new Common.Source.SourceSpan(span.Start, span.Length);
                 location = source.ToLinePositionSpan(sourceSpan);
             }
         }

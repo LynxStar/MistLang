@@ -15,24 +15,22 @@ namespace Storm.SourceGenerator.Analyze;
 /// </remarks>
 public sealed class MemoizationPlan
 {
-    private readonly IReadOnlyList<string> memoizedRuleNames;
-    private readonly IReadOnlyDictionary<string, int> ruleIds;
 
     /// <summary>
     /// The memoized rule names, in grammar declaration order. The rule at index
     /// <c>i</c> is assigned id <c>i</c>.
     /// </summary>
-    public IReadOnlyList<string> MemoizedRuleNames => memoizedRuleNames;
+    public IReadOnlyList<string> MemoizedRuleNames { get; }
 
     /// <summary>
     /// Maps a memoized rule name to its stable integer id (0-based, dense).
     /// </summary>
-    public IReadOnlyDictionary<string, int> RuleIds => ruleIds;
+    public IReadOnlyDictionary<string, int> RuleIds { get; }
 
     /// <summary>
     /// The number of memoized rules in this plan.
     /// </summary>
-    public int Count => memoizedRuleNames.Count;
+    public int Count => MemoizedRuleNames.Count;
 
     /// <summary>
     /// Creates a plan from an ordered list of memoized rule names. Each rule is
@@ -51,8 +49,8 @@ public sealed class MemoizationPlan
             ids[names[i]] = i;
         }
 
-        this.memoizedRuleNames = names;
-        ruleIds = ids;
+        MemoizedRuleNames = names;
+        RuleIds = ids;
     }
 
     /// <summary>
@@ -60,7 +58,7 @@ public sealed class MemoizationPlan
     /// </summary>
     public bool IsMemoized(string ruleName)
     {
-        return ruleIds.ContainsKey(ruleName);
+        return RuleIds.ContainsKey(ruleName);
     }
 
     /// <summary>

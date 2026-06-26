@@ -5,7 +5,7 @@ using System.Collections.Immutable;
 using FsCheck;
 using FsCheck.Fluent;
 using FsCheck.Xunit;
-using Mist.Common.Text;
+using Mist.Common.Source;
 using Mist.Driver.Contracts;
 using Mist.Semantics;
 using Mist.Semantics.Contracts;
@@ -41,11 +41,12 @@ public sealed class SyntheticDropInferenceDisposableExclusionPropertyTests
     /// </summary>
     private sealed class StubSemanticModel : ISemanticModel
     {
-        private readonly ImmutableArray<ISymbol> symbols;
+        public StubSemanticModel(ImmutableArray<ISymbol> symbols)
+        {
+            AllSymbols = symbols;
+        }
 
-        public StubSemanticModel(ImmutableArray<ISymbol> symbols) => this.symbols = symbols;
-
-        public ImmutableArray<ISymbol> AllSymbols => symbols;
+        public ImmutableArray<ISymbol> AllSymbols { get; }
 
         // ── Unused members (RunInference only reads AllSymbols) ──
         public MistCompilation Compilation => null!;

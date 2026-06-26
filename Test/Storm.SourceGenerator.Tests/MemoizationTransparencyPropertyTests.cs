@@ -96,11 +96,11 @@ public class MemoizationTransparencyPropertyTests
     }
 
     /// <summary>
-    /// Minimal stub for <c>Mist.Common.Text.NodeOrigin</c> so the emitted
+    /// Minimal stub for <c>Mist.Common.Source.NodeOrigin</c> so the emitted
     /// <c>SyntaxNode</c> compiles without referencing the full Mist assembly.
     /// </summary>
     private const string NodeOriginStub =
-        "namespace Mist.Common.Text { public abstract record NodeOrigin { } }";
+        "namespace Mist.Common.Source { public abstract record NodeOrigin { } }";
 
     private static Assembly CompileParser(
         string grammar, MemoizationPlan? plan, string grammarName, string ns)

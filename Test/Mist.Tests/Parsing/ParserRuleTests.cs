@@ -22,7 +22,7 @@ public class ParserRuleTests
 
     private static ParseResult ParseSource(string source)
     {
-        var sourceText = new Mist.Common.Text.SourceText("test.mist", source);
+        var sourceText = new Mist.Common.Source.SourceText("test.mist", source);
         var bag = new DiagnosticBag();
         var tokens = Lexer.Lex(sourceText, bag);
         return Parser.Parse(tokens, bag);

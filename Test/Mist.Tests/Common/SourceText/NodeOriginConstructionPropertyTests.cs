@@ -4,7 +4,7 @@
 using FsCheck;
 using FsCheck.Fluent;
 using FsCheck.Xunit;
-using Mist.Common.Text;
+using Mist.Common.Source;
 
 namespace Mist.Tests.Common.SourceText;
 
@@ -26,11 +26,11 @@ public class NodeOriginConstructionPropertyTests
     /// <summary>
     /// Generates random SourceText instances with arbitrary path and contents.
     /// </summary>
-    private static Gen<Mist.Common.Text.SourceText> GenSourceText()
+    private static Gen<Mist.Common.Source.SourceText> GenSourceText()
     {
         return from path in Gen.Elements("file.mist", "src/main.mist", "lib/utils.mist", "test.mist", "a.mist")
                from contents in Gen.Elements("", "hello", "class Foo {}", "let x = 1\nlet y = 2", "fn main() {\n  print(42)\n}")
-               select new Mist.Common.Text.SourceText(path, contents);
+               select new Mist.Common.Source.SourceText(path, contents);
     }
 
     /// <summary>
@@ -63,7 +63,7 @@ public class NodeOriginConstructionPropertyTests
         return Gen.OneOf(genParsed, genTest, genSynthetic);
     }
 
-    public static Arbitrary<Mist.Common.Text.SourceText> ArbSourceText()
+    public static Arbitrary<Mist.Common.Source.SourceText> ArbSourceText()
     {
         return GenSourceText().ToArbitrary();
     }
@@ -100,7 +100,7 @@ public class NodeOriginConstructionPropertyTests
     /// a record whose Source property is reference-equal to the original SourceText.
     /// </summary>
     [Property(MaxTest = 100, Arbitrary = new[] { typeof(NodeOriginConstructionPropertyTests) })]
-    public bool ParsedOrigin_Source_IsReferenceEqual(Mist.Common.Text.SourceText sourceText)
+    public bool ParsedOrigin_Source_IsReferenceEqual(Mist.Common.Source.SourceText sourceText)
     {
         var origin = new ParsedOrigin(sourceText);
         return ReferenceEquals(origin.Source, sourceText);

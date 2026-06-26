@@ -73,7 +73,7 @@ public class BinaryLiteralTokenPropertyTests
     [Property(MaxTest = 200, Arbitrary = new[] { typeof(BinaryLiteralTokenPropertyTests) })]
     public bool ValidBinaryLiteral_TokenizesAsSingleBinaryLiteralToken(string literal)
     {
-        var sourceText = new Mist.Common.Text.SourceText("test.mist", literal);
+        var sourceText = new Mist.Common.Source.SourceText("test.mist", literal);
         var bag = new DiagnosticBag();
         var stream = Lexer.Lex(sourceText, bag);
 

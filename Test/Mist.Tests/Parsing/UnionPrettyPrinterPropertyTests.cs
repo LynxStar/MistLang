@@ -69,7 +69,7 @@ public class UnionPrettyPrinterPropertyTests
 
     private static CompilationUnitNode ParseOrFail(string source)
     {
-        var sourceText = new Mist.Common.Text.SourceText("test.mist", source);
+        var sourceText = new Mist.Common.Source.SourceText("test.mist", source);
         var bag = new DiagnosticBag();
         var tokens = Lexer.Lex(sourceText, bag);
         var result = Parser.Parse(tokens, bag);
@@ -107,12 +107,8 @@ public class UnionPrettyPrinterPropertyTests
     {
         // Find the field declaration line: "    public {type} x;"
         var lines = prettyPrinted.Split('\n');
-        var fieldLine = lines.FirstOrDefault(l => l.Contains(" x;"));
-        if(fieldLine is null)
-        {
-            throw new InvalidOperationException(
+        var fieldLine = lines.FirstOrDefault(l => l.Contains(" x;")) ?? throw new InvalidOperationException(
                 $"Could not find field declaration in pretty-printed output:\n{prettyPrinted}");
-        }
 
         // Strip "    public " prefix and " x;" suffix
         var trimmed = fieldLine.Trim();

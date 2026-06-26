@@ -57,9 +57,15 @@ internal readonly struct CharRange : IEquatable<CharRange>
         }
     }
 
-    public static bool operator ==(CharRange left, CharRange right) => left.Equals(right);
+    public static bool operator ==(CharRange left, CharRange right)
+    {
+        return left.Equals(right);
+    }
 
-    public static bool operator !=(CharRange left, CharRange right) => !left.Equals(right);
+    public static bool operator !=(CharRange left, CharRange right)
+    {
+        return !left.Equals(right);
+    }
 
     public override string ToString()
     {

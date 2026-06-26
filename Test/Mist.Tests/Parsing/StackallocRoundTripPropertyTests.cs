@@ -43,7 +43,7 @@ public class StackallocRoundTripPropertyTests
 
     private static CompilationUnitNode ParseOrFail(string source)
     {
-        var sourceText = new Mist.Common.Text.SourceText("test.mist", source);
+        var sourceText = new Mist.Common.Source.SourceText("test.mist", source);
         var bag = new Mist.Common.Diagnostics.DiagnosticBag();
         var tokens = Lexer.Lex(sourceText, bag);
         var result = Parser.Parse(tokens, bag);
@@ -108,8 +108,8 @@ public class StackallocRoundTripPropertyTests
 
         // Exactly one element-type child and one size-expression child.
         var children = node.Children().ToList();
-        var hasOneTypeChild = node.Type is ElementTypeRefNode;
-        var hasOneSizeChild = node.Size is ExpressionNode;
+        var hasOneTypeChild = node.Type is not null;
+        var hasOneSizeChild = node.Size is not null;
         var exactlyTwoChildren = children.Count == 2;
 
         return (hasOneTypeChild && hasOneSizeChild && exactlyTwoChildren).ToProperty().Label(
@@ -147,8 +147,8 @@ public class StackallocRoundTripPropertyTests
         var stackallocs2 = CollectStackallocNodes(ast2);
         var structurePreserved =
             stackallocs2.Count == 1 &&
-            stackallocs2[0].Type is ElementTypeRefNode &&
-            stackallocs2[0].Size is ExpressionNode;
+            stackallocs2[0].Type is not null &&
+            stackallocs2[0].Size is not null;
 
         return (structurePreserved && printed1 == printed2).ToProperty().Label(
             $"Round-trip structure/stability mismatch (nodes={stackallocs2.Count}, stable={printed1 == printed2}).\n" +

@@ -372,7 +372,7 @@ public sealed class ThisTierCallSiteCheckingTests
             """;
 
         // Build semantic model and manually set DeclaredThisTier on Close().
-        var sourceText = new Mist.Common.Text.SourceText("test.mist", source);
+        var sourceText = new Mist.Common.Source.SourceText("test.mist", source);
         var lexBag = new DiagnosticBag();
         var tokens = new Mist.Lexing.MistLexer().Lex(sourceText, lexBag);
         Assert.False(lexBag.HasErrors);

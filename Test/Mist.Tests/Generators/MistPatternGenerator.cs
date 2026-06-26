@@ -286,37 +286,37 @@ public static class MistPatternGenerator
             });
 
         var twoElements = from a in Gen.Choose(0, 10)
-                           from b in Gen.Choose(0, 10)
-                           select (PrimaryPatternNode)new ListPatternPrimaryPatternNode
-                           {
-                               Elements = new ListPatternElementListNode
-                               {
-                                   ListPatternElement = new PatternElementListPatternElementNode
-                                   {
-                                       Pattern = WrapPrimaryPattern(
-                                           new ConstantPatternPrimaryPatternNode
-                                           {
-                                               Literal = new IntegerConstantConstantLiteralNode
-                                               {
-                                                   Value = Tok(a.ToString()),
-                                               },
-                                           }),
-                                   },
-                                   ListPatternElements = ImmutableArray.Create<ListPatternElementNode>(
-                                       new PatternElementListPatternElementNode
-                                       {
-                                           Pattern = WrapPrimaryPattern(
-                                               new ConstantPatternPrimaryPatternNode
-                                               {
-                                                   Literal = new IntegerConstantConstantLiteralNode
-                                                   {
-                                                       Value = Tok(b.ToString()),
-                                                   },
-                                               }),
-                                       },
-                                       new SliceElementListPatternElementNode()),
-                               },
-                           };
+                          from b in Gen.Choose(0, 10)
+                          select (PrimaryPatternNode)new ListPatternPrimaryPatternNode
+                          {
+                              Elements = new ListPatternElementListNode
+                              {
+                                  ListPatternElement = new PatternElementListPatternElementNode
+                                  {
+                                      Pattern = WrapPrimaryPattern(
+                                          new ConstantPatternPrimaryPatternNode
+                                          {
+                                              Literal = new IntegerConstantConstantLiteralNode
+                                              {
+                                                  Value = Tok(a.ToString()),
+                                              },
+                                          }),
+                                  },
+                                  ListPatternElements = ImmutableArray.Create<ListPatternElementNode>(
+                                      new PatternElementListPatternElementNode
+                                      {
+                                          Pattern = WrapPrimaryPattern(
+                                              new ConstantPatternPrimaryPatternNode
+                                              {
+                                                  Literal = new IntegerConstantConstantLiteralNode
+                                                  {
+                                                      Value = Tok(b.ToString()),
+                                                  },
+                                              }),
+                                      },
+                                      new SliceElementListPatternElementNode()),
+                              },
+                          };
 
         return Gen.OneOf(singleElement, twoElements);
     }

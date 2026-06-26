@@ -15,7 +15,7 @@ using FsCheck;
 using FsCheck.Fluent;
 using FsCheck.Xunit;
 using Mist.Common.Diagnostics;
-using Mist.Common.Text;
+using Mist.Common.Source;
 using Mist.Driver;
 using Mist.Driver.Contracts;
 using Mist.Lexing.Contracts;
@@ -266,8 +266,8 @@ public class KeywordAliasReferenceIdentityPropertyTests
             .Where(s => s.Name == simpleName
                         && (s.Kind == SymbolKind.Class || s.Kind == SymbolKind.Struct)
                         && s.DeclaredType is IType t
-                        && (t is ClassType ct && ct.ContainingNamespace == namespaceName
-                            || t is StructType st && st.ContainingNamespace == namespaceName))
+                        && ((t is ClassType ct && ct.ContainingNamespace == namespaceName)
+                            || (t is StructType st && st.ContainingNamespace == namespaceName)))
             .Select(s => s.DeclaredType!)
             .FirstOrDefault();
     }

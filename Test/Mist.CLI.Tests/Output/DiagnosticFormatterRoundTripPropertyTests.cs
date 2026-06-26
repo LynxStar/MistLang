@@ -4,7 +4,7 @@ using FsCheck.Fluent;
 using FsCheck.Xunit;
 using Mist.Backends.CSharpTranspiler.Diagnostics;
 using Mist.Common.Diagnostics;
-using Mist.Common.Text;
+using Mist.Common.Source;
 
 namespace Mist.CLI.Tests.Output;
 

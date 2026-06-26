@@ -253,11 +253,11 @@ public class MemoizationEmitterTests
     private static readonly object parserEmitLock = new();
 
     /// <summary>
-    /// Minimal stub for <c>Mist.Common.Text.NodeOrigin</c> so the emitted
+    /// Minimal stub for <c>Mist.Common.Source.NodeOrigin</c> so the emitted
     /// <c>SyntaxNode</c> compiles without referencing the full Mist assembly.
     /// </summary>
     private const string NodeOriginStub =
-        "namespace Mist.Common.Text { public abstract record NodeOrigin { } }";
+        "namespace Mist.Common.Source { public abstract record NodeOrigin { } }";
 
     /// <summary>
     /// Emits the full generated parser for <paramref name="grammar"/> under the

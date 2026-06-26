@@ -124,7 +124,7 @@ public class ParserCompletenessPropertyTests
     public Property ValidPrefix_WithTrailingContent_EmitsParseIncomplete(
         CompletenessScenario scenario)
     {
-        var sourceText = new Mist.Common.Text.SourceText("test.mist", scenario.CombinedSource);
+        var sourceText = new Mist.Common.Source.SourceText("test.mist", scenario.CombinedSource);
         var bag = new DiagnosticBag();
         var tokens = Lexer.Lex(sourceText, bag);
         var result = Parser.Parse(tokens, bag);

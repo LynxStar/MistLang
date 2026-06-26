@@ -134,8 +134,12 @@ public sealed class DelegateType : IType, IEquatable<DelegateType>
     }
 
     public static bool operator ==(DelegateType? left, DelegateType? right)
-        => left is null ? right is null : left.Equals(right);
+    {
+        return left is null ? right is null : left.Equals(right);
+    }
 
     public static bool operator !=(DelegateType? left, DelegateType? right)
-        => !(left == right);
+    {
+        return !(left == right);
+    }
 }

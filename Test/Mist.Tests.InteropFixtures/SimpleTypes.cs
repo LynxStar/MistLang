@@ -9,7 +9,10 @@ public class SimpleClass
     public string Name { get; set; } = "default";
 
     public SimpleClass() { }
-    public SimpleClass(int value) => Value = value;
+    public SimpleClass(int value)
+    {
+        Value = value;
+    }
 
     public int GetValue()
     {

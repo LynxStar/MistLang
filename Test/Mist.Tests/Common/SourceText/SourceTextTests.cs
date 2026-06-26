@@ -1,4 +1,4 @@
-using Mist.Common.Text;
+using Mist.Common.Source;
 
 namespace Mist.Tests.Common.SourceText;
 
@@ -7,7 +7,7 @@ public class SourceTextTests
     [Fact]
     public void GetSpan_ReturnCorrectSlice()
     {
-        var source = new Mist.Common.Text.SourceText("test.mist", "hello world");
+        var source = new Mist.Common.Source.SourceText("test.mist", "hello world");
         var span = new SourceSpan(6, 5);
 
         var result = source.GetSpan(span);
@@ -18,7 +18,7 @@ public class SourceTextTests
     [Fact]
     public void GetSpan_EmptySpan_ReturnsEmpty()
     {
-        var source = new Mist.Common.Text.SourceText("test.mist", "hello");
+        var source = new Mist.Common.Source.SourceText("test.mist", "hello");
         var span = new SourceSpan(0, 0);
 
         var result = source.GetSpan(span);
@@ -29,7 +29,7 @@ public class SourceTextTests
     [Fact]
     public void GetSpan_EntireContents()
     {
-        var source = new Mist.Common.Text.SourceText("test.mist", "abc");
+        var source = new Mist.Common.Source.SourceText("test.mist", "abc");
         var span = new SourceSpan(0, 3);
 
         var result = source.GetSpan(span);
@@ -40,7 +40,7 @@ public class SourceTextTests
     [Fact]
     public void ToLinePositionSpan_SingleLine()
     {
-        var source = new Mist.Common.Text.SourceText("test.mist", "hello world");
+        var source = new Mist.Common.Source.SourceText("test.mist", "hello world");
         var span = new SourceSpan(6, 5);
 
         var lps = source.ToLinePositionSpan(span);
@@ -52,7 +52,7 @@ public class SourceTextTests
     [Fact]
     public void ToLinePositionSpan_MultiLine()
     {
-        var source = new Mist.Common.Text.SourceText("test.mist", "line1\nline2\nline3");
+        var source = new Mist.Common.Source.SourceText("test.mist", "line1\nline2\nline3");
         // "line2" starts at offset 6, length 5
         var span = new SourceSpan(6, 5);
 
@@ -65,7 +65,7 @@ public class SourceTextTests
     [Fact]
     public void ToLinePositionSpan_SpanCrossesLines()
     {
-        var source = new Mist.Common.Text.SourceText("test.mist", "ab\ncd\nef");
+        var source = new Mist.Common.Source.SourceText("test.mist", "ab\ncd\nef");
         // From 'b' (offset 1), length 3 => "b\nc", end offset = 4 which is 'd' at line 2, col 2
         var span = new SourceSpan(1, 3);
 
@@ -78,7 +78,7 @@ public class SourceTextTests
     [Fact]
     public void ToLinePositionSpan_EmptyInput()
     {
-        var source = new Mist.Common.Text.SourceText("test.mist", "");
+        var source = new Mist.Common.Source.SourceText("test.mist", "");
         var span = new SourceSpan(0, 0);
 
         var lps = source.ToLinePositionSpan(span);
@@ -90,7 +90,7 @@ public class SourceTextTests
     [Fact]
     public void ToLinePositionSpan_SpanAtEndOfFile()
     {
-        var source = new Mist.Common.Text.SourceText("test.mist", "abc\ndef");
+        var source = new Mist.Common.Source.SourceText("test.mist", "abc\ndef");
         // Last char 'f' at offset 6, length 1
         var span = new SourceSpan(6, 1);
 
@@ -103,7 +103,7 @@ public class SourceTextTests
     [Fact]
     public void ToLinePositionSpan_WindowsLineEndings()
     {
-        var source = new Mist.Common.Text.SourceText("test.mist", "ab\r\ncd");
+        var source = new Mist.Common.Source.SourceText("test.mist", "ab\r\ncd");
         // "cd" starts at offset 4, length 2
         var span = new SourceSpan(4, 2);
 

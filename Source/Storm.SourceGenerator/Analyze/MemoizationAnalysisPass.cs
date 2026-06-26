@@ -425,7 +425,10 @@ public static class MemoizationAnalysisPass
         private readonly List<List<string>> components = new();
         private int index;
 
-        public TarjanScc(Dictionary<string, HashSet<string>> graph) => this.graph = graph;
+        public TarjanScc(Dictionary<string, HashSet<string>> graph)
+        {
+            this.graph = graph;
+        }
 
         public List<List<string>> Run()
         {

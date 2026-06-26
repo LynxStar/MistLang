@@ -5,7 +5,7 @@ using FsCheck;
 using FsCheck.Fluent;
 using FsCheck.Xunit;
 using Mist.Common.Diagnostics;
-using Mist.Common.Text;
+using Mist.Common.Source;
 using Mist.Generated;
 
 namespace Mist.Tests.Common.SourceText;
@@ -29,7 +29,7 @@ public class DiagnosticLocationResolutionPropertyTests
     /// Input record pairing a SourceText with a valid span within its content bounds.
     /// </summary>
 #pragma warning disable CA1034
-    public record LocationInput(Mist.Common.Text.SourceText Source, int SpanStart, int SpanLength)
+    public record LocationInput(Mist.Common.Source.SourceText Source, int SpanStart, int SpanLength)
     {
         public override string ToString()
         {
@@ -64,7 +64,7 @@ public class DiagnosticLocationResolutionPropertyTests
                from contents in GenNonEmptyContents()
                from start in Gen.Choose(0, contents.Length - 1)
                from length in Gen.Choose(1, contents.Length - start)
-               select new LocationInput(new Mist.Common.Text.SourceText(path, contents), start, length);
+               select new LocationInput(new Mist.Common.Source.SourceText(path, contents), start, length);
     }
 
     public static Arbitrary<LocationInput> ArbLocationInput()

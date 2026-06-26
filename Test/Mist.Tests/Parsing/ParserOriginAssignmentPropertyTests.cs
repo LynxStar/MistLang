@@ -4,7 +4,7 @@
 using FsCheck;
 using FsCheck.Fluent;
 using FsCheck.Xunit;
-using Mist.Common.Text;
+using Mist.Common.Source;
 using Mist.Lexing;
 using Mist.Parsing;
 using Storm.Runtime;
@@ -126,7 +126,7 @@ public class ParserOriginAssignmentPropertyTests
     [Property(MaxTest = 100, Arbitrary = new[] { typeof(ParserOriginAssignmentPropertyTests) })]
     public Property AllNodes_HaveParsedOrigin_WithCorrectSourceText(MistSourceScenario scenario)
     {
-        var sourceText = new Mist.Common.Text.SourceText(scenario.Path, scenario.Source);
+        var sourceText = new Mist.Common.Source.SourceText(scenario.Path, scenario.Source);
         var bag = new Mist.Common.Diagnostics.DiagnosticBag();
         var tokens = Lexer.Lex(sourceText, bag);
         var result = Parser.Parse(tokens, bag);
@@ -145,9 +145,9 @@ public class ParserOriginAssignmentPropertyTests
             if(node.Origin is not ParsedOrigin parsedOrigin)
             {
                 return false.ToProperty()
-                    .Label($"Node of type {node.GetType().Name} has Origin of type " +
+                    .Label((string)($"Node of type {node.GetType().Name} has Origin of type " +
                            $"{node.Origin?.GetType().Name ?? "null"} instead of ParsedOrigin. " +
-                           $"Source: {scenario.Source}");
+                           $"Source: {scenario.Source}"));
             }
 
             // Verify the Source is reference-equal to the SourceText passed to the parser
@@ -171,7 +171,7 @@ public class ParserOriginAssignmentPropertyTests
     [Property(MaxTest = 100, Arbitrary = new[] { typeof(ParserOriginAssignmentPropertyTests) })]
     public Property AllNodes_ShareSameParsedOriginInstance(MistSourceScenario scenario)
     {
-        var sourceText = new Mist.Common.Text.SourceText(scenario.Path, scenario.Source);
+        var sourceText = new Mist.Common.Source.SourceText(scenario.Path, scenario.Source);
         var bag = new Mist.Common.Diagnostics.DiagnosticBag();
         var tokens = Lexer.Lex(sourceText, bag);
         var result = Parser.Parse(tokens, bag);

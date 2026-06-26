@@ -3,7 +3,7 @@
 
 using System.Collections.Immutable;
 using Mist.Common.Diagnostics;
-using Mist.Common.Text;
+using Mist.Common.Source;
 using Mist.Driver.Contracts;
 using Mist.Generated;
 using Mist.Parsing;
@@ -788,7 +788,7 @@ public class PrettyPrinterPropertyTests
             var trimmed = line.Trim();
             if(trimmed.StartsWith("class ") || trimmed.StartsWith("public class ") ||
                 trimmed.StartsWith("struct ") || trimmed.StartsWith("public struct ") ||
-                trimmed.Contains("(") && trimmed.Contains(")") && !trimmed.EndsWith(";"))
+                (trimmed.Contains("(") && trimmed.Contains(")") && !trimmed.EndsWith(";")))
             {
                 if(!trimmed.StartsWith("//") && !trimmed.StartsWith("return") &&
                     !trimmed.StartsWith("var ") && !trimmed.StartsWith("int ") &&

@@ -21,7 +21,7 @@ public class LexerTokenKindTests
     /// </summary>
     private static IReadOnlyList<Storm.Runtime.Token> LexDefaultTokens(string source)
     {
-        var sourceText = new Mist.Common.Text.SourceText("test.mist", source);
+        var sourceText = new Mist.Common.Source.SourceText("test.mist", source);
         var bag = new DiagnosticBag();
         var stream = Lexer.Lex(sourceText, bag);
         return stream.DefaultChannelTokens
@@ -35,7 +35,7 @@ public class LexerTokenKindTests
     /// </summary>
     private static IReadOnlyList<Storm.Runtime.Token> LexAllTokens(string source)
     {
-        var sourceText = new Mist.Common.Text.SourceText("test.mist", source);
+        var sourceText = new Mist.Common.Source.SourceText("test.mist", source);
         var bag = new DiagnosticBag();
         var stream = Lexer.Lex(sourceText, bag);
         return stream.AllTokens

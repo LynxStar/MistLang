@@ -2826,10 +2826,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         // Extract the assignment target (field or local).
         var fieldName = TryExtractThisFieldAssignmentTarget(assignment.Target);
-        if(fieldName is null)
-        {
-            fieldName = TryExtractBareFieldAssignmentTarget(assignment.Target);
-        }
+        fieldName ??= TryExtractBareFieldAssignmentTarget(assignment.Target);
 
         var localSymbol = TryExtractLocalAssignmentTarget(assignment.Target, model);
 
@@ -20603,10 +20600,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     return childPrimary;
                 }
 
-                if(next is null)
-                {
-                    next = child;
-                }
+                next ??= child;
             }
 
             if(childCount > 1 || next is null)

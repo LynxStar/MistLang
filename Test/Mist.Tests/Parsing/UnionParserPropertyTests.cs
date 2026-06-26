@@ -68,7 +68,7 @@ public class UnionParserPropertyTests
 
     private static CompilationUnitNode ParseOrFail(string source)
     {
-        var sourceText = new Mist.Common.Text.SourceText("test.mist", source);
+        var sourceText = new Mist.Common.Source.SourceText("test.mist", source);
         var bag = new DiagnosticBag();
         var tokens = Lexer.Lex(sourceText, bag);
         var result = Parser.Parse(tokens, bag);
@@ -94,12 +94,7 @@ public class UnionParserPropertyTests
 
         var typeDecl = (ClassTypeTypeDeclarationNode)cu.GetTypes()[0];
         var methodMember = (MethodMemberMemberDeclarationNode)typeDecl.ClassDeclaration.Members[0];
-        var block = methodMember.Method.Body.GetBlock();
-        if(block is null)
-        {
-            throw new InvalidOperationException("Method body block is null");
-        }
-
+        var block = methodMember.Method.Body.GetBlock() ?? throw new InvalidOperationException("Method body block is null");
         var stmt = (VariableDeclarationStatementStatementNode)block.Statements[0];
         var varDecl = (TypedVariableDeclarationVariableDeclarationStatementNode)stmt.VariableDeclaration;
         return varDecl.Type;

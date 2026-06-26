@@ -837,7 +837,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                             }
 
                             // Transition the source field to Moved (Req 16 AC 2).
-                            var moveSpan = new Common.Text.SourceSpan(
+                            var moveSpan = new Common.Source.SourceSpan(
                                 typed.Initializer.Span.Start, typed.Initializer.Span.Length);
                             state.MoveField(ownedRecvSym!, ownedFieldSym!, moveSpan);
                             break;
@@ -1148,7 +1148,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                             }
 
                             // Transition the source field to Moved (Req 16 AC 2).
-                            var moveSpan = new Common.Text.SourceSpan(
+                            var moveSpan = new Common.Source.SourceSpan(
                                 inferred.Initializer.Span.Start, inferred.Initializer.Span.Length);
                             state.MoveField(ownedRecvSym!, ownedFieldSym!, moveSpan);
                             break;
@@ -1808,7 +1808,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         }
 
         state.VariableStates[sourceSymbol] = VariableOwnershipState.Moved;
-        state.MoveLocations[sourceSymbol] = new Common.Text.SourceSpan(moveNode.Span.Start, moveNode.Span.Length);
+        state.MoveLocations[sourceSymbol] = new Common.Source.SourceSpan(moveNode.Span.Start, moveNode.Span.Length);
     }
 
     /// <summary>
@@ -3238,7 +3238,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         SyntaxNode node,
         ISemanticModel model)
     {
-        Common.Text.LinePositionSpan? location = null;
+        Common.Source.LinePositionSpan? location = null;
         string? compilationUnitPath = null;
 
         var span = node.Span;
@@ -3263,7 +3263,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                 var source = units[astIndex].Source;
                 compilationUnitPath = source.Path;
 
-                var sourceSpan = new Common.Text.SourceSpan(span.Start, span.Length);
+                var sourceSpan = new Common.Source.SourceSpan(span.Start, span.Length);
                 location = source.ToLinePositionSpan(sourceSpan);
             }
         }

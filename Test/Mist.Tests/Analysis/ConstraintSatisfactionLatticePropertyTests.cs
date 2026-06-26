@@ -39,7 +39,7 @@ public class ConstraintSatisfactionLatticePropertyTests
 
     private static ImmutableArray<Diagnostic> Compile(string source)
     {
-        var sourceText = new Mist.Common.Text.SourceText("test.mist", source);
+        var sourceText = new Mist.Common.Source.SourceText("test.mist", source);
         var lexBag = new DiagnosticBag();
         var tokens = Lexer.Lex(sourceText, lexBag);
 

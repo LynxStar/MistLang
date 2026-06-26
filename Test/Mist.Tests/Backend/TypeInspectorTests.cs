@@ -132,7 +132,7 @@ public sealed class TypeInspectorTests
         var inHidden = false;
         foreach(var line in lines)
         {
-            if(line.TrimStart().StartsWith("HIDDEN:") && !line.Contains(":") == false)
+            if(line.TrimStart().StartsWith("HIDDEN:") && line.Contains(":"))
             {
                 // Check if this is the section header
                 if(line.Trim() == "HIDDEN:")

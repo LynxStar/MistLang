@@ -83,7 +83,7 @@ public class LexerRoundTripPropertyTests
             return true;
         }
 
-        var sourceText = new Mist.Common.Text.SourceText("test.mist", source);
+        var sourceText = new Mist.Common.Source.SourceText("test.mist", source);
         var bag = new DiagnosticBag();
 
         var tokenStream = Lexer.Lex(sourceText, bag);
@@ -121,7 +121,7 @@ public class LexerRoundTripPropertyTests
             return true;
         }
 
-        var sourceText = new Mist.Common.Text.SourceText("test.mist", source);
+        var sourceText = new Mist.Common.Source.SourceText("test.mist", source);
         var bag = new DiagnosticBag();
 
         var tokenStream = Lexer.Lex(sourceText, bag);

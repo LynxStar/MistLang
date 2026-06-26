@@ -8,7 +8,7 @@
 // In-process only: 0 external process spawns (test-process-spawning policy).
 
 using Mist.Analysis.Builtin;
-using Mist.Common.Text;
+using Mist.Common.Source;
 using Mist.Semantics;
 using Mist.Semantics.Contracts;
 using Mist.Semantics.Model;

@@ -419,14 +419,9 @@ public sealed partial class ClassAbstractEmissionPropertyTests : IDisposable
 
         // Declare test class with inheritance clause
         var parts = scenario.ExpectedInheritanceParts;
-        if(parts.Length > 0)
-        {
-            _ = sb.AppendLine($"class {scenario.ClassName} : {string.Join(", ", parts)} {{ }}");
-        }
-        else
-        {
-            _ = sb.AppendLine($"class {scenario.ClassName} {{ }}");
-        }
+        _ = parts.Length > 0
+            ? sb.AppendLine($"class {scenario.ClassName} : {string.Join(", ", parts)} {{ }}")
+            : sb.AppendLine($"class {scenario.ClassName} {{ }}");
 
         _ = sb.AppendLine("class Program { public static void Main() { } }");
         return sb.ToString();

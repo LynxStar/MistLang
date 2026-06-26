@@ -1196,7 +1196,7 @@ public sealed class NestedScopingPropertyTests
             lineEnd = csharpSource.Length;
         }
 
-        var nestedDeclLine = csharpSource.Substring(nestedDeclIndex, lineEnd - nestedDeclIndex);
+        var nestedDeclLine = csharpSource[nestedDeclIndex..lineEnd];
 
         // Check if the nested type's declaration line contains a type parameter list
         // that includes any of the parent's type parameters (but not the nested type's own)

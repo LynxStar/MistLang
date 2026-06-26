@@ -196,14 +196,9 @@ public class AssociatedTypeGenericContextPropertyTests
 
         // Declare the abstract type with the associated type slot
         _ = sb.AppendLine($"abstract {scenario.AbstractName} {{");
-        if(scenario.HasSlotConstraint)
-        {
-            _ = sb.AppendLine($"    type {scenario.SlotName} : {scenario.SlotConstraintAbstractName};");
-        }
-        else
-        {
-            _ = sb.AppendLine($"    type {scenario.SlotName};");
-        }
+        _ = scenario.HasSlotConstraint
+            ? sb.AppendLine($"    type {scenario.SlotName} : {scenario.SlotConstraintAbstractName};")
+            : sb.AppendLine($"    type {scenario.SlotName};");
 
         _ = sb.AppendLine("}");
         _ = sb.AppendLine();

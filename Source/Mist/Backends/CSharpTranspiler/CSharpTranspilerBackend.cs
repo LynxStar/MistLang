@@ -81,7 +81,7 @@ public sealed class CSharpTranspilerBackend : IBackend
         {
             if(cachedProvider is not null
                 && cachedMergedPaths.Length == mergedPaths.Length
-                && cachedMergedPaths.All(p => mergedSet.Contains(p)))
+                && cachedMergedPaths.All(mergedSet.Contains))
             {
                 return cachedProvider;
             }

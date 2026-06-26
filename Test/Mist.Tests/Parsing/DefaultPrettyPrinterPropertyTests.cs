@@ -291,8 +291,7 @@ public class DefaultPrettyPrinterPropertyTests
     /// </summary>
     private static Gen<CompilationUnitNode> GenClassWithDefaultExpressions()
     {
-        var genDefaultStmt = GenAnyDefaultExpression().Select(expr =>
-            MistAstGenerator.MakeExpressionStatement(expr));
+        var genDefaultStmt = GenAnyDefaultExpression().Select(MistAstGenerator.MakeExpressionStatement);
 
         return from className in Gen.Elements(ClassNames)
                from stmts in genDefaultStmt.ListOf()
@@ -336,8 +335,7 @@ public class DefaultPrettyPrinterPropertyTests
     /// </summary>
     private static Gen<CompilationUnitNode> GenClassWithDefaultBlockAndExpressions()
     {
-        var genDefaultStmt = GenAnyDefaultExpression().Select(expr =>
-            MistAstGenerator.MakeExpressionStatement(expr));
+        var genDefaultStmt = GenAnyDefaultExpression().Select(MistAstGenerator.MakeExpressionStatement);
 
         var genField = from fieldName in Gen.Elements(FieldNames)
                        from typeRef in MistTypeGenerator.GenPrimitiveTypeRef()

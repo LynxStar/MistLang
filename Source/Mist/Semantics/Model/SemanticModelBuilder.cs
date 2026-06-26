@@ -700,7 +700,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         {
             // qualifiedName is like "Standard.Int32" — extract just the type name.
             var dotIndex = qualifiedName.LastIndexOf('.');
-            var typeName = dotIndex >= 0 ? qualifiedName.Substring(dotIndex + 1) : qualifiedName;
+            var typeName = dotIndex >= 0 ? qualifiedName[(dotIndex + 1)..] : qualifiedName;
             map[typeName] = keyword;
         }
 
@@ -3351,14 +3351,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             // When the parser sees "readonly ref" on a field, it may parse it as
             // modifier=READONLY + ownershipSpecifier=RefSpecifier (due to greedy matching).
             // In that case, the combined meaning is ReadonlyRef.
-            if(HasReadonlyModifier(fieldDecl.Modifiers) && fieldDecl.OwnershipSpecifier is RefSpecifierOwnershipSpecifierNode)
-            {
-                fieldSymbol.OwnershipTier = OwnershipTier.ReadonlyRef;
-            }
-            else
-            {
-                fieldSymbol.OwnershipTier = MapOwnershipSpecifier(fieldDecl.OwnershipSpecifier);
-            }
+            fieldSymbol.OwnershipTier = HasReadonlyModifier(fieldDecl.Modifiers) && fieldDecl.OwnershipSpecifier is RefSpecifierOwnershipSpecifierNode
+                ? OwnershipTier.ReadonlyRef
+                : MapOwnershipSpecifier(fieldDecl.OwnershipSpecifier);
 
             // Mark as owned field when the specifier is 'owned' (Req 1.1, 1.2).
             if(fieldDecl.OwnershipSpecifier is OwnedSpecifierOwnershipSpecifierNode)
@@ -3541,7 +3536,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         var raw = sourceText.Contents.Substring(span.Start, span.Length);
                         // Strip array rank suffix if present.
                         var bracketIdx = raw.IndexOf('[');
-                        return bracketIdx >= 0 ? raw.Substring(0, bracketIdx).Trim() : raw.Trim();
+                        return bracketIdx >= 0 ? raw[..bracketIdx].Trim() : raw.Trim();
                     }
                 }
 
@@ -7672,38 +7667,19 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         ISymbol symbol,
         Storm.Runtime.SyntaxNode declaringNode)
     {
-        switch(declaringNode)
+        return declaringNode switch
         {
-            case ClassDeclarationNode classDecl when symbol.DeclaredType is ClassType classType:
-                return (classDecl.Constraints, classType.TypeParameters);
-
-            case StructDeclarationNode structDecl when symbol.DeclaredType is StructType structType:
-                return (structDecl.Constraints, structType.TypeParameters);
-
-            case AbstractDeclarationNode abstractDecl when symbol.DeclaredType is AbstractType abstractType:
-                return (abstractDecl.Constraints, abstractType.TypeParameters);
-
-            case MethodDeclarationNode methodDecl when symbol is Symbol methodSymbol:
-                return (methodDecl.Constraints, methodSymbol.TypeParameters);
-
-            case AbstractMethodDeclarationNode abstractMethodDecl when symbol is Symbol ifaceMethodSymbol:
-                return (abstractMethodDecl.Constraints, ifaceMethodSymbol.TypeParameters);
-
-            case TypeAliasDeclarationNode aliasDecl when symbol is Symbol aliasSymbol:
-                return (aliasDecl.Constraints, aliasSymbol.TypeParameters);
-
-            case ConstructorDeclarationNode ctorDecl:
-                return (ctorDecl.Constraints, Array.Empty<IType>());
-
-            case IndexerDeclarationNode indexerDecl2:
-                return (indexerDecl2.Constraints, Array.Empty<IType>());
-
-            case AssociatedTypeSlotDeclarationNode slotDecl when symbol is Symbol slotSymbol:
-                return (slotDecl.SlotWhereConstraints, slotSymbol.TypeParameters);
-
-            default:
-                return (ImmutableArray<WhereClauseNode>.Empty, Array.Empty<IType>());
-        }
+            ClassDeclarationNode classDecl when symbol.DeclaredType is ClassType classType => (classDecl.Constraints, classType.TypeParameters),
+            StructDeclarationNode structDecl when symbol.DeclaredType is StructType structType => (structDecl.Constraints, structType.TypeParameters),
+            AbstractDeclarationNode abstractDecl when symbol.DeclaredType is AbstractType abstractType => (abstractDecl.Constraints, abstractType.TypeParameters),
+            MethodDeclarationNode methodDecl when symbol is Symbol methodSymbol => (methodDecl.Constraints, methodSymbol.TypeParameters),
+            AbstractMethodDeclarationNode abstractMethodDecl when symbol is Symbol ifaceMethodSymbol => (abstractMethodDecl.Constraints, ifaceMethodSymbol.TypeParameters),
+            TypeAliasDeclarationNode aliasDecl when symbol is Symbol aliasSymbol => (aliasDecl.Constraints, aliasSymbol.TypeParameters),
+            ConstructorDeclarationNode ctorDecl => ((ImmutableArray<WhereClauseNode> Clauses, IReadOnlyList<IType> TypeParams))(ctorDecl.Constraints, Array.Empty<IType>()),
+            IndexerDeclarationNode indexerDecl2 => ((ImmutableArray<WhereClauseNode> Clauses, IReadOnlyList<IType> TypeParams))(indexerDecl2.Constraints, Array.Empty<IType>()),
+            AssociatedTypeSlotDeclarationNode slotDecl when symbol is Symbol slotSymbol => (slotDecl.SlotWhereConstraints, slotSymbol.TypeParameters),
+            _ => ((ImmutableArray<WhereClauseNode> Clauses, IReadOnlyList<IType> TypeParams))(ImmutableArray<WhereClauseNode>.Empty, Array.Empty<IType>()),
+        };
     }
 
     /// <summary>
@@ -12676,18 +12652,11 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 // Member has an explicit value expression.
                 // If we already resolved this expression above (during type inference),
                 // retrieve its type from the expression types map. Otherwise resolve it now.
-                IType valueType;
-                if(expressionTypes.ContainsKey(memberNode.Value))
-                {
-                    valueType = expressionTypes[memberNode.Value];
-                }
-                else
-                {
-                    valueType = ResolveExpression(
+                var valueType = expressionTypes.ContainsKey(memberNode.Value)
+                    ? expressionTypes[memberNode.Value]
+                    : ResolveExpression(
                         memberNode.Value, (Scope)enumType.MemberScope, fileScope, enumType,
                         isStatic: true, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
-                }
-
                 memberInfo.ValueType = valueType;
 
                 // Try to extract a compile-time integer value for sequencing.
@@ -14982,14 +14951,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             // When the parser sees "readonly ref", it may parse it as modifier=READONLY +
             // ownershipSpecifier=RefSpecifier (due to greedy matching of the READONLY modifier).
             // In that case, the combined meaning is ReadonlyRef, not just Borrowed.
-            if(param.Modifier is not null && param.OwnershipSpecifier is RefSpecifierOwnershipSpecifierNode)
-            {
-                paramSymbol.OwnershipTier = OwnershipTier.ReadonlyRef;
-            }
-            else
-            {
-                paramSymbol.OwnershipTier = MapOwnershipSpecifier(param.OwnershipSpecifier);
-            }
+            paramSymbol.OwnershipTier = param.Modifier is not null && param.OwnershipSpecifier is RefSpecifierOwnershipSpecifierNode
+                ? OwnershipTier.ReadonlyRef
+                : MapOwnershipSpecifier(param.OwnershipSpecifier);
         }
 
         methodScope.AddMember(paramSymbol);
@@ -17241,8 +17205,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     var firstDot = typeName.IndexOf('.');
                     if(firstDot > 0 && firstDot < typeName.Length - 1)
                     {
-                        var leftPart = typeName.Substring(0, firstDot);
-                        var rightPart = typeName.Substring(firstDot + 1);
+                        var leftPart = typeName[..firstDot];
+                        var rightPart = typeName[(firstDot + 1)..];
 
                         var leftSymbol = fileScope.Lookup(leftPart);
                         if(leftSymbol is not null && leftSymbol.DeclaredType is TypeParameterType typeParamLeft)
@@ -17558,8 +17522,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 $"MIST_STDLIB_MISSING: stdlib type name '{qualifiedName}' is not fully qualified.");
         }
 
-        var namespaceName = qualifiedName.Substring(0, lastDot);
-        var simpleName = qualifiedName.Substring(lastDot + 1);
+        var namespaceName = qualifiedName[..lastDot];
+        var simpleName = qualifiedName[(lastDot + 1)..];
 
         // Walk directly to the target namespace scope. No file scope, no
         // using-directive, no scope chain.
@@ -18310,8 +18274,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             {
                 for(var dotIdx = typeName.LastIndexOf('.'); dotIdx > 0; dotIdx = typeName.LastIndexOf('.', dotIdx - 1))
                 {
-                    var candidateNs = typeName.Substring(0, dotIdx);
-                    var candidateType = typeName.Substring(dotIdx + 1);
+                    var candidateNs = typeName[..dotIdx];
+                    var candidateType = typeName[(dotIdx + 1)..];
 
                     if(ambientTypeResolver.HasNamespace(candidateNs))
                     {
@@ -18332,8 +18296,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 // "System.IO.MemoryStream" when "using System;" is present.
                 for(var dotIdx = typeName.LastIndexOf('.'); dotIdx > 0; dotIdx = typeName.LastIndexOf('.', dotIdx - 1))
                 {
-                    var candidateNsSuffix = typeName.Substring(0, dotIdx);
-                    var candidateType = typeName.Substring(dotIdx + 1);
+                    var candidateNsSuffix = typeName[..dotIdx];
+                    var candidateType = typeName[(dotIdx + 1)..];
 
                     foreach(var importedNs in importedNamespaces)
                     {
@@ -19290,22 +19254,13 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     {
         // ExpressionNode is now an abstract base split into a lambda form and an
         // assignment form. Dispatch on the subtype.
-        IType type;
-        switch(expr)
+        var type = expr switch
         {
-            case AssignmentFormExpressionNode assignmentForm:
-                type = ResolveAssignment(assignmentForm.Assignment, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
-                break;
-
-            case LambdaFormExpressionNode lambdaForm:
-                type = ResolveLambdaExpression(lambdaForm.Lambda, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
-                break;
-
-            default:
-                throw new InvalidOperationException(
-                    $"Unknown ExpressionNode variant: {expr.GetType().Name}");
-        }
-
+            AssignmentFormExpressionNode assignmentForm => ResolveAssignment(assignmentForm.Assignment, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics),
+            LambdaFormExpressionNode lambdaForm => ResolveLambdaExpression(lambdaForm.Lambda, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics),
+            _ => throw new InvalidOperationException(
+                                $"Unknown ExpressionNode variant: {expr.GetType().Name}"),
+        };
         expressionTypes[expr] = type;
         return type;
     }
@@ -20569,8 +20524,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         if(dotIndex > 0)
                         {
                             // Qualified name with a dot — try to resolve as EnumName.MemberName.
-                            var enumName = qualifiedName.Substring(0, dotIndex);
-                            var memberName = qualifiedName.Substring(dotIndex + 1);
+                            var enumName = qualifiedName[..dotIndex];
+                            var memberName = qualifiedName[(dotIndex + 1)..];
                             var enumSymbol = fileScope.Lookup(enumName);
                             if(enumSymbol is not null && enumSymbol.Kind == SymbolKind.Enum && enumSymbol.DeclaredType is EnumType enumType)
                             {
@@ -21035,16 +20990,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     // The hint identifier determines the wrapper type.
                     var returnType = ResolveBlockReturnType(asyncHintBlock.Body, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
                     var hint = asyncHintBlock.Hint.Lexeme;
-                    IType resultType;
-                    if(hint == "valuetask")
-                    {
-                        resultType = ConstructValueTaskType(returnType, fileScope, symbolTable);
-                    }
-                    else
-                    {
-                        resultType = ConstructTaskType(returnType, fileScope, symbolTable);
-                    }
-
+                    var resultType = hint == "valuetask"
+                        ? ConstructValueTaskType(returnType, fileScope, symbolTable)
+                        : ConstructTaskType(returnType, fileScope, symbolTable);
                     expressionTypes[node] = resultType;
                     return resultType;
                 }
@@ -21296,15 +21244,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     // Determine memberType: use unified result if available, otherwise
                     // fall back to LookupMemberType for non-method cases (namespace refs,
                     // enum access, special types like arrays/strings, etc.).
-                    IType memberType;
-                    if(unifiedResult is not null)
-                    {
-                        memberType = unifiedResult.Value.ReturnType;
-                    }
-                    else
-                    {
-                        memberType = LookupMemberType(targetType, memberName, ambientTypeResolver, fileScope, symbolTable, sourceText, diagnostics);
-                    }
+                    var memberType = unifiedResult is not null
+                        ? unifiedResult.Value.ReturnType
+                        : LookupMemberType(targetType, memberName, ambientTypeResolver, fileScope, symbolTable, sourceText, diagnostics);
 
                     // Kind-aware validation: method call must not resolve to a field or property.
                     if(memberType is not ErrorType)
@@ -23002,14 +22944,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     // declaration annotation) and is an ArrayType, use the target element type.
                     // Otherwise, produce ErrorType (the type checker will emit a diagnostic
                     // indicating that empty array literals require an explicit element type).
-                    if(emptyArrayTargetType is ArrayType targetArrayType)
-                    {
-                        result = new ArrayType(targetArrayType.ElementType, 0);
-                    }
-                    else
-                    {
-                        result = ErrorType.Instance;
-                    }
+                    result = emptyArrayTargetType is ArrayType targetArrayType ? new ArrayType(targetArrayType.ElementType, 0) : ErrorType.Instance;
 
                     break;
                 }
@@ -23801,19 +23736,11 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             // they're applicable when the concrete type is not known at compile time.
             // Task 7.8: When the static type is a union type (A | B), only include
             // extensions applicable to ALL constituents. Universal extensions always apply.
-            IReadOnlyList<ExtensionBlockInfo> applicableExtensions;
-            if(lookupType is UnknownType)
-            {
-                applicableExtensions = extensionRegistryContext.UniversalExtensions;
-            }
-            else if(lookupType is UnionType unionType)
-            {
-                applicableExtensions = extensionRegistryContext.GetApplicableExtensionsForUnion(unionType.Constituents);
-            }
-            else
-            {
-                applicableExtensions = extensionRegistryContext.GetApplicableExtensions(lookupType);
-            }
+            var applicableExtensions = lookupType is UnknownType
+                ? extensionRegistryContext.UniversalExtensions
+                : lookupType is UnionType unionType
+                    ? extensionRegistryContext.GetApplicableExtensionsForUnion(unionType.Constituents)
+                    : extensionRegistryContext.GetApplicableExtensions(lookupType);
 
             // Filter by namespace visibility: only include extensions whose
             // ContainingNamespace is null (top-level) or is in the current

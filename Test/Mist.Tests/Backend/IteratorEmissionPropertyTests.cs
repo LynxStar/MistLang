@@ -527,6 +527,6 @@ public sealed class IteratorEmissionPropertyTests : IDisposable
             pos++;
         }
 
-        return emittedCSharp.Substring(braceStart, pos - braceStart);
+        return emittedCSharp[braceStart..pos];
     }
 }

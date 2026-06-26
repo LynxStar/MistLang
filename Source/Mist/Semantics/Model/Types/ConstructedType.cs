@@ -58,14 +58,9 @@ public sealed class ConstructedType : IType
         var argParts = new string[typeArguments.Count];
         for(var i = 0; i < typeArguments.Count; i++)
         {
-            if(dependentArguments is not null && i < dependentArguments.Count && dependentArguments[i] is { } depArg)
-            {
-                argParts[i] = depArg.DisplayValue;
-            }
-            else
-            {
-                argParts[i] = typeArguments[i].DisplayName;
-            }
+            argParts[i] = dependentArguments is not null && i < dependentArguments.Count && dependentArguments[i] is { } depArg
+                ? depArg.DisplayValue
+                : typeArguments[i].DisplayName;
         }
 
         DisplayName = $"{genericDefinition.DisplayName}<{string.Join(", ", argParts)}>";

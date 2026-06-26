@@ -390,7 +390,7 @@ public sealed class ManualDropFieldCompletionTests : IDisposable
             pos++;
         }
 
-        return emitted.Substring(braceIdx, pos - braceIdx);
+        return emitted[braceIdx..pos];
     }
 
     private static int CountOccurrences(string text, string pattern)

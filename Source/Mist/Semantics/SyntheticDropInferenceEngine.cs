@@ -181,29 +181,15 @@ public static class SyntheticDropInferenceEngine
         HashSet<IType> explicitDrop,
         Dictionary<IType, InferenceState> stateMap)
     {
-        switch(type)
+        return type switch
         {
-            case TypeAliasType alias:
-                return IsDroppable(alias.UnderlyingType, explicitDrop, stateMap);
-
-            case ConstructedType constructed:
-                // A generic instantiation is droppable iff its definition is.
-                return IsDroppable(constructed.GenericDefinition, explicitDrop, stateMap);
-
-            case ClassType ct when ct.IsDisposableDrop:
-                return false;
-
-            case StructType st when st.IsDisposableDrop:
-                return false;
-
-            case ClassType or StructType:
-                // Recurse so the field's type is synthesized before the container is decided.
-                return Resolve(type, explicitDrop, stateMap);
-
-            default:
-                // Intrinsic / other types: trust the HasDrop flag set during model build.
-                return HasDrop(type);
-        }
+            TypeAliasType alias => IsDroppable(alias.UnderlyingType, explicitDrop, stateMap),
+            ConstructedType constructed => IsDroppable(constructed.GenericDefinition, explicitDrop, stateMap),// A generic instantiation is droppable iff its definition is.
+            ClassType ct when ct.IsDisposableDrop => false,
+            StructType st when st.IsDisposableDrop => false,
+            ClassType or StructType => Resolve(type, explicitDrop, stateMap),// Recurse so the field's type is synthesized before the container is decided.
+            _ => HasDrop(type),// Intrinsic / other types: trust the HasDrop flag set during model build.
+        };
     }
 
     /// <summary>Returns whether a type currently carries a <c>Drop()</c> method.</summary>

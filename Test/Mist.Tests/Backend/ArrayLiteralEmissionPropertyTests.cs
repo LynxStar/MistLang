@@ -145,7 +145,7 @@ public class ArrayLiteralEmissionPropertyTests
         return containsPattern
             .ToProperty()
             .Label($"Expected emitted C# to contain '{expectedPattern}' for array [{elementList}]. " +
-                   $"Emitted: {emittedCSharp?.Substring(0, Math.Min(emittedCSharp.Length, 500)) ?? "<null>"}");
+                   $"Emitted: {emittedCSharp?[..Math.Min(emittedCSharp.Length, 500)] ?? "<null>"}");
     }
 
     // ═════════════════════════════════════════════════════════════════════════

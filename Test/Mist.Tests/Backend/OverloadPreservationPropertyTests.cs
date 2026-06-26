@@ -163,7 +163,7 @@ public sealed class OverloadPreservationPropertyTests
             .ToArray();
 
         var filteredOverloads = allOverloads
-            .Where(m => Filter.IsMemberExcluded(m))
+            .Where(Filter.IsMemberExcluded)
             .ToArray();
 
         // Project the type and its members

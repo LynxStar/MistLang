@@ -277,7 +277,7 @@ public static class AnonymousTypeRoundTripGenerator
     private static Gen<string> GenExplicitProperties(int count)
     {
         var gens = Enumerable.Range(0, count)
-            .Select(i => GenExplicitProperty(i))
+            .Select(GenExplicitProperty)
             .ToArray();
 
         return gens.Aggregate(
@@ -291,7 +291,7 @@ public static class AnonymousTypeRoundTripGenerator
     private static Gen<string> GenIdentifierProjections(int count)
     {
         var gens = Enumerable.Range(0, count)
-            .Select(i => GenIdentifierProjection(i))
+            .Select(GenIdentifierProjection)
             .ToArray();
 
         return gens.Aggregate(

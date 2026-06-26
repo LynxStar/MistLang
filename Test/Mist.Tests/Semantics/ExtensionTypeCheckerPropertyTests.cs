@@ -204,20 +204,13 @@ public class ExtensionTypeCheckerPropertyTests
             ? ImmutableArray.Create<ModifierNode>(new StaticModifierModifierNode())
             : ImmutableArray<ModifierNode>.Empty;
 
-        BlockNode body;
-        if(bodyStatements is not null)
-        {
-            body = new BlockNode { Statements = bodyStatements.Value };
-        }
-        else if(returnType == "void")
-        {
-            body = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty };
-        }
-        else
-        {
-            body = new BlockNode
-            {
-                Statements = ImmutableArray.Create<StatementNode>(
+        var body = bodyStatements is not null
+            ? new BlockNode { Statements = bodyStatements.Value }
+            : returnType == "void"
+                ? new BlockNode { Statements = ImmutableArray<StatementNode>.Empty }
+                : new BlockNode
+                {
+                    Statements = ImmutableArray.Create<StatementNode>(
                     new ReturnStatementStatementNode
                     {
                         ReturnStatement = new ReturnStatementNode
@@ -225,9 +218,7 @@ public class ExtensionTypeCheckerPropertyTests
                             Value = MakeLiteralExpression(returnType),
                         },
                     }),
-            };
-        }
-
+                };
         var methodDecl = new MethodDeclarationNode
         {
             Name = Tok(name),

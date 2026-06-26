@@ -281,7 +281,7 @@ public class AbstractResolutionPropertyTests
 
         // Build the abstract declaration
         var abstractMethods = scenario.AbstractMethodNames
-            .Select(m => MakeAbstractMethod(m))
+            .Select(MakeAbstractMethod)
             .ToImmutableArray();
         var abstractDecl = MakeAbstractDecl(scenario.AbstractName, abstractMethods);
 
@@ -309,16 +309,9 @@ public class AbstractResolutionPropertyTests
 
         // Arrange type declarations: forward reference means implementing type
         // is declared before the abstract
-        TypeDeclarationNode[] typeDecls;
-        if(scenario.ForwardReference)
-        {
-            typeDecls = [implementingTypeDecl, WrapAbstract(abstractDecl)];
-        }
-        else
-        {
-            typeDecls = [WrapAbstract(abstractDecl), implementingTypeDecl];
-        }
-
+        var typeDecls = scenario.ForwardReference
+            ? [implementingTypeDecl, WrapAbstract(abstractDecl)]
+            : (TypeDeclarationNode[])[WrapAbstract(abstractDecl), implementingTypeDecl];
         var ast = MakeCompilationUnit(typeDecls);
         var (model, diagnostics) = BuildModelWithDiagnostics(ast);
 

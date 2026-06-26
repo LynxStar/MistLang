@@ -140,7 +140,7 @@ public sealed class GlobalUsingResolutionEquivalencePropertyTests : IDisposable
     private static bool ContainsKeyword(string name)
     {
         var segments = name.Split('.');
-        return segments.Any(seg => MistKeywords.Contains(seg));
+        return segments.Any(MistKeywords.Contains);
     }
 
     // ═══════════════════════════════════════════════════════════════════════

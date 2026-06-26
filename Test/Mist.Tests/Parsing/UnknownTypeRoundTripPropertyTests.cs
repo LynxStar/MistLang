@@ -109,15 +109,12 @@ public class UnknownTypeRoundTripPropertyTests
     /// </summary>
     private static bool ContainsUnknown(TypeReferenceNode typeRef)
     {
-        switch(typeRef.First)
+        return typeRef.First switch
         {
-            case UnknownSingleTypeRefSingleTypeRefNode:
-                return true;
-            case NamedSingleTypeRefSingleTypeRefNode named when named.TypeArgs is not null:
-                return GetTypeArgs(named.TypeArgs).Any(ContainsUnknown);
-            default:
-                return false;
-        }
+            UnknownSingleTypeRefSingleTypeRefNode => true,
+            NamedSingleTypeRefSingleTypeRefNode named when named.TypeArgs is not null => GetTypeArgs(named.TypeArgs).Any(ContainsUnknown),
+            _ => false,
+        };
     }
 
     private static TypedVariableDeclarationVariableDeclarationStatementNode GetFirstLocalDecl(CompilationUnitNode cu)

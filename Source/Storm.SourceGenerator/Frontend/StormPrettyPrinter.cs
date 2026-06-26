@@ -29,14 +29,9 @@ public static class StormPrettyPrinter
         for(var i = 0; i < file.Imports.Count; i++)
         {
             var imp = file.Imports[i];
-            if(imp.Alias is not null)
-            {
-                _ = sb.AppendLine($"import \"{EscapeString(imp.Path)}\" as {imp.Alias};");
-            }
-            else
-            {
-                _ = sb.AppendLine($"import \"{EscapeString(imp.Path)}\";");
-            }
+            _ = imp.Alias is not null
+                ? sb.AppendLine($"import \"{EscapeString(imp.Path)}\" as {imp.Alias};")
+                : sb.AppendLine($"import \"{EscapeString(imp.Path)}\";");
         }
 
         if(file.Imports.Count > 0 && file.Declarations.Count > 0)
@@ -169,15 +164,15 @@ public static class StormPrettyPrinter
         var sb = new StringBuilder(value.Length);
         foreach(var c in value)
         {
-            switch(c)
+            _ = c switch
             {
-                case '\\': _ = sb.Append("\\\\"); break;
-                case '"': _ = sb.Append("\\\""); break;
-                case '\n': _ = sb.Append("\\n"); break;
-                case '\r': _ = sb.Append("\\r"); break;
-                case '\t': _ = sb.Append("\\t"); break;
-                default: _ = sb.Append(c); break;
-            }
+                '\\' => sb.Append("\\\\"),
+                '"' => sb.Append("\\\""),
+                '\n' => sb.Append("\\n"),
+                '\r' => sb.Append("\\r"),
+                '\t' => sb.Append("\\t"),
+                _ => sb.Append(c),
+            };
         }
 
         return sb.ToString();

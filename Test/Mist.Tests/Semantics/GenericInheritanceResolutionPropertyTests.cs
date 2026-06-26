@@ -267,7 +267,7 @@ public class GenericInheritanceResolutionPropertyTests
 
         // Build type argument list referencing the derived class's type parameters
         var typeArgRefs = scenario.TypeParamNames
-            .Select(tp => MakeNamedTypeRef(tp))
+            .Select(MakeNamedTypeRef)
             .ToArray();
         var typeArgList = MakeTypeArgList(typeArgRefs);
 
@@ -366,7 +366,7 @@ public class GenericInheritanceResolutionPropertyTests
 
         // Build type argument list with concrete primitive types
         var typeArgRefs = scenario.ConcreteArgPrimitives
-            .Select(p => MakePrimitiveTypeRef(p))
+            .Select(MakePrimitiveTypeRef)
             .ToArray();
         var typeArgList = MakeTypeArgList(typeArgRefs);
 
@@ -468,7 +468,7 @@ public class GenericInheritanceResolutionPropertyTests
         {
             // class Box<T> : IContainer<T>
             var typeArgRefs = scenario.TypeParamNames
-                .Select(tp => MakeNamedTypeRef(tp))
+                .Select(MakeNamedTypeRef)
                 .ToArray();
             typeArgList = MakeTypeArgList(typeArgRefs);
 

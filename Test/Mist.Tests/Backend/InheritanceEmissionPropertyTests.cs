@@ -301,14 +301,7 @@ public sealed partial class InheritanceEmissionPropertyTests : IDisposable
         var sb = new System.Text.StringBuilder();
         foreach(var (name, baseName) in scenario.Classes)
         {
-            if(baseName is not null)
-            {
-                _ = sb.AppendLine($"class {name} : {baseName} {{ }}");
-            }
-            else
-            {
-                _ = sb.AppendLine($"class {name} {{ }}");
-            }
+            _ = baseName is not null ? sb.AppendLine($"class {name} : {baseName} {{ }}") : sb.AppendLine($"class {name} {{ }}");
         }
 
         _ = sb.AppendLine("class Program { public static void Main() { } }");

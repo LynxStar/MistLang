@@ -475,20 +475,11 @@ public class StringLengthPropertyTests
         else
         {
             // String method test (Contains or Substring)
-            ExpressionNode callExpr;
-            if(scenario.MethodName == "Contains")
-            {
-                callExpr = MakeMethodCallWithStringArgExpression("input", scenario.MethodName, "x");
-            }
-            else if(scenario.MethodName == "Substring")
-            {
-                callExpr = MakeMethodCallWithIntArgExpression("input", scenario.MethodName, "0");
-            }
-            else
-            {
-                callExpr = MakeMethodCallExpression("input", scenario.MethodName);
-            }
-
+            var callExpr = scenario.MethodName == "Contains"
+                ? MakeMethodCallWithStringArgExpression("input", scenario.MethodName, "x")
+                : scenario.MethodName == "Substring"
+                    ? MakeMethodCallWithIntArgExpression("input", scenario.MethodName, "0")
+                    : MakeMethodCallExpression("input", scenario.MethodName);
             var ast = BuildStringMethodCallProgram(scenario.MethodName, scenario.ExpectedReturnType, callExpr);
             var (model, diagnostics) = BuildModelWithDiagnostics(ast, ambientTypeResolver: resolver);
 

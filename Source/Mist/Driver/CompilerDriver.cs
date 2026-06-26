@@ -468,7 +468,7 @@ public sealed class CompilerDriver : ICompilerDriver
         }
 
         parsingStopwatch.Stop();
-        var totalNodes = asts.Sum(root => SyntaxTreeMetrics.CountNodes(root));
+        var totalNodes = asts.Sum(SyntaxTreeMetrics.CountNodes);
         progressReporter.ReportStageComplete("3", parsingStopwatch.Elapsed, new[]
         {
             $"{totalNodes} AST nodes",

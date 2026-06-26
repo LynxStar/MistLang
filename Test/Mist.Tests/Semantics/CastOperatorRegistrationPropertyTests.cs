@@ -238,21 +238,16 @@ public class CastOperatorRegistrationPropertyTests
             })
             .ToImmutableArray();
 
-        TypeDeclarationNode typeDecl;
-        if(isStruct)
-        {
-            typeDecl = new StructTypeTypeDeclarationNode
+        var typeDecl = isStruct
+            ? new StructTypeTypeDeclarationNode
             {
                 StructDeclaration = new StructDeclarationNode
                 {
                     Name = Tok(enclosingName),
                     Members = members,
                 },
-            };
-        }
-        else
-        {
-            typeDecl = new ClassTypeTypeDeclarationNode
+            }
+            : (TypeDeclarationNode)new ClassTypeTypeDeclarationNode
             {
                 ClassDeclaration = new ClassDeclarationNode
                 {
@@ -260,8 +255,6 @@ public class CastOperatorRegistrationPropertyTests
                     Members = members,
                 },
             };
-        }
-
         return new CompilationUnitNode
         {
             Items = ImmutableArray.Create(typeDecl).AsTopLevelItems(),
@@ -404,7 +397,7 @@ public class CastOperatorRegistrationPropertyTests
             }
 
             // Verify the name encodes the target type
-            var encodedTarget = symbol.Name.Substring(expectedPrefix.Length);
+            var encodedTarget = symbol.Name[expectedPrefix.Length..];
             if(encodedTarget != scenario.TargetTypeName)
             {
                 return false.ToProperty()

@@ -303,7 +303,7 @@ public sealed class RefStructEmissionPropertyTests : IDisposable
         if(scenario.FieldCount > 0)
         {
             // Verify at least one field name from the pool exists in the emitted output
-            var fieldHits = FieldNames.Count(f => emittedCSharp.Contains(f));
+            var fieldHits = FieldNames.Count(emittedCSharp.Contains);
             if(fieldHits < scenario.FieldCount)
             {
                 return false.ToProperty()
@@ -315,7 +315,7 @@ public sealed class RefStructEmissionPropertyTests : IDisposable
         if(scenario.MethodCount > 0)
         {
             // Verify at least one method name from the pool exists in the emitted output
-            var methodHits = MethodNames.Count(m => emittedCSharp.Contains(m));
+            var methodHits = MethodNames.Count(emittedCSharp.Contains);
             if(methodHits < scenario.MethodCount)
             {
                 return false.ToProperty()
@@ -327,7 +327,7 @@ public sealed class RefStructEmissionPropertyTests : IDisposable
         if(scenario.PropertyCount > 0)
         {
             // Verify at least one property name from the pool exists in the emitted output
-            var propertyHits = PropertyNames.Count(p => emittedCSharp.Contains(p));
+            var propertyHits = PropertyNames.Count(emittedCSharp.Contains);
             if(propertyHits < scenario.PropertyCount)
             {
                 return false.ToProperty()

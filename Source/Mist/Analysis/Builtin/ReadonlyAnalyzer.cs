@@ -2660,16 +2660,7 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
         // Determine the receiver type for the last suffix (the one being assigned to).
         // For a single suffix, the receiver is the target. For multiple suffixes,
         // the receiver is the result type of the second-to-last suffix.
-        IType? receiverType;
-        if(postfix.Suffix.Length == 1)
-        {
-            receiverType = model.GetTypeOf(postfix.Target);
-        }
-        else
-        {
-            receiverType = model.GetTypeOf(postfix.Suffix[^2]);
-        }
-
+        var receiverType = postfix.Suffix.Length == 1 ? model.GetTypeOf(postfix.Target) : model.GetTypeOf(postfix.Suffix[^2]);
         if(!IsClosedGenericWithUnknown(receiverType))
         {
             return;

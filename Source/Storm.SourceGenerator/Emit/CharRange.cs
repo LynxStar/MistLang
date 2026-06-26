@@ -1,69 +1,68 @@
 using System;
 
-namespace Storm.SourceGenerator.Emit
+namespace Storm.SourceGenerator.Emit;
+
+/// <summary>
+/// An inclusive character range [Lo, Hi] used to define transitions
+/// in NFA and DFA states. Supports single-character ranges and
+/// multi-character ranges for character classes.
+/// </summary>
+internal readonly struct CharRange : IEquatable<CharRange>
 {
     /// <summary>
-    /// An inclusive character range [Lo, Hi] used to define transitions
-    /// in NFA and DFA states. Supports single-character ranges and
-    /// multi-character ranges for character classes.
+    /// The inclusive lower bound of the range.
     /// </summary>
-    internal readonly struct CharRange : IEquatable<CharRange>
+    public char Lo { get; }
+
+    /// <summary>
+    /// The inclusive upper bound of the range.
+    /// </summary>
+    public char Hi { get; }
+
+    public CharRange(char lo, char hi)
     {
-        /// <summary>
-        /// The inclusive lower bound of the range.
-        /// </summary>
-        public char Lo { get; }
+        Lo = lo;
+        Hi = hi;
+    }
 
-        /// <summary>
-        /// The inclusive upper bound of the range.
-        /// </summary>
-        public char Hi { get; }
+    public CharRange(char single)
+    {
+        Lo = single;
+        Hi = single;
+    }
 
-        public CharRange(char lo, char hi)
+    /// <summary>
+    /// Returns true if the character falls within this range (inclusive).
+    /// </summary>
+    public bool Contains(char c)
+    {
+        return c >= Lo && c <= Hi;
+    }
+
+    public bool Equals(CharRange other)
+    {
+        return Lo == other.Lo && Hi == other.Hi;
+    }
+
+    public override bool Equals(object? obj)
+    {
+        return obj is CharRange other && Equals(other);
+    }
+
+    public override int GetHashCode()
+    {
+        unchecked
         {
-            Lo = lo;
-            Hi = hi;
+            return (Lo.GetHashCode() * 397) ^ Hi.GetHashCode();
         }
+    }
 
-        public CharRange(char single)
-        {
-            Lo = single;
-            Hi = single;
-        }
+    public static bool operator ==(CharRange left, CharRange right) => left.Equals(right);
 
-        /// <summary>
-        /// Returns true if the character falls within this range (inclusive).
-        /// </summary>
-        public bool Contains(char c)
-        {
-            return c >= Lo && c <= Hi;
-        }
+    public static bool operator !=(CharRange left, CharRange right) => !left.Equals(right);
 
-        public bool Equals(CharRange other)
-        {
-            return Lo == other.Lo && Hi == other.Hi;
-        }
-
-        public override bool Equals(object? obj)
-        {
-            return obj is CharRange other && Equals(other);
-        }
-
-        public override int GetHashCode()
-        {
-            unchecked
-            {
-                return (Lo.GetHashCode() * 397) ^ Hi.GetHashCode();
-            }
-        }
-
-        public static bool operator ==(CharRange left, CharRange right) => left.Equals(right);
-
-        public static bool operator !=(CharRange left, CharRange right) => !left.Equals(right);
-
-        public override string ToString()
-        {
-            return Lo == Hi ? $"'{Lo}'" : $"['{Lo}'-'{Hi}']";
-        }
+    public override string ToString()
+    {
+        return Lo == Hi ? $"'{Lo}'" : $"['{Lo}'-'{Hi}']";
     }
 }

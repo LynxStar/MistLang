@@ -507,7 +507,7 @@ public class AbstractMemberLookupMissingPropertyTests
         foreach(var abstractInfo in scenario.Abstracts)
         {
             var methods = abstractInfo.Methods
-                .Select(m => MakeAbstractMethod(m))
+                .Select(MakeAbstractMethod)
                 .ToImmutableArray();
             var decl = MakeAbstractDecl(abstractInfo.Name, methods, abstractInfo.ParentName);
             typeDecls.Add(WrapAbstract(decl));

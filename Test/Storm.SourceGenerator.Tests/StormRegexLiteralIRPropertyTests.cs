@@ -59,7 +59,7 @@ public class StormRegexLiteralIRPropertyTests
         );
 
         return segmentGen.ListOf()
-            .Select(segments => string.Concat(segments));
+            .Select(string.Concat);
     }
 
     /// <summary>

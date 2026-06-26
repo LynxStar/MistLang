@@ -133,15 +133,12 @@ public class TypeParameterRoundTripPropertyTests
     /// </summary>
     private static Gen<TypeParameterListNode> GenTypeParameterList()
     {
-        return Gen.Choose(1, 3).SelectMany(count =>
-        {
-            return Gen.ArrayOf(GenAnyTypeParameter(), count)
+        return Gen.Choose(1, 3).SelectMany(count => Gen.ArrayOf(GenAnyTypeParameter(), count)
                 .Select(parameters => new TypeParameterListNode
                 {
                     TypeParameter = parameters[0],
                     TypeParameters = parameters.Skip(1).ToImmutableArray(),
-                });
-        });
+                }));
     }
 
     /// <summary>

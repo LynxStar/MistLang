@@ -188,7 +188,7 @@ public sealed class CooperationContractSoundnessPropertyTests
 
     private static ContractScenario Build(ImmutableArray<AssignmentSourceKind> kinds)
     {
-        var fragments = kinds.Select((k, i) => BuildFragments(k, i)).ToImmutableArray();
+        var fragments = kinds.Select(BuildFragments).ToImmutableArray();
 
         var fieldDecls = string.Join("\n", fragments.Select(f => f.FieldDecl));
         var parameters = string.Join(", ", fragments.Where(f => f.Param is not null).Select(f => f.Param));

@@ -245,7 +245,7 @@ public sealed class CrossAssemblyInheritanceTests : IDisposable
             .ToArray();
 
         var hiddenMembers = allInheritedMembers
-            .Where(m => filter.IsMemberExcluded(m))
+            .Where(filter.IsMemberExcluded)
             .ToList();
 
         // We expect at least some members to be hidden (e.g., pointer-based or

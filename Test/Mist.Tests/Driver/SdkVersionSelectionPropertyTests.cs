@@ -92,10 +92,8 @@ public sealed class SdkVersionSelectionPropertyTests : IDisposable
     {
         return Gen.Choose(1, 10).SelectMany(count =>
             Gen.ArrayOf(GenSdkVersionEntry(tfmMajor), count).Select(entries =>
-            {
                 // Force all entries to not have ref assemblies
-                return entries.Select(e => e with { HasRefAssemblies = false }).ToList();
-            }));
+                entries.Select(e => e with { HasRefAssemblies = false }).ToList()));
     }
 
     // ═══════════════════════════════════════════════════════════════════════

@@ -5385,15 +5385,10 @@ internal sealed class CSharpSourceWriter
             {
                 // Sync method that needs C# async due to propagation:
                 // Wrap the declared return type in Task<T>.
-                if(methodDecl.ReturnType.First is VoidSingleTypeRefSingleTypeRefNode
-                    && methodDecl.ReturnType.SingleTypeRefs.Length == 0)
-                {
-                    returnType = "System.Threading.Tasks.Task";
-                }
-                else
-                {
-                    returnType = $"System.Threading.Tasks.Task<{returnType}>";
-                }
+                returnType = methodDecl.ReturnType.First is VoidSingleTypeRefSingleTypeRefNode
+                    && methodDecl.ReturnType.SingleTypeRefs.Length == 0
+                    ? "System.Threading.Tasks.Task"
+                    : $"System.Threading.Tasks.Task<{returnType}>";
             }
         }
 
@@ -10542,19 +10537,13 @@ internal sealed class CSharpSourceWriter
         }
 
         // Emit the body.
-        string result;
-        switch(lambda)
+        var result = lambda switch
         {
-            case ExpressionLambdaLambdaExpressionNode exprLambda:
-                result = $"{prefix}{parameters} => {EmitExpression(exprLambda.Body)}";
-                break;
-            case BlockLambdaLambdaExpressionNode blockLambda:
-                result = $"{prefix}{parameters} => {EmitLambdaBlockBody(blockLambda.Body)}";
-                break;
-            default:
-                throw new InvalidOperationException(
-                    $"Unknown LambdaExpressionNode variant: {lambda.GetType().Name}");
-        }
+            ExpressionLambdaLambdaExpressionNode exprLambda => $"{prefix}{parameters} => {EmitExpression(exprLambda.Body)}",
+            BlockLambdaLambdaExpressionNode blockLambda => $"{prefix}{parameters} => {EmitLambdaBlockBody(blockLambda.Body)}",
+            _ => throw new InvalidOperationException(
+                                $"Unknown LambdaExpressionNode variant: {lambda.GetType().Name}"),
+        };
 
         // Restore lambda context flags.
         insideSyncLambdaAutoAwait = previousSyncLambdaAutoAwait;
@@ -10966,18 +10955,12 @@ internal sealed class CSharpSourceWriter
         var sourceType = model.GetTypeOf(asExpr.Left);
         var resolvedTargetType = model.GetTypeOf(asExpr.TargetType);
 
-        switch(conversionKind)
+        return conversionKind switch
         {
-            case AsConversionKind.Provable:
-                return EmitProvableAsConversion(operand, sourceType, resolvedTargetType, targetTypeName);
-
-            case AsConversionKind.NonProvable:
-                return EmitNonProvableAsConversion(operand, sourceType, resolvedTargetType, targetTypeName);
-
-            default:
-                // Should not reach — type checker rejects invalid conversions.
-                return operand;
-        }
+            AsConversionKind.Provable => EmitProvableAsConversion(operand, sourceType, resolvedTargetType, targetTypeName),
+            AsConversionKind.NonProvable => EmitNonProvableAsConversion(operand, sourceType, resolvedTargetType, targetTypeName),
+            _ => operand,// Should not reach — type checker rejects invalid conversions.
+        };
     }
 
     /// <summary>
@@ -11919,15 +11902,12 @@ internal sealed class CSharpSourceWriter
 
     private string EmitUnaryPattern(UnaryPatternNode unaryPattern, IType? scrutineeType)
     {
-        switch(unaryPattern)
+        return unaryPattern switch
         {
-            case NotPatternUnaryPatternNode notPattern:
-                return $"not {EmitPrimaryPattern(notPattern.Operand, scrutineeType)}";
-            case DirectPatternUnaryPatternNode directPattern:
-                return EmitPrimaryPattern(directPattern.Primary, scrutineeType);
-            default:
-                return "";
-        }
+            NotPatternUnaryPatternNode notPattern => $"not {EmitPrimaryPattern(notPattern.Operand, scrutineeType)}",
+            DirectPatternUnaryPatternNode directPattern => EmitPrimaryPattern(directPattern.Primary, scrutineeType),
+            _ => "",
+        };
     }
 
     private string EmitPrimaryPattern(PrimaryPatternNode primaryPattern, IType? scrutineeType = null)
@@ -12318,16 +12298,7 @@ internal sealed class CSharpSourceWriter
 
             // Determine the receiver type for the method call.
             // The receiver is the type of the expression before the last suffix.
-            IType? receiverType;
-            if(postfix.Suffix.Length == 1)
-            {
-                receiverType = model.GetTypeOf(postfix.Target);
-            }
-            else
-            {
-                receiverType = model.GetTypeOf(postfix.Suffix[^2]);
-            }
-
+            var receiverType = postfix.Suffix.Length == 1 ? model.GetTypeOf(postfix.Target) : model.GetTypeOf(postfix.Suffix[^2]);
             if(receiverType is null)
             {
                 return false;
@@ -12910,14 +12881,7 @@ internal sealed class CSharpSourceWriter
             && (currentMethodSymbol is null or { IsAsync: false })
             && IsPostfixAsyncMethodCall(postfix))
         {
-            if(insideSyncLambdaAutoAwait)
-            {
-                primaryResult = $"{primaryResult}.GetAwaiter().GetResult()";
-            }
-            else
-            {
-                primaryResult = $"await {primaryResult}";
-            }
+            primaryResult = insideSyncLambdaAutoAwait ? $"{primaryResult}.GetAwaiter().GetResult()" : $"await {primaryResult}";
         }
 
         return primaryResult;
@@ -12983,16 +12947,7 @@ internal sealed class CSharpSourceWriter
 
             // Determine the receiver type for the method call.
             // The receiver is the type of the expression before the last suffix.
-            IType? receiverType;
-            if(postfix.Suffix.Length == 1)
-            {
-                receiverType = model.GetTypeOf(postfix.Target);
-            }
-            else
-            {
-                receiverType = model.GetTypeOf(postfix.Suffix[^2]);
-            }
-
+            var receiverType = postfix.Suffix.Length == 1 ? model.GetTypeOf(postfix.Target) : model.GetTypeOf(postfix.Suffix[^2]);
             if(receiverType is not null and not ErrorType)
             {
                 // Look up the method symbol in the receiver type.
@@ -13711,17 +13666,10 @@ internal sealed class CSharpSourceWriter
                                 // Determine whether to use field name or parameter name:
                                 // - Inside a method with factory params → use parameter name (factoryT_...)
                                 // - Inside a class with factory fields → use field name (_factoryT_...)
-                                string factoryName;
-                                if(currentMethodFactoryTypeParams is not null &&
-                                    currentMethodFactoryTypeParams.Any(tp => tp.DisplayName == typeParamType.Name))
-                                {
-                                    factoryName = GetFactoryParamName(typeParamType, matchingConstraint);
-                                }
-                                else
-                                {
-                                    factoryName = GetFactoryFieldName(typeParamType, matchingConstraint);
-                                }
-
+                                var factoryName = currentMethodFactoryTypeParams is not null &&
+                                    currentMethodFactoryTypeParams.Any(tp => tp.DisplayName == typeParamType.Name)
+                                    ? GetFactoryParamName(typeParamType, matchingConstraint)
+                                    : GetFactoryFieldName(typeParamType, matchingConstraint);
                                 var args = EmitArgumentList(objCreation.Arguments);
                                 return $"{factoryName}({args})";
                             }
@@ -14152,14 +14100,9 @@ internal sealed class CSharpSourceWriter
                     // When the expression's Mist type is an optional union (T | void),
                     // wrap the emission so null (void) displays as "Void" instead of empty.
                     var interpolatedExprType = model.GetTypeOf(exprPart.Expression);
-                    if(IsOptionalUnionType(interpolatedExprType))
-                    {
-                        _ = sb.Append($"(object?){interpolatedExpr} ?? \"Void\"");
-                    }
-                    else
-                    {
-                        _ = sb.Append(interpolatedExpr);
-                    }
+                    _ = IsOptionalUnionType(interpolatedExprType)
+                        ? sb.Append($"(object?){interpolatedExpr} ?? \"Void\"")
+                        : sb.Append(interpolatedExpr);
 
                     _ = sb.Append('}');
                     break;
@@ -14595,31 +14538,22 @@ internal sealed class CSharpSourceWriter
         if(lexeme.Length >= 3 && lexeme[0] == '\'' && lexeme[^1] == '\'')
         {
             var inner = lexeme[1..^1];
-            char c;
-            if(inner.Length == 1)
-            {
-                c = inner[0];
-            }
-            else if(inner.StartsWith('\\'))
-            {
-                c = inner switch
-                {
-                    "\\n" => '\n',
-                    "\\r" => '\r',
-                    "\\t" => '\t',
-                    "\\0" => '\0',
-                    "\\'" => '\'',
-                    "\\\\" => '\\',
-                    _ when inner.StartsWith("\\u") && inner.Length == 6
-                        => (char)Convert.ToInt32(inner[2..], 16),
-                    _ => inner[1],
-                };
-            }
-            else
-            {
-                c = inner[0];
-            }
-
+            var c = inner.Length == 1
+                ? inner[0]
+                : inner.StartsWith('\\')
+                    ? inner switch
+                    {
+                        "\\n" => '\n',
+                        "\\r" => '\r',
+                        "\\t" => '\t',
+                        "\\0" => '\0',
+                        "\\'" => '\'',
+                        "\\\\" => '\\',
+                        _ when inner.StartsWith("\\u") && inner.Length == 6
+                            => (char)Convert.ToInt32(inner[2..], 16),
+                        _ => inner[1],
+                    }
+                    : inner[0];
             var suffix = char.IsLetterOrDigit(c)
                 ? c.ToString()
                 : $"0x{((int)c).ToString("X2", System.Globalization.CultureInfo.InvariantCulture)}";
@@ -14928,7 +14862,7 @@ internal sealed class CSharpSourceWriter
     /// </summary>
     private static string GetFactoryFieldName(TypeParameterType typeParam, IReadOnlyList<IType> paramTypes)
     {
-        var paramPart = string.Join("_", paramTypes.Select(t => SanitizeTypeName(t)));
+        var paramPart = string.Join("_", paramTypes.Select(SanitizeTypeName));
         return $"_factory{typeParam.Name}_{paramPart}";
     }
 
@@ -14938,7 +14872,7 @@ internal sealed class CSharpSourceWriter
     /// </summary>
     private static string GetFactoryParamName(TypeParameterType typeParam, IReadOnlyList<IType> paramTypes)
     {
-        var paramPart = string.Join("_", paramTypes.Select(t => SanitizeTypeName(t)));
+        var paramPart = string.Join("_", paramTypes.Select(SanitizeTypeName));
         return $"factory{typeParam.Name}_{paramPart}";
     }
 

@@ -370,31 +370,22 @@ internal sealed class CarrierStructRegistry
         if(lexeme.Length >= 3 && lexeme[0] == '\'' && lexeme[^1] == '\'')
         {
             var inner = lexeme[1..^1];
-            char c;
-            if(inner.Length == 1)
-            {
-                c = inner[0];
-            }
-            else if(inner.StartsWith('\\'))
-            {
-                c = inner switch
-                {
-                    "\\n" => '\n',
-                    "\\r" => '\r',
-                    "\\t" => '\t',
-                    "\\0" => '\0',
-                    "\\'" => '\'',
-                    "\\\\" => '\\',
-                    _ when inner.StartsWith("\\u") && inner.Length == 6 =>
-                        (char)int.Parse(inner[2..], NumberStyles.HexNumber, CultureInfo.InvariantCulture),
-                    _ => '?'
-                };
-            }
-            else
-            {
-                c = '?';
-            }
-
+            var c = inner.Length == 1
+                ? inner[0]
+                : inner.StartsWith('\\')
+                    ? inner switch
+                    {
+                        "\\n" => '\n',
+                        "\\r" => '\r',
+                        "\\t" => '\t',
+                        "\\0" => '\0',
+                        "\\'" => '\'',
+                        "\\\\" => '\\',
+                        _ when inner.StartsWith("\\u") && inner.Length == 6 =>
+                            (char)int.Parse(inner[2..], NumberStyles.HexNumber, CultureInfo.InvariantCulture),
+                        _ => '?'
+                    }
+                    : '?';
             _ = registry.RegisterByKeyword("char", c);
         }
     }

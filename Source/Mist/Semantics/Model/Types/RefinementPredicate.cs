@@ -185,30 +185,16 @@ public sealed class RefinementPredicate
 
     private static bool EvaluatePrimaryPattern(PrimaryPatternNode primary, object value)
     {
-        switch(primary)
+        return primary switch
         {
-            case GreaterThanOrEqualRelationalPatternPrimaryPatternNode gte:
-                return CompareToConstant(value, gte.Constant) >= 0;
-
-            case LessThanOrEqualRelationalPatternPrimaryPatternNode lte:
-                return CompareToConstant(value, lte.Constant) <= 0;
-
-            case GreaterThanRelationalPatternPrimaryPatternNode gt:
-                return CompareToConstant(value, gt.Constant) > 0;
-
-            case LessThanRelationalPatternPrimaryPatternNode lt:
-                return CompareToConstant(value, lt.Constant) < 0;
-
-            case ConstantPatternPrimaryPatternNode constant:
-                return EqualsConstant(value, constant.Literal);
-
-            case ParenthesizedPatternPrimaryPatternNode paren:
-                return EvaluateParenthesizedPattern(paren.Inner, value);
-
-            default:
-                // Property patterns, type patterns, etc. cannot be evaluated at compile time.
-                return false;
-        }
+            GreaterThanOrEqualRelationalPatternPrimaryPatternNode gte => CompareToConstant(value, gte.Constant) >= 0,
+            LessThanOrEqualRelationalPatternPrimaryPatternNode lte => CompareToConstant(value, lte.Constant) <= 0,
+            GreaterThanRelationalPatternPrimaryPatternNode gt => CompareToConstant(value, gt.Constant) > 0,
+            LessThanRelationalPatternPrimaryPatternNode lt => CompareToConstant(value, lt.Constant) < 0,
+            ConstantPatternPrimaryPatternNode constant => EqualsConstant(value, constant.Literal),
+            ParenthesizedPatternPrimaryPatternNode paren => EvaluateParenthesizedPattern(paren.Inner, value),
+            _ => false,// Property patterns, type patterns, etc. cannot be evaluated at compile time.
+        };
     }
 
     private static bool EvaluateParenthesizedPattern(PatternNode pattern, object value)

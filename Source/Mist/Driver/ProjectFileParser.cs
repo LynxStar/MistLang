@@ -334,15 +334,7 @@ public static partial class ProjectFileParser
                 }
 
                 // 9d. Normalize path (unchanged logic)
-                string normalizedPath;
-                if(Path.IsPathRooted(rawPath))
-                {
-                    normalizedPath = Path.GetFullPath(rawPath);
-                }
-                else
-                {
-                    normalizedPath = Path.GetFullPath(Path.Combine(projectFolder, rawPath));
-                }
+                var normalizedPath = Path.IsPathRooted(rawPath) ? Path.GetFullPath(rawPath) : Path.GetFullPath(Path.Combine(projectFolder, rawPath));
 
                 // If normalized path does not already end with "mist.toml",
                 // treat it as a directory and append "mist.toml".

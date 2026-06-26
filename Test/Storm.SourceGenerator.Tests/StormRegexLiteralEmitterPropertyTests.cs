@@ -74,7 +74,7 @@ public class StormRegexLiteralEmitterPropertyTests
         );
 
         return segmentGen.ListOf()
-            .Select(segments => string.Concat(segments))
+            .Select(string.Concat)
             .Where(s => s.Length > 0); // non-empty patterns
     }
 

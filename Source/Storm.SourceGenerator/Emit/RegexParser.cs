@@ -2,311 +2,296 @@ using System;
 using System.Collections.Generic;
 using Storm.SourceGenerator.IR;
 
-namespace Storm.SourceGenerator.Emit
+namespace Storm.SourceGenerator.Emit;
+
+/// <summary>
+/// Parses regex pattern strings into <see cref="ExpressionIR"/> trees
+/// so they can be fed into Thompson's construction via <see cref="NfaBuilder"/>.
+/// <para>
+/// Supports: character classes (<c>[a-z]</c>, <c>[^abc]</c>), quantifiers
+/// (<c>+</c>, <c>*</c>, <c>?</c>), escape sequences (<c>\s</c>, <c>\d</c>,
+/// <c>\w</c>, <c>\n</c>, <c>\t</c>, etc.), dot metacharacter (<c>.</c>),
+/// grouping with parentheses, and alternation with <c>|</c>.
+/// </para>
+/// <para>
+/// Grammar (lowest to highest precedence):
+/// <code>
+/// expr        → alternation
+/// alternation → concat ('|' concat)*
+/// concat      → quantified+
+/// quantified  → atom ('+'|'*'|'?')?
+/// atom        → literal | charClass | '(' expr ')' | '.' | escape
+/// </code>
+/// </para>
+/// </summary>
+internal static class RegexParser
 {
     /// <summary>
-    /// Parses regex pattern strings into <see cref="ExpressionIR"/> trees
-    /// so they can be fed into Thompson's construction via <see cref="NfaBuilder"/>.
-    /// <para>
-    /// Supports: character classes (<c>[a-z]</c>, <c>[^abc]</c>), quantifiers
-    /// (<c>+</c>, <c>*</c>, <c>?</c>), escape sequences (<c>\s</c>, <c>\d</c>,
-    /// <c>\w</c>, <c>\n</c>, <c>\t</c>, etc.), dot metacharacter (<c>.</c>),
-    /// grouping with parentheses, and alternation with <c>|</c>.
-    /// </para>
-    /// <para>
-    /// Grammar (lowest to highest precedence):
-    /// <code>
-    /// expr        → alternation
-    /// alternation → concat ('|' concat)*
-    /// concat      → quantified+
-    /// quantified  → atom ('+'|'*'|'?')?
-    /// atom        → literal | charClass | '(' expr ')' | '.' | escape
-    /// </code>
-    /// </para>
+    /// Parse a regex pattern string into an <see cref="ExpressionIR"/> tree.
     /// </summary>
-    internal static class RegexParser
+    public static ExpressionIR Parse(string pattern)
     {
-        /// <summary>
-        /// Parse a regex pattern string into an <see cref="ExpressionIR"/> tree.
-        /// </summary>
-        public static ExpressionIR Parse(string pattern)
+        var parser = new Parser(pattern);
+        var result = parser.ParseExpression();
+
+        if(parser.Position < pattern.Length)
         {
-            var parser = new Parser(pattern);
-            var result = parser.ParseExpression();
+            throw new FormatException(
+                $"Unexpected character '{pattern[parser.Position]}' at position {parser.Position} in regex pattern: {pattern}");
+        }
 
-            if(parser.Position < pattern.Length)
-            {
-                throw new FormatException(
-                    $"Unexpected character '{pattern[parser.Position]}' at position {parser.Position} in regex pattern: {pattern}");
-            }
+        return result;
+    }
 
-            return result;
+    /// <summary>
+    /// Internal stateful parser that tracks position within the pattern.
+    /// </summary>
+    private sealed class Parser
+    {
+        private readonly string pattern;
+
+        public int Position { get; private set; }
+
+        public Parser(string pattern)
+        {
+            this.pattern = pattern;
+            Position = 0;
+        }
+
+        private bool HasMore => Position < pattern.Length;
+
+        private char Peek()
+        {
+            return pattern[Position];
+        }
+
+        private char Advance()
+        {
+            return pattern[Position++];
         }
 
         /// <summary>
-        /// Internal stateful parser that tracks position within the pattern.
+        /// Entry point: parses a full expression (alternation level).
         /// </summary>
-        private sealed class Parser
+        public ExpressionIR ParseExpression()
         {
-            private readonly string pattern;
+            return ParseAlternation();
+        }
 
-            public int Position { get; private set; }
+        /// <summary>
+        /// Parses alternation: concat ('|' concat)*
+        /// </summary>
+        private ExpressionIR ParseAlternation()
+        {
+            var first = ParseConcatenation();
 
-            public Parser(string pattern)
+            if(!HasMore || Peek() != '|')
             {
-                this.pattern = pattern;
-                Position = 0;
+                return first;
             }
 
-            private bool HasMore => Position < pattern.Length;
+            var alternatives = new List<ExpressionIR> { first };
 
-            private char Peek()
+            while(HasMore && Peek() == '|')
             {
-                return pattern[Position];
+                _ = Advance(); // consume '|'
+                alternatives.Add(ParseConcatenation());
             }
 
-            private char Advance()
+            return new AlternationIR(alternatives);
+        }
+
+        /// <summary>
+        /// Parses concatenation: quantified+
+        /// </summary>
+        private ExpressionIR ParseConcatenation()
+        {
+            var elements = new List<ExpressionIR>();
+
+            while(HasMore && Peek() != '|' && Peek() != ')')
             {
-                return pattern[Position++];
+                elements.Add(ParseQuantified());
             }
 
-            /// <summary>
-            /// Entry point: parses a full expression (alternation level).
-            /// </summary>
-            public ExpressionIR ParseExpression()
+            if(elements.Count == 0)
             {
-                return ParseAlternation();
+                // Empty concatenation (e.g., empty alternative in "a|")
+                // Return an empty string literal
+                return new StringLiteralIR("");
             }
 
-            /// <summary>
-            /// Parses alternation: concat ('|' concat)*
-            /// </summary>
-            private ExpressionIR ParseAlternation()
+            if(elements.Count == 1)
             {
-                var first = ParseConcatenation();
-
-                if(!HasMore || Peek() != '|')
-                {
-                    return first;
-                }
-
-                var alternatives = new List<ExpressionIR> { first };
-
-                while(HasMore && Peek() == '|')
-                {
-                    _ = Advance(); // consume '|'
-                    alternatives.Add(ParseConcatenation());
-                }
-
-                return new AlternationIR(alternatives);
+                return elements[0];
             }
 
-            /// <summary>
-            /// Parses concatenation: quantified+
-            /// </summary>
-            private ExpressionIR ParseConcatenation()
+            return new SequenceIR(elements);
+        }
+
+        /// <summary>
+        /// Parses quantified: atom ('+'|'*'|'?')?
+        /// </summary>
+        private ExpressionIR ParseQuantified()
+        {
+            var atom = ParseAtom();
+
+            if(!HasMore)
             {
-                var elements = new List<ExpressionIR>();
-
-                while(HasMore && Peek() != '|' && Peek() != ')')
-                {
-                    elements.Add(ParseQuantified());
-                }
-
-                if(elements.Count == 0)
-                {
-                    // Empty concatenation (e.g., empty alternative in "a|")
-                    // Return an empty string literal
-                    return new StringLiteralIR("");
-                }
-
-                if(elements.Count == 1)
-                {
-                    return elements[0];
-                }
-
-                return new SequenceIR(elements);
+                return atom;
             }
 
-            /// <summary>
-            /// Parses quantified: atom ('+'|'*'|'?')?
-            /// </summary>
-            private ExpressionIR ParseQuantified()
+            switch(Peek())
             {
-                var atom = ParseAtom();
-
-                if(!HasMore)
-                {
+                case '+':
+                    _ = Advance();
+                    return new OneOrMoreIR(atom);
+                case '*':
+                    _ = Advance();
+                    return new ZeroOrMoreIR(atom);
+                case '?':
+                    _ = Advance();
+                    return new OptionalIR(atom);
+                default:
                     return atom;
-                }
+            }
+        }
 
-                switch(Peek())
-                {
-                    case '+':
-                        _ = Advance();
-                        return new OneOrMoreIR(atom);
-                    case '*':
-                        _ = Advance();
-                        return new ZeroOrMoreIR(atom);
-                    case '?':
-                        _ = Advance();
-                        return new OptionalIR(atom);
-                    default:
-                        return atom;
-                }
+        /// <summary>
+        /// Parses an atom: literal, char class, group, dot, or escape.
+        /// </summary>
+        private ExpressionIR ParseAtom()
+        {
+            if(!HasMore)
+            {
+                throw new FormatException(
+                    $"Unexpected end of regex pattern: {pattern}");
             }
 
-            /// <summary>
-            /// Parses an atom: literal, char class, group, dot, or escape.
-            /// </summary>
-            private ExpressionIR ParseAtom()
+            var ch = Peek();
+
+            switch(ch)
             {
-                if(!HasMore)
-                {
-                    throw new FormatException(
-                        $"Unexpected end of regex pattern: {pattern}");
-                }
+                case '[':
+                    return ParseCharClass();
 
-                var ch = Peek();
+                case '(':
+                    return ParseGroup();
 
-                switch(ch)
-                {
-                    case '[':
-                        return ParseCharClass();
+                case '.':
+                    _ = Advance();
+                    return new CharClassIR("[^\\n]");
 
-                    case '(':
-                        return ParseGroup();
+                case '\\':
+                    return ParseEscape();
 
-                    case '.':
-                        _ = Advance();
-                        return new CharClassIR("[^\\n]");
+                default:
+                    _ = Advance();
+                    return new StringLiteralIR(ch.ToString());
+            }
+        }
 
-                    case '\\':
-                        return ParseEscape();
+        /// <summary>
+        /// Parses a character class: [a-z], [^abc], [a-zA-Z0-9_], etc.
+        /// Extracts the full bracket expression and creates a CharClassIR.
+        /// </summary>
+        private ExpressionIR ParseCharClass()
+        {
+            var startPos = Position;
+            _ = Advance(); // consume '['
 
-                    default:
-                        _ = Advance();
-                        return new StringLiteralIR(ch.ToString());
-                }
+            // Handle negation
+            if(HasMore && Peek() == '^')
+            {
+                _ = Advance();
             }
 
-            /// <summary>
-            /// Parses a character class: [a-z], [^abc], [a-zA-Z0-9_], etc.
-            /// Extracts the full bracket expression and creates a CharClassIR.
-            /// </summary>
-            private ExpressionIR ParseCharClass()
+            // Handle ']' as first character in class (literal ']')
+            if(HasMore && Peek() == ']')
             {
-                var startPos = Position;
-                _ = Advance(); // consume '['
+                _ = Advance();
+            }
 
-                // Handle negation
-                if(HasMore && Peek() == '^')
+            // Read until closing ']'
+            while(HasMore && Peek() != ']')
+            {
+                if(Peek() == '\\' && Position + 1 < pattern.Length)
+                {
+                    _ = Advance(); // skip backslash
+                    _ = Advance(); // skip escaped char
+                }
+                else
                 {
                     _ = Advance();
                 }
-
-                // Handle ']' as first character in class (literal ']')
-                if(HasMore && Peek() == ']')
-                {
-                    _ = Advance();
-                }
-
-                // Read until closing ']'
-                while(HasMore && Peek() != ']')
-                {
-                    if(Peek() == '\\' && Position + 1 < pattern.Length)
-                    {
-                        _ = Advance(); // skip backslash
-                        _ = Advance(); // skip escaped char
-                    }
-                    else
-                    {
-                        _ = Advance();
-                    }
-                }
-
-                if(!HasMore)
-                {
-                    throw new FormatException(
-                        $"Unterminated character class starting at position {startPos} in regex pattern: {pattern}");
-                }
-
-                _ = Advance(); // consume ']'
-
-                var classText = pattern.Substring(startPos, Position - startPos);
-                return new CharClassIR(classText);
             }
 
-            /// <summary>
-            /// Parses a parenthesized group: '(' expr ')'
-            /// </summary>
-            private ExpressionIR ParseGroup()
+            if(!HasMore)
             {
-                _ = Advance(); // consume '('
-
-                var inner = ParseExpression();
-
-                if(!HasMore || Peek() != ')')
-                {
-                    throw new FormatException(
-                        $"Unterminated group in regex pattern: {pattern}");
-                }
-
-                _ = Advance(); // consume ')'
-
-                return inner;
+                throw new FormatException(
+                    $"Unterminated character class starting at position {startPos} in regex pattern: {pattern}");
             }
 
-            /// <summary>
-            /// Parses an escape sequence. For shorthand classes (\s, \d, \w)
-            /// at the top level, converts to equivalent CharClassIR. For
-            /// literal escapes (\n, \t, \r, \0, \\), creates StringLiteralIR.
-            /// </summary>
-            private ExpressionIR ParseEscape()
+            _ = Advance(); // consume ']'
+
+            var classText = pattern.Substring(startPos, Position - startPos);
+            return new CharClassIR(classText);
+        }
+
+        /// <summary>
+        /// Parses a parenthesized group: '(' expr ')'
+        /// </summary>
+        private ExpressionIR ParseGroup()
+        {
+            _ = Advance(); // consume '('
+
+            var inner = ParseExpression();
+
+            if(!HasMore || Peek() != ')')
             {
-                _ = Advance(); // consume '\'
-
-                if(!HasMore)
-                {
-                    throw new FormatException(
-                        $"Unexpected end of regex pattern after backslash: {pattern}");
-                }
-
-                var escaped = Advance();
-
-                switch(escaped)
-                {
-                    // Shorthand character classes → CharClassIR
-                    case 's':
-                        return new CharClassIR("[ \\t\\n\\r\\f\\v]");
-                    case 'S':
-                        return new CharClassIR("[^ \\t\\n\\r\\f\\v]");
-                    case 'd':
-                        return new CharClassIR("[0-9]");
-                    case 'D':
-                        return new CharClassIR("[^0-9]");
-                    case 'w':
-                        return new CharClassIR("[a-zA-Z0-9_]");
-                    case 'W':
-                        return new CharClassIR("[^a-zA-Z0-9_]");
-
-                    // Literal escape sequences → StringLiteralIR
-                    case 'n':
-                        return new StringLiteralIR("\n");
-                    case 't':
-                        return new StringLiteralIR("\t");
-                    case 'r':
-                        return new StringLiteralIR("\r");
-                    case '0':
-                        return new StringLiteralIR("\0");
-                    case '\\':
-                        return new StringLiteralIR("\\");
-
-                    // Any other escaped character is treated as a literal
-                    default:
-                        return new StringLiteralIR(escaped.ToString());
-                }
+                throw new FormatException(
+                    $"Unterminated group in regex pattern: {pattern}");
             }
+
+            _ = Advance(); // consume ')'
+
+            return inner;
+        }
+
+        /// <summary>
+        /// Parses an escape sequence. For shorthand classes (\s, \d, \w)
+        /// at the top level, converts to equivalent CharClassIR. For
+        /// literal escapes (\n, \t, \r, \0, \\), creates StringLiteralIR.
+        /// </summary>
+        private ExpressionIR ParseEscape()
+        {
+            _ = Advance(); // consume '\'
+
+            if(!HasMore)
+            {
+                throw new FormatException(
+                    $"Unexpected end of regex pattern after backslash: {pattern}");
+            }
+
+            var escaped = Advance();
+
+            return escaped switch
+            {
+                // Shorthand character classes → CharClassIR
+                's' => new CharClassIR("[ \\t\\n\\r\\f\\v]"),
+                'S' => new CharClassIR("[^ \\t\\n\\r\\f\\v]"),
+                'd' => new CharClassIR("[0-9]"),
+                'D' => new CharClassIR("[^0-9]"),
+                'w' => new CharClassIR("[a-zA-Z0-9_]"),
+                'W' => new CharClassIR("[^a-zA-Z0-9_]"),
+                // Literal escape sequences → StringLiteralIR
+                'n' => new StringLiteralIR("\n"),
+                't' => new StringLiteralIR("\t"),
+                'r' => new StringLiteralIR("\r"),
+                '0' => new StringLiteralIR("\0"),
+                '\\' => new StringLiteralIR("\\"),
+                // Any other escaped character is treated as a literal
+                _ => new StringLiteralIR(escaped.ToString()),
+            };
         }
     }
 }

@@ -289,14 +289,9 @@ public sealed class MethodFlowState
 
             foreach(var (field, otherFieldState) in otherFields)
             {
-                if(!thisFields.TryGetValue(field, out var thisFieldState))
-                {
-                    thisFields[field] = otherFieldState;
-                }
-                else
-                {
-                    thisFields[field] = MoreRestrictiveState(thisFieldState, otherFieldState);
-                }
+                thisFields[field] = !thisFields.TryGetValue(field, out var thisFieldState)
+                    ? otherFieldState
+                    : MoreRestrictiveState(thisFieldState, otherFieldState);
             }
         }
 
@@ -341,14 +336,7 @@ public sealed class MethodFlowState
                 if(!HasRemainingFrozenBorrows(entry.Lender))
                 {
                     // If there are still readonly ref borrows, transition to LentReadonly.
-                    if(HasRemainingReadonlyRefBorrows(entry.Lender))
-                    {
-                        VariableStates[entry.Lender] = VariableOwnershipState.LentReadonly;
-                    }
-                    else
-                    {
-                        VariableStates[entry.Lender] = VariableOwnershipState.Live;
-                    }
+                    VariableStates[entry.Lender] = HasRemainingReadonlyRefBorrows(entry.Lender) ? VariableOwnershipState.LentReadonly : VariableOwnershipState.Live;
                 }
 
                 break;

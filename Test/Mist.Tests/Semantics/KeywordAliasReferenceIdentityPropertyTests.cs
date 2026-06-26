@@ -259,8 +259,8 @@ public class KeywordAliasReferenceIdentityPropertyTests
         }
 
         var lastDot = qualifiedName.LastIndexOf('.');
-        var namespaceName = qualifiedName.Substring(0, lastDot);
-        var simpleName = qualifiedName.Substring(lastDot + 1);
+        var namespaceName = qualifiedName[..lastDot];
+        var simpleName = qualifiedName[(lastDot + 1)..];
 
         return model.AllSymbols
             .Where(s => s.Name == simpleName

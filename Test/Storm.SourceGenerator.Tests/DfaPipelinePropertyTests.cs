@@ -728,7 +728,7 @@ public class DfaPipelinePropertyTests
 
                 if(lastAcceptKind >= 0 && lastAcceptPos > pos)
                 {
-                    tableLexTokens.Add((lastAcceptKind, input.Substring(pos, lastAcceptPos - pos)));
+                    tableLexTokens.Add((lastAcceptKind, input[pos..lastAcceptPos]));
                     pos = lastAcceptPos;
                 }
                 else

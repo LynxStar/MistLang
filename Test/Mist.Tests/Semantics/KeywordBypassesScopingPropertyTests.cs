@@ -184,7 +184,7 @@ public class KeywordBypassesScopingPropertyTests
     private static string GetSimpleName(string qualifiedName)
     {
         var lastDot = qualifiedName.LastIndexOf('.');
-        return lastDot >= 0 ? qualifiedName.Substring(lastDot + 1) : qualifiedName;
+        return lastDot >= 0 ? qualifiedName[(lastDot + 1)..] : qualifiedName;
     }
 
     /// <summary>
@@ -282,8 +282,8 @@ public class KeywordBypassesScopingPropertyTests
         }
 
         var lastDot = qualifiedName.LastIndexOf('.');
-        var namespaceName = qualifiedName.Substring(0, lastDot);
-        var simpleName = qualifiedName.Substring(lastDot + 1);
+        var namespaceName = qualifiedName[..lastDot];
+        var simpleName = qualifiedName[(lastDot + 1)..];
 
         return model.AllSymbols
             .Where(s => s.Name == simpleName

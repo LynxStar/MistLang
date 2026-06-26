@@ -346,7 +346,7 @@ public class AbstractNonAssignabilityPropertyTests
 
         // 1. Abstract declaration with methods
         var abstractMethods = scenario.AbstractMethodNames
-            .Select(m => MakeAbstractMethod(m))
+            .Select(MakeAbstractMethod)
             .ToImmutableArray();
         var abstractDecl = MakeAbstractDecl(scenario.AbstractName, abstractMethods);
         typeDecls.Add(WrapAbstract(abstractDecl));

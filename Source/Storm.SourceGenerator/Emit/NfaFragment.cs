@@ -1,25 +1,24 @@
-namespace Storm.SourceGenerator.Emit
+namespace Storm.SourceGenerator.Emit;
+
+/// <summary>
+/// An NFA fragment with a single start state and a single accept state.
+/// Thompson's construction always produces fragments of this shape.
+/// </summary>
+internal sealed class NfaFragment
 {
     /// <summary>
-    /// An NFA fragment with a single start state and a single accept state.
-    /// Thompson's construction always produces fragments of this shape.
+    /// The entry state of this fragment.
     /// </summary>
-    internal sealed class NfaFragment
+    public NfaState Start { get; }
+
+    /// <summary>
+    /// The accepting state of this fragment.
+    /// </summary>
+    public NfaState Accept { get; }
+
+    public NfaFragment(NfaState start, NfaState accept)
     {
-        /// <summary>
-        /// The entry state of this fragment.
-        /// </summary>
-        public NfaState Start { get; }
-
-        /// <summary>
-        /// The accepting state of this fragment.
-        /// </summary>
-        public NfaState Accept { get; }
-
-        public NfaFragment(NfaState start, NfaState accept)
-        {
-            Start = start;
-            Accept = accept;
-        }
+        Start = start;
+        Accept = accept;
     }
 }

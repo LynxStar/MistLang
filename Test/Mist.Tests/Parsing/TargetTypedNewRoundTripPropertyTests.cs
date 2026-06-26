@@ -199,7 +199,7 @@ public static class TargetTypedNewRoundTripGenerator
         }
 
         var gens = Enumerable.Range(0, count)
-            .Select(i => GenAssignment(i))
+            .Select(GenAssignment)
             .ToArray();
 
         return gens.Aggregate(

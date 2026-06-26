@@ -216,7 +216,7 @@ public sealed class GlobalUsingsEmitterDeduplicationPropertyTests : IDisposable
             .Split('\n')
             .Where(line => line.TrimStart().StartsWith("using ", StringComparison.Ordinal)
                         && line.TrimEnd().EndsWith(";", StringComparison.Ordinal))
-            .Select(line => line.Trim().TrimEnd(';').Substring("using ".Length).Trim())
+            .Select(line => line.Trim().TrimEnd(';')["using ".Length..].Trim())
             .ToList();
     }
 

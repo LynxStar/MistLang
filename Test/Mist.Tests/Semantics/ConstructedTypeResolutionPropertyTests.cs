@@ -281,7 +281,7 @@ public class ConstructedTypeResolutionPropertyTests
 
         // Build type argument list with concrete primitive types
         var typeArgRefs = scenario.ConcreteArgPrimitives
-            .Select(p => MakePrimitiveTypeRef(p))
+            .Select(MakePrimitiveTypeRef)
             .ToArray();
         var typeArgList = MakeTypeArgList(typeArgRefs);
 

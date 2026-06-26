@@ -88,18 +88,12 @@ public class GenericRoundTripPropertyTests
     /// <summary>Generates a TypeArgumentListNode with 1–4 primitive type arguments.</summary>
     public static Gen<TypeArgumentListNode> GenTypeArgumentList()
     {
-        return Gen.Choose(1, 3).SelectMany(count =>
-        {
-            return Gen.ArrayOf(MistTypeGenerator.GenPrimitiveTypeRef(), count)
-                .Select(args =>
+        return Gen.Choose(1, 3).SelectMany(count => Gen.ArrayOf(MistTypeGenerator.GenPrimitiveTypeRef(), count)
+                .Select(args => new TypeArgumentListNode
                 {
-                    return new TypeArgumentListNode
-                    {
-                        TypeArgument = new TypeReferenceTypeArgumentTypeArgumentNode { Type = args[0] },
-                        TypeArguments = args.Skip(1).Select(t => (TypeArgumentNode)new TypeReferenceTypeArgumentTypeArgumentNode { Type = t }).ToImmutableArray(),
-                    };
-                });
-        });
+                    TypeArgument = new TypeReferenceTypeArgumentTypeArgumentNode { Type = args[0] },
+                    TypeArguments = args.Skip(1).Select(t => (TypeArgumentNode)new TypeReferenceTypeArgumentTypeArgumentNode { Type = t }).ToImmutableArray(),
+                }));
     }
 
     // ─── BaseList with type arguments generator ──────────────────────────

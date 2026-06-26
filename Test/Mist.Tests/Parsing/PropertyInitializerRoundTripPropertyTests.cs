@@ -191,7 +191,7 @@ public static class PropertyInitializerSourceGenerator
 
         // Use distinct property names by picking from the pool sequentially
         var gens = Enumerable.Range(0, count)
-            .Select(i => GenAssignment(i))
+            .Select(GenAssignment)
             .ToArray();
 
         return gens.Aggregate(

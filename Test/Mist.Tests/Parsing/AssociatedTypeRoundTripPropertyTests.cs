@@ -127,15 +127,10 @@ public class AssociatedTypeRoundTripPropertyTests
             for(var i = 0; i < selectedParams.Length; i++)
             {
                 var tp = selectedParams[i];
-                if(i == 0)
-                {
-                    result = GenWhereClause(tp).Select(c => " " + c);
-                }
-                else
-                {
-                    result = result.SelectMany(prev =>
+                result = i == 0
+                    ? GenWhereClause(tp).Select(c => " " + c)
+                    : result.SelectMany(prev =>
                         GenWhereClause(tp).Select(c => prev + " " + c));
-                }
             }
 
             return result;

@@ -1875,15 +1875,12 @@ public sealed class MistPrettyPrinter
 
     private string EmitUnaryPattern(UnaryPatternNode unaryPattern)
     {
-        switch(unaryPattern)
+        return unaryPattern switch
         {
-            case NotPatternUnaryPatternNode notPattern:
-                return $"not {EmitPrimaryPattern(notPattern.Operand)}";
-            case DirectPatternUnaryPatternNode directPattern:
-                return EmitPrimaryPattern(directPattern.Primary);
-            default:
-                return "";
-        }
+            NotPatternUnaryPatternNode notPattern => $"not {EmitPrimaryPattern(notPattern.Operand)}",
+            DirectPatternUnaryPatternNode directPattern => EmitPrimaryPattern(directPattern.Primary),
+            _ => "",
+        };
     }
 
     private string EmitPrimaryPattern(PrimaryPatternNode primaryPattern)
@@ -2074,23 +2071,16 @@ public sealed class MistPrettyPrinter
 
     private string EmitUnary(UnaryNode unary)
     {
-        switch(unary)
+        return unary switch
         {
-            case AsyncExpressionUnaryNode asyncExpr:
-                return $"async {EmitUnary(asyncExpr.Operand)}";
-            case AwaitExpressionUnaryNode awaitExpr:
-                return $"await {EmitUnary(awaitExpr.Operand)}";
-            case CastExpressionUnaryNode castExpr:
-                return $"({EmitTypeReference(castExpr.TargetType)}){EmitUnary(castExpr.Operand)}";
-            case LogicalNotUnaryNode logicalNot:
-                return $"!{EmitUnary(logicalNot.Operand)}";
-            case NegateUnaryNode negate:
-                return $"-{EmitUnary(negate.Operand)}";
-            case PostfixExpressionUnaryNode postfix:
-                return EmitPostfix(postfix.Primary);
-            default:
-                return "";
-        }
+            AsyncExpressionUnaryNode asyncExpr => $"async {EmitUnary(asyncExpr.Operand)}",
+            AwaitExpressionUnaryNode awaitExpr => $"await {EmitUnary(awaitExpr.Operand)}",
+            CastExpressionUnaryNode castExpr => $"({EmitTypeReference(castExpr.TargetType)}){EmitUnary(castExpr.Operand)}",
+            LogicalNotUnaryNode logicalNot => $"!{EmitUnary(logicalNot.Operand)}",
+            NegateUnaryNode negate => $"-{EmitUnary(negate.Operand)}",
+            PostfixExpressionUnaryNode postfix => EmitPostfix(postfix.Primary),
+            _ => "",
+        };
     }
 
     private string EmitPostfix(PostfixNode postfix)

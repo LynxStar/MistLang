@@ -80,7 +80,7 @@ public class SyntaxTreeMetricsPropertyTests
     public bool CountNodes_EqualsOnePlusSumOfChildCounts(TestNode root)
     {
         var actual = SyntaxTreeMetrics.CountNodes(root);
-        var expected = 1 + root.Children().Sum(child => SyntaxTreeMetrics.CountNodes(child));
+        var expected = 1 + root.Children().Sum(SyntaxTreeMetrics.CountNodes);
         return actual == expected;
     }
 }

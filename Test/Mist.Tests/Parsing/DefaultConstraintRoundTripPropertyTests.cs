@@ -85,15 +85,13 @@ public class DefaultConstraintRoundTripPropertyTests
 
             return Gen.ArrayOf(GenNonDefaultConstraint(), extraCount)
                 .SelectMany(others =>
-                {
                     // Randomly place 'default' at the beginning, middle, or end
-                    return Gen.Choose(0, others.Length).Select(insertPos =>
+                    Gen.Choose(0, others.Length).Select(insertPos =>
                     {
                         var allConstraints = new List<string>(others);
                         allConstraints.Insert(insertPos, "default");
                         return string.Join(", ", allConstraints);
-                    });
-                });
+                    }));
         });
     }
 

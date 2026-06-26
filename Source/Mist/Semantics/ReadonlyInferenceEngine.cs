@@ -333,29 +333,20 @@ public sealed class ReadonlyInferenceEngine
     /// </summary>
     private static bool IsUnsafeNode(SyntaxNode node, ISemanticModel model)
     {
-        switch(node)
+        return node switch
         {
             // Assignment: target = value where target resolves to a field or property setter.
             // In the AST, assignments are represented as AssignmentNode with a
             // non-null Value property.
-            case AssignmentNode assignment when assignment.Value is not null:
-                return IsAssignmentToFieldOrProperty(assignment, model);
-
+            AssignmentNode assignment when assignment.Value is not null => IsAssignmentToFieldOrProperty(assignment, model),
             // Method calls and member access: check if the called method is readonly.
-            case MethodCallSuffixPostfixSuffixNode methodCall:
-                return IsNonReadonlyMethodCall(methodCall, model);
-
+            MethodCallSuffixPostfixSuffixNode methodCall => IsNonReadonlyMethodCall(methodCall, model),
             // Member access that resolves to a property getter call.
-            case MemberAccessSuffixPostfixSuffixNode memberAccess:
-                return IsNonReadonlyPropertyGetterAccess(memberAccess, model);
-
+            MemberAccessSuffixPostfixSuffixNode memberAccess => IsNonReadonlyPropertyGetterAccess(memberAccess, model),
             // Object creation: check if the constructor is readonly.
-            case ObjectCreationExpressionPrimaryNode objectCreation:
-                return IsNonReadonlyConstructorAllocation(objectCreation, model);
-
-            default:
-                return false;
-        }
+            ObjectCreationExpressionPrimaryNode objectCreation => IsNonReadonlyConstructorAllocation(objectCreation, model),
+            _ => false,
+        };
     }
 
     /// <summary>

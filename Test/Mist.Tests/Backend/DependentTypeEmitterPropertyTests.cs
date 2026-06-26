@@ -237,7 +237,7 @@ public sealed class DependentTypeEmitterPropertyTests : IDisposable
                from value in Gen.Elements(IntValues)
                from idx in Gen.Choose(0, 999)
                let uniqueAbstract = $"{abstractName}{idx}"
-               let uniqueImpl = $"Impl{abstractName.Substring(1)}{idx}"
+               let uniqueImpl = $"Impl{abstractName[1..]}{idx}"
                select new DependentTypeScenario
                {
                    Description = $"abstract type {uniqueAbstract}<Cap:int> implemented with {value}",

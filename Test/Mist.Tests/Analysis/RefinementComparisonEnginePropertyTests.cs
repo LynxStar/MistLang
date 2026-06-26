@@ -729,7 +729,7 @@ public class RefinementComparisonEnginePropertyTests
         var impliesResult = orA.Implies(orB);
 
         // Expected: A implies B iff every element of A is contained in B.
-        var aIsSubsetOfB = scenario.A.All(v => scenario.B.Contains(v));
+        var aIsSubsetOfB = scenario.A.All(scenario.B.Contains);
 
         return impliesResult == aIsSubsetOfB;
     }

@@ -280,19 +280,14 @@ public static class IClonableDerivationEngine
             return false;
         }
 
-        switch(type)
+        return type switch
         {
-            case ClassType ct:
-                return AbstractListHasIClonable(ct.Abstracts)
-                    || (ct.BaseType is not null && DeclaresIClonableInAbstracts(ct.BaseType, visited));
-
-            case StructType st:
-                return AbstractListHasIClonable(st.Abstracts)
-                    || (st.BaseType is not null && DeclaresIClonableInAbstracts(st.BaseType, visited));
-
-            default:
-                return false;
-        }
+            ClassType ct => AbstractListHasIClonable(ct.Abstracts)
+                                || (ct.BaseType is not null && DeclaresIClonableInAbstracts(ct.BaseType, visited)),
+            StructType st => AbstractListHasIClonable(st.Abstracts)
+                                || (st.BaseType is not null && DeclaresIClonableInAbstracts(st.BaseType, visited)),
+            _ => false,
+        };
     }
 
     /// <summary>

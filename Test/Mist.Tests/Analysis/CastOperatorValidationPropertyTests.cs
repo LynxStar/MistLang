@@ -281,21 +281,16 @@ public class CastOperatorValidationPropertyTests
             });
 
         // Build the enclosing type declaration
-        TypeDeclarationNode enclosingTypeDecl;
-        if(isStruct)
-        {
-            enclosingTypeDecl = new StructTypeTypeDeclarationNode
+        var enclosingTypeDecl = isStruct
+            ? new StructTypeTypeDeclarationNode
             {
                 StructDeclaration = new StructDeclarationNode
                 {
                     Name = Tok(enclosingTypeName),
                     Members = members,
                 },
-            };
-        }
-        else
-        {
-            enclosingTypeDecl = new ClassTypeTypeDeclarationNode
+            }
+            : (TypeDeclarationNode)new ClassTypeTypeDeclarationNode
             {
                 ClassDeclaration = new ClassDeclarationNode
                 {
@@ -303,7 +298,6 @@ public class CastOperatorValidationPropertyTests
                     Members = members,
                 },
             };
-        }
 
         // Collect all distinct type names that need declarations
         var allTypeNames = new HashSet<string> { enclosingTypeName, sourceTypeName, targetTypeName };

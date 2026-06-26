@@ -125,7 +125,7 @@ public class ParserEmitterPropertyTests
             var methodMarker = "private static TestRuleNode? _ParseTestRule()";
             var methodStart = output.IndexOf(methodMarker);
             Assert.True(methodStart >= 0, "Expected _ParseTestRule method in output");
-            var methodBody = output.Substring(methodStart);
+            var methodBody = output[methodStart..];
 
             // (a) Exactly one state-save preamble
             var savedPosCount = Regex.Matches(methodBody, Regex.Escape("var saved = _pos;")).Count;
@@ -174,7 +174,7 @@ public class ParserEmitterPropertyTests
             var methodMarker = "private static TestRuleNode? _ParseTestRule()";
             var methodStart = output.IndexOf(methodMarker);
             Assert.True(methodStart >= 0, "Expected _ParseTestRule method in output");
-            var methodBody = output.Substring(methodStart);
+            var methodBody = output[methodStart..];
 
             // Should begin with if (_hasError) return null;
             Assert.Contains("if (_hasError) return null;", methodBody);

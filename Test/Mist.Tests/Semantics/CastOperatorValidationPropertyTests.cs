@@ -309,21 +309,16 @@ public class CastOperatorValidationPropertyTests
                 CastOperator = castOpDecl,
             });
 
-        TypeDeclarationNode typeDecl;
-        if(isStruct)
-        {
-            typeDecl = new StructTypeTypeDeclarationNode
+        var typeDecl = isStruct
+            ? new StructTypeTypeDeclarationNode
             {
                 StructDeclaration = new StructDeclarationNode
                 {
                     Name = Tok(enclosingTypeName),
                     Members = members,
                 },
-            };
-        }
-        else
-        {
-            typeDecl = new ClassTypeTypeDeclarationNode
+            }
+            : (TypeDeclarationNode)new ClassTypeTypeDeclarationNode
             {
                 ClassDeclaration = new ClassDeclarationNode
                 {
@@ -331,8 +326,6 @@ public class CastOperatorValidationPropertyTests
                     Members = members,
                 },
             };
-        }
-
         return new CompilationUnitNode
         {
             Items = ImmutableArray.Create(typeDecl).AsTopLevelItems(),

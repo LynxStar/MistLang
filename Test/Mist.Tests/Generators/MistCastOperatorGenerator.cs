@@ -271,8 +271,7 @@ public static class MistCastOperatorGenerator
     /// </summary>
     public static Gen<StatementNode> GenCastExpressionStatement()
     {
-        return GenCastExpression().Select(expr =>
-            MistAstGenerator.MakeExpressionStatement(expr));
+        return GenCastExpression().Select(MistAstGenerator.MakeExpressionStatement);
     }
 
     // ═══════════════════════════════════════════════════════════════════════

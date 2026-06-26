@@ -314,14 +314,9 @@ public sealed class AssociatedTypeSemanticPropertyTests : IDisposable
         foreach(var slot in slots)
         {
             var constraintList = BuildConstraintList(slot);
-            if(string.IsNullOrEmpty(constraintList))
-            {
-                _ = sb.AppendLine($"    type {slot.Name};");
-            }
-            else
-            {
-                _ = sb.AppendLine($"    type {slot.Name} : {constraintList};");
-            }
+            _ = string.IsNullOrEmpty(constraintList)
+                ? sb.AppendLine($"    type {slot.Name};")
+                : sb.AppendLine($"    type {slot.Name} : {constraintList};");
         }
 
         _ = sb.AppendLine("}");

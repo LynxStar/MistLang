@@ -485,7 +485,7 @@ public class TypeContainmentTests
         }
 
         var head = path[0];
-        var tail = path.Slice(1);
+        var tail = path[1..];
 
         switch(t)
         {

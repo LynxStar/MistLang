@@ -478,16 +478,9 @@ public sealed class RefEmissionPropertyTests : IDisposable
 
         // The emitted C# should contain "ref <type> <name>" or "ref readonly <type> <name>"
         var csharpType = MapToCSharpType(scenario.TypeName);
-        bool containsRefLocal;
-        if(scenario.IsReadonly)
-        {
-            containsRefLocal = emittedCSharp.Contains($"ref readonly {csharpType} {scenario.VarName}");
-        }
-        else
-        {
-            containsRefLocal = emittedCSharp.Contains($"ref {csharpType} {scenario.VarName}");
-        }
-
+        var containsRefLocal = scenario.IsReadonly
+            ? emittedCSharp.Contains($"ref readonly {csharpType} {scenario.VarName}")
+            : emittedCSharp.Contains($"ref {csharpType} {scenario.VarName}");
         var expectedPrefix = scenario.IsReadonly ? "ref readonly" : "ref";
         return containsRefLocal.ToProperty()
             .Label($"Expected emitted C# to contain '{expectedPrefix} {csharpType} {scenario.VarName}' but it did not.\nEmitted C#:\n{emittedCSharp}");

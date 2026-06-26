@@ -137,11 +137,8 @@ public static class AstEmitter
                 writer.WriteLine("public System.Collections.Generic.IReadOnlyList<DiagnosticEntry> Entries => _entries;");
                 writer.WriteLine("public System.Collections.Generic.IReadOnlyList<string> Messages => _entries.Select(e => e.Message).ToList();");
                 writer.WriteEmptyLine();
-                writer.WriteBlock("public void TruncateTo(int count)", () =>
-                {
-                    writer.WriteBlock("if (count >= 0 && count < _entries.Count)", () =>
-                        writer.WriteLine("_entries.RemoveRange(count, _entries.Count - count);"));
-                });
+                writer.WriteBlock("public void TruncateTo(int count)", () => writer.WriteBlock("if (count >= 0 && count < _entries.Count)", () =>
+                        writer.WriteLine("_entries.RemoveRange(count, _entries.Count - count);")));
             });
             writer.WriteEmptyLine();
 
@@ -187,17 +184,11 @@ public static class AstEmitter
                 writer.WriteLine("/// Walks the tree rooted at this node and sets the Parent property on all descendants.");
                 writer.WriteLine("/// Call once after parsing to enable upward traversal.");
                 writer.WriteLine("/// </summary>");
-                writer.WriteBlock("public void SetParentLinks()", () =>
-                {
-                    writer.WriteBlock("foreach (var child in Children())", () =>
-                    {
-                        writer.WriteBlock("if (child is not null)", () =>
+                writer.WriteBlock("public void SetParentLinks()", () => writer.WriteBlock("foreach (var child in Children())", () => writer.WriteBlock("if (child is not null)", () =>
                         {
                             writer.WriteLine("child.Parent = this;");
                             writer.WriteLine("child.SetParentLinks();");
-                        });
-                    });
-                });
+                        })));
             });
         });
 

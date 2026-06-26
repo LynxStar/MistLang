@@ -360,10 +360,8 @@ public sealed class CSharpCompilationDriver
             additionalReferencePaths.Any(p =>
                 p.Contains("Microsoft.AspNetCore.App", StringComparison.OrdinalIgnoreCase));
 
-        string json;
-        if(includeAspNetCore)
-        {
-            json = $$"""
+        var json = includeAspNetCore
+            ? $$"""
                 {
                   "runtimeOptions": {
                     "tfm": "net{{majorMinor}}",
@@ -379,11 +377,8 @@ public sealed class CSharpCompilationDriver
                     ]
                   }
                 }
-                """;
-        }
-        else
-        {
-            json = $$"""
+                """
+            : $$"""
                 {
                   "runtimeOptions": {
                     "tfm": "net{{majorMinor}}",
@@ -394,8 +389,6 @@ public sealed class CSharpCompilationDriver
                   }
                 }
                 """;
-        }
-
         File.WriteAllText(path, json);
     }
 }

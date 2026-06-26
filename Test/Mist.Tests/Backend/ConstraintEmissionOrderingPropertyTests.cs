@@ -176,7 +176,7 @@ public sealed class ConstraintEmissionOrderingPropertyTests : IDisposable
         }
         // Base classes start with uppercase and are not interfaces (no I prefix convention)
         // For our test scenarios, base classes are Animal, Vehicle, Shape
-        if(BaseClassNames.Any(bc => constraint.StartsWith(bc)))
+        if(BaseClassNames.Any(constraint.StartsWith))
         {
             return 1;
         }

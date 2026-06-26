@@ -2,718 +2,711 @@ using System;
 using System.Collections.Generic;
 using Storm.SourceGenerator.Diagnostics;
 
-namespace Storm.SourceGenerator.Frontend
+namespace Storm.SourceGenerator.Frontend;
+
+/// <summary>
+/// Hand-written recursive-descent parser for Storm grammar files.
+/// Consumes a token list from <see cref="StormLexer"/> and produces
+/// a <see cref="StormFile"/> AST node.
+/// </summary>
+public static class StormParser
 {
     /// <summary>
-    /// Hand-written recursive-descent parser for Storm grammar files.
-    /// Consumes a token list from <see cref="StormLexer"/> and produces
-    /// a <see cref="StormFile"/> AST node.
+    /// Parses a list of Storm tokens into a <see cref="StormFile"/> AST.
     /// </summary>
-    public static class StormParser
+    /// <param name="tokens">The token list produced by <see cref="StormLexer.Tokenize"/>.</param>
+    /// <param name="source">The source text (used for diagnostic locations).</param>
+    /// <param name="diagnostics">Receives any parser diagnostics.</param>
+    /// <returns>A <see cref="StormFile"/> representing the parsed grammar file.</returns>
+    public static StormFile Parse(List<StormToken> tokens, StormSourceText source, List<StormDiagnostic> diagnostics)
     {
-        /// <summary>
-        /// Parses a list of Storm tokens into a <see cref="StormFile"/> AST.
-        /// </summary>
-        /// <param name="tokens">The token list produced by <see cref="StormLexer.Tokenize"/>.</param>
-        /// <param name="source">The source text (used for diagnostic locations).</param>
-        /// <param name="diagnostics">Receives any parser diagnostics.</param>
-        /// <returns>A <see cref="StormFile"/> representing the parsed grammar file.</returns>
-        public static StormFile Parse(List<StormToken> tokens, StormSourceText source, List<StormDiagnostic> diagnostics)
+        if(tokens == null)
         {
-            if(tokens == null)
-            {
-                throw new ArgumentNullException(nameof(tokens));
-            }
-
-            if(source == null)
-            {
-                throw new ArgumentNullException(nameof(source));
-            }
-
-            if(diagnostics == null)
-            {
-                throw new ArgumentNullException(nameof(diagnostics));
-            }
-
-            var state = new ParserState(tokens, source, diagnostics);
-            return state.ParseFile();
+            throw new ArgumentNullException(nameof(tokens));
         }
 
-        /// <summary>
-        /// Internal mutable parser state. Keeps the public API clean and static.
-        /// </summary>
-        private sealed class ParserState
+        if(source == null)
         {
-            private List<StormToken> tokens;
-            private StormSourceText source;
-            private List<StormDiagnostic> diagnostics;
-            private int pos;
+            throw new ArgumentNullException(nameof(source));
+        }
 
-            public ParserState(List<StormToken> tokens, StormSourceText source, List<StormDiagnostic> diagnostics)
+        if(diagnostics == null)
+        {
+            throw new ArgumentNullException(nameof(diagnostics));
+        }
+
+        var state = new ParserState(tokens, source, diagnostics);
+        return state.ParseFile();
+    }
+
+    /// <summary>
+    /// Internal mutable parser state. Keeps the public API clean and static.
+    /// </summary>
+    private sealed class ParserState
+    {
+        private List<StormToken> tokens;
+        private StormSourceText source;
+        private List<StormDiagnostic> diagnostics;
+        private int pos;
+
+        public ParserState(List<StormToken> tokens, StormSourceText source, List<StormDiagnostic> diagnostics)
+        {
+            this.tokens = tokens;
+            this.source = source;
+            this.diagnostics = diagnostics;
+            pos = 0;
+        }
+
+        // ----------------------------------------------------------
+        //  Token access helpers
+        // ----------------------------------------------------------
+
+        private StormToken Current => pos < tokens.Count
+            ? tokens[pos]
+            : tokens[tokens.Count - 1]; // EOF sentinel
+
+        private StormToken Peek(int offset = 0)
+        {
+            var idx = pos + offset;
+            return idx < tokens.Count ? tokens[idx] : tokens[tokens.Count - 1];
+        }
+
+        private StormToken Advance()
+        {
+            var tok = Current;
+            if(pos < tokens.Count - 1) // don't advance past EOF
             {
-                this.tokens = tokens;
-                this.source = source;
-                this.diagnostics = diagnostics;
-                pos = 0;
+                pos++;
             }
 
-            // ----------------------------------------------------------
-            //  Token access helpers
-            // ----------------------------------------------------------
+            return tok;
+        }
 
-            private StormToken Current => pos < tokens.Count
-                ? tokens[pos]
-                : tokens[tokens.Count - 1]; // EOF sentinel
+        private bool Check(StormTokenKind kind)
+        {
+            return Current.Kind == kind;
+        }
 
-            private StormToken Peek(int offset = 0)
+        private bool Match(StormTokenKind kind)
+        {
+            if(Current.Kind == kind)
             {
-                var idx = pos + offset;
-                return idx < tokens.Count ? tokens[idx] : tokens[tokens.Count - 1];
+                _ = Advance();
+                return true;
             }
 
-            private StormToken Advance()
-            {
-                var tok = Current;
-                if(pos < tokens.Count - 1) // don't advance past EOF
-                {
-                    pos++;
-                }
+            return false;
+        }
 
-                return tok;
+        private StormToken Expect(StormTokenKind kind, string expected)
+        {
+            if(Current.Kind == kind)
+            {
+                return Advance();
             }
 
-            private bool Check(StormTokenKind kind)
-            {
-                return Current.Kind == kind;
-            }
+            Error($"Expected {expected}, got '{Current.Lexeme}'");
+            // Return a synthetic token so the caller can continue.
+            return new StormToken(kind, "", Current.Offset, Current.Line, Current.Column);
+        }
 
-            private bool Match(StormTokenKind kind)
-            {
-                if(Current.Kind == kind)
-                {
-                    _ = Advance();
-                    return true;
-                }
+        private void Error(string message)
+        {
+            var tok = Current;
+            diagnostics.Add(new StormDiagnostic(
+                StormDiagnosticIds.STORM_SYNTAX_ERROR,
+                StormDiagnosticSeverity.Error,
+                message,
+                source.FilePath,
+                tok.Line,
+                tok.Column));
+        }
 
-                return false;
-            }
+        // ----------------------------------------------------------
+        //  Synchronization / recovery
+        // ----------------------------------------------------------
 
-            private StormToken Expect(StormTokenKind kind, string expected)
-            {
-                if(Current.Kind == kind)
-                {
-                    return Advance();
-                }
-
-                Error($"Expected {expected}, got '{Current.Lexeme}'");
-                // Return a synthetic token so the caller can continue.
-                return new StormToken(kind, "", Current.Offset, Current.Line, Current.Column);
-            }
-
-            private void Error(string message)
-            {
-                var tok = Current;
-                diagnostics.Add(new StormDiagnostic(
-                    StormDiagnosticIds.STORM_SYNTAX_ERROR,
-                    StormDiagnosticSeverity.Error,
-                    message,
-                    source.FilePath,
-                    tok.Line,
-                    tok.Column));
-            }
-
-            // ----------------------------------------------------------
-            //  Synchronization / recovery
-            // ----------------------------------------------------------
-
-            /// <summary>
-            /// Skips tokens until we find one that could start a new
-            /// top-level declaration or reach EOF.
-            /// </summary>
-            private void SynchronizeToDeclaration()
-            {
-                while(Current.Kind != StormTokenKind.EndOfFile)
-                {
-                    switch(Current.Kind)
-                    {
-                        case StormTokenKind.Annotation:
-                        case StormTokenKind.RuleKeyword:
-                        case StormTokenKind.TokenKeyword:
-                        case StormTokenKind.FragmentKeyword:
-                        case StormTokenKind.HiddenKeyword:
-                        case StormTokenKind.ImportKeyword:
-                        case StormTokenKind.GrammarKeyword:
-                        case StormTokenKind.ModeKeyword:
-                        case StormTokenKind.RightBrace:
-                            return;
-                        default:
-                            _ = Advance();
-                            break;
-                    }
-                }
-            }
-
-            // ----------------------------------------------------------
-            //  Top-level: File
-            // ----------------------------------------------------------
-
-            public StormFile ParseFile()
-            {
-                var imports = new List<StormImport>();
-                var declarations = new List<StormDeclaration>();
-
-                // Parse optional grammar declaration (must come before imports).
-                StormGrammarDecl? grammarDecl = null;
-                if(Current.Kind == StormTokenKind.GrammarKeyword)
-                {
-                    grammarDecl = ParseGrammarDecl();
-                }
-
-                // Parse imports (must come before declarations).
-                while(Current.Kind == StormTokenKind.ImportKeyword)
-                {
-                    var imp = ParseImport();
-                    if(imp != null)
-                    {
-                        imports.Add(imp);
-                    }
-                }
-
-                // Parse declarations until EOF.
-                while(Current.Kind != StormTokenKind.EndOfFile)
-                {
-                    var decl = ParseDeclaration();
-                    if(decl != null)
-                    {
-                        declarations.Add(decl);
-                    }
-                }
-
-                return new StormFile(grammarDecl, imports, declarations);
-            }
-
-            // ----------------------------------------------------------
-            //  Grammar declaration
-            // ----------------------------------------------------------
-
-            /// <summary>grammar Name ;</summary>
-            private StormGrammarDecl ParseGrammarDecl()
-            {
-                var kw = Advance(); // consume 'grammar'
-                var nameTok = Expect(StormTokenKind.Identifier, "grammar name");
-                _ = Expect(StormTokenKind.Semicolon, "';'");
-                return new StormGrammarDecl(nameTok.Lexeme, kw.Offset, kw.Line, kw.Column);
-            }
-
-            // ----------------------------------------------------------
-            //  Import declarations
-            // ----------------------------------------------------------
-
-            private StormImport? ParseImport()
-            {
-                // import "path" ;
-                // import "path" as Namespace ;
-                var importTok = Advance(); // consume 'import'
-                var offset = importTok.Offset;
-                var line = importTok.Line;
-                var column = importTok.Column;
-
-                if(Current.Kind != StormTokenKind.StringLiteral)
-                {
-                    Error("Expected string literal after 'import'");
-                    SynchronizeToDeclaration();
-                    return null;
-                }
-
-                var pathTok = Advance();
-                var path = UnquoteString(pathTok.Lexeme);
-
-                string? alias = null;
-                if(Match(StormTokenKind.AsKeyword))
-                {
-                    if(Current.Kind != StormTokenKind.Identifier)
-                    {
-                        Error("Expected namespace identifier after 'as'");
-                        SynchronizeToDeclaration();
-                        return new StormImport(path, null, offset, line, column);
-                    }
-
-                    alias = Advance().Lexeme;
-                }
-
-                _ = Expect(StormTokenKind.Semicolon, "';'");
-                return new StormImport(path, alias, offset, line, column);
-            }
-
-            // ----------------------------------------------------------
-            //  Declarations
-            // ----------------------------------------------------------
-
-            private StormDeclaration? ParseDeclaration()
+        /// <summary>
+        /// Skips tokens until we find one that could start a new
+        /// top-level declaration or reach EOF.
+        /// </summary>
+        private void SynchronizeToDeclaration()
+        {
+            while(Current.Kind != StormTokenKind.EndOfFile)
             {
                 switch(Current.Kind)
                 {
                     case StormTokenKind.Annotation:
-                        return ParseAnnotatedDeclaration();
                     case StormTokenKind.RuleKeyword:
-                        return ParseRuleDecl();
                     case StormTokenKind.TokenKeyword:
-                        return ParseTokenDecl();
                     case StormTokenKind.FragmentKeyword:
-                        return ParseFragmentDecl();
                     case StormTokenKind.HiddenKeyword:
-                        return ParseHiddenTokenDecl();
+                    case StormTokenKind.ImportKeyword:
+                    case StormTokenKind.GrammarKeyword:
                     case StormTokenKind.ModeKeyword:
-                        return ParseModeDecl();
+                    case StormTokenKind.RightBrace:
+                        return;
                     default:
-                        Error($"Expected declaration (rule, token, fragment, or hidden), got '{Current.Lexeme}'");
-                        SynchronizeToDeclaration();
-                        return null;
+                        _ = Advance();
+                        break;
+                }
+            }
+        }
+
+        // ----------------------------------------------------------
+        //  Top-level: File
+        // ----------------------------------------------------------
+
+        public StormFile ParseFile()
+        {
+            var imports = new List<StormImport>();
+            var declarations = new List<StormDeclaration>();
+
+            // Parse optional grammar declaration (must come before imports).
+            StormGrammarDecl? grammarDecl = null;
+            if(Current.Kind == StormTokenKind.GrammarKeyword)
+            {
+                grammarDecl = ParseGrammarDecl();
+            }
+
+            // Parse imports (must come before declarations).
+            while(Current.Kind == StormTokenKind.ImportKeyword)
+            {
+                var imp = ParseImport();
+                if(imp != null)
+                {
+                    imports.Add(imp);
                 }
             }
 
-            /// <summary>
-            /// Parses an annotated declaration. Currently only @memo is recognized,
-            /// and it must precede a rule declaration.
-            /// </summary>
-            private StormDeclaration? ParseAnnotatedDeclaration()
+            // Parse declarations until EOF.
+            while(Current.Kind != StormTokenKind.EndOfFile)
             {
-                var annotationTok = Advance(); // consume the annotation token
-
-                // Only @memo is recognized
-                if(annotationTok.Lexeme != "@memo")
+                var decl = ParseDeclaration();
+                if(decl != null)
                 {
-                    Error($"Unrecognized annotation '{annotationTok.Lexeme}'");
-                    SynchronizeToDeclaration();
-                    return null;
+                    declarations.Add(decl);
                 }
-
-                // Check for duplicate @memo
-                if(Current.Kind == StormTokenKind.Annotation)
-                {
-                    Error("Duplicate '@memo' annotation on rule declaration");
-                    _ = Advance(); // skip the duplicate
-                }
-
-                // @memo is only valid before 'rule'
-                if(Current.Kind != StormTokenKind.RuleKeyword)
-                {
-                    Error("'@memo' is only valid on rule declarations");
-                    SynchronizeToDeclaration();
-                    return null;
-                }
-
-                // Parse the rule declaration with memo flag
-                var kw = Advance(); // consume 'rule'
-                var nameTok = Expect(StormTokenKind.Identifier, "rule name");
-                _ = Expect(StormTokenKind.Equals, "'='");
-                var body = ParseExpression();
-                _ = Expect(StormTokenKind.Semicolon, "';'");
-                return new StormRuleDecl(nameTok.Lexeme, body, kw.Offset, kw.Line, kw.Column, IsMemo: true);
             }
 
-            /// <summary>rule Name = expression ;</summary>
-            private StormRuleDecl ParseRuleDecl()
+            return new StormFile(grammarDecl, imports, declarations);
+        }
+
+        // ----------------------------------------------------------
+        //  Grammar declaration
+        // ----------------------------------------------------------
+
+        /// <summary>grammar Name ;</summary>
+        private StormGrammarDecl ParseGrammarDecl()
+        {
+            var kw = Advance(); // consume 'grammar'
+            var nameTok = Expect(StormTokenKind.Identifier, "grammar name");
+            _ = Expect(StormTokenKind.Semicolon, "';'");
+            return new StormGrammarDecl(nameTok.Lexeme, kw.Offset, kw.Line, kw.Column);
+        }
+
+        // ----------------------------------------------------------
+        //  Import declarations
+        // ----------------------------------------------------------
+
+        private StormImport? ParseImport()
+        {
+            // import "path" ;
+            // import "path" as Namespace ;
+            var importTok = Advance(); // consume 'import'
+            var offset = importTok.Offset;
+            var line = importTok.Line;
+            var column = importTok.Column;
+
+            if(Current.Kind != StormTokenKind.StringLiteral)
             {
-                var kw = Advance(); // consume 'rule'
-                var nameTok = Expect(StormTokenKind.Identifier, "rule name");
-                _ = Expect(StormTokenKind.Equals, "'='");
-                var body = ParseExpression();
-                _ = Expect(StormTokenKind.Semicolon, "';'");
-                return new StormRuleDecl(nameTok.Lexeme, body, kw.Offset, kw.Line, kw.Column);
-            }
-
-            /// <summary>token Name = expression ( => push Identifier | => pop )? ;</summary>
-            private StormTokenDecl ParseTokenDecl()
-            {
-                var kw = Advance(); // consume 'token'
-                var nameTok = Expect(StormTokenKind.Identifier, "token name");
-                _ = Expect(StormTokenKind.Equals, "'='");
-                var body = ParseExpression();
-                var action = ParseActionClause();
-                _ = Expect(StormTokenKind.Semicolon, "';'");
-                return new StormTokenDecl(nameTok.Lexeme, body, kw.Offset, kw.Line, kw.Column, action);
-            }
-
-            /// <summary>fragment Name = expression ;</summary>
-            private StormFragmentDecl ParseFragmentDecl()
-            {
-                var kw = Advance(); // consume 'fragment'
-                var nameTok = Expect(StormTokenKind.Identifier, "fragment name");
-                _ = Expect(StormTokenKind.Equals, "'='");
-                var body = ParseExpression();
-                _ = Expect(StormTokenKind.Semicolon, "';'");
-                return new StormFragmentDecl(nameTok.Lexeme, body, kw.Offset, kw.Line, kw.Column);
-            }
-
-            /// <summary>hidden token Name = expression ( => push Identifier | => pop )? ;</summary>
-            private StormHiddenTokenDecl ParseHiddenTokenDecl()
-            {
-                var kw = Advance(); // consume 'hidden'
-                _ = Expect(StormTokenKind.TokenKeyword, "'token'");
-                var nameTok = Expect(StormTokenKind.Identifier, "token name");
-                _ = Expect(StormTokenKind.Equals, "'='");
-                var body = ParseExpression();
-                var action = ParseActionClause();
-                _ = Expect(StormTokenKind.Semicolon, "';'");
-                return new StormHiddenTokenDecl(nameTok.Lexeme, body, kw.Offset, kw.Line, kw.Column, action);
-            }
-
-            // ----------------------------------------------------------
-            //  Mode declarations
-            // ----------------------------------------------------------
-
-            /// <summary>mode Identifier { Declaration* }</summary>
-            private StormModeDecl ParseModeDecl()
-            {
-                var kw = Advance(); // consume 'mode'
-
-                // Accept either an Identifier or the 'default' keyword as the mode name.
-                string modeName;
-                if(Current.Kind is StormTokenKind.Identifier or StormTokenKind.DefaultKeyword)
-                {
-                    modeName = Advance().Lexeme;
-                }
-                else
-                {
-                    Error($"Expected mode name after 'mode', got '{Current.Lexeme}'");
-                    modeName = "<error>";
-                }
-
-                if(Current.Kind != StormTokenKind.LeftBrace)
-                {
-                    Error("Expected '{' after mode name");
-                    SynchronizeToDeclaration();
-                    return new StormModeDecl(modeName, new List<StormDeclaration>(), kw.Offset, kw.Line, kw.Column);
-                }
-
-                _ = Advance(); // consume '{'
-
-                var declarations = new List<StormDeclaration>();
-                while(Current.Kind is not StormTokenKind.RightBrace and not StormTokenKind.EndOfFile)
-                {
-                    var decl = ParseDeclaration();
-                    if(decl != null)
-                    {
-                        declarations.Add(decl);
-                    }
-                }
-
-                if(Current.Kind == StormTokenKind.RightBrace)
-                {
-                    _ = Advance(); // consume '}'
-                }
-                else
-                {
-                    Error("Unterminated mode block");
-                }
-
-                return new StormModeDecl(modeName, declarations, kw.Offset, kw.Line, kw.Column);
-            }
-
-            // ----------------------------------------------------------
-            //  Action clauses
-            // ----------------------------------------------------------
-
-            /// <summary>
-            /// Parses an optional action clause: => push Identifier | => pop
-            /// Returns null if no action clause is present.
-            /// </summary>
-            private StormModeAction? ParseActionClause()
-            {
-                if(Current.Kind != StormTokenKind.FatArrow)
-                {
-                    return null;
-                }
-
-                _ = Advance(); // consume '=>'
-
-                if(Current.Kind == StormTokenKind.PushKeyword)
-                {
-                    _ = Advance(); // consume 'push'
-
-                    // Accept Identifier or 'default' keyword as the mode name.
-                    if(Current.Kind is StormTokenKind.Identifier or StormTokenKind.DefaultKeyword)
-                    {
-                        var modeNameTok = Advance();
-                        return new StormPushAction(modeNameTok.Lexeme);
-                    }
-
-                    Error("Expected mode name after 'push'");
-                    return new StormPushAction("<error>");
-                }
-
-                if(Current.Kind == StormTokenKind.PopKeyword)
-                {
-                    _ = Advance(); // consume 'pop'
-                    return new StormPopAction();
-                }
-
-                Error($"Expected 'push' or 'pop' after '=>', got '{Current.Lexeme}'");
-                // Synchronize to the next semicolon or declaration keyword.
+                Error("Expected string literal after 'import'");
                 SynchronizeToDeclaration();
                 return null;
             }
 
-            // ----------------------------------------------------------
-            //  Expression parsing — recursive descent
-            //
-            //  Precedence (lowest to highest):
-            //    1. Alternation  ( | )
-            //    2. Named alternative  ( as Name )
-            //    3. Sequence  (juxtaposition)
-            //    4. Field label  ( name:element )
-            //    5. Postfix  ( ? * + )
-            //    6. Primary  (string, charclass, ref, qualified ref, group)
-            // ----------------------------------------------------------
+            var pathTok = Advance();
+            var path = UnquoteString(pathTok.Lexeme);
 
-            /// <summary>
-            /// Entry point for expression parsing. Parses alternation.
-            /// </summary>
-            private StormExpression ParseExpression()
+            string? alias = null;
+            if(Match(StormTokenKind.AsKeyword))
             {
-                return ParseAlternation();
+                if(Current.Kind != StormTokenKind.Identifier)
+                {
+                    Error("Expected namespace identifier after 'as'");
+                    SynchronizeToDeclaration();
+                    return new StormImport(path, null, offset, line, column);
+                }
+
+                alias = Advance().Lexeme;
             }
 
-            /// <summary>
-            /// Alternation: namedAlt ( '|' namedAlt )*
-            /// </summary>
-            private StormExpression ParseAlternation()
+            _ = Expect(StormTokenKind.Semicolon, "';'");
+            return new StormImport(path, alias, offset, line, column);
+        }
+
+        // ----------------------------------------------------------
+        //  Declarations
+        // ----------------------------------------------------------
+
+        private StormDeclaration? ParseDeclaration()
+        {
+            switch(Current.Kind)
             {
-                var first = ParseNamedAlternative();
-                if(!Check(StormTokenKind.Pipe))
-                {
-                    return first;
-                }
+                case StormTokenKind.Annotation:
+                    return ParseAnnotatedDeclaration();
+                case StormTokenKind.RuleKeyword:
+                    return ParseRuleDecl();
+                case StormTokenKind.TokenKeyword:
+                    return ParseTokenDecl();
+                case StormTokenKind.FragmentKeyword:
+                    return ParseFragmentDecl();
+                case StormTokenKind.HiddenKeyword:
+                    return ParseHiddenTokenDecl();
+                case StormTokenKind.ModeKeyword:
+                    return ParseModeDecl();
+                default:
+                    Error($"Expected declaration (rule, token, fragment, or hidden), got '{Current.Lexeme}'");
+                    SynchronizeToDeclaration();
+                    return null;
+            }
+        }
 
-                var alternatives = new List<StormExpression> { first };
-                while(Match(StormTokenKind.Pipe))
-                {
-                    alternatives.Add(ParseNamedAlternative());
-                }
+        /// <summary>
+        /// Parses an annotated declaration. Currently only @memo is recognized,
+        /// and it must precede a rule declaration.
+        /// </summary>
+        private StormDeclaration? ParseAnnotatedDeclaration()
+        {
+            var annotationTok = Advance(); // consume the annotation token
 
-                return new StormAlternationExpr(alternatives);
+            // Only @memo is recognized
+            if(annotationTok.Lexeme != "@memo")
+            {
+                Error($"Unrecognized annotation '{annotationTok.Lexeme}'");
+                SynchronizeToDeclaration();
+                return null;
             }
 
-            /// <summary>
-            /// Named alternative: sequence ( 'as' Name )?
-            /// </summary>
-            private StormExpression ParseNamedAlternative()
+            // Check for duplicate @memo
+            if(Current.Kind == StormTokenKind.Annotation)
             {
-                var expr = ParseSequence();
-
-                if(Check(StormTokenKind.AsKeyword))
-                {
-                    _ = Advance(); // consume 'as'
-                    var nameTok = Expect(StormTokenKind.Identifier, "alternative name");
-                    return new StormNamedAlternative(expr, nameTok.Lexeme);
-                }
-
-                return expr;
+                Error("Duplicate '@memo' annotation on rule declaration");
+                _ = Advance(); // skip the duplicate
             }
 
-            /// <summary>
-            /// Sequence: labeled+  (two or more → StormSequenceExpr, one → unwrap)
-            /// </summary>
-            private StormExpression ParseSequence()
+            // @memo is only valid before 'rule'
+            if(Current.Kind != StormTokenKind.RuleKeyword)
             {
-                var elements = new List<StormExpression>();
-                while(IsExpressionStart())
-                {
-                    elements.Add(ParseLabeled());
-                }
-
-                if(elements.Count == 0)
-                {
-                    Error("Expected expression");
-                    // Return a placeholder so the caller can continue.
-                    return new StormReferenceExpr("<error>");
-                }
-
-                if(elements.Count == 1)
-                {
-                    return elements[0];
-                }
-
-                return new StormSequenceExpr(elements);
+                Error("'@memo' is only valid on rule declarations");
+                SynchronizeToDeclaration();
+                return null;
             }
 
-            /// <summary>
-            /// Field label: Identifier ':' postfix  |  postfix
-            /// </summary>
-            private StormExpression ParseLabeled()
-            {
-                // Look ahead: if we see Identifier followed by ':', it's a label.
-                if(Current.Kind == StormTokenKind.Identifier && Peek(1).Kind == StormTokenKind.Colon)
-                {
-                    var labelTok = Advance(); // consume identifier
-                    _ = Advance(); // consume ':'
-                    var element = ParsePostfix();
-                    return new StormLabeledExpr(labelTok.Lexeme, element);
-                }
+            // Parse the rule declaration with memo flag
+            var kw = Advance(); // consume 'rule'
+            var nameTok = Expect(StormTokenKind.Identifier, "rule name");
+            _ = Expect(StormTokenKind.Equals, "'='");
+            var body = ParseExpression();
+            _ = Expect(StormTokenKind.Semicolon, "';'");
+            return new StormRuleDecl(nameTok.Lexeme, body, kw.Offset, kw.Line, kw.Column, IsMemo: true);
+        }
 
-                return ParsePostfix();
+        /// <summary>rule Name = expression ;</summary>
+        private StormRuleDecl ParseRuleDecl()
+        {
+            var kw = Advance(); // consume 'rule'
+            var nameTok = Expect(StormTokenKind.Identifier, "rule name");
+            _ = Expect(StormTokenKind.Equals, "'='");
+            var body = ParseExpression();
+            _ = Expect(StormTokenKind.Semicolon, "';'");
+            return new StormRuleDecl(nameTok.Lexeme, body, kw.Offset, kw.Line, kw.Column);
+        }
+
+        /// <summary>token Name = expression ( => push Identifier | => pop )? ;</summary>
+        private StormTokenDecl ParseTokenDecl()
+        {
+            var kw = Advance(); // consume 'token'
+            var nameTok = Expect(StormTokenKind.Identifier, "token name");
+            _ = Expect(StormTokenKind.Equals, "'='");
+            var body = ParseExpression();
+            var action = ParseActionClause();
+            _ = Expect(StormTokenKind.Semicolon, "';'");
+            return new StormTokenDecl(nameTok.Lexeme, body, kw.Offset, kw.Line, kw.Column, action);
+        }
+
+        /// <summary>fragment Name = expression ;</summary>
+        private StormFragmentDecl ParseFragmentDecl()
+        {
+            var kw = Advance(); // consume 'fragment'
+            var nameTok = Expect(StormTokenKind.Identifier, "fragment name");
+            _ = Expect(StormTokenKind.Equals, "'='");
+            var body = ParseExpression();
+            _ = Expect(StormTokenKind.Semicolon, "';'");
+            return new StormFragmentDecl(nameTok.Lexeme, body, kw.Offset, kw.Line, kw.Column);
+        }
+
+        /// <summary>hidden token Name = expression ( => push Identifier | => pop )? ;</summary>
+        private StormHiddenTokenDecl ParseHiddenTokenDecl()
+        {
+            var kw = Advance(); // consume 'hidden'
+            _ = Expect(StormTokenKind.TokenKeyword, "'token'");
+            var nameTok = Expect(StormTokenKind.Identifier, "token name");
+            _ = Expect(StormTokenKind.Equals, "'='");
+            var body = ParseExpression();
+            var action = ParseActionClause();
+            _ = Expect(StormTokenKind.Semicolon, "';'");
+            return new StormHiddenTokenDecl(nameTok.Lexeme, body, kw.Offset, kw.Line, kw.Column, action);
+        }
+
+        // ----------------------------------------------------------
+        //  Mode declarations
+        // ----------------------------------------------------------
+
+        /// <summary>mode Identifier { Declaration* }</summary>
+        private StormModeDecl ParseModeDecl()
+        {
+            var kw = Advance(); // consume 'mode'
+
+            // Accept either an Identifier or the 'default' keyword as the mode name.
+            string modeName;
+            if(Current.Kind is StormTokenKind.Identifier or StormTokenKind.DefaultKeyword)
+            {
+                modeName = Advance().Lexeme;
+            }
+            else
+            {
+                Error($"Expected mode name after 'mode', got '{Current.Lexeme}'");
+                modeName = "<error>";
             }
 
-            /// <summary>
-            /// Postfix: primary ( '?' | '*' | '+' )*
-            /// </summary>
-            private StormExpression ParsePostfix()
+            if(Current.Kind != StormTokenKind.LeftBrace)
             {
-                var expr = ParsePrimary();
+                Error("Expected '{' after mode name");
+                SynchronizeToDeclaration();
+                return new StormModeDecl(modeName, new List<StormDeclaration>(), kw.Offset, kw.Line, kw.Column);
+            }
 
-                while(true)
+            _ = Advance(); // consume '{'
+
+            var declarations = new List<StormDeclaration>();
+            while(Current.Kind is not StormTokenKind.RightBrace and not StormTokenKind.EndOfFile)
+            {
+                var decl = ParseDeclaration();
+                if(decl != null)
                 {
-                    if(Match(StormTokenKind.Question))
+                    declarations.Add(decl);
+                }
+            }
+
+            if(Current.Kind == StormTokenKind.RightBrace)
+            {
+                _ = Advance(); // consume '}'
+            }
+            else
+            {
+                Error("Unterminated mode block");
+            }
+
+            return new StormModeDecl(modeName, declarations, kw.Offset, kw.Line, kw.Column);
+        }
+
+        // ----------------------------------------------------------
+        //  Action clauses
+        // ----------------------------------------------------------
+
+        /// <summary>
+        /// Parses an optional action clause: => push Identifier | => pop
+        /// Returns null if no action clause is present.
+        /// </summary>
+        private StormModeAction? ParseActionClause()
+        {
+            if(Current.Kind != StormTokenKind.FatArrow)
+            {
+                return null;
+            }
+
+            _ = Advance(); // consume '=>'
+
+            if(Current.Kind == StormTokenKind.PushKeyword)
+            {
+                _ = Advance(); // consume 'push'
+
+                // Accept Identifier or 'default' keyword as the mode name.
+                if(Current.Kind is StormTokenKind.Identifier or StormTokenKind.DefaultKeyword)
+                {
+                    var modeNameTok = Advance();
+                    return new StormPushAction(modeNameTok.Lexeme);
+                }
+
+                Error("Expected mode name after 'push'");
+                return new StormPushAction("<error>");
+            }
+
+            if(Current.Kind == StormTokenKind.PopKeyword)
+            {
+                _ = Advance(); // consume 'pop'
+                return new StormPopAction();
+            }
+
+            Error($"Expected 'push' or 'pop' after '=>', got '{Current.Lexeme}'");
+            // Synchronize to the next semicolon or declaration keyword.
+            SynchronizeToDeclaration();
+            return null;
+        }
+
+        // ----------------------------------------------------------
+        //  Expression parsing — recursive descent
+        //
+        //  Precedence (lowest to highest):
+        //    1. Alternation  ( | )
+        //    2. Named alternative  ( as Name )
+        //    3. Sequence  (juxtaposition)
+        //    4. Field label  ( name:element )
+        //    5. Postfix  ( ? * + )
+        //    6. Primary  (string, charclass, ref, qualified ref, group)
+        // ----------------------------------------------------------
+
+        /// <summary>
+        /// Entry point for expression parsing. Parses alternation.
+        /// </summary>
+        private StormExpression ParseExpression()
+        {
+            return ParseAlternation();
+        }
+
+        /// <summary>
+        /// Alternation: namedAlt ( '|' namedAlt )*
+        /// </summary>
+        private StormExpression ParseAlternation()
+        {
+            var first = ParseNamedAlternative();
+            if(!Check(StormTokenKind.Pipe))
+            {
+                return first;
+            }
+
+            var alternatives = new List<StormExpression> { first };
+            while(Match(StormTokenKind.Pipe))
+            {
+                alternatives.Add(ParseNamedAlternative());
+            }
+
+            return new StormAlternationExpr(alternatives);
+        }
+
+        /// <summary>
+        /// Named alternative: sequence ( 'as' Name )?
+        /// </summary>
+        private StormExpression ParseNamedAlternative()
+        {
+            var expr = ParseSequence();
+
+            if(Check(StormTokenKind.AsKeyword))
+            {
+                _ = Advance(); // consume 'as'
+                var nameTok = Expect(StormTokenKind.Identifier, "alternative name");
+                return new StormNamedAlternative(expr, nameTok.Lexeme);
+            }
+
+            return expr;
+        }
+
+        /// <summary>
+        /// Sequence: labeled+  (two or more → StormSequenceExpr, one → unwrap)
+        /// </summary>
+        private StormExpression ParseSequence()
+        {
+            var elements = new List<StormExpression>();
+            while(IsExpressionStart())
+            {
+                elements.Add(ParseLabeled());
+            }
+
+            if(elements.Count == 0)
+            {
+                Error("Expected expression");
+                // Return a placeholder so the caller can continue.
+                return new StormReferenceExpr("<error>");
+            }
+
+            if(elements.Count == 1)
+            {
+                return elements[0];
+            }
+
+            return new StormSequenceExpr(elements);
+        }
+
+        /// <summary>
+        /// Field label: Identifier ':' postfix  |  postfix
+        /// </summary>
+        private StormExpression ParseLabeled()
+        {
+            // Look ahead: if we see Identifier followed by ':', it's a label.
+            if(Current.Kind == StormTokenKind.Identifier && Peek(1).Kind == StormTokenKind.Colon)
+            {
+                var labelTok = Advance(); // consume identifier
+                _ = Advance(); // consume ':'
+                var element = ParsePostfix();
+                return new StormLabeledExpr(labelTok.Lexeme, element);
+            }
+
+            return ParsePostfix();
+        }
+
+        /// <summary>
+        /// Postfix: primary ( '?' | '*' | '+' )*
+        /// </summary>
+        private StormExpression ParsePostfix()
+        {
+            var expr = ParsePrimary();
+
+            while(true)
+            {
+                if(Match(StormTokenKind.Question))
+                {
+                    expr = new StormOptionalExpr(expr);
+                }
+                else if(Match(StormTokenKind.Star))
+                {
+                    expr = new StormZeroOrMoreExpr(expr);
+                }
+                else if(Match(StormTokenKind.Plus))
+                {
+                    expr = new StormOneOrMoreExpr(expr);
+                }
+                else
+                {
+                    break;
+                }
+            }
+
+            return expr;
+        }
+
+        /// <summary>
+        /// Primary: string literal | char class | reference | qualified reference | group
+        /// </summary>
+        private StormExpression ParsePrimary()
+        {
+            switch(Current.Kind)
+            {
+                case StormTokenKind.StringLiteral:
                     {
-                        expr = new StormOptionalExpr(expr);
+                        var tok = Advance();
+                        return new StormStringLiteralExpr(UnquoteString(tok.Lexeme));
                     }
-                    else if(Match(StormTokenKind.Star))
-                    {
-                        expr = new StormZeroOrMoreExpr(expr);
-                    }
-                    else if(Match(StormTokenKind.Plus))
-                    {
-                        expr = new StormOneOrMoreExpr(expr);
-                    }
-                    else
-                    {
-                        break;
-                    }
-                }
 
-                return expr;
+                case StormTokenKind.CharClass:
+                    {
+                        var tok = Advance();
+                        return new StormCharClassExpr(tok.Lexeme);
+                    }
+
+                case StormTokenKind.RegexLiteral:
+                    {
+                        var tok = Advance();
+                        var pattern = tok.Lexeme.Substring(1, tok.Lexeme.Length - 2);
+                        return new StormRegexLiteralExpr(pattern);
+                    }
+
+                case StormTokenKind.Identifier:
+                    {
+                        var nameTok = Advance();
+                        // Check for qualified reference: Name.Name
+                        if(Check(StormTokenKind.Dot))
+                        {
+                            _ = Advance(); // consume '.'
+                            var memberTok = Expect(StormTokenKind.Identifier, "qualified name");
+                            return new StormQualifiedReferenceExpr(nameTok.Lexeme, memberTok.Lexeme);
+                        }
+
+                        return new StormReferenceExpr(nameTok.Lexeme);
+                    }
+
+                case StormTokenKind.LeftParen:
+                    {
+                        _ = Advance(); // consume '('
+                        var inner = ParseExpression();
+                        _ = Expect(StormTokenKind.RightParen, "')'");
+                        return new StormGroupExpr(inner);
+                    }
+
+                default:
+                    {
+                        Error($"Unexpected token '{Current.Lexeme}'");
+                        _ = Advance(); // skip the bad token to avoid infinite loop
+                        return new StormReferenceExpr("<error>");
+                    }
             }
+        }
 
-            /// <summary>
-            /// Primary: string literal | char class | reference | qualified reference | group
-            /// </summary>
-            private StormExpression ParsePrimary()
+        // ----------------------------------------------------------
+        //  Helpers
+        // ----------------------------------------------------------
+
+        /// <summary>
+        /// Returns true if the current token can start an expression element.
+        /// Used by sequence parsing to know when to stop.
+        /// </summary>
+        private bool IsExpressionStart()
+        {
+            return Current.Kind switch
             {
-                switch(Current.Kind)
-                {
-                    case StormTokenKind.StringLiteral:
-                        {
-                            var tok = Advance();
-                            return new StormStringLiteralExpr(UnquoteString(tok.Lexeme));
-                        }
+                StormTokenKind.StringLiteral or StormTokenKind.CharClass or StormTokenKind.RegexLiteral or StormTokenKind.Identifier or StormTokenKind.LeftParen => true,
+                _ => false,
+            };
+        }
 
-                    case StormTokenKind.CharClass:
-                        {
-                            var tok = Advance();
-                            return new StormCharClassExpr(tok.Lexeme);
-                        }
-
-                    case StormTokenKind.RegexLiteral:
-                        {
-                            var tok = Advance();
-                            var pattern = tok.Lexeme.Substring(1, tok.Lexeme.Length - 2);
-                            return new StormRegexLiteralExpr(pattern);
-                        }
-
-                    case StormTokenKind.Identifier:
-                        {
-                            var nameTok = Advance();
-                            // Check for qualified reference: Name.Name
-                            if(Check(StormTokenKind.Dot))
-                            {
-                                _ = Advance(); // consume '.'
-                                var memberTok = Expect(StormTokenKind.Identifier, "qualified name");
-                                return new StormQualifiedReferenceExpr(nameTok.Lexeme, memberTok.Lexeme);
-                            }
-
-                            return new StormReferenceExpr(nameTok.Lexeme);
-                        }
-
-                    case StormTokenKind.LeftParen:
-                        {
-                            _ = Advance(); // consume '('
-                            var inner = ParseExpression();
-                            _ = Expect(StormTokenKind.RightParen, "')'");
-                            return new StormGroupExpr(inner);
-                        }
-
-                    default:
-                        {
-                            Error($"Unexpected token '{Current.Lexeme}'");
-                            _ = Advance(); // skip the bad token to avoid infinite loop
-                            return new StormReferenceExpr("<error>");
-                        }
-                }
-            }
-
-            // ----------------------------------------------------------
-            //  Helpers
-            // ----------------------------------------------------------
-
-            /// <summary>
-            /// Returns true if the current token can start an expression element.
-            /// Used by sequence parsing to know when to stop.
-            /// </summary>
-            private bool IsExpressionStart()
+        /// <summary>
+        /// Strips the surrounding double quotes from a string literal lexeme.
+        /// Handles basic escape sequences.
+        /// </summary>
+        private static string UnquoteString(string lexeme)
+        {
+            if(lexeme.Length < 2 || lexeme[0] != '"')
             {
-                switch(Current.Kind)
-                {
-                    case StormTokenKind.StringLiteral:
-                    case StormTokenKind.CharClass:
-                    case StormTokenKind.RegexLiteral:
-                    case StormTokenKind.Identifier:
-                    case StormTokenKind.LeftParen:
-                        return true;
-                    default:
-                        return false;
-                }
+                return lexeme;
             }
 
-            /// <summary>
-            /// Strips the surrounding double quotes from a string literal lexeme.
-            /// Handles basic escape sequences.
-            /// </summary>
-            private static string UnquoteString(string lexeme)
+            // Strip quotes
+            var inner = lexeme.Substring(1, lexeme.Length - 2);
+
+            // Process escape sequences
+            if(inner.IndexOf('\\') < 0)
             {
-                if(lexeme.Length < 2 || lexeme[0] != '"')
-                {
-                    return lexeme;
-                }
-
-                // Strip quotes
-                var inner = lexeme.Substring(1, lexeme.Length - 2);
-
-                // Process escape sequences
-                if(inner.IndexOf('\\') < 0)
-                {
-                    return inner;
-                }
-
-                var sb = new System.Text.StringBuilder(inner.Length);
-                for(var i = 0; i < inner.Length; i++)
-                {
-                    if(inner[i] == '\\' && i + 1 < inner.Length)
-                    {
-                        var next = inner[i + 1];
-                        switch(next)
-                        {
-                            case 'n': _ = sb.Append('\n'); break;
-                            case 'r': _ = sb.Append('\r'); break;
-                            case 't': _ = sb.Append('\t'); break;
-                            case '\\': _ = sb.Append('\\'); break;
-                            case '"': _ = sb.Append('"'); break;
-                            default:
-                                _ = sb.Append('\\');
-                                _ = sb.Append(next);
-                                break;
-                        }
-
-                        i++; // skip the escaped character
-                    }
-                    else
-                    {
-                        _ = sb.Append(inner[i]);
-                    }
-                }
-
-                return sb.ToString();
+                return inner;
             }
+
+            var sb = new System.Text.StringBuilder(inner.Length);
+            for(var i = 0; i < inner.Length; i++)
+            {
+                if(inner[i] == '\\' && i + 1 < inner.Length)
+                {
+                    var next = inner[i + 1];
+                    switch(next)
+                    {
+                        case 'n': _ = sb.Append('\n'); break;
+                        case 'r': _ = sb.Append('\r'); break;
+                        case 't': _ = sb.Append('\t'); break;
+                        case '\\': _ = sb.Append('\\'); break;
+                        case '"': _ = sb.Append('"'); break;
+                        default:
+                            _ = sb.Append('\\');
+                            _ = sb.Append(next);
+                            break;
+                    }
+
+                    i++; // skip the escaped character
+                }
+                else
+                {
+                    _ = sb.Append(inner[i]);
+                }
+            }
+
+            return sb.ToString();
         }
     }
 }

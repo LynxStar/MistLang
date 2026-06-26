@@ -484,7 +484,7 @@ public class AbstractAssignabilityPropertyTests
 
         // 1. Abstract declaration with methods
         var abstractMethods = scenario.AbstractMethodNames
-            .Select(m => MakeAbstractMethod(m))
+            .Select(MakeAbstractMethod)
             .ToImmutableArray();
         var abstractDecl = MakeAbstractDecl(scenario.AbstractName, abstractMethods);
         typeDecls.Add(WrapAbstract(abstractDecl));
@@ -599,14 +599,14 @@ public class AbstractAssignabilityPropertyTests
 
         // 1. Parent abstract
         var parentMethods = scenario.ParentMethodNames
-            .Select(m => MakeAbstractMethod(m))
+            .Select(MakeAbstractMethod)
             .ToImmutableArray();
         var parentDecl = MakeAbstractDecl(scenario.ParentAbstractName, parentMethods);
         typeDecls.Add(WrapAbstract(parentDecl));
 
         // 2. Child abstract inheriting from parent
         var childMethods = scenario.ChildMethodNames
-            .Select(m => MakeAbstractMethod(m))
+            .Select(MakeAbstractMethod)
             .ToImmutableArray();
         var childDecl = MakeAbstractDecl(
             scenario.ChildAbstractName, childMethods, scenario.ParentAbstractName);

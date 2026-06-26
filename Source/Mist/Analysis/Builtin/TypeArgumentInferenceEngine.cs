@@ -62,14 +62,7 @@ public static class TypeArgumentInferenceEngine
         var inferredTypes = new IType[typeParameters.Count];
         for(var i = 0; i < typeParameters.Count; i++)
         {
-            if(typeParameters[i] is TypeParameterType tpt)
-            {
-                inferredTypes[i] = context.GetBinding(tpt.Name)!;
-            }
-            else
-            {
-                inferredTypes[i] = typeParameters[i];
-            }
+            inferredTypes[i] = typeParameters[i] is TypeParameterType tpt ? context.GetBinding(tpt.Name)! : typeParameters[i];
         }
 
         return new InferenceResult(

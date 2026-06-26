@@ -25,21 +25,21 @@ namespace Mist.Tests.Semantics;
 /// </summary>
 public sealed class TopLevelTypeRegistrationAfterStatementsTests : IDisposable
 {
-    private readonly string _scratchDir;
+    private readonly string scratchDir;
 
     public TopLevelTypeRegistrationAfterStatementsTests()
     {
-        _scratchDir = Path.Combine(
+        scratchDir = Path.Combine(
             Path.GetTempPath(),
             "mist-tls-type-reg-" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(_scratchDir);
+        Directory.CreateDirectory(scratchDir);
     }
 
     public void Dispose()
     {
-        if(Directory.Exists(_scratchDir))
+        if(Directory.Exists(scratchDir))
         {
-            try { Directory.Delete(_scratchDir, recursive: true); } catch { /* best effort */ }
+            try { Directory.Delete(scratchDir, recursive: true); } catch { /* best effort */ }
         }
         GC.SuppressFinalize(this);
     }
@@ -50,7 +50,7 @@ public sealed class TopLevelTypeRegistrationAfterStatementsTests : IDisposable
     /// </summary>
     private sealed class CapturingSemanticModelBuilder : ISemanticModelBuilder
     {
-        private readonly SemanticModelBuilder _inner = new();
+        private readonly SemanticModelBuilder inner = new();
 
         public ISemanticModel? CapturedModel { get; private set; }
 
@@ -63,7 +63,7 @@ public sealed class TopLevelTypeRegistrationAfterStatementsTests : IDisposable
             DiagnosticBag diagnostics,
             ImmutableHashSet<string>? directReferencePaths = null)
         {
-            var model = _inner.Build(compilation, asts, ambientTypeResolver, namespaceRoot, projectFolder, diagnostics, directReferencePaths);
+            var model = inner.Build(compilation, asts, ambientTypeResolver, namespaceRoot, projectFolder, diagnostics, directReferencePaths);
             CapturedModel = model;
             return model;
         }
@@ -87,16 +87,16 @@ public sealed class TopLevelTypeRegistrationAfterStatementsTests : IDisposable
             var x = 1;
             class Foo { }
             """;
-        var filePath = Path.Combine(_scratchDir, "Program.mist");
+        var filePath = Path.Combine(scratchDir, "Program.mist");
         File.WriteAllText(filePath, source);
 
         const string projectName = "TestProject";
         var options = new CompilerOptions(
-            ProjectFolder: _scratchDir,
+            ProjectFolder: scratchDir,
             SourcePaths: ImmutableArray.Create(filePath),
             Backend: new BackendId("csharp"),
-            OutputDirectory: _scratchDir,
-            BinDirectory: Path.Combine(_scratchDir, "bin"),
+            OutputDirectory: scratchDir,
+            BinDirectory: Path.Combine(scratchDir, "bin"),
             ProjectName: projectName,
             NamespaceRoot: projectName,
             EnabledAnalyzerIds: ImmutableArray<string>.Empty);
@@ -127,16 +127,16 @@ public sealed class TopLevelTypeRegistrationAfterStatementsTests : IDisposable
             var x = 1;
             struct Bar { }
             """;
-        var filePath = Path.Combine(_scratchDir, "Program.mist");
+        var filePath = Path.Combine(scratchDir, "Program.mist");
         File.WriteAllText(filePath, source);
 
         const string projectName = "TestProject";
         var options = new CompilerOptions(
-            ProjectFolder: _scratchDir,
+            ProjectFolder: scratchDir,
             SourcePaths: ImmutableArray.Create(filePath),
             Backend: new BackendId("csharp"),
-            OutputDirectory: _scratchDir,
-            BinDirectory: Path.Combine(_scratchDir, "bin"),
+            OutputDirectory: scratchDir,
+            BinDirectory: Path.Combine(scratchDir, "bin"),
             ProjectName: projectName,
             NamespaceRoot: projectName,
             EnabledAnalyzerIds: ImmutableArray<string>.Empty);
@@ -168,16 +168,16 @@ public sealed class TopLevelTypeRegistrationAfterStatementsTests : IDisposable
             class Alpha { }
             struct Beta { }
             """;
-        var filePath = Path.Combine(_scratchDir, "Program.mist");
+        var filePath = Path.Combine(scratchDir, "Program.mist");
         File.WriteAllText(filePath, source);
 
         const string projectName = "MyApp";
         var options = new CompilerOptions(
-            ProjectFolder: _scratchDir,
+            ProjectFolder: scratchDir,
             SourcePaths: ImmutableArray.Create(filePath),
             Backend: new BackendId("csharp"),
-            OutputDirectory: _scratchDir,
-            BinDirectory: Path.Combine(_scratchDir, "bin"),
+            OutputDirectory: scratchDir,
+            BinDirectory: Path.Combine(scratchDir, "bin"),
             ProjectName: projectName,
             NamespaceRoot: projectName,
             EnabledAnalyzerIds: ImmutableArray<string>.Empty);
@@ -215,16 +215,16 @@ public sealed class TopLevelTypeRegistrationAfterStatementsTests : IDisposable
             var x = 1;
             class Foo { }
             """;
-        var filePath = Path.Combine(_scratchDir, "Program.mist");
+        var filePath = Path.Combine(scratchDir, "Program.mist");
         File.WriteAllText(filePath, source);
 
         const string projectName = "TestProject";
         var options = new CompilerOptions(
-            ProjectFolder: _scratchDir,
+            ProjectFolder: scratchDir,
             SourcePaths: ImmutableArray.Create(filePath),
             Backend: new BackendId("csharp"),
-            OutputDirectory: _scratchDir,
-            BinDirectory: Path.Combine(_scratchDir, "bin"),
+            OutputDirectory: scratchDir,
+            BinDirectory: Path.Combine(scratchDir, "bin"),
             ProjectName: projectName,
             NamespaceRoot: projectName,
             EnabledAnalyzerIds: ImmutableArray<string>.Empty);

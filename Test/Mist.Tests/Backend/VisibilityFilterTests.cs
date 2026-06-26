@@ -10,7 +10,7 @@ namespace Mist.Tests.Backend;
 /// </summary>
 public class VisibilityFilterTests
 {
-    private readonly VisibilityFilter _filter = new();
+    private readonly VisibilityFilter filter = new();
 
     // --- Requirement 6.2: in parameters treated as pass-by-value (NOT filtered) ---
 
@@ -18,21 +18,21 @@ public class VisibilityFilterTests
     public void IsMemberExcluded_InParameter_ReturnsFalse()
     {
         var method = typeof(HasInParam).GetMethod(nameof(HasInParam.ReadValue))!;
-        Assert.False(_filter.IsMemberExcluded(method));
+        Assert.False(filter.IsMemberExcluded(method));
     }
 
     [Fact]
     public void IsMemberExcluded_MultipleInParameters_ReturnsFalse()
     {
         var method = typeof(HasInParam).GetMethod(nameof(HasInParam.Sum))!;
-        Assert.False(_filter.IsMemberExcluded(method));
+        Assert.False(filter.IsMemberExcluded(method));
     }
 
     [Fact]
     public void IsMemberExcluded_InParameterWithStringReturn_ReturnsFalse()
     {
         var method = typeof(HasInParam).GetMethod(nameof(HasInParam.Format))!;
-        Assert.False(_filter.IsMemberExcluded(method));
+        Assert.False(filter.IsMemberExcluded(method));
     }
 
     // --- Requirement 5.8: Events hidden from projection ---
@@ -41,14 +41,14 @@ public class VisibilityFilterTests
     public void IsMemberExcluded_Event_ReturnsTrue()
     {
         var evt = typeof(HasEvent).GetEvent(nameof(HasEvent.SomethingHappened))!;
-        Assert.True(_filter.IsMemberExcluded(evt));
+        Assert.True(filter.IsMemberExcluded(evt));
     }
 
     [Fact]
     public void IsMemberExcluded_NormalMethodOnTypeWithEvent_ReturnsFalse()
     {
         var method = typeof(HasEvent).GetMethod(nameof(HasEvent.GetValue))!;
-        Assert.False(_filter.IsMemberExcluded(method));
+        Assert.False(filter.IsMemberExcluded(method));
     }
 
     // --- Ref struct types are NOT excluded (csharp-interop-v2 Requirement 9, Option A) ---
@@ -59,19 +59,19 @@ public class VisibilityFilterTests
     [Fact]
     public void IsTypeExcluded_RefStruct_ReturnsFalse()
     {
-        Assert.False(_filter.IsTypeExcluded(typeof(RefStructType)));
+        Assert.False(filter.IsTypeExcluded(typeof(RefStructType)));
     }
 
     [Fact]
     public void IsTypeExcluded_NormalStruct_ReturnsFalse()
     {
-        Assert.False(_filter.IsTypeExcluded(typeof(SimpleStruct)));
+        Assert.False(filter.IsTypeExcluded(typeof(SimpleStruct)));
     }
 
     [Fact]
     public void IsTypeExcluded_NormalClass_ReturnsFalse()
     {
-        Assert.False(_filter.IsTypeExcluded(typeof(SimpleClass)));
+        Assert.False(filter.IsTypeExcluded(typeof(SimpleClass)));
     }
 
     // GetValue()'s own signature (int return, no parameters) references no ref-struct
@@ -81,7 +81,7 @@ public class VisibilityFilterTests
     public void IsMemberExcluded_MemberOnRefStruct_ReturnsFalse()
     {
         var method = typeof(RefStructType).GetMethod(nameof(RefStructType.GetValue))!;
-        Assert.False(_filter.IsMemberExcluded(method));
+        Assert.False(filter.IsMemberExcluded(method));
     }
 
     // --- Requirement 6.1: out parameters now pass through (projected as ref with ClrCallingConvention.Out) ---
@@ -90,14 +90,14 @@ public class VisibilityFilterTests
     public void IsMemberExcluded_OutParameter_ReturnsFalse()
     {
         var method = typeof(HasOutParam).GetMethod(nameof(HasOutParam.TryParse))!;
-        Assert.False(_filter.IsMemberExcluded(method));
+        Assert.False(filter.IsMemberExcluded(method));
     }
 
     [Fact]
     public void IsMemberExcluded_NormalMethodOnTypeWithOutParam_ReturnsFalse()
     {
         var method = typeof(HasOutParam).GetMethod(nameof(HasOutParam.Parse))!;
-        Assert.False(_filter.IsMemberExcluded(method));
+        Assert.False(filter.IsMemberExcluded(method));
     }
 
     // --- CLR ref parameters now pass through (CLR Ref Interop feature) ---
@@ -106,14 +106,14 @@ public class VisibilityFilterTests
     public void IsMemberExcluded_RefParameter_ReturnsFalse()
     {
         var method = typeof(HasRefParam).GetMethod(nameof(HasRefParam.Swap))!;
-        Assert.False(_filter.IsMemberExcluded(method));
+        Assert.False(filter.IsMemberExcluded(method));
     }
 
     [Fact]
     public void IsMemberExcluded_NormalMethodOnTypeWithRefParam_ReturnsFalse()
     {
         var method = typeof(HasRefParam).GetMethod(nameof(HasRefParam.Add))!;
-        Assert.False(_filter.IsMemberExcluded(method));
+        Assert.False(filter.IsMemberExcluded(method));
     }
 
     // --- Mutable ref returns now pass through (CLR Ref Interop feature) ---
@@ -122,28 +122,28 @@ public class VisibilityFilterTests
     public void IsMemberExcluded_RefReturnMethod_ReturnsFalse()
     {
         var method = typeof(HasRefReturn).GetMethod(nameof(HasRefReturn.GetRef))!;
-        Assert.False(_filter.IsMemberExcluded(method));
+        Assert.False(filter.IsMemberExcluded(method));
     }
 
     [Fact]
     public void IsMemberExcluded_NormalMethodOnTypeWithRefReturn_ReturnsFalse()
     {
         var method = typeof(HasRefReturn).GetMethod(nameof(HasRefReturn.GetValue))!;
-        Assert.False(_filter.IsMemberExcluded(method));
+        Assert.False(filter.IsMemberExcluded(method));
     }
 
     [Fact]
     public void IsMemberExcluded_RefReturnProperty_ReturnsFalse()
     {
         var property = typeof(HasRefReturnProperty).GetProperty(nameof(HasRefReturnProperty.RefProp))!;
-        Assert.False(_filter.IsMemberExcluded(property));
+        Assert.False(filter.IsMemberExcluded(property));
     }
 
     [Fact]
     public void IsMemberExcluded_NormalPropertyOnTypeWithRefReturnProp_ReturnsFalse()
     {
         var property = typeof(HasRefReturnProperty).GetProperty(nameof(HasRefReturnProperty.NormalProp))!;
-        Assert.False(_filter.IsMemberExcluded(property));
+        Assert.False(filter.IsMemberExcluded(property));
     }
 
     // --- Requirement 6.4: Pointer types exclude member ---
@@ -152,21 +152,21 @@ public class VisibilityFilterTests
     public void IsMemberExcluded_PointerReturnType_ReturnsTrue()
     {
         var method = typeof(HasPointerMembers).GetMethod(nameof(HasPointerMembers.GetPointer))!;
-        Assert.True(_filter.IsMemberExcluded(method));
+        Assert.True(filter.IsMemberExcluded(method));
     }
 
     [Fact]
     public void IsMemberExcluded_PointerParameter_ReturnsTrue()
     {
         var method = typeof(HasPointerMembers).GetMethod(nameof(HasPointerMembers.ProcessPointer))!;
-        Assert.True(_filter.IsMemberExcluded(method));
+        Assert.True(filter.IsMemberExcluded(method));
     }
 
     [Fact]
     public void IsMemberExcluded_SafeMethodOnTypeWithPointers_ReturnsFalse()
     {
         var method = typeof(HasPointerMembers).GetMethod(nameof(HasPointerMembers.SafeMethod))!;
-        Assert.False(_filter.IsMemberExcluded(method));
+        Assert.False(filter.IsMemberExcluded(method));
     }
 
     // --- Requirement 6.7: Non-public members excluded ---
@@ -175,7 +175,7 @@ public class VisibilityFilterTests
     public void IsMemberExcluded_PublicField_ReturnsFalse()
     {
         var field = typeof(HasNonPublicMembers).GetField(nameof(HasNonPublicMembers.PublicField))!;
-        Assert.False(_filter.IsMemberExcluded(field));
+        Assert.False(filter.IsMemberExcluded(field));
     }
 
     [Fact]
@@ -183,7 +183,7 @@ public class VisibilityFilterTests
     {
         var field = typeof(HasNonPublicMembers).GetField("InternalField",
             BindingFlags.Instance | BindingFlags.NonPublic)!;
-        Assert.True(_filter.IsMemberExcluded(field));
+        Assert.True(filter.IsMemberExcluded(field));
     }
 
     [Fact]
@@ -191,7 +191,7 @@ public class VisibilityFilterTests
     {
         var field = typeof(HasNonPublicMembers).GetField("ProtectedField",
             BindingFlags.Instance | BindingFlags.NonPublic)!;
-        Assert.True(_filter.IsMemberExcluded(field));
+        Assert.True(filter.IsMemberExcluded(field));
     }
 
     [Fact]
@@ -199,14 +199,14 @@ public class VisibilityFilterTests
     {
         var field = typeof(HasNonPublicMembers).GetField("_privateField",
             BindingFlags.Instance | BindingFlags.NonPublic)!;
-        Assert.True(_filter.IsMemberExcluded(field));
+        Assert.True(filter.IsMemberExcluded(field));
     }
 
     [Fact]
     public void IsMemberExcluded_PublicMethod_ReturnsFalse()
     {
         var method = typeof(HasNonPublicMembers).GetMethod(nameof(HasNonPublicMembers.PublicMethod))!;
-        Assert.False(_filter.IsMemberExcluded(method));
+        Assert.False(filter.IsMemberExcluded(method));
     }
 
     [Fact]
@@ -214,14 +214,14 @@ public class VisibilityFilterTests
     {
         var method = typeof(HasNonPublicMembers).GetMethod("InternalMethod",
             BindingFlags.Instance | BindingFlags.NonPublic)!;
-        Assert.True(_filter.IsMemberExcluded(method));
+        Assert.True(filter.IsMemberExcluded(method));
     }
 
     [Fact]
     public void IsMemberExcluded_PublicProperty_ReturnsFalse()
     {
         var property = typeof(HasNonPublicMembers).GetProperty(nameof(HasNonPublicMembers.PublicProp))!;
-        Assert.False(_filter.IsMemberExcluded(property));
+        Assert.False(filter.IsMemberExcluded(property));
     }
 
     [Fact]
@@ -229,7 +229,7 @@ public class VisibilityFilterTests
     {
         var property = typeof(HasNonPublicMembers).GetProperty("InternalProp",
             BindingFlags.Instance | BindingFlags.NonPublic)!;
-        Assert.True(_filter.IsMemberExcluded(property));
+        Assert.True(filter.IsMemberExcluded(property));
     }
 
     // --- Requirement 6.6: signature referencing a genuinely-excluded type (e.g. a
@@ -240,21 +240,21 @@ public class VisibilityFilterTests
     public void IsMemberExcluded_ParameterReferencesRefStruct_ReturnsFalse()
     {
         var method = typeof(ReferencesExcludedType).GetMethod(nameof(ReferencesExcludedType.AcceptRefStruct))!;
-        Assert.False(_filter.IsMemberExcluded(method));
+        Assert.False(filter.IsMemberExcluded(method));
     }
 
     [Fact]
     public void IsMemberExcluded_ReturnTypeReferencesRefStruct_ReturnsFalse()
     {
         var method = typeof(ReferencesExcludedType).GetMethod(nameof(ReferencesExcludedType.ReturnRefStruct))!;
-        Assert.False(_filter.IsMemberExcluded(method));
+        Assert.False(filter.IsMemberExcluded(method));
     }
 
     [Fact]
     public void IsMemberExcluded_SafeMethodOnTypeReferencingExcluded_ReturnsFalse()
     {
         var method = typeof(ReferencesExcludedType).GetMethod(nameof(ReferencesExcludedType.SafeMethod))!;
-        Assert.False(_filter.IsMemberExcluded(method));
+        Assert.False(filter.IsMemberExcluded(method));
     }
 
     // --- IsTypeExcluded: non-public types ---
@@ -262,18 +262,18 @@ public class VisibilityFilterTests
     [Fact]
     public void IsTypeExcluded_PublicClass_ReturnsFalse()
     {
-        Assert.False(_filter.IsTypeExcluded(typeof(SimpleClass)));
+        Assert.False(filter.IsTypeExcluded(typeof(SimpleClass)));
     }
 
     [Fact]
     public void IsTypeExcluded_PublicInterface_ReturnsFalse()
     {
-        Assert.False(_filter.IsTypeExcluded(typeof(ISimpleInterface)));
+        Assert.False(filter.IsTypeExcluded(typeof(ISimpleInterface)));
     }
 
     [Fact]
     public void IsTypeExcluded_PublicEnum_ReturnsFalse()
     {
-        Assert.False(_filter.IsTypeExcluded(typeof(SimpleEnum)));
+        Assert.False(filter.IsTypeExcluded(typeof(SimpleEnum)));
     }
 }

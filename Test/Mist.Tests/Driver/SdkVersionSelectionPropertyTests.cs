@@ -20,11 +20,11 @@ namespace Mist.Tests.Driver;
 /// </summary>
 public sealed class SdkVersionSelectionPropertyTests : IDisposable
 {
-    private readonly List<string> _tempDirs = [];
+    private readonly List<string> tempDirs = [];
 
     public void Dispose()
     {
-        foreach(var dir in _tempDirs)
+        foreach(var dir in tempDirs)
         {
             try { Directory.Delete(dir, recursive: true); } catch { /* best effort */ }
         }
@@ -108,7 +108,7 @@ public sealed class SdkVersionSelectionPropertyTests : IDisposable
     private string CreateSdkDirectoryStructure(List<SdkVersionEntry> entries, string tfm)
     {
         var sdkRoot = Path.Combine(Path.GetTempPath(), $"mist_pbt_sdk_{Guid.NewGuid():N}");
-        _tempDirs.Add(sdkRoot);
+        tempDirs.Add(sdkRoot);
 
         var packsDir = Path.Combine(sdkRoot, "packs", "Microsoft.NETCore.App.Ref");
         Directory.CreateDirectory(packsDir);

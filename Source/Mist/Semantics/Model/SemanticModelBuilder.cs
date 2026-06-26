@@ -29,7 +29,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     // ContainingNamespace — that approach failed when a namespace contained
     // only type aliases (which lack ContainingNamespace on their DeclaredType).
     [ThreadStatic]
-    private static Dictionary<string, Scope>? _namespaceScopeMap;
+    private static Dictionary<string, Scope>? namespaceScopeMap;
 
     // ── Deprecation diagnostic IDs ───────────────────────────────────────
     internal static readonly DiagnosticId VoidDotVoidDeprecated = new("MIST_SM_0023");
@@ -38,21 +38,21 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     // LookupMemberType to perform extension member fallback without
     // threading the registry through the entire deep call chain.
     [ThreadStatic]
-    private static ExtensionRegistry? _extensionRegistryContext;
+    private static ExtensionRegistry? extensionRegistryContext;
 
     // ── Target type context for empty array literal inference ─────────────
     // Set before resolving a typed variable declaration's initializer so that
     // EmptyArrayLiteralExpressionPrimaryNode can infer its element type from
     // the declared array type. Cleared immediately after resolution.
     [ThreadStatic]
-    private static IType? _emptyArrayTargetType;
+    private static IType? emptyArrayTargetType;
 
     // ── Target type context for lambda expression inference ──────────────
     // Set before resolving a lambda expression's initializer so that
     // implicitly-typed lambda parameters can infer their types from the
     // target Func type. Cleared immediately after resolution.
     [ThreadStatic]
-    private static IType? _lambdaTargetType;
+    private static IType? lambdaTargetType;
 
     // ── Target type context for void value literal resolution ─────────────
     // Set before resolving an expression whose target type is known (typed
@@ -61,7 +61,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     // reference can resolve as VoidType when the target type is void.
     // Cleared immediately after resolution.
     [ThreadStatic]
-    private static IType? _voidLiteralTargetType;
+    private static IType? voidLiteralTargetType;
 
     // ── Target type context for target-typed new expression resolution ────
     // Set before resolving an expression whose target type is known (typed
@@ -70,33 +70,33 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     // and TargetTypedNewExpressionNoArgsPrimaryNode can resolve their type
     // from the surrounding context. Cleared immediately after resolution.
     [ThreadStatic]
-    private static IType? _targetTypedNewTargetType;
+    private static IType? targetTypedNewTargetType;
 
     // ── Current method return type for return-statement lambda/void inference ──
     // Set when entering a method body so that return statements can propagate
     // the method's return type as a lambda target type and as the target type
     // for void value literal resolution.
     [ThreadStatic]
-    private static IType? _currentMethodReturnType;
+    private static IType? currentMethodReturnType;
     // ── Symbolic length ID allocation for parameter arrays ────────────────
     // Generates unique IDs for unsized array parameters so that two references
     // to the same parameter's .Length resolve to the same symbolic identity.
     // Reset at the start of each Build() call.
     [ThreadStatic]
-    private static int _nextSymbolicLengthId;
+    private static int nextSymbolicLengthId;
 
     // Set to true while resolving a parameter's type reference so that
     // unsized array types (e.g., int[] items) receive a symbolic length ID.
     // Cleared immediately after the type reference is resolved.
     [ThreadStatic]
-    private static bool _allocatingParameterArrayType;
+    private static bool allocatingParameterArrayType;
 
     // ── Async context tracking ───────────────────────────────────────────
     // Set to true while resolving expressions inside an async method body.
     // When false (sync context), async method invocations are auto-unwrapped
     // from Task<T> to T. Cleared after method body resolution completes.
     [ThreadStatic]
-    private static bool _isInAsyncContext;
+    private static bool isInAsyncContext;
 
 
 
@@ -119,15 +119,15 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     // _discardedTaskCounter generates unique variable names (__task_0, etc.)
     // per method body.
     [ThreadStatic]
-    private static Stack<List<DiscardedTaskInfo>>? _discardedTaskScopes;
+    private static Stack<List<DiscardedTaskInfo>>? discardedTaskScopes;
 
     [ThreadStatic]
-    private static int _discardedTaskCounter;
+    private static int discardedTaskCounter;
 
     // The result map populated during resolution. Keyed by block scope node,
     // valued by the list of discarded tasks that need scope-exit await.
     [ThreadStatic]
-    private static Dictionary<Storm.Runtime.SyntaxNode, List<DiscardedTaskInfo>>? _discardedTaskResult;
+    private static Dictionary<Storm.Runtime.SyntaxNode, List<DiscardedTaskInfo>>? discardedTaskResult;
 
     // ── Intrinsic-marker diagnostic IDs (Task 9, Requirements 5.3, 5.6, 5.13, 5.15) ──
     /// <summary>
@@ -739,14 +739,14 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         var symbolTable = new SymbolTable();
 
         // Reset symbolic length ID counter for this compilation.
-        _nextSymbolicLengthId = 1;
-        _allocatingParameterArrayType = false;
+        nextSymbolicLengthId = 1;
+        allocatingParameterArrayType = false;
 
         // Reset namespace scope map for this compilation.
-        _namespaceScopeMap = new Dictionary<string, Scope>();
+        namespaceScopeMap = new Dictionary<string, Scope>();
 
         // Initialize live task tracking for this compilation.
-        _discardedTaskResult = new Dictionary<Storm.Runtime.SyntaxNode, List<DiscardedTaskInfo>>();
+        discardedTaskResult = new Dictionary<Storm.Runtime.SyntaxNode, List<DiscardedTaskInfo>>();
 
         // (Task 49: PrimitiveTypeRegistry and PrimitiveType have been
         // deleted. No migration-window registry reset is needed.)
@@ -1050,7 +1050,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // Set the extension registry context so LookupMemberType can perform
         // extension member fallback without threading the registry through
         // the entire deep call chain.
-        _extensionRegistryContext = extensionRegistry;
+        extensionRegistryContext = extensionRegistry;
         var expressionTypes = new Dictionary<Storm.Runtime.SyntaxNode, IType>();
         for(var i = 0; i < asts.Length; i++)
         {
@@ -1077,7 +1077,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     AnalyzerName: null));
             }
         }
-        _extensionRegistryContext = null;
+        extensionRegistryContext = null;
 
         // Pass 2e (Phase B): Resolve extension block method/property bodies.
         // This runs after Pass 2 so that expression types are available for
@@ -1169,7 +1169,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             extensionRegistry,
             conformanceMap,
             parameterRefinements,
-            _discardedTaskResult);
+            discardedTaskResult);
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -1363,15 +1363,15 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         Storm.Runtime.SyntaxNode declaringNode)
     {
         // Fast path: check the namespace scope map first.
-        _namespaceScopeMap ??= new Dictionary<string, Scope>();
-        if(_namespaceScopeMap.TryGetValue(namespaceName, out var cached))
+        namespaceScopeMap ??= new Dictionary<string, Scope>();
+        if(namespaceScopeMap.TryGetValue(namespaceName, out var cached))
         {
             return cached;
         }
 
         // Create a new namespace scope and register the namespace symbol.
         var namespaceScope = new Scope(parent: globalScope);
-        _namespaceScopeMap[namespaceName] = namespaceScope;
+        namespaceScopeMap[namespaceName] = namespaceScope;
 
         // Only register the namespace symbol if it doesn't already exist.
         var symbolExists = false;
@@ -12739,7 +12739,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         string namespaceName)
     {
         // Primary path: consult the namespace scope map (populated by GetOrCreateNamespaceScope).
-        if(_namespaceScopeMap is not null && _namespaceScopeMap.TryGetValue(namespaceName, out var mapped))
+        if(namespaceScopeMap is not null && namespaceScopeMap.TryGetValue(namespaceName, out var mapped))
         {
             return mapped;
         }
@@ -13570,7 +13570,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// resolution. Builds a dependency graph of all alias/newtype symbols,
     /// walks it in topological order (leaves first), and resolves each target
     /// using declaration-site scopes from <paramref name="fileScopesByUnit"/>.
-    /// Cycles are detected and reported via <see cref="_typeAliasResolutionStack"/>.
+    /// Cycles are detected and reported via <see cref="typeAliasResolutionStack"/>.
     /// For newtypes, only the source type identity is resolved — members are
     /// NOT cloned here (that is deferred to Phase 4b).
     /// </summary>
@@ -13760,7 +13760,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
         // Step 4: Resolve in topological order.
         // Initialize the shared resolution stack for cycle detection.
-        _typeAliasResolutionStack ??= new HashSet<string>();
+        typeAliasResolutionStack ??= new HashSet<string>();
 
         foreach(var entry in resolveOrder)
         {
@@ -13849,7 +13849,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// <see cref="NewtypeType"/> WITHOUT cloning members from the source type.
     /// Member cloning is deferred to Phase 4b (after all explicit member types
     /// are resolved on the source type). Extends the
-    /// <see cref="_typeAliasResolutionStack"/> cycle detection to cover newtypes.
+    /// <see cref="typeAliasResolutionStack"/> cycle detection to cover newtypes.
     /// </summary>
     private static void ResolveNewtypeSourceOnly(
         NewtypeDeclarationNode newtypeDecl,
@@ -13874,10 +13874,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         var name = newtypeDecl.Name.Lexeme;
 
         // Initialize the resolution stack if needed.
-        _typeAliasResolutionStack ??= new HashSet<string>();
+        typeAliasResolutionStack ??= new HashSet<string>();
 
         // Check for cycles (extending alias cycle detection to newtypes).
-        if(!_typeAliasResolutionStack.Add(name))
+        if(!typeAliasResolutionStack.Add(name))
         {
             // Cycle detected — report diagnostic and assign ErrorType.
             diagnostics.Add(MakeDiagnosticWithLocation(
@@ -13921,7 +13921,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         }
         finally
         {
-            _typeAliasResolutionStack.Remove(name);
+            typeAliasResolutionStack.Remove(name);
         }
     }
 
@@ -13939,7 +13939,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
     // ── Type alias visited-set for cycle detection (Pass 2) ──────────────
     [ThreadStatic]
-    private static HashSet<string>? _typeAliasResolutionStack;
+    private static HashSet<string>? typeAliasResolutionStack;
 
     /// <summary>
     /// Resolves a type alias declaration's target type reference and constructs
@@ -13970,10 +13970,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         var aliasName = aliasDecl.Name.Lexeme;
 
         // Initialize the resolution stack if needed.
-        _typeAliasResolutionStack ??= new HashSet<string>();
+        typeAliasResolutionStack ??= new HashSet<string>();
 
         // Check for cycles.
-        if(!_typeAliasResolutionStack.Add(aliasName))
+        if(!typeAliasResolutionStack.Add(aliasName))
         {
             // Cycle detected — report diagnostic and assign ErrorType.
             diagnostics.Add(MakeDiagnosticWithLocation(
@@ -14055,7 +14055,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         }
         finally
         {
-            _typeAliasResolutionStack.Remove(aliasName);
+            typeAliasResolutionStack.Remove(aliasName);
         }
     }
 
@@ -14491,22 +14491,22 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         if(fieldDecl.Initializer is ExpressionNode initExpr)
         {
             var isStatic = fieldDecl.Modifiers.Any(m => m is StaticModifierModifierNode);
-            _emptyArrayTargetType = fieldType;
+            emptyArrayTargetType = fieldType;
             if(IsFuncType(fieldType))
             {
-                _lambdaTargetType = fieldType;
+                lambdaTargetType = fieldType;
             }
             else if(fieldType is DelegateType)
             {
-                _lambdaTargetType = fieldType;
+                lambdaTargetType = fieldType;
             }
-            _voidLiteralTargetType = fieldType;
-            _targetTypedNewTargetType = fieldType;
+            voidLiteralTargetType = fieldType;
+            targetTypedNewTargetType = fieldType;
             ResolveExpression(initExpr, typeScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
-            _emptyArrayTargetType = null;
-            _lambdaTargetType = null;
-            _voidLiteralTargetType = null;
-            _targetTypedNewTargetType = null;
+            emptyArrayTargetType = null;
+            lambdaTargetType = null;
+            voidLiteralTargetType = null;
+            targetTypedNewTargetType = null;
         }
     }
 
@@ -14758,19 +14758,19 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         {
             // Track async context: if this method has the async modifier,
             // expressions inside its body are in an async context (no auto-unwrap).
-            var previousAsyncContext = _isInAsyncContext;
-            _isInAsyncContext = methodDecl.Modifiers.Any(m => m is AsyncModifierModifierNode);
+            var previousAsyncContext = isInAsyncContext;
+            isInAsyncContext = methodDecl.Modifiers.Any(m => m is AsyncModifierModifierNode);
 
             // Track the method's return type so return statements can propagate
             // it as a lambda target type and as the target type for void literals.
-            var previousMethodReturnType = _currentMethodReturnType;
-            _currentMethodReturnType = methodSymbol?.DeclaredReturnType ?? returnType;
+            var previousMethodReturnType = currentMethodReturnType;
+            currentMethodReturnType = methodSymbol?.DeclaredReturnType ?? returnType;
 
             // Initialize discarded-task tracking for this method body.
-            var previousDiscardedTaskScopes = _discardedTaskScopes;
-            var previousDiscardedTaskCounter = _discardedTaskCounter;
-            _discardedTaskScopes = new Stack<List<DiscardedTaskInfo>>();
-            _discardedTaskCounter = 0;
+            var previousDiscardedTaskScopes = discardedTaskScopes;
+            var previousDiscardedTaskCounter = discardedTaskCounter;
+            discardedTaskScopes = new Stack<List<DiscardedTaskInfo>>();
+            discardedTaskCounter = 0;
 
             try
             {
@@ -14778,10 +14778,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             }
             finally
             {
-                _discardedTaskScopes = previousDiscardedTaskScopes;
-                _discardedTaskCounter = previousDiscardedTaskCounter;
-                _isInAsyncContext = previousAsyncContext;
-                _currentMethodReturnType = previousMethodReturnType;
+                discardedTaskScopes = previousDiscardedTaskScopes;
+                discardedTaskCounter = previousDiscardedTaskCounter;
+                isInAsyncContext = previousAsyncContext;
+                currentMethodReturnType = previousMethodReturnType;
             }
         }
     }
@@ -14831,10 +14831,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // based on the intrinsic modifier.
         if(opDecl.Body.GetBlock() is BlockNode opBlock)
         {
-            var previousMethodReturnType = _currentMethodReturnType;
-            _currentMethodReturnType = resolvedReturnType;
+            var previousMethodReturnType = currentMethodReturnType;
+            currentMethodReturnType = resolvedReturnType;
             ResolveBlock(opBlock, methodScope, fileScope, enclosingType, /* isStatic */ true, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
-            _currentMethodReturnType = previousMethodReturnType;
+            currentMethodReturnType = previousMethodReturnType;
         }
     }
 
@@ -14879,10 +14879,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // Pass 1e validates whether ; is permitted based on the intrinsic modifier.
         if(castOpDecl.Body.GetBlock() is BlockNode castOpBlock)
         {
-            var previousMethodReturnType = _currentMethodReturnType;
-            _currentMethodReturnType = resolvedTargetType;
+            var previousMethodReturnType = currentMethodReturnType;
+            currentMethodReturnType = resolvedTargetType;
             ResolveBlock(castOpBlock, methodScope, fileScope, enclosingType, /* isStatic */ true, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
-            _currentMethodReturnType = previousMethodReturnType;
+            currentMethodReturnType = previousMethodReturnType;
         }
     }
 
@@ -15164,9 +15164,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     {
         // Signal that we're resolving a parameter type so unsized array types
         // receive a symbolic length ID (Requirement 1.4).
-        _allocatingParameterArrayType = true;
+        allocatingParameterArrayType = true;
         var paramType = ResolveTypeReference(param.Type, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
-        _allocatingParameterArrayType = false;
+        allocatingParameterArrayType = false;
         var paramName = param.Name.Lexeme;
         var paramSpan = ToMistSourceSpan(param.Name.Span);
 
@@ -15277,7 +15277,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         var blockScope = new Scope(parent: parentScope);
 
         // Push a new discarded-task scope for this block.
-        _discardedTaskScopes?.Push(new List<DiscardedTaskInfo>());
+        discardedTaskScopes?.Push(new List<DiscardedTaskInfo>());
 
         foreach(var stmt in block.Statements)
         {
@@ -15285,13 +15285,13 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         }
 
         // Pop the discarded-task scope and record un-consumed tasks.
-        if(_discardedTaskScopes is not null && _discardedTaskScopes.Count > 0)
+        if(discardedTaskScopes is not null && discardedTaskScopes.Count > 0)
         {
-            var scopeTasks = _discardedTaskScopes.Pop();
+            var scopeTasks = discardedTaskScopes.Pop();
 
-            if(scopeTasks.Count > 0 && _discardedTaskResult is not null)
+            if(scopeTasks.Count > 0 && discardedTaskResult is not null)
             {
-                _discardedTaskResult[block] = scopeTasks;
+                discardedTaskResult[block] = scopeTasks;
             }
         }
     }
@@ -15331,30 +15331,30 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 {
                     // Set lambda target type from the enclosing method's return type
                     // so that implicit-param lambdas in return statements can infer types.
-                    IType? previousLambdaTarget = _lambdaTargetType;
-                    if(_currentMethodReturnType is not null && IsFuncType(_currentMethodReturnType))
+                    IType? previousLambdaTarget = lambdaTargetType;
+                    if(currentMethodReturnType is not null && IsFuncType(currentMethodReturnType))
                     {
-                        _lambdaTargetType = _currentMethodReturnType;
+                        lambdaTargetType = currentMethodReturnType;
                     }
-                    else if(_currentMethodReturnType is DelegateType)
+                    else if(currentMethodReturnType is DelegateType)
                     {
-                        _lambdaTargetType = _currentMethodReturnType;
+                        lambdaTargetType = currentMethodReturnType;
                     }
 
                     // Set target type context for void value literal resolution
                     // from the enclosing method's declared return type.
-                    var previousVoidTarget = _voidLiteralTargetType;
-                    _voidLiteralTargetType = _currentMethodReturnType;
+                    var previousVoidTarget = voidLiteralTargetType;
+                    voidLiteralTargetType = currentMethodReturnType;
 
                     // Set target type context for target-typed new expression
                     // from the enclosing method's declared return type.
-                    var previousTargetNewTarget = _targetTypedNewTargetType;
-                    _targetTypedNewTargetType = _currentMethodReturnType;
+                    var previousTargetNewTarget = targetTypedNewTargetType;
+                    targetTypedNewTargetType = currentMethodReturnType;
 
                     var returnValueType = ResolveExpression(returnStmt.ReturnStatement.Value, blockScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
-                    _voidLiteralTargetType = previousVoidTarget;
-                    _targetTypedNewTargetType = previousTargetNewTarget;
-                    _lambdaTargetType = previousLambdaTarget;
+                    voidLiteralTargetType = previousVoidTarget;
+                    targetTypedNewTargetType = previousTargetNewTarget;
+                    lambdaTargetType = previousLambdaTarget;
 
                     // Named Task<T> variables returned from the method transfer
                     // ownership to the caller. The emitter's auto-drop system
@@ -15397,14 +15397,14 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     // gated on _isInAsyncContext — discarded tasks in any context are
                     // tracked so the emitter can promote the method to async and emit
                     // scope-exit await.
-                    if(_discardedTaskScopes is not null
-                        && _discardedTaskScopes.Count > 0
+                    if(discardedTaskScopes is not null
+                        && discardedTaskScopes.Count > 0
                         && IsStandardTaskType(exprType)
                         && IsDiscardedAsyncInvocation(exprStmt.ExpressionStatement.Expression))
                     {
-                        var varName = $"__task_{_discardedTaskCounter++}";
+                        var varName = $"__task_{discardedTaskCounter++}";
                         var taskInfo = new DiscardedTaskInfo(varName, exprType, exprStmt.ExpressionStatement.Expression);
-                        _discardedTaskScopes.Peek().Add(taskInfo);
+                        discardedTaskScopes.Peek().Add(taskInfo);
                     }
                     break;
                 }
@@ -15582,27 +15582,27 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
                     // Set target type context so EmptyArrayLiteralExpressionPrimaryNode
                     // can infer its element type from the declared array type.
-                    _emptyArrayTargetType = declaredType;
+                    emptyArrayTargetType = declaredType;
 
                     // Set lambda target type context so implicitly-typed lambda parameters
                     // can infer their types from the declared Func or DelegateType.
                     if(IsFuncType(declaredType))
                     {
-                        _lambdaTargetType = declaredType;
+                        lambdaTargetType = declaredType;
                     }
                     else if(declaredType is DelegateType)
                     {
-                        _lambdaTargetType = declaredType;
+                        lambdaTargetType = declaredType;
                     }
 
                     // Set target type context for void value literal resolution.
-                    _voidLiteralTargetType = declaredType;
-                    _targetTypedNewTargetType = declaredType;
+                    voidLiteralTargetType = declaredType;
+                    targetTypedNewTargetType = declaredType;
                     var initType = ResolveExpression(typed.Initializer, blockScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
-                    _emptyArrayTargetType = null;
-                    _lambdaTargetType = null;
-                    _voidLiteralTargetType = null;
-                    _targetTypedNewTargetType = null;
+                    emptyArrayTargetType = null;
+                    lambdaTargetType = null;
+                    voidLiteralTargetType = null;
+                    targetTypedNewTargetType = null;
 
                     var varName = typed.Name.Lexeme;
                     var varSpan = ToMistSourceSpan(typed.Name.Span);
@@ -17399,8 +17399,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     }
                     else if(primitiveRef.ArrayRank is not null)
                     {
-                        primBase = _allocatingParameterArrayType
-                            ? new ArrayType(primBase, _nextSymbolicLengthId++)
+                        primBase = allocatingParameterArrayType
+                            ? new ArrayType(primBase, nextSymbolicLengthId++)
                             : new ArrayType(primBase);
                     }
                     // Apply optional suffix: T? → UnionType([T, VoidType])
@@ -17576,8 +17576,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     }
                     else if(namedRef.ArrayRank is not null)
                     {
-                        baseType = _allocatingParameterArrayType
-                            ? new ArrayType(baseType, _nextSymbolicLengthId++)
+                        baseType = allocatingParameterArrayType
+                            ? new ArrayType(baseType, nextSymbolicLengthId++)
                             : new ArrayType(baseType);
                     }
                     // Apply optional suffix: T? → UnionType([T, VoidType])
@@ -17599,8 +17599,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     }
                     else if(parenRef.ArrayRank is not null)
                     {
-                        return _allocatingParameterArrayType
-                            ? new ArrayType(inner, _nextSymbolicLengthId++)
+                        return allocatingParameterArrayType
+                            ? new ArrayType(inner, nextSymbolicLengthId++)
                             : new ArrayType(inner);
                     }
                     return inner;
@@ -19560,7 +19560,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         DiagnosticBag diagnostics)
     {
         // Check if a target type is available from the enclosing context.
-        var targetType = _lambdaTargetType;
+        var targetType = lambdaTargetType;
 
         // When the target type is a DelegateType, extract its FuncSignature for inference.
         // The lambda's parameter types come from the FuncSignature's type arguments.
@@ -19619,10 +19619,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
             // Set async context if the lambda has the async modifier.
             var isAsync = IsAsyncLambda(lambda);
-            var previousAsyncContext = _isInAsyncContext;
+            var previousAsyncContext = isInAsyncContext;
             if(isAsync)
             {
-                _isInAsyncContext = true;
+                isInAsyncContext = true;
             }
 
             try
@@ -19632,7 +19632,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             }
             finally
             {
-                _isInAsyncContext = previousAsyncContext;
+                isInAsyncContext = previousAsyncContext;
             }
 
             // Generic type argument inference (Requirement 6.8): when the target Func type
@@ -19811,10 +19811,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // Resolve the lambda body and infer the return type.
         // Set async context if the lambda has the async modifier.
         var isAsync = IsAsyncLambda(lambda);
-        var previousAsyncContext = _isInAsyncContext;
+        var previousAsyncContext = isInAsyncContext;
         if(isAsync)
         {
-            _isInAsyncContext = true;
+            isInAsyncContext = true;
         }
 
         IType returnType;
@@ -19881,7 +19881,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         }
         finally
         {
-            _isInAsyncContext = previousAsyncContext;
+            isInAsyncContext = previousAsyncContext;
         }
 
         // For async lambdas, wrap the inferred return type in Task<T>.
@@ -20380,10 +20380,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             // resolve it through the Expression-level entry point.
             // Set target type context for target-typed new expression from the
             // assignment target's resolved type.
-            var previousTargetNewTarget = _targetTypedNewTargetType;
-            _targetTypedNewTargetType = targetType;
+            var previousTargetNewTarget = targetTypedNewTargetType;
+            targetTypedNewTargetType = targetType;
             var valueType = ResolveExpression(assignment.Value, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
-            _targetTypedNewTargetType = previousTargetNewTarget;
+            targetTypedNewTargetType = previousTargetNewTarget;
             expressionTypes[assignment] = targetType;
             return targetType;
         }
@@ -20515,10 +20515,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // then types the comparison as bool. (void-value-literal, Requirement 9.)
         var setVoidTarget = rightOperand is not null
             && (IsBareVoidTypeLiteral(node.Left) || IsBareVoidTypeLiteral(rightOperand));
-        var previousVoidTarget = _voidLiteralTargetType;
+        var previousVoidTarget = voidLiteralTargetType;
         if(setVoidTarget)
         {
-            _voidLiteralTargetType = LegacyPrimitiveTypes.Void;
+            voidLiteralTargetType = LegacyPrimitiveTypes.Void;
         }
 
         try
@@ -20540,7 +20540,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         {
             if(setVoidTarget)
             {
-                _voidLiteralTargetType = previousVoidTarget;
+                voidLiteralTargetType = previousVoidTarget;
             }
         }
     }
@@ -21196,11 +21196,11 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 {
                     // Suppress auto-unwrap for the await operand so that async method calls
                     // return Task<T> (not T) — the await itself will do the unwrapping.
-                    var prevAsyncContext = _isInAsyncContext;
-                    _isInAsyncContext = true;
+                    var prevAsyncContext = isInAsyncContext;
+                    isInAsyncContext = true;
                     // Resolve the operand expression (should be of type Task<T>).
                     var operandType = ResolveUnary(awaitExpr.Operand, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
-                    _isInAsyncContext = prevAsyncContext;
+                    isInAsyncContext = prevAsyncContext;
 
                     // If the operand is Task<T>, unwrap to T. Otherwise, return UnknownType
                     // (the diagnostic for non-Task operands is added in task 8.5).
@@ -21325,7 +21325,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 // ── delegate-func-conversion: method group resolution for DelegateType targets ──
                 // When the target type context is a DelegateType, resolve the method group
                 // against the delegate's FuncSignature to select the single compatible overload.
-                if(_lambdaTargetType is DelegateType delegateTarget)
+                if(lambdaTargetType is DelegateType delegateTarget)
                 {
                     var resolved = ResolveMethodGroupForDelegateTarget(
                         (IdentifierExpressionPrimaryNode)node.Target,
@@ -21409,7 +21409,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // Auto-unwrap for direct invocations of async methods in sync contexts.
         // When the last suffix is an InvocationSuffix (e.g., AsyncMethod()), and
         // the target identifier resolves to an async method, unwrap Task<T> to T.
-        if(!_isInAsyncContext
+        if(!isInAsyncContext
             && node.Suffix.Length > 0
             && node.Suffix[^1] is InvocationSuffixPostfixSuffixNode
             && IsStandardTaskType(targetType))
@@ -21441,7 +21441,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         if(IsFuncType(targetType) && targetType is ConstructedType funcCt)
         {
             var returnType = GetFuncReturnType(funcCt);
-            if(!_isInAsyncContext && IsStandardTaskType(returnType))
+            if(!isInAsyncContext && IsStandardTaskType(returnType))
             {
                 returnType = UnwrapTaskType(returnType);
             }
@@ -21456,7 +21456,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         if(targetType is DelegateType delegateType)
         {
             var returnType = GetFuncReturnType(delegateType.FuncSignature);
-            if(!_isInAsyncContext && IsStandardTaskType(returnType))
+            if(!isInAsyncContext && IsStandardTaskType(returnType))
             {
                 returnType = UnwrapTaskType(returnType);
             }
@@ -21676,7 +21676,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         // If not found on the type itself, check extension methods.
                         var isExtensionMethod = false;
                         IReadOnlyList<TypeParameterType>? extensionTypeParams = null;
-                        if(methodSymForParams is null && _extensionRegistryContext is not null)
+                        if(methodSymForParams is null && extensionRegistryContext is not null)
                         {
                             var extLookupType = targetType;
                             if(extLookupType is ConstructedType extCt)
@@ -21684,7 +21684,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                                 extLookupType = extCt.GenericDefinition;
                             }
 
-                            var extensions = _extensionRegistryContext.GetApplicableExtensions(targetType);
+                            var extensions = extensionRegistryContext.GetApplicableExtensions(targetType);
                             var argCount = methodCall.Arguments.GetAllExpressions().Length;
                             ISymbol? firstExtMatch = null;
                             ExtensionBlockInfo? matchedExtBlock = null;
@@ -21898,7 +21898,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
                     // Auto-unwrap: in a sync context, if the invoked method is async,
                     // unwrap Task<T> to T so the caller sees the inner type.
-                    if(!_isInAsyncContext && memberType is not ErrorType)
+                    if(!isInAsyncContext && memberType is not ErrorType)
                     {
                         var methodSym = LookupMemberSymbol(targetType, memberName, ambientTypeResolver, fileScope, symbolTable);
                         if(methodSym is Symbol { IsAsync: true } && IsStandardTaskType(memberType))
@@ -22055,7 +22055,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     if(IsFuncType(targetType) && targetType is ConstructedType funcCt)
                     {
                         var returnType = GetFuncReturnType(funcCt);
-                        if(!_isInAsyncContext && IsStandardTaskType(returnType))
+                        if(!isInAsyncContext && IsStandardTaskType(returnType))
                         {
                             returnType = UnwrapTaskType(returnType);
                         }
@@ -22070,7 +22070,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     if(targetType is DelegateType delegateType)
                     {
                         var returnType = GetFuncReturnType(delegateType.FuncSignature);
-                        if(!_isInAsyncContext && IsStandardTaskType(returnType))
+                        if(!isInAsyncContext && IsStandardTaskType(returnType))
                         {
                             returnType = UnwrapTaskType(returnType);
                         }
@@ -22199,7 +22199,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
                     // Auto-unwrap: in a sync context, if the invoked method is async,
                     // unwrap Task<T> to T so the caller sees the inner type.
-                    if(!_isInAsyncContext && memberType is not ErrorType)
+                    if(!isInAsyncContext && memberType is not ErrorType)
                     {
                         var methodSym = LookupMemberSymbol(projectedType, memberName, ambientTypeResolver, fileScope, symbolTable);
                         if(methodSym is Symbol { IsAsync: true } && IsStandardTaskType(memberType))
@@ -22705,7 +22705,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     // target type at the stackalloc position is a ReadOnlySpan<T, Length>
                     // SpanType, the result is a read-only span; otherwise it is a mutable
                     // Span (R4.3).
-                    var stackallocIsReadOnly = _emptyArrayTargetType is SpanType { IsReadOnly: true };
+                    var stackallocIsReadOnly = emptyArrayTargetType is SpanType { IsReadOnly: true };
 
                     result = stackallocLiteralSize.HasValue
                         ? new SpanType(spanElementType, stackallocLiteralSize.Value, stackallocIsReadOnly)
@@ -22891,7 +22891,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
             case TargetTypedNewExpressionPrimaryNode targetNew:
                 {
-                    var targetType = _targetTypedNewTargetType;
+                    var targetType = targetTypedNewTargetType;
                     if(targetType is null || targetType is ErrorType)
                     {
                         // No target type available — resolve arguments for IDE support
@@ -22969,7 +22969,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
             case TargetTypedNewExpressionNoArgsPrimaryNode targetNewNoArgs:
                 {
-                    var targetType = _targetTypedNewTargetType;
+                    var targetType = targetTypedNewTargetType;
                     if(targetType is null || targetType is ErrorType)
                     {
                         // No target type available — resolve initializer for IDE support
@@ -23147,7 +23147,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     // Target-type-aware void resolution: when the type literal is `void`
                     // and the target type is VoidType (or a union containing void, i.e. optional),
                     // resolve as the Void singleton value rather than the metatype Type.
-                    if(typeLiteral.TypeRef is { SingleTypeRefs.Length: 0, First: VoidSingleTypeRefSingleTypeRefNode } && IsVoidOrOptionalType(_voidLiteralTargetType))
+                    if(typeLiteral.TypeRef is { SingleTypeRefs.Length: 0, First: VoidSingleTypeRefSingleTypeRefNode } && IsVoidOrOptionalType(voidLiteralTargetType))
                     {
                         result = referencedType; // VoidType.Instance
                         break;
@@ -23194,7 +23194,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     // declaration annotation) and is an ArrayType, use the target element type.
                     // Otherwise, produce ErrorType (the type checker will emit a diagnostic
                     // indicating that empty array literals require an explicit element type).
-                    if(_emptyArrayTargetType is ArrayType targetArrayType)
+                    if(emptyArrayTargetType is ArrayType targetArrayType)
                     {
                         result = new ArrayType(targetArrayType.ElementType, 0);
                     }
@@ -23975,7 +23975,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // are the primary API consumption pattern and must resolve as instance calls.
         // Task 7.2: Collect ALL candidates and apply specificity ordering.
         var isUnwrappedFromConstructed = constructedTypeParams is not null && constructedTypeArgs is not null;
-        if(_extensionRegistryContext is not null)
+        if(extensionRegistryContext is not null)
         {
             // Use the original target type (before ConstructedType unwrapping)
             // for the extension registry query. If the original was a
@@ -23992,15 +23992,15 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             IReadOnlyList<ExtensionBlockInfo> applicableExtensions;
             if(lookupType is UnknownType)
             {
-                applicableExtensions = _extensionRegistryContext.UniversalExtensions;
+                applicableExtensions = extensionRegistryContext.UniversalExtensions;
             }
             else if(lookupType is UnionType unionType)
             {
-                applicableExtensions = _extensionRegistryContext.GetApplicableExtensionsForUnion(unionType.Constituents);
+                applicableExtensions = extensionRegistryContext.GetApplicableExtensionsForUnion(unionType.Constituents);
             }
             else
             {
-                applicableExtensions = _extensionRegistryContext.GetApplicableExtensions(lookupType);
+                applicableExtensions = extensionRegistryContext.GetApplicableExtensions(lookupType);
             }
 
             // Filter by namespace visibility: only include extensions whose
@@ -24143,7 +24143,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             // When instance extension lookup finds no candidates, also search
             // for static extension members using exact type match only.
             // Static extension members are callable via TypeName.MemberName.
-            var exactExtensions = _extensionRegistryContext.GetExactExtensions(lookupType);
+            var exactExtensions = extensionRegistryContext.GetExactExtensions(lookupType);
             var staticCandidates = new List<(IType ReceiverType, IType MemberType)>();
 
             foreach(var ext in exactExtensions)
@@ -25065,15 +25065,15 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         }
 
         // ── Step 4: Extension registry (applicable, namespace-filtered) ─────
-        if(_extensionRegistryContext is not null)
+        if(extensionRegistryContext is not null)
         {
             var lookupType = originalTargetType;
 
             var applicableExtensions = lookupType is UnknownType
-                ? _extensionRegistryContext.UniversalExtensions
+                ? extensionRegistryContext.UniversalExtensions
                 : lookupType is UnionType unionType
-                    ? _extensionRegistryContext.GetApplicableExtensionsForUnion(unionType.Constituents)
-                    : _extensionRegistryContext.GetApplicableExtensions(lookupType);
+                    ? extensionRegistryContext.GetApplicableExtensionsForUnion(unionType.Constituents)
+                    : extensionRegistryContext.GetApplicableExtensions(lookupType);
 
             foreach(var ext in applicableExtensions)
             {
@@ -25655,12 +25655,12 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // own scope, search the extension registry for a generic method with
         // matching name and type-argument arity. This handles cases like
         // GetRequiredService<T>() which is an extension method on IServiceProvider.
-        if(_extensionRegistryContext is not null)
+        if(extensionRegistryContext is not null)
         {
             var lookupType = originalTargetType;
             var applicableExtensions = lookupType is UnknownType
-                ? _extensionRegistryContext.UniversalExtensions
-                : _extensionRegistryContext.GetApplicableExtensions(lookupType);
+                ? extensionRegistryContext.UniversalExtensions
+                : extensionRegistryContext.GetApplicableExtensions(lookupType);
 
             var importedNamespaces = CollectImportedNamespaces(fileScope);
 
@@ -25963,26 +25963,26 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
             // Set lambda target type if the corresponding parameter is a Func type.
             // Also handles nullable Func types (UnionType containing a Func constituent).
-            IType? previousLambdaTarget = _lambdaTargetType;
-            var previousVoidTarget = _voidLiteralTargetType;
-            var previousTargetNewTarget = _targetTypedNewTargetType;
+            IType? previousLambdaTarget = lambdaTargetType;
+            var previousVoidTarget = voidLiteralTargetType;
+            var previousTargetNewTarget = targetTypedNewTargetType;
             if(effectiveParamTypes is not null && i < effectiveParamTypes.Count)
             {
                 var paramType = effectiveParamTypes[i];
-                _voidLiteralTargetType = paramType;
-                _targetTypedNewTargetType = paramType;
+                voidLiteralTargetType = paramType;
+                targetTypedNewTargetType = paramType;
                 if(IsFuncType(paramType))
                 {
-                    _lambdaTargetType = paramType;
+                    lambdaTargetType = paramType;
                 }
                 else if(paramType is DelegateType)
                 {
-                    _lambdaTargetType = paramType;
+                    lambdaTargetType = paramType;
                 }
                 else if(TryUnwrapExpressionFunc(paramType) is { } expressionFunc)
                 {
                     // Expression<Func<T, R>> — unwrap to the inner Func for lambda inference.
-                    _lambdaTargetType = expressionFunc;
+                    lambdaTargetType = expressionFunc;
                 }
                 else if(paramType is UnionType unionParam)
                 {
@@ -25992,12 +25992,12 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     {
                         if(IsFuncType(constituent))
                         {
-                            _lambdaTargetType = constituent;
+                            lambdaTargetType = constituent;
                             break;
                         }
                         if(constituent is DelegateType)
                         {
-                            _lambdaTargetType = constituent;
+                            lambdaTargetType = constituent;
                             break;
                         }
                         // Also detect CLR Action<T>/Func<T> types that were projected as
@@ -26009,13 +26009,13 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                             && (ctClass.DisplayName.StartsWith("Action", StringComparison.Ordinal)
                                 || ctClass.DisplayName.StartsWith("Func", StringComparison.Ordinal)))
                         {
-                            _lambdaTargetType = constituent;
+                            lambdaTargetType = constituent;
                             break;
                         }
                         // Expression<Func<...>> inside a nullable union.
                         if(TryUnwrapExpressionFunc(constituent) is { } innerFunc)
                         {
-                            _lambdaTargetType = innerFunc;
+                            lambdaTargetType = innerFunc;
                             break;
                         }
                     }
@@ -26025,9 +26025,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             ResolveExpression(expr, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
 
             // Restore previous target types.
-            _lambdaTargetType = previousLambdaTarget;
-            _voidLiteralTargetType = previousVoidTarget;
-            _targetTypedNewTargetType = previousTargetNewTarget;
+            lambdaTargetType = previousLambdaTarget;
+            voidLiteralTargetType = previousVoidTarget;
+            targetTypedNewTargetType = previousTargetNewTarget;
 
             // Incremental type argument inference: after resolving each argument,
             // attempt to infer type args from what we have so far and substitute

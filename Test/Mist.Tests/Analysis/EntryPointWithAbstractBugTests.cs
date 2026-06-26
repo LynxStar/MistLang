@@ -23,19 +23,19 @@ namespace Mist.Tests.Analysis;
 /// </summary>
 public sealed class EntryPointWithAbstractBugTests : IDisposable
 {
-    private readonly string _outputDir;
+    private readonly string outputDir;
 
     public EntryPointWithAbstractBugTests()
     {
-        _outputDir = Path.Combine(Path.GetTempPath(), "MistEntryPointBug_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(_outputDir);
+        outputDir = Path.Combine(Path.GetTempPath(), "MistEntryPointBug_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(outputDir);
     }
 
     public void Dispose()
     {
-        if(Directory.Exists(_outputDir))
+        if(Directory.Exists(outputDir))
         {
-            try { Directory.Delete(_outputDir, recursive: true); } catch { /* best effort */ }
+            try { Directory.Delete(outputDir, recursive: true); } catch { /* best effort */ }
         }
     }
 
@@ -48,15 +48,15 @@ public sealed class EntryPointWithAbstractBugTests : IDisposable
 
     private CompilerResult CompileSource(string source, string fileName = "Program.mist")
     {
-        var filePath = Path.Combine(_outputDir, fileName);
+        var filePath = Path.Combine(outputDir, fileName);
         File.WriteAllText(filePath, source);
 
         var options = new CompilerOptions(
-            ProjectFolder: _outputDir,
+            ProjectFolder: outputDir,
             SourcePaths: ImmutableArray.Create(filePath),
             Backend: new BackendId("csharp"),
-            OutputDirectory: _outputDir,
-            BinDirectory: Path.Combine(_outputDir, "bin"),
+            OutputDirectory: outputDir,
+            BinDirectory: Path.Combine(outputDir, "bin"),
             ProjectName: "TestProject",
             NamespaceRoot: "TestProject",
             EnabledAnalyzerIds: ImmutableArray<string>.Empty);
@@ -124,7 +124,7 @@ public sealed class EntryPointWithAbstractBugTests : IDisposable
             """;
 
         // Build the semantic model directly to inspect it
-        var filePath = Path.Combine(_outputDir, "Diag.mist");
+        var filePath = Path.Combine(outputDir, "Diag.mist");
         File.WriteAllText(filePath, source);
 
         var lexer = new Mist.Lexing.MistLexer();
@@ -150,7 +150,7 @@ public sealed class EntryPointWithAbstractBugTests : IDisposable
             ImmutableArray.Create(parseResult.Root),
             ambientTypeResolver: null,
             namespaceRoot: "TestProject",
-            projectFolder: _outputDir,
+            projectFolder: outputDir,
             semanticBag);
 
         // Check that the parser correctly puts types in the namespace body

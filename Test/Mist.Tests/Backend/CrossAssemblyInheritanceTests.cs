@@ -27,16 +27,16 @@ namespace Mist.Tests.Backend;
 /// </summary>
 public sealed class CrossAssemblyInheritanceTests : IDisposable
 {
-    private readonly AssemblyTypeProvider _provider;
-    private readonly VisibilityFilter _filter = new();
+    private readonly AssemblyTypeProvider provider;
+    private readonly VisibilityFilter filter = new();
 
     public CrossAssemblyInheritanceTests()
     {
         var diagnostics = new DiagnosticBag();
-        _provider = new AssemblyTypeProvider(GetAssemblyPaths(), diagnostics);
+        provider = new AssemblyTypeProvider(GetAssemblyPaths(), diagnostics);
     }
 
-    public void Dispose() => _provider.Dispose();
+    public void Dispose() => provider.Dispose();
 
     private static ImmutableArray<string> GetAssemblyPaths()
     {
@@ -52,8 +52,8 @@ public sealed class CrossAssemblyInheritanceTests : IDisposable
     public void NetworkStream_BaseType_IsReferenceEqualToProjectedStream()
     {
         // NetworkStream is in System.Net.Sockets.dll; Stream is in System.Runtime.dll.
-        var networkStream = _provider.ResolveType("System.Net.Sockets", "NetworkStream", 0);
-        var stream = _provider.ResolveType("System.IO", "Stream", 0);
+        var networkStream = provider.ResolveType("System.Net.Sockets", "NetworkStream", 0);
+        var stream = provider.ResolveType("System.IO", "Stream", 0);
 
         Assert.NotNull(networkStream);
         Assert.NotNull(stream);
@@ -68,8 +68,8 @@ public sealed class CrossAssemblyInheritanceTests : IDisposable
     [Fact]
     public void IPEndPoint_BaseType_IsReferenceEqualToProjectedEndPoint()
     {
-        var ipEndPoint = _provider.ResolveType("System.Net", "IPEndPoint", 0);
-        var endPoint = _provider.ResolveType("System.Net", "EndPoint", 0);
+        var ipEndPoint = provider.ResolveType("System.Net", "IPEndPoint", 0);
+        var endPoint = provider.ResolveType("System.Net", "EndPoint", 0);
 
         Assert.NotNull(ipEndPoint);
         Assert.NotNull(endPoint);
@@ -89,7 +89,7 @@ public sealed class CrossAssemblyInheritanceTests : IDisposable
     public void NetworkStream_BaseType_Chain_ConnectsMultipleLevels()
     {
         // NetworkStream → Stream → MarshalByRefObject
-        var networkStream = _provider.ResolveType("System.Net.Sockets", "NetworkStream", 0);
+        var networkStream = provider.ResolveType("System.Net.Sockets", "NetworkStream", 0);
         Assert.NotNull(networkStream);
 
         var nsClass = Assert.IsType<ClassType>(networkStream);
@@ -114,8 +114,8 @@ public sealed class CrossAssemblyInheritanceTests : IDisposable
     [Fact]
     public void NetworkStream_BaseTypeChain_ContainsProjectedStream()
     {
-        var networkStream = _provider.ResolveType("System.Net.Sockets", "NetworkStream", 0);
-        var stream = _provider.ResolveType("System.IO", "Stream", 0);
+        var networkStream = provider.ResolveType("System.Net.Sockets", "NetworkStream", 0);
+        var stream = provider.ResolveType("System.IO", "Stream", 0);
 
         Assert.NotNull(networkStream);
         Assert.NotNull(stream);
@@ -141,8 +141,8 @@ public sealed class CrossAssemblyInheritanceTests : IDisposable
     [Fact]
     public void IPEndPoint_BaseTypeChain_ContainsProjectedEndPoint()
     {
-        var ipEndPoint = _provider.ResolveType("System.Net", "IPEndPoint", 0);
-        var endPoint = _provider.ResolveType("System.Net", "EndPoint", 0);
+        var ipEndPoint = provider.ResolveType("System.Net", "IPEndPoint", 0);
+        var endPoint = provider.ResolveType("System.Net", "EndPoint", 0);
 
         Assert.NotNull(ipEndPoint);
         Assert.NotNull(endPoint);
@@ -170,10 +170,10 @@ public sealed class CrossAssemblyInheritanceTests : IDisposable
     [Fact]
     public void NetworkStream_InheritedMembers_ContainReadAndWrite()
     {
-        var networkStream = _provider.ResolveType("System.Net.Sockets", "NetworkStream", 0);
+        var networkStream = provider.ResolveType("System.Net.Sockets", "NetworkStream", 0);
         Assert.NotNull(networkStream);
 
-        var members = _provider.GetMembers(networkStream!);
+        var members = provider.GetMembers(networkStream!);
 
         var methodNames = members
             .Where(m => m.Kind == SymbolKind.Method)
@@ -187,10 +187,10 @@ public sealed class CrossAssemblyInheritanceTests : IDisposable
     [Fact]
     public void NetworkStream_InheritedProperties_ContainCanRead()
     {
-        var networkStream = _provider.ResolveType("System.Net.Sockets", "NetworkStream", 0);
+        var networkStream = provider.ResolveType("System.Net.Sockets", "NetworkStream", 0);
         Assert.NotNull(networkStream);
 
-        var members = _provider.GetMembers(networkStream!);
+        var members = provider.GetMembers(networkStream!);
 
         var propertyNames = members
             .Where(m => m.Kind == SymbolKind.Property)
@@ -203,10 +203,10 @@ public sealed class CrossAssemblyInheritanceTests : IDisposable
     [Fact]
     public void NetworkStream_InheritedProperties_ContainLength()
     {
-        var networkStream = _provider.ResolveType("System.Net.Sockets", "NetworkStream", 0);
+        var networkStream = provider.ResolveType("System.Net.Sockets", "NetworkStream", 0);
         Assert.NotNull(networkStream);
 
-        var members = _provider.GetMembers(networkStream!);
+        var members = provider.GetMembers(networkStream!);
 
         var propertyNames = members
             .Where(m => m.Kind == SymbolKind.Property)
@@ -226,10 +226,10 @@ public sealed class CrossAssemblyInheritanceTests : IDisposable
     [Fact]
     public void NetworkStream_HiddenInheritedMember_NotInGetMembers()
     {
-        var networkStream = _provider.ResolveType("System.Net.Sockets", "NetworkStream", 0);
+        var networkStream = provider.ResolveType("System.Net.Sockets", "NetworkStream", 0);
         Assert.NotNull(networkStream);
 
-        var members = _provider.GetMembers(networkStream!);
+        var members = provider.GetMembers(networkStream!);
         var memberNames = members.Select(m => m.Name).ToHashSet();
 
         // Walk the CLR inheritance chain and find members that are hidden by the filter.
@@ -241,7 +241,7 @@ public sealed class CrossAssemblyInheritanceTests : IDisposable
             .ToArray();
 
         var hiddenMembers = allInheritedMembers
-            .Where(m => _filter.IsMemberExcluded(m))
+            .Where(m => filter.IsMemberExcluded(m))
             .ToList();
 
         // We expect at least some members to be hidden (e.g., pointer-based or
@@ -256,7 +256,7 @@ public sealed class CrossAssemblyInheritanceTests : IDisposable
             {
                 // There must be a visible overload with that name (per Req 7.4)
                 var visibleOverloadExists = allInheritedMembers
-                    .Any(m => m.Name == hidden.Name && !_filter.IsMemberExcluded(m));
+                    .Any(m => m.Name == hidden.Name && !filter.IsMemberExcluded(m));
                 Assert.True(visibleOverloadExists,
                     $"Hidden member '{hidden.Name}' appears in GetMembers but no visible " +
                     "overload exists — the filter failed to exclude it.");
@@ -266,7 +266,7 @@ public sealed class CrossAssemblyInheritanceTests : IDisposable
         // Additionally assert that truly all-hidden method groups are absent.
         var allHiddenGroups = hiddenMembers
             .GroupBy(m => m.Name)
-            .Where(g => !allInheritedMembers.Any(m => m.Name == g.Key && !_filter.IsMemberExcluded(m)))
+            .Where(g => !allInheritedMembers.Any(m => m.Name == g.Key && !filter.IsMemberExcluded(m)))
             .Select(g => g.Key)
             .ToList();
 
@@ -286,7 +286,7 @@ public sealed class CrossAssemblyInheritanceTests : IDisposable
         // When all SDK assemblies are loaded, cross-assembly relationships should
         // all resolve successfully. The collection should be accessible and empty
         // (or at least not contain entries for the types we just tested).
-        var unresolved = _provider.UnresolvedRelationships;
+        var unresolved = provider.UnresolvedRelationships;
 
         Assert.NotNull(unresolved);
 

@@ -19,22 +19,22 @@ namespace Mist.Tests.Backend;
 /// </summary>
 public sealed class MissingIntrinsicEmissionTests : IDisposable
 {
-    private readonly SemanticModelBuilder _builder = new();
-    private readonly string _outputDir;
-    private readonly string _binDir;
+    private readonly SemanticModelBuilder builder = new();
+    private readonly string outputDir;
+    private readonly string binDir;
 
     public MissingIntrinsicEmissionTests()
     {
-        _outputDir = Path.Combine(Path.GetTempPath(), "MistBE0002Tests_" + Guid.NewGuid().ToString("N"));
-        _binDir = Path.Combine(Path.GetTempPath(), "MistBE0002Bin_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(_outputDir);
-        Directory.CreateDirectory(_binDir);
+        outputDir = Path.Combine(Path.GetTempPath(), "MistBE0002Tests_" + Guid.NewGuid().ToString("N"));
+        binDir = Path.Combine(Path.GetTempPath(), "MistBE0002Bin_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(outputDir);
+        Directory.CreateDirectory(binDir);
     }
 
     public void Dispose()
     {
-        TryDeleteDir(_outputDir);
-        TryDeleteDir(_binDir);
+        TryDeleteDir(outputDir);
+        TryDeleteDir(binDir);
         GC.SuppressFinalize(this);
     }
 
@@ -227,7 +227,7 @@ public class Program {
             new CompilationUnit(stdlibSourceText) { IsStdlib = true },
             new CompilationUnit(userSourceText)));
         var buildDiag = new DiagnosticBag();
-        var model = _builder.Build(
+        var model = builder.Build(
             compilation,
             ImmutableArray.Create<Storm.Runtime.SyntaxNode>(stdlibAst, userAst),
             ambientTypeResolver: null,
@@ -256,7 +256,7 @@ public class Program {
 
         // ── Act ──────────────────────────────────────────────────────────
         var emitDiag = new DiagnosticBag();
-        CSharpEmitter.Emit(model, _outputDir, "TestProject", emitDiag);
+        CSharpEmitter.Emit(model, outputDir, "TestProject", emitDiag);
 
         // ── Assert ───────────────────────────────────────────────────────
         var diagnostics = emitDiag.ToImmutableArray();
@@ -426,7 +426,7 @@ public class Program {
             new CompilationUnit(stdlibSourceText) { IsStdlib = true },
             new CompilationUnit(userSourceText)));
         var buildDiag = new DiagnosticBag();
-        var model = _builder.Build(
+        var model = builder.Build(
             compilation,
             ImmutableArray.Create<Storm.Runtime.SyntaxNode>(stdlibAst, userAst),
             ambientTypeResolver: null,
@@ -452,7 +452,7 @@ public class Program {
         // ── Act ──────────────────────────────────────────────────────────
         var backend = new CSharpTranspilerBackend();
         var backendDiag = new DiagnosticBag();
-        var result = backend.Emit(model, _outputDir, _binDir, "TestProject", backendDiag);
+        var result = backend.Emit(model, outputDir, binDir, "TestProject", backendDiag);
 
         // ── Assert ───────────────────────────────────────────────────────
         // BackendResult.Succeeded == false
@@ -462,8 +462,8 @@ public class Program {
         Assert.Contains(result.Diagnostics, d => d.Id == DiagnosticId.MissingIntrinsicEmissionTemplate);
 
         // No .cs files remain in the output directory (Requirement 5.10)
-        var csFiles = Directory.Exists(_outputDir)
-            ? Directory.GetFiles(_outputDir, "*.cs")
+        var csFiles = Directory.Exists(outputDir)
+            ? Directory.GetFiles(outputDir, "*.cs")
             : [];
         Assert.Empty(csFiles);
     }

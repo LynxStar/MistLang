@@ -56,7 +56,7 @@ public class UnionSemanticModelPropertyTests
 {
     private static readonly Mist.Lexing.MistLexer Lexer = new();
     private static readonly Mist.Parsing.MistParser Parser = new();
-    private readonly SemanticModelBuilder _builder = new();
+    private readonly SemanticModelBuilder builder = new();
 
     // ─── Known primitive types for generation ────────────────────────────
 
@@ -203,7 +203,7 @@ public class UnionSemanticModelPropertyTests
         var compilation = new MistCompilation(
             ImmutableArray.Create(new CompilationUnit(sourceText)));
         var semanticBag = new DiagnosticBag();
-        return _builder.Build(
+        return builder.Build(
             compilation,
             ImmutableArray.Create(result.Root),
             ambientTypeResolver: null,

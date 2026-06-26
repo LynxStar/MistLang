@@ -40,8 +40,8 @@ public class SubstituteClosedUnknownResultTypeTests
     private static readonly ILexer Lexer = new Mist.Lexing.MistLexer();
     private static readonly IParser Parser = new Mist.Parsing.MistParser();
 
-    private readonly SemanticModelBuilder _builder = new();
-    private readonly TypeCheckerAnalyzer _analyzer = new();
+    private readonly SemanticModelBuilder builder = new();
+    private readonly TypeCheckerAnalyzer analyzer = new();
 
     /// <summary>
     /// Lexes, parses, builds the semantic model, then runs the type
@@ -65,7 +65,7 @@ public class SubstituteClosedUnknownResultTypeTests
             ImmutableArray.Create(new CompilationUnit(sourceText)));
 
         var semBag = new DiagnosticBag();
-        var model = _builder.Build(
+        var model = builder.Build(
             compilation,
             ImmutableArray.Create(parseResult.Root!),
             ambientTypeResolver: null,
@@ -74,7 +74,7 @@ public class SubstituteClosedUnknownResultTypeTests
             semBag);
 
         var tcBag = new DiagnosticBag();
-        _analyzer.Analyze(model, tcBag);
+        analyzer.Analyze(model, tcBag);
 
         var allDiagnostics = semBag.ToImmutableArray().Concat(tcBag.ToImmutableArray()).ToImmutableArray();
         return (model, parseResult.Root!, allDiagnostics);

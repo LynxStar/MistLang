@@ -47,13 +47,13 @@ namespace Storm.SourceGenerator.Tests
             return new EmissionContext(ns, grammarName, loweringResult.Grammar!);
         }
 
-        private readonly string _output;
+        private readonly string output;
 
         public LexerEmitterDiagnosticTests()
         {
             var ctx = CreateContext(
                 "token Number = [0-9]+;\nrule Start = Number;");
-            _output = LexerEmitter.Emit(ctx);
+            output = LexerEmitter.Emit(ctx);
         }
 
         // ---------------------------------------------------------------
@@ -67,7 +67,7 @@ namespace Storm.SourceGenerator.Tests
             // message, source.Path, startPos.Line, startPos.Column
             Assert.Contains(
                 "diagnostics.Add($\"Unexpected character '{ch}'\", source.Path, startPos.Line, startPos.Column)",
-                _output);
+                output);
         }
 
         [Fact]
@@ -75,29 +75,29 @@ namespace Storm.SourceGenerator.Tests
         {
             // The error message should NOT contain embedded position info like
             // "at line {startPos.Line}, column {startPos.Column}"
-            Assert.DoesNotContain("at line {startPos.Line}", _output);
-            Assert.DoesNotContain("column {startPos.Column}\")", _output);
+            Assert.DoesNotContain("at line {startPos.Line}", output);
+            Assert.DoesNotContain("column {startPos.Column}\")", output);
         }
 
         [Fact]
         public void EmitLexer_ErrorPath_PassesSourcePathAsSecondArgument()
         {
             // Verify source.Path is passed as the file path argument
-            Assert.Contains("source.Path", _output);
+            Assert.Contains("source.Path", output);
         }
 
         [Fact]
         public void EmitLexer_ErrorPath_PassesStartPosLineAsThirdArgument()
         {
             // The structured call should pass startPos.Line
-            Assert.Contains("startPos.Line", _output);
+            Assert.Contains("startPos.Line", output);
         }
 
         [Fact]
         public void EmitLexer_ErrorPath_PassesStartPosColumnAsFourthArgument()
         {
             // The structured call should pass startPos.Column
-            Assert.Contains("startPos.Column", _output);
+            Assert.Contains("startPos.Column", output);
         }
 
         [Fact]
@@ -107,7 +107,7 @@ namespace Storm.SourceGenerator.Tests
             // interpolated string that embeds position data
             Assert.DoesNotContain(
                 "diagnostics.Add($\"Unexpected character '{ch}' at line",
-                _output);
+                output);
         }
     }
 }

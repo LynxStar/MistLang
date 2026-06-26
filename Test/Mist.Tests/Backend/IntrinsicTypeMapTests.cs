@@ -13,8 +13,8 @@ namespace Mist.Tests.Backend;
 /// </summary>
 public class IntrinsicTypeMapTests
 {
-    private readonly IntrinsicTypeMap _map = new();
-    private readonly IStdlibTypeProvider _stdlib = FallbackStdlibTypeProvider.Instance;
+    private readonly IntrinsicTypeMap map = new();
+    private readonly IStdlibTypeProvider stdlib = FallbackStdlibTypeProvider.Instance;
 
     // ── Helper factories ─────────────────────────────────────────────────
 
@@ -61,7 +61,7 @@ public class IntrinsicTypeMapTests
     [InlineData("void", "Standard.Void")]
     public void GetMistTypeName_CSharpKeyword_ReturnsCorrectStdlibName(string keyword, string expected)
     {
-        var result = _map.GetMistTypeName(keyword);
+        var result = map.GetMistTypeName(keyword);
         Assert.Equal(expected, result);
     }
 
@@ -83,7 +83,7 @@ public class IntrinsicTypeMapTests
     [InlineData("System.Void", "Standard.Void")]
     public void GetMistTypeName_FullClrName_ReturnsCorrectStdlibName(string clrName, string expected)
     {
-        var result = _map.GetMistTypeName(clrName);
+        var result = map.GetMistTypeName(clrName);
         Assert.Equal(expected, result);
     }
 
@@ -95,7 +95,7 @@ public class IntrinsicTypeMapTests
     [InlineData("System.Threading.Tasks.Task", "Standard.Task")]
     public void GetMistTypeName_QualifiedClrUtilityTypes_ReturnsCorrectStdlibName(string clrName, string expected)
     {
-        var result = _map.GetMistTypeName(clrName);
+        var result = map.GetMistTypeName(clrName);
         Assert.Equal(expected, result);
     }
 
@@ -104,7 +104,7 @@ public class IntrinsicTypeMapTests
     [InlineData("System.Collections.Generic.IEnumerable", "Standard.IEnumerable")]
     public void GetMistTypeName_GenericCollectionAbstractTypes_ReturnsCorrectStdlibName(string clrName, string expected)
     {
-        var result = _map.GetMistTypeName(clrName);
+        var result = map.GetMistTypeName(clrName);
         Assert.Equal(expected, result);
     }
 
@@ -117,7 +117,7 @@ public class IntrinsicTypeMapTests
     [InlineData("UnknownType")]
     public void GetMistTypeName_NonIntrinsicType_ReturnsNull(string clrName)
     {
-        var result = _map.GetMistTypeName(clrName);
+        var result = map.GetMistTypeName(clrName);
         Assert.Null(result);
     }
 
@@ -127,7 +127,7 @@ public class IntrinsicTypeMapTests
     public void SubstituteIntrinsics_SystemInt32Struct_ReturnsStdlibType()
     {
         var systemInt32 = MakeClrStruct("Int32", "System");
-        var result = _map.SubstituteIntrinsics(systemInt32, _stdlib);
+        var result = map.SubstituteIntrinsics(systemInt32, stdlib);
 
         // FallbackStdlibTypeProvider returns a StructType with DisplayName "int"
         Assert.IsType<StructType>(result);
@@ -138,7 +138,7 @@ public class IntrinsicTypeMapTests
     public void SubstituteIntrinsics_SystemString_ReturnsStdlibType()
     {
         var systemString = MakeClrClass("String", "System");
-        var result = _map.SubstituteIntrinsics(systemString, _stdlib);
+        var result = map.SubstituteIntrinsics(systemString, stdlib);
 
         Assert.IsType<ClassType>(result);
         Assert.Equal("string", result.DisplayName);
@@ -148,7 +148,7 @@ public class IntrinsicTypeMapTests
     public void SubstituteIntrinsics_SystemBoolean_ReturnsStdlibType()
     {
         var systemBool = MakeClrStruct("Boolean", "System");
-        var result = _map.SubstituteIntrinsics(systemBool, _stdlib);
+        var result = map.SubstituteIntrinsics(systemBool, stdlib);
 
         Assert.IsType<StructType>(result);
         Assert.Equal("bool", result.DisplayName);
@@ -160,7 +160,7 @@ public class IntrinsicTypeMapTests
     public void SubstituteIntrinsics_NonIntrinsicClass_ReturnsUnchanged()
     {
         var userClass = MakeClrClass("MyService", "MyApp");
-        var result = _map.SubstituteIntrinsics(userClass, _stdlib);
+        var result = map.SubstituteIntrinsics(userClass, stdlib);
 
         Assert.Same(userClass, result);
     }
@@ -169,7 +169,7 @@ public class IntrinsicTypeMapTests
     public void SubstituteIntrinsics_NonIntrinsicStruct_ReturnsUnchanged()
     {
         var userStruct = MakeClrStruct("Vector3", "MyApp");
-        var result = _map.SubstituteIntrinsics(userStruct, _stdlib);
+        var result = map.SubstituteIntrinsics(userStruct, stdlib);
 
         Assert.Same(userStruct, result);
     }
@@ -178,7 +178,7 @@ public class IntrinsicTypeMapTests
     public void SubstituteIntrinsics_NonIntrinsicAbstractType_ReturnsUnchanged()
     {
         var userAbstractType = MakeClrAbstractType("IDrawable", "MyApp");
-        var result = _map.SubstituteIntrinsics(userAbstractType, _stdlib);
+        var result = map.SubstituteIntrinsics(userAbstractType, stdlib);
 
         Assert.Same(userAbstractType, result);
     }
@@ -189,7 +189,7 @@ public class IntrinsicTypeMapTests
     public void SubstituteIntrinsics_AlreadyStdlibStruct_ReturnsUnchanged()
     {
         var stdlibInt = new StructType("Int32", new Scope(null), containingNamespace: "Standard", isBackendBacked: true);
-        var result = _map.SubstituteIntrinsics(stdlibInt, _stdlib);
+        var result = map.SubstituteIntrinsics(stdlibInt, stdlib);
 
         Assert.Same(stdlibInt, result);
     }
@@ -198,7 +198,7 @@ public class IntrinsicTypeMapTests
     public void SubstituteIntrinsics_AlreadyStdlibClass_ReturnsUnchanged()
     {
         var stdlibString = new ClassType("String", new Scope(null), containingNamespace: "Standard", isBackendBacked: true);
-        var result = _map.SubstituteIntrinsics(stdlibString, _stdlib);
+        var result = map.SubstituteIntrinsics(stdlibString, stdlib);
 
         Assert.Same(stdlibString, result);
     }
@@ -213,7 +213,7 @@ public class IntrinsicTypeMapTests
         var systemInt32 = MakeClrStruct("Int32", "System");
         var constructed = new ConstructedType(listDef, new IType[] { systemInt32 });
 
-        var result = _map.SubstituteIntrinsics(constructed, _stdlib);
+        var result = map.SubstituteIntrinsics(constructed, stdlib);
 
         Assert.IsType<ConstructedType>(result);
         var resultCt = (ConstructedType)result;
@@ -230,7 +230,7 @@ public class IntrinsicTypeMapTests
         var systemInt32 = MakeClrStruct("Int32", "System");
         var constructed = new ConstructedType(dictDef, new IType[] { systemString, systemInt32 });
 
-        var result = _map.SubstituteIntrinsics(constructed, _stdlib);
+        var result = map.SubstituteIntrinsics(constructed, stdlib);
 
         Assert.IsType<ConstructedType>(result);
         var resultCt = (ConstructedType)result;
@@ -252,7 +252,7 @@ public class IntrinsicTypeMapTests
         var innerList = new ConstructedType(listDef, new IType[] { systemInt32 });
         var outerDict = new ConstructedType(dictDef, new IType[] { systemString, innerList });
 
-        var result = _map.SubstituteIntrinsics(outerDict, _stdlib);
+        var result = map.SubstituteIntrinsics(outerDict, stdlib);
 
         Assert.IsType<ConstructedType>(result);
         var resultCt = (ConstructedType)result;
@@ -270,7 +270,7 @@ public class IntrinsicTypeMapTests
         var userType = MakeClrClass("MyService", "MyApp");
         var constructed = new ConstructedType(listDef, new IType[] { userType });
 
-        var result = _map.SubstituteIntrinsics(constructed, _stdlib);
+        var result = map.SubstituteIntrinsics(constructed, stdlib);
 
         Assert.Same(constructed, result);
     }
@@ -284,7 +284,7 @@ public class IntrinsicTypeMapTests
         var systemInt32 = MakeClrStruct("Int32", "System");
         var constructed = new ConstructedType(dictDef, new IType[] { userType, systemInt32 });
 
-        var result = _map.SubstituteIntrinsics(constructed, _stdlib);
+        var result = map.SubstituteIntrinsics(constructed, stdlib);
 
         Assert.IsType<ConstructedType>(result);
         var resultCt = (ConstructedType)result;
@@ -307,7 +307,7 @@ public class IntrinsicTypeMapTests
         var middleDict = new ConstructedType(dictDef, new IType[] { systemString, innerList });
         var outerList = new ConstructedType(listDef, new IType[] { middleDict });
 
-        var result = _map.SubstituteIntrinsics(outerList, _stdlib);
+        var result = map.SubstituteIntrinsics(outerList, stdlib);
 
         Assert.IsType<ConstructedType>(result);
         var outerResult = (ConstructedType)result;
@@ -325,7 +325,7 @@ public class IntrinsicTypeMapTests
     public void SubstituteIntrinsics_TypeParameter_ReturnsUnchanged()
     {
         var tp = new TypeParameterType("T", 0);
-        var result = _map.SubstituteIntrinsics(tp, _stdlib);
+        var result = map.SubstituteIntrinsics(tp, stdlib);
 
         Assert.Same(tp, result);
     }
@@ -335,7 +335,7 @@ public class IntrinsicTypeMapTests
     [Fact]
     public void GetMistTypeName_SystemTextRegex_ReturnsStandardRegex()
     {
-        var result = _map.GetMistTypeName("System.Text.RegularExpressions.Regex");
+        var result = map.GetMistTypeName("System.Text.RegularExpressions.Regex");
         Assert.Equal("Standard.Regex", result);
     }
 }

@@ -19,21 +19,21 @@ namespace Mist.Tests.Integration;
 /// </summary>
 public sealed class OverloadIntegrationTests : IDisposable
 {
-    private readonly string _tempDir;
+    private readonly string tempDir;
 
     public OverloadIntegrationTests()
     {
-        _tempDir = Path.Combine(
+        tempDir = Path.Combine(
             Path.GetTempPath(),
             "MistOverloadIntegration_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(_tempDir);
+        Directory.CreateDirectory(tempDir);
     }
 
     public void Dispose()
     {
-        if(Directory.Exists(_tempDir))
+        if(Directory.Exists(tempDir))
         {
-            try { Directory.Delete(_tempDir, recursive: true); } catch { /* best effort */ }
+            try { Directory.Delete(tempDir, recursive: true); } catch { /* best effort */ }
         }
         GC.SuppressFinalize(this);
     }
@@ -42,7 +42,7 @@ public sealed class OverloadIntegrationTests : IDisposable
 
     private CompilerResult CompileMistSource(string mistSource, string fileName = "Program.mist")
     {
-        var sourcePath = Path.Combine(_tempDir, fileName);
+        var sourcePath = Path.Combine(tempDir, fileName);
         File.WriteAllText(sourcePath, mistSource);
 
         var driver = new CompilerDriver(
@@ -53,11 +53,11 @@ public sealed class OverloadIntegrationTests : IDisposable
             ImmutableArray.Create<IBackend>(new CSharpTranspilerBackend()));
 
         var options = new CompilerOptions(
-            ProjectFolder: _tempDir,
+            ProjectFolder: tempDir,
             SourcePaths: ImmutableArray.Create(sourcePath),
             Backend: new BackendId("csharp"),
-            OutputDirectory: Path.Combine(_tempDir, "out"),
-            BinDirectory: Path.Combine(_tempDir, "bin"),
+            OutputDirectory: Path.Combine(tempDir, "out"),
+            BinDirectory: Path.Combine(tempDir, "bin"),
             ProjectName: "TestProject",
             NamespaceRoot: "TestProject",
             EnabledAnalyzerIds: ImmutableArray<string>.Empty);

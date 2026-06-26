@@ -34,8 +34,8 @@ namespace Mist.Backends.CSharpTranspiler;
 /// </summary>
 internal sealed class TypeProjector
 {
-    private readonly IntrinsicTypeMap _intrinsicMap;
-    private readonly VisibilityFilter _filter;
+    private readonly IntrinsicTypeMap intrinsicMap;
+    private readonly VisibilityFilter filter;
 
     /// <summary>
     /// Optional type-reference resolver injected by <see cref="AssemblyTypeProvider"/>.
@@ -50,15 +50,15 @@ internal sealed class TypeProjector
     /// existed — so those call sites are unaffected.
     /// </para>
     /// </summary>
-    private readonly Func<ClrType, IType?>? _typeReferenceResolver;
+    private readonly Func<ClrType, IType?>? typeReferenceResolver;
 
     /// <summary>
     /// Cache-only type-reference resolver: returns the cached type ONLY if it has already been
     /// projected and inserted into the provider's cache. Returns null for types not yet cached.
     /// Used by <see cref="ProjectTypeReference"/> for member return/parameter types to avoid
-    /// infinite recursion (unlike <see cref="_typeReferenceResolver"/> which triggers full projection).
+    /// infinite recursion (unlike <see cref="typeReferenceResolver"/> which triggers full projection).
     /// </summary>
-    private readonly Func<ClrType, IType?>? _typeReferenceResolverCacheOnly;
+    private readonly Func<ClrType, IType?>? typeReferenceResolverCacheOnly;
 
     /// <summary>
     /// Collected indications that a base-type or implemented-interface relationship was
@@ -68,7 +68,7 @@ internal sealed class TypeProjector
     /// <see cref="AssemblyTypeProvider"/> surfaces them. A <see cref="ConcurrentBag{T}"/> keeps
     /// the recording thread-safe because projection runs under parallel compilations.
     /// </summary>
-    private readonly ConcurrentBag<UnresolvedRelationship> _unresolvedRelationships = new();
+    private readonly ConcurrentBag<UnresolvedRelationship> unresolvedRelationships = new();
 
     /// <summary>
     /// The relationships that were omitted during projection because their referenced CLR type
@@ -76,7 +76,7 @@ internal sealed class TypeProjector
     /// (base type vs interface), the derived type, and the unresolved type's name.
     /// </summary>
     internal IReadOnlyCollection<UnresolvedRelationship> UnresolvedRelationships
-        => _unresolvedRelationships;
+        => unresolvedRelationships;
 
     /// <summary>
     /// Tracks types currently being projected to detect and break recursive cycles
@@ -84,7 +84,7 @@ internal sealed class TypeProjector
     /// has a constraint referencing <c>IComparable&lt;T&gt;</c>).
     /// </summary>
     [ThreadStatic]
-    private static HashSet<Type>? _projectionStack;
+    private static HashSet<Type>? projectionStack;
 
     /// <summary>
     /// Creates a new <see cref="TypeProjector"/>.
@@ -104,10 +104,10 @@ internal sealed class TypeProjector
         Func<ClrType, IType?>? typeReferenceResolver = null,
         Func<ClrType, IType?>? typeReferenceResolverCacheOnly = null)
     {
-        _intrinsicMap = intrinsicMap;
-        _filter = filter;
-        _typeReferenceResolver = typeReferenceResolver;
-        _typeReferenceResolverCacheOnly = typeReferenceResolverCacheOnly;
+        this.intrinsicMap = intrinsicMap;
+        this.filter = filter;
+        this.typeReferenceResolver = typeReferenceResolver;
+        this.typeReferenceResolverCacheOnly = typeReferenceResolverCacheOnly;
     }
 
     /// <summary>
@@ -578,7 +578,7 @@ internal sealed class TypeProjector
             var ifaceToCheck = iface.IsConstructedGenericType
                 ? iface.GetGenericTypeDefinition()
                 : iface;
-            if(_filter.IsTypeExcluded(ifaceToCheck))
+            if(filter.IsTypeExcluded(ifaceToCheck))
             {
                 continue;
             }
@@ -680,9 +680,9 @@ internal sealed class TypeProjector
             && !clrType.IsConstructedGenericType
             && !clrType.IsGenericTypeDefinition;
 
-        if(_typeReferenceResolver is not null && isNamedNonGeneric)
+        if(typeReferenceResolver is not null && isNamedNonGeneric)
         {
-            var resolved = _typeReferenceResolver(clrType);
+            var resolved = typeReferenceResolver(clrType);
             if(resolved is not null)
             {
                 // Return the cached instance directly: the whole point is reference identity
@@ -695,7 +695,7 @@ internal sealed class TypeProjector
             // metadata terms but the provider cannot project it (not in any loaded assembly, or
             // non-public). Record the indication and signal omission by returning null — do NOT
             // fall back to a disconnected shell here.
-            _unresolvedRelationships.Add(new UnresolvedRelationship(
+            unresolvedRelationships.Add(new UnresolvedRelationship(
                 kind, derivedTypeName, clrType.FullName ?? clrType.Name));
             return null;
         }
@@ -775,7 +775,7 @@ internal sealed class TypeProjector
             // Create the AssociatedTypeSlotType for the Enumerator slot
             var elementTypeArg = enumerableImpl.GetGenericArguments()[0];
             var projectedElementType = ProjectTypeReference(elementTypeArg, stdlib);
-            projectedElementType = _intrinsicMap.SubstituteIntrinsics(projectedElementType, stdlib);
+            projectedElementType = intrinsicMap.SubstituteIntrinsics(projectedElementType, stdlib);
 
             // Build the constraint: Enumerator must implement IEnumerator<TElement>
             // If the stdlib doesn't have IEnumerator yet (fallback provider before
@@ -933,7 +933,7 @@ internal sealed class TypeProjector
         }
 
         var projectedElementType = ProjectTypeReference(elementClrType, stdlib);
-        projectedElementType = _intrinsicMap.SubstituteIntrinsics(projectedElementType, stdlib);
+        projectedElementType = intrinsicMap.SubstituteIntrinsics(projectedElementType, stdlib);
 
         // Look up Standard.IEnumerable to synthesize IEnumerable<TElement>
         IType iEnumerableStdlib;
@@ -1106,7 +1106,7 @@ internal sealed class TypeProjector
     private IType? BuildStandardIEnumeratorType(Type elementClrType, IStdlibTypeProvider stdlib)
     {
         var projectedElement = ProjectTypeReference(elementClrType, stdlib);
-        projectedElement = _intrinsicMap.SubstituteIntrinsics(projectedElement, stdlib);
+        projectedElement = intrinsicMap.SubstituteIntrinsics(projectedElement, stdlib);
 
         IType iEnumeratorStdlib;
         try
@@ -1175,7 +1175,7 @@ internal sealed class TypeProjector
             }
 
             // Skip operators excluded by the visibility filter
-            if(_filter.IsMemberExcluded(method))
+            if(filter.IsMemberExcluded(method))
             {
                 continue;
             }
@@ -1188,7 +1188,7 @@ internal sealed class TypeProjector
 
             // Project the return type through intrinsic substitution
             var returnType = ProjectTypeReference(method.ReturnType, stdlib);
-            returnType = _intrinsicMap.SubstituteIntrinsics(returnType, stdlib);
+            returnType = intrinsicMap.SubstituteIntrinsics(returnType, stdlib);
 
             // Create the operator symbol
             var opSymbol = new Symbol(
@@ -1205,7 +1205,7 @@ internal sealed class TypeProjector
             foreach(var param in parameters)
             {
                 var paramType = ProjectTypeReference(param.ParameterType, stdlib);
-                paramType = _intrinsicMap.SubstituteIntrinsics(paramType, stdlib);
+                paramType = intrinsicMap.SubstituteIntrinsics(paramType, stdlib);
 
                 var paramSymbol = new Symbol(
                     param.Name ?? $"arg{param.Position}",
@@ -1352,9 +1352,9 @@ internal sealed class TypeProjector
         // correctly when the result is stored in a var-inferred variable.
         if(clrType.IsGenericTypeDefinition)
         {
-            if(_typeReferenceResolverCacheOnly is not null && clrType.Namespace is not null)
+            if(typeReferenceResolverCacheOnly is not null && clrType.Namespace is not null)
             {
-                var cached = _typeReferenceResolverCacheOnly(clrType);
+                var cached = typeReferenceResolverCacheOnly(clrType);
                 if(cached is not null)
                 {
                     return cached;
@@ -1369,7 +1369,7 @@ internal sealed class TypeProjector
             var elementType = clrType.GetElementType()!;
             var projectedElement = ProjectTypeReference(elementType, stdlib);
             // Apply intrinsic substitution to the element type
-            projectedElement = _intrinsicMap.SubstituteIntrinsics(projectedElement, stdlib);
+            projectedElement = intrinsicMap.SubstituteIntrinsics(projectedElement, stdlib);
             return new ArrayType(projectedElement);
         }
 
@@ -1381,14 +1381,14 @@ internal sealed class TypeProjector
         // type projection. Types not yet cached will get a disconnected shell here; the
         // ProjectMemberType method will attempt a full resolve as a second pass for member
         // signatures where a populated scope is critical for var-inference.
-        if(_typeReferenceResolver is not null
+        if(typeReferenceResolver is not null
             && !clrType.IsGenericParameter
             && !clrType.IsArray
             && clrType.Namespace is not null
             && !clrType.IsConstructedGenericType
             && !clrType.IsGenericTypeDefinition)
         {
-            var resolved = _typeReferenceResolverCacheOnly?.Invoke(clrType);
+            var resolved = typeReferenceResolverCacheOnly?.Invoke(clrType);
             if(resolved is not null)
             {
                 return resolved;
@@ -1397,7 +1397,7 @@ internal sealed class TypeProjector
 
         // Project as a simple type and apply intrinsic substitution
         var projectedType = ProjectSimpleTypeReference(clrType, stdlib);
-        return _intrinsicMap.SubstituteIntrinsics(projectedType, stdlib);
+        return intrinsicMap.SubstituteIntrinsics(projectedType, stdlib);
     }
 
     /// <summary>
@@ -1414,11 +1414,11 @@ internal sealed class TypeProjector
         for(var i = 0; i < typeArgs.Length; i++)
         {
             var projectedArg = ProjectTypeReference(typeArgs[i], stdlib);
-            projectedArgs[i] = _intrinsicMap.SubstituteIntrinsics(projectedArg, stdlib);
+            projectedArgs[i] = intrinsicMap.SubstituteIntrinsics(projectedArg, stdlib);
         }
 
         // Apply intrinsic substitution to the definition itself
-        projectedDef = _intrinsicMap.SubstituteIntrinsics(projectedDef, stdlib);
+        projectedDef = intrinsicMap.SubstituteIntrinsics(projectedDef, stdlib);
 
         return new ConstructedType(projectedDef, projectedArgs);
     }
@@ -1473,7 +1473,7 @@ internal sealed class TypeProjector
         var elementClrType = clrType.GetGenericArguments()[0];
         var projectedElement = ProjectTypeReference(elementClrType, stdlib);
         // Apply intrinsic substitution to the element type, mirroring the array arm.
-        projectedElement = _intrinsicMap.SubstituteIntrinsics(projectedElement, stdlib);
+        projectedElement = intrinsicMap.SubstituteIntrinsics(projectedElement, stdlib);
 
         // Always unknown-length: no Length argument is fabricated (Requirement 7.3).
         spanType = new SpanType(projectedElement, isReadOnly);
@@ -1534,7 +1534,7 @@ internal sealed class TypeProjector
                 for(var i = 0; i < clrArgs.Length; i++)
                 {
                     var projectedArg = ProjectTypeReference(clrArgs[i], stdlib);
-                    funcTypeArguments[i] = _intrinsicMap.SubstituteIntrinsics(projectedArg, stdlib);
+                    funcTypeArguments[i] = intrinsicMap.SubstituteIntrinsics(projectedArg, stdlib);
                 }
             }
             else if(genericName.StartsWith("Action`", StringComparison.Ordinal))
@@ -1550,7 +1550,7 @@ internal sealed class TypeProjector
                 for(var i = 0; i < clrArgs.Length; i++)
                 {
                     var projectedArg = ProjectTypeReference(clrArgs[i], stdlib);
-                    funcTypeArguments[i] = _intrinsicMap.SubstituteIntrinsics(projectedArg, stdlib);
+                    funcTypeArguments[i] = intrinsicMap.SubstituteIntrinsics(projectedArg, stdlib);
                 }
                 funcTypeArguments[clrArgs.Length] = voidType;
             }
@@ -1689,7 +1689,7 @@ internal sealed class TypeProjector
         for(var i = 0; i < parameters.Length; i++)
         {
             var projectedArg = ProjectTypeReference(parameters[i].ParameterType, stdlib);
-            funcTypeArguments[i] = _intrinsicMap.SubstituteIntrinsics(projectedArg, stdlib);
+            funcTypeArguments[i] = intrinsicMap.SubstituteIntrinsics(projectedArg, stdlib);
         }
 
         if(isVoidReturn)
@@ -1704,7 +1704,7 @@ internal sealed class TypeProjector
         else
         {
             var projectedReturn = ProjectTypeReference(returnType, stdlib);
-            funcTypeArguments[parameters.Length] = _intrinsicMap.SubstituteIntrinsics(projectedReturn, stdlib);
+            funcTypeArguments[parameters.Length] = intrinsicMap.SubstituteIntrinsics(projectedReturn, stdlib);
         }
 
         var funcSignature = new ConstructedType(funcDefinition, funcTypeArguments);
@@ -1736,7 +1736,7 @@ internal sealed class TypeProjector
             for(var i = 0; i < clrArgs.Length; i++)
             {
                 var projectedArg = ProjectTypeReference(clrArgs[i], stdlib);
-                projectedArgs[i] = _intrinsicMap.SubstituteIntrinsics(projectedArg, stdlib);
+                projectedArgs[i] = intrinsicMap.SubstituteIntrinsics(projectedArg, stdlib);
             }
             typeArguments = projectedArgs;
         }
@@ -1775,7 +1775,7 @@ internal sealed class TypeProjector
 
         // Cycle detection: if we're already projecting this type's constraints,
         // return a minimal shell without type parameters to break the recursion.
-        var stack = _projectionStack ??= new HashSet<Type>(ReferenceEqualityComparer.Instance);
+        var stack = projectionStack ??= new HashSet<Type>(ReferenceEqualityComparer.Instance);
         if(!stack.Add(clrType))
         {
             // Already projecting this type — return a minimal shell to break the cycle.
@@ -1872,7 +1872,7 @@ internal sealed class TypeProjector
         if(underlyingNullable is not null)
         {
             var innerMistType = ProjectTypeReference(underlyingNullable, stdlib);
-            innerMistType = _intrinsicMap.SubstituteIntrinsics(innerMistType, stdlib);
+            innerMistType = intrinsicMap.SubstituteIntrinsics(innerMistType, stdlib);
             return CreateNullableUnion(innerMistType, NullableOrigin.NullableValueType, stdlib);
         }
 
@@ -2027,7 +2027,7 @@ internal sealed class TypeProjector
 
         foreach(var ctor in constructors)
         {
-            if(_filter.IsMemberExcluded(ctor))
+            if(filter.IsMemberExcluded(ctor))
             {
                 continue;
             }
@@ -2075,7 +2075,7 @@ internal sealed class TypeProjector
                 continue;
             }
 
-            if(_filter.IsMemberExcluded(method))
+            if(filter.IsMemberExcluded(method))
             {
                 continue;
             }
@@ -2247,7 +2247,7 @@ internal sealed class TypeProjector
                 continue;
             }
 
-            if(_filter.IsMemberExcluded(property))
+            if(filter.IsMemberExcluded(property))
             {
                 continue;
             }
@@ -2306,7 +2306,7 @@ internal sealed class TypeProjector
                 continue;
             }
 
-            if(_filter.IsMemberExcluded(field))
+            if(filter.IsMemberExcluded(field))
             {
                 continue;
             }
@@ -2352,7 +2352,7 @@ internal sealed class TypeProjector
                 continue;
             }
 
-            if(_filter.IsMemberExcluded(property))
+            if(filter.IsMemberExcluded(property))
             {
                 continue;
             }
@@ -2534,7 +2534,7 @@ internal sealed class TypeProjector
     internal IType ProjectMemberType(Type clrType, IStdlibTypeProvider stdlib)
     {
         var projected = ProjectTypeReference(clrType, stdlib);
-        projected = _intrinsicMap.SubstituteIntrinsics(projected, stdlib);
+        projected = intrinsicMap.SubstituteIntrinsics(projected, stdlib);
 
         // If ProjectTypeReference returned a disconnected shell (empty member scope) for a
         // non-generic, non-constructed class/struct/interface, attempt a full resolve via the
@@ -2545,7 +2545,7 @@ internal sealed class TypeProjector
         // Without this, var-inferred variables whose type comes from a method return type
         // (e.g., `var builder = WebApplication.CreateBuilder()` returning WebApplicationBuilder)
         // get a disconnected shell with no members, causing MIST_UNDEFINED_MEMBER errors.
-        if(_typeReferenceResolver is not null
+        if(typeReferenceResolver is not null
             && IsDisconnectedShell(projected)
             && !clrType.IsGenericParameter
             && !clrType.IsArray
@@ -2553,7 +2553,7 @@ internal sealed class TypeProjector
             && !clrType.IsConstructedGenericType
             && !clrType.IsGenericTypeDefinition)
         {
-            var resolved = _typeReferenceResolver(clrType);
+            var resolved = typeReferenceResolver(clrType);
             if(resolved is not null)
             {
                 return resolved;
@@ -2563,7 +2563,7 @@ internal sealed class TypeProjector
         // For constructed generic types (e.g., EntityTypeBuilder<TEntity>), check if
         // the generic definition inside the ConstructedType is a disconnected shell.
         // If so, attempt a full resolve of the generic definition to get its members.
-        if(_typeReferenceResolver is not null
+        if(typeReferenceResolver is not null
             && projected is ConstructedType projectedCt
             && IsDisconnectedShell(projectedCt.GenericDefinition)
             && clrType.IsConstructedGenericType)
@@ -2571,7 +2571,7 @@ internal sealed class TypeProjector
             var genericDef = clrType.GetGenericTypeDefinition();
             if(genericDef.Namespace is not null)
             {
-                var resolvedDef = _typeReferenceResolver(genericDef);
+                var resolvedDef = typeReferenceResolver(genericDef);
                 if(resolvedDef is not null)
                 {
                     // Reconstruct the ConstructedType with the fully-populated definition.

@@ -14,14 +14,14 @@ namespace Storm.SourceGenerator.Emit
     /// </summary>
     internal sealed class NfaBuilder
     {
-        private int _nextStateId;
+        private int nextStateId;
 
         /// <summary>
         /// Creates a fresh NFA state with a unique ID.
         /// </summary>
         private NfaState NewState()
         {
-            return new NfaState(_nextStateId++);
+            return new NfaState(nextStateId++);
         }
 
         // ── BuildFragment overloads (Thompson's construction) ────────────

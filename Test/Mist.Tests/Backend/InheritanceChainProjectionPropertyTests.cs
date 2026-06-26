@@ -29,8 +29,8 @@ namespace Mist.Tests.Backend;
 /// </summary>
 public sealed class InheritanceChainProjectionPropertyTests
 {
-    private readonly TypeProjector _projector;
-    private readonly IStdlibTypeProvider _stdlib;
+    private readonly TypeProjector projector;
+    private readonly IStdlibTypeProvider stdlib;
 
     /// <summary>
     /// All types from the fixture assembly that have a non-Object base class,
@@ -42,8 +42,8 @@ public sealed class InheritanceChainProjectionPropertyTests
     {
         var intrinsicMap = new IntrinsicTypeMap();
         var filter = new VisibilityFilter();
-        _projector = new TypeProjector(intrinsicMap, filter);
-        _stdlib = FallbackStdlibTypeProvider.Instance;
+        projector = new TypeProjector(intrinsicMap, filter);
+        stdlib = FallbackStdlibTypeProvider.Instance;
     }
 
     private static Type[] BuildTypesWithInheritance()
@@ -113,7 +113,7 @@ public sealed class InheritanceChainProjectionPropertyTests
         var projected = new Dictionary<string, (IType, Type)>();
         foreach(var clrType in clrChain)
         {
-            var (mistType, _) = _projector.ProjectType(clrType, _stdlib);
+            var (mistType, _) = projector.ProjectType(clrType, stdlib);
             var name = TypeProjector.StripGenericAritySuffix(clrType.Name);
             projected[name] = (mistType, clrType);
         }
@@ -207,7 +207,7 @@ public sealed class InheritanceChainProjectionPropertyTests
     {
         RunProperty(GenTypeWithInheritance(), clrType =>
         {
-            var (projectedType, _) = _projector.ProjectType(clrType, _stdlib);
+            var (projectedType, _) = projector.ProjectType(clrType, stdlib);
 
             // DelegateType does not carry a BaseType — its relationship to
             // BaseDelegateType is expressed through assignability rules, not
@@ -293,10 +293,10 @@ public sealed class InheritanceChainProjectionPropertyTests
         {
             var clrChain = GetClrInheritanceChain(clrType);
 
-            var (projectedType, _) = _projector.ProjectType(clrType, _stdlib);
+            var (projectedType, _) = projector.ProjectType(clrType, stdlib);
 
             // Get members of the derived type (includes inherited members via reflection)
-            var derivedMembers = _projector.ProjectMembers(clrType, projectedType, _stdlib);
+            var derivedMembers = projector.ProjectMembers(clrType, projectedType, stdlib);
             var derivedMemberNames = derivedMembers
                 .Where(m => m.Kind is SymbolKind.Method or SymbolKind.Property)
                 .Select(m => m.Name)
@@ -305,8 +305,8 @@ public sealed class InheritanceChainProjectionPropertyTests
             // For each ancestor, check that its declared public members appear on the derived type
             foreach(var ancestorClrType in clrChain.Skip(1))
             {
-                var (ancestorType, _) = _projector.ProjectType(ancestorClrType, _stdlib);
-                var ancestorMembers = _projector.ProjectMembers(ancestorClrType, ancestorType, _stdlib);
+                var (ancestorType, _) = projector.ProjectType(ancestorClrType, stdlib);
+                var ancestorMembers = projector.ProjectMembers(ancestorClrType, ancestorType, stdlib);
 
                 foreach(var ancestorMember in ancestorMembers)
                 {
@@ -334,7 +334,7 @@ public sealed class InheritanceChainProjectionPropertyTests
     {
         RunProperty(GenTypeWithInheritance(), clrType =>
         {
-            var (projectedType, _) = _projector.ProjectType(clrType, _stdlib);
+            var (projectedType, _) = projector.ProjectType(clrType, stdlib);
             var classType = Assert.IsType<ClassType>(projectedType);
 
             // Get the CLR interfaces implemented by this type (includes inherited ones)

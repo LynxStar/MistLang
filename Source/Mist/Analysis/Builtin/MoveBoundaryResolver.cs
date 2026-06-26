@@ -99,7 +99,7 @@ public sealed class MoveBoundaryResolver
     /// injectable so the resolver can be exercised in isolation without running the full
     /// derivation pass.
     /// </summary>
-    private readonly Func<IType, bool> _implementsIClonable;
+    private readonly Func<IType, bool> implementsIClonable;
 
     /// <summary>
     /// Creates a resolver that determines clonability from the cached
@@ -121,7 +121,7 @@ public sealed class MoveBoundaryResolver
     public MoveBoundaryResolver(Func<IType, bool> implementsIClonable)
     {
         ArgumentNullException.ThrowIfNull(implementsIClonable);
-        _implementsIClonable = implementsIClonable;
+        this.implementsIClonable = implementsIClonable;
     }
 
     /// <summary>
@@ -552,7 +552,7 @@ public sealed class MoveBoundaryResolver
     /// the injected clonability oracle (Req 8 AC 6–7). Accessing the instance oracle is what
     /// makes <see cref="Resolve"/> a genuine instance method.
     /// </summary>
-    private bool ImplementsIClonable(IType type) => _implementsIClonable(type);
+    private bool ImplementsIClonable(IType type) => implementsIClonable(type);
 
     /// <summary>
     /// The default clonability oracle: reads the <c>ImplementsIClonable</c> flag cached on the

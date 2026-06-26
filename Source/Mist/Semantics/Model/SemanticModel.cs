@@ -12,15 +12,15 @@ namespace Mist.Semantics.Model;
 /// </summary>
 public sealed class SemanticModel : ISemanticModel
 {
-    private SymbolTable _symbolTable;
-    private Dictionary<Storm.Runtime.SyntaxNode, IType> _expressionTypes;
-    private Dictionary<Storm.Runtime.SyntaxNode, ISymbol> _resolvedOperators;
-    private Dictionary<ISymbol, RefinementPredicate> _parameterRefinements;
-    private HashSet<ISymbol> _guardNeededParameters;
-    private Dictionary<Storm.Runtime.SyntaxNode, List<DiscardedTaskInfo>> _discardedTasksByScope;
-    private readonly Dictionary<Storm.Runtime.SyntaxNode, IReadOnlyList<IType>> _inferredTypeArguments = new();
-    private readonly Dictionary<Storm.Runtime.SyntaxNode, IType> _implicitCloneSites = new();
-    private readonly Dictionary<Storm.Runtime.SyntaxNode, AsConversionKind> _asConversionKinds = new();
+    private SymbolTable symbolTable;
+    private Dictionary<Storm.Runtime.SyntaxNode, IType> expressionTypes;
+    private Dictionary<Storm.Runtime.SyntaxNode, ISymbol> resolvedOperators;
+    private Dictionary<ISymbol, RefinementPredicate> parameterRefinements;
+    private HashSet<ISymbol> guardNeededParameters;
+    private Dictionary<Storm.Runtime.SyntaxNode, List<DiscardedTaskInfo>> discardedTasksByScope;
+    private readonly Dictionary<Storm.Runtime.SyntaxNode, IReadOnlyList<IType>> inferredTypeArguments = new();
+    private readonly Dictionary<Storm.Runtime.SyntaxNode, IType> implicitCloneSites = new();
+    private readonly Dictionary<Storm.Runtime.SyntaxNode, AsConversionKind> asConversionKinds = new();
 
     internal SemanticModel(
         MistCompilation compilation,
@@ -38,12 +38,12 @@ public sealed class SemanticModel : ISemanticModel
         Units = units;
         Asts = asts;
         GlobalScope = globalScope;
-        _symbolTable = symbolTable;
-        _expressionTypes = expressionTypes ?? new Dictionary<Storm.Runtime.SyntaxNode, IType>();
-        _resolvedOperators = new Dictionary<Storm.Runtime.SyntaxNode, ISymbol>();
-        _parameterRefinements = parameterRefinements ?? new Dictionary<ISymbol, RefinementPredicate>();
-        _guardNeededParameters = new HashSet<ISymbol>();
-        _discardedTasksByScope = discardedTasksByScope ?? new Dictionary<Storm.Runtime.SyntaxNode, List<DiscardedTaskInfo>>();
+        this.symbolTable = symbolTable;
+        this.expressionTypes = expressionTypes ?? new Dictionary<Storm.Runtime.SyntaxNode, IType>();
+        resolvedOperators = new Dictionary<Storm.Runtime.SyntaxNode, ISymbol>();
+        this.parameterRefinements = parameterRefinements ?? new Dictionary<ISymbol, RefinementPredicate>();
+        guardNeededParameters = new HashSet<ISymbol>();
+        this.discardedTasksByScope = discardedTasksByScope ?? new Dictionary<Storm.Runtime.SyntaxNode, List<DiscardedTaskInfo>>();
         ExtensionRegistry = extensionRegistry ?? new ExtensionRegistry();
         ConformanceMap = conformanceMap ?? new ConformanceMap();
     }
@@ -61,32 +61,32 @@ public sealed class SemanticModel : ISemanticModel
     /// <c>SemanticModelBuilder.LookupQualifiedStdlibType</c> that need to
     /// walk symbol metadata rather than flatten via <see cref="AllSymbols"/>.
     /// </summary>
-    internal SymbolTable SymbolTable => _symbolTable;
+    internal SymbolTable SymbolTable => symbolTable;
 
     /// <summary>
     /// The expression-type map populated by Pass 2, exposed internally so
     /// that tests can walk assignment targets and argument expressions
     /// without going through <see cref="GetTypeOf"/>'s fallback lookup.
     /// </summary>
-    internal IReadOnlyDictionary<Storm.Runtime.SyntaxNode, IType> ExpressionTypes => _expressionTypes;
+    internal IReadOnlyDictionary<Storm.Runtime.SyntaxNode, IType> ExpressionTypes => expressionTypes;
 
-    public ImmutableArray<ISymbol> AllSymbols => [.. _symbolTable.AllSymbols];
+    public ImmutableArray<ISymbol> AllSymbols => [.. symbolTable.AllSymbols];
 
     public Storm.Runtime.SyntaxNode GetDeclaringNode(ISymbol symbol)
     {
-        return _symbolTable.GetDeclaringNode(symbol)
+        return symbolTable.GetDeclaringNode(symbol)
             ?? throw new InvalidOperationException($"No declaring node found for symbol '{symbol.Name}'.");
     }
 
     public ISymbol? GetDeclaredSymbol(Storm.Runtime.SyntaxNode node)
     {
-        return _symbolTable.GetDeclaredSymbol(node);
+        return symbolTable.GetDeclaredSymbol(node);
     }
 
     public IType? GetTypeOf(Storm.Runtime.SyntaxNode node)
     {
         // First check the expression type map (populated by Pass 2).
-        if(_expressionTypes.TryGetValue(node, out var type))
+        if(expressionTypes.TryGetValue(node, out var type))
         {
             // When the cached expression type is a TypeParameterType, the type checker
             // may have refined the variable's DeclaredType through type argument inference.
@@ -183,7 +183,7 @@ public sealed class SemanticModel : ISemanticModel
             {
                 // For postfix expressions with suffixes, check if the PostfixNode's
                 // type was updated by the type checker.
-                if(_expressionTypes.TryGetValue(postfix, out var postfixType)
+                if(expressionTypes.TryGetValue(postfix, out var postfixType)
                     && postfixType is not TypeParameterType)
                 {
                     return postfixType;
@@ -286,7 +286,7 @@ public sealed class SemanticModel : ISemanticModel
         {
             // For postfix expressions with suffixes (e.g., method calls),
             // check if the PostfixNode's type was updated by the type checker.
-            if(_expressionTypes.TryGetValue(postfix, out var postfixType)
+            if(expressionTypes.TryGetValue(postfix, out var postfixType)
                 && postfixType is not TypeParameterType)
             {
                 return postfixType;
@@ -298,27 +298,27 @@ public sealed class SemanticModel : ISemanticModel
 
     public void SetTypeOf(Storm.Runtime.SyntaxNode node, IType type)
     {
-        _expressionTypes[node] = type;
+        expressionTypes[node] = type;
     }
 
     public void RecordResolvedOperator(Storm.Runtime.SyntaxNode node, ISymbol op)
     {
-        _resolvedOperators[node] = op;
+        resolvedOperators[node] = op;
     }
 
     public ISymbol? GetResolvedOperator(Storm.Runtime.SyntaxNode node)
     {
-        return _resolvedOperators.TryGetValue(node, out var op) ? op : null;
+        return resolvedOperators.TryGetValue(node, out var op) ? op : null;
     }
 
     public RefinementPredicate? GetParameterRefinement(ISymbol parameterSymbol)
     {
-        return _parameterRefinements.TryGetValue(parameterSymbol, out var predicate) ? predicate : null;
+        return parameterRefinements.TryGetValue(parameterSymbol, out var predicate) ? predicate : null;
     }
 
     public void RecordGuardNeeded(ISymbol parameterSymbol)
     {
-        _guardNeededParameters.Add(parameterSymbol);
+        guardNeededParameters.Add(parameterSymbol);
     }
 
     public bool IsGuardElidable(ISymbol parameterSymbol)
@@ -326,8 +326,8 @@ public sealed class SemanticModel : ISemanticModel
         // A guard is elidable if the parameter has a refinement constraint but no call site
         // required a runtime guard (all call sites passed validated constants or arguments
         // with provably-satisfying refinement types).
-        return _parameterRefinements.ContainsKey(parameterSymbol)
-            && !_guardNeededParameters.Contains(parameterSymbol);
+        return parameterRefinements.ContainsKey(parameterSymbol)
+            && !guardNeededParameters.Contains(parameterSymbol);
     }
 
     /// <summary>
@@ -339,7 +339,7 @@ public sealed class SemanticModel : ISemanticModel
     /// </summary>
     public IReadOnlyList<DiscardedTaskInfo> GetDiscardedTasks(Storm.Runtime.SyntaxNode blockScopeNode)
     {
-        return _discardedTasksByScope.TryGetValue(blockScopeNode, out var tasks)
+        return discardedTasksByScope.TryGetValue(blockScopeNode, out var tasks)
             ? tasks
             : Array.Empty<DiscardedTaskInfo>();
     }
@@ -347,41 +347,41 @@ public sealed class SemanticModel : ISemanticModel
     /// <summary>
     /// Returns all block scope nodes that have discarded tasks recorded.
     /// </summary>
-    internal IReadOnlyDictionary<Storm.Runtime.SyntaxNode, List<DiscardedTaskInfo>> DiscardedTasksByScope => _discardedTasksByScope;
+    internal IReadOnlyDictionary<Storm.Runtime.SyntaxNode, List<DiscardedTaskInfo>> DiscardedTasksByScope => discardedTasksByScope;
 
     /// <inheritdoc />
     public void RecordInferredTypeArguments(Storm.Runtime.SyntaxNode callSiteNode, IReadOnlyList<IType> inferredTypeArgs)
     {
-        _inferredTypeArguments[callSiteNode] = inferredTypeArgs;
+        inferredTypeArguments[callSiteNode] = inferredTypeArgs;
     }
 
     /// <inheritdoc />
     public IReadOnlyList<IType>? GetInferredTypeArguments(Storm.Runtime.SyntaxNode callSiteNode)
     {
-        return _inferredTypeArguments.TryGetValue(callSiteNode, out var args) ? args : null;
+        return inferredTypeArguments.TryGetValue(callSiteNode, out var args) ? args : null;
     }
 
     /// <inheritdoc />
     public void RecordImplicitClone(Storm.Runtime.SyntaxNode source, IType destinationType)
     {
-        _implicitCloneSites[source] = destinationType;
+        implicitCloneSites[source] = destinationType;
     }
 
     /// <inheritdoc />
     public IType? GetImplicitCloneDestination(Storm.Runtime.SyntaxNode source)
     {
-        return _implicitCloneSites.TryGetValue(source, out var destinationType) ? destinationType : null;
+        return implicitCloneSites.TryGetValue(source, out var destinationType) ? destinationType : null;
     }
 
     /// <inheritdoc />
     public void RecordAsConversionKind(Storm.Runtime.SyntaxNode node, AsConversionKind kind)
     {
-        _asConversionKinds[node] = kind;
+        asConversionKinds[node] = kind;
     }
 
     /// <inheritdoc />
     public AsConversionKind? GetAsConversionKind(Storm.Runtime.SyntaxNode node)
     {
-        return _asConversionKinds.TryGetValue(node, out var kind) ? kind : null;
+        return asConversionKinds.TryGetValue(node, out var kind) ? kind : null;
     }
 }

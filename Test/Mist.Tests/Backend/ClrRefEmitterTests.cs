@@ -28,19 +28,19 @@ namespace Mist.Tests.Backend;
 /// </summary>
 public sealed class ClrRefEmitterTests : IDisposable
 {
-    private readonly string _outputDir;
+    private readonly string outputDir;
 
     public ClrRefEmitterTests()
     {
-        _outputDir = Path.Combine(Path.GetTempPath(), "MistClrRefEmitter_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(_outputDir);
+        outputDir = Path.Combine(Path.GetTempPath(), "MistClrRefEmitter_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(outputDir);
     }
 
     public void Dispose()
     {
-        if(Directory.Exists(_outputDir))
+        if(Directory.Exists(outputDir))
         {
-            try { Directory.Delete(_outputDir, recursive: true); }
+            try { Directory.Delete(outputDir, recursive: true); }
             catch { /* best effort */ }
         }
     }
@@ -58,23 +58,23 @@ public sealed class ClrRefEmitterTests : IDisposable
 
     private CompilerResult CompileSource(string source, string namespaceName = "TestProgram")
     {
-        var filePath = Path.Combine(_outputDir, $"Test_{Guid.NewGuid():N}.mist");
+        var filePath = Path.Combine(outputDir, $"Test_{Guid.NewGuid():N}.mist");
         File.WriteAllText(filePath, source);
 
         // Write a minimal mist.toml so the compiler triggers the full project resolution
         // path (which enables proper global usings and assembly loading).
-        var tomlPath = Path.Combine(_outputDir, "mist.toml");
+        var tomlPath = Path.Combine(outputDir, "mist.toml");
         if(!File.Exists(tomlPath))
         {
             File.WriteAllText(tomlPath, $"name = \"{namespaceName}\"\n");
         }
 
         var options = new CompilerOptions(
-            ProjectFolder: _outputDir,
+            ProjectFolder: outputDir,
             SourcePaths: ImmutableArray.Create(filePath),
             Backend: new BackendId("csharp"),
-            OutputDirectory: _outputDir,
-            BinDirectory: Path.Combine(_outputDir, "bin"),
+            OutputDirectory: outputDir,
+            BinDirectory: Path.Combine(outputDir, "bin"),
             ProjectName: namespaceName,
             NamespaceRoot: namespaceName,
             EnabledAnalyzerIds: ImmutableArray<string>.Empty,

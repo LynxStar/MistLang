@@ -27,22 +27,22 @@ namespace Mist.Tests.Backend;
 /// </summary>
 public sealed class PropertyEmissionPropertyTests : IDisposable
 {
-    private readonly SemanticModelBuilder _builder = new();
-    private readonly string _outputDir;
+    private readonly SemanticModelBuilder builder = new();
+    private readonly string outputDir;
 
     public PropertyEmissionPropertyTests()
     {
-        _outputDir = Path.Combine(
+        outputDir = Path.Combine(
             Path.GetTempPath(),
             "MistPropertyEmissionTests_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(_outputDir);
+        Directory.CreateDirectory(outputDir);
     }
 
     public void Dispose()
     {
-        if(Directory.Exists(_outputDir))
+        if(Directory.Exists(outputDir))
         {
-            try { Directory.Delete(_outputDir, recursive: true); } catch { /* best effort */ }
+            try { Directory.Delete(outputDir, recursive: true); } catch { /* best effort */ }
         }
         GC.SuppressFinalize(this);
     }
@@ -61,7 +61,7 @@ public sealed class PropertyEmissionPropertyTests : IDisposable
         var compilation = new MistCompilation(
             ImmutableArray.Create(new CompilationUnit(source)));
         var diagnostics = new DiagnosticBag();
-        return _builder.Build(
+        return builder.Build(
             compilation,
             ImmutableArray.Create<Storm.Runtime.SyntaxNode>(ast),
             ambientTypeResolver: null,
@@ -74,9 +74,9 @@ public sealed class PropertyEmissionPropertyTests : IDisposable
     {
         CleanOutputDir();
         var diagnostics = new DiagnosticBag();
-        CSharpEmitter.Emit(model, _outputDir, "TestProject", diagnostics);
+        CSharpEmitter.Emit(model, outputDir, "TestProject", diagnostics);
 
-        var csFiles = Directory.GetFiles(_outputDir, "*.cs");
+        var csFiles = Directory.GetFiles(outputDir, "*.cs");
         if(csFiles.Length == 0)
         {
             return "";
@@ -87,9 +87,9 @@ public sealed class PropertyEmissionPropertyTests : IDisposable
 
     private void CleanOutputDir()
     {
-        if(Directory.Exists(_outputDir))
+        if(Directory.Exists(outputDir))
         {
-            foreach(var file in Directory.GetFiles(_outputDir))
+            foreach(var file in Directory.GetFiles(outputDir))
             {
                 File.Delete(file);
             }

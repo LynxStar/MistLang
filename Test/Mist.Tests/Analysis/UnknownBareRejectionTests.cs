@@ -44,8 +44,8 @@ public class UnknownBareRejectionTests
     private static readonly ILexer Lexer = new Mist.Lexing.MistLexer();
     private static readonly IParser Parser = new Mist.Parsing.MistParser();
 
-    private readonly SemanticModelBuilder _builder = new();
-    private readonly TypeCheckerAnalyzer _analyzer = new();
+    private readonly SemanticModelBuilder builder = new();
+    private readonly TypeCheckerAnalyzer analyzer = new();
 
     /// <summary>
     /// Diagnostic code emitted when a member access has a receiver of
@@ -86,7 +86,7 @@ public class UnknownBareRejectionTests
             ImmutableArray.Create(new CompilationUnit(sourceText)));
 
         var semBag = new DiagnosticBag();
-        var model = _builder.Build(
+        var model = builder.Build(
             compilation,
             ImmutableArray.Create(parseResult.Root!),
             ambientTypeResolver: null,
@@ -95,7 +95,7 @@ public class UnknownBareRejectionTests
             semBag);
 
         var tcBag = new DiagnosticBag();
-        _analyzer.Analyze(model, tcBag);
+        analyzer.Analyze(model, tcBag);
 
         return semBag.ToImmutableArray().Concat(tcBag.ToImmutableArray()).ToImmutableArray();
     }

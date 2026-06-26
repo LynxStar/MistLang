@@ -77,23 +77,23 @@ public sealed class UnknownIsPatternAndStorageSkipTests : IDisposable
     private static readonly ILexer Lexer = new Mist.Lexing.MistLexer();
     private static readonly IParser Parser = new Mist.Parsing.MistParser();
 
-    private readonly SemanticModelBuilder _builder = new();
-    private readonly TypeCheckerAnalyzer _analyzer = new();
-    private readonly string _outputDir;
+    private readonly SemanticModelBuilder builder = new();
+    private readonly TypeCheckerAnalyzer analyzer = new();
+    private readonly string outputDir;
 
     public UnknownIsPatternAndStorageSkipTests()
     {
-        _outputDir = Path.Combine(
+        outputDir = Path.Combine(
             Path.GetTempPath(),
             "MistUnknownIsAndSkip_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(_outputDir);
+        Directory.CreateDirectory(outputDir);
     }
 
     public void Dispose()
     {
-        if(Directory.Exists(_outputDir))
+        if(Directory.Exists(outputDir))
         {
-            try { Directory.Delete(_outputDir, recursive: true); }
+            try { Directory.Delete(outputDir, recursive: true); }
             catch { /* best effort */ }
         }
         GC.SuppressFinalize(this);
@@ -148,7 +148,7 @@ public sealed class UnknownIsPatternAndStorageSkipTests : IDisposable
         var compilation = new MistCompilation(
             ImmutableArray.Create(new CompilationUnit(sourceText)));
         var semBag = new DiagnosticBag();
-        var model = _builder.Build(
+        var model = builder.Build(
             compilation,
             ImmutableArray.Create(parseResult.Root!),
             ambientTypeResolver: null,
@@ -168,7 +168,7 @@ public sealed class UnknownIsPatternAndStorageSkipTests : IDisposable
         var tcBag = new DiagnosticBag();
         if(!semBag.HasErrors)
         {
-            _analyzer.Analyze(model, tcBag);
+            analyzer.Analyze(model, tcBag);
             if(!expectErrors)
             {
                 Assert.False(tcBag.HasErrors, ErrorReport("type check", tcBag.ToImmutableArray()));
@@ -183,13 +183,13 @@ public sealed class UnknownIsPatternAndStorageSkipTests : IDisposable
         // directly to exercise that path.
         CleanOutputDir();
         var emitBag = new DiagnosticBag();
-        CSharpEmitter.Emit(model, _outputDir, "TestProject", emitBag);
+        CSharpEmitter.Emit(model, outputDir, "TestProject", emitBag);
         Assert.False(emitBag.HasErrors, ErrorReport("emit", emitBag.ToImmutableArray()));
 
         // Read user-emitted .cs files. Exclude the `MistVoid.g.cs`
         // helper that the backend generates when a compilation unit
         // uses `void` as a value.
-        var csFiles = Directory.GetFiles(_outputDir, "*.cs", SearchOption.AllDirectories)
+        var csFiles = Directory.GetFiles(outputDir, "*.cs", SearchOption.AllDirectories)
             .Where(p =>
             {
                 var name = Path.GetFileName(p);
@@ -225,9 +225,9 @@ public sealed class UnknownIsPatternAndStorageSkipTests : IDisposable
 
     private void CleanOutputDir()
     {
-        if(Directory.Exists(_outputDir))
+        if(Directory.Exists(outputDir))
         {
-            foreach(var file in Directory.GetFiles(_outputDir, "*", SearchOption.AllDirectories))
+            foreach(var file in Directory.GetFiles(outputDir, "*", SearchOption.AllDirectories))
             {
                 try { File.Delete(file); } catch { /* best effort */ }
             }

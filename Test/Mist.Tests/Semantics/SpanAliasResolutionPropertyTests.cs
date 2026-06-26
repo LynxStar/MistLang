@@ -46,21 +46,21 @@ namespace Mist.Tests.Semantics;
 /// </summary>
 public sealed class SpanAliasResolutionPropertyTests : IDisposable
 {
-    private readonly string _scratchDir;
+    private readonly string scratchDir;
 
     public SpanAliasResolutionPropertyTests()
     {
-        _scratchDir = Path.Combine(
+        scratchDir = Path.Combine(
             Path.GetTempPath(),
             "mist_pbt_span_alias_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(_scratchDir);
+        Directory.CreateDirectory(scratchDir);
     }
 
     public void Dispose()
     {
-        if(Directory.Exists(_scratchDir))
+        if(Directory.Exists(scratchDir))
         {
-            try { Directory.Delete(_scratchDir, recursive: true); } catch { /* best effort */ }
+            try { Directory.Delete(scratchDir, recursive: true); } catch { /* best effort */ }
         }
         GC.SuppressFinalize(this);
     }
@@ -71,7 +71,7 @@ public sealed class SpanAliasResolutionPropertyTests : IDisposable
 
     private sealed class CapturingSemanticModelBuilder : ISemanticModelBuilder
     {
-        private readonly SemanticModelBuilder _inner = new();
+        private readonly SemanticModelBuilder inner = new();
         public ISemanticModel? Captured { get; private set; }
 
         public ISemanticModel Build(
@@ -83,7 +83,7 @@ public sealed class SpanAliasResolutionPropertyTests : IDisposable
             DiagnosticBag diagnostics,
             ImmutableHashSet<string>? directReferencePaths = null)
         {
-            var model = _inner.Build(compilation, asts, ambientTypeResolver, namespaceRoot, projectFolder, diagnostics, directReferencePaths);
+            var model = inner.Build(compilation, asts, ambientTypeResolver, namespaceRoot, projectFolder, diagnostics, directReferencePaths);
             Captured = model;
             return model;
         }
@@ -184,7 +184,7 @@ public sealed class SpanAliasResolutionPropertyTests : IDisposable
     /// </summary>
     private (CompilerResult Result, ISemanticModel? Model) CompileAndCapture(string source)
     {
-        var iterDir = Path.Combine(_scratchDir, Guid.NewGuid().ToString("N"));
+        var iterDir = Path.Combine(scratchDir, Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(iterDir);
 
         var filePath = Path.Combine(iterDir, "Program.mist");

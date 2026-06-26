@@ -22,8 +22,8 @@ namespace Mist.Tests.Semantics;
 /// </summary>
 public class StructInheritanceConstructorTests
 {
-    private readonly SemanticModelBuilder _builder = new();
-    private readonly TypeCheckerAnalyzer _analyzer = new();
+    private readonly SemanticModelBuilder builder = new();
+    private readonly TypeCheckerAnalyzer analyzer = new();
 
     // ─── Helpers ─────────────────────────────────────────────────────────
 
@@ -61,11 +61,11 @@ public class StructInheritanceConstructorTests
     {
         var compilation = MakeCompilation(source);
         var diagnostics = new DiagnosticBag();
-        var model = _builder.Build(compilation, ImmutableArray.Create(ast), ambientTypeResolver: null, namespaceRoot: "TestProject", projectFolder: "/test", diagnostics);
+        var model = builder.Build(compilation, ImmutableArray.Create(ast), ambientTypeResolver: null, namespaceRoot: "TestProject", projectFolder: "/test", diagnostics);
 
         // Run the type checker to get constructor chain validation diagnostics.
         var analyzerBag = new DiagnosticBag();
-        _analyzer.Analyze(model, analyzerBag);
+        analyzer.Analyze(model, analyzerBag);
 
         var allDiags = diagnostics.ToImmutableArray().AddRange(analyzerBag.ToImmutableArray());
         return (model, allDiags);

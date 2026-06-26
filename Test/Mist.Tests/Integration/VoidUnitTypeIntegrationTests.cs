@@ -22,19 +22,19 @@ namespace Mist.Tests.Integration;
 /// </summary>
 public sealed class VoidUnitTypeIntegrationTests : IDisposable
 {
-    private readonly string _outputDir;
+    private readonly string outputDir;
 
     public VoidUnitTypeIntegrationTests()
     {
-        _outputDir = Path.Combine(Path.GetTempPath(), "MistVoidE2E_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(_outputDir);
+        outputDir = Path.Combine(Path.GetTempPath(), "MistVoidE2E_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(outputDir);
     }
 
     public void Dispose()
     {
-        if(Directory.Exists(_outputDir))
+        if(Directory.Exists(outputDir))
         {
-            try { Directory.Delete(_outputDir, recursive: true); } catch { /* best effort */ }
+            try { Directory.Delete(outputDir, recursive: true); } catch { /* best effort */ }
         }
         GC.SuppressFinalize(this);
     }
@@ -232,10 +232,10 @@ public sealed class VoidUnitTypeIntegrationTests : IDisposable
 
         // Step 3: Emit C#
         var emitDiagnostics = new DiagnosticBag();
-        CSharpEmitter.Emit(model, _outputDir, "TestProject", emitDiagnostics);
+        CSharpEmitter.Emit(model, outputDir, "TestProject", emitDiagnostics);
 
         // Return the main source file content (not MistVoid.g.cs or .csproj)
-        var csFile = Directory.GetFiles(_outputDir, "*.cs")
+        var csFile = Directory.GetFiles(outputDir, "*.cs")
             .FirstOrDefault(f => !f.EndsWith("MistVoid.g.cs", StringComparison.Ordinal));
         var csContent = csFile is not null ? File.ReadAllText(csFile) : "";
 
@@ -244,20 +244,20 @@ public sealed class VoidUnitTypeIntegrationTests : IDisposable
 
     private bool MistVoidFileExists()
     {
-        return File.Exists(Path.Combine(_outputDir, "MistVoid.g.cs"));
+        return File.Exists(Path.Combine(outputDir, "MistVoid.g.cs"));
     }
 
     private string GetMistVoidFileContent()
     {
-        var mistVoidPath = Path.Combine(_outputDir, "MistVoid.g.cs");
+        var mistVoidPath = Path.Combine(outputDir, "MistVoid.g.cs");
         return File.Exists(mistVoidPath) ? File.ReadAllText(mistVoidPath) : "";
     }
 
     private void CleanOutputDir()
     {
-        if(Directory.Exists(_outputDir))
+        if(Directory.Exists(outputDir))
         {
-            foreach(var file in Directory.GetFiles(_outputDir))
+            foreach(var file in Directory.GetFiles(outputDir))
             {
                 File.Delete(file);
             }
@@ -402,7 +402,7 @@ public sealed class VoidUnitTypeIntegrationTests : IDisposable
         // Now verify the generated C# actually compiles with dotnet build
         var backend = new CSharpTranspilerBackend();
         var backendDiagnostics = new DiagnosticBag();
-        var binDir = Path.Combine(_outputDir, "bin");
+        var binDir = Path.Combine(outputDir, "bin");
 
         // Re-run the full pipeline through the backend to get dotnet build
         var builder = new SemanticModelBuilder();
@@ -413,7 +413,7 @@ public sealed class VoidUnitTypeIntegrationTests : IDisposable
 
         // Clean output dir for fresh emit
         CleanOutputDir();
-        var result = backend.Emit(model, _outputDir, binDir, "TestProject", backendDiagnostics);
+        var result = backend.Emit(model, outputDir, binDir, "TestProject", backendDiagnostics);
 
         Assert.True(result.Succeeded,
             $"dotnet build failed. Diagnostics: {string.Join("; ", result.Diagnostics.Select(d => d.Message))}");

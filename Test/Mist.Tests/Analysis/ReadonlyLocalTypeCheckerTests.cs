@@ -20,7 +20,7 @@ namespace Mist.Tests.Analysis;
 /// </summary>
 public sealed class ReadonlyLocalTypeCheckerTests : IDisposable
 {
-    private readonly string _outputDir;
+    private readonly string outputDir;
 
     private static readonly CompilerDriver SharedDriver = new(
         new MistLexer(),
@@ -31,15 +31,15 @@ public sealed class ReadonlyLocalTypeCheckerTests : IDisposable
 
     public ReadonlyLocalTypeCheckerTests()
     {
-        _outputDir = Path.Combine(Path.GetTempPath(), "MistReadonlyLocalTC_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(_outputDir);
+        outputDir = Path.Combine(Path.GetTempPath(), "MistReadonlyLocalTC_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(outputDir);
     }
 
     public void Dispose()
     {
-        if(Directory.Exists(_outputDir))
+        if(Directory.Exists(outputDir))
         {
-            try { Directory.Delete(_outputDir, recursive: true); } catch { /* best effort */ }
+            try { Directory.Delete(outputDir, recursive: true); } catch { /* best effort */ }
         }
     }
 
@@ -48,15 +48,15 @@ public sealed class ReadonlyLocalTypeCheckerTests : IDisposable
     private CompilerResult CompileSource(string source)
     {
         var fullSource = "namespace TestProject;\n" + source;
-        var filePath = Path.Combine(_outputDir, $"Test_{Guid.NewGuid():N}.mist");
+        var filePath = Path.Combine(outputDir, $"Test_{Guid.NewGuid():N}.mist");
         File.WriteAllText(filePath, fullSource);
 
         var options = new CompilerOptions(
-            ProjectFolder: _outputDir,
+            ProjectFolder: outputDir,
             SourcePaths: ImmutableArray.Create(filePath),
             Backend: new BackendId("csharp"),
-            OutputDirectory: _outputDir,
-            BinDirectory: Path.Combine(_outputDir, "bin"),
+            OutputDirectory: outputDir,
+            BinDirectory: Path.Combine(outputDir, "bin"),
             ProjectName: "TestProject",
             NamespaceRoot: "TestProject",
             EnabledAnalyzerIds: ImmutableArray<string>.Empty,

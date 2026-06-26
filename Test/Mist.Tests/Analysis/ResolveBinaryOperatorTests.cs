@@ -45,7 +45,7 @@ public class ResolveBinaryOperatorTests
 {
     private static readonly ILexer Lexer = new Mist.Lexing.MistLexer();
     private static readonly IParser Parser = new Mist.Parsing.MistParser();
-    private readonly SemanticModelBuilder _builder = new();
+    private readonly SemanticModelBuilder builder = new();
 
     /// <summary>
     /// Lexes, parses, and semantically analyses <paramref name="source"/>.
@@ -67,7 +67,7 @@ public class ResolveBinaryOperatorTests
         var compilation = new MistCompilation(
             ImmutableArray.Create(new CompilationUnit(sourceText)));
         var semBag = new DiagnosticBag();
-        var model = _builder.Build(
+        var model = builder.Build(
             compilation,
             ImmutableArray.Create(parseResult.Root!),
             ambientTypeResolver: null,

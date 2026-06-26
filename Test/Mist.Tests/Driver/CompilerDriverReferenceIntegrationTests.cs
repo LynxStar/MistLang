@@ -27,21 +27,21 @@ public sealed class CompilerDriverReferenceIntegrationTests : IDisposable
         ImmutableArray.Create<IAnalyzer>(new TypeCheckerAnalyzer()),
         ImmutableArray.Create<IBackend>(new CSharpTranspilerBackend()));
 
-    private readonly string _scratchDir;
+    private readonly string scratchDir;
 
     public CompilerDriverReferenceIntegrationTests()
     {
-        _scratchDir = Path.Combine(
+        scratchDir = Path.Combine(
             Path.GetTempPath(),
             "mist-ref-integ-" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(_scratchDir);
+        Directory.CreateDirectory(scratchDir);
     }
 
     public void Dispose()
     {
-        if(Directory.Exists(_scratchDir))
+        if(Directory.Exists(scratchDir))
         {
-            try { Directory.Delete(_scratchDir, recursive: true); } catch { /* best effort */ }
+            try { Directory.Delete(scratchDir, recursive: true); } catch { /* best effort */ }
         }
         GC.SuppressFinalize(this);
     }
@@ -58,7 +58,7 @@ public sealed class CompilerDriverReferenceIntegrationTests : IDisposable
         string[]? referencePaths = null,
         Dictionary<string, string>? sourceFiles = null)
     {
-        var projectDir = Path.Combine(_scratchDir, name);
+        var projectDir = Path.Combine(scratchDir, name);
         Directory.CreateDirectory(projectDir);
 
         var toml = $"name = \"{name}\"\n";
@@ -105,7 +105,7 @@ public sealed class CompilerDriverReferenceIntegrationTests : IDisposable
     /// </summary>
     private sealed class CapturingSemanticModelBuilder : ISemanticModelBuilder
     {
-        private readonly SemanticModelBuilder _inner = new();
+        private readonly SemanticModelBuilder inner = new();
 
         public MistCompilation? CapturedCompilation { get; private set; }
 
@@ -119,7 +119,7 @@ public sealed class CompilerDriverReferenceIntegrationTests : IDisposable
             ImmutableHashSet<string>? directReferencePaths = null)
         {
             CapturedCompilation = compilation;
-            return _inner.Build(compilation, asts, ambientTypeResolver, namespaceRoot, projectFolder, diagnostics, directReferencePaths);
+            return inner.Build(compilation, asts, ambientTypeResolver, namespaceRoot, projectFolder, diagnostics, directReferencePaths);
         }
     }
 
@@ -221,7 +221,7 @@ public sealed class CompilerDriverReferenceIntegrationTests : IDisposable
     [Fact]
     public void InvalidReference_ProducesNotFoundDiagnostic()
     {
-        var bogusPath = Path.Combine(_scratchDir, "NonExistent", "mist.toml");
+        var bogusPath = Path.Combine(scratchDir, "NonExistent", "mist.toml");
 
         var projectA = CreateProject(
             name: "MyApp",

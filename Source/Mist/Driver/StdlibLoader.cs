@@ -21,8 +21,8 @@ public static class StdlibLoader
     // avoids re-reading 19 files from disk on every CompilerDriver.Compile()
     // call — a significant win for property-based tests that compile
     // hundreds of programs in a single test run.
-    private static ImmutableArray<CompilationUnit>? _cachedUnits;
-    private static readonly object _cacheLock = new();
+    private static ImmutableArray<CompilationUnit>? cachedUnits;
+    private static readonly object cacheLock = new();
 
     /// <summary>
     /// Loads every stdlib <c>.mist</c> file colocated with the compiler binary
@@ -41,17 +41,17 @@ public static class StdlibLoader
         _ = backend; // reserved for future backend-specific stdlib selection
 
         // Fast path: return cached units if available.
-        if(_cachedUnits.HasValue)
+        if(cachedUnits.HasValue)
         {
-            return _cachedUnits.Value;
+            return cachedUnits.Value;
         }
 
-        lock(_cacheLock)
+        lock(cacheLock)
         {
             // Double-check after acquiring lock.
-            if(_cachedUnits.HasValue)
+            if(cachedUnits.HasValue)
             {
-                return _cachedUnits.Value;
+                return cachedUnits.Value;
             }
 
             var stdlibRoot = Path.Combine(AppContext.BaseDirectory, "Standard");
@@ -60,7 +60,7 @@ public static class StdlibLoader
             // Only cache if loading succeeded (no errors).
             if(!diagnostics.HasErrors)
             {
-                _cachedUnits = units;
+                cachedUnits = units;
             }
 
             return units;

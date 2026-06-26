@@ -996,16 +996,16 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     };
 
     // ── Current enclosing type during analysis (set per method/constructor) ──
-    private IType? _currentEnclosingType;
+    private IType? currentEnclosingType;
 
     // ── Current method symbol during analysis (set per method body) ──
-    private ISymbol? _currentMethodSymbol;
+    private ISymbol? currentMethodSymbol;
 
     // ── Whether we are currently inside a constructor body (for init-only checks) ──
-    private bool _insideConstructor;
+    private bool insideConstructor;
 
     // ── Whether we are currently inside a property accessor body (for field keyword checks) ──
-    private bool _insidePropertyAccessor;
+    private bool insidePropertyAccessor;
 
     // ── Whether the postfix currently being walked is the target of an ──
     //    assignment — set by CheckAssignmentNode before recursing into the
@@ -1015,13 +1015,13 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     //    Only the Task 21 member-filtering logic consults this flag; legacy
     //    read/write distinctions continue to use their existing lookups
     //    (e.g. TryResolvePropertyFromAssignmentTarget).
-    private bool _analyzingAssignmentLhs;
+    private bool analyzingAssignmentLhs;
 
     // ── Tracks whether we're inside a sub-expression context (for ??= statement-only check) ──
-    private int _assignmentNestingDepth;
+    private int assignmentNestingDepth;
 
     // ── Tracks whether the current expression is at statement level (for ??= statement-only check) ──
-    private bool _atStatementLevel;
+    private bool atStatementLevel;
 
     // ── Flow narrowing context for refinement types (Requirements 7.1–7.8) ──
     //    Maps local variable names to the condition constraints proven within
@@ -1030,35 +1030,35 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     //    At the assignment site, the stored constraints are checked against the
     //    target refinement type's predicate to determine if the assignment is safe.
     //    Reassignment within the branch invalidates the narrowing entry.
-    private readonly Dictionary<string, List<ConditionConstraint>> _narrowingContext = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, List<ConditionConstraint>> narrowingContext = new(StringComparer.Ordinal);
 
     // ── Set of variable names captured by closures in the current method body ──
     //    Populated at the start of each method body check. Variables in this set
     //    are ineligible for flow narrowing (Requirement 7.7).
-    private readonly HashSet<string> _closureCapturedVariables = new(StringComparer.Ordinal);
+    private readonly HashSet<string> closureCapturedVariables = new(StringComparer.Ordinal);
 
     // ── Flow narrowing context for void-coalescing assignment (??=) ──
     //    Maps local variable names to their narrowed types after ??= statements.
     //    After `x ??= value` where x has type `T | void`, the variable is narrowed
     //    to type T for all subsequent statements in the same scope and nested blocks.
     //    Invalidated on reassignment.
-    private readonly Dictionary<string, IType> _voidCoalescingTypeNarrowings = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, IType> voidCoalescingTypeNarrowings = new(StringComparer.Ordinal);
 
     // ── Cache for cross-reference lookups from dedicated types to registered declarations ──
     //    Used by CollectConstructorOverloads to bridge SpanType to its registered StructType,
     //    and by GetAbstractList to bridge ArrayType to its registered ClassType.
     //    Cleared at the start of each Analyze() call.
-    private readonly Dictionary<string, StructType?> _registeredStructTypeCache = new(StringComparer.Ordinal);
-    private readonly Dictionary<string, ClassType?> _registeredClassTypeCache = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, StructType?> registeredStructTypeCache = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, ClassType?> registeredClassTypeCache = new(StringComparer.Ordinal);
 
     public void Analyze(ISemanticModel model, DiagnosticBag diagnostics)
     {
         // Clear flow narrowing state from any previous compilation.
-        _narrowingContext.Clear();
-        _closureCapturedVariables.Clear();
-        _voidCoalescingTypeNarrowings.Clear();
-        _registeredStructTypeCache.Clear();
-        _registeredClassTypeCache.Clear();
+        narrowingContext.Clear();
+        closureCapturedVariables.Clear();
+        voidCoalescingTypeNarrowings.Clear();
+        registeredStructTypeCache.Clear();
+        registeredClassTypeCache.Clear();
 
         // Walk each method, constructor, property, and indexer body to check type rules.
         foreach(var symbol in model.AllSymbols)
@@ -1453,10 +1453,10 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             }
 
             var returnType = methodSymbol.DeclaredType ?? ErrorType.Instance;
-            _currentEnclosingType = FindDeclaringType(methodSymbol);
-            _currentMethodSymbol = methodSymbol;
-            _insideConstructor = false;
-            _insidePropertyAccessor = false;
+            currentEnclosingType = FindDeclaringType(methodSymbol);
+            currentMethodSymbol = methodSymbol;
+            insideConstructor = false;
+            insidePropertyAccessor = false;
 
             CheckCastOperatorDeclaration(castOpDecl, methodSymbol, model, diagnostics);
 
@@ -1491,10 +1491,10 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             }
 
             var returnType3 = methodSymbol.DeclaredType ?? ErrorType.Instance;
-            _currentEnclosingType = FindDeclaringType(methodSymbol);
-            _currentMethodSymbol = methodSymbol;
-            _insideConstructor = false;
-            _insidePropertyAccessor = false;
+            currentEnclosingType = FindDeclaringType(methodSymbol);
+            currentMethodSymbol = methodSymbol;
+            insideConstructor = false;
+            insidePropertyAccessor = false;
 
             if(opDecl.Body.GetBlock() is BlockNode opBlock)
             {
@@ -1564,10 +1564,10 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         var returnType2 = (methodSymbol is Symbol { IsAsync: true, DeclaredReturnType: { } asyncDeclaredReturn }
             ? asyncDeclaredReturn
             : methodSymbol.DeclaredType) ?? ErrorType.Instance;
-        _currentEnclosingType = FindDeclaringType(methodSymbol);
-        _currentMethodSymbol = methodSymbol;
-        _insideConstructor = false;
-        _insidePropertyAccessor = false;
+        currentEnclosingType = FindDeclaringType(methodSymbol);
+        currentMethodSymbol = methodSymbol;
+        insideConstructor = false;
+        insidePropertyAccessor = false;
 
         // ── Anonymous type scope restriction: method signatures (Requirements 4.3, 4.4) ──
         CheckAnonymousTypeEscapeInSignature(methodSymbol, declaringNode, model, diagnostics);
@@ -1610,7 +1610,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         ISemanticModel model,
         DiagnosticBag diagnostics)
     {
-        var enclosingType = _currentEnclosingType;
+        var enclosingType = currentEnclosingType;
         if(enclosingType is null)
         {
             return;
@@ -2314,9 +2314,9 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             }
         }
 
-        _currentEnclosingType = FindDeclaringType(ctorSymbol);
-        _insideConstructor = true;
-        _insidePropertyAccessor = false;
+        currentEnclosingType = FindDeclaringType(ctorSymbol);
+        insideConstructor = true;
+        insidePropertyAccessor = false;
 
         // Check constructor chaining (: this(args))
         if(ctorDecl.Chain is not null)
@@ -2337,7 +2337,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             // ── Definite assignment analysis (Requirements 3.1–3.6) ──
             CheckDefiniteAssignment(ctorSymbol, ctorBlock, model, diagnostics);
         }
-        _insideConstructor = false;
+        insideConstructor = false;
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -3819,9 +3819,9 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         try { declaringNode = model.GetDeclaringNode(propertySymbol); }
         catch { return; }
 
-        _currentEnclosingType = FindDeclaringType(propertySymbol);
-        _insideConstructor = false;
-        _insidePropertyAccessor = false; // Will be set to true inside CheckAccessorBody
+        currentEnclosingType = FindDeclaringType(propertySymbol);
+        insideConstructor = false;
+        insidePropertyAccessor = false; // Will be set to true inside CheckAccessorBody
 
         var propInfo = GetPropertyMetadata(propertySymbol);
         var propType = propertySymbol.DeclaredType ?? ErrorType.Instance;
@@ -3831,7 +3831,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // since that would allow the ref struct value to escape to the heap.
         if(IsRefStructType(propType))
         {
-            var containingType = _currentEnclosingType;
+            var containingType = currentEnclosingType;
             var containingIsRefStruct = containingType is not null && IsRefStructType(containingType);
             if(!containingIsRefStruct)
             {
@@ -3923,9 +3923,9 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             return;
         }
 
-        _currentEnclosingType = FindDeclaringType(indexerSymbol);
-        _insideConstructor = false;
-        _insidePropertyAccessor = false; // Will be set to true inside CheckAccessorBody
+        currentEnclosingType = FindDeclaringType(indexerSymbol);
+        insideConstructor = false;
+        insidePropertyAccessor = false; // Will be set to true inside CheckAccessorBody
 
         var propInfo = GetPropertyMetadata(indexerSymbol);
         var indexerType = indexerSymbol.DeclaredType ?? ErrorType.Instance;
@@ -3963,8 +3963,8 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         ISemanticModel model,
         DiagnosticBag diagnostics)
     {
-        var previousInsidePropertyAccessor = _insidePropertyAccessor;
-        _insidePropertyAccessor = true;
+        var previousInsidePropertyAccessor = insidePropertyAccessor;
+        insidePropertyAccessor = true;
 
         try
         {
@@ -4008,7 +4008,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
         finally
         {
-            _insidePropertyAccessor = previousInsidePropertyAccessor;
+            insidePropertyAccessor = previousInsidePropertyAccessor;
         }
     }
 
@@ -5151,9 +5151,9 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 CheckForeachStatement(foreachStmt.ForeachStatement, returnType, model, diagnostics);
                 break;
             case ExpressionStatementStatementNode exprStmt:
-                _atStatementLevel = true;
+                atStatementLevel = true;
                 CheckExpression(exprStmt.ExpressionStatement.Expression, model, diagnostics);
-                _atStatementLevel = false;
+                atStatementLevel = false;
                 break;
             case BreakStatementStatementNode:
                 // No type checking needed for break.
@@ -5511,7 +5511,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         DiagnosticBag diagnostics)
     {
         // Only applies when the enclosing method has a ref or ref readonly return type.
-        if(_currentMethodSymbol is not Symbol methodSym)
+        if(currentMethodSymbol is not Symbol methodSym)
         {
             return false;
         }
@@ -5798,7 +5798,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         var previousNarrowings = new List<(string VarName, List<ConditionConstraint>? Previous)>();
         foreach(var (varName, constraints) in narrowings)
         {
-            _narrowingContext.TryGetValue(varName, out var previous);
+            narrowingContext.TryGetValue(varName, out var previous);
             previousNarrowings.Add((varName, previous is not null ? new List<ConditionConstraint>(previous) : null));
 
             // Merge: if there's existing narrowing, combine constraints; otherwise set new.
@@ -5806,11 +5806,11 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             {
                 var merged = new List<ConditionConstraint>(previous);
                 merged.AddRange(constraints);
-                _narrowingContext[varName] = merged;
+                narrowingContext[varName] = merged;
             }
             else
             {
-                _narrowingContext[varName] = constraints;
+                narrowingContext[varName] = constraints;
             }
         }
 
@@ -5821,11 +5821,11 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         {
             if(previous is not null)
             {
-                _narrowingContext[varName] = previous;
+                narrowingContext[varName] = previous;
             }
             else
             {
-                _narrowingContext.Remove(varName);
+                narrowingContext.Remove(varName);
             }
         }
 
@@ -5962,7 +5962,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         // Check eligibility: must be a local primitive variable not captured by closures.
-        if(_closureCapturedVariables.Contains(varName))
+        if(closureCapturedVariables.Contains(varName))
         {
             return;
         }
@@ -6020,7 +6020,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         // Check eligibility: must be a local primitive variable not captured by closures.
-        if(_closureCapturedVariables.Contains(varName))
+        if(closureCapturedVariables.Contains(varName))
         {
             return;
         }
@@ -6397,7 +6397,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         if(postfix.Target is IdentifierExpressionPrimaryNode identifier)
         {
-            if(_narrowingContext.ContainsKey(identifier.Name.Lexeme))
+            if(narrowingContext.ContainsKey(identifier.Name.Lexeme))
             {
                 return identifier.Name.Lexeme;
             }
@@ -6432,7 +6432,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     private IType? TryGetNarrowedTypeForExpression(ExpressionNode expr)
     {
         var varName = TryExtractIdentifierFromExpression(expr);
-        if(varName is not null && _voidCoalescingTypeNarrowings.TryGetValue(varName, out var narrowedType))
+        if(varName is not null && voidCoalescingTypeNarrowings.TryGetValue(varName, out var narrowedType))
         {
             return narrowedType;
         }
@@ -6481,8 +6481,8 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         var varName = TryExtractIdentifierFromLogicalOr(target);
         if(varName is not null)
         {
-            _narrowingContext.Remove(varName);
-            _voidCoalescingTypeNarrowings.Remove(varName);
+            narrowingContext.Remove(varName);
+            voidCoalescingTypeNarrowings.Remove(varName);
         }
     }
 
@@ -6564,7 +6564,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // lambda expressions and collect all identifiers they reference
         // into _closureCapturedVariables. For now, clear the set to ensure
         // a clean state for each method body.
-        _closureCapturedVariables.Clear();
+        closureCapturedVariables.Clear();
         _ = block; // Suppress unused parameter warning.
     }
 
@@ -6648,7 +6648,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             }
 
             // Skip parameters captured by closures (Requirement 7.7).
-            if(_closureCapturedVariables.Contains(paramSymbol.Name))
+            if(closureCapturedVariables.Contains(paramSymbol.Name))
             {
                 continue;
             }
@@ -6657,7 +6657,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             var constraints = ExtractPredicateConstraints(refinement);
             if(constraints.Count > 0)
             {
-                _narrowingContext[paramSymbol.Name] = constraints;
+                narrowingContext[paramSymbol.Name] = constraints;
                 narrowedParams.Add(paramSymbol.Name);
             }
         }
@@ -6674,7 +6674,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     {
         foreach(var paramName in narrowedParams)
         {
-            _narrowingContext.Remove(paramName);
+            narrowingContext.Remove(paramName);
         }
     }
 
@@ -6821,7 +6821,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // Remove narrowing after the body check.
         if(narrowedVar is not null)
         {
-            _narrowingContext.Remove(narrowedVar);
+            narrowingContext.Remove(narrowedVar);
         }
     }
 
@@ -6889,7 +6889,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             new(ConditionRelOp.Gte, lowerBound.Value),
             upperBound.Value
         };
-        _narrowingContext[varName] = constraints;
+        narrowingContext[varName] = constraints;
 
         return varName;
     }
@@ -8026,10 +8026,10 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // same method, so the flag is naturally re-established for each
         // inner assignment target as the recursion walks inward.
         var targetIsLhs = assignment.Value is not null;
-        var previousAssignmentLhs = _analyzingAssignmentLhs;
+        var previousAssignmentLhs = analyzingAssignmentLhs;
         if(targetIsLhs)
         {
-            _analyzingAssignmentLhs = true;
+            analyzingAssignmentLhs = true;
         }
 
         try
@@ -8038,7 +8038,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
         finally
         {
-            _analyzingAssignmentLhs = previousAssignmentLhs;
+            analyzingAssignmentLhs = previousAssignmentLhs;
         }
 
         if(assignment.Value is not null)
@@ -8083,9 +8083,9 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             }
 
             // This is an assignment: target = value.
-            _assignmentNestingDepth++;
+            assignmentNestingDepth++;
             CheckExpression(assignment.Value, model, diagnostics);
-            _assignmentNestingDepth--;
+            assignmentNestingDepth--;
 
             var lhsType = model.GetTypeOf(assignment.Target);
             var rhsType = model.GetTypeOf(assignment.Value);
@@ -8143,7 +8143,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                             model));
                     }
                     // MIST_TC_0025: init-only property assigned outside constructor context.
-                    else if(propInfo.HasInit && !propInfo.HasSet && !_insideConstructor)
+                    else if(propInfo.HasInit && !propInfo.HasSet && !insideConstructor)
                     {
                         diagnostics.Add(MakeDiagnostic(
                             "MIST_TC_0025",
@@ -8866,7 +8866,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     private void CheckVoidCoalescingAssignment(AssignmentNode assignment, ISemanticModel model, DiagnosticBag diagnostics)
     {
         // ── MIST_TC_0047: ??= is statement-only, cannot be used as a sub-expression ──
-        if(!_atStatementLevel || _assignmentNestingDepth > 0)
+        if(!atStatementLevel || assignmentNestingDepth > 0)
         {
             diagnostics.Add(MakeDiagnostic(
                 "MIST_TC_0047",
@@ -8951,7 +8951,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         // ── Flow narrowing: after ??=, the variable's type is T (not T | void) ──
-        _voidCoalescingTypeNarrowings[targetVarName] = nonVoidPortion;
+        voidCoalescingTypeNarrowings[targetVarName] = nonVoidPortion;
 
         // Update the symbol's DeclaredType so that subsequent GetTypeOf calls
         // for this variable return the narrowed type.
@@ -10802,7 +10802,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         DiagnosticBag diagnostics)
     {
         // Only relevant in an async context.
-        if(_currentMethodSymbol is not Symbol { IsAsync: true })
+        if(currentMethodSymbol is not Symbol { IsAsync: true })
         {
             return;
         }
@@ -10890,7 +10890,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // Task 21: if this postfix is the LHS of an assignment, reset the
         // flag for inner expressions (e.g., arguments inside method calls)
         // so those nested visits do not inherit the LHS context.
-        _analyzingAssignmentLhs = false;
+        analyzingAssignmentLhs = false;
 
         for(var suffixIndex = 0; suffixIndex < node.Suffix.Length; suffixIndex++)
         {
@@ -11952,7 +11952,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 // Note: When checking property accessor bodies, the semantic model
                 // resolves 'field' to the backing field symbol, so this check only
                 // fires when 'field' appears in a non-property context.
-                if(!_insidePropertyAccessor)
+                if(!insidePropertyAccessor)
                 {
                     diagnostics.Add(MakeDiagnostic(
                         "MIST_TC_0023",
@@ -15314,7 +15314,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         // Case 2 (narrowing context): Check if _narrowingContext[varName] implies predicate.
         var varName = TryExtractIndexIdentifierName(indexSuffix.Index);
-        if(varName is not null && _narrowingContext.TryGetValue(varName, out var constraints))
+        if(varName is not null && narrowingContext.TryGetValue(varName, out var constraints))
         {
             // Check if every target constraint is implied by at least one source constraint.
             var allImplied = true;
@@ -16376,7 +16376,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             {
                 // Private members are only accessible within the declaring type.
                 var declaringType = GetDeclaringTypeOfMember(symbol);
-                if(declaringType is not null && !IsSameType(declaringType, _currentEnclosingType))
+                if(declaringType is not null && !IsSameType(declaringType, currentEnclosingType))
                 {
                     diagnostics.Add(MakeDiagnostic(
                         PropertyInitializerInaccessible.Value,
@@ -16818,7 +16818,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         {
             // Private members are only accessible within the declaring type.
             var declaringType = GetDeclaringTypeOfMember(memberSymbol);
-            if(declaringType is not null && !IsSameType(declaringType, _currentEnclosingType))
+            if(declaringType is not null && !IsSameType(declaringType, currentEnclosingType))
             {
                 diagnostics.Add(MakeDiagnostic(
                     "MIST_TC_0014",
@@ -17185,7 +17185,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             // ── Flow narrowing: check if the variable has constraints that prove the target ──
             var narrowedVarName = TryExtractNarrowedIdentifierName(expression);
             if(narrowedVarName is not null &&
-                _narrowingContext.TryGetValue(narrowedVarName, out var constraints))
+                narrowingContext.TryGetValue(narrowedVarName, out var constraints))
             {
                 if(ConstraintsImplyPredicate(constraints, targetRefinement.Predicate))
                 {
@@ -17282,7 +17282,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             {
                 var varName = TryExtractIdentifierFromLogicalOr(assignmentValue.Target.Left);
                 if(varName is not null &&
-                    _narrowingContext.TryGetValue(varName, out var constraints))
+                    narrowingContext.TryGetValue(varName, out var constraints))
                 {
                     if(ConstraintsImplyPredicate(constraints, targetRefinement.Predicate))
                     {
@@ -19255,7 +19255,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// Checks whether <paramref name="source"/> implements the target constructed abstract,
     /// including transitive abstract inheritance.
     /// </summary>
-    [ThreadStatic] private static HashSet<string>? _abstractCheckVisited;
+    [ThreadStatic] private static HashSet<string>? abstractCheckVisited;
 
     private static bool ImplementsConstructedAbstract(IType source, ConstructedType targetConstructedAbstract)
     {
@@ -19263,9 +19263,9 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // RelationalDbContextOptionsBuilder<NpgsqlDbContextOptionsBuilder, ...>).
         // Without this, the recursive walk enters infinite recursion when a type
         // refers to itself as a generic argument in its own base/abstract chain.
-        _abstractCheckVisited ??= new HashSet<string>(StringComparer.Ordinal);
+        abstractCheckVisited ??= new HashSet<string>(StringComparer.Ordinal);
         var key = $"{source.DisplayName}→{targetConstructedAbstract.DisplayName}";
-        if(!_abstractCheckVisited.Add(key))
+        if(!abstractCheckVisited.Add(key))
         {
             return false; // Already checking this pair — cycle detected.
         }
@@ -19276,7 +19276,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
         finally
         {
-            _abstractCheckVisited.Remove(key);
+            abstractCheckVisited.Remove(key);
         }
     }
 
@@ -20302,7 +20302,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     private StructType? FindRegisteredStructType(string name, string namespaceName, ISemanticModel model)
     {
         var cacheKey = $"{namespaceName}.{name}";
-        if(_registeredStructTypeCache.TryGetValue(cacheKey, out var cached))
+        if(registeredStructTypeCache.TryGetValue(cacheKey, out var cached))
         {
             return cached;
         }
@@ -20320,7 +20320,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             }
         }
 
-        _registeredStructTypeCache[cacheKey] = result;
+        registeredStructTypeCache[cacheKey] = result;
         return result;
     }
 
@@ -20333,7 +20333,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     private ClassType? FindRegisteredClassType(string name, string namespaceName, ISemanticModel model)
     {
         var cacheKey = $"{namespaceName}.{name}";
-        if(_registeredClassTypeCache.TryGetValue(cacheKey, out var cached))
+        if(registeredClassTypeCache.TryGetValue(cacheKey, out var cached))
         {
             return cached;
         }
@@ -20351,7 +20351,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             }
         }
 
-        _registeredClassTypeCache[cacheKey] = result;
+        registeredClassTypeCache[cacheKey] = result;
         return result;
     }
 

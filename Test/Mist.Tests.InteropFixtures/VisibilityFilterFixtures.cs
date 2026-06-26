@@ -31,12 +31,12 @@ public unsafe class HasPointerMembers
 /// </summary>
 public class HasRefReturn
 {
-    private int _value = 42;
+    private int value = 42;
 
-    public ref int GetRef() => ref _value;
+    public ref int GetRef() => ref value;
 
     /// <summary>A normal method that should remain visible.</summary>
-    public int GetValue() => _value;
+    public int GetValue() => value;
 }
 
 /// <summary>
@@ -44,12 +44,12 @@ public class HasRefReturn
 /// </summary>
 public class HasRefReturnProperty
 {
-    private int _backing = 10;
+    private int backing = 10;
 
-    public ref int RefProp => ref _backing;
+    public ref int RefProp => ref backing;
 
     /// <summary>A normal property that should remain visible.</summary>
-    public int NormalProp => _backing;
+    public int NormalProp => backing;
 }
 
 /// <summary>
@@ -60,12 +60,12 @@ public class HasNonPublicMembers
     public int PublicField = 1;
     internal int InternalField = 2;
     protected int ProtectedField = 3;
-    private int _privateField = 4;
+    private int privateField = 4;
 
     public int PublicMethod() => PublicField;
     internal int InternalMethod() => InternalField;
     protected int ProtectedMethod() => ProtectedField;
-    private int PrivateMethod() => _privateField;
+    private int PrivateMethod() => privateField;
 
     public int PublicProp { get; set; }
     internal int InternalProp { get; set; }

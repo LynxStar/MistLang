@@ -44,7 +44,7 @@ public class UnknownInNonStorageTypeArgumentTests
 {
     private static readonly ILexer Lexer = new Mist.Lexing.MistLexer();
     private static readonly IParser Parser = new Mist.Parsing.MistParser();
-    private readonly SemanticModelBuilder _builder = new();
+    private readonly SemanticModelBuilder builder = new();
 
     private ImmutableArray<Diagnostic> BuildAndCollectDiagnostics(string source)
     {
@@ -62,7 +62,7 @@ public class UnknownInNonStorageTypeArgumentTests
         var compilation = new MistCompilation(
             ImmutableArray.Create(new CompilationUnit(sourceText)));
         var semBag = new DiagnosticBag();
-        _builder.Build(
+        builder.Build(
             compilation,
             ImmutableArray.Create(parseResult.Root!),
             ambientTypeResolver: null,

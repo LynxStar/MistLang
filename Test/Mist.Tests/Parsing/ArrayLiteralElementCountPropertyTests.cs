@@ -15,19 +15,19 @@ namespace Mist.Tests.Parsing;
 /// </summary>
 public sealed class ArrayLiteralElementCountScenario
 {
-    private readonly int[] _elements;
+    private readonly int[] elements;
 
-    public IReadOnlyList<int> Elements => _elements;
+    public IReadOnlyList<int> Elements => elements;
 
-    public int Count => _elements.Length;
+    public int Count => elements.Length;
 
     public ArrayLiteralElementCountScenario(int[] elements)
     {
-        _elements = elements;
+        this.elements = elements;
     }
 
     public override string ToString() =>
-        $"[{string.Join(", ", _elements)}] (N={_elements.Length})";
+        $"[{string.Join(", ", elements)}] (N={elements.Length})";
 }
 
 /// <summary>

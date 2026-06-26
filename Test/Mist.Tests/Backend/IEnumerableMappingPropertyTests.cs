@@ -29,9 +29,9 @@ namespace Mist.Tests.Backend;
 /// </summary>
 public sealed class IEnumerableMappingPropertyTests
 {
-    private readonly TypeProjector _projector;
-    private readonly VisibilityFilter _filter;
-    private readonly IStdlibTypeProvider _stdlib;
+    private readonly TypeProjector projector;
+    private readonly VisibilityFilter filter;
+    private readonly IStdlibTypeProvider stdlib;
 
     /// <summary>
     /// All CLR types that implement <c>IEnumerable&lt;T&gt;</c> and are suitable
@@ -43,9 +43,9 @@ public sealed class IEnumerableMappingPropertyTests
     public IEnumerableMappingPropertyTests()
     {
         var intrinsicMap = new IntrinsicTypeMap();
-        _filter = new VisibilityFilter();
-        _projector = new TypeProjector(intrinsicMap, _filter);
-        _stdlib = new EnumerableTestStdlibTypeProvider();
+        filter = new VisibilityFilter();
+        projector = new TypeProjector(intrinsicMap, filter);
+        stdlib = new EnumerableTestStdlibTypeProvider();
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -159,7 +159,7 @@ public sealed class IEnumerableMappingPropertyTests
     {
         RunProperty(GenEnumerableType(), clrType =>
         {
-            var (projectedType, _) = _projector.ProjectType(clrType, _stdlib);
+            var (projectedType, _) = projector.ProjectType(clrType, stdlib);
 
             // Get the interfaces list from the projected type
             var interfaces = projectedType switch
@@ -214,7 +214,7 @@ public sealed class IEnumerableMappingPropertyTests
     {
         RunProperty(GenEnumerableType(), clrType =>
         {
-            var (projectedType, _) = _projector.ProjectType(clrType, _stdlib);
+            var (projectedType, _) = projector.ProjectType(clrType, stdlib);
 
             var interfaces = projectedType switch
             {
@@ -257,7 +257,7 @@ public sealed class IEnumerableMappingPropertyTests
     {
         RunProperty(GenEnumerableType(), clrType =>
         {
-            var (projectedType, _) = _projector.ProjectType(clrType, _stdlib);
+            var (projectedType, _) = projector.ProjectType(clrType, stdlib);
 
             // Get the member scope
             var memberScope = projectedType switch
@@ -300,7 +300,7 @@ public sealed class IEnumerableMappingPropertyTests
     {
         RunProperty(GenEnumerableType(), clrType =>
         {
-            var (projectedType, _) = _projector.ProjectType(clrType, _stdlib);
+            var (projectedType, _) = projector.ProjectType(clrType, stdlib);
 
             var memberScope = projectedType switch
             {
@@ -351,7 +351,7 @@ public sealed class IEnumerableMappingPropertyTests
     {
         // CustomCollection has a concrete Enumerator struct returned by GetEnumerator()
         var clrType = typeof(CustomCollection);
-        var (projectedType, _) = _projector.ProjectType(clrType, _stdlib);
+        var (projectedType, _) = projector.ProjectType(clrType, stdlib);
 
         var memberScope = projectedType switch
         {

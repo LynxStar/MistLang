@@ -15,13 +15,13 @@ namespace Mist.Semantics.Model;
 /// </summary>
 internal sealed class ScopeBasedStdlibTypeProvider : IStdlibTypeProvider
 {
-    private readonly Scope _globalScope;
-    private readonly SymbolTable _symbolTable;
+    private readonly Scope globalScope;
+    private readonly SymbolTable symbolTable;
 
     public ScopeBasedStdlibTypeProvider(Scope globalScope, SymbolTable symbolTable)
     {
-        _globalScope = globalScope;
-        _symbolTable = symbolTable;
+        this.globalScope = globalScope;
+        this.symbolTable = symbolTable;
     }
 
     public IType LookupStandardType(string simpleName)
@@ -37,7 +37,7 @@ internal sealed class ScopeBasedStdlibTypeProvider : IStdlibTypeProvider
         try
         {
             return SemanticModelBuilder.LookupQualifiedStdlibType(
-                _globalScope, _symbolTable, qualifiedName, typeArgumentCount);
+                globalScope, symbolTable, qualifiedName, typeArgumentCount);
         }
         catch(StdlibMissingException)
         {

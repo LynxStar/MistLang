@@ -47,13 +47,13 @@ namespace Storm.SourceGenerator.Tests
             return new EmissionContext(ns, grammarName, loweringResult.Grammar!);
         }
 
-        private readonly string _output;
+        private readonly string output;
 
         public ParserEmitterDiagnosticTests()
         {
             var ctx = CreateContext(
                 "token Number = [0-9]+;\nrule Start = Number;");
-            _output = ParserEmitter.Emit(ctx);
+            output = ParserEmitter.Emit(ctx);
         }
 
         // ---------------------------------------------------------------
@@ -64,7 +64,7 @@ namespace Storm.SourceGenerator.Tests
         public void EmitParser_HasThreadStaticSourcePathField()
         {
             // The emitted parser should declare a [ThreadStatic] _sourcePath field
-            Assert.Contains("[ThreadStatic] private static string? _sourcePath;", _output);
+            Assert.Contains("[ThreadStatic] private static string? _sourcePath;", output);
         }
 
         // ---------------------------------------------------------------
@@ -75,7 +75,7 @@ namespace Storm.SourceGenerator.Tests
         public void EmitParser_InitMethod_StoresSourcePath()
         {
             // The Init method should store ts.Source.Path into _sourcePath
-            Assert.Contains("_sourcePath = ts.Source.Path;", _output);
+            Assert.Contains("_sourcePath = ts.Source.Path;", output);
         }
 
         // ---------------------------------------------------------------
@@ -89,37 +89,37 @@ namespace Storm.SourceGenerator.Tests
             // _sourcePath, cur.Start.Line, cur.Start.Column
             Assert.Contains(
                 "_diagnostics?.Add($\"Expected token kind {kind} but found '{cur.Lexeme}'\", _sourcePath, cur.Start.Line, cur.Start.Column)",
-                _output);
+                output);
         }
 
         [Fact]
         public void EmitParser_RequireMethod_PassesSourcePathAsSecondArgument()
         {
             // Verify _sourcePath is passed in the Require method's diagnostics call
-            var requireIndex = _output.IndexOf("private static Token Require(int kind)");
+            var requireIndex = output.IndexOf("private static Token Require(int kind)");
             Assert.True(requireIndex >= 0, "Require method not found");
 
-            var requireBody = _output.Substring(requireIndex, 500);
+            var requireBody = output.Substring(requireIndex, 500);
             Assert.Contains("_sourcePath", requireBody);
         }
 
         [Fact]
         public void EmitParser_RequireMethod_PassesCurStartLineAsThirdArgument()
         {
-            var requireIndex = _output.IndexOf("private static Token Require(int kind)");
+            var requireIndex = output.IndexOf("private static Token Require(int kind)");
             Assert.True(requireIndex >= 0, "Require method not found");
 
-            var requireBody = _output.Substring(requireIndex, 500);
+            var requireBody = output.Substring(requireIndex, 500);
             Assert.Contains("cur.Start.Line", requireBody);
         }
 
         [Fact]
         public void EmitParser_RequireMethod_PassesCurStartColumnAsFourthArgument()
         {
-            var requireIndex = _output.IndexOf("private static Token Require(int kind)");
+            var requireIndex = output.IndexOf("private static Token Require(int kind)");
             Assert.True(requireIndex >= 0, "Require method not found");
 
-            var requireBody = _output.Substring(requireIndex, 500);
+            var requireBody = output.Substring(requireIndex, 500);
             Assert.Contains("cur.Start.Column", requireBody);
         }
 
@@ -134,36 +134,36 @@ namespace Storm.SourceGenerator.Tests
             // _sourcePath, cur.Start.Line, cur.Start.Column
             Assert.Contains(
                 "_diagnostics?.Add($\"{message}\", _sourcePath, cur.Start.Line, cur.Start.Column)",
-                _output);
+                output);
         }
 
         [Fact]
         public void EmitParser_ErrorMethod_PassesSourcePathAsSecondArgument()
         {
-            var errorIndex = _output.IndexOf("private static void Error(string message)");
+            var errorIndex = output.IndexOf("private static void Error(string message)");
             Assert.True(errorIndex >= 0, "Error method not found");
 
-            var errorBody = _output.Substring(errorIndex, 400);
+            var errorBody = output.Substring(errorIndex, 400);
             Assert.Contains("_sourcePath", errorBody);
         }
 
         [Fact]
         public void EmitParser_ErrorMethod_PassesCurStartLineAsThirdArgument()
         {
-            var errorIndex = _output.IndexOf("private static void Error(string message)");
+            var errorIndex = output.IndexOf("private static void Error(string message)");
             Assert.True(errorIndex >= 0, "Error method not found");
 
-            var errorBody = _output.Substring(errorIndex, 400);
+            var errorBody = output.Substring(errorIndex, 400);
             Assert.Contains("cur.Start.Line", errorBody);
         }
 
         [Fact]
         public void EmitParser_ErrorMethod_PassesCurStartColumnAsFourthArgument()
         {
-            var errorIndex = _output.IndexOf("private static void Error(string message)");
+            var errorIndex = output.IndexOf("private static void Error(string message)");
             Assert.True(errorIndex >= 0, "Error method not found");
 
-            var errorBody = _output.Substring(errorIndex, 400);
+            var errorBody = output.Substring(errorIndex, 400);
             Assert.Contains("cur.Start.Column", errorBody);
         }
 
@@ -177,8 +177,8 @@ namespace Storm.SourceGenerator.Tests
             // The old pattern embedded position in the message string like:
             // "at line {cur.Start.Line}, column {cur.Start.Column}"
             // This should no longer appear in the message portion
-            Assert.DoesNotContain("at line {cur.Start.Line}", _output);
-            Assert.DoesNotContain("at position", _output);
+            Assert.DoesNotContain("at line {cur.Start.Line}", output);
+            Assert.DoesNotContain("at position", output);
         }
 
         [Fact]
@@ -186,10 +186,10 @@ namespace Storm.SourceGenerator.Tests
         {
             // The Error method should not embed position in the message string
             // The message should be just $"{message}" without appended position info
-            var errorIndex = _output.IndexOf("private static void Error(string message)");
+            var errorIndex = output.IndexOf("private static void Error(string message)");
             Assert.True(errorIndex >= 0, "Error method not found");
 
-            var errorBody = _output.Substring(errorIndex, 400);
+            var errorBody = output.Substring(errorIndex, 400);
             // Should not have old-style single-arg Add with embedded position
             Assert.DoesNotContain("$\"{message} at", errorBody);
         }
@@ -201,7 +201,7 @@ namespace Storm.SourceGenerator.Tests
             // embeds position data in an interpolated string
             Assert.DoesNotContain(
                 "_diagnostics?.Add($\"Expected token kind {kind} but found '{cur.Lexeme}' at",
-                _output);
+                output);
         }
     }
 }

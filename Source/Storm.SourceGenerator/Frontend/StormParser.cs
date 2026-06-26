@@ -41,39 +41,39 @@ namespace Storm.SourceGenerator.Frontend
         /// </summary>
         private sealed class ParserState
         {
-            private List<StormToken> _tokens;
-            private StormSourceText _source;
-            private List<StormDiagnostic> _diagnostics;
-            private int _pos;
+            private List<StormToken> tokens;
+            private StormSourceText source;
+            private List<StormDiagnostic> diagnostics;
+            private int pos;
 
             public ParserState(List<StormToken> tokens, StormSourceText source, List<StormDiagnostic> diagnostics)
             {
-                _tokens = tokens;
-                _source = source;
-                _diagnostics = diagnostics;
-                _pos = 0;
+                this.tokens = tokens;
+                this.source = source;
+                this.diagnostics = diagnostics;
+                pos = 0;
             }
 
             // ----------------------------------------------------------
             //  Token access helpers
             // ----------------------------------------------------------
 
-            private StormToken Current => _pos < _tokens.Count
-                ? _tokens[_pos]
-                : _tokens[_tokens.Count - 1]; // EOF sentinel
+            private StormToken Current => pos < tokens.Count
+                ? tokens[pos]
+                : tokens[tokens.Count - 1]; // EOF sentinel
 
             private StormToken Peek(int offset = 0)
             {
-                var idx = _pos + offset;
-                return idx < _tokens.Count ? _tokens[idx] : _tokens[_tokens.Count - 1];
+                var idx = pos + offset;
+                return idx < tokens.Count ? tokens[idx] : tokens[tokens.Count - 1];
             }
 
             private StormToken Advance()
             {
                 var tok = Current;
-                if(_pos < _tokens.Count - 1) // don't advance past EOF
+                if(pos < tokens.Count - 1) // don't advance past EOF
                 {
-                    _pos++;
+                    pos++;
                 }
 
                 return tok;
@@ -106,11 +106,11 @@ namespace Storm.SourceGenerator.Frontend
             private void Error(string message)
             {
                 var tok = Current;
-                _diagnostics.Add(new StormDiagnostic(
+                diagnostics.Add(new StormDiagnostic(
                     StormDiagnosticIds.STORM_SYNTAX_ERROR,
                     StormDiagnosticSeverity.Error,
                     message,
-                    _source.FilePath,
+                    source.FilePath,
                     tok.Line,
                     tok.Column));
             }

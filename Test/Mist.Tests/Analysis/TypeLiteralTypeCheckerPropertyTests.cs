@@ -26,8 +26,8 @@ public class TypeLiteralTypeCheckerPropertyTests
 {
     private static readonly Mist.Lexing.MistLexer Lexer = new();
     private static readonly Mist.Parsing.MistParser Parser = new();
-    private readonly SemanticModelBuilder _builder = new();
-    private readonly TypeCheckerAnalyzer _analyzer = new();
+    private readonly SemanticModelBuilder builder = new();
+    private readonly TypeCheckerAnalyzer analyzer = new();
 
     // ─── Primitive type keywords (used as type literals on the RHS) ──────
 
@@ -91,14 +91,14 @@ public class TypeLiteralTypeCheckerPropertyTests
         var sourceText = new SourceText("test.mist", source);
         var compilation = new MistCompilation(ImmutableArray.Create(new CompilationUnit(sourceText)));
         var diagnostics = new DiagnosticBag();
-        var model = _builder.Build(compilation, ImmutableArray.Create(ast), ambientTypeResolver: null, namespaceRoot: "TestProject", projectFolder: "/test", diagnostics);
+        var model = builder.Build(compilation, ImmutableArray.Create(ast), ambientTypeResolver: null, namespaceRoot: "TestProject", projectFolder: "/test", diagnostics);
         return (diagnostics.ToImmutableArray(), model);
     }
 
     private ImmutableArray<Diagnostic> RunTypeChecker(Mist.Semantics.Contracts.ISemanticModel model)
     {
         var bag = new DiagnosticBag();
-        _analyzer.Analyze(model, bag);
+        analyzer.Analyze(model, bag);
         return bag.ToImmutableArray();
     }
 

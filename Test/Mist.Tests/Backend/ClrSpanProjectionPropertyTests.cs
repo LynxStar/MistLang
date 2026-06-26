@@ -26,8 +26,8 @@ namespace Mist.Tests.Backend;
 /// </summary>
 public sealed class ClrSpanProjectionPropertyTests
 {
-    private readonly TypeProjector _projector;
-    private readonly IStdlibTypeProvider _stdlib;
+    private readonly TypeProjector projector;
+    private readonly IStdlibTypeProvider stdlib;
 
     /// <summary>
     /// Representative CLR element types for constructing span types via reflection.
@@ -57,8 +57,8 @@ public sealed class ClrSpanProjectionPropertyTests
     {
         var intrinsicMap = new IntrinsicTypeMap();
         var filter = new VisibilityFilter();
-        _projector = new TypeProjector(intrinsicMap, filter);
-        _stdlib = FallbackStdlibTypeProvider.Instance;
+        projector = new TypeProjector(intrinsicMap, filter);
+        stdlib = FallbackStdlibTypeProvider.Instance;
     }
 
     /// <summary>
@@ -112,7 +112,7 @@ public sealed class ClrSpanProjectionPropertyTests
         {
             var clrSpanType = MakeClrSpanType(input.ElementType, input.IsReadOnly);
 
-            var projected = _projector.ProjectTypeReference(clrSpanType, _stdlib);
+            var projected = projector.ProjectTypeReference(clrSpanType, stdlib);
 
             // Must be a SpanType
             Assert.True(
@@ -147,7 +147,7 @@ public sealed class ClrSpanProjectionPropertyTests
 
             // Verify the element type by projecting the CLR element independently
             // and confirming it matches the span's element type.
-            var independentlyProjectedElement = _projector.ProjectTypeReference(input.ElementType, _stdlib);
+            var independentlyProjectedElement = projector.ProjectTypeReference(input.ElementType, stdlib);
             Assert.True(
                 spanType.ElementType.DisplayName == independentlyProjectedElement.DisplayName,
                 $"Element type mismatch for {clrSpanType.FullName}: " +

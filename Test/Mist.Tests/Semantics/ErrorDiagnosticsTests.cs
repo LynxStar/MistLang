@@ -19,7 +19,7 @@ namespace Mist.Tests.Semantics;
 /// </summary>
 public sealed class ErrorDiagnosticsTests
 {
-    private readonly SemanticModelBuilder _builder = new();
+    private readonly SemanticModelBuilder builder = new();
 
     // ─── Helpers ─────────────────────────────────────────────────────────
 
@@ -47,7 +47,7 @@ public sealed class ErrorDiagnosticsTests
     {
         var compilation = MakeCompilation(source);
         var diagnostics = new DiagnosticBag();
-        var model = _builder.Build(
+        var model = builder.Build(
             compilation,
             ImmutableArray.Create(ast),
             ambientTypeResolver,
@@ -120,32 +120,32 @@ public sealed class ErrorDiagnosticsTests
     /// </summary>
     private sealed class MockAmbientTypeResolver : IAmbientTypeResolver
     {
-        private readonly Dictionary<string, HashSet<string>> _namespaceTypes = new();
-        private readonly Dictionary<(string, string), IType> _types = new();
+        private readonly Dictionary<string, HashSet<string>> namespaceTypes = new();
+        private readonly Dictionary<(string, string), IType> types = new();
 
         public void RegisterType(string namespaceName, string typeName, IType type)
         {
-            if(!_namespaceTypes.ContainsKey(namespaceName))
+            if(!namespaceTypes.ContainsKey(namespaceName))
             {
-                _namespaceTypes[namespaceName] = new HashSet<string>();
+                namespaceTypes[namespaceName] = new HashSet<string>();
             }
 
-            _namespaceTypes[namespaceName].Add(typeName);
-            _types[(namespaceName, typeName)] = type;
+            namespaceTypes[namespaceName].Add(typeName);
+            types[(namespaceName, typeName)] = type;
         }
 
-        public bool HasNamespace(string namespaceName) => _namespaceTypes.ContainsKey(namespaceName);
+        public bool HasNamespace(string namespaceName) => namespaceTypes.ContainsKey(namespaceName);
 
         public IType? ResolveType(string namespaceName, string typeName)
         {
-            return _types.GetValueOrDefault((namespaceName, typeName));
+            return types.GetValueOrDefault((namespaceName, typeName));
         }
 
         public ImmutableArray<ISymbol> GetMembers(IType type) => ImmutableArray<ISymbol>.Empty;
 
         public ImmutableArray<string> GetTypeNamesInNamespace(string namespaceName)
         {
-            if(_namespaceTypes.TryGetValue(namespaceName, out var types))
+            if(namespaceTypes.TryGetValue(namespaceName, out var types))
             {
                 return types.ToImmutableArray();
             }

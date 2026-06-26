@@ -6,7 +6,7 @@ namespace Mist.Tests.InteropFixtures;
 /// </summary>
 public class RefParamFixture
 {
-    private int _field;
+    private int field;
 
     public void IncrementRef(ref int value) => value++;
 
@@ -22,7 +22,7 @@ public class RefParamFixture
 
     public void Exchange(ref int location, int newValue)
     {
-        _field = location;
+        field = location;
         location = newValue;
     }
 
@@ -33,7 +33,7 @@ public class RefParamFixture
     public void RefString(ref string value) => value = value.ToUpper();
 
     /// <summary>A normal method without ref params that should remain visible.</summary>
-    public int GetField() => _field;
+    public int GetField() => field;
 }
 
 /// <summary>
@@ -63,15 +63,15 @@ public class InParamFixture
 /// </summary>
 public class MutableRefReturnFixture
 {
-    private int _intField = 10;
-    private string _stringField = "hello";
+    private int intField = 10;
+    private string stringField = "hello";
 
-    public ref int GetIntRef() => ref _intField;
+    public ref int GetIntRef() => ref intField;
 
-    public ref string GetStringRef() => ref _stringField;
+    public ref string GetStringRef() => ref stringField;
 
     /// <summary>A normal method without ref return that should remain visible.</summary>
-    public int GetIntValue() => _intField;
+    public int GetIntValue() => intField;
 }
 
 /// <summary>
@@ -80,15 +80,15 @@ public class MutableRefReturnFixture
 /// </summary>
 public class RefReadonlyReturnFixture
 {
-    private int _intField = 20;
-    private string _stringField = "world";
+    private int intField = 20;
+    private string stringField = "world";
 
-    public ref readonly int GetReadonlyIntRef() => ref _intField;
+    public ref readonly int GetReadonlyIntRef() => ref intField;
 
-    public ref readonly string GetReadonlyStringRef() => ref _stringField;
+    public ref readonly string GetReadonlyStringRef() => ref stringField;
 
     /// <summary>A normal method without ref return that should remain visible.</summary>
-    public int GetIntValue() => _intField;
+    public int GetIntValue() => intField;
 }
 
 /// <summary>

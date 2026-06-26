@@ -46,19 +46,19 @@ public sealed class InitializerArrayConstructionPropertyTests : IDisposable
         ImmutableArray.Create<IAnalyzer>(new TypeCheckerAnalyzer()),
         ImmutableArray.Create<IBackend>(new CSharpTranspilerBackend()));
 
-    private readonly string _outputDir;
+    private readonly string outputDir;
 
     public InitializerArrayConstructionPropertyTests()
     {
-        _outputDir = Path.Combine(Path.GetTempPath(), "mist_pbt_init_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(_outputDir);
+        outputDir = Path.Combine(Path.GetTempPath(), "mist_pbt_init_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(outputDir);
     }
 
     public void Dispose()
     {
-        if(Directory.Exists(_outputDir))
+        if(Directory.Exists(outputDir))
         {
-            try { Directory.Delete(_outputDir, recursive: true); } catch { /* best effort */ }
+            try { Directory.Delete(outputDir, recursive: true); } catch { /* best effort */ }
         }
         GC.SuppressFinalize(this);
     }
@@ -227,7 +227,7 @@ public sealed class InitializerArrayConstructionPropertyTests : IDisposable
 
     private (int ExitCode, string Stdout, string Stderr) CompileAndRun(string mistSource)
     {
-        var iterDir = Path.Combine(_outputDir, Guid.NewGuid().ToString("N"));
+        var iterDir = Path.Combine(outputDir, Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(iterDir);
 
         try

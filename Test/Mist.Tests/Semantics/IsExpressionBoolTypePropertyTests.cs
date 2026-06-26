@@ -25,7 +25,7 @@ namespace Mist.Tests.Semantics;
 /// </summary>
 public class IsExpressionBoolTypePropertyTests
 {
-    private readonly SemanticModelBuilder _builder = new();
+    private readonly SemanticModelBuilder builder = new();
 
     // ─── Helpers ─────────────────────────────────────────────────────────
 
@@ -38,7 +38,7 @@ public class IsExpressionBoolTypePropertyTests
         var compilation = new MistCompilation(
             ImmutableArray.Create(new CompilationUnit(sourceText)));
         var diagnostics = new DiagnosticBag();
-        return _builder.Build(
+        return builder.Build(
             compilation,
             ImmutableArray.Create<Storm.Runtime.SyntaxNode>(ast),
             ambientTypeResolver: null,

@@ -13,11 +13,11 @@ namespace Mist.Tests.Parsing;
 /// </summary>
 public sealed class TypeArgumentParsingPerformanceTest
 {
-    private readonly ITestOutputHelper _output;
+    private readonly ITestOutputHelper output;
 
     public TypeArgumentParsingPerformanceTest(ITestOutputHelper output)
     {
-        _output = output;
+        this.output = output;
     }
 
     [Fact]
@@ -28,8 +28,8 @@ public sealed class TypeArgumentParsingPerformanceTest
         var maxN = 20;
         var timeoutMs = 10_000; // 10 seconds bail-out
 
-        _output.WriteLine($"{"N",-4} {"Time (ms)",-12} {"Ratio",8}");
-        _output.WriteLine(new string('-', 30));
+        output.WriteLine($"{"N",-4} {"Time (ms)",-12} {"Ratio",8}");
+        output.WriteLine(new string('-', 30));
 
         double? previousMs = null;
         var bailedAt = -1;
@@ -50,12 +50,12 @@ public sealed class TypeArgumentParsingPerformanceTest
                 ? $"{elapsedMs / previousMs.Value:F2}x"
                 : "—";
 
-            _output.WriteLine($"{n,-4} {elapsedMs,-12:F2} {ratio,8}");
+            output.WriteLine($"{n,-4} {elapsedMs,-12:F2} {ratio,8}");
 
             if(elapsedMs > timeoutMs)
             {
                 bailedAt = n;
-                _output.WriteLine($"\nBailed out at N={n} (exceeded {timeoutMs}ms)");
+                output.WriteLine($"\nBailed out at N={n} (exceeded {timeoutMs}ms)");
                 break;
             }
 
@@ -71,7 +71,7 @@ public sealed class TypeArgumentParsingPerformanceTest
                 "This indicates exponential parsing complexity in TypeArgumentList/TypeParameterList.");
         }
 
-        _output.WriteLine("\nCompleted all 0..20 within timeout.");
+        output.WriteLine("\nCompleted all 0..20 within timeout.");
     }
 
     /// <summary>
@@ -93,8 +93,8 @@ public sealed class TypeArgumentParsingPerformanceTest
         var maxN = 16;
         var timeoutMs = 10_000;
 
-        _output.WriteLine($"{"N",-4} {"Time (ms)",-12} {"Ratio",8}");
-        _output.WriteLine(new string('-', 30));
+        output.WriteLine($"{"N",-4} {"Time (ms)",-12} {"Ratio",8}");
+        output.WriteLine(new string('-', 30));
 
         double? previousMs = null;
         var bailedAt = -1;
@@ -115,12 +115,12 @@ public sealed class TypeArgumentParsingPerformanceTest
                 ? $"{elapsedMs / previousMs.Value:F2}x"
                 : "—";
 
-            _output.WriteLine($"{n,-4} {elapsedMs,-12:F2} {ratio,8}");
+            output.WriteLine($"{n,-4} {elapsedMs,-12:F2} {ratio,8}");
 
             if(elapsedMs > timeoutMs)
             {
                 bailedAt = n;
-                _output.WriteLine($"\nBailed out at N={n} (exceeded {timeoutMs}ms)");
+                output.WriteLine($"\nBailed out at N={n} (exceeded {timeoutMs}ms)");
                 break;
             }
 
@@ -134,7 +134,7 @@ public sealed class TypeArgumentParsingPerformanceTest
                 "This indicates exponential parsing complexity with arity-overloaded type aliases.");
         }
 
-        _output.WriteLine("\nCompleted all 0..16 within timeout.");
+        output.WriteLine("\nCompleted all 0..16 within timeout.");
     }
 
     /// <summary>

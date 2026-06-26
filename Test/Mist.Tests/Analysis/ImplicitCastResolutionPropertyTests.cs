@@ -30,8 +30,8 @@ namespace Mist.Tests.Analysis;
 /// </summary>
 public class ImplicitCastResolutionPropertyTests
 {
-    private readonly SemanticModelBuilder _builder = new();
-    private readonly TypeCheckerAnalyzer _analyzer = new();
+    private readonly SemanticModelBuilder builder = new();
+    private readonly TypeCheckerAnalyzer analyzer = new();
 
     private const string TypeMismatchId = "MIST_TC_0001";
     private const string AmbiguousImplicitCastId = "MIST_TC_0044";
@@ -52,7 +52,7 @@ public class ImplicitCastResolutionPropertyTests
         var compilation = new MistCompilation(
             ImmutableArray.Create(new CompilationUnit(sourceText)));
         var diagnostics = new DiagnosticBag();
-        return _builder.Build(
+        return builder.Build(
             compilation,
             ImmutableArray.Create(ast),
             ambientTypeResolver: null,
@@ -64,7 +64,7 @@ public class ImplicitCastResolutionPropertyTests
     private ImmutableArray<Diagnostic> RunTypeChecker(ISemanticModel model)
     {
         var bag = new DiagnosticBag();
-        _analyzer.Analyze(model, bag);
+        analyzer.Analyze(model, bag);
         return bag.ToImmutableArray();
     }
 

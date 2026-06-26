@@ -15,24 +15,24 @@ namespace Storm.SourceGenerator.Analyze;
 /// </remarks>
 public sealed class MemoizationPlan
 {
-    private readonly IReadOnlyList<string> _memoizedRuleNames;
-    private readonly IReadOnlyDictionary<string, int> _ruleIds;
+    private readonly IReadOnlyList<string> memoizedRuleNames;
+    private readonly IReadOnlyDictionary<string, int> ruleIds;
 
     /// <summary>
     /// The memoized rule names, in grammar declaration order. The rule at index
     /// <c>i</c> is assigned id <c>i</c>.
     /// </summary>
-    public IReadOnlyList<string> MemoizedRuleNames => _memoizedRuleNames;
+    public IReadOnlyList<string> MemoizedRuleNames => memoizedRuleNames;
 
     /// <summary>
     /// Maps a memoized rule name to its stable integer id (0-based, dense).
     /// </summary>
-    public IReadOnlyDictionary<string, int> RuleIds => _ruleIds;
+    public IReadOnlyDictionary<string, int> RuleIds => ruleIds;
 
     /// <summary>
     /// The number of memoized rules in this plan.
     /// </summary>
-    public int Count => _memoizedRuleNames.Count;
+    public int Count => memoizedRuleNames.Count;
 
     /// <summary>
     /// Creates a plan from an ordered list of memoized rule names. Each rule is
@@ -51,14 +51,14 @@ public sealed class MemoizationPlan
             ids[names[i]] = i;
         }
 
-        _memoizedRuleNames = names;
-        _ruleIds = ids;
+        this.memoizedRuleNames = names;
+        ruleIds = ids;
     }
 
     /// <summary>
     /// Returns <see langword="true"/> when the named rule is selected for memoization.
     /// </summary>
-    public bool IsMemoized(string ruleName) => _ruleIds.ContainsKey(ruleName);
+    public bool IsMemoized(string ruleName) => ruleIds.ContainsKey(ruleName);
 
     /// <summary>
     /// An empty plan: nothing memoized. Used as a safe fallback so an emitter

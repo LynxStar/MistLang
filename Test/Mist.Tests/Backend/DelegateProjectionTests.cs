@@ -25,15 +25,15 @@ namespace Mist.Tests.Backend;
 /// </summary>
 public sealed class DelegateProjectionTests
 {
-    private readonly TypeProjector _projector;
-    private readonly FuncTestStdlibTypeProvider _stdlib;
+    private readonly TypeProjector projector;
+    private readonly FuncTestStdlibTypeProvider stdlib;
 
     public DelegateProjectionTests()
     {
         var intrinsicMap = new IntrinsicTypeMap();
         var filter = new VisibilityFilter();
-        _projector = new TypeProjector(intrinsicMap, filter);
-        _stdlib = new FuncTestStdlibTypeProvider();
+        projector = new TypeProjector(intrinsicMap, filter);
+        stdlib = new FuncTestStdlibTypeProvider();
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -47,7 +47,7 @@ public sealed class DelegateProjectionTests
         // One cached Func ClassType per arity (1..17), so projected types of the
         // same arity are reference-equal — matching real stdlib behavior, which
         // is what ConstructedType structural equality relies on.
-        private readonly System.Collections.Generic.Dictionary<int, ClassType> _funcByArity = new();
+        private readonly System.Collections.Generic.Dictionary<int, ClassType> funcByArity = new();
 
         private static readonly StructType VoidType =
             new("Void", new Scope(null), "Standard", isBackendBacked: true);
@@ -58,7 +58,7 @@ public sealed class DelegateProjectionTests
 
         public ClassType FuncOfArity(int arity)
         {
-            if(!_funcByArity.TryGetValue(arity, out var func))
+            if(!funcByArity.TryGetValue(arity, out var func))
             {
                 func = new ClassType("Func", new Scope(null), "Standard", isBackendBacked: true);
                 var tps = new IType[arity];
@@ -68,7 +68,7 @@ public sealed class DelegateProjectionTests
                 }
 
                 func.TypeParameters = tps;
-                _funcByArity[arity] = func;
+                funcByArity[arity] = func;
             }
             return func;
         }
@@ -173,8 +173,8 @@ public sealed class DelegateProjectionTests
         // The projected Func definition's arity is the Action arity + 1 (the
         // synthesized Void return type), so it is reference-equal to the
         // matching member of the stdlib Func family.
-        var projected = (ConstructedType)_projector.ProjectMemberType(typeof(Action<int>), _stdlib);
-        Assert.Same(_stdlib.FuncOfArity(2), projected.GenericDefinition);
+        var projected = (ConstructedType)projector.ProjectMemberType(typeof(Action<int>), stdlib);
+        Assert.Same(stdlib.FuncOfArity(2), projected.GenericDefinition);
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -206,7 +206,7 @@ public sealed class DelegateProjectionTests
     {
         // Round-trip: project the CLR delegate to Standard.Func, then map back to C#
         // via CSharpTypeMap. The projected type must emit the original delegate shape.
-        var projected = _projector.ProjectMemberType(clrDelegate, _stdlib);
+        var projected = projector.ProjectMemberType(clrDelegate, stdlib);
         Assert.Equal(expectedCSharp, CSharpTypeMap.GetTypeName(projected));
     }
 
@@ -219,7 +219,7 @@ public sealed class DelegateProjectionTests
     {
         // A plain System reference type (e.g., System.Exception) must not be
         // misidentified as a Func delegate.
-        var projected = _projector.ProjectMemberType(typeof(Exception), _stdlib);
+        var projected = projector.ProjectMemberType(typeof(Exception), stdlib);
         var def = projected is ConstructedType ct ? ct.GenericDefinition : projected;
         Assert.NotEqual("Func", def.DisplayName);
     }
@@ -235,7 +235,7 @@ public sealed class DelegateProjectionTests
     /// </summary>
     private (ClassType Definition, IType[] Args) ProjectConstructedFunc(Type clrDelegate)
     {
-        var projected = _projector.ProjectMemberType(clrDelegate, _stdlib);
+        var projected = projector.ProjectMemberType(clrDelegate, stdlib);
         var ct = Assert.IsType<ConstructedType>(projected);
         var def = Assert.IsType<ClassType>(ct.GenericDefinition);
         return (def, ct.TypeArguments.ToArray());

@@ -41,11 +41,11 @@ public sealed class SyntheticDropInferenceDisposableExclusionPropertyTests
     /// </summary>
     private sealed class StubSemanticModel : ISemanticModel
     {
-        private readonly ImmutableArray<ISymbol> _symbols;
+        private readonly ImmutableArray<ISymbol> symbols;
 
-        public StubSemanticModel(ImmutableArray<ISymbol> symbols) => _symbols = symbols;
+        public StubSemanticModel(ImmutableArray<ISymbol> symbols) => this.symbols = symbols;
 
-        public ImmutableArray<ISymbol> AllSymbols => _symbols;
+        public ImmutableArray<ISymbol> AllSymbols => symbols;
 
         // ── Unused members (RunInference only reads AllSymbols) ──
         public MistCompilation Compilation => null!;

@@ -204,14 +204,14 @@ public class TuplePositionalPatternVariablePropertyTests
 
     private static readonly string[] PrimitiveTypes = ["int", "string", "bool"];
 
-    private static int _varCounter;
+    private static int varCounter;
 
     /// <summary>
     /// Generates a unique variable name to avoid duplicate pattern variable conflicts.
     /// </summary>
     private static string NextVarName()
     {
-        var counter = Interlocked.Increment(ref _varCounter);
+        var counter = Interlocked.Increment(ref varCounter);
         return $"v{counter}";
     }
 

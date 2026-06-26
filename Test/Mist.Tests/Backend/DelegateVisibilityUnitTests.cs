@@ -16,7 +16,7 @@ namespace Mist.Tests.Backend;
 /// </summary>
 public sealed class DelegateVisibilityUnitTests
 {
-    private readonly VisibilityFilter _filter = new();
+    private readonly VisibilityFilter filter = new();
 
     // ═══════════════════════════════════════════════════════════════════
     //  Requirement 5.1: Public delegate without excluded types → not hidden
@@ -25,7 +25,7 @@ public sealed class DelegateVisibilityUnitTests
     [Fact]
     public void IsTypeExcluded_SafePredicateDelegate_ReturnsFalse()
     {
-        var result = _filter.IsTypeExcluded(typeof(SafePredicateDelegate));
+        var result = filter.IsTypeExcluded(typeof(SafePredicateDelegate));
 
         Assert.False(result,
             "SafePredicateDelegate has a safe Invoke signature (int → bool) " +
@@ -46,7 +46,7 @@ public sealed class DelegateVisibilityUnitTests
         var method = typeof(DelegateConsumer)
             .GetMethod(nameof(DelegateConsumer.AcceptPointerDelegate))!;
 
-        var result = _filter.IsMemberExcluded(method);
+        var result = filter.IsMemberExcluded(method);
 
         Assert.True(result,
             "AcceptPointerDelegate takes PointerParamDelegate whose Invoke has a pointer param; " +
@@ -60,7 +60,7 @@ public sealed class DelegateVisibilityUnitTests
     [Fact]
     public void IsTypeExcluded_SystemDelegate_ReturnsFalse()
     {
-        var result = _filter.IsTypeExcluded(typeof(Delegate));
+        var result = filter.IsTypeExcluded(typeof(Delegate));
 
         Assert.False(result,
             "System.Delegate is the delegate hierarchy root and must never be excluded.");
@@ -86,8 +86,8 @@ public sealed class DelegateVisibilityUnitTests
         var pointerMethod = typeof(DelegateConsumer)
             .GetMethod(nameof(DelegateConsumer.AcceptPointerDelegate))!;
 
-        var safeExcluded = _filter.IsMemberExcluded(safeMethod);
-        var pointerExcluded = _filter.IsMemberExcluded(pointerMethod);
+        var safeExcluded = filter.IsMemberExcluded(safeMethod);
+        var pointerExcluded = filter.IsMemberExcluded(pointerMethod);
 
         Assert.False(safeExcluded,
             "AcceptSafeDelegate references SafePredicateDelegate (safe Invoke) " +

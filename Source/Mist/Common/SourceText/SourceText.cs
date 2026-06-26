@@ -6,7 +6,7 @@ namespace Mist.Common.Text;
 /// </summary>
 public sealed class SourceText
 {
-    private int[]? _lineStarts;
+    private int[]? lineStarts;
 
     public SourceText(string path, string contents)
     {
@@ -45,9 +45,9 @@ public sealed class SourceText
 
     private int[] GetLineStarts()
     {
-        if(_lineStarts is not null)
+        if(lineStarts is not null)
         {
-            return _lineStarts;
+            return lineStarts;
         }
 
         var starts = new List<int> { 0 };
@@ -71,8 +71,8 @@ public sealed class SourceText
             }
         }
 
-        _lineStarts = starts.ToArray();
-        return _lineStarts;
+        lineStarts = starts.ToArray();
+        return lineStarts;
     }
 
     private static LinePosition OffsetToLinePosition(int[] lineStarts, int offset)

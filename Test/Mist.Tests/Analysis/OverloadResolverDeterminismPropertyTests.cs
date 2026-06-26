@@ -75,11 +75,11 @@ public class OverloadResolverDeterminismPropertyTests
     /// and their declaring types are all we need across iterations — the
     /// generator picks subsets/permutations of this fixed universe.
     /// </summary>
-    private readonly FixtureData _fixture;
+    private readonly FixtureData fixture;
 
     public OverloadResolverDeterminismPropertyTests()
     {
-        _fixture = BuildFixture();
+        fixture = BuildFixture();
     }
 
     /// <summary>
@@ -268,10 +268,10 @@ public class OverloadResolverDeterminismPropertyTests
     {
         // Build the original (candidate, origin) lists from the scenario.
         var originalCandidates = scenario.CandidateIndices
-            .Select(i => _fixture.Operators[i])
+            .Select(i => fixture.Operators[i])
             .ToList();
         var originalOrigins = scenario.Origins.ToList();
-        var argumentTypes = new IType[] { _fixture.AType, _fixture.BType };
+        var argumentTypes = new IType[] { fixture.AType, fixture.BType };
 
         // Apply the permutation, keeping each origin attached to its
         // candidate. This is the only thing that can "change" between
@@ -286,13 +286,13 @@ public class OverloadResolverDeterminismPropertyTests
         var resultOriginal = OverloadResolver.Resolve(
             originalCandidates,
             argumentTypes,
-            _fixture.Model,
+            fixture.Model,
             originalOrigins);
 
         var resultPermuted = OverloadResolver.Resolve(
             permutedCandidates,
             argumentTypes,
-            _fixture.Model,
+            fixture.Model,
             permutedOrigins);
 
         // Both resolutions must agree on status.

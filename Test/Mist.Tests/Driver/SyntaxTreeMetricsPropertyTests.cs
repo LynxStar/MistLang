@@ -29,14 +29,14 @@ public class SyntaxTreeMetricsPropertyTests
 #pragma warning disable CA1034 // Nested type is a test fixture used by FsCheck Arbitrary.
     public sealed class TestNode : Storm.Runtime.SyntaxNode
     {
-        private readonly Storm.Runtime.SyntaxNode[] _children;
+        private readonly Storm.Runtime.SyntaxNode[] children;
 
         public TestNode(Storm.Runtime.SyntaxNode[] children)
         {
-            _children = children;
+            this.children = children;
         }
 
-        public override IEnumerable<Storm.Runtime.SyntaxNode> Children() => _children;
+        public override IEnumerable<Storm.Runtime.SyntaxNode> Children() => children;
     }
 #pragma warning restore CA1034
 

@@ -31,21 +31,21 @@ namespace Mist.Tests.Driver;
 /// </summary>
 public sealed class CompilerDriverStdlibIntegrationTest : IDisposable
 {
-    private readonly string _scratchDir;
+    private readonly string scratchDir;
 
     public CompilerDriverStdlibIntegrationTest()
     {
-        _scratchDir = Path.Combine(
+        scratchDir = Path.Combine(
             Path.GetTempPath(),
             "mist-driver-stdlib-" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(_scratchDir);
+        Directory.CreateDirectory(scratchDir);
     }
 
     public void Dispose()
     {
-        if(Directory.Exists(_scratchDir))
+        if(Directory.Exists(scratchDir))
         {
-            try { Directory.Delete(_scratchDir, recursive: true); } catch { /* best effort */ }
+            try { Directory.Delete(scratchDir, recursive: true); } catch { /* best effort */ }
         }
         GC.SuppressFinalize(this);
     }
@@ -69,7 +69,7 @@ public sealed class CompilerDriverStdlibIntegrationTest : IDisposable
     /// </summary>
     private sealed class CapturingSemanticModelBuilder : ISemanticModelBuilder
     {
-        private readonly SemanticModelBuilder _inner = new();
+        private readonly SemanticModelBuilder inner = new();
 
         public ISemanticModel? Captured { get; private set; }
 
@@ -82,7 +82,7 @@ public sealed class CompilerDriverStdlibIntegrationTest : IDisposable
             DiagnosticBag diagnostics,
             ImmutableHashSet<string>? directReferencePaths = null)
         {
-            var model = _inner.Build(compilation, asts, ambientTypeResolver, namespaceRoot, projectFolder, diagnostics, directReferencePaths);
+            var model = inner.Build(compilation, asts, ambientTypeResolver, namespaceRoot, projectFolder, diagnostics, directReferencePaths);
             Captured = model;
             return model;
         }
@@ -104,15 +104,15 @@ public sealed class CompilerDriverStdlibIntegrationTest : IDisposable
         // Arrange — a minimal user program in a distinct namespace so no name
         // clash with anything the stdlib declares.
         var userSource = "namespace X;\npublic class Y {\n    public static void Main() { }\n}\n";
-        var userPath = Path.Combine(_scratchDir, "Program.mist");
+        var userPath = Path.Combine(scratchDir, "Program.mist");
         File.WriteAllText(userPath, userSource);
 
         var options = new CompilerOptions(
-            ProjectFolder: _scratchDir,
+            ProjectFolder: scratchDir,
             SourcePaths: ImmutableArray.Create(userPath),
             Backend: new BackendId("csharp"),
-            OutputDirectory: _scratchDir,
-            BinDirectory: Path.Combine(_scratchDir, "bin"),
+            OutputDirectory: scratchDir,
+            BinDirectory: Path.Combine(scratchDir, "bin"),
             ProjectName: "X",
             NamespaceRoot: "X",
             EnabledAnalyzerIds: ImmutableArray<string>.Empty);

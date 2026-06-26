@@ -48,19 +48,19 @@ public sealed class AnonymousTypeEmitterPropertyTests : IDisposable
         ImmutableArray.Create<Mist.Analysis.Contracts.IAnalyzer>(new TypeCheckerAnalyzer()),
         ImmutableArray.Create<IBackend>(new CSharpTranspilerBackend()));
 
-    private readonly string _outputDir;
+    private readonly string outputDir;
 
     public AnonymousTypeEmitterPropertyTests()
     {
-        _outputDir = Path.Combine(Path.GetTempPath(), "mist_anon_emit_pbt_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(_outputDir);
+        outputDir = Path.Combine(Path.GetTempPath(), "mist_anon_emit_pbt_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(outputDir);
     }
 
     public void Dispose()
     {
-        if(Directory.Exists(_outputDir))
+        if(Directory.Exists(outputDir))
         {
-            try { Directory.Delete(_outputDir, recursive: true); } catch { /* best effort */ }
+            try { Directory.Delete(outputDir, recursive: true); } catch { /* best effort */ }
         }
         GC.SuppressFinalize(this);
     }
@@ -208,15 +208,15 @@ public sealed class AnonymousTypeEmitterPropertyTests : IDisposable
 
     private (int ExitCode, string Stdout, string Stderr) CompileAndRun(string mistSource)
     {
-        var sourcePath = Path.Combine(_outputDir, "Program.mist");
+        var sourcePath = Path.Combine(outputDir, "Program.mist");
         File.WriteAllText(sourcePath, mistSource);
 
-        var binDir = Path.Combine(_outputDir, "bin");
+        var binDir = Path.Combine(outputDir, "bin");
         var options = new CompilerOptions(
-            ProjectFolder: _outputDir,
+            ProjectFolder: outputDir,
             SourcePaths: ImmutableArray.Create(sourcePath),
             Backend: new BackendId("csharp"),
-            OutputDirectory: _outputDir,
+            OutputDirectory: outputDir,
             BinDirectory: binDir,
             ProjectName: "TestProgram",
             NamespaceRoot: "TestProgram",
@@ -347,15 +347,15 @@ public sealed class AnonymousTypeEmitterPropertyTests : IDisposable
             }
             """;
 
-        var sourcePath = Path.Combine(_outputDir, "VarCheck.mist");
+        var sourcePath = Path.Combine(outputDir, "VarCheck.mist");
         File.WriteAllText(sourcePath, mistSource);
 
-        var binDir = Path.Combine(_outputDir, "bin_var");
+        var binDir = Path.Combine(outputDir, "bin_var");
         var options = new CompilerOptions(
-            ProjectFolder: _outputDir,
+            ProjectFolder: outputDir,
             SourcePaths: ImmutableArray.Create(sourcePath),
             Backend: new BackendId("csharp"),
-            OutputDirectory: _outputDir,
+            OutputDirectory: outputDir,
             BinDirectory: binDir,
             ProjectName: "TestProgram",
             NamespaceRoot: "TestProgram",
@@ -367,7 +367,7 @@ public sealed class AnonymousTypeEmitterPropertyTests : IDisposable
             $"Compilation failed:\n{string.Join("\n", result.Diagnostics.Select(d => $"  {d.Severity} {d.Id.Value}: {d.Message}"))}");
 
         // Read the emitted C# source files
-        var csFiles = Directory.GetFiles(_outputDir, "*.cs");
+        var csFiles = Directory.GetFiles(outputDir, "*.cs");
         Assert.NotEmpty(csFiles);
 
         var emittedSource = string.Join("\n", csFiles.Select(File.ReadAllText));

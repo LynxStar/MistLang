@@ -39,19 +39,19 @@ public sealed class GlobalUsingsEmitterDeduplicationPropertyTests : IDisposable
         ImmutableArray.Create<IAnalyzer>(new TypeCheckerAnalyzer()),
         ImmutableArray.Create<IBackend>(new CSharpTranspilerBackend()));
 
-    private readonly string _outputDir;
+    private readonly string outputDir;
 
     public GlobalUsingsEmitterDeduplicationPropertyTests()
     {
-        _outputDir = Path.Combine(Path.GetTempPath(), "MistGlobalUsingsDedup_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(_outputDir);
+        outputDir = Path.Combine(Path.GetTempPath(), "MistGlobalUsingsDedup_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(outputDir);
     }
 
     public void Dispose()
     {
-        if(Directory.Exists(_outputDir))
+        if(Directory.Exists(outputDir))
         {
-            try { Directory.Delete(_outputDir, recursive: true); } catch { /* best effort */ }
+            try { Directory.Delete(outputDir, recursive: true); } catch { /* best effort */ }
         }
         GC.SuppressFinalize(this);
     }
@@ -149,9 +149,9 @@ public sealed class GlobalUsingsEmitterDeduplicationPropertyTests : IDisposable
 
     private void CleanOutputDir()
     {
-        if(Directory.Exists(_outputDir))
+        if(Directory.Exists(outputDir))
         {
-            foreach(var file in Directory.GetFiles(_outputDir, "*", SearchOption.AllDirectories))
+            foreach(var file in Directory.GetFiles(outputDir, "*", SearchOption.AllDirectories))
             {
                 File.Delete(file);
             }
@@ -237,15 +237,15 @@ public sealed class GlobalUsingsEmitterDeduplicationPropertyTests : IDisposable
         // Build source with explicit usings (explicit-only + overlapping)
         var source = BuildSource(scenario.ExplicitUsings, scenario.OverlappingNamespaces);
 
-        var filePath = Path.Combine(_outputDir, "Test.mist");
+        var filePath = Path.Combine(outputDir, "Test.mist");
         File.WriteAllText(filePath, source);
 
         var options = new CompilerOptions(
-            ProjectFolder: _outputDir,
+            ProjectFolder: outputDir,
             SourcePaths: ImmutableArray.Create(filePath),
             Backend: new BackendId("csharp"),
-            OutputDirectory: Path.Combine(_outputDir, "output"),
-            BinDirectory: Path.Combine(_outputDir, "bin"),
+            OutputDirectory: Path.Combine(outputDir, "output"),
+            BinDirectory: Path.Combine(outputDir, "bin"),
             ProjectName: "TestProject",
             NamespaceRoot: "TestProject",
             EnabledAnalyzerIds: ImmutableArray.Create("__none__"),

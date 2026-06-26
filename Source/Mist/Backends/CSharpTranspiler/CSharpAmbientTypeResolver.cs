@@ -19,13 +19,13 @@ namespace Mist.Backends.CSharpTranspiler;
 public sealed class CSharpAmbientTypeResolver : IAmbientTypeResolver
 {
     /// <summary>Maps namespace name → set of type names available in that namespace.</summary>
-    private readonly Dictionary<string, HashSet<string>> _namespaceTypes = new();
+    private readonly Dictionary<string, HashSet<string>> namespaceTypes = new();
 
     /// <summary>Lazy factory functions keyed by (namespace, typeName).</summary>
-    private readonly Dictionary<(string Namespace, string TypeName), Func<(IType, ImmutableArray<ISymbol>)>> _typeFactories = new();
+    private readonly Dictionary<(string Namespace, string TypeName), Func<(IType, ImmutableArray<ISymbol>)>> typeFactories = new();
 
     /// <summary>Materialized cache of resolved types and their members.</summary>
-    private readonly Dictionary<(string Namespace, string TypeName), (IType Type, ImmutableArray<ISymbol> Members)> _cache = new();
+    private readonly Dictionary<(string Namespace, string TypeName), (IType Type, ImmutableArray<ISymbol> Members)> cache = new();
 
     /// <summary>
     /// The stdlib type provider used to look up Mist types for member
@@ -34,7 +34,7 @@ public sealed class CSharpAmbientTypeResolver : IAmbientTypeResolver
     /// to a model-backed provider by <see cref="SemanticModelBuilder"/>
     /// after Pass 1 registers all stdlib types.
     /// </summary>
-    private IStdlibTypeProvider _stdlib;
+    private IStdlibTypeProvider stdlib;
 
     /// <summary>
     /// Creates a new ambient type resolver. Currently registers no types —
@@ -48,11 +48,11 @@ public sealed class CSharpAmbientTypeResolver : IAmbientTypeResolver
     /// </param>
     public CSharpAmbientTypeResolver(IStdlibTypeProvider? stdlib = null)
     {
-        _stdlib = stdlib ?? FallbackStdlibTypeProvider.Instance;
+        this.stdlib = stdlib ?? FallbackStdlibTypeProvider.Instance;
     }
 
     /// <inheritdoc />
-    public bool HasNamespace(string namespaceName) => _namespaceTypes.ContainsKey(namespaceName);
+    public bool HasNamespace(string namespaceName) => namespaceTypes.ContainsKey(namespaceName);
 
     /// <summary>
     /// Upgrades the stdlib type provider used by lazy type factories.
@@ -66,31 +66,31 @@ public sealed class CSharpAmbientTypeResolver : IAmbientTypeResolver
     /// </summary>
     internal void UpdateStdlibProvider(IStdlibTypeProvider provider)
     {
-        _stdlib = provider;
+        stdlib = provider;
     }
 
     /// <inheritdoc />
     public IType? ResolveType(string namespaceName, string typeName)
     {
-        if(_cache.TryGetValue((namespaceName, typeName), out var cached))
+        if(cache.TryGetValue((namespaceName, typeName), out var cached))
         {
             return cached.Type;
         }
 
-        if(!_typeFactories.TryGetValue((namespaceName, typeName), out var factory))
+        if(!typeFactories.TryGetValue((namespaceName, typeName), out var factory))
         {
             return null;
         }
 
         var (type, members) = factory();
-        _cache[(namespaceName, typeName)] = (type, members);
+        cache[(namespaceName, typeName)] = (type, members);
         return type;
     }
 
     /// <inheritdoc />
     public ImmutableArray<ISymbol> GetMembers(IType type)
     {
-        foreach(var entry in _cache.Values)
+        foreach(var entry in cache.Values)
         {
             if(ReferenceEquals(entry.Type, type))
             {
@@ -104,7 +104,7 @@ public sealed class CSharpAmbientTypeResolver : IAmbientTypeResolver
     /// <inheritdoc />
     public ImmutableArray<string> GetTypeNamesInNamespace(string namespaceName)
     {
-        if(_namespaceTypes.TryGetValue(namespaceName, out var types))
+        if(namespaceTypes.TryGetValue(namespaceName, out var types))
         {
             return [.. types];
         }
@@ -118,12 +118,12 @@ public sealed class CSharpAmbientTypeResolver : IAmbientTypeResolver
 
     private void RegisterType(string ns, string name, Func<(IType, ImmutableArray<ISymbol>)> factory)
     {
-        if(!_namespaceTypes.ContainsKey(ns))
+        if(!namespaceTypes.ContainsKey(ns))
         {
-            _namespaceTypes[ns] = [];
+            namespaceTypes[ns] = [];
         }
 
-        _namespaceTypes[ns].Add(name);
-        _typeFactories[(ns, name)] = factory;
+        namespaceTypes[ns].Add(name);
+        typeFactories[(ns, name)] = factory;
     }
 }

@@ -27,7 +27,7 @@ namespace Mist.Tests.Semantics;
 /// </summary>
 public class NameResolutionPropertyTests
 {
-    private readonly SemanticModelBuilder _builder = new();
+    private readonly SemanticModelBuilder builder = new();
 
     // ─── Helpers ─────────────────────────────────────────────────────────
 
@@ -55,7 +55,7 @@ public class NameResolutionPropertyTests
     {
         var compilation = MakeCompilation(source);
         var diagnostics = new DiagnosticBag();
-        return _builder.Build(compilation, ImmutableArray.Create(ast), ambientTypeResolver, namespaceRoot: "TestProject", projectFolder: "/test", diagnostics);
+        return builder.Build(compilation, ImmutableArray.Create(ast), ambientTypeResolver, namespaceRoot: "TestProject", projectFolder: "/test", diagnostics);
     }
 
     private (ISemanticModel Model, ImmutableArray<Diagnostic> Diagnostics) BuildModelWithDiagnostics(
@@ -65,7 +65,7 @@ public class NameResolutionPropertyTests
     {
         var compilation = MakeCompilation(source);
         var diagnostics = new DiagnosticBag();
-        var model = _builder.Build(compilation, ImmutableArray.Create(ast), ambientTypeResolver, namespaceRoot: "TestProject", projectFolder: "/test", diagnostics);
+        var model = builder.Build(compilation, ImmutableArray.Create(ast), ambientTypeResolver, namespaceRoot: "TestProject", projectFolder: "/test", diagnostics);
         return (model, diagnostics.ToImmutableArray());
     }
 
@@ -803,14 +803,14 @@ public class NameResolutionPropertyTests
     /// </summary>
     private sealed class TestAmbientTypeResolver : IAmbientTypeResolver
     {
-        private readonly HashSet<string> _knownNamespaces;
+        private readonly HashSet<string> knownNamespaces;
 
         public TestAmbientTypeResolver(IEnumerable<string> knownNamespaces)
         {
-            _knownNamespaces = new HashSet<string>(knownNamespaces);
+            this.knownNamespaces = new HashSet<string>(knownNamespaces);
         }
 
-        public bool HasNamespace(string namespaceName) => _knownNamespaces.Contains(namespaceName);
+        public bool HasNamespace(string namespaceName) => knownNamespaces.Contains(namespaceName);
 
         public IType? ResolveType(string namespaceName, string typeName) => null;
 

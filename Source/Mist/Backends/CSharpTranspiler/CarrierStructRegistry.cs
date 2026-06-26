@@ -53,13 +53,13 @@ internal sealed class CarrierStructRegistry
     /// <summary>
     /// The set of registered carrier entries, keyed by struct name for deduplication.
     /// </summary>
-    private readonly Dictionary<string, CarrierEntry> _entries = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, CarrierEntry> entries = new(StringComparer.Ordinal);
 
     /// <summary>
     /// Gets all registered carrier entries in a stable (alphabetical) order.
     /// </summary>
     public IReadOnlyList<CarrierEntry> Entries =>
-        _entries.Values.OrderBy(e => e.StructName, StringComparer.Ordinal).ToList();
+        entries.Values.OrderBy(e => e.StructName, StringComparer.Ordinal).ToList();
 
     /// <summary>
     /// Registers a dependent value by keyword and value directly, without needing an <see cref="IType"/>.
@@ -83,7 +83,7 @@ internal sealed class CarrierStructRegistry
         var interfaceName = $"IConst{capitalized}";
         var literalValue = FormatLiteral(value, keyword);
 
-        _entries.TryAdd(structName, new CarrierEntry(structName, interfaceName, keyword, literalValue));
+        entries.TryAdd(structName, new CarrierEntry(structName, interfaceName, keyword, literalValue));
         return structName;
     }
 
@@ -112,7 +112,7 @@ internal sealed class CarrierStructRegistry
         var interfaceName = $"IConst{capitalized}";
         var literalValue = FormatLiteral(depArg.Value, keyword);
 
-        _entries.TryAdd(structName, new CarrierEntry(structName, interfaceName, keyword, literalValue));
+        entries.TryAdd(structName, new CarrierEntry(structName, interfaceName, keyword, literalValue));
         return structName;
     }
 
@@ -493,7 +493,7 @@ internal sealed class CarrierStructRegistry
     /// </summary>
     public string GenerateCarrierStructs()
     {
-        if(_entries.Count == 0)
+        if(entries.Count == 0)
         {
             return string.Empty;
         }

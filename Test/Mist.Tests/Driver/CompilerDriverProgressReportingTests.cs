@@ -16,21 +16,21 @@ namespace Mist.Tests.Driver;
 /// </summary>
 public sealed class CompilerDriverProgressReportingTests : IDisposable
 {
-    private readonly string _scratchDir;
+    private readonly string scratchDir;
 
     public CompilerDriverProgressReportingTests()
     {
-        _scratchDir = Path.Combine(
+        scratchDir = Path.Combine(
             Path.GetTempPath(),
             "mist-progress-" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(_scratchDir);
+        Directory.CreateDirectory(scratchDir);
     }
 
     public void Dispose()
     {
-        if(Directory.Exists(_scratchDir))
+        if(Directory.Exists(scratchDir))
         {
-            try { Directory.Delete(_scratchDir, recursive: true); } catch { /* best effort */ }
+            try { Directory.Delete(scratchDir, recursive: true); } catch { /* best effort */ }
         }
         GC.SuppressFinalize(this);
     }
@@ -68,16 +68,16 @@ public sealed class CompilerDriverProgressReportingTests : IDisposable
 
     private CompilerOptions CreateOptionsForSource(string source, string fileName = "Program.mist")
     {
-        var userPath = Path.Combine(_scratchDir, fileName);
+        var userPath = Path.Combine(scratchDir, fileName);
         File.WriteAllText(userPath, source);
 
-        var outputDir = Path.Combine(_scratchDir, "output");
-        var binDir = Path.Combine(_scratchDir, "bin");
+        var outputDir = Path.Combine(scratchDir, "output");
+        var binDir = Path.Combine(scratchDir, "bin");
         Directory.CreateDirectory(outputDir);
         Directory.CreateDirectory(binDir);
 
         return new CompilerOptions(
-            ProjectFolder: _scratchDir,
+            ProjectFolder: scratchDir,
             SourcePaths: ImmutableArray.Create(userPath),
             Backend: new BackendId("csharp"),
             OutputDirectory: outputDir,

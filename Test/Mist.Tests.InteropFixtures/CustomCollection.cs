@@ -9,13 +9,13 @@ namespace Mist.Tests.InteropFixtures;
 /// </summary>
 public class CustomCollection : IEnumerable<int>
 {
-    private readonly int[] _items;
+    private readonly int[] items;
 
-    public CustomCollection(params int[] items) => _items = items;
+    public CustomCollection(params int[] items) => this.items = items;
 
-    public int Count => _items.Length;
+    public int Count => items.Length;
 
-    public Enumerator GetEnumerator() => new(_items);
+    public Enumerator GetEnumerator() => new(items);
 
     IEnumerator<int> IEnumerable<int>.GetEnumerator() => GetEnumerator();
 
@@ -26,26 +26,26 @@ public class CustomCollection : IEnumerable<int>
     /// </summary>
     public struct Enumerator : IEnumerator<int>
     {
-        private readonly int[] _items;
-        private int _index;
+        private readonly int[] items;
+        private int index;
 
         internal Enumerator(int[] items)
         {
-            _items = items;
-            _index = -1;
+            this.items = items;
+            index = -1;
         }
 
-        public int Current => _items[_index];
+        public int Current => items[index];
 
         object IEnumerator.Current => Current;
 
         public bool MoveNext()
         {
-            _index++;
-            return _index < _items.Length;
+            index++;
+            return index < items.Length;
         }
 
-        public void Reset() => _index = -1;
+        public void Reset() => index = -1;
 
         public void Dispose() { }
     }

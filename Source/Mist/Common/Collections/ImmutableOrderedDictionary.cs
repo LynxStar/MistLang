@@ -10,36 +10,36 @@ namespace Mist.Common.Collections;
 public sealed class ImmutableOrderedDictionary<TKey, TValue> : IReadOnlyDictionary<TKey, TValue>
     where TKey : notnull
 {
-    private ImmutableArray<KeyValuePair<TKey, TValue>> _entries;
-    private ImmutableDictionary<TKey, TValue> _lookup;
+    private ImmutableArray<KeyValuePair<TKey, TValue>> entries;
+    private ImmutableDictionary<TKey, TValue> lookup;
 
     private ImmutableOrderedDictionary(
         ImmutableArray<KeyValuePair<TKey, TValue>> entries,
         ImmutableDictionary<TKey, TValue> lookup)
     {
-        _entries = entries;
-        _lookup = lookup;
+        this.entries = entries;
+        this.lookup = lookup;
     }
 
     public static ImmutableOrderedDictionary<TKey, TValue> Empty { get; } = new(
         ImmutableArray<KeyValuePair<TKey, TValue>>.Empty,
         ImmutableDictionary<TKey, TValue>.Empty);
 
-    public int Count => _entries.Length;
+    public int Count => entries.Length;
 
-    public IEnumerable<TKey> Keys => _entries.Select(e => e.Key);
+    public IEnumerable<TKey> Keys => entries.Select(e => e.Key);
 
-    public IEnumerable<TValue> Values => _entries.Select(e => e.Value);
+    public IEnumerable<TValue> Values => entries.Select(e => e.Value);
 
-    public TValue this[TKey key] => _lookup[key];
+    public TValue this[TKey key] => lookup[key];
 
-    public bool ContainsKey(TKey key) => _lookup.ContainsKey(key);
+    public bool ContainsKey(TKey key) => lookup.ContainsKey(key);
 
     public bool TryGetValue(TKey key, [MaybeNullWhen(false)] out TValue value)
-        => _lookup.TryGetValue(key, out value);
+        => lookup.TryGetValue(key, out value);
 
     public IEnumerator<KeyValuePair<TKey, TValue>> GetEnumerator()
-        => ((IEnumerable<KeyValuePair<TKey, TValue>>)_entries).GetEnumerator();
+        => ((IEnumerable<KeyValuePair<TKey, TValue>>)entries).GetEnumerator();
 
     IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 
@@ -50,8 +50,8 @@ public sealed class ImmutableOrderedDictionary<TKey, TValue> : IReadOnlyDictiona
     public ImmutableOrderedDictionary<TKey, TValue> Add(TKey key, TValue value)
     {
         return new ImmutableOrderedDictionary<TKey, TValue>(
-            _entries.Add(new KeyValuePair<TKey, TValue>(key, value)),
-            _lookup.Add(key, value));
+            entries.Add(new KeyValuePair<TKey, TValue>(key, value)),
+            lookup.Add(key, value));
     }
 
     /// <summary>
@@ -59,22 +59,22 @@ public sealed class ImmutableOrderedDictionary<TKey, TValue> : IReadOnlyDictiona
     /// </summary>
     public sealed class Builder
     {
-        private List<KeyValuePair<TKey, TValue>> _entries = [];
-        private Dictionary<TKey, TValue> _lookup = [];
+        private List<KeyValuePair<TKey, TValue>> entries = [];
+        private Dictionary<TKey, TValue> lookup = [];
 
         public void Add(TKey key, TValue value)
         {
-            _lookup.Add(key, value); // throws on duplicate
-            _entries.Add(new KeyValuePair<TKey, TValue>(key, value));
+            lookup.Add(key, value); // throws on duplicate
+            entries.Add(new KeyValuePair<TKey, TValue>(key, value));
         }
 
-        public bool ContainsKey(TKey key) => _lookup.ContainsKey(key);
+        public bool ContainsKey(TKey key) => lookup.ContainsKey(key);
 
         public ImmutableOrderedDictionary<TKey, TValue> ToImmutable()
         {
             return new ImmutableOrderedDictionary<TKey, TValue>(
-                [.. _entries],
-                _lookup.ToImmutableDictionary());
+                [.. entries],
+                lookup.ToImmutableDictionary());
         }
     }
 }

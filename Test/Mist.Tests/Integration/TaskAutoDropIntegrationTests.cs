@@ -40,19 +40,19 @@ public sealed class TaskAutoDropIntegrationTests : IDisposable
         ImmutableArray.Create<Mist.Analysis.Contracts.IAnalyzer>(new TypeCheckerAnalyzer()),
         ImmutableArray.Create<IBackend>(new CSharpTranspilerBackend()));
 
-    private readonly string _outputDir;
+    private readonly string outputDir;
 
     public TaskAutoDropIntegrationTests()
     {
-        _outputDir = Path.Combine(Path.GetTempPath(), "mist_task_autodrop_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(_outputDir);
+        outputDir = Path.Combine(Path.GetTempPath(), "mist_task_autodrop_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(outputDir);
     }
 
     public void Dispose()
     {
-        if(Directory.Exists(_outputDir))
+        if(Directory.Exists(outputDir))
         {
-            try { Directory.Delete(_outputDir, recursive: true); } catch { /* best effort */ }
+            try { Directory.Delete(outputDir, recursive: true); } catch { /* best effort */ }
         }
         GC.SuppressFinalize(this);
     }
@@ -139,15 +139,15 @@ public sealed class TaskAutoDropIntegrationTests : IDisposable
             }
             """;
 
-        var sourcePath = Path.Combine(_outputDir, "Program.mist");
+        var sourcePath = Path.Combine(outputDir, "Program.mist");
         File.WriteAllText(sourcePath, mistSource);
 
-        var binDir = Path.Combine(_outputDir, "bin");
+        var binDir = Path.Combine(outputDir, "bin");
         var options = new CompilerOptions(
-            ProjectFolder: _outputDir,
+            ProjectFolder: outputDir,
             SourcePaths: ImmutableArray.Create(sourcePath),
             Backend: new BackendId("csharp"),
-            OutputDirectory: _outputDir,
+            OutputDirectory: outputDir,
             BinDirectory: binDir,
             ProjectName: "TestTaskAutoDrop",
             NamespaceRoot: "TestTaskAutoDrop",

@@ -48,26 +48,26 @@ namespace Storm.SourceGenerator.Emit
         /// </summary>
         private sealed class Parser
         {
-            private readonly string _pattern;
+            private readonly string pattern;
 
             public int Position { get; private set; }
 
             public Parser(string pattern)
             {
-                _pattern = pattern;
+                this.pattern = pattern;
                 Position = 0;
             }
 
-            private bool HasMore => Position < _pattern.Length;
+            private bool HasMore => Position < pattern.Length;
 
             private char Peek()
             {
-                return _pattern[Position];
+                return pattern[Position];
             }
 
             private char Advance()
             {
-                return _pattern[Position++];
+                return pattern[Position++];
             }
 
             /// <summary>
@@ -164,7 +164,7 @@ namespace Storm.SourceGenerator.Emit
                 if(!HasMore)
                 {
                     throw new FormatException(
-                        $"Unexpected end of regex pattern: {_pattern}");
+                        $"Unexpected end of regex pattern: {pattern}");
                 }
 
                 var ch = Peek();
@@ -214,7 +214,7 @@ namespace Storm.SourceGenerator.Emit
                 // Read until closing ']'
                 while(HasMore && Peek() != ']')
                 {
-                    if(Peek() == '\\' && Position + 1 < _pattern.Length)
+                    if(Peek() == '\\' && Position + 1 < pattern.Length)
                     {
                         Advance(); // skip backslash
                         Advance(); // skip escaped char
@@ -228,12 +228,12 @@ namespace Storm.SourceGenerator.Emit
                 if(!HasMore)
                 {
                     throw new FormatException(
-                        $"Unterminated character class starting at position {startPos} in regex pattern: {_pattern}");
+                        $"Unterminated character class starting at position {startPos} in regex pattern: {pattern}");
                 }
 
                 Advance(); // consume ']'
 
-                var classText = _pattern.Substring(startPos, Position - startPos);
+                var classText = pattern.Substring(startPos, Position - startPos);
                 return new CharClassIR(classText);
             }
 
@@ -249,7 +249,7 @@ namespace Storm.SourceGenerator.Emit
                 if(!HasMore || Peek() != ')')
                 {
                     throw new FormatException(
-                        $"Unterminated group in regex pattern: {_pattern}");
+                        $"Unterminated group in regex pattern: {pattern}");
                 }
 
                 Advance(); // consume ')'
@@ -269,7 +269,7 @@ namespace Storm.SourceGenerator.Emit
                 if(!HasMore)
                 {
                     throw new FormatException(
-                        $"Unexpected end of regex pattern after backslash: {_pattern}");
+                        $"Unexpected end of regex pattern after backslash: {pattern}");
                 }
 
                 var escaped = Advance();

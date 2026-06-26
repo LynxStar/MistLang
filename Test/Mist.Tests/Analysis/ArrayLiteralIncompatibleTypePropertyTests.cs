@@ -22,17 +22,17 @@ namespace Mist.Tests.Analysis;
 /// </summary>
 public sealed class IncompatibleArrayScenario
 {
-    private readonly string[] _elementLiterals;
+    private readonly string[] elementLiterals;
 
-    public IReadOnlyList<string> ElementLiterals => _elementLiterals;
+    public IReadOnlyList<string> ElementLiterals => elementLiterals;
 
     public IncompatibleArrayScenario(string[] elementLiterals)
     {
-        _elementLiterals = elementLiterals;
+        this.elementLiterals = elementLiterals;
     }
 
     public override string ToString() =>
-        $"mixed[{_elementLiterals.Length}]: [{string.Join(", ", _elementLiterals)}]";
+        $"mixed[{elementLiterals.Length}]: [{string.Join(", ", elementLiterals)}]";
 }
 
 /// <summary>

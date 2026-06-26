@@ -249,7 +249,7 @@ namespace Storm.SourceGenerator.Tests
 
         private const string MemoizedRuleName = "SelfRep";
 
-        private static readonly object _parserEmitLock = new();
+        private static readonly object parserEmitLock = new();
 
         /// <summary>
         /// Minimal stub for <c>Mist.Common.Text.NodeOrigin</c> so the emitted
@@ -273,7 +273,7 @@ namespace Storm.SourceGenerator.Tests
                 : new EmissionContext(ns, grammarName, grammarIr, plan);
 
             string runtimeSource, astSource, lexerSource, parserSource;
-            lock(_parserEmitLock)
+            lock(parserEmitLock)
             {
                 runtimeSource = AstEmitter.EmitRuntimeTypes();
                 astSource = AstEmitter.EmitAstNodes(context);

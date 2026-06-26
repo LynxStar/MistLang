@@ -25,20 +25,20 @@ namespace Mist.Tests.Backend;
 /// </summary>
 public sealed class EmitterFileCountPropertyTests : IDisposable
 {
-    private readonly SemanticModelBuilder _builder = new();
-    private readonly string _outputDir;
+    private readonly SemanticModelBuilder builder = new();
+    private readonly string outputDir;
 
     public EmitterFileCountPropertyTests()
     {
-        _outputDir = Path.Combine(Path.GetTempPath(), "MistEmitterFileCountTests_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(_outputDir);
+        outputDir = Path.Combine(Path.GetTempPath(), "MistEmitterFileCountTests_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(outputDir);
     }
 
     public void Dispose()
     {
-        if(Directory.Exists(_outputDir))
+        if(Directory.Exists(outputDir))
         {
-            try { Directory.Delete(_outputDir, recursive: true); } catch { /* best effort */ }
+            try { Directory.Delete(outputDir, recursive: true); } catch { /* best effort */ }
         }
         GC.SuppressFinalize(this);
     }
@@ -152,16 +152,16 @@ public sealed class EmitterFileCountPropertyTests : IDisposable
 
         var compilation = new MistCompilation(units.ToImmutableArray());
         var diagnostics = new DiagnosticBag();
-        var model = _builder.Build(compilation, asts.ToImmutableArray(), ambientTypeResolver: null, namespaceRoot: "TestProject", projectFolder: "/test", diagnostics);
+        var model = builder.Build(compilation, asts.ToImmutableArray(), ambientTypeResolver: null, namespaceRoot: "TestProject", projectFolder: "/test", diagnostics);
 
         return (model, fileCount);
     }
 
     private void CleanOutputDir()
     {
-        if(Directory.Exists(_outputDir))
+        if(Directory.Exists(outputDir))
         {
-            foreach(var file in Directory.GetFiles(_outputDir))
+            foreach(var file in Directory.GetFiles(outputDir))
             {
                 File.Delete(file);
             }
@@ -200,10 +200,10 @@ public sealed class EmitterFileCountPropertyTests : IDisposable
 
         var (model, fileCount) = BuildMultiFileModel(scenario.FileCount);
         var diagnostics = new DiagnosticBag();
-        CSharpEmitter.Emit(model, _outputDir, "TestProject", diagnostics);
+        CSharpEmitter.Emit(model, outputDir, "TestProject", diagnostics);
 
-        var csFiles = Directory.GetFiles(_outputDir, "*.cs");
-        var csprojFiles = Directory.GetFiles(_outputDir, "*.csproj");
+        var csFiles = Directory.GetFiles(outputDir, "*.cs");
+        var csprojFiles = Directory.GetFiles(outputDir, "*.csproj");
 
         return csFiles.Length == fileCount && csprojFiles.Length == 1;
     }
@@ -219,9 +219,9 @@ public sealed class EmitterFileCountPropertyTests : IDisposable
 
         var (model, fileCount) = BuildMultiFileModel(scenario.FileCount);
         var diagnostics = new DiagnosticBag();
-        CSharpEmitter.Emit(model, _outputDir, "TestProject", diagnostics);
+        CSharpEmitter.Emit(model, outputDir, "TestProject", diagnostics);
 
-        var csFileNames = Directory.GetFiles(_outputDir, "*.cs")
+        var csFileNames = Directory.GetFiles(outputDir, "*.cs")
             .Select(Path.GetFileName)
             .OrderBy(n => n)
             .ToList();
@@ -257,9 +257,9 @@ public sealed class EmitterFileCountPropertyTests : IDisposable
 
         var (model, _) = BuildMultiFileModel(scenario.FileCount);
         var diagnostics = new DiagnosticBag();
-        CSharpEmitter.Emit(model, _outputDir, "TestProject", diagnostics);
+        CSharpEmitter.Emit(model, outputDir, "TestProject", diagnostics);
 
-        var csprojFiles = Directory.GetFiles(_outputDir, "*.csproj");
+        var csprojFiles = Directory.GetFiles(outputDir, "*.csproj");
         return csprojFiles.Length == 1 &&
                Path.GetFileName(csprojFiles[0]) == "TestProject.csproj";
     }
@@ -273,10 +273,10 @@ public sealed class EmitterFileCountPropertyTests : IDisposable
 
         var (model, _) = BuildMultiFileModel(1);
         var diagnostics = new DiagnosticBag();
-        CSharpEmitter.Emit(model, _outputDir, "TestProject", diagnostics);
+        CSharpEmitter.Emit(model, outputDir, "TestProject", diagnostics);
 
-        Assert.Single(Directory.GetFiles(_outputDir, "*.cs"));
-        Assert.Single(Directory.GetFiles(_outputDir, "*.csproj"));
+        Assert.Single(Directory.GetFiles(outputDir, "*.cs"));
+        Assert.Single(Directory.GetFiles(outputDir, "*.csproj"));
     }
 
     [Fact]
@@ -286,10 +286,10 @@ public sealed class EmitterFileCountPropertyTests : IDisposable
 
         var (model, _) = BuildMultiFileModel(3);
         var diagnostics = new DiagnosticBag();
-        CSharpEmitter.Emit(model, _outputDir, "TestProject", diagnostics);
+        CSharpEmitter.Emit(model, outputDir, "TestProject", diagnostics);
 
-        Assert.Equal(3, Directory.GetFiles(_outputDir, "*.cs").Length);
-        Assert.Single(Directory.GetFiles(_outputDir, "*.csproj"));
+        Assert.Equal(3, Directory.GetFiles(outputDir, "*.cs").Length);
+        Assert.Single(Directory.GetFiles(outputDir, "*.csproj"));
     }
 
     [Fact]
@@ -299,9 +299,9 @@ public sealed class EmitterFileCountPropertyTests : IDisposable
 
         var (model, _) = BuildMultiFileModel(5);
         var diagnostics = new DiagnosticBag();
-        CSharpEmitter.Emit(model, _outputDir, "TestProject", diagnostics);
+        CSharpEmitter.Emit(model, outputDir, "TestProject", diagnostics);
 
-        Assert.Equal(5, Directory.GetFiles(_outputDir, "*.cs").Length);
-        Assert.Single(Directory.GetFiles(_outputDir, "*.csproj"));
+        Assert.Equal(5, Directory.GetFiles(outputDir, "*.cs").Length);
+        Assert.Single(Directory.GetFiles(outputDir, "*.csproj"));
     }
 }

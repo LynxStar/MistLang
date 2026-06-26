@@ -7,23 +7,23 @@ namespace Mist.Common.Diagnostics;
 /// </summary>
 public sealed class DiagnosticBag
 {
-    private List<Diagnostic> _diagnostics = [];
+    private List<Diagnostic> diagnostics = [];
 
     /// <summary>
     /// Adds a diagnostic to the bag.
     /// </summary>
     public void Add(Diagnostic diagnostic)
     {
-        _diagnostics.Add(diagnostic);
+        diagnostics.Add(diagnostic);
     }
 
     /// <summary>
     /// Returns <c>true</c> if any diagnostic with <see cref="DiagnosticSeverity.Error"/> severity has been added.
     /// </summary>
-    public bool HasErrors => _diagnostics.Exists(d => d.Severity == DiagnosticSeverity.Error);
+    public bool HasErrors => diagnostics.Exists(d => d.Severity == DiagnosticSeverity.Error);
 
     /// <summary>
     /// Returns all diagnostics as an immutable array.
     /// </summary>
-    public ImmutableArray<Diagnostic> ToImmutableArray() => [.. _diagnostics];
+    public ImmutableArray<Diagnostic> ToImmutableArray() => [.. diagnostics];
 }

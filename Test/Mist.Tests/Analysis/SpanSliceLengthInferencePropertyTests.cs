@@ -232,7 +232,7 @@ public sealed class SpanSliceLengthInferencePropertyTests
 
     private sealed class CapturingSemanticModelBuilder : ISemanticModelBuilder
     {
-        private readonly SemanticModelBuilder _inner = new();
+        private readonly SemanticModelBuilder inner = new();
 
         public ISemanticModel? CapturedModel { get; private set; }
 
@@ -245,7 +245,7 @@ public sealed class SpanSliceLengthInferencePropertyTests
             DiagnosticBag diagnostics,
             ImmutableHashSet<string>? directReferencePaths = null)
         {
-            var model = _inner.Build(compilation, asts, ambientTypeResolver, namespaceRoot, projectFolder, diagnostics, directReferencePaths);
+            var model = inner.Build(compilation, asts, ambientTypeResolver, namespaceRoot, projectFolder, diagnostics, directReferencePaths);
             CapturedModel = model;
             return model;
         }

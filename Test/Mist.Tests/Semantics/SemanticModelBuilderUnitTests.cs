@@ -17,7 +17,7 @@ namespace Mist.Tests.Semantics;
 /// </summary>
 public class SemanticModelBuilderUnitTests
 {
-    private readonly SemanticModelBuilder _builder = new();
+    private readonly SemanticModelBuilder builder = new();
 
     // ─── Helpers ─────────────────────────────────────────────────────────
 
@@ -56,7 +56,7 @@ public class SemanticModelBuilderUnitTests
     {
         var compilation = MakeCompilation(source);
         var diagnostics = new DiagnosticBag();
-        return _builder.Build(compilation, ImmutableArray.Create(ast), ambientTypeResolver, namespaceRoot: "TestProject", projectFolder: "/test", diagnostics);
+        return builder.Build(compilation, ImmutableArray.Create(ast), ambientTypeResolver, namespaceRoot: "TestProject", projectFolder: "/test", diagnostics);
     }
 
     private (ISemanticModel Model, ImmutableArray<Diagnostic> Diagnostics) BuildModelWithDiagnostics(
@@ -66,7 +66,7 @@ public class SemanticModelBuilderUnitTests
     {
         var compilation = MakeCompilation(source);
         var diagnostics = new DiagnosticBag();
-        var model = _builder.Build(compilation, ImmutableArray.Create(ast), ambientTypeResolver, namespaceRoot: "TestProject", projectFolder: "/test", diagnostics);
+        var model = builder.Build(compilation, ImmutableArray.Create(ast), ambientTypeResolver, namespaceRoot: "TestProject", projectFolder: "/test", diagnostics);
         return (model, diagnostics.ToImmutableArray());
     }
 

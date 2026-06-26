@@ -24,15 +24,15 @@ namespace Mist.Tests.Backend;
 /// </summary>
 public sealed class TypeProjectorDelegateTests
 {
-    private readonly TypeProjector _projector;
-    private readonly DelegateTestStdlibTypeProvider _stdlib;
+    private readonly TypeProjector projector;
+    private readonly DelegateTestStdlibTypeProvider stdlib;
 
     public TypeProjectorDelegateTests()
     {
         var intrinsicMap = new IntrinsicTypeMap();
         var filter = new VisibilityFilter();
-        _projector = new TypeProjector(intrinsicMap, filter);
-        _stdlib = new DelegateTestStdlibTypeProvider();
+        projector = new TypeProjector(intrinsicMap, filter);
+        stdlib = new DelegateTestStdlibTypeProvider();
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -43,7 +43,7 @@ public sealed class TypeProjectorDelegateTests
 
     private sealed class DelegateTestStdlibTypeProvider : IStdlibTypeProvider
     {
-        private readonly Dictionary<int, ClassType> _funcByArity = new();
+        private readonly Dictionary<int, ClassType> funcByArity = new();
 
         private static readonly StructType VoidType =
             new("Void", new Scope(null), "Standard", isBackendBacked: true);
@@ -56,7 +56,7 @@ public sealed class TypeProjectorDelegateTests
 
         public ClassType FuncOfArity(int arity)
         {
-            if(!_funcByArity.TryGetValue(arity, out var func))
+            if(!funcByArity.TryGetValue(arity, out var func))
             {
                 func = new ClassType("Func", new Scope(null), "Standard", isBackendBacked: true);
                 var tps = new IType[arity];
@@ -66,7 +66,7 @@ public sealed class TypeProjectorDelegateTests
                 }
 
                 func.TypeParameters = tps;
-                _funcByArity[arity] = func;
+                funcByArity[arity] = func;
             }
             return func;
         }
@@ -94,7 +94,7 @@ public sealed class TypeProjectorDelegateTests
     [Fact]
     public void ProjectMemberType_SystemFuncIntString_ProjectsToConstructedType_NotDelegateType()
     {
-        var projected = _projector.ProjectMemberType(typeof(Func<int, string>), _stdlib);
+        var projected = projector.ProjectMemberType(typeof(Func<int, string>), stdlib);
 
         Assert.IsType<ConstructedType>(projected);
         Assert.IsNotType<DelegateType>(projected);
@@ -112,7 +112,7 @@ public sealed class TypeProjectorDelegateTests
     [Fact]
     public void ProjectMemberType_NonGenericSystemAction_ProjectsToConstructedType_NotDelegateType()
     {
-        var projected = _projector.ProjectMemberType(typeof(Action), _stdlib);
+        var projected = projector.ProjectMemberType(typeof(Action), stdlib);
 
         Assert.IsType<ConstructedType>(projected);
         Assert.IsNotType<DelegateType>(projected);
@@ -126,7 +126,7 @@ public sealed class TypeProjectorDelegateTests
     [Fact]
     public void ProjectMemberType_SystemActionOfInt_ProjectsToConstructedType_NotDelegateType()
     {
-        var projected = _projector.ProjectMemberType(typeof(Action<int>), _stdlib);
+        var projected = projector.ProjectMemberType(typeof(Action<int>), stdlib);
 
         Assert.IsType<ConstructedType>(projected);
         Assert.IsNotType<DelegateType>(projected);
@@ -144,7 +144,7 @@ public sealed class TypeProjectorDelegateTests
     [Fact]
     public void ProjectMemberType_SystemDelegate_ProjectsToBaseDelegateTypeInstance()
     {
-        var projected = _projector.ProjectMemberType(typeof(Delegate), _stdlib);
+        var projected = projector.ProjectMemberType(typeof(Delegate), stdlib);
 
         Assert.Same(BaseDelegateType.Instance, projected);
     }
@@ -152,7 +152,7 @@ public sealed class TypeProjectorDelegateTests
     [Fact]
     public void ProjectMemberType_SystemMulticastDelegate_ProjectsToBaseDelegateTypeInstance()
     {
-        var projected = _projector.ProjectMemberType(typeof(MulticastDelegate), _stdlib);
+        var projected = projector.ProjectMemberType(typeof(MulticastDelegate), stdlib);
 
         Assert.Same(BaseDelegateType.Instance, projected);
     }
@@ -164,7 +164,7 @@ public sealed class TypeProjectorDelegateTests
     [Fact]
     public void ProjectMemberType_PredicateOfInt_ProjectsToDelegateType()
     {
-        var projected = _projector.ProjectMemberType(typeof(Predicate<int>), _stdlib);
+        var projected = projector.ProjectMemberType(typeof(Predicate<int>), stdlib);
 
         Assert.IsType<DelegateType>(projected);
     }
@@ -172,7 +172,7 @@ public sealed class TypeProjectorDelegateTests
     [Fact]
     public void ProjectMemberType_PredicateOfInt_HasCorrectClrFullName()
     {
-        var projected = _projector.ProjectMemberType(typeof(Predicate<int>), _stdlib);
+        var projected = projector.ProjectMemberType(typeof(Predicate<int>), stdlib);
         var dt = Assert.IsType<DelegateType>(projected);
 
         // System.Predicate`1[[System.Int32]] — the FullName for constructed generics
@@ -183,7 +183,7 @@ public sealed class TypeProjectorDelegateTests
     [Fact]
     public void ProjectMemberType_PredicateOfInt_HasCorrectNamespace()
     {
-        var projected = _projector.ProjectMemberType(typeof(Predicate<int>), _stdlib);
+        var projected = projector.ProjectMemberType(typeof(Predicate<int>), stdlib);
         var dt = Assert.IsType<DelegateType>(projected);
 
         Assert.Equal("System", dt.ClrNamespace);
@@ -192,7 +192,7 @@ public sealed class TypeProjectorDelegateTests
     [Fact]
     public void ProjectMemberType_PredicateOfInt_HasCorrectSimpleName()
     {
-        var projected = _projector.ProjectMemberType(typeof(Predicate<int>), _stdlib);
+        var projected = projector.ProjectMemberType(typeof(Predicate<int>), stdlib);
         var dt = Assert.IsType<DelegateType>(projected);
 
         Assert.Equal("Predicate", dt.ClrSimpleName);
@@ -203,7 +203,7 @@ public sealed class TypeProjectorDelegateTests
     {
         // Predicate<int> has signature: bool Invoke(int obj)
         // → Standard.Func<Int32, Boolean> (arity 2)
-        var projected = _projector.ProjectMemberType(typeof(Predicate<int>), _stdlib);
+        var projected = projector.ProjectMemberType(typeof(Predicate<int>), stdlib);
         var dt = Assert.IsType<DelegateType>(projected);
 
         var funcSig = dt.FuncSignature;
@@ -222,7 +222,7 @@ public sealed class TypeProjectorDelegateTests
     [Fact]
     public void ProjectMemberType_PredicateOfInt_HasConcreteTypeArguments()
     {
-        var projected = _projector.ProjectMemberType(typeof(Predicate<int>), _stdlib);
+        var projected = projector.ProjectMemberType(typeof(Predicate<int>), stdlib);
         var dt = Assert.IsType<DelegateType>(projected);
 
         // Predicate<int> is a constructed generic delegate — TypeArguments should be [Int32]
@@ -244,7 +244,7 @@ public sealed class TypeProjectorDelegateTests
     {
         // Predicate<T> (generic type definition) should produce a DelegateType with
         // TypeParameters (open type params) and no TypeArguments.
-        var projected = _projector.ProjectMemberType(typeof(Predicate<>), _stdlib);
+        var projected = projector.ProjectMemberType(typeof(Predicate<>), stdlib);
 
         var dt = Assert.IsType<DelegateType>(projected);
 
@@ -260,7 +260,7 @@ public sealed class TypeProjectorDelegateTests
     [Fact]
     public void ProjectMemberType_OpenPredicateT_HasCorrectClrSimpleName()
     {
-        var projected = _projector.ProjectMemberType(typeof(Predicate<>), _stdlib);
+        var projected = projector.ProjectMemberType(typeof(Predicate<>), stdlib);
         var dt = Assert.IsType<DelegateType>(projected);
 
         // Simple name should have arity suffix stripped
@@ -270,8 +270,8 @@ public sealed class TypeProjectorDelegateTests
     [Fact]
     public void ProjectMemberType_ConstructedPredicateInt_DiffersFromOpenPredicateT()
     {
-        var openProjected = _projector.ProjectMemberType(typeof(Predicate<>), _stdlib);
-        var constructedProjected = _projector.ProjectMemberType(typeof(Predicate<int>), _stdlib);
+        var openProjected = projector.ProjectMemberType(typeof(Predicate<>), stdlib);
+        var constructedProjected = projector.ProjectMemberType(typeof(Predicate<int>), stdlib);
 
         var openDt = Assert.IsType<DelegateType>(openProjected);
         var constructedDt = Assert.IsType<DelegateType>(constructedProjected);
@@ -290,7 +290,7 @@ public sealed class TypeProjectorDelegateTests
     {
         // Additional named delegate: Comparison<int> has signature int Invoke(int x, int y)
         // → Standard.Func<Int32, Int32, Int32> (arity 3)
-        var projected = _projector.ProjectMemberType(typeof(Comparison<int>), _stdlib);
+        var projected = projector.ProjectMemberType(typeof(Comparison<int>), stdlib);
 
         var dt = Assert.IsType<DelegateType>(projected);
         Assert.Equal("Comparison", dt.ClrSimpleName);

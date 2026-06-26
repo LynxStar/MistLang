@@ -30,19 +30,19 @@ namespace Mist.Tests.Backend;
 /// </summary>
 public sealed class TryFinallyDropWrappingTests : IDisposable
 {
-    private readonly string _outputDir;
+    private readonly string outputDir;
 
     public TryFinallyDropWrappingTests()
     {
-        _outputDir = Path.Combine(Path.GetTempPath(), "MistTryFinallyDropPBT_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(_outputDir);
+        outputDir = Path.Combine(Path.GetTempPath(), "MistTryFinallyDropPBT_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(outputDir);
     }
 
     public void Dispose()
     {
-        if(Directory.Exists(_outputDir))
+        if(Directory.Exists(outputDir))
         {
-            try { Directory.Delete(_outputDir, recursive: true); } catch { /* best effort */ }
+            try { Directory.Delete(outputDir, recursive: true); } catch { /* best effort */ }
         }
     }
 
@@ -50,7 +50,7 @@ public sealed class TryFinallyDropWrappingTests : IDisposable
 
     private string CompileAndGetEmittedCSharp(string source)
     {
-        var filePath = Path.Combine(_outputDir, $"Test_{Guid.NewGuid():N}.mist");
+        var filePath = Path.Combine(outputDir, $"Test_{Guid.NewGuid():N}.mist");
         File.WriteAllText(filePath, source);
 
         var driver = new CompilerDriver(
@@ -65,11 +65,11 @@ public sealed class TryFinallyDropWrappingTests : IDisposable
             ImmutableArray.Create<IBackend>(new CSharpTranspilerBackend()));
 
         var options = new CompilerOptions(
-            ProjectFolder: _outputDir,
+            ProjectFolder: outputDir,
             SourcePaths: ImmutableArray.Create(filePath),
             Backend: new BackendId("csharp"),
-            OutputDirectory: _outputDir,
-            BinDirectory: Path.Combine(_outputDir, "bin"),
+            OutputDirectory: outputDir,
+            BinDirectory: Path.Combine(outputDir, "bin"),
             ProjectName: "TestProgram",
             NamespaceRoot: "TestProgram",
             EnabledAnalyzerIds: ImmutableArray<string>.Empty,

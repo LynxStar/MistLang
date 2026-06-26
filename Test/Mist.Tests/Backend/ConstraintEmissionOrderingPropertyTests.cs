@@ -52,21 +52,21 @@ public sealed class ConstraintEmissionOrderingPropertyTests : IDisposable
     private static readonly ILexer Lexer = new Mist.Lexing.MistLexer();
     private static readonly IParser Parser = new Mist.Parsing.MistParser();
     private static readonly SemanticModelBuilder Builder = new();
-    private readonly string _outputDir;
+    private readonly string outputDir;
 
     public ConstraintEmissionOrderingPropertyTests()
     {
-        _outputDir = Path.Combine(
+        outputDir = Path.Combine(
             Path.GetTempPath(),
             "MistConstraintOrderTests_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(_outputDir);
+        Directory.CreateDirectory(outputDir);
     }
 
     public void Dispose()
     {
-        if(Directory.Exists(_outputDir))
+        if(Directory.Exists(outputDir))
         {
-            try { Directory.Delete(_outputDir, recursive: true); } catch { /* best effort */ }
+            try { Directory.Delete(outputDir, recursive: true); } catch { /* best effort */ }
         }
     }
 
@@ -101,15 +101,15 @@ public sealed class ConstraintEmissionOrderingPropertyTests : IDisposable
             semBag);
 
         // Clean output dir
-        foreach(var file in Directory.GetFiles(_outputDir))
+        foreach(var file in Directory.GetFiles(outputDir))
         {
             File.Delete(file);
         }
 
         var emitBag = new DiagnosticBag();
-        CSharpEmitter.Emit(model, _outputDir, "TestProject", emitBag);
+        CSharpEmitter.Emit(model, outputDir, "TestProject", emitBag);
 
-        var csFile = Directory.GetFiles(_outputDir, "*.cs").FirstOrDefault();
+        var csFile = Directory.GetFiles(outputDir, "*.cs").FirstOrDefault();
         var csContent = csFile is not null ? File.ReadAllText(csFile) : "";
         return (model, csContent);
     }

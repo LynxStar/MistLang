@@ -19,8 +19,8 @@ internal sealed class AmbientExtensionScanner
     private const string ExtensionAttributeFullName =
         "System.Runtime.CompilerServices.ExtensionAttribute";
 
-    private readonly IReadOnlyList<LoadedAssemblyInfo> _assemblies;
-    private readonly ConcurrentDictionary<string, IReadOnlyList<AmbientExtensionMethodInfo>> _cache = new();
+    private readonly IReadOnlyList<LoadedAssemblyInfo> assemblies;
+    private readonly ConcurrentDictionary<string, IReadOnlyList<AmbientExtensionMethodInfo>> cache = new();
 
     /// <summary>
     /// Creates a new <see cref="AmbientExtensionScanner"/> that will scan the given
@@ -31,7 +31,7 @@ internal sealed class AmbientExtensionScanner
     /// </param>
     public AmbientExtensionScanner(IReadOnlyList<LoadedAssemblyInfo> assemblies)
     {
-        _assemblies = assemblies;
+        this.assemblies = assemblies;
     }
 
     /// <summary>
@@ -46,7 +46,7 @@ internal sealed class AmbientExtensionScanner
     public IReadOnlyList<AmbientExtensionMethodInfo> GetExtensionsForNamespace(string namespaceName)
     {
         // GetOrAdd is atomic — only one thread will scan a given namespace.
-        return _cache.GetOrAdd(namespaceName, ScanNamespace);
+        return cache.GetOrAdd(namespaceName, ScanNamespace);
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -61,7 +61,7 @@ internal sealed class AmbientExtensionScanner
     {
         var results = new List<AmbientExtensionMethodInfo>();
 
-        foreach(var assembly in _assemblies)
+        foreach(var assembly in assemblies)
         {
             // Only scan assemblies that contain types in the target namespace.
             if(!assembly.NamespaceIndex.ContainsKey(namespaceName))

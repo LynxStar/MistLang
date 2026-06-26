@@ -43,19 +43,19 @@ namespace Mist.Tests.Analysis;
 /// </summary>
 public sealed class MoveBoundaryOwnedSourcePropertyTests : IDisposable
 {
-    private readonly string _outputDir;
+    private readonly string outputDir;
 
     public MoveBoundaryOwnedSourcePropertyTests()
     {
-        _outputDir = Path.Combine(Path.GetTempPath(), "MistMoveBoundaryOwnedPBT_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(_outputDir);
+        outputDir = Path.Combine(Path.GetTempPath(), "MistMoveBoundaryOwnedPBT_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(outputDir);
     }
 
     public void Dispose()
     {
-        if(Directory.Exists(_outputDir))
+        if(Directory.Exists(outputDir))
         {
-            try { Directory.Delete(_outputDir, recursive: true); } catch { /* best effort */ }
+            try { Directory.Delete(outputDir, recursive: true); } catch { /* best effort */ }
         }
     }
 
@@ -68,7 +68,7 @@ public sealed class MoveBoundaryOwnedSourcePropertyTests : IDisposable
     /// </summary>
     private sealed class CapturingSemanticModelBuilder : ISemanticModelBuilder
     {
-        private readonly SemanticModelBuilder _inner = new();
+        private readonly SemanticModelBuilder inner = new();
         public ISemanticModel? Captured { get; private set; }
 
         public ISemanticModel Build(
@@ -80,7 +80,7 @@ public sealed class MoveBoundaryOwnedSourcePropertyTests : IDisposable
             DiagnosticBag diagnostics,
             ImmutableHashSet<string>? directReferencePaths = null)
         {
-            var model = _inner.Build(compilation, asts, ambientTypeResolver, namespaceRoot, projectFolder, diagnostics, directReferencePaths);
+            var model = inner.Build(compilation, asts, ambientTypeResolver, namespaceRoot, projectFolder, diagnostics, directReferencePaths);
             Captured = model;
             return model;
         }
@@ -90,7 +90,7 @@ public sealed class MoveBoundaryOwnedSourcePropertyTests : IDisposable
 
     private ISemanticModel? CompileAndCapture(string source)
     {
-        var filePath = Path.Combine(_outputDir, $"Test_{Guid.NewGuid():N}.mist");
+        var filePath = Path.Combine(outputDir, $"Test_{Guid.NewGuid():N}.mist");
         File.WriteAllText(filePath, source);
 
         var capture = new CapturingSemanticModelBuilder();
@@ -105,11 +105,11 @@ public sealed class MoveBoundaryOwnedSourcePropertyTests : IDisposable
             ImmutableArray.Create<IBackend>(new CSharpTranspilerBackend()));
 
         var options = new CompilerOptions(
-            ProjectFolder: _outputDir,
+            ProjectFolder: outputDir,
             SourcePaths: ImmutableArray.Create(filePath),
             Backend: new BackendId("csharp"),
-            OutputDirectory: _outputDir,
-            BinDirectory: Path.Combine(_outputDir, "bin"),
+            OutputDirectory: outputDir,
+            BinDirectory: Path.Combine(outputDir, "bin"),
             ProjectName: "TestProgram",
             NamespaceRoot: "TestProgram",
             EnabledAnalyzerIds: ImmutableArray<string>.Empty,

@@ -100,12 +100,12 @@ public class MistGrammarMemoizationPlanTests
         return MemoizationAnalysisPass.Run(loweringResult.Grammar!);
     }
 
-    private static readonly Lazy<MemoizationPlan> _plan = new(BuildMistMemoizationPlan);
+    private static readonly Lazy<MemoizationPlan> plan = new(BuildMistMemoizationPlan);
 
     [Fact]
     public void MistGrammar_MemoizationPlan_ContainsAllSevenAnnotatedRules()
     {
-        var plan = _plan.Value;
+        var plan = MistGrammarMemoizationPlanTests.plan.Value;
 
         foreach(var ruleName in ExpectedMemoizedRules)
         {
@@ -118,7 +118,7 @@ public class MistGrammarMemoizationPlanTests
     [Fact]
     public void MistGrammar_MemoizationPlan_AssignsDenseIds()
     {
-        var plan = _plan.Value;
+        var plan = MistGrammarMemoizationPlanTests.plan.Value;
 
         // All 7 rules should have ids in the range [0..Count-1]
         foreach(var ruleName in ExpectedMemoizedRules)
@@ -142,7 +142,7 @@ public class MistGrammarMemoizationPlanTests
     [Fact]
     public void MistGrammar_MemoizationPlan_HasAtLeastSevenRules()
     {
-        var plan = _plan.Value;
+        var plan = MistGrammarMemoizationPlanTests.plan.Value;
 
         // The plan should contain at least the 7 annotated rules (may also include
         // rules from the cycle-based or multi-caller heuristics)

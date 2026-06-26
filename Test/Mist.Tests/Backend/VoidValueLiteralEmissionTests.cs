@@ -25,21 +25,21 @@ namespace Mist.Tests.Backend;
 /// </summary>
 public sealed class VoidValueLiteralEmissionTests : IDisposable
 {
-    private readonly string _scratchDir;
+    private readonly string scratchDir;
 
     public VoidValueLiteralEmissionTests()
     {
-        _scratchDir = Path.Combine(
+        scratchDir = Path.Combine(
             Path.GetTempPath(),
             "mist-void-val-lit-emit-" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(_scratchDir);
+        Directory.CreateDirectory(scratchDir);
     }
 
     public void Dispose()
     {
-        if(Directory.Exists(_scratchDir))
+        if(Directory.Exists(scratchDir))
         {
-            try { Directory.Delete(_scratchDir, recursive: true); } catch { /* best effort */ }
+            try { Directory.Delete(scratchDir, recursive: true); } catch { /* best effort */ }
         }
         GC.SuppressFinalize(this);
     }
@@ -57,15 +57,15 @@ public sealed class VoidValueLiteralEmissionTests : IDisposable
 
     private CompilerResult CompileSource(string source)
     {
-        var filePath = Path.Combine(_scratchDir, "Program.mist");
+        var filePath = Path.Combine(scratchDir, "Program.mist");
         File.WriteAllText(filePath, source);
 
         var options = new CompilerOptions(
-            ProjectFolder: _scratchDir,
+            ProjectFolder: scratchDir,
             SourcePaths: ImmutableArray.Create(filePath),
             Backend: new BackendId("csharp"),
-            OutputDirectory: _scratchDir,
-            BinDirectory: Path.Combine(_scratchDir, "bin"),
+            OutputDirectory: scratchDir,
+            BinDirectory: Path.Combine(scratchDir, "bin"),
             ProjectName: "TestProgram",
             NamespaceRoot: "TestProgram",
             EnabledAnalyzerIds: ImmutableArray<string>.Empty,

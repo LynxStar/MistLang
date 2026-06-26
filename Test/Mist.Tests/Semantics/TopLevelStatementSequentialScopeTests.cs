@@ -20,21 +20,21 @@ namespace Mist.Tests.Semantics;
 /// </summary>
 public sealed class TopLevelStatementSequentialScopeTests : IDisposable
 {
-    private readonly string _scratchDir;
+    private readonly string scratchDir;
 
     public TopLevelStatementSequentialScopeTests()
     {
-        _scratchDir = Path.Combine(
+        scratchDir = Path.Combine(
             Path.GetTempPath(),
             "mist-tls-seq-scope-" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(_scratchDir);
+        Directory.CreateDirectory(scratchDir);
     }
 
     public void Dispose()
     {
-        if(Directory.Exists(_scratchDir))
+        if(Directory.Exists(scratchDir))
         {
-            try { Directory.Delete(_scratchDir, recursive: true); } catch { /* best effort */ }
+            try { Directory.Delete(scratchDir, recursive: true); } catch { /* best effort */ }
         }
         GC.SuppressFinalize(this);
     }
@@ -52,11 +52,11 @@ public sealed class TopLevelStatementSequentialScopeTests : IDisposable
     private CompilerOptions MakeOptions(string filePath)
     {
         return new CompilerOptions(
-            ProjectFolder: _scratchDir,
+            ProjectFolder: scratchDir,
             SourcePaths: ImmutableArray.Create(filePath),
             Backend: new BackendId("csharp"),
-            OutputDirectory: _scratchDir,
-            BinDirectory: Path.Combine(_scratchDir, "bin"),
+            OutputDirectory: scratchDir,
+            BinDirectory: Path.Combine(scratchDir, "bin"),
             ProjectName: "TestProject",
             NamespaceRoot: "TestProject",
             EnabledAnalyzerIds: ImmutableArray<string>.Empty,
@@ -72,7 +72,7 @@ public sealed class TopLevelStatementSequentialScopeTests : IDisposable
             var x = 1;
             var y = x;
             """;
-        var filePath = Path.Combine(_scratchDir, "Program.mist");
+        var filePath = Path.Combine(scratchDir, "Program.mist");
         File.WriteAllText(filePath, source);
 
         var driver = CreateDriver();
@@ -101,7 +101,7 @@ public sealed class TopLevelStatementSequentialScopeTests : IDisposable
             var b = a;
             var c = b;
             """;
-        var filePath = Path.Combine(_scratchDir, "Program.mist");
+        var filePath = Path.Combine(scratchDir, "Program.mist");
         File.WriteAllText(filePath, source);
 
         var driver = CreateDriver();

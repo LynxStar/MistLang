@@ -24,8 +24,8 @@ namespace Mist.Tests.Backend;
 /// </summary>
 public sealed class ClrRefProjectionPropertyTests
 {
-    private readonly TypeProjector _projector;
-    private readonly IStdlibTypeProvider _stdlib;
+    private readonly TypeProjector projector;
+    private readonly IStdlibTypeProvider stdlib;
 
     // ─── Pre-computed member sets from fixture types ─────────────────────
 
@@ -50,8 +50,8 @@ public sealed class ClrRefProjectionPropertyTests
     {
         var intrinsicMap = new IntrinsicTypeMap();
         var filter = new VisibilityFilter();
-        _projector = new TypeProjector(intrinsicMap, filter);
-        _stdlib = FallbackStdlibTypeProvider.Instance;
+        projector = new TypeProjector(intrinsicMap, filter);
+        stdlib = FallbackStdlibTypeProvider.Instance;
     }
 
     // ─── Builder methods ─────────────────────────────────────────────────
@@ -153,8 +153,8 @@ public sealed class ClrRefProjectionPropertyTests
     /// </summary>
     private ImmutableArray<ISymbol> ProjectFixtureMembers(Type fixtureType)
     {
-        var (projectedType, _) = _projector.ProjectType(fixtureType, _stdlib);
-        return _projector.ProjectMembers(fixtureType, projectedType, _stdlib);
+        var (projectedType, _) = projector.ProjectType(fixtureType, stdlib);
+        return projector.ProjectMembers(fixtureType, projectedType, stdlib);
     }
 
     /// <summary>

@@ -9,28 +9,28 @@ namespace Mist.Tests.Backend;
 /// </summary>
 public class CSharpAmbientTypeResolverPostCleanupTests
 {
-    private readonly CSharpAmbientTypeResolver _resolver = new();
+    private readonly CSharpAmbientTypeResolver resolver = new();
 
     // --- ResolveType returns null for migrated types ---
 
     [Fact]
     public void ResolveType_Console_ReturnsNull()
     {
-        var result = _resolver.ResolveType("System", "Console");
+        var result = resolver.ResolveType("System", "Console");
         Assert.Null(result);
     }
 
     [Fact]
     public void ResolveType_Math_ReturnsNull()
     {
-        var result = _resolver.ResolveType("System", "Math");
+        var result = resolver.ResolveType("System", "Math");
         Assert.Null(result);
     }
 
     [Fact]
     public void ResolveType_Convert_ReturnsNull()
     {
-        var result = _resolver.ResolveType("System", "Convert");
+        var result = resolver.ResolveType("System", "Convert");
         Assert.Null(result);
     }
 
@@ -39,7 +39,7 @@ public class CSharpAmbientTypeResolverPostCleanupTests
     [Fact]
     public void HasNamespace_System_ReturnsFalse()
     {
-        Assert.False(_resolver.HasNamespace("System"));
+        Assert.False(resolver.HasNamespace("System"));
     }
 
     // --- Resolver can be instantiated (future-use preservation) ---

@@ -18,19 +18,19 @@ namespace Mist.Tests.Integration;
 /// </summary>
 public sealed class PipelineDebugTests : IDisposable
 {
-    private readonly string _outputDir;
+    private readonly string outputDir;
 
     public PipelineDebugTests()
     {
-        _outputDir = Path.Combine(Path.GetTempPath(), "MistDebug_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(_outputDir);
+        outputDir = Path.Combine(Path.GetTempPath(), "MistDebug_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(outputDir);
     }
 
     public void Dispose()
     {
-        if(Directory.Exists(_outputDir))
+        if(Directory.Exists(outputDir))
         {
-            try { Directory.Delete(_outputDir, recursive: true); } catch { }
+            try { Directory.Delete(outputDir, recursive: true); } catch { }
         }
 
         GC.SuppressFinalize(this);
@@ -291,11 +291,11 @@ public sealed class PipelineDebugTests : IDisposable
             ImmutableArray.Create<IBackend>(new CSharpTranspilerBackend()));
 
         var options = new CompilerOptions(
-            ProjectFolder: _outputDir,
+            ProjectFolder: outputDir,
             SourcePaths: sourceFiles.ToImmutableArray(),
             Backend: new BackendId("csharp"),
-            OutputDirectory: _outputDir,
-            BinDirectory: Path.Combine(_outputDir, "bin"),
+            OutputDirectory: outputDir,
+            BinDirectory: Path.Combine(outputDir, "bin"),
             ProjectName: "TestProject",
             NamespaceRoot: "TestProject",
             EnabledAnalyzerIds: ImmutableArray<string>.Empty);

@@ -35,9 +35,9 @@ public class ClosedUnknownReadonlyParameterTests
     private static readonly ILexer Lexer = new Mist.Lexing.MistLexer();
     private static readonly IParser Parser = new Mist.Parsing.MistParser();
 
-    private readonly SemanticModelBuilder _builder = new();
-    private readonly TypeCheckerAnalyzer _typeChecker = new();
-    private readonly ReadonlyAnalyzer _readonlyAnalyzer = new();
+    private readonly SemanticModelBuilder builder = new();
+    private readonly TypeCheckerAnalyzer typeChecker = new();
+    private readonly ReadonlyAnalyzer readonlyAnalyzer = new();
 
     private const string ClosedUnknownDiagnosticId = "MIST_TC_0062";
     private const string ReadonlyParamMethodCallId = "MIST_RO_0006";
@@ -64,7 +64,7 @@ public class ClosedUnknownReadonlyParameterTests
             ImmutableArray.Create(new CompilationUnit(sourceText)));
 
         var semBag = new DiagnosticBag();
-        var model = _builder.Build(
+        var model = builder.Build(
             compilation,
             ImmutableArray.Create(parseResult.Root!),
             ambientTypeResolver: null,
@@ -76,10 +76,10 @@ public class ClosedUnknownReadonlyParameterTests
         ReadonlyInferenceEngine.RunInference(model);
 
         var tcBag = new DiagnosticBag();
-        _typeChecker.Analyze(model, tcBag);
+        typeChecker.Analyze(model, tcBag);
 
         var roBag = new DiagnosticBag();
-        _readonlyAnalyzer.Analyze(model, roBag);
+        readonlyAnalyzer.Analyze(model, roBag);
 
         return semBag.ToImmutableArray()
             .Concat(tcBag.ToImmutableArray())

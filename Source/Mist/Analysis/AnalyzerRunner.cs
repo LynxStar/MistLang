@@ -18,11 +18,11 @@ public sealed record AnalyzerRunResult(
 /// </summary>
 public sealed class AnalyzerRunner
 {
-    private ImmutableArray<IAnalyzer> _analyzers;
+    private ImmutableArray<IAnalyzer> analyzers;
 
     public AnalyzerRunner(ImmutableArray<IAnalyzer> analyzers)
     {
-        _analyzers = analyzers;
+        this.analyzers = analyzers;
     }
 
     public AnalyzerRunResult RunAll(ISemanticModel model)
@@ -30,7 +30,7 @@ public sealed class AnalyzerRunner
         var bag = new DiagnosticBag();
         var timings = ImmutableArray.CreateBuilder<AnalyzerTimingEntry>();
 
-        foreach(var analyzer in _analyzers)
+        foreach(var analyzer in analyzers)
         {
             var sw = Stopwatch.StartNew();
             try

@@ -38,23 +38,23 @@ namespace Mist.Tests.Backend;
 /// </summary>
 public sealed class CastOperatorEmissionPropertyTests : IDisposable
 {
-    private readonly SemanticModelBuilder _builder = new();
-    private readonly TypeCheckerAnalyzer _analyzer = new();
-    private readonly string _outputDir;
+    private readonly SemanticModelBuilder builder = new();
+    private readonly TypeCheckerAnalyzer analyzer = new();
+    private readonly string outputDir;
 
     public CastOperatorEmissionPropertyTests()
     {
-        _outputDir = Path.Combine(
+        outputDir = Path.Combine(
             Path.GetTempPath(),
             "MistCastEmissionTests_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(_outputDir);
+        Directory.CreateDirectory(outputDir);
     }
 
     public void Dispose()
     {
-        if(Directory.Exists(_outputDir))
+        if(Directory.Exists(outputDir))
         {
-            try { Directory.Delete(_outputDir, recursive: true); }
+            try { Directory.Delete(outputDir, recursive: true); }
             catch { /* best effort */ }
         }
         GC.SuppressFinalize(this);
@@ -376,7 +376,7 @@ public sealed class CastOperatorEmissionPropertyTests : IDisposable
         var compilation = new MistCompilation(
             ImmutableArray.Create(new CompilationUnit(source)));
         var diagnostics = new DiagnosticBag();
-        return _builder.Build(
+        return builder.Build(
             compilation,
             ImmutableArray.Create<Storm.Runtime.SyntaxNode>(ast),
             ambientTypeResolver: null,
@@ -388,7 +388,7 @@ public sealed class CastOperatorEmissionPropertyTests : IDisposable
     private ImmutableArray<Diagnostic> RunTypeChecker(ISemanticModel model)
     {
         var bag = new DiagnosticBag();
-        _analyzer.Analyze(model, bag);
+        analyzer.Analyze(model, bag);
         return bag.ToImmutableArray();
     }
 
@@ -396,8 +396,8 @@ public sealed class CastOperatorEmissionPropertyTests : IDisposable
     {
         CleanOutputDir();
         var diagnostics = new DiagnosticBag();
-        CSharpEmitter.Emit(model, _outputDir, "TestProject", diagnostics);
-        var csFiles = Directory.GetFiles(_outputDir, "*.cs")
+        CSharpEmitter.Emit(model, outputDir, "TestProject", diagnostics);
+        var csFiles = Directory.GetFiles(outputDir, "*.cs")
             .Where(f => !f.EndsWith("MistVoid.g.cs") && !f.EndsWith(".csproj"))
             .ToArray();
         return csFiles.Length == 0 ? "" : string.Join("\n", csFiles.Select(File.ReadAllText));
@@ -405,9 +405,9 @@ public sealed class CastOperatorEmissionPropertyTests : IDisposable
 
     private void CleanOutputDir()
     {
-        if(Directory.Exists(_outputDir))
+        if(Directory.Exists(outputDir))
         {
-            foreach(var file in Directory.GetFiles(_outputDir))
+            foreach(var file in Directory.GetFiles(outputDir))
             {
                 File.Delete(file);
             }

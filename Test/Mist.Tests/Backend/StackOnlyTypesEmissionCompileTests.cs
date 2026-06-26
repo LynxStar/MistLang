@@ -33,21 +33,21 @@ namespace Mist.Tests.Backend;
 /// </summary>
 public sealed class StackOnlyTypesEmissionCompileTests : IDisposable
 {
-    private readonly string _outputDir;
+    private readonly string outputDir;
 
     public StackOnlyTypesEmissionCompileTests()
     {
-        _outputDir = Path.Combine(
+        outputDir = Path.Combine(
             Path.GetTempPath(),
             "MistSpanEmitCompile_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(_outputDir);
+        Directory.CreateDirectory(outputDir);
     }
 
     public void Dispose()
     {
-        if(Directory.Exists(_outputDir))
+        if(Directory.Exists(outputDir))
         {
-            try { Directory.Delete(_outputDir, recursive: true); } catch { /* best effort */ }
+            try { Directory.Delete(outputDir, recursive: true); } catch { /* best effort */ }
         }
     }
 
@@ -340,15 +340,15 @@ public sealed class StackOnlyTypesEmissionCompileTests : IDisposable
     private CompilerResult CompileSource(string source, string projectName)
     {
         // Write the source to a temp file for the CompilerDriver
-        var filePath = Path.Combine(_outputDir, $"{projectName}.mist");
+        var filePath = Path.Combine(outputDir, $"{projectName}.mist");
         File.WriteAllText(filePath, source);
 
         var options = new CompilerOptions(
-            ProjectFolder: _outputDir,
+            ProjectFolder: outputDir,
             SourcePaths: ImmutableArray.Create(filePath),
             Backend: new BackendId("csharp"),
-            OutputDirectory: _outputDir,
-            BinDirectory: Path.Combine(_outputDir, "bin"),
+            OutputDirectory: outputDir,
+            BinDirectory: Path.Combine(outputDir, "bin"),
             ProjectName: projectName,
             NamespaceRoot: projectName,
             EnabledAnalyzerIds: ImmutableArray<string>.Empty,

@@ -40,24 +40,24 @@ public sealed class FieldTypeRestrictionVerifierTests : IDisposable
 {
     private const string FieldTypeViolationId = "MIST_OWN_FIELD_TYPE_VIOLATION";
 
-    private readonly string _scratchDir;
+    private readonly string scratchDir;
 
     public FieldTypeRestrictionVerifierTests()
     {
-        _scratchDir = Path.Combine(Path.GetTempPath(), "mist_field_restrict_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(_scratchDir);
+        scratchDir = Path.Combine(Path.GetTempPath(), "mist_field_restrict_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(scratchDir);
     }
 
     public void Dispose()
     {
-        try { Directory.Delete(_scratchDir, recursive: true); } catch { /* best effort */ }
+        try { Directory.Delete(scratchDir, recursive: true); } catch { /* best effort */ }
     }
 
     // ─── Capturing semantic model builder ────────────────────────────────
 
     private sealed class CapturingSemanticModelBuilder : ISemanticModelBuilder
     {
-        private readonly SemanticModelBuilder _inner = new();
+        private readonly SemanticModelBuilder inner = new();
 
         public ISemanticModel? Captured { get; private set; }
 
@@ -70,7 +70,7 @@ public sealed class FieldTypeRestrictionVerifierTests : IDisposable
             DiagnosticBag diagnostics,
             ImmutableHashSet<string>? directReferencePaths = null)
         {
-            var model = _inner.Build(compilation, asts, ambientTypeResolver, namespaceRoot, projectFolder, diagnostics, directReferencePaths);
+            var model = inner.Build(compilation, asts, ambientTypeResolver, namespaceRoot, projectFolder, diagnostics, directReferencePaths);
             Captured = model;
             return model;
         }
@@ -84,7 +84,7 @@ public sealed class FieldTypeRestrictionVerifierTests : IDisposable
     /// </summary>
     private ISemanticModel CompileAndCapture(string source)
     {
-        var filePath = Path.Combine(_scratchDir, $"Program_{Guid.NewGuid():N}.mist");
+        var filePath = Path.Combine(scratchDir, $"Program_{Guid.NewGuid():N}.mist");
         File.WriteAllText(filePath, source);
 
         var capture = new CapturingSemanticModelBuilder();
@@ -99,11 +99,11 @@ public sealed class FieldTypeRestrictionVerifierTests : IDisposable
             ImmutableArray.Create<IBackend>(new CSharpTranspilerBackend()));
 
         var options = new CompilerOptions(
-            ProjectFolder: _scratchDir,
+            ProjectFolder: scratchDir,
             SourcePaths: ImmutableArray.Create(filePath),
             Backend: new BackendId("csharp"),
-            OutputDirectory: _scratchDir,
-            BinDirectory: Path.Combine(_scratchDir, "bin"),
+            OutputDirectory: scratchDir,
+            BinDirectory: Path.Combine(scratchDir, "bin"),
             ProjectName: "TestProgram",
             NamespaceRoot: "TestProgram",
             EnabledAnalyzerIds: ImmutableArray<string>.Empty,

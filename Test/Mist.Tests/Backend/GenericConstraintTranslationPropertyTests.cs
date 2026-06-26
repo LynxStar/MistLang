@@ -25,9 +25,9 @@ namespace Mist.Tests.Backend;
 /// </summary>
 public sealed class GenericConstraintTranslationPropertyTests
 {
-    private readonly TypeProjector _projector;
-    private readonly VisibilityFilter _filter;
-    private readonly IStdlibTypeProvider _stdlib;
+    private readonly TypeProjector projector;
+    private readonly VisibilityFilter filter;
+    private readonly IStdlibTypeProvider stdlib;
 
     /// <summary>
     /// All generic type definitions from the InteropFixtures assembly that have
@@ -38,9 +38,9 @@ public sealed class GenericConstraintTranslationPropertyTests
     public GenericConstraintTranslationPropertyTests()
     {
         var intrinsicMap = new IntrinsicTypeMap();
-        _filter = new VisibilityFilter();
-        _projector = new TypeProjector(intrinsicMap, _filter);
-        _stdlib = FallbackStdlibTypeProvider.Instance;
+        filter = new VisibilityFilter();
+        projector = new TypeProjector(intrinsicMap, filter);
+        stdlib = FallbackStdlibTypeProvider.Instance;
     }
 
     private static Type[] BuildGenericFixtureTypes()
@@ -103,7 +103,7 @@ public sealed class GenericConstraintTranslationPropertyTests
             var hasClrClassConstraint =
                 (attributes & GenericParameterAttributes.ReferenceTypeConstraint) != 0;
 
-            var (projectedType, _) = _projector.ProjectType(clrType, _stdlib);
+            var (projectedType, _) = projector.ProjectType(clrType, stdlib);
             var typeParams = GetTypeParameters(projectedType);
             var projectedParam = Assert.IsType<TypeParameterType>(typeParams[paramIndex]);
 
@@ -140,7 +140,7 @@ public sealed class GenericConstraintTranslationPropertyTests
             var hasClrStructConstraint =
                 (attributes & GenericParameterAttributes.NotNullableValueTypeConstraint) != 0;
 
-            var (projectedType, _) = _projector.ProjectType(clrType, _stdlib);
+            var (projectedType, _) = projector.ProjectType(clrType, stdlib);
             var typeParams = GetTypeParameters(projectedType);
             var projectedParam = Assert.IsType<TypeParameterType>(typeParams[paramIndex]);
 
@@ -178,7 +178,7 @@ public sealed class GenericConstraintTranslationPropertyTests
             var hasClrStructConstraint =
                 (attributes & GenericParameterAttributes.NotNullableValueTypeConstraint) != 0;
 
-            var (projectedType, _) = _projector.ProjectType(clrType, _stdlib);
+            var (projectedType, _) = projector.ProjectType(clrType, stdlib);
             var typeParams = GetTypeParameters(projectedType);
             var projectedParam = Assert.IsType<TypeParameterType>(typeParams[paramIndex]);
 
@@ -222,7 +222,7 @@ public sealed class GenericConstraintTranslationPropertyTests
                 .Where(c => c.IsInterface)
                 .ToArray();
 
-            var (projectedType, _) = _projector.ProjectType(clrType, _stdlib);
+            var (projectedType, _) = projector.ProjectType(clrType, stdlib);
             var typeParams = GetTypeParameters(projectedType);
             var projectedParam = Assert.IsType<TypeParameterType>(typeParams[paramIndex]);
 
@@ -271,7 +271,7 @@ public sealed class GenericConstraintTranslationPropertyTests
                 .Where(c => !c.IsInterface && c != typeof(ValueType))
                 .ToArray();
 
-            var (projectedType, _) = _projector.ProjectType(clrType, _stdlib);
+            var (projectedType, _) = projector.ProjectType(clrType, stdlib);
             var typeParams = GetTypeParameters(projectedType);
             var projectedParam = Assert.IsType<TypeParameterType>(typeParams[paramIndex]);
 
@@ -313,7 +313,7 @@ public sealed class GenericConstraintTranslationPropertyTests
                 (attributes & GenericParameterAttributes.DefaultConstructorConstraint) != 0 ||
                 clrConstraints.Any(c => c != typeof(ValueType));
 
-            var (projectedType, _) = _projector.ProjectType(clrType, _stdlib);
+            var (projectedType, _) = projector.ProjectType(clrType, stdlib);
             var typeParams = GetTypeParameters(projectedType);
             var projectedParam = Assert.IsType<TypeParameterType>(typeParams[paramIndex]);
 

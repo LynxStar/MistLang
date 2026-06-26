@@ -417,27 +417,27 @@ public static class MemoizationAnalysisPass
     /// </summary>
     private sealed class TarjanScc
     {
-        private readonly Dictionary<string, HashSet<string>> _graph;
-        private readonly Dictionary<string, int> _indexOf = new();
-        private readonly Dictionary<string, int> _lowLink = new();
-        private readonly HashSet<string> _onStack = new();
-        private readonly Stack<string> _stack = new();
-        private readonly List<List<string>> _components = new();
-        private int _index;
+        private readonly Dictionary<string, HashSet<string>> graph;
+        private readonly Dictionary<string, int> indexOf = new();
+        private readonly Dictionary<string, int> lowLink = new();
+        private readonly HashSet<string> onStack = new();
+        private readonly Stack<string> stack = new();
+        private readonly List<List<string>> components = new();
+        private int index;
 
-        public TarjanScc(Dictionary<string, HashSet<string>> graph) => _graph = graph;
+        public TarjanScc(Dictionary<string, HashSet<string>> graph) => this.graph = graph;
 
         public List<List<string>> Run()
         {
-            foreach(var node in _graph.Keys)
+            foreach(var node in graph.Keys)
             {
-                if(!_indexOf.ContainsKey(node))
+                if(!indexOf.ContainsKey(node))
                 {
                     StrongConnect(node);
                 }
             }
 
-            return _components;
+            return components;
         }
 
         private void StrongConnect(string root)
@@ -446,11 +446,11 @@ public static class MemoizationAnalysisPass
             // Each frame tracks the node and an enumerator over its outgoing edges.
             var work = new Stack<(string Node, IEnumerator<string> Edges)>();
 
-            _indexOf[root] = _index;
-            _lowLink[root] = _index;
-            _index++;
-            _stack.Push(root);
-            _ = _onStack.Add(root);
+            indexOf[root] = index;
+            lowLink[root] = index;
+            index++;
+            stack.Push(root);
+            _ = onStack.Add(root);
             work.Push((root, GetEdges(root)));
 
             while(work.Count > 0)
@@ -461,21 +461,21 @@ public static class MemoizationAnalysisPass
                 while(edges.MoveNext())
                 {
                     var next = edges.Current;
-                    if(!_indexOf.ContainsKey(next))
+                    if(!indexOf.ContainsKey(next))
                     {
-                        _indexOf[next] = _index;
-                        _lowLink[next] = _index;
-                        _index++;
-                        _stack.Push(next);
-                        _ = _onStack.Add(next);
+                        indexOf[next] = index;
+                        lowLink[next] = index;
+                        index++;
+                        stack.Push(next);
+                        _ = onStack.Add(next);
                         work.Push((next, GetEdges(next)));
                         pushedChild = true;
                         break;
                     }
 
-                    if(_onStack.Contains(next))
+                    if(onStack.Contains(next))
                     {
-                        _lowLink[node] = System.Math.Min(_lowLink[node], _indexOf[next]);
+                        lowLink[node] = System.Math.Min(lowLink[node], indexOf[next]);
                     }
                 }
 
@@ -490,29 +490,29 @@ public static class MemoizationAnalysisPass
                 if(work.Count > 0)
                 {
                     var parent = work.Peek().Node;
-                    _lowLink[parent] = System.Math.Min(_lowLink[parent], _lowLink[node]);
+                    lowLink[parent] = System.Math.Min(lowLink[parent], lowLink[node]);
                 }
 
-                if(_lowLink[node] == _indexOf[node])
+                if(lowLink[node] == indexOf[node])
                 {
                     var component = new List<string>();
                     string member;
                     do
                     {
-                        member = _stack.Pop();
-                        _ = _onStack.Remove(member);
+                        member = stack.Pop();
+                        _ = onStack.Remove(member);
                         component.Add(member);
                     }
                     while(member != node);
 
-                    _components.Add(component);
+                    components.Add(component);
                 }
             }
         }
 
         private IEnumerator<string> GetEdges(string node)
         {
-            return _graph.TryGetValue(node, out var edges)
+            return graph.TryGetValue(node, out var edges)
                 ? edges.GetEnumerator()
                 : Enumerable.Empty<string>().GetEnumerator();
         }

@@ -7,8 +7,8 @@ namespace Mist.Semantics.Model;
 /// </summary>
 public sealed class Scope : IScope
 {
-    private List<ISymbol> _members = [];
-    private List<string> _importedNamespaces = [];
+    private List<ISymbol> members = [];
+    private List<string> importedNamespaces = [];
 
     public Scope(IScope? parent)
     {
@@ -17,16 +17,16 @@ public sealed class Scope : IScope
 
     public IScope? Parent { get; }
 
-    public IReadOnlyList<ISymbol> Members => _members;
+    public IReadOnlyList<ISymbol> Members => members;
 
     /// <summary>
     /// Namespaces imported via <c>using</c> declarations in this scope.
     /// </summary>
-    public IReadOnlyList<string> ImportedNamespaces => _importedNamespaces;
+    public IReadOnlyList<string> ImportedNamespaces => importedNamespaces;
 
     public ISymbol? Lookup(string name)
     {
-        foreach(var member in _members)
+        foreach(var member in members)
         {
             if(member.Name == name)
             {
@@ -46,7 +46,7 @@ public sealed class Scope : IScope
 
     private void CollectAll(string name, List<ISymbol> results)
     {
-        foreach(var member in _members)
+        foreach(var member in members)
         {
             if(member.Name == name)
             {
@@ -67,7 +67,7 @@ public sealed class Scope : IScope
 
     internal void AddMember(ISymbol symbol)
     {
-        _members.Add(symbol);
+        members.Add(symbol);
     }
 
     /// <summary>
@@ -75,9 +75,9 @@ public sealed class Scope : IScope
     /// </summary>
     internal void AddImportedNamespace(string namespaceName)
     {
-        if(!_importedNamespaces.Contains(namespaceName))
+        if(!importedNamespaces.Contains(namespaceName))
         {
-            _importedNamespaces.Add(namespaceName);
+            importedNamespaces.Add(namespaceName);
         }
     }
 }

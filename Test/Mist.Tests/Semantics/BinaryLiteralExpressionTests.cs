@@ -24,7 +24,7 @@ public class BinaryLiteralExpressionTests
 {
     private static readonly Mist.Lexing.MistLexer Lexer = new();
     private static readonly Mist.Parsing.MistParser Parser = new();
-    private readonly SemanticModelBuilder _builder = new();
+    private readonly SemanticModelBuilder builder = new();
 
     // ─── Helpers ─────────────────────────────────────────────────────────
 
@@ -50,7 +50,7 @@ public class BinaryLiteralExpressionTests
         var sourceText = new SourceText("test.mist", source);
         var compilation = new MistCompilation(ImmutableArray.Create(new CompilationUnit(sourceText)));
         var bag = new DiagnosticBag();
-        var model = _builder.Build(
+        var model = builder.Build(
             compilation,
             ImmutableArray.Create(ast),
             ambientTypeResolver: null,

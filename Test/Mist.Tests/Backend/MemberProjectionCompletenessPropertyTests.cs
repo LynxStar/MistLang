@@ -19,9 +19,9 @@ namespace Mist.Tests.Backend;
 /// </summary>
 public sealed class MemberProjectionCompletenessPropertyTests
 {
-    private readonly TypeProjector _projector;
-    private readonly VisibilityFilter _filter;
-    private readonly IStdlibTypeProvider _stdlib;
+    private readonly TypeProjector projector;
+    private readonly VisibilityFilter filter;
+    private readonly IStdlibTypeProvider stdlib;
 
     /// <summary>
     /// All fixture types that contain projectable public members.
@@ -50,9 +50,9 @@ public sealed class MemberProjectionCompletenessPropertyTests
     public MemberProjectionCompletenessPropertyTests()
     {
         var intrinsicMap = new IntrinsicTypeMap();
-        _filter = new VisibilityFilter();
-        _projector = new TypeProjector(intrinsicMap, _filter);
-        _stdlib = FallbackStdlibTypeProvider.Instance;
+        filter = new VisibilityFilter();
+        projector = new TypeProjector(intrinsicMap, filter);
+        stdlib = FallbackStdlibTypeProvider.Instance;
     }
 
     private static (Type, MemberInfo)[] BuildVisibleMembers()
@@ -184,8 +184,8 @@ public sealed class MemberProjectionCompletenessPropertyTests
             var (declaringType, member) = VisibleMembers[memberIndex];
 
             // Project the type and its members
-            var (projectedType, _) = _projector.ProjectType(declaringType, _stdlib);
-            var projectedMembers = _projector.ProjectMembers(declaringType, projectedType, _stdlib);
+            var (projectedType, _) = projector.ProjectType(declaringType, stdlib);
+            var projectedMembers = projector.ProjectMembers(declaringType, projectedType, stdlib);
 
             switch(member)
             {
@@ -224,8 +224,8 @@ public sealed class MemberProjectionCompletenessPropertyTests
         {
             var (declaringType, member) = VisibleMembers[memberIndex];
 
-            var (projectedType, _) = _projector.ProjectType(declaringType, _stdlib);
-            var projectedMembers = _projector.ProjectMembers(declaringType, projectedType, _stdlib);
+            var (projectedType, _) = projector.ProjectType(declaringType, stdlib);
+            var projectedMembers = projector.ProjectMembers(declaringType, projectedType, stdlib);
 
             var expectedKind = member switch
             {
@@ -254,8 +254,8 @@ public sealed class MemberProjectionCompletenessPropertyTests
         {
             var (declaringType, member) = VisibleMembers[memberIndex];
 
-            var (projectedType, _) = _projector.ProjectType(declaringType, _stdlib);
-            var projectedMembers = _projector.ProjectMembers(declaringType, projectedType, _stdlib);
+            var (projectedType, _) = projector.ProjectType(declaringType, stdlib);
+            var projectedMembers = projector.ProjectMembers(declaringType, projectedType, stdlib);
 
             Assert.All(projectedMembers, m => Assert.Equal(SymbolOrigin.Backend, m.Origin));
         });
@@ -278,8 +278,8 @@ public sealed class MemberProjectionCompletenessPropertyTests
                 return; // Only check methods
             }
 
-            var (projectedType, _) = _projector.ProjectType(declaringType, _stdlib);
-            var projectedMembers = _projector.ProjectMembers(declaringType, projectedType, _stdlib);
+            var (projectedType, _) = projector.ProjectType(declaringType, stdlib);
+            var projectedMembers = projector.ProjectMembers(declaringType, projectedType, stdlib);
 
             var methodName = ((MethodInfo)member).Name;
             var matchingMethods = projectedMembers
@@ -308,8 +308,8 @@ public sealed class MemberProjectionCompletenessPropertyTests
                 return; // Only check methods
             }
 
-            var (projectedType, _) = _projector.ProjectType(declaringType, _stdlib);
-            var projectedMembers = _projector.ProjectMembers(declaringType, projectedType, _stdlib);
+            var (projectedType, _) = projector.ProjectType(declaringType, stdlib);
+            var projectedMembers = projector.ProjectMembers(declaringType, projectedType, stdlib);
 
             var expectedParamCount = methodInfo.GetParameters().Length;
 

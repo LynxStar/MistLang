@@ -11,8 +11,8 @@ namespace Mist.Analysis.Builtin;
 /// </summary>
 internal sealed class InferenceContext
 {
-    private readonly Dictionary<string, IType?> _bindings;
-    private readonly List<(string TypeParameter, IType First, IType Second)> _conflicts = new();
+    private readonly Dictionary<string, IType?> bindings;
+    private readonly List<(string TypeParameter, IType First, IType Second)> conflicts = new();
 
     /// <summary>
     /// Initializes the context with one unbound entry per type parameter.
@@ -23,12 +23,12 @@ internal sealed class InferenceContext
     /// </param>
     public InferenceContext(IReadOnlyList<IType> typeParameters)
     {
-        _bindings = new Dictionary<string, IType?>();
+        bindings = new Dictionary<string, IType?>();
         foreach(var tp in typeParameters)
         {
             if(tp is TypeParameterType tpt)
             {
-                _bindings[tpt.Name] = null;
+                bindings[tpt.Name] = null;
             }
         }
     }
@@ -44,14 +44,14 @@ internal sealed class InferenceContext
     /// <returns>True if binding succeeded; false if a conflict was recorded.</returns>
     public bool TryBind(string typeParameterName, IType concreteType)
     {
-        if(!_bindings.TryGetValue(typeParameterName, out var existing))
+        if(!bindings.TryGetValue(typeParameterName, out var existing))
         {
             return false;
         }
 
         if(existing is null)
         {
-            _bindings[typeParameterName] = concreteType;
+            bindings[typeParameterName] = concreteType;
             return true;
         }
 
@@ -67,7 +67,7 @@ internal sealed class InferenceContext
         }
 
         // Conflict: same type parameter bound to two different concrete types.
-        _conflicts.Add((typeParameterName, existing, concreteType));
+        conflicts.Add((typeParameterName, existing, concreteType));
         return false;
     }
 
@@ -78,19 +78,19 @@ internal sealed class InferenceContext
     /// <returns>The bound concrete type, or null if not yet bound.</returns>
     public IType? GetBinding(string typeParameterName)
     {
-        return _bindings.TryGetValue(typeParameterName, out var bound) ? bound : null;
+        return bindings.TryGetValue(typeParameterName, out var bound) ? bound : null;
     }
 
     /// <summary>
     /// Whether any conflicts were detected during binding.
     /// </summary>
-    public bool HasConflicts => _conflicts.Count > 0;
+    public bool HasConflicts => conflicts.Count > 0;
 
     /// <summary>
     /// The list of conflicts detected during binding. Each entry contains the type
     /// parameter name and the two conflicting concrete types.
     /// </summary>
-    public IReadOnlyList<(string TypeParameter, IType First, IType Second)> Conflicts => _conflicts;
+    public IReadOnlyList<(string TypeParameter, IType First, IType Second)> Conflicts => conflicts;
 
     /// <summary>
     /// Returns the names of type parameters that remain unbound after inference.
@@ -98,7 +98,7 @@ internal sealed class InferenceContext
     public IReadOnlyList<string> GetUnboundParameters()
     {
         var unbound = new List<string>();
-        foreach(var (name, type) in _bindings)
+        foreach(var (name, type) in bindings)
         {
             if(type is null)
             {

@@ -25,8 +25,8 @@ public sealed class CompilerDriver : ICompilerDriver
     // lexed token streams and parsed ASTs avoids re-lexing/re-parsing 19
     // files on every Compile() call — a significant win for property-based
     // tests that compile hundreds of programs in a single test run.
-    private static (ImmutableArray<TokenStream> Tokens, ImmutableArray<Storm.Runtime.SyntaxNode> Asts)? _stdlibCache;
-    private static readonly object _stdlibCacheLock = new();
+    private static (ImmutableArray<TokenStream> Tokens, ImmutableArray<Storm.Runtime.SyntaxNode> Asts)? stdlibCache;
+    private static readonly object stdlibCacheLock = new();
 
     private ILexer lexer;
     private IParser parser;
@@ -347,7 +347,7 @@ public sealed class CompilerDriver : ICompilerDriver
         progressReporter.ReportStageStart("2", "Lexing");
 
         // Try to retrieve cached stdlib lex/parse results.
-        var cachedStdlib = _stdlibCache;
+        var cachedStdlib = stdlibCache;
 
         var tokenStreams = new Dictionary<CompilationUnit, TokenStream>();
         var stdlibTokensForCache = cachedStdlib.HasValue
@@ -457,11 +457,11 @@ public sealed class CompilerDriver : ICompilerDriver
         // Populate the stdlib cache if this is the first successful compile.
         if(!cachedStdlib.HasValue && stdlibTokensForCache is not null && stdlibAstsForCache is not null)
         {
-            lock(_stdlibCacheLock)
+            lock(stdlibCacheLock)
             {
-                if(!_stdlibCache.HasValue)
+                if(!stdlibCache.HasValue)
                 {
-                    _stdlibCache = (stdlibTokensForCache.ToImmutable(), stdlibAstsForCache.ToImmutable());
+                    stdlibCache = (stdlibTokensForCache.ToImmutable(), stdlibAstsForCache.ToImmutable());
                 }
             }
         }

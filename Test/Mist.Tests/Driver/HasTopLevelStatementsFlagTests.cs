@@ -21,21 +21,21 @@ namespace Mist.Tests.Driver;
 /// </summary>
 public sealed class HasTopLevelStatementsFlagTests : IDisposable
 {
-    private readonly string _scratchDir;
+    private readonly string scratchDir;
 
     public HasTopLevelStatementsFlagTests()
     {
-        _scratchDir = Path.Combine(
+        scratchDir = Path.Combine(
             Path.GetTempPath(),
             "mist-tls-flag-" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(_scratchDir);
+        Directory.CreateDirectory(scratchDir);
     }
 
     public void Dispose()
     {
-        if(Directory.Exists(_scratchDir))
+        if(Directory.Exists(scratchDir))
         {
-            try { Directory.Delete(_scratchDir, recursive: true); } catch { /* best effort */ }
+            try { Directory.Delete(scratchDir, recursive: true); } catch { /* best effort */ }
         }
         GC.SuppressFinalize(this);
     }
@@ -47,7 +47,7 @@ public sealed class HasTopLevelStatementsFlagTests : IDisposable
     /// </summary>
     private sealed class CapturingSemanticModelBuilder : ISemanticModelBuilder
     {
-        private readonly SemanticModelBuilder _inner = new();
+        private readonly SemanticModelBuilder inner = new();
 
         public ISemanticModel? CapturedModel { get; private set; }
 
@@ -63,7 +63,7 @@ public sealed class HasTopLevelStatementsFlagTests : IDisposable
             // The compilation passed here already has HasTopLevelStatements
             // set by the driver (it updates the compilation before calling
             // the semantic model builder).
-            var model = _inner.Build(compilation, asts, ambientTypeResolver, namespaceRoot, projectFolder, diagnostics, directReferencePaths);
+            var model = inner.Build(compilation, asts, ambientTypeResolver, namespaceRoot, projectFolder, diagnostics, directReferencePaths);
             CapturedModel = model;
             return model;
         }
@@ -84,15 +84,15 @@ public sealed class HasTopLevelStatementsFlagTests : IDisposable
     {
         // Arrange — a file with a top-level statement (var declaration at file scope)
         var source = "var x = 1;\n";
-        var filePath = Path.Combine(_scratchDir, "Program.mist");
+        var filePath = Path.Combine(scratchDir, "Program.mist");
         File.WriteAllText(filePath, source);
 
         var options = new CompilerOptions(
-            ProjectFolder: _scratchDir,
+            ProjectFolder: scratchDir,
             SourcePaths: ImmutableArray.Create(filePath),
             Backend: new BackendId("csharp"),
-            OutputDirectory: _scratchDir,
-            BinDirectory: Path.Combine(_scratchDir, "bin"),
+            OutputDirectory: scratchDir,
+            BinDirectory: Path.Combine(scratchDir, "bin"),
             ProjectName: "TestProject",
             NamespaceRoot: "TestProject",
             EnabledAnalyzerIds: ImmutableArray<string>.Empty);
@@ -118,15 +118,15 @@ public sealed class HasTopLevelStatementsFlagTests : IDisposable
     {
         // Arrange — a file with only a class declaration (no top-level statements)
         var source = "class Foo { }\n";
-        var filePath = Path.Combine(_scratchDir, "Foo.mist");
+        var filePath = Path.Combine(scratchDir, "Foo.mist");
         File.WriteAllText(filePath, source);
 
         var options = new CompilerOptions(
-            ProjectFolder: _scratchDir,
+            ProjectFolder: scratchDir,
             SourcePaths: ImmutableArray.Create(filePath),
             Backend: new BackendId("csharp"),
-            OutputDirectory: _scratchDir,
-            BinDirectory: Path.Combine(_scratchDir, "bin"),
+            OutputDirectory: scratchDir,
+            BinDirectory: Path.Combine(scratchDir, "bin"),
             ProjectName: "TestProject",
             NamespaceRoot: "TestProject",
             EnabledAnalyzerIds: ImmutableArray<string>.Empty);

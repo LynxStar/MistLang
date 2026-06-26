@@ -23,7 +23,7 @@ namespace Mist.Tests.Backend;
 /// </summary>
 public sealed class TypeResolutionCachingIdentityPropertyTests : IDisposable
 {
-    private readonly AssemblyTypeProvider _provider;
+    private readonly AssemblyTypeProvider provider;
 
     /// <summary>
     /// All resolvable (namespace, typeName) pairs from the runtime assemblies
@@ -35,12 +35,12 @@ public sealed class TypeResolutionCachingIdentityPropertyTests : IDisposable
     {
         var assemblyPaths = GetAssemblyPaths();
         var diagnostics = new DiagnosticBag();
-        _provider = new AssemblyTypeProvider(assemblyPaths, diagnostics);
+        provider = new AssemblyTypeProvider(assemblyPaths, diagnostics);
     }
 
     public void Dispose()
     {
-        _provider.Dispose();
+        provider.Dispose();
     }
 
     private static ImmutableArray<string> GetAssemblyPaths()
@@ -170,7 +170,7 @@ public sealed class TypeResolutionCachingIdentityPropertyTests : IDisposable
             var (ns, typeName) = ResolvableTypes[typeIdx];
 
             // First resolution
-            var firstResult = _provider.ResolveType(ns, typeName);
+            var firstResult = provider.ResolveType(ns, typeName);
 
             // Skip types that don't resolve (e.g., intrinsic types that get substituted)
             if(firstResult is null)
@@ -181,7 +181,7 @@ public sealed class TypeResolutionCachingIdentityPropertyTests : IDisposable
             // Resolve the same type multiple times and verify reference equality
             for(var i = 1; i < resolutionCount; i++)
             {
-                var subsequentResult = _provider.ResolveType(ns, typeName);
+                var subsequentResult = provider.ResolveType(ns, typeName);
 
                 Assert.True(
                     ReferenceEquals(firstResult, subsequentResult),

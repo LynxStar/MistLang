@@ -10,14 +10,14 @@ namespace Mist.Tests.Backend;
 /// </summary>
 public class NullableProjectionTests
 {
-    private readonly TypeProjector _projector;
-    private readonly FallbackStdlibTypeProvider _stdlib = FallbackStdlibTypeProvider.Instance;
+    private readonly TypeProjector projector;
+    private readonly FallbackStdlibTypeProvider stdlib = FallbackStdlibTypeProvider.Instance;
 
     public NullableProjectionTests()
     {
         var intrinsicMap = new IntrinsicTypeMap();
         var filter = new VisibilityFilter();
-        _projector = new TypeProjector(intrinsicMap, filter);
+        projector = new TypeProjector(intrinsicMap, filter);
     }
 
     // ── Requirement 14.1: Nullable<T> → T | void with NullableValueType origin ──
@@ -27,7 +27,7 @@ public class NullableProjectionTests
     {
         var clrType = typeof(int?);
 
-        var result = _projector.ProjectNullableType(clrType, _stdlib);
+        var result = projector.ProjectNullableType(clrType, stdlib);
 
         var union = Assert.IsType<UnionType>(result);
         Assert.Equal(2, union.Constituents.Count);
@@ -40,7 +40,7 @@ public class NullableProjectionTests
     {
         var clrType = typeof(int?);
 
-        var result = _projector.ProjectNullableType(clrType, _stdlib);
+        var result = projector.ProjectNullableType(clrType, stdlib);
 
         var union = Assert.IsType<UnionType>(result);
         var displayNames = union.Constituents.Select(c => c.DisplayName).ToList();
@@ -53,7 +53,7 @@ public class NullableProjectionTests
     {
         var clrType = typeof(int?);
 
-        var result = _projector.ProjectNullableType(clrType, _stdlib);
+        var result = projector.ProjectNullableType(clrType, stdlib);
 
         var union = Assert.IsType<UnionType>(result);
         Assert.NotNull(union.NullableProjection);
@@ -65,7 +65,7 @@ public class NullableProjectionTests
     {
         var clrType = typeof(bool?);
 
-        var result = _projector.ProjectNullableType(clrType, _stdlib);
+        var result = projector.ProjectNullableType(clrType, stdlib);
 
         var union = Assert.IsType<UnionType>(result);
         Assert.NotNull(union.NullableProjection);
@@ -82,7 +82,7 @@ public class NullableProjectionTests
     {
         var clrType = typeof(string);
 
-        var result = _projector.ProjectNullableType(clrType, _stdlib);
+        var result = projector.ProjectNullableType(clrType, stdlib);
 
         var union = Assert.IsType<UnionType>(result);
         Assert.Equal(2, union.Constituents.Count);
@@ -95,7 +95,7 @@ public class NullableProjectionTests
     {
         var clrType = typeof(string);
 
-        var result = _projector.ProjectNullableType(clrType, _stdlib);
+        var result = projector.ProjectNullableType(clrType, stdlib);
 
         var union = Assert.IsType<UnionType>(result);
         var displayNames = union.Constituents.Select(c => c.DisplayName).ToList();
@@ -109,7 +109,7 @@ public class NullableProjectionTests
         // Use a non-intrinsic class type from the fixture assembly
         var clrType = typeof(Mist.Tests.InteropFixtures.SimpleClass);
 
-        var result = _projector.ProjectNullableType(clrType, _stdlib);
+        var result = projector.ProjectNullableType(clrType, stdlib);
 
         var union = Assert.IsType<UnionType>(result);
         Assert.NotNull(union.NullableProjection);
@@ -121,7 +121,7 @@ public class NullableProjectionTests
     {
         var clrType = typeof(Mist.Tests.InteropFixtures.ISimpleInterface);
 
-        var result = _projector.ProjectNullableType(clrType, _stdlib);
+        var result = projector.ProjectNullableType(clrType, stdlib);
 
         var union = Assert.IsType<UnionType>(result);
         Assert.NotNull(union.NullableProjection);
@@ -133,7 +133,7 @@ public class NullableProjectionTests
     {
         var clrType = typeof(int[]);
 
-        var result = _projector.ProjectNullableType(clrType, _stdlib);
+        var result = projector.ProjectNullableType(clrType, stdlib);
 
         var union = Assert.IsType<UnionType>(result);
         Assert.NotNull(union.NullableProjection);
@@ -145,7 +145,7 @@ public class NullableProjectionTests
     {
         var clrType = typeof(Mist.Tests.InteropFixtures.SimpleClass);
 
-        var result = _projector.ProjectNullableType(clrType, _stdlib);
+        var result = projector.ProjectNullableType(clrType, stdlib);
 
         var union = Assert.IsType<UnionType>(result);
         Assert.NotNull(union.NullableProjection);
@@ -159,7 +159,7 @@ public class NullableProjectionTests
     {
         var clrType = typeof(int);
 
-        var result = _projector.ProjectNullableType(clrType, _stdlib);
+        var result = projector.ProjectNullableType(clrType, stdlib);
 
         Assert.IsNotType<UnionType>(result);
     }
@@ -169,7 +169,7 @@ public class NullableProjectionTests
     {
         var clrType = typeof(int);
 
-        var result = _projector.ProjectNullableType(clrType, _stdlib);
+        var result = projector.ProjectNullableType(clrType, stdlib);
 
         // int is an intrinsic type, so it should be substituted to the stdlib fallback
         Assert.Equal("int", result.DisplayName);
@@ -180,7 +180,7 @@ public class NullableProjectionTests
     {
         var clrType = typeof(bool);
 
-        var result = _projector.ProjectNullableType(clrType, _stdlib);
+        var result = projector.ProjectNullableType(clrType, stdlib);
 
         Assert.IsNotType<UnionType>(result);
     }
@@ -190,7 +190,7 @@ public class NullableProjectionTests
     {
         var clrType = typeof(Mist.Tests.InteropFixtures.SimpleStruct);
 
-        var result = _projector.ProjectNullableType(clrType, _stdlib);
+        var result = projector.ProjectNullableType(clrType, stdlib);
 
         Assert.IsNotType<UnionType>(result);
         Assert.Equal("SimpleStruct", result.DisplayName);
@@ -201,7 +201,7 @@ public class NullableProjectionTests
     {
         var clrType = typeof(Mist.Tests.InteropFixtures.SimpleEnum);
 
-        var result = _projector.ProjectNullableType(clrType, _stdlib);
+        var result = projector.ProjectNullableType(clrType, stdlib);
 
         Assert.IsNotType<UnionType>(result);
     }
@@ -214,8 +214,8 @@ public class NullableProjectionTests
         var nullableInt = typeof(int?);
         var stringType = typeof(string);
 
-        var nullableResult = _projector.ProjectNullableType(nullableInt, _stdlib);
-        var referenceResult = _projector.ProjectNullableType(stringType, _stdlib);
+        var nullableResult = projector.ProjectNullableType(nullableInt, stdlib);
+        var referenceResult = projector.ProjectNullableType(stringType, stdlib);
 
         var nullableUnion = Assert.IsType<UnionType>(nullableResult);
         var referenceUnion = Assert.IsType<UnionType>(referenceResult);
@@ -229,7 +229,7 @@ public class NullableProjectionTests
     {
         var clrType = typeof(int);
 
-        var result = _projector.ProjectNullableType(clrType, _stdlib);
+        var result = projector.ProjectNullableType(clrType, stdlib);
 
         // Non-union types don't have NullableProjection metadata
         Assert.IsNotType<UnionType>(result);

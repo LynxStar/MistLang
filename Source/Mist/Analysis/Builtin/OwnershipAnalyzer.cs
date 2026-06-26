@@ -24,7 +24,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
     // MoveBoundaryResolver (Req 6 AC 9). This-tier inference and ownership inference
     // are static passes invoked before flow-sensitive analysis.
 
-    private MoveBoundaryResolver _resolver = new();
+    private MoveBoundaryResolver resolver = new();
 
     // ── Diagnostic IDs ───────────────────────────────────────────────────
 
@@ -299,7 +299,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         // Owned-fields orchestration (design: Modified Component 1). The analyzer keeps
         // its IAnalyzer identity ("OWNERSHIP") and delegates to specialized passes.
         // A fresh MoveBoundaryResolver per Analyze() keeps the analyzer reusable.
-        _resolver = new MoveBoundaryResolver();
+        resolver = new MoveBoundaryResolver();
 
         // Pass A: declaration validation — reject the 'owned' modifier on abstract
         // declarations ONLY (Req 5 AC 6). Owned types are free to implement abstract types
@@ -1361,7 +1361,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         ISemanticModel model,
         DiagnosticBag diagnostics)
     {
-        _resolver.Resolve(
+        resolver.Resolve(
             initializer,
             destination.DeclaredType,
             OwnedMoveSite.OwnedBindingInit,
@@ -1490,7 +1490,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                         }
                     }
 
-                    var resolution = _resolver.Resolve(
+                    var resolution = resolver.Resolve(
                         assignment.Value,
                         targetField?.DeclaredType,
                         OwnedMoveSite.OwnedFieldAssignment,
@@ -1526,7 +1526,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                     if(sourceType is not null && sourceType is not ErrorType
                         && sourceType is not TypeParameterType)
                     {
-                        _resolver.Resolve(
+                        resolver.Resolve(
                             assignment.Value,
                             thisFieldSym.DeclaredType,
                             OwnedMoveSite.OwnedFieldAssignment,
@@ -2137,7 +2137,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                     // consumes an owned source (marking it Moved), copies value types,
                     // clones a non-owned clonable source, and emits MIST_OWN_REQUIRES_OWNED /
                     // MIST_OWN_NOT_CLONABLE for a non-owned, non-clonable source.
-                    _resolver.Resolve(
+                    resolver.Resolve(
                         argExprs[i],
                         paramSym.DeclaredType,
                         OwnedMoveSite.OwnedParameterPass,
@@ -2213,7 +2213,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                 {
                     // Owned parameter pass is an owned-move site (Req 6 AC 3, Req 9 AC 4):
                     // route the argument through the single move boundary.
-                    _resolver.Resolve(
+                    resolver.Resolve(
                         argExprs[i],
                         paramSym.DeclaredType,
                         OwnedMoveSite.OwnedParameterPass,
@@ -2324,7 +2324,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                 if(paramSym.OwnershipTier == OwnershipTier.Owned)
                 {
                     // Owned parameter pass: route through the move boundary.
-                    _resolver.Resolve(
+                    resolver.Resolve(
                         argExprs[i],
                         paramSym.DeclaredType,
                         OwnedMoveSite.OwnedParameterPass,

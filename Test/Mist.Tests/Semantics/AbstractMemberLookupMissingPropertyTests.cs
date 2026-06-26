@@ -27,7 +27,7 @@ namespace Mist.Tests.Semantics;
 // Phase B will reintroduce UnknownType as the user-facing top type, distinct from this ErrorType sentinel.
 public class AbstractMemberLookupMissingPropertyTests
 {
-    private readonly SemanticModelBuilder _builder = new();
+    private readonly SemanticModelBuilder builder = new();
 
     // ─── Helpers ─────────────────────────────────────────────────────────
 
@@ -65,7 +65,7 @@ public class AbstractMemberLookupMissingPropertyTests
     {
         var compilation = MakeCompilation(source);
         var diagnostics = new DiagnosticBag();
-        var model = _builder.Build(compilation, ImmutableArray.Create(ast), ambientTypeResolver: null, namespaceRoot: "TestProject", projectFolder: "/test", diagnostics);
+        var model = builder.Build(compilation, ImmutableArray.Create(ast), ambientTypeResolver: null, namespaceRoot: "TestProject", projectFolder: "/test", diagnostics);
         return (model, diagnostics.ToImmutableArray());
     }
 

@@ -9,34 +9,34 @@ namespace Mist.CLI.Tests.Steering;
 /// </summary>
 public sealed class SteeringInstallerTests : IDisposable
 {
-    private readonly string _root;
-    private readonly string _sourceRoot;
-    private readonly string _projectFolder;
+    private readonly string root;
+    private readonly string sourceRoot;
+    private readonly string projectFolder;
 
     public SteeringInstallerTests()
     {
-        _root = Path.Combine(Path.GetTempPath(), $"mist_steering_test_{Guid.NewGuid():N}");
-        _sourceRoot = Path.Combine(_root, "bundled");
-        _projectFolder = Path.Combine(_root, "project");
-        Directory.CreateDirectory(_sourceRoot);
-        Directory.CreateDirectory(_projectFolder);
+        root = Path.Combine(Path.GetTempPath(), $"mist_steering_test_{Guid.NewGuid():N}");
+        sourceRoot = Path.Combine(root, "bundled");
+        projectFolder = Path.Combine(root, "project");
+        Directory.CreateDirectory(sourceRoot);
+        Directory.CreateDirectory(projectFolder);
     }
 
     public void Dispose()
     {
-        if(Directory.Exists(_root))
+        if(Directory.Exists(root))
         {
-            Directory.Delete(_root, recursive: true);
+            Directory.Delete(root, recursive: true);
         }
     }
 
-    private string SteeringDir => Path.Combine(_projectFolder, ".kiro", "steering");
+    private string SteeringDir => Path.Combine(projectFolder, ".kiro", "steering");
 
     /// <summary>Writes a bundled (managed) steering file with the sentinel marker embedded.</summary>
     private void WriteBundled(string fileName, string body = "content")
     {
         var text = $"<!-- {SteeringInstaller.ManagedMarker} -->\n{body}\n";
-        File.WriteAllText(Path.Combine(_sourceRoot, fileName), text);
+        File.WriteAllText(Path.Combine(sourceRoot, fileName), text);
     }
 
     /// <summary>Writes a file directly into the project's steering directory.</summary>
@@ -54,7 +54,7 @@ public sealed class SteeringInstallerTests : IDisposable
         WriteBundled("mist-language.md");
         WriteBundled("mist-ownership.md");
 
-        var result = SteeringInstaller.InstallFrom(_projectFolder, _sourceRoot);
+        var result = SteeringInstaller.InstallFrom(projectFolder, sourceRoot);
 
         Assert.True(result.Succeeded);
         Assert.Null(result.Error);
@@ -71,11 +71,11 @@ public sealed class SteeringInstallerTests : IDisposable
     {
         WriteBundled("mist-language.md", body: "the language reference body");
 
-        var result = SteeringInstaller.InstallFrom(_projectFolder, _sourceRoot);
+        var result = SteeringInstaller.InstallFrom(projectFolder, sourceRoot);
 
         Assert.True(result.Succeeded);
         var installed = File.ReadAllText(Path.Combine(SteeringDir, "mist-language.md"));
-        var bundled = File.ReadAllText(Path.Combine(_sourceRoot, "mist-language.md"));
+        var bundled = File.ReadAllText(Path.Combine(sourceRoot, "mist-language.md"));
         Assert.Equal(bundled, installed);
         Assert.Contains("the language reference body", installed, StringComparison.Ordinal);
     }
@@ -88,10 +88,10 @@ public sealed class SteeringInstallerTests : IDisposable
         WriteBundled("mist-language.md");
         WriteBundled("mist-ownership.md");
 
-        var first = SteeringInstaller.InstallFrom(_projectFolder, _sourceRoot);
+        var first = SteeringInstaller.InstallFrom(projectFolder, sourceRoot);
         Assert.True(first.Succeeded);
 
-        var second = SteeringInstaller.InstallFrom(_projectFolder, _sourceRoot);
+        var second = SteeringInstaller.InstallFrom(projectFolder, sourceRoot);
 
         Assert.True(second.Succeeded);
         // The second run removes the two files the first run installed, then reinstalls them.
@@ -112,7 +112,7 @@ public sealed class SteeringInstallerTests : IDisposable
         WriteBundled("mist-language.md");
         WriteExisting("my-rules.md", "# My own steering\nuser content\n");
 
-        var result = SteeringInstaller.InstallFrom(_projectFolder, _sourceRoot);
+        var result = SteeringInstaller.InstallFrom(projectFolder, sourceRoot);
 
         Assert.True(result.Succeeded);
         _ = Assert.Single(result.SkippedUserFiles);
@@ -129,7 +129,7 @@ public sealed class SteeringInstallerTests : IDisposable
         WriteBundled("mist-language.md");
         WriteExisting("notes.md", "no marker here");
 
-        var result = SteeringInstaller.InstallFrom(_projectFolder, _sourceRoot);
+        var result = SteeringInstaller.InstallFrom(projectFolder, sourceRoot);
 
         Assert.True(result.Succeeded);
         Assert.Empty(result.Removed);
@@ -145,7 +145,7 @@ public sealed class SteeringInstallerTests : IDisposable
         WriteExisting("mist-old-removed.md", $"<!-- {SteeringInstaller.ManagedMarker} -->\nold\n");
         WriteBundled("mist-language.md");
 
-        var result = SteeringInstaller.InstallFrom(_projectFolder, _sourceRoot);
+        var result = SteeringInstaller.InstallFrom(projectFolder, sourceRoot);
 
         Assert.True(result.Succeeded);
         Assert.Contains(result.Removed, p => p.EndsWith("mist-old-removed.md", StringComparison.Ordinal));
@@ -160,7 +160,7 @@ public sealed class SteeringInstallerTests : IDisposable
         WriteExisting("mist-language.md", $"<!-- {SteeringInstaller.ManagedMarker} -->\nstale body\n");
         WriteBundled("mist-language.md", body: "fresh body");
 
-        var result = SteeringInstaller.InstallFrom(_projectFolder, _sourceRoot);
+        var result = SteeringInstaller.InstallFrom(projectFolder, sourceRoot);
 
         Assert.True(result.Succeeded);
         var installed = File.ReadAllText(Path.Combine(SteeringDir, "mist-language.md"));
@@ -177,7 +177,7 @@ public sealed class SteeringInstallerTests : IDisposable
         WriteBundled("mist-language.md", body: "fresh");
         WriteBundled("mist-advanced-features.md", body: "fresh");
 
-        var result = SteeringInstaller.InstallFrom(_projectFolder, _sourceRoot);
+        var result = SteeringInstaller.InstallFrom(projectFolder, sourceRoot);
 
         Assert.True(result.Succeeded);
 
@@ -195,9 +195,9 @@ public sealed class SteeringInstallerTests : IDisposable
     [Fact]
     public void InstallFrom_MissingSourceRoot_ReturnsFailure()
     {
-        var missing = Path.Combine(_root, "does-not-exist");
+        var missing = Path.Combine(root, "does-not-exist");
 
-        var result = SteeringInstaller.InstallFrom(_projectFolder, missing);
+        var result = SteeringInstaller.InstallFrom(projectFolder, missing);
 
         Assert.False(result.Succeeded);
         Assert.NotNull(result.Error);
@@ -209,7 +209,7 @@ public sealed class SteeringInstallerTests : IDisposable
     public void InstallFrom_EmptySourceRoot_ReturnsFailure()
     {
         // _sourceRoot exists but contains no .md files.
-        var result = SteeringInstaller.InstallFrom(_projectFolder, _sourceRoot);
+        var result = SteeringInstaller.InstallFrom(projectFolder, sourceRoot);
 
         Assert.False(result.Succeeded);
         Assert.NotNull(result.Error);
@@ -220,9 +220,9 @@ public sealed class SteeringInstallerTests : IDisposable
     public void InstallFrom_FailureLeavesNoPartialState_WhenSourceMissing()
     {
         WriteExisting("my-rules.md", "user content");
-        var missing = Path.Combine(_root, "does-not-exist");
+        var missing = Path.Combine(root, "does-not-exist");
 
-        var result = SteeringInstaller.InstallFrom(_projectFolder, missing);
+        var result = SteeringInstaller.InstallFrom(projectFolder, missing);
 
         Assert.False(result.Succeeded);
         // The user's file must survive a failed run (failure occurs before any deletion).

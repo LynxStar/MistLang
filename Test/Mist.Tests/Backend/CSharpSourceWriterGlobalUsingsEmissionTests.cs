@@ -17,20 +17,20 @@ public sealed class CSharpSourceWriterGlobalUsingsEmissionTests : IDisposable
 {
     private static readonly Mist.Lexing.MistLexer Lexer = new();
     private static readonly Mist.Parsing.MistParser Parser = new();
-    private readonly SemanticModelBuilder _builder = new();
-    private readonly string _outputDir;
+    private readonly SemanticModelBuilder builder = new();
+    private readonly string outputDir;
 
     public CSharpSourceWriterGlobalUsingsEmissionTests()
     {
-        _outputDir = Path.Combine(Path.GetTempPath(), "MistGlobalUsingsEmitTests_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(_outputDir);
+        outputDir = Path.Combine(Path.GetTempPath(), "MistGlobalUsingsEmitTests_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(outputDir);
     }
 
     public void Dispose()
     {
-        if(Directory.Exists(_outputDir))
+        if(Directory.Exists(outputDir))
         {
-            try { Directory.Delete(_outputDir, recursive: true); } catch { /* best effort */ }
+            try { Directory.Delete(outputDir, recursive: true); } catch { /* best effort */ }
         }
         GC.SuppressFinalize(this);
     }
@@ -40,7 +40,7 @@ public sealed class CSharpSourceWriterGlobalUsingsEmissionTests : IDisposable
     private string? CompileWithGlobalUsings(string mistSource, ImmutableArray<string> globalUsings)
     {
         // Clean output directory
-        foreach(var file in Directory.GetFiles(_outputDir))
+        foreach(var file in Directory.GetFiles(outputDir))
         {
             File.Delete(file);
         }
@@ -68,7 +68,7 @@ public sealed class CSharpSourceWriterGlobalUsingsEmissionTests : IDisposable
         };
         var compilation = new MistCompilation(ImmutableArray.Create(compilationUnit));
         var semanticBag = new DiagnosticBag();
-        var model = _builder.Build(
+        var model = builder.Build(
             compilation,
             ImmutableArray.Create<Storm.Runtime.SyntaxNode>(parseResult.Root),
             ambientTypeResolver: null,
@@ -78,10 +78,10 @@ public sealed class CSharpSourceWriterGlobalUsingsEmissionTests : IDisposable
 
         // 4. Emit C#
         var emitBag = new DiagnosticBag();
-        CSharpEmitter.Emit(model, _outputDir, "TestProject", emitBag);
+        CSharpEmitter.Emit(model, outputDir, "TestProject", emitBag);
 
         // 5. Read the emitted .cs file
-        var csFile = Directory.GetFiles(_outputDir, "*.cs").FirstOrDefault();
+        var csFile = Directory.GetFiles(outputDir, "*.cs").FirstOrDefault();
         return csFile is not null ? File.ReadAllText(csFile) : null;
     }
 

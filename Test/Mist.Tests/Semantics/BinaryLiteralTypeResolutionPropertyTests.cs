@@ -29,7 +29,7 @@ public class BinaryLiteralTypeResolutionPropertyTests
 {
     private static readonly Mist.Lexing.MistLexer Lexer = new();
     private static readonly Mist.Parsing.MistParser Parser = new();
-    private readonly SemanticModelBuilder _builder = new();
+    private readonly SemanticModelBuilder builder = new();
 
     // ─── Suffix definitions ──────────────────────────────────────────────
 
@@ -139,7 +139,7 @@ public class BinaryLiteralTypeResolutionPropertyTests
         var sourceText = new SourceText("test.mist", source);
         var compilation = new MistCompilation(ImmutableArray.Create(new CompilationUnit(sourceText)));
         var diagnostics = new DiagnosticBag();
-        return _builder.Build(
+        return builder.Build(
             compilation,
             ImmutableArray.Create(ast),
             ambientTypeResolver: null,

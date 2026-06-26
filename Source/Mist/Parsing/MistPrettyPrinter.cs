@@ -12,14 +12,14 @@ namespace Mist.Parsing;
 /// </summary>
 public sealed class MistPrettyPrinter
 {
-    private readonly StringBuilder _sb = new();
-    private int _indentLevel;
+    private readonly StringBuilder sb = new();
+    private int indentLevel;
     private const string IndentUnit = "    "; // 4 spaces per indent level
-    private readonly string? _sourceText;
+    private readonly string? sourceText;
 
     private MistPrettyPrinter(string? sourceText = null)
     {
-        _sourceText = sourceText;
+        this.sourceText = sourceText;
     }
 
     /// <summary>
@@ -29,7 +29,7 @@ public sealed class MistPrettyPrinter
     {
         var printer = new MistPrettyPrinter();
         printer.Visit(ast);
-        return printer._sb.ToString();
+        return printer.sb.ToString();
     }
 
     /// <summary>
@@ -41,7 +41,7 @@ public sealed class MistPrettyPrinter
     {
         var printer = new MistPrettyPrinter(sourceText);
         printer.Visit(ast);
-        return printer._sb.ToString();
+        return printer.sb.ToString();
     }
 
     private void Visit(SyntaxNode node)
@@ -130,14 +130,14 @@ public sealed class MistPrettyPrinter
                 {
                     var name = ExtractQualifiedName(blockNs.Name);
                     AppendLine($"namespace {name} {{");
-                    _indentLevel++;
+                    indentLevel++;
 
                     foreach(var bodyItem in blockNs.Body)
                     {
                         EmitNamespaceBodyItem(bodyItem);
                     }
 
-                    _indentLevel--;
+                    indentLevel--;
                     AppendLine("}");
                     break;
                 }
@@ -258,11 +258,11 @@ public sealed class MistPrettyPrinter
         }
         var constraints = EmitConstraintClauses(classDecl.Constraints);
         AppendLine($"{modifiers}class {name}{typeParams}{baseClause}{constraints} {{");
-        _indentLevel++;
+        indentLevel++;
 
         EmitMembers(classDecl.Members);
 
-        _indentLevel--;
+        indentLevel--;
         AppendLine("}");
     }
 
@@ -278,11 +278,11 @@ public sealed class MistPrettyPrinter
         }
         var constraints = EmitConstraintClauses(structDecl.Constraints);
         AppendLine($"{modifiers}struct {name}{typeParams}{abstractClause}{constraints} {{");
-        _indentLevel++;
+        indentLevel++;
 
         EmitMembers(structDecl.Members);
 
-        _indentLevel--;
+        indentLevel--;
         AppendLine("}");
     }
 
@@ -297,14 +297,14 @@ public sealed class MistPrettyPrinter
         }
         var constraints = EmitConstraintClauses(abstractDecl.Constraints);
         AppendLine($"abstract {name}{typeParams}{abstractClause}{constraints} {{");
-        _indentLevel++;
+        indentLevel++;
 
         for(var i = 0; i < abstractDecl.Members.Length; i++)
         {
             EmitAbstractMemberDeclaration(abstractDecl.Members[i]);
         }
 
-        _indentLevel--;
+        indentLevel--;
         AppendLine("}");
     }
 
@@ -413,7 +413,7 @@ public sealed class MistPrettyPrinter
         }
 
         AppendLine($"{modifiers}{name}({parameters}){withClauses}{constraints}{chain} {{");
-        _indentLevel++;
+        indentLevel++;
 
         if(ctorDecl.Body.GetBlock() is BlockNode ctorBlock)
         {
@@ -423,7 +423,7 @@ public sealed class MistPrettyPrinter
             }
         }
 
-        _indentLevel--;
+        indentLevel--;
         AppendLine("}");
     }
 
@@ -439,7 +439,7 @@ public sealed class MistPrettyPrinter
         var constraints = EmitConstraintClauses(methodDecl.Constraints);
 
         AppendLine($"{modifiers}{returnOwnership}{returnType} {name}{typeParams}({parameters}){withClauses}{constraints} {{");
-        _indentLevel++;
+        indentLevel++;
 
         if(methodDecl.Body.GetBlock() is BlockNode methodBlock)
         {
@@ -449,7 +449,7 @@ public sealed class MistPrettyPrinter
             }
         }
 
-        _indentLevel--;
+        indentLevel--;
         AppendLine("}");
     }
 
@@ -722,14 +722,14 @@ public sealed class MistPrettyPrinter
         if(opDecl.Body is OperatorBlockBodyOperatorBodyNode blockBody)
         {
             AppendLine($"{modifiers}{returnType} operator {symbol}({parameters}) {{");
-            _indentLevel++;
+            indentLevel++;
 
             foreach(var stmt in blockBody.Block.Statements)
             {
                 EmitStatement(stmt);
             }
 
-            _indentLevel--;
+            indentLevel--;
             AppendLine("}");
         }
         else
@@ -749,14 +749,14 @@ public sealed class MistPrettyPrinter
         if(castOpDecl.Body is OperatorBlockBodyOperatorBodyNode blockBody)
         {
             AppendLine($"{modifiers}{castKind} operator {targetType}({parameters}) {{");
-            _indentLevel++;
+            indentLevel++;
 
             foreach(var stmt in blockBody.Block.Statements)
             {
                 EmitStatement(stmt);
             }
 
-            _indentLevel--;
+            indentLevel--;
             AppendLine("}");
         }
         else
@@ -776,7 +776,7 @@ public sealed class MistPrettyPrinter
         }
 
         AppendLine("default {");
-        _indentLevel++;
+        indentLevel++;
 
         foreach(var entry in defaultBlock.Entries)
         {
@@ -814,7 +814,7 @@ public sealed class MistPrettyPrinter
             }
         }
 
-        _indentLevel--;
+        indentLevel--;
         AppendLine("}");
     }
 
@@ -920,11 +920,11 @@ public sealed class MistPrettyPrinter
         }
 
         AppendLine($"{modifiers}enum {name}{typeAnnotation} {{");
-        _indentLevel++;
+        indentLevel++;
 
         EmitEnumMemberList(enumDecl.Members);
 
-        _indentLevel--;
+        indentLevel--;
         AppendLine("}");
     }
 
@@ -983,7 +983,7 @@ public sealed class MistPrettyPrinter
         // Grammar: TypeParameterList? EXTENSION ( ... ) — type params precede the keyword
         var prefix = typeParams.Length > 0 ? $"{typeParams} " : "";
         AppendLine($"{prefix}extension({receiverType} {receiverName}) {{");
-        _indentLevel++;
+        indentLevel++;
 
         for(var i = 0; i < extDecl.Members.Length; i++)
         {
@@ -995,7 +995,7 @@ public sealed class MistPrettyPrinter
             EmitExtensionMemberDeclaration(extDecl.Members[i]);
         }
 
-        _indentLevel--;
+        indentLevel--;
         AppendLine("}");
     }
 
@@ -1252,22 +1252,22 @@ public sealed class MistPrettyPrinter
                 break;
             case ReadonlyBlockStatementStatementNode readonlyBlockStmt:
                 AppendLine("readonly {");
-                _indentLevel++;
+                indentLevel++;
                 foreach(var bodyStmt in readonlyBlockStmt.ReadonlyBlock.Body.Statements)
                 {
                     EmitStatement(bodyStmt);
                 }
-                _indentLevel--;
+                indentLevel--;
                 AppendLine("}");
                 break;
             case BlockStatementStatementNode blockStmt:
                 AppendLine("{");
-                _indentLevel++;
+                indentLevel++;
                 foreach(var bodyStmt in blockStmt.BlockStatement.Statements)
                 {
                     EmitStatement(bodyStmt);
                 }
-                _indentLevel--;
+                indentLevel--;
                 AppendLine("}");
                 break;
             case WithVarDeclarationStatementStatementNode withVarStmt:
@@ -1325,12 +1325,12 @@ public sealed class MistPrettyPrinter
     {
         var expr = EmitExpression(withBlockStmt.Expression);
         AppendLine($"with ({expr}) {{");
-        _indentLevel++;
+        indentLevel++;
         foreach(var bodyStmt in withBlockStmt.Body.Statements)
         {
             EmitStatement(bodyStmt);
         }
-        _indentLevel--;
+        indentLevel--;
         AppendLine("}");
     }
 
@@ -1440,14 +1440,14 @@ public sealed class MistPrettyPrinter
     {
         var condition = EmitExpression(ifStmt.Condition);
         AppendLine($"if ({condition}) {{");
-        _indentLevel++;
+        indentLevel++;
 
         foreach(var stmt in ifStmt.ThenBranch.Statements)
         {
             EmitStatement(stmt);
         }
 
-        _indentLevel--;
+        indentLevel--;
 
         if(ifStmt.ElseBranch is not null)
         {
@@ -1467,14 +1467,14 @@ public sealed class MistPrettyPrinter
                 {
                     var condition = EmitExpression(elseIf.ElseIf.Condition);
                     AppendLine($"}} else if ({condition}) {{");
-                    _indentLevel++;
+                    indentLevel++;
 
                     foreach(var stmt in elseIf.ElseIf.ThenBranch.Statements)
                     {
                         EmitStatement(stmt);
                     }
 
-                    _indentLevel--;
+                    indentLevel--;
 
                     if(elseIf.ElseIf.ElseBranch is not null)
                     {
@@ -1489,14 +1489,14 @@ public sealed class MistPrettyPrinter
             case ElseBlockElseClauseNode elseBlock:
                 {
                     AppendLine("} else {");
-                    _indentLevel++;
+                    indentLevel++;
 
                     foreach(var stmt in elseBlock.ElseBlock.Statements)
                     {
                         EmitStatement(stmt);
                     }
 
-                    _indentLevel--;
+                    indentLevel--;
                     AppendLine("}");
                     break;
                 }
@@ -1507,14 +1507,14 @@ public sealed class MistPrettyPrinter
     {
         var condition = EmitExpression(whileStmt.Condition);
         AppendLine($"while ({condition}) {{");
-        _indentLevel++;
+        indentLevel++;
 
         foreach(var stmt in whileStmt.Body.Statements)
         {
             EmitStatement(stmt);
         }
 
-        _indentLevel--;
+        indentLevel--;
         AppendLine("}");
     }
 
@@ -1525,14 +1525,14 @@ public sealed class MistPrettyPrinter
         var iterator = forStmt.Iterator is not null ? EmitExpression(forStmt.Iterator) : "";
 
         AppendLine($"for ({init}; {condition}; {iterator}) {{");
-        _indentLevel++;
+        indentLevel++;
 
         foreach(var stmt in forStmt.Body.Statements)
         {
             EmitStatement(stmt);
         }
 
-        _indentLevel--;
+        indentLevel--;
         AppendLine("}");
     }
 
@@ -1572,14 +1572,14 @@ public sealed class MistPrettyPrinter
         var collection = EmitExpression(foreachStmt.Collection);
 
         AppendLine($"foreach ({type} {name} in {collection}) {{");
-        _indentLevel++;
+        indentLevel++;
 
         foreach(var stmt in foreachStmt.Body.Statements)
         {
             EmitStatement(stmt);
         }
 
-        _indentLevel--;
+        indentLevel--;
         AppendLine("}");
     }
 
@@ -2459,12 +2459,12 @@ public sealed class MistPrettyPrinter
     private string ExtractQualifiedName(QualifiedIdentifierNode qualifiedId)
     {
         // Prefer extracting from source text via Span (handles dotted names correctly)
-        if(_sourceText is not null)
+        if(sourceText is not null)
         {
             var span = qualifiedId.Span;
-            if(span.Length > 0 && span.Start + span.Length <= _sourceText.Length)
+            if(span.Length > 0 && span.Start + span.Length <= sourceText.Length)
             {
-                return _sourceText.Substring(span.Start, span.Length);
+                return sourceText.Substring(span.Start, span.Length);
             }
         }
 
@@ -2615,15 +2615,15 @@ public sealed class MistPrettyPrinter
     {
         if(string.IsNullOrEmpty(text))
         {
-            _sb.AppendLine();
+            sb.AppendLine();
         }
         else
         {
-            for(var i = 0; i < _indentLevel; i++)
+            for(var i = 0; i < indentLevel; i++)
             {
-                _sb.Append(IndentUnit);
+                sb.Append(IndentUnit);
             }
-            _sb.AppendLine(text);
+            sb.AppendLine(text);
         }
     }
 }

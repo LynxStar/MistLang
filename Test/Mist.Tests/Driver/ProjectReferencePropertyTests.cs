@@ -251,7 +251,7 @@ public sealed class ProjectReferencePropertyTests
     /// </summary>
     private sealed class CapturingSemanticModelBuilder : ISemanticModelBuilder
     {
-        private readonly SemanticModelBuilder _inner = new();
+        private readonly SemanticModelBuilder inner = new();
 
         public MistCompilation? CapturedCompilation { get; private set; }
 
@@ -265,7 +265,7 @@ public sealed class ProjectReferencePropertyTests
             ImmutableHashSet<string>? directReferencePaths = null)
         {
             CapturedCompilation = compilation;
-            return _inner.Build(compilation, asts, ambientTypeResolver, namespaceRoot, projectFolder, diagnostics, directReferencePaths);
+            return inner.Build(compilation, asts, ambientTypeResolver, namespaceRoot, projectFolder, diagnostics, directReferencePaths);
         }
     }
 

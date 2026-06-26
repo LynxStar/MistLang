@@ -83,17 +83,17 @@ public sealed class ExtensionReceiverTypeIdentityBugConditionPropertyTests : IDi
     /// </summary>
     private static readonly ImmutableArray<string> RuntimeAssemblyPaths = GetRuntimeAssemblyPaths();
 
-    private readonly AssemblyTypeProvider _provider;
+    private readonly AssemblyTypeProvider provider;
 
     public ExtensionReceiverTypeIdentityBugConditionPropertyTests()
     {
         var diagnostics = new DiagnosticBag();
-        _provider = new AssemblyTypeProvider(RuntimeAssemblyPaths, diagnostics);
+        provider = new AssemblyTypeProvider(RuntimeAssemblyPaths, diagnostics);
     }
 
     public void Dispose()
     {
-        _provider.Dispose();
+        provider.Dispose();
     }
 
     private static ImmutableArray<string> GetRuntimeAssemblyPaths()
@@ -166,7 +166,7 @@ public sealed class ExtensionReceiverTypeIdentityBugConditionPropertyTests : IDi
 
         var compilation = new MistCompilation(allUnits);
         var model = Builder.Build(
-            compilation, allAsts, _provider,
+            compilation, allAsts, provider,
             namespaceRoot: "TestProject", projectFolder: "/test", diagnostics);
 
         return (model, diagnostics.ToImmutableArray());
@@ -195,7 +195,7 @@ public sealed class ExtensionReceiverTypeIdentityBugConditionPropertyTests : IDi
         var (model, _) = BuildModelWithProvider(scenario.ExtensionNamespace);
 
         // Get the canonical type from the provider's cache.
-        var canonicalType = _provider.ResolveType(scenario.InterfaceNamespace, scenario.InterfaceName);
+        var canonicalType = provider.ResolveType(scenario.InterfaceNamespace, scenario.InterfaceName);
 
         if(canonicalType is null)
         {

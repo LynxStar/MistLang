@@ -80,19 +80,19 @@ public sealed class ForeachArrayScenario
 /// </summary>
 public sealed class ForeachEnumerableTypeInferencePropertyTests : IDisposable
 {
-    private readonly string _tempDir;
+    private readonly string tempDir;
 
     public ForeachEnumerableTypeInferencePropertyTests()
     {
-        _tempDir = Path.Combine(Path.GetTempPath(), "MistForeachEnumPBT_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(_tempDir);
+        tempDir = Path.Combine(Path.GetTempPath(), "MistForeachEnumPBT_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempDir);
     }
 
     public void Dispose()
     {
-        if(Directory.Exists(_tempDir))
+        if(Directory.Exists(tempDir))
         {
-            try { Directory.Delete(_tempDir, recursive: true); } catch { /* best effort */ }
+            try { Directory.Delete(tempDir, recursive: true); } catch { /* best effort */ }
         }
     }
 
@@ -208,15 +208,15 @@ public sealed class ForeachEnumerableTypeInferencePropertyTests : IDisposable
 
     private CompilerResult CompileSource(string source)
     {
-        var filePath = Path.Combine(_tempDir, $"Test_{Guid.NewGuid():N}.mist");
+        var filePath = Path.Combine(tempDir, $"Test_{Guid.NewGuid():N}.mist");
         File.WriteAllText(filePath, source);
 
         var options = new CompilerOptions(
-            ProjectFolder: _tempDir,
+            ProjectFolder: tempDir,
             SourcePaths: ImmutableArray.Create(filePath),
             Backend: new BackendId("csharp"),
-            OutputDirectory: _tempDir,
-            BinDirectory: Path.Combine(_tempDir, "bin"),
+            OutputDirectory: tempDir,
+            BinDirectory: Path.Combine(tempDir, "bin"),
             ProjectName: "TestProject",
             NamespaceRoot: "Standard",
             EnabledAnalyzerIds: ImmutableArray<string>.Empty,

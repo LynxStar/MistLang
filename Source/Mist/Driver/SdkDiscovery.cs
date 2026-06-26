@@ -20,9 +20,9 @@ public static partial class SdkDiscovery
 
     // In-process cache: avoids even the disk read on repeated calls
     // within the same process lifetime.
-    private static string? _inProcessCache;
-    private static bool _inProcessCacheInitialized;
-    private static readonly object _cacheLock = new();
+    private static string? inProcessCache;
+    private static bool inProcessCacheInitialized;
+    private static readonly object cacheLock = new();
 
     /// <summary>
     /// Timeout for the <c>dotnet --list-sdks</c> process spawn.
@@ -42,18 +42,18 @@ public static partial class SdkDiscovery
     public static string? FindReferenceAssemblyPath(string targetFramework, DiagnosticBag diagnostics)
     {
         // 1. In-process cache (instant)
-        lock(_cacheLock)
+        lock(cacheLock)
         {
-            if(_inProcessCacheInitialized)
+            if(inProcessCacheInitialized)
             {
-                if(_inProcessCache is not null && Directory.Exists(_inProcessCache))
+                if(inProcessCache is not null && Directory.Exists(inProcessCache))
                 {
-                    return _inProcessCache;
+                    return inProcessCache;
                 }
 
                 // Cached value is stale — fall through to rediscovery.
-                _inProcessCacheInitialized = false;
-                _inProcessCache = null;
+                inProcessCacheInitialized = false;
+                inProcessCache = null;
             }
         }
 
@@ -61,10 +61,10 @@ public static partial class SdkDiscovery
         var diskCached = ReadDiskCache();
         if(diskCached is not null && Directory.Exists(diskCached))
         {
-            lock(_cacheLock)
+            lock(cacheLock)
             {
-                _inProcessCache = diskCached;
-                _inProcessCacheInitialized = true;
+                inProcessCache = diskCached;
+                inProcessCacheInitialized = true;
             }
             return diskCached;
         }
@@ -73,10 +73,10 @@ public static partial class SdkDiscovery
         var discovered = RunFullDiscovery(targetFramework, diagnostics);
         if(discovered is not null)
         {
-            lock(_cacheLock)
+            lock(cacheLock)
             {
-                _inProcessCache = discovered;
-                _inProcessCacheInitialized = true;
+                inProcessCache = discovered;
+                inProcessCacheInitialized = true;
             }
             WriteDiskCache(discovered);
         }
@@ -91,10 +91,10 @@ public static partial class SdkDiscovery
     public static void RegenerateDiskCache()
     {
         // Clear in-process cache so full discovery runs.
-        lock(_cacheLock)
+        lock(cacheLock)
         {
-            _inProcessCache = null;
-            _inProcessCacheInitialized = false;
+            inProcessCache = null;
+            inProcessCacheInitialized = false;
         }
 
         var diagnostics = new DiagnosticBag();
@@ -102,10 +102,10 @@ public static partial class SdkDiscovery
         if(path is not null)
         {
             WriteDiskCache(path);
-            lock(_cacheLock)
+            lock(cacheLock)
             {
-                _inProcessCache = path;
-                _inProcessCacheInitialized = true;
+                inProcessCache = path;
+                inProcessCacheInitialized = true;
             }
         }
     }
@@ -115,10 +115,10 @@ public static partial class SdkDiscovery
     /// </summary>
     internal static void ResetInProcessCache()
     {
-        lock(_cacheLock)
+        lock(cacheLock)
         {
-            _inProcessCache = null;
-            _inProcessCacheInitialized = false;
+            inProcessCache = null;
+            inProcessCacheInitialized = false;
         }
     }
 

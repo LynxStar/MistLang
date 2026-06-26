@@ -20,7 +20,7 @@ public sealed class ConformanceMapping
 /// </summary>
 public sealed class ConformanceMap
 {
-    private readonly Dictionary<(IType, IType), List<ConformanceMapping>> _entries = new();
+    private readonly Dictionary<(IType, IType), List<ConformanceMapping>> entries = new();
 
     /// <summary>
     /// Registers a member mapping for a with-block conformance between a concrete type
@@ -29,10 +29,10 @@ public sealed class ConformanceMap
     public void Register(IType type, IType abstractType, ConformanceMapping mapping)
     {
         var key = (type, abstractType);
-        if(!_entries.TryGetValue(key, out var list))
+        if(!entries.TryGetValue(key, out var list))
         {
             list = new List<ConformanceMapping>();
-            _entries[key] = list;
+            entries[key] = list;
         }
 
         list.Add(mapping);
@@ -42,7 +42,7 @@ public sealed class ConformanceMap
     /// Returns true if a with-block conformance has been registered between the given
     /// concrete type and abstract type.
     /// </summary>
-    public bool HasConformance(IType type, IType abstractType) => _entries.ContainsKey((type, abstractType));
+    public bool HasConformance(IType type, IType abstractType) => entries.ContainsKey((type, abstractType));
 
     /// <summary>
     /// Returns the list of member mappings for the given conformance pair,
@@ -50,7 +50,7 @@ public sealed class ConformanceMap
     /// </summary>
     public IReadOnlyList<ConformanceMapping> GetMappings(IType type, IType abstractType)
     {
-        if(_entries.TryGetValue((type, abstractType), out var list))
+        if(entries.TryGetValue((type, abstractType), out var list))
         {
             return list;
         }
@@ -63,7 +63,7 @@ public sealed class ConformanceMap
     /// </summary>
     public IEnumerable<(IType Type, IType AbstractType, IReadOnlyList<ConformanceMapping> Mappings)> All()
     {
-        foreach(var ((type, abstractType), mappings) in _entries)
+        foreach(var ((type, abstractType), mappings) in entries)
         {
             yield return (type, abstractType, mappings);
         }

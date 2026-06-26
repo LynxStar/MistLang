@@ -38,7 +38,7 @@ public class AbstractDefaultMethodSatisfactionPropertyTests
 {
     private const string MissingMethodDiagnosticId = "MIST_SM_0022";
 
-    private readonly SemanticModelBuilder _builder = new();
+    private readonly SemanticModelBuilder builder = new();
 
     // ─── Low-level AST helpers ───────────────────────────────────────────
 
@@ -86,7 +86,7 @@ public class AbstractDefaultMethodSatisfactionPropertyTests
     {
         var compilation = MakeCompilation();
         var diagnostics = new DiagnosticBag();
-        _builder.Build(
+        builder.Build(
             compilation,
             ImmutableArray.Create(ast),
             ambientTypeResolver: null,

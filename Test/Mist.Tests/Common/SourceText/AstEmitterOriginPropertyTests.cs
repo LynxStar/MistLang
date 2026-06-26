@@ -8,19 +8,19 @@ namespace Mist.Tests.Common.SourceText;
 /// </summary>
 public class AstEmitterOriginPropertyTests
 {
-    private readonly string _output = AstEmitter.EmitRuntimeTypes();
+    private readonly string output = AstEmitter.EmitRuntimeTypes();
 
     [Fact]
     public void EmitRuntimeTypes_SyntaxNode_ContainsOriginProperty()
     {
-        Assert.Contains("public Mist.Common.Text.NodeOrigin? Origin { get; set; }", _output);
+        Assert.Contains("public Mist.Common.Text.NodeOrigin? Origin { get; set; }", output);
     }
 
     [Fact]
     public void EmitRuntimeTypes_OriginProperty_AppearsAfterSpanProperty()
     {
-        var spanIndex = _output.IndexOf("public SourceSpan Span { get; set; }");
-        var originIndex = _output.IndexOf("public Mist.Common.Text.NodeOrigin? Origin { get; set; }");
+        var spanIndex = output.IndexOf("public SourceSpan Span { get; set; }");
+        var originIndex = output.IndexOf("public Mist.Common.Text.NodeOrigin? Origin { get; set; }");
 
         Assert.True(spanIndex >= 0, "Span property not found in emitted output");
         Assert.True(originIndex >= 0, "Origin property not found in emitted output");
@@ -30,8 +30,8 @@ public class AstEmitterOriginPropertyTests
     [Fact]
     public void EmitRuntimeTypes_OriginProperty_IsInsideSyntaxNodeClass()
     {
-        var syntaxNodeIndex = _output.IndexOf("public abstract class SyntaxNode");
-        var originIndex = _output.IndexOf("public Mist.Common.Text.NodeOrigin? Origin { get; set; }");
+        var syntaxNodeIndex = output.IndexOf("public abstract class SyntaxNode");
+        var originIndex = output.IndexOf("public Mist.Common.Text.NodeOrigin? Origin { get; set; }");
 
         Assert.True(syntaxNodeIndex >= 0, "SyntaxNode class not found in emitted output");
         Assert.True(originIndex >= 0, "Origin property not found in emitted output");

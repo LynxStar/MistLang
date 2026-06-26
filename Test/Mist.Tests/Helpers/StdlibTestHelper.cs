@@ -44,9 +44,9 @@ internal static class StdlibTestHelper
     /// </summary>
     public static (ImmutableArray<CompilationUnit> Units, ImmutableArray<Storm.Runtime.SyntaxNode> Asts) LoadStdlib()
     {
-        if(_cachedUnits.HasValue)
+        if(cachedUnits.HasValue)
         {
-            return (_cachedUnits.Value, _cachedAsts!.Value);
+            return (cachedUnits.Value, cachedAsts!.Value);
         }
 
         var repoRoot = FindRepoRoot();
@@ -70,13 +70,13 @@ internal static class StdlibTestHelper
             }
         }
 
-        _cachedUnits = units;
-        _cachedAsts = asts.ToImmutable();
-        return (units, _cachedAsts.Value);
+        cachedUnits = units;
+        cachedAsts = asts.ToImmutable();
+        return (units, cachedAsts.Value);
     }
 
-    private static ImmutableArray<CompilationUnit>? _cachedUnits;
-    private static ImmutableArray<Storm.Runtime.SyntaxNode>? _cachedAsts;
+    private static ImmutableArray<CompilationUnit>? cachedUnits;
+    private static ImmutableArray<Storm.Runtime.SyntaxNode>? cachedAsts;
 
     /// <summary>
     /// Builds a semantic model that includes stdlib types alongside the

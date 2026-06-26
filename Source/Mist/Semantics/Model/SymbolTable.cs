@@ -247,24 +247,24 @@ public sealed class MistType : IType
 /// </summary>
 public sealed class SymbolTable
 {
-    private List<ISymbol> _allSymbols = [];
-    private Dictionary<Storm.Runtime.SyntaxNode, ISymbol> _nodeToSymbol = [];
-    private Dictionary<ISymbol, Storm.Runtime.SyntaxNode> _symbolToNode = [];
+    private List<ISymbol> allSymbols = [];
+    private Dictionary<Storm.Runtime.SyntaxNode, ISymbol> nodeToSymbol = [];
+    private Dictionary<ISymbol, Storm.Runtime.SyntaxNode> symbolToNode = [];
 
     public void Register(ISymbol symbol, Storm.Runtime.SyntaxNode declaringNode)
     {
-        _allSymbols.Add(symbol);
-        _nodeToSymbol[declaringNode] = symbol;
-        _symbolToNode[symbol] = declaringNode;
+        allSymbols.Add(symbol);
+        nodeToSymbol[declaringNode] = symbol;
+        symbolToNode[symbol] = declaringNode;
     }
 
-    public IReadOnlyList<ISymbol> AllSymbols => _allSymbols;
+    public IReadOnlyList<ISymbol> AllSymbols => allSymbols;
 
     public ISymbol? GetDeclaredSymbol(Storm.Runtime.SyntaxNode node)
-        => _nodeToSymbol.GetValueOrDefault(node);
+        => nodeToSymbol.GetValueOrDefault(node);
 
     public Storm.Runtime.SyntaxNode? GetDeclaringNode(ISymbol symbol)
-        => _symbolToNode.GetValueOrDefault(symbol);
+        => symbolToNode.GetValueOrDefault(symbol);
 
     /// <summary>
     /// Registers a usage-site AST node (e.g., an <c>IdentifierExpressionPrimaryNode</c>
@@ -275,6 +275,6 @@ public sealed class SymbolTable
     /// </summary>
     public void RegisterUsageSite(Storm.Runtime.SyntaxNode usageNode, ISymbol referencedSymbol)
     {
-        _nodeToSymbol.TryAdd(usageNode, referencedSymbol);
+        nodeToSymbol.TryAdd(usageNode, referencedSymbol);
     }
 }

@@ -18,10 +18,10 @@ namespace Mist.Tests.Analysis;
 /// </summary>
 public class TypeCheckerOriginAttributionTests
 {
-    private readonly MistLexer _lexer = new();
-    private readonly MistParser _parser = new();
-    private readonly SemanticModelBuilder _builder = new();
-    private readonly TypeCheckerAnalyzer _analyzer = new();
+    private readonly MistLexer lexer = new();
+    private readonly MistParser parser = new();
+    private readonly SemanticModelBuilder builder = new();
+    private readonly TypeCheckerAnalyzer analyzer = new();
 
     /// <summary>
     /// Parses a source file in-process via MistLexer + MistParser.
@@ -31,10 +31,10 @@ public class TypeCheckerOriginAttributionTests
     private Storm.Runtime.SyntaxNode? ParseSource(SourceText source)
     {
         var lexDiag = new DiagnosticBag();
-        var tokenStream = _lexer.Lex(source, lexDiag);
+        var tokenStream = lexer.Lex(source, lexDiag);
 
         var parseDiag = new DiagnosticBag();
-        var parseResult = _parser.Parse(tokenStream, parseDiag);
+        var parseResult = parser.Parse(tokenStream, parseDiag);
 
         return parseResult.Root;
     }
@@ -82,13 +82,13 @@ public class TypeCheckerOriginAttributionTests
 
         var asts = ImmutableArray.Create(astA, astB);
         var semanticDiag = new DiagnosticBag();
-        var model = _builder.Build(
+        var model = builder.Build(
             compilation, asts, ambientTypeResolver: null,
             namespaceRoot: "TestProject", projectFolder: "/project", semanticDiag);
 
         // Run type checker
         var typeCheckerDiag = new DiagnosticBag();
-        _analyzer.Analyze(model, typeCheckerDiag);
+        analyzer.Analyze(model, typeCheckerDiag);
         var diagnostics = typeCheckerDiag.ToImmutableArray();
 
         // The return-type-mismatch error (MIST_TC_0008) should point to fileB
@@ -150,12 +150,12 @@ public class TypeCheckerOriginAttributionTests
 
         var asts = ImmutableArray.Create(astA, astB, astC);
         var semanticDiag = new DiagnosticBag();
-        var model = _builder.Build(
+        var model = builder.Build(
             compilation, asts, ambientTypeResolver: null,
             namespaceRoot: "TestProject", projectFolder: "/project", semanticDiag);
 
         var typeCheckerDiag = new DiagnosticBag();
-        _analyzer.Analyze(model, typeCheckerDiag);
+        analyzer.Analyze(model, typeCheckerDiag);
         var diagnostics = typeCheckerDiag.ToImmutableArray();
 
         // The non-bool condition error (MIST_TC_0007) should point to beta.mist
@@ -205,12 +205,12 @@ public class TypeCheckerOriginAttributionTests
 
         var asts = ImmutableArray.Create(astA, astB);
         var semanticDiag = new DiagnosticBag();
-        var model = _builder.Build(
+        var model = builder.Build(
             compilation, asts, ambientTypeResolver: null,
             namespaceRoot: "TestProject", projectFolder: "/project", semanticDiag);
 
         var typeCheckerDiag = new DiagnosticBag();
-        _analyzer.Analyze(model, typeCheckerDiag);
+        analyzer.Analyze(model, typeCheckerDiag);
         var diagnostics = typeCheckerDiag.ToImmutableArray();
 
         // The return-type-mismatch error should point to first.mist

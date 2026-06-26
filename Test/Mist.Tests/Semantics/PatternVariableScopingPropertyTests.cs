@@ -28,7 +28,7 @@ namespace Mist.Tests.Semantics;
 /// </summary>
 public class PatternVariableScopingPropertyTests
 {
-    private readonly SemanticModelBuilder _builder = new();
+    private readonly SemanticModelBuilder builder = new();
 
     // ─── Helpers ─────────────────────────────────────────────────────────
 
@@ -41,7 +41,7 @@ public class PatternVariableScopingPropertyTests
         var compilation = new MistCompilation(
             ImmutableArray.Create(new CompilationUnit(sourceText)));
         var diagnostics = new DiagnosticBag();
-        return _builder.Build(
+        return builder.Build(
             compilation,
             ImmutableArray.Create<Storm.Runtime.SyntaxNode>(ast),
             ambientTypeResolver: null,

@@ -24,8 +24,8 @@ namespace Mist.Tests.Backend;
 /// </summary>
 public sealed class ClrRefStructProjectionPropertyTests
 {
-    private readonly TypeProjector _projector;
-    private readonly IStdlibTypeProvider _stdlib;
+    private readonly TypeProjector projector;
+    private readonly IStdlibTypeProvider stdlib;
 
     /// <summary>
     /// All IsByRefLike CLR types from the InteropFixtures assembly that are NOT
@@ -38,8 +38,8 @@ public sealed class ClrRefStructProjectionPropertyTests
     {
         var intrinsicMap = new IntrinsicTypeMap();
         var filter = new VisibilityFilter();
-        _projector = new TypeProjector(intrinsicMap, filter);
-        _stdlib = FallbackStdlibTypeProvider.Instance;
+        projector = new TypeProjector(intrinsicMap, filter);
+        stdlib = FallbackStdlibTypeProvider.Instance;
     }
 
     private static Type[] BuildRefStructFixtureTypes()
@@ -125,7 +125,7 @@ public sealed class ClrRefStructProjectionPropertyTests
     {
         RunProperty(GenRefStructType(), clrType =>
         {
-            var (projectedType, _) = _projector.ProjectType(clrType, _stdlib);
+            var (projectedType, _) = projector.ProjectType(clrType, stdlib);
 
             // Must project to a StructType (not SpanType or any other IType)
             Assert.True(

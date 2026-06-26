@@ -20,7 +20,7 @@ namespace Mist.Tests.Semantics;
 /// </summary>
 public class ParameterSignatureTests
 {
-    private readonly SemanticModelBuilder _builder = new();
+    private readonly SemanticModelBuilder builder = new();
 
     // ─── Helpers ─────────────────────────────────────────────────────────
 
@@ -45,7 +45,7 @@ public class ParameterSignatureTests
     {
         var compilation = MakeCompilation(source);
         var diagnostics = new DiagnosticBag();
-        return _builder.Build(compilation, ImmutableArray.Create(ast), null, namespaceRoot: "TestProject", projectFolder: "/test", diagnostics);
+        return builder.Build(compilation, ImmutableArray.Create(ast), null, namespaceRoot: "TestProject", projectFolder: "/test", diagnostics);
     }
 
     private static ParameterNode MakeParameter(string typeName, string paramName)

@@ -26,8 +26,8 @@ namespace Mist.Tests.Analysis;
 /// </summary>
 public class VoidEqualityMismatchPropertyTests
 {
-    private readonly SemanticModelBuilder _builder = new();
-    private readonly TypeCheckerAnalyzer _analyzer = new();
+    private readonly SemanticModelBuilder builder = new();
+    private readonly TypeCheckerAnalyzer analyzer = new();
 
     // ─── Helpers ─────────────────────────────────────────────────────────
 
@@ -44,13 +44,13 @@ public class VoidEqualityMismatchPropertyTests
     {
         var compilation = MakeCompilation();
         var diagnostics = new DiagnosticBag();
-        return _builder.Build(compilation, ImmutableArray.Create(ast), ambientTypeResolver: null, namespaceRoot: "TestProject", projectFolder: "/test", diagnostics);
+        return builder.Build(compilation, ImmutableArray.Create(ast), ambientTypeResolver: null, namespaceRoot: "TestProject", projectFolder: "/test", diagnostics);
     }
 
     private ImmutableArray<Diagnostic> RunTypeChecker(ISemanticModel model)
     {
         var bag = new DiagnosticBag();
-        _analyzer.Analyze(model, bag);
+        analyzer.Analyze(model, bag);
         return bag.ToImmutableArray();
     }
 

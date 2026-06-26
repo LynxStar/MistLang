@@ -19,20 +19,20 @@ namespace Mist.Tests.Backend;
 /// </summary>
 public sealed class EmitterOutputTests : IDisposable
 {
-    private readonly SemanticModelBuilder _builder = new();
-    private readonly string _outputDir;
+    private readonly SemanticModelBuilder builder = new();
+    private readonly string outputDir;
 
     public EmitterOutputTests()
     {
-        _outputDir = Path.Combine(Path.GetTempPath(), "MistEmitterOutputTests_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(_outputDir);
+        outputDir = Path.Combine(Path.GetTempPath(), "MistEmitterOutputTests_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(outputDir);
     }
 
     public void Dispose()
     {
-        if(Directory.Exists(_outputDir))
+        if(Directory.Exists(outputDir))
         {
-            try { Directory.Delete(_outputDir, recursive: true); } catch { /* best effort */ }
+            try { Directory.Delete(outputDir, recursive: true); } catch { /* best effort */ }
         }
         GC.SuppressFinalize(this);
     }
@@ -115,7 +115,7 @@ public sealed class EmitterOutputTests : IDisposable
         var sourceText = new SourceText("test.mist", source);
         var compilation = new MistCompilation(ImmutableArray.Create(new CompilationUnit(sourceText)));
         var diagnostics = new DiagnosticBag();
-        return _builder.Build(compilation, ImmutableArray.Create<Storm.Runtime.SyntaxNode>(ast), resolver, namespaceRoot: "TestProject", projectFolder: "/test", diagnostics);
+        return builder.Build(compilation, ImmutableArray.Create<Storm.Runtime.SyntaxNode>(ast), resolver, namespaceRoot: "TestProject", projectFolder: "/test", diagnostics);
     }
 
     private ISemanticModel BuildModelWithStdlib(
@@ -129,18 +129,18 @@ public sealed class EmitterOutputTests : IDisposable
         var allAsts = stdlibAsts.Add(ast);
         var compilation = new MistCompilation(allUnits);
         var diagnostics = new DiagnosticBag();
-        return _builder.Build(compilation, allAsts, null, namespaceRoot: "TestProject", projectFolder: "/test", diagnostics);
+        return builder.Build(compilation, allAsts, null, namespaceRoot: "TestProject", projectFolder: "/test", diagnostics);
     }
 
     private string EmitAndGetCsContent(ISemanticModel model)
     {
         var diagnostics = new DiagnosticBag();
-        CSharpEmitter.Emit(model, _outputDir, "TestProject", diagnostics);
+        CSharpEmitter.Emit(model, outputDir, "TestProject", diagnostics);
 
         // When stdlib is loaded, multiple .cs files are emitted (MistVoid.g.cs,
         // UnionHelpers.cs, etc.). The user's code is in test.cs. Fall back to
         // the first .cs file for tests that don't load stdlib.
-        var csFiles = Directory.GetFiles(_outputDir, "*.cs");
+        var csFiles = Directory.GetFiles(outputDir, "*.cs");
         var testFile = csFiles.FirstOrDefault(f => Path.GetFileName(f) == "test.cs");
         var csFile = testFile ?? csFiles.FirstOrDefault();
         return csFile is not null ? File.ReadAllText(csFile) : "";
@@ -148,9 +148,9 @@ public sealed class EmitterOutputTests : IDisposable
 
     private void CleanOutputDir()
     {
-        if(Directory.Exists(_outputDir))
+        if(Directory.Exists(outputDir))
         {
-            foreach(var file in Directory.GetFiles(_outputDir))
+            foreach(var file in Directory.GetFiles(outputDir))
             {
                 File.Delete(file);
             }
@@ -607,9 +607,9 @@ public sealed class EmitterOutputTests : IDisposable
 
         var model = BuildModel(ast, source);
         var diagnostics = new DiagnosticBag();
-        CSharpEmitter.Emit(model, _outputDir, "TestProject", diagnostics);
+        CSharpEmitter.Emit(model, outputDir, "TestProject", diagnostics);
 
-        var csprojPath = Path.Combine(_outputDir, "TestProject.csproj");
+        var csprojPath = Path.Combine(outputDir, "TestProject.csproj");
         Assert.True(File.Exists(csprojPath));
 
         var csprojContent = File.ReadAllText(csprojPath);
@@ -1035,7 +1035,7 @@ public sealed class EmitterOutputTests : IDisposable
     private string? CompileFullPipeline(string mistSource)
     {
         // Clean output directory
-        foreach(var file in Directory.GetFiles(_outputDir))
+        foreach(var file in Directory.GetFiles(outputDir))
         {
             File.Delete(file);
         }
@@ -1060,7 +1060,7 @@ public sealed class EmitterOutputTests : IDisposable
         var compilation = new MistCompilation(
             ImmutableArray.Create(new CompilationUnit(sourceText)));
         var semanticBag = new DiagnosticBag();
-        var model = _builder.Build(
+        var model = builder.Build(
             compilation,
             ImmutableArray.Create<Storm.Runtime.SyntaxNode>(parseResult.Root),
             ambientTypeResolver: null,
@@ -1070,10 +1070,10 @@ public sealed class EmitterOutputTests : IDisposable
 
         // 4. Emit C#
         var emitBag = new DiagnosticBag();
-        CSharpEmitter.Emit(model, _outputDir, "TestProject", emitBag);
+        CSharpEmitter.Emit(model, outputDir, "TestProject", emitBag);
 
         // 5. Read the emitted .cs file
-        var csFile = Directory.GetFiles(_outputDir, "*.cs").FirstOrDefault();
+        var csFile = Directory.GetFiles(outputDir, "*.cs").FirstOrDefault();
         return csFile is not null ? File.ReadAllText(csFile) : null;
     }
 }

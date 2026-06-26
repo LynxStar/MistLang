@@ -17,19 +17,19 @@ namespace Mist.Tests.Integration;
 /// </summary>
 public sealed class CSharpInteropV2EndToEndTests : IDisposable
 {
-    private readonly string _outputDir;
+    private readonly string outputDir;
 
     public CSharpInteropV2EndToEndTests()
     {
-        _outputDir = Path.Combine(Path.GetTempPath(), "MistInteropV2_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(_outputDir);
+        outputDir = Path.Combine(Path.GetTempPath(), "MistInteropV2_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(outputDir);
     }
 
     public void Dispose()
     {
-        if(Directory.Exists(_outputDir))
+        if(Directory.Exists(outputDir))
         {
-            try { Directory.Delete(_outputDir, recursive: true); } catch { /* best effort */ }
+            try { Directory.Delete(outputDir, recursive: true); } catch { /* best effort */ }
         }
         GC.SuppressFinalize(this);
     }
@@ -54,12 +54,12 @@ public sealed class CSharpInteropV2EndToEndTests : IDisposable
             ImmutableArray.Create<Mist.Analysis.Contracts.IAnalyzer>(new TypeCheckerAnalyzer()),
             ImmutableArray.Create<IBackend>(new CSharpTranspilerBackend()));
 
-        var binDir = Path.Combine(_outputDir, "bin");
+        var binDir = Path.Combine(outputDir, "bin");
         var options = new CompilerOptions(
             ProjectFolder: sampleDir,
             SourcePaths: sourceFiles,
             Backend: new BackendId("csharp"),
-            OutputDirectory: _outputDir,
+            OutputDirectory: outputDir,
             BinDirectory: binDir,
             ProjectName: "CSharpInteropV2",
             NamespaceRoot: "CSharpInteropV2",

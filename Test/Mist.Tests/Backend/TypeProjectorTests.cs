@@ -15,15 +15,15 @@ namespace Mist.Tests.Backend;
 /// </summary>
 public class TypeProjectorTests
 {
-    private readonly TypeProjector _projector;
-    private readonly IStdlibTypeProvider _stdlib;
+    private readonly TypeProjector projector;
+    private readonly IStdlibTypeProvider stdlib;
 
     public TypeProjectorTests()
     {
         var intrinsicMap = new IntrinsicTypeMap();
         var filter = new VisibilityFilter();
-        _projector = new TypeProjector(intrinsicMap, filter);
-        _stdlib = FallbackStdlibTypeProvider.Instance;
+        projector = new TypeProjector(intrinsicMap, filter);
+        stdlib = FallbackStdlibTypeProvider.Instance;
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -33,7 +33,7 @@ public class TypeProjectorTests
     [Fact]
     public void ProjectType_SimpleClass_ProducesClassType()
     {
-        var (type, _) = _projector.ProjectType(typeof(SimpleClass), _stdlib);
+        var (type, _) = projector.ProjectType(typeof(SimpleClass), stdlib);
 
         Assert.IsType<ClassType>(type);
         Assert.Equal("SimpleClass", type.DisplayName);
@@ -44,7 +44,7 @@ public class TypeProjectorTests
     [Fact]
     public void ProjectType_SimpleStruct_ProducesStructType()
     {
-        var (type, _) = _projector.ProjectType(typeof(SimpleStruct), _stdlib);
+        var (type, _) = projector.ProjectType(typeof(SimpleStruct), stdlib);
 
         Assert.IsType<StructType>(type);
         Assert.Equal("SimpleStruct", type.DisplayName);
@@ -55,7 +55,7 @@ public class TypeProjectorTests
     [Fact]
     public void ProjectType_ClrInterface_ProducesAbstractType()
     {
-        var (type, _) = _projector.ProjectType(typeof(ISimpleInterface), _stdlib);
+        var (type, _) = projector.ProjectType(typeof(ISimpleInterface), stdlib);
 
         Assert.IsType<AbstractType>(type);
         Assert.Equal("ISimpleInterface", type.DisplayName);
@@ -66,7 +66,7 @@ public class TypeProjectorTests
     [Fact]
     public void ProjectType_SimpleEnum_ProducesEnumType()
     {
-        var (type, _) = _projector.ProjectType(typeof(SimpleEnum), _stdlib);
+        var (type, _) = projector.ProjectType(typeof(SimpleEnum), stdlib);
 
         Assert.IsType<EnumType>(type);
         Assert.Equal("SimpleEnum", type.DisplayName);
@@ -81,7 +81,7 @@ public class TypeProjectorTests
     [Fact]
     public void ProjectType_Enum_HasCorrectMembers()
     {
-        var (type, symbols) = _projector.ProjectType(typeof(SimpleEnum), _stdlib);
+        var (type, symbols) = projector.ProjectType(typeof(SimpleEnum), stdlib);
         var enumType = Assert.IsType<EnumType>(type);
 
         Assert.Equal(4, enumType.Members.Count);
@@ -94,7 +94,7 @@ public class TypeProjectorTests
     [Fact]
     public void ProjectType_Enum_HasCorrectMemberValues()
     {
-        var (type, _) = _projector.ProjectType(typeof(SimpleEnum), _stdlib);
+        var (type, _) = projector.ProjectType(typeof(SimpleEnum), stdlib);
         var enumType = Assert.IsType<EnumType>(type);
 
         Assert.Equal(0, enumType.Members[0].ResolvedValue);
@@ -106,7 +106,7 @@ public class TypeProjectorTests
     [Fact]
     public void ProjectType_Enum_HasUnderlyingType()
     {
-        var (type, _) = _projector.ProjectType(typeof(SimpleEnum), _stdlib);
+        var (type, _) = projector.ProjectType(typeof(SimpleEnum), stdlib);
         var enumType = Assert.IsType<EnumType>(type);
 
         // SimpleEnum has underlying type int → maps to the fallback int type
@@ -116,7 +116,7 @@ public class TypeProjectorTests
     [Fact]
     public void ProjectType_Enum_MemberSymbolsAreReadonly()
     {
-        var (_, symbols) = _projector.ProjectType(typeof(SimpleEnum), _stdlib);
+        var (_, symbols) = projector.ProjectType(typeof(SimpleEnum), stdlib);
 
         Assert.All(symbols, s =>
         {
@@ -134,7 +134,7 @@ public class TypeProjectorTests
     [Fact]
     public void ProjectType_GenericClass_HasTypeParameters()
     {
-        var (type, _) = _projector.ProjectType(typeof(GenericClass<>), _stdlib);
+        var (type, _) = projector.ProjectType(typeof(GenericClass<>), stdlib);
         var classType = Assert.IsType<ClassType>(type);
 
         Assert.Single(classType.TypeParameters);
@@ -146,7 +146,7 @@ public class TypeProjectorTests
     [Fact]
     public void ProjectType_GenericClass_StripsAritySuffix()
     {
-        var (type, _) = _projector.ProjectType(typeof(GenericClass<>), _stdlib);
+        var (type, _) = projector.ProjectType(typeof(GenericClass<>), stdlib);
 
         // GenericClass`1 should have the `1 stripped
         Assert.Equal("GenericClass", type.DisplayName);
@@ -155,7 +155,7 @@ public class TypeProjectorTests
     [Fact]
     public void ProjectType_MultiConstraint_HasTypeParameters()
     {
-        var (type, _) = _projector.ProjectType(typeof(MultiConstraint<>), _stdlib);
+        var (type, _) = projector.ProjectType(typeof(MultiConstraint<>), stdlib);
         var classType = Assert.IsType<ClassType>(type);
 
         Assert.Single(classType.TypeParameters);
@@ -170,7 +170,7 @@ public class TypeProjectorTests
     [Fact]
     public void ProjectType_GenericClassWithClassConstraint_TranslatesConstraint()
     {
-        var (type, _) = _projector.ProjectType(typeof(GenericClass<>), _stdlib);
+        var (type, _) = projector.ProjectType(typeof(GenericClass<>), stdlib);
         var classType = Assert.IsType<ClassType>(type);
         var typeParam = Assert.IsType<TypeParameterType>(classType.TypeParameters[0]);
 
@@ -182,7 +182,7 @@ public class TypeProjectorTests
     [Fact]
     public void ProjectType_MultiConstraintWithStructConstraint_TranslatesConstraint()
     {
-        var (type, _) = _projector.ProjectType(typeof(MultiConstraint<>), _stdlib);
+        var (type, _) = projector.ProjectType(typeof(MultiConstraint<>), stdlib);
         var classType = Assert.IsType<ClassType>(type);
         var typeParam = Assert.IsType<TypeParameterType>(classType.TypeParameters[0]);
 
@@ -194,7 +194,7 @@ public class TypeProjectorTests
     [Fact]
     public void ProjectType_MultiConstraintWithAbstractConstraint_TranslatesAbstractConstraint()
     {
-        var (type, _) = _projector.ProjectType(typeof(MultiConstraint<>), _stdlib);
+        var (type, _) = projector.ProjectType(typeof(MultiConstraint<>), stdlib);
         var classType = Assert.IsType<ClassType>(type);
         var typeParam = Assert.IsType<TypeParameterType>(classType.TypeParameters[0]);
 
@@ -211,7 +211,7 @@ public class TypeProjectorTests
     [Fact]
     public void ProjectType_DerivedClass_HasBaseType()
     {
-        var (type, _) = _projector.ProjectType(typeof(Middle), _stdlib);
+        var (type, _) = projector.ProjectType(typeof(Middle), stdlib);
         var classType = Assert.IsType<ClassType>(type);
 
         // Middle inherits from Base (not System.Object)
@@ -222,7 +222,7 @@ public class TypeProjectorTests
     [Fact]
     public void ProjectType_MultiLevelInheritance_HasCorrectBaseType()
     {
-        var (type, _) = _projector.ProjectType(typeof(Derived), _stdlib);
+        var (type, _) = projector.ProjectType(typeof(Derived), stdlib);
         var classType = Assert.IsType<ClassType>(type);
 
         // Derived inherits from Middle
@@ -233,7 +233,7 @@ public class TypeProjectorTests
     [Fact]
     public void ProjectType_BaseClass_HasNoBaseType()
     {
-        var (type, _) = _projector.ProjectType(typeof(Base), _stdlib);
+        var (type, _) = projector.ProjectType(typeof(Base), stdlib);
         var classType = Assert.IsType<ClassType>(type);
 
         // Base inherits from System.Object, which should be null (not projected)
@@ -247,7 +247,7 @@ public class TypeProjectorTests
     [Fact]
     public void ProjectType_CustomCollection_HasAbstracts()
     {
-        var (type, _) = _projector.ProjectType(typeof(CustomCollection), _stdlib);
+        var (type, _) = projector.ProjectType(typeof(CustomCollection), stdlib);
         var classType = Assert.IsType<ClassType>(type);
 
         // CustomCollection implements IEnumerable<int> (non-generic IEnumerable is filtered)
@@ -261,8 +261,8 @@ public class TypeProjectorTests
     [Fact]
     public void ProjectMembers_SimpleClass_ProjectsInstanceMethods()
     {
-        var (type, _) = _projector.ProjectType(typeof(SimpleClass), _stdlib);
-        var members = _projector.ProjectMembers(typeof(SimpleClass), type, _stdlib);
+        var (type, _) = projector.ProjectType(typeof(SimpleClass), stdlib);
+        var members = projector.ProjectMembers(typeof(SimpleClass), type, stdlib);
 
         // SimpleClass has GetValue() and SetValue(int) instance methods
         var methodNames = members
@@ -277,8 +277,8 @@ public class TypeProjectorTests
     [Fact]
     public void ProjectMembers_SimpleClass_ProjectsConstructors()
     {
-        var (type, _) = _projector.ProjectType(typeof(SimpleClass), _stdlib);
-        var members = _projector.ProjectMembers(typeof(SimpleClass), type, _stdlib);
+        var (type, _) = projector.ProjectType(typeof(SimpleClass), stdlib);
+        var members = projector.ProjectMembers(typeof(SimpleClass), type, stdlib);
 
         var constructors = members.Where(m => m.Kind == SymbolKind.Constructor).ToList();
         // SimpleClass has 2 constructors: () and (int)
@@ -289,8 +289,8 @@ public class TypeProjectorTests
     [Fact]
     public void ProjectMembers_SimpleClass_ProjectsProperties()
     {
-        var (type, _) = _projector.ProjectType(typeof(SimpleClass), _stdlib);
-        var members = _projector.ProjectMembers(typeof(SimpleClass), type, _stdlib);
+        var (type, _) = projector.ProjectType(typeof(SimpleClass), stdlib);
+        var members = projector.ProjectMembers(typeof(SimpleClass), type, stdlib);
 
         var properties = members.Where(m => m.Kind == SymbolKind.Property).ToList();
         var propertyNames = properties.Select(p => p.Name).ToList();
@@ -302,8 +302,8 @@ public class TypeProjectorTests
     [Fact]
     public void ProjectMembers_SimpleStruct_ProjectsFields()
     {
-        var (type, _) = _projector.ProjectType(typeof(SimpleStruct), _stdlib);
-        var members = _projector.ProjectMembers(typeof(SimpleStruct), type, _stdlib);
+        var (type, _) = projector.ProjectType(typeof(SimpleStruct), stdlib);
+        var members = projector.ProjectMembers(typeof(SimpleStruct), type, stdlib);
 
         var fields = members.Where(m => m.Kind == SymbolKind.Field).ToList();
         var fieldNames = fields.Select(f => f.Name).ToList();
@@ -316,8 +316,8 @@ public class TypeProjectorTests
     [Fact]
     public void ProjectMembers_AllSymbolsHaveBackendOrigin()
     {
-        var (type, _) = _projector.ProjectType(typeof(SimpleClass), _stdlib);
-        var members = _projector.ProjectMembers(typeof(SimpleClass), type, _stdlib);
+        var (type, _) = projector.ProjectType(typeof(SimpleClass), stdlib);
+        var members = projector.ProjectMembers(typeof(SimpleClass), type, stdlib);
 
         Assert.All(members, m => Assert.Equal(SymbolOrigin.Backend, m.Origin));
     }
@@ -329,8 +329,8 @@ public class TypeProjectorTests
     [Fact]
     public void ProjectMembers_OptionalParameters_ProjectedAsOptional()
     {
-        var (type, _) = _projector.ProjectType(typeof(HasOptionalParams), _stdlib);
-        var members = _projector.ProjectMembers(typeof(HasOptionalParams), type, _stdlib);
+        var (type, _) = projector.ProjectType(typeof(HasOptionalParams), stdlib);
+        var members = projector.ProjectMembers(typeof(HasOptionalParams), type, stdlib);
 
         // HasOptionalParams.Compute(int a, int b = 10, int c = 20)
         var computeMethod = members.First(m => m.Name == "Compute");
@@ -352,8 +352,8 @@ public class TypeProjectorTests
         // but let's use a simpler approach with the fixture types.
         // GenericClass<T> has non-generic methods, so let's use a well-known type.
         // System.Array has generic static methods like Empty<T>().
-        var (type, _) = _projector.ProjectType(typeof(Array), _stdlib);
-        var members = _projector.ProjectMembers(typeof(Array), type, _stdlib);
+        var (type, _) = projector.ProjectType(typeof(Array), stdlib);
+        var members = projector.ProjectMembers(typeof(Array), type, stdlib);
 
         // Array.Empty<T>() is a generic method
         var emptyMethod = members.FirstOrDefault(m => m.Name == "Empty");
@@ -373,8 +373,8 @@ public class TypeProjectorTests
     [Fact]
     public void ProjectMembers_HasIndexer_ProjectsIndexers()
     {
-        var (type, _) = _projector.ProjectType(typeof(HasIndexer), _stdlib);
-        var members = _projector.ProjectMembers(typeof(HasIndexer), type, _stdlib);
+        var (type, _) = projector.ProjectType(typeof(HasIndexer), stdlib);
+        var members = projector.ProjectMembers(typeof(HasIndexer), type, stdlib);
 
         var indexers = members.Where(m => m.Kind == SymbolKind.Indexer).ToList();
         // HasIndexer has 2 indexers: this[int] and this[int, int]
@@ -389,8 +389,8 @@ public class TypeProjectorTests
     [Fact]
     public void ProjectMembers_OutParamMethod_IsVisible()
     {
-        var (type, _) = _projector.ProjectType(typeof(HasOutParam), _stdlib);
-        var members = _projector.ProjectMembers(typeof(HasOutParam), type, _stdlib);
+        var (type, _) = projector.ProjectType(typeof(HasOutParam), stdlib);
+        var members = projector.ProjectMembers(typeof(HasOutParam), type, stdlib);
 
         var methodNames = members
             .Where(m => m.Kind == SymbolKind.Method)
@@ -406,8 +406,8 @@ public class TypeProjectorTests
     [Fact]
     public void ProjectMembers_RefParamMethod_IsVisible()
     {
-        var (type, _) = _projector.ProjectType(typeof(HasRefParam), _stdlib);
-        var members = _projector.ProjectMembers(typeof(HasRefParam), type, _stdlib);
+        var (type, _) = projector.ProjectType(typeof(HasRefParam), stdlib);
+        var members = projector.ProjectMembers(typeof(HasRefParam), type, stdlib);
 
         var methodNames = members
             .Where(m => m.Kind == SymbolKind.Method)
@@ -423,8 +423,8 @@ public class TypeProjectorTests
     [Fact]
     public void ProjectMembers_InParamMethod_IsNotFiltered()
     {
-        var (type, _) = _projector.ProjectType(typeof(HasInParam), _stdlib);
-        var members = _projector.ProjectMembers(typeof(HasInParam), type, _stdlib);
+        var (type, _) = projector.ProjectType(typeof(HasInParam), stdlib);
+        var members = projector.ProjectMembers(typeof(HasInParam), type, stdlib);
 
         var methodNames = members
             .Where(m => m.Kind == SymbolKind.Method)
@@ -444,8 +444,8 @@ public class TypeProjectorTests
     [Fact]
     public void ProjectMembers_Overloads_AllVisibleOverloadsProjected()
     {
-        var (type, _) = _projector.ProjectType(typeof(HasOverloads), _stdlib);
-        var members = _projector.ProjectMembers(typeof(HasOverloads), type, _stdlib);
+        var (type, _) = projector.ProjectType(typeof(HasOverloads), stdlib);
+        var members = projector.ProjectMembers(typeof(HasOverloads), type, stdlib);
 
         var processMethods = members
             .Where(m => m.Kind == SymbolKind.Method && m.Name == "Process")
@@ -462,8 +462,8 @@ public class TypeProjectorTests
     [Fact]
     public void ProjectMembers_ReadWriteProperty_IsMarkedMutable()
     {
-        var (type, _) = _projector.ProjectType(typeof(SimpleClass), _stdlib);
-        var members = _projector.ProjectMembers(typeof(SimpleClass), type, _stdlib);
+        var (type, _) = projector.ProjectType(typeof(SimpleClass), stdlib);
+        var members = projector.ProjectMembers(typeof(SimpleClass), type, stdlib);
 
         // SimpleClass.Value has both get and set → read-write
         var valueProp = members.First(m => m.Name == "Value" && m.Kind == SymbolKind.Property);
@@ -474,8 +474,8 @@ public class TypeProjectorTests
     [Fact]
     public void ProjectMembers_ReadOnlyProperty_IsMarkedReadonly()
     {
-        var (type, _) = _projector.ProjectType(typeof(HasIndexer), _stdlib);
-        var members = _projector.ProjectMembers(typeof(HasIndexer), type, _stdlib);
+        var (type, _) = projector.ProjectType(typeof(HasIndexer), stdlib);
+        var members = projector.ProjectMembers(typeof(HasIndexer), type, stdlib);
 
         // HasIndexer.Length has only a getter → read-only
         var lengthProp = members.First(m => m.Name == "Length" && m.Kind == SymbolKind.Property);
@@ -490,8 +490,8 @@ public class TypeProjectorTests
     [Fact]
     public void ProjectMembers_MutableField_IsMarkedMutable()
     {
-        var (type, _) = _projector.ProjectType(typeof(SimpleStruct), _stdlib);
-        var members = _projector.ProjectMembers(typeof(SimpleStruct), type, _stdlib);
+        var (type, _) = projector.ProjectType(typeof(SimpleStruct), stdlib);
+        var members = projector.ProjectMembers(typeof(SimpleStruct), type, stdlib);
 
         // SimpleStruct.X is a public non-readonly field → mutable
         var xField = members.First(m => m.Name == "X" && m.Kind == SymbolKind.Field);
@@ -521,7 +521,7 @@ public class TypeProjectorTests
     public void ProjectType_IDisposableClass_HasDropTrue()
     {
         // MemoryStream implements IDisposable → HasDrop should be true
-        var (type, _) = _projector.ProjectType(typeof(System.IO.MemoryStream), _stdlib);
+        var (type, _) = projector.ProjectType(typeof(System.IO.MemoryStream), stdlib);
         var classType = Assert.IsType<ClassType>(type);
 
         Assert.True(classType.HasDrop);
@@ -531,7 +531,7 @@ public class TypeProjectorTests
     public void ProjectType_IDisposableClass_IsDisposableDropTrue()
     {
         // MemoryStream implements IDisposable, no explicit Drop() → IsDisposableDrop should be true
-        var (type, _) = _projector.ProjectType(typeof(System.IO.MemoryStream), _stdlib);
+        var (type, _) = projector.ProjectType(typeof(System.IO.MemoryStream), stdlib);
         var classType = Assert.IsType<ClassType>(type);
 
         Assert.True(classType.IsDisposableDrop);
@@ -541,7 +541,7 @@ public class TypeProjectorTests
     public void ProjectType_NonDisposableClass_HasDropFalse()
     {
         // System.String does NOT implement IDisposable → HasDrop should be false
-        var (type, _) = _projector.ProjectType(typeof(string), _stdlib);
+        var (type, _) = projector.ProjectType(typeof(string), stdlib);
         var classType = Assert.IsType<ClassType>(type);
 
         Assert.False(classType.HasDrop);
@@ -551,7 +551,7 @@ public class TypeProjectorTests
     public void ProjectType_NonDisposableClass_IsDisposableDropFalse()
     {
         // System.String does NOT implement IDisposable → IsDisposableDrop should be false
-        var (type, _) = _projector.ProjectType(typeof(string), _stdlib);
+        var (type, _) = projector.ProjectType(typeof(string), stdlib);
         var classType = Assert.IsType<ClassType>(type);
 
         Assert.False(classType.IsDisposableDrop);
@@ -561,7 +561,7 @@ public class TypeProjectorTests
     public void ProjectType_TransitiveIDisposable_HasDropTrue()
     {
         // System.IO.Stream is abstract and implements IDisposable transitively
-        var (type, _) = _projector.ProjectType(typeof(System.IO.Stream), _stdlib);
+        var (type, _) = projector.ProjectType(typeof(System.IO.Stream), stdlib);
         var classType = Assert.IsType<ClassType>(type);
 
         Assert.True(classType.HasDrop);
@@ -571,7 +571,7 @@ public class TypeProjectorTests
     public void ProjectType_TransitiveIDisposable_IsDisposableDropTrue()
     {
         // System.IO.Stream implements IDisposable transitively → IsDisposableDrop = true
-        var (type, _) = _projector.ProjectType(typeof(System.IO.Stream), _stdlib);
+        var (type, _) = projector.ProjectType(typeof(System.IO.Stream), stdlib);
         var classType = Assert.IsType<ClassType>(type);
 
         Assert.True(classType.IsDisposableDrop);
@@ -581,7 +581,7 @@ public class TypeProjectorTests
     public void ProjectType_GenericIDisposable_FlagsSetOnDefinition()
     {
         // GenericDisposable<T> implements IDisposable → flags set on generic definition
-        var (type, _) = _projector.ProjectType(typeof(GenericDisposable<>), _stdlib);
+        var (type, _) = projector.ProjectType(typeof(GenericDisposable<>), stdlib);
         var classType = Assert.IsType<ClassType>(type);
 
         Assert.True(classType.HasDrop);
@@ -592,7 +592,7 @@ public class TypeProjectorTests
     public void ProjectType_AsyncDisposableOnly_HasDropFalse()
     {
         // AsyncOnlyDisposable implements only IAsyncDisposable → HasDrop should be false
-        var (type, _) = _projector.ProjectType(typeof(AsyncOnlyDisposable), _stdlib);
+        var (type, _) = projector.ProjectType(typeof(AsyncOnlyDisposable), stdlib);
         var classType = Assert.IsType<ClassType>(type);
 
         Assert.False(classType.HasDrop);
@@ -602,7 +602,7 @@ public class TypeProjectorTests
     public void ProjectType_AsyncDisposableOnly_IsDisposableDropFalse()
     {
         // AsyncOnlyDisposable implements only IAsyncDisposable → IsDisposableDrop should be false
-        var (type, _) = _projector.ProjectType(typeof(AsyncOnlyDisposable), _stdlib);
+        var (type, _) = projector.ProjectType(typeof(AsyncOnlyDisposable), stdlib);
         var classType = Assert.IsType<ClassType>(type);
 
         Assert.False(classType.IsDisposableDrop);
@@ -613,7 +613,7 @@ public class TypeProjectorTests
     {
         // BothDisposables implements both IDisposable and IAsyncDisposable
         // → recognized via IDisposable (HasDrop=true, IsDisposableDrop=true)
-        var (type, _) = _projector.ProjectType(typeof(BothDisposables), _stdlib);
+        var (type, _) = projector.ProjectType(typeof(BothDisposables), stdlib);
         var classType = Assert.IsType<ClassType>(type);
 
         Assert.True(classType.HasDrop);

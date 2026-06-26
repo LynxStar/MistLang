@@ -22,19 +22,19 @@ namespace Mist.Tests.Integration;
 /// </summary>
 public sealed class EndToEndCompilationTests : IDisposable
 {
-    private readonly string _outputDir;
+    private readonly string outputDir;
 
     public EndToEndCompilationTests()
     {
-        _outputDir = Path.Combine(Path.GetTempPath(), "MistE2E_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(_outputDir);
+        outputDir = Path.Combine(Path.GetTempPath(), "MistE2E_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(outputDir);
     }
 
     public void Dispose()
     {
-        if(Directory.Exists(_outputDir))
+        if(Directory.Exists(outputDir))
         {
-            try { Directory.Delete(_outputDir, recursive: true); } catch { /* best effort */ }
+            try { Directory.Delete(outputDir, recursive: true); } catch { /* best effort */ }
         }
         GC.SuppressFinalize(this);
     }
@@ -54,11 +54,11 @@ public sealed class EndToEndCompilationTests : IDisposable
     private CompilerOptions MakeOptions(params string[] sourcePaths)
     {
         return new CompilerOptions(
-            ProjectFolder: _outputDir,
+            ProjectFolder: outputDir,
             SourcePaths: sourcePaths.ToImmutableArray(),
             Backend: new BackendId("csharp"),
-            OutputDirectory: _outputDir,
-            BinDirectory: Path.Combine(_outputDir, "bin"),
+            OutputDirectory: outputDir,
+            BinDirectory: Path.Combine(outputDir, "bin"),
             ProjectName: "TestProject",
             NamespaceRoot: "TestProject",
             EnabledAnalyzerIds: ImmutableArray<string>.Empty);
@@ -236,11 +236,11 @@ public sealed class EndToEndCompilationTests : IDisposable
     public void FullPipeline_WithInvalidBackend_ProducesUnknownBackendDiagnostic()
     {
         var options = new CompilerOptions(
-            ProjectFolder: _outputDir,
+            ProjectFolder: outputDir,
             SourcePaths: ImmutableArray.Create("dummy.mist"),
             Backend: new BackendId("nonexistent-backend"),
-            OutputDirectory: _outputDir,
-            BinDirectory: Path.Combine(_outputDir, "bin"),
+            OutputDirectory: outputDir,
+            BinDirectory: Path.Combine(outputDir, "bin"),
             ProjectName: "TestProject",
             NamespaceRoot: "TestProject",
             EnabledAnalyzerIds: ImmutableArray<string>.Empty);
@@ -312,10 +312,10 @@ public sealed class EndToEndCompilationTests : IDisposable
 
         // Emit C#
         var emitDiagnostics = new DiagnosticBag();
-        CSharpEmitter.Emit(model, _outputDir, "TestProject", emitDiagnostics);
+        CSharpEmitter.Emit(model, outputDir, "TestProject", emitDiagnostics);
 
         // Verify output files exist
-        var csFiles = Directory.GetFiles(_outputDir, "*.cs");
+        var csFiles = Directory.GetFiles(outputDir, "*.cs");
         Assert.NotEmpty(csFiles);
 
         var csContent = File.ReadAllText(csFiles[0]);
@@ -324,7 +324,7 @@ public sealed class EndToEndCompilationTests : IDisposable
         Assert.Contains("void Main", csContent);
 
         // Verify .csproj was emitted
-        var csprojFiles = Directory.GetFiles(_outputDir, "*.csproj");
+        var csprojFiles = Directory.GetFiles(outputDir, "*.csproj");
         Assert.NotEmpty(csprojFiles);
     }
 
@@ -420,9 +420,9 @@ public sealed class EndToEndCompilationTests : IDisposable
 
         // Emit C#
         var emitDiagnostics = new DiagnosticBag();
-        CSharpEmitter.Emit(model, _outputDir, "TestProject", emitDiagnostics);
+        CSharpEmitter.Emit(model, outputDir, "TestProject", emitDiagnostics);
 
-        var csFiles = Directory.GetFiles(_outputDir, "*.cs");
+        var csFiles = Directory.GetFiles(outputDir, "*.cs");
         Assert.NotEmpty(csFiles);
 
         var csContent = File.ReadAllText(csFiles[0]);
@@ -514,9 +514,9 @@ public sealed class EndToEndCompilationTests : IDisposable
         var model = builder.Build(compilation, ImmutableArray.Create<Storm.Runtime.SyntaxNode>(ast), null, namespaceRoot: "TestProject", projectFolder: "/test", diagnostics);
 
         var emitDiagnostics = new DiagnosticBag();
-        CSharpEmitter.Emit(model, _outputDir, "TestProject", emitDiagnostics);
+        CSharpEmitter.Emit(model, outputDir, "TestProject", emitDiagnostics);
 
-        var csFiles = Directory.GetFiles(_outputDir, "*.cs");
+        var csFiles = Directory.GetFiles(outputDir, "*.cs");
         Assert.NotEmpty(csFiles);
 
         var csContent = File.ReadAllText(csFiles[0]);
@@ -777,9 +777,9 @@ public sealed class EndToEndCompilationTests : IDisposable
 
         // Emit C# — should produce files for both compilation units
         var emitDiagnostics = new DiagnosticBag();
-        CSharpEmitter.Emit(model, _outputDir, "TestProject", emitDiagnostics);
+        CSharpEmitter.Emit(model, outputDir, "TestProject", emitDiagnostics);
 
-        var csFiles = Directory.GetFiles(_outputDir, "*.cs");
+        var csFiles = Directory.GetFiles(outputDir, "*.cs");
         Assert.True(csFiles.Length >= 2, $"Expected at least 2 .cs files, got {csFiles.Length}");
     }
 
@@ -917,8 +917,8 @@ public sealed class EndToEndCompilationTests : IDisposable
         // Use the full backend (emit + dotnet build)
         var backend = new CSharpTranspilerBackend();
         var backendDiagnostics = new DiagnosticBag();
-        var binDir = Path.Combine(_outputDir, "bin");
-        var result = backend.Emit(model, _outputDir, binDir, "TestProject", backendDiagnostics);
+        var binDir = Path.Combine(outputDir, "bin");
+        var result = backend.Emit(model, outputDir, binDir, "TestProject", backendDiagnostics);
 
         // The emitted C# should compile successfully
         Assert.True(result.Succeeded, $"dotnet build failed. Diagnostics: {string.Join("; ", result.Diagnostics.Select(d => d.Message))}");
@@ -975,8 +975,8 @@ public sealed class EndToEndCompilationTests : IDisposable
         // Emit and compile
         var backend = new CSharpTranspilerBackend();
         var backendDiagnostics = new DiagnosticBag();
-        var binDir = Path.Combine(_outputDir, "bin");
-        var result = backend.Emit(model, _outputDir, binDir, "TestProject", backendDiagnostics);
+        var binDir = Path.Combine(outputDir, "bin");
+        var result = backend.Emit(model, outputDir, binDir, "TestProject", backendDiagnostics);
 
         Assert.True(result.Succeeded, "Build must succeed before running");
         Assert.NotNull(result.PrimaryArtifactPath);
@@ -1016,12 +1016,12 @@ public sealed class EndToEndCompilationTests : IDisposable
 
         // Compile using the real driver
         var driver = CreateRealDriver();
-        var binDir = Path.Combine(_outputDir, "bin");
+        var binDir = Path.Combine(outputDir, "bin");
         var options = new CompilerOptions(
             ProjectFolder: sampleDir,
             SourcePaths: sourceFiles.ToImmutableArray(),
             Backend: new BackendId("csharp"),
-            OutputDirectory: _outputDir,
+            OutputDirectory: outputDir,
             BinDirectory: binDir,
             ProjectName: "Inheritance",
             NamespaceRoot: "Inheritance",
@@ -1035,9 +1035,9 @@ public sealed class EndToEndCompilationTests : IDisposable
         Assert.True(File.Exists(result.PrimaryOutputArtifactPath), $"Expected artifact at {result.PrimaryOutputArtifactPath}");
 
         // Verify emitted C# files contain correct inheritance structure
-        var emittedDogCs = Path.Combine(_outputDir, "Dog.cs");
-        var emittedGuideDogCs = Path.Combine(_outputDir, "GuideDog.cs");
-        var emittedAnimalCs = Path.Combine(_outputDir, "Animal.cs");
+        var emittedDogCs = Path.Combine(outputDir, "Dog.cs");
+        var emittedGuideDogCs = Path.Combine(outputDir, "GuideDog.cs");
+        var emittedAnimalCs = Path.Combine(outputDir, "Animal.cs");
 
         Assert.True(File.Exists(emittedDogCs), "Dog.cs should be emitted");
         Assert.True(File.Exists(emittedGuideDogCs), "GuideDog.cs should be emitted");
@@ -1109,12 +1109,12 @@ public sealed class EndToEndCompilationTests : IDisposable
 
         // Compile using the real driver
         var driver = CreateRealDriver();
-        var binDir = Path.Combine(_outputDir, "bin");
+        var binDir = Path.Combine(outputDir, "bin");
         var options = new CompilerOptions(
             ProjectFolder: sampleDir,
             SourcePaths: sourceFiles.ToImmutableArray(),
             Backend: new BackendId("csharp"),
-            OutputDirectory: _outputDir,
+            OutputDirectory: outputDir,
             BinDirectory: binDir,
             ProjectName: "AllFeatures",
             NamespaceRoot: "AllFeatures",
@@ -1149,12 +1149,12 @@ public sealed class EndToEndCompilationTests : IDisposable
             .ToList();
 
         var driver = CreateRealDriver();
-        var binDir = Path.Combine(_outputDir, "bin");
+        var binDir = Path.Combine(outputDir, "bin");
         var options = new CompilerOptions(
             ProjectFolder: sampleDir,
             SourcePaths: sourceFiles.ToImmutableArray(),
             Backend: new BackendId("csharp"),
-            OutputDirectory: _outputDir,
+            OutputDirectory: outputDir,
             BinDirectory: binDir,
             ProjectName: "AllFeatures",
             NamespaceRoot: "AllFeatures",
@@ -1251,12 +1251,12 @@ public sealed class EndToEndCompilationTests : IDisposable
 
         // Compile using the real driver
         var driver = CreateRealDriver();
-        var binDir = Path.Combine(_outputDir, "bin");
+        var binDir = Path.Combine(outputDir, "bin");
         var options = new CompilerOptions(
             ProjectFolder: sampleDir,
             SourcePaths: sourceFiles.ToImmutableArray(),
             Backend: new BackendId("csharp"),
-            OutputDirectory: _outputDir,
+            OutputDirectory: outputDir,
             BinDirectory: binDir,
             ProjectName: "Namespaces",
             NamespaceRoot: "Namespaces",
@@ -1328,12 +1328,12 @@ public sealed class EndToEndCompilationTests : IDisposable
             $"Expected at least {minSourceFiles} .mist file(s) in {sampleName}, found {sourceFiles.Count}");
 
         var driver = CreateRealDriver();
-        var binDir = Path.Combine(_outputDir, "bin");
+        var binDir = Path.Combine(outputDir, "bin");
         var options = new CompilerOptions(
             ProjectFolder: sampleDir,
             SourcePaths: sourceFiles.ToImmutableArray(),
             Backend: new BackendId("csharp"),
-            OutputDirectory: _outputDir,
+            OutputDirectory: outputDir,
             BinDirectory: binDir,
             ProjectName: sampleName,
             NamespaceRoot: sampleName,
@@ -1420,12 +1420,12 @@ public sealed class EndToEndCompilationTests : IDisposable
             .ToList();
 
         var driver = CreateRealDriver();
-        var binDir = Path.Combine(_outputDir, "bin");
+        var binDir = Path.Combine(outputDir, "bin");
         var options = new CompilerOptions(
             ProjectFolder: sampleDir,
             SourcePaths: sourceFiles.ToImmutableArray(),
             Backend: new BackendId("csharp"),
-            OutputDirectory: _outputDir,
+            OutputDirectory: outputDir,
             BinDirectory: binDir,
             ProjectName: "HelloMist",
             NamespaceRoot: "HelloMist",
@@ -1435,7 +1435,7 @@ public sealed class EndToEndCompilationTests : IDisposable
         Assert.True(result.Succeeded);
 
         // Verify emitted C# files contain the explicit namespace HelloMist
-        var programCs = Path.Combine(_outputDir, "Program.cs");
+        var programCs = Path.Combine(outputDir, "Program.cs");
         Assert.True(File.Exists(programCs), "Program.cs should be emitted");
         var content = File.ReadAllText(programCs);
         Assert.Contains("namespace HelloMist", content);

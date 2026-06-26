@@ -39,7 +39,7 @@ namespace Mist.Tests.Semantics;
 /// </summary>
 public class UnknownTypeResolutionTests
 {
-    private readonly SemanticModelBuilder _builder = new();
+    private readonly SemanticModelBuilder builder = new();
 
     // ─── Helpers ─────────────────────────────────────────────────────────
 
@@ -64,7 +64,7 @@ public class UnknownTypeResolutionTests
     {
         var compilation = MakeCompilation();
         var diagnostics = new DiagnosticBag();
-        return _builder.Build(
+        return builder.Build(
             compilation,
             ImmutableArray.Create(ast),
             ambientTypeResolver: null,

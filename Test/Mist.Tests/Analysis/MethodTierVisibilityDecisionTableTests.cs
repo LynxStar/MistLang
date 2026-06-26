@@ -46,21 +46,21 @@ namespace Mist.Tests.Analysis;
 /// </summary>
 public sealed class MethodTierVisibilityDecisionTableTests : IDisposable
 {
-    private readonly string _scratchDir;
+    private readonly string scratchDir;
 
     public MethodTierVisibilityDecisionTableTests()
     {
-        _scratchDir = Path.Combine(
+        scratchDir = Path.Combine(
             Path.GetTempPath(),
             "mist-method-tier-table-" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(_scratchDir);
+        Directory.CreateDirectory(scratchDir);
     }
 
     public void Dispose()
     {
-        if(Directory.Exists(_scratchDir))
+        if(Directory.Exists(scratchDir))
         {
-            try { Directory.Delete(_scratchDir, recursive: true); } catch { /* best effort */ }
+            try { Directory.Delete(scratchDir, recursive: true); } catch { /* best effort */ }
         }
         GC.SuppressFinalize(this);
     }
@@ -74,7 +74,7 @@ public sealed class MethodTierVisibilityDecisionTableTests : IDisposable
     /// </summary>
     private sealed class CapturingSemanticModelBuilder : ISemanticModelBuilder
     {
-        private readonly SemanticModelBuilder _inner = new();
+        private readonly SemanticModelBuilder inner = new();
         public ISemanticModel? Captured { get; private set; }
 
         public ISemanticModel Build(
@@ -86,7 +86,7 @@ public sealed class MethodTierVisibilityDecisionTableTests : IDisposable
             DiagnosticBag diagnostics,
             ImmutableHashSet<string>? directReferencePaths = null)
         {
-            var model = _inner.Build(compilation, asts, ambientTypeResolver, namespaceRoot, projectFolder, diagnostics, directReferencePaths);
+            var model = inner.Build(compilation, asts, ambientTypeResolver, namespaceRoot, projectFolder, diagnostics, directReferencePaths);
             Captured = model;
             return model;
         }
@@ -161,7 +161,7 @@ public sealed class MethodTierVisibilityDecisionTableTests : IDisposable
 
     private ISemanticModel? CompileFixtureAndCapture()
     {
-        var sourcePath = Path.Combine(_scratchDir, "Program.mist");
+        var sourcePath = Path.Combine(scratchDir, "Program.mist");
         File.WriteAllText(sourcePath, FixtureSource);
 
         var capture = new CapturingSemanticModelBuilder();
@@ -176,11 +176,11 @@ public sealed class MethodTierVisibilityDecisionTableTests : IDisposable
             ImmutableArray.Create<IBackend>(new CSharpTranspilerBackend()));
 
         var options = new CompilerOptions(
-            ProjectFolder: _scratchDir,
+            ProjectFolder: scratchDir,
             SourcePaths: ImmutableArray.Create(sourcePath),
             Backend: new BackendId("csharp"),
-            OutputDirectory: _scratchDir,
-            BinDirectory: Path.Combine(_scratchDir, "bin"),
+            OutputDirectory: scratchDir,
+            BinDirectory: Path.Combine(scratchDir, "bin"),
             ProjectName: "TestProgram",
             NamespaceRoot: "TestProgram",
             EnabledAnalyzerIds: ImmutableArray<string>.Empty,

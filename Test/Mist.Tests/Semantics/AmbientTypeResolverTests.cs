@@ -11,7 +11,7 @@ namespace Mist.Tests.Semantics;
 /// </summary>
 public class AmbientTypeResolverTests
 {
-    private readonly CSharpAmbientTypeResolver _resolver = new();
+    private readonly CSharpAmbientTypeResolver resolver = new();
 
     // --- HasNamespace ---
 
@@ -19,19 +19,19 @@ public class AmbientTypeResolverTests
     public void HasNamespace_ReturnsFalse_ForSystem()
     {
         // After stdlib migration, no types are registered in the System namespace.
-        Assert.False(_resolver.HasNamespace("System"));
+        Assert.False(resolver.HasNamespace("System"));
     }
 
     [Fact]
     public void HasNamespace_ReturnsFalse_ForUnknownNamespace()
     {
-        Assert.False(_resolver.HasNamespace("Nonexistent.Namespace"));
+        Assert.False(resolver.HasNamespace("Nonexistent.Namespace"));
     }
 
     [Fact]
     public void HasNamespace_ReturnsFalse_ForEmptyString()
     {
-        Assert.False(_resolver.HasNamespace(""));
+        Assert.False(resolver.HasNamespace(""));
     }
 
     // --- ResolveType ---
@@ -43,7 +43,7 @@ public class AmbientTypeResolverTests
     public void ResolveType_ReturnsNull_ForMigratedTypes(string ns, string typeName)
     {
         // Console, Math, and Convert have been migrated to stdlib.
-        var type = _resolver.ResolveType(ns, typeName);
+        var type = resolver.ResolveType(ns, typeName);
         Assert.Null(type);
     }
 
@@ -52,21 +52,21 @@ public class AmbientTypeResolverTests
     [InlineData("System", "Array")]
     public void ResolveType_ReturnsNull_ForRemovedAmbientTypes(string ns, string typeName)
     {
-        var type = _resolver.ResolveType(ns, typeName);
+        var type = resolver.ResolveType(ns, typeName);
         Assert.Null(type);
     }
 
     [Fact]
     public void ResolveType_ReturnsNull_ForUnknownType()
     {
-        var type = _resolver.ResolveType("System", "UnknownType");
+        var type = resolver.ResolveType("System", "UnknownType");
         Assert.Null(type);
     }
 
     [Fact]
     public void ResolveType_ReturnsNull_ForUnknownNamespace()
     {
-        var type = _resolver.ResolveType("Nonexistent", "Console");
+        var type = resolver.ResolveType("Nonexistent", "Console");
         Assert.Null(type);
     }
 
@@ -79,7 +79,7 @@ public class AmbientTypeResolverTests
         var scope = new Mist.Semantics.Model.Scope(parent: null);
         var fakeType = new ClassType("Fake", scope, "Fake");
 
-        var members = _resolver.GetMembers(fakeType);
+        var members = resolver.GetMembers(fakeType);
         Assert.True(members.IsEmpty);
     }
 
@@ -89,14 +89,14 @@ public class AmbientTypeResolverTests
     public void GetTypeNamesInNamespace_ReturnsEmpty_ForSystem()
     {
         // After stdlib migration, no types are registered in the System namespace.
-        var names = _resolver.GetTypeNamesInNamespace("System");
+        var names = resolver.GetTypeNamesInNamespace("System");
         Assert.True(names.IsEmpty);
     }
 
     [Fact]
     public void GetTypeNamesInNamespace_ReturnsEmpty_ForUnknownNamespace()
     {
-        var names = _resolver.GetTypeNamesInNamespace("Nonexistent");
+        var names = resolver.GetTypeNamesInNamespace("Nonexistent");
         Assert.True(names.IsEmpty);
     }
 

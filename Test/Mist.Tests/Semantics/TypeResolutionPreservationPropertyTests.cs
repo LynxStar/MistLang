@@ -69,21 +69,21 @@ public sealed class TypeResolutionPreservationPropertyTests : IDisposable
     private static readonly IParser Parser = new MistParser();
     private static readonly SemanticModelBuilder Builder = new();
 
-    private readonly string _outputDir;
+    private readonly string outputDir;
 
     public TypeResolutionPreservationPropertyTests()
     {
-        _outputDir = Path.Combine(
+        outputDir = Path.Combine(
             Path.GetTempPath(),
             "mist_preservation_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(_outputDir);
+        Directory.CreateDirectory(outputDir);
     }
 
     public void Dispose()
     {
-        if(Directory.Exists(_outputDir))
+        if(Directory.Exists(outputDir))
         {
-            try { Directory.Delete(_outputDir, recursive: true); } catch { /* best effort */ }
+            try { Directory.Delete(outputDir, recursive: true); } catch { /* best effort */ }
         }
         GC.SuppressFinalize(this);
     }
@@ -97,15 +97,15 @@ public sealed class TypeResolutionPreservationPropertyTests : IDisposable
     private CompilerResult CompileSource(string mistSource, string fileName = "Program.mist",
         ImmutableArray<string> globalUsings = default)
     {
-        var sourcePath = Path.Combine(_outputDir, fileName);
+        var sourcePath = Path.Combine(outputDir, fileName);
         File.WriteAllText(sourcePath, mistSource);
 
         var options = new CompilerOptions(
-            ProjectFolder: _outputDir,
+            ProjectFolder: outputDir,
             SourcePaths: ImmutableArray.Create(sourcePath),
             Backend: new BackendId("csharp"),
-            OutputDirectory: Path.Combine(_outputDir, "out"),
-            BinDirectory: Path.Combine(_outputDir, "bin"),
+            OutputDirectory: Path.Combine(outputDir, "out"),
+            BinDirectory: Path.Combine(outputDir, "bin"),
             ProjectName: "TestProject",
             NamespaceRoot: "TestProject",
             EnabledAnalyzerIds: ImmutableArray<string>.Empty,

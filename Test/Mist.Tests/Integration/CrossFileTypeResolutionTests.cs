@@ -25,7 +25,7 @@ namespace Mist.Tests.Integration;
 /// </summary>
 public sealed class CrossFileTypeResolutionTests : IDisposable
 {
-    private readonly string _tempDir;
+    private readonly string tempDir;
 
     private static readonly CompilerDriver SharedDriver = new(
         new Mist.Lexing.MistLexer(),
@@ -36,17 +36,17 @@ public sealed class CrossFileTypeResolutionTests : IDisposable
 
     public CrossFileTypeResolutionTests()
     {
-        _tempDir = Path.Combine(
+        tempDir = Path.Combine(
             Path.GetTempPath(),
             "MistCrossFile_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(_tempDir);
+        Directory.CreateDirectory(tempDir);
     }
 
     public void Dispose()
     {
-        if(Directory.Exists(_tempDir))
+        if(Directory.Exists(tempDir))
         {
-            try { Directory.Delete(_tempDir, recursive: true); }
+            try { Directory.Delete(tempDir, recursive: true); }
             catch { /* best effort */ }
         }
         GC.SuppressFinalize(this);
@@ -58,7 +58,7 @@ public sealed class CrossFileTypeResolutionTests : IDisposable
         string scenarioName,
         IReadOnlyList<(string FileName, string Source)> files)
     {
-        var scenarioDir = Path.Combine(_tempDir, scenarioName);
+        var scenarioDir = Path.Combine(tempDir, scenarioName);
         Directory.CreateDirectory(scenarioDir);
 
         var sourcePaths = new List<string>();

@@ -11,10 +11,10 @@ namespace Mist.Semantics.Model;
 public sealed class ExtensionRegistry
 {
     // Keyed by IType (the resolved receiver type) using reference equality.
-    private readonly Dictionary<IType, List<ExtensionBlockInfo>> _byReceiverType = new();
+    private readonly Dictionary<IType, List<ExtensionBlockInfo>> byReceiverType = new();
 
     // Universal extensions (receiver type = unknown) stored separately for fast access.
-    private readonly List<ExtensionBlockInfo> _universalExtensions = new();
+    private readonly List<ExtensionBlockInfo> universalExtensions = new();
 
     /// <summary>
     /// Registers an extension block in the registry.
@@ -25,13 +25,13 @@ public sealed class ExtensionRegistry
     {
         if(info.IsUniversal)
         {
-            _universalExtensions.Add(info);
+            universalExtensions.Add(info);
         }
 
-        if(!_byReceiverType.TryGetValue(info.ReceiverType, out var list))
+        if(!byReceiverType.TryGetValue(info.ReceiverType, out var list))
         {
             list = new List<ExtensionBlockInfo>();
-            _byReceiverType[info.ReceiverType] = list;
+            byReceiverType[info.ReceiverType] = list;
         }
 
         list.Add(info);
@@ -48,9 +48,9 @@ public sealed class ExtensionRegistry
         var results = new List<ExtensionBlockInfo>();
 
         // Always include universal extensions — they apply to all types.
-        results.AddRange(_universalExtensions);
+        results.AddRange(universalExtensions);
 
-        foreach(var (receiverType, extensions) in _byReceiverType)
+        foreach(var (receiverType, extensions) in byReceiverType)
         {
             // Skip universal extensions (already added above).
             if(receiverType is UnknownType)
@@ -77,9 +77,9 @@ public sealed class ExtensionRegistry
         var results = new List<ExtensionBlockInfo>();
 
         // Universal extensions always apply to union-typed values.
-        results.AddRange(_universalExtensions);
+        results.AddRange(universalExtensions);
 
-        foreach(var (receiverType, extensions) in _byReceiverType)
+        foreach(var (receiverType, extensions) in byReceiverType)
         {
             // Skip universal extensions (already added above).
             if(receiverType is UnknownType)
@@ -111,7 +111,7 @@ public sealed class ExtensionRegistry
     /// <summary>
     /// Returns only universal extensions (receiver type = unknown).
     /// </summary>
-    public IReadOnlyList<ExtensionBlockInfo> UniversalExtensions => _universalExtensions;
+    public IReadOnlyList<ExtensionBlockInfo> UniversalExtensions => universalExtensions;
 
     /// <summary>
     /// Returns extension blocks whose receiver type exactly matches the given type.
@@ -119,7 +119,7 @@ public sealed class ExtensionRegistry
     /// </summary>
     public IReadOnlyList<ExtensionBlockInfo> GetExactExtensions(IType type)
     {
-        if(_byReceiverType.TryGetValue(type, out var list))
+        if(byReceiverType.TryGetValue(type, out var list))
         {
             return list;
         }
@@ -131,7 +131,7 @@ public sealed class ExtensionRegistry
     /// Returns all extension block groups keyed by receiver type.
     /// Used for duplicate signature detection across extension blocks.
     /// </summary>
-    public IEnumerable<KeyValuePair<IType, List<ExtensionBlockInfo>>> AllGroups => _byReceiverType;
+    public IEnumerable<KeyValuePair<IType, List<ExtensionBlockInfo>>> AllGroups => byReceiverType;
 
     /// <summary>
     /// Finds the extension block info that provides a property member with the given name

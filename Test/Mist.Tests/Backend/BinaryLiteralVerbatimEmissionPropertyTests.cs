@@ -30,22 +30,22 @@ public sealed class BinaryLiteralVerbatimEmissionPropertyTests : IDisposable
 {
     private static readonly Mist.Lexing.MistLexer Lexer = new();
     private static readonly Mist.Parsing.MistParser Parser = new();
-    private readonly SemanticModelBuilder _builder = new();
-    private readonly string _outputDir;
+    private readonly SemanticModelBuilder builder = new();
+    private readonly string outputDir;
 
     public BinaryLiteralVerbatimEmissionPropertyTests()
     {
-        _outputDir = Path.Combine(
+        outputDir = Path.Combine(
             Path.GetTempPath(),
             "MistVerbatimEmission_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(_outputDir);
+        Directory.CreateDirectory(outputDir);
     }
 
     public void Dispose()
     {
-        if(Directory.Exists(_outputDir))
+        if(Directory.Exists(outputDir))
         {
-            try { Directory.Delete(_outputDir, recursive: true); } catch { /* best effort */ }
+            try { Directory.Delete(outputDir, recursive: true); } catch { /* best effort */ }
         }
         GC.SuppressFinalize(this);
     }
@@ -210,7 +210,7 @@ public sealed class BinaryLiteralVerbatimEmissionPropertyTests : IDisposable
         var sourceText = new SourceText("test.mist", source);
         var compilation = new MistCompilation(ImmutableArray.Create(new CompilationUnit(sourceText)));
         var diagnostics = new DiagnosticBag();
-        return _builder.Build(
+        return builder.Build(
             compilation,
             ImmutableArray.Create(ast),
             ambientTypeResolver: null,
@@ -222,15 +222,15 @@ public sealed class BinaryLiteralVerbatimEmissionPropertyTests : IDisposable
     private string EmitAndGetCsContent(ISemanticModel model)
     {
         // Clean the output directory for each emission
-        foreach(var file in Directory.GetFiles(_outputDir))
+        foreach(var file in Directory.GetFiles(outputDir))
         {
             File.Delete(file);
         }
 
         var diagnostics = new DiagnosticBag();
-        CSharpEmitter.Emit(model, _outputDir, "TestProject", diagnostics);
+        CSharpEmitter.Emit(model, outputDir, "TestProject", diagnostics);
 
-        var csFile = Directory.GetFiles(_outputDir, "*.cs")
+        var csFile = Directory.GetFiles(outputDir, "*.cs")
             .FirstOrDefault(f => !f.EndsWith("MistVoid.g.cs", StringComparison.Ordinal));
         return csFile is not null ? File.ReadAllText(csFile) : "";
     }

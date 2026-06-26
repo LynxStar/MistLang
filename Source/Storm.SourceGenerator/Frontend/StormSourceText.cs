@@ -10,7 +10,7 @@ namespace Storm.SourceGenerator.Frontend
     /// </summary>
     public sealed class StormSourceText
     {
-        private int[]? _lineStarts;
+        private int[]? lineStarts;
 
         /// <summary>
         /// Creates a new <see cref="StormSourceText"/> instance.
@@ -73,9 +73,9 @@ namespace Storm.SourceGenerator.Frontend
         /// </summary>
         private int[] GetLineStarts()
         {
-            if(_lineStarts != null)
+            if(lineStarts != null)
             {
-                return _lineStarts;
+                return lineStarts;
             }
 
             var starts = new List<int> { 0 };
@@ -97,8 +97,8 @@ namespace Storm.SourceGenerator.Frontend
                 }
             }
 
-            _lineStarts = starts.ToArray();
-            return _lineStarts;
+            lineStarts = starts.ToArray();
+            return lineStarts;
         }
     }
 }

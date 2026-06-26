@@ -41,16 +41,16 @@ public sealed record OperatorMethodScenario(
 /// </summary>
 public sealed class OperatorProjectionPropertyTests
 {
-    private readonly TypeProjector _projector;
-    private readonly IStdlibTypeProvider _stdlib;
-    private readonly IntrinsicTypeMap _intrinsicMap;
+    private readonly TypeProjector projector;
+    private readonly IStdlibTypeProvider stdlib;
+    private readonly IntrinsicTypeMap intrinsicMap;
 
     public OperatorProjectionPropertyTests()
     {
-        _intrinsicMap = new IntrinsicTypeMap();
+        intrinsicMap = new IntrinsicTypeMap();
         var filter = new VisibilityFilter();
-        _projector = new TypeProjector(_intrinsicMap, filter);
-        _stdlib = FallbackStdlibTypeProvider.Instance;
+        projector = new TypeProjector(intrinsicMap, filter);
+        stdlib = FallbackStdlibTypeProvider.Instance;
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -154,7 +154,7 @@ public sealed class OperatorProjectionPropertyTests
     /// </summary>
     private ImmutableArray<ISymbol> ProjectTypeWithOperators(Type clrType)
     {
-        var (projectedType, _) = _projector.ProjectType(clrType, _stdlib);
+        var (projectedType, _) = projector.ProjectType(clrType, stdlib);
 
         var memberScope = projectedType switch
         {
@@ -169,7 +169,7 @@ public sealed class OperatorProjectionPropertyTests
             return ImmutableArray<ISymbol>.Empty;
         }
 
-        return _projector.ProjectOperators(clrType, memberScope, _stdlib);
+        return projector.ProjectOperators(clrType, memberScope, stdlib);
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -216,8 +216,8 @@ public sealed class OperatorProjectionPropertyTests
         var expectedName = GetExpectedMistOperatorName(scenario.OperatorMethod);
 
         // Project the expected return type through the same pipeline
-        var expectedReturnType = _projector.ProjectTypeReference(scenario.OperatorMethod.ReturnType, _stdlib);
-        expectedReturnType = _intrinsicMap.SubstituteIntrinsics(expectedReturnType, _stdlib);
+        var expectedReturnType = projector.ProjectTypeReference(scenario.OperatorMethod.ReturnType, stdlib);
+        expectedReturnType = intrinsicMap.SubstituteIntrinsics(expectedReturnType, stdlib);
 
         // Find the operator symbol
         var operatorSymbol = operators
@@ -267,7 +267,7 @@ public sealed class OperatorProjectionPropertyTests
     [Property(MaxTest = 100, Arbitrary = new[] { typeof(OperatorProjectionPropertyTests) })]
     public Property OperatorMethod_RegisteredInMemberScope(OperatorMethodScenario scenario)
     {
-        var (projectedType, _) = _projector.ProjectType(scenario.DeclaringType, _stdlib);
+        var (projectedType, _) = projector.ProjectType(scenario.DeclaringType, stdlib);
 
         var memberScope = projectedType switch
         {
@@ -282,7 +282,7 @@ public sealed class OperatorProjectionPropertyTests
             return false.ToProperty().Label("Could not get member scope");
         }
 
-        _projector.ProjectOperators(scenario.DeclaringType, memberScope, _stdlib);
+        projector.ProjectOperators(scenario.DeclaringType, memberScope, stdlib);
 
         var expectedName = GetExpectedMistOperatorName(scenario.OperatorMethod);
 

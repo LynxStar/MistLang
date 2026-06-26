@@ -28,7 +28,7 @@ namespace Mist.Tests.Semantics;
 /// </summary>
 public class DependentTypePropertyGenerationPropertyTests
 {
-    private readonly SemanticModelBuilder _builder = new();
+    private readonly SemanticModelBuilder builder = new();
 
     // ─── Helpers ─────────────────────────────────────────────────────────
 
@@ -55,7 +55,7 @@ public class DependentTypePropertyGenerationPropertyTests
     {
         var compilation = MakeCompilation(source);
         var diagnostics = new DiagnosticBag();
-        var model = _builder.Build(compilation, ImmutableArray.Create(ast), ambientTypeResolver: null, namespaceRoot: "TestProject", projectFolder: "/test", diagnostics);
+        var model = builder.Build(compilation, ImmutableArray.Create(ast), ambientTypeResolver: null, namespaceRoot: "TestProject", projectFolder: "/test", diagnostics);
         return (model, diagnostics.ToImmutableArray());
     }
 

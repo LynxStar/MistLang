@@ -8,32 +8,32 @@ namespace Mist.CLI.Output;
 /// </summary>
 public sealed class ConsoleProgressReporter : ICompilationProgressReporter
 {
-    private readonly TextWriter _out;
+    private readonly TextWriter @out;
 
     public ConsoleProgressReporter(TextWriter output)
     {
-        _out = output;
+        @out = output;
     }
 
     public void ReportStageStart(string stageId, string title)
     {
-        _out.WriteLine($"Stage {stageId} - {title}");
+        @out.WriteLine($"Stage {stageId} - {title}");
     }
 
     public void ReportStageComplete(string stageId, TimeSpan elapsed, IReadOnlyList<string> details)
     {
         foreach(var detail in details)
         {
-            _out.WriteLine($"    {detail}");
+            @out.WriteLine($"    {detail}");
         }
 
-        _out.WriteLine($"    Took {elapsed.TotalSeconds:F2}s");
-        _out.WriteLine(); // blank separator line
+        @out.WriteLine($"    Took {elapsed.TotalSeconds:F2}s");
+        @out.WriteLine(); // blank separator line
     }
 
     public void ReportBuildSummary(bool succeeded, int errorCount, int warningCount, TimeSpan totalElapsed)
     {
         var status = succeeded ? "Build succeeded" : "Build failed";
-        _out.WriteLine($"{status}  {errorCount} error(s), {warningCount} warning(s)  Total: {totalElapsed.TotalSeconds:F2}s");
+        @out.WriteLine($"{status}  {errorCount} error(s), {warningCount} warning(s)  Total: {totalElapsed.TotalSeconds:F2}s");
     }
 }

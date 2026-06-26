@@ -25,7 +25,7 @@ namespace Mist.Tests.Semantics;
 /// </summary>
 public class AdhocRefinementSemanticModelPropertyTests
 {
-    private readonly SemanticModelBuilder _builder = new();
+    private readonly SemanticModelBuilder builder = new();
     private static readonly Mist.Lexing.MistLexer Lexer = new();
     private static readonly Mist.Parsing.MistParser Parser = new();
 
@@ -195,7 +195,7 @@ public class AdhocRefinementSemanticModelPropertyTests
         var compilation = new MistCompilation(
             ImmutableArray.Create(new CompilationUnit(sourceText)));
         var semanticBag = new DiagnosticBag();
-        var model = _builder.Build(
+        var model = builder.Build(
             compilation,
             ImmutableArray.Create(result.Root),
             ambientTypeResolver: null,

@@ -12,7 +12,7 @@ namespace Mist.Tests.Semantics;
 
 public class SemanticModelBuilderPass1Tests
 {
-    private readonly SemanticModelBuilder _builder = new();
+    private readonly SemanticModelBuilder builder = new();
 
     /// <summary>
     /// Helper to create a Token with a given lexeme and span.
@@ -44,7 +44,7 @@ public class SemanticModelBuilderPass1Tests
     {
         var compilation = MakeCompilation(source);
         var diagnostics = new DiagnosticBag();
-        return _builder.Build(compilation, ImmutableArray.Create(ast), ambientTypeResolver: null, namespaceRoot: "TestProject", projectFolder: "/test", diagnostics);
+        return builder.Build(compilation, ImmutableArray.Create(ast), ambientTypeResolver: null, namespaceRoot: "TestProject", projectFolder: "/test", diagnostics);
     }
 
     // ─── Empty program ──────────────────────────────────────────────────────

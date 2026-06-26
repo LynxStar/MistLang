@@ -5,17 +5,17 @@ namespace Mist.Tests.InteropFixtures;
 /// </summary>
 public class HasIndexer
 {
-    private readonly int[] _data = new int[10];
+    private readonly int[] data = new int[10];
 
     public int this[int index]
     {
-        get => _data[index];
-        set => _data[index] = value;
+        get => data[index];
+        set => data[index] = value;
     }
 
     public int this[int row, int col] => row * 10 + col;
 
-    public int Length => _data.Length;
+    public int Length => data.Length;
 }
 
 /// <summary>

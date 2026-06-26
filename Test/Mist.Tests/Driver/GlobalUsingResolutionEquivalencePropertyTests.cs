@@ -36,21 +36,21 @@ public sealed class GlobalUsingResolutionEquivalencePropertyTests : IDisposable
         ImmutableArray.Create<IAnalyzer>(new TypeCheckerAnalyzer()),
         ImmutableArray.Create<IBackend>(new CSharpTranspilerBackend()));
 
-    private readonly string _scratchDir;
+    private readonly string scratchDir;
 
     public GlobalUsingResolutionEquivalencePropertyTests()
     {
-        _scratchDir = Path.Combine(
+        scratchDir = Path.Combine(
             Path.GetTempPath(),
             "mist_pbt_gu_resolve_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(_scratchDir);
+        Directory.CreateDirectory(scratchDir);
     }
 
     public void Dispose()
     {
-        if(Directory.Exists(_scratchDir))
+        if(Directory.Exists(scratchDir))
         {
-            try { Directory.Delete(_scratchDir, recursive: true); } catch { /* best effort */ }
+            try { Directory.Delete(scratchDir, recursive: true); } catch { /* best effort */ }
         }
         GC.SuppressFinalize(this);
     }
@@ -176,7 +176,7 @@ public sealed class GlobalUsingResolutionEquivalencePropertyTests : IDisposable
             var (ns, typeName) = validSamples[idx];
 
             // Create a unique temp directory for this iteration
-            var iterDir = Path.Combine(_scratchDir, $"iter_{idx}");
+            var iterDir = Path.Combine(scratchDir, $"iter_{idx}");
             Directory.CreateDirectory(iterDir);
 
             try

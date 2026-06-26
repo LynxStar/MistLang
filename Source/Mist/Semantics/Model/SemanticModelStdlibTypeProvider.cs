@@ -16,11 +16,11 @@ namespace Mist.Semantics.Model;
 /// </summary>
 internal sealed class SemanticModelStdlibTypeProvider : IStdlibTypeProvider
 {
-    private readonly ISemanticModel _model;
+    private readonly ISemanticModel model;
 
     public SemanticModelStdlibTypeProvider(ISemanticModel model)
     {
-        _model = model;
+        this.model = model;
     }
 
     public IType LookupStandardType(string simpleName)
@@ -35,7 +35,7 @@ internal sealed class SemanticModelStdlibTypeProvider : IStdlibTypeProvider
         ClassType? classFallback = null;
         StructType? structFallback = null;
 
-        foreach(var symbol in _model.AllSymbols)
+        foreach(var symbol in model.AllSymbols)
         {
             if(symbol.Kind != SymbolKind.Class
                 && symbol.Kind != SymbolKind.Struct

@@ -32,8 +32,8 @@ namespace Mist.Tests.Analysis;
 /// </summary>
 public class CastOperatorValidationPropertyTests
 {
-    private readonly SemanticModelBuilder _builder = new();
-    private readonly TypeCheckerAnalyzer _analyzer = new();
+    private readonly SemanticModelBuilder builder = new();
+    private readonly TypeCheckerAnalyzer analyzer = new();
 
     private const string DiagnosticId = "MIST_TC_0040";
 
@@ -53,7 +53,7 @@ public class CastOperatorValidationPropertyTests
         var compilation = new MistCompilation(
             ImmutableArray.Create(new CompilationUnit(sourceText)));
         var diagnostics = new DiagnosticBag();
-        return _builder.Build(
+        return builder.Build(
             compilation,
             ImmutableArray.Create(ast),
             ambientTypeResolver: null,
@@ -65,7 +65,7 @@ public class CastOperatorValidationPropertyTests
     private ImmutableArray<Diagnostic> RunTypeChecker(ISemanticModel model)
     {
         var bag = new DiagnosticBag();
-        _analyzer.Analyze(model, bag);
+        analyzer.Analyze(model, bag);
         return bag.ToImmutableArray();
     }
 

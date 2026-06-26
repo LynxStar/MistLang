@@ -41,16 +41,16 @@ namespace Mist.Tests.Backend;
 /// </summary>
 public sealed class RefStructProjectionTests : IDisposable
 {
-    private readonly VisibilityFilter _filter = new();
-    private readonly AssemblyTypeProvider _provider;
+    private readonly VisibilityFilter filter = new();
+    private readonly AssemblyTypeProvider provider;
 
     public RefStructProjectionTests()
     {
         var diagnostics = new DiagnosticBag();
-        _provider = new AssemblyTypeProvider(GetAssemblyPaths(), diagnostics);
+        provider = new AssemblyTypeProvider(GetAssemblyPaths(), diagnostics);
     }
 
-    public void Dispose() => _provider.Dispose();
+    public void Dispose() => provider.Dispose();
 
     // ── Assembly path / member lookup helpers ────────────────────────────
 
@@ -89,21 +89,21 @@ public sealed class RefStructProjectionTests : IDisposable
     public void Write_ByteArrayOverload_IsKept()
     {
         var method = GetOverload(typeof(MixedSpanOverloads), nameof(MixedSpanOverloads.Write), typeof(byte[]));
-        Assert.False(_filter.IsMemberExcluded(method));
+        Assert.False(filter.IsMemberExcluded(method));
     }
 
     [Fact]
     public void Write_SpanOverload_IsNotExcluded()
     {
         var method = GetOverload(typeof(MixedSpanOverloads), nameof(MixedSpanOverloads.Write), typeof(Span<byte>));
-        Assert.False(_filter.IsMemberExcluded(method));
+        Assert.False(filter.IsMemberExcluded(method));
     }
 
     [Fact]
     public void Write_ReadOnlySpanOverload_IsNotExcluded()
     {
         var method = GetOverload(typeof(MixedSpanOverloads), nameof(MixedSpanOverloads.Write), typeof(ReadOnlySpan<byte>));
-        Assert.False(_filter.IsMemberExcluded(method));
+        Assert.False(filter.IsMemberExcluded(method));
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -116,7 +116,7 @@ public sealed class RefStructProjectionTests : IDisposable
     {
         var method = GetOverload(typeof(MixedSpanOverloads), nameof(MixedSpanOverloads.Write), typeof(Span<byte>));
 
-        var classification = _filter.Classify(method);
+        var classification = filter.Classify(method);
 
         Assert.False(classification.Hidden);
         Assert.Equal(MemberHiddenReason.None, classification.Reason);
@@ -128,7 +128,7 @@ public sealed class RefStructProjectionTests : IDisposable
     {
         var method = GetOverload(typeof(MixedSpanOverloads), nameof(MixedSpanOverloads.Write), typeof(ReadOnlySpan<byte>));
 
-        var classification = _filter.Classify(method);
+        var classification = filter.Classify(method);
 
         Assert.False(classification.Hidden);
         Assert.Equal(MemberHiddenReason.None, classification.Reason);
@@ -140,7 +140,7 @@ public sealed class RefStructProjectionTests : IDisposable
     {
         var method = GetOverload(typeof(MixedSpanOverloads), nameof(MixedSpanOverloads.Write), typeof(byte[]));
 
-        var classification = _filter.Classify(method);
+        var classification = filter.Classify(method);
 
         Assert.False(classification.Hidden);
         Assert.Equal(MemberHiddenReason.None, classification.Reason);
@@ -155,10 +155,10 @@ public sealed class RefStructProjectionTests : IDisposable
     [Fact]
     public void Provider_MixedOverloadGroup_ProjectsAllThreeWriteOverloads()
     {
-        var type = _provider.ResolveType("Mist.Tests.InteropFixtures", "MixedSpanOverloads");
+        var type = provider.ResolveType("Mist.Tests.InteropFixtures", "MixedSpanOverloads");
         Assert.NotNull(type);
 
-        var members = _provider.GetMembers(type!);
+        var members = provider.GetMembers(type!);
 
         // Write(byte[]), Write(Span<byte>), Write(ReadOnlySpan<byte>) all project under Option A.
         Assert.Equal(3, CountMethodSymbols(members, "Write"));
@@ -167,10 +167,10 @@ public sealed class RefStructProjectionTests : IDisposable
     [Fact]
     public void Provider_AllSpanOverloadGroup_ProjectsItsOverloads()
     {
-        var type = _provider.ResolveType("Mist.Tests.InteropFixtures", "MixedSpanOverloads");
+        var type = provider.ResolveType("Mist.Tests.InteropFixtures", "MixedSpanOverloads");
         Assert.NotNull(type);
 
-        var members = _provider.GetMembers(type!);
+        var members = provider.GetMembers(type!);
 
         // Both ProcessAll(Span<byte>) and ProcessAll(ReadOnlySpan<byte>) project (ref structs
         // are no longer excluded), so this is no longer an all-hidden group.
@@ -186,43 +186,43 @@ public sealed class RefStructProjectionTests : IDisposable
     public void Encoding_GetBytesString_IsRetained_AndSpanOverloadAlsoVisible()
     {
         var stringOverload = GetOverload(typeof(Encoding), nameof(Encoding.GetBytes), typeof(string));
-        Assert.False(_filter.IsMemberExcluded(stringOverload));
+        Assert.False(filter.IsMemberExcluded(stringOverload));
 
         // The ReadOnlySpan<char> -> Span<byte> overload is now ALSO visible (ref structs projected).
         var spanOverload = GetOverload(
             typeof(Encoding), nameof(Encoding.GetBytes), typeof(ReadOnlySpan<char>), typeof(Span<byte>));
-        Assert.False(_filter.IsMemberExcluded(spanOverload));
+        Assert.False(filter.IsMemberExcluded(spanOverload));
 
         // The provider projects Encoding with a GetBytes method symbol surviving.
-        var encoding = _provider.ResolveType("System.Text", "Encoding");
+        var encoding = provider.ResolveType("System.Text", "Encoding");
         Assert.NotNull(encoding);
-        Assert.True(CountMethodSymbols(_provider.GetMembers(encoding!), "GetBytes") > 0);
+        Assert.True(CountMethodSymbols(provider.GetMembers(encoding!), "GetBytes") > 0);
     }
 
     [Fact]
     public void Socket_SendByteArray_IsRetained_AndSpanOverloadAlsoVisible()
     {
         var byteArrayOverload = GetOverload(typeof(Socket), nameof(Socket.Send), typeof(byte[]));
-        Assert.False(_filter.IsMemberExcluded(byteArrayOverload));
+        Assert.False(filter.IsMemberExcluded(byteArrayOverload));
 
         var spanOverload = GetOverload(typeof(Socket), nameof(Socket.Send), typeof(ReadOnlySpan<byte>));
-        Assert.False(_filter.IsMemberExcluded(spanOverload));
+        Assert.False(filter.IsMemberExcluded(spanOverload));
 
-        var socket = _provider.ResolveType("System.Net.Sockets", "Socket");
+        var socket = provider.ResolveType("System.Net.Sockets", "Socket");
         Assert.NotNull(socket);
-        Assert.True(CountMethodSymbols(_provider.GetMembers(socket!), "Send") > 0);
+        Assert.True(CountMethodSymbols(provider.GetMembers(socket!), "Send") > 0);
     }
 
     [Fact]
     public void Console_ReadLine_IsRetained()
     {
         var readLine = GetOverload(typeof(Console), nameof(Console.ReadLine), Type.EmptyTypes);
-        Assert.False(_filter.IsMemberExcluded(readLine));
+        Assert.False(filter.IsMemberExcluded(readLine));
 
-        var console = _provider.ResolveType("System", "Console");
+        var console = provider.ResolveType("System", "Console");
         Assert.NotNull(console);
 
-        var readLineSymbols = _provider.GetMembers(console!)
+        var readLineSymbols = provider.GetMembers(console!)
             .Where(m => m.Kind == SymbolKind.Method && m.Name == "ReadLine")
             .Cast<Symbol>()
             .ToArray();
@@ -238,19 +238,19 @@ public sealed class RefStructProjectionTests : IDisposable
     [Fact]
     public void Provider_ProjectsSpan()
     {
-        Assert.NotNull(_provider.ResolveType("System", "Span", 1));
+        Assert.NotNull(provider.ResolveType("System", "Span", 1));
     }
 
     [Fact]
     public void Provider_ProjectsReadOnlySpan()
     {
-        Assert.NotNull(_provider.ResolveType("System", "ReadOnlySpan", 1));
+        Assert.NotNull(provider.ResolveType("System", "ReadOnlySpan", 1));
     }
 
     [Fact]
     public void ProjectedSpan_IsRefStruct()
     {
-        var span = _provider.ResolveType("System", "Span", 1);
+        var span = provider.ResolveType("System", "Span", 1);
         Assert.NotNull(span);
         var structType = Assert.IsType<StructType>(span);
         Assert.True(structType.IsRefStruct);
@@ -259,7 +259,7 @@ public sealed class RefStructProjectionTests : IDisposable
     [Fact]
     public void Filter_DoesNotExcludeSpanAndReadOnlySpanTypes()
     {
-        Assert.False(_filter.IsTypeExcluded(typeof(Span<>)));
-        Assert.False(_filter.IsTypeExcluded(typeof(ReadOnlySpan<>)));
+        Assert.False(filter.IsTypeExcluded(typeof(Span<>)));
+        Assert.False(filter.IsTypeExcluded(typeof(ReadOnlySpan<>)));
     }
 }

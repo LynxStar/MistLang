@@ -30,22 +30,22 @@ namespace Mist.Tests.Backend;
 /// </summary>
 public sealed partial class GenericEmissionPropertyTests : IDisposable
 {
-    private readonly SemanticModelBuilder _builder = new();
-    private readonly string _outputDir;
+    private readonly SemanticModelBuilder builder = new();
+    private readonly string outputDir;
 
     public GenericEmissionPropertyTests()
     {
-        _outputDir = Path.Combine(
+        outputDir = Path.Combine(
             Path.GetTempPath(),
             "MistGenericEmissionTests_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(_outputDir);
+        Directory.CreateDirectory(outputDir);
     }
 
     public void Dispose()
     {
-        if(Directory.Exists(_outputDir))
+        if(Directory.Exists(outputDir))
         {
-            try { Directory.Delete(_outputDir, recursive: true); } catch { /* best effort */ }
+            try { Directory.Delete(outputDir, recursive: true); } catch { /* best effort */ }
         }
         GC.SuppressFinalize(this);
     }
@@ -219,7 +219,7 @@ public sealed partial class GenericEmissionPropertyTests : IDisposable
         var compilation = new MistCompilation(
             ImmutableArray.Create(new CompilationUnit(sourceText)));
         var diagnostics = new DiagnosticBag();
-        return _builder.Build(
+        return builder.Build(
             compilation,
             ImmutableArray.Create<Storm.Runtime.SyntaxNode>(ast),
             ambientTypeResolver: null,
@@ -231,17 +231,17 @@ public sealed partial class GenericEmissionPropertyTests : IDisposable
     private string EmitAndGetCsContent(ISemanticModel model)
     {
         var diagnostics = new DiagnosticBag();
-        CSharpEmitter.Emit(model, _outputDir, "TestProject", diagnostics);
+        CSharpEmitter.Emit(model, outputDir, "TestProject", diagnostics);
 
-        var csFile = Directory.GetFiles(_outputDir, "*.cs").FirstOrDefault();
+        var csFile = Directory.GetFiles(outputDir, "*.cs").FirstOrDefault();
         return csFile is not null ? File.ReadAllText(csFile) : "";
     }
 
     private void CleanOutputDir()
     {
-        if(Directory.Exists(_outputDir))
+        if(Directory.Exists(outputDir))
         {
-            foreach(var file in Directory.GetFiles(_outputDir))
+            foreach(var file in Directory.GetFiles(outputDir))
             {
                 File.Delete(file);
             }

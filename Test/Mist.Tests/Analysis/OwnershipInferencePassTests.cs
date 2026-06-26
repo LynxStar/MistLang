@@ -34,17 +34,17 @@ namespace Mist.Tests.Analysis;
 /// </summary>
 public sealed class OwnershipInferencePassTests : IDisposable
 {
-    private readonly string _outputDir;
+    private readonly string outputDir;
 
     public OwnershipInferencePassTests()
     {
-        _outputDir = Path.Combine(Path.GetTempPath(), "mist_own_inf_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(_outputDir);
+        outputDir = Path.Combine(Path.GetTempPath(), "mist_own_inf_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(outputDir);
     }
 
     public void Dispose()
     {
-        try { Directory.Delete(_outputDir, recursive: true); } catch { /* best effort */ }
+        try { Directory.Delete(outputDir, recursive: true); } catch { /* best effort */ }
     }
 
     // ─── Shared infrastructure ───────────────────────────────────────────
@@ -55,7 +55,7 @@ public sealed class OwnershipInferencePassTests : IDisposable
     /// </summary>
     private sealed class CapturingSemanticModelBuilder : ISemanticModelBuilder
     {
-        private readonly SemanticModelBuilder _inner = new();
+        private readonly SemanticModelBuilder inner = new();
         public ISemanticModel? Captured { get; private set; }
 
         public ISemanticModel Build(
@@ -67,7 +67,7 @@ public sealed class OwnershipInferencePassTests : IDisposable
             DiagnosticBag diagnostics,
             ImmutableHashSet<string>? directReferencePaths = null)
         {
-            var model = _inner.Build(compilation, asts, ambientTypeResolver, namespaceRoot, projectFolder, diagnostics, directReferencePaths);
+            var model = inner.Build(compilation, asts, ambientTypeResolver, namespaceRoot, projectFolder, diagnostics, directReferencePaths);
             Captured = model;
             return model;
         }
@@ -78,7 +78,7 @@ public sealed class OwnershipInferencePassTests : IDisposable
     /// </summary>
     private (ISemanticModel? Model, ImmutableArray<Diagnostic> Diagnostics) CompileAndCapture(string source)
     {
-        var filePath = Path.Combine(_outputDir, $"Test_{Guid.NewGuid():N}.mist");
+        var filePath = Path.Combine(outputDir, $"Test_{Guid.NewGuid():N}.mist");
         File.WriteAllText(filePath, source);
 
         var capture = new CapturingSemanticModelBuilder();
@@ -93,11 +93,11 @@ public sealed class OwnershipInferencePassTests : IDisposable
             ImmutableArray.Create<IBackend>(new CSharpTranspilerBackend()));
 
         var options = new CompilerOptions(
-            ProjectFolder: _outputDir,
+            ProjectFolder: outputDir,
             SourcePaths: ImmutableArray.Create(filePath),
             Backend: new BackendId("csharp"),
-            OutputDirectory: _outputDir,
-            BinDirectory: Path.Combine(_outputDir, "bin"),
+            OutputDirectory: outputDir,
+            BinDirectory: Path.Combine(outputDir, "bin"),
             ProjectName: "TestProgram",
             NamespaceRoot: "TestProgram",
             EnabledAnalyzerIds: ImmutableArray<string>.Empty,

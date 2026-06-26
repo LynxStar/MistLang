@@ -10,14 +10,14 @@ namespace Mist.Tests.Backend;
 /// </summary>
 public class IntrinsicEmissionTableTests
 {
-    private readonly IIntrinsicEmissionRegistry _registry = new IntrinsicEmissionTable();
+    private readonly IIntrinsicEmissionRegistry registry = new IntrinsicEmissionTable();
 
     // ── Binary operators ─────────────────────────────────────────────────
 
     [Fact]
     public void TryGetBinaryOperator_Int32Plus_ReturnsCorrectTemplate()
     {
-        var result = _registry.TryGetBinaryOperator("Standard.Int32", "+");
+        var result = registry.TryGetBinaryOperator("Standard.Int32", "+");
         Assert.NotNull(result);
         Assert.Equal("{0} + {1}", result.Template);
     }
@@ -25,7 +25,7 @@ public class IntrinsicEmissionTableTests
     [Fact]
     public void TryGetBinaryOperator_BooleanLogicalAnd_ReturnsCorrectTemplate()
     {
-        var result = _registry.TryGetBinaryOperator("Standard.Boolean", "&&");
+        var result = registry.TryGetBinaryOperator("Standard.Boolean", "&&");
         Assert.NotNull(result);
         Assert.Equal("{0} && {1}", result.Template);
     }
@@ -35,7 +35,7 @@ public class IntrinsicEmissionTableTests
     [Fact]
     public void TryGetUnaryOperator_BooleanNot_ReturnsCorrectTemplate()
     {
-        var result = _registry.TryGetUnaryOperator("Standard.Boolean", "!");
+        var result = registry.TryGetUnaryOperator("Standard.Boolean", "!");
         Assert.NotNull(result);
         Assert.Equal("!{0}", result.Template);
     }
@@ -43,7 +43,7 @@ public class IntrinsicEmissionTableTests
     [Fact]
     public void TryGetUnaryOperator_Int32Negate_ReturnsCorrectTemplate()
     {
-        var result = _registry.TryGetUnaryOperator("Standard.Int32", "-");
+        var result = registry.TryGetUnaryOperator("Standard.Int32", "-");
         Assert.NotNull(result);
         Assert.Equal("-{0}", result.Template);
     }
@@ -53,7 +53,7 @@ public class IntrinsicEmissionTableTests
     [Fact]
     public void TryGetInstanceMethod_StringSubstring_ReturnsCorrectTemplate()
     {
-        var result = _registry.TryGetInstanceMethod("Standard.String", "Substring", ["Standard.Int32"]);
+        var result = registry.TryGetInstanceMethod("Standard.String", "Substring", ["Standard.Int32"]);
         Assert.NotNull(result);
         Assert.Equal("{0}.Substring({1})", result.Template);
     }
@@ -61,7 +61,7 @@ public class IntrinsicEmissionTableTests
     [Fact]
     public void TryGetInstanceMethod_StringLength_ReturnsCorrectTemplate()
     {
-        var result = _registry.TryGetInstanceMethod("Standard.String", "Length", []);
+        var result = registry.TryGetInstanceMethod("Standard.String", "Length", []);
         Assert.NotNull(result);
         Assert.Equal("{0}.Length", result.Template);
     }
@@ -69,7 +69,7 @@ public class IntrinsicEmissionTableTests
     [Fact]
     public void TryGetInstanceMethod_ArrayLength_ReturnsCorrectTemplate()
     {
-        var result = _registry.TryGetInstanceMethod("Standard.Array", "Length", []);
+        var result = registry.TryGetInstanceMethod("Standard.Array", "Length", []);
         Assert.NotNull(result);
         Assert.Equal("{0}.Length", result.Template);
     }
@@ -79,7 +79,7 @@ public class IntrinsicEmissionTableTests
     [Fact]
     public void TryGetBinaryOperator_NonExistentType_ReturnsNull()
     {
-        var result = _registry.TryGetBinaryOperator("Standard.NonExistent", "+");
+        var result = registry.TryGetBinaryOperator("Standard.NonExistent", "+");
         Assert.Null(result);
     }
 }

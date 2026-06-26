@@ -10,8 +10,8 @@ namespace Storm.SourceGenerator.Emit
     /// </summary>
     public sealed class CodeWriter
     {
-        private StringBuilder _sb = new StringBuilder();
-        private int _indentLevel;
+        private StringBuilder sb = new StringBuilder();
+        private int indentLevel;
         private const string IndentUnit = "    "; // 4 spaces
 
         /// <summary>
@@ -19,7 +19,7 @@ namespace Storm.SourceGenerator.Emit
         /// </summary>
         public void Indent()
         {
-            _indentLevel++;
+            indentLevel++;
         }
 
         /// <summary>
@@ -27,9 +27,9 @@ namespace Storm.SourceGenerator.Emit
         /// </summary>
         public void Dedent()
         {
-            if(_indentLevel > 0)
+            if(indentLevel > 0)
             {
-                _indentLevel--;
+                indentLevel--;
             }
         }
 
@@ -40,15 +40,15 @@ namespace Storm.SourceGenerator.Emit
         {
             if(string.IsNullOrEmpty(line))
             {
-                _sb.AppendLine();
+                sb.AppendLine();
                 return;
             }
 
-            for(var i = 0; i < _indentLevel; i++)
+            for(var i = 0; i < indentLevel; i++)
             {
-                _sb.Append(IndentUnit);
+                sb.Append(IndentUnit);
             }
-            _sb.AppendLine(line);
+            sb.AppendLine(line);
         }
 
         /// <summary>
@@ -56,7 +56,7 @@ namespace Storm.SourceGenerator.Emit
         /// </summary>
         public void WriteEmptyLine()
         {
-            _sb.AppendLine();
+            sb.AppendLine();
         }
 
         /// <summary>
@@ -80,7 +80,7 @@ namespace Storm.SourceGenerator.Emit
         /// </summary>
         public override string ToString()
         {
-            return _sb.ToString();
+            return sb.ToString();
         }
     }
 }

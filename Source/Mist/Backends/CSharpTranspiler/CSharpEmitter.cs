@@ -262,151 +262,151 @@ public sealed class CSharpEmitter
 /// </summary>
 internal sealed class CSharpSourceWriter
 {
-    private readonly StringBuilder _sb = new();
-    private readonly ISemanticModel _model;
-    private readonly ImmutableArray<string> _backendNamespaces;
-    private readonly Common.Text.SourceText _sourceText;
-    private readonly IIntrinsicEmissionRegistry _intrinsicRegistry;
-    private readonly DiagnosticBag _diagnostics;
-    private int _indentLevel;
-    private bool _needsMistVoidStruct;
-    private bool _inValueReturningVoidMethod;
+    private readonly StringBuilder sb = new();
+    private readonly ISemanticModel model;
+    private readonly ImmutableArray<string> backendNamespaces;
+    private readonly Common.Text.SourceText sourceText;
+    private readonly IIntrinsicEmissionRegistry intrinsicRegistry;
+    private readonly DiagnosticBag diagnostics;
+    private int indentLevel;
+    private bool needsMistVoidStruct;
+    private bool inValueReturningVoidMethod;
     /// <summary>
     /// When <c>true</c>, <c>Void.Void</c> expressions emit <c>null</c> instead of
     /// <c>MistVoid.Instance</c>. Set when the enclosing context targets a two-constituent
     /// <c>T | void</c> union (the "optional" pattern) that maps to C# <c>T?</c> or <c>T</c>
     /// (reference type) where absence is represented by <c>null</c>.
     /// </summary>
-    private bool _emitVoidAsNull;
+    private bool emitVoidAsNull;
     /// <summary>
     /// Return type of the enclosing method, used by <see cref="EmitReturnStatement"/>
     /// to detect covariant unknown widening at return sites (Task 31.1).
     /// <c>null</c> outside a method body or when the return type is
     /// unavailable (e.g., void methods where no widening can occur).
     /// </summary>
-    private IType? _currentMethodReturnType;
+    private IType? currentMethodReturnType;
     /// <summary>
     /// Type parameters of the current method being emitted that have parameterized
     /// constructor constraints. Used by <c>new T(args)</c> emission to determine
     /// whether to use a method parameter name (factoryT_...) vs. a class field name (_factoryT_...).
     /// Null when not inside a generic method with factory parameters.
     /// </summary>
-    private IReadOnlyList<IType>? _currentMethodFactoryTypeParams;
+    private IReadOnlyList<IType>? currentMethodFactoryTypeParams;
     /// <summary>
     /// Type parameters of the current class/struct being emitted that have parameterized
     /// constructor constraints. Used by <see cref="EmitConstructorDeclaration"/> to append
     /// factory delegate parameters to user-defined constructors.
     /// Null when not inside a type with parameterized constructor constraints.
     /// </summary>
-    private IReadOnlyList<IType>? _currentClassFactoryTypeParams;
-    private readonly HashSet<string> _valueReturningVoidMethods = new(StringComparer.Ordinal);
+    private IReadOnlyList<IType>? currentClassFactoryTypeParams;
+    private readonly HashSet<string> valueReturningVoidMethods = new(StringComparer.Ordinal);
     /// <summary>
     /// The name of the currently-being-emitted extension class. Set during
     /// <see cref="EmitExtensionBlock"/> so that call-site rewriting for
     /// extension properties can reference the correct static class name.
     /// </summary>
-    private string? _currentExtensionClassName;
+    private string? currentExtensionClassName;
     /// <summary>
     /// Pending variable bindings from union pattern matching. When an <c>is T t</c>
     /// pattern is emitted against a union scrutinee, the condition becomes
     /// <c>scrutinee.Is{T}</c> and the variable extraction <c>var t = scrutinee.As{T}</c>
     /// is deferred to the start of the then-branch block.
     /// </summary>
-    private readonly List<string> _pendingUnionPatternBindings = new();
+    private readonly List<string> pendingUnionPatternBindings = new();
     /// <summary>
     /// Monotonically increasing ID for generating unique temporary variable names
     /// in desugared property pattern emission on unknown scrutinees.
     /// </summary>
-    private int _nextPatternId;
+    private int nextPatternId;
     /// <summary>
     /// Maps discarded task origin nodes (expression nodes from expression statements)
     /// to their <see cref="DiscardedTaskInfo"/> for the current block being emitted.
     /// Used by <see cref="EmitStatementsFromIndex"/> to detect discarded-task expression
     /// statements and route them through the unified drop try/finally wrapping.
     /// </summary>
-    private Dictionary<Storm.Runtime.SyntaxNode, DiscardedTaskInfo>? _currentBlockDiscardedTasks;
-    private readonly bool _isReferencedProject;
+    private Dictionary<Storm.Runtime.SyntaxNode, DiscardedTaskInfo>? currentBlockDiscardedTasks;
+    private readonly bool isReferencedProject;
     /// <summary>
     /// Tracks whether the emitter is currently inside a struct declaration.
     /// Used by <see cref="EmitMethodDeclaration"/> to emit the C# <c>readonly</c>
     /// modifier on struct methods (C# has no readonly method concept for classes).
     /// </summary>
-    private bool _insideStruct;
+    private bool insideStruct;
     /// <summary>
     /// The <see cref="ClassType"/> of the class currently being emitted, or <c>null</c>
     /// if not inside a class declaration. Used by <see cref="EmitMethodDeclaration"/>
     /// to detect implicit override matches against CLR base class virtual/abstract methods.
     /// </summary>
-    private ClassType? _currentClassType;
+    private ClassType? currentClassType;
     /// <summary>
     /// The namespace of the current compilation unit being emitted.
     /// Used to scope type alias fallback resolution to the correct namespace.
     /// </summary>
-    private string? _currentNamespace;
+    private string? currentNamespace;
     /// <summary>
     /// When non-null, indicates that the current expression being emitted is the
     /// initializer of a typed variable declaration whose type is an array type.
     /// The emitter uses this to emit <c>new T[] { ... }</c> instead of <c>new[] { ... }</c>
     /// for array literals assigned to explicitly-typed array variables.
     /// </summary>
-    private IType? _arrayLiteralTargetElementType;
+    private IType? arrayLiteralTargetElementType;
     /// <summary>
     /// Tracks the dependent type parameter names declared on the current enclosing type
     /// (class or struct) being emitted. Used by the identifier emission fallback to
     /// distinguish between a dependent type parameter reference and a field/property
     /// with the same name declared in a different type.
     /// </summary>
-    private HashSet<string>? _currentTypeDependentParamNames;
+    private HashSet<string>? currentTypeDependentParamNames;
     /// <summary>
     /// The symbol of the method currently being emitted. Used to determine whether
     /// the enclosing context is sync or async for auto-unwrap emission.
     /// </summary>
-    private Symbol? _currentMethodSymbol;
+    private Symbol? currentMethodSymbol;
     /// <summary>
     /// Set to <c>true</c> while emitting the operand of an <c>async</c> functor expression.
     /// When inside an async functor, auto-unwrap of async method calls is suppressed
     /// because the functor explicitly captures the <c>Task&lt;T&gt;</c>.
     /// </summary>
-    private bool _insideAsyncFunctor;
+    private bool insideAsyncFunctor;
     /// <summary>
     /// Set to <c>true</c> while emitting the operand of an explicit <c>await</c> expression.
     /// When inside an explicit await, auto-unwrap is suppressed to prevent double-await
     /// (the explicit await already handles the async call).
     /// </summary>
-    private bool _insideExplicitAwait;
+    private bool insideExplicitAwait;
     /// <summary>
     /// Set to <c>true</c> while emitting the body of an async lambda. In async context,
     /// auto-await must NOT fire — calls to async methods or Func&lt;Task&lt;T&gt;&gt; should
     /// return <c>Task&lt;T&gt;</c> without implicit unwrapping.
     /// </summary>
-    private bool _insideAsyncLambda;
+    private bool insideAsyncLambda;
     /// <summary>
     /// Set to <c>true</c> while emitting the body of a sync lambda that contains
     /// auto-await calls. In this context, auto-await emits <c>.GetAwaiter().GetResult()</c>
     /// instead of <c>await</c> because the lambda's declared return type is not <c>Task&lt;T&gt;</c>.
     /// </summary>
-    private bool _insideSyncLambdaAutoAwait;
+    private bool insideSyncLambdaAutoAwait;
     /// <summary>
     /// Active associated type slot substitutions for the current method being emitted.
     /// Maps dotted names like "T.Enumerator" to synthesized type parameter names like "TEnumerator".
     /// Set during <see cref="EmitMethodDeclaration"/> when the method has type parameters
     /// constrained by abstract types with associated type slots.
     /// </summary>
-    private Dictionary<string, string>? _currentMethodSlotSubstitutions;
+    private Dictionary<string, string>? currentMethodSlotSubstitutions;
 
     /// <summary>
     /// Parameterized associated type slots for the current abstract type being emitted.
     /// These slots have their own type parameters and cannot be lifted to C# type parameters.
     /// Instead, references to them are erased to their constraint interface.
     /// </summary>
-    private List<AssociatedTypeSlotType>? _currentParameterizedSlots;
+    private List<AssociatedTypeSlotType>? currentParameterizedSlots;
 
     /// <summary>
     /// Maps abstract type parameter names to their concrete type arguments for the
     /// current implementor class. Used during parameterized slot erasure to substitute
     /// e.g., TIn → int when emitting ITransform&lt;int, string&gt; instead of ITransform&lt;TIn, string&gt;.
     /// </summary>
-    private Dictionary<string, string>? _currentAbstractTypeParamSubs;
+    private Dictionary<string, string>? currentAbstractTypeParamSubs;
 
     /// <summary>
     /// Tracks linear variables that have a conditional move in an if/else statement.
@@ -414,25 +414,25 @@ internal sealed class CSharpSourceWriter
     /// <c>Drop()</c> calls at the end of branches where the variable is still live.
     /// Each entry maps the local name to whether it's task-like (emit <c>await</c>).
     /// </summary>
-    private readonly Dictionary<string, bool> _pendingBranchDrops = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, bool> pendingBranchDrops = new(StringComparer.Ordinal);
 
     /// <summary>
     /// Counter for generating unique temp variable names for with-block drop targets
     /// when the bound expression has no named variable (discard, push, or block forms).
     /// </summary>
-    private int _withDropCounter;
+    private int withDropCounter;
 
     /// <summary>
     /// Counter for generating unique temp variable names for array initializer constructions
     /// (<c>new Array&lt;T, Size&gt;(fn)</c>) that are lifted to locals.
     /// </summary>
-    private int _arrayInitCounter;
+    private int arrayInitCounter;
 
     /// <summary>
     /// Counter for generating unique temp variable names in non-provable <c>as</c>
     /// expression emissions (<c>__as_tmp_0</c>, <c>__as_tmp_1</c>, etc.).
     /// </summary>
-    private int _asExprCounter;
+    private int asExprCounter;
 
     /// <summary>
     /// Pending statements emitted by array initializer construction lowering.
@@ -441,13 +441,13 @@ internal sealed class CSharpSourceWriter
     /// the temp variable name as the expression value. The enclosing statement
     /// emitter flushes these before its own output line.
     /// </summary>
-    private readonly List<string> _pendingArrayInitStatements = new();
+    private readonly List<string> pendingArrayInitStatements = new();
 
     /// <summary>
     /// Pre-computed set of all dependent type parameter names across the entire model.
     /// Eliminates the per-call-site O(AllSymbols) iteration in IsDependentTypeParameterName.
     /// </summary>
-    private readonly HashSet<string> _dependentTypeParamNames;
+    private readonly HashSet<string> dependentTypeParamNames;
 
     private const string IndentUnit = "    ";
 
@@ -455,7 +455,7 @@ internal sealed class CSharpSourceWriter
     /// Indicates whether this compilation unit requires the MistVoid helper struct.
     /// Checked by the emitter after emission to decide whether to generate the shared MistVoid file.
     /// </summary>
-    public bool NeedsMistVoidStruct => _needsMistVoidStruct;
+    public bool NeedsMistVoidStruct => needsMistVoidStruct;
 
     public CSharpSourceWriter(
         ISemanticModel model,
@@ -464,15 +464,15 @@ internal sealed class CSharpSourceWriter
         DiagnosticBag diagnostics,
         bool isReferencedProject = false)
     {
-        _model = model;
-        _backendNamespaces = backendNamespaces;
-        _sourceText = sourceText;
-        _diagnostics = diagnostics;
-        _intrinsicRegistry = new IntrinsicEmissionTable();
-        _isReferencedProject = isReferencedProject;
+        this.model = model;
+        this.backendNamespaces = backendNamespaces;
+        this.sourceText = sourceText;
+        this.diagnostics = diagnostics;
+        intrinsicRegistry = new IntrinsicEmissionTable();
+        this.isReferencedProject = isReferencedProject;
 
         // Pre-compute dependent type parameter names for O(1) lookups during emission.
-        _dependentTypeParamNames = new HashSet<string>(StringComparer.Ordinal);
+        dependentTypeParamNames = new HashSet<string>(StringComparer.Ordinal);
         foreach(var symbol in model.AllSymbols)
         {
             var typeParams = GetTypeParametersFromType(symbol.DeclaredType);
@@ -480,7 +480,7 @@ internal sealed class CSharpSourceWriter
             {
                 if(tp is DependentTypeParameterType depParam)
                 {
-                    _dependentTypeParamNames.Add(depParam.Name);
+                    dependentTypeParamNames.Add(depParam.Name);
                 }
             }
 
@@ -490,7 +490,7 @@ internal sealed class CSharpSourceWriter
                 {
                     if(tp is DependentTypeParameterType depParam)
                     {
-                        _dependentTypeParamNames.Add(depParam.Name);
+                        dependentTypeParamNames.Add(depParam.Name);
                     }
                 }
             }
@@ -506,7 +506,7 @@ internal sealed class CSharpSourceWriter
 
         if(topLevelStatements.Count > 0)
         {
-            if(_isReferencedProject)
+            if(isReferencedProject)
             {
                 // Referenced project TLS files: skip the top-level statements (they are
                 // the entry point of the referenced project, not relevant here) and emit
@@ -540,15 +540,15 @@ internal sealed class CSharpSourceWriter
         }
 
         // Also add backend namespaces that are referenced.
-        foreach(var ns in _backendNamespaces)
+        foreach(var ns in backendNamespaces)
         {
             usings.Add(ns);
         }
 
         // Add global usings for this compilation unit.
-        foreach(var unit in _model.Units)
+        foreach(var unit in model.Units)
         {
-            if(ReferenceEquals(unit.Source, _sourceText))
+            if(ReferenceEquals(unit.Source, sourceText))
             {
                 foreach(var globalNs in unit.GlobalUsings)
                 {
@@ -630,7 +630,7 @@ internal sealed class CSharpSourceWriter
                                 if(emittedInferredNamespace is null)
                                 {
                                     emittedInferredNamespace = fileScopedNsName;
-                                    _currentNamespace = fileScopedNsName;
+                                    currentNamespace = fileScopedNsName;
                                 }
                                 break;
                             case BlockNamespaceNamespaceDeclarationNode blockNsDecl:
@@ -663,7 +663,7 @@ internal sealed class CSharpSourceWriter
                             AppendLine($"namespace {typeNamespace};");
                             AppendLine();
                             emittedInferredNamespace = typeNamespace;
-                            _currentNamespace = typeNamespace;
+                            currentNamespace = typeNamespace;
                         }
 
                         EmitTypeDeclaration(typeItem.TypeDeclaration);
@@ -680,7 +680,7 @@ internal sealed class CSharpSourceWriter
                         // Determine the newtype's namespace from the semantic model.
                         // NewtypeType doesn't have a ContainingNamespace property, so we
                         // find the namespace by looking at sibling symbols in the same scope.
-                        var newtypeSymbol = _model.GetDeclaredSymbol(newtypeItem.NewtypeDeclaration);
+                        var newtypeSymbol = model.GetDeclaredSymbol(newtypeItem.NewtypeDeclaration);
                         var newtypeNamespace = GetNewtypeContainingNamespace(newtypeSymbol);
 
                         // If this newtype has a namespace and we haven't emitted it yet,
@@ -694,7 +694,7 @@ internal sealed class CSharpSourceWriter
                             AppendLine($"namespace {newtypeNamespace};");
                             AppendLine();
                             emittedInferredNamespace = newtypeNamespace;
-                            _currentNamespace = newtypeNamespace;
+                            currentNamespace = newtypeNamespace;
                         }
 
                         EmitNewtypeDeclaration(newtypeItem.NewtypeDeclaration);
@@ -703,7 +703,7 @@ internal sealed class CSharpSourceWriter
             }
         }
 
-        return _sb.ToString();
+        return sb.ToString();
     }
 
     /// <summary>
@@ -733,7 +733,7 @@ internal sealed class CSharpSourceWriter
             }
         }
 
-        foreach(var ns in _backendNamespaces)
+        foreach(var ns in backendNamespaces)
         {
             usings.Add(ns);
         }
@@ -776,7 +776,7 @@ internal sealed class CSharpSourceWriter
                         break;
                     case NewtypeItemTopLevelItemNode newtypeItem:
                         {
-                            var newtypeSymbol = _model.GetDeclaredSymbol(newtypeItem.NewtypeDeclaration);
+                            var newtypeSymbol = model.GetDeclaredSymbol(newtypeItem.NewtypeDeclaration);
                             inferredNamespace = GetNewtypeContainingNamespace(newtypeSymbol);
                             break;
                         }
@@ -835,10 +835,10 @@ internal sealed class CSharpSourceWriter
             // Emit type declarations inside a namespace block if we have a namespace.
             if(inferredNamespace is not null)
             {
-                _currentNamespace = inferredNamespace;
+                currentNamespace = inferredNamespace;
                 AppendLine($"namespace {inferredNamespace}");
                 AppendLine("{");
-                _indentLevel++;
+                indentLevel++;
 
                 foreach(var item in typeDecls)
                 {
@@ -890,7 +890,7 @@ internal sealed class CSharpSourceWriter
                     }
                 }
 
-                _indentLevel--;
+                indentLevel--;
                 AppendLine("}");
             }
             else
@@ -920,7 +920,7 @@ internal sealed class CSharpSourceWriter
             }
         }
 
-        return _sb.ToString();
+        return sb.ToString();
     }
 
     /// <summary>
@@ -961,7 +961,7 @@ internal sealed class CSharpSourceWriter
             }
         }
 
-        foreach(var ns in _backendNamespaces)
+        foreach(var ns in backendNamespaces)
         {
             usings.Add(ns);
         }
@@ -1003,7 +1003,7 @@ internal sealed class CSharpSourceWriter
                         break;
                     case NewtypeItemTopLevelItemNode newtypeItem:
                         {
-                            var newtypeSymbol = _model.GetDeclaredSymbol(newtypeItem.NewtypeDeclaration);
+                            var newtypeSymbol = model.GetDeclaredSymbol(newtypeItem.NewtypeDeclaration);
                             inferredNamespace = GetNewtypeContainingNamespace(newtypeSymbol);
                             break;
                         }
@@ -1019,7 +1019,7 @@ internal sealed class CSharpSourceWriter
         // Emit type declarations with their namespace.
         if(inferredNamespace is not null)
         {
-            _currentNamespace = inferredNamespace;
+            currentNamespace = inferredNamespace;
             AppendLine($"namespace {inferredNamespace};");
             AppendLine();
         }
@@ -1069,7 +1069,7 @@ internal sealed class CSharpSourceWriter
             }
         }
 
-        return _sb.ToString();
+        return sb.ToString();
     }
 
     /// <summary>
@@ -1096,7 +1096,7 @@ internal sealed class CSharpSourceWriter
 
         AppendLine($"namespace {nsName}");
         AppendLine("{");
-        _indentLevel++;
+        indentLevel++;
 
         foreach(var item in mergedBodyItems)
         {
@@ -1123,7 +1123,7 @@ internal sealed class CSharpSourceWriter
         // Emit nested namespaces with same-name merging.
         EmitMergedNestedNamespacesFromList(mergedBodyItems, nsName);
 
-        _indentLevel--;
+        indentLevel--;
         AppendLine("}");
     }
 
@@ -1563,7 +1563,7 @@ internal sealed class CSharpSourceWriter
                         // mark it as value-returning.
                         if(isValueContext && isLastSuffix && voidMethodNames.Contains(methodName))
                         {
-                            _valueReturningVoidMethods.Add(methodName);
+                            valueReturningVoidMethods.Add(methodName);
                         }
 
                         // Scan arguments — they are always in a value context.
@@ -1581,7 +1581,7 @@ internal sealed class CSharpSourceWriter
                             var methodName = ident.Name.Lexeme;
                             if(voidMethodNames.Contains(methodName))
                             {
-                                _valueReturningVoidMethods.Add(methodName);
+                                valueReturningVoidMethods.Add(methodName);
                             }
                         }
 
@@ -1639,7 +1639,7 @@ internal sealed class CSharpSourceWriter
             return null;
         }
 
-        var symbol = _model.GetDeclaredSymbol(innerNode);
+        var symbol = model.GetDeclaredSymbol(innerNode);
         if(symbol?.DeclaredType is null)
         {
             return null;
@@ -1684,7 +1684,7 @@ internal sealed class CSharpSourceWriter
 
         // If the containing scope's parent is not the global scope, the newtype
         // is not in a namespace (or is nested in a way we don't handle here).
-        if(containingScope.Parent is null || !ReferenceEquals(containingScope.Parent, _model.GlobalScope))
+        if(containingScope.Parent is null || !ReferenceEquals(containingScope.Parent, model.GlobalScope))
         {
             return null;
         }
@@ -1708,12 +1708,12 @@ internal sealed class CSharpSourceWriter
 
         // Fallback: look for a namespace symbol in the global scope whose name
         // matches the scope structure.
-        foreach(var globalMember in _model.GlobalScope.Members)
+        foreach(var globalMember in model.GlobalScope.Members)
         {
             if(globalMember.Kind == SymbolKind.Namespace)
             {
                 // Check if any symbol in this namespace scope is in our containing scope.
-                foreach(var nsChild in _model.AllSymbols)
+                foreach(var nsChild in model.AllSymbols)
                 {
                     if(ReferenceEquals(nsChild.ContainingScope, containingScope)
                         && nsChild != symbol)
@@ -1734,7 +1734,7 @@ internal sealed class CSharpSourceWriter
             case FileScopedNamespaceNamespaceDeclarationNode fileScopedNs:
                 {
                     var name = ExtractQualifiedName(fileScopedNs.Name);
-                    _currentNamespace = name;
+                    currentNamespace = name;
                     AppendLine($"namespace {name};");
                     AppendLine();
 
@@ -1776,7 +1776,7 @@ internal sealed class CSharpSourceWriter
 
                     AppendLine($"namespace {name}");
                     AppendLine("{");
-                    _indentLevel++;
+                    indentLevel++;
 
                     foreach(var bodyItem in blockNs.Body)
                     {
@@ -1803,7 +1803,7 @@ internal sealed class CSharpSourceWriter
                     // Emit nested namespaces with same-name merging.
                     EmitMergedNestedNamespaces(blockNs.Body, name);
 
-                    _indentLevel--;
+                    indentLevel--;
                     AppendLine("}");
                     break;
                 }
@@ -1872,7 +1872,7 @@ internal sealed class CSharpSourceWriter
 
             AppendLine($"namespace {fqn}");
             AppendLine("{");
-            _indentLevel++;
+            indentLevel++;
 
             foreach(var item in mergedBodyItems)
             {
@@ -1899,7 +1899,7 @@ internal sealed class CSharpSourceWriter
             // Recursively emit nested namespaces within the merged body.
             EmitMergedNestedNamespacesFromList(mergedBodyItems, fqn);
 
-            _indentLevel--;
+            indentLevel--;
             AppendLine("}");
         }
     }
@@ -1961,7 +1961,7 @@ internal sealed class CSharpSourceWriter
 
             AppendLine($"namespace {fqn}");
             AppendLine("{");
-            _indentLevel++;
+            indentLevel++;
 
             foreach(var item in mergedBodyItems)
             {
@@ -1985,7 +1985,7 @@ internal sealed class CSharpSourceWriter
 
             EmitMergedNestedNamespacesFromList(mergedBodyItems, fqn);
 
-            _indentLevel--;
+            indentLevel--;
             AppendLine("}");
         }
     }
@@ -2075,7 +2075,7 @@ internal sealed class CSharpSourceWriter
     /// </summary>
     private void EmitNewtypeDeclaration(NewtypeDeclarationNode newtypeDecl)
     {
-        var symbol = _model.GetDeclaredSymbol(newtypeDecl);
+        var symbol = model.GetDeclaredSymbol(newtypeDecl);
         if(symbol?.DeclaredType is not NewtypeType newtypeType)
         {
             return;
@@ -2111,7 +2111,7 @@ internal sealed class CSharpSourceWriter
 
         AppendLine($"public readonly struct {newtypeName}");
         AppendLine("{");
-        _indentLevel++;
+        indentLevel++;
 
         // Value field
         AppendLine($"public readonly {csharpKeyword} Value;");
@@ -2120,9 +2120,9 @@ internal sealed class CSharpSourceWriter
         // Constructor
         AppendLine($"public {newtypeName}({csharpKeyword} value)");
         AppendLine("{");
-        _indentLevel++;
+        indentLevel++;
         AppendLine("Value = value;");
-        _indentLevel--;
+        indentLevel--;
         AppendLine("}");
         AppendLine();
 
@@ -2131,7 +2131,7 @@ internal sealed class CSharpSourceWriter
         // Explicit conversion: newtype → primitive
         AppendLine($"public static explicit operator {csharpKeyword}({newtypeName} id) => id.Value;");
 
-        _indentLevel--;
+        indentLevel--;
         AppendLine("}");
     }
 
@@ -2145,7 +2145,7 @@ internal sealed class CSharpSourceWriter
 
         AppendLine($"public readonly struct {newtypeName}");
         AppendLine("{");
-        _indentLevel++;
+        indentLevel++;
 
         // Value field
         AppendLine($"public readonly {csharpKeyword} Value;");
@@ -2154,9 +2154,9 @@ internal sealed class CSharpSourceWriter
         // Constructor
         AppendLine($"public {newtypeName}({csharpKeyword} value)");
         AppendLine("{");
-        _indentLevel++;
+        indentLevel++;
         AppendLine("Value = value;");
-        _indentLevel--;
+        indentLevel--;
         AppendLine("}");
         AppendLine();
 
@@ -2165,7 +2165,7 @@ internal sealed class CSharpSourceWriter
         // Explicit conversion: newtype → class
         AppendLine($"public static explicit operator {csharpKeyword}({newtypeName} id) => id.Value;");
 
-        _indentLevel--;
+        indentLevel--;
         AppendLine("}");
     }
 
@@ -2176,13 +2176,13 @@ internal sealed class CSharpSourceWriter
     private void EmitClassNewtype(string newtypeName, IType sourceType)
     {
         // Find the source type's declaring symbol and AST node.
-        var sourceSymbol = _model.AllSymbols.FirstOrDefault(s =>
+        var sourceSymbol = model.AllSymbols.FirstOrDefault(s =>
             s.DeclaredType is not null && ReferenceEquals(s.DeclaredType, sourceType));
-        var sourceNode = sourceSymbol is not null ? _model.GetDeclaringNode(sourceSymbol) : null;
+        var sourceNode = sourceSymbol is not null ? model.GetDeclaringNode(sourceSymbol) : null;
 
         AppendLine($"public class {newtypeName}");
         AppendLine("{");
-        _indentLevel++;
+        indentLevel++;
 
         if(sourceNode is ClassDeclarationNode classDecl)
         {
@@ -2196,7 +2196,7 @@ internal sealed class CSharpSourceWriter
             }
         }
 
-        _indentLevel--;
+        indentLevel--;
         AppendLine("}");
     }
 
@@ -2207,18 +2207,18 @@ internal sealed class CSharpSourceWriter
     private void EmitStructNewtype(string newtypeName, IType sourceType)
     {
         // Find the source type's declaring symbol and AST node.
-        var sourceSymbol = _model.AllSymbols.FirstOrDefault(s =>
+        var sourceSymbol = model.AllSymbols.FirstOrDefault(s =>
             s.DeclaredType is not null && ReferenceEquals(s.DeclaredType, sourceType));
-        var sourceNode = sourceSymbol is not null ? _model.GetDeclaringNode(sourceSymbol) : null;
+        var sourceNode = sourceSymbol is not null ? model.GetDeclaringNode(sourceSymbol) : null;
 
         AppendLine($"public struct {newtypeName}");
         AppendLine("{");
-        _indentLevel++;
+        indentLevel++;
 
         // Track that we're inside a struct so method emission can
         // emit the C# `readonly` modifier on struct methods.
-        var previousInsideStruct = _insideStruct;
-        _insideStruct = true;
+        var previousInsideStruct = insideStruct;
+        insideStruct = true;
 
         if(sourceNode is StructDeclarationNode structDecl)
         {
@@ -2232,8 +2232,8 @@ internal sealed class CSharpSourceWriter
             }
         }
 
-        _insideStruct = previousInsideStruct;
-        _indentLevel--;
+        insideStruct = previousInsideStruct;
+        indentLevel--;
         AppendLine("}");
     }
 
@@ -2295,7 +2295,7 @@ internal sealed class CSharpSourceWriter
     /// </summary>
     private void EmitEnumDeclaration(EnumDeclarationNode enumDecl)
     {
-        var symbol = _model.GetDeclaredSymbol(enumDecl);
+        var symbol = model.GetDeclaredSymbol(enumDecl);
         if(symbol?.DeclaredType is not EnumType enumType)
         {
             return;
@@ -2312,7 +2312,7 @@ internal sealed class CSharpSourceWriter
 
         AppendLine($"{modifiers}record class {name}({underlyingTypeName} Value)");
         AppendLine("{");
-        _indentLevel++;
+        indentLevel++;
 
         // Emit public static readonly fields for each enum member.
         var memberNodes = new List<EnumMemberNode>();
@@ -2361,7 +2361,7 @@ internal sealed class CSharpSourceWriter
         AppendLine();
         AppendLine($"public override string ToString()");
         AppendLine("{");
-        _indentLevel++;
+        indentLevel++;
         for(var i = 0; i < memberNodes.Count; i++)
         {
             var memberName = memberNodes[i].Name.Lexeme;
@@ -2369,7 +2369,7 @@ internal sealed class CSharpSourceWriter
             AppendLine($"{prefix} (ReferenceEquals(this, {memberName})) return \"{memberName}\";");
         }
         AppendLine($"return Value.ToString();");
-        _indentLevel--;
+        indentLevel--;
         AppendLine("}");
 
         // Emit __CreateDefault() factory method for enums with a designated default variant.
@@ -2379,7 +2379,7 @@ internal sealed class CSharpSourceWriter
             AppendLine($"public static {name} __CreateDefault() => {enumType.DefaultMember.Name};");
         }
 
-        _indentLevel--;
+        indentLevel--;
         AppendLine("}");
     }
 
@@ -2432,12 +2432,12 @@ internal sealed class CSharpSourceWriter
     {
         // Determine the receiver type name for the generated class name.
         var receiverTypeName = GetExtensionReceiverTypeName(extDecl.ReceiverType);
-        var fileName = SanitizeForIdentifier(Path.GetFileNameWithoutExtension(_sourceText.Path));
+        var fileName = SanitizeForIdentifier(Path.GetFileNameWithoutExtension(sourceText.Path));
         var lineNumber = GetLineNumber(extDecl);
         var className = $"{receiverTypeName}Extensions_{fileName}_L{lineNumber}";
 
         // Store the class name for call-site rewriting of extension properties.
-        _currentExtensionClassName = className;
+        currentExtensionClassName = className;
 
         // Determine the receiver C# type string.
         var receiverCSharpType = EmitTypeReference(extDecl.ReceiverType);
@@ -2448,7 +2448,7 @@ internal sealed class CSharpSourceWriter
 
         AppendLine($"public static class {className}");
         AppendLine("{");
-        _indentLevel++;
+        indentLevel++;
 
         for(var i = 0; i < extDecl.Members.Length; i++)
         {
@@ -2459,10 +2459,10 @@ internal sealed class CSharpSourceWriter
             EmitExtensionMember(extDecl.Members[i], receiverCSharpType, receiverName, blockTypeParams);
         }
 
-        _indentLevel--;
+        indentLevel--;
         AppendLine("}");
 
-        _currentExtensionClassName = null;
+        currentExtensionClassName = null;
     }
 
     /// <summary>
@@ -2508,7 +2508,7 @@ internal sealed class CSharpSourceWriter
         var parameters = EmitParameterList(methodDecl.Parameters);
 
         // Emit ref / ref readonly prefix for ref-returning methods.
-        var extMethodSymbol = _model.GetDeclaredSymbol(methodDecl) as Symbol;
+        var extMethodSymbol = model.GetDeclaredSymbol(methodDecl) as Symbol;
         var refReturnPrefix = extMethodSymbol?.ReturnRefKind switch
         {
             RefKind.Ref => "ref ",
@@ -2535,12 +2535,12 @@ internal sealed class CSharpSourceWriter
         AppendLine($"public static {refReturnPrefix}{returnType} {name}{combinedTypeParams}({fullParams})");
 
         // Set the return type context for covariant unknown widening.
-        var previousReturnType = _currentMethodReturnType;
-        _currentMethodReturnType = ResolveMethodReturnType(methodDecl);
+        var previousReturnType = currentMethodReturnType;
+        currentMethodReturnType = ResolveMethodReturnType(methodDecl);
 
         // Track the enclosing method symbol for auto-unwrap emission.
-        var previousMethodSymbol = _currentMethodSymbol;
-        _currentMethodSymbol = extMethodSymbol;
+        var previousMethodSymbol = currentMethodSymbol;
+        currentMethodSymbol = extMethodSymbol;
 
         if(methodDecl.Body.GetBlock() is BlockNode block)
         {
@@ -2552,8 +2552,8 @@ internal sealed class CSharpSourceWriter
             AppendLine(";");
         }
 
-        _currentMethodReturnType = previousReturnType;
-        _currentMethodSymbol = previousMethodSymbol;
+        currentMethodReturnType = previousReturnType;
+        currentMethodSymbol = previousMethodSymbol;
     }
 
     /// <summary>
@@ -2580,9 +2580,9 @@ internal sealed class CSharpSourceWriter
 
                     AppendLine($"public static {type} get_{propName}{typeParams}({receiverParam})");
                     AppendLine("{");
-                    _indentLevel++;
+                    indentLevel++;
                     AppendLine($"return {body};");
-                    _indentLevel--;
+                    indentLevel--;
                     AppendLine("}");
                     break;
                 }
@@ -2595,7 +2595,7 @@ internal sealed class CSharpSourceWriter
 
                     AppendLine($"public static {type} get_{propName}{typeParams}({receiverParam})");
                     AppendLine("{");
-                    _indentLevel++;
+                    indentLevel++;
 
                     // Emit the get accessor body statements.
                     foreach(var accessor in blockProp.Accessors)
@@ -2609,7 +2609,7 @@ internal sealed class CSharpSourceWriter
                         }
                     }
 
-                    _indentLevel--;
+                    indentLevel--;
                     AppendLine("}");
                     break;
                 }
@@ -2727,7 +2727,7 @@ internal sealed class CSharpSourceWriter
         var span = extDecl.Span;
         if(span.Length > 0)
         {
-            var linePos = _sourceText.ToLinePositionSpan(new Common.Text.SourceSpan(span.Start, span.Length));
+            var linePos = sourceText.ToLinePositionSpan(new Common.Text.SourceSpan(span.Start, span.Length));
             return linePos.Start.Line;
         }
         return 1;
@@ -2789,10 +2789,10 @@ internal sealed class CSharpSourceWriter
         string fileName = "Unknown";
         var lineNumber = 1;
 
-        for(var i = 0; i < _model.Units.Count; i++)
+        for(var i = 0; i < model.Units.Count; i++)
         {
-            var unit = _model.Units[i];
-            if(i < _model.Asts.Length && _model.Asts[i] is CompilationUnitNode cu)
+            var unit = model.Units[i];
+            if(i < model.Asts.Length && model.Asts[i] is CompilationUnitNode cu)
             {
                 // Check if this compilation unit contains the declaring node.
                 if(ContainsNode(cu, declaringNode))
@@ -2872,7 +2872,7 @@ internal sealed class CSharpSourceWriter
     private void EmitClassDeclaration(ClassDeclarationNode classDecl)
     {
         // Check if this is a Backend symbol — skip if so.
-        var symbol = _model.GetDeclaredSymbol(classDecl);
+        var symbol = model.GetDeclaredSymbol(classDecl);
         if(symbol is not null && symbol.Origin == SymbolOrigin.Backend)
         {
             return;
@@ -2951,7 +2951,7 @@ internal sealed class CSharpSourceWriter
             EmitConstraintClauses(typeParamsForConstraints);
         }
         AppendLine("{");
-        _indentLevel++;
+        indentLevel++;
 
         // Emit dependent type properties (e.g., `public static int Size => TSize.Value;`)
         var hasDependentProperties = false;
@@ -2976,7 +2976,7 @@ internal sealed class CSharpSourceWriter
                     m is ConstructorMemberMemberDeclarationNode);
                 if(hasUserConstructors)
                 {
-                    _currentClassFactoryTypeParams = typeParamsForFactory;
+                    currentClassFactoryTypeParams = typeParamsForFactory;
                 }
                 else
                 {
@@ -2988,9 +2988,9 @@ internal sealed class CSharpSourceWriter
         // Collect parameterized associated type slots from implemented abstract types.
         // These are needed so that method return types referencing the slot's nested type
         // are erased to the constraint interface (matching the abstract type declaration).
-        var previousParameterizedSlotsForClass = _currentParameterizedSlots;
+        var previousParameterizedSlotsForClass = currentParameterizedSlots;
         Dictionary<string, string>? abstractTypeParamSubstitutions = null;
-        var previousAbstractTypeParamSubs = _currentAbstractTypeParamSubs;
+        var previousAbstractTypeParamSubs = currentAbstractTypeParamSubs;
         if(symbol?.DeclaredType is ClassType classTypeForSlots)
         {
             var pSlots = new List<AssociatedTypeSlotType>();
@@ -3026,7 +3026,7 @@ internal sealed class CSharpSourceWriter
                 foreach(var entry in allEntries)
                 {
                     var abstractName = entry.Name.Lexeme;
-                    var abstractSymbol = _model.AllSymbols
+                    var abstractSymbol = model.AllSymbols
                         .FirstOrDefault(s => s.Name == abstractName && s.DeclaredType is AbstractType);
                     if(abstractSymbol?.DeclaredType is AbstractType abstractDef)
                     {
@@ -3051,15 +3051,15 @@ internal sealed class CSharpSourceWriter
                 }
             }
 
-            _currentParameterizedSlots = pSlots.Count > 0 ? pSlots : null;
+            currentParameterizedSlots = pSlots.Count > 0 ? pSlots : null;
             abstractTypeParamSubstitutions = subs.Count > 0 ? subs : null;
         }
-        _currentAbstractTypeParamSubs = abstractTypeParamSubstitutions;
+        currentAbstractTypeParamSubs = abstractTypeParamSubstitutions;
 
         // Track dependent type parameter names declared on this type so the
         // identifier emission fallback can distinguish local dep params from
         // fields/properties with the same name in other types.
-        var previousTypeDependentParamNames = _currentTypeDependentParamNames;
+        var previousTypeDependentParamNames = currentTypeDependentParamNames;
         if(symbol?.DeclaredType is not null)
         {
             var typeParamsForDep = GetTypeParametersFromType(symbol.DeclaredType);
@@ -3071,12 +3071,12 @@ internal sealed class CSharpSourceWriter
                     depNames.Add(depParam.Name);
                 }
             }
-            _currentTypeDependentParamNames = depNames.Count > 0 ? depNames : null;
+            currentTypeDependentParamNames = depNames.Count > 0 ? depNames : null;
         }
 
         // Track the current class type for implicit override detection.
-        var previousClassType = _currentClassType;
-        _currentClassType = symbol?.DeclaredType as ClassType;
+        var previousClassType = currentClassType;
+        currentClassType = symbol?.DeclaredType as ClassType;
 
         // Emit every member in declaration order. No name-based grouping or
         // deduplication is performed, so overloaded methods and constructors
@@ -3091,11 +3091,11 @@ internal sealed class CSharpSourceWriter
         }
 
         // Clear class-level factory tracking after emitting all members.
-        _currentClassFactoryTypeParams = null;
-        _currentTypeDependentParamNames = previousTypeDependentParamNames;
-        _currentClassType = previousClassType;
-        _currentParameterizedSlots = previousParameterizedSlotsForClass;
-        _currentAbstractTypeParamSubs = previousAbstractTypeParamSubs;
+        currentClassFactoryTypeParams = null;
+        currentTypeDependentParamNames = previousTypeDependentParamNames;
+        currentClassType = previousClassType;
+        currentParameterizedSlots = previousParameterizedSlotsForClass;
+        currentAbstractTypeParamSubs = previousAbstractTypeParamSubs;
 
         // Emit CLR boilerplate for IEnumerator<T> and IEnumerable<T> implementations.
         // C#'s System.Collections.Generic.IEnumerator<T> requires IDisposable.Dispose(),
@@ -3132,7 +3132,7 @@ internal sealed class CSharpSourceWriter
         // Emit explicit interface implementations for methods that use parameterized
         // associated type slots. The public method returns the concrete nested type,
         // and the explicit impl bridges to it with the erased constraint interface type.
-        if(abstractTypeParamSubstitutions is not null && _currentParameterizedSlots is null)
+        if(abstractTypeParamSubstitutions is not null && currentParameterizedSlots is null)
         {
             // _currentParameterizedSlots was already restored to previous, use the local pSlots.
         }
@@ -3194,12 +3194,12 @@ internal sealed class CSharpSourceWriter
 
                     AppendLine($"{ctorAccessibility} {classDecl.Name.Lexeme}()");
                     AppendLine("{");
-                    _indentLevel++;
+                    indentLevel++;
                     foreach(var (fieldName, fieldValue) in ownFields)
                     {
                         EmitDefaultFieldAssignment("this", fieldName, fieldValue);
                     }
-                    _indentLevel--;
+                    indentLevel--;
                     AppendLine("}");
                 }
             }
@@ -3225,16 +3225,16 @@ internal sealed class CSharpSourceWriter
             AppendLine();
             AppendLine("public void Drop()");
             AppendLine("{");
-            _indentLevel++;
+            indentLevel++;
             foreach(var field in classTypeForDrop.SyntheticDropFields)
             {
                 AppendLine($"this.{field.Name}.Drop();");
             }
-            _indentLevel--;
+            indentLevel--;
             AppendLine("}");
         }
 
-        _indentLevel--;
+        indentLevel--;
         AppendLine("}");
     }
 
@@ -3242,7 +3242,7 @@ internal sealed class CSharpSourceWriter
     {
         // Skip abstract types that map to CLR counterparts (e.g., IEnumerable → System.Collections.Generic.IEnumerable).
         // These are not emitted — the C# runtime provides them.
-        var abstractSymbol2 = _model.GetDeclaredSymbol(abstractDecl);
+        var abstractSymbol2 = model.GetDeclaredSymbol(abstractDecl);
         if(abstractSymbol2?.DeclaredType is AbstractType abstractType
             && abstractType.ContainingNamespace == "Standard"
             && CSharpTypeMap.TryGetMappedName($"Standard.{abstractType.DisplayName}") is not null)
@@ -3265,7 +3265,7 @@ internal sealed class CSharpSourceWriter
         // Parameterized slots (those with their own type parameters) cannot be lifted
         // to type parameters because C# doesn't support higher-kinded types. Instead,
         // they are erased to their constraint interface in method signatures.
-        var abstractSymbol = _model.GetDeclaredSymbol(abstractDecl);
+        var abstractSymbol = model.GetDeclaredSymbol(abstractDecl);
         var allAssociatedTypeSlots = CollectAssociatedTypeSlots(abstractSymbol);
         var associatedTypeSlots = allAssociatedTypeSlots.Where(s => s.TypeParameters.Count == 0).ToList();
         var parameterizedSlots = allAssociatedTypeSlots.Where(s => s.TypeParameters.Count > 0).ToList();
@@ -3287,8 +3287,8 @@ internal sealed class CSharpSourceWriter
         }
         // Set parameterized slots for the duration of abstract type emission so that
         // EmitTypeReferenceWithSubstitution can erase them to constraint interfaces.
-        var previousParameterizedSlots = _currentParameterizedSlots;
-        _currentParameterizedSlots = parameterizedSlots.Count > 0 ? parameterizedSlots : null;
+        var previousParameterizedSlots = currentParameterizedSlots;
+        currentParameterizedSlots = parameterizedSlots.Count > 0 ? parameterizedSlots : null;
         AppendLine($"interface {name}{typeParams}{abstractList}");
         // Emit constraint clauses (where T : ...) for constrained type parameters.
         if(abstractSymbol?.DeclaredType is AbstractType abstractTypeForConstraints)
@@ -3299,7 +3299,7 @@ internal sealed class CSharpSourceWriter
         EmitAssociatedTypeSlotConstraints(associatedTypeSlots);
 
         AppendLine("{");
-        _indentLevel++;
+        indentLevel++;
 
         foreach(var member in abstractDecl.Members)
         {
@@ -3323,9 +3323,9 @@ internal sealed class CSharpSourceWriter
             }
         }
 
-        _indentLevel--;
+        indentLevel--;
         AppendLine("}");
-        _currentParameterizedSlots = previousParameterizedSlots;
+        currentParameterizedSlots = previousParameterizedSlots;
     }
 
     /// <summary>
@@ -3424,7 +3424,7 @@ internal sealed class CSharpSourceWriter
             foreach(var entry in def.DefaultMethods.OrderBy(kvp => kvp.Key, StringComparer.Ordinal))
             {
                 var methodName = entry.Key;
-                if(_model.GetDeclaringNode(entry.Value) is not MethodDeclarationNode node)
+                if(model.GetDeclaringNode(entry.Value) is not MethodDeclarationNode node)
                 {
                     continue;
                 }
@@ -3489,7 +3489,7 @@ internal sealed class CSharpSourceWriter
             return result;
         }
 
-        foreach(var (type, abstractType, _) in _model.ConformanceMap.All())
+        foreach(var (type, abstractType, _) in model.ConformanceMap.All())
         {
             if(!ReferenceEquals(type, concreteType))
             {
@@ -3514,7 +3514,7 @@ internal sealed class CSharpSourceWriter
         IType concreteType,
         IReadOnlyList<MemberDeclarationNode> concreteMembers)
     {
-        foreach(var (type, abstractTypeRef, mappings) in _model.ConformanceMap.All())
+        foreach(var (type, abstractTypeRef, mappings) in model.ConformanceMap.All())
         {
             if(!ReferenceEquals(type, concreteType))
             {
@@ -3539,7 +3539,7 @@ internal sealed class CSharpSourceWriter
             // 1. Emit explicit interface implementations for mapped members.
             foreach(var mapping in mappings)
             {
-                var targetNode = _model.GetDeclaringNode(mapping.TargetSlot);
+                var targetNode = model.GetDeclaringNode(mapping.TargetSlot);
 
                 if(targetNode is AbstractMethodDeclarationNode targetMethodDecl)
                 {
@@ -3613,7 +3613,7 @@ internal sealed class CSharpSourceWriter
                     }
 
                     // If the concrete type already has an implementation, skip.
-                    if(_model.GetDeclaringNode(entry.Value) is not MethodDeclarationNode node)
+                    if(model.GetDeclaringNode(entry.Value) is not MethodDeclarationNode node)
                     {
                         continue;
                     }
@@ -3660,7 +3660,7 @@ internal sealed class CSharpSourceWriter
 
         // For generic abstract type methods with parameterized constructor constraints,
         // append factory delegate parameters.
-        var methodSymbol = _model.GetDeclaredSymbol(methodDecl) as Symbol;
+        var methodSymbol = model.GetDeclaredSymbol(methodDecl) as Symbol;
         var methodTypeParams = methodSymbol?.TypeParameters ?? (IReadOnlyList<IType>)Array.Empty<IType>();
         var factoryParams = GetFactoryDelegateMethodParams(methodTypeParams);
         if(factoryParams.Length > 0)
@@ -3909,7 +3909,7 @@ internal sealed class CSharpSourceWriter
                 var span = namedRef.Name.Span;
                 if(span.Length > 0 && span.Length <= 128)
                 {
-                    foreach(var unit in _model.Units)
+                    foreach(var unit in model.Units)
                     {
                         if(unit.Source is not null
                             && span.Start + span.Length <= unit.Source.Contents.Length)
@@ -3945,9 +3945,9 @@ internal sealed class CSharpSourceWriter
             // Check if this is a parameterized associated type slot that should be
             // erased to its constraint interface. For example, `Mapped<string>` where
             // `type Mapped<TOut> : ITransform<TIn, TOut>` becomes `ITransform<TIn, string>`.
-            if(_currentParameterizedSlots is not null && namedRef.TypeArgs is not null)
+            if(currentParameterizedSlots is not null && namedRef.TypeArgs is not null)
             {
-                var matchingSlot = _currentParameterizedSlots.FirstOrDefault(s => s.DisplayName == name);
+                var matchingSlot = currentParameterizedSlots.FirstOrDefault(s => s.DisplayName == name);
                 if(matchingSlot is not null)
                 {
                     var erasedType = EraseParameterizedSlotToConstraint(matchingSlot, namedRef.TypeArgs, substitutions);
@@ -3965,7 +3965,7 @@ internal sealed class CSharpSourceWriter
             var nameSpan = namedRef.Name.Span;
             if(nameSpan.Length > 0 && nameSpan.Length <= 128)
             {
-                foreach(var unit in _model.Units)
+                foreach(var unit in model.Units)
                 {
                     if(unit.Source is not null
                         && nameSpan.Start + nameSpan.Length <= unit.Source.Contents.Length)
@@ -4028,7 +4028,7 @@ internal sealed class CSharpSourceWriter
 
     private void EmitStructDeclaration(StructDeclarationNode structDecl)
     {
-        var symbol = _model.GetDeclaredSymbol(structDecl);
+        var symbol = model.GetDeclaredSymbol(structDecl);
         if(symbol is not null && symbol.Origin == SymbolOrigin.Backend)
         {
             return;
@@ -4050,7 +4050,7 @@ internal sealed class CSharpSourceWriter
         if(symbol?.DeclaredType is StructType voidSt && voidSt.IsVoid()
             && voidSt.ContainingNamespace == "Standard")
         {
-            _needsMistVoidStruct = true;
+            needsMistVoidStruct = true;
             return;
         }
 
@@ -4143,7 +4143,7 @@ internal sealed class CSharpSourceWriter
             EmitConstraintClauses(typeParamsForConstraints);
         }
         AppendLine("{");
-        _indentLevel++;
+        indentLevel++;
 
         // Emit dependent type properties (e.g., `public static int Size => TSize.Value;`)
         var hasDependentProperties = false;
@@ -4154,8 +4154,8 @@ internal sealed class CSharpSourceWriter
 
         // Task 12.4 — Track that we're inside a struct so method emission can
         // emit the C# `readonly` modifier on struct methods.
-        var previousInsideStruct = _insideStruct;
-        _insideStruct = true;
+        var previousInsideStruct = insideStruct;
+        insideStruct = true;
 
         // Emit factory delegate fields and constructor for parameterized constructor constraints.
         var hasFactoryFields = false;
@@ -4173,7 +4173,7 @@ internal sealed class CSharpSourceWriter
                     m is ConstructorMemberMemberDeclarationNode);
                 if(hasUserConstructors)
                 {
-                    _currentClassFactoryTypeParams = typeParamsForFactory;
+                    currentClassFactoryTypeParams = typeParamsForFactory;
                 }
                 else
                 {
@@ -4219,7 +4219,7 @@ internal sealed class CSharpSourceWriter
         }
 
         // Track dependent type parameter names declared on this struct.
-        var previousTypeDependentParamNames = _currentTypeDependentParamNames;
+        var previousTypeDependentParamNames = currentTypeDependentParamNames;
         if(symbol?.DeclaredType is not null)
         {
             var typeParamsForDep = GetTypeParametersFromType(symbol.DeclaredType);
@@ -4231,7 +4231,7 @@ internal sealed class CSharpSourceWriter
                     depNames.Add(depParam.Name);
                 }
             }
-            _currentTypeDependentParamNames = depNames.Count > 0 ? depNames : null;
+            currentTypeDependentParamNames = depNames.Count > 0 ? depNames : null;
         }
 
         // Emit every member in declaration order. No name-based grouping or
@@ -4247,8 +4247,8 @@ internal sealed class CSharpSourceWriter
         }
 
         // Clear class-level factory tracking after emitting all members.
-        _currentClassFactoryTypeParams = null;
-        _currentTypeDependentParamNames = previousTypeDependentParamNames;
+        currentClassFactoryTypeParams = null;
+        currentTypeDependentParamNames = previousTypeDependentParamNames;
 
         // Emit CLR boilerplate for IEnumerator<T> and IEnumerable<T> implementations.
         if(symbol?.DeclaredType is StructType structTypeForIterator)
@@ -4307,12 +4307,12 @@ internal sealed class CSharpSourceWriter
 
                     AppendLine($"private {structDecl.Name.Lexeme}(bool __defaultSentinel)");
                     AppendLine("{");
-                    _indentLevel++;
+                    indentLevel++;
                     foreach(var (fieldName, fieldValue) in ownFields)
                     {
                         EmitDefaultFieldAssignment("this", fieldName, fieldValue);
                     }
-                    _indentLevel--;
+                    indentLevel--;
                     AppendLine("}");
                 }
 
@@ -4323,7 +4323,7 @@ internal sealed class CSharpSourceWriter
                 }
                 AppendLine($"public static {defaultableStruct.DisplayName} __CreateDefault()");
                 AppendLine("{");
-                _indentLevel++;
+                indentLevel++;
                 if(ownFields.Count > 0)
                 {
                     AppendLine($"var inst = new {defaultableStruct.DisplayName}(true);");
@@ -4333,7 +4333,7 @@ internal sealed class CSharpSourceWriter
                     AppendLine($"var inst = new {defaultableStruct.DisplayName}();");
                 }
                 AppendLine("return inst;");
-                _indentLevel--;
+                indentLevel--;
                 AppendLine("}");
             }
             else
@@ -4351,8 +4351,8 @@ internal sealed class CSharpSourceWriter
             EmitStructImplicitConversions(derivedStructForConversions, name);
         }
 
-        _insideStruct = previousInsideStruct;
-        _indentLevel--;
+        insideStruct = previousInsideStruct;
+        indentLevel--;
         AppendLine("}");
     }
 
@@ -4371,17 +4371,17 @@ internal sealed class CSharpSourceWriter
             AppendLine();
             AppendLine($"public static implicit operator {baseName}({derivedName} value)");
             AppendLine("{");
-            _indentLevel++;
+            indentLevel++;
             AppendLine($"return new {baseName}");
             AppendLine("{");
-            _indentLevel++;
+            indentLevel++;
             foreach(var field in GetAllFieldsForStruct(current))
             {
                 AppendLine($"{field.Name} = value.{field.Name},");
             }
-            _indentLevel--;
+            indentLevel--;
             AppendLine("};");
-            _indentLevel--;
+            indentLevel--;
             AppendLine("}");
 
             current = current.BaseType as StructType;
@@ -4443,7 +4443,7 @@ internal sealed class CSharpSourceWriter
 
         AppendLine($"public static {typeName} __CreateDefault()");
         AppendLine("{");
-        _indentLevel++;
+        indentLevel++;
 
         AppendLine($"var inst = new {typeName}();");
 
@@ -4468,7 +4468,7 @@ internal sealed class CSharpSourceWriter
 
         AppendLine("return inst;");
 
-        _indentLevel--;
+        indentLevel--;
         AppendLine("}");
     }
 
@@ -4736,11 +4736,11 @@ internal sealed class CSharpSourceWriter
         IType? declaredType = member switch
         {
             FieldMemberMemberDeclarationNode fm =>
-                _model.GetDeclaredSymbol(fm.Field)?.DeclaredType,
+                model.GetDeclaredSymbol(fm.Field)?.DeclaredType,
             PropertyMemberMemberDeclarationNode pm =>
-                _model.GetDeclaredSymbol(pm.Property)?.DeclaredType,
+                model.GetDeclaredSymbol(pm.Property)?.DeclaredType,
             IndexerMemberMemberDeclarationNode im =>
-                _model.GetDeclaredSymbol(im.Indexer)?.DeclaredType,
+                model.GetDeclaredSymbol(im.Indexer)?.DeclaredType,
             _ => null,
         };
 
@@ -4756,7 +4756,7 @@ internal sealed class CSharpSourceWriter
 
         // Task 12.1 — Emit C# `readonly` modifier on fields with ReadonlyStatus != Mutable.
         var readonlyPrefix = "";
-        var fieldSymbol = _model.GetDeclaredSymbol(fieldDecl) as Symbol;
+        var fieldSymbol = model.GetDeclaredSymbol(fieldDecl) as Symbol;
         if(fieldSymbol is not null && fieldSymbol.ReadonlyStatus is not ReadonlyStatus.Mutable and not ReadonlyStatus.Unknown)
         {
             readonlyPrefix = "readonly ";
@@ -4766,16 +4766,16 @@ internal sealed class CSharpSourceWriter
         {
             // Task 14.2: When the field type is a two-constituent T | void union,
             // emit Void.Void as null instead of MistVoid.Instance.
-            var previousVoidAsNull = _emitVoidAsNull;
+            var previousVoidAsNull = emitVoidAsNull;
             if(IsOptionalUnionType(fieldSymbol?.DeclaredType))
             {
-                _emitVoidAsNull = true;
+                emitVoidAsNull = true;
             }
 
             // The field has an initializer expression.
             // With the bugfix, the Initializer property is now ExpressionNode? directly.
             var fieldInit = EmitExpression(fieldDecl.Initializer);
-            _emitVoidAsNull = previousVoidAsNull;
+            emitVoidAsNull = previousVoidAsNull;
             AppendLine($"{modifiers}{readonlyPrefix}{type} {name} = {fieldInit};");
         }
         else
@@ -4796,7 +4796,7 @@ internal sealed class CSharpSourceWriter
 
         // Determine access modifier from the declaring AST node.
         var accessModifier = "";
-        var declaringNode = _model.GetDeclaringNode(field);
+        var declaringNode = model.GetDeclaringNode(field);
         if(declaringNode is FieldDeclarationNode fieldDecl)
         {
             accessModifier = EmitModifiers(fieldDecl.Modifiers);
@@ -4841,9 +4841,9 @@ internal sealed class CSharpSourceWriter
 
         // Append factory delegate parameters when the enclosing type has parameterized
         // constructor constraints and user-defined constructors (merged approach).
-        if(_currentClassFactoryTypeParams is not null)
+        if(currentClassFactoryTypeParams is not null)
         {
-            var factoryParams = GetFactoryDelegateMethodParams(_currentClassFactoryTypeParams);
+            var factoryParams = GetFactoryDelegateMethodParams(currentClassFactoryTypeParams);
             if(factoryParams.Length > 0)
             {
                 parameters = parameters.Length > 0
@@ -4863,7 +4863,7 @@ internal sealed class CSharpSourceWriter
         }
         else if(ctorDecl.Chain is BaseChainConstructorChainNode baseChain)
         {
-            if(_insideStruct)
+            if(insideStruct)
             {
                 // Struct constructors cannot emit `: base(...)` — inline the base
                 // constructor's field assignments instead (Requirement 7.5).
@@ -4879,17 +4879,17 @@ internal sealed class CSharpSourceWriter
         if(ctorDecl.Body.GetBlock() is BlockNode block)
         {
             // Resolve with-clauses for the constructor.
-            var ctorSymbol = _model.GetDeclaredSymbol(ctorDecl) as Symbol;
+            var ctorSymbol = model.GetDeclaredSymbol(ctorDecl) as Symbol;
             var withClauses = ctorSymbol?.WithClauses;
 
             // Collect refinement guards for constructor parameters.
             var refinementGuards = CollectRefinementParameterGuards(ctorDecl.Parameters);
 
-            if(_currentClassFactoryTypeParams is not null || refinementGuards.Count > 0
+            if(currentClassFactoryTypeParams is not null || refinementGuards.Count > 0
                 || withClauses is { Count: > 0 } || inlinedBaseAssignments is { Count: > 0 })
             {
                 AppendLine("{");
-                _indentLevel++;
+                indentLevel++;
 
                 // Emit inlined base constructor field assignments first (struct inheritance).
                 if(inlinedBaseAssignments is { Count: > 0 })
@@ -4907,13 +4907,13 @@ internal sealed class CSharpSourceWriter
                 EmitRefinementGuards(refinementGuards);
 
                 // Emit factory field assignments at the start of the constructor body.
-                if(_currentClassFactoryTypeParams is not null)
+                if(currentClassFactoryTypeParams is not null)
                 {
-                    EmitFactoryFieldAssignments(_currentClassFactoryTypeParams);
+                    EmitFactoryFieldAssignments(currentClassFactoryTypeParams);
                 }
 
                 EmitBlockStatements(block);
-                _indentLevel--;
+                indentLevel--;
                 AppendLine("}");
             }
             else
@@ -4941,7 +4941,7 @@ internal sealed class CSharpSourceWriter
         var assignments = new List<string>();
 
         // Find the enclosing struct type.
-        var ctorSymbol = _model.GetDeclaredSymbol(ctorDecl);
+        var ctorSymbol = model.GetDeclaredSymbol(ctorDecl);
         if(ctorSymbol is null)
         {
             return assignments;
@@ -4972,7 +4972,7 @@ internal sealed class CSharpSourceWriter
         foreach(var baseCtor in baseConstructors)
         {
             Storm.Runtime.SyntaxNode? baseCtorNode;
-            try { baseCtorNode = _model.GetDeclaringNode(baseCtor); }
+            try { baseCtorNode = model.GetDeclaringNode(baseCtor); }
             catch { continue; }
 
             if(baseCtorNode is not ConstructorDeclarationNode baseCtorDecl)
@@ -4995,7 +4995,7 @@ internal sealed class CSharpSourceWriter
 
         // Get the base constructor's declaring node.
         Storm.Runtime.SyntaxNode? matchingCtorNode;
-        try { matchingCtorNode = _model.GetDeclaringNode(matchingCtor); }
+        try { matchingCtorNode = model.GetDeclaringNode(matchingCtor); }
         catch { return assignments; }
 
         if(matchingCtorNode is not ConstructorDeclarationNode matchingCtorDecl)
@@ -5209,7 +5209,7 @@ internal sealed class CSharpSourceWriter
         // with the base method's access modifier. This is purely a C# backend concern —
         // Mist source has no override keyword.
         var implicitOverridePrefix = "";
-        if(!_insideStruct && _currentClassType?.BaseType is not null)
+        if(!insideStruct && currentClassType?.BaseType is not null)
         {
             var baseOverrideSlot = FindBaseOverrideSlot(name, methodDecl);
             if(baseOverrideSlot is not null)
@@ -5239,14 +5239,14 @@ internal sealed class CSharpSourceWriter
                 if(implicitOverridePrefix.Length > 0)
                 {
                     // Emit informational diagnostic: "hey, we automatically made this link"
-                    _diagnostics.Add(new Diagnostic(
+                    diagnostics.Add(new Diagnostic(
                         new DiagnosticId("MIST_BE_INFO_OVERRIDE"),
                         DiagnosticSeverity.Info,
                         PipelineStage.Backend,
-                        $"Method '{name}' implicitly overrides '{_currentClassType.BaseType.DisplayName}.{name}' " +
+                        $"Method '{name}' implicitly overrides '{currentClassType.BaseType.DisplayName}.{name}' " +
                         $"(emitted as '{clrAccess} override'). If this was not intentional, rename the method.",
                         Location: default,
-                        CompilationUnitPath: _sourceText.Path,
+                        CompilationUnitPath: sourceText.Path,
                         AnalyzerName: "ImplicitOverride"));
                 }
             }
@@ -5255,8 +5255,8 @@ internal sealed class CSharpSourceWriter
         // Task 12.4 — Emit C# `readonly` modifier on struct methods with ReadonlyStatus != Mutable.
         // C# has no `readonly` method concept for classes, so only emit for structs.
         var readonlyPrefix = "";
-        var methodSymbol = _model.GetDeclaredSymbol(methodDecl) as Symbol;
-        if(_insideStruct && methodSymbol is not null
+        var methodSymbol = model.GetDeclaredSymbol(methodDecl) as Symbol;
+        if(insideStruct && methodSymbol is not null
             && methodSymbol.ReadonlyStatus is not ReadonlyStatus.Mutable and not ReadonlyStatus.Unknown)
         {
             readonlyPrefix = "readonly ";
@@ -5278,7 +5278,7 @@ internal sealed class CSharpSourceWriter
         // T.SlotName references in those positions are correctly substituted.
         var methodTypeParams = methodSymbol?.TypeParameters ?? (IReadOnlyList<IType>)Array.Empty<IType>();
         var methodAssociatedSlots = CollectAssociatedTypeSlotsFromMethodTypeParams(methodTypeParams);
-        var previousSlotSubstitutions = _currentMethodSlotSubstitutions;
+        var previousSlotSubstitutions = currentMethodSlotSubstitutions;
         if(methodAssociatedSlots.Count > 0)
         {
             var synthesizedParams = string.Join(", ", methodAssociatedSlots.Select(s => $"T{s.Slot.DisplayName}"));
@@ -5295,7 +5295,7 @@ internal sealed class CSharpSourceWriter
                 // Also map bare slot name for substitution in type references.
                 slotSubs[entry.Slot.DisplayName] = $"T{entry.Slot.DisplayName}";
             }
-            _currentMethodSlotSubstitutions = slotSubs;
+            currentMethodSlotSubstitutions = slotSubs;
         }
 
         // Emit return type and parameters AFTER setting up slot substitutions
@@ -5338,12 +5338,12 @@ internal sealed class CSharpSourceWriter
         // (Only applies when not already wrapped in Task by async emission above.)
         var isValueReturningVoid = methodDecl.ReturnType.First is VoidSingleTypeRefSingleTypeRefNode
             && methodDecl.ReturnType.SingleTypeRefs.Length == 0
-            && _valueReturningVoidMethods.Contains(name)
+            && valueReturningVoidMethods.Contains(name)
             && asyncPrefix.Length == 0;
         if(isValueReturningVoid)
         {
             returnType = "MistVoid";
-            _needsMistVoidStruct = true;
+            needsMistVoidStruct = true;
         }
 
         // For generic methods with parameterized constructor constraints,
@@ -5372,23 +5372,23 @@ internal sealed class CSharpSourceWriter
         }
 
         // Set the flag so EmitReturnStatement knows to emit `return MistVoid.Instance;`
-        var previousFlag = _inValueReturningVoidMethod;
-        _inValueReturningVoidMethod = isValueReturningVoid;
+        var previousFlag = inValueReturningVoidMethod;
+        inValueReturningVoidMethod = isValueReturningVoid;
 
         // Task 31.1 — track the enclosing method's return type so return
         // statements can detect covariant unknown widening against it.
-        var previousReturnType = _currentMethodReturnType;
-        _currentMethodReturnType = ResolveMethodReturnType(methodDecl);
+        var previousReturnType = currentMethodReturnType;
+        currentMethodReturnType = ResolveMethodReturnType(methodDecl);
 
         // Track method-level factory type parameters for new T(args) emission.
-        var previousFactoryTypeParams = _currentMethodFactoryTypeParams;
-        _currentMethodFactoryTypeParams = HasParameterizedConstructorConstraints(methodTypeParams)
+        var previousFactoryTypeParams = currentMethodFactoryTypeParams;
+        currentMethodFactoryTypeParams = HasParameterizedConstructorConstraints(methodTypeParams)
             ? methodTypeParams
             : null;
 
         // Track the enclosing method symbol for auto-unwrap emission.
-        var previousMethodSymbol = _currentMethodSymbol;
-        _currentMethodSymbol = methodSymbol;
+        var previousMethodSymbol = currentMethodSymbol;
+        currentMethodSymbol = methodSymbol;
 
         if(methodDecl.Body.GetBlock() is BlockNode block)
         {
@@ -5401,11 +5401,11 @@ internal sealed class CSharpSourceWriter
             AppendLine(";");
         }
 
-        _inValueReturningVoidMethod = previousFlag;
-        _currentMethodReturnType = previousReturnType;
-        _currentMethodFactoryTypeParams = previousFactoryTypeParams;
-        _currentMethodSymbol = previousMethodSymbol;
-        _currentMethodSlotSubstitutions = previousSlotSubstitutions;
+        inValueReturningVoidMethod = previousFlag;
+        currentMethodReturnType = previousReturnType;
+        currentMethodFactoryTypeParams = previousFactoryTypeParams;
+        currentMethodSymbol = previousMethodSymbol;
+        currentMethodSlotSubstitutions = previousSlotSubstitutions;
     }
 
     /// <summary>
@@ -5428,7 +5428,7 @@ internal sealed class CSharpSourceWriter
 
         // Emit the block with guards injected at the top.
         AppendLine("{");
-        _indentLevel++;
+        indentLevel++;
 
         // Emit with-clause peek bindings at method entry, before refinement guards.
         EmitWithClausePeekBindings(withClauses);
@@ -5440,7 +5440,7 @@ internal sealed class CSharpSourceWriter
         if(appendImplicitReturn && !BlockEndsWithReturn(block))
         {
             // Task 14.2: If the return type is an optional union, emit null instead.
-            if(IsOptionalUnionType(_currentMethodReturnType))
+            if(IsOptionalUnionType(currentMethodReturnType))
             {
                 AppendLine("return null;");
             }
@@ -5450,7 +5450,7 @@ internal sealed class CSharpSourceWriter
             }
         }
 
-        _indentLevel--;
+        indentLevel--;
         AppendLine("}");
     }
 
@@ -5464,9 +5464,9 @@ internal sealed class CSharpSourceWriter
         {
             var condition = EmitRefinementPredicateCondition(predicate, paramName);
             AppendLine($"if (!({condition}))");
-            _indentLevel++;
+            indentLevel++;
             AppendLine($"throw new ArgumentException($\"Value {{{paramName}}} does not satisfy refinement '{predicate.Description}' on type '{typeName}'\", nameof({paramName}));");
-            _indentLevel--;
+            indentLevel--;
         }
     }
 
@@ -5488,7 +5488,7 @@ internal sealed class CSharpSourceWriter
         {
             if(child is ParameterNode param)
             {
-                var symbol = _model.GetDeclaredSymbol(param);
+                var symbol = model.GetDeclaredSymbol(param);
                 if(symbol is null)
                 {
                     continue;
@@ -5522,7 +5522,7 @@ internal sealed class CSharpSourceWriter
     private void EmitMethodBlock(BlockNode block, bool appendImplicitReturn, IReadOnlyList<ContextClauseInfo>? withClauses = null)
     {
         AppendLine("{");
-        _indentLevel++;
+        indentLevel++;
 
         // Emit with-clause peek bindings at method entry.
         EmitWithClausePeekBindings(withClauses);
@@ -5537,7 +5537,7 @@ internal sealed class CSharpSourceWriter
             // Wrap body in try/finally for exception safety (Requirement 14.3).
             AppendLine("try");
             AppendLine("{");
-            _indentLevel++;
+            indentLevel++;
         }
 
         EmitStatementsFromIndex(block.Statements, 0);
@@ -5553,7 +5553,7 @@ internal sealed class CSharpSourceWriter
         if(appendImplicitReturn && !BlockEndsWithReturn(block))
         {
             // Task 14.2: If the return type is an optional union, emit null instead.
-            if(IsOptionalUnionType(_currentMethodReturnType))
+            if(IsOptionalUnionType(currentMethodReturnType))
             {
                 AppendLine("return null;");
             }
@@ -5565,11 +5565,11 @@ internal sealed class CSharpSourceWriter
 
         if(paramsToAutoDropAtExit.Count > 0)
         {
-            _indentLevel--;
+            indentLevel--;
             AppendLine("}");
             AppendLine("finally");
             AppendLine("{");
-            _indentLevel++;
+            indentLevel++;
             // Drop parameters in reverse declaration order (matching local variable behavior).
             for(var i = paramsToAutoDropAtExit.Count - 1; i >= 0; i--)
             {
@@ -5583,11 +5583,11 @@ internal sealed class CSharpSourceWriter
                     AppendLine($"{paramName}.Drop();");
                 }
             }
-            _indentLevel--;
+            indentLevel--;
             AppendLine("}");
         }
 
-        _indentLevel--;
+        indentLevel--;
         AppendLine("}");
     }
 
@@ -5602,20 +5602,20 @@ internal sealed class CSharpSourceWriter
     {
         var result = new List<(string Name, bool IsTaskLike)>();
 
-        if(_currentMethodSymbol is null)
+        if(currentMethodSymbol is null)
         {
             return result;
         }
 
         // Skip Drop() methods themselves — they shouldn't auto-drop their implicit 'self'.
-        if(_currentMethodSymbol.Name == "Drop")
+        if(currentMethodSymbol.Name == "Drop")
         {
             return result;
         }
 
         // Get the declaring node to access the parameter list.
         Storm.Runtime.SyntaxNode declaringNode;
-        try { declaringNode = _model.GetDeclaringNode(_currentMethodSymbol); }
+        try { declaringNode = model.GetDeclaringNode(currentMethodSymbol); }
         catch { return result; }
 
         ParameterListNode? paramList = declaringNode switch
@@ -5636,7 +5636,7 @@ internal sealed class CSharpSourceWriter
                 continue;
             }
 
-            var paramSymbol = _model.GetDeclaredSymbol(paramNode) as Symbol;
+            var paramSymbol = model.GetDeclaredSymbol(paramNode) as Symbol;
             if(paramSymbol is null)
             {
                 continue;
@@ -5724,7 +5724,7 @@ internal sealed class CSharpSourceWriter
         var name = blockProp.Name.Lexeme;
 
         // Task 12.2 — Determine if this property is readonly (emit `init` instead of `set`).
-        var propSymbol = _model.GetDeclaredSymbol(blockProp) as Symbol;
+        var propSymbol = model.GetDeclaredSymbol(blockProp) as Symbol;
         var isReadonlyProperty = propSymbol is not null
             && propSymbol.ReadonlyStatus is not ReadonlyStatus.Mutable and not ReadonlyStatus.Unknown;
 
@@ -5981,20 +5981,20 @@ internal sealed class CSharpSourceWriter
                     {
                         // Task 14.2: When the method return type is a two-constituent T | void union,
                         // emit Void.Void as null instead of MistVoid.Instance.
-                        var previousVoidAsNull = _emitVoidAsNull;
-                        if(IsOptionalUnionType(_currentMethodReturnType))
+                        var previousVoidAsNull = emitVoidAsNull;
+                        if(IsOptionalUnionType(currentMethodReturnType))
                         {
-                            _emitVoidAsNull = true;
+                            emitVoidAsNull = true;
                         }
 
                         var value = EmitExpression(returnStmt.ReturnStatement.Value);
-                        _emitVoidAsNull = previousVoidAsNull;
+                        emitVoidAsNull = previousVoidAsNull;
 
                         value = WrapWithImplicitCastIfNeeded(returnStmt.ReturnStatement, value);
                         // Task 31.1 — covariant unknown widening at the return
                         // site against the enclosing method's return type.
-                        var valueType = _model.GetTypeOf(returnStmt.ReturnStatement.Value);
-                        var widened = TryEmitCovariantUnknownCast(valueType, _currentMethodReturnType, value);
+                        var valueType = model.GetTypeOf(returnStmt.ReturnStatement.Value);
+                        var widened = TryEmitCovariantUnknownCast(valueType, currentMethodReturnType, value);
                         if(widened is not null)
                         {
                             value = widened;
@@ -6015,24 +6015,24 @@ internal sealed class CSharpSourceWriter
                                 var type = EmitTypeReference(typed.Type, isValueContext: true);
                                 var name = typed.Name.Lexeme;
 
-                                var declaredSymbol = _model.GetDeclaredSymbol(typed) as Symbol;
+                                var declaredSymbol = model.GetDeclaredSymbol(typed) as Symbol;
                                 var declaredType = declaredSymbol?.DeclaredType;
 
                                 // Task 14.2: When the declared type is a two-constituent T | void union,
                                 // emit Void.Void as null instead of MistVoid.Instance.
-                                var previousVoidAsNull = _emitVoidAsNull;
+                                var previousVoidAsNull = emitVoidAsNull;
                                 if(IsOptionalUnionType(declaredType))
                                 {
-                                    _emitVoidAsNull = true;
+                                    emitVoidAsNull = true;
                                 }
 
                                 var init = EmitExpression(typed.Initializer);
-                                _emitVoidAsNull = previousVoidAsNull;
+                                emitVoidAsNull = previousVoidAsNull;
 
                                 init = WrapWithImplicitCastIfNeeded(typed.Initializer, init);
                                 // Task 31.1 — covariant unknown widening at the
                                 // typed local declaration's assignment site.
-                                var initType = _model.GetTypeOf(typed.Initializer);
+                                var initType = model.GetTypeOf(typed.Initializer);
                                 var widened = TryEmitCovariantUnknownCast(initType, declaredType, init);
                                 if(widened is not null)
                                 {
@@ -6172,7 +6172,7 @@ internal sealed class CSharpSourceWriter
         var parameters = EmitParameterList(indexerDecl.Parameters);
 
         // Task 12.2 — Determine if this indexer is readonly (emit `init` instead of `set`).
-        var indexerSymbol = _model.GetDeclaredSymbol(indexerDecl) as Symbol;
+        var indexerSymbol = model.GetDeclaredSymbol(indexerDecl) as Symbol;
         var isReadonlyIndexer = indexerSymbol is not null
             && indexerSymbol.ReadonlyStatus is not ReadonlyStatus.Mutable and not ReadonlyStatus.Unknown;
 
@@ -6202,9 +6202,9 @@ internal sealed class CSharpSourceWriter
         // Use the source span to faithfully reproduce the full parameter list,
         // but only if no parameter has a type that requires a Mist-to-C# rewrite.
         var span = paramList.Span;
-        if(span.Length > 0 && span.Start + span.Length <= _sourceText.Contents.Length)
+        if(span.Length > 0 && span.Start + span.Length <= sourceText.Contents.Length)
         {
-            var sourceText = _sourceText.Contents.Substring(span.Start, span.Length);
+            var sourceText = this.sourceText.Contents.Substring(span.Start, span.Length);
 
             // Types that need rewriting:
             //   * `void` → `MistVoid` (when in value context).
@@ -6342,7 +6342,7 @@ internal sealed class CSharpSourceWriter
     /// </summary>
     private bool SourceReferencesRegex()
     {
-        var source = _sourceText.Contents;
+        var source = sourceText.Contents;
         // Check for the `regex` keyword as a standalone word.
         if(ContainsWord(source, "regex"))
         {
@@ -6409,8 +6409,8 @@ internal sealed class CSharpSourceWriter
     {
         var symbol = typeDecl switch
         {
-            ClassTypeTypeDeclarationNode classDecl => _model.GetDeclaredSymbol(classDecl.ClassDeclaration),
-            StructTypeTypeDeclarationNode structDecl => _model.GetDeclaredSymbol(structDecl.StructDeclaration),
+            ClassTypeTypeDeclarationNode classDecl => model.GetDeclaredSymbol(classDecl.ClassDeclaration),
+            StructTypeTypeDeclarationNode structDecl => model.GetDeclaredSymbol(structDecl.StructDeclaration),
             _ => null,
         };
 
@@ -6782,7 +6782,7 @@ internal sealed class CSharpSourceWriter
 
                 // Determine if the type argument is a value type.
                 // Check the semantic model for the resolved type of the type argument.
-                var argSymbol = _model.GetDeclaredSymbol(firstTypeRef);
+                var argSymbol = model.GetDeclaredSymbol(firstTypeRef);
                 var argType = argSymbol?.DeclaredType;
 
                 // If we can determine it's a value type, emit T?. Otherwise emit T (reference type).
@@ -6841,7 +6841,7 @@ internal sealed class CSharpSourceWriter
         if(paramList.Parameter.Type.First is NamedSingleTypeRefSingleTypeRefNode namedRef)
         {
             var name = ExtractQualifiedName(namedRef.Name);
-            if(_model.AllSymbols.Any(s => s.Name == name && s.Kind == SymbolKind.TypeAlias
+            if(model.AllSymbols.Any(s => s.Name == name && s.Kind == SymbolKind.TypeAlias
                 && !IsStdlibTypeAlias(s)))
             {
                 return true;
@@ -6857,7 +6857,7 @@ internal sealed class CSharpSourceWriter
         // Stdlib type aliases (Action, Span, ReadOnlySpan, Task, etc.) are excluded
         // because they are either handled by dedicated emission paths or produce
         // identical source text when emitted.
-        foreach(var sym in _model.AllSymbols)
+        foreach(var sym in model.AllSymbols)
         {
             if(sym.Kind == SymbolKind.TypeAlias
                 && !IsStdlibTypeAlias(sym)
@@ -6892,7 +6892,7 @@ internal sealed class CSharpSourceWriter
         var name = param.Name.Lexeme;
 
         // Emit ref / ref readonly prefix for ref parameters (Requirement 8.1).
-        var symbol = _model.GetDeclaredSymbol(param) as Symbol;
+        var symbol = model.GetDeclaredSymbol(param) as Symbol;
         if(symbol is not null)
         {
             return symbol.RefKind switch
@@ -6944,7 +6944,7 @@ internal sealed class CSharpSourceWriter
         var hasImplicitCast = false;
         foreach(var argExpr in argExprs)
         {
-            var resolved = _model.GetResolvedOperator(argExpr);
+            var resolved = model.GetResolvedOperator(argExpr);
             if(resolved is Symbol sym && (sym.Name.StartsWith("operator_implicit_") || sym.Name.StartsWith("operator_explicit_")))
             {
                 hasImplicitCast = true;
@@ -7018,17 +7018,17 @@ internal sealed class CSharpSourceWriter
             && !ArgumentContainsAnonymousTypeEquality(argExprs))
         {
             var span = argList.Span;
-            if(span.Length > 0 && span.Start + span.Length <= _sourceText.Contents.Length)
+            if(span.Length > 0 && span.Start + span.Length <= sourceText.Contents.Length)
             {
-                var rawText = _sourceText.Contents.Substring(span.Start, span.Length);
+                var rawText = sourceText.Contents.Substring(span.Start, span.Length);
                 if(rawText.Contains("Void.Void"))
                 {
                     // Task 14.2: When in an optional type context, emit null instead of MistVoid.Instance.
-                    if(_emitVoidAsNull)
+                    if(emitVoidAsNull)
                     {
                         return rawText.Replace("Void.Void", "null");
                     }
-                    _needsMistVoidStruct = true;
+                    needsMistVoidStruct = true;
                     return rawText.Replace("Void.Void", "MistVoid.Instance");
                 }
                 // Bypass the fast path if the source contains the `regex` keyword,
@@ -7121,11 +7121,11 @@ internal sealed class CSharpSourceWriter
     {
         if(node is PostfixNode postfix && postfix.Suffix.Length > 0)
         {
-            var receiverType = _model.GetTypeOf(postfix.Target);
+            var receiverType = model.GetTypeOf(postfix.Target);
             if(receiverType is not null)
             {
                 var qualifiedName = GetQualifiedTypeNameFromType(receiverType);
-                if(qualifiedName is not null && _intrinsicRegistry.HasInstanceMethods(qualifiedName))
+                if(qualifiedName is not null && intrinsicRegistry.HasInstanceMethods(qualifiedName))
                 {
                     return true;
                 }
@@ -7152,8 +7152,8 @@ internal sealed class CSharpSourceWriter
     private bool ArgumentContainsAutoAwaitCall(List<ExpressionNode> argExprs)
     {
         // Only relevant in sync contexts where auto-await fires.
-        if(_insideAsyncFunctor || _insideAsyncLambda
-            || (_currentMethodSymbol is not null && _currentMethodSymbol.IsAsync))
+        if(insideAsyncFunctor || insideAsyncLambda
+            || (currentMethodSymbol is not null && currentMethodSymbol.IsAsync))
         {
             return false;
         }
@@ -7179,7 +7179,7 @@ internal sealed class CSharpSourceWriter
             && postfix.Suffix[^1] is InvocationSuffixPostfixSuffixNode)
         {
             // Check if target is a Func variable with Task<T> return type.
-            var targetType = _model.GetTypeOf(postfix.Target);
+            var targetType = model.GetTypeOf(postfix.Target);
             if(targetType is not null
                 && SemanticModelBuilder.IsFuncType(targetType)
                 && targetType is ConstructedType funcCt)
@@ -7192,7 +7192,7 @@ internal sealed class CSharpSourceWriter
             }
 
             // Fallback: check via declared symbol type.
-            var targetSymbol = _model.GetDeclaredSymbol(postfix.Target);
+            var targetSymbol = model.GetDeclaredSymbol(postfix.Target);
             if(targetSymbol is ISymbol { DeclaredType: { } declaredType }
                 && SemanticModelBuilder.IsFuncType(declaredType)
                 && declaredType is ConstructedType funcCtFromSym)
@@ -7223,7 +7223,7 @@ internal sealed class CSharpSourceWriter
     {
         if(node is IdentifierExpressionPrimaryNode ident)
         {
-            var resolvedType = _model.GetTypeOf(ident);
+            var resolvedType = model.GetTypeOf(ident);
             if(resolvedType is DependentTypeParameterType)
             {
                 return true;
@@ -7322,7 +7322,7 @@ internal sealed class CSharpSourceWriter
         {
             // Check if this is a two-constituent void union (T | void) that should
             // emit as Nullable<T> or plain T instead of a union helper struct.
-            var resolvedUnionType = _model.GetTypeOf(typeRef) as UnionType;
+            var resolvedUnionType = model.GetTypeOf(typeRef) as UnionType;
             if(resolvedUnionType is not null && CSharpTypeMap.TryGetOptionalTypeName(resolvedUnionType) is { } optionalName)
             {
                 return optionalName;
@@ -7363,7 +7363,7 @@ internal sealed class CSharpSourceWriter
             case VoidSingleTypeRefSingleTypeRefNode:
                 if(isValueContext)
                 {
-                    _needsMistVoidStruct = true;
+                    needsMistVoidStruct = true;
                     return "MistVoid";
                 }
                 return "void";
@@ -7389,7 +7389,7 @@ internal sealed class CSharpSourceWriter
                     // Check the expression type map first, then fall back to symbol lookup.
                     // The semantic model keys resolved types on the flat TypeReferenceNode,
                     // so look up via `typeRef` (not the SingleTypeRef child `namedRef`).
-                    var resolvedType = _model.GetTypeOf(typeRef);
+                    var resolvedType = model.GetTypeOf(typeRef);
                     // ── Associated type slot reference: T.SlotName → TSlotName (Task 7.3) ──
                     // When a type reference resolves to an AssociatedTypeSlotType (e.g., T.Enumerator
                     // in a generic context), emit the synthesized type parameter name.
@@ -7398,15 +7398,15 @@ internal sealed class CSharpSourceWriter
                         // Check if this is a parameterized slot — erase to constraint interface.
                         if(resolvedSlot.TypeParameters.Count > 0 && namedRef.TypeArgs is not null)
                         {
-                            var erasedType = EraseParameterizedSlotToConstraint(resolvedSlot, namedRef.TypeArgs, _currentAbstractTypeParamSubs);
+                            var erasedType = EraseParameterizedSlotToConstraint(resolvedSlot, namedRef.TypeArgs, currentAbstractTypeParamSubs);
                             if(erasedType is not null)
                             {
                                 return namedRef.ArrayRank is not null ? $"{erasedType}[]" : erasedType;
                             }
                         }
                         // Use the active method-level substitution if available.
-                        if(_currentMethodSlotSubstitutions is not null
-                            && _currentMethodSlotSubstitutions.TryGetValue(name, out var synthesizedName))
+                        if(currentMethodSlotSubstitutions is not null
+                            && currentMethodSlotSubstitutions.TryGetValue(name, out var synthesizedName))
                         {
                             return namedRef.ArrayRank is not null ? $"{synthesizedName}[]" : synthesizedName;
                         }
@@ -7491,7 +7491,7 @@ internal sealed class CSharpSourceWriter
                         // Look up type alias symbols matching by name and arity.
                         // For TypeAliasType, match arity to disambiguate overloaded aliases
                         // (e.g., Action vs Action<T1> vs Action<T1, T2>).
-                        var aliasSymbol = _model.AllSymbols
+                        var aliasSymbol = model.AllSymbols
                             .FirstOrDefault(s => s.Name == name && s.Kind == SymbolKind.TypeAlias
                                 && (s.DeclaredType is TypeAliasType at && at.TypeParameters.Count == refArity
                                     || s.DeclaredType is RefinementType
@@ -7502,19 +7502,19 @@ internal sealed class CSharpSourceWriter
                             // current namespace (which would take precedence over an alias
                             // from a different namespace). Newtypes are checked by scope
                             // since NewtypeType does not carry a ContainingNamespace property.
-                            var hasConcreteTypeInCurrentNamespace = _currentNamespace is not null
-                                && _model.AllSymbols.Any(s => s.Name == name
+                            var hasConcreteTypeInCurrentNamespace = currentNamespace is not null
+                                && model.AllSymbols.Any(s => s.Name == name
                                     && s.Kind is SymbolKind.Class or SymbolKind.Struct or SymbolKind.Abstract
-                                    && GetSymbolContainingNamespace(s) == _currentNamespace);
+                                    && GetSymbolContainingNamespace(s) == currentNamespace);
 
                             // Also check for newtypes: a newtype with the same name in any
                             // namespace takes precedence over a type alias from a different
                             // namespace, since newtypes are nominal (not transparent).
-                            if(!hasConcreteTypeInCurrentNamespace && _currentNamespace is not null)
+                            if(!hasConcreteTypeInCurrentNamespace && currentNamespace is not null)
                             {
-                                hasConcreteTypeInCurrentNamespace = _model.AllSymbols.Any(s =>
+                                hasConcreteTypeInCurrentNamespace = model.AllSymbols.Any(s =>
                                     s.Name == name && s.Kind == SymbolKind.Newtype
-                                    && GetNewtypeContainingNamespace(s) == _currentNamespace);
+                                    && GetNewtypeContainingNamespace(s) == currentNamespace);
                             }
                             if(!hasConcreteTypeInCurrentNamespace)
                             {
@@ -7525,10 +7525,10 @@ internal sealed class CSharpSourceWriter
                         // Refinement type alias fallback: same logic as TypeAliasType above.
                         if(aliasSymbol?.DeclaredType is RefinementType refinementType)
                         {
-                            var hasConcreteTypeInCurrentNamespace = _currentNamespace is not null
-                                && _model.AllSymbols.Any(s => s.Name == name
+                            var hasConcreteTypeInCurrentNamespace = currentNamespace is not null
+                                && model.AllSymbols.Any(s => s.Name == name
                                     && s.Kind is SymbolKind.Class or SymbolKind.Struct or SymbolKind.Abstract
-                                    && GetSymbolContainingNamespace(s) == _currentNamespace);
+                                    && GetSymbolContainingNamespace(s) == currentNamespace);
                             if(!hasConcreteTypeInCurrentNamespace)
                             {
                                 var emittedType = CSharpTypeMap.GetTypeName(refinementType.BaseType, isValueContext);
@@ -7538,10 +7538,10 @@ internal sealed class CSharpSourceWriter
                         // Union type alias fallback: emit as nullable or helper struct name.
                         if(aliasSymbol?.DeclaredType is UnionType unionFallback)
                         {
-                            var hasConcreteTypeInCurrentNamespace = _currentNamespace is not null
-                                && _model.AllSymbols.Any(s => s.Name == name
+                            var hasConcreteTypeInCurrentNamespace = currentNamespace is not null
+                                && model.AllSymbols.Any(s => s.Name == name
                                     && s.Kind is SymbolKind.Class or SymbolKind.Struct or SymbolKind.Abstract
-                                    && GetSymbolContainingNamespace(s) == _currentNamespace);
+                                    && GetSymbolContainingNamespace(s) == currentNamespace);
                             if(!hasConcreteTypeInCurrentNamespace)
                             {
                                 var emittedType = CSharpTypeMap.TryGetOptionalTypeName(unionFallback)
@@ -7556,7 +7556,7 @@ internal sealed class CSharpSourceWriter
                     {
                         if(isValueContext)
                         {
-                            _needsMistVoidStruct = true;
+                            needsMistVoidStruct = true;
                             return "MistVoid";
                         }
                         return "void";
@@ -7619,7 +7619,7 @@ internal sealed class CSharpSourceWriter
                     // Dependent type parameters are emitted with a T-prefix in C#.
                     if(namedRef.TypeArgs is null && namedRef.ArrayRank is null)
                     {
-                        var resolvedNamedType = _model.GetTypeOf(typeRef);
+                        var resolvedNamedType = model.GetTypeOf(typeRef);
                         if(resolvedNamedType is DependentTypeParameterType depParamType)
                         {
                             return $"T{depParamType.Name}";
@@ -7641,7 +7641,7 @@ internal sealed class CSharpSourceWriter
                     {
                         var baseName = $"{name}{typeArgs}";
                         // Look up the type to determine if it's a value type.
-                        var declaredSymbol = _model.AllSymbols
+                        var declaredSymbol = model.AllSymbols
                             .FirstOrDefault(s => s.Name == name && s.Kind is SymbolKind.Struct or SymbolKind.Class or SymbolKind.Enum);
                         if(declaredSymbol?.DeclaredType is not null && CSharpTypeMap.IsValueType(declaredSymbol.DeclaredType))
                         {
@@ -7657,7 +7657,7 @@ internal sealed class CSharpSourceWriter
                     // The `func<T1, ..., TN>` keyword form resolves to Standard.Func<T1, ..., TN>
                     // in the semantic model. Use the resolved type to emit via CSharpTypeMap,
                     // which handles the Func→System.Func / Action→System.Action mapping.
-                    var resolvedFuncType = _model.GetTypeOf(typeRef);
+                    var resolvedFuncType = model.GetTypeOf(typeRef);
                     if(resolvedFuncType is not null && resolvedFuncType is not ErrorType)
                     {
                         return CSharpTypeMap.GetTypeName(resolvedFuncType, isValueContext);
@@ -7954,9 +7954,9 @@ internal sealed class CSharpSourceWriter
     private void EmitBlock(BlockNode block)
     {
         AppendLine("{");
-        _indentLevel++;
+        indentLevel++;
         EmitBlockStatements(block);
-        _indentLevel--;
+        indentLevel--;
         AppendLine("}");
     }
 
@@ -7971,43 +7971,43 @@ internal sealed class CSharpSourceWriter
     {
         // Inject any pending union pattern variable bindings at the start of the block.
         // These are queued by TryEmitUnionPatternMatch when emitting `if (x.IsT)` conditions.
-        if(_pendingUnionPatternBindings.Count > 0)
+        if(pendingUnionPatternBindings.Count > 0)
         {
-            foreach(var binding in _pendingUnionPatternBindings)
+            foreach(var binding in pendingUnionPatternBindings)
             {
                 AppendLine(binding);
             }
-            _pendingUnionPatternBindings.Clear();
+            pendingUnionPatternBindings.Clear();
         }
 
         // Query the semantic model for discarded tasks in this block scope.
-        var liveTasks = _model.GetDiscardedTasks(block);
+        var liveTasks = model.GetDiscardedTasks(block);
 
         // Set up the discarded task lookup so EmitStatementsFromIndex can detect
         // discarded-task expression statements and route them through the unified
         // drop try/finally wrapping (Requirements 7.9.3, 7.3, 7.10, 14.5).
-        var previousDiscardedTasks = _currentBlockDiscardedTasks;
+        var previousDiscardedTasks = currentBlockDiscardedTasks;
         if(liveTasks.Count > 0)
         {
-            _currentBlockDiscardedTasks = new Dictionary<Storm.Runtime.SyntaxNode, DiscardedTaskInfo>();
+            currentBlockDiscardedTasks = new Dictionary<Storm.Runtime.SyntaxNode, DiscardedTaskInfo>();
             foreach(var task in liveTasks)
             {
                 // Discarded tasks have synthetic __task_N names and their origin
                 // is the expression node (not a variable declaration node).
                 if(task.GeneratedVariableName.StartsWith("__task_", StringComparison.Ordinal))
                 {
-                    _currentBlockDiscardedTasks[task.OriginNode] = task;
+                    currentBlockDiscardedTasks[task.OriginNode] = task;
                 }
             }
         }
         else
         {
-            _currentBlockDiscardedTasks = null;
+            currentBlockDiscardedTasks = null;
         }
 
         EmitStatementsFromIndex(block.Statements, 0);
 
-        _currentBlockDiscardedTasks = previousDiscardedTasks;
+        currentBlockDiscardedTasks = previousDiscardedTasks;
     }
 
     /// <summary>
@@ -8109,17 +8109,17 @@ internal sealed class CSharpSourceWriter
                 // remaining statements in try/finally with the flag-guarded drop in finally.
                 EmitStatement(declStmt);
                 var flagName = $"__dropped_{localName}";
-                _pendingBranchDrops[localName] = isTaskLike;
+                pendingBranchDrops[localName] = isTaskLike;
                 AppendLine($"var {flagName} = false;");
                 AppendLine("try");
                 AppendLine("{");
-                _indentLevel++;
+                indentLevel++;
                 EmitStatementsFromIndex(statements, nextIndex);
-                _indentLevel--;
+                indentLevel--;
                 AppendLine("}");
                 AppendLine("finally");
                 AppendLine("{");
-                _indentLevel++;
+                indentLevel++;
                 // Guard: only drop if the variable wasn't already moved/dropped in a branch.
                 // Apply recursive drop chaining (Requirement 2.3).
                 {
@@ -8131,9 +8131,9 @@ internal sealed class CSharpSourceWriter
                         : isTaskLike ? $"await {localName}" : $"{localName}.Drop()";
                     AppendLine($"if (!{flagName}) {chainedExpr};");
                 }
-                _indentLevel--;
+                indentLevel--;
                 AppendLine("}");
-                _pendingBranchDrops.Remove(localName);
+                pendingBranchDrops.Remove(localName);
                 break;
 
             case DropDisposition.AlwaysLive:
@@ -8143,13 +8143,13 @@ internal sealed class CSharpSourceWriter
                 EmitStatement(declStmt);
                 AppendLine("try");
                 AppendLine("{");
-                _indentLevel++;
+                indentLevel++;
                 EmitStatementsFromIndex(statements, nextIndex);
-                _indentLevel--;
+                indentLevel--;
                 AppendLine("}");
                 AppendLine("finally");
                 AppendLine("{");
-                _indentLevel++;
+                indentLevel++;
                 {
                     // The fallback $"{localName}.Drop()" path only fires when declType is null,
                     // which cannot happen for properly-projected CLR types (they always resolve
@@ -8159,7 +8159,7 @@ internal sealed class CSharpSourceWriter
                         : isTaskLike ? $"await {localName}" : $"{localName}.Drop()";
                     AppendLine($"{chainedExpr};");
                 }
-                _indentLevel--;
+                indentLevel--;
                 AppendLine("}");
                 break;
         }
@@ -8173,7 +8173,7 @@ internal sealed class CSharpSourceWriter
     private bool TryGetDiscardedTaskInfo(StatementNode stmt, out DiscardedTaskInfo? taskInfo)
     {
         taskInfo = null;
-        if(_currentBlockDiscardedTasks is null)
+        if(currentBlockDiscardedTasks is null)
         {
             return false;
         }
@@ -8183,7 +8183,7 @@ internal sealed class CSharpSourceWriter
             return false;
         }
 
-        return _currentBlockDiscardedTasks.TryGetValue(
+        return currentBlockDiscardedTasks.TryGetValue(
             exprStmt.ExpressionStatement.Expression, out taskInfo);
     }
 
@@ -8210,16 +8210,16 @@ internal sealed class CSharpSourceWriter
         // Apply recursive drop chaining (Requirement 2.3).
         AppendLine("try");
         AppendLine("{");
-        _indentLevel++;
+        indentLevel++;
         EmitStatementsFromIndex(statements, nextIndex);
-        _indentLevel--;
+        indentLevel--;
         AppendLine("}");
         AppendLine("finally");
         AppendLine("{");
-        _indentLevel++;
+        indentLevel++;
         var chainedExpr = EmitChainedDropExpression(taskInfo.TaskType, taskInfo.GeneratedVariableName);
         AppendLine($"{chainedExpr};");
-        _indentLevel--;
+        indentLevel--;
         AppendLine("}");
     }
 
@@ -8237,9 +8237,9 @@ internal sealed class CSharpSourceWriter
         return varDeclStmt.VariableDeclaration switch
         {
             TypedVariableDeclarationVariableDeclarationStatementNode typed =>
-                (_model.GetDeclaredSymbol(typed) as Symbol)?.DeclaredType,
+                (model.GetDeclaredSymbol(typed) as Symbol)?.DeclaredType,
             InferredVariableDeclarationVariableDeclarationStatementNode inferred =>
-                (_model.GetDeclaredSymbol(inferred) as Symbol)?.DeclaredType,
+                (model.GetDeclaredSymbol(inferred) as Symbol)?.DeclaredType,
             _ => null,
         };
     }
@@ -8282,7 +8282,7 @@ internal sealed class CSharpSourceWriter
         {
             case TypedVariableDeclarationVariableDeclarationStatementNode typed:
                 {
-                    if((_model.GetDeclaredSymbol(typed) as Symbol)?.DeclaredType is not { } typedType
+                    if((model.GetDeclaredSymbol(typed) as Symbol)?.DeclaredType is not { } typedType
                         || !ShouldAutoInsertScopeExitDrop(typedType))
                     {
                         return false;
@@ -8294,7 +8294,7 @@ internal sealed class CSharpSourceWriter
                 }
             case InferredVariableDeclarationVariableDeclarationStatementNode inferred:
                 {
-                    if((_model.GetDeclaredSymbol(inferred) as Symbol)?.DeclaredType is not { } inferredType
+                    if((model.GetDeclaredSymbol(inferred) as Symbol)?.DeclaredType is not { } inferredType
                         || !ShouldAutoInsertScopeExitDrop(inferredType))
                     {
                         return false;
@@ -8354,15 +8354,15 @@ internal sealed class CSharpSourceWriter
     private void EmitRemainingFieldDropsIfManualDrop(BlockNode block)
     {
         // Only applies when we're inside a named Drop() method with zero parameters.
-        if(_currentMethodSymbol is null
-            || _currentMethodSymbol.Name != "Drop"
-            || _currentMethodSymbol.Kind != SymbolKind.Method)
+        if(currentMethodSymbol is null
+            || currentMethodSymbol.Name != "Drop"
+            || currentMethodSymbol.Kind != SymbolKind.Method)
         {
             return;
         }
 
         // Find the enclosing type. The method's ContainingScope is the type's member scope.
-        var enclosingType = FindEnclosingTypeForMethod(_currentMethodSymbol);
+        var enclosingType = FindEnclosingTypeForMethod(currentMethodSymbol);
         if(enclosingType is null)
         {
             return;
@@ -8893,13 +8893,13 @@ internal sealed class CSharpSourceWriter
         var argExprs = CollectArgumentExpressionsForMoveCheck(methodCall.Arguments);
 
         // Resolve the called method's parameter ref kinds.
-        var calledSymbol = _model.GetDeclaredSymbol(methodCall) as Symbol;
+        var calledSymbol = model.GetDeclaredSymbol(methodCall) as Symbol;
 
         // Fallback: search AllSymbols for the method by name.
         if(calledSymbol is null)
         {
             var methodName = methodCall.Name.Lexeme;
-            foreach(var sym in _model.AllSymbols)
+            foreach(var sym in model.AllSymbols)
             {
                 if(sym is Symbol s && s.Kind == SymbolKind.Method && s.Name == methodName)
                 {
@@ -8944,13 +8944,13 @@ internal sealed class CSharpSourceWriter
         var argExprs = CollectArgumentExpressionsForMoveCheck(invocation.Arguments);
 
         // Resolve the called method symbol.
-        var calledSymbol = (_model.GetDeclaredSymbol(target) ?? _model.GetDeclaredSymbol(invocation)) as Symbol;
+        var calledSymbol = (model.GetDeclaredSymbol(target) ?? model.GetDeclaredSymbol(invocation)) as Symbol;
 
         // Fallback: search AllSymbols for the method by name and matching arg count.
         if(calledSymbol is null && target is IdentifierExpressionPrimaryNode idTarget)
         {
             var expectedArgCount = argExprs.Count;
-            foreach(var sym in _model.AllSymbols)
+            foreach(var sym in model.AllSymbols)
             {
                 if(sym is Symbol s && s.Kind == SymbolKind.Method && s.Name == idTarget.Name.Lexeme
                     && s.Origin == SymbolOrigin.UserCode)
@@ -8965,7 +8965,7 @@ internal sealed class CSharpSourceWriter
         if(calledSymbol is not null)
         {
             Storm.Runtime.SyntaxNode? declaringNode = null;
-            try { declaringNode = _model.GetDeclaringNode(calledSymbol); } catch { }
+            try { declaringNode = model.GetDeclaringNode(calledSymbol); } catch { }
 
             if(declaringNode is MethodDeclarationNode methodDecl && methodDecl.Parameters is { } paramList)
             {
@@ -9035,7 +9035,7 @@ internal sealed class CSharpSourceWriter
 
         // Mist-declared methods: get the declaring AST node and extract ref kinds from AST fields.
         Storm.Runtime.SyntaxNode declaringNode;
-        try { declaringNode = _model.GetDeclaringNode(methodSymbol); }
+        try { declaringNode = model.GetDeclaringNode(methodSymbol); }
         catch { return null; }
 
         ParameterListNode? paramList = declaringNode switch
@@ -9093,7 +9093,7 @@ internal sealed class CSharpSourceWriter
         if(initName == localName)
         {
             // Only counts as a move if the destination variable is of an owned type.
-            var declaredSymbol = _model.GetDeclaredSymbol(varDecl);
+            var declaredSymbol = model.GetDeclaredSymbol(varDecl);
             if(declaredSymbol?.DeclaredType is null)
             {
                 return false;
@@ -9118,7 +9118,7 @@ internal sealed class CSharpSourceWriter
     /// </summary>
     private string WrapWithImplicitCloneIfNeeded(Storm.Runtime.SyntaxNode sourceNode, string emittedExpr)
     {
-        var destinationType = _model.GetImplicitCloneDestination(sourceNode);
+        var destinationType = model.GetImplicitCloneDestination(sourceNode);
         if(destinationType is null)
         {
             return emittedExpr;
@@ -9157,7 +9157,7 @@ internal sealed class CSharpSourceWriter
     {
         foreach(var expr in argExprs)
         {
-            if(_model.GetImplicitCloneDestination(expr) is not null)
+            if(model.GetImplicitCloneDestination(expr) is not null)
             {
                 return true;
             }
@@ -9195,7 +9195,7 @@ internal sealed class CSharpSourceWriter
             {
                 if(part is ExpressionPartInterpolatedPartNode exprPart)
                 {
-                    var exprType = _model.GetTypeOf(exprPart.Expression);
+                    var exprType = model.GetTypeOf(exprPart.Expression);
                     if(IsOptionalUnionType(exprType))
                     {
                         return true;
@@ -9272,8 +9272,8 @@ internal sealed class CSharpSourceWriter
         if(node is EqualityNode equality && equality.Right is not null
             && !ReferenceEquals(equality.Right, equality.Left))
         {
-            var lhsType = _model.GetTypeOf(equality.Left);
-            var rhsType = _model.GetTypeOf(equality.Right);
+            var lhsType = model.GetTypeOf(equality.Left);
+            var rhsType = model.GetTypeOf(equality.Right);
             if(lhsType is AnonymousType && rhsType is AnonymousType)
             {
                 return true;
@@ -9314,7 +9314,7 @@ internal sealed class CSharpSourceWriter
 
             // The parameter expects a named delegate. Check if the argument's type
             // is a func/lambda (not already a DelegateType value).
-            var argType = _model.GetTypeOf(argExprs[i]);
+            var argType = model.GetTypeOf(argExprs[i]);
             if(argType is DelegateType)
             {
                 continue; // DelegateType → DelegateType: no wrapping needed (same type)
@@ -9368,7 +9368,7 @@ internal sealed class CSharpSourceWriter
         }
 
         // When a DelegateType value is passed where DelegateType is expected: emit as-is.
-        var argType = _model.GetTypeOf(argExpr);
+        var argType = model.GetTypeOf(argExpr);
         if(argType is DelegateType)
         {
             return emittedArg;
@@ -9489,7 +9489,7 @@ internal sealed class CSharpSourceWriter
                     var init = EmitExpression(decl.Initializer);
                     AppendLine($"var {name} = {init};");
                     AppendLine($"MistContext.Push<{contextTypeName}>({name});");
-                    boundType = _model.GetTypeOf(decl.Initializer);
+                    boundType = model.GetTypeOf(decl.Initializer);
                     if(boundType is not null && TypeHasDrop(boundType))
                     {
                         dropTarget = name;
@@ -9505,7 +9505,7 @@ internal sealed class CSharpSourceWriter
                     var init = EmitExpression(decl.Initializer);
                     AppendLine($"{typeName} {name} = {init};");
                     AppendLine($"MistContext.Push<{contextTypeName}>({name});");
-                    boundType = _model.GetTypeOf(decl.Initializer);
+                    boundType = model.GetTypeOf(decl.Initializer);
                     if(boundType is not null && TypeHasDrop(boundType))
                     {
                         dropTarget = name;
@@ -9517,10 +9517,10 @@ internal sealed class CSharpSourceWriter
                 {
                     var decl = withDiscardStmt.WithDiscardDeclaration;
                     var init = EmitExpression(decl.Initializer);
-                    boundType = _model.GetTypeOf(decl.Initializer);
+                    boundType = model.GetTypeOf(decl.Initializer);
                     if(boundType is not null && TypeHasDrop(boundType))
                     {
-                        dropTarget = $"__with_{_withDropCounter++}";
+                        dropTarget = $"__with_{withDropCounter++}";
                         AppendLine($"var {dropTarget} = {init};");
                         AppendLine($"MistContext.Push<{contextTypeName}>({dropTarget});");
                     }
@@ -9533,10 +9533,10 @@ internal sealed class CSharpSourceWriter
             case WithPushStatementStatementNode withPushStmt:
                 {
                     var value = EmitExpression(withPushStmt.WithPushStatement.Value);
-                    boundType = _model.GetTypeOf(withPushStmt.WithPushStatement.Value);
+                    boundType = model.GetTypeOf(withPushStmt.WithPushStatement.Value);
                     if(boundType is not null && TypeHasDrop(boundType))
                     {
-                        dropTarget = $"__with_{_withDropCounter++}";
+                        dropTarget = $"__with_{withDropCounter++}";
                         AppendLine($"var {dropTarget} = {value};");
                         AppendLine($"MistContext.Push<{contextTypeName}>({dropTarget});");
                     }
@@ -9550,19 +9550,19 @@ internal sealed class CSharpSourceWriter
 
         AppendLine("try");
         AppendLine("{");
-        _indentLevel++;
+        indentLevel++;
         EmitStatementsFromIndex(statements, nextIndex);
-        _indentLevel--;
+        indentLevel--;
         AppendLine("}");
         AppendLine("finally");
         AppendLine("{");
-        _indentLevel++;
+        indentLevel++;
         AppendLine($"MistContext.Pop<{contextTypeName}>();");
         if(dropTarget is not null && boundType is not null)
         {
             EmitWithBlockDropCall(dropTarget, boundType);
         }
-        _indentLevel--;
+        indentLevel--;
         AppendLine("}");
     }
 
@@ -9577,19 +9577,19 @@ internal sealed class CSharpSourceWriter
             case WithVarDeclarationStatementStatementNode withVarStmt:
                 {
                     // Type is inferred from the initializer expression.
-                    var type = _model.GetTypeOf(withVarStmt.WithVarDeclaration.Initializer);
+                    var type = model.GetTypeOf(withVarStmt.WithVarDeclaration.Initializer);
                     return type is not null ? CSharpTypeMap.GetTypeName(ResolveContextTypeForEmission(type)) : "object";
                 }
             case WithTypedDeclarationStatementStatementNode withTypedStmt:
                 {
                     // Type is the explicit type reference.
-                    var type = _model.GetTypeOf(withTypedStmt.WithTypedDeclaration.Type);
+                    var type = model.GetTypeOf(withTypedStmt.WithTypedDeclaration.Type);
                     if(type is not null)
                     {
                         return CSharpTypeMap.GetTypeName(ResolveContextTypeForEmission(type));
                     }
                     // Fall back to the declared symbol's type.
-                    var sym = _model.GetDeclaredSymbol(withTypedStmt.WithTypedDeclaration);
+                    var sym = model.GetDeclaredSymbol(withTypedStmt.WithTypedDeclaration);
                     return sym?.DeclaredType is not null
                         ? CSharpTypeMap.GetTypeName(ResolveContextTypeForEmission(sym.DeclaredType))
                         : "object";
@@ -9597,13 +9597,13 @@ internal sealed class CSharpSourceWriter
             case WithDiscardDeclarationStatementStatementNode withDiscardStmt:
                 {
                     // Type is the explicit type reference.
-                    var type = _model.GetTypeOf(withDiscardStmt.WithDiscardDeclaration.Type);
+                    var type = model.GetTypeOf(withDiscardStmt.WithDiscardDeclaration.Type);
                     if(type is not null)
                     {
                         return CSharpTypeMap.GetTypeName(ResolveContextTypeForEmission(type));
                     }
                     // Fall back to the initializer type.
-                    var initType = _model.GetTypeOf(withDiscardStmt.WithDiscardDeclaration.Initializer);
+                    var initType = model.GetTypeOf(withDiscardStmt.WithDiscardDeclaration.Initializer);
                     return initType is not null
                         ? CSharpTypeMap.GetTypeName(ResolveContextTypeForEmission(initType))
                         : "object";
@@ -9611,7 +9611,7 @@ internal sealed class CSharpSourceWriter
             case WithPushStatementStatementNode withPushStmt:
                 {
                     // Type is inferred from the expression.
-                    var type = _model.GetTypeOf(withPushStmt.WithPushStatement.Value);
+                    var type = model.GetTypeOf(withPushStmt.WithPushStatement.Value);
                     return type is not null ? CSharpTypeMap.GetTypeName(ResolveContextTypeForEmission(type)) : "object";
                 }
             default:
@@ -9647,7 +9647,7 @@ internal sealed class CSharpSourceWriter
     private void EmitWithBlockStatement(WithBlockStatementNode withBlock)
     {
         var expr = EmitExpression(withBlock.Expression);
-        var type = _model.GetTypeOf(withBlock.Expression);
+        var type = model.GetTypeOf(withBlock.Expression);
         var typeName = type is not null
             ? CSharpTypeMap.GetTypeName(ResolveContextTypeForEmission(type))
             : "object";
@@ -9658,7 +9658,7 @@ internal sealed class CSharpSourceWriter
         string? dropTarget = null;
         if(hasDrop)
         {
-            dropTarget = $"__with_{_withDropCounter++}";
+            dropTarget = $"__with_{withDropCounter++}";
             AppendLine($"var {dropTarget} = {expr};");
             AppendLine($"MistContext.Push<{typeName}>({dropTarget});");
         }
@@ -9669,19 +9669,19 @@ internal sealed class CSharpSourceWriter
 
         AppendLine("try");
         AppendLine("{");
-        _indentLevel++;
+        indentLevel++;
         EmitBlockStatements(withBlock.Body);
-        _indentLevel--;
+        indentLevel--;
         AppendLine("}");
         AppendLine("finally");
         AppendLine("{");
-        _indentLevel++;
+        indentLevel++;
         AppendLine($"MistContext.Pop<{typeName}>();");
         if(hasDrop && dropTarget is not null)
         {
             EmitWithBlockDropCall(dropTarget, type!);
         }
-        _indentLevel--;
+        indentLevel--;
         AppendLine("}");
     }
 
@@ -9693,30 +9693,30 @@ internal sealed class CSharpSourceWriter
     {
         var name = withVarBlock.Name.Lexeme;
         var init = EmitExpression(withVarBlock.Initializer);
-        var type = _model.GetTypeOf(withVarBlock.Initializer);
+        var type = model.GetTypeOf(withVarBlock.Initializer);
         var hasDrop = type is not null && TypeHasDrop(type);
 
         // Wrap in braces to create a new scope — prevents variable name leakage
         // into the surrounding method body (the with-var introduces a scoped local).
         AppendLine("{");
-        _indentLevel++;
+        indentLevel++;
         AppendLine($"var {name} = {init};");
         AppendLine("try");
         AppendLine("{");
-        _indentLevel++;
+        indentLevel++;
         EmitBlockStatements(withVarBlock.Body);
-        _indentLevel--;
+        indentLevel--;
         AppendLine("}");
         AppendLine("finally");
         AppendLine("{");
-        _indentLevel++;
+        indentLevel++;
         if(hasDrop)
         {
             EmitWithBlockDropCall(name, type!);
         }
-        _indentLevel--;
+        indentLevel--;
         AppendLine("}");
-        _indentLevel--;
+        indentLevel--;
         AppendLine("}");
     }
 
@@ -9942,11 +9942,11 @@ internal sealed class CSharpSourceWriter
 
                     // When the declared type is an array type, set the target element type
                     // so that array literal emission produces `new T[] { ... }` instead of `new[] { ... }`.
-                    var declaredSymbol = _model.GetDeclaredSymbol(typed) as Symbol;
+                    var declaredSymbol = model.GetDeclaredSymbol(typed) as Symbol;
                     var declaredType = declaredSymbol?.DeclaredType;
                     if(declaredType is ArrayType targetArrayType)
                     {
-                        _arrayLiteralTargetElementType = targetArrayType.ElementType;
+                        arrayLiteralTargetElementType = targetArrayType.ElementType;
                     }
 
                     // Span types: the type reference may contain `unknown` (e.g.,
@@ -9963,15 +9963,15 @@ internal sealed class CSharpSourceWriter
                     // emit Void.Void as null instead of MistVoid.Instance.
                     // Also check the emitted type string — if it ends with '?', the type
                     // reference resolved to a nullable type (even if ??= narrowed the symbol).
-                    var previousVoidAsNull = _emitVoidAsNull;
+                    var previousVoidAsNull = emitVoidAsNull;
                     if(IsOptionalUnionType(declaredType) || type.EndsWith("?"))
                     {
-                        _emitVoidAsNull = true;
+                        emitVoidAsNull = true;
                     }
 
                     var init = EmitExpression(typed.Initializer);
-                    _arrayLiteralTargetElementType = null;
-                    _emitVoidAsNull = previousVoidAsNull;
+                    arrayLiteralTargetElementType = null;
+                    emitVoidAsNull = previousVoidAsNull;
 
                     init = WrapWithImplicitCastIfNeeded(typed.Initializer, init);
                     // Task 12.1 — emit .Clone() at resolver-marked implicit-clone sites (Req 14 AC 7).
@@ -9980,7 +9980,7 @@ internal sealed class CSharpSourceWriter
                     // declaration's assignment site. The declared type is
                     // recorded on the local variable's symbol; the initializer
                     // expression type comes from the expression-type map.
-                    var initType = _model.GetTypeOf(typed.Initializer);
+                    var initType = model.GetTypeOf(typed.Initializer);
                     var widened = TryEmitCovariantUnknownCast(initType, declaredType, init);
                     if(widened is not null)
                     {
@@ -10025,7 +10025,7 @@ internal sealed class CSharpSourceWriter
                     init = WrapWithImplicitCloneIfNeeded(inferred.Initializer, init);
 
                     // Emit ref / ref readonly prefix for ref locals.
-                    var inferredSymbol = _model.GetDeclaredSymbol(inferred) as Symbol;
+                    var inferredSymbol = model.GetDeclaredSymbol(inferred) as Symbol;
                     var refPrefix = inferredSymbol?.RefKind switch
                     {
                         RefKind.Ref => "ref ",
@@ -10101,20 +10101,20 @@ internal sealed class CSharpSourceWriter
         {
             // Task 14.2: When the method return type is a two-constituent T | void union,
             // emit Void.Void as null instead of MistVoid.Instance.
-            var previousVoidAsNull = _emitVoidAsNull;
-            if(IsOptionalUnionType(_currentMethodReturnType))
+            var previousVoidAsNull = emitVoidAsNull;
+            if(IsOptionalUnionType(currentMethodReturnType))
             {
-                _emitVoidAsNull = true;
+                emitVoidAsNull = true;
             }
 
             var value = EmitExpression(returnStmt.Value);
-            _emitVoidAsNull = previousVoidAsNull;
+            emitVoidAsNull = previousVoidAsNull;
 
             value = WrapWithImplicitCastIfNeeded(returnStmt, value);
             // Task 31.1 — covariant unknown widening at the return site
             // against the enclosing method's return type.
-            var valueType = _model.GetTypeOf(returnStmt.Value);
-            var widened = TryEmitCovariantUnknownCast(valueType, _currentMethodReturnType, value);
+            var valueType = model.GetTypeOf(returnStmt.Value);
+            var widened = TryEmitCovariantUnknownCast(valueType, currentMethodReturnType, value);
             if(widened is not null)
             {
                 value = widened;
@@ -10131,11 +10131,11 @@ internal sealed class CSharpSourceWriter
                 AppendLine($"return {value};");
             }
         }
-        else if(_inValueReturningVoidMethod)
+        else if(inValueReturningVoidMethod)
         {
             // In value-returning void methods, `return;` becomes `return MistVoid.Instance;`
             // Task 14.2: If the return type is an optional union, emit null instead.
-            if(IsOptionalUnionType(_currentMethodReturnType))
+            if(IsOptionalUnionType(currentMethodReturnType))
             {
                 AppendLine("return null;");
             }
@@ -10158,7 +10158,7 @@ internal sealed class CSharpSourceWriter
         // Conditional-move branch sensitivity (Requirements 4.6, 13.5):
         // When there are pending branch drops, inject Drop() into branches where the
         // variable is still live (not moved).
-        if(_pendingBranchDrops.Count > 0)
+        if(pendingBranchDrops.Count > 0)
         {
             EmitBlockWithBranchDrops(ifStmt.ThenBranch, ifStmt.ThenBranch);
 
@@ -10186,11 +10186,11 @@ internal sealed class CSharpSourceWriter
     private void EmitBlockWithBranchDrops(BlockNode block, BlockNode branchBlock)
     {
         AppendLine("{");
-        _indentLevel++;
+        indentLevel++;
         EmitBlockStatements(block);
 
         // Inject drops for variables that are NOT moved in this branch.
-        foreach(var (localName, isTaskLike) in _pendingBranchDrops)
+        foreach(var (localName, isTaskLike) in pendingBranchDrops)
         {
             var flagName = $"__dropped_{localName}";
             if(!BlockMovesVariable(branchBlock, localName))
@@ -10207,7 +10207,7 @@ internal sealed class CSharpSourceWriter
             AppendLine($"{flagName} = true;");
         }
 
-        _indentLevel--;
+        indentLevel--;
         AppendLine("}");
     }
 
@@ -10411,17 +10411,17 @@ internal sealed class CSharpSourceWriter
         var parameters = EmitLambdaParameterList(paramList);
 
         // Save and set lambda context flags for body emission.
-        var previousSyncLambdaAutoAwait = _insideSyncLambdaAutoAwait;
-        var previousAsyncLambda = _insideAsyncLambda;
+        var previousSyncLambdaAutoAwait = insideSyncLambdaAutoAwait;
+        var previousAsyncLambda = insideAsyncLambda;
 
         if(needsSyncAutoAwait)
         {
-            _insideSyncLambdaAutoAwait = true;
+            insideSyncLambdaAutoAwait = true;
         }
 
         if(hasAsync)
         {
-            _insideAsyncLambda = true;
+            insideAsyncLambda = true;
         }
 
         // Emit the body.
@@ -10440,8 +10440,8 @@ internal sealed class CSharpSourceWriter
         }
 
         // Restore lambda context flags.
-        _insideSyncLambdaAutoAwait = previousSyncLambdaAutoAwait;
-        _insideAsyncLambda = previousAsyncLambda;
+        insideSyncLambdaAutoAwait = previousSyncLambdaAutoAwait;
+        insideAsyncLambda = previousAsyncLambda;
 
         return result;
     }
@@ -10589,23 +10589,23 @@ internal sealed class CSharpSourceWriter
         {
             // Task 14.2: When the assignment target type is a two-constituent T | void union,
             // emit Void.Void as null instead of MistVoid.Instance.
-            var previousVoidAsNull = _emitVoidAsNull;
-            var assignTargetType = _model.GetTypeOf(assignment.Target);
+            var previousVoidAsNull = emitVoidAsNull;
+            var assignTargetType = model.GetTypeOf(assignment.Target);
             if(IsOptionalUnionType(assignTargetType))
             {
-                _emitVoidAsNull = true;
+                emitVoidAsNull = true;
             }
 
             var value = EmitExpression(assignment.Value);
-            _emitVoidAsNull = previousVoidAsNull;
+            emitVoidAsNull = previousVoidAsNull;
 
             value = WrapWithImplicitCastIfNeeded(assignment, value);
             // Task 12.1 — emit .Clone() at resolver-marked implicit-clone sites (Req 14 AC 7).
             value = WrapWithImplicitCloneIfNeeded(assignment.Value, value);
             // Task 31.1 — covariant unknown widening at the assignment
             // site against the target's static type.
-            var targetType = _model.GetTypeOf(assignment.Target);
-            var valueType = _model.GetTypeOf(assignment.Value);
+            var targetType = model.GetTypeOf(assignment.Target);
+            var valueType = model.GetTypeOf(assignment.Value);
             var widened = TryEmitCovariantUnknownCast(valueType, targetType, value);
             if(widened is not null)
             {
@@ -10730,8 +10730,8 @@ internal sealed class CSharpSourceWriter
         // Emit object.Equals(left, right) to get structural comparison.
         // The type checker sets the EqualityNode's type to bool when both operands
         // are same-shape AnonymousType. Check operand types via the model.
-        var lhsType = _model.GetTypeOf(equality.Left);
-        var rhsType = _model.GetTypeOf(equality.Right);
+        var lhsType = model.GetTypeOf(equality.Left);
+        var rhsType = model.GetTypeOf(equality.Right);
         if(lhsType is AnonymousType && rhsType is AnonymousType)
         {
             var equalsCall = $"object.Equals({left}, {right})";
@@ -10762,7 +10762,7 @@ internal sealed class CSharpSourceWriter
             case IsExpressionRelationalNode isExpr:
                 {
                     var left = EmitAdditive(isExpr.Left);
-                    var scrutineeType = _model.GetTypeOf(isExpr.Left);
+                    var scrutineeType = model.GetTypeOf(isExpr.Left);
 
                     // Union type pattern matching: emit Is{T}/As{T} property access
                     // instead of C#'s native `is T t` pattern.
@@ -10843,9 +10843,9 @@ internal sealed class CSharpSourceWriter
     {
         var operand = EmitAdditive(asExpr.Left);
         var targetTypeName = EmitTypeReference(asExpr.TargetType);
-        var conversionKind = _model.GetAsConversionKind(asExpr);
-        var sourceType = _model.GetTypeOf(asExpr.Left);
-        var resolvedTargetType = _model.GetTypeOf(asExpr.TargetType);
+        var conversionKind = model.GetAsConversionKind(asExpr);
+        var sourceType = model.GetTypeOf(asExpr.Left);
+        var resolvedTargetType = model.GetTypeOf(asExpr.TargetType);
 
         switch(conversionKind)
         {
@@ -10903,7 +10903,7 @@ internal sealed class CSharpSourceWriter
 
         // Value type target (struct, enum) from unknown or class source:
         // Use C#'s `is` pattern to extract or produce null for Nullable<T>.
-        var tmpName = $"__as_tmp_{_asExprCounter++}";
+        var tmpName = $"__as_tmp_{asExprCounter++}";
         return $"({operand} is {emittedTargetType} {tmpName} ? {tmpName} : default({emittedTargetType}?))";
     }
 
@@ -10932,7 +10932,7 @@ internal sealed class CSharpSourceWriter
 
         // Target is related to a constituent but not an exact match (e.g., narrowing
         // from a constituent's base type). Fall back to is-pattern on the boxed value.
-        var tmpName = $"__as_tmp_{_asExprCounter++}";
+        var tmpName = $"__as_tmp_{asExprCounter++}";
         if(!CSharpTypeMap.IsValueType(targetType))
         {
             return $"({operand} is {emittedTargetType} {tmpName} ? {tmpName} : null)";
@@ -10993,8 +10993,8 @@ internal sealed class CSharpSourceWriter
                     // Resolve the pattern type to find the matching constituent.
                     // The semantic model may store the type on the type reference node
                     // or on the pattern's declared symbol (the introduced variable).
-                    var patternType = _model.GetTypeOf(typePattern.Type);
-                    patternType ??= _model.GetDeclaredSymbol(typePattern)?.DeclaredType;
+                    var patternType = model.GetTypeOf(typePattern.Type);
+                    patternType ??= model.GetDeclaredSymbol(typePattern)?.DeclaredType;
                     if(patternType is null)
                     {
                         return null;
@@ -11013,7 +11013,7 @@ internal sealed class CSharpSourceWriter
                     // Queue the variable binding for injection into the then-branch.
                     if(bindingName != "_")
                     {
-                        _pendingUnionPatternBindings.Add(
+                        pendingUnionPatternBindings.Add(
                             $"{csharpTypeName} {bindingName} = {scrutineeExpr}.As{constituentName};");
                     }
 
@@ -11028,7 +11028,7 @@ internal sealed class CSharpSourceWriter
                     // Queue the variable binding for injection into the then-branch.
                     if(bindingName != "_")
                     {
-                        _pendingUnionPatternBindings.Add(
+                        pendingUnionPatternBindings.Add(
                             $"{helperTypeName} {bindingName} = {scrutineeExpr};");
                     }
 
@@ -11112,8 +11112,8 @@ internal sealed class CSharpSourceWriter
             case TypePatternPrimaryPatternNode typePattern:
                 {
                     // Resolve the pattern type to find the matching constituent.
-                    var patternType = _model.GetTypeOf(typePattern.Type);
-                    patternType ??= _model.GetDeclaredSymbol(typePattern)?.DeclaredType;
+                    var patternType = model.GetTypeOf(typePattern.Type);
+                    patternType ??= model.GetDeclaredSymbol(typePattern)?.DeclaredType;
                     if(patternType is null)
                     {
                         return null;
@@ -11140,7 +11140,7 @@ internal sealed class CSharpSourceWriter
             case BareTypePatternPrimaryPatternNode bareTypePattern:
                 {
                     // Resolve the pattern type to find the matching constituent.
-                    var patternType = _model.GetTypeOf(bareTypePattern.Type);
+                    var patternType = model.GetTypeOf(bareTypePattern.Type);
                     if(patternType is null)
                     {
                         return null;
@@ -11209,8 +11209,8 @@ internal sealed class CSharpSourceWriter
         }
 
         // Generate a unique dynamic variable name to avoid collisions.
-        var dynVar = $"__pat_{_nextPatternId++}";
-        _pendingUnionPatternBindings.Add($"dynamic {dynVar} = {scrutineeExpr};");
+        var dynVar = $"__pat_{nextPatternId++}";
+        pendingUnionPatternBindings.Add($"dynamic {dynVar} = {scrutineeExpr};");
 
         // Process each subpattern — extract the var binding via dynamic property access.
         void ProcessSubpattern(PropertySubpatternNode subpattern)
@@ -11225,7 +11225,7 @@ internal sealed class CSharpSourceWriter
                 && subDirect.Primary is VarPatternPrimaryPatternNode varPat)
             {
                 var bindingName = varPat.Name.Lexeme;
-                _pendingUnionPatternBindings.Add($"var {bindingName} = {dynVar}.{propName};");
+                pendingUnionPatternBindings.Add($"var {bindingName} = {dynVar}.{propName};");
             }
             else
             {
@@ -11233,8 +11233,8 @@ internal sealed class CSharpSourceWriter
                 // extract the value and defer further matching to runtime.
                 // This is a simplification — full recursive desugaring would
                 // require condition composition.
-                var tempName = $"__prop_{propName}_{_nextPatternId++}";
-                _pendingUnionPatternBindings.Add($"var {tempName} = {dynVar}.{propName};");
+                var tempName = $"__prop_{propName}_{nextPatternId++}";
+                pendingUnionPatternBindings.Add($"var {tempName} = {dynVar}.{propName};");
             }
         }
 
@@ -11293,8 +11293,8 @@ internal sealed class CSharpSourceWriter
             case TypePatternPrimaryPatternNode typePattern:
                 {
                     // Resolve the pattern type to check if it's a refinement type.
-                    var patternType = _model.GetTypeOf(typePattern.Type);
-                    patternType ??= _model.GetDeclaredSymbol(typePattern)?.DeclaredType;
+                    var patternType = model.GetTypeOf(typePattern.Type);
+                    patternType ??= model.GetDeclaredSymbol(typePattern)?.DeclaredType;
                     if(patternType is not RefinementType refinementType)
                     {
                         return null;
@@ -11307,7 +11307,7 @@ internal sealed class CSharpSourceWriter
                     if(bindingName != "_")
                     {
                         var csharpTypeName = CSharpTypeMap.GetTypeName(refinementType.BaseType);
-                        _pendingUnionPatternBindings.Add(
+                        pendingUnionPatternBindings.Add(
                             $"{csharpTypeName} {bindingName} = {scrutineeExpr};");
                     }
 
@@ -11317,7 +11317,7 @@ internal sealed class CSharpSourceWriter
             case BareTypePatternPrimaryPatternNode bareTypePattern:
                 {
                     // Resolve the pattern type to check if it's a refinement type.
-                    var patternType = _model.GetTypeOf(bareTypePattern.Type);
+                    var patternType = model.GetTypeOf(bareTypePattern.Type);
                     if(patternType is not RefinementType refinementType)
                     {
                         return null;
@@ -11369,8 +11369,8 @@ internal sealed class CSharpSourceWriter
         {
             case TypePatternPrimaryPatternNode typePattern:
                 {
-                    var patternType = _model.GetTypeOf(typePattern.Type);
-                    patternType ??= _model.GetDeclaredSymbol(typePattern)?.DeclaredType;
+                    var patternType = model.GetTypeOf(typePattern.Type);
+                    patternType ??= model.GetDeclaredSymbol(typePattern)?.DeclaredType;
                     if(patternType is not RefinementType refinementType)
                     {
                         return null;
@@ -11383,7 +11383,7 @@ internal sealed class CSharpSourceWriter
 
             case BareTypePatternPrimaryPatternNode bareTypePattern:
                 {
-                    var patternType = _model.GetTypeOf(bareTypePattern.Type);
+                    var patternType = model.GetTypeOf(bareTypePattern.Type);
                     if(patternType is not RefinementType refinementType)
                     {
                         return null;
@@ -11629,7 +11629,7 @@ internal sealed class CSharpSourceWriter
         }
 
         // Check if the resolved type for this pattern is an EnumType.
-        var patternType = _model.GetTypeOf(bareTypePattern.Type);
+        var patternType = model.GetTypeOf(bareTypePattern.Type);
         if(patternType is not EnumType)
         {
             return null;
@@ -12086,10 +12086,10 @@ internal sealed class CSharpSourceWriter
             case AsyncExpressionUnaryNode asyncExpr:
                 {
                     // Set the flag to suppress auto-unwrap inside the async functor operand.
-                    var previousAsyncFunctorFlag = _insideAsyncFunctor;
-                    _insideAsyncFunctor = true;
+                    var previousAsyncFunctorFlag = insideAsyncFunctor;
+                    insideAsyncFunctor = true;
                     var operand = EmitUnary(asyncExpr.Operand);
-                    _insideAsyncFunctor = previousAsyncFunctorFlag;
+                    insideAsyncFunctor = previousAsyncFunctorFlag;
                     // Determine if the target method is async.
                     // If async: emit the call directly (captures the Task without await).
                     // If sync: wrap in Task.Run(() => call).
@@ -12104,10 +12104,10 @@ internal sealed class CSharpSourceWriter
                 {
                     // Suppress auto-await inside the explicit await operand to prevent
                     // double-await (e.g., `await await AsyncLookup(id)`).
-                    var previousExplicitAwait = _insideExplicitAwait;
-                    _insideExplicitAwait = true;
+                    var previousExplicitAwait = insideExplicitAwait;
+                    insideExplicitAwait = true;
                     var operand = EmitUnary(awaitExpr.Operand);
-                    _insideExplicitAwait = previousExplicitAwait;
+                    insideExplicitAwait = previousExplicitAwait;
                     return $"await {operand}";
                 }
             case PostfixExpressionUnaryNode postfix:
@@ -12143,7 +12143,7 @@ internal sealed class CSharpSourceWriter
                     if(hint == "valuetask")
                     {
                         // Resolve the actual type argument from the semantic model.
-                        var resolvedType = _model.GetTypeOf(asyncHintBlock);
+                        var resolvedType = model.GetTypeOf(asyncHintBlock);
                         var typeArgName = "object";
                         if(resolvedType is ConstructedType ct && ct.TypeArguments.Count > 0)
                         {
@@ -12177,7 +12177,7 @@ internal sealed class CSharpSourceWriter
         // Case 1: Direct invocation — identifier(args)
         if(postfix.Suffix.Length > 0 && postfix.Suffix[^1] is InvocationSuffixPostfixSuffixNode)
         {
-            var targetSymbol = _model.GetDeclaredSymbol(postfix.Target);
+            var targetSymbol = model.GetDeclaredSymbol(postfix.Target);
             return targetSymbol is Symbol { IsAsync: true };
         }
 
@@ -12191,11 +12191,11 @@ internal sealed class CSharpSourceWriter
             IType? receiverType;
             if(postfix.Suffix.Length == 1)
             {
-                receiverType = _model.GetTypeOf(postfix.Target);
+                receiverType = model.GetTypeOf(postfix.Target);
             }
             else
             {
-                receiverType = _model.GetTypeOf(postfix.Suffix[^2]);
+                receiverType = model.GetTypeOf(postfix.Suffix[^2]);
             }
 
             if(receiverType is null)
@@ -12310,7 +12310,7 @@ internal sealed class CSharpSourceWriter
         var targetType = EmitTypeReference(castExpr.TargetType);
         var operand = EmitUnary(castExpr.Operand);
 
-        var resolved = _model.GetResolvedOperator(castExpr);
+        var resolved = model.GetResolvedOperator(castExpr);
 
         if(resolved is null)
         {
@@ -12323,7 +12323,7 @@ internal sealed class CSharpSourceWriter
             // Intrinsic cast operator — look up emission template.
             // Note: TryGetCastOperator is added in task 8.4; for now, fall back to standard cast.
             var declaringType = GetQualifiedTypeName(intrinsicSymbol);
-            var template = _intrinsicRegistry.TryGetCastOperator(declaringType, targetType);
+            var template = intrinsicRegistry.TryGetCastOperator(declaringType, targetType);
             if(template is not null)
             {
                 return string.Format(template.Template, operand);
@@ -12345,7 +12345,7 @@ internal sealed class CSharpSourceWriter
     /// </summary>
     private string WrapWithImplicitCastIfNeeded(Storm.Runtime.SyntaxNode node, string expression)
     {
-        var resolved = _model.GetResolvedOperator(node);
+        var resolved = model.GetResolvedOperator(node);
         if(resolved is Symbol resolvedSymbol)
         {
             if(resolvedSymbol.Name.StartsWith("operator_implicit_") || resolvedSymbol.Name.StartsWith("operator_explicit_"))
@@ -12359,7 +12359,7 @@ internal sealed class CSharpSourceWriter
                     if(targetTypeName is not null)
                     {
                         var emittedTypeName = CSharpTypeMap.GetTypeName(resolvedSymbol.DeclaredType!);
-                        var castTemplate = _intrinsicRegistry.TryGetCastOperator(declaringType, emittedTypeName);
+                        var castTemplate = intrinsicRegistry.TryGetCastOperator(declaringType, emittedTypeName);
                         if(castTemplate is not null)
                         {
                             return string.Format(castTemplate.Template, expression);
@@ -12467,12 +12467,12 @@ internal sealed class CSharpSourceWriter
     /// <summary>
     /// Looks up the return type of a method declaration from the semantic
     /// model via the declared symbol. Used by <see cref="EmitMethodDeclaration"/>
-    /// to set <see cref="_currentMethodReturnType"/> for the duration of
+    /// to set <see cref="currentMethodReturnType"/> for the duration of
     /// the method body's emission.
     /// </summary>
     private IType? ResolveMethodReturnType(MethodDeclarationNode methodDecl)
     {
-        var symbol = _model.GetDeclaredSymbol(methodDecl);
+        var symbol = model.GetDeclaredSymbol(methodDecl);
         return symbol?.DeclaredType;
     }
 
@@ -12539,7 +12539,7 @@ internal sealed class CSharpSourceWriter
     /// </summary>
     private string EmitBinaryOperator(Storm.Runtime.SyntaxNode node, string op, string left, string right)
     {
-        var resolved = _model.GetResolvedOperator(node);
+        var resolved = model.GetResolvedOperator(node);
 
         if(resolved is null)
         {
@@ -12551,7 +12551,7 @@ internal sealed class CSharpSourceWriter
         {
             // Intrinsic operator: look up the emission template.
             var declaringType = GetQualifiedTypeName(intrinsicSymbol);
-            var template = _intrinsicRegistry.TryGetBinaryOperator(declaringType, op);
+            var template = intrinsicRegistry.TryGetBinaryOperator(declaringType, op);
             if(template is not null)
             {
                 return string.Format(template.Template, left, right);
@@ -12559,13 +12559,13 @@ internal sealed class CSharpSourceWriter
 
             // Template not found — emit MIST_BE_0002 hard error (Requirements 5.9, 5.10).
             var memberSig = $"{declaringType}.operator{op}";
-            _diagnostics.Add(new Diagnostic(
+            diagnostics.Add(new Diagnostic(
                 DiagnosticId.MissingIntrinsicEmissionTemplate,
                 DiagnosticSeverity.Error,
                 PipelineStage.Backend,
                 $"No emission template found for intrinsic '{memberSig}' in backend 'CSharp'.",
                 Location: default,
-                CompilationUnitPath: _sourceText.Path,
+                CompilationUnitPath: sourceText.Path,
                 AnalyzerName: null));
             return "";
         }
@@ -12590,7 +12590,7 @@ internal sealed class CSharpSourceWriter
     /// </summary>
     private string EmitUnaryOperator(Storm.Runtime.SyntaxNode node, string op, string operand)
     {
-        var resolved = _model.GetResolvedOperator(node);
+        var resolved = model.GetResolvedOperator(node);
 
         if(resolved is null)
         {
@@ -12602,7 +12602,7 @@ internal sealed class CSharpSourceWriter
         {
             // Intrinsic operator: look up the emission template.
             var declaringType = GetQualifiedTypeName(intrinsicSymbol);
-            var template = _intrinsicRegistry.TryGetUnaryOperator(declaringType, op);
+            var template = intrinsicRegistry.TryGetUnaryOperator(declaringType, op);
             if(template is not null)
             {
                 return string.Format(template.Template, operand);
@@ -12610,13 +12610,13 @@ internal sealed class CSharpSourceWriter
 
             // Template not found — emit MIST_BE_0002 hard error (Requirements 5.9, 5.10).
             var memberSig = $"{declaringType}.operator{op}";
-            _diagnostics.Add(new Diagnostic(
+            diagnostics.Add(new Diagnostic(
                 DiagnosticId.MissingIntrinsicEmissionTemplate,
                 DiagnosticSeverity.Error,
                 PipelineStage.Backend,
                 $"No emission template found for intrinsic '{memberSig}' in backend 'CSharp'.",
                 Location: default,
-                CompilationUnitPath: _sourceText.Path,
+                CompilationUnitPath: sourceText.Path,
                 AnalyzerName: null));
             return "";
         }
@@ -12731,13 +12731,13 @@ internal sealed class CSharpSourceWriter
         {
             var result = EmitTypeReference(typeLiteral.TypeRef, isValueContext: true);
 
-            IType? receiverType = _model.GetTypeOf(postfix.Target);
+            IType? receiverType = model.GetTypeOf(postfix.Target);
 
             for(var i = 0; i < postfix.Suffix.Length; i++)
             {
                 var suffix = postfix.Suffix[i];
                 result = EmitPostfixSuffix(result, suffix, receiverType);
-                receiverType = _model.GetTypeOf(suffix);
+                receiverType = model.GetTypeOf(suffix);
             }
 
             return result;
@@ -12748,7 +12748,7 @@ internal sealed class CSharpSourceWriter
         // Track the receiver type through the suffix chain for extension property rewriting.
         // The receiver type for the first suffix is the type of the primary target.
         // For subsequent suffixes, it's the result type of the previous suffix.
-        IType? primaryReceiverType = _model.GetTypeOf(postfix.Target);
+        IType? primaryReceiverType = model.GetTypeOf(postfix.Target);
 
         for(var i = 0; i < postfix.Suffix.Length; i++)
         {
@@ -12756,7 +12756,7 @@ internal sealed class CSharpSourceWriter
             primaryResult = EmitPostfixSuffix(primaryResult, suffix, primaryReceiverType);
 
             // Update receiver type for the next suffix.
-            primaryReceiverType = _model.GetTypeOf(suffix);
+            primaryReceiverType = model.GetTypeOf(suffix);
         }
 
         // Auto-unwrap: in a sync context, async method calls are implicitly awaited.
@@ -12770,13 +12770,13 @@ internal sealed class CSharpSourceWriter
         // - Inside an explicit await: suppress auto-await (prevents double-await).
         // - Inside a sync lambda with auto-await: emit `.GetAwaiter().GetResult()` instead
         //   of `await` to keep the lambda synchronous.
-        if(!_insideAsyncFunctor
-            && !_insideExplicitAwait
-            && !_insideAsyncLambda
-            && (_currentMethodSymbol is null or { IsAsync: false })
+        if(!insideAsyncFunctor
+            && !insideExplicitAwait
+            && !insideAsyncLambda
+            && (currentMethodSymbol is null or { IsAsync: false })
             && IsPostfixAsyncMethodCall(postfix))
         {
-            if(_insideSyncLambdaAutoAwait)
+            if(insideSyncLambdaAutoAwait)
             {
                 primaryResult = $"{primaryResult}.GetAwaiter().GetResult()";
             }
@@ -12803,7 +12803,7 @@ internal sealed class CSharpSourceWriter
         // Case 1: Direct invocation — identifier(args)
         if(postfix.Suffix[^1] is InvocationSuffixPostfixSuffixNode)
         {
-            var targetSymbol = _model.GetDeclaredSymbol(postfix.Target);
+            var targetSymbol = model.GetDeclaredSymbol(postfix.Target);
             // Check both IsAsync (declared async in Mist) and NeedsCSharpAsync
             // (propagated async due to transitive calls). A method with NeedsCSharpAsync
             // emits as async Task<T> in C#, so callers must await it.
@@ -12813,7 +12813,7 @@ internal sealed class CSharpSourceWriter
             }
 
             // Case 1b: Func invocation — the target is a Func variable with Task<T> return type.
-            var targetType = _model.GetTypeOf(postfix.Target);
+            var targetType = model.GetTypeOf(postfix.Target);
             if(targetType is not null
                 && SemanticModelBuilder.IsFuncType(targetType)
                 && targetType is ConstructedType funcCt)
@@ -12851,11 +12851,11 @@ internal sealed class CSharpSourceWriter
             IType? receiverType;
             if(postfix.Suffix.Length == 1)
             {
-                receiverType = _model.GetTypeOf(postfix.Target);
+                receiverType = model.GetTypeOf(postfix.Target);
             }
             else
             {
-                receiverType = _model.GetTypeOf(postfix.Suffix[^2]);
+                receiverType = model.GetTypeOf(postfix.Suffix[^2]);
             }
 
             if(receiverType is not null and not ErrorType)
@@ -12932,7 +12932,7 @@ internal sealed class CSharpSourceWriter
         var typeName = parts[^1];
         var namespaceName = string.Join(".", parts.Take(parts.Count - 1));
 
-        foreach(var symbol in _model.AllSymbols)
+        foreach(var symbol in model.AllSymbols)
         {
             if(symbol is not Symbol sym)
             {
@@ -13011,7 +13011,7 @@ internal sealed class CSharpSourceWriter
                     // if so, rewrite to ClassName.get_PropertyName(instance).
                     if(methodCall.Arguments is null && methodCall.TypeArgs is null && receiverType is not null)
                     {
-                        var extPropertyBlock = _model.ExtensionRegistry.FindExtensionPropertyBlock(receiverType, name);
+                        var extPropertyBlock = model.ExtensionRegistry.FindExtensionPropertyBlock(receiverType, name);
                         if(extPropertyBlock is not null)
                         {
                             var extClassName = ComputeExtensionClassName(extPropertyBlock);
@@ -13030,7 +13030,7 @@ internal sealed class CSharpSourceWriter
                         }
                     }
 
-                    var calledMethodSymbol = _model.GetDeclaredSymbol(suffix) as Symbol;
+                    var calledMethodSymbol = model.GetDeclaredSymbol(suffix) as Symbol;
 
                     // Fallback: for CLR backend methods, GetDeclaredSymbol may return null
                     // if the semantic model didn't register the resolved symbol. Resolve from
@@ -13061,7 +13061,7 @@ internal sealed class CSharpSourceWriter
                         if(qualifiedReceiverType is not null)
                         {
                             var paramTypes = CollectArgumentTypes(methodCall.Arguments);
-                            var instanceTemplate = _intrinsicRegistry.TryGetInstanceMethod(qualifiedReceiverType, name, paramTypes);
+                            var instanceTemplate = intrinsicRegistry.TryGetInstanceMethod(qualifiedReceiverType, name, paramTypes);
                             if(instanceTemplate is not null)
                             {
                                 // Format: {0} = receiver (target), {1}..{N} = arguments
@@ -13106,13 +13106,13 @@ internal sealed class CSharpSourceWriter
 
                         if(!isOwnMember)
                         {
-                            var ambientExtBlock = _model.ExtensionRegistry.FindAmbientExtensionMethodBlock(receiverType, name);
+                            var ambientExtBlock = model.ExtensionRegistry.FindAmbientExtensionMethodBlock(receiverType, name);
                             if(ambientExtBlock is not null)
                             {
                                 // Check if a Mist-native extension also provides this member —
                                 // if so, the native extension takes priority (Requirement 4.4).
                                 var hasNativeExtension = false;
-                                var applicable = _model.ExtensionRegistry.GetApplicableExtensions(receiverType);
+                                var applicable = model.ExtensionRegistry.GetApplicableExtensions(receiverType);
                                 foreach(var ext in applicable)
                                 {
                                     if(ext.IsAmbient)
@@ -13146,11 +13146,11 @@ internal sealed class CSharpSourceWriter
                     // Special case: Void.Void → null (optional context) or MistVoid.Instance
                     if(target == "Void" && memberAccess.Name.Lexeme == "Void")
                     {
-                        if(_emitVoidAsNull)
+                        if(emitVoidAsNull)
                         {
                             return "null";
                         }
-                        _needsMistVoidStruct = true;
+                        needsMistVoidStruct = true;
                         return "MistVoid.Instance";
                     }
 
@@ -13163,7 +13163,7 @@ internal sealed class CSharpSourceWriter
                         var qualifiedReceiverType = GetQualifiedTypeNameFromType(receiverType);
                         if(qualifiedReceiverType is not null)
                         {
-                            var instanceTemplate = _intrinsicRegistry.TryGetInstanceMethod(
+                            var instanceTemplate = intrinsicRegistry.TryGetInstanceMethod(
                                 qualifiedReceiverType, memberName, Array.Empty<string>());
                             if(instanceTemplate is not null)
                             {
@@ -13192,20 +13192,20 @@ internal sealed class CSharpSourceWriter
                     sb.Append($"{target} switch");
                     sb.Append('\n');
                     // Emit opening brace at current indent level
-                    for(var i = 0; i < _indentLevel; i++)
+                    for(var i = 0; i < indentLevel; i++)
                     {
                         sb.Append(IndentUnit);
                     }
 
                     sb.Append('{');
-                    _indentLevel++;
+                    indentLevel++;
 
                     if(switchExpr.Arms is not null)
                     {
                         void EmitArm(SwitchArmNode arm)
                         {
                             sb.Append('\n');
-                            for(var i = 0; i < _indentLevel; i++)
+                            for(var i = 0; i < indentLevel; i++)
                             {
                                 sb.Append(IndentUnit);
                             }
@@ -13273,9 +13273,9 @@ internal sealed class CSharpSourceWriter
                         }
                     }
 
-                    _indentLevel--;
+                    indentLevel--;
                     sb.Append('\n');
-                    for(var i = 0; i < _indentLevel; i++)
+                    for(var i = 0; i < indentLevel; i++)
                     {
                         sb.Append(IndentUnit);
                     }
@@ -13329,7 +13329,7 @@ internal sealed class CSharpSourceWriter
     {
         // The semantic model stores type information keyed by AST node.
         // We check if the resolved type's source symbol is a property.
-        var declaredSymbol = _model.GetDeclaredSymbol(suffix);
+        var declaredSymbol = model.GetDeclaredSymbol(suffix);
         if(declaredSymbol is not null && declaredSymbol.Kind == SymbolKind.Property)
         {
             return declaredSymbol;
@@ -13367,7 +13367,7 @@ internal sealed class CSharpSourceWriter
             paramTypes.Add("unknown");
         }
 
-        var template = _intrinsicRegistry.TryGetStaticMethod(stdlibType, methodName, paramTypes);
+        var template = intrinsicRegistry.TryGetStaticMethod(stdlibType, methodName, paramTypes);
         if(template is null)
         {
             return null;
@@ -13411,7 +13411,7 @@ internal sealed class CSharpSourceWriter
         var types = new List<string>();
         foreach(var expr in arguments.GetAllExpressions())
         {
-            var exprType = _model.GetTypeOf(expr);
+            var exprType = model.GetTypeOf(expr);
             if(exprType is not null)
             {
                 var qualifiedName = GetQualifiedTypeNameFromType(exprType);
@@ -13466,7 +13466,7 @@ internal sealed class CSharpSourceWriter
             case ObjectCreationExpressionPrimaryNode objCreation:
                 {
                     // ── Special case: new Array<T, Size>(fn) → per-index init loop ──
-                    var exprTypeForArray = _model.GetTypeOf(objCreation);
+                    var exprTypeForArray = model.GetTypeOf(objCreation);
                     if(exprTypeForArray is ArrayType initArrayType)
                     {
                         var arrTypeName = ExtractQualifiedName(objCreation.Type);
@@ -13509,17 +13509,17 @@ internal sealed class CSharpSourceWriter
                                 }
 
                                 // Generate unique names to avoid collisions.
-                                var suffix = _arrayInitCounter++;
+                                var suffix = arrayInitCounter++;
                                 var arrVar = $"__arr_{suffix}";
                                 var idxVar = $"__i_{suffix}";
 
                                 // Queue the allocation + for-loop as pending statements.
                                 var fnVar = $"__fn_{suffix}";
-                                _pendingArrayInitStatements.Add(
+                                pendingArrayInitStatements.Add(
                                     $"System.Func<int, {elementTypeName}> {fnVar} = {fnExpr};");
-                                _pendingArrayInitStatements.Add(
+                                pendingArrayInitStatements.Add(
                                     $"var {arrVar} = new {elementTypeName}[{sizeExpr}];");
-                                _pendingArrayInitStatements.Add(
+                                pendingArrayInitStatements.Add(
                                     $"for (int {idxVar} = 0; {idxVar} < {sizeExpr}; {idxVar}++) {arrVar}[{idxVar}] = {fnVar}({idxVar});");
 
                                 return arrVar;
@@ -13533,7 +13533,7 @@ internal sealed class CSharpSourceWriter
                     // resolve to the fully-qualified CLR type name so the emitted C# is valid.
                     if(type.Contains('.'))
                     {
-                        var resolvedExprType = _model.GetTypeOf(objCreation);
+                        var resolvedExprType = model.GetTypeOf(objCreation);
                         if(resolvedExprType is ClassType resolvedCt && resolvedCt.ContainingNamespace is not null
                             && !resolvedCt.IsBackendBacked)
                         {
@@ -13548,14 +13548,14 @@ internal sealed class CSharpSourceWriter
 
                     // Look up the type's parameters to correctly emit carrier struct names
                     // for non-int dependent type arguments (uint, long, etc.).
-                    var typeSymbol = _model.AllSymbols
+                    var typeSymbol = model.AllSymbols
                         .FirstOrDefault(s => s.Name == type && s.Kind is SymbolKind.Class or SymbolKind.Struct or SymbolKind.Abstract);
                     var targetTypeParams = typeSymbol is not null ? GetTypeParametersFromType(typeSymbol.DeclaredType) : null;
                     var typeArgs = EmitTypeArgumentList(objCreation.TypeArgs, targetTypeParams);
 
                     // Check if the type being constructed is a type parameter with a parameterized
                     // constructor constraint — if so, emit as factory delegate invocation.
-                    var exprType = _model.GetTypeOf(objCreation);
+                    var exprType = model.GetTypeOf(objCreation);
                     if(exprType is TypeParameterType typeParamType && typeParamType.Constraints is not null)
                     {
                         var argTypes = GetArgumentTypes(objCreation.Arguments);
@@ -13569,8 +13569,8 @@ internal sealed class CSharpSourceWriter
                                 // - Inside a method with factory params → use parameter name (factoryT_...)
                                 // - Inside a class with factory fields → use field name (_factoryT_...)
                                 string factoryName;
-                                if(_currentMethodFactoryTypeParams is not null &&
-                                    _currentMethodFactoryTypeParams.Any(tp => tp.DisplayName == typeParamType.Name))
+                                if(currentMethodFactoryTypeParams is not null &&
+                                    currentMethodFactoryTypeParams.Any(tp => tp.DisplayName == typeParamType.Name))
                                 {
                                     factoryName = GetFactoryParamName(typeParamType, matchingConstraint);
                                 }
@@ -13591,7 +13591,7 @@ internal sealed class CSharpSourceWriter
                     // for object creation expressions (e.g., `new IntBox(42)` → `new GenericBox<int>(42)`).
                     // Only apply if no concrete type with the same name exists in the
                     // current namespace, to prevent cross-namespace collisions.
-                    var aliasSymbol = _model.AllSymbols
+                    var aliasSymbol = model.AllSymbols
                         .FirstOrDefault(s => s.Name == type && s.Kind == SymbolKind.TypeAlias);
                     if(aliasSymbol?.DeclaredType is TypeAliasType objAlias)
                     {
@@ -13607,10 +13607,10 @@ internal sealed class CSharpSourceWriter
 
                         if(callSiteArity == objAlias.TypeParameters.Count)
                         {
-                            var hasConcreteTypeInCurrentNamespace = _currentNamespace is not null
-                                && _model.AllSymbols.Any(s => s.Name == type
+                            var hasConcreteTypeInCurrentNamespace = currentNamespace is not null
+                                && model.AllSymbols.Any(s => s.Name == type
                                     && s.Kind is SymbolKind.Class or SymbolKind.Struct
-                                    && GetSymbolContainingNamespace(s) == _currentNamespace);
+                                    && GetSymbolContainingNamespace(s) == currentNamespace);
                             if(!hasConcreteTypeInCurrentNamespace)
                             {
                                 var underlying = objAlias.UnderlyingType;
@@ -13649,7 +13649,7 @@ internal sealed class CSharpSourceWriter
 
                     // Call-site transformation: when constructing a type that has parameterized
                     // constructor constraints, append factory lambda arguments.
-                    var constructedSymbol = _model.AllSymbols
+                    var constructedSymbol = model.AllSymbols
                         .FirstOrDefault(s => s.Name == type && s.Kind is SymbolKind.Class or SymbolKind.Struct);
                     if(constructedSymbol?.DeclaredType is not null)
                     {
@@ -13701,7 +13701,7 @@ internal sealed class CSharpSourceWriter
                 }
             case TargetTypedNewExpressionPrimaryNode targetNew:
                 {
-                    var resolvedType = _model.GetTypeOf(targetNew);
+                    var resolvedType = model.GetTypeOf(targetNew);
                     if(resolvedType is null || resolvedType is ErrorType)
                     {
                         return "default /* error: unresolved target-typed new */";
@@ -13728,7 +13728,7 @@ internal sealed class CSharpSourceWriter
                 }
             case TargetTypedNewExpressionNoArgsPrimaryNode targetNewNoArgs:
                 {
-                    var resolvedType = _model.GetTypeOf(targetNewNoArgs);
+                    var resolvedType = model.GetTypeOf(targetNewNoArgs);
                     if(resolvedType is null || resolvedType is ErrorType)
                     {
                         return "default /* error: unresolved target-typed new */";
@@ -13804,9 +13804,9 @@ internal sealed class CSharpSourceWriter
                     // Empty array literal [] — emit Array.Empty<T>() when target type is known.
                     // When no target type is available, this is a compile error (the type checker
                     // will have already reported MIST_TC_0096), so we emit a fallback.
-                    if(_arrayLiteralTargetElementType is not null)
+                    if(arrayLiteralTargetElementType is not null)
                     {
-                        var elementTypeName = CSharpTypeMap.GetTypeName(_arrayLiteralTargetElementType);
+                        var elementTypeName = CSharpTypeMap.GetTypeName(arrayLiteralTargetElementType);
                         return $"Array.Empty<{elementTypeName}>()";
                     }
                     // Fallback for error case — should not normally reach here because
@@ -13823,9 +13823,9 @@ internal sealed class CSharpSourceWriter
 
                     // When the array literal is assigned to a variable with an explicit
                     // array type annotation, emit `new T[] { ... }` instead of `new[] { ... }`.
-                    if(_arrayLiteralTargetElementType is not null)
+                    if(arrayLiteralTargetElementType is not null)
                     {
-                        var elementTypeName = CSharpTypeMap.GetTypeName(_arrayLiteralTargetElementType);
+                        var elementTypeName = CSharpTypeMap.GetTypeName(arrayLiteralTargetElementType);
                         return $"new {elementTypeName}[] {{ {string.Join(", ", elements)} }}";
                     }
 
@@ -13836,7 +13836,7 @@ internal sealed class CSharpSourceWriter
                     var identName = ident.Name.Lexeme;
                     // Check if this identifier resolves to a dependent type parameter.
                     // If so, emit TName.Value to access the carrier struct's value.
-                    var resolvedType = _model.GetTypeOf(ident);
+                    var resolvedType = model.GetTypeOf(ident);
                     if(resolvedType is DependentTypeParameterType)
                     {
                         return $"T{identName}.Value";
@@ -13879,16 +13879,16 @@ internal sealed class CSharpSourceWriter
             case TypeLiteralExpressionPrimaryNode typeLiteral:
                 {
                     // Check if this void type literal resolved as a value literal.
-                    var resolvedType = _model.GetTypeOf(typeLiteral);
+                    var resolvedType = model.GetTypeOf(typeLiteral);
                     if(resolvedType is not null && resolvedType.IsVoid())
                     {
                         // Value literal context: emit the Void singleton.
-                        if(_emitVoidAsNull)
+                        if(emitVoidAsNull)
                         {
                             return "null";
                         }
 
-                        _needsMistVoidStruct = true;
+                        needsMistVoidStruct = true;
                         return "MistVoid.Instance";
                     }
 
@@ -13898,7 +13898,7 @@ internal sealed class CSharpSourceWriter
             case DefaultExpressionPrimaryNode defaultExpr:
                 {
                     // Resolve the type from the semantic model's expression type map.
-                    var resolvedType = _model.GetTypeOf(defaultExpr);
+                    var resolvedType = model.GetTypeOf(defaultExpr);
                     if(resolvedType is not null)
                     {
                         return EmitDefaultValueForType(resolvedType);
@@ -13912,7 +13912,7 @@ internal sealed class CSharpSourceWriter
                 {
                     // The inferred type was recorded in the expression type map
                     // during Pass 2 or by the type checker's inference pass.
-                    var resolvedType = _model.GetTypeOf(defaultLiteral);
+                    var resolvedType = model.GetTypeOf(defaultLiteral);
                     if(resolvedType is not null)
                     {
                         return EmitDefaultValueForType(resolvedType);
@@ -14001,7 +14001,7 @@ internal sealed class CSharpSourceWriter
                     var interpolatedExpr = EmitExpression(exprPart.Expression);
                     // When the expression's Mist type is an optional union (T | void),
                     // wrap the emission so null (void) displays as "Void" instead of empty.
-                    var interpolatedExprType = _model.GetTypeOf(exprPart.Expression);
+                    var interpolatedExprType = model.GetTypeOf(exprPart.Expression);
                     if(IsOptionalUnionType(interpolatedExprType))
                     {
                         sb.Append($"(object?){interpolatedExpr} ?? \"Void\"");
@@ -14174,7 +14174,7 @@ internal sealed class CSharpSourceWriter
     /// </summary>
     private string EmitInferredTypeArguments(MethodCallSuffixPostfixSuffixNode methodCall)
     {
-        var inferredTypes = _model.GetInferredTypeArguments(methodCall);
+        var inferredTypes = model.GetInferredTypeArguments(methodCall);
         if(inferredTypes is null || inferredTypes.Count == 0)
         {
             return "";
@@ -14206,7 +14206,7 @@ internal sealed class CSharpSourceWriter
     {
         if(arg is TypeReferenceTypeArgumentTypeArgumentNode typeRefArg)
         {
-            return _model.GetTypeOf(typeRefArg.Type);
+            return model.GetTypeOf(typeRefArg.Type);
         }
         return null;
     }
@@ -14225,7 +14225,7 @@ internal sealed class CSharpSourceWriter
                 {
                     // Check if this type reference resolves to a DependentTypeParameterType
                     // (forwarded dependent parameter like `FixedBuffer<N>` where N is a dependent param).
-                    var resolvedType = _model.GetTypeOf(typeRefArg.Type);
+                    var resolvedType = model.GetTypeOf(typeRefArg.Type);
                     if(resolvedType is DependentTypeParameterType depParam)
                     {
                         return $"T{depParam.Name}";
@@ -14248,7 +14248,7 @@ internal sealed class CSharpSourceWriter
                         if(expectedKeyword is not null)
                         {
                             // Verify it's not a known type before treating as forwarded param.
-                            var isKnownType = _model.AllSymbols.Any(s =>
+                            var isKnownType = model.AllSymbols.Any(s =>
                                 s.Name == name && s.Kind is SymbolKind.Class or SymbolKind.Struct
                                     or SymbolKind.Abstract or SymbolKind.Enum or SymbolKind.TypeAlias);
                             if(!isKnownType)
@@ -14289,7 +14289,7 @@ internal sealed class CSharpSourceWriter
     /// </summary>
     private bool IsDependentTypeParameterName(string name)
     {
-        return _dependentTypeParamNames.Contains(name);
+        return dependentTypeParamNames.Contains(name);
     }
 
     /// <summary>
@@ -14301,9 +14301,9 @@ internal sealed class CSharpSourceWriter
     private bool IsLocalDependentTypeParameterName(string name)
     {
         // Check the current method's type parameters.
-        if(_currentMethodSymbol is not null)
+        if(currentMethodSymbol is not null)
         {
-            foreach(var tp in _currentMethodSymbol.TypeParameters)
+            foreach(var tp in currentMethodSymbol.TypeParameters)
             {
                 if(tp is DependentTypeParameterType depParam && depParam.Name == name)
                 {
@@ -14313,8 +14313,8 @@ internal sealed class CSharpSourceWriter
         }
 
         // Check the current enclosing type's dependent parameters.
-        if(_currentTypeDependentParamNames is not null
-            && _currentTypeDependentParamNames.Contains(name))
+        if(currentTypeDependentParamNames is not null
+            && currentTypeDependentParamNames.Contains(name))
         {
             return true;
         }
@@ -14410,7 +14410,7 @@ internal sealed class CSharpSourceWriter
     /// </summary>
     private IReadOnlyList<IType>? GetTypeParamsForName(string name)
     {
-        foreach(var symbol in _model.AllSymbols)
+        foreach(var symbol in model.AllSymbols)
         {
             if(symbol.Name == name && symbol.Kind is SymbolKind.Class or SymbolKind.Struct or SymbolKind.Abstract)
             {
@@ -14530,9 +14530,9 @@ internal sealed class CSharpSourceWriter
     private string ExtractQualifiedName(QualifiedIdentifierNode qualifiedId)
     {
         var span = qualifiedId.Span;
-        if(span.Length > 0 && span.Start + span.Length <= _sourceText.Contents.Length)
+        if(span.Length > 0 && span.Start + span.Length <= sourceText.Contents.Length)
         {
-            return _sourceText.Contents.Substring(span.Start, span.Length);
+            return sourceText.Contents.Substring(span.Start, span.Length);
         }
 
         return qualifiedId.IDENTIFIER.Lexeme;
@@ -14873,12 +14873,12 @@ internal sealed class CSharpSourceWriter
         AppendLine();
         AppendLine($"public {typeName}({string.Join(", ", parameters)})");
         AppendLine("{");
-        _indentLevel++;
+        indentLevel++;
         foreach(var assignment in assignments)
         {
             AppendLine(assignment);
         }
-        _indentLevel--;
+        indentLevel--;
         AppendLine("}");
     }
 
@@ -14983,7 +14983,7 @@ internal sealed class CSharpSourceWriter
         var types = new List<IType>();
         foreach(var expr in argList.GetAllExpressions())
         {
-            var t = _model.GetTypeOf(expr);
+            var t = model.GetTypeOf(expr);
             if(t is not null)
             {
                 types.Add(t);
@@ -15469,7 +15469,7 @@ internal sealed class CSharpSourceWriter
     private IType? ResolveBaseTypeToAbstract(string name)
     {
         IType? fallback = null;
-        foreach(var symbol in _model.AllSymbols)
+        foreach(var symbol in model.AllSymbols)
         {
             if(symbol.Name == name && symbol.DeclaredType is AbstractType)
             {
@@ -15480,7 +15480,7 @@ internal sealed class CSharpSourceWriter
                 };
 
                 // Prefer the match in the current namespace.
-                if(containingNs == _currentNamespace)
+                if(containingNs == currentNamespace)
                 {
                     return symbol.DeclaredType;
                 }
@@ -15683,32 +15683,32 @@ internal sealed class CSharpSourceWriter
     /// </summary>
     private void FlushPendingArrayInitStatements()
     {
-        if(_pendingArrayInitStatements.Count == 0)
+        if(pendingArrayInitStatements.Count == 0)
         {
             return;
         }
 
-        foreach(var stmt in _pendingArrayInitStatements)
+        foreach(var stmt in pendingArrayInitStatements)
         {
             AppendLine(stmt);
         }
 
-        _pendingArrayInitStatements.Clear();
+        pendingArrayInitStatements.Clear();
     }
 
     private void AppendLine(string text = "")
     {
         if(string.IsNullOrEmpty(text))
         {
-            _sb.AppendLine();
+            sb.AppendLine();
         }
         else
         {
-            for(var i = 0; i < _indentLevel; i++)
+            for(var i = 0; i < indentLevel; i++)
             {
-                _sb.Append(IndentUnit);
+                sb.Append(IndentUnit);
             }
-            _sb.AppendLine(text);
+            sb.AppendLine(text);
         }
     }
 
@@ -15722,7 +15722,7 @@ internal sealed class CSharpSourceWriter
     private Symbol? FindBaseOverrideSlot(string methodName, MethodDeclarationNode methodDecl)
     {
         // Walk the inheritance chain looking for a CLR base with a matching virtual/abstract method.
-        var baseType = _currentClassType?.BaseType;
+        var baseType = currentClassType?.BaseType;
 
         while(baseType is not null)
         {

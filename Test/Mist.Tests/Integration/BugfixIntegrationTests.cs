@@ -26,19 +26,19 @@ namespace Mist.Tests.Integration;
 /// </summary>
 public sealed class BugfixIntegrationTests : IDisposable
 {
-    private readonly string _outputDir;
+    private readonly string outputDir;
 
     public BugfixIntegrationTests()
     {
-        _outputDir = Path.Combine(Path.GetTempPath(), "MistBugfix_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(_outputDir);
+        outputDir = Path.Combine(Path.GetTempPath(), "MistBugfix_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(outputDir);
     }
 
     public void Dispose()
     {
-        if(Directory.Exists(_outputDir))
+        if(Directory.Exists(outputDir))
         {
-            try { Directory.Delete(_outputDir, recursive: true); } catch { /* best effort */ }
+            try { Directory.Delete(outputDir, recursive: true); } catch { /* best effort */ }
         }
         GC.SuppressFinalize(this);
     }
@@ -458,9 +458,9 @@ public sealed class BugfixIntegrationTests : IDisposable
 
         // ── Emit C# — should produce output files ──
         var emitDiagnostics = new DiagnosticBag();
-        CSharpEmitter.Emit(model, _outputDir, "TestProject", emitDiagnostics);
+        CSharpEmitter.Emit(model, outputDir, "TestProject", emitDiagnostics);
 
-        var csFiles = Directory.GetFiles(_outputDir, "*.cs");
+        var csFiles = Directory.GetFiles(outputDir, "*.cs");
         Assert.True(csFiles.Length >= 3, $"Expected at least 3 .cs files, got {csFiles.Length}");
     }
 
@@ -666,7 +666,7 @@ public sealed class BugfixIntegrationTests : IDisposable
 
         // ── Emit C# — should produce output files without errors ──
         var emitDiagnostics = new DiagnosticBag();
-        CSharpEmitter.Emit(model, _outputDir, "TestProject", emitDiagnostics);
+        CSharpEmitter.Emit(model, outputDir, "TestProject", emitDiagnostics);
 
         var emitErrors = emitDiagnostics.ToImmutableArray()
             .Where(d => d.Severity == DiagnosticSeverity.Error)
@@ -674,11 +674,11 @@ public sealed class BugfixIntegrationTests : IDisposable
         Assert.Empty(emitErrors);
 
         // Verify output files were produced for all three compilation units
-        var csFiles = Directory.GetFiles(_outputDir, "*.cs");
+        var csFiles = Directory.GetFiles(outputDir, "*.cs");
         Assert.True(csFiles.Length >= 3, $"Expected at least 3 .cs files, got {csFiles.Length}");
 
         // Verify .csproj was emitted
-        var csprojFiles = Directory.GetFiles(_outputDir, "*.csproj");
+        var csprojFiles = Directory.GetFiles(outputDir, "*.csproj");
         Assert.NotEmpty(csprojFiles);
     }
 }

@@ -22,7 +22,7 @@ internal sealed class IntrinsicTypeMap
     /// "System.Int32") to their Mist Standard Library fully-qualified names
     /// (e.g., "Standard.Int32").
     /// </summary>
-    private readonly Dictionary<string, string> _clrToMist;
+    private readonly Dictionary<string, string> clrToMist;
 
     /// <summary>
     /// Well-known mapping from C# keywords to their full CLR type names.
@@ -69,7 +69,7 @@ internal sealed class IntrinsicTypeMap
 
     public IntrinsicTypeMap()
     {
-        _clrToMist = BuildReversedMap();
+        clrToMist = BuildReversedMap();
     }
 
     /// <summary>
@@ -87,7 +87,7 @@ internal sealed class IntrinsicTypeMap
     /// </returns>
     public string? GetMistTypeName(string clrTypeName)
     {
-        return _clrToMist.TryGetValue(clrTypeName, out var mistName) ? mistName : null;
+        return clrToMist.TryGetValue(clrTypeName, out var mistName) ? mistName : null;
     }
 
     /// <summary>

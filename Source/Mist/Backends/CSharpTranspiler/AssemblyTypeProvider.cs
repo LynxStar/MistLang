@@ -28,11 +28,11 @@ namespace Mist.Backends.CSharpTranspiler;
 /// </summary>
 internal sealed class AssemblyTypeProvider : IAmbientTypeResolver, IDisposable
 {
-    private readonly MetadataLoadContext _metadataContext;
-    private readonly IntrinsicTypeMap _intrinsicMap;
-    private readonly VisibilityFilter _filter;
-    private readonly TypeProjector _projector;
-    private readonly AmbientExtensionScanner _extensionScanner;
+    private readonly MetadataLoadContext metadataContext;
+    private readonly IntrinsicTypeMap intrinsicMap;
+    private readonly VisibilityFilter filter;
+    private readonly TypeProjector projector;
+    private readonly AmbientExtensionScanner extensionScanner;
 
     /// <summary>
     /// Cache: (namespace, typeName) → (IType, ImmutableArray&lt;ISymbol&gt;).
@@ -40,18 +40,18 @@ internal sealed class AssemblyTypeProvider : IAmbientTypeResolver, IDisposable
     /// Thread-safe: this instance is shared across parallel compilations via the
     /// backend's cached provider singleton.
     /// </summary>
-    private readonly ConcurrentDictionary<(string Namespace, string TypeName), (IType Type, ImmutableArray<ISymbol> Members)> _cache = new();
+    private readonly ConcurrentDictionary<(string Namespace, string TypeName), (IType Type, ImmutableArray<ISymbol> Members)> cache = new();
 
     /// <summary>
     /// Namespace index: namespace → set of type names in that namespace.
     /// Built during initialization by scanning all assemblies' ExportedTypes (names only).
     /// </summary>
-    private readonly Dictionary<string, HashSet<string>> _namespaceIndex = new();
+    private readonly Dictionary<string, HashSet<string>> namespaceIndex = new();
 
     /// <summary>
     /// Loaded assembly metadata for type resolution.
     /// </summary>
-    private readonly ImmutableArray<LoadedAssemblyInfo> _loadedAssemblies;
+    private readonly ImmutableArray<LoadedAssemblyInfo> loadedAssemblies;
 
     /// <summary>
     /// The stdlib type provider used to look up Mist types for member signatures.
@@ -61,14 +61,14 @@ internal sealed class AssemblyTypeProvider : IAmbientTypeResolver, IDisposable
     /// its own global scope, preventing cross-thread scope iteration races.
     /// </summary>
     [ThreadStatic]
-    private static IStdlibTypeProvider? _stdlibThreadLocal;
+    private static IStdlibTypeProvider? stdlibThreadLocal;
 
     /// <summary>
     /// Fallback provider used when no thread-local provider has been set.
     /// </summary>
-    private readonly IStdlibTypeProvider _stdlibFallback = FallbackStdlibTypeProvider.Instance;
+    private readonly IStdlibTypeProvider stdlibFallback = FallbackStdlibTypeProvider.Instance;
 
-    private IStdlibTypeProvider Stdlib => _stdlibThreadLocal ?? _stdlibFallback;
+    private IStdlibTypeProvider Stdlib => stdlibThreadLocal ?? stdlibFallback;
 
     /// <summary>
     /// Creates a new <see cref="AssemblyTypeProvider"/> from the given assembly paths.
@@ -82,8 +82,8 @@ internal sealed class AssemblyTypeProvider : IAmbientTypeResolver, IDisposable
         ImmutableArray<string> assemblyPaths,
         DiagnosticBag diagnostics)
     {
-        _intrinsicMap = new IntrinsicTypeMap();
-        _filter = new VisibilityFilter();
+        intrinsicMap = new IntrinsicTypeMap();
+        filter = new VisibilityFilter();
 
         // Inject a type-reference resolver so the projector can connect base types and
         // implemented interfaces to the cached, fully-projected instances this provider
@@ -91,18 +91,18 @@ internal sealed class AssemblyTypeProvider : IAmbientTypeResolver, IDisposable
         // (Requirements 6.1, 6.2, 6.3). The delegate captures `this`; it is only invoked
         // later during projection, after the constructor has finished wiring the cache and
         // loaded assemblies below.
-        _projector = new TypeProjector(_intrinsicMap, _filter, ResolveProjectedType, ResolveProjectedTypeCacheOnly);
+        projector = new TypeProjector(intrinsicMap, filter, ResolveProjectedType, ResolveProjectedTypeCacheOnly);
 
         // Create MetadataLoadContext with a PathAssemblyResolver for all assembly paths.
         var resolver = new PathAssemblyResolver(assemblyPaths);
-        _metadataContext = new MetadataLoadContext(resolver);
+        metadataContext = new MetadataLoadContext(resolver);
 
         // Load assemblies and build namespace index.
-        _loadedAssemblies = LoadAssemblies(assemblyPaths, diagnostics);
+        loadedAssemblies = LoadAssemblies(assemblyPaths, diagnostics);
         BuildNamespaceIndex();
 
         // Create the extension scanner for lazy discovery of ambient extension methods.
-        _extensionScanner = new AmbientExtensionScanner(_loadedAssemblies);
+        extensionScanner = new AmbientExtensionScanner(loadedAssemblies);
     }
 
     /// <summary>
@@ -115,7 +115,7 @@ internal sealed class AssemblyTypeProvider : IAmbientTypeResolver, IDisposable
     /// </summary>
     internal static void UpdateStdlibProvider(IStdlibTypeProvider provider)
     {
-        _stdlibThreadLocal = provider;
+        stdlibThreadLocal = provider;
     }
 
     /// <summary>
@@ -125,13 +125,13 @@ internal sealed class AssemblyTypeProvider : IAmbientTypeResolver, IDisposable
     /// </summary>
     internal static void ClearStdlibProvider()
     {
-        _stdlibThreadLocal = null;
+        stdlibThreadLocal = null;
     }
 
     /// <summary>
     /// Exposes the type projector for ambient extension registration.
     /// </summary>
-    internal TypeProjector Projector => _projector;
+    internal TypeProjector Projector => projector;
 
     /// <summary>
     /// Surfaces the inheritance relationships that were omitted during projection because the
@@ -141,7 +141,7 @@ internal sealed class AssemblyTypeProvider : IAmbientTypeResolver, IDisposable
     /// types are projected through <see cref="ResolveType(string, string, int)"/>.
     /// </summary>
     internal IReadOnlyCollection<UnresolvedRelationship> UnresolvedRelationships
-        => _projector.UnresolvedRelationships;
+        => projector.UnresolvedRelationships;
 
     /// <summary>
     /// Exposes the current stdlib type provider for ambient extension registration.
@@ -151,7 +151,7 @@ internal sealed class AssemblyTypeProvider : IAmbientTypeResolver, IDisposable
     /// <inheritdoc />
     public bool HasNamespace(string namespaceName)
     {
-        return _namespaceIndex.ContainsKey(namespaceName);
+        return namespaceIndex.ContainsKey(namespaceName);
     }
 
     /// <summary>
@@ -161,7 +161,7 @@ internal sealed class AssemblyTypeProvider : IAmbientTypeResolver, IDisposable
     /// </summary>
     internal bool HasNamespaceWithPrefix(string prefix)
     {
-        foreach(var ns in _namespaceIndex.Keys)
+        foreach(var ns in namespaceIndex.Keys)
         {
             if(ns.StartsWith(prefix, StringComparison.Ordinal))
             {
@@ -196,7 +196,7 @@ internal sealed class AssemblyTypeProvider : IAmbientTypeResolver, IDisposable
             ? (namespaceName, $"{typeName}`{typeArgumentCount}")
             : (namespaceName, typeName);
 
-        if(_cache.TryGetValue(cacheKey, out var cached))
+        if(cache.TryGetValue(cacheKey, out var cached))
         {
             return cached.Type;
         }
@@ -209,7 +209,7 @@ internal sealed class AssemblyTypeProvider : IAmbientTypeResolver, IDisposable
         if(typeArgumentCount == -1)
         {
             var arityZeroKey = (namespaceName, $"{typeName}`0");
-            if(_cache.TryGetValue(arityZeroKey, out var arityZeroCached))
+            if(cache.TryGetValue(arityZeroKey, out var arityZeroCached))
             {
                 return arityZeroCached.Type;
             }
@@ -229,14 +229,14 @@ internal sealed class AssemblyTypeProvider : IAmbientTypeResolver, IDisposable
         // types (Span<T>/ReadOnlySpan<T> and any IsByRefLike type) are NOT excluded here — they
         // are projected as Mist stack-only structs (Requirement 9), so this guard does not null
         // them out.
-        if(_filter.IsTypeExcluded(clrType))
+        if(filter.IsTypeExcluded(clrType))
         {
             return null;
         }
 
         // Project the type lazily on first access (Requirement 3.3).
         var stdlib = Stdlib;
-        var (projectedType, members) = _projector.ProjectType(clrType, stdlib);
+        var (projectedType, members) = projector.ProjectType(clrType, stdlib);
 
         // Insert the in-progress type into the cache BEFORE projecting members so that a
         // base-type or interface reference that resolves back to a type already on the
@@ -244,19 +244,19 @@ internal sealed class AssemblyTypeProvider : IAmbientTypeResolver, IDisposable
         // (cache-mediated recursion safety — Requirements 6.1, 6.3). If another thread won
         // the race to project this key, discard our work and return the cached instance so
         // reference equality is preserved (Requirement 3.4).
-        if(!_cache.TryAdd(cacheKey, (projectedType, ImmutableArray<ISymbol>.Empty)))
+        if(!cache.TryAdd(cacheKey, (projectedType, ImmutableArray<ISymbol>.Empty)))
         {
-            return _cache[cacheKey].Type;
+            return cache[cacheKey].Type;
         }
 
         // Project members (methods, properties, fields, constructors, indexers).
-        var projectedMembers = _projector.ProjectMembers(clrType, projectedType, stdlib);
+        var projectedMembers = projector.ProjectMembers(clrType, projectedType, stdlib);
 
         // Project operators and add them to the member list.
         var memberScope = GetMemberScope(projectedType);
         if(memberScope is not null)
         {
-            var operators = _projector.ProjectOperators(clrType, memberScope, stdlib);
+            var operators = projector.ProjectOperators(clrType, memberScope, stdlib);
             if(operators.Length > 0)
             {
                 projectedMembers = projectedMembers.AddRange(operators);
@@ -265,10 +265,10 @@ internal sealed class AssemblyTypeProvider : IAmbientTypeResolver, IDisposable
             // Synthesize duck-typed IEnumerable<T> for types that have
             // GetEnumerator()/MoveNext()/Current but don't implement IEnumerable<T>.
             // Called here (after UpdateStdlibProvider) to ensure the stdlib is available.
-            _projector.SynthesizeDuckTypedIEnumerable(clrType, projectedType, stdlib);
+            projector.SynthesizeDuckTypedIEnumerable(clrType, projectedType, stdlib);
 
             // Synthesize IEnumerable interop slots.
-            _projector.SynthesizeEnumeratorSlots(clrType, projectedType, stdlib);
+            projector.SynthesizeEnumeratorSlots(clrType, projectedType, stdlib);
         }
 
         // Combine initial members from ProjectType (e.g., enum fields) with projected members.
@@ -281,7 +281,7 @@ internal sealed class AssemblyTypeProvider : IAmbientTypeResolver, IDisposable
         // interface reference captured during the in-progress window above stays reference-equal
         // to this canonical instance (Requirement 3.4). Indexer assignment (not TryAdd) is
         // required because the early insert above already added the key.
-        _cache[cacheKey] = (projectedType, allMembers);
+        cache[cacheKey] = (projectedType, allMembers);
 
         return projectedType;
     }
@@ -332,7 +332,7 @@ internal sealed class AssemblyTypeProvider : IAmbientTypeResolver, IDisposable
             ? (clrType.Namespace, $"{typeName}`{arity}")
             : (clrType.Namespace, typeName);
 
-        if(_cache.TryGetValue(cacheKey, out var cached))
+        if(cache.TryGetValue(cacheKey, out var cached))
         {
             return cached.Type;
         }
@@ -341,7 +341,7 @@ internal sealed class AssemblyTypeProvider : IAmbientTypeResolver, IDisposable
         if(arity == 0)
         {
             var altKey = (clrType.Namespace, typeName);
-            if(_cache.TryGetValue(altKey, out var altCached))
+            if(cache.TryGetValue(altKey, out var altCached))
             {
                 return altCached.Type;
             }
@@ -355,7 +355,7 @@ internal sealed class AssemblyTypeProvider : IAmbientTypeResolver, IDisposable
     {
         // ConcurrentDictionary enumeration is safe against concurrent writes —
         // it takes a snapshot of the internal buckets without locking.
-        foreach(var entry in _cache.Values)
+        foreach(var entry in cache.Values)
         {
             if(ReferenceEquals(entry.Type, type))
             {
@@ -369,7 +369,7 @@ internal sealed class AssemblyTypeProvider : IAmbientTypeResolver, IDisposable
     /// <inheritdoc />
     public ImmutableArray<string> GetTypeNamesInNamespace(string namespaceName)
     {
-        if(!_namespaceIndex.TryGetValue(namespaceName, out var typeNames))
+        if(!namespaceIndex.TryGetValue(namespaceName, out var typeNames))
         {
             return ImmutableArray<string>.Empty;
         }
@@ -380,7 +380,7 @@ internal sealed class AssemblyTypeProvider : IAmbientTypeResolver, IDisposable
     /// <inheritdoc />
     public IReadOnlyList<AmbientExtensionMethodInfo> GetExtensionMethodsInNamespace(string namespaceName)
     {
-        return _extensionScanner.GetExtensionsForNamespace(namespaceName);
+        return extensionScanner.GetExtensionsForNamespace(namespaceName);
     }
 
     /// <summary>
@@ -388,7 +388,7 @@ internal sealed class AssemblyTypeProvider : IAmbientTypeResolver, IDisposable
     /// </summary>
     public void Dispose()
     {
-        _metadataContext.Dispose();
+        metadataContext.Dispose();
     }
 
     /// <summary>
@@ -419,7 +419,7 @@ internal sealed class AssemblyTypeProvider : IAmbientTypeResolver, IDisposable
         {
             try
             {
-                var assembly = _metadataContext.LoadFromAssemblyPath(path);
+                var assembly = metadataContext.LoadFromAssemblyPath(path);
                 var info = new LoadedAssemblyInfo(path, assembly);
                 loaded.Add(info);
             }
@@ -442,18 +442,18 @@ internal sealed class AssemblyTypeProvider : IAmbientTypeResolver, IDisposable
     /// <summary>
     /// Builds the unified namespace index from all loaded assemblies.
     /// Merges each assembly's <see cref="LoadedAssemblyInfo.NamespaceIndex"/>
-    /// into the provider-level <see cref="_namespaceIndex"/>.
+    /// into the provider-level <see cref="namespaceIndex"/>.
     /// </summary>
     private void BuildNamespaceIndex()
     {
-        foreach(var assemblyInfo in _loadedAssemblies)
+        foreach(var assemblyInfo in loadedAssemblies)
         {
             foreach(var (ns, typeNames) in assemblyInfo.NamespaceIndex)
             {
-                if(!_namespaceIndex.TryGetValue(ns, out var existingNames))
+                if(!namespaceIndex.TryGetValue(ns, out var existingNames))
                 {
                     existingNames = new HashSet<string>();
-                    _namespaceIndex[ns] = existingNames;
+                    namespaceIndex[ns] = existingNames;
                 }
 
                 foreach(var typeName in typeNames)
@@ -474,7 +474,7 @@ internal sealed class AssemblyTypeProvider : IAmbientTypeResolver, IDisposable
     {
         // The typeName from the caller may not include the generic arity suffix.
         // We need to search for both the exact name and names with arity suffixes.
-        foreach(var assemblyInfo in _loadedAssemblies)
+        foreach(var assemblyInfo in loadedAssemblies)
         {
             if(!assemblyInfo.NamespaceIndex.TryGetValue(namespaceName, out var typeNames))
             {
@@ -488,7 +488,7 @@ internal sealed class AssemblyTypeProvider : IAmbientTypeResolver, IDisposable
                 try
                 {
                     var type = assemblyInfo.MetadataAssembly.GetType(fullName);
-                    if(type is not null && !_filter.IsTypeExcluded(type))
+                    if(type is not null && !filter.IsTypeExcluded(type))
                     {
                         return type;
                     }
@@ -509,7 +509,7 @@ internal sealed class AssemblyTypeProvider : IAmbientTypeResolver, IDisposable
                     try
                     {
                         var type = assemblyInfo.MetadataAssembly.GetType(fullName);
-                        if(type is not null && !_filter.IsTypeExcluded(type))
+                        if(type is not null && !filter.IsTypeExcluded(type))
                         {
                             return type;
                         }
@@ -534,7 +534,7 @@ internal sealed class AssemblyTypeProvider : IAmbientTypeResolver, IDisposable
         Justification = "Types are loaded via MetadataLoadContext for metadata inspection only; trimming cannot affect them.")]
     private Type? FindClrTypeByArity(string namespaceName, string typeName, int typeArgumentCount)
     {
-        foreach(var assemblyInfo in _loadedAssemblies)
+        foreach(var assemblyInfo in loadedAssemblies)
         {
             if(!assemblyInfo.NamespaceIndex.TryGetValue(namespaceName, out var typeNames))
             {
@@ -550,7 +550,7 @@ internal sealed class AssemblyTypeProvider : IAmbientTypeResolver, IDisposable
                     try
                     {
                         var type = assemblyInfo.MetadataAssembly.GetType(fullName);
-                        if(type is not null && !_filter.IsTypeExcluded(type) && !type.IsGenericTypeDefinition)
+                        if(type is not null && !filter.IsTypeExcluded(type) && !type.IsGenericTypeDefinition)
                         {
                             return type;
                         }
@@ -571,7 +571,7 @@ internal sealed class AssemblyTypeProvider : IAmbientTypeResolver, IDisposable
                     try
                     {
                         var type = assemblyInfo.MetadataAssembly.GetType(fullName);
-                        if(type is not null && !_filter.IsTypeExcluded(type))
+                        if(type is not null && !filter.IsTypeExcluded(type))
                         {
                             return type;
                         }

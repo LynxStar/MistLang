@@ -23,19 +23,19 @@ namespace Mist.Tests.Analysis;
 /// </summary>
 public sealed class HomogeneousArrayScenario
 {
-    private readonly string[] _elementLiterals;
+    private readonly string[] elementLiterals;
 
     public string TypeName { get; }
-    public IReadOnlyList<string> ElementLiterals => _elementLiterals;
+    public IReadOnlyList<string> ElementLiterals => elementLiterals;
 
     public HomogeneousArrayScenario(string typeName, string[] elementLiterals)
     {
         TypeName = typeName;
-        _elementLiterals = elementLiterals;
+        this.elementLiterals = elementLiterals;
     }
 
     public override string ToString() =>
-        $"{TypeName}[{_elementLiterals.Length}]: [{string.Join(", ", _elementLiterals)}]";
+        $"{TypeName}[{elementLiterals.Length}]: [{string.Join(", ", elementLiterals)}]";
 }
 
 /// <summary>

@@ -18,9 +18,9 @@ namespace Mist.Tests.Backend;
 /// </summary>
 public sealed class TypeKindProjectionPropertyTests
 {
-    private readonly TypeProjector _projector;
-    private readonly VisibilityFilter _filter;
-    private readonly IStdlibTypeProvider _stdlib;
+    private readonly TypeProjector projector;
+    private readonly VisibilityFilter filter;
+    private readonly IStdlibTypeProvider stdlib;
 
     /// <summary>
     /// All public, non-excluded types exported from the InteropFixtures assembly.
@@ -30,9 +30,9 @@ public sealed class TypeKindProjectionPropertyTests
     public TypeKindProjectionPropertyTests()
     {
         var intrinsicMap = new IntrinsicTypeMap();
-        _filter = new VisibilityFilter();
-        _projector = new TypeProjector(intrinsicMap, _filter);
-        _stdlib = FallbackStdlibTypeProvider.Instance;
+        filter = new VisibilityFilter();
+        projector = new TypeProjector(intrinsicMap, filter);
+        stdlib = FallbackStdlibTypeProvider.Instance;
     }
 
     private static Type[] BuildFixtureTypes()
@@ -105,7 +105,7 @@ public sealed class TypeKindProjectionPropertyTests
     {
         RunProperty(GenFixtureType(), clrType =>
         {
-            var (projectedType, _) = _projector.ProjectType(clrType, _stdlib);
+            var (projectedType, _) = projector.ProjectType(clrType, stdlib);
 
             var expectedKind = ExpectedMistTypeKind(clrType);
             var actualKind = projectedType.GetType();

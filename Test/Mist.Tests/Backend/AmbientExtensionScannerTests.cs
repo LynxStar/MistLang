@@ -14,8 +14,8 @@ namespace Mist.Tests.Backend;
 /// </summary>
 public sealed class AmbientExtensionScannerTests : IDisposable
 {
-    private readonly MetadataLoadContext _metadataContext;
-    private readonly AmbientExtensionScanner _scanner;
+    private readonly MetadataLoadContext metadataContext;
+    private readonly AmbientExtensionScanner scanner;
 
     public AmbientExtensionScannerTests()
     {
@@ -25,7 +25,7 @@ public sealed class AmbientExtensionScannerTests : IDisposable
         var assemblyPaths = Directory.GetFiles(runtimeDir, "*.dll").ToImmutableArray();
 
         var resolver = new PathAssemblyResolver(assemblyPaths);
-        _metadataContext = new MetadataLoadContext(resolver);
+        metadataContext = new MetadataLoadContext(resolver);
 
         // Build LoadedAssemblyInfo for each assembly that loads successfully.
         var loaded = new List<LoadedAssemblyInfo>();
@@ -33,7 +33,7 @@ public sealed class AmbientExtensionScannerTests : IDisposable
         {
             try
             {
-                var assembly = _metadataContext.LoadFromAssemblyPath(path);
+                var assembly = metadataContext.LoadFromAssemblyPath(path);
                 loaded.Add(new LoadedAssemblyInfo(path, assembly));
             }
             catch
@@ -42,12 +42,12 @@ public sealed class AmbientExtensionScannerTests : IDisposable
             }
         }
 
-        _scanner = new AmbientExtensionScanner(loaded);
+        scanner = new AmbientExtensionScanner(loaded);
     }
 
     public void Dispose()
     {
-        _metadataContext.Dispose();
+        metadataContext.Dispose();
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -57,7 +57,7 @@ public sealed class AmbientExtensionScannerTests : IDisposable
     [Fact]
     public void GetExtensionsForNamespace_SystemLinq_DetectsWhereMethod()
     {
-        var extensions = _scanner.GetExtensionsForNamespace("System.Linq");
+        var extensions = scanner.GetExtensionsForNamespace("System.Linq");
 
         var whereMethods = extensions.Where(e => e.MethodName == "Where").ToList();
         Assert.NotEmpty(whereMethods);
@@ -66,7 +66,7 @@ public sealed class AmbientExtensionScannerTests : IDisposable
     [Fact]
     public void GetExtensionsForNamespace_SystemLinq_DetectsCountMethod()
     {
-        var extensions = _scanner.GetExtensionsForNamespace("System.Linq");
+        var extensions = scanner.GetExtensionsForNamespace("System.Linq");
 
         // Count<T>() has a parameterless overload (only receiver param in CLR terms)
         var countMethods = extensions.Where(e => e.MethodName == "Count").ToList();
@@ -84,7 +84,7 @@ public sealed class AmbientExtensionScannerTests : IDisposable
     [Fact]
     public void GetExtensionsForNamespace_SystemLinq_ExcludesNonExtensionStaticMethods()
     {
-        var extensions = _scanner.GetExtensionsForNamespace("System.Linq");
+        var extensions = scanner.GetExtensionsForNamespace("System.Linq");
 
         // Enumerable.Range and Enumerable.Repeat are public static methods in
         // System.Linq.Enumerable but are NOT extension methods (no ExtensionAttribute
@@ -103,8 +103,8 @@ public sealed class AmbientExtensionScannerTests : IDisposable
     [Fact]
     public void GetExtensionsForNamespace_CalledTwice_ReturnsSameReference()
     {
-        var first = _scanner.GetExtensionsForNamespace("System.Linq");
-        var second = _scanner.GetExtensionsForNamespace("System.Linq");
+        var first = scanner.GetExtensionsForNamespace("System.Linq");
+        var second = scanner.GetExtensionsForNamespace("System.Linq");
 
         // Reference equality — the cache returns the exact same list instance.
         Assert.Same(first, second);
@@ -117,7 +117,7 @@ public sealed class AmbientExtensionScannerTests : IDisposable
     [Fact]
     public void GetExtensionsForNamespace_WhereMethod_HasIEnumerableReceiverType()
     {
-        var extensions = _scanner.GetExtensionsForNamespace("System.Linq");
+        var extensions = scanner.GetExtensionsForNamespace("System.Linq");
 
         // Where<TSource>(IEnumerable<TSource>, Func<TSource, bool>) — receiver is IEnumerable<TSource>
         // Filter to System.Linq.Enumerable specifically (not ParallelEnumerable or AsyncEnumerable).
@@ -136,7 +136,7 @@ public sealed class AmbientExtensionScannerTests : IDisposable
     [Fact]
     public void GetExtensionsForNamespace_WhereMethod_IsGenericWithOneTypeParameter()
     {
-        var extensions = _scanner.GetExtensionsForNamespace("System.Linq");
+        var extensions = scanner.GetExtensionsForNamespace("System.Linq");
 
         // Filter to System.Linq.Enumerable specifically.
         var whereMethod = extensions.First(e =>
@@ -156,7 +156,7 @@ public sealed class AmbientExtensionScannerTests : IDisposable
     [Fact]
     public void GetExtensionsForNamespace_WhereMethod_HasCorrectMetadata()
     {
-        var extensions = _scanner.GetExtensionsForNamespace("System.Linq");
+        var extensions = scanner.GetExtensionsForNamespace("System.Linq");
 
         // Filter to System.Linq.Enumerable specifically.
         var whereMethod = extensions.First(e =>
@@ -176,7 +176,7 @@ public sealed class AmbientExtensionScannerTests : IDisposable
     [Fact]
     public void GetExtensionsForNamespace_NonexistentNamespace_ReturnsEmptyList()
     {
-        var extensions = _scanner.GetExtensionsForNamespace("Nonexistent.Namespace.That.Does.Not.Exist");
+        var extensions = scanner.GetExtensionsForNamespace("Nonexistent.Namespace.That.Does.Not.Exist");
 
         Assert.Empty(extensions);
     }
@@ -184,7 +184,7 @@ public sealed class AmbientExtensionScannerTests : IDisposable
     [Fact]
     public void GetExtensionsForNamespace_OnlyReturnsMethodsFromQueriedNamespace()
     {
-        var extensions = _scanner.GetExtensionsForNamespace("System.Linq");
+        var extensions = scanner.GetExtensionsForNamespace("System.Linq");
 
         // All returned methods must have Namespace == "System.Linq"
         Assert.All(extensions, e => Assert.Equal("System.Linq", e.Namespace));

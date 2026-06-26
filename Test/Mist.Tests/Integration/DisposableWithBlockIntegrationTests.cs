@@ -43,7 +43,7 @@ namespace Mist.Tests.Integration;
 /// </summary>
 public sealed class DisposableWithBlockIntegrationTests : IDisposable
 {
-    private readonly string _outputDir;
+    private readonly string outputDir;
 
     private static readonly CompilerDriver SharedDriver = new(
         new Mist.Lexing.MistLexer(),
@@ -58,15 +58,15 @@ public sealed class DisposableWithBlockIntegrationTests : IDisposable
 
     public DisposableWithBlockIntegrationTests()
     {
-        _outputDir = Path.Combine(Path.GetTempPath(), "MistDisposableWithBlock_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(_outputDir);
+        outputDir = Path.Combine(Path.GetTempPath(), "MistDisposableWithBlock_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(outputDir);
     }
 
     public void Dispose()
     {
-        if(Directory.Exists(_outputDir))
+        if(Directory.Exists(outputDir))
         {
-            try { Directory.Delete(_outputDir, recursive: true); }
+            try { Directory.Delete(outputDir, recursive: true); }
             catch { /* best effort */ }
         }
         GC.SuppressFinalize(this);
@@ -76,15 +76,15 @@ public sealed class DisposableWithBlockIntegrationTests : IDisposable
 
     private string CompileAndGetEmittedCSharp(string source)
     {
-        var filePath = Path.Combine(_outputDir, $"Test_{Guid.NewGuid():N}.mist");
+        var filePath = Path.Combine(outputDir, $"Test_{Guid.NewGuid():N}.mist");
         File.WriteAllText(filePath, source);
 
         var options = new CompilerOptions(
-            ProjectFolder: _outputDir,
+            ProjectFolder: outputDir,
             SourcePaths: ImmutableArray.Create(filePath),
             Backend: new BackendId("csharp"),
-            OutputDirectory: _outputDir,
-            BinDirectory: Path.Combine(_outputDir, "bin"),
+            OutputDirectory: outputDir,
+            BinDirectory: Path.Combine(outputDir, "bin"),
             ProjectName: "TestProgram",
             NamespaceRoot: "TestProgram",
             EnabledAnalyzerIds: ImmutableArray<string>.Empty,
@@ -284,15 +284,15 @@ public sealed class DisposableWithBlockIntegrationTests : IDisposable
             }
             """;
 
-        var sourcePath = Path.Combine(_outputDir, "Program.mist");
+        var sourcePath = Path.Combine(outputDir, "Program.mist");
         File.WriteAllText(sourcePath, source);
 
-        var binDir = Path.Combine(_outputDir, "bin");
+        var binDir = Path.Combine(outputDir, "bin");
         var options = new CompilerOptions(
-            ProjectFolder: _outputDir,
+            ProjectFolder: outputDir,
             SourcePaths: ImmutableArray.Create(sourcePath),
             Backend: new BackendId("csharp"),
-            OutputDirectory: _outputDir,
+            OutputDirectory: outputDir,
             BinDirectory: binDir,
             ProjectName: "TestProgram",
             NamespaceRoot: "TestProgram",

@@ -27,8 +27,8 @@ namespace Mist.Tests.Analysis;
 /// </summary>
 public class PatternUndefinedTypeDiagnosticPropertyTests
 {
-    private readonly SemanticModelBuilder _builder = new();
-    private readonly TypeCheckerAnalyzer _analyzer = new();
+    private readonly SemanticModelBuilder builder = new();
+    private readonly TypeCheckerAnalyzer analyzer = new();
 
     // ─── Helpers ─────────────────────────────────────────────────────────
 
@@ -41,7 +41,7 @@ public class PatternUndefinedTypeDiagnosticPropertyTests
         var compilation = new MistCompilation(
             ImmutableArray.Create(new CompilationUnit(sourceText)));
         var diagnostics = new DiagnosticBag();
-        return _builder.Build(
+        return builder.Build(
             compilation,
             ImmutableArray.Create<Storm.Runtime.SyntaxNode>(ast),
             ambientTypeResolver: null,
@@ -53,7 +53,7 @@ public class PatternUndefinedTypeDiagnosticPropertyTests
     private ImmutableArray<Diagnostic> RunTypeChecker(ISemanticModel model)
     {
         var bag = new DiagnosticBag();
-        _analyzer.Analyze(model, bag);
+        analyzer.Analyze(model, bag);
         return bag.ToImmutableArray();
     }
 

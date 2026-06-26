@@ -29,8 +29,8 @@ namespace Mist.Tests.Analysis;
 /// </summary>
 public class TypeCheckerConstructorChainBugTests
 {
-    private readonly SemanticModelBuilder _builder = new();
-    private readonly TypeCheckerAnalyzer _analyzer = new();
+    private readonly SemanticModelBuilder builder = new();
+    private readonly TypeCheckerAnalyzer analyzer = new();
 
     // ─── Helpers ─────────────────────────────────────────────────────────
 
@@ -116,10 +116,10 @@ public class TypeCheckerConstructorChainBugTests
         ImmutableArray<Storm.Runtime.SyntaxNode> asts)
     {
         var buildDiagnostics = new DiagnosticBag();
-        var model = _builder.Build(compilation, asts, ambientTypeResolver: null, namespaceRoot: "TestProject", projectFolder: "/test", buildDiagnostics);
+        var model = builder.Build(compilation, asts, ambientTypeResolver: null, namespaceRoot: "TestProject", projectFolder: "/test", buildDiagnostics);
 
         var tcDiagnostics = new DiagnosticBag();
-        _analyzer.Analyze(model, tcDiagnostics);
+        analyzer.Analyze(model, tcDiagnostics);
         return tcDiagnostics.ToImmutableArray();
     }
 

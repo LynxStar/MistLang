@@ -279,13 +279,13 @@ rule Start = IDENT;
             return new EmissionContext("Mist.Generated", "Mist", loweringResult.Grammar!);
         }
 
-        private static readonly Lazy<EmissionContext> _mistContext = new(BuildMistEmissionContext);
-        private static readonly Lazy<string> _mistLexerOutput = new(() => LexerEmitter.Emit(_mistContext.Value));
+        private static readonly Lazy<EmissionContext> mistContext = new(BuildMistEmissionContext);
+        private static readonly Lazy<string> mistLexerOutput = new(() => LexerEmitter.Emit(mistContext.Value));
 
         [Fact]
         public void MistGrammar_DfaLexer_EmitsValidLexerClass()
         {
-            var output = _mistLexerOutput.Value;
+            var output = mistLexerOutput.Value;
 
             Assert.Contains("public static class MistLexer", output);
             Assert.Contains("public static TokenStream Lex(SourceText source, DiagnosticBag diagnostics)", output);
@@ -294,7 +294,7 @@ rule Start = IDENT;
         [Fact]
         public void MistGrammar_DfaLexer_ContainsAllExpectedTokenKinds()
         {
-            var output = _mistLexerOutput.Value;
+            var output = mistLexerOutput.Value;
 
             // Key token kinds from the Mist grammar
             Assert.Contains("WHITESPACE,", output);
@@ -331,7 +331,7 @@ rule Start = IDENT;
         [Fact]
         public void MistGrammar_DfaLexer_HasNoRegexUsage()
         {
-            var output = _mistLexerOutput.Value;
+            var output = mistLexerOutput.Value;
 
             Assert.DoesNotContain("System.Text.RegularExpressions", output);
             Assert.DoesNotContain("new Regex(", output);
@@ -341,7 +341,7 @@ rule Start = IDENT;
         [Fact]
         public void MistGrammar_DfaLexer_HasDfaTransitionTables()
         {
-            var output = _mistLexerOutput.Value;
+            var output = mistLexerOutput.Value;
 
             Assert.Contains("_charClass", output);
             Assert.Contains("_trans_default", output);
@@ -351,7 +351,7 @@ rule Start = IDENT;
         [Fact]
         public void MistGrammar_DfaLexer_HasInterpolationModeTables()
         {
-            var output = _mistLexerOutput.Value;
+            var output = mistLexerOutput.Value;
 
             // Mist grammar has an Interpolation mode
             Assert.Contains("_trans_Interpolation", output);
@@ -362,7 +362,7 @@ rule Start = IDENT;
         [Fact]
         public void MistGrammar_DfaLexer_HasHiddenTokenSupport()
         {
-            var output = _mistLexerOutput.Value;
+            var output = mistLexerOutput.Value;
 
             // WHITESPACE and LINE_COMMENT are hidden
             Assert.Contains("(int)TokenKind.WHITESPACE", output);
@@ -373,7 +373,7 @@ rule Start = IDENT;
         [Fact]
         public void MistGrammar_DfaLexer_HasModeStackLogic()
         {
-            var output = _mistLexerOutput.Value;
+            var output = mistLexerOutput.Value;
 
             Assert.Contains("modeStack", output);
             Assert.Contains("modeStack.Push(Mode_default)", output);
@@ -383,7 +383,7 @@ rule Start = IDENT;
         [Fact]
         public void MistGrammar_DfaLexer_HasCorrectPublicApi()
         {
-            var output = _mistLexerOutput.Value;
+            var output = mistLexerOutput.Value;
 
             Assert.Contains("public static TokenStream Lex(SourceText source, DiagnosticBag diagnostics)", output);
             Assert.Contains("public static bool IsHidden(int tokenKind)", output);
@@ -456,7 +456,7 @@ rule Start = IDENT;
         {
             // Verify the full Mist grammar emits the correct mode actions
             // for interpolated string tokens
-            var output = _mistLexerOutput.Value;
+            var output = mistLexerOutput.Value;
 
             // INTERPOLATED_STRING_START ($") pushes Interpolation mode
             Assert.Contains("modeStack.Push(Mode_Interpolation)", output);
@@ -473,7 +473,7 @@ rule Start = IDENT;
         [Fact]
         public void InterpolatedString_InterpolationModeTokens_AreInCorrectMode()
         {
-            var output = _mistLexerOutput.Value;
+            var output = mistLexerOutput.Value;
 
             // The TokenModes array should map interpolation tokens to mode 1
             Assert.Contains("TokenModes", output);

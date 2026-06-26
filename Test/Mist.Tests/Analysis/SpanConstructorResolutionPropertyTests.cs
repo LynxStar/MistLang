@@ -71,19 +71,19 @@ public sealed record SpanConstructorScenario(
 /// </summary>
 public sealed class SpanConstructorResolutionPropertyTests : IDisposable
 {
-    private readonly string _tempDir;
+    private readonly string tempDir;
 
     public SpanConstructorResolutionPropertyTests()
     {
-        _tempDir = Path.Combine(Path.GetTempPath(), "MistSpanCtorPBT_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(_tempDir);
+        tempDir = Path.Combine(Path.GetTempPath(), "MistSpanCtorPBT_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempDir);
     }
 
     public void Dispose()
     {
-        if(Directory.Exists(_tempDir))
+        if(Directory.Exists(tempDir))
         {
-            try { Directory.Delete(_tempDir, recursive: true); } catch { /* best effort */ }
+            try { Directory.Delete(tempDir, recursive: true); } catch { /* best effort */ }
         }
         GC.SuppressFinalize(this);
     }
@@ -257,12 +257,12 @@ public sealed class SpanConstructorResolutionPropertyTests : IDisposable
 
     private (ImmutableArray<Diagnostic> Diagnostics, string FilePath) CompileAndGetDiagnostics(string source)
     {
-        var filePath = Path.Combine(_tempDir, $"Test_{Guid.NewGuid():N}.mist");
+        var filePath = Path.Combine(tempDir, $"Test_{Guid.NewGuid():N}.mist");
         File.WriteAllText(filePath, source);
 
         // Write a mist.toml to trigger full project-mode compilation,
         // matching the path that samples use (with global usings resolved from config).
-        var tomlPath = Path.Combine(_tempDir, "mist.toml");
+        var tomlPath = Path.Combine(tempDir, "mist.toml");
         if(!File.Exists(tomlPath))
         {
             File.WriteAllText(tomlPath, """
@@ -274,11 +274,11 @@ public sealed class SpanConstructorResolutionPropertyTests : IDisposable
         }
 
         var options = new CompilerOptions(
-            ProjectFolder: _tempDir,
+            ProjectFolder: tempDir,
             SourcePaths: ImmutableArray.Create(filePath),
             Backend: new BackendId("csharp"),
-            OutputDirectory: _tempDir,
-            BinDirectory: Path.Combine(_tempDir, "bin"),
+            OutputDirectory: tempDir,
+            BinDirectory: Path.Combine(tempDir, "bin"),
             ProjectName: "SpanTest",
             NamespaceRoot: "SpanTest",
             EnabledAnalyzerIds: ImmutableArray<string>.Empty,

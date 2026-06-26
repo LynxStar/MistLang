@@ -128,19 +128,19 @@ class Program
 /// </summary>
 public sealed class TargetTypedNewConstructorPropertyTests : IDisposable
 {
-    private readonly string _outputDir;
+    private readonly string outputDir;
 
     public TargetTypedNewConstructorPropertyTests()
     {
-        _outputDir = Path.Combine(Path.GetTempPath(), "MistTargetNewCtor_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(_outputDir);
+        outputDir = Path.Combine(Path.GetTempPath(), "MistTargetNewCtor_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(outputDir);
     }
 
     public void Dispose()
     {
-        if(Directory.Exists(_outputDir))
+        if(Directory.Exists(outputDir))
         {
-            try { Directory.Delete(_outputDir, recursive: true); } catch { /* best effort */ }
+            try { Directory.Delete(outputDir, recursive: true); } catch { /* best effort */ }
         }
     }
 
@@ -162,15 +162,15 @@ public sealed class TargetTypedNewConstructorPropertyTests : IDisposable
 
     private CompilerResult Compile(string source)
     {
-        var filePath = Path.Combine(_outputDir, "Test_" + Guid.NewGuid().ToString("N") + ".mist");
+        var filePath = Path.Combine(outputDir, "Test_" + Guid.NewGuid().ToString("N") + ".mist");
         File.WriteAllText(filePath, source);
 
         var options = new CompilerOptions(
-            ProjectFolder: _outputDir,
+            ProjectFolder: outputDir,
             SourcePaths: ImmutableArray.Create(filePath),
             Backend: new BackendId("csharp"),
-            OutputDirectory: _outputDir,
-            BinDirectory: Path.Combine(_outputDir, "bin"),
+            OutputDirectory: outputDir,
+            BinDirectory: Path.Combine(outputDir, "bin"),
             ProjectName: "TestProject",
             NamespaceRoot: "TestProject",
             EnabledAnalyzerIds: ImmutableArray<string>.Empty,

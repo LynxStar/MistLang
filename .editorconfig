@@ -198,7 +198,7 @@ dotnet_naming_rule.public_member_should_be_pascal_case.style = pascal_case
 
 dotnet_naming_rule.dependency_should_be__depcase.severity = error
 dotnet_naming_rule.dependency_should_be__depcase.symbols = dependency
-dotnet_naming_rule.dependency_should_be__depcase.style = _depcase
+dotnet_naming_rule.dependency_should_be__depcase.style = camelcase
 
 dotnet_naming_rule.private_or_internal_field_should_be_camelcase.severity = error
 dotnet_naming_rule.private_or_internal_field_should_be_camelcase.symbols = private_or_internal_field

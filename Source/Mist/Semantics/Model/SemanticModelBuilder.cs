@@ -2360,7 +2360,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             foreach (var (groupKey, group) in byReceiverAndClass)
             {
                 // Project the receiver type from the first entry in the group.
-                var receiverType = projector.ProjectTypeReference(group[0].ReceiverClrType, stdlib);
+                var receiverType = projector.ProjectMemberType(group[0].ReceiverClrType, stdlib);
 
                 // Skip if receiver type projection fails (returns ErrorType or UnknownType).
                 if (receiverType is ErrorType or UnknownType)
@@ -20383,7 +20383,29 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             case MethodCallSuffixPostfixSuffixNode methodCall:
             {
                 var memberName = methodCall.Name.Lexeme;
-                var memberType = LookupMemberType(targetType, memberName, ambientTypeResolver, fileScope, symbolTable, sourceText, diagnostics);
+
+                // ── Unified method resolution (Phase B) ─────────────────────────
+                // Construct resolution hints from the call site context.
+                var typeArgCount = methodCall.TypeArgs is not null ? CountTypeArgs(methodCall.TypeArgs) : (int?)null;
+                var importedNamespaces = CollectImportedNamespaces(fileScope);
+                var unifiedHints = new MethodResolutionHints(
+                    TypeArgCount: typeArgCount,
+                    ArgumentCount: null,
+                    PreferLambdaCompatible: false);
+                var unifiedResult = ResolveMethodMember(targetType, memberName, unifiedHints, importedNamespaces);
+
+                // Determine memberType: use unified result if available, otherwise
+                // fall back to LookupMemberType for non-method cases (namespace refs,
+                // enum access, special types like arrays/strings, etc.).
+                IType memberType;
+                if (unifiedResult is not null)
+                {
+                    memberType = unifiedResult.Value.ReturnType;
+                }
+                else
+                {
+                    memberType = LookupMemberType(targetType, memberName, ambientTypeResolver, fileScope, symbolTable, sourceText, diagnostics);
+                }
 
                 // Kind-aware validation: method call must not resolve to a field or property.
                 if (memberType is not ErrorType)
@@ -20423,12 +20445,17 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 ISymbol? resolvedGenericMethodSymbol = null;
                 if (methodCall.TypeArgs is not null)
                 {
-                    // Look up the method symbol to check its type parameters.
-                    // When multiple overloads exist (e.g., Get<T>() and Get(Type)),
-                    // prefer a generic overload whose arity matches the provided
-                    // type argument count.
+                    // Use the unified result's symbol when available — it already
+                    // selected the arity-matching overload. Fall back to
+                    // LookupGenericMemberSymbol only when unified resolution
+                    // did not find the method (e.g., non-method cases).
                     var providedArity = CountTypeArgs(methodCall.TypeArgs);
-                    var methodSymbol = LookupGenericMemberSymbol(targetType, memberName, providedArity, ambientTypeResolver, fileScope, symbolTable);
+                    ISymbol? methodSymbol = unifiedResult?.Symbol;
+                    if (methodSymbol is null)
+                    {
+                        methodSymbol = LookupGenericMemberSymbol(targetType, memberName, providedArity, ambientTypeResolver, fileScope, symbolTable);
+                    }
+
                     if (methodSymbol is Symbol sym && sym.TypeParameters.Count > 0)
                     {
                         // Resolve the type arguments. Use the dependent-aware resolver
@@ -20468,8 +20495,12 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         else
                         {
                             // Substitute type parameters in the return type with
-                            // the resolved type arguments.
-                            memberType = SubstituteTypeParameters(memberType, sym.TypeParameters, resolvedTypeArgs);
+                            // the resolved type arguments. Use the symbol's own
+                            // DeclaredType as the base for substitution — the unified
+                            // resolution already selected the arity-matching overload,
+                            // so sym.DeclaredType is the correct return type to substitute.
+                            var returnTypeForSubstitution = sym.DeclaredType ?? memberType;
+                            memberType = SubstituteTypeParameters(returnTypeForSubstitution, sym.TypeParameters, resolvedTypeArgs);
 
                             // Capture for parameter type substitution below (lambda inference).
                             resolvedMethodTypeArgs = resolvedTypeArgs;
@@ -20486,6 +20517,19 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                             $"Method '{memberName}' expects 0 type argument(s) but received {CountTypeArgs(methodCall.TypeArgs)}.",
                             methodCall.TypeArgs,
                             sourceText));
+                    }
+                    else
+                    {
+                        // Soundness: methodSymbol is null — the generic method lookup
+                        // failed to find the method at all. If memberType is a raw
+                        // TypeParameterType, it would leak an unsubstituted type
+                        // parameter into the expression cache and eventually resolve
+                        // to 'unknown'. Set ErrorType to surface a clear error instead
+                        // of silently producing a misleading type.
+                        if (memberType is TypeParameterType)
+                        {
+                            memberType = ErrorType.Instance;
+                        }
                     }
                 }
 
@@ -22168,6 +22212,12 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// Looks up a member by name on a given type. Searches the type's member scope
     /// and, for ambient types, queries the ambient resolver.
     /// </summary>
+    /// <remarks>
+    /// DEPRECATED: This function is being replaced by <see cref="ResolveMethodMember"/>
+    /// for method resolution. It is retained for non-method member access (properties,
+    /// fields, namespace refs, enum access, etc.) and will be removed once all callers
+    /// are migrated.
+    /// </remarks>
     private static IType LookupMemberType(
         IType targetType,
         string memberName,
@@ -23560,6 +23610,411 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         return null;
     }
 
+    // ── Unified method resolution types ─────────────────────────────────
+
+    /// <summary>
+    /// Hints for narrowing method resolution during overload selection.
+    /// </summary>
+    private readonly record struct MethodResolutionHints(
+        int? TypeArgCount,
+        int? ArgumentCount,
+        bool PreferLambdaCompatible);
+
+    /// <summary>
+    /// The result of a unified method resolution pass, combining both the
+    /// resolved symbol and its return type in a single value.
+    /// </summary>
+    private readonly record struct MethodResolutionResult(
+        ISymbol Symbol,
+        IType ReturnType,
+        bool IsExtension,
+        ExtensionBlockInfo? ExtensionBlock,
+        IReadOnlyList<TypeParameterType>? ExtensionTypeParams);
+
+    /// <summary>
+    /// Unified method resolution: searches own members (walking the base chain for
+    /// classes), ambient members via resolver, default methods on abstracts, and
+    /// finally the extension registry (applicable, namespace-filtered). Applies
+    /// consistent overload selection based on <paramref name="hints"/> at each level.
+    /// Returns null if no matching method is found (no silent fallthrough).
+    /// </summary>
+    private static MethodResolutionResult? ResolveMethodMember(
+        IType targetType,
+        string methodName,
+        MethodResolutionHints hints,
+        IReadOnlyList<string>? importedNamespaces)
+    {
+        if (targetType is ErrorType)
+            return null;
+
+        // For ConstructedType, unwrap to the generic definition for scope lookup
+        // but remember the type arguments for substitution.
+        IReadOnlyList<IType>? constructedTypeParams = null;
+        IReadOnlyList<IType>? constructedTypeArgs = null;
+        var originalTargetType = targetType;
+        if (targetType is ConstructedType constructedTarget)
+        {
+            constructedTypeParams = constructedTarget.GenericDefinition switch
+            {
+                ClassType ct => ct.TypeParameters,
+                StructType st => st.TypeParameters,
+                AbstractType at => at.TypeParameters,
+                _ => null,
+            };
+            constructedTypeArgs = constructedTarget.TypeArguments;
+            targetType = constructedTarget.GenericDefinition;
+        }
+
+        // ── Step 1: Own member scope (walk base chain for classes) ──────────
+        if (targetType is ClassType classTarget)
+        {
+            var result = SearchClassChainForMethod(classTarget, methodName, hints, constructedTypeParams, constructedTypeArgs);
+            if (result is not null)
+                return result;
+        }
+        else
+        {
+            IScope? memberScope = targetType switch
+            {
+                StructType st => st.MemberScope,
+                AbstractType at => at.MemberScope,
+                NewtypeType nt => nt.MemberScope,
+                _ => null,
+            };
+
+            if (memberScope is not null)
+            {
+                var result = SearchScopeForMethodOverload(memberScope, methodName, hints, constructedTypeParams, constructedTypeArgs);
+                if (result is not null)
+                    return result;
+
+                // For abstract types, walk inherited abstracts transitively.
+                if (targetType is AbstractType abstractTarget)
+                {
+                    var inheritedResult = SearchInheritedAbstractsForMethod(abstractTarget, methodName, hints, constructedTypeParams, constructedTypeArgs);
+                    if (inheritedResult is not null)
+                        return inheritedResult;
+                }
+            }
+        }
+
+        // ── Step 2: Ambient members via resolver ────────────────────────────
+        // Ambient members are accessed through the extension registry's member
+        // scope on applicable extensions; they share the same path as own members
+        // but are projected from CLR assemblies. The class base chain walk above
+        // already covers ambient members if the resolver populated them into the
+        // class's own scope. For non-class types with ambient projection this is
+        // handled via the extension path below.
+
+        // ── Step 3: Default methods on abstracts ────────────────────────────
+        IReadOnlyList<IType>? abstracts = targetType switch
+        {
+            ClassType ct => ct.Abstracts,
+            StructType st => st.Abstracts,
+            _ => null,
+        };
+
+        if (abstracts is not null)
+        {
+            var defaultResult = SearchDefaultMethodsForOverload(abstracts, methodName, hints, constructedTypeParams, constructedTypeArgs);
+            if (defaultResult is not null)
+                return defaultResult;
+        }
+
+        // ── Step 4: Extension registry (applicable, namespace-filtered) ─────
+        if (_extensionRegistryContext is not null)
+        {
+            var lookupType = originalTargetType;
+
+            var applicableExtensions = lookupType is UnknownType
+                ? _extensionRegistryContext.UniversalExtensions
+                : lookupType is UnionType unionType
+                    ? _extensionRegistryContext.GetApplicableExtensionsForUnion(unionType.Constituents)
+                    : _extensionRegistryContext.GetApplicableExtensions(lookupType);
+
+            foreach (var ext in applicableExtensions)
+            {
+                // Namespace visibility check.
+                if (ext.ContainingNamespace is not null
+                    && (importedNamespaces is null || !importedNamespaces.Contains(ext.ContainingNamespace)))
+                    continue;
+
+                // Use LookupAll to find all overloads in the extension scope.
+                var allExtMembers = ext.MemberScope.LookupAll(methodName);
+                if (allExtMembers.Count == 0)
+                    continue;
+
+                // Apply overload selection from hints.
+                var selected = SelectOverloadFromHints(allExtMembers, hints);
+                if (selected is null)
+                    continue;
+
+                var memberType = selected.DeclaredType ?? ErrorType.Instance;
+                IReadOnlyList<TypeParameterType>? extensionTypeParams = null;
+
+                // Generic extension type inference: unify receiver and substitute.
+                if (ext.TypeParameters.Count > 0)
+                {
+                    var bindings = TryUnifyReceiverType(ext.ReceiverType, lookupType, ext.TypeParameters);
+                    if (bindings is null)
+                        continue;
+
+                    memberType = SubstituteTypeInMember(memberType, ext.TypeParameters, bindings);
+                    extensionTypeParams = ext.TypeParameters.OfType<TypeParameterType>().ToList();
+                }
+
+                return new MethodResolutionResult(
+                    Symbol: selected,
+                    ReturnType: memberType,
+                    IsExtension: true,
+                    ExtensionBlock: ext,
+                    ExtensionTypeParams: extensionTypeParams);
+            }
+        }
+
+        // ── No match found ──────────────────────────────────────────────────
+        return null;
+    }
+
+    /// <summary>
+    /// Walks the class base chain searching for a method matching the given name and hints.
+    /// </summary>
+    private static MethodResolutionResult? SearchClassChainForMethod(
+        ClassType classTarget,
+        string methodName,
+        MethodResolutionHints hints,
+        IReadOnlyList<IType>? constructedTypeParams,
+        IReadOnlyList<IType>? constructedTypeArgs)
+    {
+        ClassType? current = classTarget;
+        while (current is not null)
+        {
+            var result = SearchScopeForMethodOverload(current.MemberScope, methodName, hints, constructedTypeParams, constructedTypeArgs);
+            if (result is not null)
+                return result;
+
+            current = current.BaseType as ClassType;
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Searches a scope for all overloads with the given name, then applies
+    /// hint-based selection (arity, param count, lambda preference).
+    /// </summary>
+    private static MethodResolutionResult? SearchScopeForMethodOverload(
+        IScope scope,
+        string methodName,
+        MethodResolutionHints hints,
+        IReadOnlyList<IType>? constructedTypeParams,
+        IReadOnlyList<IType>? constructedTypeArgs)
+    {
+        var allMembers = scope.LookupAll(methodName);
+        if (allMembers.Count == 0)
+            return null;
+
+        var selected = SelectOverloadFromHints(allMembers, hints);
+        if (selected is null)
+            return null;
+
+        var memberType = selected.DeclaredType ?? ErrorType.Instance;
+        memberType = SubstituteMemberTypeIfNeeded(memberType, constructedTypeParams, constructedTypeArgs);
+
+        return new MethodResolutionResult(
+            Symbol: selected,
+            ReturnType: memberType,
+            IsExtension: false,
+            ExtensionBlock: null,
+            ExtensionTypeParams: null);
+    }
+
+    /// <summary>
+    /// Walks inherited abstract types (transitively) searching for a method matching
+    /// the given name and hints.
+    /// </summary>
+    private static MethodResolutionResult? SearchInheritedAbstractsForMethod(
+        AbstractType abstractTarget,
+        string methodName,
+        MethodResolutionHints hints,
+        IReadOnlyList<IType>? constructedTypeParams,
+        IReadOnlyList<IType>? constructedTypeArgs)
+    {
+        var visited = new HashSet<AbstractType>(ReferenceEqualityComparer.Instance);
+        return SearchInheritedAbstractsForMethodCore(abstractTarget.Abstracts, methodName, hints, constructedTypeParams, constructedTypeArgs, visited);
+    }
+
+    private static MethodResolutionResult? SearchInheritedAbstractsForMethodCore(
+        IReadOnlyList<IType> abstracts,
+        string methodName,
+        MethodResolutionHints hints,
+        IReadOnlyList<IType>? constructedTypeParams,
+        IReadOnlyList<IType>? constructedTypeArgs,
+        HashSet<AbstractType> visited)
+    {
+        foreach (var ifaceType in abstracts)
+        {
+            if (ifaceType is not AbstractType iface)
+                continue;
+
+            if (!visited.Add(iface))
+                continue;
+
+            var result = SearchScopeForMethodOverload(iface.MemberScope, methodName, hints, constructedTypeParams, constructedTypeArgs);
+            if (result is not null)
+                return result;
+
+            var inherited = SearchInheritedAbstractsForMethodCore(iface.Abstracts, methodName, hints, constructedTypeParams, constructedTypeArgs, visited);
+            if (inherited is not null)
+                return inherited;
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Searches default methods on abstract types (transitively) for a method matching
+    /// the given name and hints.
+    /// </summary>
+    private static MethodResolutionResult? SearchDefaultMethodsForOverload(
+        IReadOnlyList<IType> abstracts,
+        string methodName,
+        MethodResolutionHints hints,
+        IReadOnlyList<IType>? constructedTypeParams,
+        IReadOnlyList<IType>? constructedTypeArgs)
+    {
+        var visited = new HashSet<AbstractType>(ReferenceEqualityComparer.Instance);
+        return SearchDefaultMethodsForOverloadCore(abstracts, methodName, hints, constructedTypeParams, constructedTypeArgs, visited);
+    }
+
+    private static MethodResolutionResult? SearchDefaultMethodsForOverloadCore(
+        IReadOnlyList<IType> abstracts,
+        string methodName,
+        MethodResolutionHints hints,
+        IReadOnlyList<IType>? constructedTypeParams,
+        IReadOnlyList<IType>? constructedTypeArgs,
+        HashSet<AbstractType> visited)
+    {
+        foreach (var absType in abstracts)
+        {
+            var def = absType is ConstructedType ct ? ct.GenericDefinition as AbstractType : absType as AbstractType;
+            if (def is null)
+                continue;
+
+            if (!visited.Add(def))
+                continue;
+
+            if (def.DefaultMethods.TryGetValue(methodName, out var defaultSymbol))
+            {
+                // Default methods are single entries (no overload set), so hints
+                // are applied as a filter: reject if they don't match.
+                if (MatchesHints(defaultSymbol, hints))
+                {
+                    var memberType = defaultSymbol.DeclaredType ?? ErrorType.Instance;
+                    memberType = SubstituteMemberTypeIfNeeded(memberType, constructedTypeParams, constructedTypeArgs);
+
+                    return new MethodResolutionResult(
+                        Symbol: defaultSymbol,
+                        ReturnType: memberType,
+                        IsExtension: false,
+                        ExtensionBlock: null,
+                        ExtensionTypeParams: null);
+                }
+            }
+
+            var inherited = SearchDefaultMethodsForOverloadCore(def.Abstracts, methodName, hints, constructedTypeParams, constructedTypeArgs, visited);
+            if (inherited is not null)
+                return inherited;
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Selects the best overload from a list of candidates based on the resolution hints.
+    /// Priority: type argument arity match → parameter count match with lambda preference → first match.
+    /// </summary>
+    private static ISymbol? SelectOverloadFromHints(IReadOnlyList<ISymbol> candidates, MethodResolutionHints hints)
+    {
+        if (candidates.Count == 0)
+            return null;
+
+        // If type argument arity hint is provided, prefer the overload matching exactly.
+        if (hints.TypeArgCount is not null)
+        {
+            foreach (var candidate in candidates)
+            {
+                if (candidate is Symbol s && s.TypeParameters.Count == hints.TypeArgCount.Value)
+                {
+                    // If we also have param count + lambda hints, verify them too.
+                    if (hints.ArgumentCount is not null && s.Parameters.Count != hints.ArgumentCount.Value)
+                        continue;
+                    return s;
+                }
+            }
+
+            // No arity match — fall through to param count / first match.
+        }
+
+        // If argument count hint is provided, filter by parameter count.
+        if (hints.ArgumentCount is not null)
+        {
+            ISymbol? paramCountMatch = null;
+            ISymbol? lambdaCompatibleMatch = null;
+
+            foreach (var candidate in candidates)
+            {
+                if (candidate is Symbol s && s.Parameters.Count == hints.ArgumentCount.Value)
+                {
+                    if (hints.PreferLambdaCompatible && HasLambdaCompatibleParameter(s))
+                    {
+                        lambdaCompatibleMatch = s;
+                    }
+                    else
+                    {
+                        paramCountMatch ??= s;
+                    }
+                }
+            }
+
+            if (lambdaCompatibleMatch is not null)
+                return lambdaCompatibleMatch;
+            if (paramCountMatch is not null)
+                return paramCountMatch;
+        }
+
+        // Fallback: prefer lambda-compatible if hint is set.
+        if (hints.PreferLambdaCompatible)
+        {
+            foreach (var candidate in candidates)
+            {
+                if (candidate is Symbol s && HasLambdaCompatibleParameter(s))
+                    return s;
+            }
+        }
+
+        // Final fallback: return the first candidate.
+        return candidates[0];
+    }
+
+    /// <summary>
+    /// Checks whether a single symbol matches the resolution hints.
+    /// Used for default methods where there's no overload set.
+    /// </summary>
+    private static bool MatchesHints(ISymbol symbol, MethodResolutionHints hints)
+    {
+        if (symbol is not Symbol s)
+            return true; // Non-Symbol (e.g., interface member stub) — allow by default.
+
+        if (hints.TypeArgCount is not null && s.TypeParameters.Count != hints.TypeArgCount.Value)
+            return false;
+
+        if (hints.ArgumentCount is not null && s.Parameters.Count != hints.ArgumentCount.Value)
+            return false;
+
+        return true;
+    }
+
     /// <summary>
     /// Looks up a member symbol by name on a target type.
     /// Similar to <see cref="LookupMemberType"/> but returns the <see cref="ISymbol"/> instead of the type.
@@ -23710,6 +24165,11 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// first match (generic or non-generic) if no exact arity match is found.
     /// Used for type argument validation on method invocations.
     /// </summary>
+    /// <remarks>
+    /// DEPRECATED: This function is being replaced by <see cref="ResolveMethodMember"/>
+    /// which provides unified arity-aware overload selection. Retained until all callers
+    /// are migrated.
+    /// </remarks>
     private static ISymbol? LookupGenericMemberSymbol(
         IType targetType,
         string memberName,
@@ -23722,6 +24182,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             return null;
 
         // For ConstructedType, look up in the generic definition's member scope.
+        var originalTargetType = targetType;
         if (targetType is ConstructedType ct)
             targetType = ct.GenericDefinition;
 
@@ -23765,6 +24226,38 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         return s;
                 }
                 return allMembers[0];
+            }
+        }
+
+        // Extension method fallback: if the member was not found on the type's
+        // own scope, search the extension registry for a generic method with
+        // matching name and type-argument arity. This handles cases like
+        // GetRequiredService<T>() which is an extension method on IServiceProvider.
+        if (_extensionRegistryContext is not null)
+        {
+            var lookupType = originalTargetType;
+            var applicableExtensions = lookupType is UnknownType
+                ? _extensionRegistryContext.UniversalExtensions
+                : _extensionRegistryContext.GetApplicableExtensions(lookupType);
+
+            var importedNamespaces = CollectImportedNamespaces(fileScope);
+
+            foreach (var ext in applicableExtensions)
+            {
+                if (ext.ContainingNamespace is not null && !importedNamespaces.Contains(ext.ContainingNamespace))
+                    continue;
+
+                // Use LookupAll to find all overloads with the same name, then
+                // select the one whose type parameter arity matches. Lookup()
+                // returns only the first registered overload which may be the
+                // non-generic variant (e.g., GetRequiredService(Type) instead
+                // of GetRequiredService<T>()).
+                var allExtMembers = ext.MemberScope.LookupAll(memberName);
+                foreach (var m in allExtMembers)
+                {
+                    if (m is Symbol s && s.TypeParameters.Count == typeArgCount)
+                        return s;
+                }
             }
         }
 

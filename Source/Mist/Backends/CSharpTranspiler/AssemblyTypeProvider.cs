@@ -197,6 +197,18 @@ internal sealed class AssemblyTypeProvider : IAmbientTypeResolver, IDisposable
         if (_cache.TryGetValue(cacheKey, out var cached))
             return cached.Type;
 
+        // Cross-key lookup: when arity is unspecified (-1), also check the arity-0 key.
+        // This ensures that a non-generic type projected via the internal arity-aware path
+        // (e.g., RegisterAmbientExtensions → ProjectMemberType → ResolveProjectedType with
+        // arity 0) returns the same canonical instance when later resolved via the public
+        // ResolveType(namespace, name) API which uses arity -1.
+        if (typeArgumentCount == -1)
+        {
+            var arityZeroKey = (namespaceName, $"{typeName}`0");
+            if (_cache.TryGetValue(arityZeroKey, out var arityZeroCached))
+                return arityZeroCached.Type;
+        }
+
         // Find the CLR type in loaded assemblies.
         var clrType = typeArgumentCount >= 0
             ? FindClrTypeByArity(namespaceName, typeName, typeArgumentCount)

@@ -4877,6 +4877,24 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     }
                 }
 
+                // After type checking an `as` expression, the type checker may have
+                // refined the result from the preliminary target type T (set in Pass 2)
+                // to T | void (NonProvable classification). Update the local variable's
+                // DeclaredType so downstream member access correctly sees the union type
+                // and requires optional chaining (?.) to unwrap.
+                if (varSymbol is not null)
+                {
+                    var asExprNode = TryExtractAsExpression(inferred.Initializer);
+                    if (asExprNode is not null)
+                    {
+                        var asRefinedType = model.GetTypeOf(asExprNode);
+                        if (asRefinedType is not null && asRefinedType is not ErrorType)
+                        {
+                            varSymbol.DeclaredType = asRefinedType;
+                        }
+                    }
+                }
+
                 // MIST_TC_0009: var without initializer.
                 // The grammar requires an initializer for var declarations,
                 // but if the initializer expression type is null, the var
@@ -9901,11 +9919,23 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                         break;
                     }
                     // Task 6.2: union type method call validation (Req 7.1, 7.2, 7.3).
-                    // If the receiver is a UnionType, check that the method exists
-                    // on ALL constituent types. If it does, compute the result type
-                    // as the union of return types; otherwise emit MIST_TC_0073.
+                    // If the receiver is a UnionType containing void, direct `.` access
+                    // is invalid — the user must use `?.` to safely unwrap the optional.
+                    // For non-void unions (e.g., int | string), check that the method
+                    // exists on ALL constituents.
                     if (currentType is UnionType unionForMethodCall)
                     {
+                        if (unionForMethodCall.Constituents.Any(c => c.IsVoid()))
+                        {
+                            diagnostics.Add(MakeDiagnostic(
+                                UnionMemberNotOnAllConstituents.Value,
+                                $"Cannot access member '{methodCall.Name.Lexeme}' on a value of type '{unionForMethodCall.DisplayName}'. Use '?.' to safely access members on an optional type, or narrow with an 'is' pattern.",
+                                methodCall,
+                                model));
+                            currentType = ErrorType.Instance;
+                            targetIsTypeName = false;
+                            break;
+                        }
                         var unionMethodResult = CheckUnionMemberAccess(
                             methodCall.Name.Lexeme, unionForMethodCall, methodCall, model, diagnostics);
                         currentType = unionMethodResult;
@@ -10037,11 +10067,23 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                         break;
                     }
                     // Task 6.2: union type member access validation (Req 7.1, 7.2).
-                    // If the receiver is a UnionType, check that the member exists
-                    // on ALL constituent types. If it does, compute the result type
-                    // as the union of member types; otherwise emit MIST_TC_0073.
+                    // If the receiver is a UnionType containing void, direct `.` access
+                    // is invalid — the user must use `?.` to safely unwrap the optional.
+                    // For non-void unions (e.g., int | string), check that the member
+                    // exists on ALL constituents.
                     if (currentType is UnionType unionForMemberAccess)
                     {
+                        if (unionForMemberAccess.Constituents.Any(c => c.IsVoid()))
+                        {
+                            diagnostics.Add(MakeDiagnostic(
+                                UnionMemberNotOnAllConstituents.Value,
+                                $"Cannot access member '{memberAccess.Name.Lexeme}' on a value of type '{unionForMemberAccess.DisplayName}'. Use '?.' to safely access members on an optional type, or narrow with an 'is' pattern.",
+                                memberAccess,
+                                model));
+                            currentType = ErrorType.Instance;
+                            targetIsTypeName = false;
+                            break;
+                        }
                         var unionMemberResult = CheckUnionMemberAccess(
                             memberAccess.Name.Lexeme, unionForMemberAccess, memberAccess, model, diagnostics);
                         currentType = unionMemberResult;
@@ -11133,6 +11175,41 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // The PostfixNode's type is updated by CheckPostfixNode when inference
         // refines the return type. Use it directly.
         return model.GetTypeOf(postfixExpr.Primary);
+    }
+
+    /// <summary>
+    /// Attempts to extract an <see cref="AsExpressionRelationalNode"/> from an
+    /// expression node by walking down the expression chain. Returns the node if
+    /// the expression is a simple <c>expr as T</c> with no outer operators.
+    /// Used to propagate the type checker's refined result type (T or T | void)
+    /// to the enclosing <c>var</c> declaration's symbol.
+    /// </summary>
+    private static AsExpressionRelationalNode? TryExtractAsExpression(ExpressionNode expr)
+    {
+        // Expression → Assignment → VoidCoalescing → LogicalOr → LogicalAnd → Equality → Relational
+        var assignment = expr.AsAssignmentOrNull();
+        if (assignment is null)
+            return null; // Lambda form — not an as expression.
+        if (assignment.Value is not null)
+            return null;
+
+        // VoidCoalescing: must not have any ?? right-hand operands.
+        if (assignment.Target.LogicalOrs.Length > 0)
+            return null;
+
+        var logicalOr = assignment.Target.Left;
+        if (logicalOr.Right is not null)
+            return null;
+
+        var logicalAnd = logicalOr.Left;
+        if (logicalAnd.Right is not null)
+            return null;
+
+        var equality = logicalAnd.Left;
+        if (equality.Right is not null)
+            return null;
+
+        return equality.Left as AsExpressionRelationalNode;
     }
 
     /// <summary>
@@ -19392,11 +19469,6 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         foreach (var constituent in unionType.Constituents)
         {
-            // Skip void constituents — member access on T | void projects to T
-            // (same semantics as ?. but without explicit short-circuit syntax).
-            if (constituent.IsVoid())
-                continue;
-
             var memberSymbol = FindMemberSymbol(constituent, memberName, model);
             if (memberSymbol is null)
             {

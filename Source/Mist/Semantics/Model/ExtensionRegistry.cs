@@ -193,125 +193,91 @@ public sealed class ExtensionRegistry
     /// <summary>
     /// Determines whether an extension with the given receiver type is applicable
     /// to a value of the given type.
+    ///
+    /// After Phase A type interning, all CLR types projected from assembly metadata
+    /// resolve to canonical singleton instances. Mist-defined types are singletons
+    /// from the scope chain. Therefore reference equality is the primary matching
+    /// mechanism. Structural comparison is only needed for:
+    ///   - <see cref="ConstructedType"/> (not interned; multiple instances of the
+    ///     same logical constructed type may exist at different call sites)
+    ///   - <see cref="ArrayType"/> (same reasoning as ConstructedType)
+    ///   - Generic pattern matching (extensions on open generic types are potentially
+    ///     applicable to any concrete instantiation; actual inference happens later)
+    ///   - Inheritance walking (base type chain + implemented abstracts)
     /// </summary>
     private static bool IsApplicable(IType extensionReceiverType, IType valueType)
     {
-        // Exact reference match (most common case).
+        // ── 1. Reference equality (covers all interned types) ───────────────
         if (ReferenceEquals(extensionReceiverType, valueType))
             return true;
 
-        // Structural equality for ClassType: ambient extension receivers are projected
-        // before Pass 2 resolves user code, so the receiver may be a disconnected shell
-        // (different instance) from the cached type the user's variable resolves to.
-        // Match by DisplayName + ContainingNamespace to bridge this gap.
-        if (extensionReceiverType is ClassType extClass && valueType is ClassType valClass
-            && extClass.TypeParameters.Count == 0 && valClass.TypeParameters.Count == 0)
+        // ── 2. Open generic type definitions ────────────────────────────────
+        // An extension declared on an uninstantiated generic type (e.g., the
+        // ClassType for List<T> with TypeParameters.Count > 0) is potentially
+        // applicable to any value — type inference narrows later.
+        if (IsOpenGenericDefinition(extensionReceiverType))
+            return true;
+
+        // ── 3. Generic pattern (ConstructedType with type parameters) ───────
+        // An extension receiver like IEnumerable<T> (a ConstructedType whose
+        // type arguments include TypeParameterType) is a pattern that may match
+        // any value type satisfying the shape.
+        if (extensionReceiverType is ConstructedType ctPattern && ContainsTypeParameter(ctPattern))
+            return IsPatternApplicable(ctPattern, valueType);
+
+        // ── 4. ConstructedType value → generic definition match ─────────────
+        // If the value is a concrete constructed type (e.g., List<int>), the
+        // extension's receiver may target the generic definition (List<T>).
+        if (valueType is ConstructedType ctValue)
         {
-            if (extClass.DisplayName == valClass.DisplayName
-                && extClass.ContainingNamespace == valClass.ContainingNamespace)
+            if (ReferenceEquals(extensionReceiverType, ctValue.GenericDefinition))
                 return true;
         }
 
-        // Structural equality for StructType (same reasoning as ClassType above).
-        if (extensionReceiverType is StructType extStruct && valueType is StructType valStruct
-            && extStruct.TypeParameters.Count == 0 && valStruct.TypeParameters.Count == 0)
-        {
-            if (extStruct.DisplayName == valStruct.DisplayName
-                && extStruct.ContainingNamespace == valStruct.ContainingNamespace)
-                return true;
-        }
-
-        // Array type structural match: two ArrayType instances with the same
-        // element type are applicable (ArrayType uses reference equality, so
-        // different instances of int[] won't match via ReferenceEquals).
+        // ── 5. ArrayType structural match ───────────────────────────────────
+        // Two ArrayType instances for the same element type are applicable.
         if (extensionReceiverType is ArrayType extArray && valueType is ArrayType valArray)
+            return TypesEqual(extArray.ElementType, valArray.ElementType);
+
+        // ── 6. Non-generic System.Collections.IEnumerable ───────────────────
+        // This interface is intentionally excluded from projected Abstracts lists,
+        // so inheritance walking cannot discover it. LINQ's Cast<T> and OfType<T>
+        // target this interface. Any type that could plausibly implement
+        // IEnumerable (classes, structs, arrays, other abstracts) is considered
+        // potentially applicable — the C# compiler enforces the actual constraint.
+        if (IsNonGenericIEnumerable(extensionReceiverType)
+            && valueType is ClassType or StructType or ArrayType or AbstractType or ConstructedType)
         {
-            return ReferenceEquals(extArray.ElementType, valArray.ElementType);
+            return true;
         }
 
-        // If the extension receiver is a generic type definition (has type parameters),
-        // include it as a potential match — actual type inference happens in the type checker.
-        if (extensionReceiverType is ClassType c && c.TypeParameters.Count > 0)
-            return true;
-        if (extensionReceiverType is StructType s && s.TypeParameters.Count > 0)
-            return true;
-        if (extensionReceiverType is AbstractType i && i.TypeParameters.Count > 0)
-            return true;
-
-        // If the extension receiver is a ConstructedType containing type parameters
-        // (e.g., IEnumerable<T> from a generic extension method), check if the value
-        // type could potentially satisfy the pattern.
-        if (extensionReceiverType is ConstructedType ctReceiver && ContainsTypeParameter(ctReceiver))
+        // ── 7. Inheritance: base type chain (classes) ───────────────────────
+        if (valueType is ClassType classValue && classValue.BaseType is not null)
         {
-            // For ArrayType values, only abstract types that arrays implement are applicable.
-            if (valueType is ArrayType)
+            if (IsApplicable(extensionReceiverType, classValue.BaseType))
+                return true;
+        }
+
+        // ── 8. Inheritance: implemented abstracts ───────────────────────────
+        // Walk the Abstracts list for class, struct, abstract, and constructed value types.
+        var implementedAbstracts = valueType switch
+        {
+            ClassType ct => ct.Abstracts,
+            StructType st => st.Abstracts,
+            AbstractType at => at.Abstracts,
+            ConstructedType ctVal => ctVal.GenericDefinition switch
             {
-                return ctReceiver.GenericDefinition is AbstractType abstractGenDef
-                    && ctReceiver.TypeArguments.Count == 1
-                    && IsArrayCompatibleAbstract(abstractGenDef);
-            }
+                ClassType ctDef => ctDef.Abstracts,
+                StructType stDef => stDef.Abstracts,
+                AbstractType atDef => atDef.Abstracts,
+                _ => null
+            },
+            _ => null
+        };
 
-            // For ConstructedType values, check if the generic definitions match.
-            if (valueType is ConstructedType ctValue)
-            {
-                if (ReferenceEquals(ctReceiver.GenericDefinition, ctValue.GenericDefinition))
-                    return true;
-
-                // Structural fallback: when the generic definitions are projected from
-                // different instances (ambient extension scanner vs. type resolver cache),
-                // compare by DisplayName + ContainingNamespace.
-                return GenericDefinitionsMatch(ctReceiver.GenericDefinition, ctValue.GenericDefinition);
-            }
-
-            // For other types, include as potential match (type inference will filter).
-            return true;
-        }
-
-        // If the value type is a constructed type, check if the extension receiver
-        // matches the generic definition.
-        if (valueType is ConstructedType constructed)
+        if (implementedAbstracts is { Count: > 0 })
         {
-            if (ReferenceEquals(extensionReceiverType, constructed.GenericDefinition))
-                return true;
-
-            // Structural fallback for disconnected shell instances.
-            if (GenericDefinitionsMatch(extensionReceiverType, constructed.GenericDefinition))
-                return true;
-        }
-
-        // Check base type chain for class types.
-        if (valueType is ClassType classType && classType.BaseType is not null)
-        {
-            if (IsApplicable(extensionReceiverType, classType.BaseType))
-                return true;
-        }
-
-        // Check abstract type implementations (structural matching).
-        if (valueType is ClassType ct)
-        {
-            if (ImplementsAbstractStructural(ct.Abstracts, extensionReceiverType))
-                return true;
-        }
-
-        // Check abstract type implementations for struct types.
-        if (valueType is StructType st)
-        {
-            if (ImplementsAbstractStructural(st.Abstracts, extensionReceiverType))
-                return true;
-        }
-
-        // Check abstract-typed receivers: when the value IS an abstract type,
-        // check if it structurally matches the extension receiver or inherits from it.
-        // This enables .NET extension methods targeting abstract types (e.g., LINQ on
-        // IEnumerable, DI on IServiceCollection) to resolve on abstract-typed variables.
-        if (valueType is AbstractType valueAbstract)
-        {
-            if (AbstractMatches(valueAbstract, extensionReceiverType))
-                return true;
-
-            // Check inherited abstract types of the value abstract type.
-            if (valueAbstract.Abstracts.Count > 0
-                && ImplementsAbstractStructural(valueAbstract.Abstracts, extensionReceiverType))
+            if (ImplementsAbstract(implementedAbstracts, extensionReceiverType))
                 return true;
         }
 
@@ -319,9 +285,84 @@ public sealed class ExtensionRegistry
     }
 
     /// <summary>
+    /// Returns true if the type is an open generic definition (has declared type
+    /// parameters but is not a ConstructedType — it's the uninstantiated definition itself).
+    /// </summary>
+    private static bool IsOpenGenericDefinition(IType type) => type switch
+    {
+        ClassType c => c.TypeParameters.Count > 0,
+        StructType s => s.TypeParameters.Count > 0,
+        AbstractType a => a.TypeParameters.Count > 0,
+        _ => false,
+    };
+
+    /// <summary>
+    /// Returns true if the type is the non-generic <c>System.Collections.IEnumerable</c>.
+    /// </summary>
+    private static bool IsNonGenericIEnumerable(IType type) =>
+        type is AbstractType { TypeParameters.Count: 0, DisplayName: "IEnumerable", ContainingNamespace: "System.Collections" };
+
+    /// <summary>
+    /// Checks whether a generic extension receiver pattern (a ConstructedType containing
+    /// TypeParameterType arguments) could match the given value type.
+    /// </summary>
+    private static bool IsPatternApplicable(ConstructedType receiverPattern, IType valueType)
+    {
+        // For arrays, only array-compatible abstract patterns apply.
+        if (valueType is ArrayType)
+        {
+            return receiverPattern.GenericDefinition is AbstractType abstractDef
+                && receiverPattern.TypeArguments.Count == 1
+                && IsArrayCompatibleAbstract(abstractDef);
+        }
+
+        // For concrete constructed types, check if the generic definitions match.
+        if (valueType is ConstructedType ctValue)
+        {
+            if (ReferenceEquals(receiverPattern.GenericDefinition, ctValue.GenericDefinition))
+                return true;
+
+            // Also check if the value type's generic definition implements the
+            // receiver pattern's generic definition (e.g., List<int> implements
+            // IEnumerable<T> because List<T> : IEnumerable<T>).
+            var valueAbstracts = ctValue.GenericDefinition switch
+            {
+                ClassType ct => ct.Abstracts,
+                StructType st => st.Abstracts,
+                AbstractType at => at.Abstracts,
+                _ => null
+            };
+            if (valueAbstracts is not null && ImplementsAbstract(valueAbstracts, receiverPattern.GenericDefinition))
+                return true;
+
+            return false;
+        }
+
+        // For plain class/struct/abstract types, check if they or their base types
+        // implement the pattern's generic definition.
+        var implementedAbstracts = valueType switch
+        {
+            ClassType ct => ct.Abstracts,
+            StructType st => st.Abstracts,
+            AbstractType at => at.Abstracts,
+            _ => null
+        };
+
+        if (implementedAbstracts is not null
+            && ImplementsAbstract(implementedAbstracts, receiverPattern.GenericDefinition))
+            return true;
+
+        // Walk base class chain for classes.
+        if (valueType is ClassType classVal && classVal.BaseType is not null)
+            return IsPatternApplicable(receiverPattern, classVal.BaseType);
+
+        return false;
+    }
+
+    /// <summary>
     /// Returns true if a constructed type contains any <see cref="TypeParameterType"/>
-    /// in its type arguments. This indicates the type is a generic pattern (e.g.,
-    /// IEnumerable&lt;T&gt;) that should be considered potentially applicable to any value type.
+    /// in its type arguments, indicating it is a generic pattern rather than a
+    /// concrete instantiation.
     /// </summary>
     private static bool ContainsTypeParameter(ConstructedType constructedType)
     {
@@ -336,34 +377,58 @@ public sealed class ExtensionRegistry
     }
 
     /// <summary>
-    /// Recursively checks whether the given extension receiver type is implemented by any
-    /// abstract type in the provided list (or in any abstract type's own inherited abstract types).
-    /// Uses structural matching (DisplayName + ContainingNamespace for AbstractType,
-    /// GenericDefinition + TypeArguments for ConstructedType wrapping an abstract type).
+    /// Recursively walks the implemented abstracts list (and their inherited abstracts)
+    /// to determine if the extension receiver type is among them.
+    /// Uses reference equality as the primary check (Phase A ensures canonical instances
+    /// for CLR-projected types). Falls back to ConstructedType structural matching
+    /// since ConstructedType instances are not interned.
     /// </summary>
-    private static bool ImplementsAbstractStructural(
+    private static bool ImplementsAbstract(
         IReadOnlyList<IType> abstracts,
         IType extensionReceiverType,
         HashSet<IType>? visited = null)
     {
         foreach (var abs in abstracts)
         {
-            if (AbstractMatches(abs, extensionReceiverType))
+            // Reference equality covers interned AbstractType and same-instance
+            // ConstructedType (e.g., when the same object appears in both lists).
+            if (ReferenceEquals(abs, extensionReceiverType))
                 return true;
 
-            // Recursively check inherited abstract types.
+            // ConstructedType structural match: two IEnumerable<int> instances
+            // from different projection sites are logically the same type.
+            if (abs is ConstructedType absCt && extensionReceiverType is ConstructedType targetCt)
+            {
+                if (ConstructedTypesEqual(absCt, targetCt))
+                    return true;
+            }
+
+            // An extension targeting a generic definition (e.g., IEnumerable<T> with
+            // TypeParameters.Count > 0) matches any constructed form of that definition
+            // in the implements list.
+            if (abs is ConstructedType absCtForDef
+                && ReferenceEquals(absCtForDef.GenericDefinition, extensionReceiverType))
+                return true;
+
+            // Conversely, if the extension receiver is a ConstructedType pattern and
+            // the abstract in the list is its generic definition.
+            if (extensionReceiverType is ConstructedType extCt
+                && ReferenceEquals(abs, extCt.GenericDefinition))
+                return true;
+
+            // Recursively check inherited abstracts.
             visited ??= new HashSet<IType>(ReferenceEqualityComparer.Instance);
             if (!visited.Add(abs))
                 continue;
 
             var inheritedAbstracts = abs switch
             {
-                AbstractType it => it.Abstracts,
-                ConstructedType ct when ct.GenericDefinition is AbstractType itDef => itDef.Abstracts,
+                AbstractType at => at.Abstracts,
+                ConstructedType ct when ct.GenericDefinition is AbstractType atDef => atDef.Abstracts,
                 _ => null
             };
 
-            if (inheritedAbstracts is not null && ImplementsAbstractStructural(inheritedAbstracts, extensionReceiverType, visited))
+            if (inheritedAbstracts is not null && ImplementsAbstract(inheritedAbstracts, extensionReceiverType, visited))
                 return true;
         }
 
@@ -371,62 +436,44 @@ public sealed class ExtensionRegistry
     }
 
     /// <summary>
-    /// Determines whether two abstract type references represent the same abstract type.
-    /// Handles AbstractType (by DisplayName + ContainingNamespace) and ConstructedType
-    /// wrapping an abstract type (by GenericDefinition identity + TypeArguments structural equality).
+    /// Structural equality for two <see cref="ConstructedType"/> instances.
+    /// Required because ConstructedType is not interned — multiple instances
+    /// representing the same logical type (e.g., <c>IEnumerable&lt;int&gt;</c>)
+    /// can exist at different sites.
     /// </summary>
-    private static bool AbstractMatches(IType abs, IType target)
+    private static bool ConstructedTypesEqual(ConstructedType a, ConstructedType b)
     {
-        if (ReferenceEquals(abs, target))
+        if (!ReferenceEquals(a.GenericDefinition, b.GenericDefinition))
+            return false;
+
+        if (a.TypeArguments.Count != b.TypeArguments.Count)
+            return false;
+
+        for (var i = 0; i < a.TypeArguments.Count; i++)
+        {
+            if (!TypesEqual(a.TypeArguments[i], b.TypeArguments[i]))
+                return false;
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// Recursive type equality check. Uses reference equality for atomic types
+    /// (interned after Phase A) and structural comparison for compound types
+    /// (ConstructedType, ArrayType) that are not interned.
+    /// </summary>
+    private static bool TypesEqual(IType a, IType b)
+    {
+        if (ReferenceEquals(a, b))
             return true;
 
-        // Both are plain AbstractType: compare by name + namespace.
-        if (abs is AbstractType absIt && target is AbstractType targetIt)
+        return (a, b) switch
         {
-            return absIt.DisplayName == targetIt.DisplayName
-                && absIt.ContainingNamespace == targetIt.ContainingNamespace;
-        }
-
-        // Both are ConstructedType wrapping an abstract type: compare generic definition + type args.
-        if (abs is ConstructedType absCt && target is ConstructedType targetCt)
-        {
-            if (absCt.GenericDefinition is AbstractType && targetCt.GenericDefinition is AbstractType)
-            {
-                if (absCt.DisplayName == targetCt.DisplayName)
-                    return true;
-
-                // Same generic definition + same type arguments.
-                if (AbstractMatches(absCt.GenericDefinition, targetCt.GenericDefinition)
-                    && absCt.TypeArguments.Count == targetCt.TypeArguments.Count)
-                {
-                    for (var i = 0; i < absCt.TypeArguments.Count; i++)
-                    {
-                        if (!ReferenceEquals(absCt.TypeArguments[i], targetCt.TypeArguments[i])
-                            && absCt.TypeArguments[i].DisplayName != targetCt.TypeArguments[i].DisplayName)
-                            return false;
-                    }
-                    return true;
-                }
-            }
-        }
-
-        // abs is AbstractType, target is ConstructedType with that abstract type as generic def (or vice versa).
-        // This handles the case where the extension is registered on a non-generic abstract type
-        // but the implementation list has it wrapped in a constructed type, or vice versa.
-        if (abs is AbstractType plainAbs && target is ConstructedType targetCtForPlain)
-        {
-            if (targetCtForPlain.GenericDefinition is AbstractType targetGenDef)
-                return plainAbs.DisplayName == targetGenDef.DisplayName
-                    && plainAbs.ContainingNamespace == targetGenDef.ContainingNamespace;
-        }
-        if (abs is ConstructedType absCtForPlain && target is AbstractType plainTarget)
-        {
-            if (absCtForPlain.GenericDefinition is AbstractType absGenDef)
-                return absGenDef.DisplayName == plainTarget.DisplayName
-                    && absGenDef.ContainingNamespace == plainTarget.ContainingNamespace;
-        }
-
-        return false;
+            (ConstructedType ca, ConstructedType cb) => ConstructedTypesEqual(ca, cb),
+            (ArrayType aa, ArrayType ab) => TypesEqual(aa.ElementType, ab.ElementType),
+            _ => false
+        };
     }
 
     /// <summary>
@@ -438,28 +485,5 @@ public sealed class ExtensionRegistry
         var name = abs.DisplayName;
         return name is "IEnumerable" or "ICollection" or "IList"
             or "IReadOnlyCollection" or "IReadOnlyList";
-    }
-
-    /// <summary>
-    /// Structural comparison of two generic type definitions by DisplayName and
-    /// ContainingNamespace. Used when the ambient extension scanner projects a
-    /// receiver type before the main type resolver caches it, producing a
-    /// disconnected shell that won't satisfy ReferenceEquals.
-    /// </summary>
-    private static bool GenericDefinitionsMatch(IType a, IType b)
-    {
-        if (ReferenceEquals(a, b))
-            return true;
-
-        return (a, b) switch
-        {
-            (ClassType ca, ClassType cb) =>
-                ca.DisplayName == cb.DisplayName && ca.ContainingNamespace == cb.ContainingNamespace,
-            (StructType sa, StructType sb) =>
-                sa.DisplayName == sb.DisplayName && sa.ContainingNamespace == sb.ContainingNamespace,
-            (AbstractType ia, AbstractType ib) =>
-                ia.DisplayName == ib.DisplayName && ia.ContainingNamespace == ib.ContainingNamespace,
-            _ => false
-        };
     }
 }

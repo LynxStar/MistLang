@@ -4877,6 +4877,24 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     }
                 }
 
+                // After type checking an `as` expression, the type checker may have
+                // refined the result from the preliminary target type T (set in Pass 2)
+                // to T | void (NonProvable classification). Update the local variable's
+                // DeclaredType so downstream member access correctly sees the union type
+                // and requires optional chaining (?.) to unwrap.
+                if (varSymbol is not null)
+                {
+                    var asExprNode = TryExtractAsExpression(inferred.Initializer);
+                    if (asExprNode is not null)
+                    {
+                        var asRefinedType = model.GetTypeOf(asExprNode);
+                        if (asRefinedType is not null && asRefinedType is not ErrorType)
+                        {
+                            varSymbol.DeclaredType = asRefinedType;
+                        }
+                    }
+                }
+
                 // MIST_TC_0009: var without initializer.
                 // The grammar requires an initializer for var declarations,
                 // but if the initializer expression type is null, the var
@@ -11157,6 +11175,41 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // The PostfixNode's type is updated by CheckPostfixNode when inference
         // refines the return type. Use it directly.
         return model.GetTypeOf(postfixExpr.Primary);
+    }
+
+    /// <summary>
+    /// Attempts to extract an <see cref="AsExpressionRelationalNode"/> from an
+    /// expression node by walking down the expression chain. Returns the node if
+    /// the expression is a simple <c>expr as T</c> with no outer operators.
+    /// Used to propagate the type checker's refined result type (T or T | void)
+    /// to the enclosing <c>var</c> declaration's symbol.
+    /// </summary>
+    private static AsExpressionRelationalNode? TryExtractAsExpression(ExpressionNode expr)
+    {
+        // Expression → Assignment → VoidCoalescing → LogicalOr → LogicalAnd → Equality → Relational
+        var assignment = expr.AsAssignmentOrNull();
+        if (assignment is null)
+            return null; // Lambda form — not an as expression.
+        if (assignment.Value is not null)
+            return null;
+
+        // VoidCoalescing: must not have any ?? right-hand operands.
+        if (assignment.Target.LogicalOrs.Length > 0)
+            return null;
+
+        var logicalOr = assignment.Target.Left;
+        if (logicalOr.Right is not null)
+            return null;
+
+        var logicalAnd = logicalOr.Left;
+        if (logicalAnd.Right is not null)
+            return null;
+
+        var equality = logicalAnd.Left;
+        if (equality.Right is not null)
+            return null;
+
+        return equality.Left as AsExpressionRelationalNode;
     }
 
     /// <summary>

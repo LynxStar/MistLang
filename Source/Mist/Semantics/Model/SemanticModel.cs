@@ -109,6 +109,17 @@ public sealed class SemanticModel : ISemanticModel
                     return refinedType;
             }
 
+            // When the cached type is a non-union concrete type but the local variable's
+            // DeclaredType has been widened to a union (e.g., by a non-provable `as`
+            // expression producing T | void), prefer the widened type. This ensures
+            // downstream member access sees the union and requires `?.` to unwrap.
+            if (type is not UnionType && type is not TypeParameterType)
+            {
+                var refinedType = TryGetRefinedTypeForLocalVariable(node);
+                if (refinedType is UnionType)
+                    return refinedType;
+            }
+
             return type;
         }
 

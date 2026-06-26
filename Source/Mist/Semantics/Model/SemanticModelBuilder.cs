@@ -953,9 +953,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // the real stdlib IType instances registered in Pass 1 instead of
         // the FallbackStdlibTypeProvider singletons (which have empty
         // member scopes and therefore no operator members).
-        if(ambientTypeResolver is Backends.CSharpTranspiler.CSharpAmbientTypeResolver csharpResolver)
+        if(ambientTypeResolver is Backends.CSharpTranspiler.CSharpAmbientTypeResolver)
         {
-            csharpResolver.UpdateStdlibProvider(
+            Backends.CSharpTranspiler.CSharpAmbientTypeResolver.UpdateStdlibProvider(
                 new ScopeBasedStdlibTypeProvider(globalScope, symbolTable));
         }
 
@@ -21047,7 +21047,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // and is NOT followed by an invocation suffix (i.e., it's used as a value,
         // not called), convert the expression type to the equivalent Func type
         // constructed from the method's parameter types + return type.
-        if(node.Target is IdentifierExpressionPrimaryNode
+        if(node.Target is IdentifierExpressionPrimaryNode identifierTarget
             && (node.Suffix.Length == 0 || node.Suffix[0] is not InvocationSuffixPostfixSuffixNode))
         {
             var targetSymbol = symbolTable.GetDeclaredSymbol(node.Target);
@@ -21059,7 +21059,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 if(lambdaTargetType is DelegateType delegateTarget)
                 {
                     var resolved = ResolveMethodGroupForDelegateTarget(
-                        (IdentifierExpressionPrimaryNode)node.Target,
+                        identifierTarget,
                         delegateTarget,
                         currentScope,
                         fileScope,

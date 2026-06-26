@@ -28,15 +28,6 @@ public sealed class CSharpAmbientTypeResolver : IAmbientTypeResolver
     private readonly Dictionary<(string Namespace, string TypeName), (IType Type, ImmutableArray<ISymbol> Members)> cache = new();
 
     /// <summary>
-    /// The stdlib type provider used to look up Mist types for member
-    /// signatures (e.g., <c>Int32</c>, <c>String</c>, <c>Boolean</c>).
-    /// Starts as <see cref="FallbackStdlibTypeProvider"/> and is upgraded
-    /// to a model-backed provider by <see cref="SemanticModelBuilder"/>
-    /// after Pass 1 registers all stdlib types.
-    /// </summary>
-    private IStdlibTypeProvider stdlib;
-
-    /// <summary>
     /// Creates a new ambient type resolver. Currently registers no types —
     /// Console, Math, and Convert have been migrated to the Standard Library.
     /// The resolver remains available for future ambient type registrations.
@@ -48,7 +39,6 @@ public sealed class CSharpAmbientTypeResolver : IAmbientTypeResolver
     /// </param>
     public CSharpAmbientTypeResolver(IStdlibTypeProvider? stdlib = null)
     {
-        this.stdlib = stdlib ?? FallbackStdlibTypeProvider.Instance;
     }
 
     /// <inheritdoc />
@@ -67,9 +57,11 @@ public sealed class CSharpAmbientTypeResolver : IAmbientTypeResolver
     /// that have not yet been materialized benefit from the upgrade; already-
     /// cached types keep their original provider's instances.
     /// </summary>
-    internal void UpdateStdlibProvider(IStdlibTypeProvider provider)
+    internal static void UpdateStdlibProvider(IStdlibTypeProvider provider)
     {
-        stdlib = provider;
+        // Field was removed — stdlib is not used by this class currently.
+        // Method retained to satisfy callers; the upgrade is a no-op.
+        _ = provider;
     }
 
     /// <inheritdoc />

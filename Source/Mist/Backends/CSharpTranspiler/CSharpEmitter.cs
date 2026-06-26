@@ -301,10 +301,6 @@ internal sealed class CSharpSourceWriter
     private readonly HashSet<string> valueReturningVoidMethods = new(StringComparer.Ordinal);
     /// <summary>
     /// The name of the currently-being-emitted extension class. Set during
-    /// <see cref="EmitExtensionBlock"/> so that call-site rewriting for
-    /// extension properties can reference the correct static class name.
-    /// </summary>
-    private string? currentExtensionClassName;
     /// <summary>
     /// Pending variable bindings from union pattern matching. When an <c>is T t</c>
     /// pattern is emitted against a union scrutinee, the condition becomes
@@ -2459,9 +2455,6 @@ internal sealed class CSharpSourceWriter
         var lineNumber = GetLineNumber(extDecl);
         var className = $"{receiverTypeName}Extensions_{fileName}_L{lineNumber}";
 
-        // Store the class name for call-site rewriting of extension properties.
-        currentExtensionClassName = className;
-
         // Determine the receiver C# type string.
         var receiverCSharpType = EmitTypeReference(extDecl.ReceiverType);
         var receiverName = extDecl.ReceiverName.Lexeme;
@@ -2485,8 +2478,6 @@ internal sealed class CSharpSourceWriter
 
         indentLevel--;
         AppendLine("}");
-
-        currentExtensionClassName = null;
     }
 
     /// <summary>

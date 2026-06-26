@@ -1529,6 +1529,9 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         _insideConstructor = false;
         _insidePropertyAccessor = false;
 
+        // ── Anonymous type scope restriction: method signatures (Requirements 4.3, 4.4) ──
+        CheckAnonymousTypeEscapeInSignature(methodSymbol, declaringNode, model, diagnostics);
+
         // ── Flow narrowing: detect closure-captured variables ──
         if (methodDecl.Body.GetBlock() is BlockNode block)
         {
@@ -2011,6 +2014,16 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // Same display name.
         if (source.DisplayName == target.DisplayName)
             return true;
+
+        // ── anonymous-types feature: structural equality (Requirement 4.6) ──
+        // Two AnonymousType instances with the same property names, types, and
+        // order are the same type and are directly assignable to each other.
+        // This explicit check ensures correctness regardless of DisplayName
+        // formatting and makes the structural equality contract visible.
+        if (source is AnonymousType sourceAnon && target is AnonymousType targetAnon)
+        {
+            return sourceAnon.StructurallyEquals(targetAnon);
+        }
 
         // Migration-window shim.
         if (ArePrimitiveEquivalent(source, target))
@@ -3452,6 +3465,17 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     declaringNode,
                     model));
             }
+        }
+
+        // ── MIST_ANON_ESCAPE_FIELD: Anonymous type field restriction (Requirement 4.5) ──
+        // Anonymous types cannot be used as field types because they have no denotable name.
+        if (fieldType is AnonymousType)
+        {
+            diagnostics.Add(MakeDiagnostic(
+                "MIST_ANON_ESCAPE_FIELD",
+                "Anonymous types cannot be used as field types",
+                declaringNode,
+                model));
         }
 
         // Field initializers: the grammar stores the initializer as part of the
@@ -7222,6 +7246,10 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             // MIST_REF_0008: Cannot store a ref in a field.
             CheckRefFieldStorageProhibition(assignment, model, diagnostics);
 
+            // ── anonymous-types feature: read-only property enforcement ──
+            // MIST_ANON_READONLY: Anonymous type properties are read-only.
+            CheckAnonymousTypeReadonlyAssignment(assignment, model, diagnostics);
+
             // Infer bare 'default' type from the LHS type before checking the RHS.
             // The RHS is now a full ExpressionNode (widened to reach lambdas); only the
             // assignment form can carry a bare 'default' literal.
@@ -7583,6 +7611,101 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 "Cannot store a ref in a field; refs are stack-only aliases",
                 assignment,
                 model));
+        }
+    }
+
+    /// <summary>
+    /// Checks if an assignment target is a member access on an anonymous type value.
+    /// Emits <c>MIST_ANON_READONLY</c> because anonymous type properties are read-only.
+    /// </summary>
+    private static void CheckAnonymousTypeReadonlyAssignment(
+        AssignmentNode assignment,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        // Extract the PostfixNode from the assignment target.
+        var targetPostfix = TryExtractPostfixFromLogicalOr(assignment.Target.Left);
+        if (targetPostfix is null)
+            return;
+
+        // The target must have at least one suffix, and the last suffix must be a member access.
+        // This covers `anon.Property = value`.
+        if (targetPostfix.Suffix.Length == 0)
+            return;
+
+        var lastSuffix = targetPostfix.Suffix[^1];
+        if (lastSuffix is not MemberAccessSuffixPostfixSuffixNode)
+            return;
+
+        // Determine the receiver type: it's the type of the previous suffix,
+        // or of the primary target if this is the only suffix.
+        var receiverType = targetPostfix.Suffix.Length > 1
+            ? model.GetTypeOf(targetPostfix.Suffix[^2])
+            : model.GetTypeOf(targetPostfix.Target);
+
+        if (receiverType is AnonymousType)
+        {
+            diagnostics.Add(MakeDiagnostic(
+                "MIST_ANON_READONLY",
+                "Anonymous type properties are read-only",
+                assignment,
+                model));
+        }
+    }
+
+    /// <summary>
+    /// Checks that anonymous types do not escape into method signatures (return type or parameters).
+    /// Emits <c>MIST_ANON_ESCAPE_SIGNATURE</c> for any violation.
+    /// </summary>
+    private static void CheckAnonymousTypeEscapeInSignature(
+        ISymbol methodSymbol,
+        SyntaxNode declaringNode,
+        ISemanticModel model,
+        DiagnosticBag diagnostics)
+    {
+        // Check return type.
+        var returnType = (methodSymbol as Symbol)?.DeclaredReturnType ?? methodSymbol.DeclaredType;
+        if (returnType is AnonymousType)
+        {
+            diagnostics.Add(MakeDiagnostic(
+                "MIST_ANON_ESCAPE_SIGNATURE",
+                "Anonymous types cannot appear in method signatures",
+                declaringNode,
+                model));
+        }
+
+        // Check parameter types.
+        if (methodSymbol is Symbol { Parameters.Count: > 0 } sym)
+        {
+            foreach (var param in sym.Parameters)
+            {
+                if (param.DeclaredType is AnonymousType)
+                {
+                    diagnostics.Add(MakeDiagnostic(
+                        "MIST_ANON_ESCAPE_SIGNATURE",
+                        "Anonymous types cannot appear in method signatures",
+                        declaringNode,
+                        model));
+                    break;
+                }
+            }
+        }
+        else
+        {
+            // For Mist-declared methods, collect parameters from the AST.
+            var paramSymbols = CollectParameterSymbols(declaringNode, model);
+            foreach (var param in paramSymbols)
+            {
+                if (param.DeclaredType is AnonymousType)
+                {
+                    diagnostics.Add(MakeDiagnostic(
+                        "MIST_ANON_ESCAPE_SIGNATURE",
+                        "Anonymous types cannot appear in method signatures",
+                        declaringNode,
+                        model));
+                    break;
+                }
+            }
         }
     }
 
@@ -7979,6 +8102,28 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             if (lhsType is not null && lhsType.IsVoid() && rhsType is not null && rhsType.IsVoid())
             {
                 model.SetTypeOf(node, LegacyPrimitiveTypes.Bool);
+                return;
+            }
+
+            // ── anonymous-types feature: equality operator validation ──
+            // Two values of the same AnonymousType (structurally equal) can
+            // be compared with == / !=. Different anonymous type shapes are
+            // rejected with MIST_ANON_EQUALITY_MISMATCH.
+            if (lhsType is AnonymousType lhsAnon && rhsType is AnonymousType rhsAnon)
+            {
+                if (lhsAnon.StructurallyEquals(rhsAnon))
+                {
+                    model.SetTypeOf(node, LegacyPrimitiveTypes.Bool);
+                }
+                else
+                {
+                    diagnostics.Add(MakeDiagnostic(
+                        "MIST_ANON_EQUALITY_MISMATCH",
+                        "Cannot compare anonymous types with different shapes",
+                        node,
+                        model));
+                }
+
                 return;
             }
 
@@ -8382,11 +8527,16 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     // (Req 4.1), and the introduced binding has no more
                     // specific type than the scrutinee — it discards
                     // information instead of recovering it.
-                    diagnostics.Add(MakeDiagnostic(
-                        PatternNarrowToUnknown.Value,
-                        "Narrowing to 'unknown' is not meaningful: the pattern is tautologically true and introduces no new type information. Remove the pattern or narrow to a concrete type instead.",
-                        typePattern,
-                        model));
+                    // Exception: `is object` (NamedSingleTypeRef) maps to C#'s
+                    // `is object` pattern which tests for non-null.
+                    if (typePattern.Type.First is not NamedSingleTypeRefSingleTypeRefNode)
+                    {
+                        diagnostics.Add(MakeDiagnostic(
+                            PatternNarrowToUnknown.Value,
+                            "Narrowing to 'unknown' is not meaningful: the pattern is tautologically true and introduces no new type information. Remove the pattern or narrow to a concrete type instead.",
+                            typePattern,
+                            model));
+                    }
                 }
                 else if (IsClosedGenericWithUnknown(patternType))
                 {
@@ -8500,11 +8650,17 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 }
                 else if (patternType is UnknownType)
                 {
-                    diagnostics.Add(MakeDiagnostic(
-                        PatternNarrowToUnknown.Value,
-                        "Narrowing to 'unknown' is not meaningful: the pattern is tautologically true and introduces no new type information. Remove the pattern or narrow to a concrete type instead.",
-                        bareTypePattern,
-                        model));
+                    // Allow `is object` when the source uses the `object` keyword explicitly
+                    // (a NamedSingleTypeRef, not an UnknownSingleTypeRef). This maps to C#'s
+                    // `is object` pattern which tests for non-null.
+                    if (bareTypePattern.Type.First is not NamedSingleTypeRefSingleTypeRefNode)
+                    {
+                        diagnostics.Add(MakeDiagnostic(
+                            PatternNarrowToUnknown.Value,
+                            "Narrowing to 'unknown' is not meaningful: the pattern is tautologically true and introduces no new type information. Remove the pattern or narrow to a concrete type instead.",
+                            bareTypePattern,
+                            model));
+                    }
                 }
                 else if (IsClosedGenericWithUnknown(patternType))
                 {
@@ -8901,6 +9057,43 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             }
 
             CheckPattern(subpattern.Pattern, elementType, model, diagnostics);
+            return;
+        }
+
+        // Req 8.3: Property patterns on `unknown` accept any property names — defer
+        // validation to runtime. The sub-pattern is validated against `unknown` so
+        // that nested `var` bindings still get the correct (unknown) type.
+        if (patternType is UnknownType)
+        {
+            CheckPattern(subpattern.Pattern, patternType, model, diagnostics);
+            return;
+        }
+
+        // Req 5.1, 5.3: Validate property patterns against AnonymousType property
+        // names and types. Report error for names that don't exist on the type.
+        if (patternType is AnonymousType anonType)
+        {
+            IType? anonPropertyType = null;
+            for (var i = 0; i < anonType.PropertyNames.Count; i++)
+            {
+                if (anonType.PropertyNames[i] == propertyName)
+                {
+                    anonPropertyType = anonType.PropertyTypes[i];
+                    break;
+                }
+            }
+
+            if (anonPropertyType is null)
+            {
+                diagnostics.Add(MakeDiagnostic(
+                    PatternUndefinedProperty.Value,
+                    $"Type '{patternType.DisplayName}' does not contain a member named '{propertyName}'",
+                    subpattern,
+                    model));
+                anonPropertyType = ErrorType.Instance;
+            }
+
+            CheckPattern(subpattern.Pattern, anonPropertyType, model, diagnostics);
             return;
         }
 
@@ -9860,6 +10053,16 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     // already validates member existence and reports MIST_SB_0082
                     // for undefined members.
                     if (currentType is EnumType)
+                    {
+                        currentType = model.GetTypeOf(suffix) ?? ErrorType.Instance;
+                        targetIsTypeName = false;
+                        break;
+                    }
+                    // Anonymous type property access: properties are always public
+                    // and have no declared symbol, so skip access modifier checks.
+                    // The semantic model builder resolves property types and reports
+                    // MIST_UNDEFINED_MEMBER for unknown property names.
+                    if (currentType is AnonymousType)
                     {
                         currentType = model.GetTypeOf(suffix) ?? ErrorType.Instance;
                         targetIsTypeName = false;
@@ -16695,6 +16898,16 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         if (source.DisplayName == target.DisplayName)
             return true;
 
+        // ── anonymous-types feature: structural equality (Requirement 4.6) ──
+        // Two AnonymousType instances with the same property names, types, and
+        // order are the same type and are assignable to each other.
+        // This explicit check ensures correctness regardless of DisplayName
+        // formatting and makes the structural equality contract visible.
+        if (source is AnonymousType sourceAnon && target is AnonymousType targetAnon)
+        {
+            return sourceAnon.StructurallyEquals(targetAnon);
+        }
+
         // ArrayType assignability: a concrete-length array (e.g., int[10]) is
         // assignable to an unsized or symbolic-length array (int[]) with the same
         // element type. A symbolic-length array is also assignable to an unsized
@@ -19647,6 +19860,17 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             diagnostics.Add(MakeDiagnostic(
                 "MIST2004",
                 $"Ref struct type '{effectiveTypeArgument.DisplayName}' cannot be used as a generic type argument",
+                node,
+                model));
+        }
+
+        // ── MIST_ANON_ESCAPE_GENERIC: Anonymous type generic argument restriction (Requirement 4.7) ──
+        // Anonymous types have no denotable name and cannot be used as generic type arguments.
+        if (effectiveTypeArgument is AnonymousType)
+        {
+            diagnostics.Add(MakeDiagnostic(
+                "MIST_ANON_ESCAPE_GENERIC",
+                "Anonymous types have no denotable name and cannot be used as generic type arguments",
                 node,
                 model));
         }

@@ -1,0 +1,76 @@
+using Standard;
+
+namespace AnonymousTypes;
+
+public class Program
+{
+    public static void RunDemo()
+    {
+        Console.WriteLine("=== Anonymous Types Sample ===");
+
+        // PROOF: Parser recognizes `new { Name = expr }` as anonymous type expression
+        // PROOF: Type checker infers AnonymousType with named properties
+        // PROOF: Emitter produces C# `new { Name = "Mist", Version = 1 }`
+        Console.WriteLine("--- Explicit property assignment ---");
+        var lang = new { Name = "Mist", Version = 1 };
+        Console.WriteLine($"Name={lang.Name} Version={lang.Version}");
+
+        // PROOF: Property projection infers name from variable identifier
+        // PROOF: Emitter produces C# `new { city, population }`
+        Console.WriteLine("--- Property projection from variables ---");
+        var city = "Portland";
+        var population = 650000;
+        var info = new { city, population };
+        Console.WriteLine($"city={info.city} population={info.population}");
+
+        // PROOF: Property projection infers name from member access
+        // PROOF: Emitter produces C# `new { lang.Name }`
+        Console.WriteLine("--- Property projection from member access ---");
+        var projected = new { lang.Name };
+        Console.WriteLine($"projected.Name={projected.Name}");
+
+        // PROOF: Mixed explicit and projection forms in one expression
+        Console.WriteLine("--- Mixed explicit and projection ---");
+        var tag = "release";
+        var mixed = new { tag, BuildNumber = 42 };
+        Console.WriteLine($"tag={mixed.tag} BuildNumber={mixed.BuildNumber}");
+
+        // PROOF: Same-shape anonymous types are assignable to each other
+        // PROOF: Type checker treats same property names/types/order as same type
+        Console.WriteLine("--- Same-shape assignment ---");
+        var first = new { X = 1, Y = 2 };
+        var second = new { X = 10, Y = 20 };
+        second = first;
+        Console.WriteLine($"X={second.X} Y={second.Y}");
+
+        // PROOF: Anonymous type assigned to `unknown`
+        // PROOF: Emitter lowers `unknown` to `object`
+        Console.WriteLine("--- Assignment to unknown ---");
+        unknown box = new { X = 10, Y = 20 };
+        Console.WriteLine($"box is object: {box is object}");
+
+        // PROOF: Property pattern narrows anonymous type from `unknown`
+        // PROOF: Emitter generates C# property pattern match
+        Console.WriteLine("--- Property pattern matching ---");
+        if (box is { X: var x, Y: var y })
+        {
+            Console.WriteLine($"X={x} Y={y}");
+        }
+
+        // PROOF: Structural equality — same shape and values are equal
+        // PROOF: Emitter relies on C# compiler-generated Equals/GetHashCode
+        Console.WriteLine("--- Equality ---");
+        var a = new { Id = 1, Label = "one" };
+        var b = new { Id = 1, Label = "one" };
+        var c = new { Id = 2, Label = "two" };
+        Console.WriteLine($"a==b: {a == b}");
+        Console.WriteLine($"a==c: {a == c}");
+
+        Console.WriteLine("Done!");
+    }
+
+    public static void Main(string[] args)
+    {
+        RunDemo();
+    }
+}

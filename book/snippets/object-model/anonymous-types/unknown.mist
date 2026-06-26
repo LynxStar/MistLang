@@ -1,0 +1,17 @@
+using Standard;
+
+class Program
+{
+    public static void Main(string[] args)
+    {
+        // Anonymous types can be assigned to `unknown`
+        unknown box = new { X = 10, Y = 20 };
+        Console.WriteLine($"box is object: {box is object}");
+
+        // Use property patterns to narrow from `unknown`
+        if (box is { X: var x, Y: var y })
+        {
+            Console.WriteLine($"X={x} Y={y}");
+        }
+    }
+}

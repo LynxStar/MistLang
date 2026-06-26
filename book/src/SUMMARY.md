@@ -31,6 +31,7 @@
 - [Enums](object-model/enums.md)
 - [Extensions](object-model/extension-methods.md)
 - [Target-Typed New](object-model/target-typed-new.md)
+- [Anonymous Types](object-model/anonymous-types.md)
 
 # Type System
 

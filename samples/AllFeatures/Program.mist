@@ -73,6 +73,7 @@ public class Program
         DependentTypeRefinementConstraints.Program.RunDemo();
         TargetTypedNew.Program.RunDemo();
         AsOperator.Program.RunDemo();
+        AnonymousTypes.Program.RunDemo();
         Console.WriteLine("=== Done! ===");
     }
 }

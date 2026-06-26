@@ -232,16 +232,18 @@ public class TargetTypedNewDisambiguationPropertyTests
     }
 
     // ═════════════════════════════════════════════════════════════════════════
-    // Property 2c: new { ... } always produces TargetTypedNewExpressionNoArgsPrimaryNode
+    // Property 2c: new { Name = expr } now produces AnonymousTypeExpressionPrimaryNode
     //
-    // Parsing `new { ... }` (with no type name or parentheses) SHALL always
-    // produce a TargetTypedNewExpressionNoArgsPrimaryNode.
+    // After anonymous types were added to the grammar (ordered before
+    // TargetTypedNewExpressionNoArgs), parsing `new { Name = 1 }` SHALL
+    // produce an AnonymousTypeExpressionPrimaryNode because the content
+    // matches AnonymousPropertyList.
     // ═════════════════════════════════════════════════════════════════════════
 
     [Property(
         MaxTest = 100,
         Arbitrary = new[] { typeof(TargetTypedNewDisambiguationPropertyTests) })]
-    public Property TargetTypedNewNoArgs_AlwaysProducesTargetTypedNewExpressionNoArgs(NewDisambiguationScenario scenario)
+    public Property NewWithPropertyInitializer_ProducesAnonymousTypeExpression(NewDisambiguationScenario scenario)
     {
         var source = BuildTargetTypedNewNoArgsSource(scenario);
         var root = ParseSource(source);
@@ -253,10 +255,10 @@ public class TargetTypedNewDisambiguationPropertyTests
         if (primary is null)
             return false.ToProperty().Label($"Could not extract primary node from: {source}");
 
-        var isTargetTypedNewNoArgs = primary is TargetTypedNewExpressionNoArgsPrimaryNode;
+        var isAnonymousType = primary is AnonymousTypeExpressionPrimaryNode;
 
-        return isTargetTypedNewNoArgs
+        return isAnonymousType
             .ToProperty()
-            .Label($"Expected TargetTypedNewExpressionNoArgsPrimaryNode but got {primary.GetType().Name} for: {source}");
+            .Label($"Expected AnonymousTypeExpressionPrimaryNode but got {primary.GetType().Name} for: {source}");
     }
 }

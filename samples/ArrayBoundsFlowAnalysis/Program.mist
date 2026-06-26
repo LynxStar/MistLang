@@ -67,8 +67,8 @@ public class Program
     // matches the array's own Length — a tautology that proves `items[i]` safe.
     private static int SumAll(int[] items)
     {
-        int total = 0;
-        for (int i = 0; i < items.Length; i = i + 1)
+        var total = 0;
+        for (var i = 0; i < items.Length; i = i + 1)
         {
             total = total + items[i];
         }

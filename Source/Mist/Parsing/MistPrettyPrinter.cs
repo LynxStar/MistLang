@@ -2160,6 +2160,30 @@ public sealed class MistPrettyPrinter
                 var assignments = EmitPropertyAssignmentList(targetNewNoArgs.Initializer);
                 return $"new {{ {assignments} }}";
             }
+            case AnonymousTypeExpressionPrimaryNode anonType:
+            {
+                var parts = new List<string>();
+
+                string FormatAnonymousProperty(AnonymousPropertyNode prop)
+                {
+                    return prop switch
+                    {
+                        ExplicitAnonymousPropertyAnonymousPropertyNode explicit_ =>
+                            $"{explicit_.Name.Lexeme} = {EmitExpression(explicit_.Value)}",
+                        ProjectedAnonymousPropertyAnonymousPropertyNode projected =>
+                            EmitPostfix(projected.Projection),
+                        _ => ""
+                    };
+                }
+
+                parts.Add(FormatAnonymousProperty(anonType.Properties.AnonymousProperty));
+                foreach (var additional in anonType.Properties.AnonymousPropertys)
+                {
+                    parts.Add(FormatAnonymousProperty(additional));
+                }
+
+                return $"new {{ {string.Join(", ", parts)} }}";
+            }
             case ParenthesizedExpressionPrimaryNode paren:
                 return $"({EmitExpression(paren.Inner)})";
             case TupleLiteralExpressionPrimaryNode tupleLit:

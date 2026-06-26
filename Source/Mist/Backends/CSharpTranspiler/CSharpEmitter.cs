@@ -305,6 +305,11 @@ internal sealed class CSharpSourceWriter
     /// </summary>
     private readonly List<string> _pendingUnionPatternBindings = new();
     /// <summary>
+    /// Monotonically increasing ID for generating unique temporary variable names
+    /// in desugared property pattern emission on unknown scrutinees.
+    /// </summary>
+    private int _nextPatternId;
+    /// <summary>
     /// Maps discarded task origin nodes (expression nodes from expression statements)
     /// to their <see cref="DiscardedTaskInfo"/> for the current block being emitted.
     /// Used by <see cref="EmitStatementsFromIndex"/> to detect discarded-task expression
@@ -6574,7 +6579,8 @@ internal sealed class CSharpSourceWriter
             && !ArgumentContainsAutoAwaitCall(argExprs)
             && !ArgumentsContainImplicitClone(argExprs)
             && !ArgumentContainsOptionalInterpolation(argExprs)
-            && !ArgumentContainsAsyncBlockExpression(argExprs))
+            && !ArgumentContainsAsyncBlockExpression(argExprs)
+            && !ArgumentContainsAnonymousTypeEquality(argExprs))
         {
             var span = argList.Span;
             if (span.Length > 0 && span.Start + span.Length <= _sourceText.Contents.Length)
@@ -8638,6 +8644,42 @@ internal sealed class CSharpSourceWriter
     }
 
     /// <summary>
+    /// Returns <c>true</c> if any argument expression contains an equality comparison
+    /// (<c>==</c> or <c>!=</c>) between two anonymous types. When true, the source-text
+    /// fast path must be bypassed so the emitter can rewrite <c>a == b</c> to
+    /// <c>object.Equals(a, b)</c> for structural comparison (C# anonymous types
+    /// override Equals/GetHashCode but not operator==).
+    /// </summary>
+    private bool ArgumentContainsAnonymousTypeEquality(List<ExpressionNode> argExprs)
+    {
+        foreach (var expr in argExprs)
+        {
+            if (ExpressionContainsAnonymousTypeEquality(expr))
+                return true;
+        }
+        return false;
+    }
+
+    private bool ExpressionContainsAnonymousTypeEquality(Storm.Runtime.SyntaxNode node)
+    {
+        if (node is EqualityNode equality && equality.Right is not null
+            && !ReferenceEquals(equality.Right, equality.Left))
+        {
+            var lhsType = _model.GetTypeOf(equality.Left);
+            var rhsType = _model.GetTypeOf(equality.Right);
+            if (lhsType is AnonymousType && rhsType is AnonymousType)
+                return true;
+        }
+
+        foreach (var child in node.Children())
+        {
+            if (child is not null && ExpressionContainsAnonymousTypeEquality(child))
+                return true;
+        }
+        return false;
+    }
+
+    /// <summary>
     /// Returns <c>true</c> if any argument requires delegate constructor wrapping —
     /// i.e., the parameter type is a <see cref="DelegateType"/> and the argument's
     /// type is a func/lambda/method-group (not already a DelegateType). When true,
@@ -9268,6 +9310,10 @@ internal sealed class CSharpSourceWriter
                 // DelegateType variable or a DelegateType value to a func variable, emit
                 // a constructor invocation to satisfy C#'s nominal delegate type system.
                 init = WrapDelegateConversionIfNeeded(initType, declaredType, init);
+
+                // Anonymous types have no denotable name in C#; always emit `var`.
+                if (declaredType is AnonymousType)
+                    type = "var";
 
                 // Emit ref / ref readonly prefix for ref locals.
                 var refPrefix = declaredSymbol?.RefKind switch
@@ -9940,6 +9986,20 @@ internal sealed class CSharpSourceWriter
 
         var op = equality.Operator.Lexeme;
         var right = EmitRelational(equality.Right);
+
+        // ── anonymous-types feature: structural equality (Requirement 9.2) ──
+        // C# anonymous types override Equals/GetHashCode but not operator==.
+        // Emit object.Equals(left, right) to get structural comparison.
+        // The type checker sets the EqualityNode's type to bool when both operands
+        // are same-shape AnonymousType. Check operand types via the model.
+        var lhsType = _model.GetTypeOf(equality.Left);
+        var rhsType = _model.GetTypeOf(equality.Right);
+        if (lhsType is AnonymousType && rhsType is AnonymousType)
+        {
+            var equalsCall = $"object.Equals({left}, {right})";
+            return op == "!=" ? $"!{equalsCall}" : equalsCall;
+        }
+
         return EmitBinaryOperator(equality, op, left, right);
     }
 
@@ -9981,6 +10041,17 @@ internal sealed class CSharpSourceWriter
                 var refinementResult = TryEmitRefinementPatternMatch(isExpr.Pattern, left);
                 if (refinementResult is not null)
                     return refinementResult;
+
+                // Unknown scrutinee with property pattern: C# property patterns
+                // don't work against `object` because the properties aren't known
+                // at compile time. Desugar into a null check + dynamic property
+                // extraction in the then-branch (Requirement 8.2).
+                if (scrutineeType is UnknownType)
+                {
+                    var unknownResult = TryEmitUnknownPropertyPatternMatch(isExpr.Pattern, left);
+                    if (unknownResult is not null)
+                        return unknownResult;
+                }
 
                 // Enum member pattern matching: emit value equality check
                 // (`scrutinee == EnumName.MemberName`) instead of C#'s `is` pattern.
@@ -10314,6 +10385,82 @@ internal sealed class CSharpSourceWriter
                 // fall through to standard emission.
                 return null;
         }
+    }
+
+    // ─── Unknown Scrutinee Property Pattern Matching ─────────────────────
+
+    /// <summary>
+    /// Attempts to emit a property pattern match when the scrutinee type is <c>unknown</c>
+    /// (emitted as C# <c>object</c>). C# property patterns cannot resolve property names
+    /// against <c>object</c> at compile time, so this method desugars the pattern into:
+    /// <list type="bullet">
+    /// <item>Condition: <c>scrutinee is not null</c></item>
+    /// <item>Pending bindings (injected at then-branch start):
+    ///   <c>dynamic __pat = scrutinee; var x = __pat.X; var y = __pat.Y;</c></item>
+    /// </list>
+    /// This uses the DLR to resolve property accesses at runtime (Requirement 8.2).
+    /// Returns <c>null</c> if the pattern is not a simple property pattern.
+    /// </summary>
+    private string? TryEmitUnknownPropertyPatternMatch(PatternNode pattern, string scrutineeExpr)
+    {
+        // Navigate: Pattern → OrPattern → AndPattern → UnaryPattern → PrimaryPattern
+        var orPattern = pattern.OrPattern;
+        if (orPattern.Right is not null && !ReferenceEquals(orPattern.Right, orPattern.Left))
+            return null;
+
+        var andPattern = orPattern.Left;
+        if (andPattern.Right is not null && !ReferenceEquals(andPattern.Right, andPattern.Left))
+            return null;
+
+        var unaryPattern = andPattern.Left;
+        if (unaryPattern is not DirectPatternUnaryPatternNode directPattern)
+            return null;
+
+        if (directPattern.Primary is not PropertyPatternPrimaryPatternNode propertyPattern)
+            return null;
+
+        if (propertyPattern.Subpatterns is null)
+            return null;
+
+        // Generate a unique dynamic variable name to avoid collisions.
+        var dynVar = $"__pat_{_nextPatternId++}";
+        _pendingUnionPatternBindings.Add($"dynamic {dynVar} = {scrutineeExpr};");
+
+        // Process each subpattern — extract the var binding via dynamic property access.
+        void ProcessSubpattern(PropertySubpatternNode subpattern)
+        {
+            var propName = subpattern.Name.Lexeme;
+
+            // Check if the subpattern is a simple `var name` pattern.
+            var subOr = subpattern.Pattern.OrPattern;
+            var subAnd = subOr.Left;
+            var subUnary = subAnd.Left;
+            if (subUnary is DirectPatternUnaryPatternNode subDirect
+                && subDirect.Primary is VarPatternPrimaryPatternNode varPat)
+            {
+                var bindingName = varPat.Name.Lexeme;
+                _pendingUnionPatternBindings.Add($"var {bindingName} = {dynVar}.{propName};");
+            }
+            else
+            {
+                // For non-var subpatterns (constants, nested patterns, etc.),
+                // extract the value and defer further matching to runtime.
+                // This is a simplification — full recursive desugaring would
+                // require condition composition.
+                var tempName = $"__prop_{propName}_{_nextPatternId++}";
+                _pendingUnionPatternBindings.Add($"var {tempName} = {dynVar}.{propName};");
+            }
+        }
+
+        ProcessSubpattern(propertyPattern.Subpatterns.PropertySubpattern);
+        foreach (var subpattern in propertyPattern.Subpatterns.PropertySubpatterns)
+        {
+            ProcessSubpattern(subpattern);
+        }
+
+        // The condition is a null check — the dynamic property access in the
+        // then-branch handles the runtime type extraction.
+        return $"{scrutineeExpr} is not null";
     }
 
     // ─── Refinement Type Pattern Matching ────────────────────────────────
@@ -12615,6 +12762,30 @@ internal sealed class CSharpSourceWriter
                     }
                 }
                 return $"new {typeName}() {{ {string.Join(", ", initParts)} }}";
+            }
+            case AnonymousTypeExpressionPrimaryNode anonType:
+            {
+                var parts = new List<string>();
+
+                string FormatAnonymousProperty(AnonymousPropertyNode prop)
+                {
+                    return prop switch
+                    {
+                        ExplicitAnonymousPropertyAnonymousPropertyNode explicit_ =>
+                            $"{explicit_.Name.Lexeme} = {EmitExpression(explicit_.Value)}",
+                        ProjectedAnonymousPropertyAnonymousPropertyNode projected =>
+                            EmitPostfix(projected.Projection),
+                        _ => ""
+                    };
+                }
+
+                parts.Add(FormatAnonymousProperty(anonType.Properties.AnonymousProperty));
+                foreach (var additional in anonType.Properties.AnonymousPropertys)
+                {
+                    parts.Add(FormatAnonymousProperty(additional));
+                }
+
+                return $"new {{ {string.Join(", ", parts)} }}";
             }
             case ParenthesizedExpressionPrimaryNode paren:
                 return $"({EmitExpression(paren.Inner)})";

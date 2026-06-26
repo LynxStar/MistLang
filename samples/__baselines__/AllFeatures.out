@@ -1606,4 +1606,23 @@ SumSpan=179
 --- Compose with ?? ---
   fallback: Default, Unknown
 Done!
+=== Anonymous Types Sample ===
+--- Explicit property assignment ---
+Name=Mist Version=1
+--- Property projection from variables ---
+city=Portland population=650000
+--- Property projection from member access ---
+projected.Name=Mist
+--- Mixed explicit and projection ---
+tag=release BuildNumber=42
+--- Same-shape assignment ---
+X=1 Y=2
+--- Assignment to unknown ---
+box is object: True
+--- Property pattern matching ---
+X=10 Y=20
+--- Equality ---
+a==b: True
+a==c: False
+Done!
 === Done! ===

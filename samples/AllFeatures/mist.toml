@@ -63,3 +63,4 @@ StackOnlyTypes = { path = "../StackOnlyTypes" }
 DependentTypeRefinementConstraints = { path = "../DependentTypeRefinementConstraints" }
 TargetTypedNew = { path = "../TargetTypedNew" }
 AsOperator = { path = "../AsOperator" }
+AnonymousTypes = { path = "../AnonymousTypes" }

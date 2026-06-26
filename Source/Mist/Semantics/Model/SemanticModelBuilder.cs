@@ -18235,6 +18235,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             "regex" => LegacyPrimitiveTypes.Regex,
             "void" => LegacyPrimitiveTypes.Void,
             "Void" => LegacyPrimitiveTypes.Void,
+            "object" => UnknownType.Instance,
             _ => null,
         };
     }
@@ -21959,6 +21960,110 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 break;
             }
 
+            case AnonymousTypeExpressionPrimaryNode anonTypeExpr:
+            {
+                // Resolve anonymous type expression: new { Name = expr, projection, ... }
+                // Collect property names and types, validate constraints, build AnonymousType.
+                var propertyNames = new List<string>();
+                var propertyTypes = new List<IType>();
+                var seenNames = new HashSet<string>(StringComparer.Ordinal);
+
+                void ProcessAnonymousProperty(AnonymousPropertyNode prop)
+                {
+                    switch (prop)
+                    {
+                        case ExplicitAnonymousPropertyAnonymousPropertyNode explicit_:
+                        {
+                            var name = explicit_.Name.Lexeme;
+                            var propType = ResolveExpression(explicit_.Value, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+
+                            if (!seenNames.Add(name))
+                            {
+                                diagnostics.Add(MakeDiagnosticWithTokenLocation(
+                                    "MIST_ANON_DUPLICATE_PROP",
+                                    DiagnosticSeverity.Error,
+                                    $"Anonymous type already contains a property named '{name}'.",
+                                    explicit_.Name,
+                                    sourceText));
+                                propertyNames.Add(name);
+                                propertyTypes.Add(ErrorType.Instance);
+                            }
+                            else
+                            {
+                                propertyNames.Add(name);
+                                propertyTypes.Add(propType);
+                            }
+                            break;
+                        }
+
+                        case ProjectedAnonymousPropertyAnonymousPropertyNode projected:
+                        {
+                            var projection = projected.Projection;
+
+                            // Resolve the projection expression type.
+                            var projType = ResolvePostfix(projection, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+
+                            // Extract the inferred property name from the postfix node.
+                            string? inferredName = null;
+
+                            if (projection.Suffix.Length == 0 && projection.Target is IdentifierExpressionPrimaryNode identTarget)
+                            {
+                                // Simple identifier projection: new { variable }
+                                inferredName = identTarget.Name.Lexeme;
+                            }
+                            else if (projection.Suffix.Length > 0 && projection.Suffix[^1] is MemberAccessSuffixPostfixSuffixNode memberAccess)
+                            {
+                                // Member access projection: new { expr.Member }
+                                inferredName = memberAccess.Name.Lexeme;
+                            }
+
+                            if (inferredName is null)
+                            {
+                                // Cannot infer name from literals, method calls, etc.
+                                diagnostics.Add(MakeDiagnosticWithLocation(
+                                    "MIST_ANON_NO_PROJECTION_NAME",
+                                    DiagnosticSeverity.Error,
+                                    "Cannot infer property name from expression; use explicit `Name = expr` form.",
+                                    projection,
+                                    sourceText));
+                                propertyNames.Add("<error>");
+                                propertyTypes.Add(ErrorType.Instance);
+                            }
+                            else if (!seenNames.Add(inferredName))
+                            {
+                                diagnostics.Add(MakeDiagnosticWithLocation(
+                                    "MIST_ANON_DUPLICATE_PROP",
+                                    DiagnosticSeverity.Error,
+                                    $"Anonymous type already contains a property named '{inferredName}'.",
+                                    projection,
+                                    sourceText));
+                                propertyNames.Add(inferredName);
+                                propertyTypes.Add(ErrorType.Instance);
+                            }
+                            else
+                            {
+                                propertyNames.Add(inferredName);
+                                propertyTypes.Add(projType);
+                            }
+                            break;
+                        }
+                    }
+                }
+
+                // Process the first property.
+                ProcessAnonymousProperty(anonTypeExpr.Properties.AnonymousProperty);
+
+                // Process additional properties.
+                foreach (var additional in anonTypeExpr.Properties.AnonymousPropertys)
+                {
+                    ProcessAnonymousProperty(additional);
+                }
+
+                // Construct the AnonymousType and register it.
+                result = new AnonymousType(propertyNames, propertyTypes);
+                break;
+            }
+
             default:
                 result = ErrorType.Instance;
                 break;
@@ -22448,6 +22553,30 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 DiagnosticSeverity.Error,
                 PipelineStage.SemanticModelConstruction,
                 $"Tuple type '{tupleTarget.DisplayName}' does not contain a member '{memberName}'.",
+                Location: default,
+                CompilationUnitPath: sourceText?.Path ?? "<unknown>",
+                AnalyzerName: null));
+
+            return ErrorType.Instance;
+        }
+
+        // Anonymous type property access: look up property by name in the ordered list.
+        if (targetType is AnonymousType anonTarget)
+        {
+            for (var i = 0; i < anonTarget.PropertyNames.Count; i++)
+            {
+                if (anonTarget.PropertyNames[i] == memberName)
+                {
+                    return anonTarget.PropertyTypes[i];
+                }
+            }
+
+            // Property not found — report undefined member.
+            diagnostics.Add(new Diagnostic(
+                new DiagnosticId("MIST_UNDEFINED_MEMBER"),
+                DiagnosticSeverity.Error,
+                PipelineStage.SemanticModelConstruction,
+                $"'{anonTarget.DisplayName}' does not contain a definition for '{memberName}'.",
                 Location: default,
                 CompilationUnitPath: sourceText?.Path ?? "<unknown>",
                 AnalyzerName: null));

@@ -1,0 +1,19 @@
+using Standard;
+
+class Program
+{
+    public static void Main(string[] args)
+    {
+        var point = new { X = 10, Y = 20 };
+
+        // Access properties with dot notation
+        var sum = point.X + point.Y;
+        Console.WriteLine($"X={point.X} Y={point.Y} sum={sum}");
+
+        // Same-shape anonymous types are assignable
+        var first = new { X = 1, Y = 2 };
+        var second = new { X = 10, Y = 20 };
+        second = first;
+        Console.WriteLine($"X={second.X} Y={second.Y}");
+    }
+}

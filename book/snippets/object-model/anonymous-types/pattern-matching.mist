@@ -1,0 +1,22 @@
+using Standard;
+
+class Program
+{
+    public static void Main(string[] args)
+    {
+        var point = new { X = 5, Y = 10 };
+
+        // Property pattern matching on anonymous types
+        if (point is { X: var x, Y: var y })
+        {
+            Console.WriteLine($"Matched: X={x} Y={y}");
+        }
+
+        // Pattern matching with value checks
+        var status = new { Code = 200, Message = "OK" };
+        if (status is { Code: 200 })
+        {
+            Console.WriteLine($"Success: {status.Message}");
+        }
+    }
+}

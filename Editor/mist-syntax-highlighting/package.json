@@ -95,6 +95,7 @@
               "keyword.operator.arithmetic.mist",
               "keyword.operator.arrow.mist",
               "keyword.operator.assignment.mist",
+              "keyword.operator.assignment.property.mist",
               "keyword.operator.void-coalescing.mist",
               "keyword.operator.void-coalescing-assignment.mist",
               "keyword.operator.void-conditional.mist",

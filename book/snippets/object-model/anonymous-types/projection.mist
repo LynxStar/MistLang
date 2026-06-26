@@ -1,0 +1,19 @@
+using Standard;
+
+class Program
+{
+    public static void Main(string[] args)
+    {
+        var city = "Portland";
+        var population = 650000;
+
+        // Property projection: names are inferred from variables
+        var info = new { city, population };
+        Console.WriteLine($"city={info.city} population={info.population}");
+
+        // Projection from member access
+        var lang = new { Name = "Mist", Version = 1 };
+        var projected = new { lang.Name };
+        Console.WriteLine($"projected.Name={projected.Name}");
+    }
+}

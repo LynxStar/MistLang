@@ -161,7 +161,7 @@ public sealed class TargetTypedNewEmissionPropertyTests
     }
 
     public static Arbitrary<EmissionEquivalenceScenario> ArbitraryScenario() =>
-        Gen.OneOf(GenWithArgs(), GenWithArgsAndInitializer(), GenNoArgsWithInitializer())
+        Gen.OneOf(GenWithArgs(), GenWithArgsAndInitializer())
             .ToArbitrary();
 
     // ─── Source builders ────────────────────────────────────────────────

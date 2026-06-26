@@ -221,6 +221,17 @@ public sealed class ExtensionRegistry
                 return true;
         }
 
+        // Structural equality for AbstractType (interface): ambient extension receivers
+        // targeting interfaces (e.g., IServiceProvider, IServiceCollection) may be a
+        // different instance than the one the user's code resolves to.
+        if (extensionReceiverType is AbstractType extAbstract && valueType is AbstractType valAbstract
+            && extAbstract.TypeParameters.Count == 0 && valAbstract.TypeParameters.Count == 0)
+        {
+            if (extAbstract.DisplayName == valAbstract.DisplayName
+                && extAbstract.ContainingNamespace == valAbstract.ContainingNamespace)
+                return true;
+        }
+
         // Array type structural match: two ArrayType instances with the same
         // element type are applicable (ArrayType uses reference equality, so
         // different instances of int[] won't match via ReferenceEquals).

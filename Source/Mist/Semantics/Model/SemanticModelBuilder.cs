@@ -20442,8 +20442,14 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         else
                         {
                             // Substitute type parameters in the return type with
-                            // the resolved type arguments.
-                            memberType = SubstituteTypeParameters(memberType, sym.TypeParameters, resolvedTypeArgs);
+                            // the resolved type arguments. Use the symbol's own
+                            // DeclaredType as the base for substitution (not memberType)
+                            // because LookupMemberType may have resolved a different
+                            // overload when multiple overloads share the same name
+                            // (e.g., generic GetRequiredService<T>() vs non-generic
+                            // GetRequiredService(Type)).
+                            var returnTypeForSubstitution = sym.DeclaredType ?? memberType;
+                            memberType = SubstituteTypeParameters(returnTypeForSubstitution, sym.TypeParameters, resolvedTypeArgs);
 
                             // Capture for parameter type substitution below (lambda inference).
                             resolvedMethodTypeArgs = resolvedTypeArgs;
@@ -20460,6 +20466,19 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                             $"Method '{memberName}' expects 0 type argument(s) but received {CountTypeArgs(methodCall.TypeArgs)}.",
                             methodCall.TypeArgs,
                             sourceText));
+                    }
+                    else
+                    {
+                        // Soundness: methodSymbol is null — the generic method lookup
+                        // failed to find the method at all. If memberType is a raw
+                        // TypeParameterType, it would leak an unsubstituted type
+                        // parameter into the expression cache and eventually resolve
+                        // to 'unknown'. Set ErrorType to surface a clear error instead
+                        // of silently producing a misleading type.
+                        if (memberType is TypeParameterType)
+                        {
+                            memberType = ErrorType.Instance;
+                        }
                     }
                 }
 
@@ -23696,6 +23715,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             return null;
 
         // For ConstructedType, look up in the generic definition's member scope.
+        var originalTargetType = targetType;
         if (targetType is ConstructedType ct)
             targetType = ct.GenericDefinition;
 
@@ -23739,6 +23759,38 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         return s;
                 }
                 return allMembers[0];
+            }
+        }
+
+        // Extension method fallback: if the member was not found on the type's
+        // own scope, search the extension registry for a generic method with
+        // matching name and type-argument arity. This handles cases like
+        // GetRequiredService<T>() which is an extension method on IServiceProvider.
+        if (_extensionRegistryContext is not null)
+        {
+            var lookupType = originalTargetType;
+            var applicableExtensions = lookupType is UnknownType
+                ? _extensionRegistryContext.UniversalExtensions
+                : _extensionRegistryContext.GetApplicableExtensions(lookupType);
+
+            var importedNamespaces = CollectImportedNamespaces(fileScope);
+
+            foreach (var ext in applicableExtensions)
+            {
+                if (ext.ContainingNamespace is not null && !importedNamespaces.Contains(ext.ContainingNamespace))
+                    continue;
+
+                // Use LookupAll to find all overloads with the same name, then
+                // select the one whose type parameter arity matches. Lookup()
+                // returns only the first registered overload which may be the
+                // non-generic variant (e.g., GetRequiredService(Type) instead
+                // of GetRequiredService<T>()).
+                var allExtMembers = ext.MemberScope.LookupAll(memberName);
+                foreach (var m in allExtMembers)
+                {
+                    if (m is Symbol s && s.TypeParameters.Count == typeArgCount)
+                        return s;
+                }
             }
         }
 

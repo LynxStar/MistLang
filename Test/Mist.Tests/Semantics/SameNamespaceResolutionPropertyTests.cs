@@ -33,12 +33,18 @@ public sealed class SameNamespaceResolutionPropertyTests
 #pragma warning disable CA1034
     public record ValidClassName(string Value)
     {
-        public override string ToString() => Value;
+        public override string ToString()
+        {
+            return Value;
+        }
     }
 
     public record ValidNamespaceName(string Value)
     {
-        public override string ToString() => Value;
+        public override string ToString()
+        {
+            return Value;
+        }
     }
 #pragma warning restore CA1034
 

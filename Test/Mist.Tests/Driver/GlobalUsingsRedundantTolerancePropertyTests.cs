@@ -148,8 +148,10 @@ public sealed class GlobalUsingsRedundantTolerancePropertyTests
 
     private record RedundantUsingScenario(string Namespace, string TypeName)
     {
-        public override string ToString() =>
-            $"namespace {Namespace}; class {TypeName} — global using + explicit using {Namespace}";
+        public override string ToString()
+        {
+            return $"namespace {Namespace}; class {TypeName} — global using + explicit using {Namespace}";
+        }
     }
 
     // ═══════════════════════════════════════════════════════════════════════

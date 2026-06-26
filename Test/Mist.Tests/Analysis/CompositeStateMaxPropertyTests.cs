@@ -42,15 +42,18 @@ public sealed class CompositeStateMaxPropertyTests
     // Restrictiveness ordering — matches MethodFlowState.FieldStateRestrictiveness
     // ═══════════════════════════════════════════════════════════════════════
 
-    private static int Restrictiveness(VariableOwnershipState state) => state switch
+    private static int Restrictiveness(VariableOwnershipState state)
     {
-        VariableOwnershipState.Live => 0,
-        VariableOwnershipState.LentReadonly => 1,
-        VariableOwnershipState.LentFrozen => 2,
-        VariableOwnershipState.LentRef => 3,
-        VariableOwnershipState.Moved => 4,
-        _ => 0,
-    };
+        return state switch
+        {
+            VariableOwnershipState.Live => 0,
+            VariableOwnershipState.LentReadonly => 1,
+            VariableOwnershipState.LentFrozen => 2,
+            VariableOwnershipState.LentRef => 3,
+            VariableOwnershipState.Moved => 4,
+            _ => 0,
+        };
+    }
 
     /// <summary>
     /// Computes the expected composite state as the maximum over the restrictiveness ordering.
@@ -128,21 +131,27 @@ public sealed class CompositeStateMaxPropertyTests
     // FsCheck generators
     // ═══════════════════════════════════════════════════════════════════════
 
-    private static Gen<VariableOwnershipState> GenFieldState() =>
-        Gen.Elements(
+    private static Gen<VariableOwnershipState> GenFieldState()
+    {
+        return Gen.Elements(
             VariableOwnershipState.Live,
             VariableOwnershipState.LentReadonly,
             VariableOwnershipState.LentFrozen,
             VariableOwnershipState.LentRef,
             VariableOwnershipState.Moved);
+    }
 
-    private static Gen<CompositeStateScenario> GenScenario() =>
-        Gen.Choose(1, 6).SelectMany(fieldCount =>
+    private static Gen<CompositeStateScenario> GenScenario()
+    {
+        return Gen.Choose(1, 6).SelectMany(fieldCount =>
             Gen.ArrayOf(GenFieldState(), fieldCount)
                 .Select(states => new CompositeStateScenario(states)));
+    }
 
-    public static Arbitrary<CompositeStateScenario> ArbitraryCompositeStateScenario() =>
-        GenScenario().ToArbitrary();
+    public static Arbitrary<CompositeStateScenario> ArbitraryCompositeStateScenario()
+    {
+        return GenScenario().ToArbitrary();
+    }
 
     // ═══════════════════════════════════════════════════════════════════════
     // Property 3: CompositeState(p) == Max(State(f₁), ..., State(fₙ))

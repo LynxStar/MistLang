@@ -31,8 +31,10 @@ public class VoidEqualityMismatchPropertyTests
 
     // ─── Helpers ─────────────────────────────────────────────────────────
 
-    private static Storm.Runtime.Token Tok(string lexeme) =>
-        MistTypeGenerator.MakeToken(lexeme);
+    private static Storm.Runtime.Token Tok(string lexeme)
+    {
+        return MistTypeGenerator.MakeToken(lexeme);
+    }
 
     private static MistCompilation MakeCompilation(string source = "")
     {
@@ -96,10 +98,12 @@ public class VoidEqualityMismatchPropertyTests
         EqualityOp Operator,
         VoidSide Side)
     {
-        public override string ToString() =>
-            Side == VoidSide.Left
+        public override string ToString()
+        {
+            return Side == VoidSide.Left
                 ? $"Void.Void {(Operator == EqualityOp.Equal ? "==" : "!=")} {TypeKind}"
                 : $"{TypeKind} {(Operator == EqualityOp.Equal ? "==" : "!=")} Void.Void";
+        }
     }
 
 #pragma warning restore CA1034
@@ -123,8 +127,10 @@ public class VoidEqualityMismatchPropertyTests
                select new VoidEqualityScenario(typeKind, op, side);
     }
 
-    public static Arbitrary<VoidEqualityScenario> ArbitraryScenario() =>
-        GenScenario().ToArbitrary();
+    public static Arbitrary<VoidEqualityScenario> ArbitraryScenario()
+    {
+        return GenScenario().ToArbitrary();
+    }
 
     // ─── AST construction helpers ────────────────────────────────────────
 

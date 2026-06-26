@@ -80,19 +80,22 @@ public class DefaultTypeCheckerPropertyTests
 
     // ─── AST construction helpers ────────────────────────────────────────
 
-    private static PrimitiveTypeNode MakePrimitiveType(string typeName) => typeName switch
+    private static PrimitiveTypeNode MakePrimitiveType(string typeName)
     {
-        "int" => new IntTypePrimitiveTypeNode(),
-        "bool" => new BoolTypePrimitiveTypeNode(),
-        "string" => new StringTypePrimitiveTypeNode(),
-        "double" => new DoubleTypePrimitiveTypeNode(),
-        "float" => new FloatTypePrimitiveTypeNode(),
-        "char" => new CharTypePrimitiveTypeNode(),
-        "long" => new LongTypePrimitiveTypeNode(),
-        "short" => new ShortTypePrimitiveTypeNode(),
-        "byte" => new ByteTypePrimitiveTypeNode(),
-        _ => new IntTypePrimitiveTypeNode(),
-    };
+        return typeName switch
+        {
+            "int" => new IntTypePrimitiveTypeNode(),
+            "bool" => new BoolTypePrimitiveTypeNode(),
+            "string" => new StringTypePrimitiveTypeNode(),
+            "double" => new DoubleTypePrimitiveTypeNode(),
+            "float" => new FloatTypePrimitiveTypeNode(),
+            "char" => new CharTypePrimitiveTypeNode(),
+            "long" => new LongTypePrimitiveTypeNode(),
+            "short" => new ShortTypePrimitiveTypeNode(),
+            "byte" => new ByteTypePrimitiveTypeNode(),
+            _ => new IntTypePrimitiveTypeNode(),
+        };
+    }
 
     private static TypeReferenceNode MakePrimitiveTypeRef(string typeName)
     {
@@ -534,20 +537,30 @@ public class DefaultTypeCheckerPropertyTests
 
     // ─── Arbitrary registrations ─────────────────────────────────────────
 
-    public static Arbitrary<DefaultExprTypeScenario> ArbitraryDefaultExprTypeScenario() =>
-        GenDefaultExprTypeScenario().ToArbitrary();
+    public static Arbitrary<DefaultExprTypeScenario> ArbitraryDefaultExprTypeScenario()
+    {
+        return GenDefaultExprTypeScenario().ToArbitrary();
+    }
 
-    public static Arbitrary<BareDefaultScenario> ArbitraryBareDefaultScenario() =>
-        GenBareDefaultScenario().ToArbitrary();
+    public static Arbitrary<BareDefaultScenario> ArbitraryBareDefaultScenario()
+    {
+        return GenBareDefaultScenario().ToArbitrary();
+    }
 
-    public static Arbitrary<OwnFieldVisibilityScenario> ArbitraryOwnFieldVisibilityScenario() =>
-        GenOwnFieldVisibilityScenario().ToArbitrary();
+    public static Arbitrary<OwnFieldVisibilityScenario> ArbitraryOwnFieldVisibilityScenario()
+    {
+        return GenOwnFieldVisibilityScenario().ToArbitrary();
+    }
 
-    public static Arbitrary<InheritedFieldVisibilityScenario> ArbitraryInheritedFieldVisibilityScenario() =>
-        GenInheritedFieldVisibilityScenario().ToArbitrary();
+    public static Arbitrary<InheritedFieldVisibilityScenario> ArbitraryInheritedFieldVisibilityScenario()
+    {
+        return GenInheritedFieldVisibilityScenario().ToArbitrary();
+    }
 
-    public static Arbitrary<RedundantDefaultBlockScenario> ArbitraryRedundantDefaultBlockScenario() =>
-        GenRedundantDefaultBlockScenario().ToArbitrary();
+    public static Arbitrary<RedundantDefaultBlockScenario> ArbitraryRedundantDefaultBlockScenario()
+    {
+        return GenRedundantDefaultBlockScenario().ToArbitrary();
+    }
 
     // ─── AST builders for scenarios ──────────────────────────────────────
 

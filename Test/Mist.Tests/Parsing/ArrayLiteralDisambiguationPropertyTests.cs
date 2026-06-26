@@ -24,8 +24,10 @@ public sealed class DisambiguationScenario
         IndexExpr = indexExpr;
     }
 
-    public override string ToString() =>
-        $"Name={Name}, IndexExpr={IndexExpr}";
+    public override string ToString()
+    {
+        return $"Name={Name}, IndexExpr={IndexExpr}";
+    }
 }
 
 /// <summary>

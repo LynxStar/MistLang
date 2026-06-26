@@ -33,7 +33,10 @@ public sealed record StackallocTargetTypeScenario(
     string TargetDescription,
     string Description)
 {
-    public override string ToString() => Description;
+    public override string ToString()
+    {
+        return Description;
+    }
 }
 
 // ─── Property Tests ─────────────────────────────────────────────────────────
@@ -70,22 +73,25 @@ public class StackallocTargetTypeRestrictionPropertyTests
     /// Maps Mist primitive type keywords to their DisplayName forms as used
     /// in diagnostic messages.
     /// </summary>
-    private static string GetDisplayName(string mistType) => mistType switch
+    private static string GetDisplayName(string mistType)
     {
-        "int" => "Int32",
-        "uint" => "UInt32",
-        "long" => "Int64",
-        "ulong" => "UInt64",
-        "short" => "Int16",
-        "ushort" => "UInt16",
-        "byte" => "Byte",
-        "sbyte" => "SByte",
-        "float" => "Single",
-        "double" => "Double",
-        "bool" => "Boolean",
-        "char" => "Char",
-        _ => mistType
-    };
+        return mistType switch
+        {
+            "int" => "Int32",
+            "uint" => "UInt32",
+            "long" => "Int64",
+            "ulong" => "UInt64",
+            "short" => "Int16",
+            "ushort" => "UInt16",
+            "byte" => "Byte",
+            "sbyte" => "SByte",
+            "float" => "Single",
+            "double" => "Double",
+            "bool" => "Boolean",
+            "char" => "Char",
+            _ => mistType
+        };
+    }
 
     // ─── Generators ──────────────────────────────────────────────────────
 

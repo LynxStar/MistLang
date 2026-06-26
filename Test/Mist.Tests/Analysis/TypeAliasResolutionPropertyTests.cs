@@ -37,8 +37,10 @@ public sealed class TypeAliasResolutionScenario
         UnderlyingTypeName = underlyingTypeName;
     }
 
-    public override string ToString() =>
-        $"type {AliasName} = {UnderlyingTypeName};";
+    public override string ToString()
+    {
+        return $"type {AliasName} = {UnderlyingTypeName};";
+    }
 }
 
 /// <summary>
@@ -75,8 +77,10 @@ public class TypeAliasResolutionPropertyTests
                select new TypeAliasResolutionScenario(name, target);
     }
 
-    public static Arbitrary<TypeAliasResolutionScenario> ArbitraryTypeAliasResolutionScenario() =>
-        GenScenario().ToArbitrary();
+    public static Arbitrary<TypeAliasResolutionScenario> ArbitraryTypeAliasResolutionScenario()
+    {
+        return GenScenario().ToArbitrary();
+    }
 
     // ─── Helpers ────────────────────────────────────────────────────────
 
@@ -131,20 +135,23 @@ public class TypeAliasResolutionPropertyTests
     /// <summary>
     /// Returns the default literal for a given primitive type name.
     /// </summary>
-    private static string GetDefaultLiteral(string typeName) => typeName switch
+    private static string GetDefaultLiteral(string typeName)
     {
-        "int" => "0",
-        "string" => "\"hello\"",
-        "bool" => "true",
-        "float" => "0.0",
-        "double" => "0.0",
-        "long" => "0",
-        "char" => "'a'",
-        "byte" => "0",
-        "decimal" => "0.0",
-        "short" => "0",
-        _ => "0",
-    };
+        return typeName switch
+        {
+            "int" => "0",
+            "string" => "\"hello\"",
+            "bool" => "true",
+            "float" => "0.0",
+            "double" => "0.0",
+            "long" => "0",
+            "char" => "'a'",
+            "byte" => "0",
+            "decimal" => "0.0",
+            "short" => "0",
+            _ => "0",
+        };
+    }
 
     // ═══════════════════════════════════════════════════════════════════════
     // Property 4: Type resolution transparency

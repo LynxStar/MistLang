@@ -61,7 +61,10 @@ public record ModifierSubset(bool IsPublic, bool IsPrivate, bool IsStatic)
 /// </summary>
 public record NestedTypeSource(string Source, AllTypeKind ContainerKind, AllTypeKind NestedKind)
 {
-    public override string ToString() => $"{ContainerKind} containing {NestedKind}";
+    public override string ToString()
+    {
+        return $"{ContainerKind} containing {NestedKind}";
+    }
 }
 
 /// <summary>
@@ -70,7 +73,10 @@ public record NestedTypeSource(string Source, AllTypeKind ContainerKind, AllType
 /// </summary>
 public record NestedTypeDepthSource(string Source, int Depth)
 {
-    public override string ToString() => $"Depth={Depth}";
+    public override string ToString()
+    {
+        return $"Depth={Depth}";
+    }
 }
 
 /// <summary>
@@ -80,7 +86,10 @@ public record NestedTypeDepthSource(string Source, int Depth)
 /// </summary>
 public record SameNameNamespaceSource(string Source, string NamespaceName, int BlockCount)
 {
-    public override string ToString() => $"namespace {NamespaceName} x{BlockCount}";
+    public override string ToString()
+    {
+        return $"namespace {NamespaceName} x{BlockCount}";
+    }
 }
 
 /// <summary>
@@ -90,7 +99,10 @@ public record SameNameNamespaceSource(string Source, string NamespaceName, int B
 /// </summary>
 public record AncestorTypeParamSource(string Source, int Depth)
 {
-    public override string ToString() => $"GenericDepth={Depth}";
+    public override string ToString()
+    {
+        return $"GenericDepth={Depth}";
+    }
 }
 
 /// <summary>
@@ -151,14 +163,17 @@ public static class MistNestedScopingGenerator
     /// <summary>
     /// Returns the Mist keyword for a given type kind.
     /// </summary>
-    public static string AllTypeKindKeyword(AllTypeKind kind) => kind switch
+    public static string AllTypeKindKeyword(AllTypeKind kind)
     {
-        AllTypeKind.Class => "class",
-        AllTypeKind.Struct => "struct",
-        AllTypeKind.Abstract => "abstract",
-        AllTypeKind.Enum => "enum",
-        _ => "class"
-    };
+        return kind switch
+        {
+            AllTypeKind.Class => "class",
+            AllTypeKind.Struct => "struct",
+            AllTypeKind.Abstract => "abstract",
+            AllTypeKind.Enum => "enum",
+            _ => "class"
+        };
+    }
 
     /// <summary>
     /// Converts a ModifierSubset to its source code representation (e.g., "public static ").
@@ -1038,8 +1053,10 @@ public record TypeParamShadowingSource(
     AllTypeKind NestedKind,
     string ShadowedParamName)
 {
-    public override string ToString() =>
-        $"{ContainerKind}<{ShadowedParamName}> containing {NestedKind}<{ShadowedParamName}>";
+    public override string ToString()
+    {
+        return $"{ContainerKind}<{ShadowedParamName}> containing {NestedKind}<{ShadowedParamName}>";
+    }
 }
 
 /// <summary>
@@ -1074,7 +1091,10 @@ public sealed class NamespaceChainSource
 /// </summary>
 public record DifferentNamespacePair(string Namespace1, string Namespace2)
 {
-    public override string ToString() => $"namespace {Namespace1} vs namespace {Namespace2}";
+    public override string ToString()
+    {
+        return $"namespace {Namespace1} vs namespace {Namespace2}";
+    }
 }
 
 /// <summary>
@@ -1100,16 +1120,19 @@ public record GenericNestedFqnSource(
     string NestedTypeName,
     int NestedTypeParamCount)
 {
-    public override string ToString() => Kind switch
+    public override string ToString()
     {
-        GenericNestedFqnKind.SingleGenericParent =>
-            $"Single generic parent ({ParentTypeParamCounts[0]} params) → {NestedTypeName}",
-        GenericNestedFqnKind.MultipleLevelGenericParents =>
-            $"Multi-level ({ParentTypeNames.Count} levels) → {NestedTypeName}",
-        GenericNestedFqnKind.NestedTypeAlsoGeneric =>
-            $"Parent({ParentTypeParamCounts[0]} params) → {NestedTypeName}({NestedTypeParamCount} params)",
-        _ => Source,
-    };
+        return Kind switch
+        {
+            GenericNestedFqnKind.SingleGenericParent =>
+                $"Single generic parent ({ParentTypeParamCounts[0]} params) → {NestedTypeName}",
+            GenericNestedFqnKind.MultipleLevelGenericParents =>
+                $"Multi-level ({ParentTypeNames.Count} levels) → {NestedTypeName}",
+            GenericNestedFqnKind.NestedTypeAlsoGeneric =>
+                $"Parent({ParentTypeParamCounts[0]} params) → {NestedTypeName}({NestedTypeParamCount} params)",
+            _ => Source,
+        };
+    }
 }
 
 /// <summary>
@@ -1124,7 +1147,10 @@ public record TypeInNamespaceSource(
     string ExpectedFqn,
     MistNestedScopingGenerator.NamespaceStyle Style)
 {
-    public override string ToString() => $"{Style}: {ExpectedFqn}";
+    public override string ToString()
+    {
+        return $"{Style}: {ExpectedFqn}";
+    }
 }
 
 /// <summary>
@@ -1175,5 +1201,8 @@ public enum RoundTripScenario
 /// </summary>
 public record RoundTripSource(string Source, RoundTripScenario Scenario)
 {
-    public override string ToString() => Scenario.ToString();
+    public override string ToString()
+    {
+        return Scenario.ToString();
+    }
 }

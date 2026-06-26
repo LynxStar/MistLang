@@ -97,8 +97,9 @@ public class AdhocRefinementFlowNarrowingPropertyTests
         /// refined type. The type checker should always reject this because the
         /// narrowing is invalidated by the reassignment regardless of the new value.
         /// </summary>
-        public string ToSourceWithReassignment() =>
-            $$"""
+        public string ToSourceWithReassignment()
+        {
+            return $$"""
             type Constrained = int {{Operator}} {{Threshold}};
             class Program {
                 void Process(int x) where x {{Operator}} {{Threshold}} {
@@ -108,14 +109,16 @@ public class AdhocRefinementFlowNarrowingPropertyTests
                 public static void Main() { }
             }
             """;
+        }
 
         /// <summary>
         /// Generates source where the parameter is used as the refined type WITHOUT
         /// reassignment. The type checker should accept this because the adhoc
         /// refinement constraint establishes flow narrowing.
         /// </summary>
-        public string ToSourceWithoutReassignment() =>
-            $$"""
+        public string ToSourceWithoutReassignment()
+        {
+            return $$"""
             type Constrained = int {{Operator}} {{Threshold}};
             class Program {
                 void Process(int x) where x {{Operator}} {{Threshold}} {
@@ -124,9 +127,12 @@ public class AdhocRefinementFlowNarrowingPropertyTests
                 public static void Main() { }
             }
             """;
+        }
 
-        public override string ToString() =>
-            $"Process(int x) where x {Operator} {Threshold}, reassign={ReassignmentValue}";
+        public override string ToString()
+        {
+            return $"Process(int x) where x {Operator} {Threshold}, reassign={ReassignmentValue}";
+        }
     }
 
 #pragma warning restore CA1034
@@ -143,8 +149,10 @@ public class AdhocRefinementFlowNarrowingPropertyTests
                select new FlowNarrowingInvalidationScenario(op, threshold, reassignValue);
     }
 
-    public static Arbitrary<FlowNarrowingInvalidationScenario> ArbitraryFlowNarrowingScenario() =>
-        GenFlowNarrowingScenario().ToArbitrary();
+    public static Arbitrary<FlowNarrowingInvalidationScenario> ArbitraryFlowNarrowingScenario()
+    {
+        return GenFlowNarrowingScenario().ToArbitrary();
+    }
 
     // ─── Property Tests ──────────────────────────────────────────────────
 

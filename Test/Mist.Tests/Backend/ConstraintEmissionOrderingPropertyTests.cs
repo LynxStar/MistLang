@@ -34,7 +34,10 @@ public sealed class ConstraintEmissionOrderingScenario
         TypeParamName = typeParamName;
     }
 
-    public override string ToString() => Description;
+    public override string ToString()
+    {
+        return Description;
+    }
 }
 
 /// <summary>
@@ -282,8 +285,10 @@ class Program {{
             GenBaseClassFirst());
     }
 
-    public static Arbitrary<ConstraintEmissionOrderingScenario> ArbitraryConstraintEmissionOrderingScenario() =>
-        Arb.From(GenScenario());
+    public static Arbitrary<ConstraintEmissionOrderingScenario> ArbitraryConstraintEmissionOrderingScenario()
+    {
+        return Arb.From(GenScenario());
+    }
 
     // ═══════════════════════════════════════════════════════════════════════
     // Property 3: Constraint Emission Ordering

@@ -36,8 +36,10 @@ public sealed class EnumInvalidMemberAccessScenario
         InvalidMemberName = invalidMemberName;
     }
 
-    public override string ToString() =>
-        $"{EnumName}.{InvalidMemberName} (valid members: {string.Join(", ", MemberNames)})";
+    public override string ToString()
+    {
+        return $"{EnumName}.{InvalidMemberName} (valid members: {string.Join(", ", MemberNames)})";
+    }
 }
 
 /// <summary>
@@ -55,13 +57,15 @@ public class EnumInvalidMemberAccessPropertyTests
     private static readonly SemanticModelBuilder Builder = new();
     private static readonly TypeCheckerAnalyzer Analyzer = new();
 
-    private static Storm.Runtime.Token Tok(string lexeme) =>
-        new(kind: 0,
+    private static Storm.Runtime.Token Tok(string lexeme)
+    {
+        return new(kind: 0,
             span: new Storm.Runtime.SourceSpan(0, lexeme.Length),
             start: new Storm.Runtime.LinePosition(1, 1),
             end: new Storm.Runtime.LinePosition(1, 1 + lexeme.Length),
             channel: Storm.Runtime.TokenChannel.Default,
             lexeme: lexeme);
+    }
 
     private static ISemanticModel BuildModel(Storm.Runtime.SyntaxNode ast)
     {
@@ -111,8 +115,10 @@ public class EnumInvalidMemberAccessPropertyTests
                select new EnumInvalidMemberAccessScenario(name, members, invalidName);
     }
 
-    public static Arbitrary<EnumInvalidMemberAccessScenario> ArbitraryScenario() =>
-        GenScenario().ToArbitrary();
+    public static Arbitrary<EnumInvalidMemberAccessScenario> ArbitraryScenario()
+    {
+        return GenScenario().ToArbitrary();
+    }
 
     // ─── AST construction helpers ────────────────────────────────────────
 
@@ -125,12 +131,14 @@ public class EnumInvalidMemberAccessPropertyTests
         return MistAstGenerator.WrapPrimary(primary);
     }
 
-    private static EnumMemberNode MakeEnumMember(string name, int index) =>
-        new()
+    private static EnumMemberNode MakeEnumMember(string name, int index)
+    {
+        return new()
         {
             Name = Tok(name),
             Value = MakeIntLiteralExpression(index.ToString()),
         };
+    }
 
     private static EnumMemberListNode MakeEnumMemberList(IReadOnlyList<EnumMemberNode> members)
     {

@@ -89,19 +89,25 @@ public class SpanHeapEscapeParityPropertyTests
         string Description)
     {
 #pragma warning disable CA1024
-        public string GetExpectedDiagnosticId() => Position switch
+        public string GetExpectedDiagnosticId()
         {
-            HeapEscapePosition.Field => "MIST2002",
-            HeapEscapePosition.Property => "MIST2003",
-            HeapEscapePosition.GenericArg => "MIST2004",
-            HeapEscapePosition.Union => "MIST2005",
-            HeapEscapePosition.AbstractBoxing => "MIST2007",
-            HeapEscapePosition.Optional => "MIST2006",
-            HeapEscapePosition.LambdaCapture => "MIST_TC_0123",
-            _ => throw new ArgumentOutOfRangeException(),
-        };
+            return Position switch
+            {
+                HeapEscapePosition.Field => "MIST2002",
+                HeapEscapePosition.Property => "MIST2003",
+                HeapEscapePosition.GenericArg => "MIST2004",
+                HeapEscapePosition.Union => "MIST2005",
+                HeapEscapePosition.AbstractBoxing => "MIST2007",
+                HeapEscapePosition.Optional => "MIST2006",
+                HeapEscapePosition.LambdaCapture => "MIST_TC_0123",
+                _ => throw new ArgumentOutOfRangeException(),
+            };
+        }
 #pragma warning restore CA1024
-        public override string ToString() => Description;
+        public override string ToString()
+        {
+            return Description;
+        }
     }
 
 #pragma warning restore CA1034
@@ -131,14 +137,18 @@ public class SpanHeapEscapeParityPropertyTests
                    $"Span<{elementType}> in {position}");
     }
 
-    public static Arbitrary<HeapEscapeScenario> ArbitraryHeapEscapeScenario() =>
-        GenScenario().ToArbitrary();
+    public static Arbitrary<HeapEscapeScenario> ArbitraryHeapEscapeScenario()
+    {
+        return GenScenario().ToArbitrary();
+    }
 
     // ─── Source builders ─────────────────────────────────────────────────
 
-    private static string BuildSpanProgram(HeapEscapeScenario scenario) => scenario.Position switch
+    private static string BuildSpanProgram(HeapEscapeScenario scenario)
     {
-        HeapEscapePosition.Field => $$"""
+        return scenario.Position switch
+        {
+            HeapEscapePosition.Field => $$"""
             class Container {
                 Span<{{scenario.ElementType}}, unknown> field;
             }
@@ -146,7 +156,7 @@ public class SpanHeapEscapeParityPropertyTests
                 static void Main() {}
             }
             """,
-        HeapEscapePosition.Property => $$"""
+            HeapEscapePosition.Property => $$"""
             class Container {
                 Span<{{scenario.ElementType}}, unknown> Prop { get; }
             }
@@ -154,7 +164,7 @@ public class SpanHeapEscapeParityPropertyTests
                 static void Main() {}
             }
             """,
-        HeapEscapePosition.GenericArg => $$"""
+            HeapEscapePosition.GenericArg => $$"""
             class Box<T> {
                 public T item;
             }
@@ -164,14 +174,14 @@ public class SpanHeapEscapeParityPropertyTests
                 }
             }
             """,
-        HeapEscapePosition.Union => $$"""
+            HeapEscapePosition.Union => $$"""
             class Program {
                 static void Main() {
                     Span<{{scenario.ElementType}}, unknown> | int x = 42;
                 }
             }
             """,
-        HeapEscapePosition.AbstractBoxing => $$"""
+            HeapEscapePosition.AbstractBoxing => $$"""
             abstract IFoo {
             }
             class Program {
@@ -182,14 +192,14 @@ public class SpanHeapEscapeParityPropertyTests
                 }
             }
             """,
-        HeapEscapePosition.Optional => $$"""
+            HeapEscapePosition.Optional => $$"""
             class Program {
                 static void Main() {
                     Span<{{scenario.ElementType}}, unknown>? s = null;
                 }
             }
             """,
-        HeapEscapePosition.LambdaCapture => $$"""
+            HeapEscapePosition.LambdaCapture => $$"""
             class Program {
                 static void Main() {
                     var s = stackalloc {{scenario.ElementType}}[4];
@@ -197,12 +207,15 @@ public class SpanHeapEscapeParityPropertyTests
                 }
             }
             """,
-        _ => throw new ArgumentOutOfRangeException(),
-    };
+            _ => throw new ArgumentOutOfRangeException(),
+        };
+    }
 
-    private static string BuildRefStructProgram(HeapEscapeScenario scenario) => scenario.Position switch
+    private static string BuildRefStructProgram(HeapEscapeScenario scenario)
     {
-        HeapEscapePosition.Field => """
+        return scenario.Position switch
+        {
+            HeapEscapePosition.Field => """
             public ref struct MyRefStruct {
                 public int value;
             }
@@ -213,7 +226,7 @@ public class SpanHeapEscapeParityPropertyTests
                 static void Main() {}
             }
             """,
-        HeapEscapePosition.Property => """
+            HeapEscapePosition.Property => """
             public ref struct MyRefStruct {
                 public int value;
             }
@@ -224,7 +237,7 @@ public class SpanHeapEscapeParityPropertyTests
                 static void Main() {}
             }
             """,
-        HeapEscapePosition.GenericArg => """
+            HeapEscapePosition.GenericArg => """
             public ref struct MyRefStruct {
                 public int value;
             }
@@ -237,7 +250,7 @@ public class SpanHeapEscapeParityPropertyTests
                 }
             }
             """,
-        HeapEscapePosition.Union => """
+            HeapEscapePosition.Union => """
             public ref struct MyRefStruct {
                 public int value;
             }
@@ -247,7 +260,7 @@ public class SpanHeapEscapeParityPropertyTests
                 }
             }
             """,
-        HeapEscapePosition.AbstractBoxing => """
+            HeapEscapePosition.AbstractBoxing => """
             public ref struct MyRefStruct {
                 public int value;
             }
@@ -261,7 +274,7 @@ public class SpanHeapEscapeParityPropertyTests
                 }
             }
             """,
-        HeapEscapePosition.Optional => """
+            HeapEscapePosition.Optional => """
             public ref struct MyRefStruct {
                 public int value;
             }
@@ -271,7 +284,7 @@ public class SpanHeapEscapeParityPropertyTests
                 }
             }
             """,
-        HeapEscapePosition.LambdaCapture => """
+            HeapEscapePosition.LambdaCapture => """
             public ref struct MyRefStruct {
                 public int value;
             }
@@ -282,8 +295,9 @@ public class SpanHeapEscapeParityPropertyTests
                 }
             }
             """,
-        _ => throw new ArgumentOutOfRangeException(),
-    };
+            _ => throw new ArgumentOutOfRangeException(),
+        };
+    }
 
     // ─── Compilation helper ──────────────────────────────────────────────
 

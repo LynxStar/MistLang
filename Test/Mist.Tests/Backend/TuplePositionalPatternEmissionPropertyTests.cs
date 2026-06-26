@@ -106,7 +106,10 @@ public sealed class TuplePositionalPatternEmissionPropertyTests
             _ => "int",
         };
 
-        public override string ToString() => $"{Kind}({MistSource})";
+        public override string ToString()
+        {
+            return $"{Kind}({MistSource})";
+        }
     }
 
     /// <summary>
@@ -132,7 +135,10 @@ public sealed class TuplePositionalPatternEmissionPropertyTests
         public string MistTupleType =>
             $"({string.Join(", ", Elements.Select(e => e.MistType))})";
 
-        public override string ToString() => MistPattern;
+        public override string ToString()
+        {
+            return MistPattern;
+        }
     }
 
 #pragma warning restore CA1034
@@ -198,8 +204,10 @@ public sealed class TuplePositionalPatternEmissionPropertyTests
                           select (IReadOnlyList<SubpatternElement>)list.Append(elem).ToList());
     }
 
-    public static Arbitrary<EmissionScenario> ArbitraryScenario() =>
-        GenScenario().ToArbitrary();
+    public static Arbitrary<EmissionScenario> ArbitraryScenario()
+    {
+        return GenScenario().ToArbitrary();
+    }
 
     // ─── Helpers ─────────────────────────────────────────────────────────
 

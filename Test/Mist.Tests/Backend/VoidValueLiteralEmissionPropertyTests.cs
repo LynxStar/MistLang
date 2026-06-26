@@ -54,7 +54,10 @@ public sealed class VoidEmissionScenario
         Description = description;
     }
 
-    public override string ToString() => Description;
+    public override string ToString()
+    {
+        return Description;
+    }
 }
 
 // ─── Generators ─────────────────────────────────────────────────────────────
@@ -191,8 +194,10 @@ public sealed class VoidValueLiteralEmissionPropertyTests : IDisposable
 
     // ─── Arbitrary registration ─────────────────────────────────────────
 
-    public static Arbitrary<VoidEmissionScenario> ArbitraryVoidEmission() =>
-        VoidEmissionGenerators.GenVoidEmission().ToArbitrary();
+    public static Arbitrary<VoidEmissionScenario> ArbitraryVoidEmission()
+    {
+        return VoidEmissionGenerators.GenVoidEmission().ToArbitrary();
+    }
 
     // ─── Helpers ────────────────────────────────────────────────────────
 

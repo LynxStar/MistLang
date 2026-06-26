@@ -25,7 +25,10 @@ public sealed class AnonymousContentSource
         Description = description;
     }
 
-    public override string ToString() => $"{Description}: {Source}";
+    public override string ToString()
+    {
+        return $"{Description}: {Source}";
+    }
 }
 
 /// <summary>
@@ -43,7 +46,10 @@ public sealed class NonAnonymousContentSource
         Description = description;
     }
 
-    public override string ToString() => $"{Description}: {Source}";
+    public override string ToString()
+    {
+        return $"{Description}: {Source}";
+    }
 }
 
 /// <summary>

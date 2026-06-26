@@ -95,20 +95,23 @@ public class DependentTypeConstantValidationPropertyTests
 
     // ─── Initializer values per type ─────────────────────────────────────
 
-    private static string GetInitializerForType(string valueType) => valueType switch
+    private static string GetInitializerForType(string valueType)
     {
-        "int" => "42",
-        "uint" => "42",
-        "long" => "42",
-        "ulong" => "42",
-        "short" => "42",
-        "ushort" => "42",
-        "byte" => "42",
-        "sbyte" => "42",
-        "bool" => "true",
-        "char" => "'a'",
-        _ => "0",
-    };
+        return valueType switch
+        {
+            "int" => "42",
+            "uint" => "42",
+            "long" => "42",
+            "ulong" => "42",
+            "short" => "42",
+            "ushort" => "42",
+            "byte" => "42",
+            "sbyte" => "42",
+            "bool" => "true",
+            "char" => "'a'",
+            _ => "0",
+        };
+    }
 
     // ─── Test data model ─────────────────────────────────────────────────
 
@@ -123,8 +126,10 @@ public class DependentTypeConstantValidationPropertyTests
         string ValueType,
         string VarName)
     {
-        public override string ToString() =>
-            $"class {ClassName}<{ParamName}:{ValueType}> with var {VarName}";
+        public override string ToString()
+        {
+            return $"class {ClassName}<{ParamName}:{ValueType}> with var {VarName}";
+        }
     }
 #pragma warning restore CA1034
 
@@ -139,8 +144,10 @@ public class DependentTypeConstantValidationPropertyTests
                select new NonConstantArgScenario(className, paramName, valueType, varName);
     }
 
-    public static Arbitrary<NonConstantArgScenario> ArbitraryNonConstantArgScenario() =>
-        GenNonConstantArgScenario().ToArbitrary();
+    public static Arbitrary<NonConstantArgScenario> ArbitraryNonConstantArgScenario()
+    {
+        return GenNonConstantArgScenario().ToArbitrary();
+    }
 
     // ─── Property test ───────────────────────────────────────────────────
 

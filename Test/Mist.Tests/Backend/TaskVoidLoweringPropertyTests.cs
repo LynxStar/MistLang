@@ -89,8 +89,10 @@ public sealed class TaskVoidLoweringPropertyTests
                    className, asyncVoidMethodName, callerMethodName, isStatic);
     }
 
-    public static Arbitrary<TaskVoidLoweringScenario> ArbitraryTaskVoidLoweringScenario() =>
-        GenTaskVoidLoweringScenario().ToArbitrary();
+    public static Arbitrary<TaskVoidLoweringScenario> ArbitraryTaskVoidLoweringScenario()
+    {
+        return GenTaskVoidLoweringScenario().ToArbitrary();
+    }
 
     // ─── AST construction ────────────────────────────────────────────────
 

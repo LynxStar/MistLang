@@ -66,22 +66,30 @@ public sealed class DefiniteAssignmentEdgeCaseTests
         }
     }
 
-    private static bool HasDiagnostic(ImmutableArray<Diagnostic> diagnostics, string id) =>
-        diagnostics.Any(d => d.Id.Value == id);
+    private static bool HasDiagnostic(ImmutableArray<Diagnostic> diagnostics, string id)
+    {
+        return diagnostics.Any(d => d.Id.Value == id);
+    }
 
     private static bool HasDiagnosticForField(
-        ImmutableArray<Diagnostic> diagnostics, string diagnosticId, string fieldName) =>
-        diagnostics.Any(d =>
+        ImmutableArray<Diagnostic> diagnostics, string diagnosticId, string fieldName)
+    {
+        return diagnostics.Any(d =>
             d.Id.Value == diagnosticId &&
             d.Message.Contains($"'{fieldName}'"));
+    }
 
-    private static bool HasNoErrors(ImmutableArray<Diagnostic> diagnostics) =>
-        !diagnostics.Any(d => d.Severity == DiagnosticSeverity.Error);
+    private static bool HasNoErrors(ImmutableArray<Diagnostic> diagnostics)
+    {
+        return !diagnostics.Any(d => d.Severity == DiagnosticSeverity.Error);
+    }
 
-    private static string FormatDiagnostics(ImmutableArray<Diagnostic> diagnostics) =>
-        string.Join("; ", diagnostics
+    private static string FormatDiagnostics(ImmutableArray<Diagnostic> diagnostics)
+    {
+        return string.Join("; ", diagnostics
             .Where(d => d.Severity == DiagnosticSeverity.Error)
             .Select(d => $"{d.Id.Value}: {d.Message}"));
+    }
 
     // ═══════════════════════════════════════════════════════════════════════
     // FIELD TESTS — Constructor definite-assignment

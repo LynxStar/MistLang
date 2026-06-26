@@ -116,7 +116,10 @@ public sealed class DelegateType : IType, IEquatable<DelegateType>
         return true;
     }
 
-    public override bool Equals(object? obj) => Equals(obj as DelegateType);
+    public override bool Equals(object? obj)
+    {
+        return Equals(obj as DelegateType);
+    }
 
     public override int GetHashCode()
     {

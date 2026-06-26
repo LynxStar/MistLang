@@ -42,7 +42,10 @@ public sealed class ConformanceMap
     /// Returns true if a with-block conformance has been registered between the given
     /// concrete type and abstract type.
     /// </summary>
-    public bool HasConformance(IType type, IType abstractType) => entries.ContainsKey((type, abstractType));
+    public bool HasConformance(IType type, IType abstractType)
+    {
+        return entries.ContainsKey((type, abstractType));
+    }
 
     /// <summary>
     /// Returns the list of member mappings for the given conformance pair,

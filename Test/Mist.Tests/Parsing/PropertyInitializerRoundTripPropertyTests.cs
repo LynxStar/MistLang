@@ -26,8 +26,10 @@ public class PropertyInitializerRoundTripPropertyTests
 
     // ─── Arbitrary registration ──────────────────────────────────────────
 
-    public static Arbitrary<PropertyInitializerSourceScenario> ArbitraryScenario() =>
-        PropertyInitializerSourceGenerator.GenScenario().ToArbitrary();
+    public static Arbitrary<PropertyInitializerSourceScenario> ArbitraryScenario()
+    {
+        return PropertyInitializerSourceGenerator.GenScenario().ToArbitrary();
+    }
 
     // ─── Helpers ─────────────────────────────────────────────────────────
 
@@ -105,7 +107,10 @@ public sealed class PropertyInitializerSourceScenario
         Description = description;
     }
 
-    public override string ToString() => Description;
+    public override string ToString()
+    {
+        return Description;
+    }
 }
 
 /// <summary>
@@ -131,38 +136,52 @@ public static class PropertyInitializerSourceGenerator
 
     // ─── Value expression generators ────────────────────────────────────
 
-    private static Gen<string> GenIntExpr() =>
-        Gen.Choose(0, 999).Select(n => n.ToString());
+    private static Gen<string> GenIntExpr()
+    {
+        return Gen.Choose(0, 999).Select(n => n.ToString());
+    }
 
-    private static Gen<string> GenBoolExpr() =>
-        Gen.Elements("true", "false");
+    private static Gen<string> GenBoolExpr()
+    {
+        return Gen.Elements("true", "false");
+    }
 
-    private static Gen<string> GenStringExpr() =>
-        Gen.Elements("\"hello\"", "\"world\"", "\"test\"", "\"\"");
+    private static Gen<string> GenStringExpr()
+    {
+        return Gen.Elements("\"hello\"", "\"world\"", "\"test\"", "\"\"");
+    }
 
-    private static Gen<string> GenAdditiveExpr() =>
-        from left in Gen.Choose(0, 100)
-        from right in Gen.Choose(1, 50)
-        select $"{left} + {right}";
+    private static Gen<string> GenAdditiveExpr()
+    {
+        return from left in Gen.Choose(0, 100)
+               from right in Gen.Choose(1, 50)
+               select $"{left} + {right}";
+    }
 
-    private static Gen<string> GenMultiplicativeExpr() =>
-        from left in Gen.Choose(1, 20)
-        from right in Gen.Choose(1, 10)
-        select $"{left} * {right}";
+    private static Gen<string> GenMultiplicativeExpr()
+    {
+        return from left in Gen.Choose(1, 20)
+               from right in Gen.Choose(1, 10)
+               select $"{left} * {right}";
+    }
 
-    private static Gen<string> GenValueExpr() =>
-        Gen.OneOf(
+    private static Gen<string> GenValueExpr()
+    {
+        return Gen.OneOf(
             GenIntExpr(),
             GenBoolExpr(),
             GenStringExpr(),
             GenAdditiveExpr(),
             GenMultiplicativeExpr());
+    }
 
     // ─── Assignment generators ──────────────────────────────────────────
 
-    private static Gen<string> GenAssignment(int index) =>
-        from value in GenValueExpr()
-        select $"{PropertyNames[index]} = {value}";
+    private static Gen<string> GenAssignment(int index)
+    {
+        return from value in GenValueExpr()
+               select $"{PropertyNames[index]} = {value}";
+    }
 
     private static Gen<string[]> GenAssignments(int count)
     {
@@ -185,8 +204,9 @@ public static class PropertyInitializerSourceGenerator
 
     // ─── Constructor argument generators ────────────────────────────────
 
-    private static Gen<string> GenConstructorArgs() =>
-        Gen.OneOf(
+    private static Gen<string> GenConstructorArgs()
+    {
+        return Gen.OneOf(
             Gen.Constant(""),
             Gen.Choose(0, 100).Select(n => n.ToString()),
             from a in Gen.Choose(0, 50)
@@ -196,6 +216,7 @@ public static class PropertyInitializerSourceGenerator
             from b in Gen.Choose(0, 50)
             from c in Gen.Choose(0, 50)
             select $"{a}, {b}, {c}");
+    }
 
     // ─── Scenario generators ────────────────────────────────────────────
 

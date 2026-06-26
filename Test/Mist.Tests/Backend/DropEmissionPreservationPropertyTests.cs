@@ -135,8 +135,10 @@ public class DropEmissionPreservationPropertyTests
 
     public record SimpleDropScenario(string TypeName, string DropReturnType, string FieldType, string FieldInit)
     {
-        public override string ToString() =>
-            $"linear class '{TypeName}' with Drop() returning {DropReturnType}";
+        public override string ToString()
+        {
+            return $"linear class '{TypeName}' with Drop() returning {DropReturnType}";
+        }
     }
 
 #pragma warning restore CA1034
@@ -154,8 +156,10 @@ public class DropEmissionPreservationPropertyTests
             new SimpleDropScenario(v.TypeName, v.DropReturn, v.FieldType, v.FieldInit));
     }
 
-    public static Arbitrary<SimpleDropScenario> ArbitrarySimpleDropScenario() =>
-        GenSimpleDropScenario().ToArbitrary();
+    public static Arbitrary<SimpleDropScenario> ArbitrarySimpleDropScenario()
+    {
+        return GenSimpleDropScenario().ToArbitrary();
+    }
 
     private static string BuildSimpleDropSource(SimpleDropScenario scenario)
     {
@@ -245,8 +249,10 @@ public class DropEmissionPreservationPropertyTests
 
     public record DiscardedTaskScenario(string ReturnType, string ReturnExpr)
     {
-        public override string ToString() =>
-            $"discarded async call returning {ReturnType} in sync context";
+        public override string ToString()
+        {
+            return $"discarded async call returning {ReturnType} in sync context";
+        }
     }
 
 #pragma warning restore CA1034
@@ -264,8 +270,10 @@ public class DropEmissionPreservationPropertyTests
             new DiscardedTaskScenario(v.Type, v.Expr));
     }
 
-    public static Arbitrary<DiscardedTaskScenario> ArbitraryDiscardedTaskScenario() =>
-        GenDiscardedTaskScenario().ToArbitrary();
+    public static Arbitrary<DiscardedTaskScenario> ArbitraryDiscardedTaskScenario()
+    {
+        return GenDiscardedTaskScenario().ToArbitrary();
+    }
 
     private static string BuildDiscardedTaskSource(DiscardedTaskScenario scenario)
     {
@@ -343,8 +351,10 @@ public class DropEmissionPreservationPropertyTests
 
     public record ExplicitCaptureScenario(string InnerType, string ReturnExpr, string OuterName, string InnerName)
     {
-        public override string ToString() =>
-            $"var {InnerName} = {OuterName}.Drop() — explicit capture of Drop() returning {InnerType}";
+        public override string ToString()
+        {
+            return $"var {InnerName} = {OuterName}.Drop() — explicit capture of Drop() returning {InnerType}";
+        }
     }
 
 #pragma warning restore CA1034
@@ -368,8 +378,10 @@ public class DropEmissionPreservationPropertyTests
                select new ExplicitCaptureScenario(variant.Type, variant.Expr, names.Outer, names.Inner);
     }
 
-    public static Arbitrary<ExplicitCaptureScenario> ArbitraryExplicitCaptureScenario() =>
-        GenExplicitCaptureScenario().ToArbitrary();
+    public static Arbitrary<ExplicitCaptureScenario> ArbitraryExplicitCaptureScenario()
+    {
+        return GenExplicitCaptureScenario().ToArbitrary();
+    }
 
     private static string BuildExplicitCaptureSource(ExplicitCaptureScenario scenario)
     {

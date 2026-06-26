@@ -3890,24 +3890,27 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// (<c>"operator+"</c>) so the type checker can construct the same key
     /// from an operator expression.
     /// </summary>
-    private static string GetOperatorSymbolLexeme(OperatorSymbolNode symbol) => symbol switch
+    private static string GetOperatorSymbolLexeme(OperatorSymbolNode symbol)
     {
-        PlusOpOperatorSymbolNode => "+",
-        MinusOpOperatorSymbolNode => "-",
-        StarOpOperatorSymbolNode => "*",
-        SlashOpOperatorSymbolNode => "/",
-        ModuloOpOperatorSymbolNode => "%",
-        EqualEqualOpOperatorSymbolNode => "==",
-        NotEqualOpOperatorSymbolNode => "!=",
-        LessThanOpOperatorSymbolNode => "<",
-        GreaterThanOpOperatorSymbolNode => ">",
-        LessThanOrEqualOpOperatorSymbolNode => "<=",
-        GreaterThanOrEqualOpOperatorSymbolNode => ">=",
-        LogicalAndOpOperatorSymbolNode => "&&",
-        LogicalOrOpOperatorSymbolNode => "||",
-        ExclamationOpOperatorSymbolNode => "!",
-        _ => "",
-    };
+        return symbol switch
+        {
+            PlusOpOperatorSymbolNode => "+",
+            MinusOpOperatorSymbolNode => "-",
+            StarOpOperatorSymbolNode => "*",
+            SlashOpOperatorSymbolNode => "/",
+            ModuloOpOperatorSymbolNode => "%",
+            EqualEqualOpOperatorSymbolNode => "==",
+            NotEqualOpOperatorSymbolNode => "!=",
+            LessThanOpOperatorSymbolNode => "<",
+            GreaterThanOpOperatorSymbolNode => ">",
+            LessThanOrEqualOpOperatorSymbolNode => "<=",
+            GreaterThanOrEqualOpOperatorSymbolNode => ">=",
+            LogicalAndOpOperatorSymbolNode => "&&",
+            LogicalOrOpOperatorSymbolNode => "||",
+            ExclamationOpOperatorSymbolNode => "!",
+            _ => "",
+        };
+    }
 
     /// <summary>
     /// Extracts type parameter names from a <see cref="TypeParameterListNode"/> and returns
@@ -7403,13 +7406,16 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         }
     }
 
-    private static IReadOnlyList<IType>? GetTypeParametersForType(IType? type) => type switch
+    private static IReadOnlyList<IType>? GetTypeParametersForType(IType? type)
     {
-        ClassType ct => ct.TypeParameters,
-        StructType st => st.TypeParameters,
-        AbstractType it => it.TypeParameters,
-        _ => null,
-    };
+        return type switch
+        {
+            ClassType ct => ct.TypeParameters,
+            StructType st => st.TypeParameters,
+            AbstractType it => it.TypeParameters,
+            _ => null,
+        };
+    }
 
     /// <summary>
     /// Resolves adhoc refinement constraint clauses on all declarations after Pass 2
@@ -8653,8 +8659,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// <summary>
     /// Maps an <see cref="OwnershipSpecifierNode"/> to the corresponding <see cref="ThisTier"/> value.
     /// </summary>
-    private static ThisTier MapOwnershipSpecifierToThisTier(OwnershipSpecifierNode specifier) =>
-        specifier switch
+    private static ThisTier MapOwnershipSpecifierToThisTier(OwnershipSpecifierNode specifier)
+    {
+        return specifier switch
         {
             OwnedSpecifierOwnershipSpecifierNode => ThisTier.Owned,
             BorrowedSpecifierOwnershipSpecifierNode => ThisTier.Borrowed,
@@ -8662,6 +8669,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             ReadonlyRefSpecifierOwnershipSpecifierNode => ThisTier.ReadonlyRef,
             _ => ThisTier.None,
         };
+    }
 
     /// <summary>
     /// Extracts the <see cref="ImmutableArray{WithClauseNode}"/> from a method-like
@@ -10758,13 +10766,19 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         public static readonly MethodMatchResult Missing = new MissingResult();
 
         public static MethodMatchResult Match(ISymbol implSymbol)
-            => new MatchedResult(implSymbol);
+        {
+            return new MatchedResult(implSymbol);
+        }
 
         public static MethodMatchResult Mismatch(string expectedSig, string actualSig)
-            => new SignatureMismatch(expectedSig, actualSig);
+        {
+            return new SignatureMismatch(expectedSig, actualSig);
+        }
 
         public static MethodMatchResult RefKindMismatch(string implMethodName, string abstractMethodName)
-            => new RefKindMismatchResult(implMethodName, abstractMethodName);
+        {
+            return new RefKindMismatchResult(implMethodName, abstractMethodName);
+        }
 
         public sealed record MatchedResult(ISymbol ImplSymbol) : MethodMatchResult;
         public sealed record MissingResult : MethodMatchResult;

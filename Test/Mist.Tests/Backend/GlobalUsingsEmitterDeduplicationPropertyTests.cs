@@ -93,10 +93,12 @@ public sealed class GlobalUsingsEmitterDeduplicationPropertyTests : IDisposable
         ImmutableArray<string> ExplicitUsings,
         ImmutableArray<string> OverlappingNamespaces)
     {
-        public override string ToString() =>
-            $"Global=[{string.Join(", ", GlobalUsings)}], " +
+        public override string ToString()
+        {
+            return $"Global=[{string.Join(", ", GlobalUsings)}], " +
             $"Explicit=[{string.Join(", ", ExplicitUsings)}], " +
             $"Overlapping=[{string.Join(", ", OverlappingNamespaces)}]";
+        }
     }
 #pragma warning restore CA1034
 

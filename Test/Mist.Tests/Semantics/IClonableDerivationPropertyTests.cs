@@ -181,7 +181,10 @@ public sealed class IClonableDerivationPropertyTests : IDisposable
     public sealed record DerivationScenario(
         string Source, IReadOnlyList<bool> Expected, string Label)
     {
-        public override string ToString() => Label;
+        public override string ToString()
+        {
+            return Label;
+        }
     }
 
 #pragma warning restore CA1034
@@ -344,8 +347,10 @@ public sealed class IClonableDerivationPropertyTests : IDisposable
         return new DerivationScenario(sb.ToString(), expected, label);
     }
 
-    public static Arbitrary<DerivationScenario> ArbitraryDerivationScenario() =>
-        GenScenario().ToArbitrary();
+    public static Arbitrary<DerivationScenario> ArbitraryDerivationScenario()
+    {
+        return GenScenario().ToArbitrary();
+    }
 
     // ═══════════════════════════════════════════════════════════════════════
     // Property 6: ImplementsIClonable(T) ⟺ declares IClonable ∨ all fields clonable

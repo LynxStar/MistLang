@@ -40,7 +40,10 @@ public sealed class EnumReadonlyUnionAcceptanceScenario
         Description = description;
     }
 
-    public override string ToString() => Description;
+    public override string ToString()
+    {
+        return Description;
+    }
 }
 
 /// <summary>
@@ -77,8 +80,10 @@ public sealed class EnumReadonlyUnionAcceptancePropertyTests
 
     // ─── FsCheck generators ─────────────────────────────────────────────
 
-    public static Arbitrary<EnumReadonlyUnionAcceptanceScenario> ArbitraryScenario() =>
-        GenScenario().ToArbitrary();
+    public static Arbitrary<EnumReadonlyUnionAcceptanceScenario> ArbitraryScenario()
+    {
+        return GenScenario().ToArbitrary();
+    }
 
     private static Gen<EnumReadonlyUnionAcceptanceScenario> GenScenario()
     {

@@ -31,13 +31,16 @@ internal static class UnionHelperGenerator
     /// For array types, appends "Array" (e.g., "Int32Array").
     /// For constructed generic types, includes arity (e.g., "List_1_String").
     /// </summary>
-    internal static string GetConstituentCSharpName(IType type) => type switch
+    internal static string GetConstituentCSharpName(IType type)
     {
-        RefinementType r => GetConstituentCSharpName(r.BaseType),
-        ArrayType a => $"{GetConstituentCSharpName(a.ElementType)}Array",
-        ConstructedType ct => $"{ct.GenericDefinition.DisplayName}_{ct.TypeArguments.Count}_{string.Join("_", ct.TypeArguments.Select(GetConstituentCSharpName))}",
-        _ => type.DisplayName,
-    };
+        return type switch
+        {
+            RefinementType r => GetConstituentCSharpName(r.BaseType),
+            ArrayType a => $"{GetConstituentCSharpName(a.ElementType)}Array",
+            ConstructedType ct => $"{ct.GenericDefinition.DisplayName}_{ct.TypeArguments.Count}_{string.Join("_", ct.TypeArguments.Select(GetConstituentCSharpName))}",
+            _ => type.DisplayName,
+        };
+    }
 
     /// <summary>
     /// Generates the complete <c>UnionHelpers.cs</c> file content containing all

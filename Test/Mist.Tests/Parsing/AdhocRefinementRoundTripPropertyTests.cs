@@ -29,7 +29,10 @@ public sealed class AdhocRefinementRoundTripScenario
         Description = description;
     }
 
-    public override string ToString() => Description;
+    public override string ToString()
+    {
+        return Description;
+    }
 }
 
 /// <summary>
@@ -301,8 +304,10 @@ public class AdhocRefinementRoundTripPropertyTests
 
     // ─── Arbitrary registration ─────────────────────────────────────────────
 
-    public static Arbitrary<AdhocRefinementRoundTripScenario> ArbitraryAdhocRefinementRoundTripScenario() =>
-        GenScenario().ToArbitrary();
+    public static Arbitrary<AdhocRefinementRoundTripScenario> ArbitraryAdhocRefinementRoundTripScenario()
+    {
+        return GenScenario().ToArbitrary();
+    }
 
     // ─── Helpers ────────────────────────────────────────────────────────────
 

@@ -85,10 +85,14 @@ public class UnionTypeCheckerPropertyTests
     }
 
     private static bool HasDiagnostic(ImmutableArray<Diagnostic> diagnostics, string id)
-        => diagnostics.Any(d => d.Id.Value == id);
+    {
+        return diagnostics.Any(d => d.Id.Value == id);
+    }
 
     private static bool HasNoDiagnosticWithId(ImmutableArray<Diagnostic> diagnostics, string id)
-        => !diagnostics.Any(d => d.Id.Value == id);
+    {
+        return !diagnostics.Any(d => d.Id.Value == id);
+    }
 
     // ═══════════════════════════════════════════════════════════════════════
     // Property 7: Constituent Assignability
@@ -110,7 +114,10 @@ public class UnionTypeCheckerPropertyTests
         IType Source,
         UnionType Target)
     {
-        public override string ToString() => Label;
+        public override string ToString()
+        {
+            return Label;
+        }
     }
 #pragma warning restore CA1034
 
@@ -177,7 +184,10 @@ public class UnionTypeCheckerPropertyTests
         IType Source,
         IType Target)
     {
-        public override string ToString() => Label;
+        public override string ToString()
+        {
+            return Label;
+        }
     }
 #pragma warning restore CA1034
 
@@ -245,7 +255,10 @@ public class UnionTypeCheckerPropertyTests
         string Label,
         string Source)
     {
-        public override string ToString() => Label;
+        public override string ToString()
+        {
+            return Label;
+        }
     }
 #pragma warning restore CA1034
 
@@ -301,7 +314,10 @@ class Program {{
         string Label,
         string Source)
     {
-        public override string ToString() => Label;
+        public override string ToString()
+        {
+            return Label;
+        }
     }
 #pragma warning restore CA1034
 
@@ -360,7 +376,10 @@ class Program {{
         string ConstituentClassName,
         string PatternVarName)
     {
-        public override string ToString() => Label;
+        public override string ToString()
+        {
+            return Label;
+        }
     }
 #pragma warning restore CA1034
 
@@ -434,7 +453,10 @@ class Program {{
         string Label,
         string Source)
     {
-        public override string ToString() => Label;
+        public override string ToString()
+        {
+            return Label;
+        }
     }
 #pragma warning restore CA1034
 

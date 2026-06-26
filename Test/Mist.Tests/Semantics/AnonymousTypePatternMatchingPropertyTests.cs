@@ -102,8 +102,10 @@ public sealed class AnonymousTypePatternMatchingPropertyTests
         string PatternedName,
         string Source)
     {
-        public override string ToString() =>
-            $"Properties: [{string.Join(", ", Properties.Select(p => p.Name))}], Pattern: '{PatternedName}'";
+        public override string ToString()
+        {
+            return $"Properties: [{string.Join(", ", Properties.Select(p => p.Name))}], Pattern: '{PatternedName}'";
+        }
     }
 
     /// <summary>
@@ -115,8 +117,10 @@ public sealed class AnonymousTypePatternMatchingPropertyTests
         string NonExistentName,
         string Source)
     {
-        public override string ToString() =>
-            $"Properties: [{string.Join(", ", Properties.Select(p => p.Name))}], Missing: '{NonExistentName}'";
+        public override string ToString()
+        {
+            return $"Properties: [{string.Join(", ", Properties.Select(p => p.Name))}], Missing: '{NonExistentName}'";
+        }
     }
 
     /// <summary>
@@ -128,9 +132,11 @@ public sealed class AnonymousTypePatternMatchingPropertyTests
         ImmutableArray<string> PatternNames,
         string Source)
     {
-        public override string ToString() =>
-            $"AnonProps: [{string.Join(", ", AnonProperties.Select(p => p.Name))}], " +
+        public override string ToString()
+        {
+            return $"AnonProps: [{string.Join(", ", AnonProperties.Select(p => p.Name))}], " +
             $"PatternNames: [{string.Join(", ", PatternNames)}]";
+        }
     }
 
 #pragma warning restore CA1034
@@ -317,14 +323,20 @@ public sealed class AnonymousTypePatternMatchingPropertyTests
                select new UnknownPatternScenario(props, patternNames, source);
     }
 
-    public static Arbitrary<ValidPatternScenario> ArbitraryValidPattern() =>
-        GenValidPattern().ToArbitrary();
+    public static Arbitrary<ValidPatternScenario> ArbitraryValidPattern()
+    {
+        return GenValidPattern().ToArbitrary();
+    }
 
-    public static Arbitrary<InvalidPatternScenario> ArbitraryInvalidPattern() =>
-        GenInvalidPattern().ToArbitrary();
+    public static Arbitrary<InvalidPatternScenario> ArbitraryInvalidPattern()
+    {
+        return GenInvalidPattern().ToArbitrary();
+    }
 
-    public static Arbitrary<UnknownPatternScenario> ArbitraryUnknownPattern() =>
-        GenUnknownPattern().ToArbitrary();
+    public static Arbitrary<UnknownPatternScenario> ArbitraryUnknownPattern()
+    {
+        return GenUnknownPattern().ToArbitrary();
+    }
 
     // ═══════════════════════════════════════════════════════════════════════
     // Property 10 (valid): Property patterns referencing existing names are accepted

@@ -261,10 +261,14 @@ public sealed class SymbolTable
     public IReadOnlyList<ISymbol> AllSymbols => allSymbols;
 
     public ISymbol? GetDeclaredSymbol(Storm.Runtime.SyntaxNode node)
-        => nodeToSymbol.GetValueOrDefault(node);
+    {
+        return nodeToSymbol.GetValueOrDefault(node);
+    }
 
     public Storm.Runtime.SyntaxNode? GetDeclaringNode(ISymbol symbol)
-        => symbolToNode.GetValueOrDefault(symbol);
+    {
+        return symbolToNode.GetValueOrDefault(symbol);
+    }
 
     /// <summary>
     /// Registers a usage-site AST node (e.g., an <c>IdentifierExpressionPrimaryNode</c>

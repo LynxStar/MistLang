@@ -40,8 +40,10 @@ public sealed class EnumConstructionScenario
         HasMemberValues = hasMemberValues;
     }
 
-    public override string ToString() =>
-        $"enum {EnumName} ({MemberNames.Count} members, annotation={HasTypeAnnotation}, values={HasMemberValues})";
+    public override string ToString()
+    {
+        return $"enum {EnumName} ({MemberNames.Count} members, annotation={HasTypeAnnotation}, values={HasMemberValues})";
+    }
 }
 
 /// <summary>
@@ -59,13 +61,15 @@ public class EnumTypeConstructionPropertyTests
 
     private static readonly SemanticModelBuilder Builder = new();
 
-    private static Storm.Runtime.Token Tok(string lexeme) =>
-        new(kind: 0,
+    private static Storm.Runtime.Token Tok(string lexeme)
+    {
+        return new(kind: 0,
             span: new Storm.Runtime.SourceSpan(0, lexeme.Length),
             start: new Storm.Runtime.LinePosition(1, 1),
             end: new Storm.Runtime.LinePosition(1, 1 + lexeme.Length),
             channel: Storm.Runtime.TokenChannel.Default,
             lexeme: lexeme);
+    }
 
     private static ISemanticModel BuildModel(Storm.Runtime.SyntaxNode ast)
     {
@@ -133,8 +137,10 @@ public class EnumTypeConstructionPropertyTests
         return Gen.OneOf(GenNameOnlyScenario(), GenIntValuedScenario(), GenEmptyScenario());
     }
 
-    public static Arbitrary<EnumConstructionScenario> ArbitraryEnumConstructionScenario() =>
-        GenScenario().ToArbitrary();
+    public static Arbitrary<EnumConstructionScenario> ArbitraryEnumConstructionScenario()
+    {
+        return GenScenario().ToArbitrary();
+    }
 
     // ─── AST construction helpers ────────────────────────────────────────
 
@@ -147,21 +153,25 @@ public class EnumTypeConstructionPropertyTests
         return MistAstGenerator.WrapPrimary(primary);
     }
 
-    private static TypeReferenceNode MakeIntTypeRef() =>
-        new TypeReferenceNode
+    private static TypeReferenceNode MakeIntTypeRef()
+    {
+        return new TypeReferenceNode
         {
             First = new PrimitiveSingleTypeRefSingleTypeRefNode
             {
                 PrimitiveType = new IntTypePrimitiveTypeNode(),
             }
         };
+    }
 
-    private static EnumMemberNode MakeEnumMember(string name, ExpressionNode? value = null) =>
-        new()
+    private static EnumMemberNode MakeEnumMember(string name, ExpressionNode? value = null)
+    {
+        return new()
         {
             Name = Tok(name),
             Value = value,
         };
+    }
 
     private static EnumMemberListNode MakeEnumMemberList(IReadOnlyList<EnumMemberNode> members)
     {

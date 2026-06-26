@@ -34,7 +34,10 @@ public sealed class ReadonlyFieldScenario
         FieldName = fieldName;
     }
 
-    public override string ToString() => Description;
+    public override string ToString()
+    {
+        return Description;
+    }
 }
 
 /// <summary>
@@ -63,8 +66,10 @@ public sealed class PropertyInitializerReadonlyFieldPropertyTests
 
     // ─── FsCheck generators ─────────────────────────────────────────────
 
-    public static Arbitrary<ReadonlyFieldScenario> ArbitraryScenario() =>
-        GenScenario().ToArbitrary();
+    public static Arbitrary<ReadonlyFieldScenario> ArbitraryScenario()
+    {
+        return GenScenario().ToArbitrary();
+    }
 
     private static Gen<ReadonlyFieldScenario> GenScenario()
     {

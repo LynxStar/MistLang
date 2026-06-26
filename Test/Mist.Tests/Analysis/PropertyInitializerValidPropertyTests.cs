@@ -35,7 +35,10 @@ public sealed class ValidInitializerScenario
         AssignmentCount = assignmentCount;
     }
 
-    public override string ToString() => Description;
+    public override string ToString()
+    {
+        return Description;
+    }
 }
 
 /// <summary>
@@ -68,8 +71,10 @@ public sealed class PropertyInitializerValidPropertyTests
 
     // ─── FsCheck generators ─────────────────────────────────────────────
 
-    public static Arbitrary<ValidInitializerScenario> ArbitraryScenario() =>
-        GenScenario().ToArbitrary();
+    public static Arbitrary<ValidInitializerScenario> ArbitraryScenario()
+    {
+        return GenScenario().ToArbitrary();
+    }
 
     private static Gen<ValidInitializerScenario> GenScenario()
     {

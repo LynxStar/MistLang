@@ -26,7 +26,10 @@ public sealed class RefParameterRoundTripScenario
         Description = description;
     }
 
-    public override string ToString() => Description;
+    public override string ToString()
+    {
+        return Description;
+    }
 }
 
 /// <summary>
@@ -64,23 +67,35 @@ public static class MistRefParameterRoundTripGenerator
 
     // ─── Helper generators ──────────────────────────────────────────────────
 
-    private static Gen<string> GenTypeName() =>
-        Gen.Elements(PrimitiveTypes);
+    private static Gen<string> GenTypeName()
+    {
+        return Gen.Elements(PrimitiveTypes);
+    }
 
-    private static Gen<string> GenVarName() =>
-        Gen.Elements(VarNames);
+    private static Gen<string> GenVarName()
+    {
+        return Gen.Elements(VarNames);
+    }
 
-    private static Gen<string> GenParamName() =>
-        Gen.Elements(ParamNames);
+    private static Gen<string> GenParamName()
+    {
+        return Gen.Elements(ParamNames);
+    }
 
-    private static Gen<string> GenMethodName() =>
-        Gen.Elements(MethodNames);
+    private static Gen<string> GenMethodName()
+    {
+        return Gen.Elements(MethodNames);
+    }
 
-    private static Gen<string> GenFieldName() =>
-        Gen.Elements(FieldNames);
+    private static Gen<string> GenFieldName()
+    {
+        return Gen.Elements(FieldNames);
+    }
 
-    private static Gen<string> GenClassName() =>
-        Gen.Elements(TypeNames);
+    private static Gen<string> GenClassName()
+    {
+        return Gen.Elements(TypeNames);
+    }
 
     // ─── Ref parameter generators ───────────────────────────────────────────
 
@@ -326,32 +341,46 @@ public static class MistRefParameterRoundTripGenerator
     /// FsCheck Arbitrary for <see cref="RefParameterRoundTripScenario"/>.
     /// Register with <c>[Property(Arbitrary = new[] { typeof(MistRefParameterRoundTripGenerator) })]</c>.
     /// </summary>
-    public static Arbitrary<RefParameterRoundTripScenario> ArbitraryRefParameterRoundTripScenario() =>
-        GenScenario().ToArbitrary();
+    public static Arbitrary<RefParameterRoundTripScenario> ArbitraryRefParameterRoundTripScenario()
+    {
+        return GenScenario().ToArbitrary();
+    }
 
     // ─── Helpers ────────────────────────────────────────────────────────────
 
     /// <summary>Wraps a member declaration inside a class body.</summary>
-    private static string WrapInClass(string member) =>
-        $"class TestClass {{\n    {member}\n}}";
+    private static string WrapInClass(string member)
+    {
+        return $"class TestClass {{\n    {member}\n}}";
+    }
 
     /// <summary>Wraps a member declaration inside a class that also has a field.</summary>
-    private static string WrapInClassWithField(string fieldType, string fieldName, string member) =>
-        $"class TestClass {{\n    {fieldType} {fieldName};\n\n    {member}\n}}";
+    private static string WrapInClassWithField(string fieldType, string fieldName, string member)
+    {
+        return $"class TestClass {{\n    {fieldType} {fieldName};\n\n    {member}\n}}";
+    }
 
     /// <summary>Wraps a statement inside a class method, with a local variable of the given type.</summary>
-    private static string WrapInClassMethodWithLocal(string typeName, string localName, string statement) =>
-        $"class TestClass {{\n    void Run() {{\n        {typeName} {localName} = 0;\n        {statement}\n    }}\n}}";
+    private static string WrapInClassMethodWithLocal(string typeName, string localName, string statement)
+    {
+        return $"class TestClass {{\n    void Run() {{\n        {typeName} {localName} = 0;\n        {statement}\n    }}\n}}";
+    }
 
     /// <summary>Wraps a statement inside a class method, with an int local variable.</summary>
-    private static string WrapInClassMethodWithIntLocal(string localName, string statement) =>
-        $"class TestClass {{\n    void Run() {{\n        int {localName} = 0;\n        {statement}\n    }}\n}}";
+    private static string WrapInClassMethodWithIntLocal(string localName, string statement)
+    {
+        return $"class TestClass {{\n    void Run() {{\n        int {localName} = 0;\n        {statement}\n    }}\n}}";
+    }
 
     /// <summary>Wraps a call statement inside a class that has a ref method.</summary>
-    private static string WrapInClassWithRefMethod(string typeName, string paramName, string methodName, string callStatement) =>
-        $"class TestClass {{\n    void {methodName}(ref {typeName} {paramName}) {{\n    }}\n\n    void Run() {{\n        {callStatement}\n    }}\n}}";
+    private static string WrapInClassWithRefMethod(string typeName, string paramName, string methodName, string callStatement)
+    {
+        return $"class TestClass {{\n    void {methodName}(ref {typeName} {paramName}) {{\n    }}\n\n    void Run() {{\n        {callStatement}\n    }}\n}}";
+    }
 
     /// <summary>Wraps a call statement inside a class that has a method with mixed ref/value params.</summary>
-    private static string WrapInClassWithMixedMethod(string type1, string type2, string methodName, string callStatement) =>
-        $"class TestClass {{\n    void {methodName}(ref {type1} first, {type2} second) {{\n    }}\n\n    void Run() {{\n        {callStatement}\n    }}\n}}";
+    private static string WrapInClassWithMixedMethod(string type1, string type2, string methodName, string callStatement)
+    {
+        return $"class TestClass {{\n    void {methodName}(ref {type1} first, {type2} second) {{\n    }}\n\n    void Run() {{\n        {callStatement}\n    }}\n}}";
+    }
 }

@@ -552,7 +552,10 @@ public sealed class MoveBoundaryResolver
     /// the injected clonability oracle (Req 8 AC 6–7). Accessing the instance oracle is what
     /// makes <see cref="Resolve"/> a genuine instance method.
     /// </summary>
-    private bool ImplementsIClonable(IType type) => implementsIClonable(type);
+    private bool ImplementsIClonable(IType type)
+    {
+        return implementsIClonable(type);
+    }
 
     /// <summary>
     /// The default clonability oracle: reads the <c>ImplementsIClonable</c> flag cached on the
@@ -612,8 +615,10 @@ public sealed class MoveBoundaryResolver
     /// Returns <c>true</c> when the truth table permits a move from the given state. Only the
     /// <see cref="VariableOwnershipState.Live"/> state allows a move (Req 6 AC 8).
     /// </summary>
-    private static bool IsMovePermitted(VariableOwnershipState state) =>
-        state == VariableOwnershipState.Live;
+    private static bool IsMovePermitted(VariableOwnershipState state)
+    {
+        return state == VariableOwnershipState.Live;
+    }
 
     // ── Source / diagnostic plumbing ───────────────────────────────────────
 

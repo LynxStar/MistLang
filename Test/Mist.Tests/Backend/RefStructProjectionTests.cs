@@ -50,7 +50,10 @@ public sealed class RefStructProjectionTests : IDisposable
         provider = new AssemblyTypeProvider(GetAssemblyPaths(), diagnostics);
     }
 
-    public void Dispose() => provider.Dispose();
+    public void Dispose()
+    {
+        provider.Dispose();
+    }
 
     // ── Assembly path / member lookup helpers ────────────────────────────
 
@@ -77,8 +80,10 @@ public sealed class RefStructProjectionTests : IDisposable
         return method;
     }
 
-    private static int CountMethodSymbols(ImmutableArray<ISymbol> members, string name) =>
-        members.Count(m => m.Kind == SymbolKind.Method && m.Name == name);
+    private static int CountMethodSymbols(ImmutableArray<ISymbol> members, string name)
+    {
+        return members.Count(m => m.Kind == SymbolKind.Method && m.Name == name);
+    }
 
     // ═══════════════════════════════════════════════════════════════════════
     // Fixture: mixed Span/non-Span overload group — ALL overloads visible

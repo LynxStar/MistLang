@@ -35,8 +35,10 @@ public class AsyncFunctorOperandPropertyTests
 
     // ─── Helpers ─────────────────────────────────────────────────────────
 
-    private static Storm.Runtime.Token Tok(string lexeme) =>
-        MistTypeGenerator.MakeToken(lexeme);
+    private static Storm.Runtime.Token Tok(string lexeme)
+    {
+        return MistTypeGenerator.MakeToken(lexeme);
+    }
 
     private static UsingDeclarationNode MakeUsingDeclaration(string namespaceName)
     {
@@ -117,8 +119,10 @@ public class AsyncFunctorOperandPropertyTests
                select new AsyncFunctorOperandScenario(className, methodName, operandKind, varName);
     }
 
-    public static Arbitrary<AsyncFunctorOperandScenario> ArbitraryScenario() =>
-        GenScenario().ToArbitrary();
+    public static Arbitrary<AsyncFunctorOperandScenario> ArbitraryScenario()
+    {
+        return GenScenario().ToArbitrary();
+    }
 
     // ─── AST construction ────────────────────────────────────────────────
 

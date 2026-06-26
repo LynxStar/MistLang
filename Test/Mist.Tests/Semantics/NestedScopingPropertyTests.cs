@@ -62,14 +62,17 @@ public sealed class NestedScopingPropertyTests
     /// <summary>
     /// Returns the Mist keyword for any of the five type kinds.
     /// </summary>
-    private static string AllTypeKindKeyword(AllTypeKind kind) => kind switch
+    private static string AllTypeKindKeyword(AllTypeKind kind)
     {
-        AllTypeKind.Class => "class",
-        AllTypeKind.Struct => "struct",
-        AllTypeKind.Abstract => "abstract",
-        AllTypeKind.Enum => "enum",
-        _ => "class"
-    };
+        return kind switch
+        {
+            AllTypeKind.Class => "class",
+            AllTypeKind.Struct => "struct",
+            AllTypeKind.Abstract => "abstract",
+            AllTypeKind.Enum => "enum",
+            _ => "class"
+        };
+    }
 
     /// <summary>
     /// Builds a Mist source string with a container type containing a nested type.
@@ -1120,14 +1123,17 @@ public sealed class NestedScopingPropertyTests
     /// Returns the C# keyword for a given Mist type kind.
     /// Mist enums emit as record classes in C#.
     /// </summary>
-    private static string GetCSharpKeyword(AllTypeKind kind) => kind switch
+    private static string GetCSharpKeyword(AllTypeKind kind)
     {
-        AllTypeKind.Class => "class",
-        AllTypeKind.Struct => "struct",
-        AllTypeKind.Abstract => "interface",
-        AllTypeKind.Enum => "record class",
-        _ => "class"
-    };
+        return kind switch
+        {
+            AllTypeKind.Class => "class",
+            AllTypeKind.Struct => "struct",
+            AllTypeKind.Abstract => "interface",
+            AllTypeKind.Enum => "record class",
+            _ => "class"
+        };
+    }
 
     /// <summary>
     /// Verifies that the nested type declaration appears inside the parent type's body

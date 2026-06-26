@@ -57,7 +57,10 @@ public class TypeLiteralTypeCheckerPropertyTests
 #pragma warning disable CA1034
     public record TypeMismatchTestCase(string DeclaredType, string TypeLiteral, string Source)
     {
-        public override string ToString() => $"{DeclaredType} x = {TypeLiteral};";
+        public override string ToString()
+        {
+            return $"{DeclaredType} x = {TypeLiteral};";
+        }
     }
 #pragma warning restore CA1034
 

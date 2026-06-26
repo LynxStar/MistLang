@@ -43,7 +43,10 @@ public sealed class EnumNonReadonlyUnionRejectionScenario
         Description = description;
     }
 
-    public override string ToString() => Description;
+    public override string ToString()
+    {
+        return Description;
+    }
 }
 
 /// <summary>
@@ -82,8 +85,10 @@ public sealed class EnumNonReadonlyUnionRejectionPropertyTests
 
     // ─── FsCheck generators ─────────────────────────────────────────────
 
-    public static Arbitrary<EnumNonReadonlyUnionRejectionScenario> ArbitraryScenario() =>
-        GenScenario().ToArbitrary();
+    public static Arbitrary<EnumNonReadonlyUnionRejectionScenario> ArbitraryScenario()
+    {
+        return GenScenario().ToArbitrary();
+    }
 
     private static Gen<EnumNonReadonlyUnionRejectionScenario> GenScenario()
     {

@@ -26,7 +26,10 @@ public sealed class OwnershipSourceScenario
         Description = description;
     }
 
-    public override string ToString() => Description;
+    public override string ToString()
+    {
+        return Description;
+    }
 }
 
 /// <summary>
@@ -69,12 +72,16 @@ public static class MistOwnershipGenerator
     // ─── Ownership specifier generators ─────────────────────────────────────
 
     /// <summary>Generates a random ownership specifier string.</summary>
-    public static Gen<string> GenOwnershipSpecifier() =>
-        Gen.Elements("owned ", "borrowed ", "readonly ref ", "frozen ");
+    public static Gen<string> GenOwnershipSpecifier()
+    {
+        return Gen.Elements("owned ", "borrowed ", "readonly ref ", "frozen ");
+    }
 
     /// <summary>Generates an optional ownership specifier (may be empty).</summary>
-    public static Gen<string> GenOptionalOwnershipSpecifier() =>
-        Gen.Elements("", "owned ", "borrowed ", "readonly ref ", "frozen ");
+    public static Gen<string> GenOptionalOwnershipSpecifier()
+    {
+        return Gen.Elements("", "owned ", "borrowed ", "readonly ref ", "frozen ");
+    }
 
     // ─── Variable declaration generators ────────────────────────────────────
 
@@ -219,16 +226,22 @@ public static class MistOwnershipGenerator
     /// FsCheck Arbitrary for <see cref="OwnershipSourceScenario"/>.
     /// Register with <c>[Property(Arbitrary = new[] { typeof(MistOwnershipGenerator) })]</c>.
     /// </summary>
-    public static Arbitrary<OwnershipSourceScenario> ArbitraryOwnershipSourceScenario() =>
-        GenOwnershipSource().ToArbitrary();
+    public static Arbitrary<OwnershipSourceScenario> ArbitraryOwnershipSourceScenario()
+    {
+        return GenOwnershipSource().ToArbitrary();
+    }
 
     // ─── Helpers ────────────────────────────────────────────────────────────
 
     /// <summary>Wraps a statement inside a class with a method body.</summary>
-    private static string WrapInClassMethod(string statement) =>
-        $"class TestClass {{\n    void Run() {{\n        {statement}\n    }}\n}}";
+    private static string WrapInClassMethod(string statement)
+    {
+        return $"class TestClass {{\n    void Run() {{\n        {statement}\n    }}\n}}";
+    }
 
     /// <summary>Wraps a member declaration inside a class body.</summary>
-    private static string WrapInClass(string member) =>
-        $"class TestClass {{\n    {member}\n}}";
+    private static string WrapInClass(string member)
+    {
+        return $"class TestClass {{\n    {member}\n}}";
+    }
 }

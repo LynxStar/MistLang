@@ -43,14 +43,17 @@ public static class ThisTierExtensions
     /// </list>
     /// </remarks>
     public static bool Satisfies(ThisTier callerTier, ThisTier requiredTier)
-        => callerTier >= requiredTier;
+    {
+        return callerTier >= requiredTier;
+    }
 
     /// <summary>
     /// Maps an <see cref="OwnershipTier"/> (used for bindings) to the corresponding <see cref="ThisTier"/>.
     /// This determines what this-tier requirements a binding at a given ownership tier can satisfy.
     /// </summary>
     public static ThisTier FromOwnershipTier(OwnershipTier ownershipTier)
-        => ownershipTier switch
+    {
+        return ownershipTier switch
         {
             OwnershipTier.Owned => ThisTier.Owned,
             OwnershipTier.Borrowed => ThisTier.Borrowed,
@@ -59,4 +62,5 @@ public static class ThisTierExtensions
             OwnershipTier.Unrestricted => ThisTier.None,
             _ => ThisTier.None,
         };
+    }
 }

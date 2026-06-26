@@ -78,7 +78,10 @@ public class OwnershipExclusivityPropertyTests
     /// </summary>
     public sealed record OwnerAccessDuringRefLoanScenario(string Source, string Label)
     {
-        public override string ToString() => Label;
+        public override string ToString()
+        {
+            return Label;
+        }
     }
 
     /// <summary>
@@ -87,7 +90,10 @@ public class OwnershipExclusivityPropertyTests
     /// </summary>
     public sealed record MultipleRefLoanScenario(string Source, string Label)
     {
-        public override string ToString() => Label;
+        public override string ToString()
+        {
+            return Label;
+        }
     }
 
     /// <summary>
@@ -96,7 +102,10 @@ public class OwnershipExclusivityPropertyTests
     /// </summary>
     public sealed record AccessRestoredAfterRefReturnScenario(string Source, string Label)
     {
-        public override string ToString() => Label;
+        public override string ToString()
+        {
+            return Label;
+        }
     }
 
 #pragma warning restore CA1034
@@ -256,14 +265,20 @@ public class OwnershipExclusivityPropertyTests
 
     // ─── Arbitrary instances ─────────────────────────────────────────────
 
-    public static Arbitrary<OwnerAccessDuringRefLoanScenario> ArbitraryOwnerAccessDuringRefLoanScenario() =>
-        Gen.OneOf(GenOwnerReadDuringRefLoan(), GenOwnerWriteDuringRefLoan()).ToArbitrary();
+    public static Arbitrary<OwnerAccessDuringRefLoanScenario> ArbitraryOwnerAccessDuringRefLoanScenario()
+    {
+        return Gen.OneOf(GenOwnerReadDuringRefLoan(), GenOwnerWriteDuringRefLoan()).ToArbitrary();
+    }
 
-    public static Arbitrary<MultipleRefLoanScenario> ArbitraryMultipleRefLoanScenario() =>
-        GenMultipleRefLoans().ToArbitrary();
+    public static Arbitrary<MultipleRefLoanScenario> ArbitraryMultipleRefLoanScenario()
+    {
+        return GenMultipleRefLoans().ToArbitrary();
+    }
 
-    public static Arbitrary<AccessRestoredAfterRefReturnScenario> ArbitraryAccessRestoredAfterRefReturnScenario() =>
-        GenAccessRestoredAfterRefReturn().ToArbitrary();
+    public static Arbitrary<AccessRestoredAfterRefReturnScenario> ArbitraryAccessRestoredAfterRefReturnScenario()
+    {
+        return GenAccessRestoredAfterRefReturn().ToArbitrary();
+    }
 
     // ═══════════════════════════════════════════════════════════════════════
     // Property 6a: Owner access during ref loan emits MIST_OWN_EXCLUSIVE_VIOLATION

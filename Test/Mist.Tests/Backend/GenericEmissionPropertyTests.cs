@@ -438,8 +438,10 @@ public sealed partial class GenericEmissionPropertyTests : IDisposable
             GenNestedGenerics());
     }
 
-    public static Arbitrary<GenericEmissionScenario> ArbitraryGenericEmissionScenario() =>
-        GenScenario().ToArbitrary();
+    public static Arbitrary<GenericEmissionScenario> ArbitraryGenericEmissionScenario()
+    {
+        return GenScenario().ToArbitrary();
+    }
 
     // ─── AST construction ────────────────────────────────────────────────
 

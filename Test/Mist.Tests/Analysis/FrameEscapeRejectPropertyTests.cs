@@ -89,19 +89,25 @@ public class FrameEscapeRejectPropertyTests
     {
         /// <summary>The diagnostic ID expected for this escape shape.</summary>
 #pragma warning disable CA1024
-        public string GetExpectedDiagnosticId() => Shape switch
+        public string GetExpectedDiagnosticId()
         {
-            EscapeShape.ReturnDirect => "MIST2008",
-            EscapeShape.ReturnViaLocal => "MIST2008",
-            EscapeShape.ReturnViaReassignment => "MIST2008",
-            EscapeShape.StoreViaRefStructField => "MIST2009",
-            EscapeShape.StoreViaRefStructField2 => "MIST2009",
-            EscapeShape.ReturnViaMultipleHops => "MIST2008",
-            _ => throw new ArgumentOutOfRangeException(),
-        };
+            return Shape switch
+            {
+                EscapeShape.ReturnDirect => "MIST2008",
+                EscapeShape.ReturnViaLocal => "MIST2008",
+                EscapeShape.ReturnViaReassignment => "MIST2008",
+                EscapeShape.StoreViaRefStructField => "MIST2009",
+                EscapeShape.StoreViaRefStructField2 => "MIST2009",
+                EscapeShape.ReturnViaMultipleHops => "MIST2008",
+                _ => throw new ArgumentOutOfRangeException(),
+            };
+        }
 #pragma warning restore CA1024
 
-        public override string ToString() => Description;
+        public override string ToString()
+        {
+            return Description;
+        }
     }
 
 #pragma warning restore CA1034
@@ -125,15 +131,19 @@ public class FrameEscapeRejectPropertyTests
                    $"stackalloc {elementType}[] escapes via {shape}");
     }
 
-    public static Arbitrary<EscapeScenario> ArbitraryEscapeScenario() =>
-        GenScenario().ToArbitrary();
+    public static Arbitrary<EscapeScenario> ArbitraryEscapeScenario()
+    {
+        return GenScenario().ToArbitrary();
+    }
 
     // ─── Source builders ─────────────────────────────────────────────────
 
-    private static string BuildEscapingProgram(EscapeScenario scenario) => scenario.Shape switch
+    private static string BuildEscapingProgram(EscapeScenario scenario)
     {
-        // Return a stackalloc-backed span directly from a method.
-        EscapeShape.ReturnDirect => $$"""
+        return scenario.Shape switch
+        {
+            // Return a stackalloc-backed span directly from a method.
+            EscapeShape.ReturnDirect => $$"""
             class Program {
                 static Span<{{scenario.ElementType}}, unknown> Escape() {
                     var s = stackalloc {{scenario.ElementType}}[4];
@@ -145,8 +155,8 @@ public class FrameEscapeRejectPropertyTests
             }
             """,
 
-        // Return a stackalloc-backed span through a var-inferred local alias.
-        EscapeShape.ReturnViaLocal => $$"""
+            // Return a stackalloc-backed span through a var-inferred local alias.
+            EscapeShape.ReturnViaLocal => $$"""
             class Program {
                 static Span<{{scenario.ElementType}}, unknown> Escape() {
                     var s = stackalloc {{scenario.ElementType}}[8];
@@ -159,8 +169,8 @@ public class FrameEscapeRejectPropertyTests
             }
             """,
 
-        // Return a stackalloc-backed span after reassignment through a typed local.
-        EscapeShape.ReturnViaReassignment => $$"""
+            // Return a stackalloc-backed span after reassignment through a typed local.
+            EscapeShape.ReturnViaReassignment => $$"""
             class Program {
                 static Span<{{scenario.ElementType}}, unknown> Escape() {
                     var s = stackalloc {{scenario.ElementType}}[4];
@@ -173,10 +183,10 @@ public class FrameEscapeRejectPropertyTests
             }
             """,
 
-        // Store a stackalloc-backed span into a ref struct parameter's field.
-        // The LHS (holder.held) is a member access, not a simple local or parameter,
-        // so the frame-escape analyzer rejects it with MIST2009.
-        EscapeShape.StoreViaRefStructField => $$"""
+            // Store a stackalloc-backed span into a ref struct parameter's field.
+            // The LHS (holder.held) is a member access, not a simple local or parameter,
+            // so the frame-escape analyzer rejects it with MIST2009.
+            EscapeShape.StoreViaRefStructField => $$"""
             public ref struct SpanHolder {
                 public Span<{{scenario.ElementType}}, unknown> held;
             }
@@ -192,8 +202,8 @@ public class FrameEscapeRejectPropertyTests
             }
             """,
 
-        // Store a stackalloc-backed span into a differently-named ref struct param field.
-        EscapeShape.StoreViaRefStructField2 => $$"""
+            // Store a stackalloc-backed span into a differently-named ref struct param field.
+            EscapeShape.StoreViaRefStructField2 => $$"""
             public ref struct Container {
                 public Span<{{scenario.ElementType}}, unknown> buffer;
             }
@@ -209,8 +219,8 @@ public class FrameEscapeRejectPropertyTests
             }
             """,
 
-        // Return a stackalloc-backed span through multiple local hops.
-        EscapeShape.ReturnViaMultipleHops => $$"""
+            // Return a stackalloc-backed span through multiple local hops.
+            EscapeShape.ReturnViaMultipleHops => $$"""
             class Program {
                 static Span<{{scenario.ElementType}}, unknown> Escape() {
                     var original = stackalloc {{scenario.ElementType}}[4];
@@ -224,8 +234,9 @@ public class FrameEscapeRejectPropertyTests
             }
             """,
 
-        _ => throw new ArgumentOutOfRangeException(),
-    };
+            _ => throw new ArgumentOutOfRangeException(),
+        };
+    }
 
     // ─── Compilation helper ──────────────────────────────────────────────
 

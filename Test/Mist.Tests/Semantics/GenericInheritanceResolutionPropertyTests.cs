@@ -228,14 +228,20 @@ public class GenericInheritanceResolutionPropertyTests
                select new GenericAbstractScenario(typeName, abstractName, typeParams, isGeneric);
     }
 
-    public static Arbitrary<GenericBaseClassScenario> ArbitraryGenericBaseClassScenario() =>
-        GenGenericBaseClassScenario().ToArbitrary();
+    public static Arbitrary<GenericBaseClassScenario> ArbitraryGenericBaseClassScenario()
+    {
+        return GenGenericBaseClassScenario().ToArbitrary();
+    }
 
-    public static Arbitrary<ConcreteBaseClassScenario> ArbitraryConcreteBaseClassScenario() =>
-        GenConcreteBaseClassScenario().ToArbitrary();
+    public static Arbitrary<ConcreteBaseClassScenario> ArbitraryConcreteBaseClassScenario()
+    {
+        return GenConcreteBaseClassScenario().ToArbitrary();
+    }
 
-    public static Arbitrary<GenericAbstractScenario> ArbitraryGenericAbstractScenario() =>
-        GenGenericAbstractScenario().ToArbitrary();
+    public static Arbitrary<GenericAbstractScenario> ArbitraryGenericAbstractScenario()
+    {
+        return GenGenericAbstractScenario().ToArbitrary();
+    }
 
     // ─── Property tests ──────────────────────────────────────────────────
 

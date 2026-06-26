@@ -27,7 +27,10 @@ public sealed class AsyncAwaitSourceScenario
         Description = description;
     }
 
-    public override string ToString() => Description;
+    public override string ToString()
+    {
+        return Description;
+    }
 }
 
 /// <summary>
@@ -355,6 +358,8 @@ public static class MistAsyncAwaitGenerator
     /// FsCheck Arbitrary for <see cref="AsyncAwaitSourceScenario"/>.
     /// Register with <c>[Property(Arbitrary = new[] { typeof(MistAsyncAwaitGenerator) })]</c>.
     /// </summary>
-    public static Arbitrary<AsyncAwaitSourceScenario> ArbitraryAsyncAwaitSourceScenario() =>
-        GenAsyncAwaitSource().ToArbitrary();
+    public static Arbitrary<AsyncAwaitSourceScenario> ArbitraryAsyncAwaitSourceScenario()
+    {
+        return GenAsyncAwaitSource().ToArbitrary();
+    }
 }

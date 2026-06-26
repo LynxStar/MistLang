@@ -68,8 +68,10 @@ public class UnresolvedConstraintRejectionPropertyTests
         string ParamName,
         string ConstraintName)
     {
-        public override string ToString() =>
-            $"class {ClassName}<{ParamName}:{ConstraintName}>";
+        public override string ToString()
+        {
+            return $"class {ClassName}<{ParamName}:{ConstraintName}>";
+        }
     }
 #pragma warning restore CA1034
 
@@ -113,8 +115,10 @@ public class UnresolvedConstraintRejectionPropertyTests
                select new UnresolvedConstraintScenario(className, paramName, constraintName);
     }
 
-    public static Arbitrary<UnresolvedConstraintScenario> ArbitraryUnresolvedConstraintScenario() =>
-        GenUnresolvedConstraintScenario().ToArbitrary();
+    public static Arbitrary<UnresolvedConstraintScenario> ArbitraryUnresolvedConstraintScenario()
+    {
+        return GenUnresolvedConstraintScenario().ToArbitrary();
+    }
 
     // ─── Property test ───────────────────────────────────────────────────
 

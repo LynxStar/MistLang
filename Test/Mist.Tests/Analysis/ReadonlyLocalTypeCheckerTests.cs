@@ -65,8 +65,10 @@ public sealed class ReadonlyLocalTypeCheckerTests : IDisposable
         return SharedDriver.Compile(options);
     }
 
-    private static bool HasDiagnostic(CompilerResult result, string diagnosticId) =>
-        result.Diagnostics.Any(d => d.Id.Value == diagnosticId);
+    private static bool HasDiagnostic(CompilerResult result, string diagnosticId)
+    {
+        return result.Diagnostics.Any(d => d.Id.Value == diagnosticId);
+    }
 
     // ─── Test 1: readonly var x = 7; x = 10; → MIST_READONLY_LOCAL_0001 ─
 

@@ -8,7 +8,10 @@ public class RefParamFixture
 {
     private int field;
 
-    public void IncrementRef(ref int value) => value++;
+    public void IncrementRef(ref int value)
+    {
+        value++;
+    }
 
     public void SwapStrings(ref string a, ref string b)
     {
@@ -27,13 +30,22 @@ public class RefParamFixture
     }
 
     /// <summary>A method with ref int — CLR intrinsic element type.</summary>
-    public void RefInt(ref int value) => value *= 2;
+    public void RefInt(ref int value)
+    {
+        value *= 2;
+    }
 
     /// <summary>A method with ref string — CLR intrinsic element type.</summary>
-    public void RefString(ref string value) => value = value.ToUpper();
+    public void RefString(ref string value)
+    {
+        value = value.ToUpper();
+    }
 
     /// <summary>A normal method without ref params that should remain visible.</summary>
-    public int GetField() => field;
+    public int GetField()
+    {
+        return field;
+    }
 }
 
 /// <summary>
@@ -42,19 +54,37 @@ public class RefParamFixture
 /// </summary>
 public class InParamFixture
 {
-    public int DoubleValue(in int value) => value * 2;
+    public int DoubleValue(in int value)
+    {
+        return value * 2;
+    }
 
-    public int SumTwo(in int a, in int b) => a + b;
+    public int SumTwo(in int a, in int b)
+    {
+        return a + b;
+    }
 
-    public string FormatValue(in string value) => $"[{value}]";
+    public string FormatValue(in string value)
+    {
+        return $"[{value}]";
+    }
 
-    public T Identity<T>(in T value) => value;
+    public T Identity<T>(in T value)
+    {
+        return value;
+    }
 
     /// <summary>A method mixing in and regular params.</summary>
-    public int AddOffset(in int baseValue, int offset) => baseValue + offset;
+    public int AddOffset(in int baseValue, int offset)
+    {
+        return baseValue + offset;
+    }
 
     /// <summary>A normal method without in params that should remain visible.</summary>
-    public int Constant() => 99;
+    public int Constant()
+    {
+        return 99;
+    }
 }
 
 /// <summary>
@@ -66,12 +96,21 @@ public class MutableRefReturnFixture
     private int intField = 10;
     private string stringField = "hello";
 
-    public ref int GetIntRef() => ref intField;
+    public ref int GetIntRef()
+    {
+        return ref intField;
+    }
 
-    public ref string GetStringRef() => ref stringField;
+    public ref string GetStringRef()
+    {
+        return ref stringField;
+    }
 
     /// <summary>A normal method without ref return that should remain visible.</summary>
-    public int GetIntValue() => intField;
+    public int GetIntValue()
+    {
+        return intField;
+    }
 }
 
 /// <summary>
@@ -83,12 +122,21 @@ public class RefReadonlyReturnFixture
     private int intField = 20;
     private string stringField = "world";
 
-    public ref readonly int GetReadonlyIntRef() => ref intField;
+    public ref readonly int GetReadonlyIntRef()
+    {
+        return ref intField;
+    }
 
-    public ref readonly string GetReadonlyStringRef() => ref stringField;
+    public ref readonly string GetReadonlyStringRef()
+    {
+        return ref stringField;
+    }
 
     /// <summary>A normal method without ref return that should remain visible.</summary>
-    public int GetIntValue() => intField;
+    public int GetIntValue()
+    {
+        return intField;
+    }
 }
 
 /// <summary>
@@ -115,7 +163,10 @@ public class OutParamFixture
     }
 
     /// <summary>A normal method without out params that should remain visible.</summary>
-    public int GetLength(string input) => input.Length;
+    public int GetLength(string input)
+    {
+        return input.Length;
+    }
 }
 
 /// <summary>
@@ -140,5 +191,8 @@ public class MixedRefOutFixture
     }
 
     /// <summary>A normal method without ref/out params that should remain visible.</summary>
-    public int Add(int a, int b) => a + b;
+    public int Add(int a, int b)
+    {
+        return a + b;
+    }
 }

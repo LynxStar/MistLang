@@ -51,8 +51,10 @@ public class DigitSeparatorTypeInvariancePropertyTests
         string LiteralWithoutSeparators,
         string LiteralKind)
     {
-        public override string ToString() =>
-            $"{LiteralKind}: {LiteralWithSeparators} vs {LiteralWithoutSeparators}";
+        public override string ToString()
+        {
+            return $"{LiteralKind}: {LiteralWithSeparators} vs {LiteralWithoutSeparators}";
+        }
     }
 #pragma warning restore CA1034
 

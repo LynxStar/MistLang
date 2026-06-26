@@ -117,7 +117,10 @@ public sealed class SubstructuralBindingRejectionPropertyTests
     /// </summary>
     public sealed record SubstructuralScenario(string Source, bool ExpectRejection, string Label)
     {
-        public override string ToString() => Label;
+        public override string ToString()
+        {
+            return Label;
+        }
     }
 
 #pragma warning restore CA1034
@@ -125,21 +128,26 @@ public sealed class SubstructuralBindingRejectionPropertyTests
     /// <summary>
     /// Returns true if the type modifier is a substructural discipline (linear/affine/relevant).
     /// </summary>
-    private static bool IsSubstructural(TypeModifierKind kind) =>
-        kind is TypeModifierKind.Linear or TypeModifierKind.Affine or TypeModifierKind.Relevant;
+    private static bool IsSubstructural(TypeModifierKind kind)
+    {
+        return kind is TypeModifierKind.Linear or TypeModifierKind.Affine or TypeModifierKind.Relevant;
+    }
 
     /// <summary>
     /// Returns the Mist modifier keyword(s) for the given kind.
     /// </summary>
-    private static string ModifierKeyword(TypeModifierKind kind) => kind switch
+    private static string ModifierKeyword(TypeModifierKind kind)
     {
-        TypeModifierKind.Unrestricted => "",
-        TypeModifierKind.Owned => "owned ",
-        TypeModifierKind.Linear => "linear ",
-        TypeModifierKind.Affine => "affine ",
-        TypeModifierKind.Relevant => "relevant ",
-        _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, null),
-    };
+        return kind switch
+        {
+            TypeModifierKind.Unrestricted => "",
+            TypeModifierKind.Owned => "owned ",
+            TypeModifierKind.Linear => "linear ",
+            TypeModifierKind.Affine => "affine ",
+            TypeModifierKind.Relevant => "relevant ",
+            _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, null),
+        };
+    }
 
     /// <summary>
     /// Builds a complete Mist program with a type of the given modifier kind and an
@@ -206,8 +214,10 @@ public sealed class SubstructuralBindingRejectionPropertyTests
                select Build(kind);
     }
 
-    public static Arbitrary<SubstructuralScenario> ArbitrarySubstructuralScenario() =>
-        GenScenario().ToArbitrary();
+    public static Arbitrary<SubstructuralScenario> ArbitrarySubstructuralScenario()
+    {
+        return GenScenario().ToArbitrary();
+    }
 
     // ═══════════════════════════════════════════════════════════════════════
     // Property 13: Owned binding rejects substructural types — the biconditional.

@@ -32,8 +32,10 @@ public class GenericRoundTripPropertyTests
 
     // ─── Token helper ────────────────────────────────────────────────────
 
-    private static Storm.Runtime.Token Tok(string lexeme) =>
-        MistTypeGenerator.MakeToken(lexeme);
+    private static Storm.Runtime.Token Tok(string lexeme)
+    {
+        return MistTypeGenerator.MakeToken(lexeme);
+    }
 
     // ─── Test data model ─────────────────────────────────────────────────
 
@@ -42,7 +44,10 @@ public class GenericRoundTripPropertyTests
         string Description,
         CompilationUnitNode Ast)
     {
-        public override string ToString() => Description;
+        public override string ToString()
+        {
+            return Description;
+        }
     }
 #pragma warning restore CA1034
 
@@ -485,8 +490,10 @@ public class GenericRoundTripPropertyTests
 
     // ─── Arbitrary registration ──────────────────────────────────────────
 
-    public static Arbitrary<GenericRoundTripTestCase> ArbitraryGenericRoundTripTestCase() =>
-        GenTestCase().ToArbitrary();
+    public static Arbitrary<GenericRoundTripTestCase> ArbitraryGenericRoundTripTestCase()
+    {
+        return GenTestCase().ToArbitrary();
+    }
 
     // ═══════════════════════════════════════════════════════════════════════
     // Property 1: Generic syntax round-trip

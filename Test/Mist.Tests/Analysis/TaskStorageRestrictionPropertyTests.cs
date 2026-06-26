@@ -114,8 +114,10 @@ public class TaskStorageRestrictionPropertyTests
             _ => false,
         };
 
-        public override string ToString() =>
-            $"{Container} class {ClassName} {{ {TaskType}<{TypeArgument}> field }} → {(IsPermitted ? "OK" : "ERROR")}";
+        public override string ToString()
+        {
+            return $"{Container} class {ClassName} {{ {TaskType}<{TypeArgument}> field }} → {(IsPermitted ? "OK" : "ERROR")}";
+        }
     }
 
 #pragma warning restore CA1034
@@ -141,8 +143,10 @@ public class TaskStorageRestrictionPropertyTests
                select new TaskContainerScenario(container, taskType, className, typeArg);
     }
 
-    public static Arbitrary<TaskContainerScenario> ArbitraryScenario() =>
-        GenScenario().ToArbitrary();
+    public static Arbitrary<TaskContainerScenario> ArbitraryScenario()
+    {
+        return GenScenario().ToArbitrary();
+    }
 
     // ─── Source builders ─────────────────────────────────────────────────
 

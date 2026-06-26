@@ -176,7 +176,10 @@ public sealed class EmitterFileCountPropertyTests : IDisposable
 #pragma warning disable CA1034
     public record FileCountScenario(int FileCount)
     {
-        public override string ToString() => $"FileCount={FileCount}";
+        public override string ToString()
+        {
+            return $"FileCount={FileCount}";
+        }
     }
 #pragma warning restore CA1034
 

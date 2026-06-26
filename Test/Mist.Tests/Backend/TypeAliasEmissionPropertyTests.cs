@@ -44,7 +44,10 @@ public sealed class TypeAliasEmissionScenario
         MistSource = mistSource;
     }
 
-    public override string ToString() => Description;
+    public override string ToString()
+    {
+        return Description;
+    }
 }
 
 /// <summary>

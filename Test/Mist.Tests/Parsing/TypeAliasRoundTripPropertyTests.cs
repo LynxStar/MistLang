@@ -27,7 +27,10 @@ public sealed class TypeAliasRoundTripScenario
         Description = description;
     }
 
-    public override string ToString() => Description;
+    public override string ToString()
+    {
+        return Description;
+    }
 }
 
 /// <summary>

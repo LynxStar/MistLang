@@ -21,8 +21,10 @@ namespace Mist.Tests.Generators;
 /// </summary>
 public static class MistOverloadGenerator
 {
-    private static Storm.Runtime.Token Tok(string lexeme) =>
-        MistTypeGenerator.MakeToken(lexeme);
+    private static Storm.Runtime.Token Tok(string lexeme)
+    {
+        return MistTypeGenerator.MakeToken(lexeme);
+    }
 
     // ═══════════════════════════════════════════════════════════════════════
     // Primitive type pools
@@ -94,8 +96,10 @@ public static class MistOverloadGenerator
     /// <summary>
     /// Creates a <see cref="ParameterNode"/> from an <see cref="IType"/>.
     /// </summary>
-    public static ParameterNode MakeParameter(IType type, string paramName) =>
-        MakeParameter(type.DisplayName, paramName);
+    public static ParameterNode MakeParameter(IType type, string paramName)
+    {
+        return MakeParameter(type.DisplayName, paramName);
+    }
 
     /// <summary>
     /// Creates a method declaration with a single parameter of the given type.
@@ -463,10 +467,12 @@ public static class MistOverloadGenerator
         IReadOnlyList<IType> OverloadParamTypes)
     {
         /// <inheritdoc />
-        public override string ToString() =>
-            $"CallSite: {Methods.Count} overloads " +
+        public override string ToString()
+        {
+            return $"CallSite: {Methods.Count} overloads " +
             $"[{string.Join(", ", OverloadParamTypes.Select(t => t.DisplayName))}], " +
             $"match at {MatchingIndex}, args=({string.Join(", ", ArgumentTypes.Select(t => t.DisplayName))})";
+        }
     }
 
     /// <summary>
@@ -480,9 +486,11 @@ public static class MistOverloadGenerator
         IType ArgType)
     {
         /// <inheritdoc />
-        public override string ToString() =>
-            $"Ambiguous: param1={Param1Type.DisplayName}, param2={Param2Type.DisplayName}, " +
+        public override string ToString()
+        {
+            return $"Ambiguous: param1={Param1Type.DisplayName}, param2={Param2Type.DisplayName}, " +
             $"arg={ArgType.DisplayName}";
+        }
     }
 
     /// <summary>
@@ -495,8 +503,10 @@ public static class MistOverloadGenerator
         IType DerivedParamType)
     {
         /// <inheritdoc />
-        public override string ToString() =>
-            $"Hierarchy: Base.M({BaseParamType.DisplayName}) + Derived.M({DerivedParamType.DisplayName})";
+        public override string ToString()
+        {
+            return $"Hierarchy: Base.M({BaseParamType.DisplayName}) + Derived.M({DerivedParamType.DisplayName})";
+        }
     }
 
 #pragma warning restore CA1034

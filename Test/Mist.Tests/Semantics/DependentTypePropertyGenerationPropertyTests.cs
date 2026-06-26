@@ -88,7 +88,10 @@ public class DependentTypePropertyGenerationPropertyTests
     {
         public PrimitiveTypeNode TypeNode => AllowedPrimitiveTypes[TypeIndex].Node;
         public string TypeKeyword => AllowedPrimitiveTypes[TypeIndex].Keyword;
-        public override string ToString() => $"{Name}:{TypeKeyword}";
+        public override string ToString()
+        {
+            return $"{Name}:{TypeKeyword}";
+        }
     }
 
     /// <summary>
@@ -96,8 +99,10 @@ public class DependentTypePropertyGenerationPropertyTests
     /// </summary>
     public record PropertyGenerationScenario(string TypeName, IReadOnlyList<DependentParam> Params)
     {
-        public override string ToString() =>
-            $"class {TypeName}<{string.Join(", ", Params.Select(p => p.ToString()))}>";
+        public override string ToString()
+        {
+            return $"class {TypeName}<{string.Join(", ", Params.Select(p => p.ToString()))}>";
+        }
     }
 #pragma warning restore CA1034
 
@@ -126,8 +131,10 @@ public class DependentTypePropertyGenerationPropertyTests
                select (IReadOnlyList<DependentParam>)names.Zip(typeIndices, (n, ti) => new DependentParam(n, ti)).ToList();
     }
 
-    public static Arbitrary<PropertyGenerationScenario> ArbitraryPropertyGenerationScenario() =>
-        GenPropertyGenerationScenario().ToArbitrary();
+    public static Arbitrary<PropertyGenerationScenario> ArbitraryPropertyGenerationScenario()
+    {
+        return GenPropertyGenerationScenario().ToArbitrary();
+    }
 
     // ─── Property test ───────────────────────────────────────────────────
 

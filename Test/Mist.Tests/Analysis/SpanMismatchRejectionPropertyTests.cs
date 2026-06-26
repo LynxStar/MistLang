@@ -49,7 +49,10 @@ public sealed record SpanMismatchScenario(
     string TargetElement,
     string Description)
 {
-    public override string ToString() => Description;
+    public override string ToString()
+    {
+        return Description;
+    }
 }
 
 // ─── Property Tests ─────────────────────────────────────────────────────────

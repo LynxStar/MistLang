@@ -72,10 +72,12 @@ public sealed class FieldReadBeforeAssignmentPropertyTests
     }
 
     private static bool HasFieldReadBeforeAssignmentFor(
-        ImmutableArray<Diagnostic> diagnostics, string fieldName) =>
-        diagnostics.Any(d =>
+        ImmutableArray<Diagnostic> diagnostics, string fieldName)
+    {
+        return diagnostics.Any(d =>
             d.Id.Value == "MIST_FIELD_READ_BEFORE_ASSIGNMENT" &&
             d.Message.Contains($"'{fieldName}'"));
+    }
 
     // ─── Scenario types ──────────────────────────────────────────────────
 
@@ -116,8 +118,10 @@ public sealed class FieldReadBeforeAssignmentPropertyTests
         FieldAccessPattern Pattern,
         bool ExpectDiagnostic)
     {
-        public override string ToString() =>
-            $"field='{FieldName}' pattern={Pattern} expectDiag={ExpectDiagnostic}";
+        public override string ToString()
+        {
+            return $"field='{FieldName}' pattern={Pattern} expectDiag={ExpectDiagnostic}";
+        }
     }
 
 #pragma warning restore CA1034
@@ -157,8 +161,10 @@ public sealed class FieldReadBeforeAssignmentPropertyTests
 
     // ─── Arbitrary registration ──────────────────────────────────────────
 
-    public static Arbitrary<FieldReadScenario> ArbitraryFieldReadScenario() =>
-        GenFieldReadScenario().ToArbitrary();
+    public static Arbitrary<FieldReadScenario> ArbitraryFieldReadScenario()
+    {
+        return GenFieldReadScenario().ToArbitrary();
+    }
 
     // ─── Source generation ───────────────────────────────────────────────
 
@@ -283,9 +289,11 @@ public sealed class FieldReadBeforeAssignmentPropertyTests
             """;
     }
 
-    private static bool NeedsFlagParam(FieldAccessPattern pattern) =>
-        pattern is FieldAccessPattern.AssignBothBranchesThenRead
+    private static bool NeedsFlagParam(FieldAccessPattern pattern)
+    {
+        return pattern is FieldAccessPattern.AssignBothBranchesThenRead
                or FieldAccessPattern.AssignOneBranchThenRead;
+    }
 
     // ═══════════════════════════════════════════════════════════════════════
     // Property 1: Field read-before-assignment soundness

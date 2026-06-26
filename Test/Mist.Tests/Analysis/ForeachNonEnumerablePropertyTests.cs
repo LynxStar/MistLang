@@ -36,7 +36,10 @@ public sealed class NonEnumerableForeachScenario
         Description = description;
     }
 
-    public override string ToString() => Description;
+    public override string ToString()
+    {
+        return Description;
+    }
 }
 
 // ─── Property Tests ─────────────────────────────────────────────────────────
@@ -210,8 +213,10 @@ public sealed class ForeachNonEnumerablePropertyTests : IDisposable
 
     // ─── Arbitrary registration ──────────────────────────────────────────
 
-    public static Arbitrary<NonEnumerableForeachScenario> ArbitraryNonEnumerableForeach() =>
-        GenNonEnumerableScenario().ToArbitrary();
+    public static Arbitrary<NonEnumerableForeachScenario> ArbitraryNonEnumerableForeach()
+    {
+        return GenNonEnumerableScenario().ToArbitrary();
+    }
 
     // ═══════════════════════════════════════════════════════════════════════
     // Property 4: Foreach over non-IEnumerable types produces a diagnostic

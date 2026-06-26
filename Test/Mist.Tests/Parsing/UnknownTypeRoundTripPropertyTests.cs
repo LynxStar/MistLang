@@ -291,16 +291,20 @@ public class UnknownTypeRoundTripPropertyTests
         string ParamType,
         string LocalType)
     {
-        public string ToSource() =>
-            $"class T {{ public {ReturnType} M({ParamType} p) {{ {LocalType} x = 0; return 0; }} }}";
+        public string ToSource()
+        {
+            return $"class T {{ public {ReturnType} M({ParamType} p) {{ {LocalType} x = 0; return 0; }} }}";
+        }
 
         public bool MentionsUnknown =>
             ReturnType.Contains("unknown") ||
             ParamType.Contains("unknown") ||
             LocalType.Contains("unknown");
 
-        public override string ToString() =>
-            $"return={ReturnType}, param={ParamType}, local={LocalType}";
+        public override string ToString()
+        {
+            return $"return={ReturnType}, param={ParamType}, local={LocalType}";
+        }
     }
 #pragma warning restore CA1034
 
@@ -349,8 +353,10 @@ public class UnknownTypeRoundTripPropertyTests
                select new UnknownPositionScenario(ret, prm, loc);
     }
 
-    public static Arbitrary<UnknownPositionScenario> ArbitraryScenario() =>
-        GenScenario().ToArbitrary();
+    public static Arbitrary<UnknownPositionScenario> ArbitraryScenario()
+    {
+        return GenScenario().ToArbitrary();
+    }
 
     /// <summary>
     /// Property 1: Round-trip parity for `unknown` references.

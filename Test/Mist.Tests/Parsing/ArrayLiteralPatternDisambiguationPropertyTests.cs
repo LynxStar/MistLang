@@ -27,8 +27,10 @@ public sealed class PatternDisambiguationScenario
         UseRestPattern = useRestPattern;
     }
 
-    public override string ToString() =>
-        $"Scrutinee={Scrutinee}, RelationalValue={RelationalValue}, UseRestPattern={UseRestPattern}";
+    public override string ToString()
+    {
+        return $"Scrutinee={Scrutinee}, RelationalValue={RelationalValue}, UseRestPattern={UseRestPattern}";
+    }
 }
 
 /// <summary>

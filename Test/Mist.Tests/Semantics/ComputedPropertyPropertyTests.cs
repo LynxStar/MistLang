@@ -26,8 +26,10 @@ namespace Mist.Tests.Semantics;
 /// </summary>
 public class ComputedPropertyPropertyTests
 {
-    private static Storm.Runtime.Token Tok(string lexeme) =>
-        MistTypeGenerator.MakeToken(lexeme);
+    private static Storm.Runtime.Token Tok(string lexeme)
+    {
+        return MistTypeGenerator.MakeToken(lexeme);
+    }
 
     // ─── Test data model ─────────────────────────────────────────────────
 
@@ -37,7 +39,10 @@ public class ComputedPropertyPropertyTests
         CompilationUnitNode Ast,
         bool ExpectComputed)
     {
-        public override string ToString() => Description;
+        public override string ToString()
+        {
+            return Description;
+        }
     }
 #pragma warning restore CA1034
 
@@ -141,8 +146,10 @@ public class ComputedPropertyPropertyTests
             GenAutoGetOnlyNotComputed());
     }
 
-    public static Arbitrary<ComputedPropertyTestCase> ArbitraryComputedPropertyTestCase() =>
-        GenTestCase().ToArbitrary();
+    public static Arbitrary<ComputedPropertyTestCase> ArbitraryComputedPropertyTestCase()
+    {
+        return GenTestCase().ToArbitrary();
+    }
 
     // ─── AST construction helpers ────────────────────────────────────────
 

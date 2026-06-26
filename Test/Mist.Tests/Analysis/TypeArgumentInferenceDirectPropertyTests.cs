@@ -56,7 +56,10 @@ public sealed class DirectInferenceScenario
         Description = description;
     }
 
-    public override string ToString() => Description;
+    public override string ToString()
+    {
+        return Description;
+    }
 }
 
 /// <summary>
@@ -132,8 +135,10 @@ public class TypeArgumentInferenceDirectPropertyTests
         return $"Method<{tpNames}>({paramList}) called with ({argList})";
     }
 
-    public static Arbitrary<DirectInferenceScenario> ArbitraryDirectInferenceScenario() =>
-        GenScenario().ToArbitrary();
+    public static Arbitrary<DirectInferenceScenario> ArbitraryDirectInferenceScenario()
+    {
+        return GenScenario().ToArbitrary();
+    }
 
     // ─── Property test ───────────────────────────────────────────────────
 

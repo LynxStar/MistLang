@@ -61,13 +61,16 @@ public sealed class WithAnnotationValidationPropertyTests
     /// <summary>
     /// Maps a body requirement to the ThisTier that the body demands.
     /// </summary>
-    private static ThisTier RequiredTier(BodyRequirement req) => req switch
+    private static ThisTier RequiredTier(BodyRequirement req)
     {
-        BodyRequirement.None => ThisTier.None,
-        BodyRequirement.ReadonlyRef => ThisTier.ReadonlyRef,
-        BodyRequirement.Borrowed => ThisTier.Borrowed,
-        _ => ThisTier.None,
-    };
+        return req switch
+        {
+            BodyRequirement.None => ThisTier.None,
+            BodyRequirement.ReadonlyRef => ThisTier.ReadonlyRef,
+            BodyRequirement.Borrowed => ThisTier.Borrowed,
+            _ => ThisTier.None,
+        };
+    }
 
     /// <summary>
     /// Generates Mist source code with a class containing an owned field

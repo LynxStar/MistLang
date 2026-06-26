@@ -114,7 +114,10 @@ public class RegexConversionRulePropertyTests
 
     public record ConversionScenario(ConversionKind Kind, string Pattern)
     {
-        public override string ToString() => $"{Kind} pattern=\"{Pattern}\"";
+        public override string ToString()
+        {
+            return $"{Kind} pattern=\"{Pattern}\"";
+        }
     }
 #pragma warning restore CA1034
 

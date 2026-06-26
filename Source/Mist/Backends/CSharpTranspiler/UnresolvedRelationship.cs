@@ -38,15 +38,18 @@ internal readonly record struct UnresolvedRelationship(
     /// Builds a human-readable description of the omitted relationship for surfacing as a
     /// diagnostic indication.
     /// </summary>
-    public string Describe() => Kind switch
+    public string Describe()
     {
-        InheritanceRelationshipKind.BaseType =>
-            $"Base type '{UnresolvedTypeName}' of '{DerivedTypeName}' could not be resolved from any "
-            + "available assembly; the base-type relationship was omitted from projection.",
-        _ =>
-            $"Implemented interface '{UnresolvedTypeName}' of '{DerivedTypeName}' could not be resolved "
-            + "from any available assembly; the interface relationship was omitted from projection.",
-    };
+        return Kind switch
+        {
+            InheritanceRelationshipKind.BaseType =>
+                $"Base type '{UnresolvedTypeName}' of '{DerivedTypeName}' could not be resolved from any "
+                + "available assembly; the base-type relationship was omitted from projection.",
+            _ =>
+                $"Implemented interface '{UnresolvedTypeName}' of '{DerivedTypeName}' could not be resolved "
+                + "from any available assembly; the interface relationship was omitted from projection.",
+        };
+    }
 
     /// <summary>
     /// Materializes this indication as a non-fatal <see cref="DiagnosticSeverity.Info"/>
@@ -54,7 +57,9 @@ internal readonly record struct UnresolvedRelationship(
     /// <c>MIST_INTEROP_UNRESOLVED_RELATIONSHIP</c>. Projection is not aborted by this
     /// indication, so the severity is informational.
     /// </summary>
-    public Diagnostic ToDiagnostic() => new(
+    public Diagnostic ToDiagnostic()
+    {
+        return new(
         DiagnosticId.CrossAssemblyRelationshipUnresolved,
         DiagnosticSeverity.Info,
         PipelineStage.Driver,
@@ -62,4 +67,5 @@ internal readonly record struct UnresolvedRelationship(
         Location: default,
         CompilationUnitPath: "<assembly>",
         AnalyzerName: null);
+    }
 }

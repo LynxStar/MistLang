@@ -45,7 +45,10 @@ public sealed class ExplicitTypeArgBypassScenario
         Description = description;
     }
 
-    public override string ToString() => Description;
+    public override string ToString()
+    {
+        return Description;
+    }
 }
 
 /// <summary>
@@ -104,13 +107,16 @@ public sealed class TypeArgumentInferenceBypassPropertyTests : IDisposable
     /// <summary>
     /// Returns a default literal value for the given Mist type name.
     /// </summary>
-    private static string DefaultValueFor(string typeName) => typeName switch
+    private static string DefaultValueFor(string typeName)
     {
-        "int" => "42",
-        "string" => "\"hello\"",
-        "bool" => "true",
-        _ => "0",
-    };
+        return typeName switch
+        {
+            "int" => "42",
+            "string" => "\"hello\"",
+            "bool" => "true",
+            _ => "0",
+        };
+    }
 
     // ─── Generators ──────────────────────────────────────────────────────
 
@@ -294,8 +300,10 @@ public sealed class TypeArgumentInferenceBypassPropertyTests : IDisposable
             GenMultiTypeParamAllExplicit());
     }
 
-    public static Arbitrary<ExplicitTypeArgBypassScenario> ArbitraryExplicitTypeArgBypassScenario() =>
-        GenScenario().ToArbitrary();
+    public static Arbitrary<ExplicitTypeArgBypassScenario> ArbitraryExplicitTypeArgBypassScenario()
+    {
+        return GenScenario().ToArbitrary();
+    }
 
     // ─── Helpers ─────────────────────────────────────────────────────────
 

@@ -188,8 +188,10 @@ public class CrossHierarchyOverloadPropertyTests
 #pragma warning disable CA1034
     public record CrossHierarchyOverloadScenario(IType BaseParamType, IType DerivedParamType)
     {
-        public override string ToString() =>
-            $"CrossHierarchyOverload: Base.M({BaseParamType.DisplayName}) vs Derived.M({DerivedParamType.DisplayName})";
+        public override string ToString()
+        {
+            return $"CrossHierarchyOverload: Base.M({BaseParamType.DisplayName}) vs Derived.M({DerivedParamType.DisplayName})";
+        }
     }
 
     /// <summary>
@@ -198,8 +200,10 @@ public class CrossHierarchyOverloadPropertyTests
     /// </summary>
     public record CrossHierarchySameSignatureScenario(IType ParamType)
     {
-        public override string ToString() =>
-            $"CrossHierarchySameSignature: Base.M({ParamType.DisplayName}) vs Derived.M({ParamType.DisplayName})";
+        public override string ToString()
+        {
+            return $"CrossHierarchySameSignature: Base.M({ParamType.DisplayName}) vs Derived.M({ParamType.DisplayName})";
+        }
     }
 #pragma warning restore CA1034
 

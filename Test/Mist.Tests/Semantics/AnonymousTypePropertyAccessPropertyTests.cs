@@ -104,7 +104,10 @@ public sealed class AnonymousTypePropertyAccessPropertyTests
     {
         public string AccessedName => Properties[AccessedIndex].Name;
         public string ExpectedType => Properties[AccessedIndex].ExpectedTypeName;
-        public override string ToString() => $"Access '{AccessedName}' (expect type '{ExpectedType}')";
+        public override string ToString()
+        {
+            return $"Access '{AccessedName}' (expect type '{ExpectedType}')";
+        }
     }
 
     /// <summary>
@@ -116,7 +119,10 @@ public sealed class AnonymousTypePropertyAccessPropertyTests
         string NonExistentName,
         string Source)
     {
-        public override string ToString() => $"Access non-existent '{NonExistentName}'";
+        public override string ToString()
+        {
+            return $"Access non-existent '{NonExistentName}'";
+        }
     }
 
     /// <summary>
@@ -129,7 +135,10 @@ public sealed class AnonymousTypePropertyAccessPropertyTests
         string Source)
     {
         public string AssignedName => Properties[AssignedIndex].Name;
-        public override string ToString() => $"Assign to '{AssignedName}'";
+        public override string ToString()
+        {
+            return $"Assign to '{AssignedName}'";
+        }
     }
 
 #pragma warning restore CA1034
@@ -290,14 +299,20 @@ public sealed class AnonymousTypePropertyAccessPropertyTests
                select new ReadonlyAssignmentScenario(props, assignIndex, source);
     }
 
-    public static Arbitrary<ValidAccessScenario> ArbitraryValidAccess() =>
-        GenValidAccess().ToArbitrary();
+    public static Arbitrary<ValidAccessScenario> ArbitraryValidAccess()
+    {
+        return GenValidAccess().ToArbitrary();
+    }
 
-    public static Arbitrary<InvalidAccessScenario> ArbitraryInvalidAccess() =>
-        GenInvalidAccess().ToArbitrary();
+    public static Arbitrary<InvalidAccessScenario> ArbitraryInvalidAccess()
+    {
+        return GenInvalidAccess().ToArbitrary();
+    }
 
-    public static Arbitrary<ReadonlyAssignmentScenario> ArbitraryReadonlyAssignment() =>
-        GenReadonlyAssignment().ToArbitrary();
+    public static Arbitrary<ReadonlyAssignmentScenario> ArbitraryReadonlyAssignment()
+    {
+        return GenReadonlyAssignment().ToArbitrary();
+    }
 
     // ═══════════════════════════════════════════════════════════════════════
     // Property 4: Property access resolution — valid access

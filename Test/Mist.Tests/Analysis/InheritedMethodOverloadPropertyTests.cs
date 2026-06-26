@@ -222,9 +222,11 @@ public class InheritedMethodOverloadPropertyTests
 #pragma warning disable CA1034
     public record InheritedOverloadScenario(IType BaseParamType, IType DerivedParamType)
     {
-        public override string ToString() =>
-            $"InheritedOverload: Base.M({BaseParamType.DisplayName}), " +
+        public override string ToString()
+        {
+            return $"InheritedOverload: Base.M({BaseParamType.DisplayName}), " +
             $"Derived.M({DerivedParamType.DisplayName}), arg={BaseParamType.DisplayName}";
+        }
     }
 #pragma warning restore CA1034
 

@@ -127,22 +127,28 @@ public class SwitchGuardLambdaPrecedencePropertyTests
     }
 
     /// <summary>Extracts the source text covered by a node's span.</summary>
-    private static string SpanText(string source, Storm.Runtime.SourceSpan span) =>
-        source.Substring(span.Start, span.Length);
+    private static string SpanText(string source, Storm.Runtime.SourceSpan span)
+    {
+        return source.Substring(span.Start, span.Length);
+    }
 
     /// <summary>Collapses runs of whitespace to a single space and trims.</summary>
-    private static string NormalizeWs(string s) =>
-        string.Join(" ", s.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
+    private static string NormalizeWs(string s)
+    {
+        return string.Join(" ", s.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
+    }
 
     /// <summary>
     /// Wraps a switch-expression body in a complete, parseable Mist program. Names referenced by
     /// the scrutinee/guard/result need not be defined — these tests only lex and parse, never
     /// resolve or type-check.
     /// </summary>
-    private static string Wrap(string arms) =>
-        "namespace TestNs;\n\npublic class Program\n{\n    public static void Test()\n    {\n        "
+    private static string Wrap(string arms)
+    {
+        return "namespace TestNs;\n\npublic class Program\n{\n    public static void Test()\n    {\n        "
         + $"var r = value switch {{ {arms} }};\n        var __use = r;"
         + "\n    }\n}";
+    }
 
     /// <summary>
     /// Locates the single guarded arm in a parsed program, asserting there is exactly one.
@@ -171,48 +177,63 @@ public class SwitchGuardLambdaPrecedencePropertyTests
         ["\"yes\"", "\"no\"", "\"none\"", "0", "1", "42", "n.ToString()", "result"];
 
     /// <summary>A bare identifier — the case most likely to be mis-parsed as a single-param lambda.</summary>
-    private static Gen<string> GenBareIdentifierGuard() =>
-        Gen.Elements(Identifiers);
+    private static Gen<string> GenBareIdentifierGuard()
+    {
+        return Gen.Elements(Identifiers);
+    }
 
     /// <summary>A relational/equality comparison (lives in the <c>Relational</c>/<c>Equality</c> tier).</summary>
-    private static Gen<string> GenComparisonGuard() =>
-        from id in Gen.Elements(Identifiers)
-        from op in Gen.Elements(">", "<", ">=", "<=", "==", "!=")
-        from v in Gen.Choose(0, 100)
-        select $"{id} {op} {v}";
+    private static Gen<string> GenComparisonGuard()
+    {
+        return from id in Gen.Elements(Identifiers)
+               from op in Gen.Elements(">", "<", ">=", "<=", "==", "!=")
+               from v in Gen.Choose(0, 100)
+               select $"{id} {op} {v}";
+    }
 
     /// <summary>A method/predicate invocation (lives in the <c>Postfix</c> tier — the idiomatic guard).</summary>
-    private static Gen<string> GenInvocationGuard() =>
-        from fn in Gen.Elements(FunctionNames)
-        from arg in Gen.Elements(Identifiers)
-        select $"{fn}({arg})";
+    private static Gen<string> GenInvocationGuard()
+    {
+        return from fn in Gen.Elements(FunctionNames)
+               from arg in Gen.Elements(Identifiers)
+               select $"{fn}({arg})";
+    }
 
     /// <summary>A logical-and/or expression.</summary>
-    private static Gen<string> GenLogicalGuard() =>
-        from a in Gen.Elements(Identifiers)
-        from op in Gen.Elements("&&", "||")
-        from b in Gen.Elements(Identifiers)
-        select $"{a} {op} {b}";
+    private static Gen<string> GenLogicalGuard()
+    {
+        return from a in Gen.Elements(Identifiers)
+               from op in Gen.Elements("&&", "||")
+               from b in Gen.Elements(Identifiers)
+               select $"{a} {op} {b}";
+    }
 
     /// <summary>A unary negation.</summary>
-    private static Gen<string> GenNegationGuard() =>
-        from id in Gen.Elements(Identifiers)
-        select $"!{id}";
+    private static Gen<string> GenNegationGuard()
+    {
+        return from id in Gen.Elements(Identifiers)
+               select $"!{id}";
+    }
 
     /// <summary>A member access (lives in the <c>Postfix</c> tier).</summary>
-    private static Gen<string> GenMemberAccessGuard() =>
-        from obj in Gen.Elements(Identifiers)
-        from m in Gen.Elements(MemberNames)
-        select $"{obj}.{m}";
+    private static Gen<string> GenMemberAccessGuard()
+    {
+        return from obj in Gen.Elements(Identifiers)
+               from m in Gen.Elements(MemberNames)
+               select $"{obj}.{m}";
+    }
 
     /// <summary>A null-coalescing expression — the top of the bounded <c>VoidCoalescing</c> rule.</summary>
-    private static Gen<string> GenCoalesceGuard() =>
-        from a in Gen.Elements(Identifiers)
-        from b in Gen.Elements(Identifiers)
-        select $"{a} ?? {b}";
+    private static Gen<string> GenCoalesceGuard()
+    {
+        return from a in Gen.Elements(Identifiers)
+               from b in Gen.Elements(Identifiers)
+               select $"{a} ?? {b}";
+    }
 
-    private static Gen<string> GenGuard() =>
-        Gen.OneOf(
+    private static Gen<string> GenGuard()
+    {
+        return Gen.OneOf(
             // Bias toward the bare-identifier case (the regression target) by listing it twice.
             GenBareIdentifierGuard(),
             GenBareIdentifierGuard(),
@@ -222,17 +243,22 @@ public class SwitchGuardLambdaPrecedencePropertyTests
             GenNegationGuard(),
             GenMemberAccessGuard(),
             GenCoalesceGuard());
+    }
 
-    public static Gen<SwitchGuardScenario> GenScenario() =>
-        from guard in GenGuard()
-        from result in Gen.Elements(Results)
-        from defaultResult in Gen.Elements(Results)
-        let arms = $"int n when {guard} => {result}, _ => {defaultResult}"
-        let source = Wrap(arms)
-        select new SwitchGuardScenario(source, guard, result, $"when {guard} => {result}");
+    public static Gen<SwitchGuardScenario> GenScenario()
+    {
+        return from guard in GenGuard()
+               from result in Gen.Elements(Results)
+               from defaultResult in Gen.Elements(Results)
+               let arms = $"int n when {guard} => {result}, _ => {defaultResult}"
+               let source = Wrap(arms)
+               select new SwitchGuardScenario(source, guard, result, $"when {guard} => {result}");
+    }
 
-    public static Arbitrary<SwitchGuardScenario> ArbitrarySwitchGuardScenario() =>
-        GenScenario().ToArbitrary();
+    public static Arbitrary<SwitchGuardScenario> ArbitrarySwitchGuardScenario()
+    {
+        return GenScenario().ToArbitrary();
+    }
 
     // ═══════════════════════════════════════════════════════════════════════
     // Property 8: Switch-Arm Guard Never Captures a Trailing Lambda
@@ -352,5 +378,8 @@ public sealed class SwitchGuardScenario
         Description = description;
     }
 
-    public override string ToString() => Description;
+    public override string ToString()
+    {
+        return Description;
+    }
 }

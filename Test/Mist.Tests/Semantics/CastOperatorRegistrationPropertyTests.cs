@@ -33,13 +33,15 @@ public class CastOperatorRegistrationPropertyTests
 
     private static readonly SemanticModelBuilder Builder = new();
 
-    private static Storm.Runtime.Token Tok(string lexeme) =>
-        new(kind: 0,
+    private static Storm.Runtime.Token Tok(string lexeme)
+    {
+        return new(kind: 0,
             span: new Storm.Runtime.SourceSpan(0, lexeme.Length),
             start: new Storm.Runtime.LinePosition(1, 1),
             end: new Storm.Runtime.LinePosition(1, 1 + lexeme.Length),
             channel: Storm.Runtime.TokenChannel.Default,
             lexeme: lexeme);
+    }
 
     private static ISemanticModel BuildModel(Storm.Runtime.SyntaxNode ast)
     {
@@ -74,9 +76,11 @@ public class CastOperatorRegistrationPropertyTests
         public string ExpectedSymbolName =>
             $"operator_{CastKind}_{TargetTypeName}";
 
-        public override string ToString() =>
-            $"{(IsIntrinsic ? "intrinsic " : "")}public static {CastKind} operator " +
+        public override string ToString()
+        {
+            return $"{(IsIntrinsic ? "intrinsic " : "")}public static {CastKind} operator " +
             $"{TargetTypeName}({ParamTypeName} {ParamName}) in {(IsStruct ? "struct" : "class")} {EnclosingTypeName}";
+        }
     }
 #pragma warning restore CA1034
 
@@ -125,11 +129,15 @@ public class CastOperatorRegistrationPropertyTests
                select normalized;
     }
 
-    public static Arbitrary<CastOperatorScenario[]> ArbitraryScenarioSets() =>
-        GenScenarioSet().ToArbitrary();
+    public static Arbitrary<CastOperatorScenario[]> ArbitraryScenarioSets()
+    {
+        return GenScenarioSet().ToArbitrary();
+    }
 
-    public static Arbitrary<CastOperatorScenario> ArbitrarySingleScenario() =>
-        GenSingleScenario().ToArbitrary();
+    public static Arbitrary<CastOperatorScenario> ArbitrarySingleScenario()
+    {
+        return GenSingleScenario().ToArbitrary();
+    }
 
     // ─── AST construction helpers ────────────────────────────────────────
 
@@ -155,19 +163,23 @@ public class CastOperatorRegistrationPropertyTests
         return new AssignmentFormExpressionNode { Assignment = assign };
     }
 
-    private static CastOperatorKindNode MakeCastKindNode(string kind) =>
-        kind == "implicit"
+    private static CastOperatorKindNode MakeCastKindNode(string kind)
+    {
+        return kind == "implicit"
             ? new ImplicitCastCastOperatorKindNode()
             : (CastOperatorKindNode)new ExplicitCastCastOperatorKindNode();
+    }
 
-    private static TypeReferenceNode MakeNamedTypeRef(string name) =>
-        new TypeReferenceNode
+    private static TypeReferenceNode MakeNamedTypeRef(string name)
+    {
+        return new TypeReferenceNode
         {
             First = new NamedSingleTypeRefSingleTypeRefNode
             {
                 Name = new QualifiedIdentifierNode { IDENTIFIER = Tok(name) },
             }
         };
+    }
 
     private static CastOperatorDeclarationNode MakeCastOperatorDecl(CastOperatorScenario scenario)
     {

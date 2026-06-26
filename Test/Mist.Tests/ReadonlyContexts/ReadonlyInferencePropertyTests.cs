@@ -40,7 +40,10 @@ public sealed class InferenceLocalityScenario
         Description = description;
     }
 
-    public override string ToString() => Description;
+    public override string ToString()
+    {
+        return Description;
+    }
 }
 
 /// <summary>
@@ -61,7 +64,10 @@ public sealed class InferenceClassificationScenario
         Description = description;
     }
 
-    public override string ToString() => Description;
+    public override string ToString()
+    {
+        return Description;
+    }
 }
 
 // ─── Generators ─────────────────────────────────────────────────────────────
@@ -332,11 +338,15 @@ public sealed class ReadonlyInferencePropertyTests : IDisposable
 
     // ─── Arbitrary registration ─────────────────────────────────────────
 
-    public static Arbitrary<InferenceLocalityScenario> ArbitraryInferenceLocality() =>
-        ReadonlyInferenceGenerators.GenInferenceLocality().ToArbitrary();
+    public static Arbitrary<InferenceLocalityScenario> ArbitraryInferenceLocality()
+    {
+        return ReadonlyInferenceGenerators.GenInferenceLocality().ToArbitrary();
+    }
 
-    public static Arbitrary<InferenceClassificationScenario> ArbitraryInferenceClassification() =>
-        ReadonlyInferenceGenerators.GenInferenceClassification().ToArbitrary();
+    public static Arbitrary<InferenceClassificationScenario> ArbitraryInferenceClassification()
+    {
+        return ReadonlyInferenceGenerators.GenInferenceClassification().ToArbitrary();
+    }
 
     // ─── Helpers ────────────────────────────────────────────────────────
 

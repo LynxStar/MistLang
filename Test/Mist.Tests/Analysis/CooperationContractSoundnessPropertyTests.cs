@@ -125,13 +125,18 @@ public sealed class CooperationContractSoundnessPropertyTests
     /// </summary>
     public sealed record ContractScenario(string Source, bool ExpectViolation, string Label)
     {
-        public override string ToString() => Label;
+        public override string ToString()
+        {
+            return Label;
+        }
     }
 
 #pragma warning restore CA1034
 
-    private static bool IsViolating(AssignmentSourceKind kind) =>
-        kind is AssignmentSourceKind.NonOwnedRefParam;
+    private static bool IsViolating(AssignmentSourceKind kind)
+    {
+        return kind is AssignmentSourceKind.NonOwnedRefParam;
+    }
 
     // ─── Per-assignment fragment construction ─────────────────────────────
 
@@ -257,8 +262,10 @@ public sealed class CooperationContractSoundnessPropertyTests
                select Build(kinds.ToImmutableArray());
     }
 
-    public static Arbitrary<ContractScenario> ArbitraryContractScenario() =>
-        GenScenario().ToArbitrary();
+    public static Arbitrary<ContractScenario> ArbitraryContractScenario()
+    {
+        return GenScenario().ToArbitrary();
+    }
 
     // ═══════════════════════════════════════════════════════════════════════
     // Updated property: field-type restriction soundness — the biconditional.

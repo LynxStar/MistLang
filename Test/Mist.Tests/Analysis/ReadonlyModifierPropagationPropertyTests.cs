@@ -48,8 +48,10 @@ public sealed class ReadonlyPropagationScenario
         Source = source;
     }
 
-    public override string ToString() =>
-        $"{(HasReadonlyModifier ? "readonly " : "")}{TypeKind} {TypeName}";
+    public override string ToString()
+    {
+        return $"{(HasReadonlyModifier ? "readonly " : "")}{TypeKind} {TypeName}";
+    }
 }
 
 // ─── Generators ─────────────────────────────────────────────────────────────
@@ -135,8 +137,10 @@ public class ReadonlyModifierPropagationPropertyTests
 
     // ─── Arbitrary registration ─────────────────────────────────────────
 
-    public static Arbitrary<ReadonlyPropagationScenario> ArbitraryScenario() =>
-        ReadonlyPropagationGenerators.GenScenario().ToArbitrary();
+    public static Arbitrary<ReadonlyPropagationScenario> ArbitraryScenario()
+    {
+        return ReadonlyPropagationGenerators.GenScenario().ToArbitrary();
+    }
 
     // ─── Helpers ────────────────────────────────────────────────────────
 

@@ -47,8 +47,10 @@ public class BackwardCompatibleSingleLookupPropertyTests
         SymbolKind TargetKind,
         int OtherCount)
     {
-        public override string ToString() =>
-            $"Lookup(\"{TargetName}\") [{TargetKind}] with {OtherCount} other symbols";
+        public override string ToString()
+        {
+            return $"Lookup(\"{TargetName}\") [{TargetKind}] with {OtherCount} other symbols";
+        }
     }
 #pragma warning restore CA1034
 

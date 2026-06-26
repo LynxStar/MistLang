@@ -26,17 +26,26 @@ public sealed class NamespaceRootValidationPropertyTests
 #pragma warning disable CA1034
     public record ValidName(string Value)
     {
-        public override string ToString() => Value;
+        public override string ToString()
+        {
+            return Value;
+        }
     }
 
     public record WhitespaceOnly(string Value)
     {
-        public override string ToString() => $"[whitespace len={Value.Length}]";
+        public override string ToString()
+        {
+            return $"[whitespace len={Value.Length}]";
+        }
     }
 
     public record InvalidNsRoot(string Value)
     {
-        public override string ToString() => Value;
+        public override string ToString()
+        {
+            return Value;
+        }
     }
 #pragma warning restore CA1034
 

@@ -114,19 +114,22 @@ public sealed partial class DefaultEmitterPropertyTests : IDisposable
 
     // ─── AST construction helpers ────────────────────────────────────────
 
-    private static PrimitiveTypeNode MakePrimitiveType(string typeName) => typeName switch
+    private static PrimitiveTypeNode MakePrimitiveType(string typeName)
     {
-        "int" => new IntTypePrimitiveTypeNode(),
-        "bool" => new BoolTypePrimitiveTypeNode(),
-        "string" => new StringTypePrimitiveTypeNode(),
-        "double" => new DoubleTypePrimitiveTypeNode(),
-        "float" => new FloatTypePrimitiveTypeNode(),
-        "char" => new CharTypePrimitiveTypeNode(),
-        "long" => new LongTypePrimitiveTypeNode(),
-        "short" => new ShortTypePrimitiveTypeNode(),
-        "byte" => new ByteTypePrimitiveTypeNode(),
-        _ => new IntTypePrimitiveTypeNode(),
-    };
+        return typeName switch
+        {
+            "int" => new IntTypePrimitiveTypeNode(),
+            "bool" => new BoolTypePrimitiveTypeNode(),
+            "string" => new StringTypePrimitiveTypeNode(),
+            "double" => new DoubleTypePrimitiveTypeNode(),
+            "float" => new FloatTypePrimitiveTypeNode(),
+            "char" => new CharTypePrimitiveTypeNode(),
+            "long" => new LongTypePrimitiveTypeNode(),
+            "short" => new ShortTypePrimitiveTypeNode(),
+            "byte" => new ByteTypePrimitiveTypeNode(),
+            _ => new IntTypePrimitiveTypeNode(),
+        };
+    }
 
     private static TypeReferenceNode MakePrimitiveTypeRef(string typeName)
     {
@@ -416,11 +419,15 @@ public sealed partial class DefaultEmitterPropertyTests : IDisposable
 
     // ─── Arbitrary registrations ─────────────────────────────────────────
 
-    public static Arbitrary<CreateDefaultScenario> ArbitraryCreateDefaultScenario() =>
-        GenCreateDefaultScenario().ToArbitrary();
+    public static Arbitrary<CreateDefaultScenario> ArbitraryCreateDefaultScenario()
+    {
+        return GenCreateDefaultScenario().ToArbitrary();
+    }
 
-    public static Arbitrary<DefaultExpressionScenario> ArbitraryDefaultExpressionScenario() =>
-        GenDefaultExpressionScenario().ToArbitrary();
+    public static Arbitrary<DefaultExpressionScenario> ArbitraryDefaultExpressionScenario()
+    {
+        return GenDefaultExpressionScenario().ToArbitrary();
+    }
 
     // ─── AST builders ────────────────────────────────────────────────────
 

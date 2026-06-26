@@ -338,9 +338,13 @@ namespace Mist.Common.Text
         }
     }
 
-    private static string Escape(string s) =>
-        s.Replace("\\", "\\\\").Replace("\n", "\\n").Replace("\r", "\\r").Replace("\t", "\\t");
+    private static string Escape(string s)
+    {
+        return s.Replace("\\", "\\\\").Replace("\n", "\\n").Replace("\r", "\\r").Replace("\t", "\\t");
+    }
 
-    private static string FormatTokens(List<(int kind, string lexeme)> tokens) =>
-        string.Join(", ", tokens.Select(t => $"({t.kind}:[{Escape(t.lexeme)}])"));
+    private static string FormatTokens(List<(int kind, string lexeme)> tokens)
+    {
+        return string.Join(", ", tokens.Select(t => $"({t.kind}:[{Escape(t.lexeme)}])"));
+    }
 }

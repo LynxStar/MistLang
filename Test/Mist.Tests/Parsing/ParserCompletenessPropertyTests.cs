@@ -40,7 +40,10 @@ public class ParserCompletenessPropertyTests
         /// <summary>The combined source text that should trigger MIST_PARSE_INCOMPLETE.</summary>
         public string CombinedSource => ValidPrefix + TrailingContent;
 
-        public override string ToString() => Description;
+        public override string ToString()
+        {
+            return Description;
+        }
     }
 
 #pragma warning restore CA1034
@@ -101,8 +104,10 @@ public class ParserCompletenessPropertyTests
 
     // ─── Arbitrary registration ──────────────────────────────────────────
 
-    public static Arbitrary<CompletenessScenario> ArbitraryCompletenessScenario() =>
-        GenScenario().ToArbitrary();
+    public static Arbitrary<CompletenessScenario> ArbitraryCompletenessScenario()
+    {
+        return GenScenario().ToArbitrary();
+    }
 
     // ═══════════════════════════════════════════════════════════════════════
     // Property 5: Parser Completeness Invariant

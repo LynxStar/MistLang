@@ -47,8 +47,10 @@ public class MultiSymbolScopeLookupPropertyTests
         int TargetCount,
         int OtherCount)
     {
-        public override string ToString() =>
-            $"LookupAll(\"{TargetName}\") with {TargetCount} matches and {OtherCount} others";
+        public override string ToString()
+        {
+            return $"LookupAll(\"{TargetName}\") with {TargetCount} matches and {OtherCount} others";
+        }
     }
 #pragma warning restore CA1034
 

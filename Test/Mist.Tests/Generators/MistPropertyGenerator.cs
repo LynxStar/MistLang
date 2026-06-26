@@ -18,8 +18,10 @@ namespace Mist.Tests.Generators;
 /// </summary>
 public static class MistPropertyGenerator
 {
-    private static Storm.Runtime.Token Tok(string lexeme) =>
-        MistTypeGenerator.MakeToken(lexeme);
+    private static Storm.Runtime.Token Tok(string lexeme)
+    {
+        return MistTypeGenerator.MakeToken(lexeme);
+    }
 
     // ═══════════════════════════════════════════════════════════════════════
     // Name pools
@@ -68,32 +70,42 @@ public static class MistPropertyGenerator
     // ═══════════════════════════════════════════════════════════════════════
 
     /// <summary>Creates a simple integer literal expression.</summary>
-    public static ExpressionNode MakeIntLiteral(string value = "0") =>
-        MistAstGenerator.WrapPrimary(new IntegerLiteralExpressionPrimaryNode
+    public static ExpressionNode MakeIntLiteral(string value = "0")
+    {
+        return MistAstGenerator.WrapPrimary(new IntegerLiteralExpressionPrimaryNode
         {
             IntegerLiteral = Tok(value),
         });
+    }
 
     /// <summary>Creates a simple bool literal expression.</summary>
-    public static ExpressionNode MakeBoolLiteral(bool value) =>
-        MistAstGenerator.WrapPrimary(value
+    public static ExpressionNode MakeBoolLiteral(bool value)
+    {
+        return MistAstGenerator.WrapPrimary(value
             ? (PrimaryNode)new TrueLiteralExpressionPrimaryNode()
             : new FalseLiteralExpressionPrimaryNode());
+    }
 
     /// <summary>Creates a simple string literal expression.</summary>
-    public static ExpressionNode MakeStringLiteral(string value = "\"hello\"") =>
-        MistAstGenerator.WrapPrimary(new StringLiteralExpressionPrimaryNode
+    public static ExpressionNode MakeStringLiteral(string value = "\"hello\"")
+    {
+        return MistAstGenerator.WrapPrimary(new StringLiteralExpressionPrimaryNode
         {
             StringLiteral = Tok(value),
         });
+    }
 
     /// <summary>Creates a field keyword expression.</summary>
-    public static ExpressionNode MakeFieldKeywordExpr() =>
-        MistAstGenerator.WrapPrimary(new FieldKeywordExpressionPrimaryNode());
+    public static ExpressionNode MakeFieldKeywordExpr()
+    {
+        return MistAstGenerator.WrapPrimary(new FieldKeywordExpressionPrimaryNode());
+    }
 
     /// <summary>Creates an identifier expression.</summary>
-    public static ExpressionNode MakeIdentifierExpr(string name) =>
-        MistAstGenerator.MakeIdentifierExpr(name);
+    public static ExpressionNode MakeIdentifierExpr(string name)
+    {
+        return MistAstGenerator.MakeIdentifierExpr(name);
+    }
 
     /// <summary>Generates a simple initializer expression matching a type.</summary>
     public static Gen<ExpressionNode> GenInitializerForType(TypeReferenceNode type)
@@ -595,6 +607,8 @@ public static class MistPropertyGenerator
     // ═══════════════════════════════════════════════════════════════════════
 
     /// <summary>FsCheck Arbitrary for property programs.</summary>
-    public static Arbitrary<CompilationUnitNode> ArbitraryPropertyProgram() =>
-        GenPropertyProgram().ToArbitrary();
+    public static Arbitrary<CompilationUnitNode> ArbitraryPropertyProgram()
+    {
+        return GenPropertyProgram().ToArbitrary();
+    }
 }

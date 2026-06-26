@@ -95,8 +95,10 @@ public sealed class OwnershipV2DiagnosticTests
         }
     }
 
-    private static Diagnostic? FindById(ImmutableArray<Diagnostic> diagnostics, string id) =>
-        diagnostics.FirstOrDefault(d => d.Id.Value == id);
+    private static Diagnostic? FindById(ImmutableArray<Diagnostic> diagnostics, string id)
+    {
+        return diagnostics.FirstOrDefault(d => d.Id.Value == id);
+    }
 
     // ═══════════════════════════════════════════════════════════════════════
     // 1. MIST_OWN_MUTABLE_HIDDEN — replaced by this-tier call-site checking

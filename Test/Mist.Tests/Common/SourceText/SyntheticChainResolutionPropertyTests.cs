@@ -36,8 +36,10 @@ public class SyntheticChainResolutionPropertyTests
         int ChainDepth,
         string[] Reasons)
     {
-        public override string ToString() =>
-            $"SyntheticChainInput(Path=\"{TerminalSource.Path}\", ChainDepth={ChainDepth}, SpanStart={SpanStart}, SpanLength={SpanLength})";
+        public override string ToString()
+        {
+            return $"SyntheticChainInput(Path=\"{TerminalSource.Path}\", ChainDepth={ChainDepth}, SpanStart={SpanStart}, SpanLength={SpanLength})";
+        }
     }
 #pragma warning restore CA1034, CA1819
 
@@ -96,8 +98,10 @@ public class SyntheticChainResolutionPropertyTests
                    reasons);
     }
 
-    public static Arbitrary<SyntheticChainInput> ArbSyntheticChainInput() =>
-        GenSyntheticChainInput().ToArbitrary();
+    public static Arbitrary<SyntheticChainInput> ArbSyntheticChainInput()
+    {
+        return GenSyntheticChainInput().ToArbitrary();
+    }
 
     // ═══════════════════════════════════════════════════════════════════════
     // Helpers

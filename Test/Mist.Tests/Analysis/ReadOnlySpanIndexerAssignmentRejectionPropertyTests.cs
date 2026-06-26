@@ -41,7 +41,10 @@ public sealed record ReadOnlySpanIndexerAssignmentScenario(
         ? IndexValue >= 0 && IndexValue < KnownLength.Value
         : IndexValue >= 0;
 
-    public override string ToString() => Description;
+    public override string ToString()
+    {
+        return Description;
+    }
 }
 
 // ─── Property Tests ─────────────────────────────────────────────────────────
@@ -78,15 +81,18 @@ public class ReadOnlySpanIndexerAssignmentRejectionPropertyTests
     /// Returns the default value literal for a given Mist primitive type,
     /// suitable for use as the right-hand side of an indexer assignment.
     /// </summary>
-    private static string GetDefaultLiteral(string elementType) => elementType switch
+    private static string GetDefaultLiteral(string elementType)
     {
-        "int" or "uint" or "long" or "byte" or "short" => "42",
-        "float" => "1.0f",
-        "double" => "1.0",
-        "bool" => "true",
-        "char" => "'x'",
-        _ => "0"
-    };
+        return elementType switch
+        {
+            "int" or "uint" or "long" or "byte" or "short" => "42",
+            "float" => "1.0f",
+            "double" => "1.0",
+            "bool" => "true",
+            "char" => "'x'",
+            _ => "0"
+        };
+    }
 
     // ─── Generators ──────────────────────────────────────────────────────
 

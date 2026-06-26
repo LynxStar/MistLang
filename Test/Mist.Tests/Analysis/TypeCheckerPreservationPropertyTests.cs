@@ -492,7 +492,10 @@ public class TypeCheckerPreservationPropertyTests
 #pragma warning disable CA1034
     public record GenuineMismatchScenario(string Label, string TypeName)
     {
-        public override string ToString() => Label;
+        public override string ToString()
+        {
+            return Label;
+        }
     }
 #pragma warning restore CA1034
 
@@ -546,7 +549,10 @@ public class TypeCheckerPreservationPropertyTests
 #pragma warning disable CA1034
     public record ValidChainingScenario(string Label, string TypeName)
     {
-        public override string ToString() => Label;
+        public override string ToString()
+        {
+            return Label;
+        }
     }
 #pragma warning restore CA1034
 
@@ -601,7 +607,10 @@ public class TypeCheckerPreservationPropertyTests
         string ExpectedDiagnosticId,
         string ExpectedMessageFragment)
     {
-        public override string ToString() => Label;
+        public override string ToString()
+        {
+            return Label;
+        }
     }
 #pragma warning restore CA1034
 
@@ -705,7 +714,10 @@ public class TypeCheckerPreservationPropertyTests
 #pragma warning disable CA1034
     public record FindDeclaringTypeScenario(string Label, string TypeName)
     {
-        public override string ToString() => Label;
+        public override string ToString()
+        {
+            return Label;
+        }
     }
 #pragma warning restore CA1034
 

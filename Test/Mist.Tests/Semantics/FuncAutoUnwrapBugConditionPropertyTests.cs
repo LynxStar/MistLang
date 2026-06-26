@@ -151,8 +151,10 @@ public class FuncAutoUnwrapBugConditionPropertyTests
             new FuncAutoUnwrapScenario(tv.Type, tv.ReturnExpr, tv.Literal));
     }
 
-    public static Arbitrary<FuncAutoUnwrapScenario> ArbitraryFuncAutoUnwrapScenario() =>
-        GenFuncAutoUnwrapScenario().ToArbitrary();
+    public static Arbitrary<FuncAutoUnwrapScenario> ArbitraryFuncAutoUnwrapScenario()
+    {
+        return GenFuncAutoUnwrapScenario().ToArbitrary();
+    }
 
     // ─── Source construction ─────────────────────────────────────────────
 

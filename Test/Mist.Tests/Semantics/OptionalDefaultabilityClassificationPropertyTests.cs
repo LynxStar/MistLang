@@ -64,19 +64,22 @@ public class OptionalDefaultabilityClassificationPropertyTests
 
     // ─── AST construction helpers ────────────────────────────────────────
 
-    private static PrimitiveTypeNode MakePrimitiveType(string typeName) => typeName switch
+    private static PrimitiveTypeNode MakePrimitiveType(string typeName)
     {
-        "int" => new IntTypePrimitiveTypeNode(),
-        "bool" => new BoolTypePrimitiveTypeNode(),
-        "string" => new StringTypePrimitiveTypeNode(),
-        "double" => new DoubleTypePrimitiveTypeNode(),
-        "float" => new FloatTypePrimitiveTypeNode(),
-        "char" => new CharTypePrimitiveTypeNode(),
-        "long" => new LongTypePrimitiveTypeNode(),
-        "short" => new ShortTypePrimitiveTypeNode(),
-        "byte" => new ByteTypePrimitiveTypeNode(),
-        _ => new IntTypePrimitiveTypeNode(),
-    };
+        return typeName switch
+        {
+            "int" => new IntTypePrimitiveTypeNode(),
+            "bool" => new BoolTypePrimitiveTypeNode(),
+            "string" => new StringTypePrimitiveTypeNode(),
+            "double" => new DoubleTypePrimitiveTypeNode(),
+            "float" => new FloatTypePrimitiveTypeNode(),
+            "char" => new CharTypePrimitiveTypeNode(),
+            "long" => new LongTypePrimitiveTypeNode(),
+            "short" => new ShortTypePrimitiveTypeNode(),
+            "byte" => new ByteTypePrimitiveTypeNode(),
+            _ => new IntTypePrimitiveTypeNode(),
+        };
+    }
 
     private static FieldDeclarationNode MakeField(string fieldName, TypeReferenceNode typeRef)
     {
@@ -315,11 +318,15 @@ public class OptionalDefaultabilityClassificationPropertyTests
 
     // ─── Arbitrary registrations ─────────────────────────────────────────
 
-    public static Arbitrary<ConstructorSuppressesDiagnosticScenario> ArbitraryConstructorSuppresses() =>
-        GenConstructorSuppressesScenario().ToArbitrary();
+    public static Arbitrary<ConstructorSuppressesDiagnosticScenario> ArbitraryConstructorSuppresses()
+    {
+        return GenConstructorSuppressesScenario().ToArbitrary();
+    }
 
-    public static Arbitrary<ConstructorlessNonDefaultableScenario> ArbitraryConstructorlessNonDefaultable() =>
-        GenConstructorlessNonDefaultableScenario().ToArbitrary();
+    public static Arbitrary<ConstructorlessNonDefaultableScenario> ArbitraryConstructorlessNonDefaultable()
+    {
+        return GenConstructorlessNonDefaultableScenario().ToArbitrary();
+    }
 
     // ─── AST builders for scenarios ──────────────────────────────────────
 

@@ -129,7 +129,9 @@ public sealed class TryFinallyDropWrappingTests : IDisposable
         }
         """;
 
-    private static string LinearProgram(string body) => $$"""
+    private static string LinearProgram(string body)
+    {
+        return $$"""
         {{LinearResourceType}}
         class Program
         {
@@ -139,8 +141,11 @@ public sealed class TryFinallyDropWrappingTests : IDisposable
             }
         }
         """;
+    }
 
-    private static string RelevantProgram(string body) => $$"""
+    private static string RelevantProgram(string body)
+    {
+        return $$"""
         {{RelevantResourceType}}
         class Program
         {
@@ -150,6 +155,7 @@ public sealed class TryFinallyDropWrappingTests : IDisposable
             }
         }
         """;
+    }
 
     // ─── Scenarios ─────────────────────────────────────────────────────────
 

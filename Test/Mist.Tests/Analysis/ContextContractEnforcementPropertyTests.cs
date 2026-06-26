@@ -91,8 +91,10 @@ public sealed class ContractEnforcementScenario
         ExpectedDiagnosticContextTypes = expectedDiagnosticContextTypes;
     }
 
-    public override string ToString() =>
-        $"[{Kind}] expect {ExpectedContractDiagnosticCount} contract diag(s)";
+    public override string ToString()
+    {
+        return $"[{Kind}] expect {ExpectedContractDiagnosticCount} contract diag(s)";
+    }
 }
 
 // ─── Property test class ─────────────────────────────────────────────────
@@ -200,8 +202,10 @@ public sealed class ContextContractEnforcementPropertyTests
             GenAbstractExtraClause());
     }
 
-    public static Arbitrary<ContractEnforcementScenario> ArbitraryContractEnforcementScenario() =>
-        GenScenario().ToArbitrary();
+    public static Arbitrary<ContractEnforcementScenario> ArbitraryContractEnforcementScenario()
+    {
+        return GenScenario().ToArbitrary();
+    }
 
     // ─── Scenario builders ──────────────────────────────────────────────
 

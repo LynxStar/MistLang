@@ -96,8 +96,10 @@ public sealed class EmitterDispatchPropertyTests : IDisposable
             TypeSuffix = typeSuffix;
         }
 
-        public override string ToString() =>
-            $"IsDisposableDrop={IsDisposableDrop}, IsStruct={IsStruct}, Suffix={TypeSuffix}";
+        public override string ToString()
+        {
+            return $"IsDisposableDrop={IsDisposableDrop}, IsStruct={IsStruct}, Suffix={TypeSuffix}";
+        }
     }
 
     /// <summary>
@@ -125,8 +127,10 @@ public sealed class EmitterDispatchPropertyTests : IDisposable
             IsLinear = isLinear;
         }
 
-        public override string ToString() =>
-            $"Form={Form}, Suffix={TypeSuffix}, IsLinear={IsLinear}";
+        public override string ToString()
+        {
+            return $"Form={Form}, Suffix={TypeSuffix}, IsLinear={IsLinear}";
+        }
     }
 
 #pragma warning restore CA1034
@@ -151,11 +155,15 @@ public sealed class EmitterDispatchPropertyTests : IDisposable
                select new ExplicitDropEmissionScenario(form, suffix, isLinear);
     }
 
-    public static Arbitrary<DispatchScenario> ArbitraryDispatchScenario() =>
-        GenDispatchScenario().ToArbitrary();
+    public static Arbitrary<DispatchScenario> ArbitraryDispatchScenario()
+    {
+        return GenDispatchScenario().ToArbitrary();
+    }
 
-    public static Arbitrary<ExplicitDropEmissionScenario> ArbitraryExplicitDropEmissionScenario() =>
-        GenExplicitDropEmissionScenario().ToArbitrary();
+    public static Arbitrary<ExplicitDropEmissionScenario> ArbitraryExplicitDropEmissionScenario()
+    {
+        return GenExplicitDropEmissionScenario().ToArbitrary();
+    }
 
     // ─── Type construction ───────────────────────────────────────────────
 
@@ -354,8 +362,10 @@ public sealed class EmitterDispatchPropertyTests : IDisposable
         return Gen.Elements(allItems);
     }
 
-    public static Arbitrary<(Type ClrType, bool ExpectDisposableDrop, bool ExpectHasDrop)> ArbitraryClrTypeScenario() =>
-        GenClrTypeScenario().ToArbitrary();
+    public static Arbitrary<(Type ClrType, bool ExpectDisposableDrop, bool ExpectHasDrop)> ArbitraryClrTypeScenario()
+    {
+        return GenClrTypeScenario().ToArbitrary();
+    }
 
     [Property(MaxTest = 100, Arbitrary = new[] { typeof(EmitterDispatchPropertyTests) })]
     public Property TypeProjector_SetsIsDisposableDropCorrectly(

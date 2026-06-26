@@ -125,8 +125,10 @@ public class ParameterScopingPropertyTests
 #pragma warning disable CA1034
     public record ParameterScenario(int ParamCount, ImmutableArray<string> ParamTypes)
     {
-        public override string ToString() =>
-            $"ParamCount={ParamCount}, Types=[{string.Join(", ", ParamTypes)}]";
+        public override string ToString()
+        {
+            return $"ParamCount={ParamCount}, Types=[{string.Join(", ", ParamTypes)}]";
+        }
     }
 
     /// <summary>
@@ -134,8 +136,10 @@ public class ParameterScopingPropertyTests
     /// </summary>
     public record SingleParameterScenario(string ParamType, string ParamName, bool IsConstructor)
     {
-        public override string ToString() =>
-            $"Type={ParamType}, Name={ParamName}, IsConstructor={IsConstructor}";
+        public override string ToString()
+        {
+            return $"Type={ParamType}, Name={ParamName}, IsConstructor={IsConstructor}";
+        }
     }
 #pragma warning restore CA1034
 

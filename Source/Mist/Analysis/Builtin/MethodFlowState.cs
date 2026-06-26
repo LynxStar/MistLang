@@ -485,15 +485,18 @@ public sealed class MethodFlowState
     /// the reported composite state accurately reflects whether the parent is incomplete (Moved)
     /// or merely locked (LentRef).
     /// </summary>
-    private static int FieldStateRestrictiveness(VariableOwnershipState state) => state switch
+    private static int FieldStateRestrictiveness(VariableOwnershipState state)
     {
-        VariableOwnershipState.Live => 0,
-        VariableOwnershipState.LentReadonly => 1,
-        VariableOwnershipState.LentFrozen => 2,
-        VariableOwnershipState.LentRef => 3,
-        VariableOwnershipState.Moved => 4,
-        _ => 0,
-    };
+        return state switch
+        {
+            VariableOwnershipState.Live => 0,
+            VariableOwnershipState.LentReadonly => 1,
+            VariableOwnershipState.LentFrozen => 2,
+            VariableOwnershipState.LentRef => 3,
+            VariableOwnershipState.Moved => 4,
+            _ => 0,
+        };
+    }
 
     /// <summary>
     /// Initializes per-field state for an owned binding whose type has owned fields.

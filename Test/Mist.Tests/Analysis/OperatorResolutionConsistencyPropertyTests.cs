@@ -80,7 +80,10 @@ public class OperatorResolutionConsistencyPropertyTests
 #pragma warning disable CA1034
     public record OperatorScenario(string Op, int A, int B, bool IsComparison)
     {
-        public override string ToString() => $"int: {A} {Op} {B} (comparison={IsComparison})";
+        public override string ToString()
+        {
+            return $"int: {A} {Op} {B} (comparison={IsComparison})";
+        }
     }
 #pragma warning restore CA1034
 

@@ -79,10 +79,12 @@ public sealed class LocalReadBeforeAssignmentPropertyTests
     }
 
     private static bool HasLocalReadBeforeAssignmentFor(
-        ImmutableArray<Diagnostic> diagnostics, string localName) =>
-        diagnostics.Any(d =>
+        ImmutableArray<Diagnostic> diagnostics, string localName)
+    {
+        return diagnostics.Any(d =>
             d.Id.Value == "MIST_LOCAL_READ_BEFORE_ASSIGNMENT" &&
             d.Message.Contains($"'{localName}'"));
+    }
 
     // ─── Scenario types ──────────────────────────────────────────────────
 
@@ -124,8 +126,10 @@ public sealed class LocalReadBeforeAssignmentPropertyTests
         LocalAccessPattern Pattern,
         bool ExpectDiagnostic)
     {
-        public override string ToString() =>
-            $"local='{LocalName}' pattern={Pattern} expectDiag={ExpectDiagnostic}";
+        public override string ToString()
+        {
+            return $"local='{LocalName}' pattern={Pattern} expectDiag={ExpectDiagnostic}";
+        }
     }
 
 #pragma warning restore CA1034
@@ -158,8 +162,10 @@ public sealed class LocalReadBeforeAssignmentPropertyTests
 
     // ─── Arbitrary registration ──────────────────────────────────────────
 
-    public static Arbitrary<LocalReadScenario> ArbitraryLocalReadScenario() =>
-        GenLocalReadScenario().ToArbitrary();
+    public static Arbitrary<LocalReadScenario> ArbitraryLocalReadScenario()
+    {
+        return GenLocalReadScenario().ToArbitrary();
+    }
 
     // ─── Source generation ───────────────────────────────────────────────
 

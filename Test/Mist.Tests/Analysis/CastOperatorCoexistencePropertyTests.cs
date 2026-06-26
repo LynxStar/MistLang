@@ -33,13 +33,15 @@ public class CastOperatorCoexistencePropertyTests
 
     // ─── Helpers ─────────────────────────────────────────────────────────
 
-    private static Storm.Runtime.Token Tok(string lexeme) =>
-        new(kind: 0,
+    private static Storm.Runtime.Token Tok(string lexeme)
+    {
+        return new(kind: 0,
             span: new Storm.Runtime.SourceSpan(0, lexeme.Length),
             start: new Storm.Runtime.LinePosition(1, 1),
             end: new Storm.Runtime.LinePosition(1, 1 + lexeme.Length),
             channel: Storm.Runtime.TokenChannel.Default,
             lexeme: lexeme);
+    }
 
     private ISemanticModel BuildModel(Storm.Runtime.SyntaxNode ast)
     {
@@ -76,8 +78,10 @@ public class CastOperatorCoexistencePropertyTests
         string CastKind,
         ArithmeticOp ArithOp)
     {
-        public override string ToString() =>
-            $"{TypeName} with {CastKind} operator {CastTargetTypeName} and operator{ArithOp.Symbol}";
+        public override string ToString()
+        {
+            return $"{TypeName} with {CastKind} operator {CastTargetTypeName} and operator{ArithOp.Symbol}";
+        }
     }
 
     /// <summary>
@@ -85,7 +89,10 @@ public class CastOperatorCoexistencePropertyTests
     /// </summary>
     public record ArithmeticOp(string Symbol, string EncodedName)
     {
-        public override string ToString() => Symbol;
+        public override string ToString()
+        {
+            return Symbol;
+        }
     }
 #pragma warning restore CA1034
 
@@ -117,8 +124,10 @@ public class CastOperatorCoexistencePropertyTests
                select new CoexistenceScenario(typeName, castTarget, castKind, arithOp);
     }
 
-    public static Arbitrary<CoexistenceScenario> ArbitraryCoexistenceScenario() =>
-        GenCoexistenceScenario().ToArbitrary();
+    public static Arbitrary<CoexistenceScenario> ArbitraryCoexistenceScenario()
+    {
+        return GenCoexistenceScenario().ToArbitrary();
+    }
 
     // ─── AST construction helpers ────────────────────────────────────────
 
@@ -141,37 +150,44 @@ public class CastOperatorCoexistencePropertyTests
         return new AssignmentFormExpressionNode { Assignment = assign };
     }
 
-    private static TypeReferenceNode MakeNamedTypeRef(string name) =>
-        new TypeReferenceNode
+    private static TypeReferenceNode MakeNamedTypeRef(string name)
+    {
+        return new TypeReferenceNode
         {
             First = new NamedSingleTypeRefSingleTypeRefNode
             {
                 Name = new QualifiedIdentifierNode { IDENTIFIER = Tok(name) },
             }
         };
+    }
 
-    private static ParameterNode MakeParameter(string typeName, string paramName) =>
-        new()
+    private static ParameterNode MakeParameter(string typeName, string paramName)
+    {
+        return new()
         {
             Type = MakeNamedTypeRef(typeName),
             Name = Tok(paramName),
         };
+    }
 
     /// <summary>
     /// Creates an operator symbol node for the given arithmetic operator.
     /// </summary>
-    private static OperatorSymbolNode MakeOperatorSymbol(string symbol) => symbol switch
+    private static OperatorSymbolNode MakeOperatorSymbol(string symbol)
     {
-        "+" => new PlusOpOperatorSymbolNode(),
-        "-" => new MinusOpOperatorSymbolNode(),
-        "*" => new StarOpOperatorSymbolNode(),
-        "/" => new SlashOpOperatorSymbolNode(),
-        "==" => new EqualEqualOpOperatorSymbolNode(),
-        "!=" => new NotEqualOpOperatorSymbolNode(),
-        "<" => new LessThanOpOperatorSymbolNode(),
-        ">" => new GreaterThanOpOperatorSymbolNode(),
-        _ => new PlusOpOperatorSymbolNode(),
-    };
+        return symbol switch
+        {
+            "+" => new PlusOpOperatorSymbolNode(),
+            "-" => new MinusOpOperatorSymbolNode(),
+            "*" => new StarOpOperatorSymbolNode(),
+            "/" => new SlashOpOperatorSymbolNode(),
+            "==" => new EqualEqualOpOperatorSymbolNode(),
+            "!=" => new NotEqualOpOperatorSymbolNode(),
+            "<" => new LessThanOpOperatorSymbolNode(),
+            ">" => new GreaterThanOpOperatorSymbolNode(),
+            _ => new PlusOpOperatorSymbolNode(),
+        };
+    }
 
     /// <summary>
     /// Builds a cast operator declaration:

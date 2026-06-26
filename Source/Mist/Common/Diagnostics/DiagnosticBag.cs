@@ -25,5 +25,8 @@ public sealed class DiagnosticBag
     /// <summary>
     /// Returns all diagnostics as an immutable array.
     /// </summary>
-    public ImmutableArray<Diagnostic> ToImmutableArray() => [.. diagnostics];
+    public ImmutableArray<Diagnostic> ToImmutableArray()
+    {
+        return [.. diagnostics];
+    }
 }

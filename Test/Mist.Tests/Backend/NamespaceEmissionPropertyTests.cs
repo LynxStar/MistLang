@@ -162,8 +162,10 @@ public sealed class NamespaceEmissionPropertyTests : IDisposable
         string ClassName,
         NamespaceStyle Style)
     {
-        public override string ToString() =>
-            $"Root={NamespaceRoot}, Class={ClassName}, Style={Style}";
+        public override string ToString()
+        {
+            return $"Root={NamespaceRoot}, Class={ClassName}, Style={Style}";
+        }
     }
 
     public enum NamespaceStyle
@@ -181,8 +183,10 @@ public sealed class NamespaceEmissionPropertyTests : IDisposable
         string FileScopedClassName,
         string BlockClassName)
     {
-        public override string ToString() =>
-            $"Root={NamespaceRoot}, FileScoped={FileScopedNs}, Block={BlockNs}";
+        public override string ToString()
+        {
+            return $"Root={NamespaceRoot}, FileScoped={FileScopedNs}, Block={BlockNs}";
+        }
     }
 #pragma warning restore CA1034
 

@@ -250,8 +250,10 @@ public class ConstructedTypeMemberAccessPropertyTests
                select new MemberAccessScenario(genericName, fieldName, concreteType);
     }
 
-    public static Arbitrary<MemberAccessScenario> ArbitraryMemberAccessScenario() =>
-        GenMemberAccessScenario().ToArbitrary();
+    public static Arbitrary<MemberAccessScenario> ArbitraryMemberAccessScenario()
+    {
+        return GenMemberAccessScenario().ToArbitrary();
+    }
 
     // ─── AST construction ────────────────────────────────────────────────
 

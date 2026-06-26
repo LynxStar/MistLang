@@ -38,13 +38,15 @@ public class NewtypeSymbolRegistrationPropertyTests
 
     private static readonly SemanticModelBuilder Builder = new();
 
-    private static Storm.Runtime.Token Tok(string lexeme) =>
-        new(kind: 0,
+    private static Storm.Runtime.Token Tok(string lexeme)
+    {
+        return new(kind: 0,
             span: new Storm.Runtime.SourceSpan(0, lexeme.Length),
             start: new Storm.Runtime.LinePosition(1, 1),
             end: new Storm.Runtime.LinePosition(1, 1 + lexeme.Length),
             channel: Storm.Runtime.TokenChannel.Default,
             lexeme: lexeme);
+    }
 
     private static ISemanticModel BuildModel(Storm.Runtime.SyntaxNode ast)
     {
@@ -83,14 +85,16 @@ public class NewtypeSymbolRegistrationPropertyTests
         return new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = primitiveType } };
     }
 
-    private static TypeReferenceNode MakeNamedTypeRef(string name) =>
-        new TypeReferenceNode
+    private static TypeReferenceNode MakeNamedTypeRef(string name)
+    {
+        return new TypeReferenceNode
         {
             First = new NamedSingleTypeRefSingleTypeRefNode
             {
                 Name = new QualifiedIdentifierNode { IDENTIFIER = Tok(name) },
             }
         };
+    }
 
     private static TypeReferenceNode MakeTypeRef(string typeName)
     {
@@ -126,8 +130,10 @@ public class NewtypeSymbolRegistrationPropertyTests
 
     // ─── FsCheck Arbitrary registration ─────────────────────────────────
 
-    public static Arbitrary<NewtypeSourceScenario> ArbitraryNewtypeSourceScenario() =>
-        MistNewtypeGenerator.GenNewtypeSource().ToArbitrary();
+    public static Arbitrary<NewtypeSourceScenario> ArbitraryNewtypeSourceScenario()
+    {
+        return MistNewtypeGenerator.GenNewtypeSource().ToArbitrary();
+    }
 
     // ═══════════════════════════════════════════════════════════════════════
     // Property 6: Symbol registration with correct kind

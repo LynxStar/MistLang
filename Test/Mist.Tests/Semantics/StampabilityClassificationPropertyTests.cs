@@ -183,8 +183,10 @@ public class StampabilityClassificationPropertyTests
     // ─── Arbitrary registration ──────────────────────────────────────────
 
     public static Arbitrary<StampabilityScenario>
-        ArbitraryStampabilityScenario() =>
-        GenStampabilityScenario().ToArbitrary();
+        ArbitraryStampabilityScenario()
+    {
+        return GenStampabilityScenario().ToArbitrary();
+    }
 
     // ─── Source generation ───────────────────────────────────────────────
 

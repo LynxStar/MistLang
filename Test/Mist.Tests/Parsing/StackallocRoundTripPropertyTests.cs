@@ -35,8 +35,10 @@ public class StackallocRoundTripPropertyTests
 
     // ─── Arbitrary registration ──────────────────────────────────────────
 
-    public static Arbitrary<StackallocSourceScenario> ArbitraryStackallocSourceScenario() =>
-        MistStackallocGenerator.GenStackallocSource().ToArbitrary();
+    public static Arbitrary<StackallocSourceScenario> ArbitraryStackallocSourceScenario()
+    {
+        return MistStackallocGenerator.GenStackallocSource().ToArbitrary();
+    }
 
     // ─── Helpers ──────────────────────────────────────────────────────────
 

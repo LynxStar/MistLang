@@ -591,5 +591,8 @@ internal static class CSharpTypeMap
     /// Value types use <c>Nullable&lt;T&gt;</c> for optional representation;
     /// reference types use <c>null</c> directly.
     /// </summary>
-    public static bool IsValueType(IType type) => type.Kind is TypeKind.Struct or TypeKind.Enum;
+    public static bool IsValueType(IType type)
+    {
+        return type.Kind is TypeKind.Struct or TypeKind.Enum;
+    }
 }

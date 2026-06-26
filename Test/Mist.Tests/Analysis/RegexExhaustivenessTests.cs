@@ -33,8 +33,10 @@ public class RegexExhaustivenessTests
 
     // ─── AST construction helpers ────────────────────────────────────────
 
-    private static Storm.Runtime.Token Tok(string lexeme) =>
-        MistTypeGenerator.MakeToken(lexeme);
+    private static Storm.Runtime.Token Tok(string lexeme)
+    {
+        return MistTypeGenerator.MakeToken(lexeme);
+    }
 
     private static PatternNode MakeRegexConstantPattern(string pattern)
     {

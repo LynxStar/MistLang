@@ -173,17 +173,25 @@ public class AbstractSatisfactionPropertyTests
         return decl;
     }
 
-    private static MemberDeclarationNode WrapMethod(MethodDeclarationNode method) =>
-        new MethodMemberMemberDeclarationNode { Method = method };
+    private static MemberDeclarationNode WrapMethod(MethodDeclarationNode method)
+    {
+        return new MethodMemberMemberDeclarationNode { Method = method };
+    }
 
-    private static TypeDeclarationNode WrapAbstract(AbstractDeclarationNode decl) =>
-        new AbstractTypeTypeDeclarationNode { AbstractDeclaration = decl };
+    private static TypeDeclarationNode WrapAbstract(AbstractDeclarationNode decl)
+    {
+        return new AbstractTypeTypeDeclarationNode { AbstractDeclaration = decl };
+    }
 
-    private static TypeDeclarationNode WrapClass(ClassDeclarationNode decl) =>
-        new ClassTypeTypeDeclarationNode { ClassDeclaration = decl };
+    private static TypeDeclarationNode WrapClass(ClassDeclarationNode decl)
+    {
+        return new ClassTypeTypeDeclarationNode { ClassDeclaration = decl };
+    }
 
-    private static TypeDeclarationNode WrapStruct(StructDeclarationNode decl) =>
-        new StructTypeTypeDeclarationNode { StructDeclaration = decl };
+    private static TypeDeclarationNode WrapStruct(StructDeclarationNode decl)
+    {
+        return new StructTypeTypeDeclarationNode { StructDeclaration = decl };
+    }
 
     private static CompilationUnitNode MakeCompilationUnit(
         params TypeDeclarationNode[] typeDecls)
@@ -397,17 +405,25 @@ public class AbstractSatisfactionPropertyTests
                    typeKind);
     }
 
-    public static Arbitrary<SatisfiedScenario> ArbitrarySatisfiedScenario() =>
-        GenSatisfiedScenario().ToArbitrary();
+    public static Arbitrary<SatisfiedScenario> ArbitrarySatisfiedScenario()
+    {
+        return GenSatisfiedScenario().ToArbitrary();
+    }
 
-    public static Arbitrary<UnsatisfiedScenario> ArbitraryUnsatisfiedScenario() =>
-        GenUnsatisfiedScenario().ToArbitrary();
+    public static Arbitrary<UnsatisfiedScenario> ArbitraryUnsatisfiedScenario()
+    {
+        return GenUnsatisfiedScenario().ToArbitrary();
+    }
 
-    public static Arbitrary<BaseClassSatisfiedScenario> ArbitraryBaseClassSatisfiedScenario() =>
-        GenBaseClassSatisfiedScenario().ToArbitrary();
+    public static Arbitrary<BaseClassSatisfiedScenario> ArbitraryBaseClassSatisfiedScenario()
+    {
+        return GenBaseClassSatisfiedScenario().ToArbitrary();
+    }
 
-    public static Arbitrary<TransitiveSatisfiedScenario> ArbitraryTransitiveSatisfiedScenario() =>
-        GenTransitiveSatisfiedScenario().ToArbitrary();
+    public static Arbitrary<TransitiveSatisfiedScenario> ArbitraryTransitiveSatisfiedScenario()
+    {
+        return GenTransitiveSatisfiedScenario().ToArbitrary();
+    }
 
     // ─── Property tests ──────────────────────────────────────────────────
 

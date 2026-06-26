@@ -38,7 +38,10 @@ public sealed record KnownToUnknownWideningScenario(
     int Size,
     string Description)
 {
-    public override string ToString() => Description;
+    public override string ToString()
+    {
+        return Description;
+    }
 }
 
 // ─── Property Tests ─────────────────────────────────────────────────────────

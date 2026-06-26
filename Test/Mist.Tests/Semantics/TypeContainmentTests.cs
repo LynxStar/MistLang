@@ -215,8 +215,10 @@ public class TypeContainmentTests
     /// same (Name, Ordinal) as <paramref name="source"/>. Used to verify that
     /// the wrapper compares by (Name, Ordinal) and not by reference.
     /// </summary>
-    private static TypeParameterType Clone(TypeParameterType source) =>
-        new(source.Name, source.Ordinal);
+    private static TypeParameterType Clone(TypeParameterType source)
+    {
+        return new(source.Name, source.Ordinal);
+    }
 
     [Fact]
     public void ContainsTAtStoragePosition_Matches_Needle_At_Root()
@@ -376,8 +378,10 @@ public class TypeContainmentTests
         IType CleanType,
         ImmutableArray<ImmutableArray<PathStep>> SubstitutionPaths)
     {
-        public override string ToString() =>
-            $"{CleanType.DisplayName} (paths={SubstitutionPaths.Length})";
+        public override string ToString()
+        {
+            return $"{CleanType.DisplayName} (paths={SubstitutionPaths.Length})";
+        }
     }
 #pragma warning restore CA1034
 

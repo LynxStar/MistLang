@@ -112,8 +112,10 @@ public sealed partial class ConstructorDefaultCoexistencePropertyTests
         return result;
     }
 
-    public static Arbitrary<CoexistenceScenario> ArbitraryCoexistenceScenario() =>
-        GenCoexistenceScenario().ToArbitrary();
+    public static Arbitrary<CoexistenceScenario> ArbitraryCoexistenceScenario()
+    {
+        return GenCoexistenceScenario().ToArbitrary();
+    }
 
     // ─── Mist source builder ─────────────────────────────────────────────
 

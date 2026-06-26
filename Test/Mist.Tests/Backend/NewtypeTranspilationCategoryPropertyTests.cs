@@ -65,7 +65,10 @@ public sealed class NewtypeTranspilationCategoryPropertyTests
         string ExpectedCategory,
         string Description)
     {
-        public override string ToString() => Description;
+        public override string ToString()
+        {
+            return Description;
+        }
     }
 
 #pragma warning restore CA1034

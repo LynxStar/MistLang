@@ -36,8 +36,10 @@ public sealed class EnumReverseConversionScenario
         UsesExplicitTypeAnnotation = usesExplicitTypeAnnotation;
     }
 
-    public override string ToString() =>
-        $"enum {EnumName} (members: {MemberNames.Count}, explicitType={UsesExplicitTypeAnnotation})";
+    public override string ToString()
+    {
+        return $"enum {EnumName} (members: {MemberNames.Count}, explicitType={UsesExplicitTypeAnnotation})";
+    }
 }
 
 /// <summary>
@@ -55,13 +57,15 @@ public class EnumReverseConversionPropertyTests
     private static readonly SemanticModelBuilder Builder = new();
     private static readonly TypeCheckerAnalyzer Analyzer = new();
 
-    private static Storm.Runtime.Token Tok(string lexeme) =>
-        new(kind: 0,
+    private static Storm.Runtime.Token Tok(string lexeme)
+    {
+        return new(kind: 0,
             span: new Storm.Runtime.SourceSpan(0, lexeme.Length),
             start: new Storm.Runtime.LinePosition(1, 1),
             end: new Storm.Runtime.LinePosition(1, 1 + lexeme.Length),
             channel: Storm.Runtime.TokenChannel.Default,
             lexeme: lexeme);
+    }
 
     private static (ISemanticModel Model, ImmutableArray<Diagnostic> BuildDiagnostics) BuildModelWithDiagnostics(
         Storm.Runtime.SyntaxNode ast)
@@ -108,8 +112,10 @@ public class EnumReverseConversionPropertyTests
                select new EnumReverseConversionScenario(name, members, hasAnnotation);
     }
 
-    public static Arbitrary<EnumReverseConversionScenario> ArbitraryScenario() =>
-        GenScenario().ToArbitrary();
+    public static Arbitrary<EnumReverseConversionScenario> ArbitraryScenario()
+    {
+        return GenScenario().ToArbitrary();
+    }
 
     // ─── AST construction helpers ────────────────────────────────────────
 
@@ -122,12 +128,14 @@ public class EnumReverseConversionPropertyTests
         return MistAstGenerator.WrapPrimary(primary);
     }
 
-    private static EnumMemberNode MakeEnumMember(string name, int index) =>
-        new()
+    private static EnumMemberNode MakeEnumMember(string name, int index)
+    {
+        return new()
         {
             Name = Tok(name),
             Value = MakeIntLiteralExpression(index.ToString()),
         };
+    }
 
     private static EnumMemberListNode MakeEnumMemberList(IReadOnlyList<EnumMemberNode> members)
     {
@@ -140,17 +148,20 @@ public class EnumReverseConversionPropertyTests
         };
     }
 
-    private static TypeReferenceNode MakeIntTypeRef() =>
-        new TypeReferenceNode
+    private static TypeReferenceNode MakeIntTypeRef()
+    {
+        return new TypeReferenceNode
         {
             First = new PrimitiveSingleTypeRefSingleTypeRefNode
             {
                 PrimitiveType = new IntTypePrimitiveTypeNode(),
             }
         };
+    }
 
-    private static TypeReferenceNode MakeEnumTypeRef(string enumName) =>
-        new TypeReferenceNode
+    private static TypeReferenceNode MakeEnumTypeRef(string enumName)
+    {
+        return new TypeReferenceNode
         {
             First = new NamedSingleTypeRefSingleTypeRefNode
             {
@@ -161,6 +172,7 @@ public class EnumReverseConversionPropertyTests
                 },
             }
         };
+    }
 
     private static CompilationUnitNode BuildAst(EnumReverseConversionScenario scenario)
     {

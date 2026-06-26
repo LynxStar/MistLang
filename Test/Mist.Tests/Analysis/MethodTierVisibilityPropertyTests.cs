@@ -238,13 +238,16 @@ public sealed class MethodTierVisibilityPropertyTests
 
     // ─── Model lookups ───────────────────────────────────────────────────────
 
-    private static Symbol FindMethod(ISemanticModel model, string methodName) =>
-        model.AllSymbols
+    private static Symbol FindMethod(ISemanticModel model, string methodName)
+    {
+        return model.AllSymbols
             .OfType<Symbol>()
             .First(s => s.Kind == SymbolKind.Method && s.Name == methodName);
+    }
 
-    private static IType FindType(ISemanticModel model, string typeName) =>
-        model.AllSymbols
+    private static IType FindType(ISemanticModel model, string typeName)
+    {
+        return model.AllSymbols
             .Where(s => (s.Kind == SymbolKind.Class || s.Kind == SymbolKind.Struct)
                 && s.Name == typeName)
             .Select(s => s.DeclaredType)
@@ -252,20 +255,23 @@ public sealed class MethodTierVisibilityPropertyTests
             .First(t =>
                 (t is ClassType ct && ct.ContainingNamespace == "TestProgram")
                 || (t is StructType st && st.ContainingNamespace == "TestProgram"));
+    }
 
     /// <summary>
     /// Maps a <see cref="ReceiverCategory"/> to its fixture type name and whether the
     /// category is an owned type / value type. These ground-truth facts drive the
     /// expected side of the biconditional independently of the filter under test.
     /// </summary>
-    private static (string TypeName, bool IsOwnedType, bool IsValueType) CategoryFacts(ReceiverCategory category) =>
-        category switch
+    private static (string TypeName, bool IsOwnedType, bool IsValueType) CategoryFacts(ReceiverCategory category)
+    {
+        return category switch
         {
             ReceiverCategory.OwnedClass => ("OwnedBox", true, false),
             ReceiverCategory.NonOwnedClass => ("PlainBox", false, false),
             ReceiverCategory.ValueStruct => ("ValueBox", false, true),
             _ => throw new ArgumentOutOfRangeException(nameof(category), category, null),
         };
+    }
 
     private static string MethodName(ReceiverCategory category, ReceiverMethodKind method)
     {

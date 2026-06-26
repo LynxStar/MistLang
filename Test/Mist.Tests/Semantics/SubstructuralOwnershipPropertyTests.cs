@@ -138,7 +138,10 @@ public sealed class SubstructuralOwnershipPropertyTests : IDisposable
     public sealed record SubstructuralOwnershipScenario(
         string Source, string TypeName, string Discipline, bool ExpectedOwned, string Label)
     {
-        public override string ToString() => Label;
+        public override string ToString()
+        {
+            return Label;
+        }
     }
 
 #pragma warning restore CA1034
@@ -228,8 +231,10 @@ public sealed class SubstructuralOwnershipPropertyTests : IDisposable
         return string.Join("\n    ", lines);
     }
 
-    public static Arbitrary<SubstructuralOwnershipScenario> ArbitrarySubstructuralOwnershipScenario() =>
-        GenScenario().ToArbitrary();
+    public static Arbitrary<SubstructuralOwnershipScenario> ArbitrarySubstructuralOwnershipScenario()
+    {
+        return GenScenario().ToArbitrary();
+    }
 
     // ═══════════════════════════════════════════════════════════════════════
     // Property 1: Substructural modifier implies correct ownership

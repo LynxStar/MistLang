@@ -100,7 +100,9 @@ public sealed class RelevantDropNotConsumedTests : IDisposable
         }
         """;
 
-    private static string Program(string body) => $$"""
+    private static string Program(string body)
+    {
+        return $$"""
         {{SharedResourceType}}
         class Program
         {
@@ -110,6 +112,7 @@ public sealed class RelevantDropNotConsumedTests : IDisposable
             }
         }
         """;
+    }
 
     // ─── Property 4: Drop does not consume relevant types ────────────────
     //

@@ -55,19 +55,24 @@ public class UnboundedExhaustivenessPropertyTests
         IReadOnlyList<(ArmKind Kind, bool HasGuard)> Arms,
         string Label)
     {
-        public override string ToString() => Label;
+        public override string ToString()
+        {
+            return Label;
+        }
     }
 #pragma warning restore CA1034
 
     // ─── Generator ───────────────────────────────────────────────────────
 
-    private static Gen<(ArmKind Kind, bool HasGuard)> GenArm() =>
-        from kind in Gen.Frequency(
+    private static Gen<(ArmKind Kind, bool HasGuard)> GenArm()
+    {
+        return from kind in Gen.Frequency(
             (3, Gen.Constant(ArmKind.Constant)),
             (2, Gen.Constant(ArmKind.Relational)),
             (1, Gen.Constant(ArmKind.CatchAll)))
-        from hasGuard in Gen.Elements(true, false)
-        select (kind, hasGuard);
+               from hasGuard in Gen.Elements(true, false)
+               select (kind, hasGuard);
+    }
 
     public static Arbitrary<UnboundedExhaustivenessScenario> ArbitraryUnboundedExhaustivenessScenario()
     {
@@ -83,8 +88,10 @@ public class UnboundedExhaustivenessPropertyTests
 
     // ─── AST construction helpers ────────────────────────────────────────
 
-    private static Storm.Runtime.Token Tok(string lexeme) =>
-        MistTypeGenerator.MakeToken(lexeme);
+    private static Storm.Runtime.Token Tok(string lexeme)
+    {
+        return MistTypeGenerator.MakeToken(lexeme);
+    }
 
     private static PatternNode MakeConstantPattern()
     {
@@ -142,13 +149,16 @@ public class UnboundedExhaustivenessPropertyTests
         return new PatternNode { OrPattern = or };
     }
 
-    private static PatternNode MakePatternForKind(ArmKind kind) => kind switch
+    private static PatternNode MakePatternForKind(ArmKind kind)
     {
-        ArmKind.Constant => MakeConstantPattern(),
-        ArmKind.Relational => MakeRelationalPattern(),
-        ArmKind.CatchAll => MakeCatchAllPattern(),
-        _ => throw new ArgumentOutOfRangeException(nameof(kind)),
-    };
+        return kind switch
+        {
+            ArmKind.Constant => MakeConstantPattern(),
+            ArmKind.Relational => MakeRelationalPattern(),
+            ArmKind.CatchAll => MakeCatchAllPattern(),
+            _ => throw new ArgumentOutOfRangeException(nameof(kind)),
+        };
+    }
 
     // ─── Oracle: expected exhaustiveness ─────────────────────────────────
 

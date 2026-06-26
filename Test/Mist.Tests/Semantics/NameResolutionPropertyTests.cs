@@ -210,7 +210,10 @@ public class NameResolutionPropertyTests
 #pragma warning disable CA1034
     public record ScopeScenario(string Label, int OuterValue, int InnerValue, bool HasShadowing)
     {
-        public override string ToString() => $"{Label}(outer={OuterValue}, inner={InnerValue}, shadow={HasShadowing})";
+        public override string ToString()
+        {
+            return $"{Label}(outer={OuterValue}, inner={InnerValue}, shadow={HasShadowing})";
+        }
     }
 #pragma warning restore CA1034
 
@@ -810,16 +813,29 @@ public class NameResolutionPropertyTests
             this.knownNamespaces = new HashSet<string>(knownNamespaces);
         }
 
-        public bool HasNamespace(string namespaceName) => knownNamespaces.Contains(namespaceName);
+        public bool HasNamespace(string namespaceName)
+        {
+            return knownNamespaces.Contains(namespaceName);
+        }
 
-        public IType? ResolveType(string namespaceName, string typeName) => null;
+        public IType? ResolveType(string namespaceName, string typeName)
+        {
+            return null;
+        }
 
-        public ImmutableArray<ISymbol> GetMembers(IType type) => ImmutableArray<ISymbol>.Empty;
+        public ImmutableArray<ISymbol> GetMembers(IType type)
+        {
+            return ImmutableArray<ISymbol>.Empty;
+        }
 
         public ImmutableArray<string> GetTypeNamesInNamespace(string namespaceName)
-            => ImmutableArray<string>.Empty;
+        {
+            return ImmutableArray<string>.Empty;
+        }
 
         public IReadOnlyList<AmbientExtensionMethodInfo> GetExtensionMethodsInNamespace(string namespaceName)
-            => Array.Empty<AmbientExtensionMethodInfo>();
+        {
+            return Array.Empty<AmbientExtensionMethodInfo>();
+        }
     }
 }

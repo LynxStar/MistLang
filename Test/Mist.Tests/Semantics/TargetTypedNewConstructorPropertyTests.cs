@@ -44,7 +44,10 @@ public sealed class ConstructorValidationScenario
         Description = description;
     }
 
-    public override string ToString() => Description;
+    public override string ToString()
+    {
+        return Description;
+    }
 }
 #pragma warning restore CA1034
 
@@ -155,8 +158,10 @@ public sealed class TargetTypedNewConstructorPropertyTests : IDisposable
 
     // ─── Arbitrary registration ─────────────────────────────────────────
 
-    public static Arbitrary<ConstructorValidationScenario> ArbitraryScenario() =>
-        ConstructorValidationGenerators.GenScenario().ToArbitrary();
+    public static Arbitrary<ConstructorValidationScenario> ArbitraryScenario()
+    {
+        return ConstructorValidationGenerators.GenScenario().ToArbitrary();
+    }
 
     // ─── Helpers ────────────────────────────────────────────────────────
 

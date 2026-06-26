@@ -157,14 +157,20 @@ public class AbstractOverloadSatisfactionPropertyTests
         };
     }
 
-    private static MemberDeclarationNode WrapMethod(MethodDeclarationNode method) =>
-        new MethodMemberMemberDeclarationNode { Method = method };
+    private static MemberDeclarationNode WrapMethod(MethodDeclarationNode method)
+    {
+        return new MethodMemberMemberDeclarationNode { Method = method };
+    }
 
-    private static TypeDeclarationNode WrapAbstract(AbstractDeclarationNode decl) =>
-        new AbstractTypeTypeDeclarationNode { AbstractDeclaration = decl };
+    private static TypeDeclarationNode WrapAbstract(AbstractDeclarationNode decl)
+    {
+        return new AbstractTypeTypeDeclarationNode { AbstractDeclaration = decl };
+    }
 
-    private static TypeDeclarationNode WrapClass(ClassDeclarationNode decl) =>
-        new ClassTypeTypeDeclarationNode { ClassDeclaration = decl };
+    private static TypeDeclarationNode WrapClass(ClassDeclarationNode decl)
+    {
+        return new ClassTypeTypeDeclarationNode { ClassDeclaration = decl };
+    }
 
     private static CompilationUnitNode MakeCompilationUnit(params TypeDeclarationNode[] typeDecls)
     {
@@ -208,8 +214,10 @@ public class AbstractOverloadSatisfactionPropertyTests
 #pragma warning disable CA1034
     public record AllSignaturesMatchedScenario(IType FirstParamType, IType SecondParamType)
     {
-        public override string ToString() =>
-            $"AllMatched: IFoo.M({FirstParamType.DisplayName}), IFoo.M({SecondParamType.DisplayName}) — class provides both";
+        public override string ToString()
+        {
+            return $"AllMatched: IFoo.M({FirstParamType.DisplayName}), IFoo.M({SecondParamType.DisplayName}) — class provides both";
+        }
     }
 
     /// <summary>
@@ -218,8 +226,10 @@ public class AbstractOverloadSatisfactionPropertyTests
     /// </summary>
     public record MissingSignatureScenario(IType ProvidedParamType, IType MissingParamType)
     {
-        public override string ToString() =>
-            $"Missing: IFoo.M({ProvidedParamType.DisplayName}) provided, IFoo.M({MissingParamType.DisplayName}) missing";
+        public override string ToString()
+        {
+            return $"Missing: IFoo.M({ProvidedParamType.DisplayName}) provided, IFoo.M({MissingParamType.DisplayName}) missing";
+        }
     }
 #pragma warning restore CA1034
 

@@ -78,7 +78,10 @@ public class SpanIndexRefinementParityPropertyTests
             ? IndexValue >= 0 && IndexValue < KnownLength.Value
             : IndexValue >= 0;
 
-        public override string ToString() => Description;
+        public override string ToString()
+        {
+            return Description;
+        }
     }
 #pragma warning restore CA1034
 

@@ -58,7 +58,10 @@ public sealed class MemoizationPlan
     /// <summary>
     /// Returns <see langword="true"/> when the named rule is selected for memoization.
     /// </summary>
-    public bool IsMemoized(string ruleName) => ruleIds.ContainsKey(ruleName);
+    public bool IsMemoized(string ruleName)
+    {
+        return ruleIds.ContainsKey(ruleName);
+    }
 
     /// <summary>
     /// An empty plan: nothing memoized. Used as a safe fallback so an emitter

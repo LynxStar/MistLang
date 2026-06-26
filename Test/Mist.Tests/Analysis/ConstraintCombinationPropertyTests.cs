@@ -111,8 +111,10 @@ public sealed class ConstraintCombinationPropertyTests
         string TypeParamName,
         string ClassName)
     {
-        public override string ToString() =>
-            $"where {TypeParamName} : {First.ToString().ToLowerInvariant()}, {Second.ToString().ToLowerInvariant()} on {ClassName}";
+        public override string ToString()
+        {
+            return $"where {TypeParamName} : {First.ToString().ToLowerInvariant()}, {Second.ToString().ToLowerInvariant()} on {ClassName}";
+        }
     }
 
     /// <summary>
@@ -125,8 +127,10 @@ public sealed class ConstraintCombinationPropertyTests
         string TypeParamName,
         string ClassName)
     {
-        public override string ToString() =>
-            $"where {TypeParamName} : {Substructural.ToString().ToLowerInvariant()}, {NonSubstructural} on {ClassName}";
+        public override string ToString()
+        {
+            return $"where {TypeParamName} : {Substructural.ToString().ToLowerInvariant()}, {NonSubstructural} on {ClassName}";
+        }
     }
 
 #pragma warning restore CA1034
@@ -174,21 +178,28 @@ public sealed class ConstraintCombinationPropertyTests
                select new MixedConstraintScenario(substructural, nonSubstructural, tpName, className);
     }
 
-    public static Arbitrary<MultipleSubstructuralScenario> ArbitraryMultipleSubstructural() =>
-        GenMultipleSubstructural().ToArbitrary();
+    public static Arbitrary<MultipleSubstructuralScenario> ArbitraryMultipleSubstructural()
+    {
+        return GenMultipleSubstructural().ToArbitrary();
+    }
 
-    public static Arbitrary<MixedConstraintScenario> ArbitraryMixedConstraint() =>
-        GenMixedConstraint().ToArbitrary();
+    public static Arbitrary<MixedConstraintScenario> ArbitraryMixedConstraint()
+    {
+        return GenMixedConstraint().ToArbitrary();
+    }
 
     // ─── Source builders ─────────────────────────────────────────────────
 
-    private static string SubstructuralKeyword(SubstructuralConstraint c) => c switch
+    private static string SubstructuralKeyword(SubstructuralConstraint c)
     {
-        SubstructuralConstraint.Linear => "linear",
-        SubstructuralConstraint.Affine => "affine",
-        SubstructuralConstraint.Relevant => "relevant",
-        _ => throw new ArgumentOutOfRangeException(nameof(c)),
-    };
+        return c switch
+        {
+            SubstructuralConstraint.Linear => "linear",
+            SubstructuralConstraint.Affine => "affine",
+            SubstructuralConstraint.Relevant => "relevant",
+            _ => throw new ArgumentOutOfRangeException(nameof(c)),
+        };
+    }
 
     private static string BuildMultipleSubstructuralSource(MultipleSubstructuralScenario scenario)
     {

@@ -243,8 +243,10 @@ public sealed partial class InheritanceEmissionPropertyTests : IDisposable
     }
 
     /// <summary>FsCheck Arbitrary registration.</summary>
-    public static Arbitrary<InheritanceEmissionScenario> ArbitraryInheritanceEmissionScenario() =>
-        GenScenario().ToArbitrary();
+    public static Arbitrary<InheritanceEmissionScenario> ArbitraryInheritanceEmissionScenario()
+    {
+        return GenScenario().ToArbitrary();
+    }
 
     // ─── AST construction ────────────────────────────────────────────────
 

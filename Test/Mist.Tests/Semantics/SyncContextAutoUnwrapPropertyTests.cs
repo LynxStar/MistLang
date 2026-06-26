@@ -101,8 +101,10 @@ public class SyncContextAutoUnwrapPropertyTests
                    className, methodName, returnType, returnType == "void");
     }
 
-    public static Arbitrary<SyncAutoUnwrapScenario> ArbitrarySyncAutoUnwrapScenario() =>
-        GenSyncAutoUnwrapScenario().ToArbitrary();
+    public static Arbitrary<SyncAutoUnwrapScenario> ArbitrarySyncAutoUnwrapScenario()
+    {
+        return GenSyncAutoUnwrapScenario().ToArbitrary();
+    }
 
     // ─── AST construction ────────────────────────────────────────────────
 

@@ -66,13 +66,16 @@ public sealed class ThisTierInferenceSoundnessPropertyTests
     /// <summary>
     /// Computes the expected ThisTier for a single field operation.
     /// </summary>
-    private static ThisTier TierForOp(FieldOp op) => op switch
+    private static ThisTier TierForOp(FieldOp op)
     {
-        FieldOp.None => ThisTier.None,
-        FieldOp.Read => ThisTier.ReadonlyRef,
-        FieldOp.Write => ThisTier.Borrowed,
-        _ => ThisTier.None,
-    };
+        return op switch
+        {
+            FieldOp.None => ThisTier.None,
+            FieldOp.Read => ThisTier.ReadonlyRef,
+            FieldOp.Write => ThisTier.Borrowed,
+            _ => ThisTier.None,
+        };
+    }
 
     /// <summary>
     /// Computes the expected this-tier as the maximum across all field operations
@@ -95,13 +98,16 @@ public sealed class ThisTierInferenceSoundnessPropertyTests
     /// <summary>
     /// Generates the body line(s) for a given field operation on a named owned field.
     /// </summary>
-    private static string GenerateBodyLine(FieldOp op, string fieldName) => op switch
+    private static string GenerateBodyLine(FieldOp op, string fieldName)
     {
-        FieldOp.None => "",
-        FieldOp.Read => $"int _r_{fieldName} = this.{fieldName};",
-        FieldOp.Write => $"this.{fieldName} = 42;",
-        _ => "",
-    };
+        return op switch
+        {
+            FieldOp.None => "",
+            FieldOp.Read => $"int _r_{fieldName} = this.{fieldName};",
+            FieldOp.Write => $"this.{fieldName} = 42;",
+            _ => "",
+        };
+    }
 
     /// <summary>
     /// Builds a Mist source program with a class containing the specified owned fields

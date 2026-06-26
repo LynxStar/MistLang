@@ -51,5 +51,8 @@ public interface IStdlibTypeProvider
     /// The corresponding <see cref="IType"/> instance with the requested arity, or a
     /// legacy fallback when the stdlib is not loaded.
     /// </returns>
-    IType LookupStandardType(string simpleName, int typeArgumentCount) => LookupStandardType(simpleName);
+    IType LookupStandardType(string simpleName, int typeArgumentCount)
+    {
+        return LookupStandardType(simpleName);
+    }
 }

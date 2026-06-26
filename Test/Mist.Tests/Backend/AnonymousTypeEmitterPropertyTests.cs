@@ -72,12 +72,15 @@ public sealed class AnonymousTypeEmitterPropertyTests : IDisposable
     private sealed record AnonProperty(string Name, PropertyKind Kind, string Value)
     {
         /// <summary>The Mist source fragment for this property inside <c>new { ... }</c>.</summary>
-        public string ToMistInitializer() => Kind switch
+        public string ToMistInitializer()
         {
-            PropertyKind.Explicit => $"{Name} = {Value}",
-            PropertyKind.ProjectedVariable => Name, // just the variable name (projection)
-            _ => throw new InvalidOperationException()
-        };
+            return Kind switch
+            {
+                PropertyKind.Explicit => $"{Name} = {Value}",
+                PropertyKind.ProjectedVariable => Name, // just the variable name (projection)
+                _ => throw new InvalidOperationException()
+            };
+        }
     }
 
     private sealed record AnonScenario(ImmutableArray<AnonProperty> Properties, int Index)
@@ -104,32 +107,46 @@ public sealed class AnonymousTypeEmitterPropertyTests : IDisposable
     private static readonly string[] ValidNames =
         ["Name", "Count", "City", "Age", "Tag", "Width", "Height", "Label", "Score", "Level"];
 
-    private static Gen<string> GenStringValue() =>
-        Gen.Elements("hello", "world", "test", "mist", "alpha", "beta", "gamma");
+    private static Gen<string> GenStringValue()
+    {
+        return Gen.Elements("hello", "world", "test", "mist", "alpha", "beta", "gamma");
+    }
 
-    private static Gen<string> GenIntValue() =>
-        Gen.Choose(0, 999).Select(n => n.ToString());
+    private static Gen<string> GenIntValue()
+    {
+        return Gen.Choose(0, 999).Select(n => n.ToString());
+    }
 
-    private static Gen<AnonProperty> GenExplicitStringProperty(string name) =>
-        from val in GenStringValue()
-        select new AnonProperty(name, PropertyKind.Explicit, $"\"{val}\"");
+    private static Gen<AnonProperty> GenExplicitStringProperty(string name)
+    {
+        return from val in GenStringValue()
+               select new AnonProperty(name, PropertyKind.Explicit, $"\"{val}\"");
+    }
 
-    private static Gen<AnonProperty> GenExplicitIntProperty(string name) =>
-        from val in GenIntValue()
-        select new AnonProperty(name, PropertyKind.Explicit, val);
+    private static Gen<AnonProperty> GenExplicitIntProperty(string name)
+    {
+        return from val in GenIntValue()
+               select new AnonProperty(name, PropertyKind.Explicit, val);
+    }
 
-    private static Gen<AnonProperty> GenExplicitProperty(string name) =>
-        Gen.OneOf(GenExplicitStringProperty(name), GenExplicitIntProperty(name));
+    private static Gen<AnonProperty> GenExplicitProperty(string name)
+    {
+        return Gen.OneOf(GenExplicitStringProperty(name), GenExplicitIntProperty(name));
+    }
 
-    private static Gen<AnonProperty> GenProjectedVariable(string name) =>
-        from val in GenStringValue()
-        select new AnonProperty(name, PropertyKind.ProjectedVariable, $"\"{val}\"");
+    private static Gen<AnonProperty> GenProjectedVariable(string name)
+    {
+        return from val in GenStringValue()
+               select new AnonProperty(name, PropertyKind.ProjectedVariable, $"\"{val}\"");
+    }
 
-    private static Gen<AnonScenario> GenScenario(int index) =>
-        from propCount in Gen.Choose(1, 4)
-        from names in Gen.Shuffle(ValidNames).Select(arr => arr.Take(propCount).ToArray())
-        from props in GenPropertiesFromNames(names)
-        select new AnonScenario(props.ToImmutableArray(), index);
+    private static Gen<AnonScenario> GenScenario(int index)
+    {
+        return from propCount in Gen.Choose(1, 4)
+               from names in Gen.Shuffle(ValidNames).Select(arr => arr.Take(propCount).ToArray())
+               from props in GenPropertiesFromNames(names)
+               select new AnonScenario(props.ToImmutableArray(), index);
+    }
 
     private static Gen<AnonProperty[]> GenPropertiesFromNames(string[] names)
     {

@@ -27,8 +27,10 @@ public sealed record OperatorMethodScenario(
     Type DeclaringType,
     MethodInfo OperatorMethod)
 {
-    public override string ToString() =>
-        $"{DeclaringType.Name}.{OperatorMethod.Name}({string.Join(", ", OperatorMethod.GetParameters().Select(p => p.ParameterType.Name))}) -> {OperatorMethod.ReturnType.Name}";
+    public override string ToString()
+    {
+        return $"{DeclaringType.Name}.{OperatorMethod.Name}({string.Join(", ", OperatorMethod.GetParameters().Select(p => p.ParameterType.Name))}) -> {OperatorMethod.ReturnType.Name}";
+    }
 }
 
 /// <summary>
@@ -120,8 +122,10 @@ public sealed class OperatorProjectionPropertyTests
         return FsCheck.Fluent.Gen.Elements(AllOperatorScenarios);
     }
 
-    public static Arbitrary<OperatorMethodScenario> ArbOperatorScenario() =>
-        FsCheck.Fluent.Arb.From(GenOperatorScenario());
+    public static Arbitrary<OperatorMethodScenario> ArbOperatorScenario()
+    {
+        return FsCheck.Fluent.Arb.From(GenOperatorScenario());
+    }
 
     // ═══════════════════════════════════════════════════════════════════════
     // Helpers

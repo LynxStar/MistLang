@@ -49,8 +49,10 @@ public sealed class PropertyEmissionPropertyTests : IDisposable
 
     // ─── Arbitrary registration ──────────────────────────────────────────
 
-    public static Arbitrary<CompilationUnitNode> ArbitraryCompilationUnitNode() =>
-        MistPropertyGenerator.GenPropertyProgram().ToArbitrary();
+    public static Arbitrary<CompilationUnitNode> ArbitraryCompilationUnitNode()
+    {
+        return MistPropertyGenerator.GenPropertyProgram().ToArbitrary();
+    }
 
     // ─── Helpers ─────────────────────────────────────────────────────────
 

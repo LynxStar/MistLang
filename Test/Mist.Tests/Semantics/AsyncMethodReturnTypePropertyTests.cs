@@ -92,8 +92,10 @@ public class AsyncMethodReturnTypePropertyTests
         };
     }
 
-    private static MemberDeclarationNode WrapMethod(MethodDeclarationNode method) =>
-        new MethodMemberMemberDeclarationNode { Method = method };
+    private static MemberDeclarationNode WrapMethod(MethodDeclarationNode method)
+    {
+        return new MethodMemberMemberDeclarationNode { Method = method };
+    }
 
     // ─── Scenario record ─────────────────────────────────────────────────
 
@@ -148,8 +150,10 @@ public class AsyncMethodReturnTypePropertyTests
                    className, methodName, returnType, isStatic, returnType == "void");
     }
 
-    public static Arbitrary<AsyncMethodScenario> ArbitraryAsyncMethodScenario() =>
-        GenAsyncMethodScenario().ToArbitrary();
+    public static Arbitrary<AsyncMethodScenario> ArbitraryAsyncMethodScenario()
+    {
+        return GenAsyncMethodScenario().ToArbitrary();
+    }
 
     // ─── AST construction ────────────────────────────────────────────────
 

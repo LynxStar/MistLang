@@ -161,8 +161,10 @@ public class OverloadRegistrationPropertyTests
     public record OverloadedMethodScenario(
         IReadOnlyList<IType> ParamTypes)
     {
-        public override string ToString() =>
-            $"Methods: {ParamTypes.Count} overloads [{string.Join(", ", ParamTypes.Select(t => t.DisplayName))}]";
+        public override string ToString()
+        {
+            return $"Methods: {ParamTypes.Count} overloads [{string.Join(", ", ParamTypes.Select(t => t.DisplayName))}]";
+        }
     }
 
     /// <summary>
@@ -171,8 +173,10 @@ public class OverloadRegistrationPropertyTests
     public record OverloadedConstructorScenario(
         IReadOnlyList<IType> ParamTypes)
     {
-        public override string ToString() =>
-            $"Constructors: {ParamTypes.Count} overloads [{string.Join(", ", ParamTypes.Select(t => t.DisplayName))}]";
+        public override string ToString()
+        {
+            return $"Constructors: {ParamTypes.Count} overloads [{string.Join(", ", ParamTypes.Select(t => t.DisplayName))}]";
+        }
     }
 #pragma warning restore CA1034
 

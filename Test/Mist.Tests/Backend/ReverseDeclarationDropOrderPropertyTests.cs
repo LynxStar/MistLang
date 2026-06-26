@@ -44,7 +44,10 @@ public sealed class ReverseDropOrderScenario
         Description = description;
     }
 
-    public override string ToString() => Description;
+    public override string ToString()
+    {
+        return Description;
+    }
 }
 
 // ─── Generators ─────────────────────────────────────────────────────────────
@@ -173,8 +176,10 @@ public sealed class ReverseDeclarationDropOrderPropertyTests : IDisposable
 
     // ─── Arbitrary registration ─────────────────────────────────────────
 
-    public static Arbitrary<ReverseDropOrderScenario> ArbitraryReverseDropOrderScenario() =>
-        ReverseDropOrderGenerators.GenReverseDropOrderScenario().ToArbitrary();
+    public static Arbitrary<ReverseDropOrderScenario> ArbitraryReverseDropOrderScenario()
+    {
+        return ReverseDropOrderGenerators.GenReverseDropOrderScenario().ToArbitrary();
+    }
 
     // ─── Helpers ─────────────────────────────────────────────────────────
 

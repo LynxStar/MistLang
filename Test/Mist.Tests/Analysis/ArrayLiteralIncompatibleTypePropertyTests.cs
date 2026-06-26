@@ -31,8 +31,10 @@ public sealed class IncompatibleArrayScenario
         this.elementLiterals = elementLiterals;
     }
 
-    public override string ToString() =>
-        $"mixed[{elementLiterals.Length}]: [{string.Join(", ", elementLiterals)}]";
+    public override string ToString()
+    {
+        return $"mixed[{elementLiterals.Length}]: [{string.Join(", ", elementLiterals)}]";
+    }
 }
 
 /// <summary>

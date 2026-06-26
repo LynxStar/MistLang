@@ -238,8 +238,10 @@ public sealed class UnknownIsPatternAndStorageSkipTests : IDisposable
     /// Collapses whitespace so substring assertions below are
     /// insensitive to the emitter's spacing / indentation choices.
     /// </summary>
-    private static string Collapse(string s) =>
-        new(s.Where(c => !char.IsWhiteSpace(c)).ToArray());
+    private static string Collapse(string s)
+    {
+        return new(s.Where(c => !char.IsWhiteSpace(c)).ToArray());
+    }
 
     // ═══════════════════════════════════════════════════════════════════════
     // Task 32.1 / Req 15.3

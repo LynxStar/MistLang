@@ -76,8 +76,10 @@ public sealed class SiblingIndependencePropertyTests
     /// </summary>
     public sealed record SiblingScenario(VariableOwnershipState FieldAState, SiblingOperation FieldBOperation)
     {
-        public override string ToString() =>
-            $"FieldA={FieldAState}, FieldB_Op={FieldBOperation}";
+        public override string ToString()
+        {
+            return $"FieldA={FieldAState}, FieldB_Op={FieldBOperation}";
+        }
     }
 
 #pragma warning restore CA1034
@@ -89,31 +91,39 @@ public sealed class SiblingIndependencePropertyTests
     /// <summary>
     /// Generates non-Live states for field A (the states that restrict access).
     /// </summary>
-    private static Gen<VariableOwnershipState> GenNonLiveState() =>
-        Gen.Elements(
+    private static Gen<VariableOwnershipState> GenNonLiveState()
+    {
+        return Gen.Elements(
             VariableOwnershipState.LentReadonly,
             VariableOwnershipState.LentFrozen,
             VariableOwnershipState.LentRef,
             VariableOwnershipState.Moved);
+    }
 
     /// <summary>
     /// Generates the sibling operation to apply to field B.
     /// </summary>
-    private static Gen<SiblingOperation> GenSiblingOperation() =>
-        Gen.Elements(
+    private static Gen<SiblingOperation> GenSiblingOperation()
+    {
+        return Gen.Elements(
             SiblingOperation.Read,
             SiblingOperation.Write,
             SiblingOperation.Move,
             SiblingOperation.Borrow,
             SiblingOperation.Freeze);
+    }
 
-    private static Gen<SiblingScenario> GenScenario() =>
-        GenNonLiveState().SelectMany(fieldAState =>
+    private static Gen<SiblingScenario> GenScenario()
+    {
+        return GenNonLiveState().SelectMany(fieldAState =>
             GenSiblingOperation().Select(op =>
                 new SiblingScenario(fieldAState, op)));
+    }
 
-    public static Arbitrary<SiblingScenario> ArbitrarySiblingScenario() =>
-        GenScenario().ToArbitrary();
+    public static Arbitrary<SiblingScenario> ArbitrarySiblingScenario()
+    {
+        return GenScenario().ToArbitrary();
+    }
 
     // ═══════════════════════════════════════════════════════════════════════
     // Test infrastructure — stub symbols
@@ -238,8 +248,9 @@ public sealed class SiblingIndependencePropertyTests
     /// Returns the expected state of field B after an operation is applied,
     /// assuming the operation is not blocked by field A's state (sibling independence).
     /// </summary>
-    private static VariableOwnershipState ExpectedFieldBStateAfterOperation(SiblingOperation operation) =>
-        operation switch
+    private static VariableOwnershipState ExpectedFieldBStateAfterOperation(SiblingOperation operation)
+    {
+        return operation switch
         {
             SiblingOperation.Read => VariableOwnershipState.Live,
             SiblingOperation.Write => VariableOwnershipState.Live,
@@ -248,6 +259,7 @@ public sealed class SiblingIndependencePropertyTests
             SiblingOperation.Freeze => VariableOwnershipState.LentFrozen,
             _ => VariableOwnershipState.Live,
         };
+    }
 
     // ═══════════════════════════════════════════════════════════════════════
     // Property 5: Siblings are independent (Req 16 AC 22)

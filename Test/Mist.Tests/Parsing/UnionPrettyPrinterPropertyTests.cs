@@ -26,8 +26,10 @@ public sealed class UnionPrettyPrintScenario
         Constituents = constituents;
     }
 
-    public override string ToString() =>
-        string.Join(" | ", Constituents);
+    public override string ToString()
+    {
+        return string.Join(" | ", Constituents);
+    }
 }
 
 /// <summary>

@@ -26,7 +26,10 @@ public sealed class EnumSourceScenario
         Description = description;
     }
 
-    public override string ToString() => Description;
+    public override string ToString()
+    {
+        return Description;
+    }
 }
 
 /// <summary>
@@ -61,30 +64,40 @@ public static class MistEnumGenerator
 
     // ─── Value generators ───────────────────────────────────────────────────
 
-    private static Gen<string> GenIntValue() =>
-        Gen.Choose(0, 999).Select(n => n.ToString());
+    private static Gen<string> GenIntValue()
+    {
+        return Gen.Choose(0, 999).Select(n => n.ToString());
+    }
 
-    private static Gen<string> GenStringValue() =>
-        Gen.Elements("\"N\"", "\"S\"", "\"E\"", "\"W\"", "\"red\"", "\"green\"", "\"blue\"",
+    private static Gen<string> GenStringValue()
+    {
+        return Gen.Elements("\"N\"", "\"S\"", "\"E\"", "\"W\"", "\"red\"", "\"green\"", "\"blue\"",
                      "\"active\"", "\"pending\"", "\"high\"", "\"low\"");
+    }
 
     // ─── Member generators ──────────────────────────────────────────────────
 
     /// <summary>Generates a name-only enum member (e.g., "North").</summary>
-    private static Gen<string> GenNameOnlyMember() =>
-        Gen.Elements(MemberNames);
+    private static Gen<string> GenNameOnlyMember()
+    {
+        return Gen.Elements(MemberNames);
+    }
 
     /// <summary>Generates a valued enum member with an integer value (e.g., "North = 0").</summary>
-    private static Gen<string> GenIntValuedMember() =>
-        from name in Gen.Elements(MemberNames)
-        from value in GenIntValue()
-        select $"{name} = {value}";
+    private static Gen<string> GenIntValuedMember()
+    {
+        return from name in Gen.Elements(MemberNames)
+               from value in GenIntValue()
+               select $"{name} = {value}";
+    }
 
     /// <summary>Generates a valued enum member with a string value (e.g., "North = \"N\"").</summary>
-    private static Gen<string> GenStringValuedMember() =>
-        from name in Gen.Elements(MemberNames)
-        from value in GenStringValue()
-        select $"{name} = {value}";
+    private static Gen<string> GenStringValuedMember()
+    {
+        return from name in Gen.Elements(MemberNames)
+               from value in GenStringValue()
+               select $"{name} = {value}";
+    }
 
     // ─── Enum declaration generators ────────────────────────────────────────
 
@@ -202,6 +215,8 @@ public static class MistEnumGenerator
     /// FsCheck Arbitrary for <see cref="EnumSourceScenario"/>.
     /// Register with <c>[Property(Arbitrary = new[] { typeof(MistEnumGenerator) })]</c>.
     /// </summary>
-    public static Arbitrary<EnumSourceScenario> ArbitraryEnumSourceScenario() =>
-        GenEnumSource().ToArbitrary();
+    public static Arbitrary<EnumSourceScenario> ArbitraryEnumSourceScenario()
+    {
+        return GenEnumSource().ToArbitrary();
+    }
 }

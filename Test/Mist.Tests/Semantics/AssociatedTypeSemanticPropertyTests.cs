@@ -330,8 +330,10 @@ public sealed class AssociatedTypeSemanticPropertyTests : IDisposable
 
     // ─── Arbitrary registration ─────────────────────────────────────────
 
-    public static Arbitrary<SemanticRegistrationScenario> ArbitraryScenario() =>
-        GenScenario().ToArbitrary();
+    public static Arbitrary<SemanticRegistrationScenario> ArbitraryScenario()
+    {
+        return GenScenario().ToArbitrary();
+    }
 
     // ─── Helpers ────────────────────────────────────────────────────────
 

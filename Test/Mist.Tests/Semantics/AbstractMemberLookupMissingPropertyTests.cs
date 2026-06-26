@@ -156,14 +156,20 @@ public class AbstractMemberLookupMissingPropertyTests
         return decl;
     }
 
-    private static MemberDeclarationNode WrapMethod(MethodDeclarationNode method) =>
-        new MethodMemberMemberDeclarationNode { Method = method };
+    private static MemberDeclarationNode WrapMethod(MethodDeclarationNode method)
+    {
+        return new MethodMemberMemberDeclarationNode { Method = method };
+    }
 
-    private static TypeDeclarationNode WrapAbstract(AbstractDeclarationNode decl) =>
-        new AbstractTypeTypeDeclarationNode { AbstractDeclaration = decl };
+    private static TypeDeclarationNode WrapAbstract(AbstractDeclarationNode decl)
+    {
+        return new AbstractTypeTypeDeclarationNode { AbstractDeclaration = decl };
+    }
 
-    private static TypeDeclarationNode WrapClass(ClassDeclarationNode decl) =>
-        new ClassTypeTypeDeclarationNode { ClassDeclaration = decl };
+    private static TypeDeclarationNode WrapClass(ClassDeclarationNode decl)
+    {
+        return new ClassTypeTypeDeclarationNode { ClassDeclaration = decl };
+    }
 
     // ─── Expression / statement builders ─────────────────────────────────
 
@@ -481,8 +487,10 @@ public class AbstractMemberLookupMissingPropertyTests
             GenEmptyAbstractScenario());
     }
 
-    public static Arbitrary<MissingMemberScenario> ArbitraryMissingMemberScenario() =>
-        GenScenario().ToArbitrary();
+    public static Arbitrary<MissingMemberScenario> ArbitraryMissingMemberScenario()
+    {
+        return GenScenario().ToArbitrary();
+    }
 
     // ─── AST construction ────────────────────────────────────────────────
 

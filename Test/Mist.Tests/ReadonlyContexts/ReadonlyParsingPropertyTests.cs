@@ -32,7 +32,10 @@ public sealed class ReadonlyModifierScenario
         Description = description;
     }
 
-    public override string ToString() => Description;
+    public override string ToString()
+    {
+        return Description;
+    }
 }
 
 /// <summary>
@@ -51,7 +54,10 @@ public sealed class ReadonlyBlockScenario
         Description = description;
     }
 
-    public override string ToString() => Description;
+    public override string ToString()
+    {
+        return Description;
+    }
 }
 
 /// <summary>
@@ -68,7 +74,10 @@ public sealed class ReadonlyRoundTripScenario
         Description = description;
     }
 
-    public override string ToString() => Description;
+    public override string ToString()
+    {
+        return Description;
+    }
 }
 
 // ─── Generators ─────────────────────────────────────────────────────────────
@@ -292,14 +301,20 @@ public class ReadonlyParsingPropertyTests
 
     // ─── Arbitrary registration ─────────────────────────────────────────
 
-    public static Arbitrary<ReadonlyModifierScenario> ArbitraryReadonlyModifierScenario() =>
-        ReadonlyParsingGenerators.GenReadonlyModifierScenario().ToArbitrary();
+    public static Arbitrary<ReadonlyModifierScenario> ArbitraryReadonlyModifierScenario()
+    {
+        return ReadonlyParsingGenerators.GenReadonlyModifierScenario().ToArbitrary();
+    }
 
-    public static Arbitrary<ReadonlyBlockScenario> ArbitraryReadonlyBlockScenario() =>
-        ReadonlyParsingGenerators.GenReadonlyBlockScenario().ToArbitrary();
+    public static Arbitrary<ReadonlyBlockScenario> ArbitraryReadonlyBlockScenario()
+    {
+        return ReadonlyParsingGenerators.GenReadonlyBlockScenario().ToArbitrary();
+    }
 
-    public static Arbitrary<ReadonlyRoundTripScenario> ArbitraryReadonlyRoundTripScenario() =>
-        ReadonlyParsingGenerators.GenReadonlyRoundTripScenario().ToArbitrary();
+    public static Arbitrary<ReadonlyRoundTripScenario> ArbitraryReadonlyRoundTripScenario()
+    {
+        return ReadonlyParsingGenerators.GenReadonlyRoundTripScenario().ToArbitrary();
+    }
 
     // ─── Helpers ────────────────────────────────────────────────────────
 

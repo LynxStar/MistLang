@@ -28,7 +28,10 @@ public sealed class DefaultConstraintRoundTripScenario
         Description = description;
     }
 
-    public override string ToString() => Description;
+    public override string ToString()
+    {
+        return Description;
+    }
 }
 
 /// <summary>
@@ -219,8 +222,10 @@ public class DefaultConstraintRoundTripPropertyTests
 
     // ─── Arbitrary registration ─────────────────────────────────────────────
 
-    public static Arbitrary<DefaultConstraintRoundTripScenario> ArbitraryScenario() =>
-        GenScenario().ToArbitrary();
+    public static Arbitrary<DefaultConstraintRoundTripScenario> ArbitraryScenario()
+    {
+        return GenScenario().ToArbitrary();
+    }
 
     // ─── Helpers ────────────────────────────────────────────────────────────
 

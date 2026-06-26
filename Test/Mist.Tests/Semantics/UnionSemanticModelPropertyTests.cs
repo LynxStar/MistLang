@@ -39,8 +39,10 @@ public sealed class UnionSemanticScenario
         ExpectedDistinctTypes = expectedDistinctTypes;
     }
 
-    public override string ToString() =>
-        $"{TypeAnnotation} → [{string.Join(", ", ExpectedDistinctTypes)}]";
+    public override string ToString()
+    {
+        return $"{TypeAnnotation} → [{string.Join(", ", ExpectedDistinctTypes)}]";
+    }
 }
 
 /// <summary>
@@ -172,15 +174,18 @@ public class UnionSemanticModelPropertyTests
     /// <summary>
     /// Maps a Mist primitive keyword to its semantic model DisplayName.
     /// </summary>
-    private static string MapToDisplayName(string keyword) => keyword switch
+    private static string MapToDisplayName(string keyword)
     {
-        "int" => "int",
-        "string" => "string",
-        "bool" => "bool",
-        "float" => "float",
-        "double" => "double",
-        _ => keyword,
-    };
+        return keyword switch
+        {
+            "int" => "int",
+            "string" => "string",
+            "bool" => "bool",
+            "float" => "float",
+            "double" => "double",
+            _ => keyword,
+        };
+    }
 
     // ─── Semantic model helpers ─────────────────────────────────────────
 
@@ -465,6 +470,8 @@ public sealed class UnionOrderEquivalenceScenario
         Types = [.. types];
     }
 
-    public override string ToString() =>
-        $"[{Annotation1}] vs [{Annotation2}]";
+    public override string ToString()
+    {
+        return $"[{Annotation1}] vs [{Annotation2}]";
+    }
 }

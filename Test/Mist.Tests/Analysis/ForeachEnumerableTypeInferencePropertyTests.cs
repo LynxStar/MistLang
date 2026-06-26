@@ -38,7 +38,10 @@ public sealed class ForeachEnumerableScenario
         Description = description;
     }
 
-    public override string ToString() => Description;
+    public override string ToString()
+    {
+        return Description;
+    }
 }
 
 /// <summary>
@@ -58,7 +61,10 @@ public sealed class ForeachArrayScenario
         Description = description;
     }
 
-    public override string ToString() => Description;
+    public override string ToString()
+    {
+        return Description;
+    }
 }
 
 // ─── Property Tests ─────────────────────────────────────────────────────────
@@ -227,11 +233,15 @@ public sealed class ForeachEnumerableTypeInferencePropertyTests : IDisposable
 
     // ─── Arbitrary registration ──────────────────────────────────────────
 
-    public static Arbitrary<ForeachEnumerableScenario> ArbitraryForeachEnumerable() =>
-        GenUserDefinedEnumerableScenario().ToArbitrary();
+    public static Arbitrary<ForeachEnumerableScenario> ArbitraryForeachEnumerable()
+    {
+        return GenUserDefinedEnumerableScenario().ToArbitrary();
+    }
 
-    public static Arbitrary<ForeachArrayScenario> ArbitraryForeachArray() =>
-        GenArrayForeachScenario().ToArbitrary();
+    public static Arbitrary<ForeachArrayScenario> ArbitraryForeachArray()
+    {
+        return GenArrayForeachScenario().ToArbitrary();
+    }
 
     // ═══════════════════════════════════════════════════════════════════════
     // Property 3a: Foreach over user-defined IEnumerable<TElement> compiles

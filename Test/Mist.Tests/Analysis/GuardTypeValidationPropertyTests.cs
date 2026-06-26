@@ -73,7 +73,10 @@ public class GuardTypeValidationPropertyTests
     /// </summary>
     public sealed record ValidGuardScenario(string Source, string Label)
     {
-        public override string ToString() => Label;
+        public override string ToString()
+        {
+            return Label;
+        }
     }
 
     /// <summary>
@@ -81,7 +84,10 @@ public class GuardTypeValidationPropertyTests
     /// </summary>
     public sealed record InvalidGuardScenario(string Source, string Label)
     {
-        public override string ToString() => Label;
+        public override string ToString()
+        {
+            return Label;
+        }
     }
 
 #pragma warning restore CA1034

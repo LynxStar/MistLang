@@ -26,14 +26,16 @@ public class InheritanceRoundTripPropertyTests
 
     // ─── Token helper ────────────────────────────────────────────────────
 
-    private static Storm.Runtime.Token Tok(string lexeme) =>
-        new(
+    private static Storm.Runtime.Token Tok(string lexeme)
+    {
+        return new(
             kind: 0,
             span: new Storm.Runtime.SourceSpan(0, lexeme.Length),
             start: new Storm.Runtime.LinePosition(1, 1),
             end: new Storm.Runtime.LinePosition(1, 1 + lexeme.Length),
             channel: Storm.Runtime.TokenChannel.Default,
             lexeme: lexeme);
+    }
 
     // ─── Test data model ─────────────────────────────────────────────────
 
@@ -46,7 +48,10 @@ public class InheritanceRoundTripPropertyTests
         string Description,
         CompilationUnitNode Ast)
     {
-        public override string ToString() => Description;
+        public override string ToString()
+        {
+            return Description;
+        }
     }
 #pragma warning restore CA1034
 
@@ -70,11 +75,15 @@ public class InheritanceRoundTripPropertyTests
         return new AssignmentFormExpressionNode { Assignment = assign };
     }
 
-    private static ExpressionNode MakeIntLiteral(string value) =>
-        WrapPrimary(new IntegerLiteralExpressionPrimaryNode { IntegerLiteral = Tok(value) });
+    private static ExpressionNode MakeIntLiteral(string value)
+    {
+        return WrapPrimary(new IntegerLiteralExpressionPrimaryNode { IntegerLiteral = Tok(value) });
+    }
 
-    private static ExpressionNode MakeIdentifierExpr(string name) =>
-        WrapPrimary(new IdentifierExpressionPrimaryNode { Name = Tok(name) });
+    private static ExpressionNode MakeIdentifierExpr(string name)
+    {
+        return WrapPrimary(new IdentifierExpressionPrimaryNode { Name = Tok(name) });
+    }
 
     private static FieldDeclarationNode MakeField(
         string name,
@@ -414,8 +423,10 @@ public class InheritanceRoundTripPropertyTests
     }
 
     /// <summary>FsCheck Arbitrary registration for InheritanceRoundTripTestCase.</summary>
-    public static Arbitrary<InheritanceRoundTripTestCase> ArbitraryInheritanceRoundTripTestCase() =>
-        GenTestCase().ToArbitrary();
+    public static Arbitrary<InheritanceRoundTripTestCase> ArbitraryInheritanceRoundTripTestCase()
+    {
+        return GenTestCase().ToArbitrary();
+    }
 
     // ═════════════════════════════════════════════════════════════════════
     // Property 1: Parse/print round-trip for inheritance clauses

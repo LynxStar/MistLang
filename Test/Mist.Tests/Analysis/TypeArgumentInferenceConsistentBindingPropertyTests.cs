@@ -45,7 +45,10 @@ public sealed class ConsistentBindingScenario
         Description = description;
     }
 
-    public override string ToString() => Description;
+    public override string ToString()
+    {
+        return Description;
+    }
 }
 
 /// <summary>
@@ -278,8 +281,10 @@ public class TypeArgumentInferenceConsistentBindingPropertyTests
             GenPartialBindingWithConsistentPositions());
     }
 
-    public static Arbitrary<ConsistentBindingScenario> ArbitraryConsistentBindingScenario() =>
-        GenScenario().ToArbitrary();
+    public static Arbitrary<ConsistentBindingScenario> ArbitraryConsistentBindingScenario()
+    {
+        return GenScenario().ToArbitrary();
+    }
 
     // ─── Property test ───────────────────────────────────────────────────
 
@@ -333,12 +338,16 @@ public class TypeArgumentInferenceConsistentBindingPropertyTests
             .Label($"OK: {scenario.Description}");
     }
 
-    private static string FormatList(IReadOnlyList<string>? items) =>
-        items is null ? "(null)" : $"[{string.Join(", ", items)}]";
+    private static string FormatList(IReadOnlyList<string>? items)
+    {
+        return items is null ? "(null)" : $"[{string.Join(", ", items)}]";
+    }
 
     private static string FormatConflicts(
-        IReadOnlyList<(string TypeParameter, IType First, IType Second)>? conflicts) =>
-        conflicts is null
+        IReadOnlyList<(string TypeParameter, IType First, IType Second)>? conflicts)
+    {
+        return conflicts is null
             ? "(null)"
             : $"[{string.Join(", ", conflicts.Select(c => $"{c.TypeParameter}: {c.First.DisplayName} vs {c.Second.DisplayName}"))}]";
+    }
 }

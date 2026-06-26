@@ -107,8 +107,10 @@ public class AwaitDesugarsToDropEquivalenceTests
                    className, methodName, returnType, returnType == "void");
     }
 
-    public static Arbitrary<AwaitDropEquivalenceScenario> ArbitraryAwaitDropEquivalenceScenario() =>
-        GenScenario().ToArbitrary();
+    public static Arbitrary<AwaitDropEquivalenceScenario> ArbitraryAwaitDropEquivalenceScenario()
+    {
+        return GenScenario().ToArbitrary();
+    }
 
     // ─── AST construction ────────────────────────────────────────────────
 

@@ -87,7 +87,10 @@ public class AssociatedTypeErrorPropertyTests
         string SlotDeclaration,
         string Description)
     {
-        public override string ToString() => Description;
+        public override string ToString()
+        {
+            return Description;
+        }
     }
 
 #pragma warning restore CA1034
@@ -122,8 +125,10 @@ public class AssociatedTypeErrorPropertyTests
                select new WrongContextScenario(containerKind, containerName, slotDecl, desc);
     }
 
-    public static Arbitrary<WrongContextScenario> ArbitraryWrongContextScenario() =>
-        GenWrongContextScenario().ToArbitrary();
+    public static Arbitrary<WrongContextScenario> ArbitraryWrongContextScenario()
+    {
+        return GenWrongContextScenario().ToArbitrary();
+    }
 
     [Property(MaxTest = 100, Arbitrary = new[] { typeof(AssociatedTypeErrorPropertyTests) })]
     public Property AbstractSlotInClassOrStruct_EmitsMIST_AT_0006(WrongContextScenario scenario)
@@ -168,7 +173,10 @@ public class AssociatedTypeErrorPropertyTests
         string ConstraintText,
         string Description)
     {
-        public override string ToString() => Description;
+        public override string ToString()
+        {
+            return Description;
+        }
     }
 
 #pragma warning restore CA1034
@@ -189,8 +197,10 @@ public class AssociatedTypeErrorPropertyTests
                select new ModifierScenario(containerKind, containerName, modifierStr, slotName, constraintText, desc);
     }
 
-    public static Arbitrary<ModifierScenario> ArbitraryModifierScenario() =>
-        GenModifierScenario().ToArbitrary();
+    public static Arbitrary<ModifierScenario> ArbitraryModifierScenario()
+    {
+        return GenModifierScenario().ToArbitrary();
+    }
 
     [Property(MaxTest = 100, Arbitrary = new[] { typeof(AssociatedTypeErrorPropertyTests) })]
     public Property ModifiersOnAssociatedTypeSlot_EmitsMIST_AT_0005(ModifierScenario scenario)
@@ -236,7 +246,10 @@ public class AssociatedTypeErrorPropertyTests
         int DuplicateCount,
         string Description)
     {
-        public override string ToString() => Description;
+        public override string ToString()
+        {
+            return Description;
+        }
     }
 
 #pragma warning restore CA1034
@@ -254,8 +267,10 @@ public class AssociatedTypeErrorPropertyTests
                select new DuplicateSlotScenario(containerKind, containerName, slotName, firstConstraint, secondConstraint, duplicateCount, desc);
     }
 
-    public static Arbitrary<DuplicateSlotScenario> ArbitraryDuplicateSlotScenario() =>
-        GenDuplicateSlotScenario().ToArbitrary();
+    public static Arbitrary<DuplicateSlotScenario> ArbitraryDuplicateSlotScenario()
+    {
+        return GenDuplicateSlotScenario().ToArbitrary();
+    }
 
     [Property(MaxTest = 100, Arbitrary = new[] { typeof(AssociatedTypeErrorPropertyTests) })]
     public Property DuplicateSlotNames_EmitsMIST_AT_0001(DuplicateSlotScenario scenario)

@@ -367,6 +367,8 @@ public sealed class UnknownTypeCastEmissionTests : IDisposable
     /// substring assertions above are insensitive to the emitter's
     /// spacing/indentation choices.
     /// </summary>
-    private static string Collapse(string s) =>
-        new(s.Where(c => !char.IsWhiteSpace(c)).ToArray());
+    private static string Collapse(string s)
+    {
+        return new(s.Where(c => !char.IsWhiteSpace(c)).ToArray());
+    }
 }

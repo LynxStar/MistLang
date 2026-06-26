@@ -34,7 +34,10 @@ public sealed class WritabilityScenario
         PropertyName = propertyName;
     }
 
-    public override string ToString() => Description;
+    public override string ToString()
+    {
+        return Description;
+    }
 }
 
 /// <summary>
@@ -64,8 +67,10 @@ public sealed class PropertyInitializerWritabilityPropertyTests
 
     // ─── FsCheck generators ─────────────────────────────────────────────
 
-    public static Arbitrary<WritabilityScenario> ArbitraryScenario() =>
-        GenScenario().ToArbitrary();
+    public static Arbitrary<WritabilityScenario> ArbitraryScenario()
+    {
+        return GenScenario().ToArbitrary();
+    }
 
     private static Gen<WritabilityScenario> GenScenario()
     {

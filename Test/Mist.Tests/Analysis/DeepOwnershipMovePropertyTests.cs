@@ -79,7 +79,10 @@ public class DeepOwnershipMovePropertyTests
     /// </summary>
     public sealed record OwnedToOwnedMoveScenario(string Source, string Label)
     {
-        public override string ToString() => Label;
+        public override string ToString()
+        {
+            return Label;
+        }
     }
 
     /// <summary>
@@ -88,7 +91,10 @@ public class DeepOwnershipMovePropertyTests
     /// </summary>
     public sealed record OwnedToUnrestrictedMoveScenario(string Source, string Label)
     {
-        public override string ToString() => Label;
+        public override string ToString()
+        {
+            return Label;
+        }
     }
 
     /// <summary>
@@ -97,7 +103,10 @@ public class DeepOwnershipMovePropertyTests
     /// </summary>
     public sealed record OwnedParameterMoveScenario(string Source, string Label)
     {
-        public override string ToString() => Label;
+        public override string ToString()
+        {
+            return Label;
+        }
     }
 
     /// <summary>
@@ -106,7 +115,10 @@ public class DeepOwnershipMovePropertyTests
     /// </summary>
     public sealed record ValidMoveScenario(string Source, string Label)
     {
-        public override string ToString() => Label;
+        public override string ToString()
+        {
+            return Label;
+        }
     }
 
 #pragma warning restore CA1034
@@ -145,14 +157,17 @@ public class DeepOwnershipMovePropertyTests
     /// <summary>
     /// Returns a code snippet that accesses the given variable in the specified way.
     /// </summary>
-    private static string GetAccessCode(string varName, PostMoveAccess access, string methodName) => access switch
+    private static string GetAccessCode(string varName, PostMoveAccess access, string methodName)
     {
-        PostMoveAccess.Read => $"int temp = {varName}.value;",
-        PostMoveAccess.Write => $"{varName}.value = 99;",
-        PostMoveAccess.MethodCall => $"{varName}.GetValue();",
-        PostMoveAccess.PassAsArg => $"{methodName}({varName});",
-        _ => throw new ArgumentOutOfRangeException(nameof(access)),
-    };
+        return access switch
+        {
+            PostMoveAccess.Read => $"int temp = {varName}.value;",
+            PostMoveAccess.Write => $"{varName}.value = 99;",
+            PostMoveAccess.MethodCall => $"{varName}.GetValue();",
+            PostMoveAccess.PassAsArg => $"{methodName}({varName});",
+            _ => throw new ArgumentOutOfRangeException(nameof(access)),
+        };
+    }
 
     /// <summary>
     /// Builds a program where an owned binding is moved to another owned binding,
@@ -385,17 +400,25 @@ public class DeepOwnershipMovePropertyTests
 
     // ─── Arbitrary instances ─────────────────────────────────────────────
 
-    public static Arbitrary<OwnedToOwnedMoveScenario> ArbitraryOwnedToOwnedMoveScenario() =>
-        GenOwnedToOwnedMove().ToArbitrary();
+    public static Arbitrary<OwnedToOwnedMoveScenario> ArbitraryOwnedToOwnedMoveScenario()
+    {
+        return GenOwnedToOwnedMove().ToArbitrary();
+    }
 
-    public static Arbitrary<OwnedToUnrestrictedMoveScenario> ArbitraryOwnedToUnrestrictedMoveScenario() =>
-        GenOwnedToUnrestrictedMove().ToArbitrary();
+    public static Arbitrary<OwnedToUnrestrictedMoveScenario> ArbitraryOwnedToUnrestrictedMoveScenario()
+    {
+        return GenOwnedToUnrestrictedMove().ToArbitrary();
+    }
 
-    public static Arbitrary<OwnedParameterMoveScenario> ArbitraryOwnedParameterMoveScenario() =>
-        GenOwnedParameterMove().ToArbitrary();
+    public static Arbitrary<OwnedParameterMoveScenario> ArbitraryOwnedParameterMoveScenario()
+    {
+        return GenOwnedParameterMove().ToArbitrary();
+    }
 
-    public static Arbitrary<ValidMoveScenario> ArbitraryValidMoveScenario() =>
-        GenValidMove().ToArbitrary();
+    public static Arbitrary<ValidMoveScenario> ArbitraryValidMoveScenario()
+    {
+        return GenValidMove().ToArbitrary();
+    }
 
     // ═══════════════════════════════════════════════════════════════════════
     // Property 6a: Owned-to-owned move — source becomes dead

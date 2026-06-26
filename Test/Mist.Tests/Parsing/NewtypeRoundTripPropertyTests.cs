@@ -30,8 +30,10 @@ public class NewtypeRoundTripPropertyTests
 
     // ─── Arbitrary registration ──────────────────────────────────────────
 
-    public static Arbitrary<NewtypeSourceScenario> ArbitraryNewtypeSourceScenario() =>
-        MistNewtypeGenerator.GenNewtypeSource().ToArbitrary();
+    public static Arbitrary<NewtypeSourceScenario> ArbitraryNewtypeSourceScenario()
+    {
+        return MistNewtypeGenerator.GenNewtypeSource().ToArbitrary();
+    }
 
     // ─── Helpers ────────────────────────────────────────────────────────────
 

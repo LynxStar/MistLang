@@ -38,7 +38,10 @@ public sealed class EnumerableEmissionScenario
         Description = description;
     }
 
-    public override string ToString() => Description;
+    public override string ToString()
+    {
+        return Description;
+    }
 }
 
 /// <summary>
@@ -58,7 +61,10 @@ public sealed class ForeachEmissionScenario
         Description = description;
     }
 
-    public override string ToString() => Description;
+    public override string ToString()
+    {
+        return Description;
+    }
 }
 
 // ─── Property Tests ─────────────────────────────────────────────────────────
@@ -284,11 +290,15 @@ public sealed class IteratorEmissionPropertyTests : IDisposable
 
     // ─── Arbitrary registration ──────────────────────────────────────────
 
-    public static Arbitrary<EnumerableEmissionScenario> ArbitraryEnumerableEmission() =>
-        GenEnumerableScenario().ToArbitrary();
+    public static Arbitrary<EnumerableEmissionScenario> ArbitraryEnumerableEmission()
+    {
+        return GenEnumerableScenario().ToArbitrary();
+    }
 
-    public static Arbitrary<ForeachEmissionScenario> ArbitraryForeachEmission() =>
-        GenForeachScenario().ToArbitrary();
+    public static Arbitrary<ForeachEmissionScenario> ArbitraryForeachEmission()
+    {
+        return GenForeachScenario().ToArbitrary();
+    }
 
     // ═══════════════════════════════════════════════════════════════════════
     // Property 6a: IEnumerable<TElement> maps to System.Collections.Generic.IEnumerable<TElement>

@@ -27,8 +27,10 @@ public class StackallocMissingSizeRecoveryPropertyTests
 
     // ─── Arbitrary registration ──────────────────────────────────────────
 
-    public static Arbitrary<StackallocSourceScenario> ArbitraryMissingSizeScenario() =>
-        MistStackallocGenerator.GenMissingOrEmptySizeSource().ToArbitrary();
+    public static Arbitrary<StackallocSourceScenario> ArbitraryMissingSizeScenario()
+    {
+        return MistStackallocGenerator.GenMissingOrEmptySizeSource().ToArbitrary();
+    }
 
     // ═══════════════════════════════════════════════════════════════════════
     // Property 3: Stackalloc missing/empty size is rejected and recovered

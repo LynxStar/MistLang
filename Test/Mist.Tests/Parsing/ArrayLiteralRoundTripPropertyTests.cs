@@ -63,7 +63,10 @@ public class ArrayLiteralRoundTripPropertyTests
 #pragma warning disable CA1034
     public record ArrayLiteralRoundTripScenario(string Source, string ArrayLiteral)
     {
-        public override string ToString() => ArrayLiteral;
+        public override string ToString()
+        {
+            return ArrayLiteral;
+        }
     }
 #pragma warning restore CA1034
 

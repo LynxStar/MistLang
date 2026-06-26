@@ -30,8 +30,10 @@ public class VoidArrayRestrictionPropertyTests
 
     // ─── Helpers ─────────────────────────────────────────────────────────
 
-    private static Storm.Runtime.Token Tok(string lexeme) =>
-        MistTypeGenerator.MakeToken(lexeme);
+    private static Storm.Runtime.Token Tok(string lexeme)
+    {
+        return MistTypeGenerator.MakeToken(lexeme);
+    }
 
     private static MistCompilation MakeCompilation(string source = "")
     {
@@ -77,8 +79,10 @@ public class VoidArrayRestrictionPropertyTests
         string VarName,
         int ArraySize)
     {
-        public override string ToString() =>
-            $"{Context} (var={VarName}, size={ArraySize})";
+        public override string ToString()
+        {
+            return $"{Context} (var={VarName}, size={ArraySize})";
+        }
     }
 
 #pragma warning restore CA1034
@@ -98,8 +102,10 @@ public class VoidArrayRestrictionPropertyTests
                select new VoidArrayScenario(context, varName, arraySize);
     }
 
-    public static Arbitrary<VoidArrayScenario> ArbitraryScenario() =>
-        GenScenario().ToArbitrary();
+    public static Arbitrary<VoidArrayScenario> ArbitraryScenario()
+    {
+        return GenScenario().ToArbitrary();
+    }
 
     // ─── AST construction helpers ────────────────────────────────────────
 

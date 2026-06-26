@@ -33,7 +33,10 @@ public sealed class ConstrainedMemberAccessScenario
         ShouldAccept = shouldAccept;
     }
 
-    public override string ToString() => $"[{(ShouldAccept ? "ACCEPT" : "REJECT")}] {Description}";
+    public override string ToString()
+    {
+        return $"[{(ShouldAccept ? "ACCEPT" : "REJECT")}] {Description}";
+    }
 }
 
 /// <summary>
@@ -265,8 +268,10 @@ class Program {{
             GenInheritedBaseClassMethodAccessible());
     }
 
-    public static Arbitrary<ConstrainedMemberAccessScenario> ArbitraryConstrainedMemberAccessScenario() =>
-        Arb.From(GenScenario());
+    public static Arbitrary<ConstrainedMemberAccessScenario> ArbitraryConstrainedMemberAccessScenario()
+    {
+        return Arb.From(GenScenario());
+    }
 
     // ═══════════════════════════════════════════════════════════════════════
     // Property 5: Constrained Member Accessibility

@@ -29,8 +29,10 @@ public class NewtypeParserPropertyTests
 
     // ─── FsCheck Arbitrary registration ─────────────────────────────────────
 
-    public static Arbitrary<NewtypeSourceScenario> ArbitraryNewtypeSourceScenario() =>
-        MistNewtypeGenerator.ArbitraryNewtypeSourceScenario();
+    public static Arbitrary<NewtypeSourceScenario> ArbitraryNewtypeSourceScenario()
+    {
+        return MistNewtypeGenerator.ArbitraryNewtypeSourceScenario();
+    }
 
     // ─── Helpers ────────────────────────────────────────────────────────────
 

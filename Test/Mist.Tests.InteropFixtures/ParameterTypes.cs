@@ -13,7 +13,10 @@ public class HasOutParam
     /// <summary>
     /// A method without out params that should still be visible.
     /// </summary>
-    public int Parse(string input) => int.Parse(input);
+    public int Parse(string input)
+    {
+        return int.Parse(input);
+    }
 }
 
 /// <summary>
@@ -29,7 +32,10 @@ public class HasRefParam
     /// <summary>
     /// A method without ref params that should still be visible.
     /// </summary>
-    public int Add(int a, int b) => a + b;
+    public int Add(int a, int b)
+    {
+        return a + b;
+    }
 }
 
 /// <summary>
@@ -37,7 +43,18 @@ public class HasRefParam
 /// </summary>
 public class HasInParam
 {
-    public int ReadValue(in int value) => value * 2;
-    public int Sum(in int a, in int b) => a + b;
-    public string Format(in int value) => value.ToString();
+    public int ReadValue(in int value)
+    {
+        return value * 2;
+    }
+
+    public int Sum(in int a, in int b)
+    {
+        return a + b;
+    }
+
+    public string Format(in int value)
+    {
+        return value.ToString();
+    }
 }

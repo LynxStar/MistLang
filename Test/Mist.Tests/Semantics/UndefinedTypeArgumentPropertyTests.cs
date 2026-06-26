@@ -155,8 +155,10 @@ public class UndefinedTypeArgumentPropertyTests
                    undefinedArgs.ToImmutableArray());
     }
 
-    public static Arbitrary<UndefinedTypeArgScenario> ArbitraryUndefinedTypeArgScenario() =>
-        GenUndefinedTypeArgScenario().ToArbitrary();
+    public static Arbitrary<UndefinedTypeArgScenario> ArbitraryUndefinedTypeArgScenario()
+    {
+        return GenUndefinedTypeArgScenario().ToArbitrary();
+    }
 
     // ─── Property tests ──────────────────────────────────────────────────
 

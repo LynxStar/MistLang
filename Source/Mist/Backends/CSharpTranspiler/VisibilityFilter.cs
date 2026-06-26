@@ -252,8 +252,10 @@ internal sealed class VisibilityFilter
     /// Builds a hidden classification with no offending type names (used for reasons other than
     /// excluded-type references, which do not carry offending types).
     /// </summary>
-    private static MemberClassification Hidden(MemberHiddenReason reason) =>
-        new(true, reason, ImmutableArray<string>.Empty);
+    private static MemberClassification Hidden(MemberHiddenReason reason)
+    {
+        return new(true, reason, ImmutableArray<string>.Empty);
+    }
 
     /// <summary>
     /// Determines whether a type is a ref struct (carries

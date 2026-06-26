@@ -126,8 +126,10 @@ public sealed class ContextCheckerScenario
         ExpectedDiagnosticCount = expectedDiagnosticCount;
     }
 
-    public override string ToString() =>
-        $"[{Kind}] expect {ExpectedDiagnosticCount} MIST_CTX_0001 diagnostic(s)";
+    public override string ToString()
+    {
+        return $"[{Kind}] expect {ExpectedDiagnosticCount} MIST_CTX_0001 diagnostic(s)";
+    }
 }
 
 // ─── Property test class ─────────────────────────────────────────────────
@@ -262,8 +264,10 @@ public sealed class ContextCheckerSoundnessPropertyTests
             GenContextDeclaredAfterCallSite());
     }
 
-    public static Arbitrary<ContextCheckerScenario> ArbitraryContextCheckerScenario() =>
-        GenScenario().ToArbitrary();
+    public static Arbitrary<ContextCheckerScenario> ArbitraryContextCheckerScenario()
+    {
+        return GenScenario().ToArbitrary();
+    }
 
     // ─── Scenario builders ──────────────────────────────────────────────
 

@@ -364,7 +364,10 @@ public class TypeCheckerConstructorChainBugTests
 #pragma warning disable CA1034
     public record BugConditionScenario(string Label)
     {
-        public override string ToString() => Label;
+        public override string ToString()
+        {
+            return Label;
+        }
     }
 #pragma warning restore CA1034
 

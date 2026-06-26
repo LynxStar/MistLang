@@ -31,7 +31,10 @@ public sealed class OptionalTypeSuffixScenario
         IsPrimitive = isPrimitive;
     }
 
-    public override string ToString() => $"{TypeName}?";
+    public override string ToString()
+    {
+        return $"{TypeName}?";
+    }
 }
 
 /// <summary>
@@ -55,7 +58,10 @@ public sealed class TypePositionScenario
         Source = source;
     }
 
-    public override string ToString() => $"{TypeName}? in {PositionDescription}";
+    public override string ToString()
+    {
+        return $"{TypeName}? in {PositionDescription}";
+    }
 }
 
 // ─── Property Tests ─────────────────────────────────────────────────────────

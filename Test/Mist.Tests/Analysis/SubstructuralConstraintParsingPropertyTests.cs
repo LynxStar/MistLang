@@ -129,8 +129,10 @@ public class SubstructuralConstraintParsingPropertyTests
             _ => "linear",
         };
 
-        public override string ToString() =>
-            $"class {ClassName}<{TypeParamName}> where {TypeParamName} : {DisciplineKeyword}";
+        public override string ToString()
+        {
+            return $"class {ClassName}<{TypeParamName}> where {TypeParamName} : {DisciplineKeyword}";
+        }
     }
 
 #pragma warning restore CA1034
@@ -154,8 +156,10 @@ public class SubstructuralConstraintParsingPropertyTests
                select new ConstraintParsingScenario(discipline, className, typeParamName);
     }
 
-    public static Arbitrary<ConstraintParsingScenario> ArbitraryScenario() =>
-        GenScenario().ToArbitrary();
+    public static Arbitrary<ConstraintParsingScenario> ArbitraryScenario()
+    {
+        return GenScenario().ToArbitrary();
+    }
 
     // ─── Source builder ──────────────────────────────────────────────────
 

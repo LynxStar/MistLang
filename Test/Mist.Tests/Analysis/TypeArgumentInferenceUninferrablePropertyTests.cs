@@ -56,7 +56,10 @@ public sealed class UninferrableTypeParameterScenario
         Description = description;
     }
 
-    public override string ToString() => Description;
+    public override string ToString()
+    {
+        return Description;
+    }
 }
 
 /// <summary>
@@ -252,8 +255,10 @@ public class TypeArgumentInferenceUninferrablePropertyTests
             GenAllUninferrableNoParamsScenario());
     }
 
-    public static Arbitrary<UninferrableTypeParameterScenario> ArbitraryUninferrableTypeParameterScenario() =>
-        GenScenario().ToArbitrary();
+    public static Arbitrary<UninferrableTypeParameterScenario> ArbitraryUninferrableTypeParameterScenario()
+    {
+        return GenScenario().ToArbitrary();
+    }
 
     // ─── Property test ───────────────────────────────────────────────────
 

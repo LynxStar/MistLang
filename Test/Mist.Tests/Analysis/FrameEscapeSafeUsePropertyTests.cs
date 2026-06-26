@@ -97,7 +97,10 @@ public class FrameEscapeSafeUsePropertyTests
         int Size,
         string Description)
     {
-        public override string ToString() => Description;
+        public override string ToString()
+        {
+            return Description;
+        }
     }
 
 #pragma warning restore CA1034
@@ -119,14 +122,18 @@ public class FrameEscapeSafeUsePropertyTests
                    $"{shape} with Span<{elementType}>[{size}]");
     }
 
-    public static Arbitrary<SafeUseScenario> ArbitrarySafeUseScenario() =>
-        GenScenario().ToArbitrary();
+    public static Arbitrary<SafeUseScenario> ArbitrarySafeUseScenario()
+    {
+        return GenScenario().ToArbitrary();
+    }
 
     // ─── Source builders ─────────────────────────────────────────────────
 
-    private static string BuildProgram(SafeUseScenario scenario) => scenario.Shape switch
+    private static string BuildProgram(SafeUseScenario scenario)
     {
-        SafeUseShape.LocalRead => $$"""
+        return scenario.Shape switch
+        {
+            SafeUseShape.LocalRead => $$"""
             class Program {
                 static void Main() {
                     var s = stackalloc {{scenario.ElementType}}[{{scenario.Size}}];
@@ -135,7 +142,7 @@ public class FrameEscapeSafeUsePropertyTests
             }
             """,
 
-        SafeUseShape.IndexerWrite => $$"""
+            SafeUseShape.IndexerWrite => $$"""
             class Program {
                 static void Main() {
                     var s = stackalloc {{scenario.ElementType}}[{{scenario.Size}}];
@@ -144,7 +151,7 @@ public class FrameEscapeSafeUsePropertyTests
             }
             """,
 
-        SafeUseShape.IndexerRead => $$"""
+            SafeUseShape.IndexerRead => $$"""
             class Program {
                 static void Main() {
                     var s = stackalloc {{scenario.ElementType}}[{{scenario.Size}}];
@@ -153,7 +160,7 @@ public class FrameEscapeSafeUsePropertyTests
             }
             """,
 
-        SafeUseShape.SliceInFrame => $$"""
+            SafeUseShape.SliceInFrame => $$"""
             class Program {
                 static void Main() {
                     var s = stackalloc {{scenario.ElementType}}[{{scenario.Size}}];
@@ -163,7 +170,7 @@ public class FrameEscapeSafeUsePropertyTests
             }
             """,
 
-        SafeUseShape.ForeachIteration => $$"""
+            SafeUseShape.ForeachIteration => $$"""
             class Program {
                 static void Main() {
                     var s = stackalloc {{scenario.ElementType}}[{{scenario.Size}}];
@@ -173,7 +180,7 @@ public class FrameEscapeSafeUsePropertyTests
             }
             """,
 
-        SafeUseShape.CallArgument => $$"""
+            SafeUseShape.CallArgument => $$"""
             class Program {
                 static void Consume(Span<{{scenario.ElementType}}> arg) {
                     int len = arg.Length;
@@ -185,7 +192,7 @@ public class FrameEscapeSafeUsePropertyTests
             }
             """,
 
-        SafeUseShape.ParameterSpan => $$"""
+            SafeUseShape.ParameterSpan => $$"""
             class Program {
                 static void UseParam(Span<{{scenario.ElementType}}> p) {
                     int len = p.Length;
@@ -198,7 +205,7 @@ public class FrameEscapeSafeUsePropertyTests
             }
             """,
 
-        SafeUseShape.AsSpanResult => $$"""
+            SafeUseShape.AsSpanResult => $$"""
             class Program {
                 static void Main() {
                     {{scenario.ElementType}}[] arr = new {{scenario.ElementType}}[{{scenario.Size}}];
@@ -208,7 +215,7 @@ public class FrameEscapeSafeUsePropertyTests
             }
             """,
 
-        SafeUseShape.ParameterReadOnlySpan => $$"""
+            SafeUseShape.ParameterReadOnlySpan => $$"""
             class Program {
                 static void UseParam(ReadOnlySpan<{{scenario.ElementType}}> p) {
                     int len = p.Length;
@@ -221,8 +228,9 @@ public class FrameEscapeSafeUsePropertyTests
             }
             """,
 
-        _ => throw new ArgumentOutOfRangeException(),
-    };
+            _ => throw new ArgumentOutOfRangeException(),
+        };
+    }
 
     // ─── Compilation helper ──────────────────────────────────────────────
 

@@ -210,7 +210,10 @@ public sealed class MoveBoundaryClonableSourcePropertyTests : IDisposable
     /// </summary>
     public sealed record ClonableSourceScenario(string Source, string Label)
     {
-        public override string ToString() => Label;
+        public override string ToString()
+        {
+            return Label;
+        }
     }
 
 #pragma warning restore CA1034
@@ -233,8 +236,10 @@ public sealed class MoveBoundaryClonableSourcePropertyTests : IDisposable
                select Build(declaresExplicit, fields);
     }
 
-    private static Gen<FieldKind> GenField() =>
-        Gen.Elements(FieldKind.IntLeaf, FieldKind.StringLeaf, FieldKind.ClonableRef);
+    private static Gen<FieldKind> GenField()
+    {
+        return Gen.Elements(FieldKind.IntLeaf, FieldKind.StringLeaf, FieldKind.ClonableRef);
+    }
 
     private static ClonableSourceScenario Build(bool declaresExplicit, List<FieldKind> fields)
     {
@@ -287,8 +292,10 @@ public sealed class MoveBoundaryClonableSourcePropertyTests : IDisposable
         return new ClonableSourceScenario(sb.ToString(), label);
     }
 
-    public static Arbitrary<ClonableSourceScenario> ArbitraryClonableSourceScenario() =>
-        GenScenario().ToArbitrary();
+    public static Arbitrary<ClonableSourceScenario> ArbitraryClonableSourceScenario()
+    {
+        return GenScenario().ToArbitrary();
+    }
 
     // ═══════════════════════════════════════════════════════════════════════
     // Property 3: Non-owned clonable reference source ⇒ Resolve == ImplicitClone,

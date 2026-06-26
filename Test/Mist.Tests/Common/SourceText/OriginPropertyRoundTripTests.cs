@@ -73,11 +73,15 @@ public class OriginPropertyRoundTripTests
             Gen.Constant<SyntaxNode>(new CompilationUnitNode()));
     }
 
-    public static Arbitrary<NodeOrigin> ArbNodeOrigin() =>
-        GenNodeOrigin().ToArbitrary();
+    public static Arbitrary<NodeOrigin> ArbNodeOrigin()
+    {
+        return GenNodeOrigin().ToArbitrary();
+    }
 
-    public static Arbitrary<SyntaxNode> ArbSyntaxNode() =>
-        GenSyntaxNode().ToArbitrary();
+    public static Arbitrary<SyntaxNode> ArbSyntaxNode()
+    {
+        return GenSyntaxNode().ToArbitrary();
+    }
 
     // ═══════════════════════════════════════════════════════════════════════
     // Property tests

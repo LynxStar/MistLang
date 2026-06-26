@@ -38,7 +38,10 @@ public sealed class CompatibleAnnotationScenario
         Description = description;
     }
 
-    public override string ToString() => Description;
+    public override string ToString()
+    {
+        return Description;
+    }
 }
 
 /// <summary>
@@ -60,7 +63,10 @@ public sealed class IncompatibleAnnotationScenario
         Description = description;
     }
 
-    public override string ToString() => Description;
+    public override string ToString()
+    {
+        return Description;
+    }
 }
 
 // ─── Property Tests ─────────────────────────────────────────────────────────
@@ -215,11 +221,15 @@ public sealed class ForeachExplicitTypeAnnotationPropertyTests : IDisposable
 
     // ─── Arbitrary registration ──────────────────────────────────────────
 
-    public static Arbitrary<CompatibleAnnotationScenario> ArbitraryCompatibleAnnotation() =>
-        GenCompatibleAnnotationScenario().ToArbitrary();
+    public static Arbitrary<CompatibleAnnotationScenario> ArbitraryCompatibleAnnotation()
+    {
+        return GenCompatibleAnnotationScenario().ToArbitrary();
+    }
 
-    public static Arbitrary<IncompatibleAnnotationScenario> ArbitraryIncompatibleAnnotation() =>
-        GenIncompatibleAnnotationScenario().ToArbitrary();
+    public static Arbitrary<IncompatibleAnnotationScenario> ArbitraryIncompatibleAnnotation()
+    {
+        return GenIncompatibleAnnotationScenario().ToArbitrary();
+    }
 
     // ═══════════════════════════════════════════════════════════════════════
     // Property 5a: Compatible explicit type annotations produce zero diagnostics

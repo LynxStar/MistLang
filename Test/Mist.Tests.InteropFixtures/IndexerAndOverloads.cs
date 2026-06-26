@@ -23,9 +23,15 @@ public class HasIndexer
 /// </summary>
 public class HasOptionalParams
 {
-    public int Compute(int a, int b = 10, int c = 20) => a + b + c;
+    public int Compute(int a, int b = 10, int c = 20)
+    {
+        return a + b + c;
+    }
+
     public string Format(string value, string prefix = "[", string suffix = "]")
-        => $"{prefix}{value}{suffix}";
+    {
+        return $"{prefix}{value}{suffix}";
+    }
 }
 
 /// <summary>
@@ -33,13 +39,31 @@ public class HasOptionalParams
 /// </summary>
 public class HasOverloads
 {
-    public int Process(int value) => value;
-    public int Process(int a, int b) => a + b;
-    public int Process(int a, int b, int c) => a + b + c;
-    public string Process(string value) => value.ToUpper();
+    public int Process(int value)
+    {
+        return value;
+    }
+
+    public int Process(int a, int b)
+    {
+        return a + b;
+    }
+
+    public int Process(int a, int b, int c)
+    {
+        return a + b + c;
+    }
+
+    public string Process(string value)
+    {
+        return value.ToUpper();
+    }
 
     /// <summary>
     /// This overload has an out param — projected as ref with ClrCallingConvention.Out.
     /// </summary>
-    public bool Process(string input, out int result) => int.TryParse(input, out result);
+    public bool Process(string input, out int result)
+    {
+        return int.TryParse(input, out result);
+    }
 }

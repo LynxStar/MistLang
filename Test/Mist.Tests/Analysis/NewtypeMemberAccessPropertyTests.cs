@@ -96,7 +96,10 @@ public sealed class NewtypeMemberAccessPropertyTests
         int ScenarioCount,
         string Description)
     {
-        public override string ToString() => Description;
+        public override string ToString()
+        {
+            return Description;
+        }
     }
 
 #pragma warning restore CA1034

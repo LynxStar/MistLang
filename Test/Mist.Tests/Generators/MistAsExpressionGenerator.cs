@@ -20,8 +20,10 @@ namespace Mist.Tests.Generators;
 /// </summary>
 public static class MistAsExpressionGenerator
 {
-    private static Storm.Runtime.Token Tok(string lexeme) =>
-        MistTypeGenerator.MakeToken(lexeme);
+    private static Storm.Runtime.Token Tok(string lexeme)
+    {
+        return MistTypeGenerator.MakeToken(lexeme);
+    }
 
     // ═══════════════════════════════════════════════════════════════════════
     // Name pools

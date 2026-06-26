@@ -52,24 +52,63 @@ public sealed class SyntheticDropInferenceDisposableExclusionPropertyTests
         public IScope GlobalScope => null!;
         public IReadOnlyList<CompilationUnit> Units => Array.Empty<CompilationUnit>();
         public ImmutableArray<Storm.Runtime.SyntaxNode> Asts => ImmutableArray<Storm.Runtime.SyntaxNode>.Empty;
-        public Storm.Runtime.SyntaxNode GetDeclaringNode(ISymbol symbol) => null!;
-        public ISymbol? GetDeclaredSymbol(Storm.Runtime.SyntaxNode node) => null;
-        public IType? GetTypeOf(Storm.Runtime.SyntaxNode node) => null;
+        public Storm.Runtime.SyntaxNode GetDeclaringNode(ISymbol symbol)
+        {
+            return null!;
+        }
+
+        public ISymbol? GetDeclaredSymbol(Storm.Runtime.SyntaxNode node)
+        {
+            return null;
+        }
+
+        public IType? GetTypeOf(Storm.Runtime.SyntaxNode node)
+        {
+            return null;
+        }
+
         public void SetTypeOf(Storm.Runtime.SyntaxNode node, IType type) { }
         public void RecordResolvedOperator(Storm.Runtime.SyntaxNode node, ISymbol op) { }
-        public ISymbol? GetResolvedOperator(Storm.Runtime.SyntaxNode node) => null;
+        public ISymbol? GetResolvedOperator(Storm.Runtime.SyntaxNode node)
+        {
+            return null;
+        }
+
         public ExtensionRegistry ExtensionRegistry => null!;
         public ConformanceMap ConformanceMap => null!;
-        public RefinementPredicate? GetParameterRefinement(ISymbol parameterSymbol) => null;
+        public RefinementPredicate? GetParameterRefinement(ISymbol parameterSymbol)
+        {
+            return null;
+        }
+
         public void RecordGuardNeeded(ISymbol parameterSymbol) { }
-        public bool IsGuardElidable(ISymbol parameterSymbol) => false;
-        public IReadOnlyList<DiscardedTaskInfo> GetDiscardedTasks(Storm.Runtime.SyntaxNode blockScopeNode) => Array.Empty<DiscardedTaskInfo>();
+        public bool IsGuardElidable(ISymbol parameterSymbol)
+        {
+            return false;
+        }
+
+        public IReadOnlyList<DiscardedTaskInfo> GetDiscardedTasks(Storm.Runtime.SyntaxNode blockScopeNode)
+        {
+            return Array.Empty<DiscardedTaskInfo>();
+        }
+
         public void RecordInferredTypeArguments(Storm.Runtime.SyntaxNode callSiteNode, IReadOnlyList<IType> inferredTypeArgs) { }
-        public IReadOnlyList<IType>? GetInferredTypeArguments(Storm.Runtime.SyntaxNode callSiteNode) => null;
+        public IReadOnlyList<IType>? GetInferredTypeArguments(Storm.Runtime.SyntaxNode callSiteNode)
+        {
+            return null;
+        }
+
         public void RecordImplicitClone(Storm.Runtime.SyntaxNode source, IType destinationType) { }
-        public IType? GetImplicitCloneDestination(Storm.Runtime.SyntaxNode source) => null;
+        public IType? GetImplicitCloneDestination(Storm.Runtime.SyntaxNode source)
+        {
+            return null;
+        }
+
         public void RecordAsConversionKind(Storm.Runtime.SyntaxNode node, AsConversionKind kind) { }
-        public AsConversionKind? GetAsConversionKind(Storm.Runtime.SyntaxNode node) => null;
+        public AsConversionKind? GetAsConversionKind(Storm.Runtime.SyntaxNode node)
+        {
+            return null;
+        }
     }
 
     // ─── Field configuration enum ───────────────────────────────────────
@@ -106,7 +145,10 @@ public sealed class SyntheticDropInferenceDisposableExclusionPropertyTests
             Label = label;
         }
 
-        public override string ToString() => Label;
+        public override string ToString()
+        {
+            return Label;
+        }
     }
 
 #pragma warning restore CA1034
@@ -128,8 +170,10 @@ public sealed class SyntheticDropInferenceDisposableExclusionPropertyTests
         return new DisposableExclusionScenario(configs, label);
     }
 
-    public static Arbitrary<DisposableExclusionScenario> ArbitraryDisposableExclusionScenario() =>
-        GenScenario().ToArbitrary();
+    public static Arbitrary<DisposableExclusionScenario> ArbitraryDisposableExclusionScenario()
+    {
+        return GenScenario().ToArbitrary();
+    }
 
     // ─── Test infrastructure ─────────────────────────────────────────────
 

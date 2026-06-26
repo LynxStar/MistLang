@@ -72,7 +72,10 @@ public class ResultTypeUnificationPropertyTests
     /// </summary>
     public sealed record SameTypeScenario(string Source, string ResultType, string Label)
     {
-        public override string ToString() => Label;
+        public override string ToString()
+        {
+            return Label;
+        }
     }
 
     /// <summary>
@@ -80,7 +83,10 @@ public class ResultTypeUnificationPropertyTests
     /// </summary>
     public sealed record IncompatibleTypeScenario(string Source, string Label)
     {
-        public override string ToString() => Label;
+        public override string ToString()
+        {
+            return Label;
+        }
     }
 
 #pragma warning restore CA1034

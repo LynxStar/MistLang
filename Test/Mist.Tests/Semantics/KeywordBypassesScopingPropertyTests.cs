@@ -158,7 +158,9 @@ public class KeywordBypassesScopingPropertyTests
     public record AdversarialScenario(string Keyword, string StdlibSimpleName, string UserNamespace)
     {
         public override string ToString()
-            => $"Keyword={Keyword}, StdlibSimpleName={StdlibSimpleName}, UserNs={UserNamespace}";
+        {
+            return $"Keyword={Keyword}, StdlibSimpleName={StdlibSimpleName}, UserNs={UserNamespace}";
+        }
     }
 #pragma warning restore CA1034
 

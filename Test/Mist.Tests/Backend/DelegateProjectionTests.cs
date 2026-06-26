@@ -73,7 +73,10 @@ public sealed class DelegateProjectionTests
             return func;
         }
 
-        public IType LookupStandardType(string simpleName) => LookupStandardType(simpleName, -1);
+        public IType LookupStandardType(string simpleName)
+        {
+            return LookupStandardType(simpleName, -1);
+        }
 
         public IType LookupStandardType(string simpleName, int typeArgumentCount)
         {

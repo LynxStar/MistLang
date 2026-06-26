@@ -26,7 +26,10 @@ public interface IAmbientTypeResolver
     /// overload with exactly that many type parameters (e.g., <c>Func`2</c> for arity 2).
     /// Falls back to <see cref="ResolveType(string, string)"/> when arity is not relevant.
     /// </summary>
-    IType? ResolveType(string namespaceName, string typeName, int typeArgumentCount) => ResolveType(namespaceName, typeName);
+    IType? ResolveType(string namespaceName, string typeName, int typeArgumentCount)
+    {
+        return ResolveType(namespaceName, typeName);
+    }
 
     /// <summary>
     /// Get the members (methods, fields, constructors) of a previously resolved type.

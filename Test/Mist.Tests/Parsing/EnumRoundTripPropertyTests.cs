@@ -30,8 +30,10 @@ public class EnumRoundTripPropertyTests
 
     // ─── Arbitrary registration ──────────────────────────────────────────
 
-    public static Arbitrary<EnumSourceScenario> ArbitraryEnumSourceScenario() =>
-        MistEnumGenerator.GenEnumSource().ToArbitrary();
+    public static Arbitrary<EnumSourceScenario> ArbitraryEnumSourceScenario()
+    {
+        return MistEnumGenerator.GenEnumSource().ToArbitrary();
+    }
 
     // ─── Helpers ────────────────────────────────────────────────────────────
 

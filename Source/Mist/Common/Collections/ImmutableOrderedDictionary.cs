@@ -33,15 +33,25 @@ public sealed class ImmutableOrderedDictionary<TKey, TValue> : IReadOnlyDictiona
 
     public TValue this[TKey key] => lookup[key];
 
-    public bool ContainsKey(TKey key) => lookup.ContainsKey(key);
+    public bool ContainsKey(TKey key)
+    {
+        return lookup.ContainsKey(key);
+    }
 
     public bool TryGetValue(TKey key, [MaybeNullWhen(false)] out TValue value)
-        => lookup.TryGetValue(key, out value);
+    {
+        return lookup.TryGetValue(key, out value);
+    }
 
     public IEnumerator<KeyValuePair<TKey, TValue>> GetEnumerator()
-        => ((IEnumerable<KeyValuePair<TKey, TValue>>)entries).GetEnumerator();
+    {
+        return ((IEnumerable<KeyValuePair<TKey, TValue>>)entries).GetEnumerator();
+    }
 
-    IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+    IEnumerator IEnumerable.GetEnumerator()
+    {
+        return GetEnumerator();
+    }
 
     /// <summary>
     /// Returns a new map with the given key-value pair appended.
@@ -68,7 +78,10 @@ public sealed class ImmutableOrderedDictionary<TKey, TValue> : IReadOnlyDictiona
             entries.Add(new KeyValuePair<TKey, TValue>(key, value));
         }
 
-        public bool ContainsKey(TKey key) => lookup.ContainsKey(key);
+        public bool ContainsKey(TKey key)
+        {
+            return lookup.ContainsKey(key);
+        }
 
         public ImmutableOrderedDictionary<TKey, TValue> ToImmutable()
         {

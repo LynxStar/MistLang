@@ -151,8 +151,10 @@ public class AsyncFunctorNeedsAsyncBugConditionPropertyTests
                select new AsyncFunctorSeedScenario(helper.ReturnType, helper.Body, methodName, count);
     }
 
-    public static Arbitrary<AsyncFunctorSeedScenario> ArbitraryAsyncFunctorSeedScenario() =>
-        GenAsyncFunctorSeedScenario().ToArbitrary();
+    public static Arbitrary<AsyncFunctorSeedScenario> ArbitraryAsyncFunctorSeedScenario()
+    {
+        return GenAsyncFunctorSeedScenario().ToArbitrary();
+    }
 
     // ─── Source construction ─────────────────────────────────────────────
 

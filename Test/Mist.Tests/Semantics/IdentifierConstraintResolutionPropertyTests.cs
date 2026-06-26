@@ -126,9 +126,11 @@ public class IdentifierConstraintResolutionPropertyTests
             return $"{refinementDecl}\n{typeDecl}";
         }
 
-        public override string ToString() =>
-            $"{(IsStruct ? "struct" : "class")} {ClassName}<{ParamName}:{RefinementName}> " +
+        public override string ToString()
+        {
+            return $"{(IsStruct ? "struct" : "class")} {ClassName}<{ParamName}:{RefinementName}> " +
             $"where {RefinementName} = {BaseType} >= 0";
+        }
     }
 #pragma warning restore CA1034
 
@@ -154,8 +156,10 @@ public class IdentifierConstraintResolutionPropertyTests
                    baseType, refinementName, className, paramName, isStruct);
     }
 
-    public static Arbitrary<ConstraintResolutionScenario> ArbitraryScenario() =>
-        GenScenario().ToArbitrary();
+    public static Arbitrary<ConstraintResolutionScenario> ArbitraryScenario()
+    {
+        return GenScenario().ToArbitrary();
+    }
 
     // ═══════════════════════════════════════════════════════════════════════
     // Property 2: Identifier Constraint Resolution Correctness

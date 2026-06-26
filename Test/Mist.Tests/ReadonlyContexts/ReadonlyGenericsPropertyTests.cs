@@ -40,7 +40,10 @@ public sealed class ReadonlyTypeArgPassingScenario
         Description = description;
     }
 
-    public override string ToString() => Description;
+    public override string ToString()
+    {
+        return Description;
+    }
 }
 
 /// <summary>
@@ -61,7 +64,10 @@ public sealed class GenericConstraintScenario
         Description = description;
     }
 
-    public override string ToString() => Description;
+    public override string ToString()
+    {
+        return Description;
+    }
 }
 
 /// <summary>
@@ -82,7 +88,10 @@ public sealed class GenericConstraintMemberAccessScenario
         Description = description;
     }
 
-    public override string ToString() => Description;
+    public override string ToString()
+    {
+        return Description;
+    }
 }
 
 /// <summary>
@@ -103,7 +112,10 @@ public sealed class AbstractContractScenario
         Description = description;
     }
 
-    public override string ToString() => Description;
+    public override string ToString()
+    {
+        return Description;
+    }
 }
 
 // ─── Generators ─────────────────────────────────────────────────────────────
@@ -400,17 +412,25 @@ public sealed class ReadonlyGenericsPropertyTests : IDisposable
 
     // ─── Arbitrary registration ─────────────────────────────────────────
 
-    public static Arbitrary<ReadonlyTypeArgPassingScenario> ArbitraryReadonlyTypeArgPassing() =>
-        ReadonlyGenericsGenerators.GenReadonlyTypeArgPassing().ToArbitrary();
+    public static Arbitrary<ReadonlyTypeArgPassingScenario> ArbitraryReadonlyTypeArgPassing()
+    {
+        return ReadonlyGenericsGenerators.GenReadonlyTypeArgPassing().ToArbitrary();
+    }
 
-    public static Arbitrary<GenericConstraintScenario> ArbitraryGenericConstraint() =>
-        ReadonlyGenericsGenerators.GenGenericConstraintViolation().ToArbitrary();
+    public static Arbitrary<GenericConstraintScenario> ArbitraryGenericConstraint()
+    {
+        return ReadonlyGenericsGenerators.GenGenericConstraintViolation().ToArbitrary();
+    }
 
-    public static Arbitrary<GenericConstraintMemberAccessScenario> ArbitraryGenericConstraintMemberAccess() =>
-        ReadonlyGenericsGenerators.GenGenericConstraintMemberAccess().ToArbitrary();
+    public static Arbitrary<GenericConstraintMemberAccessScenario> ArbitraryGenericConstraintMemberAccess()
+    {
+        return ReadonlyGenericsGenerators.GenGenericConstraintMemberAccess().ToArbitrary();
+    }
 
-    public static Arbitrary<AbstractContractScenario> ArbitraryAbstractContract() =>
-        ReadonlyGenericsGenerators.GenAbstractContract().ToArbitrary();
+    public static Arbitrary<AbstractContractScenario> ArbitraryAbstractContract()
+    {
+        return ReadonlyGenericsGenerators.GenAbstractContract().ToArbitrary();
+    }
 
     // ─── Helpers ────────────────────────────────────────────────────────
 
@@ -434,11 +454,15 @@ public sealed class ReadonlyGenericsPropertyTests : IDisposable
         return SharedDriver.Compile(options);
     }
 
-    private static bool HasDiagnostic(CompilerResult result, string diagnosticId) =>
-        result.Diagnostics.Any(d => d.Id.Value == diagnosticId);
+    private static bool HasDiagnostic(CompilerResult result, string diagnosticId)
+    {
+        return result.Diagnostics.Any(d => d.Id.Value == diagnosticId);
+    }
 
-    private static bool HasAnyReadonlyDiagnostic(CompilerResult result) =>
-        result.Diagnostics.Any(d => d.Id.Value.StartsWith("MIST_RO_") || d.Id.Value.StartsWith("MIST_TC_007"));
+    private static bool HasAnyReadonlyDiagnostic(CompilerResult result)
+    {
+        return result.Diagnostics.Any(d => d.Id.Value.StartsWith("MIST_RO_") || d.Id.Value.StartsWith("MIST_TC_007"));
+    }
 
     // ═══════════════════════════════════════════════════════════════════════
     // Property 14: Readonly Type Argument Passing

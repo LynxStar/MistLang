@@ -41,7 +41,10 @@ public sealed class VoidResolutionScenario
         Description = description;
     }
 
-    public override string ToString() => Description;
+    public override string ToString()
+    {
+        return Description;
+    }
 }
 
 /// <summary>
@@ -59,7 +62,10 @@ public sealed class VoidToTypeConversionScenario
         Description = description;
     }
 
-    public override string ToString() => Description;
+    public override string ToString()
+    {
+        return Description;
+    }
 }
 
 /// <summary>
@@ -79,7 +85,10 @@ public sealed class VoidDotVoidCountScenario
         Description = description;
     }
 
-    public override string ToString() => Description;
+    public override string ToString()
+    {
+        return Description;
+    }
 }
 
 // ─── Generators ─────────────────────────────────────────────────────────────
@@ -337,14 +346,20 @@ public sealed class VoidValueLiteralPropertyTests : IDisposable
 
     // ─── Arbitrary registration ─────────────────────────────────────────
 
-    public static Arbitrary<VoidResolutionScenario> ArbitraryVoidResolution() =>
-        VoidValueLiteralGenerators.GenVoidResolution().ToArbitrary();
+    public static Arbitrary<VoidResolutionScenario> ArbitraryVoidResolution()
+    {
+        return VoidValueLiteralGenerators.GenVoidResolution().ToArbitrary();
+    }
 
-    public static Arbitrary<VoidToTypeConversionScenario> ArbitraryVoidToTypeConversion() =>
-        VoidValueLiteralGenerators.GenVoidToTypeConversion().ToArbitrary();
+    public static Arbitrary<VoidToTypeConversionScenario> ArbitraryVoidToTypeConversion()
+    {
+        return VoidValueLiteralGenerators.GenVoidToTypeConversion().ToArbitrary();
+    }
 
-    public static Arbitrary<VoidDotVoidCountScenario> ArbitraryVoidDotVoidCount() =>
-        VoidValueLiteralGenerators.GenVoidDotVoidCount().ToArbitrary();
+    public static Arbitrary<VoidDotVoidCountScenario> ArbitraryVoidDotVoidCount()
+    {
+        return VoidValueLiteralGenerators.GenVoidDotVoidCount().ToArbitrary();
+    }
 
     // ─── Helpers ────────────────────────────────────────────────────────
 

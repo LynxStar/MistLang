@@ -210,7 +210,10 @@ public sealed class MoveBoundaryNotClonablePropertyTests : IDisposable
     /// </summary>
     public sealed record NotClonableScenario(string Source, string OwnedVarName, string Label)
     {
-        public override string ToString() => Label;
+        public override string ToString()
+        {
+            return Label;
+        }
     }
 
 #pragma warning restore CA1034
@@ -285,8 +288,10 @@ public sealed class MoveBoundaryNotClonablePropertyTests : IDisposable
         return new NotClonableScenario(source, ownedVar, $"{typeName}/{kind}: owned {ownedVar} = {srcVar}");
     }
 
-    public static Arbitrary<NotClonableScenario> ArbitraryNotClonableScenario() =>
-        GenScenario().ToArbitrary();
+    public static Arbitrary<NotClonableScenario> ArbitraryNotClonableScenario()
+    {
+        return GenScenario().ToArbitrary();
+    }
 
     // ═══════════════════════════════════════════════════════════════════════
     // Property 4: non-owned non-clonable source ⇒ Error + MIST_OWN_NOT_CLONABLE

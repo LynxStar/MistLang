@@ -218,8 +218,10 @@ public class FuncAsyncDropChainingPropertyTests
                select new WiderFuncScenario(paramCount, paramTypeIdx, isAsync, inAsyncCtx);
     }
 
-    public static Arbitrary<WiderFuncScenario> ArbitraryWiderFuncScenario() =>
-        GenWiderFuncScenario().ToArbitrary();
+    public static Arbitrary<WiderFuncScenario> ArbitraryWiderFuncScenario()
+    {
+        return GenWiderFuncScenario().ToArbitrary();
+    }
 
     private static string BuildWiderFuncSource(WiderFuncScenario scenario)
     {
@@ -388,8 +390,10 @@ public class FuncAsyncDropChainingPropertyTests
                    hasFunctor, hasDirect, hasAwait, functorCount, helperIdx);
     }
 
-    public static Arbitrary<WiderAsyncSeedScenario> ArbitraryWiderAsyncSeedScenario() =>
-        GenWiderAsyncSeedScenario().ToArbitrary();
+    public static Arbitrary<WiderAsyncSeedScenario> ArbitraryWiderAsyncSeedScenario()
+    {
+        return GenWiderAsyncSeedScenario().ToArbitrary();
+    }
 
     private static string BuildWiderAsyncSeedSource(WiderAsyncSeedScenario scenario)
     {
@@ -507,16 +511,19 @@ public class FuncAsyncDropChainingPropertyTests
 
         public string FieldType => FieldTypes[FieldTypeIndex];
 
-        public override string ToString() => Kind switch
+        public override string ToString()
         {
-            DropChainKind.NestedTask =>
-                $"Task<Task<{InnerType}>> in '{MethodName}' — needs double await",
-            DropChainKind.CustomToTask =>
-                $"linear class Drop()->Task<{InnerType}> in '{MethodName}' — needs await of Drop()",
-            DropChainKind.SimpleVoid =>
-                $"linear class Drop()->void ({FieldType} field) in '{MethodName}' — single drop",
-            _ => $"Unknown in '{MethodName}'"
-        };
+            return Kind switch
+            {
+                DropChainKind.NestedTask =>
+                    $"Task<Task<{InnerType}>> in '{MethodName}' — needs double await",
+                DropChainKind.CustomToTask =>
+                    $"linear class Drop()->Task<{InnerType}> in '{MethodName}' — needs await of Drop()",
+                DropChainKind.SimpleVoid =>
+                    $"linear class Drop()->void ({FieldType} field) in '{MethodName}' — single drop",
+                _ => $"Unknown in '{MethodName}'"
+            };
+        }
     }
 
 #pragma warning restore CA1034
@@ -536,8 +543,10 @@ public class FuncAsyncDropChainingPropertyTests
                select new WiderDropChainScenario(kind, innerIdx, methodIdx, fieldIdx);
     }
 
-    public static Arbitrary<WiderDropChainScenario> ArbitraryWiderDropChainScenario() =>
-        GenWiderDropChainScenario().ToArbitrary();
+    public static Arbitrary<WiderDropChainScenario> ArbitraryWiderDropChainScenario()
+    {
+        return GenWiderDropChainScenario().ToArbitrary();
+    }
 
     private static string BuildWiderDropChainSource(WiderDropChainScenario scenario)
     {
@@ -770,8 +779,10 @@ public class FuncAsyncDropChainingPropertyTests
                select new DirectAsyncPreservationScenario(returnIdx, paramCount);
     }
 
-    public static Arbitrary<DirectAsyncPreservationScenario> ArbitraryDirectAsyncPreservation() =>
-        GenDirectAsyncPreservation().ToArbitrary();
+    public static Arbitrary<DirectAsyncPreservationScenario> ArbitraryDirectAsyncPreservation()
+    {
+        return GenDirectAsyncPreservation().ToArbitrary();
+    }
 
     private static string BuildDirectAsyncPreservationSource(DirectAsyncPreservationScenario scenario)
     {
@@ -860,8 +871,10 @@ public class FuncAsyncDropChainingPropertyTests
         public string ReturnExpr => PrimitiveVariants[InnerTypeIndex].Literal;
         public string ClassName => CaptureClassNames[ClassNameIndex];
 
-        public override string ToString() =>
-            $"explicit capture of {ClassName}.Drop() returning {InnerType}";
+        public override string ToString()
+        {
+            return $"explicit capture of {ClassName}.Drop() returning {InnerType}";
+        }
     }
 
 #pragma warning restore CA1034
@@ -875,8 +888,10 @@ public class FuncAsyncDropChainingPropertyTests
                select new ExplicitCapturePreservationScenario(innerIdx, classIdx);
     }
 
-    public static Arbitrary<ExplicitCapturePreservationScenario> ArbitraryExplicitCapturePreservation() =>
-        GenExplicitCapturePreservation().ToArbitrary();
+    public static Arbitrary<ExplicitCapturePreservationScenario> ArbitraryExplicitCapturePreservation()
+    {
+        return GenExplicitCapturePreservation().ToArbitrary();
+    }
 
     private static string BuildExplicitCapturePreservationSource(ExplicitCapturePreservationScenario scenario)
     {

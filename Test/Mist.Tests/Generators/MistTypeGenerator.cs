@@ -65,18 +65,23 @@ public static class MistTypeGenerator
     ];
 
     /// <summary>Generates a random primitive type node.</summary>
-    public static Gen<PrimitiveTypeNode> GenPrimitiveTypeNode() =>
-        Gen.Elements(AllPrimitiveTypeNodes);
+    public static Gen<PrimitiveTypeNode> GenPrimitiveTypeNode()
+    {
+        return Gen.Elements(AllPrimitiveTypeNodes);
+    }
 
     /// <summary>Generates a random numeric primitive type node.</summary>
-    public static Gen<PrimitiveTypeNode> GenNumericPrimitiveTypeNode() =>
-        Gen.Elements(NumericPrimitiveTypeNodes);
+    public static Gen<PrimitiveTypeNode> GenNumericPrimitiveTypeNode()
+    {
+        return Gen.Elements(NumericPrimitiveTypeNodes);
+    }
 
     // ─── Type reference nodes ────────────────────────────────────────────
 
     /// <summary>Generates a PrimitiveTypeRef type reference (no array rank).</summary>
-    public static Gen<TypeReferenceNode> GenPrimitiveTypeRef() =>
-        GenPrimitiveTypeNode().Select(pt =>
+    public static Gen<TypeReferenceNode> GenPrimitiveTypeRef()
+    {
+        return GenPrimitiveTypeNode().Select(pt =>
             (TypeReferenceNode)new TypeReferenceNode
             {
                 First = new PrimitiveSingleTypeRefSingleTypeRefNode
@@ -84,10 +89,12 @@ public static class MistTypeGenerator
                     PrimitiveType = pt,
                 }
             });
+    }
 
     /// <summary>Generates a numeric PrimitiveTypeRef type reference.</summary>
-    public static Gen<TypeReferenceNode> GenNumericTypeRef() =>
-        GenNumericPrimitiveTypeNode().Select(pt =>
+    public static Gen<TypeReferenceNode> GenNumericTypeRef()
+    {
+        return GenNumericPrimitiveTypeNode().Select(pt =>
             (TypeReferenceNode)new TypeReferenceNode
             {
                 First = new PrimitiveSingleTypeRefSingleTypeRefNode
@@ -95,52 +102,65 @@ public static class MistTypeGenerator
                     PrimitiveType = pt,
                 }
             });
+    }
 
     /// <summary>Generates a void type reference.</summary>
-    public static Gen<TypeReferenceNode> GenVoidTypeRef() =>
-        Gen.Constant((TypeReferenceNode)new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() });
+    public static Gen<TypeReferenceNode> GenVoidTypeRef()
+    {
+        return Gen.Constant((TypeReferenceNode)new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() });
+    }
 
     /// <summary>Generates an int type reference.</summary>
-    public static Gen<TypeReferenceNode> GenIntTypeRef() =>
-        Gen.Constant((TypeReferenceNode)new TypeReferenceNode
+    public static Gen<TypeReferenceNode> GenIntTypeRef()
+    {
+        return Gen.Constant((TypeReferenceNode)new TypeReferenceNode
         {
             First = new PrimitiveSingleTypeRefSingleTypeRefNode
             {
                 PrimitiveType = new IntTypePrimitiveTypeNode(),
             }
         });
+    }
 
     /// <summary>Generates a bool type reference.</summary>
-    public static Gen<TypeReferenceNode> GenBoolTypeRef() =>
-        Gen.Constant((TypeReferenceNode)new TypeReferenceNode
+    public static Gen<TypeReferenceNode> GenBoolTypeRef()
+    {
+        return Gen.Constant((TypeReferenceNode)new TypeReferenceNode
         {
             First = new PrimitiveSingleTypeRefSingleTypeRefNode
             {
                 PrimitiveType = new BoolTypePrimitiveTypeNode(),
             }
         });
+    }
 
     /// <summary>Generates a string type reference.</summary>
-    public static Gen<TypeReferenceNode> GenStringTypeRef() =>
-        Gen.Constant((TypeReferenceNode)new TypeReferenceNode
+    public static Gen<TypeReferenceNode> GenStringTypeRef()
+    {
+        return Gen.Constant((TypeReferenceNode)new TypeReferenceNode
         {
             First = new PrimitiveSingleTypeRefSingleTypeRefNode
             {
                 PrimitiveType = new StringTypePrimitiveTypeNode(),
             }
         });
+    }
 
     /// <summary>
     /// Generates a random non-void type reference (primitive types only, no arrays).
     /// Suitable for variable declarations, parameters, and return types.
     /// </summary>
-    public static Gen<TypeReferenceNode> GenNonVoidTypeRef() =>
-        GenPrimitiveTypeRef();
+    public static Gen<TypeReferenceNode> GenNonVoidTypeRef()
+    {
+        return GenPrimitiveTypeRef();
+    }
 
     /// <summary>
     /// Generates a random type reference including void.
     /// Suitable for method return types.
     /// </summary>
-    public static Gen<TypeReferenceNode> GenReturnTypeRef() =>
-        Gen.OneOf(GenPrimitiveTypeRef(), GenVoidTypeRef());
+    public static Gen<TypeReferenceNode> GenReturnTypeRef()
+    {
+        return Gen.OneOf(GenPrimitiveTypeRef(), GenVoidTypeRef());
+    }
 }

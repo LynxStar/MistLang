@@ -181,7 +181,10 @@ public sealed class MoveBoundaryDefaultGraphPropertyTests : IDisposable
     /// </summary>
     public sealed record DefaultScenario(string Source, string Label)
     {
-        public override string ToString() => Label;
+        public override string ToString()
+        {
+            return Label;
+        }
     }
 
 #pragma warning restore CA1034
@@ -271,8 +274,10 @@ public sealed class MoveBoundaryDefaultGraphPropertyTests : IDisposable
                select new DefaultScenario(source, label);
     }
 
-    public static Arbitrary<DefaultScenario> ArbitraryDefaultScenario() =>
-        GenDefaultScenario().ToArbitrary();
+    public static Arbitrary<DefaultScenario> ArbitraryDefaultScenario()
+    {
+        return GenDefaultScenario().ToArbitrary();
+    }
 
     // ═══════════════════════════════════════════════════════════════════════
     // Property 10: `default` yields ownership.

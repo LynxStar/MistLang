@@ -38,7 +38,10 @@ public sealed class ReadonlyFieldAssignScenario
         Description = description;
     }
 
-    public override string ToString() => Description;
+    public override string ToString()
+    {
+        return Description;
+    }
 }
 
 public sealed class ConstructorPrivilegeScenario
@@ -52,7 +55,10 @@ public sealed class ConstructorPrivilegeScenario
         Description = description;
     }
 
-    public override string ToString() => Description;
+    public override string ToString()
+    {
+        return Description;
+    }
 }
 
 public sealed class PermittedOperationScenario
@@ -66,7 +72,10 @@ public sealed class PermittedOperationScenario
         Description = description;
     }
 
-    public override string ToString() => Description;
+    public override string ToString()
+    {
+        return Description;
+    }
 }
 
 public sealed class ProhibitedOperationScenario
@@ -82,7 +91,10 @@ public sealed class ProhibitedOperationScenario
         Description = description;
     }
 
-    public override string ToString() => Description;
+    public override string ToString()
+    {
+        return Description;
+    }
 }
 
 public sealed class ReadonlyBlockOverrideScenario
@@ -96,7 +108,10 @@ public sealed class ReadonlyBlockOverrideScenario
         Description = description;
     }
 
-    public override string ToString() => Description;
+    public override string ToString()
+    {
+        return Description;
+    }
 }
 
 public sealed class BackingFieldExemptionScenario
@@ -112,7 +127,10 @@ public sealed class BackingFieldExemptionScenario
         Description = description;
     }
 
-    public override string ToString() => Description;
+    public override string ToString()
+    {
+        return Description;
+    }
 }
 
 public sealed class ReadonlyMethodBodyScenario
@@ -128,7 +146,10 @@ public sealed class ReadonlyMethodBodyScenario
         Description = description;
     }
 
-    public override string ToString() => Description;
+    public override string ToString()
+    {
+        return Description;
+    }
 }
 
 public sealed class ReadonlyTypeImplicitScenario
@@ -144,7 +165,10 @@ public sealed class ReadonlyTypeImplicitScenario
         Description = description;
     }
 
-    public override string ToString() => Description;
+    public override string ToString()
+    {
+        return Description;
+    }
 }
 
 public sealed class ReadonlyParameterScenario
@@ -160,7 +184,10 @@ public sealed class ReadonlyParameterScenario
         Description = description;
     }
 
-    public override string ToString() => Description;
+    public override string ToString()
+    {
+        return Description;
+    }
 }
 
 // ─── Generators ─────────────────────────────────────────────────────────────
@@ -598,32 +625,50 @@ public sealed class ReadonlyAnalyzerPropertyTests : IDisposable
 
     // ─── Arbitrary registration ─────────────────────────────────────────
 
-    public static Arbitrary<ReadonlyFieldAssignScenario> ArbitraryReadonlyFieldAssign() =>
-        ReadonlyAnalyzerGenerators.GenReadonlyFieldAssignOutsideConstructor().ToArbitrary();
+    public static Arbitrary<ReadonlyFieldAssignScenario> ArbitraryReadonlyFieldAssign()
+    {
+        return ReadonlyAnalyzerGenerators.GenReadonlyFieldAssignOutsideConstructor().ToArbitrary();
+    }
 
-    public static Arbitrary<ConstructorPrivilegeScenario> ArbitraryConstructorPrivilege() =>
-        ReadonlyAnalyzerGenerators.GenConstructorPrivilege().ToArbitrary();
+    public static Arbitrary<ConstructorPrivilegeScenario> ArbitraryConstructorPrivilege()
+    {
+        return ReadonlyAnalyzerGenerators.GenConstructorPrivilege().ToArbitrary();
+    }
 
-    public static Arbitrary<PermittedOperationScenario> ArbitraryPermittedOperation() =>
-        ReadonlyAnalyzerGenerators.GenPermittedOperations().ToArbitrary();
+    public static Arbitrary<PermittedOperationScenario> ArbitraryPermittedOperation()
+    {
+        return ReadonlyAnalyzerGenerators.GenPermittedOperations().ToArbitrary();
+    }
 
-    public static Arbitrary<ProhibitedOperationScenario> ArbitraryProhibitedOperation() =>
-        ReadonlyAnalyzerGenerators.GenProhibitedOperations().ToArbitrary();
+    public static Arbitrary<ProhibitedOperationScenario> ArbitraryProhibitedOperation()
+    {
+        return ReadonlyAnalyzerGenerators.GenProhibitedOperations().ToArbitrary();
+    }
 
-    public static Arbitrary<ReadonlyBlockOverrideScenario> ArbitraryReadonlyBlockOverride() =>
-        ReadonlyAnalyzerGenerators.GenReadonlyBlockOverride().ToArbitrary();
+    public static Arbitrary<ReadonlyBlockOverrideScenario> ArbitraryReadonlyBlockOverride()
+    {
+        return ReadonlyAnalyzerGenerators.GenReadonlyBlockOverride().ToArbitrary();
+    }
 
-    public static Arbitrary<BackingFieldExemptionScenario> ArbitraryBackingFieldExemption() =>
-        ReadonlyAnalyzerGenerators.GenBackingFieldExemption().ToArbitrary();
+    public static Arbitrary<BackingFieldExemptionScenario> ArbitraryBackingFieldExemption()
+    {
+        return ReadonlyAnalyzerGenerators.GenBackingFieldExemption().ToArbitrary();
+    }
 
-    public static Arbitrary<ReadonlyMethodBodyScenario> ArbitraryReadonlyMethodBody() =>
-        ReadonlyAnalyzerGenerators.GenReadonlyMethodBodyViolation().ToArbitrary();
+    public static Arbitrary<ReadonlyMethodBodyScenario> ArbitraryReadonlyMethodBody()
+    {
+        return ReadonlyAnalyzerGenerators.GenReadonlyMethodBodyViolation().ToArbitrary();
+    }
 
-    public static Arbitrary<ReadonlyTypeImplicitScenario> ArbitraryReadonlyTypeImplicit() =>
-        ReadonlyAnalyzerGenerators.GenReadonlyTypeImplicit().ToArbitrary();
+    public static Arbitrary<ReadonlyTypeImplicitScenario> ArbitraryReadonlyTypeImplicit()
+    {
+        return ReadonlyAnalyzerGenerators.GenReadonlyTypeImplicit().ToArbitrary();
+    }
 
-    public static Arbitrary<ReadonlyParameterScenario> ArbitraryReadonlyParameter() =>
-        ReadonlyAnalyzerGenerators.GenReadonlyParameterViolation().ToArbitrary();
+    public static Arbitrary<ReadonlyParameterScenario> ArbitraryReadonlyParameter()
+    {
+        return ReadonlyAnalyzerGenerators.GenReadonlyParameterViolation().ToArbitrary();
+    }
 
     // ─── Helpers ────────────────────────────────────────────────────────
 
@@ -648,11 +693,15 @@ public sealed class ReadonlyAnalyzerPropertyTests : IDisposable
         return SharedDriver.Compile(options);
     }
 
-    private static bool HasDiagnostic(CompilerResult result, string diagnosticId) =>
-        result.Diagnostics.Any(d => d.Id.Value == diagnosticId);
+    private static bool HasDiagnostic(CompilerResult result, string diagnosticId)
+    {
+        return result.Diagnostics.Any(d => d.Id.Value == diagnosticId);
+    }
 
-    private static bool HasAnyReadonlyDiagnostic(CompilerResult result) =>
-        result.Diagnostics.Any(d => d.Id.Value.StartsWith("MIST_RO_"));
+    private static bool HasAnyReadonlyDiagnostic(CompilerResult result)
+    {
+        return result.Diagnostics.Any(d => d.Id.Value.StartsWith("MIST_RO_"));
+    }
 
     // ═══════════════════════════════════════════════════════════════════════
     // Property 3: Readonly Field Assignment Prohibition

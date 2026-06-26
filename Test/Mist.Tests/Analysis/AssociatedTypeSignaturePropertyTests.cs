@@ -109,7 +109,10 @@ public sealed class AssociatedTypeSignaturePropertyTests : IDisposable
         SlotPosition Position,
         string Description)
     {
-        public override string ToString() => Description;
+        public override string ToString()
+        {
+            return Description;
+        }
     }
 
     /// <summary>Describes an incorrect substitution scenario (should produce a diagnostic).</summary>
@@ -121,7 +124,10 @@ public sealed class AssociatedTypeSignaturePropertyTests : IDisposable
         SlotPosition Position,
         string Description)
     {
-        public override string ToString() => Description;
+        public override string ToString()
+        {
+            return Description;
+        }
     }
 
 #pragma warning restore CA1034
@@ -150,11 +156,15 @@ public sealed class AssociatedTypeSignaturePropertyTests : IDisposable
                select new IncorrectSubstitutionScenario(abstractName, slotName, methodName, className, position, desc);
     }
 
-    public static Arbitrary<CorrectSubstitutionScenario> ArbitraryCorrectSubstitutionScenario() =>
-        GenCorrectSubstitutionScenario().ToArbitrary();
+    public static Arbitrary<CorrectSubstitutionScenario> ArbitraryCorrectSubstitutionScenario()
+    {
+        return GenCorrectSubstitutionScenario().ToArbitrary();
+    }
 
-    public static Arbitrary<IncorrectSubstitutionScenario> ArbitraryIncorrectSubstitutionScenario() =>
-        GenIncorrectSubstitutionScenario().ToArbitrary();
+    public static Arbitrary<IncorrectSubstitutionScenario> ArbitraryIncorrectSubstitutionScenario()
+    {
+        return GenIncorrectSubstitutionScenario().ToArbitrary();
+    }
 
     // ─── Source generation helpers ───────────────────────────────────────
 

@@ -29,7 +29,10 @@ public class OverlappingSpanResolutionPropertyTests
     /// <summary>
     /// Generates a unique file path from an index.
     /// </summary>
-    private static string MakePath(int index) => $"src/file{index}.mist";
+    private static string MakePath(int index)
+    {
+        return $"src/file{index}.mist";
+    }
 
     /// <summary>
     /// Generates source content of at least the given length.
@@ -49,8 +52,10 @@ public class OverlappingSpanResolutionPropertyTests
 #pragma warning disable CA1034
     public record OverlappingScenario(int FileCount, int TargetFileIndex, int SpanStart, int SpanLength)
     {
-        public override string ToString() =>
-            $"OverlappingScenario(Files={FileCount}, Target={TargetFileIndex}, Span=[{SpanStart},{SpanStart + SpanLength}))";
+        public override string ToString()
+        {
+            return $"OverlappingScenario(Files={FileCount}, Target={TargetFileIndex}, Span=[{SpanStart},{SpanStart + SpanLength}))";
+        }
     }
 #pragma warning restore CA1034
 
@@ -67,8 +72,10 @@ public class OverlappingSpanResolutionPropertyTests
                select new OverlappingScenario(fileCount, targetIndex, spanStart, spanLength);
     }
 
-    public static Arbitrary<OverlappingScenario> ArbOverlappingScenario() =>
-        GenOverlappingScenario().ToArbitrary();
+    public static Arbitrary<OverlappingScenario> ArbOverlappingScenario()
+    {
+        return GenOverlappingScenario().ToArbitrary();
+    }
 
     // ═══════════════════════════════════════════════════════════════════════
     // Property tests

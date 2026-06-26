@@ -64,8 +64,10 @@ public class DefaultConstraintSatisfactionPropertyTests
         }
     }
 
-    private static bool HasDiagnostic(ImmutableArray<Diagnostic> diagnostics, string id) =>
-        diagnostics.Any(d => d.Id.Value == id);
+    private static bool HasDiagnostic(ImmutableArray<Diagnostic> diagnostics, string id)
+    {
+        return diagnostics.Any(d => d.Id.Value == id);
+    }
 
     // ─── Scenario types ──────────────────────────────────────────────────
 
@@ -80,8 +82,10 @@ public class DefaultConstraintSatisfactionPropertyTests
         string TypeArgDeclaration,
         DefaultableKind Kind)
     {
-        public override string ToString() =>
-            $"defaultable {Kind}: {TypeArgName}";
+        public override string ToString()
+        {
+            return $"defaultable {Kind}: {TypeArgName}";
+        }
     }
 
     /// <summary>
@@ -93,8 +97,10 @@ public class DefaultConstraintSatisfactionPropertyTests
         string TypeArgDeclaration,
         NonDefaultableKind Kind)
     {
-        public override string ToString() =>
-            $"non-defaultable {Kind}: {TypeArgName}";
+        public override string ToString()
+        {
+            return $"non-defaultable {Kind}: {TypeArgName}";
+        }
     }
 
     /// <summary>The kind of defaultable type used as a type argument.</summary>
@@ -195,11 +201,15 @@ public class DefaultConstraintSatisfactionPropertyTests
 
     // ─── Arbitrary registrations ─────────────────────────────────────────
 
-    public static Arbitrary<DefaultableTypeArgScenario> ArbitraryDefaultableTypeArg() =>
-        GenDefaultableTypeArgScenario().ToArbitrary();
+    public static Arbitrary<DefaultableTypeArgScenario> ArbitraryDefaultableTypeArg()
+    {
+        return GenDefaultableTypeArgScenario().ToArbitrary();
+    }
 
-    public static Arbitrary<NonDefaultableTypeArgScenario> ArbitraryNonDefaultableTypeArg() =>
-        GenNonDefaultableTypeArgScenario().ToArbitrary();
+    public static Arbitrary<NonDefaultableTypeArgScenario> ArbitraryNonDefaultableTypeArg()
+    {
+        return GenNonDefaultableTypeArgScenario().ToArbitrary();
+    }
 
     // ─── Source generation helpers ───────────────────────────────────────
 

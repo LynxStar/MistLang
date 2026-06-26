@@ -71,7 +71,10 @@ public sealed class DropReturnCaptureScenario
         Description = description;
     }
 
-    public override string ToString() => Description;
+    public override string ToString()
+    {
+        return Description;
+    }
 }
 
 // ─── Generators ─────────────────────────────────────────────────────────────
@@ -188,8 +191,10 @@ public sealed class DropReturnValueCaptureTests : IDisposable
 
     // ─── Arbitrary registration ─────────────────────────────────────────
 
-    public static Arbitrary<DropReturnCaptureScenario> ArbitraryDropReturnCaptureScenario() =>
-        DropReturnCaptureGenerators.GenDropReturnCaptureScenario().ToArbitrary();
+    public static Arbitrary<DropReturnCaptureScenario> ArbitraryDropReturnCaptureScenario()
+    {
+        return DropReturnCaptureGenerators.GenDropReturnCaptureScenario().ToArbitrary();
+    }
 
     // ─── Helpers ─────────────────────────────────────────────────────────
 

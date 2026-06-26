@@ -30,18 +30,27 @@ public sealed class InferredNamespaceRegistrationPropertyTests
 #pragma warning disable CA1034
     public record ValidIdentifier(string Value)
     {
-        public override string ToString() => Value;
+        public override string ToString()
+        {
+            return Value;
+        }
     }
 
     public record ValidNamespaceRoot(string Value)
     {
-        public override string ToString() => Value;
+        public override string ToString()
+        {
+            return Value;
+        }
     }
 
 #pragma warning disable CA1819
     public record FolderSegments(string[] Segments)
     {
-        public override string ToString() => string.Join("/", Segments);
+        public override string ToString()
+        {
+            return string.Join("/", Segments);
+        }
     }
 #pragma warning restore CA1819
 #pragma warning restore CA1034

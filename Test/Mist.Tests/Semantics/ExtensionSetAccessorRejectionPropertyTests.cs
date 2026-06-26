@@ -34,13 +34,15 @@ public class ExtensionSetAccessorRejectionPropertyTests
 
     private static readonly SemanticModelBuilder Builder = new();
 
-    private static Storm.Runtime.Token Tok(string lexeme) =>
-        new(kind: 0,
+    private static Storm.Runtime.Token Tok(string lexeme)
+    {
+        return new(kind: 0,
             span: new Storm.Runtime.SourceSpan(0, lexeme.Length),
             start: new Storm.Runtime.LinePosition(1, 1),
             end: new Storm.Runtime.LinePosition(1, 1 + lexeme.Length),
             channel: Storm.Runtime.TokenChannel.Default,
             lexeme: lexeme);
+    }
 
     private static (Mist.Semantics.Contracts.ISemanticModel Model, ImmutableArray<Diagnostic> Diagnostics)
         BuildModelWithDiagnostics(Storm.Runtime.SyntaxNode ast)
@@ -72,8 +74,10 @@ public class ExtensionSetAccessorRejectionPropertyTests
         string PropertyType,
         AccessorKind Kind)
     {
-        public override string ToString() =>
-            $"extension({ReceiverTypeName} {ReceiverParamName}) {{ {PropertyType} {PropertyName} {{ get; {Kind.ToString().ToLowerInvariant()}; }} }}";
+        public override string ToString()
+        {
+            return $"extension({ReceiverTypeName} {ReceiverParamName}) {{ {PropertyType} {PropertyName} {{ get; {Kind.ToString().ToLowerInvariant()}; }} }}";
+        }
     }
 
     public enum AccessorKind
@@ -118,19 +122,23 @@ public class ExtensionSetAccessorRejectionPropertyTests
                select new SetAccessorScenario(receiverType, receiverParam, propName, propType, kind);
     }
 
-    public static Arbitrary<SetAccessorScenario> ArbitrarySetAccessorScenario() =>
-        GenScenario().ToArbitrary();
+    public static Arbitrary<SetAccessorScenario> ArbitrarySetAccessorScenario()
+    {
+        return GenScenario().ToArbitrary();
+    }
 
     // ─── AST construction helpers ────────────────────────────────────────
 
-    private static TypeReferenceNode MakeNamedTypeRef(string name) =>
-        new TypeReferenceNode
+    private static TypeReferenceNode MakeNamedTypeRef(string name)
+    {
+        return new TypeReferenceNode
         {
             First = new NamedSingleTypeRefSingleTypeRefNode
             {
                 Name = new QualifiedIdentifierNode { IDENTIFIER = Tok(name) },
             }
         };
+    }
 
     private static ExpressionNode MakeLiteralExpression(string typeName)
     {

@@ -60,7 +60,10 @@ public sealed class OverloadInferenceFilterScenario
         ExpectedDiagnosticId = expectedDiagnosticId;
     }
 
-    public override string ToString() => Description;
+    public override string ToString()
+    {
+        return Description;
+    }
 }
 
 /// <summary>
@@ -113,13 +116,16 @@ public sealed class TypeArgumentInferenceOverloadPropertyTests : IDisposable
     /// <summary>
     /// Returns a default literal value for the given Mist type name.
     /// </summary>
-    private static string DefaultValueFor(string typeName) => typeName switch
+    private static string DefaultValueFor(string typeName)
     {
-        "int" => "42",
-        "string" => "\"hello\"",
-        "bool" => "true",
-        _ => "0",
-    };
+        return typeName switch
+        {
+            "int" => "42",
+            "string" => "\"hello\"",
+            "bool" => "true",
+            _ => "0",
+        };
+    }
 
     // ─── Generators ──────────────────────────────────────────────────────
 
@@ -349,8 +355,10 @@ public sealed class TypeArgumentInferenceOverloadPropertyTests : IDisposable
             GenNonGenericSelectedAfterGenericConflict());
     }
 
-    public static Arbitrary<OverloadInferenceFilterScenario> ArbitraryOverloadInferenceFilterScenario() =>
-        GenScenario().ToArbitrary();
+    public static Arbitrary<OverloadInferenceFilterScenario> ArbitraryOverloadInferenceFilterScenario()
+    {
+        return GenScenario().ToArbitrary();
+    }
 
     // ─── Helpers ─────────────────────────────────────────────────────────
 

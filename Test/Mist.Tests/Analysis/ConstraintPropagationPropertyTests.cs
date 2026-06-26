@@ -32,7 +32,10 @@ public sealed class ConstraintPropagationScenario
         ShouldAccept = shouldAccept;
     }
 
-    public override string ToString() => $"[{(ShouldAccept ? "ACCEPT" : "REJECT")}] {Description}";
+    public override string ToString()
+    {
+        return $"[{(ShouldAccept ? "ACCEPT" : "REJECT")}] {Description}";
+    }
 }
 
 /// <summary>
@@ -259,8 +262,10 @@ abstract {derivedAbstractName}<T> : {baseAbstractName}<T> where T : {constraintA
             GenAbstractInheritancePropagated());
     }
 
-    public static Arbitrary<ConstraintPropagationScenario> ArbitraryConstraintPropagationScenario() =>
-        GenScenario().ToArbitrary();
+    public static Arbitrary<ConstraintPropagationScenario> ArbitraryConstraintPropagationScenario()
+    {
+        return GenScenario().ToArbitrary();
+    }
 
     // ─── Property test ───────────────────────────────────────────────────
 

@@ -37,23 +37,35 @@ public class AnonymousTypeStructuralEqualityPropertyTests
 
     // ─── Generators ───────────────────────────────────────────────────────
 
-    private static Gen<IType> GenLeafType() => Gen.Elements(LeafTypes);
+    private static Gen<IType> GenLeafType()
+    {
+        return Gen.Elements(LeafTypes);
+    }
 
-    private static Gen<string> GenPropertyName() => Gen.Elements(PropertyNamePool);
+    private static Gen<string> GenPropertyName()
+    {
+        return Gen.Elements(PropertyNamePool);
+    }
 
-    private static Gen<string[]> GenDistinctNames(int count) =>
-        Gen.ListOf(GenPropertyName(), count)
+    private static Gen<string[]> GenDistinctNames(int count)
+    {
+        return Gen.ListOf(GenPropertyName(), count)
             .Select(names => names.ToArray())
             .Where(names => names.Distinct().Count() == names.Length);
+    }
 
-    private static Gen<AnonymousType> GenAnonymousType() =>
-        from count in Gen.Choose(1, 5)
-        from names in GenDistinctNames(count)
-        from types in Gen.ListOf(GenLeafType(), count).Select(x => x.ToArray())
-        select new AnonymousType(names, types);
+    private static Gen<AnonymousType> GenAnonymousType()
+    {
+        return from count in Gen.Choose(1, 5)
+               from names in GenDistinctNames(count)
+               from types in Gen.ListOf(GenLeafType(), count).Select(x => x.ToArray())
+               select new AnonymousType(names, types);
+    }
 
-    public static Arbitrary<AnonymousType> ArbitraryAnonymousType() =>
-        GenAnonymousType().ToArbitrary();
+    public static Arbitrary<AnonymousType> ArbitraryAnonymousType()
+    {
+        return GenAnonymousType().ToArbitrary();
+    }
 
     // ─── Properties ───────────────────────────────────────────────────────
 

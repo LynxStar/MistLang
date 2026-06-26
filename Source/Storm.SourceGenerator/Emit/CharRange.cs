@@ -34,11 +34,20 @@ namespace Storm.SourceGenerator.Emit
         /// <summary>
         /// Returns true if the character falls within this range (inclusive).
         /// </summary>
-        public bool Contains(char c) => c >= Lo && c <= Hi;
+        public bool Contains(char c)
+        {
+            return c >= Lo && c <= Hi;
+        }
 
-        public bool Equals(CharRange other) => Lo == other.Lo && Hi == other.Hi;
+        public bool Equals(CharRange other)
+        {
+            return Lo == other.Lo && Hi == other.Hi;
+        }
 
-        public override bool Equals(object? obj) => obj is CharRange other && Equals(other);
+        public override bool Equals(object? obj)
+        {
+            return obj is CharRange other && Equals(other);
+        }
 
         public override int GetHashCode()
         {
@@ -52,6 +61,9 @@ namespace Storm.SourceGenerator.Emit
 
         public static bool operator !=(CharRange left, CharRange right) => !left.Equals(right);
 
-        public override string ToString() => Lo == Hi ? $"'{Lo}'" : $"['{Lo}'-'{Hi}']";
+        public override string ToString()
+        {
+            return Lo == Hi ? $"'{Lo}'" : $"['{Lo}'-'{Hi}']";
+        }
     }
 }

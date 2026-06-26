@@ -64,13 +64,15 @@ public class EnumSequentialValuePropertyTests
 
     private static readonly SemanticModelBuilder Builder = new();
 
-    private static Storm.Runtime.Token Tok(string lexeme) =>
-        new(kind: 0,
+    private static Storm.Runtime.Token Tok(string lexeme)
+    {
+        return new(kind: 0,
             span: new Storm.Runtime.SourceSpan(0, lexeme.Length),
             start: new Storm.Runtime.LinePosition(1, 1),
             end: new Storm.Runtime.LinePosition(1, 1 + lexeme.Length),
             channel: Storm.Runtime.TokenChannel.Default,
             lexeme: lexeme);
+    }
 
     private static ISemanticModel BuildModel(Storm.Runtime.SyntaxNode ast)
     {
@@ -231,8 +233,10 @@ public class EnumSequentialValuePropertyTests
             GenExplicitThenImplicitScenario());
     }
 
-    public static Arbitrary<EnumSequentialValueScenario> ArbitraryEnumSequentialValueScenario() =>
-        GenScenario().ToArbitrary();
+    public static Arbitrary<EnumSequentialValueScenario> ArbitraryEnumSequentialValueScenario()
+    {
+        return GenScenario().ToArbitrary();
+    }
 
     // ─── AST construction helpers ────────────────────────────────────────
 
@@ -245,12 +249,14 @@ public class EnumSequentialValuePropertyTests
         return MistAstGenerator.WrapPrimary(primary);
     }
 
-    private static EnumMemberNode MakeEnumMember(string name, ExpressionNode? value = null) =>
-        new()
+    private static EnumMemberNode MakeEnumMember(string name, ExpressionNode? value = null)
+    {
+        return new()
         {
             Name = Tok(name),
             Value = value,
         };
+    }
 
     private static EnumMemberListNode MakeEnumMemberList(IReadOnlyList<EnumMemberNode> members)
     {

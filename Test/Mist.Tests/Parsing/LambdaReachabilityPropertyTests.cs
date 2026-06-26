@@ -38,8 +38,10 @@ public class LambdaReachabilityPropertyTests
 
     // ─── Arbitrary registration ──────────────────────────────────────────────
 
-    public static Arbitrary<LambdaReachabilityScenario> ArbitraryLambdaReachabilityScenario() =>
-        LambdaReachabilityGenerator.GenLambda().ToArbitrary();
+    public static Arbitrary<LambdaReachabilityScenario> ArbitraryLambdaReachabilityScenario()
+    {
+        return LambdaReachabilityGenerator.GenLambda().ToArbitrary();
+    }
 
     // ─── Parse + navigation helpers ───────────────────────────────────────────
 
@@ -101,9 +103,11 @@ public class LambdaReachabilityPropertyTests
     /// return type is left as <c>func&lt;int, int&gt;</c> so that <c>return L;</c> is a
     /// syntactically natural value position (the parser does not type-check the body).
     /// </summary>
-    private static string WrapMethodBody(string body) =>
-        "namespace TestNs;\n\npublic class C\n{\n    public func<int, int> M()\n    {\n        "
+    private static string WrapMethodBody(string body)
+    {
+        return "namespace TestNs;\n\npublic class C\n{\n    public func<int, int> M()\n    {\n        "
         + body + "\n    }\n}";
+    }
 
     // ═══════════════════════════════════════════════════════════════════════════
     // Property 10: Lambda reachable from every value position.
@@ -261,7 +265,10 @@ public sealed class LambdaReachabilityScenario
         LambdaText = lambdaText;
     }
 
-    public override string ToString() => LambdaText;
+    public override string ToString()
+    {
+        return LambdaText;
+    }
 }
 
 /// <summary>
@@ -285,22 +292,28 @@ public static class LambdaReachabilityGenerator
     private static readonly string[] ExpressionBodies =
         ["x + 1", "42", "x", "\"hi\"", "x * y", "true"];
 
-    private static Gen<string> GenExpressionBodyLambda() =>
-        from modifier in Gen.Elements(Modifiers)
-        from paramList in Gen.Elements(ParamLists)
-        from body in Gen.Elements(ExpressionBodies)
-        select $"{modifier}{paramList} => {body}";
+    private static Gen<string> GenExpressionBodyLambda()
+    {
+        return from modifier in Gen.Elements(Modifiers)
+               from paramList in Gen.Elements(ParamLists)
+               from body in Gen.Elements(ExpressionBodies)
+               select $"{modifier}{paramList} => {body}";
+    }
 
-    private static Gen<string> GenBlockBodyLambda() =>
-        from modifier in Gen.Elements(Modifiers)
-        from paramList in Gen.Elements(ParamLists)
-        from body in Gen.Elements(ExpressionBodies)
-        from empty in Gen.Elements(true, false)
-        let block = empty ? "{ }" : $"{{ return {body}; }}"
-        select $"{modifier}{paramList} => {block}";
+    private static Gen<string> GenBlockBodyLambda()
+    {
+        return from modifier in Gen.Elements(Modifiers)
+               from paramList in Gen.Elements(ParamLists)
+               from body in Gen.Elements(ExpressionBodies)
+               from empty in Gen.Elements(true, false)
+               let block = empty ? "{ }" : $"{{ return {body}; }}"
+               select $"{modifier}{paramList} => {block}";
+    }
 
     /// <summary>Generates a random lambda scenario covering all syntactic forms.</summary>
-    public static Gen<LambdaReachabilityScenario> GenLambda() =>
-        Gen.OneOf(GenExpressionBodyLambda(), GenBlockBodyLambda())
+    public static Gen<LambdaReachabilityScenario> GenLambda()
+    {
+        return Gen.OneOf(GenExpressionBodyLambda(), GenBlockBodyLambda())
             .Select(text => new LambdaReachabilityScenario(text));
+    }
 }

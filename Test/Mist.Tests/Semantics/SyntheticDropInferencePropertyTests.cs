@@ -151,7 +151,10 @@ public sealed class SyntheticDropInferencePropertyTests : IDisposable
     public sealed record SyntheticDropScenario(
         string Source, IReadOnlyList<string> ExpectedDroppableFieldNames, string Label)
     {
-        public override string ToString() => Label;
+        public override string ToString()
+        {
+            return Label;
+        }
     }
 
 #pragma warning restore CA1034
@@ -229,8 +232,10 @@ public sealed class SyntheticDropInferencePropertyTests : IDisposable
         return new SyntheticDropScenario(source, expected, label);
     }
 
-    public static Arbitrary<SyntheticDropScenario> ArbitrarySyntheticDropScenario() =>
-        GenScenario().ToArbitrary();
+    public static Arbitrary<SyntheticDropScenario> ArbitrarySyntheticDropScenario()
+    {
+        return GenScenario().ToArbitrary();
+    }
 
     // ═══════════════════════════════════════════════════════════════════════
     // Property 12: Synthetic drop inference for containing types

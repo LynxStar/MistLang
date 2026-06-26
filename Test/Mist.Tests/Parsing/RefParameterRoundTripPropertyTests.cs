@@ -31,8 +31,10 @@ public class RefParameterRoundTripPropertyTests
 
     // ─── Arbitrary registration ──────────────────────────────────────────
 
-    public static Arbitrary<RefParameterRoundTripScenario> ArbitraryRefParameterRoundTripScenario() =>
-        MistRefParameterRoundTripGenerator.GenScenario().ToArbitrary();
+    public static Arbitrary<RefParameterRoundTripScenario> ArbitraryRefParameterRoundTripScenario()
+    {
+        return MistRefParameterRoundTripGenerator.GenScenario().ToArbitrary();
+    }
 
     // ─── Helpers ────────────────────────────────────────────────────────────
 

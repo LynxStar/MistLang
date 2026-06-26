@@ -36,8 +36,10 @@ public class AsyncAwaitRoundTripPropertyTests
 
     // ─── Arbitrary registration ──────────────────────────────────────────
 
-    public static Arbitrary<AsyncAwaitSourceScenario> ArbitraryAsyncAwaitSourceScenario() =>
-        MistAsyncAwaitGenerator.GenAsyncAwaitSource().ToArbitrary();
+    public static Arbitrary<AsyncAwaitSourceScenario> ArbitraryAsyncAwaitSourceScenario()
+    {
+        return MistAsyncAwaitGenerator.GenAsyncAwaitSource().ToArbitrary();
+    }
 
     // ─── Helpers ────────────────────────────────────────────────────────────
 

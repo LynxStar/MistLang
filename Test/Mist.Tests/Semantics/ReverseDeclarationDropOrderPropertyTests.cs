@@ -188,8 +188,10 @@ public sealed class ReverseDeclarationDropOrderPropertyTests
 
     // ─── Generator: N in [2, 10] ─────────────────────────────────────────
 
-    public static Arbitrary<int> ArbitraryDropCount() =>
-        Gen.Choose(2, 10).ToArbitrary();
+    public static Arbitrary<int> ArbitraryDropCount()
+    {
+        return Gen.Choose(2, 10).ToArbitrary();
+    }
 
     // ─── Property 10 ─────────────────────────────────────────────────────
 

@@ -41,7 +41,10 @@ public sealed class ValidEnumerableScenario
         Description = description;
     }
 
-    public override string ToString() => Description;
+    public override string ToString()
+    {
+        return Description;
+    }
 }
 
 // ─── Property Tests ─────────────────────────────────────────────────────────
@@ -186,8 +189,10 @@ public sealed class ValidEnumerableImplementationPropertyTests : IDisposable
 
     // ─── Arbitrary registration ──────────────────────────────────────────
 
-    public static Arbitrary<ValidEnumerableScenario> ArbitraryValidEnumerable() =>
-        GenValidEnumerableScenario().ToArbitrary();
+    public static Arbitrary<ValidEnumerableScenario> ArbitraryValidEnumerable()
+    {
+        return GenValidEnumerableScenario().ToArbitrary();
+    }
 
     // ═══════════════════════════════════════════════════════════════════════
     // Property 1: Valid IEnumerable/IEnumerator implementations are accepted

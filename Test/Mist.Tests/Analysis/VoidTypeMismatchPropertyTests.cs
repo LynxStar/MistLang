@@ -32,8 +32,10 @@ public class VoidTypeMismatchPropertyTests
 
     // ─── Helpers ─────────────────────────────────────────────────────────
 
-    private static Storm.Runtime.Token Tok(string lexeme) =>
-        MistTypeGenerator.MakeToken(lexeme);
+    private static Storm.Runtime.Token Tok(string lexeme)
+    {
+        return MistTypeGenerator.MakeToken(lexeme);
+    }
 
     private static MistCompilation MakeCompilation(string source = "")
     {
@@ -92,8 +94,10 @@ public class VoidTypeMismatchPropertyTests
         string MethodName,
         string VarName)
     {
-        public override string ToString() =>
-            $"{TypeKind} value in {Context} (method={MethodName}, var={VarName})";
+        public override string ToString()
+        {
+            return $"{TypeKind} value in {Context} (method={MethodName}, var={VarName})";
+        }
     }
 
 #pragma warning restore CA1034
@@ -122,8 +126,10 @@ public class VoidTypeMismatchPropertyTests
                select new VoidMismatchScenario(typeKind, context, methodName, varName);
     }
 
-    public static Arbitrary<VoidMismatchScenario> ArbitraryScenario() =>
-        GenScenario().ToArbitrary();
+    public static Arbitrary<VoidMismatchScenario> ArbitraryScenario()
+    {
+        return GenScenario().ToArbitrary();
+    }
 
     // ─── AST construction helpers ────────────────────────────────────────
 

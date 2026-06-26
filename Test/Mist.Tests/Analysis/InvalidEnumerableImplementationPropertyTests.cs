@@ -40,7 +40,10 @@ public sealed class InvalidEnumeratorScenario
         Description = description;
     }
 
-    public override string ToString() => Description;
+    public override string ToString()
+    {
+        return Description;
+    }
 }
 
 /// <summary>
@@ -64,7 +67,10 @@ public sealed class InvalidEnumerableScenario
         Description = description;
     }
 
-    public override string ToString() => Description;
+    public override string ToString()
+    {
+        return Description;
+    }
 }
 
 /// <summary>
@@ -319,11 +325,15 @@ public sealed class InvalidEnumerableImplementationPropertyTests : IDisposable
 
     // ─── Arbitrary registration ──────────────────────────────────────────
 
-    public static Arbitrary<InvalidEnumeratorScenario> ArbitraryInvalidEnumerator() =>
-        GenInvalidEnumeratorScenario().ToArbitrary();
+    public static Arbitrary<InvalidEnumeratorScenario> ArbitraryInvalidEnumerator()
+    {
+        return GenInvalidEnumeratorScenario().ToArbitrary();
+    }
 
-    public static Arbitrary<InvalidEnumerableScenario> ArbitraryInvalidEnumerable() =>
-        GenInvalidEnumerableScenario().ToArbitrary();
+    public static Arbitrary<InvalidEnumerableScenario> ArbitraryInvalidEnumerable()
+    {
+        return GenInvalidEnumerableScenario().ToArbitrary();
+    }
 
     // ═══════════════════════════════════════════════════════════════════════
     // Property 2a: IEnumerator<TElement> missing required members produces diagnostics

@@ -28,7 +28,10 @@ public sealed class StackallocSourceScenario
         Description = description;
     }
 
-    public override string ToString() => Description;
+    public override string ToString()
+    {
+        return Description;
+    }
 }
 
 /// <summary>
@@ -63,39 +66,52 @@ public static class MistStackallocGenerator
     // Fragment generators
     // ═══════════════════════════════════════════════════════════════════════
 
-    private static Gen<string> GenElementType() => Gen.Elements(ElementTypes);
+    private static Gen<string> GenElementType()
+    {
+        return Gen.Elements(ElementTypes);
+    }
 
     /// <summary>Generates the bracketed size expression: a literal (known length) or runtime expression (unknown length).</summary>
-    private static Gen<string> GenSize() =>
-        Gen.OneOf(Gen.Elements(LiteralSizes), Gen.Elements(RuntimeSizes));
+    private static Gen<string> GenSize()
+    {
+        return Gen.OneOf(Gen.Elements(LiteralSizes), Gen.Elements(RuntimeSizes));
+    }
 
     /// <summary>Generates the bare <c>stackalloc T[n]</c> expression fragment.</summary>
-    private static Gen<string> GenStackallocExpr() =>
-        from type in GenElementType()
-        from size in GenSize()
-        select $"stackalloc {type}[{size}]";
+    private static Gen<string> GenStackallocExpr()
+    {
+        return from type in GenElementType()
+               from size in GenSize()
+               select $"stackalloc {type}[{size}]";
+    }
 
     // ═══════════════════════════════════════════════════════════════════════
     // Positional scenario generators (R3.6)
     // ═══════════════════════════════════════════════════════════════════════
 
     /// <summary>stackalloc used as a local variable initializer.</summary>
-    private static Gen<StackallocSourceScenario> GenLocalInitializer() =>
-        from expr in GenStackallocExpr()
-        let body = $"var s = {expr};"
-        select new StackallocSourceScenario(Wrap(body), $"local-initializer: {expr}");
+    private static Gen<StackallocSourceScenario> GenLocalInitializer()
+    {
+        return from expr in GenStackallocExpr()
+               let body = $"var s = {expr};"
+               select new StackallocSourceScenario(Wrap(body), $"local-initializer: {expr}");
+    }
 
     /// <summary>stackalloc used as a call argument.</summary>
-    private static Gen<StackallocSourceScenario> GenCallArgument() =>
-        from expr in GenStackallocExpr()
-        let body = $"Consume({expr});"
-        select new StackallocSourceScenario(Wrap(body), $"call-argument: {expr}");
+    private static Gen<StackallocSourceScenario> GenCallArgument()
+    {
+        return from expr in GenStackallocExpr()
+               let body = $"Consume({expr});"
+               select new StackallocSourceScenario(Wrap(body), $"call-argument: {expr}");
+    }
 
     /// <summary>stackalloc used as the right-hand side of an assignment.</summary>
-    private static Gen<StackallocSourceScenario> GenAssignmentRhs() =>
-        from expr in GenStackallocExpr()
-        let body = $"var dst = seed;\n        dst = {expr};"
-        select new StackallocSourceScenario(Wrap(body), $"assignment-rhs: {expr}");
+    private static Gen<StackallocSourceScenario> GenAssignmentRhs()
+    {
+        return from expr in GenStackallocExpr()
+               let body = $"var dst = seed;\n        dst = {expr};"
+               select new StackallocSourceScenario(Wrap(body), $"assignment-rhs: {expr}");
+    }
 
     // ═══════════════════════════════════════════════════════════════════════
     // Combined generator
@@ -105,11 +121,13 @@ public static class MistStackallocGenerator
     /// Generates a random stackalloc source scenario covering all three syntactic
     /// positions and a mix of literal and runtime sizes.
     /// </summary>
-    public static Gen<StackallocSourceScenario> GenStackallocSource() =>
-        Gen.OneOf(
+    public static Gen<StackallocSourceScenario> GenStackallocSource()
+    {
+        return Gen.OneOf(
             GenLocalInitializer(),
             GenCallArgument(),
             GenAssignmentRhs());
+    }
 
     // ═══════════════════════════════════════════════════════════════════════
     // Program wrapping
@@ -119,9 +137,11 @@ public static class MistStackallocGenerator
     /// Wraps a body of statements in a complete Mist program with namespace, class,
     /// and a method taking a <c>seed</c> parameter (used by the assignment-rhs scenario).
     /// </summary>
-    private static string Wrap(string body) =>
-        "namespace TestNs;\n\npublic class Program\n{\n    public static void Run(int seed)\n    {\n        "
+    private static string Wrap(string body)
+    {
+        return "namespace TestNs;\n\npublic class Program\n{\n    public static void Run(int seed)\n    {\n        "
         + body + "\n    }\n}";
+    }
 
     // ═══════════════════════════════════════════════════════════════════════
     // FsCheck Arbitrary registration
@@ -131,8 +151,10 @@ public static class MistStackallocGenerator
     /// FsCheck Arbitrary for <see cref="StackallocSourceScenario"/>.
     /// Register with <c>[Property(Arbitrary = new[] { typeof(MistStackallocGenerator) })]</c>.
     /// </summary>
-    public static Arbitrary<StackallocSourceScenario> ArbitraryStackallocSourceScenario() =>
-        GenStackallocSource().ToArbitrary();
+    public static Arbitrary<StackallocSourceScenario> ArbitraryStackallocSourceScenario()
+    {
+        return GenStackallocSource().ToArbitrary();
+    }
 
     // ═══════════════════════════════════════════════════════════════════════
     // Malformed scenarios — missing/empty stackalloc size (Property 3)
@@ -148,44 +170,57 @@ public static class MistStackallocGenerator
     private static readonly string[] MalformedElementTypes =
         ["int", "bool", "char", "Foo", "Bar", "My.Ns.Widget", "List<int>", "Dictionary<int, string>"];
 
-    private static Gen<string> GenMalformedElementType() => Gen.Elements(MalformedElementTypes);
+    private static Gen<string> GenMalformedElementType()
+    {
+        return Gen.Elements(MalformedElementTypes);
+    }
 
     /// <summary>
     /// Generates a malformed stackalloc fragment: either <c>stackalloc T</c> (no bracketed
     /// size, R3.4) or <c>stackalloc T[]</c> (empty brackets, R3.5).
     /// </summary>
-    private static Gen<(string Expr, string Kind)> GenMalformedStackallocExpr() =>
-        from type in GenMalformedElementType()
-        from emptyBrackets in Gen.Elements(false, true)
-        select emptyBrackets
-            ? ($"stackalloc {type}[]", "empty-brackets")
-            : ($"stackalloc {type}", "no-brackets");
+    private static Gen<(string Expr, string Kind)> GenMalformedStackallocExpr()
+    {
+        return from type in GenMalformedElementType()
+               from emptyBrackets in Gen.Elements(false, true)
+               select emptyBrackets
+                   ? ($"stackalloc {type}[]", "empty-brackets")
+                   : ($"stackalloc {type}", "no-brackets");
+    }
 
     /// <summary>Malformed stackalloc used as a local variable initializer.</summary>
-    private static Gen<StackallocSourceScenario> GenMalformedLocalInitializer() =>
-        from m in GenMalformedStackallocExpr()
-        let body = $"var s = {m.Expr};"
-        select new StackallocSourceScenario(Wrap(body), $"{m.Kind} local-initializer: {m.Expr}");
+    private static Gen<StackallocSourceScenario> GenMalformedLocalInitializer()
+    {
+        return from m in GenMalformedStackallocExpr()
+               let body = $"var s = {m.Expr};"
+               select new StackallocSourceScenario(Wrap(body), $"{m.Kind} local-initializer: {m.Expr}");
+    }
 
     /// <summary>Malformed stackalloc used as a call argument.</summary>
-    private static Gen<StackallocSourceScenario> GenMalformedCallArgument() =>
-        from m in GenMalformedStackallocExpr()
-        let body = $"Consume({m.Expr});"
-        select new StackallocSourceScenario(Wrap(body), $"{m.Kind} call-argument: {m.Expr}");
+    private static Gen<StackallocSourceScenario> GenMalformedCallArgument()
+    {
+        return from m in GenMalformedStackallocExpr()
+               let body = $"Consume({m.Expr});"
+               select new StackallocSourceScenario(Wrap(body), $"{m.Kind} call-argument: {m.Expr}");
+    }
 
     /// <summary>Malformed stackalloc used as the right-hand side of an assignment.</summary>
-    private static Gen<StackallocSourceScenario> GenMalformedAssignmentRhs() =>
-        from m in GenMalformedStackallocExpr()
-        let body = $"var dst = seed;\n        dst = {m.Expr};"
-        select new StackallocSourceScenario(Wrap(body), $"{m.Kind} assignment-rhs: {m.Expr}");
+    private static Gen<StackallocSourceScenario> GenMalformedAssignmentRhs()
+    {
+        return from m in GenMalformedStackallocExpr()
+               let body = $"var dst = seed;\n        dst = {m.Expr};"
+               select new StackallocSourceScenario(Wrap(body), $"{m.Kind} assignment-rhs: {m.Expr}");
+    }
 
     /// <summary>
     /// Generates a random malformed stackalloc source scenario (missing or empty size)
     /// across all three syntactic positions and element-type shapes.
     /// </summary>
-    public static Gen<StackallocSourceScenario> GenMissingOrEmptySizeSource() =>
-        Gen.OneOf(
+    public static Gen<StackallocSourceScenario> GenMissingOrEmptySizeSource()
+    {
+        return Gen.OneOf(
             GenMalformedLocalInitializer(),
             GenMalformedCallArgument(),
             GenMalformedAssignmentRhs());
+    }
 }

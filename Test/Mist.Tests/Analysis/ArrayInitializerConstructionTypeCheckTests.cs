@@ -66,24 +66,32 @@ public sealed class ArrayInitializerConstructionTypeCheckTests
         }
     }
 
-    private static bool HasDiagnostic(ImmutableArray<Diagnostic> diagnostics, string id) =>
-        diagnostics.Any(d => d.Id.Value == id);
+    private static bool HasDiagnostic(ImmutableArray<Diagnostic> diagnostics, string id)
+    {
+        return diagnostics.Any(d => d.Id.Value == id);
+    }
 
-    private static bool HasNoSemanticErrors(ImmutableArray<Diagnostic> diagnostics) =>
-        !diagnostics.Any(d =>
+    private static bool HasNoSemanticErrors(ImmutableArray<Diagnostic> diagnostics)
+    {
+        return !diagnostics.Any(d =>
             d.Severity == DiagnosticSeverity.Error &&
             d.Stage == PipelineStage.SemanticModelConstruction);
+    }
 
-    private static bool HasNoTypeCheckerErrors(ImmutableArray<Diagnostic> diagnostics) =>
-        !diagnostics.Any(d =>
+    private static bool HasNoTypeCheckerErrors(ImmutableArray<Diagnostic> diagnostics)
+    {
+        return !diagnostics.Any(d =>
             d.Severity == DiagnosticSeverity.Error &&
             d.Stage == PipelineStage.Analysis);
+    }
 
-    private static string FormatErrors(ImmutableArray<Diagnostic> diagnostics) =>
-        string.Join("\n", diagnostics
+    private static string FormatErrors(ImmutableArray<Diagnostic> diagnostics)
+    {
+        return string.Join("\n", diagnostics
             .Where(d => d.Severity == DiagnosticSeverity.Error &&
                         (d.Stage == PipelineStage.SemanticModelConstruction || d.Stage == PipelineStage.Analysis))
             .Select(d => $"  {d.Id.Value}: {d.Message}"));
+    }
 
     // ═══════════════════════════════════════════════════════════════════════
     // VALID CASES — should type-check without semantic/analysis errors

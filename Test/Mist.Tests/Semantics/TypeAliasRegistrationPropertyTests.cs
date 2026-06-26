@@ -45,10 +45,12 @@ public sealed class TypeAliasRegistrationScenario
 
     public bool IsGeneric => TypeParameterNames.Count > 0;
 
-    public override string ToString() =>
-        IsGeneric
+    public override string ToString()
+    {
+        return IsGeneric
             ? $"type {AliasName}<{string.Join(", ", TypeParameterNames)}> = {TargetTypeName};"
             : $"type {AliasName} = {TargetTypeName};";
+    }
 }
 
 /// <summary>
@@ -67,13 +69,15 @@ public class TypeAliasRegistrationPropertyTests
 
     private static readonly SemanticModelBuilder Builder = new();
 
-    private static Storm.Runtime.Token Tok(string lexeme) =>
-        new(kind: 0,
+    private static Storm.Runtime.Token Tok(string lexeme)
+    {
+        return new(kind: 0,
             span: new Storm.Runtime.SourceSpan(0, lexeme.Length),
             start: new Storm.Runtime.LinePosition(1, 1),
             end: new Storm.Runtime.LinePosition(1, 1 + lexeme.Length),
             channel: Storm.Runtime.TokenChannel.Default,
             lexeme: lexeme);
+    }
 
     private static ISemanticModel BuildModel(Storm.Runtime.SyntaxNode ast)
     {
@@ -129,8 +133,10 @@ public class TypeAliasRegistrationPropertyTests
         return Gen.OneOf(GenSimpleAlias(), GenGenericAlias());
     }
 
-    public static Arbitrary<TypeAliasRegistrationScenario> ArbitraryTypeAliasRegistrationScenario() =>
-        GenScenario().ToArbitrary();
+    public static Arbitrary<TypeAliasRegistrationScenario> ArbitraryTypeAliasRegistrationScenario()
+    {
+        return GenScenario().ToArbitrary();
+    }
 
     // ─── AST construction helpers ────────────────────────────────────────
 
@@ -147,8 +153,9 @@ public class TypeAliasRegistrationPropertyTests
         };
     }
 
-    private static RefinableTypeExpressionNode MakeRefinableTypeExpr(string name) =>
-        new RefinableTypeExpressionNode
+    private static RefinableTypeExpressionNode MakeRefinableTypeExpr(string name)
+    {
+        return new RefinableTypeExpressionNode
         {
             First = new RefinableSingleTypeExprNode
             {
@@ -158,6 +165,7 @@ public class TypeAliasRegistrationPropertyTests
                 },
             },
         };
+    }
 
     private static CompilationUnitNode BuildAst(TypeAliasRegistrationScenario scenario)
     {

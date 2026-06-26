@@ -103,8 +103,10 @@ public sealed class BareArrayStampabilityGatePropertyTests
         ElementTypeCategory Category,
         bool ExpectStampable)
     {
-        public override string ToString() =>
-            $"new {ElementTypeName}[N] category={Category} expectStampable={ExpectStampable}";
+        public override string ToString()
+        {
+            return $"new {ElementTypeName}[N] category={Category} expectStampable={ExpectStampable}";
+        }
     }
 
 #pragma warning restore CA1034
@@ -191,8 +193,10 @@ public sealed class BareArrayStampabilityGatePropertyTests
 
     // ─── Arbitrary registration ──────────────────────────────────────────
 
-    public static Arbitrary<BareArrayScenario> ArbitraryBareArrayScenario() =>
-        GenBareArrayScenario().ToArbitrary();
+    public static Arbitrary<BareArrayScenario> ArbitraryBareArrayScenario()
+    {
+        return GenBareArrayScenario().ToArbitrary();
+    }
 
     // ─── Source generation ───────────────────────────────────────────────
 

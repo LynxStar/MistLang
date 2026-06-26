@@ -220,8 +220,10 @@ public sealed partial class EmitterOriginFilterPropertyTests : IDisposable
 #pragma warning disable CA1034
     public record AmbientRefScenario(ImmutableArray<string> ReferencedTypes)
     {
-        public override string ToString() =>
-            $"Referenced=[{string.Join(", ", ReferencedTypes)}]";
+        public override string ToString()
+        {
+            return $"Referenced=[{string.Join(", ", ReferencedTypes)}]";
+        }
     }
 #pragma warning restore CA1034
 

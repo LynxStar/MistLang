@@ -97,7 +97,10 @@ public sealed class ContextPropagationScenario
         Label = label;
     }
 
-    public override string ToString() => $"[{Kind}] {Label} → \"{ExpectedOutput}\"";
+    public override string ToString()
+    {
+        return $"[{Kind}] {Label} → \"{ExpectedOutput}\"";
+    }
 }
 
 // ─── Property test class ─────────────────────────────────────────────────

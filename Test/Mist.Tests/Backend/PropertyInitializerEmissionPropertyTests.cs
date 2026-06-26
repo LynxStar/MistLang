@@ -53,7 +53,10 @@ public sealed class PropertyInitializerEmissionScenario
         HasConstructorArgs = hasConstructorArgs;
     }
 
-    public override string ToString() => Description;
+    public override string ToString()
+    {
+        return Description;
+    }
 }
 
 /// <summary>
@@ -85,10 +88,15 @@ public sealed class PropertyInitializerEmissionPropertyTests
 
     // ─── FsCheck generators ─────────────────────────────────────────────
 
-    private static Gen<int> GenIntValue() => Gen.Choose(0, 999);
+    private static Gen<int> GenIntValue()
+    {
+        return Gen.Choose(0, 999);
+    }
 
-    private static Gen<(string MistExpr, string CSharpExpr)> GenValueExpression() =>
-        GenIntValue().Select(n => (n.ToString(), n.ToString()));
+    private static Gen<(string MistExpr, string CSharpExpr)> GenValueExpression()
+    {
+        return GenIntValue().Select(n => (n.ToString(), n.ToString()));
+    }
 
     /// <summary>
     /// Generates a scenario with constructor arguments and N property assignments.
@@ -134,8 +142,10 @@ public sealed class PropertyInitializerEmissionPropertyTests
                    hasConstructorArgs: false);
     }
 
-    public static Arbitrary<PropertyInitializerEmissionScenario> ArbitraryScenario() =>
-        Gen.OneOf(GenWithArgs(), GenNoArgs()).ToArbitrary();
+    public static Arbitrary<PropertyInitializerEmissionScenario> ArbitraryScenario()
+    {
+        return Gen.OneOf(GenWithArgs(), GenNoArgs()).ToArbitrary();
+    }
 
     // ─── Helpers ────────────────────────────────────────────────────────
 

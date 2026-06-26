@@ -134,8 +134,10 @@ public class AutoAwaitPreservationPropertyTests
 
     public record DirectAsyncCallScenario(string ReturnType, string ReturnExpr, string MethodName)
     {
-        public override string ToString() =>
-            $"sync method '{MethodName}' calls async method returning {ReturnType}";
+        public override string ToString()
+        {
+            return $"sync method '{MethodName}' calls async method returning {ReturnType}";
+        }
     }
 
 #pragma warning restore CA1034
@@ -156,8 +158,10 @@ public class AutoAwaitPreservationPropertyTests
                select new DirectAsyncCallScenario(variant.Type, variant.Expr, caller);
     }
 
-    public static Arbitrary<DirectAsyncCallScenario> ArbitraryDirectAsyncCallScenario() =>
-        GenDirectAsyncCallScenario().ToArbitrary();
+    public static Arbitrary<DirectAsyncCallScenario> ArbitraryDirectAsyncCallScenario()
+    {
+        return GenDirectAsyncCallScenario().ToArbitrary();
+    }
 
     private static string BuildDirectAsyncCallSource(DirectAsyncCallScenario scenario)
     {
@@ -227,8 +231,10 @@ public class AutoAwaitPreservationPropertyTests
 
     public record FuncInAsyncContextScenario(string ParamType, string ReturnExpr, string ArgLiteral)
     {
-        public override string ToString() =>
-            $"async lambda ({ParamType} x) => {ReturnExpr} invoked in async context with arg {ArgLiteral}";
+        public override string ToString()
+        {
+            return $"async lambda ({ParamType} x) => {ReturnExpr} invoked in async context with arg {ArgLiteral}";
+        }
     }
 
 #pragma warning restore CA1034
@@ -246,8 +252,10 @@ public class AutoAwaitPreservationPropertyTests
             new FuncInAsyncContextScenario(v.Type, v.ReturnExpr, v.Literal));
     }
 
-    public static Arbitrary<FuncInAsyncContextScenario> ArbitraryFuncInAsyncContextScenario() =>
-        GenFuncInAsyncContextScenario().ToArbitrary();
+    public static Arbitrary<FuncInAsyncContextScenario> ArbitraryFuncInAsyncContextScenario()
+    {
+        return GenFuncInAsyncContextScenario().ToArbitrary();
+    }
 
     private static string BuildFuncInAsyncContextSource(FuncInAsyncContextScenario scenario)
     {
@@ -312,8 +320,10 @@ public class AutoAwaitPreservationPropertyTests
 
     public record NonTaskFuncScenario(string ParamType, string ReturnType, string ReturnExpr, string ArgLiteral)
     {
-        public override string ToString() =>
-            $"lambda ({ParamType} x) => {ReturnExpr} (returns {ReturnType}) invoked in sync context";
+        public override string ToString()
+        {
+            return $"lambda ({ParamType} x) => {ReturnExpr} (returns {ReturnType}) invoked in sync context";
+        }
     }
 
 #pragma warning restore CA1034
@@ -332,8 +342,10 @@ public class AutoAwaitPreservationPropertyTests
             new NonTaskFuncScenario(v.ParamType, v.ReturnType, v.ReturnExpr, v.ArgLiteral));
     }
 
-    public static Arbitrary<NonTaskFuncScenario> ArbitraryNonTaskFuncScenario() =>
-        GenNonTaskFuncScenario().ToArbitrary();
+    public static Arbitrary<NonTaskFuncScenario> ArbitraryNonTaskFuncScenario()
+    {
+        return GenNonTaskFuncScenario().ToArbitrary();
+    }
 
     private static string BuildNonTaskFuncSource(NonTaskFuncScenario scenario)
     {
@@ -400,8 +412,10 @@ public class AutoAwaitPreservationPropertyTests
 
     public record DirectAsyncSeedScenario(string ReturnType, string ReturnExpr, string CallerName)
     {
-        public override string ToString() =>
-            $"sync method '{CallerName}' directly calls async method returning {ReturnType}";
+        public override string ToString()
+        {
+            return $"sync method '{CallerName}' directly calls async method returning {ReturnType}";
+        }
     }
 
 #pragma warning restore CA1034
@@ -413,8 +427,10 @@ public class AutoAwaitPreservationPropertyTests
                select new DirectAsyncSeedScenario(variant.Type, variant.Expr, caller);
     }
 
-    public static Arbitrary<DirectAsyncSeedScenario> ArbitraryDirectAsyncSeedScenario() =>
-        GenDirectAsyncSeedScenario().ToArbitrary();
+    public static Arbitrary<DirectAsyncSeedScenario> ArbitraryDirectAsyncSeedScenario()
+    {
+        return GenDirectAsyncSeedScenario().ToArbitrary();
+    }
 
     private static string BuildDirectAsyncSeedSource(DirectAsyncSeedScenario scenario)
     {

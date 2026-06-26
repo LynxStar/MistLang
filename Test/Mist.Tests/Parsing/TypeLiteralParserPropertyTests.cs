@@ -60,23 +60,34 @@ public class TypeLiteralParserPropertyTests
 #pragma warning disable CA1034
     public record TypeLiteralTestCase(string Keyword, string PositionLabel, string Source)
     {
-        public override string ToString() => $"{Keyword} in {PositionLabel}";
+        public override string ToString()
+        {
+            return $"{Keyword} in {PositionLabel}";
+        }
     }
 #pragma warning restore CA1034
 
     // ─── Expression position source builders ─────────────────────────────
 
-    private static string BuildVarInitializer(string keyword) =>
-        $"class Program {{ public static void Main() {{ var x = {keyword}; }} }}";
+    private static string BuildVarInitializer(string keyword)
+    {
+        return $"class Program {{ public static void Main() {{ var x = {keyword}; }} }}";
+    }
 
-    private static string BuildMethodArgument(string keyword) =>
-        $"class Program {{ public static void Main() {{ Foo({keyword}); }} static void Foo(Type t) {{ }} }}";
+    private static string BuildMethodArgument(string keyword)
+    {
+        return $"class Program {{ public static void Main() {{ Foo({keyword}); }} static void Foo(Type t) {{ }} }}";
+    }
 
-    private static string BuildReturnValue(string keyword) =>
-        $"class Program {{ public static Type GetType() {{ return {keyword}; }} public static void Main() {{ }} }}";
+    private static string BuildReturnValue(string keyword)
+    {
+        return $"class Program {{ public static Type GetType() {{ return {keyword}; }} public static void Main() {{ }} }}";
+    }
 
-    private static string BuildAssignmentRhs(string keyword) =>
-        $"class Program {{ public static void Main() {{ var x = bool; x = {keyword}; }} }}";
+    private static string BuildAssignmentRhs(string keyword)
+    {
+        return $"class Program {{ public static void Main() {{ var x = bool; x = {keyword}; }} }}";
+    }
 
     private delegate string SourceBuilder(string keyword);
 
@@ -221,23 +232,34 @@ public class TypeLiteralParserPropertyTests
 #pragma warning disable CA1034
     public record ArrayTypeLiteralTestCase(string Keyword, string PositionLabel, string Source)
     {
-        public override string ToString() => $"{Keyword}[] in {PositionLabel}";
+        public override string ToString()
+        {
+            return $"{Keyword}[] in {PositionLabel}";
+        }
     }
 #pragma warning restore CA1034
 
     // ─── Array expression position source builders ───────────────────────
 
-    private static string BuildArrayVarInitializer(string keyword) =>
-        $"class Program {{ public static void Main() {{ var x = {keyword}[]; }} }}";
+    private static string BuildArrayVarInitializer(string keyword)
+    {
+        return $"class Program {{ public static void Main() {{ var x = {keyword}[]; }} }}";
+    }
 
-    private static string BuildArrayMethodArgument(string keyword) =>
-        $"class Program {{ public static void Main() {{ Foo({keyword}[]); }} static void Foo(Type t) {{ }} }}";
+    private static string BuildArrayMethodArgument(string keyword)
+    {
+        return $"class Program {{ public static void Main() {{ Foo({keyword}[]); }} static void Foo(Type t) {{ }} }}";
+    }
 
-    private static string BuildArrayReturnValue(string keyword) =>
-        $"class Program {{ public static Type GetType() {{ return {keyword}[]; }} public static void Main() {{ }} }}";
+    private static string BuildArrayReturnValue(string keyword)
+    {
+        return $"class Program {{ public static Type GetType() {{ return {keyword}[]; }} public static void Main() {{ }} }}";
+    }
 
-    private static string BuildArrayAssignmentRhs(string keyword) =>
-        $"class Program {{ public static void Main() {{ var x = bool[]; x = {keyword}[]; }} }}";
+    private static string BuildArrayAssignmentRhs(string keyword)
+    {
+        return $"class Program {{ public static void Main() {{ var x = bool[]; x = {keyword}[]; }} }}";
+    }
 
     private static readonly (string Label, SourceBuilder Builder)[] ArrayExpressionPositions =
     [
@@ -318,23 +340,34 @@ public class TypeLiteralParserPropertyTests
 #pragma warning disable CA1034
     public record TypeAnnotationTestCase(string Keyword, string PositionLabel, string Source)
     {
-        public override string ToString() => $"{Keyword} as {PositionLabel}";
+        public override string ToString()
+        {
+            return $"{Keyword} as {PositionLabel}";
+        }
     }
 #pragma warning restore CA1034
 
     // ─── Annotation position source builders ─────────────────────────────
 
-    private static string BuildParameterType(string keyword) =>
-        $"class Program {{ public static void Foo({keyword} x) {{ }} public static void Main() {{ }} }}";
+    private static string BuildParameterType(string keyword)
+    {
+        return $"class Program {{ public static void Foo({keyword} x) {{ }} public static void Main() {{ }} }}";
+    }
 
-    private static string BuildFieldType(string keyword) =>
-        $"class Program {{ {keyword} myField; public static void Main() {{ }} }}";
+    private static string BuildFieldType(string keyword)
+    {
+        return $"class Program {{ {keyword} myField; public static void Main() {{ }} }}";
+    }
 
-    private static string BuildReturnType(string keyword) =>
-        $"class Program {{ public static {keyword} GetValue() {{ return 0; }} public static void Main() {{ }} }}";
+    private static string BuildReturnType(string keyword)
+    {
+        return $"class Program {{ public static {keyword} GetValue() {{ return 0; }} public static void Main() {{ }} }}";
+    }
 
-    private static string BuildTypedVarDecl(string keyword) =>
-        $"class Program {{ public static void Main() {{ {keyword} x = 0; }} }}";
+    private static string BuildTypedVarDecl(string keyword)
+    {
+        return $"class Program {{ public static void Main() {{ {keyword} x = 0; }} }}";
+    }
 
     private static readonly (string Label, SourceBuilder Builder)[] AnnotationPositions =
     [

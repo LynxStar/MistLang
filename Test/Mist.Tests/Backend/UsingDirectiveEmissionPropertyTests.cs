@@ -132,8 +132,10 @@ public sealed class UsingDirectiveEmissionPropertyTests : IDisposable
 #pragma warning disable CA1034
     public record UsingScenario(ImmutableArray<string> UsingNamespaces)
     {
-        public override string ToString() =>
-            $"Usings=[{string.Join(", ", UsingNamespaces)}]";
+        public override string ToString()
+        {
+            return $"Usings=[{string.Join(", ", UsingNamespaces)}]";
+        }
     }
 #pragma warning restore CA1034
 

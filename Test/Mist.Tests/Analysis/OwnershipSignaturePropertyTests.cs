@@ -77,7 +77,10 @@ public class OwnershipSignaturePropertyTests
     /// </summary>
     public sealed record MatchingSignatureScenario(string Source, string Label)
     {
-        public override string ToString() => Label;
+        public override string ToString()
+        {
+            return Label;
+        }
     }
 
     /// <summary>
@@ -86,7 +89,10 @@ public class OwnershipSignaturePropertyTests
     /// </summary>
     public sealed record MismatchedParamScenario(string Source, string Label)
     {
-        public override string ToString() => Label;
+        public override string ToString()
+        {
+            return Label;
+        }
     }
 
     /// <summary>
@@ -95,7 +101,10 @@ public class OwnershipSignaturePropertyTests
     /// </summary>
     public sealed record MismatchedReturnScenario(string Source, string Label)
     {
-        public override string ToString() => Label;
+        public override string ToString()
+        {
+            return Label;
+        }
     }
 
     /// <summary>
@@ -104,7 +113,10 @@ public class OwnershipSignaturePropertyTests
     /// </summary>
     public sealed record InvalidReturnSpecScenario(string Source, string Label)
     {
-        public override string ToString() => Label;
+        public override string ToString()
+        {
+            return Label;
+        }
     }
 
 #pragma warning restore CA1034
@@ -298,17 +310,25 @@ public class OwnershipSignaturePropertyTests
 
     // ─── Arbitrary instances ─────────────────────────────────────────────
 
-    public static Arbitrary<MatchingSignatureScenario> ArbitraryMatchingSignatureScenario() =>
-        GenMatchingSignatureScenario().ToArbitrary();
+    public static Arbitrary<MatchingSignatureScenario> ArbitraryMatchingSignatureScenario()
+    {
+        return GenMatchingSignatureScenario().ToArbitrary();
+    }
 
-    public static Arbitrary<MismatchedParamScenario> ArbitraryMismatchedParamScenario() =>
-        GenMismatchedParamScenario().ToArbitrary();
+    public static Arbitrary<MismatchedParamScenario> ArbitraryMismatchedParamScenario()
+    {
+        return GenMismatchedParamScenario().ToArbitrary();
+    }
 
-    public static Arbitrary<MismatchedReturnScenario> ArbitraryMismatchedReturnScenario() =>
-        GenMismatchedReturnScenario().ToArbitrary();
+    public static Arbitrary<MismatchedReturnScenario> ArbitraryMismatchedReturnScenario()
+    {
+        return GenMismatchedReturnScenario().ToArbitrary();
+    }
 
-    public static Arbitrary<InvalidReturnSpecScenario> ArbitraryInvalidReturnSpecScenario() =>
-        GenInvalidReturnSpecScenario().ToArbitrary();
+    public static Arbitrary<InvalidReturnSpecScenario> ArbitraryInvalidReturnSpecScenario()
+    {
+        return GenInvalidReturnSpecScenario().ToArbitrary();
+    }
 
     // ═══════════════════════════════════════════════════════════════════════
     // Property 8a: Matching ownership specifiers on abstract type implementations

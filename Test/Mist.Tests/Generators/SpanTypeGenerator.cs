@@ -69,53 +69,68 @@ public static class SpanTypeGenerator
     }
 
     /// <summary>Generates a random stampable element type (legacy or stdlib form).</summary>
-    private static Gen<IType> GenElementType() =>
-        Gen.OneOf(
+    private static Gen<IType> GenElementType()
+    {
+        return Gen.OneOf(
             Gen.Elements(StampableElementTypes),
             Gen.Elements(StdlibElementTypes));
+    }
 
     /// <summary>Generates a random IsReadOnly flag.</summary>
-    private static Gen<bool> GenIsReadOnly() => Gen.Elements(false, true);
+    private static Gen<bool> GenIsReadOnly()
+    {
+        return Gen.Elements(false, true);
+    }
 
     /// <summary>
     /// Generates a <see cref="SpanType"/> with unknown length (the alias / inbound projection form).
     /// </summary>
-    private static Gen<SpanType> GenUnknownLengthSpan() =>
-        from element in GenElementType()
-        from isReadOnly in GenIsReadOnly()
-        select new SpanType(element, isReadOnly);
+    private static Gen<SpanType> GenUnknownLengthSpan()
+    {
+        return from element in GenElementType()
+               from isReadOnly in GenIsReadOnly()
+               select new SpanType(element, isReadOnly);
+    }
 
     /// <summary>
     /// Generates a <see cref="SpanType"/> with a known compile-time length (literal stackalloc size).
     /// </summary>
-    private static Gen<SpanType> GenKnownLengthSpan() =>
-        from element in GenElementType()
-        from length in Gen.Choose(0, 1024).Select(n => (long)n)
-        from isReadOnly in GenIsReadOnly()
-        select new SpanType(element, length, isReadOnly);
+    private static Gen<SpanType> GenKnownLengthSpan()
+    {
+        return from element in GenElementType()
+               from length in Gen.Choose(0, 1024).Select(n => (long)n)
+               from isReadOnly in GenIsReadOnly()
+               select new SpanType(element, length, isReadOnly);
+    }
 
     /// <summary>
     /// Generates a <see cref="SpanType"/> with a symbolic length identity.
     /// </summary>
-    private static Gen<SpanType> GenSymbolicLengthSpan() =>
-        from element in GenElementType()
-        from symbolicId in Gen.Choose(0, 100)
-        from isReadOnly in GenIsReadOnly()
-        select new SpanType(element, symbolicId, isReadOnly);
+    private static Gen<SpanType> GenSymbolicLengthSpan()
+    {
+        return from element in GenElementType()
+               from symbolicId in Gen.Choose(0, 100)
+               from isReadOnly in GenIsReadOnly()
+               select new SpanType(element, symbolicId, isReadOnly);
+    }
 
     /// <summary>
     /// Generates a random <see cref="SpanType"/> covering all three length states
     /// (unknown, known, symbolic) with equal probability.
     /// </summary>
-    public static Gen<SpanType> GenSpanType() =>
-        Gen.OneOf(
+    public static Gen<SpanType> GenSpanType()
+    {
+        return Gen.OneOf(
             GenUnknownLengthSpan(),
             GenKnownLengthSpan(),
             GenSymbolicLengthSpan());
+    }
 
     /// <summary>
     /// Provides an <see cref="Arbitrary{SpanType}"/> for FsCheck discovery.
     /// </summary>
-    public static Arbitrary<SpanType> ArbitrarySpanType() =>
-        GenSpanType().ToArbitrary();
+    public static Arbitrary<SpanType> ArbitrarySpanType()
+    {
+        return GenSpanType().ToArbitrary();
+    }
 }

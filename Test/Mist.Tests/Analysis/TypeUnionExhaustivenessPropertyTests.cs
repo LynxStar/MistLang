@@ -56,7 +56,10 @@ public class TypeUnionExhaustivenessPropertyTests
         IReadOnlyList<(ArmKind Kind, int TypeIndex, bool HasGuard)> Arms,
         string Label)
     {
-        public override string ToString() => Label;
+        public override string ToString()
+        {
+            return Label;
+        }
     }
 #pragma warning restore CA1034
 
@@ -85,14 +88,18 @@ public class TypeUnionExhaustivenessPropertyTests
         return Gen.Frequency((3, flatUnion), (1, nestedUnion));
     }
 
-    private static Gen<(ArmKind Kind, int TypeIndex, bool HasGuard)> GenArm(int typePoolSize) =>
-        from kind in Gen.Frequency((3, Gen.Constant(ArmKind.TypePattern)), (1, Gen.Constant(ArmKind.CatchAll)))
-        from typeIdx in Gen.Choose(0, typePoolSize - 1)
-        from hasGuard in Gen.Elements(true, false)
-        select (kind, typeIdx, hasGuard);
+    private static Gen<(ArmKind Kind, int TypeIndex, bool HasGuard)> GenArm(int typePoolSize)
+    {
+        return from kind in Gen.Frequency((3, Gen.Constant(ArmKind.TypePattern)), (1, Gen.Constant(ArmKind.CatchAll)))
+               from typeIdx in Gen.Choose(0, typePoolSize - 1)
+               from hasGuard in Gen.Elements(true, false)
+               select (kind, typeIdx, hasGuard);
+    }
 
-    private static Storm.Runtime.Token Tok(string lexeme) =>
-        MistTypeGenerator.MakeToken(lexeme);
+    private static Storm.Runtime.Token Tok(string lexeme)
+    {
+        return MistTypeGenerator.MakeToken(lexeme);
+    }
 
     public static Arbitrary<UnionExhaustivenessScenario> ArbitraryUnionExhaustivenessScenario()
     {
@@ -109,15 +116,18 @@ public class TypeUnionExhaustivenessPropertyTests
 
     // ─── AST construction helpers ────────────────────────────────────────
 
-    private static PrimitiveTypeNode MakePrimitiveTypeNode(string keyword) => keyword switch
+    private static PrimitiveTypeNode MakePrimitiveTypeNode(string keyword)
     {
-        "int" => new IntTypePrimitiveTypeNode(),
-        "bool" => new BoolTypePrimitiveTypeNode(),
-        "string" => new StringTypePrimitiveTypeNode(),
-        "float" => new FloatTypePrimitiveTypeNode(),
-        "double" => new DoubleTypePrimitiveTypeNode(),
-        _ => new IntTypePrimitiveTypeNode(),
-    };
+        return keyword switch
+        {
+            "int" => new IntTypePrimitiveTypeNode(),
+            "bool" => new BoolTypePrimitiveTypeNode(),
+            "string" => new StringTypePrimitiveTypeNode(),
+            "float" => new FloatTypePrimitiveTypeNode(),
+            "double" => new DoubleTypePrimitiveTypeNode(),
+            _ => new IntTypePrimitiveTypeNode(),
+        };
+    }
 
     private static PatternNode MakeTypePattern(int typeIndex)
     {

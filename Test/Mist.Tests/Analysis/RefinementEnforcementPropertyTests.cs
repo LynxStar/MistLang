@@ -84,8 +84,10 @@ public class RefinementEnforcementPropertyTests
         /// <summary>Whether the literal satisfies the predicate (L >= N).</summary>
         public bool ShouldAccept => Literal >= Threshold;
 
-        public override string ToString() =>
-            $"type T = int >= {Threshold}; T x = {Literal}; (expect {(ShouldAccept ? "accept" : "reject")})";
+        public override string ToString()
+        {
+            return $"type T = int >= {Threshold}; T x = {Literal}; (expect {(ShouldAccept ? "accept" : "reject")})";
+        }
     }
 #pragma warning restore CA1034
 
@@ -98,8 +100,10 @@ public class RefinementEnforcementPropertyTests
                select new EnforcementScenario(threshold, literal);
     }
 
-    public static Arbitrary<EnforcementScenario> ArbitraryEnforcementScenario() =>
-        GenEnforcementScenario().ToArbitrary();
+    public static Arbitrary<EnforcementScenario> ArbitraryEnforcementScenario()
+    {
+        return GenEnforcementScenario().ToArbitrary();
+    }
 
     // ─── Property test ───────────────────────────────────────────────────
 

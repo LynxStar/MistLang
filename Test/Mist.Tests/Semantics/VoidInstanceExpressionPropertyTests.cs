@@ -144,8 +144,10 @@ public class VoidInstanceExpressionPropertyTests
         string VarName,
         string ParamName)
     {
-        public override string ToString() =>
-            $"Void.Void in {Context} (method={MethodName}, var={VarName}, param={ParamName})";
+        public override string ToString()
+        {
+            return $"Void.Void in {Context} (method={MethodName}, var={VarName}, param={ParamName})";
+        }
     }
 
 #pragma warning restore CA1034
@@ -170,8 +172,10 @@ public class VoidInstanceExpressionPropertyTests
                select new VoidExprScenario(context, methodName, varName, paramName);
     }
 
-    public static Arbitrary<VoidExprScenario> ArbitraryScenario() =>
-        GenScenario().ToArbitrary();
+    public static Arbitrary<VoidExprScenario> ArbitraryScenario()
+    {
+        return GenScenario().ToArbitrary();
+    }
 
     // ─── Scenario builders ───────────────────────────────────────────────
 

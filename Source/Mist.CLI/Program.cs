@@ -572,13 +572,16 @@ internal class Program
         }
     }
 
-    private static string Escape(char c) => c switch
+    private static string Escape(char c)
     {
-        '\n' => "\\n",
-        '\r' => "\\r",
-        '\t' => "\\t",
-        '\0' => "\\0",
-        ' ' => "\\s",
-        _ => c.ToString(),
-    };
+        return c switch
+        {
+            '\n' => "\\n",
+            '\r' => "\\r",
+            '\t' => "\\t",
+            '\0' => "\\0",
+            ' ' => "\\s",
+            _ => c.ToString(),
+        };
+    }
 }

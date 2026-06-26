@@ -84,12 +84,16 @@ public sealed class OwnedFieldProvenancePropertyTests
         }
     }
 
-    private static Diagnostic? FindById(ImmutableArray<Diagnostic> diagnostics, string id) =>
-        diagnostics.FirstOrDefault(d => d.Id.Value == id);
+    private static Diagnostic? FindById(ImmutableArray<Diagnostic> diagnostics, string id)
+    {
+        return diagnostics.FirstOrDefault(d => d.Id.Value == id);
+    }
 
-    private static bool HasProvenanceError(ImmutableArray<Diagnostic> diagnostics) =>
-        FindById(diagnostics, "MIST_OWN_REQUIRES_OWNED") is not null ||
+    private static bool HasProvenanceError(ImmutableArray<Diagnostic> diagnostics)
+    {
+        return FindById(diagnostics, "MIST_OWN_REQUIRES_OWNED") is not null ||
         FindById(diagnostics, "MIST_OWN_NOT_CLONABLE") is not null;
+    }
 
     // ─── Shared type declarations ────────────────────────────────────────
 

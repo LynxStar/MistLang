@@ -202,27 +202,33 @@ public sealed class FieldTypeRestrictionVerifier
     /// Message for <c>MIST_OWN_FIELD_TYPE_VIOLATION</c>: a non-owned reference type
     /// field without <c>IClonable&lt;T&gt;</c> in an owned type (Req 4 AC 4, Req 11 AC 2).
     /// </summary>
-    internal static string FieldTypeViolationMessage(string fieldName, string typeName) =>
-        $"Field '{fieldName}' of type '{typeName}' violates the owned-type field-type restriction: " +
+    internal static string FieldTypeViolationMessage(string fieldName, string typeName)
+    {
+        return $"Field '{fieldName}' of type '{typeName}' violates the owned-type field-type restriction: " +
         $"all fields of an owned type must be owned types, implement 'IClonable<T>', or be value types " +
         $"to guarantee full graph ownership.";
+    }
 
     /// <summary>
     /// Message for <c>MIST_OWN_FIELD_TYPE_VIOLATION</c> on a generic type parameter
     /// that is not constrained (Req 4 AC 6).
     /// </summary>
-    internal static string FieldTypeViolationMessageForTypeParam(string fieldName, string typeParamName) =>
-        $"Field '{fieldName}' has unconstrained type parameter '{typeParamName}': generic fields in " +
+    internal static string FieldTypeViolationMessageForTypeParam(string fieldName, string typeParamName)
+    {
+        return $"Field '{fieldName}' has unconstrained type parameter '{typeParamName}': generic fields in " +
         $"an owned type must be constrained to be an owned type or to implement 'IClonable<T>' " +
         $"to satisfy the field-type restriction.";
+    }
 
     // ── Type classification helpers ──────────────────────────────────────
 
     /// <summary>
     /// Returns <c>true</c> if the given type is a value type (struct or enum).
     /// </summary>
-    private static bool IsValueType(IType type) =>
-        type.Kind is TypeKind.Struct or TypeKind.Enum;
+    private static bool IsValueType(IType type)
+    {
+        return type.Kind is TypeKind.Struct or TypeKind.Enum;
+    }
 
     /// <summary>
     /// Returns <c>true</c> if the given type is declared as an owned type.
@@ -272,8 +278,10 @@ public sealed class FieldTypeRestrictionVerifier
     /// Unwraps a <see cref="ConstructedType"/> to its generic definition.
     /// Non-constructed types pass through unchanged.
     /// </summary>
-    private static IType Unwrap(IType type) =>
-        type is ConstructedType constructed ? constructed.GenericDefinition : type;
+    private static IType Unwrap(IType type)
+    {
+        return type is ConstructedType constructed ? constructed.GenericDefinition : type;
+    }
 
     /// <summary>
     /// Returns the member scope of a class or struct type, or <c>null</c> for types

@@ -257,8 +257,10 @@ public class SubtypeAssignabilityPropertyTests
     }
 
     /// <summary>FsCheck Arbitrary registration for SubtypeScenario.</summary>
-    public static Arbitrary<SubtypeScenario> ArbitrarySubtypeScenario() =>
-        GenSubtypeScenario().ToArbitrary();
+    public static Arbitrary<SubtypeScenario> ArbitrarySubtypeScenario()
+    {
+        return GenSubtypeScenario().ToArbitrary();
+    }
 
     // ─── AST construction ────────────────────────────────────────────────
 

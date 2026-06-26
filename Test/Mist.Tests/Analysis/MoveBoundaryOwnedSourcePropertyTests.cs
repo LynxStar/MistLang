@@ -191,7 +191,10 @@ public sealed class MoveBoundaryOwnedSourcePropertyTests : IDisposable
     /// <summary>An already-owned source scenario: a full program plus a human-readable label.</summary>
     public sealed record OwnedSourceScenario(string Source, string Label)
     {
-        public override string ToString() => Label;
+        public override string ToString()
+        {
+            return Label;
+        }
     }
 
 #pragma warning restore CA1034
@@ -316,8 +319,10 @@ public sealed class MoveBoundaryOwnedSourcePropertyTests : IDisposable
                select new OwnedSourceScenario(source, label);
     }
 
-    public static Arbitrary<OwnedSourceScenario> ArbitraryOwnedSourceScenario() =>
-        GenOwnedSourceScenario().ToArbitrary();
+    public static Arbitrary<OwnedSourceScenario> ArbitraryOwnedSourceScenario()
+    {
+        return GenOwnedSourceScenario().ToArbitrary();
+    }
 
     // ═══════════════════════════════════════════════════════════════════════
     // Property 2: Owned source implies no clone.

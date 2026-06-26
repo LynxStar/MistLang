@@ -48,7 +48,10 @@ public class BinaryLiteralTypeResolutionPropertyTests
 #pragma warning disable CA1034
     public record BinaryLiteralTypeScenario(string Literal, string Suffix, string ExpectedTypeName)
     {
-        public override string ToString() => $"var x = {Literal}; → {ExpectedTypeName}";
+        public override string ToString()
+        {
+            return $"var x = {Literal}; → {ExpectedTypeName}";
+        }
     }
 #pragma warning restore CA1034
 

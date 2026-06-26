@@ -269,8 +269,10 @@ public class ConstructedTypeAssignabilityPropertyTests
                    genericName, concreteType, null, abstractName);
     }
 
-    public static Arbitrary<AssignabilityScenario> ArbitraryAssignabilityScenario() =>
-        GenAssignabilityScenario().ToArbitrary();
+    public static Arbitrary<AssignabilityScenario> ArbitraryAssignabilityScenario()
+    {
+        return GenAssignabilityScenario().ToArbitrary();
+    }
 
     // ─── AST construction ────────────────────────────────────────────────
 

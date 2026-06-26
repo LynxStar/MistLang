@@ -39,7 +39,10 @@ public sealed class NullableEmissionScenario
         UsageKind = usageKind;
     }
 
-    public override string ToString() => $"{TypeName}? ({(IsValueType ? "value" : "reference")}, {UsageKind})";
+    public override string ToString()
+    {
+        return $"{TypeName}? ({(IsValueType ? "value" : "reference")}, {UsageKind})";
+    }
 }
 
 /// <summary>
@@ -59,7 +62,10 @@ public sealed class OperatorEmissionScenario
         Label = label;
     }
 
-    public override string ToString() => $"{Operator} ({Label})";
+    public override string ToString()
+    {
+        return $"{Operator} ({Label})";
+    }
 }
 
 // ─── Property Tests ─────────────────────────────────────────────────────────

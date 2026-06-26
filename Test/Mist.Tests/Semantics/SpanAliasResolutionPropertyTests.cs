@@ -106,7 +106,10 @@ public sealed class SpanAliasResolutionPropertyTests : IDisposable
         /// <summary>The span keyword used in the Mist source: "Span" or "ReadOnlySpan".</summary>
         public string KindName => IsReadOnly ? "ReadOnlySpan" : "Span";
 
-        public override string ToString() => $"{KindName}<{ElementTypeName}, unknown>";
+        public override string ToString()
+        {
+            return $"{KindName}<{ElementTypeName}, unknown>";
+        }
     }
 
 #pragma warning restore CA1034

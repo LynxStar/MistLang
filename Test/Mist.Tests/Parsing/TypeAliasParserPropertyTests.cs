@@ -30,8 +30,10 @@ public class TypeAliasParserPropertyTests
 
     // ─── FsCheck Arbitrary registration ─────────────────────────────────────
 
-    public static Arbitrary<TypeAliasSourceScenario> ArbitraryTypeAliasSourceScenario() =>
-        MistTypeAliasGenerator.ArbitraryTypeAliasSourceScenario();
+    public static Arbitrary<TypeAliasSourceScenario> ArbitraryTypeAliasSourceScenario()
+    {
+        return MistTypeAliasGenerator.ArbitraryTypeAliasSourceScenario();
+    }
 
     // ─── Helpers ────────────────────────────────────────────────────────────
 

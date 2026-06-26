@@ -196,8 +196,10 @@ public class AssociatedTypeUnresolvedRefPropertyTests
 
     // ─── Arbitrary registration ──────────────────────────────────────────
 
-    public static Arbitrary<UnresolvedRefScenario> ArbitraryUnresolvedRefScenario() =>
-        GenScenario().ToArbitrary();
+    public static Arbitrary<UnresolvedRefScenario> ArbitraryUnresolvedRefScenario()
+    {
+        return GenScenario().ToArbitrary();
+    }
 
     // ═══════════════════════════════════════════════════════════════════════
     // Property 10: Invalid associated type reference emits diagnostic

@@ -114,48 +114,58 @@ public sealed class OwnershipAnalyzer : IAnalyzer
     /// Message for <c>MIST_OWN_MUTABLE_HIDDEN</c>: a mutable method was called on a
     /// non-owned type held in an owned binding (Req 13 AC 1).
     /// </summary>
-    internal static string MutableHiddenMessage(string methodName, string typeName) =>
-        $"Cannot call mutable method '{methodName}' on '{typeName}': non-owned types appear readonly when held in an " +
+    internal static string MutableHiddenMessage(string methodName, string typeName)
+    {
+        return $"Cannot call mutable method '{methodName}' on '{typeName}': non-owned types appear readonly when held in an " +
         $"owned binding, so only readonly methods are visible. Declare '{typeName}' as 'owned', or assign the field " +
         $"directly from an owned source.";
+    }
 
     /// <summary>
     /// Message for <c>MIST_OWN_REQUIRES_OWNED</c>: an owned destination was assigned a
     /// non-owned, non-clonable source (Req 13 AC 2).
     /// </summary>
-    internal static string RequiresOwnedMessage(string destinationName, string sourceExpression) =>
-        $"Owned destination '{destinationName}' cannot be assigned from '{sourceExpression}': an owned destination " +
+    internal static string RequiresOwnedMessage(string destinationName, string sourceExpression)
+    {
+        return $"Owned destination '{destinationName}' cannot be assigned from '{sourceExpression}': an owned destination " +
         $"requires a uniquely-owned source — a constructor call, an owned-returning call, a move from an existing " +
         $"owned binding, or a clonable source. Move an owned value, construct a fresh value, or make the source type " +
         $"implement 'IClonable<T>'.";
+    }
 
     /// <summary>
     /// Message for <c>MIST_OWN_NOT_CLONABLE</c>: a clone was needed but the source type
     /// does not implement <c>IClonable&lt;T&gt;</c> (Req 13 AC 7).
     /// </summary>
-    internal static string NotClonableMessage(string typeName) =>
-        $"Cannot implicitly clone source of type '{typeName}' into an owned destination because '{typeName}' does not " +
+    internal static string NotClonableMessage(string typeName)
+    {
+        return $"Cannot implicitly clone source of type '{typeName}' into an owned destination because '{typeName}' does not " +
         $"implement 'IClonable<{typeName}>'. Make '{typeName}' implement 'IClonable<T>' so it can be cloned, or supply " +
         $"a uniquely-owned source instead.";
+    }
 
     /// <summary>
     /// Message for <c>MIST_OWN_CONTRACT_VIOLATION</c>: an owned type's method/constructor
     /// assigned a field from a non-owned source (Req 13 AC 4–5).
     /// </summary>
-    internal static string ContractViolationMessage(string methodName, string fieldName, string sourceExpression) =>
-        $"Method '{methodName}' violates the owned-type cooperation contract: it assigns field '{fieldName}' from the " +
+    internal static string ContractViolationMessage(string methodName, string fieldName, string sourceExpression)
+    {
+        return $"Method '{methodName}' violates the owned-type cooperation contract: it assigns field '{fieldName}' from the " +
         $"non-owned source '{sourceExpression}'. Owned types may only populate fields from owned sources — make the " +
         $"parameter 'owned', clone the source, or construct a fresh value.";
+    }
 
     /// <summary>
     /// Message for <c>MIST_OWN_SUBSTRUCTURAL_BINDING</c>: the <c>owned</c> binding specifier
     /// was applied to a substructural type (Req 13 AC 8).
     /// </summary>
-    internal static string SubstructuralBindingMessage(string bindingName, string typeName) =>
-        $"The 'owned' binding specifier cannot be applied to binding '{bindingName}' of substructural type " +
+    internal static string SubstructuralBindingMessage(string bindingName, string typeName)
+    {
+        return $"The 'owned' binding specifier cannot be applied to binding '{bindingName}' of substructural type " +
         $"'{typeName}': substructural ('linear'/'affine'/'relevant') types manage their own usage discipline via drop " +
         $"semantics and cannot be combined with 'owned' binding tracking. Remove the 'owned' specifier and rely on the " +
         $"type's substructural discipline.";
+    }
 
     // ── Owned-fields Diagnostic Messages ──────────────────────────────────
 
@@ -163,17 +173,21 @@ public sealed class OwnershipAnalyzer : IAnalyzer
     /// Message for <c>MIST_OWN_INFERENCE_FAILURE</c>: ownership inference could not find
     /// a consistent tier for a var binding (Req 18 AC 5).
     /// </summary>
-    internal static string InferenceFailureMessage(string bindingName, string lastTier, string conflictingUse, string requiredTier) =>
-        $"Cannot infer a consistent ownership tier for '{bindingName}': tier '{lastTier}' conflicts with " +
+    internal static string InferenceFailureMessage(string bindingName, string lastTier, string conflictingUse, string requiredTier)
+    {
+        return $"Cannot infer a consistent ownership tier for '{bindingName}': tier '{lastTier}' conflicts with " +
         $"{conflictingUse} which requires '{requiredTier}'. Add an explicit ownership specifier to resolve the ambiguity.";
+    }
 
     /// <summary>
     /// Message for <c>MIST_OWN_THIS_TIER_MISMATCH</c>: a method call site's receiver
     /// binding does not satisfy the method's inferred/declared this-tier (Req 17 AC 16).
     /// </summary>
-    internal static string ThisTierMismatchMessage(string methodName, string requiredTier, string receiverName, string actualTier) =>
-        $"Cannot call '{methodName}' which requires '{requiredTier}' access to 'this' — the receiver " +
+    internal static string ThisTierMismatchMessage(string methodName, string requiredTier, string receiverName, string actualTier)
+    {
+        return $"Cannot call '{methodName}' which requires '{requiredTier}' access to 'this' — the receiver " +
         $"'{receiverName}' only provides '{actualTier}' access.";
+    }
 
     // ── Truth Table ──────────────────────────────────────────────────────
 

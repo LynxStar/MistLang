@@ -33,7 +33,10 @@ public sealed record RefStructEmissionScenario(
     int PropertyCount,
     string Description)
 {
-    public override string ToString() => Description;
+    public override string ToString()
+    {
+        return Description;
+    }
 }
 
 #pragma warning restore CA1034

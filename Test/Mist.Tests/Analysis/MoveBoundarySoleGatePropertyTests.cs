@@ -171,12 +171,15 @@ public sealed class MoveBoundarySoleGatePropertyTests : IDisposable
     /// Returns the initializer expression of a variable declaration node, or null if the
     /// node is not an initialized typed/inferred declaration.
     /// </summary>
-    private static StormSyntaxNode? GetInitializer(StormSyntaxNode node) => node switch
+    private static StormSyntaxNode? GetInitializer(StormSyntaxNode node)
     {
-        Mist.Generated.TypedVariableDeclarationVariableDeclarationStatementNode typed => typed.Initializer,
-        Mist.Generated.InferredVariableDeclarationVariableDeclarationStatementNode inferred => inferred.Initializer,
-        _ => null,
-    };
+        return node switch
+        {
+            Mist.Generated.TypedVariableDeclarationVariableDeclarationStatementNode typed => typed.Initializer,
+            Mist.Generated.InferredVariableDeclarationVariableDeclarationStatementNode inferred => inferred.Initializer,
+            _ => null,
+        };
+    }
 
     /// <summary>
     /// Collects every owned-binding initializer expression in the program along with the
@@ -271,13 +274,17 @@ public sealed class MoveBoundarySoleGatePropertyTests : IDisposable
     /// <summary>A generated program plus a human-readable label of the source kinds it contains.</summary>
     public sealed record GateScenario(string Source, string Label)
     {
-        public override string ToString() => Label;
+        public override string ToString()
+        {
+            return Label;
+        }
     }
 
 #pragma warning restore CA1034
 
-    private static Gen<SourceKind> GenSourceKind() =>
-        Gen.Elements(
+    private static Gen<SourceKind> GenSourceKind()
+    {
+        return Gen.Elements(
             SourceKind.ConstructorNonOwnedType,
             SourceKind.ConstructorOwnedType,
             SourceKind.DefaultTyped,
@@ -286,11 +293,14 @@ public sealed class MoveBoundarySoleGatePropertyTests : IDisposable
             SourceKind.MoveFromOwned,
             SourceKind.CloneFromNonOwned,
             SourceKind.NonClonable);
+    }
 
-    private static Gen<GateScenario> GenScenario() =>
-        from count in Gen.Choose(1, 5)
-        from kinds in Gen.ArrayOf(GenSourceKind(), count)
-        select Build(kinds);
+    private static Gen<GateScenario> GenScenario()
+    {
+        return from count in Gen.Choose(1, 5)
+               from kinds in Gen.ArrayOf(GenSourceKind(), count)
+               select Build(kinds);
+    }
 
     /// <summary>
     /// Emits the statements for a single owned-move scenario. Each scenario produces at
@@ -369,7 +379,10 @@ public sealed class MoveBoundarySoleGatePropertyTests : IDisposable
         return new GateScenario(sb.ToString(), label);
     }
 
-    public static Arbitrary<GateScenario> ArbitraryGateScenario() => GenScenario().ToArbitrary();
+    public static Arbitrary<GateScenario> ArbitraryGateScenario()
+    {
+        return GenScenario().ToArbitrary();
+    }
 
     // ═══════════════════════════════════════════════════════════════════════
     // Property 1: the move boundary is the sole gate.

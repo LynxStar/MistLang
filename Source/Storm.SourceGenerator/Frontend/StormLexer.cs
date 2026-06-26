@@ -111,7 +111,10 @@ namespace Storm.SourceGenerator.Frontend
         /// <summary>1-based column number.</summary>
         public int Column { get; }
 
-        public override string ToString() => $"{Kind} '{Lexeme}' @{Line}:{Column}";
+        public override string ToString()
+        {
+            return $"{Kind} '{Lexeme}' @{Line}:{Column}";
+        }
     }
 
     /// <summary>
@@ -373,11 +376,15 @@ namespace Storm.SourceGenerator.Frontend
             return tokens;
         }
 
-        private static bool IsIdentStart(char c) =>
-            (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_';
+        private static bool IsIdentStart(char c)
+        {
+            return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_';
+        }
 
-        private static bool IsIdentPart(char c) =>
-            IsIdentStart(c) || (c >= '0' && c <= '9');
+        private static bool IsIdentPart(char c)
+        {
+            return IsIdentStart(c) || (c >= '0' && c <= '9');
+        }
 
         private static StormTokenKind ClassifyKeyword(string lexeme)
         {

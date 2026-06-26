@@ -62,14 +62,17 @@ internal static class DependentTypeHelpersGenerator
     /// <summary>
     /// Returns the type parameters for a given type, or null if the type has none.
     /// </summary>
-    private static IReadOnlyList<IType>? GetTypeParameters(IType? type) => type switch
+    private static IReadOnlyList<IType>? GetTypeParameters(IType? type)
     {
-        ClassType ct => ct.TypeParameters,
-        StructType st => st.TypeParameters,
-        AbstractType it => it.TypeParameters,
-        TypeAliasType at => at.TypeParameters,
-        _ => null,
-    };
+        return type switch
+        {
+            ClassType ct => ct.TypeParameters,
+            StructType st => st.TypeParameters,
+            AbstractType it => it.TypeParameters,
+            TypeAliasType at => at.TypeParameters,
+            _ => null,
+        };
+    }
 
     /// <summary>
     /// Scans a list of type parameters for <see cref="DependentTypeParameterType"/> instances

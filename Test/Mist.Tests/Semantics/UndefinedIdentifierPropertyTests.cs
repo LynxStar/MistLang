@@ -462,12 +462,29 @@ public class UndefinedIdentifierPropertyTests
     /// </summary>
     private sealed class EmptyAmbientTypeResolver : IAmbientTypeResolver
     {
-        public bool HasNamespace(string namespaceName) => false;
-        public IType? ResolveType(string namespaceName, string typeName) => null;
-        public ImmutableArray<ISymbol> GetMembers(IType type) => ImmutableArray<ISymbol>.Empty;
+        public bool HasNamespace(string namespaceName)
+        {
+            return false;
+        }
+
+        public IType? ResolveType(string namespaceName, string typeName)
+        {
+            return null;
+        }
+
+        public ImmutableArray<ISymbol> GetMembers(IType type)
+        {
+            return ImmutableArray<ISymbol>.Empty;
+        }
+
         public ImmutableArray<string> GetTypeNamesInNamespace(string namespaceName)
-            => ImmutableArray<string>.Empty;
+        {
+            return ImmutableArray<string>.Empty;
+        }
+
         public IReadOnlyList<AmbientExtensionMethodInfo> GetExtensionMethodsInNamespace(string namespaceName)
-            => Array.Empty<AmbientExtensionMethodInfo>();
+        {
+            return Array.Empty<AmbientExtensionMethodInfo>();
+        }
     }
 }

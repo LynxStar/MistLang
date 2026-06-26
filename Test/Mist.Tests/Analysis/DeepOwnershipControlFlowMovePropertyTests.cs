@@ -80,7 +80,10 @@ public class DeepOwnershipControlFlowMovePropertyTests
     /// </summary>
     public sealed record ConditionalMoveScenario(string Source, string Label)
     {
-        public override string ToString() => Label;
+        public override string ToString()
+        {
+            return Label;
+        }
     }
 
     /// <summary>
@@ -90,7 +93,10 @@ public class DeepOwnershipControlFlowMovePropertyTests
     /// </summary>
     public sealed record LoopMoveScenario(string Source, string Label)
     {
-        public override string ToString() => Label;
+        public override string ToString()
+        {
+            return Label;
+        }
     }
 
     /// <summary>
@@ -100,7 +106,10 @@ public class DeepOwnershipControlFlowMovePropertyTests
     /// </summary>
     public sealed record LoopMoveWithReassignmentScenario(string Source, string Label)
     {
-        public override string ToString() => Label;
+        public override string ToString()
+        {
+            return Label;
+        }
     }
 
 #pragma warning restore CA1034
@@ -298,14 +307,20 @@ public class DeepOwnershipControlFlowMovePropertyTests
 
     // ─── Arbitrary instances ─────────────────────────────────────────────
 
-    public static Arbitrary<ConditionalMoveScenario> ArbitraryConditionalMoveScenario() =>
-        Gen.OneOf(GenConditionalMoveIfBranchOnly(), GenConditionalMoveIfWithElse()).ToArbitrary();
+    public static Arbitrary<ConditionalMoveScenario> ArbitraryConditionalMoveScenario()
+    {
+        return Gen.OneOf(GenConditionalMoveIfBranchOnly(), GenConditionalMoveIfWithElse()).ToArbitrary();
+    }
 
-    public static Arbitrary<LoopMoveScenario> ArbitraryLoopMoveScenario() =>
-        Gen.OneOf(GenWhileLoopMoveNoReassignment(), GenWhileLoopMoveViaParameter()).ToArbitrary();
+    public static Arbitrary<LoopMoveScenario> ArbitraryLoopMoveScenario()
+    {
+        return Gen.OneOf(GenWhileLoopMoveNoReassignment(), GenWhileLoopMoveViaParameter()).ToArbitrary();
+    }
 
-    public static Arbitrary<LoopMoveWithReassignmentScenario> ArbitraryLoopMoveWithReassignmentScenario() =>
-        Gen.OneOf(GenLoopMoveWithReassignment(), GenLoopMoveViaParamWithReassignment()).ToArbitrary();
+    public static Arbitrary<LoopMoveWithReassignmentScenario> ArbitraryLoopMoveWithReassignmentScenario()
+    {
+        return Gen.OneOf(GenLoopMoveWithReassignment(), GenLoopMoveViaParamWithReassignment()).ToArbitrary();
+    }
 
     // ═══════════════════════════════════════════════════════════════════════
     // Property 7a: Conditional move — access after join reports use-after-move

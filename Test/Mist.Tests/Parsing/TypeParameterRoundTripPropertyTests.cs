@@ -27,8 +27,10 @@ public class TypeParameterRoundTripPropertyTests
 
     // ─── Token helper ────────────────────────────────────────────────────
 
-    private static Storm.Runtime.Token Tok(string lexeme) =>
-        MistTypeGenerator.MakeToken(lexeme);
+    private static Storm.Runtime.Token Tok(string lexeme)
+    {
+        return MistTypeGenerator.MakeToken(lexeme);
+    }
 
     // ─── Test data model ─────────────────────────────────────────────────
 
@@ -37,7 +39,10 @@ public class TypeParameterRoundTripPropertyTests
         string Description,
         CompilationUnitNode Ast)
     {
-        public override string ToString() => Description;
+        public override string ToString()
+        {
+            return Description;
+        }
     }
 #pragma warning restore CA1034
 
@@ -209,8 +214,10 @@ public class TypeParameterRoundTripPropertyTests
 
     // ─── Arbitrary registration ──────────────────────────────────────────
 
-    public static Arbitrary<TypeParameterRoundTripTestCase> ArbitraryTypeParameterRoundTripTestCase() =>
-        GenTestCase().ToArbitrary();
+    public static Arbitrary<TypeParameterRoundTripTestCase> ArbitraryTypeParameterRoundTripTestCase()
+    {
+        return GenTestCase().ToArbitrary();
+    }
 
     // ═══════════════════════════════════════════════════════════════════════
     // Property 1: TypeParameter Round-Trip (Grammar)
@@ -385,11 +392,14 @@ public class TypeParameterRoundTripPropertyTests
         return string.Join(", ", parts);
     }
 
-    private static string DescribeParam(TypeParameterNode tp) => tp switch
+    private static string DescribeParam(TypeParameterNode tp)
     {
-        DependentTypeParameterTypeParameterNode dep => $"{dep.Name.Lexeme}:primitive",
-        NamedConstraintDependentTypeParameterTypeParameterNode named => $"{named.Name.Lexeme}:{named.ConstraintName.Lexeme}",
-        RegularTypeParameterTypeParameterNode reg => reg.Name.Lexeme,
-        _ => "?",
-    };
+        return tp switch
+        {
+            DependentTypeParameterTypeParameterNode dep => $"{dep.Name.Lexeme}:primitive",
+            NamedConstraintDependentTypeParameterTypeParameterNode named => $"{named.Name.Lexeme}:{named.ConstraintName.Lexeme}",
+            RegularTypeParameterTypeParameterNode reg => reg.Name.Lexeme,
+            _ => "?",
+        };
+    }
 }

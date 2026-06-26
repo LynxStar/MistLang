@@ -52,8 +52,10 @@ public class LambdaRoundTripPropertyTests
 
     // ─── Arbitrary registration ──────────────────────────────────────────────
 
-    public static Arbitrary<RoundTripScenario> ArbitraryRoundTripScenario() =>
-        RoundTripGenerator.GenScenario().ToArbitrary();
+    public static Arbitrary<RoundTripScenario> ArbitraryRoundTripScenario()
+    {
+        return RoundTripGenerator.GenScenario().ToArbitrary();
+    }
 
     // ─── Parse + pretty-print helpers ────────────────────────────────────────
 
@@ -153,7 +155,10 @@ public sealed class RoundTripScenario
         Description = description;
     }
 
-    public override string ToString() => Description;
+    public override string ToString()
+    {
+        return Description;
+    }
 }
 
 /// <summary>
@@ -188,150 +193,181 @@ public static class RoundTripGenerator
     // ─── Lambda generators ───────────────────────────────────────────────────
 
     /// <summary>Generates a single-param expression lambda: <c>x =&gt; expr</c>.</summary>
-    private static Gen<string> GenSingleParamExprLambda() =>
-        from modifier in Gen.Elements(Modifiers)
-        from param in Gen.Elements(Identifiers)
-        from body in Gen.Elements(ExpressionBodies)
-        select $"{modifier}{param} => {body}";
+    private static Gen<string> GenSingleParamExprLambda()
+    {
+        return from modifier in Gen.Elements(Modifiers)
+               from param in Gen.Elements(Identifiers)
+               from body in Gen.Elements(ExpressionBodies)
+               select $"{modifier}{param} => {body}";
+    }
 
     /// <summary>Generates a parenthesized expression lambda: <c>(x, y) =&gt; expr</c>.</summary>
-    private static Gen<string> GenParenExprLambda() =>
-        from modifier in Gen.Elements(Modifiers)
-        from paramForm in Gen.OneOf(
-            Gen.Constant("()"),
-            Gen.Elements(Identifiers).Select(n => $"({n})"),
-            (from n1 in Gen.Elements(Identifiers)
-             from n2 in Gen.Elements(Identifiers)
-             select $"({n1}, {n2})"))
-        from body in Gen.Elements(ExpressionBodies)
-        select $"{modifier}{paramForm} => {body}";
+    private static Gen<string> GenParenExprLambda()
+    {
+        return from modifier in Gen.Elements(Modifiers)
+               from paramForm in Gen.OneOf(
+                   Gen.Constant("()"),
+                   Gen.Elements(Identifiers).Select(n => $"({n})"),
+                   (from n1 in Gen.Elements(Identifiers)
+                    from n2 in Gen.Elements(Identifiers)
+                    select $"({n1}, {n2})"))
+               from body in Gen.Elements(ExpressionBodies)
+               select $"{modifier}{paramForm} => {body}";
+    }
 
     /// <summary>Generates a typed-param expression lambda: <c>(int x) =&gt; expr</c>.</summary>
-    private static Gen<string> GenTypedParamExprLambda() =>
-        from modifier in Gen.Elements(Modifiers)
-        from paramForm in Gen.OneOf(
-            (from t in Gen.Elements(SimpleTypes)
-             from n in Gen.Elements(Identifiers)
-             select $"({t} {n})"),
-            (from t1 in Gen.Elements(SimpleTypes)
-             from n1 in Gen.Elements(Identifiers)
-             from t2 in Gen.Elements(SimpleTypes)
-             from n2 in Gen.Elements(Identifiers)
-             select $"({t1} {n1}, {t2} {n2})"))
-        from body in Gen.Elements(ExpressionBodies)
-        select $"{modifier}{paramForm} => {body}";
+    private static Gen<string> GenTypedParamExprLambda()
+    {
+        return from modifier in Gen.Elements(Modifiers)
+               from paramForm in Gen.OneOf(
+                   (from t in Gen.Elements(SimpleTypes)
+                    from n in Gen.Elements(Identifiers)
+                    select $"({t} {n})"),
+                   (from t1 in Gen.Elements(SimpleTypes)
+                    from n1 in Gen.Elements(Identifiers)
+                    from t2 in Gen.Elements(SimpleTypes)
+                    from n2 in Gen.Elements(Identifiers)
+                    select $"({t1} {n1}, {t2} {n2})"))
+               from body in Gen.Elements(ExpressionBodies)
+               select $"{modifier}{paramForm} => {body}";
+    }
 
     /// <summary>Generates a block-body lambda: <c>(int x) =&gt; { return expr; }</c>.</summary>
-    private static Gen<string> GenBlockLambda() =>
-        from modifier in Gen.Elements(Modifiers)
-        from paramForm in Gen.OneOf(
-            Gen.Elements(Identifiers).Select(n => $"({n})"),
-            (from t in Gen.Elements(SimpleTypes)
-             from n in Gen.Elements(Identifiers)
-             select $"({t} {n})"),
-            Gen.Constant("()"))
-        from body in Gen.Elements(BlockBodies)
-        select $"{modifier}{paramForm} => {body}";
+    private static Gen<string> GenBlockLambda()
+    {
+        return from modifier in Gen.Elements(Modifiers)
+               from paramForm in Gen.OneOf(
+                   Gen.Elements(Identifiers).Select(n => $"({n})"),
+                   (from t in Gen.Elements(SimpleTypes)
+                    from n in Gen.Elements(Identifiers)
+                    select $"({t} {n})"),
+                   Gen.Constant("()"))
+               from body in Gen.Elements(BlockBodies)
+               select $"{modifier}{paramForm} => {body}";
+    }
 
     /// <summary>Generates a nested lambda: <c>x =&gt; y =&gt; expr</c>.</summary>
-    private static Gen<string> GenNestedLambda() =>
-        from modifier in Gen.Elements(Modifiers)
-        from p1 in Gen.Elements(Identifiers)
-        from p2 in Gen.Elements(Identifiers)
-        from body in Gen.Elements(ExpressionBodies)
-        select $"{modifier}{p1} => {p2} => {body}";
+    private static Gen<string> GenNestedLambda()
+    {
+        return from modifier in Gen.Elements(Modifiers)
+               from p1 in Gen.Elements(Identifiers)
+               from p2 in Gen.Elements(Identifiers)
+               from body in Gen.Elements(ExpressionBodies)
+               select $"{modifier}{p1} => {p2} => {body}";
+    }
 
     /// <summary>Generates any lambda form.</summary>
-    private static Gen<string> GenAnyLambda() =>
-        Gen.OneOf(
+    private static Gen<string> GenAnyLambda()
+    {
+        return Gen.OneOf(
             GenSingleParamExprLambda(),
             GenParenExprLambda(),
             GenTypedParamExprLambda(),
             GenBlockLambda(),
             GenNestedLambda());
+    }
 
     // ─── func<...> type reference generators ─────────────────────────────────
 
     /// <summary>Generates a <c>func&lt;T1, ..., TReturn&gt;</c> type reference.</summary>
-    private static Gen<string> GenFuncTypeRef() =>
-        Gen.Choose(1, 4).SelectMany(arity =>
+    private static Gen<string> GenFuncTypeRef()
+    {
+        return Gen.Choose(1, 4).SelectMany(arity =>
             Gen.ArrayOf(Gen.Elements(SimpleTypes), arity)
                 .Select(types => $"func<{string.Join(", ", types)}>"));
+    }
 
     // ─── Program-level scenario generators ───────────────────────────────────
 
     /// <summary>
     /// Wraps a method body in a complete Mist program with a class and method declaration.
     /// </summary>
-    private static string WrapInMethod(string body) =>
-        $"namespace TestNs;\n\npublic class Program\n{{\n    public void Run()\n    {{\n        {body}\n    }}\n}}";
+    private static string WrapInMethod(string body)
+    {
+        return $"namespace TestNs;\n\npublic class Program\n{{\n    public void Run()\n    {{\n        {body}\n    }}\n}}";
+    }
 
     /// <summary>Lambda in assignment RHS with inferred type: <c>var f = lambda;</c></summary>
-    private static Gen<RoundTripScenario> GenAssignmentRhsScenario() =>
-        from lambda in GenAnyLambda()
-        from name in Gen.Elements(Identifiers)
-        let body = $"var {name} = {lambda};"
-        let source = WrapInMethod(body)
-        select new RoundTripScenario(source, $"assignment RHS: var {name} = {lambda}");
+    private static Gen<RoundTripScenario> GenAssignmentRhsScenario()
+    {
+        return from lambda in GenAnyLambda()
+               from name in Gen.Elements(Identifiers)
+               let body = $"var {name} = {lambda};"
+               let source = WrapInMethod(body)
+               select new RoundTripScenario(source, $"assignment RHS: var {name} = {lambda}");
+    }
 
     /// <summary>Lambda in assignment RHS with func type: <c>func&lt;int, int&gt; f = lambda;</c></summary>
-    private static Gen<RoundTripScenario> GenFuncTypedAssignmentScenario() =>
-        from funcType in GenFuncTypeRef()
-        from lambda in GenAnyLambda()
-        from name in Gen.Elements(Identifiers)
-        let body = $"{funcType} {name} = {lambda};"
-        let source = WrapInMethod(body)
-        select new RoundTripScenario(source, $"func-typed assignment: {funcType} {name} = {lambda}");
+    private static Gen<RoundTripScenario> GenFuncTypedAssignmentScenario()
+    {
+        return from funcType in GenFuncTypeRef()
+               from lambda in GenAnyLambda()
+               from name in Gen.Elements(Identifiers)
+               let body = $"{funcType} {name} = {lambda};"
+               let source = WrapInMethod(body)
+               select new RoundTripScenario(source, $"func-typed assignment: {funcType} {name} = {lambda}");
+    }
 
     /// <summary>Lambda as a call argument: <c>g(lambda);</c></summary>
-    private static Gen<RoundTripScenario> GenCallArgumentScenario() =>
-        from lambda in GenAnyLambda()
-        from fn in Gen.Elements(Identifiers)
-        let body = $"{fn}({lambda});"
-        let source = WrapInMethod(body)
-        select new RoundTripScenario(source, $"call argument: {fn}({lambda})");
+    private static Gen<RoundTripScenario> GenCallArgumentScenario()
+    {
+        return from lambda in GenAnyLambda()
+               from fn in Gen.Elements(Identifiers)
+               let body = $"{fn}({lambda});"
+               let source = WrapInMethod(body)
+               select new RoundTripScenario(source, $"call argument: {fn}({lambda})");
+    }
 
     /// <summary>Lambda in a return statement: <c>return lambda;</c></summary>
-    private static Gen<RoundTripScenario> GenReturnScenario() =>
-        from lambda in GenAnyLambda()
-        let body = $"return {lambda};"
-        let source = WrapInMethod(body)
-        select new RoundTripScenario(source, $"return: return {lambda}");
+    private static Gen<RoundTripScenario> GenReturnScenario()
+    {
+        return from lambda in GenAnyLambda()
+               let body = $"return {lambda};"
+               let source = WrapInMethod(body)
+               select new RoundTripScenario(source, $"return: return {lambda}");
+    }
 
     /// <summary>Lambda in a nested lambda body: <c>var h = q =&gt; lambda;</c></summary>
-    private static Gen<RoundTripScenario> GenNestedBodyScenario() =>
-        from lambda in GenAnyLambda()
-        from outer in Gen.Elements(Identifiers)
-        let body = $"var h = {outer} => {lambda};"
-        let source = WrapInMethod(body)
-        select new RoundTripScenario(source, $"nested body: var h = {outer} => {lambda}");
+    private static Gen<RoundTripScenario> GenNestedBodyScenario()
+    {
+        return from lambda in GenAnyLambda()
+               from outer in Gen.Elements(Identifiers)
+               let body = $"var h = {outer} => {lambda};"
+               let source = WrapInMethod(body)
+               select new RoundTripScenario(source, $"nested body: var h = {outer} => {lambda}");
+    }
 
     /// <summary>
     /// Switch expression with a guarded arm containing a lambda in the result position:
     /// <c>var r = value switch { int n when guard =&gt; result, _ =&gt; lambda };</c>
     /// </summary>
-    private static Gen<RoundTripScenario> GenSwitchArmScenario() =>
-        from guard in Gen.Elements(GuardExpressions)
-        from result in Gen.Elements(SwitchResults)
-        from defaultResult in Gen.Elements(SwitchResults)
-        let body = $"var r = value switch {{ int n when {guard} => {result}, _ => {defaultResult} }};"
-        let source = WrapInMethod(body)
-        select new RoundTripScenario(source, $"switch arm: when {guard} => {result}");
+    private static Gen<RoundTripScenario> GenSwitchArmScenario()
+    {
+        return from guard in Gen.Elements(GuardExpressions)
+               from result in Gen.Elements(SwitchResults)
+               from defaultResult in Gen.Elements(SwitchResults)
+               let body = $"var r = value switch {{ int n when {guard} => {result}, _ => {defaultResult} }};"
+               let source = WrapInMethod(body)
+               select new RoundTripScenario(source, $"switch arm: when {guard} => {result}");
+    }
 
     /// <summary>
     /// A <c>func&lt;...&gt;</c> type reference used as a method parameter type.
     /// </summary>
-    private static Gen<RoundTripScenario> GenFuncTypeParamScenario() =>
-        from funcType in GenFuncTypeRef()
-        from paramName in Gen.Elements(Identifiers)
-        let source = $"namespace TestNs;\n\npublic class Program\n{{\n    public void Run({funcType} {paramName})\n    {{\n    }}\n}}"
-        select new RoundTripScenario(source, $"func type param: {funcType} {paramName}");
+    private static Gen<RoundTripScenario> GenFuncTypeParamScenario()
+    {
+        return from funcType in GenFuncTypeRef()
+               from paramName in Gen.Elements(Identifiers)
+               let source = $"namespace TestNs;\n\npublic class Program\n{{\n    public void Run({funcType} {paramName})\n    {{\n    }}\n}}"
+               select new RoundTripScenario(source, $"func type param: {funcType} {paramName}");
+    }
 
     /// <summary>
     /// Combines all scenario generators with equal weight.
     /// </summary>
-    public static Gen<RoundTripScenario> GenScenario() =>
-        Gen.OneOf(
+    public static Gen<RoundTripScenario> GenScenario()
+    {
+        return Gen.OneOf(
             GenAssignmentRhsScenario(),
             GenFuncTypedAssignmentScenario(),
             GenCallArgumentScenario(),
@@ -339,4 +375,5 @@ public static class RoundTripGenerator
             GenNestedBodyScenario(),
             GenSwitchArmScenario(),
             GenFuncTypeParamScenario());
+    }
 }

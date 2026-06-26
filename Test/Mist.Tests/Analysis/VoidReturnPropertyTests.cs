@@ -161,8 +161,10 @@ public class VoidReturnPropertyTests
         VoidReturnPattern Pattern,
         string MethodName)
     {
-        public override string ToString() =>
-            $"void {MethodName}() with {Pattern}";
+        public override string ToString()
+        {
+            return $"void {MethodName}() with {Pattern}";
+        }
     }
 
 #pragma warning restore CA1034
@@ -182,8 +184,10 @@ public class VoidReturnPropertyTests
                select new VoidReturnScenario(pattern, methodName);
     }
 
-    public static Arbitrary<VoidReturnScenario> ArbitraryScenario() =>
-        GenScenario().ToArbitrary();
+    public static Arbitrary<VoidReturnScenario> ArbitraryScenario()
+    {
+        return GenScenario().ToArbitrary();
+    }
 
     // ─── Scenario builders ───────────────────────────────────────────────
 

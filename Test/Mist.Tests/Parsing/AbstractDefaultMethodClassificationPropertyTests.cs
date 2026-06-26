@@ -29,7 +29,10 @@ public sealed class AbstractMethodClassificationScenario
         Description = description;
     }
 
-    public override string ToString() => Description;
+    public override string ToString()
+    {
+        return Description;
+    }
 }
 
 /// <summary>
@@ -99,8 +102,10 @@ public class AbstractDefaultMethodClassificationPropertyTests
                    $"{(hasBody ? "default" : "slot")}: {signature}");
     }
 
-    public static Arbitrary<AbstractMethodClassificationScenario> ArbitraryScenario() =>
-        GenScenario().ToArbitrary();
+    public static Arbitrary<AbstractMethodClassificationScenario> ArbitraryScenario()
+    {
+        return GenScenario().ToArbitrary();
+    }
 
     private static (AbstractMemberDeclarationNode? Member, ImmutableArray<Diagnostic> Diagnostics) ParseMember(string source)
     {

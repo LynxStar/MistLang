@@ -105,8 +105,10 @@ public class AwaitOperandDiagnosticPropertyTests
             _ => "unknown",
         };
 
-        public override string ToString() =>
-            $"await {OperandKind} in {ClassName}.{MethodName}";
+        public override string ToString()
+        {
+            return $"await {OperandKind} in {ClassName}.{MethodName}";
+        }
     }
 
 #pragma warning restore CA1034
@@ -134,8 +136,10 @@ public class AwaitOperandDiagnosticPropertyTests
                select new AwaitNonTaskScenario(operandKind, className, methodName, varName);
     }
 
-    public static Arbitrary<AwaitNonTaskScenario> ArbitraryScenario() =>
-        GenScenario().ToArbitrary();
+    public static Arbitrary<AwaitNonTaskScenario> ArbitraryScenario()
+    {
+        return GenScenario().ToArbitrary();
+    }
 
     // ─── Source construction ─────────────────────────────────────────────
 

@@ -158,14 +158,20 @@ public sealed partial class AbstractEmissionPropertyTests : IDisposable
         return decl;
     }
 
-    private static TypeDeclarationNode WrapAbstract(AbstractDeclarationNode decl) =>
-        new AbstractTypeTypeDeclarationNode { AbstractDeclaration = decl };
+    private static TypeDeclarationNode WrapAbstract(AbstractDeclarationNode decl)
+    {
+        return new AbstractTypeTypeDeclarationNode { AbstractDeclaration = decl };
+    }
 
-    private static TypeDeclarationNode WrapClass(ClassDeclarationNode decl) =>
-        new ClassTypeTypeDeclarationNode { ClassDeclaration = decl };
+    private static TypeDeclarationNode WrapClass(ClassDeclarationNode decl)
+    {
+        return new ClassTypeTypeDeclarationNode { ClassDeclaration = decl };
+    }
 
-    private static TypeDeclarationNode WrapStruct(StructDeclarationNode decl) =>
-        new StructTypeTypeDeclarationNode { StructDeclaration = decl };
+    private static TypeDeclarationNode WrapStruct(StructDeclarationNode decl)
+    {
+        return new StructTypeTypeDeclarationNode { StructDeclaration = decl };
+    }
 
     private ISemanticModel BuildModel(CompilationUnitNode ast, string source)
     {
@@ -388,8 +394,10 @@ public sealed partial class AbstractEmissionPropertyTests : IDisposable
         return builder;
     }
 
-    public static Arbitrary<EmissionScenario> ArbitraryEmissionScenario() =>
-        GenEmissionScenario().ToArbitrary();
+    public static Arbitrary<EmissionScenario> ArbitraryEmissionScenario()
+    {
+        return GenEmissionScenario().ToArbitrary();
+    }
 
     // ─── AST construction ────────────────────────────────────────────────
 

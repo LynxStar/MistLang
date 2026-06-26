@@ -32,8 +32,10 @@ public class AsyncIntrinsicDiagnosticPropertyTests
 
     // ─── Helpers ─────────────────────────────────────────────────────────
 
-    private static Storm.Runtime.Token Tok(string lexeme) =>
-        MistTypeGenerator.MakeToken(lexeme);
+    private static Storm.Runtime.Token Tok(string lexeme)
+    {
+        return MistTypeGenerator.MakeToken(lexeme);
+    }
 
     private static TypeReferenceNode MakePrimitiveTypeRef(string primitiveName)
     {
@@ -110,8 +112,10 @@ public class AsyncIntrinsicDiagnosticPropertyTests
                select new AsyncIntrinsicScenario(className, methodName, returnType, isStatic, order);
     }
 
-    public static Arbitrary<AsyncIntrinsicScenario> ArbitraryAsyncIntrinsicScenario() =>
-        GenAsyncIntrinsicScenario().ToArbitrary();
+    public static Arbitrary<AsyncIntrinsicScenario> ArbitraryAsyncIntrinsicScenario()
+    {
+        return GenAsyncIntrinsicScenario().ToArbitrary();
+    }
 
     // ─── AST construction ────────────────────────────────────────────────
 

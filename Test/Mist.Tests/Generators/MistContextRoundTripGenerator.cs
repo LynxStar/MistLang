@@ -26,7 +26,10 @@ public sealed class ContextRoundTripScenario
         Description = description;
     }
 
-    public override string ToString() => Description;
+    public override string ToString()
+    {
+        return Description;
+    }
 }
 
 /// <summary>
@@ -73,84 +76,110 @@ public static class MistContextRoundTripGenerator
 
     // ─── Expression generators ──────────────────────────────────────────────
 
-    private static Gen<string> GenSimpleExpression() =>
-        Gen.Elements(Expressions);
+    private static Gen<string> GenSimpleExpression()
+    {
+        return Gen.Elements(Expressions);
+    }
 
-    private static Gen<string> GenContextTypeName() =>
-        Gen.Elements(ContextTypeNames);
+    private static Gen<string> GenContextTypeName()
+    {
+        return Gen.Elements(ContextTypeNames);
+    }
 
-    private static Gen<string> GenVarName() =>
-        Gen.Elements(VarNames);
+    private static Gen<string> GenVarName()
+    {
+        return Gen.Elements(VarNames);
+    }
 
-    private static Gen<string> GenTypeRef() =>
-        Gen.OneOf(
+    private static Gen<string> GenTypeRef()
+    {
+        return Gen.OneOf(
             Gen.Elements(PrimitiveTypes),
             Gen.Elements(ContextTypeNames));
+    }
 
     // ─── Context statement generators ───────────────────────────────────────
 
     /// <summary>Generates: with var name = expr;</summary>
-    private static Gen<string> GenWithVarStatement() =>
-        from name in GenVarName()
-        from expr in GenSimpleExpression()
-        select $"with var {name} = {expr};";
+    private static Gen<string> GenWithVarStatement()
+    {
+        return from name in GenVarName()
+               from expr in GenSimpleExpression()
+               select $"with var {name} = {expr};";
+    }
 
     /// <summary>Generates: with TypeRef name = expr;</summary>
-    private static Gen<string> GenWithTypedStatement() =>
-        from type in GenTypeRef()
-        from name in GenVarName()
-        from expr in GenSimpleExpression()
-        select $"with {type} {name} = {expr};";
+    private static Gen<string> GenWithTypedStatement()
+    {
+        return from type in GenTypeRef()
+               from name in GenVarName()
+               from expr in GenSimpleExpression()
+               select $"with {type} {name} = {expr};";
+    }
 
     /// <summary>Generates: with TypeRef _ = expr;</summary>
-    private static Gen<string> GenWithDiscardStatement() =>
-        from type in GenTypeRef()
-        from expr in GenSimpleExpression()
-        select $"with {type} _ = {expr};";
+    private static Gen<string> GenWithDiscardStatement()
+    {
+        return from type in GenTypeRef()
+               from expr in GenSimpleExpression()
+               select $"with {type} _ = {expr};";
+    }
 
     /// <summary>Generates: with expr;</summary>
-    private static Gen<string> GenWithPushStatement() =>
-        from expr in GenSimpleExpression()
-        select $"with {expr};";
+    private static Gen<string> GenWithPushStatement()
+    {
+        return from expr in GenSimpleExpression()
+               select $"with {expr};";
+    }
 
     /// <summary>Generates: with (expr) { stmts }</summary>
-    private static Gen<string> GenWithBlockStatement() =>
-        from expr in GenSimpleExpression()
-        from innerStmtCount in Gen.Choose(0, 2)
-        from innerStmts in Gen.ArrayOf(GenSimpleBodyStatement(), innerStmtCount)
-        let body = string.Join("\n        ", innerStmts)
-        let bodySection = innerStmts.Length > 0 ? $"\n        {body}\n    " : " "
-        select $"with ({expr}) {{{bodySection}}}";
+    private static Gen<string> GenWithBlockStatement()
+    {
+        return from expr in GenSimpleExpression()
+               from innerStmtCount in Gen.Choose(0, 2)
+               from innerStmts in Gen.ArrayOf(GenSimpleBodyStatement(), innerStmtCount)
+               let body = string.Join("\n        ", innerStmts)
+               let bodySection = innerStmts.Length > 0 ? $"\n        {body}\n    " : " "
+               select $"with ({expr}) {{{bodySection}}}";
+    }
 
     /// <summary>Generates a simple non-context statement for method bodies.</summary>
-    private static Gen<string> GenSimpleBodyStatement() =>
-        Gen.OneOf(
+    private static Gen<string> GenSimpleBodyStatement()
+    {
+        return Gen.OneOf(
             Gen.Constant("var x = 1;"),
             Gen.Constant("var y = \"test\";"),
             Gen.Constant("var z = true;"));
+    }
 
     /// <summary>Generates any context statement variant.</summary>
-    private static Gen<string> GenAnyContextStatement() =>
-        Gen.OneOf(
+    private static Gen<string> GenAnyContextStatement()
+    {
+        return Gen.OneOf(
             GenWithVarStatement(),
             GenWithTypedStatement(),
             GenWithDiscardStatement(),
             GenWithPushStatement(),
             GenWithBlockStatement());
+    }
 
     // ─── With clause generators ─────────────────────────────────────────────
 
     /// <summary>Generates a single with clause: with TypeRef name</summary>
-    private static Gen<string> GenWithClause() =>
-        from type in GenTypeRef()
-        from name in GenVarName()
-        select $"with {type} {name}";
+    private static Gen<string> GenWithClause()
+    {
+        return from type in GenTypeRef()
+               from name in GenVarName()
+               select $"with {type} {name}";
+    }
 
     /// <summary>Generates 1-3 with clauses.</summary>
-    private static Gen<string> GenWithClauses() =>
-        from count in Gen.Choose(1, 3)
-        from clauses in Gen.ArrayOf(GenWithClause(), count)
-        select string.Join(" ", clauses);
+    private static Gen<string> GenWithClauses()
+    {
+        return from count in Gen.Choose(1, 3)
+               from clauses in Gen.ArrayOf(GenWithClause(), count)
+               select string.Join(" ", clauses);
+    }
 
     // ─── Method-level generators ────────────────────────────────────────────
 
@@ -308,6 +337,8 @@ public static class MistContextRoundTripGenerator
     /// FsCheck Arbitrary for <see cref="ContextRoundTripScenario"/>.
     /// Register with <c>[Property(Arbitrary = new[] { typeof(MistContextRoundTripGenerator) })]</c>.
     /// </summary>
-    public static Arbitrary<ContextRoundTripScenario> ArbitraryContextRoundTripScenario() =>
-        GenScenario().ToArbitrary();
+    public static Arbitrary<ContextRoundTripScenario> ArbitraryContextRoundTripScenario()
+    {
+        return GenScenario().ToArbitrary();
+    }
 }

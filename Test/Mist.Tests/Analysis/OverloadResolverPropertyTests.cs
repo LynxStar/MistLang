@@ -273,10 +273,12 @@ public class OverloadResolverPropertyTests
         IReadOnlyList<IType> OverloadParamTypes,
         int MatchingIndex)
     {
-        public override string ToString() =>
-            $"SingleMatch: {OverloadParamTypes.Count} overloads " +
+        public override string ToString()
+        {
+            return $"SingleMatch: {OverloadParamTypes.Count} overloads " +
             $"[{string.Join(", ", OverloadParamTypes.Select(t => t.DisplayName))}], " +
             $"match at index {MatchingIndex} ({OverloadParamTypes[MatchingIndex].DisplayName})";
+        }
     }
 
     /// <summary>
@@ -288,9 +290,11 @@ public class OverloadResolverPropertyTests
         IType BroadParamType,
         IType ArgumentType)
     {
-        public override string ToString() =>
-            $"MostSpecific: specific={SpecificParamType.DisplayName}, " +
+        public override string ToString()
+        {
+            return $"MostSpecific: specific={SpecificParamType.DisplayName}, " +
             $"broad={BroadParamType.DisplayName}, arg={ArgumentType.DisplayName}";
+        }
     }
 
     /// <summary>
@@ -302,10 +306,12 @@ public class OverloadResolverPropertyTests
         IReadOnlyList<IType> ArgumentTypes,
         string Reason)
     {
-        public override string ToString() =>
-            $"NoMatch ({Reason}): {OverloadParamTypes.Count} overloads " +
+        public override string ToString()
+        {
+            return $"NoMatch ({Reason}): {OverloadParamTypes.Count} overloads " +
             $"[{string.Join(", ", OverloadParamTypes.Select(t => t.DisplayName))}], " +
             $"args=({string.Join(", ", ArgumentTypes.Select(t => t.DisplayName))})";
+        }
     }
 
     /// <summary>
@@ -317,9 +323,11 @@ public class OverloadResolverPropertyTests
         IType ParamType2,
         IType ArgumentType)
     {
-        public override string ToString() =>
-            $"Ambiguous: param1={ParamType1.DisplayName}, param2={ParamType2.DisplayName}, " +
+        public override string ToString()
+        {
+            return $"Ambiguous: param1={ParamType1.DisplayName}, param2={ParamType2.DisplayName}, " +
             $"arg={ArgumentType.DisplayName}";
+        }
     }
 #pragma warning restore CA1034
 

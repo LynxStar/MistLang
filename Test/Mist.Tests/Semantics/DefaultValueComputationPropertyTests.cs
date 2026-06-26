@@ -84,19 +84,22 @@ public class DefaultValueComputationPropertyTests
 
     // ─── AST construction helpers ────────────────────────────────────────
 
-    private static PrimitiveTypeNode MakePrimitiveType(string typeName) => typeName switch
+    private static PrimitiveTypeNode MakePrimitiveType(string typeName)
     {
-        "int" => new IntTypePrimitiveTypeNode(),
-        "bool" => new BoolTypePrimitiveTypeNode(),
-        "string" => new StringTypePrimitiveTypeNode(),
-        "double" => new DoubleTypePrimitiveTypeNode(),
-        "float" => new FloatTypePrimitiveTypeNode(),
-        "char" => new CharTypePrimitiveTypeNode(),
-        "long" => new LongTypePrimitiveTypeNode(),
-        "short" => new ShortTypePrimitiveTypeNode(),
-        "byte" => new ByteTypePrimitiveTypeNode(),
-        _ => new IntTypePrimitiveTypeNode(),
-    };
+        return typeName switch
+        {
+            "int" => new IntTypePrimitiveTypeNode(),
+            "bool" => new BoolTypePrimitiveTypeNode(),
+            "string" => new StringTypePrimitiveTypeNode(),
+            "double" => new DoubleTypePrimitiveTypeNode(),
+            "float" => new FloatTypePrimitiveTypeNode(),
+            "char" => new CharTypePrimitiveTypeNode(),
+            "long" => new LongTypePrimitiveTypeNode(),
+            "short" => new ShortTypePrimitiveTypeNode(),
+            "byte" => new ByteTypePrimitiveTypeNode(),
+            _ => new IntTypePrimitiveTypeNode(),
+        };
+    }
 
     private static TypeReferenceNode MakePrimitiveTypeRef(string typeName)
     {
@@ -241,19 +244,22 @@ public class DefaultValueComputationPropertyTests
 
     // ─── Zero-value lookup (mirrors SemanticModelBuilder.GetZeroValue) ───
 
-    private static object? ExpectedZeroValue(string typeName) => typeName switch
+    private static object? ExpectedZeroValue(string typeName)
     {
-        "int" => 0,
-        "bool" => false,
-        "string" => "",
-        "double" => 0.0d,
-        "float" => 0.0f,
-        "char" => '\0',
-        "long" => 0L,
-        "short" => (short)0,
-        "byte" => (byte)0,
-        _ => null,
-    };
+        return typeName switch
+        {
+            "int" => 0,
+            "bool" => false,
+            "string" => "",
+            "double" => 0.0d,
+            "float" => 0.0f,
+            "char" => '\0',
+            "long" => 0L,
+            "short" => (short)0,
+            "byte" => (byte)0,
+            _ => null,
+        };
+    }
 
     // ─── Scenario records ────────────────────────────────────────────────
 
@@ -534,17 +540,25 @@ public class DefaultValueComputationPropertyTests
 
     // ─── Arbitrary registrations ─────────────────────────────────────────
 
-    public static Arbitrary<FieldInitAndZeroScenario> ArbitraryFieldInitAndZeroScenario() =>
-        GenFieldInitAndZeroScenario().ToArbitrary();
+    public static Arbitrary<FieldInitAndZeroScenario> ArbitraryFieldInitAndZeroScenario()
+    {
+        return GenFieldInitAndZeroScenario().ToArbitrary();
+    }
 
-    public static Arbitrary<ExplicitOverrideScenario> ArbitraryExplicitOverrideScenario() =>
-        GenExplicitOverrideScenario().ToArbitrary();
+    public static Arbitrary<ExplicitOverrideScenario> ArbitraryExplicitOverrideScenario()
+    {
+        return GenExplicitOverrideScenario().ToArbitrary();
+    }
 
-    public static Arbitrary<TypeBindingScenario> ArbitraryTypeBindingScenario() =>
-        GenTypeBindingScenario().ToArbitrary();
+    public static Arbitrary<TypeBindingScenario> ArbitraryTypeBindingScenario()
+    {
+        return GenTypeBindingScenario().ToArbitrary();
+    }
 
-    public static Arbitrary<InheritanceScenario> ArbitraryInheritanceScenario() =>
-        GenInheritanceScenario().ToArbitrary();
+    public static Arbitrary<InheritanceScenario> ArbitraryInheritanceScenario()
+    {
+        return GenInheritanceScenario().ToArbitrary();
+    }
 
     // ─── AST builders for scenarios ──────────────────────────────────────
 

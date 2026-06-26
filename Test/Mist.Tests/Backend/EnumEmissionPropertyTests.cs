@@ -47,7 +47,10 @@ public sealed class EnumEmissionScenario
         ExpectedAccessModifier = expectedAccessModifier;
     }
 
-    public override string ToString() => Description;
+    public override string ToString()
+    {
+        return Description;
+    }
 }
 
 /// <summary>

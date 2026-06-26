@@ -148,11 +148,15 @@ public sealed class FieldTypeRestrictionVerifierTests : IDisposable
         return diagnostics.ToImmutableArray();
     }
 
-    private static Diagnostic? FindFieldTypeViolation(ImmutableArray<Diagnostic> diagnostics) =>
-        diagnostics.FirstOrDefault(d => d.Id.Value == FieldTypeViolationId);
+    private static Diagnostic? FindFieldTypeViolation(ImmutableArray<Diagnostic> diagnostics)
+    {
+        return diagnostics.FirstOrDefault(d => d.Id.Value == FieldTypeViolationId);
+    }
 
-    private static IEnumerable<Diagnostic> FindAllFieldTypeViolations(ImmutableArray<Diagnostic> diagnostics) =>
-        diagnostics.Where(d => d.Id.Value == FieldTypeViolationId);
+    private static IEnumerable<Diagnostic> FindAllFieldTypeViolations(ImmutableArray<Diagnostic> diagnostics)
+    {
+        return diagnostics.Where(d => d.Id.Value == FieldTypeViolationId);
+    }
 
     // ═══════════════════════════════════════════════════════════════════════
     // 1. Owned type with all-owned-type fields → passes (Req 4 AC 1)

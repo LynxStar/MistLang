@@ -32,8 +32,10 @@ public class SwitchExpressionRoundTripPropertyTests
 
     // ─── Arbitrary registration ──────────────────────────────────────────
 
-    public static Arbitrary<SwitchExpressionSourceScenario> ArbitrarySwitchExpressionSourceScenario() =>
-        MistSwitchExpressionGenerator.GenSwitchExpressionSource().ToArbitrary();
+    public static Arbitrary<SwitchExpressionSourceScenario> ArbitrarySwitchExpressionSourceScenario()
+    {
+        return MistSwitchExpressionGenerator.GenSwitchExpressionSource().ToArbitrary();
+    }
 
     // ─── Helpers ────────────────────────────────────────────────────────────
 

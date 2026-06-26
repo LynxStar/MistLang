@@ -71,29 +71,38 @@ public sealed class CastOperatorEmissionPropertyTests : IDisposable
         string SourceType, string TargetType,
         CastKind Kind, OperatorPlacement Placement)
     {
-        public override string ToString() =>
-            $"{Kind} operator {TargetType}({SourceType}) on {Placement}";
+        public override string ToString()
+        {
+            return $"{Kind} operator {TargetType}({SourceType}) on {Placement}";
+        }
     }
 
     public record ExplicitCastExprScenario(
         string SourceType, string TargetType,
         CastKind OperatorKind, OperatorPlacement Placement)
     {
-        public override string ToString() =>
-            $"({TargetType})src where {OperatorKind} operator on {Placement}";
+        public override string ToString()
+        {
+            return $"({TargetType})src where {OperatorKind} operator on {Placement}";
+        }
     }
 
     public record IdentityCastScenario(string TypeName)
     {
-        public override string ToString() => $"({TypeName})src identity cast";
+        public override string ToString()
+        {
+            return $"({TypeName})src identity cast";
+        }
     }
 
     public record ImplicitCastSiteScenario(
         string SourceType, string TargetType,
         OperatorPlacement Placement, ImplicitSite Site)
     {
-        public override string ToString() =>
-            $"implicit {SourceType}→{TargetType} at {Site}, operator on {Placement}";
+        public override string ToString()
+        {
+            return $"implicit {SourceType}→{TargetType} at {Site}, operator on {Placement}";
+        }
     }
 #pragma warning restore CA1034
 
@@ -102,61 +111,86 @@ public sealed class CastOperatorEmissionPropertyTests : IDisposable
     private static readonly string[] TypeNames =
         ["Alpha", "Bravo", "Charlie", "Delta", "Echo"];
 
-    private static Gen<CastDeclScenario> GenCastDeclScenario() =>
-        from source in Gen.Elements(TypeNames)
-        from target in Gen.Elements(TypeNames).Where(t => t != source)
-        from kind in Gen.Elements(CastKind.Implicit, CastKind.Explicit)
-        from placement in Gen.Elements(OperatorPlacement.OnSourceType, OperatorPlacement.OnTargetType)
-        select new CastDeclScenario(source, target, kind, placement);
+    private static Gen<CastDeclScenario> GenCastDeclScenario()
+    {
+        return from source in Gen.Elements(TypeNames)
+               from target in Gen.Elements(TypeNames).Where(t => t != source)
+               from kind in Gen.Elements(CastKind.Implicit, CastKind.Explicit)
+               from placement in Gen.Elements(OperatorPlacement.OnSourceType, OperatorPlacement.OnTargetType)
+               select new CastDeclScenario(source, target, kind, placement);
+    }
 
-    private static Gen<ExplicitCastExprScenario> GenExplicitCastExprScenario() =>
-        from source in Gen.Elements(TypeNames)
-        from target in Gen.Elements(TypeNames).Where(t => t != source)
-        from kind in Gen.Elements(CastKind.Implicit, CastKind.Explicit)
-        from placement in Gen.Elements(OperatorPlacement.OnSourceType, OperatorPlacement.OnTargetType)
-        select new ExplicitCastExprScenario(source, target, kind, placement);
+    private static Gen<ExplicitCastExprScenario> GenExplicitCastExprScenario()
+    {
+        return from source in Gen.Elements(TypeNames)
+               from target in Gen.Elements(TypeNames).Where(t => t != source)
+               from kind in Gen.Elements(CastKind.Implicit, CastKind.Explicit)
+               from placement in Gen.Elements(OperatorPlacement.OnSourceType, OperatorPlacement.OnTargetType)
+               select new ExplicitCastExprScenario(source, target, kind, placement);
+    }
 
-    private static Gen<IdentityCastScenario> GenIdentityCastScenario() =>
-        from typeName in Gen.Elements(TypeNames)
-        select new IdentityCastScenario(typeName);
+    private static Gen<IdentityCastScenario> GenIdentityCastScenario()
+    {
+        return from typeName in Gen.Elements(TypeNames)
+               select new IdentityCastScenario(typeName);
+    }
 
-    private static Gen<ImplicitCastSiteScenario> GenImplicitCastSiteScenario() =>
-        from source in Gen.Elements(TypeNames)
-        from target in Gen.Elements(TypeNames).Where(t => t != source)
-        from placement in Gen.Elements(OperatorPlacement.OnSourceType, OperatorPlacement.OnTargetType)
-        from site in Gen.Elements(ImplicitSite.Assignment, ImplicitSite.Argument, ImplicitSite.Return)
-        select new ImplicitCastSiteScenario(source, target, placement, site);
+    private static Gen<ImplicitCastSiteScenario> GenImplicitCastSiteScenario()
+    {
+        return from source in Gen.Elements(TypeNames)
+               from target in Gen.Elements(TypeNames).Where(t => t != source)
+               from placement in Gen.Elements(OperatorPlacement.OnSourceType, OperatorPlacement.OnTargetType)
+               from site in Gen.Elements(ImplicitSite.Assignment, ImplicitSite.Argument, ImplicitSite.Return)
+               select new ImplicitCastSiteScenario(source, target, placement, site);
+    }
 
-    public static Arbitrary<CastDeclScenario> ArbitraryCastDeclScenario() =>
-        GenCastDeclScenario().ToArbitrary();
-    public static Arbitrary<ExplicitCastExprScenario> ArbitraryExplicitCastExprScenario() =>
-        GenExplicitCastExprScenario().ToArbitrary();
-    public static Arbitrary<IdentityCastScenario> ArbitraryIdentityCastScenario() =>
-        GenIdentityCastScenario().ToArbitrary();
-    public static Arbitrary<ImplicitCastSiteScenario> ArbitraryImplicitCastSiteScenario() =>
-        GenImplicitCastSiteScenario().ToArbitrary();
+    public static Arbitrary<CastDeclScenario> ArbitraryCastDeclScenario()
+    {
+        return GenCastDeclScenario().ToArbitrary();
+    }
+
+    public static Arbitrary<ExplicitCastExprScenario> ArbitraryExplicitCastExprScenario()
+    {
+        return GenExplicitCastExprScenario().ToArbitrary();
+    }
+
+    public static Arbitrary<IdentityCastScenario> ArbitraryIdentityCastScenario()
+    {
+        return GenIdentityCastScenario().ToArbitrary();
+    }
+
+    public static Arbitrary<ImplicitCastSiteScenario> ArbitraryImplicitCastSiteScenario()
+    {
+        return GenImplicitCastSiteScenario().ToArbitrary();
+    }
 
     // ─── AST helpers ─────────────────────────────────────────────────────
 
-    private static Storm.Runtime.Token Tok(string lexeme) =>
-        new(kind: 0,
+    private static Storm.Runtime.Token Tok(string lexeme)
+    {
+        return new(kind: 0,
             span: new Storm.Runtime.SourceSpan(0, lexeme.Length),
             start: new Storm.Runtime.LinePosition(1, 1),
             end: new Storm.Runtime.LinePosition(1, 1 + lexeme.Length),
             channel: Storm.Runtime.TokenChannel.Default,
             lexeme: lexeme);
+    }
 
-    private static TypeReferenceNode NamedTypeRef(string name) =>
-        new TypeReferenceNode
+    private static TypeReferenceNode NamedTypeRef(string name)
+    {
+        return new TypeReferenceNode
         {
             First = new NamedSingleTypeRefSingleTypeRefNode
             {
                 Name = new QualifiedIdentifierNode { IDENTIFIER = Tok(name) },
             }
         };
+    }
 
-    private static ParameterNode MakeParam(string typeName, string paramName) =>
-        new() { Type = NamedTypeRef(typeName), Name = Tok(paramName) };
+    private static ParameterNode MakeParam(string typeName, string paramName)
+    {
+        return new() { Type = NamedTypeRef(typeName), Name = Tok(paramName) };
+    }
 
     private static ExpressionNode IdentExpr(string name)
     {
@@ -269,14 +303,17 @@ public sealed class CastOperatorEmissionPropertyTests : IDisposable
         };
     }
 
-    private static MemberDeclarationNode CastOpMember(CastKind kind, string targetType, string sourceType) =>
-        new CastOperatorMemberMemberDeclarationNode
+    private static MemberDeclarationNode CastOpMember(CastKind kind, string targetType, string sourceType)
+    {
+        return new CastOperatorMemberMemberDeclarationNode
         {
             CastOperator = MakeCastOpDecl(kind, targetType, sourceType),
         };
+    }
 
-    private static TypeDeclarationNode ClassDecl(string name, params MemberDeclarationNode[] members) =>
-        new ClassTypeTypeDeclarationNode
+    private static TypeDeclarationNode ClassDecl(string name, params MemberDeclarationNode[] members)
+    {
+        return new ClassTypeTypeDeclarationNode
         {
             ClassDeclaration = new ClassDeclarationNode
             {
@@ -284,9 +321,11 @@ public sealed class CastOperatorEmissionPropertyTests : IDisposable
                 Members = members.ToImmutableArray(),
             },
         };
+    }
 
-    private static MemberDeclarationNode MainMethod(params StatementNode[] stmts) =>
-        new MethodMemberMemberDeclarationNode
+    private static MemberDeclarationNode MainMethod(params StatementNode[] stmts)
+    {
+        return new MethodMemberMemberDeclarationNode
         {
             Method = new MethodDeclarationNode
             {
@@ -302,9 +341,11 @@ public sealed class CastOperatorEmissionPropertyTests : IDisposable
                     new StaticModifierModifierNode()),
             },
         };
+    }
 
-    private static StatementNode TypedVarDecl(string typeName, string varName, ExpressionNode init) =>
-        new VariableDeclarationStatementStatementNode
+    private static StatementNode TypedVarDecl(string typeName, string varName, ExpressionNode init)
+    {
+        return new VariableDeclarationStatementStatementNode
         {
             VariableDeclaration = new TypedVariableDeclarationVariableDeclarationStatementNode
             {
@@ -313,21 +354,27 @@ public sealed class CastOperatorEmissionPropertyTests : IDisposable
                 Initializer = init,
             },
         };
+    }
 
-    private static StatementNode ExprStmt(ExpressionNode expr) =>
-        new ExpressionStatementStatementNode
+    private static StatementNode ExprStmt(ExpressionNode expr)
+    {
+        return new ExpressionStatementStatementNode
         {
             ExpressionStatement = new ExpressionStatementNode { Expression = expr },
         };
+    }
 
-    private static StatementNode ReturnStmt(ExpressionNode expr) =>
-        new ReturnStatementStatementNode
+    private static StatementNode ReturnStmt(ExpressionNode expr)
+    {
+        return new ReturnStatementStatementNode
         {
             ReturnStatement = new ReturnStatementNode { Value = expr },
         };
+    }
 
-    private static MemberDeclarationNode AcceptMethod(string paramType) =>
-        new MethodMemberMemberDeclarationNode
+    private static MemberDeclarationNode AcceptMethod(string paramType)
+    {
+        return new MethodMemberMemberDeclarationNode
         {
             Method = new MethodDeclarationNode
             {
@@ -343,9 +390,11 @@ public sealed class CastOperatorEmissionPropertyTests : IDisposable
                     new StaticModifierModifierNode()),
             },
         };
+    }
 
-    private static MemberDeclarationNode ConvertMethod(string returnType, string sourceType) =>
-        new MethodMemberMemberDeclarationNode
+    private static MemberDeclarationNode ConvertMethod(string returnType, string sourceType)
+    {
+        return new MethodMemberMemberDeclarationNode
         {
             Method = new MethodDeclarationNode
             {
@@ -366,6 +415,7 @@ public sealed class CastOperatorEmissionPropertyTests : IDisposable
                     new StaticModifierModifierNode()),
             },
         };
+    }
 
     // ─── Model + Emit helpers ────────────────────────────────────────────
 

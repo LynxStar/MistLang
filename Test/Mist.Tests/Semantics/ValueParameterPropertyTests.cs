@@ -26,8 +26,10 @@ namespace Mist.Tests.Semantics;
 /// </summary>
 public class ValueParameterPropertyTests
 {
-    private static Storm.Runtime.Token Tok(string lexeme) =>
-        MistTypeGenerator.MakeToken(lexeme);
+    private static Storm.Runtime.Token Tok(string lexeme)
+    {
+        return MistTypeGenerator.MakeToken(lexeme);
+    }
 
     // ─── Test data model ─────────────────────────────────────────────────
 
@@ -37,7 +39,10 @@ public class ValueParameterPropertyTests
         CompilationUnitNode Ast,
         string ExpectedTypeName)
     {
-        public override string ToString() => Description;
+        public override string ToString()
+        {
+            return Description;
+        }
     }
 #pragma warning restore CA1034
 
@@ -77,8 +82,10 @@ public class ValueParameterPropertyTests
         return Gen.OneOf(GenSetAccessorWithValue(), GenInitAccessorWithValue());
     }
 
-    public static Arbitrary<ValueParameterTestCase> ArbitraryValueParameterTestCase() =>
-        GenTestCase().ToArbitrary();
+    public static Arbitrary<ValueParameterTestCase> ArbitraryValueParameterTestCase()
+    {
+        return GenTestCase().ToArbitrary();
+    }
 
     // ─── Helpers ─────────────────────────────────────────────────────────
 

@@ -85,8 +85,10 @@ public sealed class TypeLiteralEmitterPropertyTests : IDisposable
         bool IsArray,
         string Source)
     {
-        public override string ToString() =>
-            IsArray ? $"{MistKeyword}[] → {ExpectedFragment}" : $"{MistKeyword} → {ExpectedFragment}";
+        public override string ToString()
+        {
+            return IsArray ? $"{MistKeyword}[] → {ExpectedFragment}" : $"{MistKeyword} → {ExpectedFragment}";
+        }
     }
 #pragma warning restore CA1034
 

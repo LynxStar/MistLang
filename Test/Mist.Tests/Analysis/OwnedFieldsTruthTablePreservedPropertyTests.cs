@@ -148,31 +148,37 @@ public sealed class OwnedFieldsTruthTablePreservedPropertyTests
 
     // ─── Source generation helpers ───────────────────────────────────────
 
-    private static string GetStateSetup(VariableOwnershipState state) => state switch
+    private static string GetStateSetup(VariableOwnershipState state)
     {
-        // Just declared — already Live.
-        VariableOwnershipState.Live => "",
-        // Lend as readonly ref → LentReadonly.
-        VariableOwnershipState.LentReadonly => "readonly ref Gadget r = x;\n            ",
-        // Lend as frozen → LentFrozen.
-        VariableOwnershipState.LentFrozen => "frozen Gadget f = x;\n            ",
-        // Lend as borrowed → LentRef.
-        VariableOwnershipState.LentRef => "borrowed Gadget b = x;\n            ",
-        // Move to another owned binding → Moved.
-        VariableOwnershipState.Moved => "owned var y = x;\n            ",
-        _ => throw new ArgumentOutOfRangeException(nameof(state))
-    };
+        return state switch
+        {
+            // Just declared — already Live.
+            VariableOwnershipState.Live => "",
+            // Lend as readonly ref → LentReadonly.
+            VariableOwnershipState.LentReadonly => "readonly ref Gadget r = x;\n            ",
+            // Lend as frozen → LentFrozen.
+            VariableOwnershipState.LentFrozen => "frozen Gadget f = x;\n            ",
+            // Lend as borrowed → LentRef.
+            VariableOwnershipState.LentRef => "borrowed Gadget b = x;\n            ",
+            // Move to another owned binding → Moved.
+            VariableOwnershipState.Moved => "owned var y = x;\n            ",
+            _ => throw new ArgumentOutOfRangeException(nameof(state))
+        };
+    }
 
-    private static string GetActionCode(AccessKind action) => action switch
+    private static string GetActionCode(AccessKind action)
     {
-        AccessKind.Read => "var temp = x.value;",
-        AccessKind.Write => "x.value = 99;",
-        AccessKind.LiveView => "readonly ref Gadget v = x;",
-        AccessKind.Freeze => "frozen Gadget f2 = x;",
-        AccessKind.Borrow => "borrowed Gadget b2 = x;",
-        AccessKind.Move => "owned var z = x;",
-        _ => throw new ArgumentOutOfRangeException(nameof(action))
-    };
+        return action switch
+        {
+            AccessKind.Read => "var temp = x.value;",
+            AccessKind.Write => "x.value = 99;",
+            AccessKind.LiveView => "readonly ref Gadget v = x;",
+            AccessKind.Freeze => "frozen Gadget f2 = x;",
+            AccessKind.Borrow => "borrowed Gadget b2 = x;",
+            AccessKind.Move => "owned var z = x;",
+            _ => throw new ArgumentOutOfRangeException(nameof(action))
+        };
+    }
 
     /// <summary>
     /// Builds a Mist program that drives variable 'x' into <paramref name="state"/>
@@ -213,7 +219,10 @@ public sealed class OwnedFieldsTruthTablePreservedPropertyTests
     /// </summary>
     public sealed record TruthTableCase(VariableOwnershipState State, AccessKind Action)
     {
-        public override string ToString() => $"({State}, {Action})";
+        public override string ToString()
+        {
+            return $"({State}, {Action})";
+        }
     }
 
 #pragma warning restore CA1034
@@ -243,8 +252,10 @@ public sealed class OwnedFieldsTruthTablePreservedPropertyTests
                select new TruthTableCase(state, action);
     }
 
-    public static Arbitrary<TruthTableCase> ArbitraryTruthTableCase() =>
-        GenTruthTableCase().ToArbitrary();
+    public static Arbitrary<TruthTableCase> ArbitraryTruthTableCase()
+    {
+        return GenTruthTableCase().ToArbitrary();
+    }
 
     // ═══════════════════════════════════════════════════════════════════════
     // Property 9: Existing truth table preserved

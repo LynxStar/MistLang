@@ -51,34 +51,45 @@ public class AdhocRefinementSemanticModelPropertyTests
             ConstraintValue = constraintValue;
         }
 
-        public string ToSource() =>
-            $"class {ClassName}<{DependentParamName}:int> where {DependentParamName} {Operator} {ConstraintValue} {{ }}";
+        public string ToSource()
+        {
+            return $"class {ClassName}<{DependentParamName}:int> where {DependentParamName} {Operator} {ConstraintValue} {{ }}";
+        }
 
         /// <summary>
         /// Returns a value that should satisfy the constraint.
         /// </summary>
-        public int SatisfyingValue() => Operator switch
+        public int SatisfyingValue()
         {
-            ">=" => ConstraintValue,
-            "<=" => ConstraintValue,
-            ">" => ConstraintValue + 1,
-            "<" => ConstraintValue - 1,
-            _ => ConstraintValue
-        };
+            return Operator switch
+            {
+                ">=" => ConstraintValue,
+                "<=" => ConstraintValue,
+                ">" => ConstraintValue + 1,
+                "<" => ConstraintValue - 1,
+                _ => ConstraintValue
+            };
+        }
 
         /// <summary>
         /// Returns a value that should violate the constraint.
         /// </summary>
-        public int ViolatingValue() => Operator switch
+        public int ViolatingValue()
         {
-            ">=" => ConstraintValue - 1,
-            "<=" => ConstraintValue + 1,
-            ">" => ConstraintValue,
-            "<" => ConstraintValue,
-            _ => ConstraintValue + 1
-        };
+            return Operator switch
+            {
+                ">=" => ConstraintValue - 1,
+                "<=" => ConstraintValue + 1,
+                ">" => ConstraintValue,
+                "<" => ConstraintValue,
+                _ => ConstraintValue + 1
+            };
+        }
 
-        public override string ToString() => ToSource();
+        public override string ToString()
+        {
+            return ToSource();
+        }
     }
 
     /// <summary>
@@ -101,34 +112,45 @@ public class AdhocRefinementSemanticModelPropertyTests
             ConstraintValue = constraintValue;
         }
 
-        public string ToSource() =>
-            $"class {ClassName} {{ void {MethodName}(int {ParamName}) where {ParamName} {Operator} {ConstraintValue} {{ }} }}";
+        public string ToSource()
+        {
+            return $"class {ClassName} {{ void {MethodName}(int {ParamName}) where {ParamName} {Operator} {ConstraintValue} {{ }} }}";
+        }
 
         /// <summary>
         /// Returns a value that should satisfy the constraint.
         /// </summary>
-        public int SatisfyingValue() => Operator switch
+        public int SatisfyingValue()
         {
-            ">=" => ConstraintValue,
-            "<=" => ConstraintValue,
-            ">" => ConstraintValue + 1,
-            "<" => ConstraintValue - 1,
-            _ => ConstraintValue
-        };
+            return Operator switch
+            {
+                ">=" => ConstraintValue,
+                "<=" => ConstraintValue,
+                ">" => ConstraintValue + 1,
+                "<" => ConstraintValue - 1,
+                _ => ConstraintValue
+            };
+        }
 
         /// <summary>
         /// Returns a value that should violate the constraint.
         /// </summary>
-        public int ViolatingValue() => Operator switch
+        public int ViolatingValue()
         {
-            ">=" => ConstraintValue - 1,
-            "<=" => ConstraintValue + 1,
-            ">" => ConstraintValue,
-            "<" => ConstraintValue,
-            _ => ConstraintValue + 1
-        };
+            return Operator switch
+            {
+                ">=" => ConstraintValue - 1,
+                "<=" => ConstraintValue + 1,
+                ">" => ConstraintValue,
+                "<" => ConstraintValue,
+                _ => ConstraintValue + 1
+            };
+        }
 
-        public override string ToString() => ToSource();
+        public override string ToString()
+        {
+            return ToSource();
+        }
     }
 
 #pragma warning restore CA1034
@@ -168,11 +190,15 @@ public class AdhocRefinementSemanticModelPropertyTests
                select new ParameterRefinementScenario(className, methodName, paramName, op, value);
     }
 
-    public static Arbitrary<DependentTypeParamScenario> ArbitraryDependentTypeParamScenario() =>
-        GenDependentTypeParamScenario().ToArbitrary();
+    public static Arbitrary<DependentTypeParamScenario> ArbitraryDependentTypeParamScenario()
+    {
+        return GenDependentTypeParamScenario().ToArbitrary();
+    }
 
-    public static Arbitrary<ParameterRefinementScenario> ArbitraryParameterRefinementScenario() =>
-        GenParameterRefinementScenario().ToArbitrary();
+    public static Arbitrary<ParameterRefinementScenario> ArbitraryParameterRefinementScenario()
+    {
+        return GenParameterRefinementScenario().ToArbitrary();
+    }
 
     // ─── Helpers ─────────────────────────────────────────────────────────
 

@@ -242,7 +242,10 @@ public sealed class MoveBoundaryCloneFromLentPropertyTests : IDisposable
     /// </summary>
     public sealed record CloneFromLentScenario(string Source, VariableOwnershipState LentState, string Label)
     {
-        public override string ToString() => Label;
+        public override string ToString()
+        {
+            return Label;
+        }
     }
 
 #pragma warning restore CA1034
@@ -266,8 +269,10 @@ public sealed class MoveBoundaryCloneFromLentPropertyTests : IDisposable
                select Build(declaresExplicit, fields, lentState);
     }
 
-    private static Gen<FieldKind> GenField() =>
-        Gen.Elements(FieldKind.IntLeaf, FieldKind.StringLeaf, FieldKind.ClonableRef);
+    private static Gen<FieldKind> GenField()
+    {
+        return Gen.Elements(FieldKind.IntLeaf, FieldKind.StringLeaf, FieldKind.ClonableRef);
+    }
 
     private static CloneFromLentScenario Build(bool declaresExplicit, List<FieldKind> fields, VariableOwnershipState lentState)
     {
@@ -320,8 +325,10 @@ public sealed class MoveBoundaryCloneFromLentPropertyTests : IDisposable
         return new CloneFromLentScenario(sb.ToString(), lentState, label);
     }
 
-    public static Arbitrary<CloneFromLentScenario> ArbitraryCloneFromLentScenario() =>
-        GenScenario().ToArbitrary();
+    public static Arbitrary<CloneFromLentScenario> ArbitraryCloneFromLentScenario()
+    {
+        return GenScenario().ToArbitrary();
+    }
 
     // ═══════════════════════════════════════════════════════════════════════
     // Property 5: Clone from a lent tier ⇒ Resolve == ImplicitClone, and the lender's

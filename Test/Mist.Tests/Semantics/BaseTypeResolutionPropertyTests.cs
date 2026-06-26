@@ -212,8 +212,10 @@ public class BaseTypeResolutionPropertyTests
     }
 
     /// <summary>FsCheck Arbitrary registration for ClassSet.</summary>
-    public static Arbitrary<ClassSet> ArbitraryClassSet() =>
-        Gen.OneOf(GenValidClassSet(), GenClassSetWithUndefinedBase()).ToArbitrary();
+    public static Arbitrary<ClassSet> ArbitraryClassSet()
+    {
+        return Gen.OneOf(GenValidClassSet(), GenClassSetWithUndefinedBase()).ToArbitrary();
+    }
 
     // ─── Property tests ──────────────────────────────────────────────────
 
@@ -383,7 +385,10 @@ public class BaseTypeResolutionPropertyTests
 #pragma warning disable CA1034
     public record ForwardRefPair(string DerivedName, string BaseName)
     {
-        public override string ToString() => $"{DerivedName} : {BaseName} (forward ref)";
+        public override string ToString()
+        {
+            return $"{DerivedName} : {BaseName} (forward ref)";
+        }
     }
 #pragma warning restore CA1034
 

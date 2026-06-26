@@ -93,8 +93,10 @@ public sealed class AnonymousTypeEqualityOperatorPropertyTests
         string Operator,
         string Source)
     {
-        public override string ToString() =>
-            $"Properties: [{string.Join(", ", Properties.Select(p => p.Name))}], Op: {Operator}";
+        public override string ToString()
+        {
+            return $"Properties: [{string.Join(", ", Properties.Select(p => p.Name))}], Op: {Operator}";
+        }
     }
 
     /// <summary>
@@ -107,9 +109,11 @@ public sealed class AnonymousTypeEqualityOperatorPropertyTests
         string Operator,
         string Source)
     {
-        public override string ToString() =>
-            $"Left: [{string.Join(", ", LeftProperties.Select(p => p.Name))}], " +
+        public override string ToString()
+        {
+            return $"Left: [{string.Join(", ", LeftProperties.Select(p => p.Name))}], " +
             $"Right: [{string.Join(", ", RightProperties.Select(p => p.Name))}], Op: {Operator}";
+        }
     }
 
 #pragma warning restore CA1034
@@ -182,7 +186,10 @@ public sealed class AnonymousTypeEqualityOperatorPropertyTests
                select (leftProps, rightProps);
     }
 
-    private static Gen<string> GenOperator() => Gen.Elements(EqualityOperators);
+    private static Gen<string> GenOperator()
+    {
+        return Gen.Elements(EqualityOperators);
+    }
 
     /// <summary>
     /// Builds a Mist source with two same-shape anonymous types compared with
@@ -251,11 +258,15 @@ public sealed class AnonymousTypeEqualityOperatorPropertyTests
                select new DifferentShapeEqualityScenario(pair.Left, pair.Right, op, source);
     }
 
-    public static Arbitrary<SameShapeEqualityScenario> ArbitrarySameShapeEqualityScenario() =>
-        GenSameShapeScenario().ToArbitrary();
+    public static Arbitrary<SameShapeEqualityScenario> ArbitrarySameShapeEqualityScenario()
+    {
+        return GenSameShapeScenario().ToArbitrary();
+    }
 
-    public static Arbitrary<DifferentShapeEqualityScenario> ArbitraryDifferentShapeEqualityScenario() =>
-        GenDifferentShapeScenario().ToArbitrary();
+    public static Arbitrary<DifferentShapeEqualityScenario> ArbitraryDifferentShapeEqualityScenario()
+    {
+        return GenDifferentShapeScenario().ToArbitrary();
+    }
 
     // ═══════════════════════════════════════════════════════════════════════
     // Property 11 (same-shape): == and != accepted for same-shape anonymous types

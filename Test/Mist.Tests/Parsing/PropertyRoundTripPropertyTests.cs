@@ -30,8 +30,10 @@ public class PropertyRoundTripPropertyTests
 
     // ─── Arbitrary registration ──────────────────────────────────────────
 
-    public static Arbitrary<CompilationUnitNode> ArbitraryCompilationUnitNode() =>
-        MistPropertyGenerator.GenPropertyProgram().ToArbitrary();
+    public static Arbitrary<CompilationUnitNode> ArbitraryCompilationUnitNode()
+    {
+        return MistPropertyGenerator.GenPropertyProgram().ToArbitrary();
+    }
 
     // ═══════════════════════════════════════════════════════════════════════
     // Property 1: Parse–Print–Parse Round Trip

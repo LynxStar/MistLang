@@ -87,8 +87,10 @@ public sealed class AnonymousTypeSameShapeAssignabilityPropertyTests
         ImmutableArray<PropertyDef> Properties,
         string Source)
     {
-        public override string ToString() =>
-            $"Properties: [{string.Join(", ", Properties.Select(p => p.Name))}]";
+        public override string ToString()
+        {
+            return $"Properties: [{string.Join(", ", Properties.Select(p => p.Name))}]";
+        }
     }
 
 #pragma warning restore CA1034
@@ -176,8 +178,10 @@ public sealed class AnonymousTypeSameShapeAssignabilityPropertyTests
                select new SameShapeScenario(props, source);
     }
 
-    public static Arbitrary<SameShapeScenario> ArbitrarySameShapeScenario() =>
-        GenScenario().ToArbitrary();
+    public static Arbitrary<SameShapeScenario> ArbitrarySameShapeScenario()
+    {
+        return GenScenario().ToArbitrary();
+    }
 
     // ═══════════════════════════════════════════════════════════════════════
     // Property 6: Same-shape anonymous types are assignable

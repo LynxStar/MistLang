@@ -36,13 +36,15 @@ public class ExtensionDuplicateSignaturePropertyTests
 
     private static readonly SemanticModelBuilder Builder = new();
 
-    private static Storm.Runtime.Token Tok(string lexeme) =>
-        new(kind: 0,
+    private static Storm.Runtime.Token Tok(string lexeme)
+    {
+        return new(kind: 0,
             span: new Storm.Runtime.SourceSpan(0, lexeme.Length),
             start: new Storm.Runtime.LinePosition(1, 1),
             end: new Storm.Runtime.LinePosition(1, 1 + lexeme.Length),
             channel: Storm.Runtime.TokenChannel.Default,
             lexeme: lexeme);
+    }
 
     private static (Mist.Semantics.Contracts.ISemanticModel Model, ImmutableArray<Diagnostic> Diagnostics)
         BuildModelWithDiagnostics(Storm.Runtime.SyntaxNode ast)
@@ -77,10 +79,12 @@ public class ExtensionDuplicateSignaturePropertyTests
         string ReturnType,
         int ParameterCount)
     {
-        public override string ToString() =>
-            MemberKind == DuplicateMemberKind.Property
+        public override string ToString()
+        {
+            return MemberKind == DuplicateMemberKind.Property
                 ? $"extension({ReceiverTypeName}) {{ {ReturnType} {MemberName} }} x2"
                 : $"extension({ReceiverTypeName}) {{ {ReturnType} {MemberName}({ParameterCount} params) }} x2";
+        }
     }
 
     public enum DuplicateMemberKind
@@ -122,24 +126,30 @@ public class ExtensionDuplicateSignaturePropertyTests
                    memberKind, memberName, returnType, paramCount);
     }
 
-    public static Arbitrary<DuplicateSignatureScenario> ArbitraryDuplicateSignatureScenario() =>
-        GenScenario().ToArbitrary();
+    public static Arbitrary<DuplicateSignatureScenario> ArbitraryDuplicateSignatureScenario()
+    {
+        return GenScenario().ToArbitrary();
+    }
 
     // ─── AST construction helpers ────────────────────────────────────────
 
-    private static TypeReferenceNode MakeNamedTypeRef(string name) =>
-        new TypeReferenceNode
+    private static TypeReferenceNode MakeNamedTypeRef(string name)
+    {
+        return new TypeReferenceNode
         {
             First = new NamedSingleTypeRefSingleTypeRefNode
             {
                 Name = new QualifiedIdentifierNode { IDENTIFIER = Tok(name) },
             }
         };
+    }
 
-    private static TypeReferenceNode MakeReturnTypeRef(string typeName) =>
-        typeName == "void"
+    private static TypeReferenceNode MakeReturnTypeRef(string typeName)
+    {
+        return typeName == "void"
             ? new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() }
             : MakeNamedTypeRef(typeName);
+    }
 
     private static ExpressionNode MakeLiteralExpression(string typeName)
     {
@@ -166,12 +176,14 @@ public class ExtensionDuplicateSignaturePropertyTests
         return new AssignmentFormExpressionNode { Assignment = assign };
     }
 
-    private static ParameterNode MakeParameter(string name, string typeName) =>
-        new()
+    private static ParameterNode MakeParameter(string name, string typeName)
+    {
+        return new()
         {
             Name = Tok(name),
             Type = MakeNamedTypeRef(typeName),
         };
+    }
 
     private static ParameterListNode? MakeParameterList(int parameterCount)
     {

@@ -15,11 +15,20 @@ public class CustomCollection : IEnumerable<int>
 
     public int Count => items.Length;
 
-    public Enumerator GetEnumerator() => new(items);
+    public Enumerator GetEnumerator()
+    {
+        return new(items);
+    }
 
-    IEnumerator<int> IEnumerable<int>.GetEnumerator() => GetEnumerator();
+    IEnumerator<int> IEnumerable<int>.GetEnumerator()
+    {
+        return GetEnumerator();
+    }
 
-    IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+    IEnumerator IEnumerable.GetEnumerator()
+    {
+        return GetEnumerator();
+    }
 
     /// <summary>
     /// Concrete enumerator struct for CustomCollection.
@@ -45,7 +54,10 @@ public class CustomCollection : IEnumerable<int>
             return index < items.Length;
         }
 
-        public void Reset() => index = -1;
+        public void Reset()
+        {
+            index = -1;
+        }
 
         public void Dispose() { }
     }

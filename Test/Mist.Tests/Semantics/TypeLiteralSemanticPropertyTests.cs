@@ -57,7 +57,10 @@ public class TypeLiteralSemanticPropertyTests
 #pragma warning disable CA1034
     public record TypeLiteralSemanticTestCase(string Keyword, string Source)
     {
-        public override string ToString() => $"var x = {Keyword};";
+        public override string ToString()
+        {
+            return $"var x = {Keyword};";
+        }
     }
 #pragma warning restore CA1034
 
@@ -274,8 +277,10 @@ public class TypeLiteralSemanticPropertyTests
         string VariableType,
         string Source)
     {
-        public override string ToString() =>
-            $"class {TypeName} {{}} ... {VariableType} {TypeName} = ...; var x = {TypeName};";
+        public override string ToString()
+        {
+            return $"class {TypeName} {{}} ... {VariableType} {TypeName} = ...; var x = {TypeName};";
+        }
     }
 #pragma warning restore CA1034
 
@@ -343,23 +348,26 @@ public class TypeLiteralSemanticPropertyTests
     /// (LegacyPrimitiveTypes.Int, etc.) may return stdlib StructType instances
     /// with different DisplayName values (e.g., "Int32" instead of "int").
     /// </summary>
-    private static IType? ExpectedPrimitiveType(string keyword) => keyword switch
+    private static IType? ExpectedPrimitiveType(string keyword)
     {
-        "int" => LegacyPrimitiveTypes.Int,
-        "uint" => LegacyPrimitiveTypes.Uint,
-        "long" => LegacyPrimitiveTypes.Long,
-        "ulong" => LegacyPrimitiveTypes.Ulong,
-        "short" => LegacyPrimitiveTypes.Short,
-        "ushort" => LegacyPrimitiveTypes.Ushort,
-        "byte" => LegacyPrimitiveTypes.Byte,
-        "sbyte" => LegacyPrimitiveTypes.Sbyte,
-        "float" => LegacyPrimitiveTypes.Float,
-        "double" => LegacyPrimitiveTypes.Double,
-        "decimal" => LegacyPrimitiveTypes.Decimal,
-        "bool" => LegacyPrimitiveTypes.Bool,
-        "char" => LegacyPrimitiveTypes.Char,
-        _ => null
-    };
+        return keyword switch
+        {
+            "int" => LegacyPrimitiveTypes.Int,
+            "uint" => LegacyPrimitiveTypes.Uint,
+            "long" => LegacyPrimitiveTypes.Long,
+            "ulong" => LegacyPrimitiveTypes.Ulong,
+            "short" => LegacyPrimitiveTypes.Short,
+            "ushort" => LegacyPrimitiveTypes.Ushort,
+            "byte" => LegacyPrimitiveTypes.Byte,
+            "sbyte" => LegacyPrimitiveTypes.Sbyte,
+            "float" => LegacyPrimitiveTypes.Float,
+            "double" => LegacyPrimitiveTypes.Double,
+            "decimal" => LegacyPrimitiveTypes.Decimal,
+            "bool" => LegacyPrimitiveTypes.Bool,
+            "char" => LegacyPrimitiveTypes.Char,
+            _ => null
+        };
+    }
 
     // ─── Property 5 tests ────────────────────────────────────────────────
 
@@ -473,7 +481,10 @@ public class TypeLiteralSemanticPropertyTests
 #pragma warning disable CA1034
     public record UnresolvedTypeLiteralTestCase(string TypeName)
     {
-        public override string ToString() => $"TypeLiteralExpression({TypeName})";
+        public override string ToString()
+        {
+            return $"TypeLiteralExpression({TypeName})";
+        }
     }
 #pragma warning restore CA1034
 

@@ -78,7 +78,10 @@ public class UnrestrictedBindingRestrictionPropertyTests
     /// </summary>
     public sealed record UnrestrictedLentBorrowedScenario(string Source, string Label)
     {
-        public override string ToString() => Label;
+        public override string ToString()
+        {
+            return Label;
+        }
     }
 
     /// <summary>
@@ -86,7 +89,10 @@ public class UnrestrictedBindingRestrictionPropertyTests
     /// </summary>
     public sealed record UnrestrictedLentFrozenScenario(string Source, string Label)
     {
-        public override string ToString() => Label;
+        public override string ToString()
+        {
+            return Label;
+        }
     }
 
     /// <summary>
@@ -94,7 +100,10 @@ public class UnrestrictedBindingRestrictionPropertyTests
     /// </summary>
     public sealed record UnrestrictedLentReadonlyRefScenario(string Source, string Label)
     {
-        public override string ToString() => Label;
+        public override string ToString()
+        {
+            return Label;
+        }
     }
 
     /// <summary>
@@ -102,7 +111,10 @@ public class UnrestrictedBindingRestrictionPropertyTests
     /// </summary>
     public sealed record UnrestrictedPassedBorrowedScenario(string Source, string Label)
     {
-        public override string ToString() => Label;
+        public override string ToString()
+        {
+            return Label;
+        }
     }
 
     /// <summary>
@@ -110,7 +122,10 @@ public class UnrestrictedBindingRestrictionPropertyTests
     /// </summary>
     public sealed record UnrestrictedPassedFrozenScenario(string Source, string Label)
     {
-        public override string ToString() => Label;
+        public override string ToString()
+        {
+            return Label;
+        }
     }
 
     /// <summary>
@@ -118,7 +133,10 @@ public class UnrestrictedBindingRestrictionPropertyTests
     /// </summary>
     public sealed record UnrestrictedPassedReadonlyRefScenario(string Source, string Label)
     {
-        public override string ToString() => Label;
+        public override string ToString()
+        {
+            return Label;
+        }
     }
 
 #pragma warning restore CA1034
@@ -309,23 +327,35 @@ public class UnrestrictedBindingRestrictionPropertyTests
 
     // ─── Arbitrary instances ─────────────────────────────────────────────
 
-    public static Arbitrary<UnrestrictedLentBorrowedScenario> ArbitraryUnrestrictedLentBorrowedScenario() =>
-        GenUnrestrictedLentBorrowed().ToArbitrary();
+    public static Arbitrary<UnrestrictedLentBorrowedScenario> ArbitraryUnrestrictedLentBorrowedScenario()
+    {
+        return GenUnrestrictedLentBorrowed().ToArbitrary();
+    }
 
-    public static Arbitrary<UnrestrictedLentFrozenScenario> ArbitraryUnrestrictedLentFrozenScenario() =>
-        GenUnrestrictedLentFrozen().ToArbitrary();
+    public static Arbitrary<UnrestrictedLentFrozenScenario> ArbitraryUnrestrictedLentFrozenScenario()
+    {
+        return GenUnrestrictedLentFrozen().ToArbitrary();
+    }
 
-    public static Arbitrary<UnrestrictedLentReadonlyRefScenario> ArbitraryUnrestrictedLentReadonlyRefScenario() =>
-        GenUnrestrictedLentReadonlyRef().ToArbitrary();
+    public static Arbitrary<UnrestrictedLentReadonlyRefScenario> ArbitraryUnrestrictedLentReadonlyRefScenario()
+    {
+        return GenUnrestrictedLentReadonlyRef().ToArbitrary();
+    }
 
-    public static Arbitrary<UnrestrictedPassedBorrowedScenario> ArbitraryUnrestrictedPassedBorrowedScenario() =>
-        GenUnrestrictedPassedBorrowed().ToArbitrary();
+    public static Arbitrary<UnrestrictedPassedBorrowedScenario> ArbitraryUnrestrictedPassedBorrowedScenario()
+    {
+        return GenUnrestrictedPassedBorrowed().ToArbitrary();
+    }
 
-    public static Arbitrary<UnrestrictedPassedFrozenScenario> ArbitraryUnrestrictedPassedFrozenScenario() =>
-        GenUnrestrictedPassedFrozen().ToArbitrary();
+    public static Arbitrary<UnrestrictedPassedFrozenScenario> ArbitraryUnrestrictedPassedFrozenScenario()
+    {
+        return GenUnrestrictedPassedFrozen().ToArbitrary();
+    }
 
-    public static Arbitrary<UnrestrictedPassedReadonlyRefScenario> ArbitraryUnrestrictedPassedReadonlyRefScenario() =>
-        GenUnrestrictedPassedReadonlyRef().ToArbitrary();
+    public static Arbitrary<UnrestrictedPassedReadonlyRefScenario> ArbitraryUnrestrictedPassedReadonlyRefScenario()
+    {
+        return GenUnrestrictedPassedReadonlyRef().ToArbitrary();
+    }
 
     // ═══════════════════════════════════════════════════════════════════════
     // Property 9a: Unrestricted binding lent as 'borrowed' — rejected

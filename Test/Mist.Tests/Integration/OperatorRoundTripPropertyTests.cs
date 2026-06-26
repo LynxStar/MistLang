@@ -71,12 +71,18 @@ public sealed class OperatorRoundTripPropertyTests : IDisposable
 #pragma warning disable CA1034
     public record Int32RoundTripScenario(int A, int B)
     {
-        public override string ToString() => $"Int32: ({A} + {B}) - {B} == {A}";
+        public override string ToString()
+        {
+            return $"Int32: ({A} + {B}) - {B} == {A}";
+        }
     }
 
     public record Int64RoundTripScenario(long A, long B)
     {
-        public override string ToString() => $"Int64: ({A} + {B}) - {B} == {A}";
+        public override string ToString()
+        {
+            return $"Int64: ({A} + {B}) - {B} == {A}";
+        }
     }
 #pragma warning restore CA1034
 
@@ -94,8 +100,10 @@ public sealed class OperatorRoundTripPropertyTests : IDisposable
 
     // ─── Helpers ─────────────────────────────────────────────────────────
 
-    private static string FormatLiteral(long value) =>
-        value < 0 ? $"(0 - {-value})" : value.ToString();
+    private static string FormatLiteral(long value)
+    {
+        return value < 0 ? $"(0 - {-value})" : value.ToString();
+    }
 
     /// <summary>
     /// Builds a single Mist program whose Main prints one result per

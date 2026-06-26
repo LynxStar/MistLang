@@ -26,7 +26,10 @@ public sealed class ConstraintClauseRoundTripScenario
         Description = description;
     }
 
-    public override string ToString() => Description;
+    public override string ToString()
+    {
+        return Description;
+    }
 }
 
 /// <summary>
@@ -220,8 +223,10 @@ public class ConstraintClauseRoundTripPropertyTests
 
     // ─── Arbitrary registration ─────────────────────────────────────────────
 
-    public static Arbitrary<ConstraintClauseRoundTripScenario> ArbitraryConstraintClauseRoundTripScenario() =>
-        GenScenario().ToArbitrary();
+    public static Arbitrary<ConstraintClauseRoundTripScenario> ArbitraryConstraintClauseRoundTripScenario()
+    {
+        return GenScenario().ToArbitrary();
+    }
 
     // ─── Helpers ────────────────────────────────────────────────────────────
 

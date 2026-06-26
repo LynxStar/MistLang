@@ -151,8 +151,10 @@ public class NonGenericTypeArgumentPropertyTests
                    kind, nonGenericName, holderName, fieldName, argCount);
     }
 
-    public static Arbitrary<NonGenericTypeArgScenario> ArbitraryNonGenericTypeArgScenario() =>
-        GenNonGenericTypeArgScenario().ToArbitrary();
+    public static Arbitrary<NonGenericTypeArgScenario> ArbitraryNonGenericTypeArgScenario()
+    {
+        return GenNonGenericTypeArgScenario().ToArbitrary();
+    }
 
     // ─── Property tests ──────────────────────────────────────────────────
 

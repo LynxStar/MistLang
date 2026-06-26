@@ -40,7 +40,10 @@ public sealed class NoArgsEmissionScenario
         PropertyNames = propertyNames;
     }
 
-    public override string ToString() => Description;
+    public override string ToString()
+    {
+        return Description;
+    }
 }
 
 /// <summary>
@@ -70,8 +73,10 @@ public sealed class PropertyInitializerNoArgsEmissionPropertyTests
 
     // ─── FsCheck generators ─────────────────────────────────────────────
 
-    public static Arbitrary<NoArgsEmissionScenario> ArbitraryScenario() =>
-        GenScenario().ToArbitrary();
+    public static Arbitrary<NoArgsEmissionScenario> ArbitraryScenario()
+    {
+        return GenScenario().ToArbitrary();
+    }
 
     private static Gen<NoArgsEmissionScenario> GenScenario()
     {

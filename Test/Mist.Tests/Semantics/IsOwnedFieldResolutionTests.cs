@@ -87,8 +87,10 @@ public sealed class IsOwnedFieldResolutionTests
     /// <summary>
     /// Finds a field symbol by name in the semantic model and returns it cast to <see cref="Symbol"/>.
     /// </summary>
-    private static Symbol FindField(ISemanticModel model, string fieldName) =>
-        (Symbol)model.AllSymbols.First(s => s.Name == fieldName && s.Kind == SymbolKind.Field);
+    private static Symbol FindField(ISemanticModel model, string fieldName)
+    {
+        return (Symbol)model.AllSymbols.First(s => s.Name == fieldName && s.Kind == SymbolKind.Field);
+    }
 
     /// <summary>
     /// Compiles source using the full pipeline and returns diagnostics.
@@ -122,8 +124,10 @@ public sealed class IsOwnedFieldResolutionTests
         }
     }
 
-    private static Diagnostic? FindById(ImmutableArray<Diagnostic> diagnostics, string id) =>
-        diagnostics.FirstOrDefault(d => d.Id.Value == id);
+    private static Diagnostic? FindById(ImmutableArray<Diagnostic> diagnostics, string id)
+    {
+        return diagnostics.FirstOrDefault(d => d.Id.Value == id);
+    }
 
     // ═══════════════════════════════════════════════════════════════════════
     // 1. Explicit `owned` field → IsOwnedField == true (Req 1.1, 1.2)

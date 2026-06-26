@@ -56,10 +56,15 @@ public class AdhocRefinementInvalidNameDiagnosticsPropertyTests
             ConstraintValue = constraintValue;
         }
 
-        public string ToSource() =>
-            $"class {ClassName}<{DependentParamName}:int> where {UnknownName} >= {ConstraintValue} {{ }}";
+        public string ToSource()
+        {
+            return $"class {ClassName}<{DependentParamName}:int> where {UnknownName} >= {ConstraintValue} {{ }}";
+        }
 
-        public override string ToString() => ToSource();
+        public override string ToString()
+        {
+            return ToSource();
+        }
     }
 
     /// <summary>
@@ -78,10 +83,15 @@ public class AdhocRefinementInvalidNameDiagnosticsPropertyTests
             ConstraintValue = constraintValue;
         }
 
-        public string ToSource() =>
-            $"class {ClassName}<{RegularTypeParamName}> where {RegularTypeParamName} >= {ConstraintValue} {{ }}";
+        public string ToSource()
+        {
+            return $"class {ClassName}<{RegularTypeParamName}> where {RegularTypeParamName} >= {ConstraintValue} {{ }}";
+        }
 
-        public override string ToString() => ToSource();
+        public override string ToString()
+        {
+            return ToSource();
+        }
     }
 
     /// <summary>
@@ -102,10 +112,15 @@ public class AdhocRefinementInvalidNameDiagnosticsPropertyTests
             SecondValue = secondValue;
         }
 
-        public string ToSource() =>
-            $"class {ClassName}<{DependentParamName}:int> where {DependentParamName} >= {FirstValue} where {DependentParamName} <= {SecondValue} {{ }}";
+        public string ToSource()
+        {
+            return $"class {ClassName}<{DependentParamName}:int> where {DependentParamName} >= {FirstValue} where {DependentParamName} <= {SecondValue} {{ }}";
+        }
 
-        public override string ToString() => ToSource();
+        public override string ToString()
+        {
+            return ToSource();
+        }
     }
 
 #pragma warning restore CA1034
@@ -150,14 +165,20 @@ public class AdhocRefinementInvalidNameDiagnosticsPropertyTests
                select new DuplicateConstraintScenario(className, depParam, firstValue, secondValue);
     }
 
-    public static Arbitrary<UnknownNameScenario> ArbitraryUnknownNameScenario() =>
-        GenUnknownNameScenario().ToArbitrary();
+    public static Arbitrary<UnknownNameScenario> ArbitraryUnknownNameScenario()
+    {
+        return GenUnknownNameScenario().ToArbitrary();
+    }
 
-    public static Arbitrary<RegularTypeParamScenario> ArbitraryRegularTypeParamScenario() =>
-        GenRegularTypeParamScenario().ToArbitrary();
+    public static Arbitrary<RegularTypeParamScenario> ArbitraryRegularTypeParamScenario()
+    {
+        return GenRegularTypeParamScenario().ToArbitrary();
+    }
 
-    public static Arbitrary<DuplicateConstraintScenario> ArbitraryDuplicateConstraintScenario() =>
-        GenDuplicateConstraintScenario().ToArbitrary();
+    public static Arbitrary<DuplicateConstraintScenario> ArbitraryDuplicateConstraintScenario()
+    {
+        return GenDuplicateConstraintScenario().ToArbitrary();
+    }
 
     // ─── Helpers ─────────────────────────────────────────────────────────
 

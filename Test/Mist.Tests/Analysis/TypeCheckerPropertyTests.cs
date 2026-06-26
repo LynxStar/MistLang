@@ -416,7 +416,10 @@ public class TypeCheckerPropertyTests
 #pragma warning disable CA1034
     public record WellTypedScenario(string Label, Func<CompilationUnitNode> AstBuilder)
     {
-        public override string ToString() => Label;
+        public override string ToString()
+        {
+            return Label;
+        }
     }
 #pragma warning restore CA1034
 
@@ -565,7 +568,10 @@ public class TypeCheckerPropertyTests
 #pragma warning disable CA1034
     public record TypeErrorScenario(string Label, Func<CompilationUnitNode> AstBuilder, string ExpectedDiagnosticPrefix)
     {
-        public override string ToString() => Label;
+        public override string ToString()
+        {
+            return Label;
+        }
     }
 #pragma warning restore CA1034
 

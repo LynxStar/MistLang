@@ -131,8 +131,10 @@ public class ScopeExitAwaitPropertyTests
                    discardedCallCount, returnType == "void");
     }
 
-    public static Arbitrary<ScopeExitAwaitScenario> ArbitraryScopeExitAwaitScenario() =>
-        GenScopeExitAwaitScenario().ToArbitrary();
+    public static Arbitrary<ScopeExitAwaitScenario> ArbitraryScopeExitAwaitScenario()
+    {
+        return GenScopeExitAwaitScenario().ToArbitrary();
+    }
 
     // ─── AST construction ────────────────────────────────────────────────
 

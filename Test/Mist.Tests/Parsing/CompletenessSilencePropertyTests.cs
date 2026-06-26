@@ -45,7 +45,10 @@ public class CompletenessSilencePropertyTests
 #pragma warning disable CA1034
     public record ValidSourceScenario(string Description, string Source)
     {
-        public override string ToString() => Description;
+        public override string ToString()
+        {
+            return Description;
+        }
     }
 #pragma warning restore CA1034
 
@@ -75,127 +78,150 @@ public class CompletenessSilencePropertyTests
     /// <summary>
     /// Generates an empty source file (trivially valid).
     /// </summary>
-    private static Gen<ValidSourceScenario> GenEmptyFile() =>
-        Gen.Constant(new ValidSourceScenario("empty file", ""));
+    private static Gen<ValidSourceScenario> GenEmptyFile()
+    {
+        return Gen.Constant(new ValidSourceScenario("empty file", ""));
+    }
 
     /// <summary>
     /// Generates a namespace-only source file.
     /// </summary>
-    private static Gen<ValidSourceScenario> GenNamespaceOnly() =>
-        from ns in Gen.Elements(Namespaces)
-        select new ValidSourceScenario($"namespace {ns}", $"namespace {ns};");
+    private static Gen<ValidSourceScenario> GenNamespaceOnly()
+    {
+        return from ns in Gen.Elements(Namespaces)
+               select new ValidSourceScenario($"namespace {ns}", $"namespace {ns};");
+    }
 
     /// <summary>
     /// Generates a namespace with a single empty class.
     /// </summary>
-    private static Gen<ValidSourceScenario> GenNamespaceWithClass() =>
-        from ns in Gen.Elements(Namespaces)
-        from cls in Gen.Elements(ClassNames)
-        select new ValidSourceScenario(
-            $"namespace {ns} + class {cls}",
-            $"namespace {ns}; class {cls} {{ }}");
+    private static Gen<ValidSourceScenario> GenNamespaceWithClass()
+    {
+        return from ns in Gen.Elements(Namespaces)
+               from cls in Gen.Elements(ClassNames)
+               select new ValidSourceScenario(
+                   $"namespace {ns} + class {cls}",
+                   $"namespace {ns}; class {cls} {{ }}");
+    }
 
     /// <summary>
     /// Generates a class with fields.
     /// </summary>
-    private static Gen<ValidSourceScenario> GenClassWithFields() =>
-        from cls in Gen.Elements(ClassNames)
-        from fields in (from name in Gen.Elements(FieldNames)
-                        from typ in Gen.Elements(PrimitiveTypes)
-                        select $"    {typ} {name};").ListOf()
-            .Where(list => list.Count >= 1 && list.Count <= 3)
-        let fieldBlock = string.Join("\n", fields.Distinct())
-        select new ValidSourceScenario(
-            $"class {cls} with {fields.Count} fields",
-            $"class {cls} {{\n{fieldBlock}\n}}");
+    private static Gen<ValidSourceScenario> GenClassWithFields()
+    {
+        return from cls in Gen.Elements(ClassNames)
+               from fields in (from name in Gen.Elements(FieldNames)
+                               from typ in Gen.Elements(PrimitiveTypes)
+                               select $"    {typ} {name};").ListOf()
+                   .Where(list => list.Count >= 1 && list.Count <= 3)
+               let fieldBlock = string.Join("\n", fields.Distinct())
+               select new ValidSourceScenario(
+                   $"class {cls} with {fields.Count} fields",
+                   $"class {cls} {{\n{fieldBlock}\n}}");
+    }
 
     /// <summary>
     /// Generates a class with a method that has a return statement.
     /// </summary>
-    private static Gen<ValidSourceScenario> GenClassWithMethod() =>
-        from cls in Gen.Elements(ClassNames)
-        from method in Gen.Elements(MethodNames)
-        from retType in Gen.Elements("int", "bool", "string")
-        let body = retType switch
-        {
-            "int" => "return 0;",
-            "bool" => "return true;",
-            _ => "return \"hello\";"
-        }
-        select new ValidSourceScenario(
-            $"class {cls} with method {method}",
-            $"class {cls} {{\n    public {retType} {method}() {{\n        {body}\n    }}\n}}");
+    private static Gen<ValidSourceScenario> GenClassWithMethod()
+    {
+        return from cls in Gen.Elements(ClassNames)
+               from method in Gen.Elements(MethodNames)
+               from retType in Gen.Elements("int", "bool", "string")
+               let body = retType switch
+               {
+                   "int" => "return 0;",
+                   "bool" => "return true;",
+                   _ => "return \"hello\";"
+               }
+               select new ValidSourceScenario(
+                   $"class {cls} with method {method}",
+                   $"class {cls} {{\n    public {retType} {method}() {{\n        {body}\n    }}\n}}");
+    }
 
     /// <summary>
     /// Generates a class with a generic type parameter.
     /// </summary>
-    private static Gen<ValidSourceScenario> GenGenericClass() =>
-        from cls in Gen.Elements(ClassNames)
-        from tp in Gen.Elements(TypeParamNames)
-        select new ValidSourceScenario(
-            $"generic class {cls}<{tp}>",
-            $"class {cls}<{tp}> {{ }}");
+    private static Gen<ValidSourceScenario> GenGenericClass()
+    {
+        return from cls in Gen.Elements(ClassNames)
+               from tp in Gen.Elements(TypeParamNames)
+               select new ValidSourceScenario(
+                   $"generic class {cls}<{tp}>",
+                   $"class {cls}<{tp}> {{ }}");
+    }
 
     /// <summary>
     /// Generates a struct declaration.
     /// </summary>
-    private static Gen<ValidSourceScenario> GenStruct() =>
-        from name in Gen.Elements(StructNames)
-        from field in Gen.Elements(FieldNames)
-        from typ in Gen.Elements("int", "bool", "string")
-        select new ValidSourceScenario(
-            $"struct {name}",
-            $"struct {name} {{\n    {typ} {field};\n}}");
+    private static Gen<ValidSourceScenario> GenStruct()
+    {
+        return from name in Gen.Elements(StructNames)
+               from field in Gen.Elements(FieldNames)
+               from typ in Gen.Elements("int", "bool", "string")
+               select new ValidSourceScenario(
+                   $"struct {name}",
+                   $"struct {name} {{\n    {typ} {field};\n}}");
+    }
 
     /// <summary>
     /// Generates a namespace with multiple classes.
     /// </summary>
-    private static Gen<ValidSourceScenario> GenNamespaceWithMultipleClasses() =>
-        from ns in Gen.Elements(Namespaces)
-        from classes in Gen.Elements(ClassNames).ListOf()
-            .Where(list => list.Count >= 2 && list.Count <= 3)
-        let distinctClasses = classes.Distinct().ToArray()
-        where distinctClasses.Length >= 2
-        let classDecls = string.Join("\n", distinctClasses.Select(c => $"class {c} {{ }}"))
-        select new ValidSourceScenario(
-            $"namespace {ns} with {distinctClasses.Length} classes",
-            $"namespace {ns};\n{classDecls}");
+    private static Gen<ValidSourceScenario> GenNamespaceWithMultipleClasses()
+    {
+        return from ns in Gen.Elements(Namespaces)
+               from classes in Gen.Elements(ClassNames).ListOf()
+                   .Where(list => list.Count >= 2 && list.Count <= 3)
+               let distinctClasses = classes.Distinct().ToArray()
+               where distinctClasses.Length >= 2
+               let classDecls = string.Join("\n", distinctClasses.Select(c => $"class {c} {{ }}"))
+               select new ValidSourceScenario(
+                   $"namespace {ns} with {distinctClasses.Length} classes",
+                   $"namespace {ns};\n{classDecls}");
+    }
 
     /// <summary>
     /// Generates a class with a static void Main entry point.
     /// </summary>
-    private static Gen<ValidSourceScenario> GenProgramWithMain() =>
-        from ns in Gen.Elements(Namespaces)
-        select new ValidSourceScenario(
-            "program with Main",
-            $"namespace {ns};\nclass Program {{\n    public static void Main() {{\n    }}\n}}");
+    private static Gen<ValidSourceScenario> GenProgramWithMain()
+    {
+        return from ns in Gen.Elements(Namespaces)
+               select new ValidSourceScenario(
+                   "program with Main",
+                   $"namespace {ns};\nclass Program {{\n    public static void Main() {{\n    }}\n}}");
+    }
 
     /// <summary>
     /// Generates a class with a dependent type parameter using a primitive constraint.
     /// </summary>
-    private static Gen<ValidSourceScenario> GenDependentTypeClass() =>
-        from cls in Gen.Elements(ClassNames)
-        from param in Gen.Elements("Size", "Count", "Length")
-        from prim in Gen.Elements("int", "uint", "long", "bool", "char")
-        select new ValidSourceScenario(
-            $"dependent type class {cls}<{param}:{prim}>",
-            $"class {cls}<{param}:{prim}> {{ }}");
+    private static Gen<ValidSourceScenario> GenDependentTypeClass()
+    {
+        return from cls in Gen.Elements(ClassNames)
+               from param in Gen.Elements("Size", "Count", "Length")
+               from prim in Gen.Elements("int", "uint", "long", "bool", "char")
+               select new ValidSourceScenario(
+                   $"dependent type class {cls}<{param}:{prim}>",
+                   $"class {cls}<{param}:{prim}> {{ }}");
+    }
 
     /// <summary>
     /// Generates a using directive with a namespace.
     /// </summary>
-    private static Gen<ValidSourceScenario> GenUsingDirective() =>
-        from ns in Gen.Elements(Namespaces)
-        from cls in Gen.Elements(ClassNames)
-        select new ValidSourceScenario(
-            $"using {ns} + class {cls}",
-            $"using {ns};\nclass {cls} {{ }}");
+    private static Gen<ValidSourceScenario> GenUsingDirective()
+    {
+        return from ns in Gen.Elements(Namespaces)
+               from cls in Gen.Elements(ClassNames)
+               select new ValidSourceScenario(
+                   $"using {ns} + class {cls}",
+                   $"using {ns};\nclass {cls} {{ }}");
+    }
 
     /// <summary>
     /// Combined generator producing a variety of valid Mist source files.
     /// </summary>
-    private static Gen<ValidSourceScenario> GenValidSource() =>
-        Gen.OneOf(
+    private static Gen<ValidSourceScenario> GenValidSource()
+    {
+        return Gen.OneOf(
             GenEmptyFile(),
             GenNamespaceOnly(),
             GenNamespaceWithClass(),
@@ -207,9 +233,12 @@ public class CompletenessSilencePropertyTests
             GenProgramWithMain(),
             GenDependentTypeClass(),
             GenUsingDirective());
+    }
 
-    public static Arbitrary<ValidSourceScenario> ArbitraryValidSource() =>
-        GenValidSource().ToArbitrary();
+    public static Arbitrary<ValidSourceScenario> ArbitraryValidSource()
+    {
+        return GenValidSource().ToArbitrary();
+    }
 
     // --- Property 6: Completeness Silence on Full Consumption ---
 

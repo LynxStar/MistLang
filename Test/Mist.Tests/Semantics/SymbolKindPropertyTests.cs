@@ -92,7 +92,10 @@ public class SymbolKindPropertyTests
 #pragma warning disable CA1034 // Nested types should not be visible
     public record DeclarationScenario(string Label, SymbolKind ExpectedKind)
     {
-        public override string ToString() => Label;
+        public override string ToString()
+        {
+            return Label;
+        }
     }
 #pragma warning restore CA1034
 

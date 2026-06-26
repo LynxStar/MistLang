@@ -84,7 +84,10 @@ public class OwnershipErasurePropertyTests
     /// </summary>
     public sealed record ErasureScenario(string WithOwnership, string WithoutOwnership, string Label)
     {
-        public override string ToString() => Label;
+        public override string ToString()
+        {
+            return Label;
+        }
     }
 
 #pragma warning restore CA1034
@@ -438,8 +441,10 @@ public class OwnershipErasurePropertyTests
 
     // ─── Arbitrary instances ─────────────────────────────────────────────
 
-    public static Arbitrary<ErasureScenario> ArbitraryErasureScenario() =>
-        GenErasureScenario().ToArbitrary();
+    public static Arbitrary<ErasureScenario> ArbitraryErasureScenario()
+    {
+        return GenErasureScenario().ToArbitrary();
+    }
 
     // ═══════════════════════════════════════════════════════════════════════
     // Property 9: Emission erasure — emitted C# is identical with and

@@ -79,7 +79,10 @@ public sealed class BootstrapNumericOperatorPropertyTests : IDisposable
 #pragma warning disable CA1034
     public record NumericOpScenario(int A, int B, string Op)
     {
-        public override string ToString() => $"({A} {Op} {B})";
+        public override string ToString()
+        {
+            return $"({A} {Op} {B})";
+        }
     }
 #pragma warning restore CA1034
 
@@ -115,8 +118,10 @@ public sealed class BootstrapNumericOperatorPropertyTests : IDisposable
 
     // ─── Helpers ─────────────────────────────────────────────────────────
 
-    private static string FormatLiteral(int value) =>
-        value < 0 ? $"(0 - {-value})" : value.ToString();
+    private static string FormatLiteral(int value)
+    {
+        return value < 0 ? $"(0 - {-value})" : value.ToString();
+    }
 
     /// <summary>
     /// Builds a single Mist program whose Main evaluates all scenarios

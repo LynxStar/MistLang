@@ -80,11 +80,15 @@ public sealed class OrchestratorIntegrationTests
         }
     }
 
-    private static Diagnostic? FindById(ImmutableArray<Diagnostic> diagnostics, string id) =>
-        diagnostics.FirstOrDefault(d => d.Id.Value == id);
+    private static Diagnostic? FindById(ImmutableArray<Diagnostic> diagnostics, string id)
+    {
+        return diagnostics.FirstOrDefault(d => d.Id.Value == id);
+    }
 
-    private static bool HasErrors(ImmutableArray<Diagnostic> diagnostics) =>
-        diagnostics.Any(d => d.Severity == DiagnosticSeverity.Error);
+    private static bool HasErrors(ImmutableArray<Diagnostic> diagnostics)
+    {
+        return diagnostics.Any(d => d.Severity == DiagnosticSeverity.Error);
+    }
 
     // ═══════════════════════════════════════════════════════════════════════
     // 1. End-to-end: owned type with valid fields compiles cleanly

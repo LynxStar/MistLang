@@ -193,7 +193,9 @@ public sealed class SamplesCompileAndMatchBaselineTest
     }
 
     private static string NormalizeLineEndings(string text)
-        => text.Replace("\r\n", "\n");
+    {
+        return text.Replace("\r\n", "\n");
+    }
 
     private static string FindRepoRoot()
     {

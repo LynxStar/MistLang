@@ -128,7 +128,10 @@ public class RegexRefinementTypePropertyTests
 #pragma warning disable CA1034
     public record RefinementMatchScenario(string Pattern, string Literal)
     {
-        public override string ToString() => $"type T = string `{Pattern}`; T x = \"{Literal}\";";
+        public override string ToString()
+        {
+            return $"type T = string `{Pattern}`; T x = \"{Literal}\";";
+        }
     }
 
     /// <summary>
@@ -136,7 +139,10 @@ public class RegexRefinementTypePropertyTests
     /// </summary>
     public record RefinementNonMatchScenario(string Pattern, string Literal)
     {
-        public override string ToString() => $"type T = string `{Pattern}`; T x = \"{Literal}\";";
+        public override string ToString()
+        {
+            return $"type T = string `{Pattern}`; T x = \"{Literal}\";";
+        }
     }
 
     /// <summary>
@@ -144,7 +150,10 @@ public class RegexRefinementTypePropertyTests
     /// </summary>
     public record RefinementNonConstantScenario(string Pattern)
     {
-        public override string ToString() => $"type T = string `{Pattern}`; T x = someVar;";
+        public override string ToString()
+        {
+            return $"type T = string `{Pattern}`; T x = someVar;";
+        }
     }
 #pragma warning restore CA1034
 

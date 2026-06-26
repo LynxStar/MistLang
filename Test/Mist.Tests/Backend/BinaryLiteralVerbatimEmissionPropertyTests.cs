@@ -175,7 +175,10 @@ public sealed class BinaryLiteralVerbatimEmissionPropertyTests : IDisposable
 #pragma warning disable CA1034
     public record VerbatimEmissionScenario(string Source, string Literal)
     {
-        public override string ToString() => Literal;
+        public override string ToString()
+        {
+            return Literal;
+        }
     }
 #pragma warning restore CA1034
 

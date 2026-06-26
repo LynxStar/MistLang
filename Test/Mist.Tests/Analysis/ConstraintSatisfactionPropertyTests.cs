@@ -32,7 +32,10 @@ public sealed class ConstraintSatisfactionScenario
         ShouldAccept = shouldAccept;
     }
 
-    public override string ToString() => $"[{(ShouldAccept ? "ACCEPT" : "REJECT")}] {Description}";
+    public override string ToString()
+    {
+        return $"[{(ShouldAccept ? "ACCEPT" : "REJECT")}] {Description}";
+    }
 }
 
 /// <summary>
@@ -325,8 +328,10 @@ class Program {{
             GenMultipleCtorConstraintsSatisfied());
     }
 
-    public static Arbitrary<ConstraintSatisfactionScenario> ArbitraryConstraintSatisfactionScenario() =>
-        GenScenario().ToArbitrary();
+    public static Arbitrary<ConstraintSatisfactionScenario> ArbitraryConstraintSatisfactionScenario()
+    {
+        return GenScenario().ToArbitrary();
+    }
 
     // ─── Property test ───────────────────────────────────────────────────
 

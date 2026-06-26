@@ -38,7 +38,10 @@ public class RefinementImplicationPropertyTests
             Value = value;
         }
 
-        public override string ToString() => $"{Operator} {Value}";
+        public override string ToString()
+        {
+            return $"{Operator} {Value}";
+        }
     }
 
     /// <summary>
@@ -53,7 +56,10 @@ public class RefinementImplicationPropertyTests
             Constraints = constraints;
         }
 
-        public override string ToString() => string.Join(" and ", Constraints.Select(c => c.ToString()));
+        public override string ToString()
+        {
+            return string.Join(" and ", Constraints.Select(c => c.ToString()));
+        }
     }
 
     /// <summary>
@@ -70,7 +76,10 @@ public class RefinementImplicationPropertyTests
             Target = target;
         }
 
-        public override string ToString() => $"({Source}) implies ({Target})";
+        public override string ToString()
+        {
+            return $"({Source}) implies ({Target})";
+        }
     }
 
 #pragma warning restore CA1034
@@ -116,8 +125,10 @@ public class RefinementImplicationPropertyTests
                select new ImplicationScenario(source, target);
     }
 
-    public static Arbitrary<ImplicationScenario> ArbitraryImplicationScenario() =>
-        GenImplicationScenario().ToArbitrary();
+    public static Arbitrary<ImplicationScenario> ArbitraryImplicationScenario()
+    {
+        return GenImplicationScenario().ToArbitrary();
+    }
 
     // ─── Helpers ─────────────────────────────────────────────────────────
 

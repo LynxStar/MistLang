@@ -141,11 +141,15 @@ public sealed partial class ClassAbstractEmissionPropertyTests : IDisposable
         return classDecl;
     }
 
-    private static TypeDeclarationNode WrapAbstract(AbstractDeclarationNode decl) =>
-        new AbstractTypeTypeDeclarationNode { AbstractDeclaration = decl };
+    private static TypeDeclarationNode WrapAbstract(AbstractDeclarationNode decl)
+    {
+        return new AbstractTypeTypeDeclarationNode { AbstractDeclaration = decl };
+    }
 
-    private static TypeDeclarationNode WrapClass(ClassDeclarationNode decl) =>
-        new ClassTypeTypeDeclarationNode { ClassDeclaration = decl };
+    private static TypeDeclarationNode WrapClass(ClassDeclarationNode decl)
+    {
+        return new ClassTypeTypeDeclarationNode { ClassDeclaration = decl };
+    }
 
     private static ClassDeclarationNode MakeProgramClass()
     {
@@ -342,8 +346,10 @@ public sealed partial class ClassAbstractEmissionPropertyTests : IDisposable
             GenAbstractOnly());
     }
 
-    public static Arbitrary<ClassEmissionScenario> ArbitraryClassEmissionScenario() =>
-        GenScenario().ToArbitrary();
+    public static Arbitrary<ClassEmissionScenario> ArbitraryClassEmissionScenario()
+    {
+        return GenScenario().ToArbitrary();
+    }
 
     // ─── AST construction ────────────────────────────────────────────────
 

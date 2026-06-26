@@ -364,7 +364,10 @@ public class AccessModifierPropertyTests
 #pragma warning disable CA1034
     public record AccessScenario(string Label, Func<CompilationUnitNode> AstBuilder, bool ShouldHaveError)
     {
-        public override string ToString() => Label;
+        public override string ToString()
+        {
+            return Label;
+        }
     }
 #pragma warning restore CA1034
 
@@ -469,7 +472,10 @@ public class AccessModifierPropertyTests
 #pragma warning disable CA1034
     public record StaticAccessScenario(string Label, Func<CompilationUnitNode> AstBuilder, bool ShouldHaveError, string ExpectedDiagnosticId)
     {
-        public override string ToString() => Label;
+        public override string ToString()
+        {
+            return Label;
+        }
     }
 #pragma warning restore CA1034
 

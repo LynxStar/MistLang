@@ -93,8 +93,10 @@ public class DisallowedBaseTypeRejectionPropertyTests
         public string Source =>
             $"type {RefinementName} = {BaseTypeKeyword} {Operator} {Literal};\nclass {TypeName}<{ParamName}:{RefinementName}> {{ }}";
 
-        public override string ToString() =>
-            $"type {RefinementName} = {BaseTypeKeyword} {Operator} {Literal}; class {TypeName}<{ParamName}:{RefinementName}>";
+        public override string ToString()
+        {
+            return $"type {RefinementName} = {BaseTypeKeyword} {Operator} {Literal}; class {TypeName}<{ParamName}:{RefinementName}>";
+        }
     }
 #pragma warning restore CA1034
 
@@ -113,8 +115,10 @@ public class DisallowedBaseTypeRejectionPropertyTests
                    baseType.Keyword, baseType.Literal, op);
     }
 
-    public static Arbitrary<DisallowedBaseTypeScenario> ArbitraryDisallowedBaseTypeScenario() =>
-        GenDisallowedBaseTypeScenario().ToArbitrary();
+    public static Arbitrary<DisallowedBaseTypeScenario> ArbitraryDisallowedBaseTypeScenario()
+    {
+        return GenDisallowedBaseTypeScenario().ToArbitrary();
+    }
 
     // ─── Property test ───────────────────────────────────────────────────
 

@@ -49,15 +49,20 @@ public class TuplePositionalPatternExhaustivenessPropertyTests
         bool HasGuard,
         string Label)
     {
-        public override string ToString() => Label;
+        public override string ToString()
+        {
+            return Label;
+        }
     }
 
 #pragma warning restore CA1034
 
     // ─── AST construction helpers ────────────────────────────────────────
 
-    private static Storm.Runtime.Token Tok(string lexeme) =>
-        MistTypeGenerator.MakeToken(lexeme);
+    private static Storm.Runtime.Token Tok(string lexeme)
+    {
+        return MistTypeGenerator.MakeToken(lexeme);
+    }
 
     private static PatternNode WrapPrimaryPattern(PrimaryPatternNode primary)
     {
@@ -97,13 +102,16 @@ public class TuplePositionalPatternExhaustivenessPropertyTests
     /// <summary>
     /// Creates a catch-all pattern based on the specified kind.
     /// </summary>
-    private static PatternNode MakeCatchAllElement(CatchAllKind kind, int index) => kind switch
+    private static PatternNode MakeCatchAllElement(CatchAllKind kind, int index)
     {
-        CatchAllKind.Discard => MakeDiscardPattern(),
-        CatchAllKind.VarNamed => MakeVarNamedPattern($"v{index}"),
-        CatchAllKind.VarDiscard => MakeVarDiscardPattern(),
-        _ => throw new ArgumentOutOfRangeException(nameof(kind)),
-    };
+        return kind switch
+        {
+            CatchAllKind.Discard => MakeDiscardPattern(),
+            CatchAllKind.VarNamed => MakeVarNamedPattern($"v{index}"),
+            CatchAllKind.VarDiscard => MakeVarDiscardPattern(),
+            _ => throw new ArgumentOutOfRangeException(nameof(kind)),
+        };
+    }
 
     /// <summary>
     /// Creates a tuple positional pattern where every element is a catch-all.

@@ -532,7 +532,10 @@ namespace Storm.SourceGenerator.Tests
 
         // Packed (ruleId, pos) memo key, mirroring the emitted MemoKey helper.
         // SelfRep is the only marked rule, so its ruleId is 0.
-        private static long MemoKey(int ruleId, int pos) => ((long)ruleId << 32) | (uint)pos;
+        private static long MemoKey(int ruleId, int pos)
+        {
+            return ((long)ruleId << 32) | (uint)pos;
+        }
 
         // Inputs that make SelfRep FAIL speculative-safely at the entry position
         // (position 0): neither starts with a NUM token, so the body's leading

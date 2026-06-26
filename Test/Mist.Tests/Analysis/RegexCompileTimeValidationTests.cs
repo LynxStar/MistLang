@@ -177,8 +177,10 @@ public class RegexCompileTimeValidationTests
         /// </summary>
         public bool IsValidRegex => CheckIsValidRegex(Pattern);
 
-        public override string ToString() =>
-            $"Pattern=\"{Pattern}\" (valid={IsValidRegex})";
+        public override string ToString()
+        {
+            return $"Pattern=\"{Pattern}\" (valid={IsValidRegex})";
+        }
 
         private static bool CheckIsValidRegex(string pattern)
         {

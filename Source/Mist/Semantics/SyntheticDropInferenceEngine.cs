@@ -208,18 +208,24 @@ public static class SyntheticDropInferenceEngine
     }
 
     /// <summary>Returns whether a type currently carries a <c>Drop()</c> method.</summary>
-    private static bool HasDrop(IType type) => type switch
+    private static bool HasDrop(IType type)
     {
-        ClassType ct => ct.HasDrop,
-        StructType st => st.HasDrop,
-        _ => false,
-    };
+        return type switch
+        {
+            ClassType ct => ct.HasDrop,
+            StructType st => st.HasDrop,
+            _ => false,
+        };
+    }
 
     /// <summary>Returns the member scope for a class/struct type, or null otherwise.</summary>
-    private static IScope? MemberScopeOf(IType type) => type switch
+    private static IScope? MemberScopeOf(IType type)
     {
-        ClassType ct => ct.MemberScope,
-        StructType st => st.MemberScope,
-        _ => null,
-    };
+        return type switch
+        {
+            ClassType ct => ct.MemberScope,
+            StructType st => st.MemberScope,
+            _ => null,
+        };
+    }
 }

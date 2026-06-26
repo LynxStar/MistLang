@@ -78,7 +78,10 @@ public class OwnershipFrozenBlockingPropertyTests
     /// </summary>
     public sealed record OwnerMutationBlockedScenario(string Source, string Label)
     {
-        public override string ToString() => Label;
+        public override string ToString()
+        {
+            return Label;
+        }
     }
 
     /// <summary>
@@ -87,7 +90,10 @@ public class OwnershipFrozenBlockingPropertyTests
     /// </summary>
     public sealed record RefHolderMutationBlockedScenario(string Source, string Label)
     {
-        public override string ToString() => Label;
+        public override string ToString()
+        {
+            return Label;
+        }
     }
 
     /// <summary>
@@ -96,7 +102,10 @@ public class OwnershipFrozenBlockingPropertyTests
     /// </summary>
     public sealed record MutationRestoredScenario(string Source, string Label)
     {
-        public override string ToString() => Label;
+        public override string ToString()
+        {
+            return Label;
+        }
     }
 
 #pragma warning restore CA1034
@@ -258,14 +267,20 @@ public class OwnershipFrozenBlockingPropertyTests
 
     // ─── Arbitrary instances ─────────────────────────────────────────────
 
-    public static Arbitrary<OwnerMutationBlockedScenario> ArbitraryOwnerMutationBlockedScenario() =>
-        Gen.OneOf(GenOwnerMutationDuringFrozenLoan(), GenOwnerFieldAssignDuringFrozenLoan()).ToArbitrary();
+    public static Arbitrary<OwnerMutationBlockedScenario> ArbitraryOwnerMutationBlockedScenario()
+    {
+        return Gen.OneOf(GenOwnerMutationDuringFrozenLoan(), GenOwnerFieldAssignDuringFrozenLoan()).ToArbitrary();
+    }
 
-    public static Arbitrary<RefHolderMutationBlockedScenario> ArbitraryRefHolderMutationBlockedScenario() =>
-        GenRefHolderMutationDuringFrozenLoan().ToArbitrary();
+    public static Arbitrary<RefHolderMutationBlockedScenario> ArbitraryRefHolderMutationBlockedScenario()
+    {
+        return GenRefHolderMutationDuringFrozenLoan().ToArbitrary();
+    }
 
-    public static Arbitrary<MutationRestoredScenario> ArbitraryMutationRestoredScenario() =>
-        GenMutationRestoredAfterScopeExit().ToArbitrary();
+    public static Arbitrary<MutationRestoredScenario> ArbitraryMutationRestoredScenario()
+    {
+        return GenMutationRestoredAfterScopeExit().ToArbitrary();
+    }
 
     // ═══════════════════════════════════════════════════════════════════════
     // Property 5a: Owner mutation blocked during frozen ref loan

@@ -81,11 +81,15 @@ public sealed class OwnedFieldDiagnosticTests
         }
     }
 
-    private static Diagnostic? FindById(ImmutableArray<Diagnostic> diagnostics, string id) =>
-        diagnostics.FirstOrDefault(d => d.Id.Value == id);
+    private static Diagnostic? FindById(ImmutableArray<Diagnostic> diagnostics, string id)
+    {
+        return diagnostics.FirstOrDefault(d => d.Id.Value == id);
+    }
 
-    private static ImmutableArray<Diagnostic> FindAllById(ImmutableArray<Diagnostic> diagnostics, string id) =>
-        diagnostics.Where(d => d.Id.Value == id).ToImmutableArray();
+    private static ImmutableArray<Diagnostic> FindAllById(ImmutableArray<Diagnostic> diagnostics, string id)
+    {
+        return diagnostics.Where(d => d.Id.Value == id).ToImmutableArray();
+    }
 
     // ═══════════════════════════════════════════════════════════════════════
     // 1. MIST_OWN_SHARED_EXTRACT — move/borrow/freeze/readonly-ref of owned

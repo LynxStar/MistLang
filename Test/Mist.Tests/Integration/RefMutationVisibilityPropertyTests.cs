@@ -75,8 +75,10 @@ public sealed class RefMutationVisibilityPropertyTests : IDisposable
 
     public record RefMutationScenario(RefType Type, string InitialValue, string AssignedValue)
     {
-        public override string ToString() =>
-            $"{Type}: initial={InitialValue}, assigned={AssignedValue}";
+        public override string ToString()
+        {
+            return $"{Type}: initial={InitialValue}, assigned={AssignedValue}";
+        }
     }
 #pragma warning restore CA1034
 
@@ -116,21 +118,28 @@ public sealed class RefMutationVisibilityPropertyTests : IDisposable
 
     // ─── Literal formatting ──────────────────────────────────────────────
 
-    private static string FormatIntLiteral(int value) =>
-        value < 0 ? $"(0 - {-value})" : value.ToString(CultureInfo.InvariantCulture);
+    private static string FormatIntLiteral(int value)
+    {
+        return value < 0 ? $"(0 - {-value})" : value.ToString(CultureInfo.InvariantCulture);
+    }
 
-    private static string FormatDoubleLiteral(double value) =>
-        value < 0
+    private static string FormatDoubleLiteral(double value)
+    {
+        return value < 0
             ? $"(0.0 - {(-value).ToString("F1", CultureInfo.InvariantCulture)})"
             : value.ToString("F1", CultureInfo.InvariantCulture);
+    }
 
-    private static string GetMistTypeName(RefType type) => type switch
+    private static string GetMistTypeName(RefType type)
     {
-        RefType.Integer => "int",
-        RefType.Floating => "double",
-        RefType.Boolean => "bool",
-        _ => "int"
-    };
+        return type switch
+        {
+            RefType.Integer => "int",
+            RefType.Floating => "double",
+            RefType.Boolean => "bool",
+            _ => "int"
+        };
+    }
 
     // ─── Program builder ─────────────────────────────────────────────────
 

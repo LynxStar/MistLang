@@ -35,8 +35,10 @@ public class TopLevelConstructCountPropertyTests
     /// <summary>
     /// The filter predicate as used in CompilerDriver Stage 4.
     /// </summary>
-    private static bool IsTopLevelUserConstruct(SymbolKind kind, SymbolOrigin origin) =>
-        origin == SymbolOrigin.UserCode && TopLevelKinds.Contains(kind);
+    private static bool IsTopLevelUserConstruct(SymbolKind kind, SymbolOrigin origin)
+    {
+        return origin == SymbolOrigin.UserCode && TopLevelKinds.Contains(kind);
+    }
 
     /// <summary>
     /// Alternative manual count implementation — iterates and counts without LINQ.
@@ -82,12 +84,16 @@ public class TopLevelConstructCountPropertyTests
     /// <summary>
     /// Generates a list of 0–50 random (SymbolKind, SymbolOrigin) pairs.
     /// </summary>
-    private static Gen<(SymbolKind Kind, SymbolOrigin Origin)[]> GenSymbolPairList() =>
-        Gen.Choose(0, 50).SelectMany(size =>
+    private static Gen<(SymbolKind Kind, SymbolOrigin Origin)[]> GenSymbolPairList()
+    {
+        return Gen.Choose(0, 50).SelectMany(size =>
             Gen.ArrayOf(GenSymbolPair(), size));
+    }
 
-    public static Arbitrary<(SymbolKind Kind, SymbolOrigin Origin)[]> ArbSymbolPairList() =>
-        GenSymbolPairList().ToArbitrary();
+    public static Arbitrary<(SymbolKind Kind, SymbolOrigin Origin)[]> ArbSymbolPairList()
+    {
+        return GenSymbolPairList().ToArbitrary();
+    }
 
     // ═══════════════════════════════════════════════════════════════════════
     // Property test

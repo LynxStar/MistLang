@@ -112,10 +112,12 @@ public class DependentTypePatternMatchPropertyTests
         string MethodName,
         string MethodParamName)
     {
-        public override string ToString() =>
-            $"class {ClassName}<{ClassParamName}:{ValueType}>, " +
+        public override string ToString()
+        {
+            return $"class {ClassName}<{ClassParamName}:{ValueType}>, " +
             $"method {MethodName}<{MethodParamName}:{ValueType}> " +
             $"pattern matches {ClassName}<{MethodParamName}>";
+        }
     }
 #pragma warning restore CA1034
 
@@ -136,8 +138,10 @@ public class DependentTypePatternMatchPropertyTests
                    methodParamName);
     }
 
-    public static Arbitrary<OpenPatternMatchScenario> ArbitraryOpenPatternMatchScenario() =>
-        GenOpenPatternMatchScenario().ToArbitrary();
+    public static Arbitrary<OpenPatternMatchScenario> ArbitraryOpenPatternMatchScenario()
+    {
+        return GenOpenPatternMatchScenario().ToArbitrary();
+    }
 
     // ─── Property test ───────────────────────────────────────────────────
 

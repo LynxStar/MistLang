@@ -190,13 +190,16 @@ public sealed class MethodTierVisibilityDecisionTableTests : IDisposable
         return capture.Captured;
     }
 
-    private static Symbol? FindMethod(ISemanticModel model, string methodName) =>
-        model.AllSymbols
+    private static Symbol? FindMethod(ISemanticModel model, string methodName)
+    {
+        return model.AllSymbols
             .OfType<Symbol>()
             .FirstOrDefault(s => s.Kind == SymbolKind.Method && s.Name == methodName);
+    }
 
-    private static IType? FindType(ISemanticModel model, string typeName) =>
-        model.AllSymbols
+    private static IType? FindType(ISemanticModel model, string typeName)
+    {
+        return model.AllSymbols
             .Where(s => (s.Kind == SymbolKind.Class || s.Kind == SymbolKind.Struct)
                 && s.Name == typeName)
             .Select(s => s.DeclaredType)
@@ -204,6 +207,7 @@ public sealed class MethodTierVisibilityDecisionTableTests : IDisposable
             .FirstOrDefault(t =>
                 (t is ClassType ct && ct.ContainingNamespace == "TestProgram")
                 || (t is StructType st && st.ContainingNamespace == "TestProgram"));
+    }
 
     // ═══════════════════════════════════════════════════════════════════════
     // Decision table — one [InlineData] per row (with both method kinds for the

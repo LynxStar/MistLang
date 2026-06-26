@@ -34,7 +34,10 @@ public sealed class DuplicateMemberScenario
         DuplicateName = duplicateName;
     }
 
-    public override string ToString() => Description;
+    public override string ToString()
+    {
+        return Description;
+    }
 }
 
 /// <summary>
@@ -61,8 +64,10 @@ public sealed class PropertyInitializerDuplicatePropertyTests
 
     // ─── FsCheck generators ─────────────────────────────────────────────
 
-    public static Arbitrary<DuplicateMemberScenario> ArbitraryScenario() =>
-        GenScenario().ToArbitrary();
+    public static Arbitrary<DuplicateMemberScenario> ArbitraryScenario()
+    {
+        return GenScenario().ToArbitrary();
+    }
 
     private static Gen<DuplicateMemberScenario> GenScenario()
     {

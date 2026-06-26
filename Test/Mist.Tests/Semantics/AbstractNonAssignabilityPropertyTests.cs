@@ -236,17 +236,25 @@ public class AbstractNonAssignabilityPropertyTests
         return decl;
     }
 
-    private static MemberDeclarationNode WrapMethod(MethodDeclarationNode method) =>
-        new MethodMemberMemberDeclarationNode { Method = method };
+    private static MemberDeclarationNode WrapMethod(MethodDeclarationNode method)
+    {
+        return new MethodMemberMemberDeclarationNode { Method = method };
+    }
 
-    private static TypeDeclarationNode WrapAbstract(AbstractDeclarationNode decl) =>
-        new AbstractTypeTypeDeclarationNode { AbstractDeclaration = decl };
+    private static TypeDeclarationNode WrapAbstract(AbstractDeclarationNode decl)
+    {
+        return new AbstractTypeTypeDeclarationNode { AbstractDeclaration = decl };
+    }
 
-    private static TypeDeclarationNode WrapClass(ClassDeclarationNode decl) =>
-        new ClassTypeTypeDeclarationNode { ClassDeclaration = decl };
+    private static TypeDeclarationNode WrapClass(ClassDeclarationNode decl)
+    {
+        return new ClassTypeTypeDeclarationNode { ClassDeclaration = decl };
+    }
 
-    private static TypeDeclarationNode WrapStruct(StructDeclarationNode decl) =>
-        new StructTypeTypeDeclarationNode { StructDeclaration = decl };
+    private static TypeDeclarationNode WrapStruct(StructDeclarationNode decl)
+    {
+        return new StructTypeTypeDeclarationNode { StructDeclaration = decl };
+    }
 
     // ─── Test data models ────────────────────────────────────────────────
 
@@ -317,8 +325,10 @@ public class AbstractNonAssignabilityPropertyTests
                    typeKind);
     }
 
-    public static Arbitrary<NonAssignabilityScenario> ArbitraryNonAssignabilityScenario() =>
-        GenNonAssignabilityScenario().ToArbitrary();
+    public static Arbitrary<NonAssignabilityScenario> ArbitraryNonAssignabilityScenario()
+    {
+        return GenNonAssignabilityScenario().ToArbitrary();
+    }
 
     // ─── AST construction for full programs ──────────────────────────────
 

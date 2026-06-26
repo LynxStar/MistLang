@@ -198,8 +198,10 @@ public class DependentTypeEqualityPropertyTests
         object Value,
         string Display)
     {
-        public override string ToString() =>
-            $"{ClassName}<{Display}> == {ClassName}<{Display}> (type: {TypeName})";
+        public override string ToString()
+        {
+            return $"{ClassName}<{Display}> == {ClassName}<{Display}> (type: {TypeName})";
+        }
     }
 
     public record DifferentValueScenario(
@@ -210,8 +212,10 @@ public class DependentTypeEqualityPropertyTests
         object ValueB,
         string DisplayB)
     {
-        public override string ToString() =>
-            $"{ClassName}<{DisplayA}> != {ClassName}<{DisplayB}> (type: {TypeName})";
+        public override string ToString()
+        {
+            return $"{ClassName}<{DisplayA}> != {ClassName}<{DisplayB}> (type: {TypeName})";
+        }
     }
 #pragma warning restore CA1034
 
@@ -257,25 +261,32 @@ public class DependentTypeEqualityPropertyTests
             GenDifferentCharValueScenario());
     }
 
-    public static Arbitrary<SameValueScenario> ArbitrarySameValueScenario() =>
-        GenSameValueScenario().ToArbitrary();
+    public static Arbitrary<SameValueScenario> ArbitrarySameValueScenario()
+    {
+        return GenSameValueScenario().ToArbitrary();
+    }
 
-    public static Arbitrary<DifferentValueScenario> ArbitraryDifferentValueScenario() =>
-        GenDifferentValueScenario().ToArbitrary();
+    public static Arbitrary<DifferentValueScenario> ArbitraryDifferentValueScenario()
+    {
+        return GenDifferentValueScenario().ToArbitrary();
+    }
 
     // ─── Helpers for type resolution ─────────────────────────────────────
 
-    private static IType GetValueType(string typeName) => typeName switch
+    private static IType GetValueType(string typeName)
     {
-        "Int32" => IntType,
-        "UInt32" => UintType,
-        "Int64" => LongType,
-        "Int16" => ShortType,
-        "Byte" => ByteType,
-        "Boolean" => BoolType,
-        "Char" => CharType,
-        _ => throw new ArgumentException($"Unknown type: {typeName}")
-    };
+        return typeName switch
+        {
+            "Int32" => IntType,
+            "UInt32" => UintType,
+            "Int64" => LongType,
+            "Int16" => ShortType,
+            "Byte" => ByteType,
+            "Boolean" => BoolType,
+            "Char" => CharType,
+            _ => throw new ArgumentException($"Unknown type: {typeName}")
+        };
+    }
 
     // ─── Property tests ──────────────────────────────────────────────────
 

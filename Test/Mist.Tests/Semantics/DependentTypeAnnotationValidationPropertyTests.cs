@@ -83,8 +83,10 @@ public class DependentTypeAnnotationValidationPropertyTests
         PrimitiveTypeNode DisallowedType,
         string ExpectedTypeKeyword)
     {
-        public override string ToString() =>
-            $"class {ClassName}<{ParamName}:{ExpectedTypeKeyword}>";
+        public override string ToString()
+        {
+            return $"class {ClassName}<{ParamName}:{ExpectedTypeKeyword}>";
+        }
     }
 #pragma warning restore CA1034
 
@@ -107,8 +109,10 @@ public class DependentTypeAnnotationValidationPropertyTests
                select new DisallowedAnnotationScenario(className, paramName, disallowedType, keyword);
     }
 
-    public static Arbitrary<DisallowedAnnotationScenario> ArbitraryDisallowedAnnotationScenario() =>
-        GenDisallowedAnnotationScenario().ToArbitrary();
+    public static Arbitrary<DisallowedAnnotationScenario> ArbitraryDisallowedAnnotationScenario()
+    {
+        return GenDisallowedAnnotationScenario().ToArbitrary();
+    }
 
     // ─── Property test ───────────────────────────────────────────────────
 

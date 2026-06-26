@@ -27,8 +27,10 @@ namespace Mist.Tests.Analysis;
 /// </summary>
 public class PropertyAccessTypePropertyTests
 {
-    private static Storm.Runtime.Token Tok(string lexeme) =>
-        MistTypeGenerator.MakeToken(lexeme);
+    private static Storm.Runtime.Token Tok(string lexeme)
+    {
+        return MistTypeGenerator.MakeToken(lexeme);
+    }
 
     // ─── Test data model ─────────────────────────────────────────────────
 
@@ -38,7 +40,10 @@ public class PropertyAccessTypePropertyTests
         CompilationUnitNode Ast,
         bool ExpectValid)
     {
-        public override string ToString() => Description;
+        public override string ToString()
+        {
+            return Description;
+        }
     }
 #pragma warning restore CA1034
 
@@ -94,8 +99,10 @@ public class PropertyAccessTypePropertyTests
             GenValidGetOnlyRead());
     }
 
-    public static Arbitrary<PropertyAccessTestCase> ArbitraryPropertyAccessTestCase() =>
-        GenTestCase().ToArbitrary();
+    public static Arbitrary<PropertyAccessTestCase> ArbitraryPropertyAccessTestCase()
+    {
+        return GenTestCase().ToArbitrary();
+    }
 
     // ─── AST construction helpers ────────────────────────────────────────
 

@@ -34,8 +34,10 @@ public sealed record AllFieldsAssignedScenario(
     int NonDefaultableFieldCount,
     int DefaultableFieldCount)
 {
-    public override string ToString() =>
-        $"{(IsStruct ? "struct" : "class")} {TypeName} (ctor assigns all {NonDefaultableFieldCount} non-defaultable fields, {DefaultableFieldCount} defaultable)";
+    public override string ToString()
+    {
+        return $"{(IsStruct ? "struct" : "class")} {TypeName} (ctor assigns all {NonDefaultableFieldCount} non-defaultable fields, {DefaultableFieldCount} defaultable)";
+    }
 }
 
 /// <summary>
@@ -49,8 +51,10 @@ public sealed record MissingAssignmentScenario(
     string UnassignedFieldName,
     int TotalNonDefaultableFields)
 {
-    public override string ToString() =>
-        $"{(IsStruct ? "struct" : "class")} {TypeName} (missing assignment to '{UnassignedFieldName}', {TotalNonDefaultableFields} non-defaultable fields)";
+    public override string ToString()
+    {
+        return $"{(IsStruct ? "struct" : "class")} {TypeName} (missing assignment to '{UnassignedFieldName}', {TotalNonDefaultableFields} non-defaultable fields)";
+    }
 }
 
 /// <summary>
@@ -64,8 +68,10 @@ public sealed record DefaultableFieldInjectionScenario(
     int DefaultableFieldCount,
     int NonDefaultableFieldCount)
 {
-    public override string ToString() =>
-        $"{(IsStruct ? "struct" : "class")} {TypeName} ({DefaultableFieldCount} defaultable unassigned, {NonDefaultableFieldCount} non-defaultable assigned)";
+    public override string ToString()
+    {
+        return $"{(IsStruct ? "struct" : "class")} {TypeName} ({DefaultableFieldCount} defaultable unassigned, {NonDefaultableFieldCount} non-defaultable assigned)";
+    }
 }
 
 #pragma warning restore CA1034
@@ -129,16 +135,20 @@ public sealed class DefiniteAssignmentPropertyTests
     }
 
     private static bool HasDefiniteAssignmentDiagnosticForType(
-        ImmutableArray<Diagnostic> diagnostics, string typeName) =>
-        diagnostics.Any(d => d.Id.Value == "MIST_FIELD_NOT_DEFINITELY_ASSIGNED" &&
+        ImmutableArray<Diagnostic> diagnostics, string typeName)
+    {
+        return diagnostics.Any(d => d.Id.Value == "MIST_FIELD_NOT_DEFINITELY_ASSIGNED" &&
             d.Message.Contains($"constructor '{typeName}'"));
+    }
 
     private static bool HasDefiniteAssignmentDiagnosticForField(
-        ImmutableArray<Diagnostic> diagnostics, string fieldName, string typeName) =>
-        diagnostics.Any(d =>
+        ImmutableArray<Diagnostic> diagnostics, string fieldName, string typeName)
+    {
+        return diagnostics.Any(d =>
             d.Id.Value == "MIST_FIELD_NOT_DEFINITELY_ASSIGNED" &&
             d.Message.Contains($"'{fieldName}'") &&
             d.Message.Contains($"constructor '{typeName}'"));
+    }
 
     // ─── Name and type pools ─────────────────────────────────────────────
 
@@ -212,14 +222,20 @@ public sealed class DefiniteAssignmentPropertyTests
 
     // ─── Arbitrary registrations ─────────────────────────────────────────
 
-    public static Arbitrary<AllFieldsAssignedScenario> ArbitraryAllFieldsAssigned() =>
-        GenAllFieldsAssignedScenario().ToArbitrary();
+    public static Arbitrary<AllFieldsAssignedScenario> ArbitraryAllFieldsAssigned()
+    {
+        return GenAllFieldsAssignedScenario().ToArbitrary();
+    }
 
-    public static Arbitrary<MissingAssignmentScenario> ArbitraryMissingAssignment() =>
-        GenMissingAssignmentScenario().ToArbitrary();
+    public static Arbitrary<MissingAssignmentScenario> ArbitraryMissingAssignment()
+    {
+        return GenMissingAssignmentScenario().ToArbitrary();
+    }
 
-    public static Arbitrary<DefaultableFieldInjectionScenario> ArbitraryDefaultableFieldInjection() =>
-        GenDefaultableFieldInjectionScenario().ToArbitrary();
+    public static Arbitrary<DefaultableFieldInjectionScenario> ArbitraryDefaultableFieldInjection()
+    {
+        return GenDefaultableFieldInjectionScenario().ToArbitrary();
+    }
 
     // ─── Source generation helpers ───────────────────────────────────────
 

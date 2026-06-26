@@ -40,13 +40,15 @@ public class ExtensionRegistrationPropertyTests
 
     private static readonly SemanticModelBuilder Builder = new();
 
-    private static Storm.Runtime.Token Tok(string lexeme) =>
-        new(kind: 0,
+    private static Storm.Runtime.Token Tok(string lexeme)
+    {
+        return new(kind: 0,
             span: new Storm.Runtime.SourceSpan(0, lexeme.Length),
             start: new Storm.Runtime.LinePosition(1, 1),
             end: new Storm.Runtime.LinePosition(1, 1 + lexeme.Length),
             channel: Storm.Runtime.TokenChannel.Default,
             lexeme: lexeme);
+    }
 
     private static ISemanticModel BuildModel(Storm.Runtime.SyntaxNode ast)
     {
@@ -74,8 +76,10 @@ public class ExtensionRegistrationPropertyTests
         bool IsMethod,
         string ReturnType)
     {
-        public override string ToString() =>
-            IsMethod ? $"{ReturnType} {Name}()" : $"{ReturnType} {Name} => ...";
+        public override string ToString()
+        {
+            return IsMethod ? $"{ReturnType} {Name}()" : $"{ReturnType} {Name} => ...";
+        }
     }
 
     /// <summary>
@@ -91,8 +95,10 @@ public class ExtensionRegistrationPropertyTests
 
         public int TotalMemberCount => Blocks.Sum(b => b.Length);
 
-        public override string ToString() =>
-            $"{BlockCount} extension blocks on '{ReceiverTypeName}' with {TotalMemberCount} total members";
+        public override string ToString()
+        {
+            return $"{BlockCount} extension blocks on '{ReceiverTypeName}' with {TotalMemberCount} total members";
+        }
     }
 #pragma warning restore CA1034
 
@@ -219,24 +225,30 @@ public class ExtensionRegistrationPropertyTests
                           select new List<T>(list) { item });
     }
 
-    public static Arbitrary<RegistrationScenario> ArbitraryRegistrationScenario() =>
-        GenScenario().ToArbitrary();
+    public static Arbitrary<RegistrationScenario> ArbitraryRegistrationScenario()
+    {
+        return GenScenario().ToArbitrary();
+    }
 
     // ─── AST construction helpers ────────────────────────────────────────
 
-    private static TypeReferenceNode MakeNamedTypeRef(string name) =>
-        new TypeReferenceNode
+    private static TypeReferenceNode MakeNamedTypeRef(string name)
+    {
+        return new TypeReferenceNode
         {
             First = new NamedSingleTypeRefSingleTypeRefNode
             {
                 Name = new QualifiedIdentifierNode { IDENTIFIER = Tok(name) },
             }
         };
+    }
 
-    private static TypeReferenceNode MakeReturnTypeRef(string typeName) =>
-        typeName == "void"
+    private static TypeReferenceNode MakeReturnTypeRef(string typeName)
+    {
+        return typeName == "void"
             ? new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() }
             : MakeNamedTypeRef(typeName);
+    }
 
     private static ExpressionNode MakeLiteralExpression(string typeName)
     {
@@ -310,8 +322,10 @@ public class ExtensionRegistrationPropertyTests
         };
     }
 
-    private static ExtensionMemberDeclarationNode MakeMember(ExtensionMemberInfo info) =>
-        info.IsMethod ? MakeMethodMember(info) : MakePropertyMember(info);
+    private static ExtensionMemberDeclarationNode MakeMember(ExtensionMemberInfo info)
+    {
+        return info.IsMethod ? MakeMethodMember(info) : MakePropertyMember(info);
+    }
 
     private static CompilationUnitNode BuildAst(RegistrationScenario scenario)
     {

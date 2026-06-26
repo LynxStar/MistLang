@@ -80,8 +80,10 @@ public class TuplePositionalPatternElementValidationPropertyTests
         string Pattern,
         int InvalidElementCount)
     {
-        public override string ToString() =>
-            $"{TupleType} with pattern {Pattern} ({InvalidElementCount} invalid)";
+        public override string ToString()
+        {
+            return $"{TupleType} with pattern {Pattern} ({InvalidElementCount} invalid)";
+        }
     }
 
     /// <summary>
@@ -94,8 +96,10 @@ public class TuplePositionalPatternElementValidationPropertyTests
         string Pattern,
         int InvalidElementCount)
     {
-        public override string ToString() =>
-            $"{TupleType} with pattern {Pattern} ({InvalidElementCount} invalid)";
+        public override string ToString()
+        {
+            return $"{TupleType} with pattern {Pattern} ({InvalidElementCount} invalid)";
+        }
     }
 
 #pragma warning restore CA1034

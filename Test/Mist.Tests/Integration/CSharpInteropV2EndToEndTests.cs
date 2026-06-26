@@ -135,7 +135,9 @@ public sealed class CSharpInteropV2EndToEndTests : IDisposable
     }
 
     private static string NormalizeLineEndings(string s)
-        => s.Replace("\r\n", "\n").Replace("\r", "\n");
+    {
+        return s.Replace("\r\n", "\n").Replace("\r", "\n");
+    }
 
     private static string FindRepoRoot()
     {

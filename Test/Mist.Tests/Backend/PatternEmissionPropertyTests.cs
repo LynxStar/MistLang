@@ -54,8 +54,10 @@ public sealed class PatternEmissionPropertyTests : IDisposable
 
     // ─── Helpers ─────────────────────────────────────────────────────────
 
-    private static Storm.Runtime.Token Tok(string lexeme) =>
-        MistTypeGenerator.MakeToken(lexeme);
+    private static Storm.Runtime.Token Tok(string lexeme)
+    {
+        return MistTypeGenerator.MakeToken(lexeme);
+    }
 
     private ISemanticModel BuildModel(CompilationUnitNode ast, string source = "")
     {
@@ -119,8 +121,10 @@ public sealed class PatternEmissionPropertyTests : IDisposable
         string ScrutineeName,
         int IntValue)
     {
-        public override string ToString() =>
-            $"{ScrutineeName} is {Kind} (intVal={IntValue})";
+        public override string ToString()
+        {
+            return $"{ScrutineeName} is {Kind} (intVal={IntValue})";
+        }
     }
 
 #pragma warning restore CA1034
@@ -213,17 +217,20 @@ public sealed class PatternEmissionPropertyTests : IDisposable
         return new PatternNode { OrPattern = or };
     }
 
-    private static string GetExpectedSubstring(EmissionPatternKind kind, int intValue) => kind switch
+    private static string GetExpectedSubstring(EmissionPatternKind kind, int intValue)
     {
-        EmissionPatternKind.TypePattern => "is int matched",
-        EmissionPatternKind.VarPattern => "is var matched",
-        EmissionPatternKind.DiscardPattern => "is var _",
-        EmissionPatternKind.ConstantIntPattern => $"is {intValue}",
-        EmissionPatternKind.ConstantBoolPattern => "is true",
-        EmissionPatternKind.RelationalGreaterThan => $"is > {intValue}",
-        EmissionPatternKind.RelationalLessThan => $"is < {intValue}",
-        _ => "is",
-    };
+        return kind switch
+        {
+            EmissionPatternKind.TypePattern => "is int matched",
+            EmissionPatternKind.VarPattern => "is var matched",
+            EmissionPatternKind.DiscardPattern => "is var _",
+            EmissionPatternKind.ConstantIntPattern => $"is {intValue}",
+            EmissionPatternKind.ConstantBoolPattern => "is true",
+            EmissionPatternKind.RelationalGreaterThan => $"is > {intValue}",
+            EmissionPatternKind.RelationalLessThan => $"is < {intValue}",
+            _ => "is",
+        };
+    }
 
     private static CompilationUnitNode BuildProgram(EmissionScenario scenario)
     {

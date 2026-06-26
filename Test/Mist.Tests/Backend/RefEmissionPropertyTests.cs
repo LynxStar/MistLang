@@ -27,7 +27,10 @@ namespace Mist.Tests.Backend;
 /// </summary>
 public sealed record RefParameterEmissionScenario(string Source, string ParamName, string TypeName, string Description)
 {
-    public override string ToString() => Description;
+    public override string ToString()
+    {
+        return Description;
+    }
 }
 
 /// <summary>
@@ -35,7 +38,10 @@ public sealed record RefParameterEmissionScenario(string Source, string ParamNam
 /// </summary>
 public sealed record RefReturnEmissionScenario(string Source, string MethodName, string Description)
 {
-    public override string ToString() => Description;
+    public override string ToString()
+    {
+        return Description;
+    }
 }
 
 /// <summary>
@@ -43,7 +49,10 @@ public sealed record RefReturnEmissionScenario(string Source, string MethodName,
 /// </summary>
 public sealed record RefReadonlyReturnEmissionScenario(string Source, string MethodName, string Description)
 {
-    public override string ToString() => Description;
+    public override string ToString()
+    {
+        return Description;
+    }
 }
 
 /// <summary>
@@ -51,7 +60,10 @@ public sealed record RefReadonlyReturnEmissionScenario(string Source, string Met
 /// </summary>
 public sealed record RefLocalEmissionScenario(string Source, string VarName, string TypeName, bool IsReadonly, string Description)
 {
-    public override string ToString() => Description;
+    public override string ToString()
+    {
+        return Description;
+    }
 }
 
 /// <summary>
@@ -59,7 +71,10 @@ public sealed record RefLocalEmissionScenario(string Source, string VarName, str
 /// </summary>
 public sealed record RefArgumentEmissionScenario(string Source, string Description)
 {
-    public override string ToString() => Description;
+    public override string ToString()
+    {
+        return Description;
+    }
 }
 
 /// <summary>
@@ -67,7 +82,10 @@ public sealed record RefArgumentEmissionScenario(string Source, string Descripti
 /// </summary>
 public sealed record ReturnRefEmissionScenario(string Source, string Description)
 {
-    public override string ToString() => Description;
+    public override string ToString()
+    {
+        return Description;
+    }
 }
 
 #pragma warning restore CA1034
@@ -121,11 +139,14 @@ public sealed class RefEmissionPropertyTests : IDisposable
     /// <summary>
     /// Returns a valid default literal for the given Mist type.
     /// </summary>
-    private static string DefaultValueFor(string typeName) => typeName switch
+    private static string DefaultValueFor(string typeName)
     {
-        "bool" => "false",
-        _ => "0",
-    };
+        return typeName switch
+        {
+            "bool" => "false",
+            _ => "0",
+        };
+    }
 
     // ── Property 12a: Ref parameter emission ────────────────────────────
 
@@ -549,15 +570,18 @@ public sealed class RefEmissionPropertyTests : IDisposable
     /// Maps Mist primitive type names to their C# keyword form as emitted by the CSharpEmitter.
     /// The emitter uses C# keywords (int, double, bool, etc.) not CLR type names.
     /// </summary>
-    private static string MapToCSharpType(string mistType) => mistType switch
+    private static string MapToCSharpType(string mistType)
     {
-        "int" => "int",
-        "double" => "double",
-        "bool" => "bool",
-        "float" => "float",
-        "long" => "long",
-        "string" => "string",
-        "char" => "char",
-        _ => mistType,
-    };
+        return mistType switch
+        {
+            "int" => "int",
+            "double" => "double",
+            "bool" => "bool",
+            "float" => "float",
+            "long" => "long",
+            "string" => "string",
+            "char" => "char",
+            _ => mistType,
+        };
+    }
 }

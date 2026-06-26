@@ -109,8 +109,10 @@ public sealed class DisciplineCompatibilityMatrixPropertyTests
         string FieldTypeName,
         bool ExpectError)
     {
-        public override string ToString() =>
-            $"container={Container}, field={Field} → expectError={ExpectError}";
+        public override string ToString()
+        {
+            return $"container={Container}, field={Field} → expectError={ExpectError}";
+        }
     }
 
 #pragma warning restore CA1034
@@ -191,16 +193,21 @@ public sealed class DisciplineCompatibilityMatrixPropertyTests
                select new MatrixScenario(container, field, "Container", FieldTypeNameFor(field), expectError);
     }
 
-    private static string FieldTypeNameFor(FieldDisciplineKind field) => field switch
+    private static string FieldTypeNameFor(FieldDisciplineKind field)
     {
-        FieldDisciplineKind.Linear => "LinearField",
-        FieldDisciplineKind.Affine => "AffineField",
-        FieldDisciplineKind.Relevant => "RelevantField",
-        _ => "PlainField",
-    };
+        return field switch
+        {
+            FieldDisciplineKind.Linear => "LinearField",
+            FieldDisciplineKind.Affine => "AffineField",
+            FieldDisciplineKind.Relevant => "RelevantField",
+            _ => "PlainField",
+        };
+    }
 
-    public static Arbitrary<MatrixScenario> ArbitraryMatrixScenario() =>
-        GenScenario().ToArbitrary();
+    public static Arbitrary<MatrixScenario> ArbitraryMatrixScenario()
+    {
+        return GenScenario().ToArbitrary();
+    }
 
     // ─── Source builder ──────────────────────────────────────────────────
 

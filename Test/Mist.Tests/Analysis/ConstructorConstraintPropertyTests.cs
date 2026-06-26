@@ -32,7 +32,10 @@ public sealed class ConstructorConstraintScenario
         ShouldAccept = shouldAccept;
     }
 
-    public override string ToString() => $"[{(ShouldAccept ? "ACCEPT" : "REJECT")}] {Description}";
+    public override string ToString()
+    {
+        return $"[{(ShouldAccept ? "ACCEPT" : "REJECT")}] {Description}";
+    }
 }
 
 /// <summary>
@@ -209,8 +212,10 @@ public class ConstructorConstraintPropertyTests
             GenNewTMultipleCtorRejected());
     }
 
-    public static Arbitrary<ConstructorConstraintScenario> ArbitraryConstructorConstraintScenario() =>
-        GenScenario().ToArbitrary();
+    public static Arbitrary<ConstructorConstraintScenario> ArbitraryConstructorConstraintScenario()
+    {
+        return GenScenario().ToArbitrary();
+    }
 
     // ─── Property test ───────────────────────────────────────────────────
 

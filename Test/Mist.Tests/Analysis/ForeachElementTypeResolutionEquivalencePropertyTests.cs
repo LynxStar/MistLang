@@ -39,7 +39,10 @@ public sealed class ForeachArrayElementTypeScenario
         Description = description;
     }
 
-    public override string ToString() => Description;
+    public override string ToString()
+    {
+        return Description;
+    }
 }
 
 /// <summary>
@@ -61,7 +64,10 @@ public sealed class ForeachSpanElementTypeScenario
         Description = description;
     }
 
-    public override string ToString() => Description;
+    public override string ToString()
+    {
+        return Description;
+    }
 }
 
 // ─── Property Tests ─────────────────────────────────────────────────────────
@@ -232,11 +238,15 @@ public sealed class ForeachElementTypeResolutionEquivalencePropertyTests : IDisp
 
     // ─── Arbitrary registration ──────────────────────────────────────────
 
-    public static Arbitrary<ForeachArrayElementTypeScenario> ArbitraryForeachArrayElementType() =>
-        GenArrayForeachScenario().ToArbitrary();
+    public static Arbitrary<ForeachArrayElementTypeScenario> ArbitraryForeachArrayElementType()
+    {
+        return GenArrayForeachScenario().ToArbitrary();
+    }
 
-    public static Arbitrary<ForeachSpanElementTypeScenario> ArbitraryForeachSpanElementType() =>
-        GenSpanForeachScenario().ToArbitrary();
+    public static Arbitrary<ForeachSpanElementTypeScenario> ArbitraryForeachSpanElementType()
+    {
+        return GenSpanForeachScenario().ToArbitrary();
+    }
 
     // ═══════════════════════════════════════════════════════════════════════
     // Property 10a: Foreach over ArrayType resolves element type through

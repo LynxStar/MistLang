@@ -103,8 +103,10 @@ public sealed class ValueTaskEmissionPropertyTests : IDisposable
     private static readonly string[] MethodNames = ["Compute", "Fetch", "Process", "Execute", "Load"];
     private static readonly string[] ReturnTypes = ["int", "string", "bool", "float", "void"];
 
-    public static Arbitrary<InferredReturnScenario> ArbitraryScenario() =>
-        GenScenario().ToArbitrary();
+    public static Arbitrary<InferredReturnScenario> ArbitraryScenario()
+    {
+        return GenScenario().ToArbitrary();
+    }
 
     private static Gen<InferredReturnScenario> GenScenario()
     {

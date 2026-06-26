@@ -34,7 +34,10 @@ public sealed class MemberExistenceScenario
         InvalidMemberName = invalidMemberName;
     }
 
-    public override string ToString() => Description;
+    public override string ToString()
+    {
+        return Description;
+    }
 }
 
 /// <summary>
@@ -64,8 +67,10 @@ public sealed class PropertyInitializerMemberExistencePropertyTests
 
     // ─── FsCheck generators ─────────────────────────────────────────────
 
-    public static Arbitrary<MemberExistenceScenario> ArbitraryScenario() =>
-        GenScenario().ToArbitrary();
+    public static Arbitrary<MemberExistenceScenario> ArbitraryScenario()
+    {
+        return GenScenario().ToArbitrary();
+    }
 
     private static Gen<MemberExistenceScenario> GenScenario()
     {

@@ -66,8 +66,10 @@ public class EnumDefaultabilityPropertyTests
         }
     }
 
-    private static bool HasDiagnostic(ImmutableArray<Diagnostic> diagnostics, string id) =>
-        diagnostics.Any(d => d.Id.Value == id);
+    private static bool HasDiagnostic(ImmutableArray<Diagnostic> diagnostics, string id)
+    {
+        return diagnostics.Any(d => d.Id.Value == id);
+    }
 
     // ─── Scenario types ──────────────────────────────────────────────────
 
@@ -83,8 +85,10 @@ public class EnumDefaultabilityPropertyTests
         IReadOnlyList<string> VariantNames,
         int DefaultVariantIndex)
     {
-        public override string ToString() =>
-            $"enum {EnumName} : {BackingType} (default={VariantNames[DefaultVariantIndex]}, {VariantNames.Count} variants)";
+        public override string ToString()
+        {
+            return $"enum {EnumName} : {BackingType} (default={VariantNames[DefaultVariantIndex]}, {VariantNames.Count} variants)";
+        }
     }
 
     /// <summary>
@@ -96,8 +100,10 @@ public class EnumDefaultabilityPropertyTests
         string BackingType,
         IReadOnlyList<string> VariantNames)
     {
-        public override string ToString() =>
-            $"enum {EnumName} : {BackingType} (no default, {VariantNames.Count} variants)";
+        public override string ToString()
+        {
+            return $"enum {EnumName} : {BackingType} (no default, {VariantNames.Count} variants)";
+        }
     }
 
     /// <summary>
@@ -110,8 +116,10 @@ public class EnumDefaultabilityPropertyTests
         IReadOnlyList<string> VariantNames,
         IReadOnlyList<int> DefaultVariantIndices)
     {
-        public override string ToString() =>
-            $"enum {EnumName} : {BackingType} ({DefaultVariantIndices.Count} defaults, {VariantNames.Count} variants)";
+        public override string ToString()
+        {
+            return $"enum {EnumName} : {BackingType} ({DefaultVariantIndices.Count} defaults, {VariantNames.Count} variants)";
+        }
     }
 
 #pragma warning restore CA1034
@@ -165,14 +173,20 @@ public class EnumDefaultabilityPropertyTests
 
     // ─── Arbitrary registrations ─────────────────────────────────────────
 
-    public static Arbitrary<SingleDefaultScenario> ArbitrarySingleDefault() =>
-        GenSingleDefaultScenario().ToArbitrary();
+    public static Arbitrary<SingleDefaultScenario> ArbitrarySingleDefault()
+    {
+        return GenSingleDefaultScenario().ToArbitrary();
+    }
 
-    public static Arbitrary<NoDefaultScenario> ArbitraryNoDefault() =>
-        GenNoDefaultScenario().ToArbitrary();
+    public static Arbitrary<NoDefaultScenario> ArbitraryNoDefault()
+    {
+        return GenNoDefaultScenario().ToArbitrary();
+    }
 
-    public static Arbitrary<MultipleDefaultScenario> ArbitraryMultipleDefault() =>
-        GenMultipleDefaultScenario().ToArbitrary();
+    public static Arbitrary<MultipleDefaultScenario> ArbitraryMultipleDefault()
+    {
+        return GenMultipleDefaultScenario().ToArbitrary();
+    }
 
     // ─── Source generation helpers ───────────────────────────────────────
 

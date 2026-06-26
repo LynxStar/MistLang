@@ -67,7 +67,10 @@ public class UnknownAssignabilityPropertyTests
     /// </summary>
     public sealed record TypeCandidate(IType Type, VoidFlag Flag)
     {
-        public override string ToString() => $"{Type.DisplayName} ({Flag})";
+        public override string ToString()
+        {
+            return $"{Type.DisplayName} ({Flag})";
+        }
     }
 #pragma warning restore CA1034
 
@@ -140,8 +143,10 @@ public class UnknownAssignabilityPropertyTests
     /// <em>shapes</em> (primitive, class, struct, array, constructed), not
     /// arbitrary type parameters.
     /// </summary>
-    public static Arbitrary<TypeCandidate> ArbitraryTypeCandidate() =>
-        Gen.Elements(BuildCandidatePool()).ToArbitrary();
+    public static Arbitrary<TypeCandidate> ArbitraryTypeCandidate()
+    {
+        return Gen.Elements(BuildCandidatePool()).ToArbitrary();
+    }
 
     // ═══════════════════════════════════════════════════════════════════════
     // Property 2 — Every non-void type is assignable to UnknownType;

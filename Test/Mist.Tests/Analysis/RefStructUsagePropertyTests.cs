@@ -96,8 +96,10 @@ public sealed class RefStructUsagePropertyTests
         string GenericTypeName,
         GenericUsageKind UsageKind)
     {
-        public override string ToString() =>
-            $"{UsageKind}: {GenericTypeName}<{RefStructName}>";
+        public override string ToString()
+        {
+            return $"{UsageKind}: {GenericTypeName}<{RefStructName}>";
+        }
     }
 
 #pragma warning restore CA1034
@@ -123,8 +125,10 @@ public sealed class RefStructUsagePropertyTests
                select new GenericTypeArgScenario(refStructName, genericTypeName, usageKind);
     }
 
-    public static Arbitrary<GenericTypeArgScenario> ArbitraryGenericTypeArgScenario() =>
-        GenScenario().ToArbitrary();
+    public static Arbitrary<GenericTypeArgScenario> ArbitraryGenericTypeArgScenario()
+    {
+        return GenScenario().ToArbitrary();
+    }
 
     // ─── Source generation ───────────────────────────────────────────────
 
@@ -294,8 +298,10 @@ public class Program
         string MemberName,
         MemberAccessKind AccessKind)
     {
-        public override string ToString() =>
-            $"{RefStructName}.{MemberName} ({AccessKind})";
+        public override string ToString()
+        {
+            return $"{RefStructName}.{MemberName} ({AccessKind})";
+        }
     }
 
 #pragma warning restore CA1034
@@ -336,8 +342,10 @@ public class Program
         return Gen.OneOf(fieldGen, methodGen, propertyGen);
     }
 
-    public static Arbitrary<MemberAccessScenario> ArbitraryMemberAccessScenario() =>
-        GenMemberAccessScenario().ToArbitrary();
+    public static Arbitrary<MemberAccessScenario> ArbitraryMemberAccessScenario()
+    {
+        return GenMemberAccessScenario().ToArbitrary();
+    }
 
     // ─── Source generation for Property 8 ────────────────────────────────
 

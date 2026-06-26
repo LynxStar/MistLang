@@ -79,7 +79,10 @@ public class OwnedTypeConstraintPropertyTests
     /// </summary>
     public sealed record FieldNotOwnedScenario(string Source, string Label)
     {
-        public override string ToString() => Label;
+        public override string ToString()
+        {
+            return Label;
+        }
     }
 
     /// <summary>
@@ -87,7 +90,10 @@ public class OwnedTypeConstraintPropertyTests
     /// </summary>
     public sealed record ValidOwnedTypeScenario(string Source, string Label)
     {
-        public override string ToString() => Label;
+        public override string ToString()
+        {
+            return Label;
+        }
     }
 
     /// <summary>
@@ -96,7 +102,10 @@ public class OwnedTypeConstraintPropertyTests
     /// </summary>
     public sealed record AbstractForbiddenScenario(string Source, string Label)
     {
-        public override string ToString() => Label;
+        public override string ToString()
+        {
+            return Label;
+        }
     }
 
     /// <summary>
@@ -105,7 +114,10 @@ public class OwnedTypeConstraintPropertyTests
     /// </summary>
     public sealed record TypeRequiresOwnedScenario(string Source, string Label)
     {
-        public override string ToString() => Label;
+        public override string ToString()
+        {
+            return Label;
+        }
     }
 
     /// <summary>
@@ -115,7 +127,10 @@ public class OwnedTypeConstraintPropertyTests
     /// </summary>
     public sealed record SemanticShiftScenario(string Source, string Label)
     {
-        public override string ToString() => Label;
+        public override string ToString()
+        {
+            return Label;
+        }
     }
 
 #pragma warning restore CA1034
@@ -227,17 +242,25 @@ public class OwnedTypeConstraintPropertyTests
 
     // ─── Arbitrary instances ─────────────────────────────────────────────
 
-    public static Arbitrary<FieldNotOwnedScenario> ArbitraryFieldNotOwnedScenario() =>
-        GenFieldNotOwnedScenario().ToArbitrary();
+    public static Arbitrary<FieldNotOwnedScenario> ArbitraryFieldNotOwnedScenario()
+    {
+        return GenFieldNotOwnedScenario().ToArbitrary();
+    }
 
-    public static Arbitrary<ValidOwnedTypeScenario> ArbitraryValidOwnedTypeScenario() =>
-        GenValidOwnedTypeScenario().ToArbitrary();
+    public static Arbitrary<ValidOwnedTypeScenario> ArbitraryValidOwnedTypeScenario()
+    {
+        return GenValidOwnedTypeScenario().ToArbitrary();
+    }
 
-    public static Arbitrary<AbstractForbiddenScenario> ArbitraryAbstractForbiddenScenario() =>
-        GenAbstractForbiddenScenario().ToArbitrary();
+    public static Arbitrary<AbstractForbiddenScenario> ArbitraryAbstractForbiddenScenario()
+    {
+        return GenAbstractForbiddenScenario().ToArbitrary();
+    }
 
-    public static Arbitrary<TypeRequiresOwnedScenario> ArbitraryTypeRequiresOwnedScenario() =>
-        GenTypeRequiresOwnedScenario().ToArbitrary();
+    public static Arbitrary<TypeRequiresOwnedScenario> ArbitraryTypeRequiresOwnedScenario()
+    {
+        return GenTypeRequiresOwnedScenario().ToArbitrary();
+    }
 
     // ═══════════════════════════════════════════════════════════════════════
     // Ownership v2: owned types may declare non-owned reference-type fields — the
@@ -385,8 +408,10 @@ public class OwnedTypeConstraintPropertyTests
             """;
     }
 
-    public static Arbitrary<SemanticShiftScenario> ArbitrarySemanticShiftScenario() =>
-        GenSemanticShiftScenario().ToArbitrary();
+    public static Arbitrary<SemanticShiftScenario> ArbitrarySemanticShiftScenario()
+    {
+        return GenSemanticShiftScenario().ToArbitrary();
+    }
 
     [Property(
         MaxTest = 100,

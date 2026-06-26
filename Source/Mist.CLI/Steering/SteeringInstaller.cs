@@ -21,8 +21,10 @@ public sealed record SteeringInstallResult(
     private static readonly IReadOnlyList<string> Empty = [];
 
     /// <summary>Creates a failure result carrying the supplied <paramref name="error"/> message.</summary>
-    public static SteeringInstallResult Failure(string error) =>
-        new(false, error, Empty, Empty, Empty);
+    public static SteeringInstallResult Failure(string error)
+    {
+        return new(false, error, Empty, Empty, Empty);
+    }
 }
 
 /// <summary>
@@ -62,8 +64,10 @@ public static class SteeringInstaller
     /// <see cref="SteeringInstallResult.Succeeded"/> is <c>false</c> and
     /// <see cref="SteeringInstallResult.Error"/> carries the reason.
     /// </returns>
-    public static SteeringInstallResult Install(string projectFolder) =>
-        InstallFrom(projectFolder, Path.Combine(AppContext.BaseDirectory, "Steering"));
+    public static SteeringInstallResult Install(string projectFolder)
+    {
+        return InstallFrom(projectFolder, Path.Combine(AppContext.BaseDirectory, "Steering"));
+    }
 
     /// <summary>
     /// Installs steering files from an explicit <paramref name="sourceRoot"/> into

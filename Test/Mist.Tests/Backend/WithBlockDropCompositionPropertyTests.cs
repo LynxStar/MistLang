@@ -82,7 +82,10 @@ public sealed class WithBlockDropScenario
         Description = description;
     }
 
-    public override string ToString() => Description;
+    public override string ToString()
+    {
+        return Description;
+    }
 }
 
 // ─── Generators ─────────────────────────────────────────────────────────────
@@ -112,14 +115,17 @@ public static class WithBlockDropCompositionGenerators
                    $"with-form={form}, discipline={discipline}, type={typeName}");
     }
 
-    private static string GetModifier(WithDropDiscipline discipline) => discipline switch
+    private static string GetModifier(WithDropDiscipline discipline)
     {
-        WithDropDiscipline.Unrestricted => "",
-        WithDropDiscipline.Affine => "affine ",
-        WithDropDiscipline.Linear => "linear ",
-        WithDropDiscipline.Relevant => "relevant ",
-        _ => throw new ArgumentOutOfRangeException(nameof(discipline)),
-    };
+        return discipline switch
+        {
+            WithDropDiscipline.Unrestricted => "",
+            WithDropDiscipline.Affine => "affine ",
+            WithDropDiscipline.Linear => "linear ",
+            WithDropDiscipline.Relevant => "relevant ",
+            _ => throw new ArgumentOutOfRangeException(nameof(discipline)),
+        };
+    }
 
     private static string BuildSource(string typeName, WithFormKind form, WithDropDiscipline discipline)
     {
@@ -232,8 +238,10 @@ public sealed class WithBlockDropCompositionPropertyTests : IDisposable
 
     // ─── Arbitrary registration ─────────────────────────────────────────
 
-    public static Arbitrary<WithBlockDropScenario> ArbitraryWithBlockDropScenario() =>
-        WithBlockDropCompositionGenerators.GenWithBlockDropScenario().ToArbitrary();
+    public static Arbitrary<WithBlockDropScenario> ArbitraryWithBlockDropScenario()
+    {
+        return WithBlockDropCompositionGenerators.GenWithBlockDropScenario().ToArbitrary();
+    }
 
     // ─── Helpers ─────────────────────────────────────────────────────────
 

@@ -34,8 +34,10 @@ public class SubstructuralModifierRoundTripPropertyTests
 
     // ─── Arbitrary registration ──────────────────────────────────────────
 
-    public static Arbitrary<SubstructuralModifierSourceScenario> ArbitrarySubstructuralModifierSourceScenario() =>
-        MistSubstructuralModifierGenerator.GenSubstructuralTypeDeclaration().ToArbitrary();
+    public static Arbitrary<SubstructuralModifierSourceScenario> ArbitrarySubstructuralModifierSourceScenario()
+    {
+        return MistSubstructuralModifierGenerator.GenSubstructuralTypeDeclaration().ToArbitrary();
+    }
 
     // ─── Helpers ────────────────────────────────────────────────────────────
 
@@ -170,5 +172,8 @@ public class SubstructuralModifierRoundTripPropertyTests
         return false;
     }
 
-    private static bool IsIdentChar(char c) => char.IsLetterOrDigit(c) || c == '_';
+    private static bool IsIdentChar(char c)
+    {
+        return char.IsLetterOrDigit(c) || c == '_';
+    }
 }

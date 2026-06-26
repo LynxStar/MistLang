@@ -71,7 +71,10 @@ public sealed class DependentTypeEmitterPropertyTests : IDisposable
         /// <summary>Patterns expected in the emitted C# output.</summary>
         public required string[] ExpectedPatterns { get; init; }
 
-        public override string ToString() => Description;
+        public override string ToString()
+        {
+            return Description;
+        }
     }
 #pragma warning restore CA1034, CA1819
 
@@ -390,6 +393,8 @@ public sealed class DependentTypeEmitterPropertyTests : IDisposable
 
     // ─── Arbitrary ───────────────────────────────────────────────────────
 
-    public static Arbitrary<DependentTypeScenario> ArbitraryDependentTypeScenario() =>
-        GenScenario().ToArbitrary();
+    public static Arbitrary<DependentTypeScenario> ArbitraryDependentTypeScenario()
+    {
+        return GenScenario().ToArbitrary();
+    }
 }

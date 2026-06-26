@@ -26,7 +26,10 @@ public sealed class OwnershipV2SourceScenario
         Description = description;
     }
 
-    public override string ToString() => Description;
+    public override string ToString()
+    {
+        return Description;
+    }
 }
 
 /// <summary>
@@ -209,18 +212,22 @@ public static class MistOwnershipV2Generator
     /// <summary>
     /// FsCheck Arbitrary for <see cref="OwnershipV2SourceScenario"/>.
     /// </summary>
-    public static Arbitrary<OwnershipV2SourceScenario> ArbitraryOwnershipV2SourceScenario() =>
-        GenOwnershipV2Source().ToArbitrary();
+    public static Arbitrary<OwnershipV2SourceScenario> ArbitraryOwnershipV2SourceScenario()
+    {
+        return GenOwnershipV2Source().ToArbitrary();
+    }
 
     // ─── Helpers ───────────────────────────────────────────────────────────────
 
     /// <summary>Wraps a statement inside a class with a method body, with a Standard using.</summary>
-    private static string WrapInClassMethod(string statement) =>
-        "class TestClass\n" +
+    private static string WrapInClassMethod(string statement)
+    {
+        return "class TestClass\n" +
         "{\n" +
         "    void Run()\n" +
         "    {\n" +
         $"        {statement}\n" +
         "    }\n" +
         "}\n";
+    }
 }

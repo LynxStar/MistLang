@@ -47,7 +47,10 @@ public class TuplePositionalPatternPerElementDiagnosticPropertyTests
         /// <summary>Number of elements with type-incompatible subpatterns.</summary>
         public int IncompatibleCount => IsIncompatible.Count(x => x);
 
-        public override string ToString() => Label;
+        public override string ToString()
+        {
+            return Label;
+        }
     }
 #pragma warning restore CA1034
 

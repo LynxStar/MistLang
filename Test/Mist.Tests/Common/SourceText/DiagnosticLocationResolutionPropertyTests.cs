@@ -32,8 +32,10 @@ public class DiagnosticLocationResolutionPropertyTests
 #pragma warning disable CA1034
     public record LocationInput(Mist.Common.Text.SourceText Source, int SpanStart, int SpanLength)
     {
-        public override string ToString() =>
-            $"LocationInput(Path=\"{Source.Path}\", ContentsLength={Source.Contents.Length}, SpanStart={SpanStart}, SpanLength={SpanLength})";
+        public override string ToString()
+        {
+            return $"LocationInput(Path=\"{Source.Path}\", ContentsLength={Source.Contents.Length}, SpanStart={SpanStart}, SpanLength={SpanLength})";
+        }
     }
 #pragma warning restore CA1034
 
@@ -66,8 +68,10 @@ public class DiagnosticLocationResolutionPropertyTests
                select new LocationInput(new Mist.Common.Text.SourceText(path, contents), start, length);
     }
 
-    public static Arbitrary<LocationInput> ArbLocationInput() =>
-        GenLocationInput().ToArbitrary();
+    public static Arbitrary<LocationInput> ArbLocationInput()
+    {
+        return GenLocationInput().ToArbitrary();
+    }
 
     // ═══════════════════════════════════════════════════════════════════════
     // Property tests

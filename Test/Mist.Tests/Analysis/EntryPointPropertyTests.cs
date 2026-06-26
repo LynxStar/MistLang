@@ -126,7 +126,10 @@ public class EntryPointPropertyTests
         Func<CompilationUnitNode> AstBuilder,
         string? ExpectedDiagnosticId)
     {
-        public override string ToString() => Label;
+        public override string ToString()
+        {
+            return Label;
+        }
     }
 #pragma warning restore CA1034
 

@@ -36,13 +36,15 @@ public class CastOperatorPriorityPropertyTests
 
     // ─── Helpers ─────────────────────────────────────────────────────────
 
-    private static Storm.Runtime.Token Tok(string lexeme) =>
-        new(kind: 0,
+    private static Storm.Runtime.Token Tok(string lexeme)
+    {
+        return new(kind: 0,
             span: new Storm.Runtime.SourceSpan(0, lexeme.Length),
             start: new Storm.Runtime.LinePosition(1, 1),
             end: new Storm.Runtime.LinePosition(1, 1 + lexeme.Length),
             channel: Storm.Runtime.TokenChannel.Default,
             lexeme: lexeme);
+    }
 
     private ISemanticModel BuildModel(Storm.Runtime.SyntaxNode ast)
     {
@@ -78,8 +80,10 @@ public class CastOperatorPriorityPropertyTests
         string BaseTypeName,
         string DerivedTypeName)
     {
-        public override string ToString() =>
-            $"{DerivedTypeName} : {BaseTypeName} with implicit operator {BaseTypeName}({DerivedTypeName})";
+        public override string ToString()
+        {
+            return $"{DerivedTypeName} : {BaseTypeName} with implicit operator {BaseTypeName}({DerivedTypeName})";
+        }
     }
 
     /// <summary>
@@ -90,8 +94,10 @@ public class CastOperatorPriorityPropertyTests
     public record IdentityWithImplicitCastScenario(
         string TypeName)
     {
-        public override string ToString() =>
-            $"{TypeName} with implicit operator {TypeName}({TypeName}) — identity";
+        public override string ToString()
+        {
+            return $"{TypeName} with implicit operator {TypeName}({TypeName}) — identity";
+        }
     }
 #pragma warning restore CA1034
 
@@ -113,11 +119,15 @@ public class CastOperatorPriorityPropertyTests
                select new IdentityWithImplicitCastScenario(name);
     }
 
-    public static Arbitrary<SubtypeWithImplicitCastScenario> ArbitrarySubtypeWithImplicitCastScenario() =>
-        GenSubtypeScenario().ToArbitrary();
+    public static Arbitrary<SubtypeWithImplicitCastScenario> ArbitrarySubtypeWithImplicitCastScenario()
+    {
+        return GenSubtypeScenario().ToArbitrary();
+    }
 
-    public static Arbitrary<IdentityWithImplicitCastScenario> ArbitraryIdentityWithImplicitCastScenario() =>
-        GenIdentityScenario().ToArbitrary();
+    public static Arbitrary<IdentityWithImplicitCastScenario> ArbitraryIdentityWithImplicitCastScenario()
+    {
+        return GenIdentityScenario().ToArbitrary();
+    }
 
     // ─── AST construction helpers ────────────────────────────────────────
 
@@ -172,21 +182,25 @@ public class CastOperatorPriorityPropertyTests
         return new AssignmentFormExpressionNode { Assignment = assign };
     }
 
-    private static TypeReferenceNode MakeNamedTypeRef(string name) =>
-        new TypeReferenceNode
+    private static TypeReferenceNode MakeNamedTypeRef(string name)
+    {
+        return new TypeReferenceNode
         {
             First = new NamedSingleTypeRefSingleTypeRefNode
             {
                 Name = new QualifiedIdentifierNode { IDENTIFIER = Tok(name) },
             }
         };
+    }
 
-    private static ParameterNode MakeParameter(string typeName, string paramName) =>
-        new()
+    private static ParameterNode MakeParameter(string typeName, string paramName)
+    {
+        return new()
         {
             Type = MakeNamedTypeRef(typeName),
             Name = Tok(paramName),
         };
+    }
 
     /// <summary>
     /// Builds an implicit cast operator declaration with exactly one parameter.
@@ -232,8 +246,9 @@ public class CastOperatorPriorityPropertyTests
         };
     }
 
-    private static TypeDeclarationNode MakeEmptyClassDecl(string name) =>
-        new ClassTypeTypeDeclarationNode
+    private static TypeDeclarationNode MakeEmptyClassDecl(string name)
+    {
+        return new ClassTypeTypeDeclarationNode
         {
             ClassDeclaration = new ClassDeclarationNode
             {
@@ -241,10 +256,12 @@ public class CastOperatorPriorityPropertyTests
                 Members = ImmutableArray<MemberDeclarationNode>.Empty,
             },
         };
+    }
 
     private static TypeDeclarationNode MakeClassDeclWithMembers(
-        string name, ImmutableArray<MemberDeclarationNode> members) =>
-        new ClassTypeTypeDeclarationNode
+        string name, ImmutableArray<MemberDeclarationNode> members)
+    {
+        return new ClassTypeTypeDeclarationNode
         {
             ClassDeclaration = new ClassDeclarationNode
             {
@@ -252,6 +269,7 @@ public class CastOperatorPriorityPropertyTests
                 Members = members,
             },
         };
+    }
 
     /// <summary>
     /// Creates a class that extends a base class, with optional members.

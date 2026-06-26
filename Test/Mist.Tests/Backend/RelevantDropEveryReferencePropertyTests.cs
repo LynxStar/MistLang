@@ -55,7 +55,10 @@ public sealed class RelevantDropScenario
         Description = description;
     }
 
-    public override string ToString() => Description;
+    public override string ToString()
+    {
+        return Description;
+    }
 }
 
 // ─── Generators ─────────────────────────────────────────────────────────────
@@ -188,8 +191,10 @@ public sealed class RelevantDropEveryReferencePropertyTests : IDisposable
 
     // ─── Arbitrary registration ─────────────────────────────────────────
 
-    public static Arbitrary<RelevantDropScenario> ArbitraryRelevantDropScenario() =>
-        RelevantDropEveryReferenceGenerators.GenRelevantDropScenario().ToArbitrary();
+    public static Arbitrary<RelevantDropScenario> ArbitraryRelevantDropScenario()
+    {
+        return RelevantDropEveryReferenceGenerators.GenRelevantDropScenario().ToArbitrary();
+    }
 
     // ─── Helpers ─────────────────────────────────────────────────────────
 

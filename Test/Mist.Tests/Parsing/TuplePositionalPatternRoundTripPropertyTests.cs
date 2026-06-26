@@ -30,8 +30,10 @@ public class TuplePositionalPatternRoundTripPropertyTests
 
     // ─── Arbitrary registration ──────────────────────────────────────────
 
-    public static Arbitrary<TuplePositionalPatternSourceScenario> ArbitraryTuplePositionalPatternSourceScenario() =>
-        MistTuplePositionalPatternGenerator.GenTuplePositionalPatternSource().ToArbitrary();
+    public static Arbitrary<TuplePositionalPatternSourceScenario> ArbitraryTuplePositionalPatternSourceScenario()
+    {
+        return MistTuplePositionalPatternGenerator.GenTuplePositionalPatternSource().ToArbitrary();
+    }
 
     // ─── Helpers ─────────────────────────────────────────────────────────
 

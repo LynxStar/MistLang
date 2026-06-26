@@ -120,7 +120,10 @@ public sealed class FieldDropRestrictionPropertyTests : IDisposable
         bool ExpectError,
         string Label)
     {
-        public override string ToString() => Label;
+        public override string ToString()
+        {
+            return Label;
+        }
     }
 
 #pragma warning restore CA1034
@@ -250,11 +253,15 @@ public sealed class FieldDropRestrictionPropertyTests : IDisposable
             source, containerDiscipline, fieldLabel, site, expectError, label);
     }
 
-    public static Arbitrary<FieldDropScenario> ArbitraryFieldDropScenario() =>
-        GenScenario().ToArbitrary();
+    public static Arbitrary<FieldDropScenario> ArbitraryFieldDropScenario()
+    {
+        return GenScenario().ToArbitrary();
+    }
 
-    private static int CountFieldOutsideContainer(ImmutableArray<Diagnostic> diagnostics) =>
-        diagnostics.Count(d => d.Id.Value == FieldOutsideContainerId);
+    private static int CountFieldOutsideContainer(ImmutableArray<Diagnostic> diagnostics)
+    {
+        return diagnostics.Count(d => d.Id.Value == FieldOutsideContainerId);
+    }
 
     // ═══════════════════════════════════════════════════════════════════════
     // Property 14: Field drop restriction

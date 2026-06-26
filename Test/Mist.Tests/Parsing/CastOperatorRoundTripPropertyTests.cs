@@ -30,8 +30,10 @@ public class CastOperatorRoundTripPropertyTests
 
     // ─── Arbitrary registration ──────────────────────────────────────────
 
-    public static Arbitrary<CompilationUnitNode> ArbitraryCompilationUnitNode() =>
-        MistCastOperatorGenerator.GenCastOperatorProgram().ToArbitrary();
+    public static Arbitrary<CompilationUnitNode> ArbitraryCompilationUnitNode()
+    {
+        return MistCastOperatorGenerator.GenCastOperatorProgram().ToArbitrary();
+    }
 
     // ═══════════════════════════════════════════════════════════════════════
     // Property 1: Cast operator and cast expression round-trip

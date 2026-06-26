@@ -118,9 +118,11 @@ public class ConstraintSatisfactionLatticePropertyTests
             _ => false,
         };
 
-        public override string ToString() =>
-            $"{Argument} arg for {Constraint} constraint ({ArgClassName} → {ContainerClassName}<T>) → " +
+        public override string ToString()
+        {
+            return $"{Argument} arg for {Constraint} constraint ({ArgClassName} → {ContainerClassName}<T>) → " +
             $"{(IsPermitted ? "OK" : "ERROR")}";
+        }
     }
 
 #pragma warning restore CA1034
@@ -149,8 +151,10 @@ public class ConstraintSatisfactionLatticePropertyTests
                select new ConstraintLatticeScenario(argument, constraint, argClass, containerClass);
     }
 
-    public static Arbitrary<ConstraintLatticeScenario> ArbitraryScenario() =>
-        GenScenario().ToArbitrary();
+    public static Arbitrary<ConstraintLatticeScenario> ArbitraryScenario()
+    {
+        return GenScenario().ToArbitrary();
+    }
 
     // ─── Source builders ─────────────────────────────────────────────────
 

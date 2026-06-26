@@ -165,14 +165,20 @@ public class AbstractResolutionPropertyTests
         };
     }
 
-    private static TypeDeclarationNode WrapAbstract(AbstractDeclarationNode decl) =>
-        new AbstractTypeTypeDeclarationNode { AbstractDeclaration = decl };
+    private static TypeDeclarationNode WrapAbstract(AbstractDeclarationNode decl)
+    {
+        return new AbstractTypeTypeDeclarationNode { AbstractDeclaration = decl };
+    }
 
-    private static TypeDeclarationNode WrapClass(ClassDeclarationNode decl) =>
-        new ClassTypeTypeDeclarationNode { ClassDeclaration = decl };
+    private static TypeDeclarationNode WrapClass(ClassDeclarationNode decl)
+    {
+        return new ClassTypeTypeDeclarationNode { ClassDeclaration = decl };
+    }
 
-    private static TypeDeclarationNode WrapStruct(StructDeclarationNode decl) =>
-        new StructTypeTypeDeclarationNode { StructDeclaration = decl };
+    private static TypeDeclarationNode WrapStruct(StructDeclarationNode decl)
+    {
+        return new StructTypeTypeDeclarationNode { StructDeclaration = decl };
+    }
 
     // ─── Test data model ─────────────────────────────────────────────────
 
@@ -247,8 +253,10 @@ public class AbstractResolutionPropertyTests
                    forwardRef);
     }
 
-    public static Arbitrary<ResolutionScenario> ArbitraryResolutionScenario() =>
-        GenResolutionScenario().ToArbitrary();
+    public static Arbitrary<ResolutionScenario> ArbitraryResolutionScenario()
+    {
+        return GenResolutionScenario().ToArbitrary();
+    }
 
     // ─── Property tests ──────────────────────────────────────────────────
 

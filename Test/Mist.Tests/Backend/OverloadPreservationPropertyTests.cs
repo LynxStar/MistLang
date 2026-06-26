@@ -73,7 +73,10 @@ public sealed class OverloadPreservationPropertyTests
             MethodName = methodName;
         }
 
-        public override string ToString() => $"{ClrType.Name}.{MethodName}";
+        public override string ToString()
+        {
+            return $"{ClrType.Name}.{MethodName}";
+        }
     }
 #pragma warning restore CA1034
 

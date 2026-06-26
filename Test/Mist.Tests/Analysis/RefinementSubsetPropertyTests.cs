@@ -91,8 +91,10 @@ public class RefinementSubsetPropertyTests
         /// <summary>A literal that satisfies the source predicate.</summary>
         public int Literal => Math.Max(SourceThreshold, TargetThreshold);
 
-        public override string ToString() =>
-            $"Source >= {SourceThreshold}, Target >= {TargetThreshold} (expect {(ShouldAccept ? "accept" : "reject")})";
+        public override string ToString()
+        {
+            return $"Source >= {SourceThreshold}, Target >= {TargetThreshold} (expect {(ShouldAccept ? "accept" : "reject")})";
+        }
     }
 #pragma warning restore CA1034
 
@@ -112,8 +114,10 @@ public class RefinementSubsetPropertyTests
         /// <summary>A literal that satisfies the source predicate (midpoint of source range).</summary>
         public int Literal => SourceLower + (SourceUpper - SourceLower) / 2;
 
-        public override string ToString() =>
-            $"Source >= {SourceLower} and <= {SourceUpper}, Target >= {TargetLower} and <= {TargetUpper} (expect {(ShouldAccept ? "accept" : "reject")})";
+        public override string ToString()
+        {
+            return $"Source >= {SourceLower} and <= {SourceUpper}, Target >= {TargetLower} and <= {TargetUpper} (expect {(ShouldAccept ? "accept" : "reject")})";
+        }
     }
 #pragma warning restore CA1034
 
@@ -138,11 +142,15 @@ public class RefinementSubsetPropertyTests
                select new CompoundSubsetScenario(sourceLower, sourceUpper, targetLower, targetUpper);
     }
 
-    public static Arbitrary<SimpleSubsetScenario> ArbitrarySimpleSubsetScenario() =>
-        GenSimpleSubsetScenario().ToArbitrary();
+    public static Arbitrary<SimpleSubsetScenario> ArbitrarySimpleSubsetScenario()
+    {
+        return GenSimpleSubsetScenario().ToArbitrary();
+    }
 
-    public static Arbitrary<CompoundSubsetScenario> ArbitraryCompoundSubsetScenario() =>
-        GenCompoundSubsetScenario().ToArbitrary();
+    public static Arbitrary<CompoundSubsetScenario> ArbitraryCompoundSubsetScenario()
+    {
+        return GenCompoundSubsetScenario().ToArbitrary();
+    }
 
     // ─── Property 5: Simple subset relationship ──────────────────────────
 

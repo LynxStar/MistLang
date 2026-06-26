@@ -33,7 +33,10 @@ public sealed class OptionalEquivalenceScenario
         TypeName = typeName;
     }
 
-    public override string ToString() => $"Optional<{TypeName}> ≡ {TypeName}? ≡ {TypeName} | void";
+    public override string ToString()
+    {
+        return $"Optional<{TypeName}> ≡ {TypeName}? ≡ {TypeName} | void";
+    }
 }
 
 /// <summary>
@@ -54,7 +57,10 @@ public sealed class OptionalMemberRejectionScenario
         MemberName = memberName;
     }
 
-    public override string ToString() => $"Optional<{TypeName}>.{MemberName} → error";
+    public override string ToString()
+    {
+        return $"Optional<{TypeName}>.{MemberName} → error";
+    }
 }
 
 // ─── Property Tests ─────────────────────────────────────────────────────────
@@ -147,8 +153,10 @@ public sealed class OptionalTypeAliasPropertyTests
         }
     }
 
-    private static bool HasAnyError(ImmutableArray<Diagnostic> diagnostics) =>
-        diagnostics.Any(d => d.Severity == DiagnosticSeverity.Error);
+    private static bool HasAnyError(ImmutableArray<Diagnostic> diagnostics)
+    {
+        return diagnostics.Any(d => d.Severity == DiagnosticSeverity.Error);
+    }
 
     // ─── Property 6: Structural equivalence ─────────────────────────────
 

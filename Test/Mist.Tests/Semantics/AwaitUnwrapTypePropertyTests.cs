@@ -103,8 +103,10 @@ public class AwaitUnwrapTypePropertyTests
                    className, methodName, returnType, returnType == "void");
     }
 
-    public static Arbitrary<AwaitUnwrapScenario> ArbitraryAwaitUnwrapScenario() =>
-        GenAwaitUnwrapScenario().ToArbitrary();
+    public static Arbitrary<AwaitUnwrapScenario> ArbitraryAwaitUnwrapScenario()
+    {
+        return GenAwaitUnwrapScenario().ToArbitrary();
+    }
 
     // ─── AST construction ────────────────────────────────────────────────
 

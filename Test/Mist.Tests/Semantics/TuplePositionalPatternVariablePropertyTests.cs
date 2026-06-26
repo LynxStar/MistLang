@@ -106,15 +106,18 @@ public class TuplePositionalPatternVariablePropertyTests
         /// <summary>
         /// Returns the Mist source code for this element pattern.
         /// </summary>
-        public string ToPatternSource() => Kind switch
+        public string ToPatternSource()
         {
-            ElementPatternKind.Var => $"var {VariableName}",
-            ElementPatternKind.TypePattern => $"{TupleElementType} {VariableName}",
-            ElementPatternKind.Discard => "_",
-            ElementPatternKind.Relational => ToRelationalPattern(),
-            ElementPatternKind.Constant => ToConstantPattern(),
-            _ => "_",
-        };
+            return Kind switch
+            {
+                ElementPatternKind.Var => $"var {VariableName}",
+                ElementPatternKind.TypePattern => $"{TupleElementType} {VariableName}",
+                ElementPatternKind.Discard => "_",
+                ElementPatternKind.Relational => ToRelationalPattern(),
+                ElementPatternKind.Constant => ToConstantPattern(),
+                _ => "_",
+            };
+        }
 
         /// <summary>
         /// Whether this element introduces a variable into scope.
@@ -129,21 +132,27 @@ public class TuplePositionalPatternVariablePropertyTests
         /// </summary>
         public string ExpectedTypeName => TupleElementType;
 
-        private string ToRelationalPattern() => TupleElementType switch
+        private string ToRelationalPattern()
         {
-            "int" => "> 0",
-            "bool" => "true",
-            "string" => "\"hello\"",
-            _ => "> 0",
-        };
+            return TupleElementType switch
+            {
+                "int" => "> 0",
+                "bool" => "true",
+                "string" => "\"hello\"",
+                _ => "> 0",
+            };
+        }
 
-        private string ToConstantPattern() => TupleElementType switch
+        private string ToConstantPattern()
         {
-            "int" => "42",
-            "bool" => "true",
-            "string" => "\"hello\"",
-            _ => "0",
-        };
+            return TupleElementType switch
+            {
+                "int" => "42",
+                "bool" => "true",
+                "string" => "\"hello\"",
+                _ => "0",
+            };
+        }
     }
 
     /// <summary>
@@ -189,13 +198,16 @@ public class TuplePositionalPatternVariablePropertyTests
                 """;
         }
 
-        private static string DefaultValue(string type) => type switch
+        private static string DefaultValue(string type)
         {
-            "int" => "0",
-            "string" => "\"\"",
-            "bool" => "false",
-            _ => "0",
-        };
+            return type switch
+            {
+                "int" => "0",
+                "string" => "\"\"",
+                "bool" => "false",
+                _ => "0",
+            };
+        }
     }
 
 #pragma warning restore CA1034

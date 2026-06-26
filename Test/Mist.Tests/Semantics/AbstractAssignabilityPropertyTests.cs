@@ -281,17 +281,25 @@ public class AbstractAssignabilityPropertyTests
         return decl;
     }
 
-    private static MemberDeclarationNode WrapMethod(MethodDeclarationNode method) =>
-        new MethodMemberMemberDeclarationNode { Method = method };
+    private static MemberDeclarationNode WrapMethod(MethodDeclarationNode method)
+    {
+        return new MethodMemberMemberDeclarationNode { Method = method };
+    }
 
-    private static TypeDeclarationNode WrapAbstract(AbstractDeclarationNode decl) =>
-        new AbstractTypeTypeDeclarationNode { AbstractDeclaration = decl };
+    private static TypeDeclarationNode WrapAbstract(AbstractDeclarationNode decl)
+    {
+        return new AbstractTypeTypeDeclarationNode { AbstractDeclaration = decl };
+    }
 
-    private static TypeDeclarationNode WrapClass(ClassDeclarationNode decl) =>
-        new ClassTypeTypeDeclarationNode { ClassDeclaration = decl };
+    private static TypeDeclarationNode WrapClass(ClassDeclarationNode decl)
+    {
+        return new ClassTypeTypeDeclarationNode { ClassDeclaration = decl };
+    }
 
-    private static TypeDeclarationNode WrapStruct(StructDeclarationNode decl) =>
-        new StructTypeTypeDeclarationNode { StructDeclaration = decl };
+    private static TypeDeclarationNode WrapStruct(StructDeclarationNode decl)
+    {
+        return new StructTypeTypeDeclarationNode { StructDeclaration = decl };
+    }
 
     /// <summary>
     /// Creates an expression: target.methodName(arg) — a static method call with one argument.
@@ -454,11 +462,15 @@ public class AbstractAssignabilityPropertyTests
                    typeKind);
     }
 
-    public static Arbitrary<DirectAssignabilityScenario> ArbitraryDirectAssignabilityScenario() =>
-        GenDirectAssignabilityScenario().ToArbitrary();
+    public static Arbitrary<DirectAssignabilityScenario> ArbitraryDirectAssignabilityScenario()
+    {
+        return GenDirectAssignabilityScenario().ToArbitrary();
+    }
 
-    public static Arbitrary<AbstractToParentScenario> ArbitraryAbstractToParentScenario() =>
-        GenAbstractToParentScenario().ToArbitrary();
+    public static Arbitrary<AbstractToParentScenario> ArbitraryAbstractToParentScenario()
+    {
+        return GenAbstractToParentScenario().ToArbitrary();
+    }
 
     // ─── AST construction for full programs ──────────────────────────────
 

@@ -32,8 +32,10 @@ public class NotPatternVariableRestrictionPropertyTests
 
     // ─── Helpers ─────────────────────────────────────────────────────────
 
-    private static Storm.Runtime.Token Tok(string lexeme) =>
-        MistTypeGenerator.MakeToken(lexeme);
+    private static Storm.Runtime.Token Tok(string lexeme)
+    {
+        return MistTypeGenerator.MakeToken(lexeme);
+    }
 
     private ISemanticModel BuildModel(CompilationUnitNode ast, string source = "")
     {
@@ -79,14 +81,17 @@ public class NotPatternVariableRestrictionPropertyTests
         string BindingName,
         NotPatternOperandKind OperandKind)
     {
-        public override string ToString() => OperandKind switch
+        public override string ToString()
         {
-            NotPatternOperandKind.TypePattern =>
-                $"if ({ScrutineeName} is not int {BindingName})",
-            NotPatternOperandKind.VarPattern =>
-                $"if ({ScrutineeName} is not var {BindingName})",
-            _ => $"if ({ScrutineeName} is not ??? {BindingName})",
-        };
+            return OperandKind switch
+            {
+                NotPatternOperandKind.TypePattern =>
+                    $"if ({ScrutineeName} is not int {BindingName})",
+                NotPatternOperandKind.VarPattern =>
+                    $"if ({ScrutineeName} is not var {BindingName})",
+                _ => $"if ({ScrutineeName} is not ??? {BindingName})",
+            };
+        }
     }
 
 #pragma warning restore CA1034

@@ -31,8 +31,10 @@ public sealed class DisambiguationTypeScenario
         TypeExpr = typeExpr;
     }
 
-    public override string ToString() =>
-        $"TypeName={TypeName}, Constraint={Constraint}, TypeExpr={TypeExpr}";
+    public override string ToString()
+    {
+        return $"TypeName={TypeName}, Constraint={Constraint}, TypeExpr={TypeExpr}";
+    }
 }
 
 /// <summary>

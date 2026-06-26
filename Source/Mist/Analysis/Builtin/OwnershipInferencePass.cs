@@ -761,15 +761,18 @@ public sealed class OwnershipInferencePass
         };
     }
 
-    private static string FormatTier(OwnershipTier tier) => tier switch
+    private static string FormatTier(OwnershipTier tier)
     {
-        OwnershipTier.Owned => "owned",
-        OwnershipTier.Borrowed => "borrowed",
-        OwnershipTier.Frozen => "frozen",
-        OwnershipTier.ReadonlyRef => "readonly ref",
-        OwnershipTier.Unrestricted => "shared",
-        _ => "shared",
-    };
+        return tier switch
+        {
+            OwnershipTier.Owned => "owned",
+            OwnershipTier.Borrowed => "borrowed",
+            OwnershipTier.Frozen => "frozen",
+            OwnershipTier.ReadonlyRef => "readonly ref",
+            OwnershipTier.Unrestricted => "shared",
+            _ => "shared",
+        };
+    }
 
     /// <summary>
     /// Creates a diagnostic with source location information resolved from the AST node.

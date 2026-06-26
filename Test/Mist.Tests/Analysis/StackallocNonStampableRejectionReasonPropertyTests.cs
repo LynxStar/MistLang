@@ -55,8 +55,10 @@ public sealed record NonStampableRejectionScenario(
     NonStampableCategory Category,
     string ExpectedDiagnosticId)
 {
-    public override string ToString() =>
-        $"stackalloc {ElementTypeName}[N] category={Category} → {ExpectedDiagnosticId}";
+    public override string ToString()
+    {
+        return $"stackalloc {ElementTypeName}[N] category={Category} → {ExpectedDiagnosticId}";
+    }
 }
 
 // ─── Property Tests ─────────────────────────────────────────────────────────

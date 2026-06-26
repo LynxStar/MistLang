@@ -35,13 +35,15 @@ public class CastOperatorValidationPropertyTests
 
     private const string DiagnosticId = "MIST_SB_0040";
 
-    private static Storm.Runtime.Token Tok(string lexeme) =>
-        new(kind: 0,
+    private static Storm.Runtime.Token Tok(string lexeme)
+    {
+        return new(kind: 0,
             span: new Storm.Runtime.SourceSpan(0, lexeme.Length),
             start: new Storm.Runtime.LinePosition(1, 1),
             end: new Storm.Runtime.LinePosition(1, 1 + lexeme.Length),
             channel: Storm.Runtime.TokenChannel.Default,
             lexeme: lexeme);
+    }
 
     private static DiagnosticBag BuildModelAndCollectDiagnostics(Storm.Runtime.SyntaxNode ast)
     {
@@ -73,9 +75,11 @@ public class CastOperatorValidationPropertyTests
         string EnclosingTypeName,
         bool IsStruct)
     {
-        public override string ToString() =>
-            $"public static {CastKind} operator {TargetTypeName}({ParamTypeName} {ParamName}) " +
+        public override string ToString()
+        {
+            return $"public static {CastKind} operator {TargetTypeName}({ParamTypeName} {ParamName}) " +
             $"in {(IsStruct ? "struct" : "class")} {EnclosingTypeName}";
+        }
     }
 
     /// <summary>
@@ -96,9 +100,11 @@ public class CastOperatorValidationPropertyTests
         /// </summary>
         public int TotalParamCount => HasParameterList ? 1 + ExtraParamCount : 0;
 
-        public override string ToString() =>
-            $"public static {CastKind} operator {TargetTypeName}(" +
+        public override string ToString()
+        {
+            return $"public static {CastKind} operator {TargetTypeName}(" +
             $"{TotalParamCount} params) in {(IsStruct ? "struct" : "class")} {EnclosingTypeName}";
+        }
     }
 #pragma warning restore CA1034
 
@@ -148,11 +154,15 @@ public class CastOperatorValidationPropertyTests
                    extraCount, hasParamList);
     }
 
-    public static Arbitrary<ValidCastOperatorScenario> ArbitraryValidScenario() =>
-        GenValidScenario().ToArbitrary();
+    public static Arbitrary<ValidCastOperatorScenario> ArbitraryValidScenario()
+    {
+        return GenValidScenario().ToArbitrary();
+    }
 
-    public static Arbitrary<InvalidParamCountScenario> ArbitraryInvalidScenario() =>
-        GenInvalidParamCountScenario().ToArbitrary();
+    public static Arbitrary<InvalidParamCountScenario> ArbitraryInvalidScenario()
+    {
+        return GenInvalidParamCountScenario().ToArbitrary();
+    }
 
     // ─── AST construction helpers ────────────────────────────────────────
 
@@ -175,26 +185,32 @@ public class CastOperatorValidationPropertyTests
         return new AssignmentFormExpressionNode { Assignment = assign };
     }
 
-    private static CastOperatorKindNode MakeCastKindNode(string kind) =>
-        kind == "implicit"
+    private static CastOperatorKindNode MakeCastKindNode(string kind)
+    {
+        return kind == "implicit"
             ? new ImplicitCastCastOperatorKindNode()
             : (CastOperatorKindNode)new ExplicitCastCastOperatorKindNode();
+    }
 
-    private static TypeReferenceNode MakeNamedTypeRef(string name) =>
-        new TypeReferenceNode
+    private static TypeReferenceNode MakeNamedTypeRef(string name)
+    {
+        return new TypeReferenceNode
         {
             First = new NamedSingleTypeRefSingleTypeRefNode
             {
                 Name = new QualifiedIdentifierNode { IDENTIFIER = Tok(name) },
             }
         };
+    }
 
-    private static ParameterNode MakeParameter(string typeName, string paramName) =>
-        new()
+    private static ParameterNode MakeParameter(string typeName, string paramName)
+    {
+        return new()
         {
             Type = MakeNamedTypeRef(typeName),
             Name = Tok(paramName),
         };
+    }
 
     /// <summary>
     /// Builds a cast operator declaration with exactly one parameter.

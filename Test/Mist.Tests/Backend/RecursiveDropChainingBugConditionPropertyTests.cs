@@ -214,8 +214,10 @@ public class RecursiveDropChainingBugConditionPropertyTests
                select new RecursiveDropScenario(kind, innerType, methodName);
     }
 
-    public static Arbitrary<RecursiveDropScenario> ArbitraryRecursiveDropScenario() =>
-        GenRecursiveDropScenario().ToArbitrary();
+    public static Arbitrary<RecursiveDropScenario> ArbitraryRecursiveDropScenario()
+    {
+        return GenRecursiveDropScenario().ToArbitrary();
+    }
 
     // ─── Source construction ─────────────────────────────────────────────
 

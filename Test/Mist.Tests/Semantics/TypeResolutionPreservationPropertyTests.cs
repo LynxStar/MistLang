@@ -167,8 +167,10 @@ public sealed class TypeResolutionPreservationPropertyTests : IDisposable
         string LinqMethod,
         string ExpectedOutput)
     {
-        public override string ToString() =>
-            $"LINQ extension '{LinqMethod}' on class-typed receiver producing '{ExpectedOutput}'";
+        public override string ToString()
+        {
+            return $"LINQ extension '{LinqMethod}' on class-typed receiver producing '{ExpectedOutput}'";
+        }
     }
 
     private static readonly (string Method, string Expected)[] ClassExtensionVariants =
@@ -184,8 +186,10 @@ public sealed class TypeResolutionPreservationPropertyTests : IDisposable
                select new ClassExtensionScenario(variant.Method, variant.Expected);
     }
 
-    public static Arbitrary<ClassExtensionScenario> ArbitraryClassExtensionScenario() =>
-        GenClassExtensionScenario().ToArbitrary();
+    public static Arbitrary<ClassExtensionScenario> ArbitraryClassExtensionScenario()
+    {
+        return GenClassExtensionScenario().ToArbitrary();
+    }
 
     /// <summary>
     /// Non-generic LINQ extension methods on arrays (class-typed IEnumerable
@@ -237,8 +241,10 @@ public sealed class TypeResolutionPreservationPropertyTests : IDisposable
         string MemberReturnType,
         string CallExpr)
     {
-        public override string ToString() =>
-            $"{TypeKind} '{TypeName}' own member '{MemberName}' returning {MemberReturnType}";
+        public override string ToString()
+        {
+            return $"{TypeKind} '{TypeName}' own member '{MemberName}' returning {MemberReturnType}";
+        }
     }
 
     private static readonly OwnMemberScenario[] OwnMemberScenarios =
@@ -254,8 +260,10 @@ public sealed class TypeResolutionPreservationPropertyTests : IDisposable
         return Gen.Elements(OwnMemberScenarios);
     }
 
-    public static Arbitrary<OwnMemberScenario> ArbitraryOwnMemberScenario() =>
-        GenOwnMemberScenario().ToArbitrary();
+    public static Arbitrary<OwnMemberScenario> ArbitraryOwnMemberScenario()
+    {
+        return GenOwnMemberScenario().ToArbitrary();
+    }
 
     /// <summary>
     /// Own members on class/struct/abstract types resolve without consulting
@@ -309,8 +317,10 @@ public sealed class TypeResolutionPreservationPropertyTests : IDisposable
         string Overload2ReturnType,
         string ExpectedResolvedType)
     {
-        public override string ToString() =>
-            $"Non-generic call to overloaded '{MethodName}' resolves to '{ExpectedResolvedType}'";
+        public override string ToString()
+        {
+            return $"Non-generic call to overloaded '{MethodName}' resolves to '{ExpectedResolvedType}'";
+        }
     }
 
     private static readonly NonGenericOverloadScenario[] NonGenericOverloadScenarios =
@@ -325,8 +335,10 @@ public sealed class TypeResolutionPreservationPropertyTests : IDisposable
         return Gen.Elements(NonGenericOverloadScenarios);
     }
 
-    public static Arbitrary<NonGenericOverloadScenario> ArbitraryNonGenericOverloadScenario() =>
-        GenNonGenericOverloadScenario().ToArbitrary();
+    public static Arbitrary<NonGenericOverloadScenario> ArbitraryNonGenericOverloadScenario()
+    {
+        return GenNonGenericOverloadScenario().ToArbitrary();
+    }
 
     /// <summary>
     /// Non-generic method calls (no type arguments) return the first matching
@@ -389,8 +401,10 @@ public sealed class TypeResolutionPreservationPropertyTests : IDisposable
         bool IsImported,
         bool ExpectsSuccess)
     {
-        public override string ToString() =>
-            $"Extension in '{ExtensionNamespace}', imported={IsImported}, expects {(ExpectsSuccess ? "success" : "error")}";
+        public override string ToString()
+        {
+            return $"Extension in '{ExtensionNamespace}', imported={IsImported}, expects {(ExpectsSuccess ? "success" : "error")}";
+        }
     }
 
     private static readonly NamespaceFilterScenario[] NamespaceFilterScenarios =
@@ -406,8 +420,10 @@ public sealed class TypeResolutionPreservationPropertyTests : IDisposable
         return Gen.Elements(NamespaceFilterScenarios);
     }
 
-    public static Arbitrary<NamespaceFilterScenario> ArbitraryNamespaceFilterScenario() =>
-        GenNamespaceFilterScenario().ToArbitrary();
+    public static Arbitrary<NamespaceFilterScenario> ArbitraryNamespaceFilterScenario()
+    {
+        return GenNamespaceFilterScenario().ToArbitrary();
+    }
 
     /// <summary>
     /// Extension methods are only available when their containing namespace
@@ -473,8 +489,10 @@ public sealed class TypeResolutionPreservationPropertyTests : IDisposable
         string Declaration,
         string Usage)
     {
-        public override string ToString() =>
-            $"Mist-defined {TypeKind} '{TypeName}' resolves through scope chain";
+        public override string ToString()
+        {
+            return $"Mist-defined {TypeKind} '{TypeName}' resolves through scope chain";
+        }
     }
 
     private static readonly MistDefinedTypeScenario[] MistDefinedTypeScenarios =
@@ -498,8 +516,10 @@ public sealed class TypeResolutionPreservationPropertyTests : IDisposable
         return Gen.Elements(MistDefinedTypeScenarios);
     }
 
-    public static Arbitrary<MistDefinedTypeScenario> ArbitraryMistDefinedTypeScenario() =>
-        GenMistDefinedTypeScenario().ToArbitrary();
+    public static Arbitrary<MistDefinedTypeScenario> ArbitraryMistDefinedTypeScenario()
+    {
+        return GenMistDefinedTypeScenario().ToArbitrary();
+    }
 
     /// <summary>
     /// Mist-defined types resolve through the scope chain and symbol table
@@ -552,8 +572,10 @@ public sealed class TypeResolutionPreservationPropertyTests : IDisposable
         string MemberDecl,
         string CallExpr)
     {
-        public override string ToString() =>
-            $"Invoking {MemberKind} as method: '{CallExpr}'";
+        public override string ToString()
+        {
+            return $"Invoking {MemberKind} as method: '{CallExpr}'";
+        }
     }
 
     private static readonly FieldInvocationScenario[] FieldInvocationScenarios =
@@ -567,8 +589,10 @@ public sealed class TypeResolutionPreservationPropertyTests : IDisposable
         return Gen.Elements(FieldInvocationScenarios);
     }
 
-    public static Arbitrary<FieldInvocationScenario> ArbitraryFieldInvocationScenario() =>
-        GenFieldInvocationScenario().ToArbitrary();
+    public static Arbitrary<FieldInvocationScenario> ArbitraryFieldInvocationScenario()
+    {
+        return GenFieldInvocationScenario().ToArbitrary();
+    }
 
     /// <summary>
     /// A method call that resolves to a field or property name emits a
@@ -625,8 +649,10 @@ public sealed class TypeResolutionPreservationPropertyTests : IDisposable
         int ProvidedArity,
         string MethodName)
     {
-        public override string ToString() =>
-            $"'{MethodName}' declared with {DeclaredArity} type params, called with {ProvidedArity}";
+        public override string ToString()
+        {
+            return $"'{MethodName}' declared with {DeclaredArity} type params, called with {ProvidedArity}";
+        }
     }
 
     private static readonly ArityMismatchScenario[] ArityMismatchScenarios =
@@ -641,8 +667,10 @@ public sealed class TypeResolutionPreservationPropertyTests : IDisposable
         return Gen.Elements(ArityMismatchScenarios);
     }
 
-    public static Arbitrary<ArityMismatchScenario> ArbitraryArityMismatchScenario() =>
-        GenArityMismatchScenario().ToArbitrary();
+    public static Arbitrary<ArityMismatchScenario> ArbitraryArityMismatchScenario()
+    {
+        return GenArityMismatchScenario().ToArbitrary();
+    }
 
     /// <summary>
     /// A generic method call with a type argument count mismatch emits

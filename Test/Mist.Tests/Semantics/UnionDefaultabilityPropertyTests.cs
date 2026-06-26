@@ -40,7 +40,10 @@ public sealed class UnionDefaultabilityScenario
         Label = label;
     }
 
-    public override string ToString() => Label;
+    public override string ToString()
+    {
+        return Label;
+    }
 }
 
 // ─── Property Tests ─────────────────────────────────────────────────────────

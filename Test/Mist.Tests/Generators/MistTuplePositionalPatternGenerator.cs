@@ -27,7 +27,10 @@ public sealed class TuplePositionalPatternSourceScenario
         Description = description;
     }
 
-    public override string ToString() => Description;
+    public override string ToString()
+    {
+        return Description;
+    }
 }
 
 /// <summary>
@@ -55,42 +58,58 @@ public static class MistTuplePositionalPatternGenerator
     // ═══════════════════════════════════════════════════════════════════════
 
     /// <summary>Generates an integer constant pattern: 0, 1, 42, 99.</summary>
-    private static Gen<string> GenIntConstantPattern() =>
-        Gen.Choose(0, 99).Select(n => n.ToString());
+    private static Gen<string> GenIntConstantPattern()
+    {
+        return Gen.Choose(0, 99).Select(n => n.ToString());
+    }
 
     /// <summary>Generates a string constant pattern: "hello", "world".</summary>
-    private static Gen<string> GenStringConstantPattern() =>
-        Gen.Elements("\"hello\"", "\"world\"", "\"test\"");
+    private static Gen<string> GenStringConstantPattern()
+    {
+        return Gen.Elements("\"hello\"", "\"world\"", "\"test\"");
+    }
 
     /// <summary>Generates a bool constant pattern: true, false.</summary>
-    private static Gen<string> GenBoolConstantPattern() =>
-        Gen.Elements("true", "false");
+    private static Gen<string> GenBoolConstantPattern()
+    {
+        return Gen.Elements("true", "false");
+    }
 
     /// <summary>Generates a relational pattern: > 0, < 100, >= 5, <= 50.</summary>
-    private static Gen<string> GenRelationalPattern() =>
-        from op in Gen.Elements(">", "<", ">=", "<=")
-        from value in Gen.Choose(0, 99)
-        select $"{op} {value}";
+    private static Gen<string> GenRelationalPattern()
+    {
+        return from op in Gen.Elements(">", "<", ">=", "<=")
+               from value in Gen.Choose(0, 99)
+               select $"{op} {value}";
+    }
 
     /// <summary>Generates a logical and pattern: >= lo and <= hi.</summary>
-    private static Gen<string> GenLogicalAndPattern() =>
-        from lo in Gen.Choose(0, 49)
-        from hi in Gen.Choose(50, 99)
-        select $">= {lo} and <= {hi}";
+    private static Gen<string> GenLogicalAndPattern()
+    {
+        return from lo in Gen.Choose(0, 49)
+               from hi in Gen.Choose(50, 99)
+               select $">= {lo} and <= {hi}";
+    }
 
     /// <summary>Generates a var pattern: var a, var b.</summary>
-    private static Gen<string> GenVarPattern() =>
-        Gen.Elements(BindingNames).Select(name => $"var {name}");
+    private static Gen<string> GenVarPattern()
+    {
+        return Gen.Elements(BindingNames).Select(name => $"var {name}");
+    }
 
     /// <summary>Generates a discard pattern: _.</summary>
-    private static Gen<string> GenDiscardPattern() =>
-        Gen.Constant("_");
+    private static Gen<string> GenDiscardPattern()
+    {
+        return Gen.Constant("_");
+    }
 
     /// <summary>Generates a type pattern: int n, string s.</summary>
-    private static Gen<string> GenTypePattern() =>
-        from typeName in Gen.Elements("int", "string")
-        from bindName in Gen.Elements(BindingNames)
-        select $"{typeName} {bindName}";
+    private static Gen<string> GenTypePattern()
+    {
+        return from typeName in Gen.Elements("int", "string")
+               from bindName in Gen.Elements(BindingNames)
+               select $"{typeName} {bindName}";
+    }
 
     // ═══════════════════════════════════════════════════════════════════════
     // Depth-bounded pattern generators
@@ -100,14 +119,16 @@ public static class MistTuplePositionalPatternGenerator
     /// Generates a leaf subpattern (no nesting). Used at maximum depth or as
     /// elements within tuple patterns.
     /// </summary>
-    private static Gen<string> GenLeafPattern() =>
-        Gen.OneOf(
+    private static Gen<string> GenLeafPattern()
+    {
+        return Gen.OneOf(
             GenIntConstantPattern(),
             GenRelationalPattern(),
             GenLogicalAndPattern(),
             GenVarPattern(),
             GenDiscardPattern(),
             GenTypePattern());
+    }
 
     /// <summary>
     /// Generates a subpattern at the given depth. At depth 0, only leaf patterns
@@ -268,6 +289,8 @@ public static class MistTuplePositionalPatternGenerator
     /// <summary>
     /// FsCheck Arbitrary for <see cref="TuplePositionalPatternSourceScenario"/>.
     /// </summary>
-    public static Arbitrary<TuplePositionalPatternSourceScenario> ArbitraryTuplePositionalPatternSourceScenario() =>
-        GenTuplePositionalPatternSource().ToArbitrary();
+    public static Arbitrary<TuplePositionalPatternSourceScenario> ArbitraryTuplePositionalPatternSourceScenario()
+    {
+        return GenTuplePositionalPatternSource().ToArbitrary();
+    }
 }

@@ -76,7 +76,10 @@ public class OwnedTypeFieldRestrictionValidPropertyTests
     /// </summary>
     public sealed record ValueTypeFieldsScenario(string Source, string Label)
     {
-        public override string ToString() => Label;
+        public override string ToString()
+        {
+            return Label;
+        }
     }
 
     /// <summary>
@@ -84,7 +87,10 @@ public class OwnedTypeFieldRestrictionValidPropertyTests
     /// </summary>
     public sealed record OwnedTypeFieldsScenario(string Source, string Label)
     {
-        public override string ToString() => Label;
+        public override string ToString()
+        {
+            return Label;
+        }
     }
 
     /// <summary>
@@ -92,7 +98,10 @@ public class OwnedTypeFieldRestrictionValidPropertyTests
     /// </summary>
     public sealed record OwnedSpecifierFieldsScenario(string Source, string Label)
     {
-        public override string ToString() => Label;
+        public override string ToString()
+        {
+            return Label;
+        }
     }
 
     /// <summary>
@@ -100,7 +109,10 @@ public class OwnedTypeFieldRestrictionValidPropertyTests
     /// </summary>
     public sealed record MixedValidFieldsScenario(string Source, string Label)
     {
-        public override string ToString() => Label;
+        public override string ToString()
+        {
+            return Label;
+        }
     }
 
     /// <summary>
@@ -108,7 +120,10 @@ public class OwnedTypeFieldRestrictionValidPropertyTests
     /// </summary>
     public sealed record ZeroFieldsScenario(string Source, string Label)
     {
-        public override string ToString() => Label;
+        public override string ToString()
+        {
+            return Label;
+        }
     }
 
 #pragma warning restore CA1034
@@ -272,20 +287,30 @@ public class OwnedTypeFieldRestrictionValidPropertyTests
 
     // ─── Arbitrary instances ─────────────────────────────────────────────
 
-    public static Arbitrary<ValueTypeFieldsScenario> ArbitraryValueTypeFieldsScenario() =>
-        GenValueTypeFieldsScenario().ToArbitrary();
+    public static Arbitrary<ValueTypeFieldsScenario> ArbitraryValueTypeFieldsScenario()
+    {
+        return GenValueTypeFieldsScenario().ToArbitrary();
+    }
 
-    public static Arbitrary<OwnedTypeFieldsScenario> ArbitraryOwnedTypeFieldsScenario() =>
-        GenOwnedTypeFieldsScenario().ToArbitrary();
+    public static Arbitrary<OwnedTypeFieldsScenario> ArbitraryOwnedTypeFieldsScenario()
+    {
+        return GenOwnedTypeFieldsScenario().ToArbitrary();
+    }
 
-    public static Arbitrary<OwnedSpecifierFieldsScenario> ArbitraryOwnedSpecifierFieldsScenario() =>
-        GenOwnedSpecifierFieldsScenario().ToArbitrary();
+    public static Arbitrary<OwnedSpecifierFieldsScenario> ArbitraryOwnedSpecifierFieldsScenario()
+    {
+        return GenOwnedSpecifierFieldsScenario().ToArbitrary();
+    }
 
-    public static Arbitrary<MixedValidFieldsScenario> ArbitraryMixedValidFieldsScenario() =>
-        GenMixedValidFieldsScenario().ToArbitrary();
+    public static Arbitrary<MixedValidFieldsScenario> ArbitraryMixedValidFieldsScenario()
+    {
+        return GenMixedValidFieldsScenario().ToArbitrary();
+    }
 
-    public static Arbitrary<ZeroFieldsScenario> ArbitraryZeroFieldsScenario() =>
-        GenZeroFieldsScenario().ToArbitrary();
+    public static Arbitrary<ZeroFieldsScenario> ArbitraryZeroFieldsScenario()
+    {
+        return GenZeroFieldsScenario().ToArbitrary();
+    }
 
     // ═══════════════════════════════════════════════════════════════════════
     // Property 1a: Owned types with only value-type fields produce no

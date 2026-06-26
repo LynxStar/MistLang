@@ -89,8 +89,10 @@ public sealed class RefStructParsingPropertyTests
         IReadOnlyList<string> MethodNames,
         IReadOnlyList<string> PropertyNames)
     {
-        public override string ToString() =>
-            $"ref struct {StructName} ({FieldNames.Count} fields, {MethodNames.Count} methods, {PropertyNames.Count} properties)";
+        public override string ToString()
+        {
+            return $"ref struct {StructName} ({FieldNames.Count} fields, {MethodNames.Count} methods, {PropertyNames.Count} properties)";
+        }
 
         public int TotalMemberCount => FieldNames.Count + MethodNames.Count + PropertyNames.Count;
     }
@@ -129,8 +131,10 @@ public sealed class RefStructParsingPropertyTests
                    (IReadOnlyList<string>)properties);
     }
 
-    public static Arbitrary<RefStructScenario> ArbitraryRefStructScenario() =>
-        GenScenario().ToArbitrary();
+    public static Arbitrary<RefStructScenario> ArbitraryRefStructScenario()
+    {
+        return GenScenario().ToArbitrary();
+    }
 
     // ─── Source generation ───────────────────────────────────────────────
 
@@ -307,7 +311,10 @@ public sealed class RefStructParsingPropertyTests
     /// <summary>Scenario for Property 10: ref modifier on non-struct type declarations.</summary>
     public sealed record RefOnNonStructScenario(string Source, string Label)
     {
-        public override string ToString() => Label;
+        public override string ToString()
+        {
+            return Label;
+        }
     }
 #pragma warning restore CA1034
 

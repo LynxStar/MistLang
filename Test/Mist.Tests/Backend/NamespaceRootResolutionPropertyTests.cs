@@ -23,7 +23,10 @@ public sealed class NamespaceRootResolutionPropertyTests
 #pragma warning disable CA1034
     public record ValidName(string Value)
     {
-        public override string ToString() => Value;
+        public override string ToString()
+        {
+            return Value;
+        }
     }
 #pragma warning restore CA1034
 

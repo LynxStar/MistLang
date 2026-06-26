@@ -23,17 +23,32 @@ namespace Mist.Tests.InteropFixtures;
 public class MixedSpanOverloads
 {
     /// <summary>Supported overload — uses <c>byte[]</c>.</summary>
-    public int Write(byte[] data) => data.Length;
+    public int Write(byte[] data)
+    {
+        return data.Length;
+    }
 
     /// <summary>Projected overload — uses <c>Span&lt;byte&gt;</c> (a ref struct).</summary>
-    public int Write(Span<byte> data) => data.Length;
+    public int Write(Span<byte> data)
+    {
+        return data.Length;
+    }
 
     /// <summary>Projected overload — uses <c>ReadOnlySpan&lt;byte&gt;</c> (a ref struct).</summary>
-    public int Write(ReadOnlySpan<byte> data) => data.Length;
+    public int Write(ReadOnlySpan<byte> data)
+    {
+        return data.Length;
+    }
 
     /// <summary>Projected overload — every <c>ProcessAll</c> overload uses a ref struct.</summary>
-    public int ProcessAll(Span<byte> data) => data.Length;
+    public int ProcessAll(Span<byte> data)
+    {
+        return data.Length;
+    }
 
     /// <summary>Projected overload — every <c>ProcessAll</c> overload uses a ref struct.</summary>
-    public int ProcessAll(ReadOnlySpan<byte> data) => data.Length;
+    public int ProcessAll(ReadOnlySpan<byte> data)
+    {
+        return data.Length;
+    }
 }

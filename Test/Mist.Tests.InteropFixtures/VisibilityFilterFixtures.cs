@@ -7,10 +7,16 @@ public class HasEvent
 {
     public event EventHandler? SomethingHappened;
 
-    public void RaiseEvent() => SomethingHappened?.Invoke(this, EventArgs.Empty);
+    public void RaiseEvent()
+    {
+        SomethingHappened?.Invoke(this, EventArgs.Empty);
+    }
 
     /// <summary>A normal method that should remain visible.</summary>
-    public int GetValue() => 42;
+    public int GetValue()
+    {
+        return 42;
+    }
 }
 
 /// <summary>
@@ -18,12 +24,18 @@ public class HasEvent
 /// </summary>
 public unsafe class HasPointerMembers
 {
-    public int* GetPointer(int* source) => source;
+    public int* GetPointer(int* source)
+    {
+        return source;
+    }
 
     public void ProcessPointer(int* data) { }
 
     /// <summary>A normal method that should remain visible.</summary>
-    public int SafeMethod() => 1;
+    public int SafeMethod()
+    {
+        return 1;
+    }
 }
 
 /// <summary>
@@ -33,10 +45,16 @@ public class HasRefReturn
 {
     private int value = 42;
 
-    public ref int GetRef() => ref value;
+    public ref int GetRef()
+    {
+        return ref value;
+    }
 
     /// <summary>A normal method that should remain visible.</summary>
-    public int GetValue() => value;
+    public int GetValue()
+    {
+        return value;
+    }
 }
 
 /// <summary>
@@ -62,10 +80,25 @@ public class HasNonPublicMembers
     protected int ProtectedField = 3;
     private int privateField = 4;
 
-    public int PublicMethod() => PublicField;
-    internal int InternalMethod() => InternalField;
-    protected int ProtectedMethod() => ProtectedField;
-    private int PrivateMethod() => privateField;
+    public int PublicMethod()
+    {
+        return PublicField;
+    }
+
+    internal int InternalMethod()
+    {
+        return InternalField;
+    }
+
+    protected int ProtectedMethod()
+    {
+        return ProtectedField;
+    }
+
+    private int PrivateMethod()
+    {
+        return privateField;
+    }
 
     public int PublicProp { get; set; }
     internal int InternalProp { get; set; }
@@ -81,8 +114,14 @@ public class ReferencesExcludedType
 {
     public void AcceptRefStruct(RefStructType value) { }
 
-    public RefStructType ReturnRefStruct() => new(42);
+    public RefStructType ReturnRefStruct()
+    {
+        return new(42);
+    }
 
     /// <summary>A normal method that should remain visible.</summary>
-    public int SafeMethod() => 1;
+    public int SafeMethod()
+    {
+        return 1;
+    }
 }

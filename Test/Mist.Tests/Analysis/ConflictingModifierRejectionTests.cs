@@ -73,7 +73,9 @@ public sealed class ConflictingModifierRejectionTests
         }
     }
 
-    private static string BuildSource(string modifiers, string kind) => $$"""
+    private static string BuildSource(string modifiers, string kind)
+    {
+        return $$"""
         {{modifiers}} {{kind}} Sample
         {
         }
@@ -84,6 +86,7 @@ public sealed class ConflictingModifierRejectionTests
             }
         }
         """;
+    }
 
     // ═══════════════════════════════════════════════════════════════════════
     // Property 2: Conflicting modifier rejection

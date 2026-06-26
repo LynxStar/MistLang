@@ -108,8 +108,10 @@ public sealed class ContextKeyingScenario
         ExpectSameKey = expectSameKey;
     }
 
-    public override string ToString() =>
-        $"[{Kind}] expect {(ExpectSameKey ? "SAME" : "DIFFERENT")} key for {Method1Name} vs {Method2Name}";
+    public override string ToString()
+    {
+        return $"[{Kind}] expect {(ExpectSameKey ? "SAME" : "DIFFERENT")} key for {Method1Name} vs {Method2Name}";
+    }
 }
 
 // ─── Property test class ─────────────────────────────────────────────────
@@ -195,8 +197,10 @@ public sealed class ContextTypeKeyingPropertyTests
             GenNoInheritanceLookup());
     }
 
-    public static Arbitrary<ContextKeyingScenario> ArbitraryContextKeyingScenario() =>
-        GenScenario().ToArbitrary();
+    public static Arbitrary<ContextKeyingScenario> ArbitraryContextKeyingScenario()
+    {
+        return GenScenario().ToArbitrary();
+    }
 
     // ─── Scenario builders ──────────────────────────────────────────────
 

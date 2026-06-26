@@ -10,7 +10,10 @@ public class Base
     public Base() { }
     public Base(int id) => Id = id;
 
-    public virtual string Describe() => $"Base({Id})";
+    public virtual string Describe()
+    {
+        return $"Base({Id})";
+    }
 }
 
 /// <summary>
@@ -23,7 +26,10 @@ public class Middle : Base
     public Middle() { }
     public Middle(int id, string label) : base(id) => Label = label;
 
-    public override string Describe() => $"Middle({Id}, {Label})";
+    public override string Describe()
+    {
+        return $"Middle({Id}, {Label})";
+    }
 }
 
 /// <summary>
@@ -36,5 +42,8 @@ public class Derived : Middle
     public Derived() { }
     public Derived(int id, string label, double score) : base(id, label) => Score = score;
 
-    public override string Describe() => $"Derived({Id}, {Label}, {Score})";
+    public override string Describe()
+    {
+        return $"Derived({Id}, {Label}, {Score})";
+    }
 }

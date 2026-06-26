@@ -29,8 +29,10 @@ public class DefaultPrettyPrinterPropertyTests
 
     // ─── Token / AST helpers ─────────────────────────────────────────────
 
-    private static Storm.Runtime.Token Tok(string lexeme) =>
-        MistTypeGenerator.MakeToken(lexeme);
+    private static Storm.Runtime.Token Tok(string lexeme)
+    {
+        return MistTypeGenerator.MakeToken(lexeme);
+    }
 
     // ─── Name pools ──────────────────────────────────────────────────────
 
@@ -472,8 +474,10 @@ public class DefaultPrettyPrinterPropertyTests
 
     // ─── Arbitrary registration ──────────────────────────────────────────
 
-    public static Arbitrary<CompilationUnitNode> ArbitraryCompilationUnitNode() =>
-        GenDefaultProgram().ToArbitrary();
+    public static Arbitrary<CompilationUnitNode> ArbitraryCompilationUnitNode()
+    {
+        return GenDefaultProgram().ToArbitrary();
+    }
 
     // ─── Round-trip helper ───────────────────────────────────────────────
 

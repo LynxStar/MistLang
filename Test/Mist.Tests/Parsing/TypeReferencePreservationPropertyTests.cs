@@ -88,7 +88,10 @@ public sealed class TypeRefScenario
         ExpectArrayRank = expectArrayRank;
     }
 
-    public override string ToString() => $"{Kind}: '{Annotation}' (count={ExpectedCount}, array={ExpectArrayRank})";
+    public override string ToString()
+    {
+        return $"{Kind}: '{Annotation}' (count={ExpectedCount}, array={ExpectArrayRank})";
+    }
 }
 
 // ─── Property Tests ─────────────────────────────────────────────────────────
@@ -163,19 +166,27 @@ public sealed class TypeReferencePreservationPropertyTests
 
     /// <summary>True iff the type reference is a union (has PIPE-separated continuations).</summary>
     private static bool IsUnion(TypeReferenceNode typeRef)
-        => typeRef.SingleTypeRefs.Length > 0;
+    {
+        return typeRef.SingleTypeRefs.Length > 0;
+    }
 
     /// <summary>Number of union constituents: First plus the PIPE-separated rest.</summary>
     private static int UnionConstituentCount(TypeReferenceNode typeRef)
-        => 1 + typeRef.SingleTypeRefs.Length;
+    {
+        return 1 + typeRef.SingleTypeRefs.Length;
+    }
 
     /// <summary>Number of type arguments: first plus the comma-separated rest, or 0 if none.</summary>
     private static int TypeArgumentCount(NamedSingleTypeRefSingleTypeRefNode named)
-        => named.TypeArgs is null ? 0 : 1 + named.TypeArgs.TypeArguments.Length;
+    {
+        return named.TypeArgs is null ? 0 : 1 + named.TypeArgs.TypeArguments.Length;
+    }
 
     /// <summary>Number of tuple elements: First, Rest, plus the comma-separated additional elements.</summary>
     private static int TupleElementCount(TupleSingleTypeRefSingleTypeRefNode tuple)
-        => 2 + tuple.TupleTypeElements.Length;
+    {
+        return 2 + tuple.TupleTypeElements.Length;
+    }
 
     // ─── Scenario evaluation ────────────────────────────────────────────
 

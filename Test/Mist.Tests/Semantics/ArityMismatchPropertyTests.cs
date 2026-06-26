@@ -245,11 +245,15 @@ public class ArityMismatchPropertyTests
                    className, methodName, typeParams, providedCount);
     }
 
-    public static Arbitrary<TypeArityMismatchScenario> ArbitraryTypeArityMismatchScenario() =>
-        GenTypeArityMismatchScenario().ToArbitrary();
+    public static Arbitrary<TypeArityMismatchScenario> ArbitraryTypeArityMismatchScenario()
+    {
+        return GenTypeArityMismatchScenario().ToArbitrary();
+    }
 
-    public static Arbitrary<MethodArityMismatchScenario> ArbitraryMethodArityMismatchScenario() =>
-        GenMethodArityMismatchScenario().ToArbitrary();
+    public static Arbitrary<MethodArityMismatchScenario> ArbitraryMethodArityMismatchScenario()
+    {
+        return GenMethodArityMismatchScenario().ToArbitrary();
+    }
 
     // ─── Property tests ──────────────────────────────────────────────────
 

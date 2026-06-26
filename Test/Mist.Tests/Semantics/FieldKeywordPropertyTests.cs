@@ -27,8 +27,10 @@ namespace Mist.Tests.Semantics;
 /// </summary>
 public class FieldKeywordPropertyTests
 {
-    private static Storm.Runtime.Token Tok(string lexeme) =>
-        MistTypeGenerator.MakeToken(lexeme);
+    private static Storm.Runtime.Token Tok(string lexeme)
+    {
+        return MistTypeGenerator.MakeToken(lexeme);
+    }
 
     // ─── Test data model ─────────────────────────────────────────────────
 
@@ -38,7 +40,10 @@ public class FieldKeywordPropertyTests
         CompilationUnitNode Ast,
         bool ExpectBackingField)
     {
-        public override string ToString() => Description;
+        public override string ToString()
+        {
+            return Description;
+        }
     }
 #pragma warning restore CA1034
 
@@ -78,8 +83,10 @@ public class FieldKeywordPropertyTests
         return Gen.OneOf(GenFieldInNonComputedProperty(), GenComputedPropertyNoField());
     }
 
-    public static Arbitrary<FieldKeywordTestCase> ArbitraryFieldKeywordTestCase() =>
-        GenTestCase().ToArbitrary();
+    public static Arbitrary<FieldKeywordTestCase> ArbitraryFieldKeywordTestCase()
+    {
+        return GenTestCase().ToArbitrary();
+    }
 
     // ─── AST construction helpers ────────────────────────────────────────
 

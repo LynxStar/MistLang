@@ -53,20 +53,28 @@ public sealed class FuncTypeEmissionTests
     }
 
     /// <summary>Creates a stdlib Backend_Backed <c>Standard.Void</c> struct.</summary>
-    private static StructType MakeVoid() =>
-        new("Void", new Scope(parent: null), containingNamespace: "Standard", isBackendBacked: true);
+    private static StructType MakeVoid()
+    {
+        return new("Void", new Scope(parent: null), containingNamespace: "Standard", isBackendBacked: true);
+    }
 
     /// <summary>Creates a stdlib Backend_Backed <c>Standard.Int32</c> struct.</summary>
-    private static StructType MakeInt() =>
-        new("Int32", new Scope(parent: null), containingNamespace: "Standard", isBackendBacked: true);
+    private static StructType MakeInt()
+    {
+        return new("Int32", new Scope(parent: null), containingNamespace: "Standard", isBackendBacked: true);
+    }
 
     /// <summary>Creates a stdlib Backend_Backed <c>Standard.String</c> class.</summary>
-    private static ClassType MakeString() =>
-        new("String", new Scope(parent: null), containingNamespace: "Standard", isBackendBacked: true);
+    private static ClassType MakeString()
+    {
+        return new("String", new Scope(parent: null), containingNamespace: "Standard", isBackendBacked: true);
+    }
 
     /// <summary>Creates a stdlib Backend_Backed <c>Standard.Boolean</c> struct.</summary>
-    private static StructType MakeBool() =>
-        new("Boolean", new Scope(parent: null), containingNamespace: "Standard", isBackendBacked: true);
+    private static StructType MakeBool()
+    {
+        return new("Boolean", new Scope(parent: null), containingNamespace: "Standard", isBackendBacked: true);
+    }
 
     // ── Requirement 14.1: Non-void return → System.Func<...> ─────────────
 
@@ -184,8 +192,10 @@ public sealed class FuncTypeEmissionTests
 /// </summary>
 public sealed record FuncEmissionScenario(int ParameterCount, bool ReturnsVoid)
 {
-    public override string ToString() =>
-        $"Func<{string.Join(", ", Enumerable.Repeat("int", ParameterCount).Append(ReturnsVoid ? "void" : "bool"))}>";
+    public override string ToString()
+    {
+        return $"Func<{string.Join(", ", Enumerable.Repeat("int", ParameterCount).Append(ReturnsVoid ? "void" : "bool"))}>";
+    }
 }
 
 /// <summary>
@@ -193,9 +203,11 @@ public sealed record FuncEmissionScenario(int ParameterCount, bool ReturnsVoid)
 /// </summary>
 public static class FuncScenarioArbitrary
 {
-    public static Arbitrary<FuncEmissionScenario> ArbitraryFuncEmissionScenario() =>
-        (from paramCount in Gen.Choose(0, 15)
-         from returnsVoid in Gen.Elements(true, false)
-         select new FuncEmissionScenario(paramCount, returnsVoid))
+    public static Arbitrary<FuncEmissionScenario> ArbitraryFuncEmissionScenario()
+    {
+        return (from paramCount in Gen.Choose(0, 15)
+                from returnsVoid in Gen.Elements(true, false)
+                select new FuncEmissionScenario(paramCount, returnsVoid))
         .ToArbitrary();
+    }
 }

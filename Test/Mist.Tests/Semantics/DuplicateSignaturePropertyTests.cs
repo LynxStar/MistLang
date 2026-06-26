@@ -138,8 +138,10 @@ public class DuplicateSignaturePropertyTests
 #pragma warning disable CA1034
     public record DuplicateMethodScenario(IType ParamType)
     {
-        public override string ToString() =>
-            $"DuplicateMethods: same name, same param type [{ParamType.DisplayName}]";
+        public override string ToString()
+        {
+            return $"DuplicateMethods: same name, same param type [{ParamType.DisplayName}]";
+        }
     }
 
     /// <summary>
@@ -147,8 +149,10 @@ public class DuplicateSignaturePropertyTests
     /// </summary>
     public record DuplicateConstructorScenario(IType ParamType)
     {
-        public override string ToString() =>
-            $"DuplicateConstructors: same param type [{ParamType.DisplayName}]";
+        public override string ToString()
+        {
+            return $"DuplicateConstructors: same param type [{ParamType.DisplayName}]";
+        }
     }
 #pragma warning restore CA1034
 

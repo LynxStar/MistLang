@@ -56,7 +56,10 @@ public sealed class LinearDropElisionScenario
         Description = description;
     }
 
-    public override string ToString() => Description;
+    public override string ToString()
+    {
+        return Description;
+    }
 }
 
 // ─── Generators ─────────────────────────────────────────────────────────────
@@ -267,8 +270,10 @@ public sealed class LinearAutoDropAndElisionPropertyTests : IDisposable
 
     // ─── Arbitrary registration ─────────────────────────────────────────
 
-    public static Arbitrary<LinearDropElisionScenario> ArbitraryLinearDropElisionScenario() =>
-        LinearDropElisionGenerators.GenLinearDropElisionScenario().ToArbitrary();
+    public static Arbitrary<LinearDropElisionScenario> ArbitraryLinearDropElisionScenario()
+    {
+        return LinearDropElisionGenerators.GenLinearDropElisionScenario().ToArbitrary();
+    }
 
     // ─── Helpers ─────────────────────────────────────────────────────────
 

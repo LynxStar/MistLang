@@ -85,8 +85,10 @@ public class RefinementWideningPropertyTests
 #pragma warning disable CA1034
     public record WideningScenario(int Threshold, int Literal)
     {
-        public override string ToString() =>
-            $"type T = int >= {Threshold}; T x = {Literal}; int y = x;";
+        public override string ToString()
+        {
+            return $"type T = int >= {Threshold}; T x = {Literal}; int y = x;";
+        }
     }
 #pragma warning restore CA1034
 
@@ -98,8 +100,10 @@ public class RefinementWideningPropertyTests
 #pragma warning disable CA1034
     public record ArithmeticScenario(int Threshold, int Literal, string Operator)
     {
-        public override string ToString() =>
-            $"type T = int >= {Threshold}; T x = {Literal}; int result = x {Operator} 1;";
+        public override string ToString()
+        {
+            return $"type T = int >= {Threshold}; T x = {Literal}; int result = x {Operator} 1;";
+        }
     }
 #pragma warning restore CA1034
 
@@ -124,11 +128,15 @@ public class RefinementWideningPropertyTests
                select new ArithmeticScenario(threshold, literal, op);
     }
 
-    public static Arbitrary<WideningScenario> ArbitraryWideningScenario() =>
-        GenWideningScenario().ToArbitrary();
+    public static Arbitrary<WideningScenario> ArbitraryWideningScenario()
+    {
+        return GenWideningScenario().ToArbitrary();
+    }
 
-    public static Arbitrary<ArithmeticScenario> ArbitraryArithmeticScenario() =>
-        GenArithmeticScenario().ToArbitrary();
+    public static Arbitrary<ArithmeticScenario> ArbitraryArithmeticScenario()
+    {
+        return GenArithmeticScenario().ToArbitrary();
+    }
 
     // ─── Property 4: Widening always accepted ────────────────────────────
 

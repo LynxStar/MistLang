@@ -32,8 +32,10 @@ public class OrPatternVariableConsistencyPropertyTests
 
     // ─── Helpers ─────────────────────────────────────────────────────────
 
-    private static Storm.Runtime.Token Tok(string lexeme) =>
-        MistTypeGenerator.MakeToken(lexeme);
+    private static Storm.Runtime.Token Tok(string lexeme)
+    {
+        return MistTypeGenerator.MakeToken(lexeme);
+    }
 
     private ISemanticModel BuildModel(CompilationUnitNode ast, string source = "")
     {
@@ -72,8 +74,10 @@ public class OrPatternVariableConsistencyPropertyTests
         string LeftBindingName,
         string RightBindingName)
     {
-        public override string ToString() =>
-            $"if ({ScrutineeName} is int {LeftBindingName} or string {RightBindingName})";
+        public override string ToString()
+        {
+            return $"if ({ScrutineeName} is int {LeftBindingName} or string {RightBindingName})";
+        }
     }
 
 #pragma warning restore CA1034

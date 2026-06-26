@@ -52,7 +52,10 @@ public sealed class CSharpAmbientTypeResolver : IAmbientTypeResolver
     }
 
     /// <inheritdoc />
-    public bool HasNamespace(string namespaceName) => namespaceTypes.ContainsKey(namespaceName);
+    public bool HasNamespace(string namespaceName)
+    {
+        return namespaceTypes.ContainsKey(namespaceName);
+    }
 
     /// <summary>
     /// Upgrades the stdlib type provider used by lazy type factories.
@@ -114,7 +117,9 @@ public sealed class CSharpAmbientTypeResolver : IAmbientTypeResolver
 
     /// <inheritdoc />
     public IReadOnlyList<AmbientExtensionMethodInfo> GetExtensionMethodsInNamespace(string namespaceName)
-        => Array.Empty<AmbientExtensionMethodInfo>();
+    {
+        return Array.Empty<AmbientExtensionMethodInfo>();
+    }
 
     private void RegisterType(string ns, string name, Func<(IType, ImmutableArray<ISymbol>)> factory)
     {

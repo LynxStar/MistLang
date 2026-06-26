@@ -149,8 +149,10 @@ public class DuplicateTypeParameterPropertyTests
         return names.ToImmutableArray();
     }
 
-    public static Arbitrary<DuplicateTypeParamDecl> ArbitraryDuplicateTypeParamDecl() =>
-        GenDuplicateTypeParamDecl().ToArbitrary();
+    public static Arbitrary<DuplicateTypeParamDecl> ArbitraryDuplicateTypeParamDecl()
+    {
+        return GenDuplicateTypeParamDecl().ToArbitrary();
+    }
 
     // ─── Property tests ──────────────────────────────────────────────────
 

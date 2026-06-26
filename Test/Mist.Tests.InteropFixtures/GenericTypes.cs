@@ -10,9 +10,20 @@ public class GenericClass<T> where T : class
     public GenericClass() { }
     public GenericClass(T item) => Item = item;
 
-    public T? GetItem() => Item;
-    public void SetItem(T item) => Item = item;
-    public bool HasItem() => Item is not null;
+    public T? GetItem()
+    {
+        return Item;
+    }
+
+    public void SetItem(T item)
+    {
+        Item = item;
+    }
+
+    public bool HasItem()
+    {
+        return Item is not null;
+    }
 }
 
 /// <summary>
@@ -24,6 +35,13 @@ public class MultiConstraint<T> where T : struct, IComparable<T>
 
     public MultiConstraint(T value) => Value = value;
 
-    public int CompareTo(T other) => Value.CompareTo(other);
-    public bool IsGreaterThan(T other) => Value.CompareTo(other) > 0;
+    public int CompareTo(T other)
+    {
+        return Value.CompareTo(other);
+    }
+
+    public bool IsGreaterThan(T other)
+    {
+        return Value.CompareTo(other) > 0;
+    }
 }

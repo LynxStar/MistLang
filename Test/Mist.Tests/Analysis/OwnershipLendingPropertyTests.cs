@@ -125,7 +125,10 @@ public class OwnershipLendingPropertyTests
         bool IsPermitted,
         string Label)
     {
-        public override string ToString() => Label;
+        public override string ToString()
+        {
+            return Label;
+        }
     }
 
     /// <summary>
@@ -136,7 +139,10 @@ public class OwnershipLendingPropertyTests
         string Source,
         string Label)
     {
-        public override string ToString() => Label;
+        public override string ToString()
+        {
+            return Label;
+        }
     }
 
 #pragma warning restore CA1034
@@ -157,15 +163,18 @@ public class OwnershipLendingPropertyTests
     /// <summary>
     /// Returns the Mist source code specifier prefix for a given ownership tier.
     /// </summary>
-    private static string TierToSpecifier(OwnershipTier tier) => tier switch
+    private static string TierToSpecifier(OwnershipTier tier)
     {
-        OwnershipTier.Owned => "owned ",
-        OwnershipTier.Borrowed => "borrowed ",
-        OwnershipTier.ReadonlyRef => "readonly ref ",
-        OwnershipTier.Frozen => "frozen ",
-        OwnershipTier.Unrestricted => "",
-        _ => "",
-    };
+        return tier switch
+        {
+            OwnershipTier.Owned => "owned ",
+            OwnershipTier.Borrowed => "borrowed ",
+            OwnershipTier.ReadonlyRef => "readonly ref ",
+            OwnershipTier.Frozen => "frozen ",
+            OwnershipTier.Unrestricted => "",
+            _ => "",
+        };
+    }
 
     /// <summary>
     /// Generates a Mist program that declares a variable at the source tier and passes
@@ -313,11 +322,15 @@ public class OwnershipLendingPropertyTests
 
     // ─── Arbitrary instances ─────────────────────────────────────────────
 
-    public static Arbitrary<LendingScenario> ArbitraryLendingScenario() =>
-        GenLendingScenario().ToArbitrary();
+    public static Arbitrary<LendingScenario> ArbitraryLendingScenario()
+    {
+        return GenLendingScenario().ToArbitrary();
+    }
 
-    public static Arbitrary<ValueTypeLendingScenario> ArbitraryValueTypeLendingScenario() =>
-        GenValueTypeLendingScenario().ToArbitrary();
+    public static Arbitrary<ValueTypeLendingScenario> ArbitraryValueTypeLendingScenario()
+    {
+        return GenValueTypeLendingScenario().ToArbitrary();
+    }
 
     // ═══════════════════════════════════════════════════════════════════════
     // Property 2a: Permitted lending pairs produce no lending diagnostics

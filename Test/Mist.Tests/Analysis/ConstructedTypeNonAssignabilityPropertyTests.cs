@@ -206,8 +206,10 @@ public class ConstructedTypeNonAssignabilityPropertyTests
                select new NonAssignabilityScenario(genericName, sourceType, targetType);
     }
 
-    public static Arbitrary<NonAssignabilityScenario> ArbitraryNonAssignabilityScenario() =>
-        GenNonAssignabilityScenario().ToArbitrary();
+    public static Arbitrary<NonAssignabilityScenario> ArbitraryNonAssignabilityScenario()
+    {
+        return GenNonAssignabilityScenario().ToArbitrary();
+    }
 
     // ─── AST construction ────────────────────────────────────────────────
 

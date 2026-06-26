@@ -361,8 +361,10 @@ public class InheritedMemberResolutionPropertyTests
     }
 
     /// <summary>FsCheck Arbitrary registration for MemberAccessScenario.</summary>
-    public static Arbitrary<MemberAccessScenario> ArbitraryMemberAccessScenario() =>
-        Gen.OneOf(GenResolvableAccess(), GenUnresolvableAccess()).ToArbitrary();
+    public static Arbitrary<MemberAccessScenario> ArbitraryMemberAccessScenario()
+    {
+        return Gen.OneOf(GenResolvableAccess(), GenUnresolvableAccess()).ToArbitrary();
+    }
 
     // ─── AST construction ────────────────────────────────────────────────
 

@@ -63,24 +63,33 @@ public class NodeOriginConstructionPropertyTests
         return Gen.OneOf(genParsed, genTest, genSynthetic);
     }
 
-    public static Arbitrary<Mist.Common.Text.SourceText> ArbSourceText() =>
-        GenSourceText().ToArbitrary();
+    public static Arbitrary<Mist.Common.Text.SourceText> ArbSourceText()
+    {
+        return GenSourceText().ToArbitrary();
+    }
 
-    public static Arbitrary<NodeOrigin> ArbNodeOrigin() =>
-        GenNodeOrigin().ToArbitrary();
+    public static Arbitrary<NodeOrigin> ArbNodeOrigin()
+    {
+        return GenNodeOrigin().ToArbitrary();
+    }
 
 #pragma warning disable CA1034
     public record SyntheticOriginInput(NodeOrigin Origin, string Reason)
     {
-        public override string ToString() => $"SyntheticOriginInput(Origin={Origin}, Reason=\"{Reason}\")";
+        public override string ToString()
+        {
+            return $"SyntheticOriginInput(Origin={Origin}, Reason=\"{Reason}\")";
+        }
     }
 #pragma warning restore CA1034
 
-    public static Arbitrary<SyntheticOriginInput> ArbSyntheticOriginInput() =>
-        (from origin in GenNodeOrigin()
-         from reason in GenNonEmptyReason()
-         select new SyntheticOriginInput(origin, reason))
+    public static Arbitrary<SyntheticOriginInput> ArbSyntheticOriginInput()
+    {
+        return (from origin in GenNodeOrigin()
+                from reason in GenNonEmptyReason()
+                select new SyntheticOriginInput(origin, reason))
         .ToArbitrary();
+    }
 
     // ═══════════════════════════════════════════════════════════════════════
     // Property tests

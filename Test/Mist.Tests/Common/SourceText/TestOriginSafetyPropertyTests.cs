@@ -64,11 +64,15 @@ public class TestOriginSafetyPropertyTests
             Gen.Constant<SyntaxNode>(new CompilationUnitNode()));
     }
 
-    public static Arbitrary<SourceSpan> ArbSourceSpan() =>
-        GenSourceSpan().ToArbitrary();
+    public static Arbitrary<SourceSpan> ArbSourceSpan()
+    {
+        return GenSourceSpan().ToArbitrary();
+    }
 
-    public static Arbitrary<SyntaxNode> ArbSyntaxNode() =>
-        GenSyntaxNode().ToArbitrary();
+    public static Arbitrary<SyntaxNode> ArbSyntaxNode()
+    {
+        return GenSyntaxNode().ToArbitrary();
+    }
 
     // ═══════════════════════════════════════════════════════════════════════
     // Property tests

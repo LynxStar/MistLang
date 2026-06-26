@@ -39,7 +39,10 @@ public sealed class NewtypeSourceScenario
         Description = description;
     }
 
-    public override string ToString() => Description;
+    public override string ToString()
+    {
+        return Description;
+    }
 }
 
 /// <summary>
@@ -116,6 +119,8 @@ public static class MistNewtypeGenerator
     /// FsCheck Arbitrary for <see cref="NewtypeSourceScenario"/>.
     /// Register this with <c>[Property(Arbitrary = new[] { typeof(MistNewtypeGenerator) })]</c>.
     /// </summary>
-    public static Arbitrary<NewtypeSourceScenario> ArbitraryNewtypeSourceScenario() =>
-        GenNewtypeSource().ToArbitrary();
+    public static Arbitrary<NewtypeSourceScenario> ArbitraryNewtypeSourceScenario()
+    {
+        return GenNewtypeSource().ToArbitrary();
+    }
 }

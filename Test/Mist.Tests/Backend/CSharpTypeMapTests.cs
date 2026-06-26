@@ -17,14 +17,18 @@ public class CSharpTypeMapTests
     /// <summary>
     /// Creates a stdlib Backend_Backed StructType (e.g., Standard.Int32).
     /// </summary>
-    private static StructType MakeStdlibStruct(string displayName) =>
-        new(displayName, new Scope(parent: null), containingNamespace: "Standard", isBackendBacked: true);
+    private static StructType MakeStdlibStruct(string displayName)
+    {
+        return new(displayName, new Scope(parent: null), containingNamespace: "Standard", isBackendBacked: true);
+    }
 
     /// <summary>
     /// Creates a stdlib Backend_Backed ClassType (e.g., Standard.String).
     /// </summary>
-    private static ClassType MakeStdlibClass(string displayName) =>
-        new(displayName, new Scope(parent: null), containingNamespace: "Standard", isBackendBacked: true);
+    private static ClassType MakeStdlibClass(string displayName)
+    {
+        return new(displayName, new Scope(parent: null), containingNamespace: "Standard", isBackendBacked: true);
+    }
 
     // ── Task 39.1: stdlib struct types map to C# keywords ────────────────
 
@@ -318,7 +322,10 @@ public class CSharpTypeMapTests
     }
 
     /// <summary>Creates the stdlib Backend_Backed <c>Standard.Void</c> struct.</summary>
-    private static StructType MakeStdlibVoid() => MakeStdlibStruct("Void");
+    private static StructType MakeStdlibVoid()
+    {
+        return MakeStdlibStruct("Void");
+    }
 
     [Fact]
     public void GetTypeName_FuncWithNonVoidReturn_ReturnsSystemFunc()

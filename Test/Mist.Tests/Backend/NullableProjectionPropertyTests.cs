@@ -28,7 +28,10 @@ public sealed class NullableProjectionScenario
         Description = description;
     }
 
-    public override string ToString() => Description;
+    public override string ToString()
+    {
+        return Description;
+    }
 }
 
 /// <summary>
@@ -138,8 +141,10 @@ public sealed class NullableProjectionPropertyTests
 
     // ─── FsCheck generator ──────────────────────────────────────────────
 
-    public static Arbitrary<NullableProjectionScenario> ArbitraryScenario() =>
-        GenScenario().ToArbitrary();
+    public static Arbitrary<NullableProjectionScenario> ArbitraryScenario()
+    {
+        return GenScenario().ToArbitrary();
+    }
 
     private static Gen<NullableProjectionScenario> GenScenario()
     {

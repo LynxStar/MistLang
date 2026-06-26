@@ -29,14 +29,16 @@ public class AbstractRoundTripPropertyTests
 
     // ─── Token helper ────────────────────────────────────────────────────
 
-    private static Storm.Runtime.Token Tok(string lexeme) =>
-        new(
+    private static Storm.Runtime.Token Tok(string lexeme)
+    {
+        return new(
             kind: 0,
             span: new Storm.Runtime.SourceSpan(0, lexeme.Length),
             start: new Storm.Runtime.LinePosition(1, 1),
             end: new Storm.Runtime.LinePosition(1, 1 + lexeme.Length),
             channel: Storm.Runtime.TokenChannel.Default,
             lexeme: lexeme);
+    }
 
     private static BaseListNode MakeBaseList(string name)
     {
@@ -60,7 +62,10 @@ public class AbstractRoundTripPropertyTests
         string Description,
         CompilationUnitNode Ast)
     {
-        public override string ToString() => Description;
+        public override string ToString()
+        {
+            return Description;
+        }
     }
 #pragma warning restore CA1034
 
@@ -476,8 +481,10 @@ public class AbstractRoundTripPropertyTests
     }
 
     /// <summary>FsCheck Arbitrary registration for AbstractRoundTripTestCase.</summary>
-    public static Arbitrary<AbstractRoundTripTestCase> ArbitraryAbstractRoundTripTestCase() =>
-        GenTestCase().ToArbitrary();
+    public static Arbitrary<AbstractRoundTripTestCase> ArbitraryAbstractRoundTripTestCase()
+    {
+        return GenTestCase().ToArbitrary();
+    }
 
     // ═════════════════════════════════════════════════════════════════════
     // Property 1: Abstract declaration round-trip

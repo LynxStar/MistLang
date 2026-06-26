@@ -134,57 +134,63 @@ public class OwnershipTruthTablePropertyTests
     /// Generates the setup code that puts variable 'x' into the specified state.
     /// Returns the setup lines to insert before the action line.
     /// </summary>
-    private static string GetStateSetup(VariableOwnershipState state) => state switch
+    private static string GetStateSetup(VariableOwnershipState state)
     {
-        VariableOwnershipState.Live =>
-            // Just declared — already in Live state
-            "",
+        return state switch
+        {
+            VariableOwnershipState.Live =>
+                // Just declared — already in Live state
+                "",
 
-        VariableOwnershipState.LentReadonly =>
-            // Lend as readonly ref — puts x into LentReadonly state
-            "readonly ref Gadget r = x;\n            ",
+            VariableOwnershipState.LentReadonly =>
+                // Lend as readonly ref — puts x into LentReadonly state
+                "readonly ref Gadget r = x;\n            ",
 
-        VariableOwnershipState.LentFrozen =>
-            // Lend as frozen — puts x into LentFrozen state
-            "frozen Gadget f = x;\n            ",
+            VariableOwnershipState.LentFrozen =>
+                // Lend as frozen — puts x into LentFrozen state
+                "frozen Gadget f = x;\n            ",
 
-        VariableOwnershipState.LentRef =>
-            // Lend as borrowed — puts x into LentRef state
-            "borrowed Gadget b = x;\n            ",
+            VariableOwnershipState.LentRef =>
+                // Lend as borrowed — puts x into LentRef state
+                "borrowed Gadget b = x;\n            ",
 
-        VariableOwnershipState.Moved =>
-            // Move to another owned binding — puts x into Moved state
-            "owned var y = x;\n            ",
+            VariableOwnershipState.Moved =>
+                // Move to another owned binding — puts x into Moved state
+                "owned var y = x;\n            ",
 
-        _ => throw new ArgumentOutOfRangeException(nameof(state))
-    };
+            _ => throw new ArgumentOutOfRangeException(nameof(state))
+        };
+    }
 
     /// <summary>
     /// Generates the action code that attempts the specified access kind on variable 'x'.
     /// Returns the action line to insert after the state setup.
     /// </summary>
-    private static string GetActionCode(AccessKind action) => action switch
+    private static string GetActionCode(AccessKind action)
     {
-        AccessKind.Read =>
-            "var temp = x.value;",
+        return action switch
+        {
+            AccessKind.Read =>
+                "var temp = x.value;",
 
-        AccessKind.Write =>
-            "x.value = 99;",
+            AccessKind.Write =>
+                "x.value = 99;",
 
-        AccessKind.LiveView =>
-            "readonly ref Gadget v = x;",
+            AccessKind.LiveView =>
+                "readonly ref Gadget v = x;",
 
-        AccessKind.Freeze =>
-            "frozen Gadget f2 = x;",
+            AccessKind.Freeze =>
+                "frozen Gadget f2 = x;",
 
-        AccessKind.Borrow =>
-            "borrowed Gadget b2 = x;",
+            AccessKind.Borrow =>
+                "borrowed Gadget b2 = x;",
 
-        AccessKind.Move =>
-            "owned var z = x;",
+            AccessKind.Move =>
+                "owned var z = x;",
 
-        _ => throw new ArgumentOutOfRangeException(nameof(action))
-    };
+            _ => throw new ArgumentOutOfRangeException(nameof(action))
+        };
+    }
 
     /// <summary>
     /// Builds a complete Mist program that puts variable 'x' into the given state

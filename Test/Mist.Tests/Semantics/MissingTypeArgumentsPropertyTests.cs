@@ -171,8 +171,10 @@ public class MissingTypeArgumentsPropertyTests
         return Gen.OneOf(genClassFromClass, genClassFromAbstract, genStructFromAbstract, genAbstractFromAbstract);
     }
 
-    public static Arbitrary<MissingTypeArgsScenario> ArbitraryMissingTypeArgsScenario() =>
-        GenMissingTypeArgsScenario().ToArbitrary();
+    public static Arbitrary<MissingTypeArgsScenario> ArbitraryMissingTypeArgsScenario()
+    {
+        return GenMissingTypeArgsScenario().ToArbitrary();
+    }
 
     // ─── Property tests ──────────────────────────────────────────────────
 

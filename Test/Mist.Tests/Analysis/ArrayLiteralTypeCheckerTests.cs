@@ -64,10 +64,14 @@ public class ArrayLiteralTypeCheckerTests
     }
 
     private static bool HasDiagnostic(ImmutableArray<Diagnostic> diagnostics, string id)
-        => diagnostics.Any(d => d.Id.Value == id);
+    {
+        return diagnostics.Any(d => d.Id.Value == id);
+    }
 
     private static bool HasNoDiagnosticErrors(ImmutableArray<Diagnostic> diagnostics)
-        => !diagnostics.Any(d => d.Severity == DiagnosticSeverity.Error);
+    {
+        return !diagnostics.Any(d => d.Severity == DiagnosticSeverity.Error);
+    }
 
     // ═══════════════════════════════════════════════════════════════════════
     // Requirement 5.1: Homogeneous element type inference

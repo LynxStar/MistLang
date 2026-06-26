@@ -193,7 +193,10 @@ public class NoAutoDropUnrestrictedAffinePropertyTests
 
     public sealed record LocalNames(string Affine, string Unrestricted, string Linear)
     {
-        public override string ToString() => $"affine={Affine}, unrestricted={Unrestricted}, linear={Linear}";
+        public override string ToString()
+        {
+            return $"affine={Affine}, unrestricted={Unrestricted}, linear={Linear}";
+        }
     }
 
 #pragma warning restore CA1034
@@ -206,7 +209,10 @@ public class NoAutoDropUnrestrictedAffinePropertyTests
                select new LocalNames(picked[0], picked[1], picked[2]);
     }
 
-    public static Arbitrary<LocalNames> ArbitraryLocalNames() => GenLocalNames().ToArbitrary();
+    public static Arbitrary<LocalNames> ArbitraryLocalNames()
+    {
+        return GenLocalNames().ToArbitrary();
+    }
 
     [Property(MaxTest = 100, Arbitrary = new[] { typeof(NoAutoDropUnrestrictedAffinePropertyTests) })]
     public Property AffineAndUnrestricted_NeverGetScopeExitDrop(LocalNames names)

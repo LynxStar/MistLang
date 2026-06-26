@@ -25,8 +25,10 @@ public sealed class NewDisambiguationScenario
         Arguments = arguments;
     }
 
-    public override string ToString() =>
-        $"TypeName={TypeName}, Args=[{string.Join(", ", Arguments)}]";
+    public override string ToString()
+    {
+        return $"TypeName={TypeName}, Args=[{string.Join(", ", Arguments)}]";
+    }
 }
 
 /// <summary>

@@ -150,8 +150,10 @@ public class FieldInitializerPropertyTests
 #pragma warning disable CA1034
     public record FieldWithInitializerScenario(string FieldType, string FieldName, bool IsStatic)
     {
-        public override string ToString() =>
-            $"Type={FieldType}, Name={FieldName}, IsStatic={IsStatic}";
+        public override string ToString()
+        {
+            return $"Type={FieldType}, Name={FieldName}, IsStatic={IsStatic}";
+        }
     }
 
     /// <summary>
@@ -159,8 +161,10 @@ public class FieldInitializerPropertyTests
     /// </summary>
     public record FieldWithoutInitializerScenario(string FieldType, string FieldName)
     {
-        public override string ToString() =>
-            $"Type={FieldType}, Name={FieldName}";
+        public override string ToString()
+        {
+            return $"Type={FieldType}, Name={FieldName}";
+        }
     }
 #pragma warning restore CA1034
 

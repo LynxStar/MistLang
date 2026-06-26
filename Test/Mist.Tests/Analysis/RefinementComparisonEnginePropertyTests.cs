@@ -38,7 +38,10 @@ public class RefinementComparisonEnginePropertyTests
             Value = value;
         }
 
-        public override string ToString() => $"{Operator} {Value}";
+        public override string ToString()
+        {
+            return $"{Operator} {Value}";
+        }
     }
 
     /// <summary>
@@ -55,7 +58,10 @@ public class RefinementComparisonEnginePropertyTests
             Target = target;
         }
 
-        public override string ToString() => $"(== {EqualityValue}) implies ({Target})";
+        public override string ToString()
+        {
+            return $"(== {EqualityValue}) implies ({Target})";
+        }
     }
 
     /// <summary>
@@ -74,7 +80,10 @@ public class RefinementComparisonEnginePropertyTests
             EqualityTarget = equalityTarget;
         }
 
-        public override string ToString() => $"(not {NotValue}) vs relational ({RelationalTarget}), equality (== {EqualityTarget})";
+        public override string ToString()
+        {
+            return $"(not {NotValue}) vs relational ({RelationalTarget}), equality (== {EqualityTarget})";
+        }
     }
 
     /// <summary>
@@ -91,7 +100,10 @@ public class RefinementComparisonEnginePropertyTests
             B = b;
         }
 
-        public override string ToString() => $"a={A}, b={B}";
+        public override string ToString()
+        {
+            return $"a={A}, b={B}";
+        }
     }
 
     /// <summary>
@@ -108,7 +120,10 @@ public class RefinementComparisonEnginePropertyTests
             Target = target;
         }
 
-        public override string ToString() => $"({string.Join(" or ", OrValues)}) implies ({Target})";
+        public override string ToString()
+        {
+            return $"({string.Join(" or ", OrValues)}) implies ({Target})";
+        }
     }
 
     /// <summary>
@@ -125,7 +140,10 @@ public class RefinementComparisonEnginePropertyTests
             B = b;
         }
 
-        public override string ToString() => $"({string.Join(" or ", A)}) implies ({string.Join(" or ", B)})";
+        public override string ToString()
+        {
+            return $"({string.Join(" or ", A)}) implies ({string.Join(" or ", B)})";
+        }
     }
 
     /// <summary>
@@ -142,7 +160,10 @@ public class RefinementComparisonEnginePropertyTests
             SetValues = setValues;
         }
 
-        public override string ToString() => $"(== {EqualityValue}) implies or({string.Join(", ", SetValues)})";
+        public override string ToString()
+        {
+            return $"(== {EqualityValue}) implies or({string.Join(", ", SetValues)})";
+        }
     }
 
     /// <summary>
@@ -165,26 +186,37 @@ public class RefinementComparisonEnginePropertyTests
             OrValues = orValues;
         }
 
-        public static AnyPredicate Relational(string op, int value) =>
-            new(PredicateKind.Relational, op, value, ImmutableArray<int>.Empty);
-
-        public static AnyPredicate Equality(int value) =>
-            new(PredicateKind.Equality, null, value, ImmutableArray<int>.Empty);
-
-        public static AnyPredicate Not(int value) =>
-            new(PredicateKind.Not, null, value, ImmutableArray<int>.Empty);
-
-        public static AnyPredicate Or(ImmutableArray<int> values) =>
-            new(PredicateKind.Or, null, 0, values);
-
-        public override string ToString() => Kind switch
+        public static AnyPredicate Relational(string op, int value)
         {
-            PredicateKind.Relational => $"{Operator} {Value}",
-            PredicateKind.Equality => $"== {Value}",
-            PredicateKind.Not => $"not {Value}",
-            PredicateKind.Or => $"({string.Join(" or ", OrValues)})",
-            _ => "?"
-        };
+            return new(PredicateKind.Relational, op, value, ImmutableArray<int>.Empty);
+        }
+
+        public static AnyPredicate Equality(int value)
+        {
+            return new(PredicateKind.Equality, null, value, ImmutableArray<int>.Empty);
+        }
+
+        public static AnyPredicate Not(int value)
+        {
+            return new(PredicateKind.Not, null, value, ImmutableArray<int>.Empty);
+        }
+
+        public static AnyPredicate Or(ImmutableArray<int> values)
+        {
+            return new(PredicateKind.Or, null, 0, values);
+        }
+
+        public override string ToString()
+        {
+            return Kind switch
+            {
+                PredicateKind.Relational => $"{Operator} {Value}",
+                PredicateKind.Equality => $"== {Value}",
+                PredicateKind.Not => $"not {Value}",
+                PredicateKind.Or => $"({string.Join(" or ", OrValues)})",
+                _ => "?"
+            };
+        }
     }
 
     /// <summary>
@@ -201,7 +233,10 @@ public class RefinementComparisonEnginePropertyTests
             Target = target;
         }
 
-        public override string ToString() => $"({Source}) implies ({Target})";
+        public override string ToString()
+        {
+            return $"({Source}) implies ({Target})";
+        }
     }
 
 #pragma warning restore CA1034
@@ -224,8 +259,10 @@ public class RefinementComparisonEnginePropertyTests
                select new EqualityRelationalScenario(eqValue, target);
     }
 
-    public static Arbitrary<EqualityRelationalScenario> ArbitraryEqualityRelationalScenario() =>
-        GenEqualityRelationalScenario().ToArbitrary();
+    public static Arbitrary<EqualityRelationalScenario> ArbitraryEqualityRelationalScenario()
+    {
+        return GenEqualityRelationalScenario().ToArbitrary();
+    }
 
     private static Gen<CrossOperatorScenario> GenCrossOperatorScenario()
     {
@@ -234,8 +271,10 @@ public class RefinementComparisonEnginePropertyTests
                select new CrossOperatorScenario(a, b);
     }
 
-    public static Arbitrary<CrossOperatorScenario> ArbitraryCrossOperatorScenario() =>
-        GenCrossOperatorScenario().ToArbitrary();
+    public static Arbitrary<CrossOperatorScenario> ArbitraryCrossOperatorScenario()
+    {
+        return GenCrossOperatorScenario().ToArbitrary();
+    }
 
     private static Gen<NotPatternScenario> GenNotPatternScenario()
     {
@@ -245,8 +284,10 @@ public class RefinementComparisonEnginePropertyTests
                select new NotPatternScenario(notValue, relTarget, eqTarget);
     }
 
-    public static Arbitrary<NotPatternScenario> ArbitraryNotPatternScenario() =>
-        GenNotPatternScenario().ToArbitrary();
+    public static Arbitrary<NotPatternScenario> ArbitraryNotPatternScenario()
+    {
+        return GenNotPatternScenario().ToArbitrary();
+    }
 
     private static Gen<OrPatternSourceScenario> GenOrPatternSourceScenario()
     {
@@ -256,8 +297,10 @@ public class RefinementComparisonEnginePropertyTests
                select new OrPatternSourceScenario(values.ToImmutableArray(), target);
     }
 
-    public static Arbitrary<OrPatternSourceScenario> ArbitraryOrPatternSourceScenario() =>
-        GenOrPatternSourceScenario().ToArbitrary();
+    public static Arbitrary<OrPatternSourceScenario> ArbitraryOrPatternSourceScenario()
+    {
+        return GenOrPatternSourceScenario().ToArbitrary();
+    }
 
     private static Gen<OrPatternSubsetScenario> GenOrPatternSubsetScenario()
     {
@@ -268,8 +311,10 @@ public class RefinementComparisonEnginePropertyTests
                select new OrPatternSubsetScenario(aValues.ToImmutableArray(), bValues.ToImmutableArray());
     }
 
-    public static Arbitrary<OrPatternSubsetScenario> ArbitraryOrPatternSubsetScenario() =>
-        GenOrPatternSubsetScenario().ToArbitrary();
+    public static Arbitrary<OrPatternSubsetScenario> ArbitraryOrPatternSubsetScenario()
+    {
+        return GenOrPatternSubsetScenario().ToArbitrary();
+    }
 
     private static Gen<OrPatternTargetScenario> GenOrPatternTargetScenario()
     {
@@ -279,8 +324,10 @@ public class RefinementComparisonEnginePropertyTests
                select new OrPatternTargetScenario(eqValue, setValues.ToImmutableArray());
     }
 
-    public static Arbitrary<OrPatternTargetScenario> ArbitraryOrPatternTargetScenario() =>
-        GenOrPatternTargetScenario().ToArbitrary();
+    public static Arbitrary<OrPatternTargetScenario> ArbitraryOrPatternTargetScenario()
+    {
+        return GenOrPatternTargetScenario().ToArbitrary();
+    }
 
     private static Gen<AnyPredicate> GenAnyPredicate()
     {
@@ -308,8 +355,10 @@ public class RefinementComparisonEnginePropertyTests
                select new SoundnessScenario(source, target);
     }
 
-    public static Arbitrary<SoundnessScenario> ArbitrarySoundnessScenario() =>
-        GenSoundnessScenario().ToArbitrary();
+    public static Arbitrary<SoundnessScenario> ArbitrarySoundnessScenario()
+    {
+        return GenSoundnessScenario().ToArbitrary();
+    }
 
     // ─── AST Construction Helpers ────────────────────────────────────────
 

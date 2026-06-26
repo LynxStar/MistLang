@@ -100,7 +100,10 @@ public sealed class DropAsConsumePropertyTests
         string ExpectedDiagnosticId,
         string Label)
     {
-        public override string ToString() => Label;
+        public override string ToString()
+        {
+            return Label;
+        }
     }
 
 #pragma warning restore CA1034
@@ -176,8 +179,10 @@ public sealed class DropAsConsumePropertyTests
             source, discipline.Keyword, access.Name, discipline.ExpectedId, label);
     }
 
-    public static Arbitrary<DropConsumeScenario> ArbitraryDropConsumeScenario() =>
-        GenScenario().ToArbitrary();
+    public static Arbitrary<DropConsumeScenario> ArbitraryDropConsumeScenario()
+    {
+        return GenScenario().ToArbitrary();
+    }
 
     // ═══════════════════════════════════════════════════════════════════════
     // Property 3: Drop-as-consume for owned types

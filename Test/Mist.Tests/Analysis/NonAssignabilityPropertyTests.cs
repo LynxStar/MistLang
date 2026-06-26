@@ -270,8 +270,10 @@ public class NonAssignabilityPropertyTests
     }
 
     /// <summary>FsCheck Arbitrary registration for IncompatibleScenario.</summary>
-    public static Arbitrary<IncompatibleScenario> ArbitraryIncompatibleScenario() =>
-        GenIncompatibleScenario().ToArbitrary();
+    public static Arbitrary<IncompatibleScenario> ArbitraryIncompatibleScenario()
+    {
+        return GenIncompatibleScenario().ToArbitrary();
+    }
 
     // ─── AST construction ────────────────────────────────────────────────
 

@@ -36,7 +36,10 @@ public sealed class InvalidAssignmentTargetScenario
         Label = label;
     }
 
-    public override string ToString() => Label;
+    public override string ToString()
+    {
+        return Label;
+    }
 }
 
 /// <summary>
@@ -53,7 +56,10 @@ public sealed class FlowNarrowingScenario
         Label = label;
     }
 
-    public override string ToString() => Label;
+    public override string ToString()
+    {
+        return Label;
+    }
 }
 
 /// <summary>
@@ -70,7 +76,10 @@ public sealed class StatementOnlyScenario
         Label = label;
     }
 
-    public override string ToString() => Label;
+    public override string ToString()
+    {
+        return Label;
+    }
 }
 
 // ─── Property Tests ─────────────────────────────────────────────────────────
@@ -129,15 +138,18 @@ public sealed class VoidCoalescingAssignmentPropertyTests
     private static readonly string[] PrimitiveTypes =
         ["int", "string", "bool", "double"];
 
-    private static string DefaultValueFor(string type) => type switch
+    private static string DefaultValueFor(string type)
     {
-        "int" => "42",
-        "string" => "\"hello\"",
-        "bool" => "true",
-        "float" => "3",
-        "double" => "2.71",
-        _ => "0",
-    };
+        return type switch
+        {
+            "int" => "42",
+            "string" => "\"hello\"",
+            "bool" => "true",
+            "float" => "3",
+            "double" => "2.71",
+            _ => "0",
+        };
+    }
 
     // ─── Generators ─────────────────────────────────────────────────────
 

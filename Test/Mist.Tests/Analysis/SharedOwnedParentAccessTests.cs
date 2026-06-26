@@ -78,8 +78,10 @@ public sealed class SharedOwnedParentAccessTests
         }
     }
 
-    private static Diagnostic? FindById(ImmutableArray<Diagnostic> diagnostics, string id) =>
-        diagnostics.FirstOrDefault(d => d.Id.Value == id);
+    private static Diagnostic? FindById(ImmutableArray<Diagnostic> diagnostics, string id)
+    {
+        return diagnostics.FirstOrDefault(d => d.Id.Value == id);
+    }
 
     // ═══════════════════════════════════════════════════════════════════════
     // 1. Shared parent → write with owned source succeeds (Req 2 AC 2)

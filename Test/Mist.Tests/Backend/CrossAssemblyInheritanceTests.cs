@@ -36,7 +36,10 @@ public sealed class CrossAssemblyInheritanceTests : IDisposable
         provider = new AssemblyTypeProvider(GetAssemblyPaths(), diagnostics);
     }
 
-    public void Dispose() => provider.Dispose();
+    public void Dispose()
+    {
+        provider.Dispose();
+    }
 
     private static ImmutableArray<string> GetAssemblyPaths()
     {

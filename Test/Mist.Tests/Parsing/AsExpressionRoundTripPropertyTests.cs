@@ -28,8 +28,10 @@ public class AsExpressionRoundTripPropertyTests
 
     // ─── Arbitrary registration ──────────────────────────────────────────
 
-    public static Arbitrary<CompilationUnitNode> ArbitraryCompilationUnitNode() =>
-        MistAsExpressionGenerator.GenAsExpressionProgram().ToArbitrary();
+    public static Arbitrary<CompilationUnitNode> ArbitraryCompilationUnitNode()
+    {
+        return MistAsExpressionGenerator.GenAsExpressionProgram().ToArbitrary();
+    }
 
     // ═══════════════════════════════════════════════════════════════════════
     // Property 1: As expression round-trip

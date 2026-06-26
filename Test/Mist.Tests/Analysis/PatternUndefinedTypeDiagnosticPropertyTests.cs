@@ -32,8 +32,10 @@ public class PatternUndefinedTypeDiagnosticPropertyTests
 
     // ─── Helpers ─────────────────────────────────────────────────────────
 
-    private static Storm.Runtime.Token Tok(string lexeme) =>
-        MistTypeGenerator.MakeToken(lexeme);
+    private static Storm.Runtime.Token Tok(string lexeme)
+    {
+        return MistTypeGenerator.MakeToken(lexeme);
+    }
 
     private ISemanticModel BuildModel(CompilationUnitNode ast, string source = "")
     {
@@ -69,8 +71,10 @@ public class PatternUndefinedTypeDiagnosticPropertyTests
         string UndefinedTypeName,
         string BindingName)
     {
-        public override string ToString() =>
-            $"if ({ScrutineeName} is {UndefinedTypeName} {BindingName})";
+        public override string ToString()
+        {
+            return $"if ({ScrutineeName} is {UndefinedTypeName} {BindingName})";
+        }
     }
 
 #pragma warning restore CA1034

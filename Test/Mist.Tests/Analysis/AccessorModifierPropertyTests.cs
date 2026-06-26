@@ -27,8 +27,10 @@ namespace Mist.Tests.Analysis;
 /// </summary>
 public class AccessorModifierPropertyTests
 {
-    private static Storm.Runtime.Token Tok(string lexeme) =>
-        MistTypeGenerator.MakeToken(lexeme);
+    private static Storm.Runtime.Token Tok(string lexeme)
+    {
+        return MistTypeGenerator.MakeToken(lexeme);
+    }
 
     // ─── Test data model ─────────────────────────────────────────────────
 
@@ -42,7 +44,10 @@ public class AccessorModifierPropertyTests
         ModifierNode? AccessorModifier,
         bool ExpectValid)
     {
-        public override string ToString() => Description;
+        public override string ToString()
+        {
+            return Description;
+        }
     }
 #pragma warning restore CA1034
 
@@ -88,8 +93,10 @@ public class AccessorModifierPropertyTests
         return Gen.OneOf(GenValidModifierCombination(), GenInvalidModifierCombination());
     }
 
-    public static Arbitrary<AccessorModifierTestCase> ArbitraryAccessorModifierTestCase() =>
-        GenModifierTestCase().ToArbitrary();
+    public static Arbitrary<AccessorModifierTestCase> ArbitraryAccessorModifierTestCase()
+    {
+        return GenModifierTestCase().ToArbitrary();
+    }
 
     // ─── Helpers ─────────────────────────────────────────────────────────
 

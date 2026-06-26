@@ -115,8 +115,10 @@ public sealed class ExtensionReceiverTypeIdentityBugConditionPropertyTests : IDi
         string InterfaceName,
         string ExtensionNamespace)
     {
-        public override string ToString() =>
-            $"{InterfaceNamespace}.{InterfaceName} with extensions from {ExtensionNamespace}";
+        public override string ToString()
+        {
+            return $"{InterfaceNamespace}.{InterfaceName} with extensions from {ExtensionNamespace}";
+        }
     }
 
 #pragma warning restore CA1034
@@ -134,8 +136,10 @@ public sealed class ExtensionReceiverTypeIdentityBugConditionPropertyTests : IDi
         new("System.Collections", "IEnumerable", "System.Linq"),
     ];
 
-    public static Arbitrary<InterfaceExtensionScenario> ArbitraryInterfaceExtensionScenario() =>
-        Gen.Elements(KnownInterfaceExtensionScenarios).ToArbitrary();
+    public static Arbitrary<InterfaceExtensionScenario> ArbitraryInterfaceExtensionScenario()
+    {
+        return Gen.Elements(KnownInterfaceExtensionScenarios).ToArbitrary();
+    }
 
     // ─── Model building ──────────────────────────────────────────────────
 

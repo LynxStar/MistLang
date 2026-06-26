@@ -41,7 +41,10 @@ public sealed class VoidCoalescingNonOptionalScenario
         FallbackValue = fallbackValue;
     }
 
-    public override string ToString() => $"{TypeName} x = {LiteralValue}; x ?? {FallbackValue} → MIST_TC_0041";
+    public override string ToString()
+    {
+        return $"{TypeName} x = {LiteralValue}; x ?? {FallbackValue} → MIST_TC_0041";
+    }
 }
 
 /// <summary>
@@ -66,7 +69,10 @@ public sealed class VoidCoalescingResultTypeScenario
         FallbackValue = fallbackValue;
     }
 
-    public override string ToString() => $"{TypeName}? x = {LiteralValue}; {TypeName} y = x ?? {FallbackValue} → no error";
+    public override string ToString()
+    {
+        return $"{TypeName}? x = {LiteralValue}; {TypeName} y = x ?? {FallbackValue} → no error";
+    }
 }
 
 // ─── Property Tests ─────────────────────────────────────────────────────────

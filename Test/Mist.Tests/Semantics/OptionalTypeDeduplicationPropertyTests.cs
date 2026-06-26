@@ -39,7 +39,10 @@ public sealed class VoidDeduplicationScenario
         Label = label;
     }
 
-    public override string ToString() => Label;
+    public override string ToString()
+    {
+        return Label;
+    }
 }
 
 // ─── Property Tests ─────────────────────────────────────────────────────────

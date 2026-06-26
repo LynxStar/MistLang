@@ -87,8 +87,10 @@ public class ParserOriginAssignmentPropertyTests
                select new MistSourceScenario(path, source);
     }
 
-    public static Arbitrary<MistSourceScenario> ArbitraryMistSourceScenario() =>
-        GenMistSourceScenario().ToArbitrary();
+    public static Arbitrary<MistSourceScenario> ArbitraryMistSourceScenario()
+    {
+        return GenMistSourceScenario().ToArbitrary();
+    }
 
     // ═══════════════════════════════════════════════════════════════════════
     // Helpers

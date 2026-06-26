@@ -160,17 +160,25 @@ public class AbstractSignatureMismatchPropertyTests
         return decl;
     }
 
-    private static MemberDeclarationNode WrapMethod(MethodDeclarationNode method) =>
-        new MethodMemberMemberDeclarationNode { Method = method };
+    private static MemberDeclarationNode WrapMethod(MethodDeclarationNode method)
+    {
+        return new MethodMemberMemberDeclarationNode { Method = method };
+    }
 
-    private static TypeDeclarationNode WrapAbstract(AbstractDeclarationNode decl) =>
-        new AbstractTypeTypeDeclarationNode { AbstractDeclaration = decl };
+    private static TypeDeclarationNode WrapAbstract(AbstractDeclarationNode decl)
+    {
+        return new AbstractTypeTypeDeclarationNode { AbstractDeclaration = decl };
+    }
 
-    private static TypeDeclarationNode WrapClass(ClassDeclarationNode decl) =>
-        new ClassTypeTypeDeclarationNode { ClassDeclaration = decl };
+    private static TypeDeclarationNode WrapClass(ClassDeclarationNode decl)
+    {
+        return new ClassTypeTypeDeclarationNode { ClassDeclaration = decl };
+    }
 
-    private static TypeDeclarationNode WrapStruct(StructDeclarationNode decl) =>
-        new StructTypeTypeDeclarationNode { StructDeclaration = decl };
+    private static TypeDeclarationNode WrapStruct(StructDeclarationNode decl)
+    {
+        return new StructTypeTypeDeclarationNode { StructDeclaration = decl };
+    }
 
     private static CompilationUnitNode MakeCompilationUnit(
         params TypeDeclarationNode[] typeDecls)
@@ -200,20 +208,30 @@ public class AbstractSignatureMismatchPropertyTests
 
     // ─── Primitive type reference helpers ─────────────────────────────────
 
-    private static TypeReferenceNode MakeIntTypeRef() =>
-        new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = new IntTypePrimitiveTypeNode() } };
+    private static TypeReferenceNode MakeIntTypeRef()
+    {
+        return new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = new IntTypePrimitiveTypeNode() } };
+    }
 
-    private static TypeReferenceNode MakeStringTypeRef() =>
-        new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = new StringTypePrimitiveTypeNode() } };
+    private static TypeReferenceNode MakeStringTypeRef()
+    {
+        return new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = new StringTypePrimitiveTypeNode() } };
+    }
 
-    private static TypeReferenceNode MakeBoolTypeRef() =>
-        new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = new BoolTypePrimitiveTypeNode() } };
+    private static TypeReferenceNode MakeBoolTypeRef()
+    {
+        return new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = new BoolTypePrimitiveTypeNode() } };
+    }
 
-    private static TypeReferenceNode MakeFloatTypeRef() =>
-        new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = new FloatTypePrimitiveTypeNode() } };
+    private static TypeReferenceNode MakeFloatTypeRef()
+    {
+        return new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = new FloatTypePrimitiveTypeNode() } };
+    }
 
-    private static TypeReferenceNode MakeVoidTypeRef() =>
-        new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() };
+    private static TypeReferenceNode MakeVoidTypeRef()
+    {
+        return new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() };
+    }
 
     // ─── Test data models ────────────────────────────────────────────────
 
@@ -388,14 +406,20 @@ public class AbstractSignatureMismatchPropertyTests
                    typeKind);
     }
 
-    public static Arbitrary<ReturnTypeMismatchScenario> ArbitraryReturnTypeMismatchScenario() =>
-        GenReturnTypeMismatchScenario().ToArbitrary();
+    public static Arbitrary<ReturnTypeMismatchScenario> ArbitraryReturnTypeMismatchScenario()
+    {
+        return GenReturnTypeMismatchScenario().ToArbitrary();
+    }
 
-    public static Arbitrary<ParamTypeMismatchScenario> ArbitraryParamTypeMismatchScenario() =>
-        GenParamTypeMismatchScenario().ToArbitrary();
+    public static Arbitrary<ParamTypeMismatchScenario> ArbitraryParamTypeMismatchScenario()
+    {
+        return GenParamTypeMismatchScenario().ToArbitrary();
+    }
 
-    public static Arbitrary<ParamCountMismatchScenario> ArbitraryParamCountMismatchScenario() =>
-        GenParamCountMismatchScenario().ToArbitrary();
+    public static Arbitrary<ParamCountMismatchScenario> ArbitraryParamCountMismatchScenario()
+    {
+        return GenParamCountMismatchScenario().ToArbitrary();
+    }
 
     // ─── Property tests ──────────────────────────────────────────────────
 

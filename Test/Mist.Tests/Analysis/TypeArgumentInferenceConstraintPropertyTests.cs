@@ -51,7 +51,10 @@ public sealed class ConstraintDiagnosticScenario
         Description = description;
     }
 
-    public override string ToString() => Description;
+    public override string ToString()
+    {
+        return Description;
+    }
 }
 
 /// <summary>
@@ -341,8 +344,10 @@ public sealed class TypeArgumentInferenceConstraintPropertyTests : IDisposable
             GenBaseClassConstraintViolation());
     }
 
-    public static Arbitrary<ConstraintDiagnosticScenario> ArbitraryConstraintDiagnosticScenario() =>
-        GenScenario().ToArbitrary();
+    public static Arbitrary<ConstraintDiagnosticScenario> ArbitraryConstraintDiagnosticScenario()
+    {
+        return GenScenario().ToArbitrary();
+    }
 
     // ─── Helpers ─────────────────────────────────────────────────────────
 

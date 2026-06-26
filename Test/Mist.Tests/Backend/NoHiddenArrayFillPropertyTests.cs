@@ -166,8 +166,10 @@ public sealed class NoHiddenArrayFillPropertyTests
         ArrayCreationPath Path,
         int Size)
     {
-        public override string ToString() =>
-            $"NoFillScenario(Path={Path}, Size={Size})";
+        public override string ToString()
+        {
+            return $"NoFillScenario(Path={Path}, Size={Size})";
+        }
     }
 
 #pragma warning restore CA1034
@@ -309,8 +311,10 @@ public sealed class NoHiddenArrayFillPropertyTests
 
     // ─── Arbitrary registration ──────────────────────────────────────────
 
-    public static Arbitrary<NoFillScenario> ArbitraryNoFillScenario() =>
-        GenNoFillScenario().ToArbitrary();
+    public static Arbitrary<NoFillScenario> ArbitraryNoFillScenario()
+    {
+        return GenNoFillScenario().ToArbitrary();
+    }
 
     // ═══════════════════════════════════════════════════════════════════════
     // Property 6: No hidden default-fill

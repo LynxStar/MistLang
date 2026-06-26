@@ -34,8 +34,10 @@ public class OwnershipV2RoundTripPropertyTests
 
     // ─── Arbitrary registration ───────────────────────────────────────────────
 
-    public static Arbitrary<OwnershipV2SourceScenario> ArbitraryOwnershipV2SourceScenario() =>
-        MistOwnershipV2Generator.GenOwnershipV2Source().ToArbitrary();
+    public static Arbitrary<OwnershipV2SourceScenario> ArbitraryOwnershipV2SourceScenario()
+    {
+        return MistOwnershipV2Generator.GenOwnershipV2Source().ToArbitrary();
+    }
 
     // ─── Helpers ───────────────────────────────────────────────────────────────
 

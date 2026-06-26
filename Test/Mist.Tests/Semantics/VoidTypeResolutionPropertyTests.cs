@@ -207,8 +207,10 @@ public class VoidTypeResolutionPropertyTests
                select new VoidTypeRefScenario(refKind, position, methodName, varName, paramName, genericTypeName);
     }
 
-    public static Arbitrary<VoidTypeRefScenario> ArbitraryScenario() =>
-        GenScenario().ToArbitrary();
+    public static Arbitrary<VoidTypeRefScenario> ArbitraryScenario()
+    {
+        return GenScenario().ToArbitrary();
+    }
 
     // ─── Scenario builders ───────────────────────────────────────────────
 

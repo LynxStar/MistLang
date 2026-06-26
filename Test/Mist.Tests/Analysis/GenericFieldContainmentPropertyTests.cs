@@ -180,11 +180,13 @@ public class GenericFieldContainmentPropertyTests
             }
         }
 
-        public override string ToString() =>
-            $"{Container} class {ClassName}<{TypeParamName}>" +
+        public override string ToString()
+        {
+            return $"{Container} class {ClassName}<{TypeParamName}>" +
             (Constraint != TypeParamConstraint.None ? $" where {TypeParamName} : {Constraint.ToString().ToLowerInvariant()}" : "") +
             $" {{ {TypeParamName} field; }}" +
             $" → {(ExpectsZeroDiagnostics ? "OK" : "DIAGNOSTIC")}";
+        }
     }
 
 #pragma warning restore CA1034
@@ -214,8 +216,10 @@ public class GenericFieldContainmentPropertyTests
                select new GenericFieldScenario(container, constraint, className, tpName);
     }
 
-    public static Arbitrary<GenericFieldScenario> ArbitraryScenario() =>
-        GenScenario().ToArbitrary();
+    public static Arbitrary<GenericFieldScenario> ArbitraryScenario()
+    {
+        return GenScenario().ToArbitrary();
+    }
 
     // ─── Source builders ─────────────────────────────────────────────────
 

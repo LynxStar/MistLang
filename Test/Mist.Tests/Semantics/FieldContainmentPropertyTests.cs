@@ -99,7 +99,10 @@ public sealed class FieldContainmentPropertyTests : IDisposable
         bool ExpectError,
         string Label)
     {
-        public override string ToString() => Label;
+        public override string ToString()
+        {
+            return Label;
+        }
     }
 
 #pragma warning restore CA1034
@@ -202,11 +205,15 @@ public sealed class FieldContainmentPropertyTests : IDisposable
             source, containerLabel, fieldLabel, expectError, label);
     }
 
-    public static Arbitrary<FieldContainmentScenario> ArbitraryFieldContainmentScenario() =>
-        GenScenario().ToArbitrary();
+    public static Arbitrary<FieldContainmentScenario> ArbitraryFieldContainmentScenario()
+    {
+        return GenScenario().ToArbitrary();
+    }
 
-    private static int CountFieldNotOwned(ImmutableArray<Diagnostic> diagnostics) =>
-        diagnostics.Count(d => d.Id.Value == FieldNotOwnedId);
+    private static int CountFieldNotOwned(ImmutableArray<Diagnostic> diagnostics)
+    {
+        return diagnostics.Count(d => d.Id.Value == FieldNotOwnedId);
+    }
 
     // ═══════════════════════════════════════════════════════════════════════
     // Property 1: Discipline-Compatibility Matrix

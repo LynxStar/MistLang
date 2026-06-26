@@ -60,7 +60,10 @@ public sealed class SwitchEmissionPropertyTests : IDisposable
 #pragma warning disable CA1034
     public record SwitchScenario(string MistBody, string ExpectedOutput, string Label)
     {
-        public override string ToString() => Label;
+        public override string ToString()
+        {
+            return Label;
+        }
     }
 #pragma warning restore CA1034
 

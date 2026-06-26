@@ -48,7 +48,10 @@ public sealed class GenericTargetTypedNewScenario
         Description = description;
     }
 
-    public override string ToString() => Description;
+    public override string ToString()
+    {
+        return Description;
+    }
 }
 
 /// <summary>
@@ -80,7 +83,10 @@ public sealed class MultiArgGenericScenario
         Description = description;
     }
 
-    public override string ToString() => Description;
+    public override string ToString()
+    {
+        return Description;
+    }
 }
 #pragma warning restore CA1034
 
@@ -255,11 +261,15 @@ class Program
 
     // ─── Arbitrary registration ─────────────────────────────────────────
 
-    public static Arbitrary<GenericTargetTypedNewScenario> ArbitraryGenericTargetTypedNewScenario() =>
-        GenSingleArgScenario().ToArbitrary();
+    public static Arbitrary<GenericTargetTypedNewScenario> ArbitraryGenericTargetTypedNewScenario()
+    {
+        return GenSingleArgScenario().ToArbitrary();
+    }
 
-    public static Arbitrary<MultiArgGenericScenario> ArbitraryMultiArgGenericScenario() =>
-        GenMultiArgScenario().ToArbitrary();
+    public static Arbitrary<MultiArgGenericScenario> ArbitraryMultiArgGenericScenario()
+    {
+        return GenMultiArgScenario().ToArbitrary();
+    }
 
     // ─── Helpers ────────────────────────────────────────────────────────
 

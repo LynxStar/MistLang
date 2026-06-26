@@ -27,7 +27,10 @@ public sealed class SwitchExpressionSourceScenario
         Description = description;
     }
 
-    public override string ToString() => Description;
+    public override string ToString()
+    {
+        return Description;
+    }
 }
 
 /// <summary>
@@ -67,61 +70,83 @@ public static class MistSwitchExpressionGenerator
     // ═══════════════════════════════════════════════════════════════════════
 
     /// <summary>Generates a constant pattern for a bool scrutinee.</summary>
-    private static Gen<string> GenBoolConstantPattern() =>
-        Gen.Elements("true", "false");
+    private static Gen<string> GenBoolConstantPattern()
+    {
+        return Gen.Elements("true", "false");
+    }
 
     /// <summary>Generates a constant pattern for an int scrutinee.</summary>
-    private static Gen<string> GenIntConstantPattern() =>
-        Gen.Elements(IntLiterals);
+    private static Gen<string> GenIntConstantPattern()
+    {
+        return Gen.Elements(IntLiterals);
+    }
 
     /// <summary>Generates a constant pattern for a string scrutinee.</summary>
-    private static Gen<string> GenStringConstantPattern() =>
-        Gen.Elements(StringLiterals);
+    private static Gen<string> GenStringConstantPattern()
+    {
+        return Gen.Elements(StringLiterals);
+    }
 
     /// <summary>Generates a type pattern for a union scrutinee (int | string).</summary>
-    private static Gen<string> GenUnionTypePattern() =>
-        from bindName in Gen.Elements("n", "s", "a", "b")
-        from typeName in Gen.Elements("int", "string")
-        select $"{typeName} {bindName}";
+    private static Gen<string> GenUnionTypePattern()
+    {
+        return from bindName in Gen.Elements("n", "s", "a", "b")
+               from typeName in Gen.Elements("int", "string")
+               select $"{typeName} {bindName}";
+    }
 
     /// <summary>Generates a var pattern (catch-all that binds).</summary>
-    private static Gen<string> GenVarPattern() =>
-        Gen.Elements("v", "w", "q").Select(name => $"var {name}");
+    private static Gen<string> GenVarPattern()
+    {
+        return Gen.Elements("v", "w", "q").Select(name => $"var {name}");
+    }
 
     /// <summary>Generates a discard pattern (var _ or bare _).</summary>
-    private static Gen<string> GenDiscardPattern() =>
-        Gen.Elements("var _", "_");
+    private static Gen<string> GenDiscardPattern()
+    {
+        return Gen.Elements("var _", "_");
+    }
 
     /// <summary>Generates a relational pattern for an int scrutinee.</summary>
-    private static Gen<string> GenRelationalPattern() =>
-        from op in Gen.Elements("<", ">", "<=", ">=")
-        from value in Gen.Choose(0, 100)
-        select $"{op} {value}";
+    private static Gen<string> GenRelationalPattern()
+    {
+        return from op in Gen.Elements("<", ">", "<=", ">=")
+               from value in Gen.Choose(0, 100)
+               select $"{op} {value}";
+    }
 
     /// <summary>Generates a logical (and) pattern for an int scrutinee.</summary>
-    private static Gen<string> GenLogicalAndPattern() =>
-        from lo in Gen.Choose(0, 49)
-        from hi in Gen.Choose(50, 100)
-        select $">= {lo} and <= {hi}";
+    private static Gen<string> GenLogicalAndPattern()
+    {
+        return from lo in Gen.Choose(0, 49)
+               from hi in Gen.Choose(50, 100)
+               select $">= {lo} and <= {hi}";
+    }
 
     /// <summary>Generates a property pattern for a string scrutinee.</summary>
-    private static Gen<string> GenPropertyPattern() =>
-        from propValue in Gen.Choose(0, 20)
-        from op in Gen.Elements("> ", "<= ", ">= ")
-        select "{ Length: " + op + propValue + " }";
+    private static Gen<string> GenPropertyPattern()
+    {
+        return from propValue in Gen.Choose(0, 20)
+               from op in Gen.Elements("> ", "<= ", ">= ")
+               select "{ Length: " + op + propValue + " }";
+    }
 
     /// <summary>Generates a list pattern for an int array scrutinee.</summary>
-    public static Gen<string> GenListPattern() =>
-        from first in Gen.Choose(0, 5)
-        select $"[{first}, ..]";
+    public static Gen<string> GenListPattern()
+    {
+        return from first in Gen.Choose(0, 5)
+               select $"[{first}, ..]";
+    }
 
     // ═══════════════════════════════════════════════════════════════════════
     // Arm generators (pattern + optional guard + result expression)
     // ═══════════════════════════════════════════════════════════════════════
 
     /// <summary>Generates a result expression (string literal for simplicity).</summary>
-    private static Gen<string> GenResultExpression() =>
-        Gen.Elements(StringLiterals);
+    private static Gen<string> GenResultExpression()
+    {
+        return Gen.Elements(StringLiterals);
+    }
 
     /// <summary>
     /// Generates a single switch arm source text for a bool scrutinee.
@@ -190,10 +215,12 @@ public static class MistSwitchExpressionGenerator
     /// <summary>
     /// Generates a catch-all arm (var _ or var x).
     /// </summary>
-    public static Gen<string> GenCatchAllArm() =>
-        from pattern in Gen.Frequency((3, GenDiscardPattern()), (1, GenVarPattern()))
-        from result in GenResultExpression()
-        select $"{pattern} => {result}";
+    public static Gen<string> GenCatchAllArm()
+    {
+        return from pattern in Gen.Frequency((3, GenDiscardPattern()), (1, GenVarPattern()))
+               from result in GenResultExpression()
+               select $"{pattern} => {result}";
+    }
 
     // ═══════════════════════════════════════════════════════════════════════
     // Switch expression generators (complete source scenarios)
@@ -398,6 +425,8 @@ public static class MistSwitchExpressionGenerator
     /// FsCheck Arbitrary for <see cref="SwitchExpressionSourceScenario"/>.
     /// Register with <c>[Property(Arbitrary = new[] { typeof(MistSwitchExpressionGenerator) })]</c>.
     /// </summary>
-    public static Arbitrary<SwitchExpressionSourceScenario> ArbitrarySwitchExpressionSourceScenario() =>
-        GenSwitchExpressionSource().ToArbitrary();
+    public static Arbitrary<SwitchExpressionSourceScenario> ArbitrarySwitchExpressionSourceScenario()
+    {
+        return GenSwitchExpressionSource().ToArbitrary();
+    }
 }

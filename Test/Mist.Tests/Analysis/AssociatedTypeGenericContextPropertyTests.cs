@@ -111,10 +111,12 @@ public class AssociatedTypeGenericContextPropertyTests
             SlotConstraintMethodName = slotConstraintMethodName;
         }
 
-        public override string ToString() =>
-            $"{TypeParamName}.{SlotName} in {Position} " +
+        public override string ToString()
+        {
+            return $"{TypeParamName}.{SlotName} in {Position} " +
             $"(abstract={AbstractName}, method={MethodName}" +
             (HasSlotConstraint ? $", constraint={SlotConstraintAbstractName}" : "") + ")";
+        }
     }
 
 #pragma warning restore CA1034
@@ -166,8 +168,10 @@ public class AssociatedTypeGenericContextPropertyTests
                    hasConstraint ? ConstraintMethodNames[constraintMethodIdx] : null);
     }
 
-    public static Arbitrary<GenericContextScenario> ArbitraryGenericContextScenario() =>
-        GenScenario().ToArbitrary();
+    public static Arbitrary<GenericContextScenario> ArbitraryGenericContextScenario()
+    {
+        return GenScenario().ToArbitrary();
+    }
 
     // ─── Source generation ───────────────────────────────────────────────
 

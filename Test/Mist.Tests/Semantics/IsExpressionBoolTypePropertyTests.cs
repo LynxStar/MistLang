@@ -29,8 +29,10 @@ public class IsExpressionBoolTypePropertyTests
 
     // ─── Helpers ─────────────────────────────────────────────────────────
 
-    private static Storm.Runtime.Token Tok(string lexeme) =>
-        MistTypeGenerator.MakeToken(lexeme);
+    private static Storm.Runtime.Token Tok(string lexeme)
+    {
+        return MistTypeGenerator.MakeToken(lexeme);
+    }
 
     private ISemanticModel BuildModel(CompilationUnitNode ast, string source = "")
     {
@@ -66,8 +68,10 @@ public class IsExpressionBoolTypePropertyTests
 
     public record IsExprBoolScenario(PatternKind Kind, string ScrutineeName, string ScrutineeType)
     {
-        public override string ToString() =>
-            $"{ScrutineeName} is {Kind} (scrutinee: {ScrutineeType})";
+        public override string ToString()
+        {
+            return $"{ScrutineeName} is {Kind} (scrutinee: {ScrutineeType})";
+        }
     }
 
 #pragma warning restore CA1034
@@ -99,13 +103,16 @@ public class IsExpressionBoolTypePropertyTests
 
     // ─── AST construction ────────────────────────────────────────────────
 
-    private static PrimitiveTypeNode MakePrimitiveType(string typeName) => typeName switch
+    private static PrimitiveTypeNode MakePrimitiveType(string typeName)
     {
-        "int" => new IntTypePrimitiveTypeNode(),
-        "string" => new StringTypePrimitiveTypeNode(),
-        "bool" => new BoolTypePrimitiveTypeNode(),
-        _ => new IntTypePrimitiveTypeNode(),
-    };
+        return typeName switch
+        {
+            "int" => new IntTypePrimitiveTypeNode(),
+            "string" => new StringTypePrimitiveTypeNode(),
+            "bool" => new BoolTypePrimitiveTypeNode(),
+            _ => new IntTypePrimitiveTypeNode(),
+        };
+    }
 
     private static StatementNode MakeScrutineeDecl(string typeName, string name)
     {

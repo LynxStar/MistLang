@@ -87,8 +87,10 @@ public sealed class InitializerArrayConstructionPropertyTests : IDisposable
         int Size,
         FnKind Fn)
     {
-        public override string ToString() =>
-            $"Scenario({Index}, {ElementType}, Size={Size}, {Fn})";
+        public override string ToString()
+        {
+            return $"Scenario({Index}, {ElementType}, Size={Size}, {Fn})";
+        }
     }
 
     // ─── Scenario generation ─────────────────────────────────────────────
@@ -187,13 +189,16 @@ public sealed class InitializerArrayConstructionPropertyTests : IDisposable
             """;
     }
 
-    private static string GetMistTypeName(ElementTypeKind kind) => kind switch
+    private static string GetMistTypeName(ElementTypeKind kind)
     {
-        ElementTypeKind.Int => "int",
-        ElementTypeKind.String => "string",
-        ElementTypeKind.UserClass => "Item",
-        _ => throw new ArgumentOutOfRangeException(nameof(kind))
-    };
+        return kind switch
+        {
+            ElementTypeKind.Int => "int",
+            ElementTypeKind.String => "string",
+            ElementTypeKind.UserClass => "Item",
+            _ => throw new ArgumentOutOfRangeException(nameof(kind))
+        };
+    }
 
     private static string BuildArrayExpression(Scenario scenario)
     {
@@ -202,8 +207,9 @@ public sealed class InitializerArrayConstructionPropertyTests : IDisposable
         return $"new Array<{elemType}, {scenario.Size}>({fnExpr})";
     }
 
-    private static string BuildFnExpression(Scenario scenario) =>
-        (scenario.ElementType, scenario.Fn) switch
+    private static string BuildFnExpression(Scenario scenario)
+    {
+        return (scenario.ElementType, scenario.Fn) switch
         {
             (ElementTypeKind.Int, FnKind.Identity) => "i => i",
             (ElementTypeKind.Int, FnKind.Computed) => "i => i * 10",
@@ -213,15 +219,18 @@ public sealed class InitializerArrayConstructionPropertyTests : IDisposable
             _ => throw new InvalidOperationException(
                 $"Unexpected fn kind for element type: {scenario.ElementType}, {scenario.Fn}")
         };
+    }
 
-    private static string BuildPrintExpression(Scenario scenario, string varName, int elementIndex) =>
-        scenario.ElementType switch
+    private static string BuildPrintExpression(Scenario scenario, string varName, int elementIndex)
+    {
+        return scenario.ElementType switch
         {
             ElementTypeKind.Int => $"{varName}[{elementIndex}]",
             ElementTypeKind.String => $"{varName}[{elementIndex}]",
             ElementTypeKind.UserClass => $"{varName}[{elementIndex}].Describe()",
             _ => throw new ArgumentOutOfRangeException()
         };
+    }
 
     // ─── Compile and run helper ──────────────────────────────────────────
 

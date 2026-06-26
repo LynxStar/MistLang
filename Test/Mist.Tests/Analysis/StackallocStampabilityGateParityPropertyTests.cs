@@ -35,8 +35,10 @@ public sealed record StampabilityParityScenario(
     string Category,
     bool ExpectStampable)
 {
-    public override string ToString() =>
-        $"T={ElementTypeName} category={Category} expectStampable={ExpectStampable}";
+    public override string ToString()
+    {
+        return $"T={ElementTypeName} category={Category} expectStampable={ExpectStampable}";
+    }
 }
 
 // ─── Property Tests ─────────────────────────────────────────────────────────

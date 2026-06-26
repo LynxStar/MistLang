@@ -27,8 +27,10 @@ public class PropertyRegistrationPropertyTests
 {
     // ─── Arbitrary registration ──────────────────────────────────────────
 
-    public static Arbitrary<PropertyDeclarationNode> ArbitraryPropertyDeclarationNode() =>
-        MistPropertyGenerator.GenPropertyDeclaration().ToArbitrary();
+    public static Arbitrary<PropertyDeclarationNode> ArbitraryPropertyDeclarationNode()
+    {
+        return MistPropertyGenerator.GenPropertyDeclaration().ToArbitrary();
+    }
 
     // ─── Helpers ─────────────────────────────────────────────────────────
 
@@ -212,8 +214,10 @@ public class PropertyRegistrationPropertyTests
 
     // ─── Indexer registration test ───────────────────────────────────────
 
-    public static Arbitrary<IndexerDeclarationNode> ArbitraryIndexerDeclarationNode() =>
-        MistPropertyGenerator.GenIndexerDeclaration().ToArbitrary();
+    public static Arbitrary<IndexerDeclarationNode> ArbitraryIndexerDeclarationNode()
+    {
+        return MistPropertyGenerator.GenIndexerDeclaration().ToArbitrary();
+    }
 
     [Property(
         MaxTest = 100,

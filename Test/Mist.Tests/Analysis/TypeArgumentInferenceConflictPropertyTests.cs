@@ -56,7 +56,10 @@ public sealed class ConflictingBindingScenario
         Description = description;
     }
 
-    public override string ToString() => Description;
+    public override string ToString()
+    {
+        return Description;
+    }
 }
 
 /// <summary>
@@ -246,8 +249,10 @@ public class TypeArgumentInferenceConflictPropertyTests
             GenDualConstructedTypeConflict());
     }
 
-    public static Arbitrary<ConflictingBindingScenario> ArbitraryConflictingBindingScenario() =>
-        GenScenario().ToArbitrary();
+    public static Arbitrary<ConflictingBindingScenario> ArbitraryConflictingBindingScenario()
+    {
+        return GenScenario().ToArbitrary();
+    }
 
     // ─── Property test ───────────────────────────────────────────────────
 

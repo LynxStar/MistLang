@@ -821,20 +821,25 @@ public sealed class ThisTierInferencePass
     /// Returns the maximum (most restrictive) of two this-tiers.
     /// </summary>
     private static ThisTier MaxTier(ThisTier a, ThisTier b)
-        => a >= b ? a : b;
+    {
+        return a >= b ? a : b;
+    }
 
     /// <summary>
     /// Formats a <see cref="ThisTier"/> value for diagnostic messages.
     /// </summary>
-    internal static string FormatTier(ThisTier tier) => tier switch
+    internal static string FormatTier(ThisTier tier)
     {
-        ThisTier.None => "none",
-        ThisTier.ReadonlyRef => "readonly ref",
-        ThisTier.Frozen => "frozen",
-        ThisTier.Borrowed => "borrowed",
-        ThisTier.Owned => "owned",
-        _ => tier.ToString().ToLowerInvariant(),
-    };
+        return tier switch
+        {
+            ThisTier.None => "none",
+            ThisTier.ReadonlyRef => "readonly ref",
+            ThisTier.Frozen => "frozen",
+            ThisTier.Borrowed => "borrowed",
+            ThisTier.Owned => "owned",
+            _ => tier.ToString().ToLowerInvariant(),
+        };
+    }
 
     // ── Diagnostic message builders ──────────────────────────────────────
 
@@ -843,9 +848,11 @@ public sealed class ThisTierInferencePass
     /// <c>with {tier}</c> annotation is less restrictive than the body requires
     /// (Req 17 AC 11).
     /// </summary>
-    internal static string ThisTierInsufficientMessage(string methodName, string declaredTier, string requiredTier) =>
-        $"Method '{methodName}' declares 'with {declaredTier}' but the body requires at least " +
+    internal static string ThisTierInsufficientMessage(string methodName, string declaredTier, string requiredTier)
+    {
+        return $"Method '{methodName}' declares 'with {declaredTier}' but the body requires at least " +
         $"'{requiredTier}' access to 'this' — owned-field operations in the body demand a higher tier.";
+    }
 
     /// <summary>
     /// Creates a diagnostic with source location information resolved from the AST node.

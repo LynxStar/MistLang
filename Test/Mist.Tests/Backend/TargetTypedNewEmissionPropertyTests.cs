@@ -54,7 +54,10 @@ public sealed class EmissionEquivalenceScenario
         ArgCount = argCount;
     }
 
-    public override string ToString() => Description;
+    public override string ToString()
+    {
+        return Description;
+    }
 }
 
 /// <summary>
@@ -160,27 +163,35 @@ public sealed class TargetTypedNewEmissionPropertyTests
                    0);
     }
 
-    public static Arbitrary<EmissionEquivalenceScenario> ArbitraryScenario() =>
-        Gen.OneOf(GenWithArgs(), GenWithArgsAndInitializer())
+    public static Arbitrary<EmissionEquivalenceScenario> ArbitraryScenario()
+    {
+        return Gen.OneOf(GenWithArgs(), GenWithArgsAndInitializer())
             .ToArbitrary();
+    }
 
     // ─── Source builders ────────────────────────────────────────────────
 
-    private static string BuildCtorParams(int argCount) => argCount switch
+    private static string BuildCtorParams(int argCount)
     {
-        1 => "int a",
-        2 => "int a, int b",
-        3 => "int a, int b, int c",
-        _ => "",
-    };
+        return argCount switch
+        {
+            1 => "int a",
+            2 => "int a, int b",
+            3 => "int a, int b, int c",
+            _ => "",
+        };
+    }
 
-    private static string BuildCtorArgs(int argCount) => argCount switch
+    private static string BuildCtorArgs(int argCount)
     {
-        1 => "1",
-        2 => "1, 2",
-        3 => "1, 2, 3",
-        _ => "",
-    };
+        return argCount switch
+        {
+            1 => "1",
+            2 => "1, 2",
+            3 => "1, 2, 3",
+            _ => "",
+        };
+    }
 
     private static string BuildClassWithCtor(string className, int argCount)
     {

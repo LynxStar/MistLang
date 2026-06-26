@@ -39,13 +39,15 @@ public class CastOperatorValidationPropertyTests
 
     // ─── Helpers ─────────────────────────────────────────────────────────
 
-    private static Storm.Runtime.Token Tok(string lexeme) =>
-        new(kind: 0,
+    private static Storm.Runtime.Token Tok(string lexeme)
+    {
+        return new(kind: 0,
             span: new Storm.Runtime.SourceSpan(0, lexeme.Length),
             start: new Storm.Runtime.LinePosition(1, 1),
             end: new Storm.Runtime.LinePosition(1, 1 + lexeme.Length),
             channel: Storm.Runtime.TokenChannel.Default,
             lexeme: lexeme);
+    }
 
     private ISemanticModel BuildModel(Storm.Runtime.SyntaxNode ast)
     {
@@ -82,9 +84,11 @@ public class CastOperatorValidationPropertyTests
         string TargetTypeName,
         bool IsStruct)
     {
-        public override string ToString() =>
-            $"{CastKind} operator {TargetTypeName}({SourceTypeName} value) " +
+        public override string ToString()
+        {
+            return $"{CastKind} operator {TargetTypeName}({SourceTypeName} value) " +
             $"in {(IsStruct ? "struct" : "class")} {EnclosingTypeName}";
+        }
     }
 
     /// <summary>
@@ -97,9 +101,11 @@ public class CastOperatorValidationPropertyTests
         string TargetTypeName,
         bool IsStruct)
     {
-        public override string ToString() =>
-            $"{CastKind} operator {TargetTypeName}({SourceTypeName} value) " +
+        public override string ToString()
+        {
+            return $"{CastKind} operator {TargetTypeName}({SourceTypeName} value) " +
             $"in {(IsStruct ? "struct" : "class")} {EnclosingTypeName}";
+        }
     }
 #pragma warning restore CA1034
 
@@ -146,11 +152,15 @@ public class CastOperatorValidationPropertyTests
                    castKind, names[0], names[1], names[2], isStruct);
     }
 
-    public static Arbitrary<ValidEnclosingTypeScenario> ArbitraryValidEnclosingTypeScenario() =>
-        GenValidScenario().ToArbitrary();
+    public static Arbitrary<ValidEnclosingTypeScenario> ArbitraryValidEnclosingTypeScenario()
+    {
+        return GenValidScenario().ToArbitrary();
+    }
 
-    public static Arbitrary<InvalidEnclosingTypeScenario> ArbitraryInvalidEnclosingTypeScenario() =>
-        GenInvalidScenario().ToArbitrary();
+    public static Arbitrary<InvalidEnclosingTypeScenario> ArbitraryInvalidEnclosingTypeScenario()
+    {
+        return GenInvalidScenario().ToArbitrary();
+    }
 
     // ─── AST construction helpers ────────────────────────────────────────
 
@@ -173,26 +183,32 @@ public class CastOperatorValidationPropertyTests
         return new AssignmentFormExpressionNode { Assignment = assign };
     }
 
-    private static CastOperatorKindNode MakeCastKindNode(string kind) =>
-        kind == "implicit"
+    private static CastOperatorKindNode MakeCastKindNode(string kind)
+    {
+        return kind == "implicit"
             ? new ImplicitCastCastOperatorKindNode()
             : (CastOperatorKindNode)new ExplicitCastCastOperatorKindNode();
+    }
 
-    private static TypeReferenceNode MakeNamedTypeRef(string name) =>
-        new TypeReferenceNode
+    private static TypeReferenceNode MakeNamedTypeRef(string name)
+    {
+        return new TypeReferenceNode
         {
             First = new NamedSingleTypeRefSingleTypeRefNode
             {
                 Name = new QualifiedIdentifierNode { IDENTIFIER = Tok(name) },
             }
         };
+    }
 
-    private static ParameterNode MakeParameter(string typeName, string paramName) =>
-        new()
+    private static ParameterNode MakeParameter(string typeName, string paramName)
+    {
+        return new()
         {
             Type = MakeNamedTypeRef(typeName),
             Name = Tok(paramName),
         };
+    }
 
     /// <summary>
     /// Builds a cast operator declaration with exactly one parameter.
@@ -232,8 +248,9 @@ public class CastOperatorValidationPropertyTests
     /// Creates an empty class declaration (used for auxiliary types that need
     /// to exist in the semantic model so type references resolve).
     /// </summary>
-    private static TypeDeclarationNode MakeEmptyClassDecl(string name) =>
-        new ClassTypeTypeDeclarationNode
+    private static TypeDeclarationNode MakeEmptyClassDecl(string name)
+    {
+        return new ClassTypeTypeDeclarationNode
         {
             ClassDeclaration = new ClassDeclarationNode
             {
@@ -241,6 +258,7 @@ public class CastOperatorValidationPropertyTests
                 Members = ImmutableArray<MemberDeclarationNode>.Empty,
             },
         };
+    }
 
     /// <summary>
     /// Builds a full compilation unit with:

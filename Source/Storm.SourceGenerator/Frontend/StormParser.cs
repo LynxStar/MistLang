@@ -79,7 +79,10 @@ namespace Storm.SourceGenerator.Frontend
                 return tok;
             }
 
-            private bool Check(StormTokenKind kind) => Current.Kind == kind;
+            private bool Check(StormTokenKind kind)
+            {
+                return Current.Kind == kind;
+            }
 
             private bool Match(StormTokenKind kind)
             {

@@ -47,7 +47,10 @@ public sealed class NewtypeMemberCloningPropertyTests
         int ExpectedMemberCount,
         string Description)
     {
-        public override string ToString() => Description;
+        public override string ToString()
+        {
+            return Description;
+        }
     }
 
 #pragma warning restore CA1034
@@ -149,8 +152,10 @@ public sealed class NewtypeMemberCloningPropertyTests
     }
 
     /// <summary>FsCheck Arbitrary registration.</summary>
-    public static Arbitrary<MemberCloningScenario> ArbitraryMemberCloningScenario() =>
-        GenScenario().ToArbitrary();
+    public static Arbitrary<MemberCloningScenario> ArbitraryMemberCloningScenario()
+    {
+        return GenScenario().ToArbitrary();
+    }
 
     // ─── Helpers ─────────────────────────────────────────────────────────
 

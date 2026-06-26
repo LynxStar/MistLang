@@ -341,8 +341,10 @@ public class StringLengthPropertyTests
 #pragma warning disable CA1034
     public record StringMethodCallScenario(string MethodName, string ExpectedReturnType)
     {
-        public override string ToString() =>
-            $"Method={MethodName}, ExpectedReturn={ExpectedReturnType}";
+        public override string ToString()
+        {
+            return $"Method={MethodName}, ExpectedReturn={ExpectedReturnType}";
+        }
     }
 
     /// <summary>
@@ -351,8 +353,10 @@ public class StringLengthPropertyTests
     /// </summary>
     public record PreservationScenario(string TargetType, string MethodName, string ExpectedReturnType)
     {
-        public override string ToString() =>
-            $"Target={TargetType}, Method={MethodName}, ExpectedReturn={ExpectedReturnType}";
+        public override string ToString()
+        {
+            return $"Target={TargetType}, Method={MethodName}, ExpectedReturn={ExpectedReturnType}";
+        }
     }
 #pragma warning restore CA1034
 

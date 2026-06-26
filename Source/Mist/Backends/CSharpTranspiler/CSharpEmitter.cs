@@ -4575,16 +4575,19 @@ internal sealed class CSharpSourceWriter
     /// <summary>
     /// Escapes a character for use in a C# character literal.
     /// </summary>
-    private static string EscapeChar(char c) => c switch
+    private static string EscapeChar(char c)
     {
-        '\0' => "\\0",
-        '\'' => "\\'",
-        '\\' => "\\\\",
-        '\n' => "\\n",
-        '\r' => "\\r",
-        '\t' => "\\t",
-        _ => c.ToString(),
-    };
+        return c switch
+        {
+            '\0' => "\\0",
+            '\'' => "\\'",
+            '\\' => "\\\\",
+            '\n' => "\\n",
+            '\r' => "\\r",
+            '\t' => "\\t",
+            _ => c.ToString(),
+        };
+    }
 
     /// <summary>
     /// Escapes a string for use in a C# string literal.
@@ -6539,8 +6542,10 @@ internal sealed class CSharpSourceWriter
         return false;
     }
 
-    private static bool IsIdentifierChar(char c) =>
-        char.IsLetterOrDigit(c) || c == '_';
+    private static bool IsIdentifierChar(char c)
+    {
+        return char.IsLetterOrDigit(c) || c == '_';
+    }
 
     /// <summary>
     /// Returns <c>true</c> if <paramref name="typeRef"/> is either
@@ -6824,10 +6829,13 @@ internal sealed class CSharpSourceWriter
     /// Checks if a C# type name is a known value type keyword.
     /// Used as a fallback when the semantic model can't determine the type kind.
     /// </summary>
-    private static bool IsKnownValueTypeKeyword(string typeName) => typeName is
+    private static bool IsKnownValueTypeKeyword(string typeName)
+    {
+        return typeName is
         "int" or "bool" or "float" or "double" or "long" or "short" or "byte"
         or "char" or "decimal" or "uint" or "ulong" or "ushort" or "sbyte"
         or "nint" or "nuint";
+    }
 
     /// <summary>
     /// Returns <c>true</c> if the parameter list contains a type reference that
@@ -9755,14 +9763,17 @@ internal sealed class CSharpSourceWriter
     /// Resolves through <see cref="ConstructedType"/> and <see cref="TypeAliasType"/> to check
     /// the flag on the underlying definition.
     /// </summary>
-    private static bool IsDisposableDrop(IType type) => type switch
+    private static bool IsDisposableDrop(IType type)
     {
-        ConstructedType ct => IsDisposableDrop(ct.GenericDefinition),
-        TypeAliasType alias => IsDisposableDrop(alias.UnderlyingType),
-        ClassType c => c.IsDisposableDrop,
-        StructType s => s.IsDisposableDrop,
-        _ => false,
-    };
+        return type switch
+        {
+            ConstructedType ct => IsDisposableDrop(ct.GenericDefinition),
+            TypeAliasType alias => IsDisposableDrop(alias.UnderlyingType),
+            ClassType c => c.IsDisposableDrop,
+            StructType s => s.IsDisposableDrop,
+            _ => false,
+        };
+    }
 
     private static string EmitChainedDropExpression(IType type, string baseExpr)
     {
@@ -12698,24 +12709,27 @@ internal sealed class CSharpSourceWriter
     /// Maps a Mist operator symbol to its C# operator method name per the
     /// .NET Common Language Specification naming convention.
     /// </summary>
-    private static string CSharpOperatorName(string op) => op switch
+    private static string CSharpOperatorName(string op)
     {
-        "+" => "op_Addition",
-        "-" => "op_Subtraction",
-        "*" => "op_Multiply",
-        "/" => "op_Division",
-        "%" => "op_Modulus",
-        "==" => "op_Equality",
-        "!=" => "op_Inequality",
-        "<" => "op_LessThan",
-        ">" => "op_GreaterThan",
-        "<=" => "op_LessThanOrEqual",
-        ">=" => "op_GreaterThanOrEqual",
-        "&&" => "op_LogicalAnd",
-        "||" => "op_LogicalOr",
-        "!" => "op_LogicalNot",
-        _ => $"op_Unknown_{op}",
-    };
+        return op switch
+        {
+            "+" => "op_Addition",
+            "-" => "op_Subtraction",
+            "*" => "op_Multiply",
+            "/" => "op_Division",
+            "%" => "op_Modulus",
+            "==" => "op_Equality",
+            "!=" => "op_Inequality",
+            "<" => "op_LessThan",
+            ">" => "op_GreaterThan",
+            "<=" => "op_LessThanOrEqual",
+            ">=" => "op_GreaterThanOrEqual",
+            "&&" => "op_LogicalAnd",
+            "||" => "op_LogicalOr",
+            "!" => "op_LogicalNot",
+            _ => $"op_Unknown_{op}",
+        };
+    }
 
     private string EmitPostfix(PostfixNode postfix)
     {

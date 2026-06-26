@@ -268,10 +268,12 @@ public sealed class VoidEmissionPropertyTests : IDisposable
         string MethodName,
         string VariableName)
     {
-        public override string ToString() =>
-            Context == VoidUsageContext.ValueConsumed
+        public override string ToString()
+        {
+            return Context == VoidUsageContext.ValueConsumed
                 ? $"var {VariableName} = {MethodName}(); // value consumed → MistVoid"
                 : $"{MethodName}(); // fire-and-forget → void";
+        }
     }
 
 #pragma warning restore CA1034
@@ -294,8 +296,10 @@ public sealed class VoidEmissionPropertyTests : IDisposable
                select new VoidEmissionScenario(context, methodName, varName);
     }
 
-    public static Arbitrary<VoidEmissionScenario> ArbitraryScenario() =>
-        GenScenario().ToArbitrary();
+    public static Arbitrary<VoidEmissionScenario> ArbitraryScenario()
+    {
+        return GenScenario().ToArbitrary();
+    }
 
     // ─── AST construction ────────────────────────────────────────────────
 

@@ -56,7 +56,10 @@ public sealed class InferredEmissionScenario
         MethodName = methodName;
     }
 
-    public override string ToString() => Description;
+    public override string ToString()
+    {
+        return Description;
+    }
 }
 
 /// <summary>
@@ -108,13 +111,16 @@ public sealed class TypeArgumentInferenceEmissionPropertyTests : IDisposable
     /// <summary>
     /// Returns a default literal value for the given Mist type name.
     /// </summary>
-    private static string DefaultValueFor(string typeName) => typeName switch
+    private static string DefaultValueFor(string typeName)
     {
-        "int" => "42",
-        "string" => "\"hello\"",
-        "bool" => "true",
-        _ => "0",
-    };
+        return typeName switch
+        {
+            "int" => "42",
+            "string" => "\"hello\"",
+            "bool" => "true",
+            _ => "0",
+        };
+    }
 
     // ─── Generators ──────────────────────────────────────────────────────
 
@@ -285,8 +291,10 @@ public sealed class TypeArgumentInferenceEmissionPropertyTests : IDisposable
             GenSameTypeParamMultiplePositions());
     }
 
-    public static Arbitrary<InferredEmissionScenario> ArbitraryInferredEmissionScenario() =>
-        GenScenario().ToArbitrary();
+    public static Arbitrary<InferredEmissionScenario> ArbitraryInferredEmissionScenario()
+    {
+        return GenScenario().ToArbitrary();
+    }
 
     // ─── Helpers ─────────────────────────────────────────────────────────
 

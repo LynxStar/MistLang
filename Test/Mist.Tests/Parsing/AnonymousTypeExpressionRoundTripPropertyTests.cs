@@ -28,7 +28,10 @@ public sealed class AnonymousTypeRoundTripScenario
         Description = description;
     }
 
-    public override string ToString() => Description;
+    public override string ToString()
+    {
+        return Description;
+    }
 }
 
 /// <summary>
@@ -49,8 +52,10 @@ public class AnonymousTypeExpressionRoundTripPropertyTests
 
     // ─── Arbitrary registration ──────────────────────────────────────────
 
-    public static Arbitrary<AnonymousTypeRoundTripScenario> ArbitraryScenario() =>
-        AnonymousTypeRoundTripGenerator.GenScenario().ToArbitrary();
+    public static Arbitrary<AnonymousTypeRoundTripScenario> ArbitraryScenario()
+    {
+        return AnonymousTypeRoundTripGenerator.GenScenario().ToArbitrary();
+    }
 
     // ─── Helpers ─────────────────────────────────────────────────────────
 
@@ -140,43 +145,57 @@ public static class AnonymousTypeRoundTripGenerator
 
     // ─── Value expression generators ────────────────────────────────────
 
-    private static Gen<string> GenIntExpr() =>
-        Gen.Choose(0, 999).Select(n => n.ToString());
+    private static Gen<string> GenIntExpr()
+    {
+        return Gen.Choose(0, 999).Select(n => n.ToString());
+    }
 
-    private static Gen<string> GenBoolExpr() =>
-        Gen.Elements("true", "false");
+    private static Gen<string> GenBoolExpr()
+    {
+        return Gen.Elements("true", "false");
+    }
 
-    private static Gen<string> GenStringExpr() =>
-        Gen.Elements("\"hello\"", "\"world\"", "\"test\"", "\"\"");
+    private static Gen<string> GenStringExpr()
+    {
+        return Gen.Elements("\"hello\"", "\"world\"", "\"test\"", "\"\"");
+    }
 
-    private static Gen<string> GenValueExpr() =>
-        Gen.OneOf(
+    private static Gen<string> GenValueExpr()
+    {
+        return Gen.OneOf(
             GenIntExpr(),
             GenBoolExpr(),
             GenStringExpr());
+    }
 
     // ─── Anonymous property generators ──────────────────────────────────
 
     /// <summary>
     /// Generates an explicit property assignment: <c>Name = expr</c>
     /// </summary>
-    private static Gen<string> GenExplicitProperty(int index) =>
-        from value in GenValueExpr()
-        select $"{PropertyNames[index % PropertyNames.Length]} = {value}";
+    private static Gen<string> GenExplicitProperty(int index)
+    {
+        return from value in GenValueExpr()
+               select $"{PropertyNames[index % PropertyNames.Length]} = {value}";
+    }
 
     /// <summary>
     /// Generates a projection from a simple identifier: <c>variable</c>
     /// </summary>
-    private static Gen<string> GenIdentifierProjection(int index) =>
-        Gen.Constant(IdentifierNames[index % IdentifierNames.Length]);
+    private static Gen<string> GenIdentifierProjection(int index)
+    {
+        return Gen.Constant(IdentifierNames[index % IdentifierNames.Length]);
+    }
 
     /// <summary>
     /// Generates a projection from a member access: <c>obj.Member</c>
     /// </summary>
-    private static Gen<string> GenMemberAccessProjection() =>
-        from objIdx in Gen.Choose(0, ObjectNames.Length - 1)
-        from memberIdx in Gen.Choose(0, MemberNames.Length - 1)
-        select $"{ObjectNames[objIdx]}.{MemberNames[memberIdx]}";
+    private static Gen<string> GenMemberAccessProjection()
+    {
+        return from objIdx in Gen.Choose(0, ObjectNames.Length - 1)
+               from memberIdx in Gen.Choose(0, MemberNames.Length - 1)
+               select $"{ObjectNames[objIdx]}.{MemberNames[memberIdx]}";
+    }
 
     // ─── Scenario generators ────────────────────────────────────────────
 

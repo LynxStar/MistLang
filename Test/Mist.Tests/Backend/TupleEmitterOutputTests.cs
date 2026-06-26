@@ -38,13 +38,15 @@ public sealed class TupleEmitterOutputTests : IDisposable
 
     // ─── Helpers ─────────────────────────────────────────────────────────
 
-    private static Storm.Runtime.Token MakeToken(string lexeme, int start = 0) =>
-        new(kind: 0,
+    private static Storm.Runtime.Token MakeToken(string lexeme, int start = 0)
+    {
+        return new(kind: 0,
             span: new Storm.Runtime.SourceSpan(start, lexeme.Length),
             start: new Storm.Runtime.LinePosition(1, 1),
             end: new Storm.Runtime.LinePosition(1, 1 + lexeme.Length),
             channel: Storm.Runtime.TokenChannel.Default,
             lexeme: lexeme);
+    }
 
     private ISemanticModel BuildModel(CompilationUnitNode ast, string source)
     {
@@ -90,11 +92,15 @@ public sealed class TupleEmitterOutputTests : IDisposable
         return new AssignmentFormExpressionNode { Assignment = assign };
     }
 
-    private static ExpressionNode MakeIdentifierExpression(string name) =>
-        WrapPrimaryAsExpression(new IdentifierExpressionPrimaryNode { Name = MakeToken(name) });
+    private static ExpressionNode MakeIdentifierExpression(string name)
+    {
+        return WrapPrimaryAsExpression(new IdentifierExpressionPrimaryNode { Name = MakeToken(name) });
+    }
 
-    private static ExpressionNode MakeIntLiteralExpression(string value = "0") =>
-        WrapPrimaryAsExpression(new IntegerLiteralExpressionPrimaryNode { IntegerLiteral = MakeToken(value) });
+    private static ExpressionNode MakeIntLiteralExpression(string value = "0")
+    {
+        return WrapPrimaryAsExpression(new IntegerLiteralExpressionPrimaryNode { IntegerLiteral = MakeToken(value) });
+    }
 
     private static ExpressionNode MakeMemberAccessExpression(string target, string member)
     {

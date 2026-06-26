@@ -53,7 +53,9 @@ public class TupleTypeCheckerDiagnosticTests
     }
 
     private static bool HasDiagnostic(ImmutableArray<Diagnostic> diagnostics, string id)
-        => diagnostics.Any(d => d.Id.Value == id);
+    {
+        return diagnostics.Any(d => d.Id.Value == id);
+    }
 
     // ─── Requirement 4.6: Arity mismatch ────────────────────────────────
 

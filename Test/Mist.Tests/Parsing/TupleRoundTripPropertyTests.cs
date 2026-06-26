@@ -98,17 +98,26 @@ public class TupleRoundTripPropertyTests
 
 public record TupleTypeRefSource(string Source)
 {
-    public override string ToString() => Source;
+    public override string ToString()
+    {
+        return Source;
+    }
 }
 
 public record TupleLiteralSource(string Source)
 {
-    public override string ToString() => Source;
+    public override string ToString()
+    {
+        return Source;
+    }
 }
 
 public record VarTupleDeconstructionSource(string Source)
 {
-    public override string ToString() => Source;
+    public override string ToString()
+    {
+        return Source;
+    }
 }
 
 // ─── Generator ──────────────────────────────────────────────────────────────
@@ -127,9 +136,20 @@ public static class MistTupleSourceGenerator
     private static readonly string[] IntLiterals =
         ["0", "1", "2", "42", "100"];
 
-    private static Gen<string> GenPrimitiveType() => Gen.Elements(PrimitiveTypes);
-    private static Gen<string> GenIdentifier() => Gen.Elements(IdentifierNames);
-    private static Gen<string> GenIntLiteral() => Gen.Elements(IntLiterals);
+    private static Gen<string> GenPrimitiveType()
+    {
+        return Gen.Elements(PrimitiveTypes);
+    }
+
+    private static Gen<string> GenIdentifier()
+    {
+        return Gen.Elements(IdentifierNames);
+    }
+
+    private static Gen<string> GenIntLiteral()
+    {
+        return Gen.Elements(IntLiterals);
+    }
 
     /// <summary>
     /// Generates a tuple type string like "(int, string)" or "(int x, bool y)".
@@ -192,24 +212,30 @@ public static class MistTupleSourceGenerator
 
     // ─── Arbitrary instances ────────────────────────────────────────────
 
-    public static Arbitrary<TupleTypeRefSource> ArbitraryTupleTypeRefSource() =>
-        (from tupleType in GenTupleTypeString()
-         from fieldName in GenIdentifier()
-         select new TupleTypeRefSource(WrapFieldDecl(tupleType, fieldName)))
+    public static Arbitrary<TupleTypeRefSource> ArbitraryTupleTypeRefSource()
+    {
+        return (from tupleType in GenTupleTypeString()
+                from fieldName in GenIdentifier()
+                select new TupleTypeRefSource(WrapFieldDecl(tupleType, fieldName)))
         .ToArbitrary();
+    }
 
-    public static Arbitrary<TupleLiteralSource> ArbitraryTupleLiteralSource() =>
-        (from tupleLiteral in GenTupleLiteralString()
-         select new TupleLiteralSource(
-             WrapInMethod($"var t = {tupleLiteral};")))
+    public static Arbitrary<TupleLiteralSource> ArbitraryTupleLiteralSource()
+    {
+        return (from tupleLiteral in GenTupleLiteralString()
+                select new TupleLiteralSource(
+                    WrapInMethod($"var t = {tupleLiteral};")))
         .ToArbitrary();
+    }
 
-    public static Arbitrary<VarTupleDeconstructionSource> ArbitraryVarTupleDeconstructionSource() =>
-        (from arity in Gen.Choose(2, 4)
-         from names in Gen.ArrayOf(GenIdentifier(), arity)
-         from tupleLiteral in GenTupleLiteralString()
-         let nameList = string.Join(", ", names.Select((n, i) => $"{n}{i}"))
-         select new VarTupleDeconstructionSource(
-             WrapInMethod($"var ({nameList}) = {tupleLiteral};")))
+    public static Arbitrary<VarTupleDeconstructionSource> ArbitraryVarTupleDeconstructionSource()
+    {
+        return (from arity in Gen.Choose(2, 4)
+                from names in Gen.ArrayOf(GenIdentifier(), arity)
+                from tupleLiteral in GenTupleLiteralString()
+                let nameList = string.Join(", ", names.Select((n, i) => $"{n}{i}"))
+                select new VarTupleDeconstructionSource(
+                    WrapInMethod($"var ({nameList}) = {tupleLiteral};")))
         .ToArbitrary();
+    }
 }

@@ -50,8 +50,10 @@ public class ScopeChainTraversalPropertyTests
         public int ChainDepth => SymbolCountsPerLevel.Count;
         public int TotalExpected => SymbolCountsPerLevel.Sum();
 
-        public override string ToString() =>
-            $"LookupAll(\"{TargetName}\") across {ChainDepth} levels: [{string.Join(", ", SymbolCountsPerLevel)}] = {TotalExpected} total";
+        public override string ToString()
+        {
+            return $"LookupAll(\"{TargetName}\") across {ChainDepth} levels: [{string.Join(", ", SymbolCountsPerLevel)}] = {TotalExpected} total";
+        }
     }
 #pragma warning restore CA1034
 

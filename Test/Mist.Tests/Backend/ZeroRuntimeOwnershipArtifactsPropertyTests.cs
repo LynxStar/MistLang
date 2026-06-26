@@ -92,7 +92,10 @@ public sealed class ZeroRuntimeOwnershipArtifactsPropertyTests : IDisposable
     /// </summary>
     public sealed record OwnershipProgram(string Source, string Label, bool ExpectsClone)
     {
-        public override string ToString() => Label;
+        public override string ToString()
+        {
+            return Label;
+        }
     }
 
 #pragma warning restore CA1034
@@ -298,8 +301,10 @@ public sealed class ZeroRuntimeOwnershipArtifactsPropertyTests : IDisposable
 
     // ─── Arbitrary instances ─────────────────────────────────────────────
 
-    public static Arbitrary<OwnershipProgram> ArbitraryOwnershipProgram() =>
-        GenOwnershipProgram().ToArbitrary();
+    public static Arbitrary<OwnershipProgram> ArbitraryOwnershipProgram()
+    {
+        return GenOwnershipProgram().ToArbitrary();
+    }
 
     // ─── Forbidden patterns ──────────────────────────────────────────────
 

@@ -15198,8 +15198,10 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         ArrayType arrayType,
         ISemanticModel model,
         DiagnosticBag diagnostics)
-        => ValidateLengthIndexRefinement(
-            indexSuffix, arrayType.KnownLength, arrayType.SymbolicLengthId, arrayType.DisplayName, model, diagnostics);
+    {
+        ValidateLengthIndexRefinement(
+                indexSuffix, arrayType.KnownLength, arrayType.SymbolicLengthId, arrayType.DisplayName, model, diagnostics);
+    }
 
     /// <summary>
     /// Validates the index argument against the Bounds predicate for a length-carrying

@@ -35,7 +35,10 @@ public sealed class ReadonlyFieldEmissionScenario
         Description = description;
     }
 
-    public override string ToString() => Description;
+    public override string ToString()
+    {
+        return Description;
+    }
 }
 
 /// <summary>
@@ -54,7 +57,10 @@ public sealed class ReadonlyPropertyInitEmissionScenario
         Description = description;
     }
 
-    public override string ToString() => Description;
+    public override string ToString()
+    {
+        return Description;
+    }
 }
 
 /// <summary>
@@ -73,7 +79,10 @@ public sealed class ReadonlyStructEmissionScenario
         Description = description;
     }
 
-    public override string ToString() => Description;
+    public override string ToString()
+    {
+        return Description;
+    }
 }
 
 /// <summary>
@@ -92,7 +101,10 @@ public sealed class ReadonlyStructMethodEmissionScenario
         Description = description;
     }
 
-    public override string ToString() => Description;
+    public override string ToString()
+    {
+        return Description;
+    }
 }
 
 // ─── Generators ─────────────────────────────────────────────────────────────
@@ -239,17 +251,25 @@ public sealed class ReadonlyEmissionPropertyTests : IDisposable
 
     // ─── Arbitrary registration ─────────────────────────────────────────
 
-    public static Arbitrary<ReadonlyFieldEmissionScenario> ArbitraryReadonlyFieldEmission() =>
-        ReadonlyEmissionGenerators.GenReadonlyFieldEmission().ToArbitrary();
+    public static Arbitrary<ReadonlyFieldEmissionScenario> ArbitraryReadonlyFieldEmission()
+    {
+        return ReadonlyEmissionGenerators.GenReadonlyFieldEmission().ToArbitrary();
+    }
 
-    public static Arbitrary<ReadonlyPropertyInitEmissionScenario> ArbitraryReadonlyPropertyInitEmission() =>
-        ReadonlyEmissionGenerators.GenReadonlyPropertyInitEmission().ToArbitrary();
+    public static Arbitrary<ReadonlyPropertyInitEmissionScenario> ArbitraryReadonlyPropertyInitEmission()
+    {
+        return ReadonlyEmissionGenerators.GenReadonlyPropertyInitEmission().ToArbitrary();
+    }
 
-    public static Arbitrary<ReadonlyStructEmissionScenario> ArbitraryReadonlyStructEmission() =>
-        ReadonlyEmissionGenerators.GenReadonlyStructEmission().ToArbitrary();
+    public static Arbitrary<ReadonlyStructEmissionScenario> ArbitraryReadonlyStructEmission()
+    {
+        return ReadonlyEmissionGenerators.GenReadonlyStructEmission().ToArbitrary();
+    }
 
-    public static Arbitrary<ReadonlyStructMethodEmissionScenario> ArbitraryReadonlyStructMethodEmission() =>
-        ReadonlyEmissionGenerators.GenReadonlyStructMethodEmission().ToArbitrary();
+    public static Arbitrary<ReadonlyStructMethodEmissionScenario> ArbitraryReadonlyStructMethodEmission()
+    {
+        return ReadonlyEmissionGenerators.GenReadonlyStructMethodEmission().ToArbitrary();
+    }
 
     // ─── Helpers ────────────────────────────────────────────────────────
 

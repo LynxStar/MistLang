@@ -42,47 +42,57 @@ public static class TupleTypeGenerator
     /// <summary>
     /// Generates a random leaf <see cref="IType"/> (one of the primitives).
     /// </summary>
-    private static Gen<IType> GenLeafType() =>
-        Gen.Elements(PrimitiveLeafTypes);
+    private static Gen<IType> GenLeafType()
+    {
+        return Gen.Elements(PrimitiveLeafTypes);
+    }
 
     /// <summary>
     /// Generates a random <see cref="IType"/> that may be a primitive or a
     /// nested <see cref="TupleType"/> (depth-limited to avoid unbounded recursion).
     /// </summary>
-    private static Gen<IType> GenElementType(int depth) =>
-        depth <= 0
+    private static Gen<IType> GenElementType(int depth)
+    {
+        return depth <= 0
             ? GenLeafType()
             : Gen.Frequency(
                 (3, GenLeafType()),
                 (1, GenTupleType(depth - 1).Select(t => (IType)t)));
+    }
 
     /// <summary>
     /// Generates an optional element name (null means unnamed).
     /// </summary>
-    private static Gen<string?> GenOptionalName() =>
-        Gen.Frequency(
+    private static Gen<string?> GenOptionalName()
+    {
+        return Gen.Frequency(
             (1, Gen.Constant<string?>(null)),
             (1, Gen.Elements(SampleNames).Select(n => (string?)n)));
+    }
 
     /// <summary>
     /// Generates a <see cref="TupleType"/> with arity 2–6, random element
     /// types, and optional element names.
     /// </summary>
     /// <param name="depth">Maximum nesting depth for nested tuple elements.</param>
-    public static Gen<TupleType> GenTupleType(int depth = 1) =>
-        from arity in Gen.Choose(2, 6)
-        from types in Gen.ArrayOf(GenElementType(depth), arity)
-        from names in Gen.ArrayOf(GenOptionalName(), arity)
-        let elementTypes = (IReadOnlyList<IType>)types
-        let elementNames = (IReadOnlyList<string?>)names
-        let hasAnyName = elementNames.Any(n => n is not null)
-        select new TupleType(
-            elementTypes,
-            hasAnyName ? elementNames : null);
+    public static Gen<TupleType> GenTupleType(int depth = 1)
+    {
+        return from arity in Gen.Choose(2, 6)
+               from types in Gen.ArrayOf(GenElementType(depth), arity)
+               from names in Gen.ArrayOf(GenOptionalName(), arity)
+               let elementTypes = (IReadOnlyList<IType>)types
+               let elementNames = (IReadOnlyList<string?>)names
+               let hasAnyName = elementNames.Any(n => n is not null)
+               select new TupleType(
+                   elementTypes,
+                   hasAnyName ? elementNames : null);
+    }
 
     /// <summary>
     /// Provides an <see cref="Arbitrary{TupleType}"/> for FsCheck discovery.
     /// </summary>
-    public static Arbitrary<TupleType> ArbitraryTupleType() =>
-        GenTupleType().ToArbitrary();
+    public static Arbitrary<TupleType> ArbitraryTupleType()
+    {
+        return GenTupleType().ToArbitrary();
+    }
 }

@@ -11,8 +11,15 @@ public class SimpleClass
     public SimpleClass() { }
     public SimpleClass(int value) => Value = value;
 
-    public int GetValue() => Value;
-    public void SetValue(int value) => Value = value;
+    public int GetValue()
+    {
+        return Value;
+    }
+
+    public void SetValue(int value)
+    {
+        Value = value;
+    }
 }
 
 /// <summary>
@@ -29,7 +36,10 @@ public struct SimpleStruct
         Y = y;
     }
 
-    public int Sum() => X + Y;
+    public int Sum()
+    {
+        return X + Y;
+    }
 }
 
 /// <summary>

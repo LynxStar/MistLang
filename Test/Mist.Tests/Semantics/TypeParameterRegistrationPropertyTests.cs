@@ -172,11 +172,15 @@ public class TypeParameterRegistrationPropertyTests
                select new GenericMethodDecl(className, methodName, typeParams);
     }
 
-    public static Arbitrary<GenericTypeDecl> ArbitraryGenericTypeDecl() =>
-        GenGenericTypeDecl().ToArbitrary();
+    public static Arbitrary<GenericTypeDecl> ArbitraryGenericTypeDecl()
+    {
+        return GenGenericTypeDecl().ToArbitrary();
+    }
 
-    public static Arbitrary<GenericMethodDecl> ArbitraryGenericMethodDecl() =>
-        GenGenericMethodDecl().ToArbitrary();
+    public static Arbitrary<GenericMethodDecl> ArbitraryGenericMethodDecl()
+    {
+        return GenGenericMethodDecl().ToArbitrary();
+    }
 
     // ─── Property tests ──────────────────────────────────────────────────
 

@@ -177,7 +177,10 @@ public class RegexPrettyPrinterRoundTripTests
 #pragma warning disable CA1034
     public record RegexRoundTripScenario(string Source, string Position)
     {
-        public override string ToString() => $"[{Position}] {Source}";
+        public override string ToString()
+        {
+            return $"[{Position}] {Source}";
+        }
     }
 #pragma warning restore CA1034
 

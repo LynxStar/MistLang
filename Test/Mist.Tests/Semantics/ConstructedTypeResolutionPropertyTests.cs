@@ -244,14 +244,20 @@ public class ConstructedTypeResolutionPropertyTests
                    outerName, innerName, holderName, fieldName, primitive);
     }
 
-    public static Arbitrary<ConcreteConstructedTypeScenario> ArbitraryConcreteScenario() =>
-        GenConcreteScenario().ToArbitrary();
+    public static Arbitrary<ConcreteConstructedTypeScenario> ArbitraryConcreteScenario()
+    {
+        return GenConcreteScenario().ToArbitrary();
+    }
 
-    public static Arbitrary<TypeParamConstructedTypeScenario> ArbitraryTypeParamScenario() =>
-        GenTypeParamScenario().ToArbitrary();
+    public static Arbitrary<TypeParamConstructedTypeScenario> ArbitraryTypeParamScenario()
+    {
+        return GenTypeParamScenario().ToArbitrary();
+    }
 
-    public static Arbitrary<NestedConstructedTypeScenario> ArbitraryNestedScenario() =>
-        GenNestedScenario().ToArbitrary();
+    public static Arbitrary<NestedConstructedTypeScenario> ArbitraryNestedScenario()
+    {
+        return GenNestedScenario().ToArbitrary();
+    }
 
     // ─── Property tests ──────────────────────────────────────────────────
 

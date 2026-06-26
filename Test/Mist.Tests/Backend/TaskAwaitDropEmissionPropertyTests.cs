@@ -70,7 +70,10 @@ public sealed class TaskAwaitDropScenario
         Description = description;
     }
 
-    public override string ToString() => Description;
+    public override string ToString()
+    {
+        return Description;
+    }
 }
 
 // ─── Generators ─────────────────────────────────────────────────────────────
@@ -212,8 +215,10 @@ public sealed class TaskAwaitDropEmissionPropertyTests : IDisposable
 
     // ─── Arbitrary registration ─────────────────────────────────────────
 
-    public static Arbitrary<TaskAwaitDropScenario> ArbitraryTaskAwaitDropScenario() =>
-        TaskAwaitDropGenerators.GenTaskAwaitDropScenario().ToArbitrary();
+    public static Arbitrary<TaskAwaitDropScenario> ArbitraryTaskAwaitDropScenario()
+    {
+        return TaskAwaitDropGenerators.GenTaskAwaitDropScenario().ToArbitrary();
+    }
 
     // ─── Helpers ─────────────────────────────────────────────────────────
 

@@ -64,8 +64,10 @@ public sealed class WithTierParsingTests
     /// <summary>
     /// Finds a method symbol by name in the semantic model and returns it cast to <see cref="Symbol"/>.
     /// </summary>
-    private static Symbol FindMethod(ISemanticModel model, string methodName) =>
-        (Symbol)model.AllSymbols.First(s => s.Name == methodName && s.Kind == SymbolKind.Method);
+    private static Symbol FindMethod(ISemanticModel model, string methodName)
+    {
+        return (Symbol)model.AllSymbols.First(s => s.Name == methodName && s.Kind == SymbolKind.Method);
+    }
 
     // ─── with borrowed ───────────────────────────────────────────────────
 

@@ -140,8 +140,10 @@ public class UnknownWideningPropertyTests
         IReadOnlyList<IType> SourceArgs,
         int UnknownMask)
     {
-        public override string ToString() =>
-            $"{Definition.DisplayName}<{string.Join(", ", SourceArgs.Select(a => a.DisplayName))}> → mask 0b{Convert.ToString(UnknownMask, 2)}";
+        public override string ToString()
+        {
+            return $"{Definition.DisplayName}<{string.Join(", ", SourceArgs.Select(a => a.DisplayName))}> → mask 0b{Convert.ToString(UnknownMask, 2)}";
+        }
     }
 
     /// <summary>
@@ -156,8 +158,10 @@ public class UnknownWideningPropertyTests
         IReadOnlyList<IType> SourceArgs,
         int UnknownMask)
     {
-        public override string ToString() =>
-            $"{Definition.DisplayName}<{string.Join(", ", SourceArgs.Select(a => a.DisplayName))}> → mask 0b{Convert.ToString(UnknownMask, 2)}";
+        public override string ToString()
+        {
+            return $"{Definition.DisplayName}<{string.Join(", ", SourceArgs.Select(a => a.DisplayName))}> → mask 0b{Convert.ToString(UnknownMask, 2)}";
+        }
     }
 
     /// <summary>
@@ -172,8 +176,10 @@ public class UnknownWideningPropertyTests
         IReadOnlyList<IType> TargetArgs,
         int UnknownMask)
     {
-        public override string ToString() =>
-            $"{Definition.DisplayName}<…> (source mask 0b{Convert.ToString(UnknownMask, 2)}) → {Definition.DisplayName}<{string.Join(", ", TargetArgs.Select(a => a.DisplayName))}>";
+        public override string ToString()
+        {
+            return $"{Definition.DisplayName}<…> (source mask 0b{Convert.ToString(UnknownMask, 2)}) → {Definition.DisplayName}<{string.Join(", ", TargetArgs.Select(a => a.DisplayName))}>";
+        }
     }
 #pragma warning restore CA1034
 

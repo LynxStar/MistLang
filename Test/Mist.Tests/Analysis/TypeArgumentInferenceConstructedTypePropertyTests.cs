@@ -114,7 +114,10 @@ public class TypeArgumentInferenceConstructedTypePropertyTests
             Description = description;
         }
 
-        public override string ToString() => Description;
+        public override string ToString()
+        {
+            return Description;
+        }
     }
 #pragma warning restore CA1034
 
@@ -317,8 +320,10 @@ public class TypeArgumentInferenceConstructedTypePropertyTests
             GenNestedMultiParamSymmetric());
     }
 
-    public static Arbitrary<ConstructedTypeScenario> ArbitraryConstructedTypeScenario() =>
-        GenScenario().ToArbitrary();
+    public static Arbitrary<ConstructedTypeScenario> ArbitraryConstructedTypeScenario()
+    {
+        return GenScenario().ToArbitrary();
+    }
 
     // ─── Property test ───────────────────────────────────────────────────
 
@@ -388,13 +393,17 @@ public class TypeArgumentInferenceConstructedTypePropertyTests
 
     // ─── Formatting helpers ──────────────────────────────────────────────
 
-    private static string FormatList(IReadOnlyList<string>? items) =>
-        items is null ? "none" : string.Join(", ", items);
+    private static string FormatList(IReadOnlyList<string>? items)
+    {
+        return items is null ? "none" : string.Join(", ", items);
+    }
 
     private static string FormatConflicts(
-        IReadOnlyList<(string TypeParameter, IType First, IType Second)>? conflicts) =>
-        conflicts is null
+        IReadOnlyList<(string TypeParameter, IType First, IType Second)>? conflicts)
+    {
+        return conflicts is null
             ? "none"
             : string.Join("; ", conflicts.Select(c =>
                 $"{c.TypeParameter}: {c.First.DisplayName} vs {c.Second.DisplayName}"));
+    }
 }

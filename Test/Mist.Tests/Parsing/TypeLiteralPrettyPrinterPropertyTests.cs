@@ -38,23 +38,34 @@ public class TypeLiteralPrettyPrinterPropertyTests
 #pragma warning disable CA1034
     public record RoundTripTestCase(string Keyword, string PositionLabel, string Source)
     {
-        public override string ToString() => $"{Keyword} in {PositionLabel}";
+        public override string ToString()
+        {
+            return $"{Keyword} in {PositionLabel}";
+        }
     }
 #pragma warning restore CA1034
 
     // ─── Source builders for expression positions ─────────────────────────
 
-    private static string BuildVarInitializer(string keyword) =>
-        $"class Program {{\n    public static void Main() {{\n        var x = {keyword};\n    }}\n}}";
+    private static string BuildVarInitializer(string keyword)
+    {
+        return $"class Program {{\n    public static void Main() {{\n        var x = {keyword};\n    }}\n}}";
+    }
 
-    private static string BuildMethodArgument(string keyword) =>
-        $"class Program {{\n    public static void Main() {{\n        Foo({keyword});\n    }}\n    static void Foo(int t) {{\n    }}\n}}";
+    private static string BuildMethodArgument(string keyword)
+    {
+        return $"class Program {{\n    public static void Main() {{\n        Foo({keyword});\n    }}\n    static void Foo(int t) {{\n    }}\n}}";
+    }
 
-    private static string BuildReturnValue(string keyword) =>
-        $"class Program {{\n    public static int GetValue() {{\n        return {keyword};\n    }}\n    public static void Main() {{\n    }}\n}}";
+    private static string BuildReturnValue(string keyword)
+    {
+        return $"class Program {{\n    public static int GetValue() {{\n        return {keyword};\n    }}\n    public static void Main() {{\n    }}\n}}";
+    }
 
-    private static string BuildAssignmentRhs(string keyword) =>
-        $"class Program {{\n    public static void Main() {{\n        var x = int;\n        x = {keyword};\n    }}\n}}";
+    private static string BuildAssignmentRhs(string keyword)
+    {
+        return $"class Program {{\n    public static void Main() {{\n        var x = int;\n        x = {keyword};\n    }}\n}}";
+    }
 
     private delegate string SourceBuilder(string keyword);
 

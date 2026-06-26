@@ -16,8 +16,10 @@ namespace Mist.Tests.Generators;
 /// </summary>
 public static class MistAstGenerator
 {
-    private static Storm.Runtime.Token Tok(string lexeme) =>
-        MistTypeGenerator.MakeToken(lexeme);
+    private static Storm.Runtime.Token Tok(string lexeme)
+    {
+        return MistTypeGenerator.MakeToken(lexeme);
+    }
 
     // ═══════════════════════════════════════════════════════════════════════
     // Expression generators
@@ -57,51 +59,65 @@ public static class MistAstGenerator
     // ─── Literal expressions ─────────────────────────────────────────────
 
     /// <summary>Generates an integer literal expression with a random non-negative value.</summary>
-    public static Gen<ExpressionNode> GenIntLiteral() =>
-        Gen.Choose(0, 1000).Select(n =>
+    public static Gen<ExpressionNode> GenIntLiteral()
+    {
+        return Gen.Choose(0, 1000).Select(n =>
             WrapPrimary(new IntegerLiteralExpressionPrimaryNode
             {
                 IntegerLiteral = Tok(n.ToString()),
             }));
+    }
 
     /// <summary>Generates a bool literal expression.</summary>
-    public static Gen<ExpressionNode> GenBoolLiteral() =>
-        Gen.Elements(true, false).Select(b =>
+    public static Gen<ExpressionNode> GenBoolLiteral()
+    {
+        return Gen.Elements(true, false).Select(b =>
             WrapPrimary(b
                 ? (PrimaryNode)new TrueLiteralExpressionPrimaryNode()
                 : new FalseLiteralExpressionPrimaryNode()));
+    }
 
     /// <summary>Generates a string literal expression.</summary>
-    public static Gen<ExpressionNode> GenStringLiteral() =>
-        Gen.Elements("\"hello\"", "\"world\"", "\"test\"", "\"\"").Select(s =>
+    public static Gen<ExpressionNode> GenStringLiteral()
+    {
+        return Gen.Elements("\"hello\"", "\"world\"", "\"test\"", "\"\"").Select(s =>
             WrapPrimary(new StringLiteralExpressionPrimaryNode
             {
                 StringLiteral = Tok(s),
             }));
+    }
 
     /// <summary>Generates a char literal expression.</summary>
-    public static Gen<ExpressionNode> GenCharLiteral() =>
-        Gen.Elements("'a'", "'b'", "'z'", "'0'").Select(c =>
+    public static Gen<ExpressionNode> GenCharLiteral()
+    {
+        return Gen.Elements("'a'", "'b'", "'z'", "'0'").Select(c =>
             WrapPrimary(new CharLiteralExpressionPrimaryNode
             {
                 CharLiteral = Tok(c),
             }));
+    }
 
     /// <summary>Generates a float literal expression.</summary>
-    public static Gen<ExpressionNode> GenFloatLiteral() =>
-        Gen.Elements("1.0", "3.14", "0.5", "99.9").Select(f =>
+    public static Gen<ExpressionNode> GenFloatLiteral()
+    {
+        return Gen.Elements("1.0", "3.14", "0.5", "99.9").Select(f =>
             WrapPrimary(new FloatLiteralExpressionPrimaryNode
             {
                 FloatLiteral = Tok(f),
             }));
+    }
 
     /// <summary>Generates an identifier expression referencing a given name.</summary>
-    public static ExpressionNode MakeIdentifierExpr(string name) =>
-        WrapPrimary(new IdentifierExpressionPrimaryNode { Name = Tok(name) });
+    public static ExpressionNode MakeIdentifierExpr(string name)
+    {
+        return WrapPrimary(new IdentifierExpressionPrimaryNode { Name = Tok(name) });
+    }
 
     /// <summary>Generates a random identifier expression from a pool of names.</summary>
-    public static Gen<ExpressionNode> GenIdentifierExpr() =>
-        Gen.Elements("x", "y", "z", "a", "b").Select(MakeIdentifierExpr);
+    public static Gen<ExpressionNode> GenIdentifierExpr()
+    {
+        return Gen.Elements("x", "y", "z", "a", "b").Select(MakeIdentifierExpr);
+    }
 
     // ─── Compound expressions ────────────────────────────────────────────
 

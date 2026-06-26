@@ -30,12 +30,18 @@ public sealed class NamespaceMergingPropertyTests
 #pragma warning disable CA1034
     public record ValidNamespaceName(string Value)
     {
-        public override string ToString() => Value;
+        public override string ToString()
+        {
+            return Value;
+        }
     }
 
     public record ValidNamespaceRoot(string Value)
     {
-        public override string ToString() => Value;
+        public override string ToString()
+        {
+            return Value;
+        }
     }
 #pragma warning restore CA1034
 

@@ -113,8 +113,9 @@ public class AdhocRefinementEnforcementPropertyTests
 
         public bool ShouldAccept => Satisfies(ArgumentValue, Operator, Threshold);
 
-        public string ToSource() =>
-            $$"""
+        public string ToSource()
+        {
+            return $$"""
             class Container<Size:int> where Size {{Operator}} {{Threshold}} { }
             class Program {
                 public static void Main() {
@@ -122,9 +123,12 @@ public class AdhocRefinementEnforcementPropertyTests
                 }
             }
             """;
+        }
 
-        public override string ToString() =>
-            $"Container<Size:int> where Size {Operator} {Threshold}, arg={ArgumentValue} → {(ShouldAccept ? "accept" : "reject")}";
+        public override string ToString()
+        {
+            return $"Container<Size:int> where Size {Operator} {Threshold}, arg={ArgumentValue} → {(ShouldAccept ? "accept" : "reject")}";
+        }
     }
 
     /// <summary>
@@ -146,8 +150,9 @@ public class AdhocRefinementEnforcementPropertyTests
 
         public bool ShouldAccept => Satisfies(ArgumentValue, Operator, Threshold);
 
-        public string ToSource() =>
-            $$"""
+        public string ToSource()
+        {
+            return $$"""
             class Program {
                 void Process(int value) where value {{Operator}} {{Threshold}} { }
                 public static void Main() {
@@ -156,9 +161,12 @@ public class AdhocRefinementEnforcementPropertyTests
                 }
             }
             """;
+        }
 
-        public override string ToString() =>
-            $"Process(int value) where value {Operator} {Threshold}, arg={ArgumentValue} → {(ShouldAccept ? "accept" : "reject")}";
+        public override string ToString()
+        {
+            return $"Process(int value) where value {Operator} {Threshold}, arg={ArgumentValue} → {(ShouldAccept ? "accept" : "reject")}";
+        }
     }
 
     /// <summary>
@@ -180,8 +188,9 @@ public class AdhocRefinementEnforcementPropertyTests
 
         public bool ShouldAccept => Satisfies(ArgumentValue, Operator, Threshold);
 
-        public string ToSource() =>
-            $$"""
+        public string ToSource()
+        {
+            return $$"""
             class Widget {
                 Widget(int size) where size {{Operator}} {{Threshold}} { }
             }
@@ -191,9 +200,12 @@ public class AdhocRefinementEnforcementPropertyTests
                 }
             }
             """;
+        }
 
-        public override string ToString() =>
-            $"Widget(int size) where size {Operator} {Threshold}, arg={ArgumentValue} → {(ShouldAccept ? "accept" : "reject")}";
+        public override string ToString()
+        {
+            return $"Widget(int size) where size {Operator} {Threshold}, arg={ArgumentValue} → {(ShouldAccept ? "accept" : "reject")}";
+        }
     }
 
     /// <summary>
@@ -215,8 +227,9 @@ public class AdhocRefinementEnforcementPropertyTests
 
         public bool ShouldAccept => Satisfies(ArgumentValue, Operator, Threshold);
 
-        public string ToSource() =>
-            $$"""
+        public string ToSource()
+        {
+            return $$"""
             class Collection {
                 int this[int index] where index {{Operator}} {{Threshold}} { get { return 0; } }
             }
@@ -227,9 +240,12 @@ public class AdhocRefinementEnforcementPropertyTests
                 }
             }
             """;
+        }
 
-        public override string ToString() =>
-            $"this[int index] where index {Operator} {Threshold}, arg={ArgumentValue} → {(ShouldAccept ? "accept" : "reject")}";
+        public override string ToString()
+        {
+            return $"this[int index] where index {Operator} {Threshold}, arg={ArgumentValue} → {(ShouldAccept ? "accept" : "reject")}";
+        }
     }
 
 #pragma warning restore CA1034
@@ -270,17 +286,25 @@ public class AdhocRefinementEnforcementPropertyTests
                select new IndexerParamScenario(op, threshold, argValue);
     }
 
-    public static Arbitrary<DependentArgScenario> ArbitraryDependentArgScenario() =>
-        GenDependentArgScenario().ToArbitrary();
+    public static Arbitrary<DependentArgScenario> ArbitraryDependentArgScenario()
+    {
+        return GenDependentArgScenario().ToArbitrary();
+    }
 
-    public static Arbitrary<MethodParamScenario> ArbitraryMethodParamScenario() =>
-        GenMethodParamScenario().ToArbitrary();
+    public static Arbitrary<MethodParamScenario> ArbitraryMethodParamScenario()
+    {
+        return GenMethodParamScenario().ToArbitrary();
+    }
 
-    public static Arbitrary<ConstructorParamScenario> ArbitraryConstructorParamScenario() =>
-        GenConstructorParamScenario().ToArbitrary();
+    public static Arbitrary<ConstructorParamScenario> ArbitraryConstructorParamScenario()
+    {
+        return GenConstructorParamScenario().ToArbitrary();
+    }
 
-    public static Arbitrary<IndexerParamScenario> ArbitraryIndexerParamScenario() =>
-        GenIndexerParamScenario().ToArbitrary();
+    public static Arbitrary<IndexerParamScenario> ArbitraryIndexerParamScenario()
+    {
+        return GenIndexerParamScenario().ToArbitrary();
+    }
 
     // ─── Property Tests ──────────────────────────────────────────────────
 

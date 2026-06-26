@@ -153,8 +153,10 @@ public sealed class ProjectConfigurationRoundTripPropertyTests
     // Arbitrary
     // ═══════════════════════════════════════════════════════════════════════
 
-    public static Arbitrary<ProjectConfiguration> ArbProjectConfiguration() =>
-        GenProjectConfiguration().ToArbitrary();
+    public static Arbitrary<ProjectConfiguration> ArbProjectConfiguration()
+    {
+        return GenProjectConfiguration().ToArbitrary();
+    }
 
     // ═══════════════════════════════════════════════════════════════════════
     // Property test

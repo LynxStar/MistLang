@@ -43,11 +43,15 @@ public class LambdaPrecedencePropertyTests
 
     // ─── Generators ──────────────────────────────────────────────────────────
 
-    public static Arbitrary<LambdaAssignmentRhsScenario> ArbitraryLambdaAssignmentRhsScenario() =>
-        GenAssignmentRhs().ToArbitrary();
+    public static Arbitrary<LambdaAssignmentRhsScenario> ArbitraryLambdaAssignmentRhsScenario()
+    {
+        return GenAssignmentRhs().ToArbitrary();
+    }
 
-    public static Arbitrary<LambdaRightNestScenario> ArbitraryLambdaRightNestScenario() =>
-        GenRightNest().ToArbitrary();
+    public static Arbitrary<LambdaRightNestScenario> ArbitraryLambdaRightNestScenario()
+    {
+        return GenRightNest().ToArbitrary();
+    }
 
     private static readonly string[] Identifiers =
         ["a", "b", "c", "f", "g", "x", "y", "z", "foo", "bar"];
@@ -91,22 +95,26 @@ public class LambdaPrecedencePropertyTests
     /// Generates a <c>target = &lt;lambda&gt;;</c> top-level statement, exercising the claim
     /// that lambda binds looser than <c>=</c> (the lambda is the assignment's RHS value).
     /// </summary>
-    private static Gen<LambdaAssignmentRhsScenario> GenAssignmentRhs() =>
-        from target in Gen.Elements(Identifiers)
-        from lambda in GenSingleLambda()
-        let source = $"{target} = {lambda};"
-        select new LambdaAssignmentRhsScenario(source);
+    private static Gen<LambdaAssignmentRhsScenario> GenAssignmentRhs()
+    {
+        return from target in Gen.Elements(Identifiers)
+               from lambda in GenSingleLambda()
+               let source = $"{target} = {lambda};"
+               select new LambdaAssignmentRhsScenario(source);
+    }
 
     /// <summary>
     /// Generates a right-nesting chain <c>p0 =&gt; p1 =&gt; … =&gt; body;</c> of depth N ∈ [2, 5]
     /// (each link an expression-bodied, single-implicit-param lambda) as a top-level statement.
     /// </summary>
-    private static Gen<LambdaRightNestScenario> GenRightNest() =>
-        from depth in Gen.Choose(2, 5)
-        from body in Gen.Elements(BodyExpressions)
-        let parameters = Enumerable.Range(0, depth).Select(i => $"p{i}").ToArray()
-        let source = string.Join(" => ", parameters) + " => " + body + ";"
-        select new LambdaRightNestScenario(source, depth);
+    private static Gen<LambdaRightNestScenario> GenRightNest()
+    {
+        return from depth in Gen.Choose(2, 5)
+               from body in Gen.Elements(BodyExpressions)
+               let parameters = Enumerable.Range(0, depth).Select(i => $"p{i}").ToArray()
+               let source = string.Join(" => ", parameters) + " => " + body + ";"
+               select new LambdaRightNestScenario(source, depth);
+    }
 
     // ─── Parsing helpers ──────────────────────────────────────────────────────
 
@@ -283,7 +291,10 @@ public sealed class LambdaAssignmentRhsScenario
         Source = source;
     }
 
-    public override string ToString() => Source;
+    public override string ToString()
+    {
+        return Source;
+    }
 }
 
 /// <summary>
@@ -302,5 +313,8 @@ public sealed class LambdaRightNestScenario
         Depth = depth;
     }
 
-    public override string ToString() => $"(depth={Depth}) {Source}";
+    public override string ToString()
+    {
+        return $"(depth={Depth}) {Source}";
+    }
 }

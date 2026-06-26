@@ -73,7 +73,10 @@ public class PatternVariableScopingPropertyTests_Switch
     /// </summary>
     public sealed record PatternVarInGuardAndResultScenario(string Source, string Label)
     {
-        public override string ToString() => Label;
+        public override string ToString()
+        {
+            return Label;
+        }
     }
 
     /// <summary>
@@ -81,7 +84,10 @@ public class PatternVariableScopingPropertyTests_Switch
     /// </summary>
     public sealed record PatternVarInResultOnlyScenario(string Source, string Label)
     {
-        public override string ToString() => Label;
+        public override string ToString()
+        {
+            return Label;
+        }
     }
 
 #pragma warning restore CA1034

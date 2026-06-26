@@ -22,7 +22,12 @@ public struct Operatable
     public static implicit operator int(Operatable op) => op.Value;
 
     public override bool Equals(object? obj)
-        => obj is Operatable other && this == other;
+    {
+        return obj is Operatable other && this == other;
+    }
 
-    public override int GetHashCode() => Value.GetHashCode();
+    public override int GetHashCode()
+    {
+        return Value.GetHashCode();
+    }
 }

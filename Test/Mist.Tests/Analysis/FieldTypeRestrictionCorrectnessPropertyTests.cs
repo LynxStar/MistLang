@@ -93,8 +93,10 @@ public sealed class FieldTypeRestrictionCorrectnessPropertyTests
         }
     }
 
-    private static IEnumerable<Diagnostic> FindFieldTypeViolations(ImmutableArray<Diagnostic> diagnostics) =>
-        diagnostics.Where(d => d.Id.Value == FieldTypeViolationId);
+    private static IEnumerable<Diagnostic> FindFieldTypeViolations(ImmutableArray<Diagnostic> diagnostics)
+    {
+        return diagnostics.Where(d => d.Id.Value == FieldTypeViolationId);
+    }
 
     // ─── Helper type declarations ────────────────────────────────────────
 
@@ -479,38 +481,47 @@ public sealed class FieldTypeRestrictionCorrectnessPropertyTests
     /// <summary>
     /// Returns whether a field category satisfies the restriction.
     /// </summary>
-    private static bool SatisfiesRestriction(FieldCategory category) => category switch
+    private static bool SatisfiesRestriction(FieldCategory category)
     {
-        FieldCategory.ValueType => true,
-        FieldCategory.IClonable => true,
-        FieldCategory.OwnedType => true,
-        FieldCategory.NonOwnedNonClonable => false,
-        _ => false,
-    };
+        return category switch
+        {
+            FieldCategory.ValueType => true,
+            FieldCategory.IClonable => true,
+            FieldCategory.OwnedType => true,
+            FieldCategory.NonOwnedNonClonable => false,
+            _ => false,
+        };
+    }
 
     /// <summary>
     /// Generates the supporting type declarations needed for a given category.
     /// </summary>
-    private static string TypeDeclarationsFor(FieldCategory category) => category switch
+    private static string TypeDeclarationsFor(FieldCategory category)
     {
-        FieldCategory.ValueType => "",
-        FieldCategory.IClonable => "",
-        FieldCategory.OwnedType => OwnedChildType,
-        FieldCategory.NonOwnedNonClonable => NonClonableReferenceType,
-        _ => "",
-    };
+        return category switch
+        {
+            FieldCategory.ValueType => "",
+            FieldCategory.IClonable => "",
+            FieldCategory.OwnedType => OwnedChildType,
+            FieldCategory.NonOwnedNonClonable => NonClonableReferenceType,
+            _ => "",
+        };
+    }
 
     /// <summary>
     /// Returns the type name for a field of the given category.
     /// </summary>
-    private static string TypeNameFor(FieldCategory category) => category switch
+    private static string TypeNameFor(FieldCategory category)
     {
-        FieldCategory.ValueType => "int",
-        FieldCategory.IClonable => "string",
-        FieldCategory.OwnedType => "OwnedChild",
-        FieldCategory.NonOwnedNonClonable => "Gadget",
-        _ => "int",
-    };
+        return category switch
+        {
+            FieldCategory.ValueType => "int",
+            FieldCategory.IClonable => "string",
+            FieldCategory.OwnedType => "OwnedChild",
+            FieldCategory.NonOwnedNonClonable => "Gadget",
+            _ => "int",
+        };
+    }
 
     public static IEnumerable<object[]> SingleFieldCategories()
     {

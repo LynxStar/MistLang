@@ -401,12 +401,16 @@ public class AdditiveOnlyConstraintPropertyTests
     }
 
     /// <summary>FsCheck Arbitrary registration for RedeclarationScenario.</summary>
-    public static Arbitrary<RedeclarationScenario> ArbitraryRedeclarationScenario() =>
-        GenRedeclarationScenario().ToArbitrary();
+    public static Arbitrary<RedeclarationScenario> ArbitraryRedeclarationScenario()
+    {
+        return GenRedeclarationScenario().ToArbitrary();
+    }
 
     /// <summary>FsCheck Arbitrary registration for AdditiveScenario.</summary>
-    public static Arbitrary<AdditiveScenario> ArbitraryAdditiveScenario() =>
-        GenAdditiveScenario().ToArbitrary();
+    public static Arbitrary<AdditiveScenario> ArbitraryAdditiveScenario()
+    {
+        return GenAdditiveScenario().ToArbitrary();
+    }
 
     // ─── AST construction ────────────────────────────────────────────────
 

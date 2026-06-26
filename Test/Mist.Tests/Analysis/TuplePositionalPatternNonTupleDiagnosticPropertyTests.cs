@@ -81,8 +81,10 @@ public class TuplePositionalPatternNonTupleDiagnosticPropertyTests
 #pragma warning disable CA1034
     public record NonTupleScenario(string TypeKeyword, string Initializer, string DisplayName)
     {
-        public override string ToString() =>
-            $"{TypeKeyword} x = {Initializer}; x is (_, _)";
+        public override string ToString()
+        {
+            return $"{TypeKeyword} x = {Initializer}; x is (_, _)";
+        }
     }
 #pragma warning restore CA1034
 

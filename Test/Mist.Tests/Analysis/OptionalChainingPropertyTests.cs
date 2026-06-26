@@ -41,7 +41,10 @@ public sealed class OptionalChainingProjectionScenario
         ReturnType = returnType;
     }
 
-    public override string ToString() => $"{ClassName}?.{MethodName}() → {ReturnType} | void";
+    public override string ToString()
+    {
+        return $"{ClassName}?.{MethodName}() → {ReturnType} | void";
+    }
 }
 
 /// <summary>
@@ -66,7 +69,10 @@ public sealed class OptionalChainingNonOptionalScenario
         IsPrimitive = isPrimitive;
     }
 
-    public override string ToString() => $"{TypeName}?.{MemberName} → MIST_TC_0111";
+    public override string ToString()
+    {
+        return $"{TypeName}?.{MemberName} → MIST_TC_0111";
+    }
 }
 
 // ─── Property Tests ─────────────────────────────────────────────────────────

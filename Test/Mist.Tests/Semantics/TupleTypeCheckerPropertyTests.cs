@@ -210,50 +210,58 @@ public static class TupleTypePairGenerator
         "first", "second", "value", "key",
     ];
 
-    private static Gen<string?> GenOptionalName() =>
-        Gen.Frequency(
+    private static Gen<string?> GenOptionalName()
+    {
+        return Gen.Frequency(
             (1, Gen.Constant<string?>(null)),
             (1, Gen.Elements(SampleNames).Select(n => (string?)n)));
+    }
 
     /// <summary>
     /// Generates a pair with the same element types but different names.
     /// </summary>
-    public static Arbitrary<SameTypeTuplePair> ArbitrarySameTypeTuplePair() =>
-        (from arity in Gen.Choose(2, 5)
-         from types in Gen.ArrayOf(Gen.Elements(PrimitiveLeafTypes), arity)
-         from names1 in Gen.ArrayOf(GenOptionalName(), arity)
-         from names2 in Gen.ArrayOf(GenOptionalName(), arity)
-         let hasAnyName1 = names1.Any(n => n is not null)
-         let hasAnyName2 = names2.Any(n => n is not null)
-         let source = new TupleType(types, hasAnyName1 ? names1 : null)
-         let target = new TupleType(types, hasAnyName2 ? names2 : null)
-         select new SameTypeTuplePair(source, target))
+    public static Arbitrary<SameTypeTuplePair> ArbitrarySameTypeTuplePair()
+    {
+        return (from arity in Gen.Choose(2, 5)
+                from types in Gen.ArrayOf(Gen.Elements(PrimitiveLeafTypes), arity)
+                from names1 in Gen.ArrayOf(GenOptionalName(), arity)
+                from names2 in Gen.ArrayOf(GenOptionalName(), arity)
+                let hasAnyName1 = names1.Any(n => n is not null)
+                let hasAnyName2 = names2.Any(n => n is not null)
+                let source = new TupleType(types, hasAnyName1 ? names1 : null)
+                let target = new TupleType(types, hasAnyName2 ? names2 : null)
+                select new SameTypeTuplePair(source, target))
         .ToArbitrary();
+    }
 
     /// <summary>
     /// Generates a pair with different arities.
     /// </summary>
-    public static Arbitrary<DifferentArityTuplePair> ArbitraryDifferentArityTuplePair() =>
-        (from arity1 in Gen.Choose(2, 4)
-         from arity2 in Gen.Choose(2, 4).Where(a2 => true) // will filter below
-         where arity1 != arity2
-         from types1 in Gen.ArrayOf(Gen.Elements(PrimitiveLeafTypes), arity1)
-         from types2 in Gen.ArrayOf(Gen.Elements(PrimitiveLeafTypes), arity2)
-         select new DifferentArityTuplePair(
-             new TupleType(types1), new TupleType(types2)))
+    public static Arbitrary<DifferentArityTuplePair> ArbitraryDifferentArityTuplePair()
+    {
+        return (from arity1 in Gen.Choose(2, 4)
+                from arity2 in Gen.Choose(2, 4).Where(a2 => true) // will filter below
+                where arity1 != arity2
+                from types1 in Gen.ArrayOf(Gen.Elements(PrimitiveLeafTypes), arity1)
+                from types2 in Gen.ArrayOf(Gen.Elements(PrimitiveLeafTypes), arity2)
+                select new DifferentArityTuplePair(
+                    new TupleType(types1), new TupleType(types2)))
         .ToArbitrary();
+    }
 
     /// <summary>
     /// Generates a pair with same arity but at least one different element type.
     /// </summary>
-    public static Arbitrary<DifferentElementTypeTuplePair> ArbitraryDifferentElementTypeTuplePair() =>
-        (from arity in Gen.Choose(2, 5)
-         from types1 in Gen.ArrayOf(Gen.Elements(PrimitiveLeafTypes), arity)
-         from types2 in Gen.ArrayOf(Gen.Elements(PrimitiveLeafTypes), arity)
-         where !TypeArraysEqual(types1, types2)
-         select new DifferentElementTypeTuplePair(
-             new TupleType(types1), new TupleType(types2)))
+    public static Arbitrary<DifferentElementTypeTuplePair> ArbitraryDifferentElementTypeTuplePair()
+    {
+        return (from arity in Gen.Choose(2, 5)
+                from types1 in Gen.ArrayOf(Gen.Elements(PrimitiveLeafTypes), arity)
+                from types2 in Gen.ArrayOf(Gen.Elements(PrimitiveLeafTypes), arity)
+                where !TypeArraysEqual(types1, types2)
+                select new DifferentElementTypeTuplePair(
+                    new TupleType(types1), new TupleType(types2)))
         .ToArbitrary();
+    }
 
     private static bool TypeArraysEqual(IType[] a, IType[] b)
     {
@@ -284,12 +292,14 @@ public static class TupleTypeAndInvalidNameGenerator
         "Count", "Length", "ToString", "GetHashCode",
     ];
 
-    public static Arbitrary<TupleTypeWithInvalidName> ArbitraryTupleTypeWithInvalidName() =>
-        (from tuple in TupleTypeGenerator.GenTupleType()
-         from invalidName in Gen.Elements(InvalidNames)
-         where !IsValidMemberName(tuple, invalidName)
-         select new TupleTypeWithInvalidName(tuple, invalidName))
+    public static Arbitrary<TupleTypeWithInvalidName> ArbitraryTupleTypeWithInvalidName()
+    {
+        return (from tuple in TupleTypeGenerator.GenTupleType()
+                from invalidName in Gen.Elements(InvalidNames)
+                where !IsValidMemberName(tuple, invalidName)
+                select new TupleTypeWithInvalidName(tuple, invalidName))
         .ToArbitrary();
+    }
 
     private static bool IsValidMemberName(TupleType tuple, string name)
     {

@@ -37,8 +37,10 @@ public class ContextRoundTripPropertyTests
 
     // ─── Arbitrary registration ──────────────────────────────────────────
 
-    public static Arbitrary<ContextRoundTripScenario> ArbitraryContextRoundTripScenario() =>
-        MistContextRoundTripGenerator.GenScenario().ToArbitrary();
+    public static Arbitrary<ContextRoundTripScenario> ArbitraryContextRoundTripScenario()
+    {
+        return MistContextRoundTripGenerator.GenScenario().ToArbitrary();
+    }
 
     // ═══════════════════════════════════════════════════════════════════════
     // Property 1: Pretty-printer round-trip idempotence

@@ -36,7 +36,10 @@ public class SyntaxTreeMetricsPropertyTests
             this.children = children;
         }
 
-        public override IEnumerable<Storm.Runtime.SyntaxNode> Children() => children;
+        public override IEnumerable<Storm.Runtime.SyntaxNode> Children()
+        {
+            return children;
+        }
     }
 #pragma warning restore CA1034
 
@@ -60,8 +63,10 @@ public class SyntaxTreeMetricsPropertyTests
                 .Select(children => new TestNode(children)));
     }
 
-    public static Arbitrary<TestNode> ArbTestNode() =>
-        GenTree(5).ToArbitrary();
+    public static Arbitrary<TestNode> ArbTestNode()
+    {
+        return GenTree(5).ToArbitrary();
+    }
 
     // ═══════════════════════════════════════════════════════════════════════
     // Property test

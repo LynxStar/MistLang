@@ -43,8 +43,10 @@ public sealed class PatternMatchScenario
     public int TestedMemberValue => Members[TestedMemberIndex].Value;
     public bool ExpectedResult => ScrutineeValue == TestedMemberValue;
 
-    public override string ToString() =>
-        $"{ScrutineeValue} is {EnumName}.{TestedMemberName} (value={TestedMemberValue}) => {ExpectedResult}";
+    public override string ToString()
+    {
+        return $"{ScrutineeValue} is {EnumName}.{TestedMemberName} (value={TestedMemberValue}) => {ExpectedResult}";
+    }
 }
 
 /// <summary>

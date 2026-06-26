@@ -62,13 +62,16 @@ public class InheritanceDefaultabilityPropertyTests
 
     // ─── AST construction helpers ────────────────────────────────────────
 
-    private static PrimitiveTypeNode MakePrimitiveType(string typeName) => typeName switch
+    private static PrimitiveTypeNode MakePrimitiveType(string typeName)
     {
-        "int" => new IntTypePrimitiveTypeNode(),
-        "bool" => new BoolTypePrimitiveTypeNode(),
-        "string" => new StringTypePrimitiveTypeNode(),
-        _ => new IntTypePrimitiveTypeNode(),
-    };
+        return typeName switch
+        {
+            "int" => new IntTypePrimitiveTypeNode(),
+            "bool" => new BoolTypePrimitiveTypeNode(),
+            "string" => new StringTypePrimitiveTypeNode(),
+            _ => new IntTypePrimitiveTypeNode(),
+        };
+    }
 
     private static FieldDeclarationNode MakeField(string fieldName, TypeReferenceNode typeRef)
     {
@@ -293,11 +296,15 @@ public class InheritanceDefaultabilityPropertyTests
 
     // ─── Arbitrary registrations ─────────────────────────────────────────
 
-    public static Arbitrary<DerivedWithConstructorScenario> ArbitraryDerivedWithConstructor() =>
-        GenDerivedWithConstructorScenario().ToArbitrary();
+    public static Arbitrary<DerivedWithConstructorScenario> ArbitraryDerivedWithConstructor()
+    {
+        return GenDerivedWithConstructorScenario().ToArbitrary();
+    }
 
-    public static Arbitrary<DerivedWithDefaultBlockScenario> ArbitraryDerivedWithDefaultBlock() =>
-        GenDerivedWithDefaultBlockScenario().ToArbitrary();
+    public static Arbitrary<DerivedWithDefaultBlockScenario> ArbitraryDerivedWithDefaultBlock()
+    {
+        return GenDerivedWithDefaultBlockScenario().ToArbitrary();
+    }
 
     // ─── AST builders for scenarios ──────────────────────────────────────
 

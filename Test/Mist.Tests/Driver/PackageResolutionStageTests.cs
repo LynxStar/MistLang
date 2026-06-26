@@ -55,14 +55,20 @@ public sealed class PackageResolutionStageTests : IDisposable
         public List<(string StageId, TimeSpan Elapsed, IReadOnlyList<string> Details)> StageCompletes { get; } = [];
         public (bool Succeeded, int ErrorCount, int WarningCount, TimeSpan TotalElapsed)? Summary { get; private set; }
 
-        public void ReportStageStart(string stageId, string title) =>
+        public void ReportStageStart(string stageId, string title)
+        {
             StageStarts.Add((stageId, title));
+        }
 
-        public void ReportStageComplete(string stageId, TimeSpan elapsed, IReadOnlyList<string> details) =>
+        public void ReportStageComplete(string stageId, TimeSpan elapsed, IReadOnlyList<string> details)
+        {
             StageCompletes.Add((stageId, elapsed, details));
+        }
 
-        public void ReportBuildSummary(bool succeeded, int errorCount, int warningCount, TimeSpan totalElapsed) =>
+        public void ReportBuildSummary(bool succeeded, int errorCount, int warningCount, TimeSpan totalElapsed)
+        {
             Summary = (succeeded, errorCount, warningCount, totalElapsed);
+        }
     }
 
     // ─── Helpers ─────────────────────────────────────────────────────────

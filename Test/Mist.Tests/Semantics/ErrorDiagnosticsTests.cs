@@ -134,14 +134,20 @@ public sealed class ErrorDiagnosticsTests
             types[(namespaceName, typeName)] = type;
         }
 
-        public bool HasNamespace(string namespaceName) => namespaceTypes.ContainsKey(namespaceName);
+        public bool HasNamespace(string namespaceName)
+        {
+            return namespaceTypes.ContainsKey(namespaceName);
+        }
 
         public IType? ResolveType(string namespaceName, string typeName)
         {
             return types.GetValueOrDefault((namespaceName, typeName));
         }
 
-        public ImmutableArray<ISymbol> GetMembers(IType type) => ImmutableArray<ISymbol>.Empty;
+        public ImmutableArray<ISymbol> GetMembers(IType type)
+        {
+            return ImmutableArray<ISymbol>.Empty;
+        }
 
         public ImmutableArray<string> GetTypeNamesInNamespace(string namespaceName)
         {
@@ -154,7 +160,9 @@ public sealed class ErrorDiagnosticsTests
         }
 
         public IReadOnlyList<AmbientExtensionMethodInfo> GetExtensionMethodsInNamespace(string namespaceName)
-            => Array.Empty<AmbientExtensionMethodInfo>();
+        {
+            return Array.Empty<AmbientExtensionMethodInfo>();
+        }
     }
 
     // ═══════════════════════════════════════════════════════════════════════

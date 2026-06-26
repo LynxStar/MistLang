@@ -91,7 +91,10 @@ public sealed class AssociatedTypeEmissionScenario
         StrValue = strValue;
     }
 
-    public override string ToString() => $"[{Kind}] {Label} → \"{ExpectedOutput}\"";
+    public override string ToString()
+    {
+        return $"[{Kind}] {Label} → \"{ExpectedOutput}\"";
+    }
 }
 
 // ─── Property test class ─────────────────────────────────────────────────

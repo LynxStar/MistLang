@@ -29,8 +29,10 @@ public record struct ScrutineeAndPattern(
 /// </summary>
 public static class MistPatternGenerator
 {
-    private static Storm.Runtime.Token Tok(string lexeme) =>
-        MistTypeGenerator.MakeToken(lexeme);
+    private static Storm.Runtime.Token Tok(string lexeme)
+    {
+        return MistTypeGenerator.MakeToken(lexeme);
+    }
 
     // ═══════════════════════════════════════════════════════════════════════
     // Name pools
@@ -674,6 +676,8 @@ public static class MistPatternGenerator
     // ═══════════════════════════════════════════════════════════════════════
 
     /// <summary>FsCheck Arbitrary for pattern matching programs.</summary>
-    public static Arbitrary<CompilationUnitNode> ArbitraryPatternProgram() =>
-        GenAnyPatternProgram().ToArbitrary();
+    public static Arbitrary<CompilationUnitNode> ArbitraryPatternProgram()
+    {
+        return GenAnyPatternProgram().ToArbitrary();
+    }
 }

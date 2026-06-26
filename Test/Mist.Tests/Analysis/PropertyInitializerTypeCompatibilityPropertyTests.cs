@@ -40,7 +40,10 @@ public sealed class TypeCompatibilityScenario
         ValueType = valueType;
     }
 
-    public override string ToString() => Description;
+    public override string ToString()
+    {
+        return Description;
+    }
 }
 
 /// <summary>
@@ -77,8 +80,10 @@ public sealed class PropertyInitializerTypeCompatibilityPropertyTests
 
     // ─── FsCheck generators ─────────────────────────────────────────────
 
-    public static Arbitrary<TypeCompatibilityScenario> ArbitraryScenario() =>
-        GenScenario().ToArbitrary();
+    public static Arbitrary<TypeCompatibilityScenario> ArbitraryScenario()
+    {
+        return GenScenario().ToArbitrary();
+    }
 
     private static Gen<TypeCompatibilityScenario> GenScenario()
     {

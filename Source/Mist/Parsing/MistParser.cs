@@ -473,11 +473,13 @@ public sealed class MistParser : IParser
         return false;
     }
 
-    private static bool IsTypeDeclarationKeyword(int kind) =>
-        kind == (int)Mist.Generated.TokenKind.CLASS
+    private static bool IsTypeDeclarationKeyword(int kind)
+    {
+        return kind == (int)Mist.Generated.TokenKind.CLASS
         || kind == (int)Mist.Generated.TokenKind.STRUCT
         || kind == (int)Mist.Generated.TokenKind.ABSTRACT
         || kind == (int)Mist.Generated.TokenKind.ENUM;
+    }
 
     private static void AddPropertyDefaultDiagnostic(
         Storm.Runtime.Token token,
@@ -583,8 +585,9 @@ public sealed class MistParser : IParser
         return null;
     }
 
-    private static bool IsPrimitiveTypeKind(int kind) =>
-        kind == (int)Mist.Generated.TokenKind.INT
+    private static bool IsPrimitiveTypeKind(int kind)
+    {
+        return kind == (int)Mist.Generated.TokenKind.INT
         || kind == (int)Mist.Generated.TokenKind.UINT
         || kind == (int)Mist.Generated.TokenKind.LONG
         || kind == (int)Mist.Generated.TokenKind.ULONG
@@ -599,6 +602,7 @@ public sealed class MistParser : IParser
         || kind == (int)Mist.Generated.TokenKind.CHAR
         || kind == (int)Mist.Generated.TokenKind.STRING
         || kind == (int)Mist.Generated.TokenKind.REGEX;
+    }
 
     private static void AssignOrigin(Storm.Runtime.SyntaxNode node, ParsedOrigin origin)
     {

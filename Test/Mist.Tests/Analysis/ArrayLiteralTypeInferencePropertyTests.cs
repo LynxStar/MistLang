@@ -34,8 +34,10 @@ public sealed class HomogeneousArrayScenario
         this.elementLiterals = elementLiterals;
     }
 
-    public override string ToString() =>
-        $"{TypeName}[{elementLiterals.Length}]: [{string.Join(", ", elementLiterals)}]";
+    public override string ToString()
+    {
+        return $"{TypeName}[{elementLiterals.Length}]: [{string.Join(", ", elementLiterals)}]";
+    }
 }
 
 /// <summary>

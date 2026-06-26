@@ -26,8 +26,10 @@ public sealed class ArrayLiteralElementCountScenario
         this.elements = elements;
     }
 
-    public override string ToString() =>
-        $"[{string.Join(", ", elements)}] (N={elements.Length})";
+    public override string ToString()
+    {
+        return $"[{string.Join(", ", elements)}] (N={elements.Length})";
+    }
 }
 
 /// <summary>

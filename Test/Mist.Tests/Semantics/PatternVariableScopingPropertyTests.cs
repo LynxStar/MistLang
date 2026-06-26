@@ -32,8 +32,10 @@ public class PatternVariableScopingPropertyTests
 
     // ─── Helpers ─────────────────────────────────────────────────────────
 
-    private static Storm.Runtime.Token Tok(string lexeme) =>
-        MistTypeGenerator.MakeToken(lexeme);
+    private static Storm.Runtime.Token Tok(string lexeme)
+    {
+        return MistTypeGenerator.MakeToken(lexeme);
+    }
 
     private ISemanticModel BuildModel(CompilationUnitNode ast, string source = "")
     {
@@ -64,10 +66,12 @@ public class PatternVariableScopingPropertyTests
         string BindingName,
         bool IsTypePattern)
     {
-        public override string ToString() =>
-            IsTypePattern
+        public override string ToString()
+        {
+            return IsTypePattern
                 ? $"if ({ScrutineeName} is {ScrutineeType} {BindingName})"
                 : $"if ({ScrutineeName} is var {BindingName})";
+        }
     }
 
 #pragma warning restore CA1034
@@ -90,13 +94,16 @@ public class PatternVariableScopingPropertyTests
 
     // ─── AST construction ────────────────────────────────────────────────
 
-    private static PrimitiveTypeNode MakePrimitiveType(string typeName) => typeName switch
+    private static PrimitiveTypeNode MakePrimitiveType(string typeName)
     {
-        "int" => new IntTypePrimitiveTypeNode(),
-        "string" => new StringTypePrimitiveTypeNode(),
-        "bool" => new BoolTypePrimitiveTypeNode(),
-        _ => new IntTypePrimitiveTypeNode(),
-    };
+        return typeName switch
+        {
+            "int" => new IntTypePrimitiveTypeNode(),
+            "string" => new StringTypePrimitiveTypeNode(),
+            "bool" => new BoolTypePrimitiveTypeNode(),
+            _ => new IntTypePrimitiveTypeNode(),
+        };
+    }
 
     private static StatementNode MakeScrutineeDecl(string typeName, string name)
     {

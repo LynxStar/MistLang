@@ -28,7 +28,10 @@ public sealed class AssociatedTypeRoundTripScenario
         Description = description;
     }
 
-    public override string ToString() => Description;
+    public override string ToString()
+    {
+        return Description;
+    }
 }
 
 /// <summary>
@@ -258,8 +261,10 @@ public class AssociatedTypeRoundTripPropertyTests
 
     // ─── Arbitrary registration ─────────────────────────────────────────────
 
-    public static Arbitrary<AssociatedTypeRoundTripScenario> ArbitraryAssociatedTypeRoundTripScenario() =>
-        GenScenario().ToArbitrary();
+    public static Arbitrary<AssociatedTypeRoundTripScenario> ArbitraryAssociatedTypeRoundTripScenario()
+    {
+        return GenScenario().ToArbitrary();
+    }
 
     // ─── Helpers ────────────────────────────────────────────────────────────
 

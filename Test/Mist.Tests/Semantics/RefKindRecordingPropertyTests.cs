@@ -219,8 +219,10 @@ public class RefKindRecordingPropertyTests
         string ParamName,
         RefKind ExpectedRefKind)
     {
-        public override string ToString() =>
-            $"Parameter: {(ExpectedRefKind == RefKind.RefReadonly ? "readonly ref" : "ref")} {TypeName} {ParamName}";
+        public override string ToString()
+        {
+            return $"Parameter: {(ExpectedRefKind == RefKind.RefReadonly ? "readonly ref" : "ref")} {TypeName} {ParamName}";
+        }
     }
 
     /// <summary>
@@ -230,8 +232,10 @@ public class RefKindRecordingPropertyTests
         string MethodName,
         RefKind ExpectedReturnRefKind)
     {
-        public override string ToString() =>
-            $"Return: {(ExpectedReturnRefKind == RefKind.RefReadonly ? "ref readonly" : "ref")} int {MethodName}()";
+        public override string ToString()
+        {
+            return $"Return: {(ExpectedReturnRefKind == RefKind.RefReadonly ? "ref readonly" : "ref")} int {MethodName}()";
+        }
     }
 
     /// <summary>
@@ -242,8 +246,10 @@ public class RefKindRecordingPropertyTests
         string VarName,
         RefKind ExpectedRefKind)
     {
-        public override string ToString() =>
-            $"Local: {(ExpectedRefKind == RefKind.RefReadonly ? "ref readonly" : "ref")} {TypeName} {VarName}";
+        public override string ToString()
+        {
+            return $"Local: {(ExpectedRefKind == RefKind.RefReadonly ? "ref readonly" : "ref")} {TypeName} {VarName}";
+        }
     }
 
 #pragma warning restore CA1034

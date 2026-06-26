@@ -55,8 +55,10 @@ public sealed class VoidElementArrayScenario
             """;
     }
 
-    public override string ToString() =>
-        $"VoidElement(before={ValidElementsBefore}, after={ValidElementsAfter})";
+    public override string ToString()
+    {
+        return $"VoidElement(before={ValidElementsBefore}, after={ValidElementsAfter})";
+    }
 }
 
 /// <summary>
@@ -99,8 +101,10 @@ public sealed class UnknownElementArrayScenario
             """;
     }
 
-    public override string ToString() =>
-        $"UnknownElement(before={ValidElementsBefore}, after={ValidElementsAfter})";
+    public override string ToString()
+    {
+        return $"UnknownElement(before={ValidElementsBefore}, after={ValidElementsAfter})";
+    }
 }
 
 /// <summary>

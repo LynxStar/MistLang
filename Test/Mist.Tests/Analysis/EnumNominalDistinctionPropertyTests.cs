@@ -39,8 +39,10 @@ public sealed class EnumNominalDistinctionScenario
         MemberNamesB = memberNamesB;
     }
 
-    public override string ToString() =>
-        $"{EnumNameA} vs {EnumNameB} (same underlying int)";
+    public override string ToString()
+    {
+        return $"{EnumNameA} vs {EnumNameB} (same underlying int)";
+    }
 }
 
 /// <summary>
@@ -59,13 +61,15 @@ public class EnumNominalDistinctionPropertyTests
     private static readonly SemanticModelBuilder Builder = new();
     private static readonly TypeCheckerAnalyzer Analyzer = new();
 
-    private static Storm.Runtime.Token Tok(string lexeme) =>
-        new(kind: 0,
+    private static Storm.Runtime.Token Tok(string lexeme)
+    {
+        return new(kind: 0,
             span: new Storm.Runtime.SourceSpan(0, lexeme.Length),
             start: new Storm.Runtime.LinePosition(1, 1),
             end: new Storm.Runtime.LinePosition(1, 1 + lexeme.Length),
             channel: Storm.Runtime.TokenChannel.Default,
             lexeme: lexeme);
+    }
 
     private static (ISemanticModel Model, ImmutableArray<Diagnostic> BuildDiagnostics) BuildModelWithDiagnostics(
         Storm.Runtime.SyntaxNode ast)
@@ -126,8 +130,10 @@ public class EnumNominalDistinctionPropertyTests
                    pair.A, pair.B, membersA, membersB);
     }
 
-    public static Arbitrary<EnumNominalDistinctionScenario> ArbitraryScenario() =>
-        GenScenario().ToArbitrary();
+    public static Arbitrary<EnumNominalDistinctionScenario> ArbitraryScenario()
+    {
+        return GenScenario().ToArbitrary();
+    }
 
     // ─── AST construction helpers ────────────────────────────────────────
 
@@ -140,12 +146,14 @@ public class EnumNominalDistinctionPropertyTests
         return MistAstGenerator.WrapPrimary(primary);
     }
 
-    private static EnumMemberNode MakeEnumMember(string name, int index) =>
-        new()
+    private static EnumMemberNode MakeEnumMember(string name, int index)
+    {
+        return new()
         {
             Name = Tok(name),
             Value = MakeIntLiteralExpression(index.ToString()),
         };
+    }
 
     private static EnumMemberListNode MakeEnumMemberList(IReadOnlyList<EnumMemberNode> members)
     {
@@ -158,17 +166,20 @@ public class EnumNominalDistinctionPropertyTests
         };
     }
 
-    private static TypeReferenceNode MakeIntTypeRef() =>
-        new TypeReferenceNode
+    private static TypeReferenceNode MakeIntTypeRef()
+    {
+        return new TypeReferenceNode
         {
             First = new PrimitiveSingleTypeRefSingleTypeRefNode
             {
                 PrimitiveType = new IntTypePrimitiveTypeNode(),
             }
         };
+    }
 
-    private static TypeReferenceNode MakeEnumTypeRef(string enumName) =>
-        new TypeReferenceNode
+    private static TypeReferenceNode MakeEnumTypeRef(string enumName)
+    {
+        return new TypeReferenceNode
         {
             First = new NamedSingleTypeRefSingleTypeRefNode
             {
@@ -179,6 +190,7 @@ public class EnumNominalDistinctionPropertyTests
                 },
             }
         };
+    }
 
     private static ExpressionNode MakeMemberAccessExpression(string target, string memberName)
     {

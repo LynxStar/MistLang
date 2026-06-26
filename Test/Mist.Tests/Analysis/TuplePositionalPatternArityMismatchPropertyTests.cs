@@ -81,8 +81,10 @@ public class TuplePositionalPatternArityMismatchPropertyTests
 #pragma warning disable CA1034
     public record ArityMismatchScenario(int TupleArity, int PatternArity)
     {
-        public override string ToString() =>
-            $"tuple arity={TupleArity}, pattern arity={PatternArity}";
+        public override string ToString()
+        {
+            return $"tuple arity={TupleArity}, pattern arity={PatternArity}";
+        }
     }
 #pragma warning restore CA1034
 

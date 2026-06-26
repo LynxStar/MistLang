@@ -91,8 +91,10 @@ public sealed class CooperationContractVerifierTests
         }
     }
 
-    private static Diagnostic? FindContractViolation(ImmutableArray<Diagnostic> diagnostics) =>
-        diagnostics.FirstOrDefault(d => d.Id.Value == ContractViolationId);
+    private static Diagnostic? FindContractViolation(ImmutableArray<Diagnostic> diagnostics)
+    {
+        return diagnostics.FirstOrDefault(d => d.Id.Value == ContractViolationId);
+    }
 
     private static void AssertNoContractViolation(ImmutableArray<Diagnostic> diagnostics)
     {

@@ -14,8 +14,10 @@ namespace Mist.Tests.Generators;
 /// </summary>
 public static class MistProgramGenerator
 {
-    private static Storm.Runtime.Token Tok(string lexeme) =>
-        MistTypeGenerator.MakeToken(lexeme);
+    private static Storm.Runtime.Token Tok(string lexeme)
+    {
+        return MistTypeGenerator.MakeToken(lexeme);
+    }
 
     // ═══════════════════════════════════════════════════════════════════════
     // Program structure helpers
@@ -387,6 +389,8 @@ public static class MistProgramGenerator
     // ═══════════════════════════════════════════════════════════════════════
 
     /// <summary>FsCheck Arbitrary for well-typed programs.</summary>
-    public static Arbitrary<CompilationUnitNode> ArbitraryWellTypedProgram() =>
-        GenWellTypedProgram().ToArbitrary();
+    public static Arbitrary<CompilationUnitNode> ArbitraryWellTypedProgram()
+    {
+        return GenWellTypedProgram().ToArbitrary();
+    }
 }

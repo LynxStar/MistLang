@@ -102,7 +102,10 @@ public class PredicateCompatibilityPropertyTests
             SampleConstant = sampleConstant;
         }
 
-        public override string ToString() => Name;
+        public override string ToString()
+        {
+            return Name;
+        }
     }
 
     /// <summary>
@@ -154,8 +157,10 @@ public class PredicateCompatibilityPropertyTests
                 """;
         }
 
-        public override string ToString() =>
-            $"({Type.Name}, {Predicate}, {Operator}) → expect {(ShouldAccept ? "accept" : "reject")}";
+        public override string ToString()
+        {
+            return $"({Type.Name}, {Predicate}, {Operator}) → expect {(ShouldAccept ? "accept" : "reject")}";
+        }
     }
 
 #pragma warning restore CA1034
@@ -225,8 +230,10 @@ public class PredicateCompatibilityPropertyTests
             GenConstantOnAnyType());
     }
 
-    public static Arbitrary<CompatibilityScenario> ArbitraryCompatibilityScenario() =>
-        GenCompatibilityScenario().ToArbitrary();
+    public static Arbitrary<CompatibilityScenario> ArbitraryCompatibilityScenario()
+    {
+        return GenCompatibilityScenario().ToArbitrary();
+    }
 
     // ─── Property Tests ──────────────────────────────────────────────────
 

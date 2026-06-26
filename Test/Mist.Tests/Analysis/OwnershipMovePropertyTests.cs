@@ -79,7 +79,10 @@ public class OwnershipMovePropertyTests
     /// </summary>
     public sealed record UseAfterMoveScenario(string Source, string Label)
     {
-        public override string ToString() => Label;
+        public override string ToString()
+        {
+            return Label;
+        }
     }
 
     /// <summary>
@@ -87,7 +90,10 @@ public class OwnershipMovePropertyTests
     /// </summary>
     public sealed record ValidMoveScenario(string Source, string Label)
     {
-        public override string ToString() => Label;
+        public override string ToString()
+        {
+            return Label;
+        }
     }
 
     /// <summary>
@@ -96,7 +102,10 @@ public class OwnershipMovePropertyTests
     /// </summary>
     public sealed record ConditionalMoveScenario(string Source, string Label)
     {
-        public override string ToString() => Label;
+        public override string ToString()
+        {
+            return Label;
+        }
     }
 
     /// <summary>
@@ -105,7 +114,10 @@ public class OwnershipMovePropertyTests
     /// </summary>
     public sealed record LoopMoveScenario(string Source, string Label)
     {
-        public override string ToString() => Label;
+        public override string ToString()
+        {
+            return Label;
+        }
     }
 
     /// <summary>
@@ -113,7 +125,10 @@ public class OwnershipMovePropertyTests
     /// </summary>
     public sealed record ReassignmentScenario(string Source, string Label)
     {
-        public override string ToString() => Label;
+        public override string ToString()
+        {
+            return Label;
+        }
     }
 
 #pragma warning restore CA1034
@@ -300,20 +315,30 @@ public class OwnershipMovePropertyTests
 
     // ─── Arbitrary instances ─────────────────────────────────────────────
 
-    public static Arbitrary<UseAfterMoveScenario> ArbitraryUseAfterMoveScenario() =>
-        Gen.OneOf(GenSimpleAssignmentUseAfterMove(), GenReassignmentMoveUseAfterMove()).ToArbitrary();
+    public static Arbitrary<UseAfterMoveScenario> ArbitraryUseAfterMoveScenario()
+    {
+        return Gen.OneOf(GenSimpleAssignmentUseAfterMove(), GenReassignmentMoveUseAfterMove()).ToArbitrary();
+    }
 
-    public static Arbitrary<ValidMoveScenario> ArbitraryValidMoveScenario() =>
-        GenValidSimpleMove().ToArbitrary();
+    public static Arbitrary<ValidMoveScenario> ArbitraryValidMoveScenario()
+    {
+        return GenValidSimpleMove().ToArbitrary();
+    }
 
-    public static Arbitrary<ConditionalMoveScenario> ArbitraryConditionalMoveScenario() =>
-        GenConditionalMoveScenario().ToArbitrary();
+    public static Arbitrary<ConditionalMoveScenario> ArbitraryConditionalMoveScenario()
+    {
+        return GenConditionalMoveScenario().ToArbitrary();
+    }
 
-    public static Arbitrary<LoopMoveScenario> ArbitraryLoopMoveScenario() =>
-        GenWhileLoopMoveScenario().ToArbitrary();
+    public static Arbitrary<LoopMoveScenario> ArbitraryLoopMoveScenario()
+    {
+        return GenWhileLoopMoveScenario().ToArbitrary();
+    }
 
-    public static Arbitrary<ReassignmentScenario> ArbitraryReassignmentScenario() =>
-        GenReassignmentAfterMoveScenario().ToArbitrary();
+    public static Arbitrary<ReassignmentScenario> ArbitraryReassignmentScenario()
+    {
+        return GenReassignmentAfterMoveScenario().ToArbitrary();
+    }
 
     // ═══════════════════════════════════════════════════════════════════════
     // Property 4a: Use-after-move produces MIST_OWN_USE_AFTER_MOVE

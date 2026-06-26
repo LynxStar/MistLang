@@ -329,8 +329,10 @@ public class AssociatedTypeObligationPropertyTests
 
     // ─── Arbitrary registration ──────────────────────────────────────────
 
-    public static Arbitrary<ObligationScenario> ArbitraryObligationScenario() =>
-        GenScenario().ToArbitrary();
+    public static Arbitrary<ObligationScenario> ArbitraryObligationScenario()
+    {
+        return GenScenario().ToArbitrary();
+    }
 
     // ═══════════════════════════════════════════════════════════════════════
     // Property 7: Implementor obligation enforcement

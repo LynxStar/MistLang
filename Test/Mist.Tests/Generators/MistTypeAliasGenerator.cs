@@ -49,7 +49,10 @@ public sealed class TypeAliasSourceScenario
         Description = description;
     }
 
-    public override string ToString() => Description;
+    public override string ToString()
+    {
+        return Description;
+    }
 }
 
 /// <summary>
@@ -190,6 +193,8 @@ public static class MistTypeAliasGenerator
     /// FsCheck Arbitrary for <see cref="TypeAliasSourceScenario"/>.
     /// Register this with <c>[Property(Arbitrary = new[] { typeof(MistTypeAliasGenerator) })]</c>.
     /// </summary>
-    public static Arbitrary<TypeAliasSourceScenario> ArbitraryTypeAliasSourceScenario() =>
-        GenTypeAliasSource().ToArbitrary();
+    public static Arbitrary<TypeAliasSourceScenario> ArbitraryTypeAliasSourceScenario()
+    {
+        return GenTypeAliasSource().ToArbitrary();
+    }
 }

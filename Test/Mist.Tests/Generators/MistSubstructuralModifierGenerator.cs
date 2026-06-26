@@ -32,7 +32,10 @@ public sealed class SubstructuralModifierSourceScenario
         Description = description;
     }
 
-    public override string ToString() => Description;
+    public override string ToString()
+    {
+        return Description;
+    }
 }
 
 /// <summary>
@@ -77,6 +80,8 @@ public static class MistSubstructuralModifierGenerator
     /// <summary>
     /// FsCheck Arbitrary for <see cref="SubstructuralModifierSourceScenario"/>.
     /// </summary>
-    public static Arbitrary<SubstructuralModifierSourceScenario> ArbitrarySubstructuralModifierSourceScenario() =>
-        GenSubstructuralTypeDeclaration().ToArbitrary();
+    public static Arbitrary<SubstructuralModifierSourceScenario> ArbitrarySubstructuralModifierSourceScenario()
+    {
+        return GenSubstructuralTypeDeclaration().ToArbitrary();
+    }
 }

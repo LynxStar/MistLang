@@ -38,13 +38,15 @@ public class ImplicitCastResolutionPropertyTests
 
     // ─── Helpers ─────────────────────────────────────────────────────────
 
-    private static Storm.Runtime.Token Tok(string lexeme) =>
-        new(kind: 0,
+    private static Storm.Runtime.Token Tok(string lexeme)
+    {
+        return new(kind: 0,
             span: new Storm.Runtime.SourceSpan(0, lexeme.Length),
             start: new Storm.Runtime.LinePosition(1, 1),
             end: new Storm.Runtime.LinePosition(1, 1 + lexeme.Length),
             channel: Storm.Runtime.TokenChannel.Default,
             lexeme: lexeme);
+    }
 
     private ISemanticModel BuildModel(Storm.Runtime.SyntaxNode ast)
     {
@@ -101,8 +103,10 @@ public class ImplicitCastResolutionPropertyTests
         OperatorLocation Location,
         ConversionSite Site)
     {
-        public override string ToString() =>
-            $"implicit operator {TargetTypeName}({SourceTypeName}) on {Location}, site={Site}";
+        public override string ToString()
+        {
+            return $"implicit operator {TargetTypeName}({SourceTypeName}) on {Location}, site={Site}";
+        }
     }
 
     /// <summary>
@@ -112,8 +116,10 @@ public class ImplicitCastResolutionPropertyTests
         string SourceTypeName,
         string TargetTypeName)
     {
-        public override string ToString() =>
-            $"no implicit cast: {SourceTypeName} → {TargetTypeName}";
+        public override string ToString()
+        {
+            return $"no implicit cast: {SourceTypeName} → {TargetTypeName}";
+        }
     }
 
     /// <summary>
@@ -124,8 +130,10 @@ public class ImplicitCastResolutionPropertyTests
         string SourceTypeName,
         string TargetTypeName)
     {
-        public override string ToString() =>
-            $"ambiguous implicit cast: {SourceTypeName} → {TargetTypeName} (both types define operator)";
+        public override string ToString()
+        {
+            return $"ambiguous implicit cast: {SourceTypeName} → {TargetTypeName} (both types define operator)";
+        }
     }
 #pragma warning restore CA1034
 
@@ -157,14 +165,20 @@ public class ImplicitCastResolutionPropertyTests
                select new AmbiguousImplicitCastScenario(source, target);
     }
 
-    public static Arbitrary<ValidImplicitCastScenario> ArbitraryValidImplicitCastScenario() =>
-        GenValidScenario().ToArbitrary();
+    public static Arbitrary<ValidImplicitCastScenario> ArbitraryValidImplicitCastScenario()
+    {
+        return GenValidScenario().ToArbitrary();
+    }
 
-    public static Arbitrary<NoImplicitCastScenario> ArbitraryNoImplicitCastScenario() =>
-        GenNoImplicitCastScenario().ToArbitrary();
+    public static Arbitrary<NoImplicitCastScenario> ArbitraryNoImplicitCastScenario()
+    {
+        return GenNoImplicitCastScenario().ToArbitrary();
+    }
 
-    public static Arbitrary<AmbiguousImplicitCastScenario> ArbitraryAmbiguousImplicitCastScenario() =>
-        GenAmbiguousScenario().ToArbitrary();
+    public static Arbitrary<AmbiguousImplicitCastScenario> ArbitraryAmbiguousImplicitCastScenario()
+    {
+        return GenAmbiguousScenario().ToArbitrary();
+    }
 
     // ─── AST construction helpers ────────────────────────────────────────
 
@@ -219,21 +233,25 @@ public class ImplicitCastResolutionPropertyTests
         return new AssignmentFormExpressionNode { Assignment = assign };
     }
 
-    private static TypeReferenceNode MakeNamedTypeRef(string name) =>
-        new TypeReferenceNode
+    private static TypeReferenceNode MakeNamedTypeRef(string name)
+    {
+        return new TypeReferenceNode
         {
             First = new NamedSingleTypeRefSingleTypeRefNode
             {
                 Name = new QualifiedIdentifierNode { IDENTIFIER = Tok(name) },
             }
         };
+    }
 
-    private static ParameterNode MakeParameter(string typeName, string paramName) =>
-        new()
+    private static ParameterNode MakeParameter(string typeName, string paramName)
+    {
+        return new()
         {
             Type = MakeNamedTypeRef(typeName),
             Name = Tok(paramName),
         };
+    }
 
     /// <summary>
     /// Builds an implicit cast operator declaration with exactly one parameter.
@@ -282,8 +300,9 @@ public class ImplicitCastResolutionPropertyTests
     /// <summary>
     /// Creates an empty class declaration.
     /// </summary>
-    private static TypeDeclarationNode MakeEmptyClassDecl(string name) =>
-        new ClassTypeTypeDeclarationNode
+    private static TypeDeclarationNode MakeEmptyClassDecl(string name)
+    {
+        return new ClassTypeTypeDeclarationNode
         {
             ClassDeclaration = new ClassDeclarationNode
             {
@@ -291,13 +310,15 @@ public class ImplicitCastResolutionPropertyTests
                 Members = ImmutableArray<MemberDeclarationNode>.Empty,
             },
         };
+    }
 
     /// <summary>
     /// Creates a class declaration with the given members.
     /// </summary>
     private static TypeDeclarationNode MakeClassDeclWithMembers(
-        string name, ImmutableArray<MemberDeclarationNode> members) =>
-        new ClassTypeTypeDeclarationNode
+        string name, ImmutableArray<MemberDeclarationNode> members)
+    {
+        return new ClassTypeTypeDeclarationNode
         {
             ClassDeclaration = new ClassDeclarationNode
             {
@@ -305,6 +326,7 @@ public class ImplicitCastResolutionPropertyTests
                 Members = members,
             },
         };
+    }
 
     /// <summary>
     /// Creates a variable declaration statement: <c>DeclaredType varName = new InitType();</c>

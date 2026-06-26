@@ -70,12 +70,16 @@ public class RefTypeCheckerDiagnosticsPropertyTests
         }
     }
 
-    private static bool HasDiagnostic(ImmutableArray<Diagnostic> diagnostics, string id) =>
-        diagnostics.Any(d => d.Id.Value == id);
+    private static bool HasDiagnostic(ImmutableArray<Diagnostic> diagnostics, string id)
+    {
+        return diagnostics.Any(d => d.Id.Value == id);
+    }
 
     private static bool HasDiagnosticWithSeverity(
-        ImmutableArray<Diagnostic> diagnostics, string id, DiagnosticSeverity severity) =>
-        diagnostics.Any(d => d.Id.Value == id && d.Severity == severity);
+        ImmutableArray<Diagnostic> diagnostics, string id, DiagnosticSeverity severity)
+    {
+        return diagnostics.Any(d => d.Id.Value == id && d.Severity == severity);
+    }
 
     // ─── Scenario types ──────────────────────────────────────────────────
 
@@ -84,49 +88,73 @@ public class RefTypeCheckerDiagnosticsPropertyTests
     /// <summary>Scenario for Property 3: non-assignable expressions used as ref arguments.</summary>
     public sealed record NonAssignableRefArgScenario(string Source, string Label)
     {
-        public override string ToString() => Label;
+        public override string ToString()
+        {
+            return Label;
+        }
     }
 
     /// <summary>Scenario for Property 4: ref + ownership specifier combinations.</summary>
     public sealed record RefOwnershipScenario(string Source, string Label, string ExpectedDiagId, DiagnosticSeverity ExpectedSeverity)
     {
-        public override string ToString() => Label;
+        public override string ToString()
+        {
+            return Label;
+        }
     }
 
     /// <summary>Scenario for Property 5: ref argument type mismatch.</summary>
     public sealed record RefTypeMismatchScenario(string Source, string Label)
     {
-        public override string ToString() => Label;
+        public override string ToString()
+        {
+            return Label;
+        }
     }
 
     /// <summary>Scenario for Property 6: ref return lifetime violation.</summary>
     public sealed record RefReturnLifetimeScenario(string Source, string Label)
     {
-        public override string ToString() => Label;
+        public override string ToString()
+        {
+            return Label;
+        }
     }
 
     /// <summary>Scenario for Property 7: assignment through ref readonly.</summary>
     public sealed record RefReadonlyAssignScenario(string Source, string Label, string ExpectedDiagId)
     {
-        public override string ToString() => Label;
+        public override string ToString()
+        {
+            return Label;
+        }
     }
 
     /// <summary>Scenario for Property 8: missing or spurious ref at call site.</summary>
     public sealed record RefCallSiteScenario(string Source, string Label, string ExpectedDiagId)
     {
-        public override string ToString() => Label;
+        public override string ToString()
+        {
+            return Label;
+        }
     }
 
     /// <summary>Scenario for Property 10: RefKind overload distinction.</summary>
     public sealed record RefOverloadScenario(string Source, string Label)
     {
-        public override string ToString() => Label;
+        public override string ToString()
+        {
+            return Label;
+        }
     }
 
     /// <summary>Scenario for Property 13: ref stored in field.</summary>
     public sealed record RefFieldStorageScenario(string Source, string Label)
     {
-        public override string ToString() => Label;
+        public override string ToString()
+        {
+            return Label;
+        }
     }
 
 #pragma warning restore CA1034
@@ -649,7 +677,10 @@ public class RefTypeCheckerDiagnosticsPropertyTests
 #pragma warning disable CA1034
     public sealed record RefLambdaCaptureScenario(string Source, string Label)
     {
-        public override string ToString() => Label;
+        public override string ToString()
+        {
+            return Label;
+        }
     }
 #pragma warning restore CA1034
 

@@ -107,7 +107,10 @@ public class RegexPatternMatchingTypeTests
 #pragma warning disable CA1034
     public record ScrutineeScenario(string TypeName, string Declaration, bool IsString)
     {
-        public override string ToString() => $"{TypeName} (isString={IsString})";
+        public override string ToString()
+        {
+            return $"{TypeName} (isString={IsString})";
+        }
     }
 #pragma warning restore CA1034
 
@@ -148,8 +151,10 @@ public class RegexPatternMatchingTypeTests
 #pragma warning disable CA1034
     public record IsExpressionScenario(ScrutineeScenario Scrutinee, string Pattern)
     {
-        public override string ToString() =>
-            $"scrutinee={Scrutinee.TypeName}, pattern=`{Pattern}`, expectAccepted={Scrutinee.IsString}";
+        public override string ToString()
+        {
+            return $"scrutinee={Scrutinee.TypeName}, pattern=`{Pattern}`, expectAccepted={Scrutinee.IsString}";
+        }
     }
 #pragma warning restore CA1034
 
@@ -170,8 +175,10 @@ public class RegexPatternMatchingTypeTests
 #pragma warning disable CA1034, CA1819
     public record SwitchExhaustivenessScenario(string[] Patterns, bool HasCatchAll)
     {
-        public override string ToString() =>
-            $"patterns=[{string.Join(", ", Patterns.Select(p => $"`{p}`"))}], catchAll={HasCatchAll}";
+        public override string ToString()
+        {
+            return $"patterns=[{string.Join(", ", Patterns.Select(p => $"`{p}`"))}], catchAll={HasCatchAll}";
+        }
     }
 #pragma warning restore CA1034, CA1819
 

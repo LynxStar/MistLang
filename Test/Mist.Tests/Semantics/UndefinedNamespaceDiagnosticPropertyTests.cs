@@ -30,7 +30,10 @@ public sealed class UndefinedNamespaceDiagnosticPropertyTests
 #pragma warning disable CA1034
     public record NonExistentNamespace(string Value)
     {
-        public override string ToString() => Value;
+        public override string ToString()
+        {
+            return Value;
+        }
     }
 #pragma warning restore CA1034
 

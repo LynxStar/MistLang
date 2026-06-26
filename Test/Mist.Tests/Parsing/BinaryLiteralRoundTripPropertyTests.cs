@@ -169,7 +169,10 @@ public class BinaryLiteralRoundTripPropertyTests
 #pragma warning disable CA1034
     public record NumericLiteralRoundTripScenario(string Source, string Literal)
     {
-        public override string ToString() => Literal;
+        public override string ToString()
+        {
+            return Literal;
+        }
     }
 #pragma warning restore CA1034
 

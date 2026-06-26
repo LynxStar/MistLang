@@ -11,7 +11,10 @@ public ref struct RefStructType
 
     public RefStructType(int value) => Value = value;
 
-    public int GetValue() => Value;
+    public int GetValue()
+    {
+        return Value;
+    }
 }
 
 /// <summary>

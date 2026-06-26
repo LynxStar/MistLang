@@ -30,13 +30,15 @@ public class ExtensionTypeCheckerPropertyTests
 
     private static readonly SemanticModelBuilder Builder = new();
 
-    private static Storm.Runtime.Token Tok(string lexeme) =>
-        new(kind: 0,
+    private static Storm.Runtime.Token Tok(string lexeme)
+    {
+        return new(kind: 0,
             span: new Storm.Runtime.SourceSpan(0, lexeme.Length),
             start: new Storm.Runtime.LinePosition(1, 1),
             end: new Storm.Runtime.LinePosition(1, 1 + lexeme.Length),
             channel: Storm.Runtime.TokenChannel.Default,
             lexeme: lexeme);
+    }
 
     private static MistCompilation MakeCompilation(string source = "")
     {
@@ -78,8 +80,9 @@ public class ExtensionTypeCheckerPropertyTests
 
     // ─── AST construction helpers ────────────────────────────────────────
 
-    private static TypeReferenceNode MakeNamedTypeRef(string name, TypeArgumentListNode? typeArgs = null) =>
-        new TypeReferenceNode
+    private static TypeReferenceNode MakeNamedTypeRef(string name, TypeArgumentListNode? typeArgs = null)
+    {
+        return new TypeReferenceNode
         {
             First = new NamedSingleTypeRefSingleTypeRefNode
             {
@@ -91,12 +94,16 @@ public class ExtensionTypeCheckerPropertyTests
                 TypeArgs = typeArgs,
             }
         };
+    }
 
-    private static TypeReferenceNode MakeUnknownTypeRef() =>
-        new TypeReferenceNode { First = new UnknownSingleTypeRefSingleTypeRefNode() };
+    private static TypeReferenceNode MakeUnknownTypeRef()
+    {
+        return new TypeReferenceNode { First = new UnknownSingleTypeRefSingleTypeRefNode() };
+    }
 
-    private static TypeReferenceNode MakeReturnTypeRef(string typeName) =>
-        typeName == "void"
+    private static TypeReferenceNode MakeReturnTypeRef(string typeName)
+    {
+        return typeName == "void"
             ? new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() }
             : typeName == "int"
                 ? new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = new IntTypePrimitiveTypeNode() } }
@@ -105,6 +112,7 @@ public class ExtensionTypeCheckerPropertyTests
                     : typeName == "bool"
                         ? new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = new BoolTypePrimitiveTypeNode() } }
                         : MakeNamedTypeRef(typeName);
+    }
 
     private static ExpressionNode MakeLiteralExpression(string typeName)
     {
@@ -204,14 +212,17 @@ public class ExtensionTypeCheckerPropertyTests
         return new AssignmentFormExpressionNode { Assignment = assign };
     }
 
-    private static StatementNode MakeExpressionStatement(ExpressionNode expr) =>
-        new ExpressionStatementStatementNode
+    private static StatementNode MakeExpressionStatement(ExpressionNode expr)
+    {
+        return new ExpressionStatementStatementNode
         {
             ExpressionStatement = new ExpressionStatementNode { Expression = expr },
         };
+    }
 
-    private static StatementNode MakeTypedVarDecl(string typeName, string varName, ExpressionNode initializer) =>
-        new VariableDeclarationStatementStatementNode
+    private static StatementNode MakeTypedVarDecl(string typeName, string varName, ExpressionNode initializer)
+    {
+        return new VariableDeclarationStatementStatementNode
         {
             VariableDeclaration = new TypedVariableDeclarationVariableDeclarationStatementNode
             {
@@ -220,9 +231,11 @@ public class ExtensionTypeCheckerPropertyTests
                 Initializer = initializer,
             },
         };
+    }
 
-    private static StatementNode MakeNamedTypeVarDecl(string declaredTypeName, string varName, ExpressionNode initializer) =>
-        new VariableDeclarationStatementStatementNode
+    private static StatementNode MakeNamedTypeVarDecl(string declaredTypeName, string varName, ExpressionNode initializer)
+    {
+        return new VariableDeclarationStatementStatementNode
         {
             VariableDeclaration = new TypedVariableDeclarationVariableDeclarationStatementNode
             {
@@ -231,6 +244,7 @@ public class ExtensionTypeCheckerPropertyTests
                 Initializer = initializer,
             },
         };
+    }
 
     private static ExpressionNode MakeNewObjectExpression(string typeName)
     {
@@ -299,24 +313,28 @@ public class ExtensionTypeCheckerPropertyTests
     }
 
     private static ExtensionBlockDeclarationNode MakeExtensionBlock(
-        TypeReferenceNode receiverType, string receiverName, params ExtensionMemberDeclarationNode[] members) =>
-        new()
+        TypeReferenceNode receiverType, string receiverName, params ExtensionMemberDeclarationNode[] members)
+    {
+        return new()
         {
             ReceiverType = receiverType,
             ReceiverName = Tok(receiverName),
             Members = members.ToImmutableArray(),
         };
+    }
 
     private static ExtensionBlockDeclarationNode MakeGenericExtensionBlock(
         TypeParameterListNode typeParams, TypeReferenceNode receiverType, string receiverName,
-        params ExtensionMemberDeclarationNode[] members) =>
-        new()
+        params ExtensionMemberDeclarationNode[] members)
+    {
+        return new()
         {
             TypeParams = typeParams,
             ReceiverType = receiverType,
             ReceiverName = Tok(receiverName),
             Members = members.ToImmutableArray(),
         };
+    }
 
     private static TypeParameterListNode MakeTypeParamList(params string[] names)
     {
@@ -331,28 +349,34 @@ public class ExtensionTypeCheckerPropertyTests
         };
     }
 
-    private static TypeArgumentListNode MakeTypeArgList(params TypeReferenceNode[] typeRefs) =>
-        new()
+    private static TypeArgumentListNode MakeTypeArgList(params TypeReferenceNode[] typeRefs)
+    {
+        return new()
         {
             TypeArgument = new TypeReferenceTypeArgumentTypeArgumentNode { Type = typeRefs[0] },
             TypeArguments = typeRefs.Skip(1).Select(t => (TypeArgumentNode)new TypeReferenceTypeArgumentTypeArgumentNode { Type = t }).ToImmutableArray(),
         };
+    }
 
-    private static ClassDeclarationNode MakeClass(string name, ImmutableArray<MemberDeclarationNode>? members = null) =>
-        new()
+    private static ClassDeclarationNode MakeClass(string name, ImmutableArray<MemberDeclarationNode>? members = null)
+    {
+        return new()
         {
             Name = Tok(name),
             Members = members ?? ImmutableArray<MemberDeclarationNode>.Empty,
         };
+    }
 
     private static ClassDeclarationNode MakeGenericClass(string name, TypeParameterListNode typeParams,
-        ImmutableArray<MemberDeclarationNode>? members = null) =>
-        new()
+        ImmutableArray<MemberDeclarationNode>? members = null)
+    {
+        return new()
         {
             Name = Tok(name),
             TypeParams = typeParams,
             Members = members ?? ImmutableArray<MemberDeclarationNode>.Empty,
         };
+    }
 
     private static MemberDeclarationNode MakeClassMethod(string name, string returnType = "void", bool isStatic = false)
     {
@@ -385,14 +409,19 @@ public class ExtensionTypeCheckerPropertyTests
         };
     }
 
-    private static TopLevelItemNode MakeExtensionTopLevelItem(ExtensionBlockDeclarationNode extDecl) =>
-        new ExtensionItemTopLevelItemNode { ExtensionDeclaration = extDecl };
+    private static TopLevelItemNode MakeExtensionTopLevelItem(ExtensionBlockDeclarationNode extDecl)
+    {
+        return new ExtensionItemTopLevelItemNode { ExtensionDeclaration = extDecl };
+    }
 
-    private static TopLevelItemNode MakeClassTopLevelItem(ClassDeclarationNode classDecl) =>
-        (new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItem();
+    private static TopLevelItemNode MakeClassTopLevelItem(ClassDeclarationNode classDecl)
+    {
+        return (new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItem();
+    }
 
-    private static UsingDeclarationNode MakeUsingDeclaration(string namespaceName) =>
-        new()
+    private static UsingDeclarationNode MakeUsingDeclaration(string namespaceName)
+    {
+        return new()
         {
             Name = new QualifiedIdentifierNode
             {
@@ -400,10 +429,12 @@ public class ExtensionTypeCheckerPropertyTests
                 Span = new Storm.Runtime.SourceSpan(0, namespaceName.Length),
             },
         };
+    }
 
     private static FileScopedNamespaceNamespaceDeclarationNode MakeFileScopedNs(
-        string nsName, ImmutableArray<NamespaceBodyItemNode> body) =>
-        new()
+        string nsName, ImmutableArray<NamespaceBodyItemNode> body)
+    {
+        return new()
         {
             Name = new QualifiedIdentifierNode
             {
@@ -413,6 +444,7 @@ public class ExtensionTypeCheckerPropertyTests
             Body = body,
             Span = new Storm.Runtime.SourceSpan(0, nsName.Length + 20),
         };
+    }
 
     // ─── Scenario types ──────────────────────────────────────────────────
 
@@ -420,47 +452,74 @@ public class ExtensionTypeCheckerPropertyTests
 
     public record FallbackScenario(string ClassName, string MethodName, string ReturnType)
     {
-        public override string ToString() => $"extension({ClassName}).{MethodName}() -> {ReturnType}";
+        public override string ToString()
+        {
+            return $"extension({ClassName}).{MethodName}() -> {ReturnType}";
+        }
     }
 
     public record ShadowScenario(string ClassName, string MethodName, string OwnReturnType, string ExtReturnType)
     {
-        public override string ToString() => $"{ClassName}.{MethodName}() own={OwnReturnType} ext={ExtReturnType}";
+        public override string ToString()
+        {
+            return $"{ClassName}.{MethodName}() own={OwnReturnType} ext={ExtReturnType}";
+        }
     }
 
     public record SpecificityScenario(string ClassName, string MethodName, string SpecificReturnType, string UniversalReturnType)
     {
-        public override string ToString() => $"{ClassName}.{MethodName}() specific={SpecificReturnType} universal={UniversalReturnType}";
+        public override string ToString()
+        {
+            return $"{ClassName}.{MethodName}() specific={SpecificReturnType} universal={UniversalReturnType}";
+        }
     }
 
     public record GenericScenario(string GenericClassName, string TypeParam, string ConcreteArg, string MethodName)
     {
-        public override string ToString() => $"extension<{TypeParam}>({GenericClassName}<{TypeParam}>).{MethodName}() with {ConcreteArg}";
+        public override string ToString()
+        {
+            return $"extension<{TypeParam}>({GenericClassName}<{TypeParam}>).{MethodName}() with {ConcreteArg}";
+        }
     }
 
     public record UniversalScenario(string MethodName, string TargetTypeName)
     {
-        public override string ToString() => $"extension(unknown).{MethodName}() on {TargetTypeName}";
+        public override string ToString()
+        {
+            return $"extension(unknown).{MethodName}() on {TargetTypeName}";
+        }
     }
 
     public record StaticReceiverScenario(string ClassName, string MethodName, string ReceiverName)
     {
-        public override string ToString() => $"static extension({ClassName} {ReceiverName}).{MethodName}() references {ReceiverName}";
+        public override string ToString()
+        {
+            return $"static extension({ClassName} {ReceiverName}).{MethodName}() references {ReceiverName}";
+        }
     }
 
     public record NamespaceScenario(string NamespaceName, string ClassName, string MethodName)
     {
-        public override string ToString() => $"namespace {NamespaceName}: extension({ClassName}).{MethodName}()";
+        public override string ToString()
+        {
+            return $"namespace {NamespaceName}: extension({ClassName}).{MethodName}()";
+        }
     }
 
     public record UnionScenario(string ClassA, string ClassB, string MethodName, bool ApplicableToBoth)
     {
-        public override string ToString() => $"({ClassA} | {ClassB}).{MethodName}() applicable={ApplicableToBoth}";
+        public override string ToString()
+        {
+            return $"({ClassA} | {ClassB}).{MethodName}() applicable={ApplicableToBoth}";
+        }
     }
 
     public record UnknownExclusionScenario(string ClassName, string MethodName)
     {
-        public override string ToString() => $"unknown.{MethodName}() should NOT find extension({ClassName})";
+        public override string ToString()
+        {
+            return $"unknown.{MethodName}() should NOT find extension({ClassName})";
+        }
     }
 
 #pragma warning restore CA1034
@@ -474,62 +533,80 @@ public class ExtensionTypeCheckerPropertyTests
     private static readonly string[] NamespaceNames = ["Alpha", "Beta", "Gamma", "Delta"];
     private static readonly string[] TypeParams = ["T", "U", "V"];
 
-    public static Arbitrary<FallbackScenario> ArbitraryFallbackScenario() =>
-        (from cls in Gen.Elements(ClassNames)
-         from method in Gen.Elements(MethodNames)
-         from ret in Gen.Elements(ReturnTypes)
-         select new FallbackScenario(cls, method, ret)).ToArbitrary();
+    public static Arbitrary<FallbackScenario> ArbitraryFallbackScenario()
+    {
+        return (from cls in Gen.Elements(ClassNames)
+                from method in Gen.Elements(MethodNames)
+                from ret in Gen.Elements(ReturnTypes)
+                select new FallbackScenario(cls, method, ret)).ToArbitrary();
+    }
 
-    public static Arbitrary<ShadowScenario> ArbitraryShadowScenario() =>
-        (from cls in Gen.Elements(ClassNames)
-         from method in Gen.Elements(MethodNames)
-         from ownRet in Gen.Elements(ReturnTypes)
-         from extRet in Gen.Elements(ReturnTypes)
-         select new ShadowScenario(cls, method, ownRet, extRet)).ToArbitrary();
+    public static Arbitrary<ShadowScenario> ArbitraryShadowScenario()
+    {
+        return (from cls in Gen.Elements(ClassNames)
+                from method in Gen.Elements(MethodNames)
+                from ownRet in Gen.Elements(ReturnTypes)
+                from extRet in Gen.Elements(ReturnTypes)
+                select new ShadowScenario(cls, method, ownRet, extRet)).ToArbitrary();
+    }
 
-    public static Arbitrary<SpecificityScenario> ArbitrarySpecificityScenario() =>
-        (from cls in Gen.Elements(ClassNames)
-         from method in Gen.Elements(MethodNames)
-         from specRet in Gen.Elements(ReturnTypes)
-         from univRet in Gen.Elements(ReturnTypes)
-         select new SpecificityScenario(cls, method, specRet, univRet)).ToArbitrary();
+    public static Arbitrary<SpecificityScenario> ArbitrarySpecificityScenario()
+    {
+        return (from cls in Gen.Elements(ClassNames)
+                from method in Gen.Elements(MethodNames)
+                from specRet in Gen.Elements(ReturnTypes)
+                from univRet in Gen.Elements(ReturnTypes)
+                select new SpecificityScenario(cls, method, specRet, univRet)).ToArbitrary();
+    }
 
-    public static Arbitrary<GenericScenario> ArbitraryGenericScenario() =>
-        (from cls in Gen.Elements(ClassNames)
-         from tp in Gen.Elements(TypeParams)
-         from concreteArg in Gen.Elements("Widget", "Service", "Handler")
-         from method in Gen.Elements(MethodNames)
-         where cls != concreteArg // Avoid using the same name for the generic class and the type arg
-         select new GenericScenario(cls, tp, concreteArg, method)).ToArbitrary();
+    public static Arbitrary<GenericScenario> ArbitraryGenericScenario()
+    {
+        return (from cls in Gen.Elements(ClassNames)
+                from tp in Gen.Elements(TypeParams)
+                from concreteArg in Gen.Elements("Widget", "Service", "Handler")
+                from method in Gen.Elements(MethodNames)
+                where cls != concreteArg // Avoid using the same name for the generic class and the type arg
+                select new GenericScenario(cls, tp, concreteArg, method)).ToArbitrary();
+    }
 
-    public static Arbitrary<UniversalScenario> ArbitraryUniversalScenario() =>
-        (from method in Gen.Elements(MethodNames)
-         from target in Gen.Elements(ClassNames)
-         select new UniversalScenario(method, target)).ToArbitrary();
+    public static Arbitrary<UniversalScenario> ArbitraryUniversalScenario()
+    {
+        return (from method in Gen.Elements(MethodNames)
+                from target in Gen.Elements(ClassNames)
+                select new UniversalScenario(method, target)).ToArbitrary();
+    }
 
-    public static Arbitrary<StaticReceiverScenario> ArbitraryStaticReceiverScenario() =>
-        (from cls in Gen.Elements(ClassNames)
-         from method in Gen.Elements(MethodNames)
-         from receiver in Gen.Elements(ReceiverNames)
-         select new StaticReceiverScenario(cls, method, receiver)).ToArbitrary();
+    public static Arbitrary<StaticReceiverScenario> ArbitraryStaticReceiverScenario()
+    {
+        return (from cls in Gen.Elements(ClassNames)
+                from method in Gen.Elements(MethodNames)
+                from receiver in Gen.Elements(ReceiverNames)
+                select new StaticReceiverScenario(cls, method, receiver)).ToArbitrary();
+    }
 
-    public static Arbitrary<NamespaceScenario> ArbitraryNamespaceScenario() =>
-        (from ns in Gen.Elements(NamespaceNames)
-         from cls in Gen.Elements(ClassNames)
-         from method in Gen.Elements(MethodNames)
-         select new NamespaceScenario(ns, cls, method)).ToArbitrary();
+    public static Arbitrary<NamespaceScenario> ArbitraryNamespaceScenario()
+    {
+        return (from ns in Gen.Elements(NamespaceNames)
+                from cls in Gen.Elements(ClassNames)
+                from method in Gen.Elements(MethodNames)
+                select new NamespaceScenario(ns, cls, method)).ToArbitrary();
+    }
 
-    public static Arbitrary<UnionScenario> ArbitraryUnionScenario() =>
-        (from clsA in Gen.Elements(ClassNames[..3])
-         from clsB in Gen.Elements(ClassNames[3..])
-         from method in Gen.Elements(MethodNames)
-         from both in Gen.Elements(true, false)
-         select new UnionScenario(clsA, clsB, method, both)).ToArbitrary();
+    public static Arbitrary<UnionScenario> ArbitraryUnionScenario()
+    {
+        return (from clsA in Gen.Elements(ClassNames[..3])
+                from clsB in Gen.Elements(ClassNames[3..])
+                from method in Gen.Elements(MethodNames)
+                from both in Gen.Elements(true, false)
+                select new UnionScenario(clsA, clsB, method, both)).ToArbitrary();
+    }
 
-    public static Arbitrary<UnknownExclusionScenario> ArbitraryUnknownExclusionScenario() =>
-        (from cls in Gen.Elements(ClassNames)
-         from method in Gen.Elements(MethodNames)
-         select new UnknownExclusionScenario(cls, method)).ToArbitrary();
+    public static Arbitrary<UnknownExclusionScenario> ArbitraryUnknownExclusionScenario()
+    {
+        return (from cls in Gen.Elements(ClassNames)
+                from method in Gen.Elements(MethodNames)
+                select new UnknownExclusionScenario(cls, method)).ToArbitrary();
+    }
 
 
     // ═══════════════════════════════════════════════════════════════════════

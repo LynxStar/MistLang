@@ -78,7 +78,10 @@ public class OwnershipStorabilityPropertyTests
     /// </summary>
     public sealed record RefToFieldScenario(string Source, string Label)
     {
-        public override string ToString() => Label;
+        public override string ToString()
+        {
+            return Label;
+        }
     }
 
     /// <summary>
@@ -87,7 +90,10 @@ public class OwnershipStorabilityPropertyTests
     /// </summary>
     public sealed record RefReturnScenario(string Source, string Label)
     {
-        public override string ToString() => Label;
+        public override string ToString()
+        {
+            return Label;
+        }
     }
 
     /// <summary>
@@ -96,7 +102,10 @@ public class OwnershipStorabilityPropertyTests
     /// </summary>
     public sealed record RefFieldDeclScenario(string Source, string Label)
     {
-        public override string ToString() => Label;
+        public override string ToString()
+        {
+            return Label;
+        }
     }
 
     /// <summary>
@@ -105,7 +114,10 @@ public class OwnershipStorabilityPropertyTests
     /// </summary>
     public sealed record ValidRefUsageScenario(string Source, string Label)
     {
-        public override string ToString() => Label;
+        public override string ToString()
+        {
+            return Label;
+        }
     }
 
 #pragma warning restore CA1034
@@ -227,17 +239,25 @@ public class OwnershipStorabilityPropertyTests
 
     // ─── Arbitrary instances ─────────────────────────────────────────────
 
-    public static Arbitrary<RefFieldDeclScenario> ArbitraryRefFieldDeclScenario() =>
-        GenRefFieldDeclScenario().ToArbitrary();
+    public static Arbitrary<RefFieldDeclScenario> ArbitraryRefFieldDeclScenario()
+    {
+        return GenRefFieldDeclScenario().ToArbitrary();
+    }
 
-    public static Arbitrary<RefReturnScenario> ArbitraryRefReturnScenario() =>
-        GenRefReturnScenario().ToArbitrary();
+    public static Arbitrary<RefReturnScenario> ArbitraryRefReturnScenario()
+    {
+        return GenRefReturnScenario().ToArbitrary();
+    }
 
-    public static Arbitrary<RefToFieldScenario> ArbitraryRefToFieldScenario() =>
-        GenRefToFieldScenario().ToArbitrary();
+    public static Arbitrary<RefToFieldScenario> ArbitraryRefToFieldScenario()
+    {
+        return GenRefToFieldScenario().ToArbitrary();
+    }
 
-    public static Arbitrary<ValidRefUsageScenario> ArbitraryValidRefUsageScenario() =>
-        GenValidRefUsageScenario().ToArbitrary();
+    public static Arbitrary<ValidRefUsageScenario> ArbitraryValidRefUsageScenario()
+    {
+        return GenValidRefUsageScenario().ToArbitrary();
+    }
 
     // ═══════════════════════════════════════════════════════════════════════
     // Property 3a: Ref-tier specifiers on field declarations produce

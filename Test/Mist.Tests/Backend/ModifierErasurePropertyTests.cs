@@ -140,7 +140,10 @@ public sealed class ModifierErasurePropertyTests
     /// </summary>
     public sealed record ModifierScenario(string Source, string Discipline, string Label)
     {
-        public override string ToString() => Label;
+        public override string ToString()
+        {
+            return Label;
+        }
     }
 
 #pragma warning restore CA1034
@@ -207,8 +210,10 @@ public sealed class ModifierErasurePropertyTests
         return new ModifierScenario(source, discipline, label);
     }
 
-    public static Arbitrary<ModifierScenario> ArbitraryModifierScenario() =>
-        GenModifierScenario().ToArbitrary();
+    public static Arbitrary<ModifierScenario> ArbitraryModifierScenario()
+    {
+        return GenModifierScenario().ToArbitrary();
+    }
 
     // ═══════════════════════════════════════════════════════════════════════
     // Property 17: Substructural modifiers erased in emitted C#

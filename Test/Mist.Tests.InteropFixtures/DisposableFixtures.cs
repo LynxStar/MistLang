@@ -40,7 +40,10 @@ public class DisposableWithDrop : IDisposable
 /// </summary>
 public class AsyncOnlyDisposable : IAsyncDisposable
 {
-    public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+    public ValueTask DisposeAsync()
+    {
+        return ValueTask.CompletedTask;
+    }
 }
 
 /// <summary>
@@ -49,7 +52,10 @@ public class AsyncOnlyDisposable : IAsyncDisposable
 public class BothDisposables : IDisposable, IAsyncDisposable
 {
     public void Dispose() { }
-    public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+    public ValueTask DisposeAsync()
+    {
+        return ValueTask.CompletedTask;
+    }
 }
 
 /// <summary>

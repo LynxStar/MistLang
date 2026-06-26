@@ -30,12 +30,18 @@ public sealed class AmbiguousTypeReferencePropertyTests
 #pragma warning disable CA1034
     public record ValidClassName(string Value)
     {
-        public override string ToString() => Value;
+        public override string ToString()
+        {
+            return Value;
+        }
     }
 
     public record NamespacePair(string Ns1, string Ns2)
     {
-        public override string ToString() => $"({Ns1}, {Ns2})";
+        public override string ToString()
+        {
+            return $"({Ns1}, {Ns2})";
+        }
     }
 #pragma warning restore CA1034
 

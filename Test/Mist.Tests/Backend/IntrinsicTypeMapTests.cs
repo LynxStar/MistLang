@@ -18,14 +18,20 @@ public class IntrinsicTypeMapTests
 
     // ── Helper factories ─────────────────────────────────────────────────
 
-    private static StructType MakeClrStruct(string displayName, string ns) =>
-        new(displayName, new Scope(parent: null), containingNamespace: ns);
+    private static StructType MakeClrStruct(string displayName, string ns)
+    {
+        return new(displayName, new Scope(parent: null), containingNamespace: ns);
+    }
 
-    private static ClassType MakeClrClass(string displayName, string ns) =>
-        new(displayName, new Scope(parent: null), containingNamespace: ns);
+    private static ClassType MakeClrClass(string displayName, string ns)
+    {
+        return new(displayName, new Scope(parent: null), containingNamespace: ns);
+    }
 
-    private static AbstractType MakeClrAbstractType(string displayName, string ns) =>
-        new(displayName, new Scope(parent: null), containingNamespace: ns);
+    private static AbstractType MakeClrAbstractType(string displayName, string ns)
+    {
+        return new(displayName, new Scope(parent: null), containingNamespace: ns);
+    }
 
     private static ClassType MakeGenericClass(string displayName, string ns, int arity)
     {

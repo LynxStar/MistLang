@@ -64,17 +64,21 @@ public class AbstractDefaultMethodSatisfactionPropertyTests
         };
     }
 
-    private static TypeReferenceNode VoidType() =>
-        new() { First = new VoidSingleTypeRefSingleTypeRefNode() };
+    private static TypeReferenceNode VoidType()
+    {
+        return new() { First = new VoidSingleTypeRefSingleTypeRefNode() };
+    }
 
-    private static TypeReferenceNode IntType() =>
-        new()
+    private static TypeReferenceNode IntType()
+    {
+        return new()
         {
             First = new PrimitiveSingleTypeRefSingleTypeRefNode
             {
                 PrimitiveType = new IntTypePrimitiveTypeNode(),
             },
         };
+    }
 
     private static MistCompilation MakeCompilation(string source = "")
     {
@@ -96,23 +100,28 @@ public class AbstractDefaultMethodSatisfactionPropertyTests
         return diagnostics.ToImmutableArray();
     }
 
-    private static int CountMissingMethodDiagnostics(ImmutableArray<Diagnostic> diagnostics) =>
-        diagnostics.Count(d => d.Id.Value == MissingMethodDiagnosticId);
+    private static int CountMissingMethodDiagnostics(ImmutableArray<Diagnostic> diagnostics)
+    {
+        return diagnostics.Count(d => d.Id.Value == MissingMethodDiagnosticId);
+    }
 
     // ─── Declaration construction helpers ────────────────────────────────
 
     /// <summary>A slot: an abstract method with no body.</summary>
-    private static AbstractMethodDeclarationNode MakeSlot(string name, TypeReferenceNode? returnType = null) =>
-        new()
+    private static AbstractMethodDeclarationNode MakeSlot(string name, TypeReferenceNode? returnType = null)
+    {
+        return new()
         {
             Name = MakeToken(name),
             ReturnType = returnType ?? VoidType(),
             Parameters = null,
         };
+    }
 
     /// <summary>A concrete method (with body), used for default methods and for impls.</summary>
-    private static MethodDeclarationNode MakeMethod(string name, TypeReferenceNode? returnType = null) =>
-        new()
+    private static MethodDeclarationNode MakeMethod(string name, TypeReferenceNode? returnType = null)
+    {
+        return new()
         {
             Name = MakeToken(name),
             ReturnType = returnType ?? VoidType(),
@@ -123,6 +132,7 @@ public class AbstractDefaultMethodSatisfactionPropertyTests
             },
             Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
         };
+    }
 
     /// <summary>
     /// Builds an abstract declaration with the given slot names (no body) and default
@@ -183,14 +193,20 @@ public class AbstractDefaultMethodSatisfactionPropertyTests
         return decl;
     }
 
-    private static TypeDeclarationNode WrapAbstract(AbstractDeclarationNode decl) =>
-        new AbstractTypeTypeDeclarationNode { AbstractDeclaration = decl };
+    private static TypeDeclarationNode WrapAbstract(AbstractDeclarationNode decl)
+    {
+        return new AbstractTypeTypeDeclarationNode { AbstractDeclaration = decl };
+    }
 
-    private static TypeDeclarationNode WrapClass(ClassDeclarationNode decl) =>
-        new ClassTypeTypeDeclarationNode { ClassDeclaration = decl };
+    private static TypeDeclarationNode WrapClass(ClassDeclarationNode decl)
+    {
+        return new ClassTypeTypeDeclarationNode { ClassDeclaration = decl };
+    }
 
-    private static CompilationUnitNode MakeCompilationUnit(params TypeDeclarationNode[] typeDecls) =>
-        new() { Items = typeDecls.ToImmutableArray().AsTopLevelItems() };
+    private static CompilationUnitNode MakeCompilationUnit(params TypeDeclarationNode[] typeDecls)
+    {
+        return new() { Items = typeDecls.ToImmutableArray().AsTopLevelItems() };
+    }
 
     // ─── Test data model ─────────────────────────────────────────────────
 
@@ -246,8 +262,10 @@ public class AbstractDefaultMethodSatisfactionPropertyTests
                select new DefaultScenario(slots, defaults, provided);
     }
 
-    public static Arbitrary<DefaultScenario> ArbitraryDefaultScenario() =>
-        GenDefaultScenario().ToArbitrary();
+    public static Arbitrary<DefaultScenario> ArbitraryDefaultScenario()
+    {
+        return GenDefaultScenario().ToArbitrary();
+    }
 
     // ─── Property 3: Slot Satisfaction Completeness ──────────────────────
 

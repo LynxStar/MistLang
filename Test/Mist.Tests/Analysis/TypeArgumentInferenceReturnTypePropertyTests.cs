@@ -44,7 +44,10 @@ public sealed class ReturnTypeSubstitutionScenario
         Description = description;
     }
 
-    public override string ToString() => Description;
+    public override string ToString()
+    {
+        return Description;
+    }
 }
 
 /// <summary>
@@ -95,25 +98,31 @@ public sealed class TypeArgumentInferenceReturnTypePropertyTests : IDisposable
     /// <summary>
     /// Returns a default literal value for the given Mist type name.
     /// </summary>
-    private static string DefaultValueFor(string typeName) => typeName switch
+    private static string DefaultValueFor(string typeName)
     {
-        "int" => "42",
-        "string" => "\"hello\"",
-        "bool" => "true",
-        _ => "0",
-    };
+        return typeName switch
+        {
+            "int" => "42",
+            "string" => "\"hello\"",
+            "bool" => "true",
+            _ => "0",
+        };
+    }
 
     /// <summary>
     /// Returns a method name that accepts the given type as a parameter,
     /// used to verify the return type was correctly substituted.
     /// </summary>
-    private static string ConsumerMethodFor(string typeName) => typeName switch
+    private static string ConsumerMethodFor(string typeName)
     {
-        "int" => "ConsumeInt",
-        "string" => "ConsumeString",
-        "bool" => "ConsumeBool",
-        _ => "ConsumeInt",
-    };
+        return typeName switch
+        {
+            "int" => "ConsumeInt",
+            "string" => "ConsumeString",
+            "bool" => "ConsumeBool",
+            _ => "ConsumeInt",
+        };
+    }
 
     // ─── Generators ──────────────────────────────────────────────────────
 
@@ -324,8 +333,10 @@ public sealed class TypeArgumentInferenceReturnTypePropertyTests : IDisposable
             GenInstanceMethodReturnType());
     }
 
-    public static Arbitrary<ReturnTypeSubstitutionScenario> ArbitraryReturnTypeSubstitutionScenario() =>
-        GenScenario().ToArbitrary();
+    public static Arbitrary<ReturnTypeSubstitutionScenario> ArbitraryReturnTypeSubstitutionScenario()
+    {
+        return GenScenario().ToArbitrary();
+    }
 
     // ─── Helpers ─────────────────────────────────────────────────────────
 

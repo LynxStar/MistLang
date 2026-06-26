@@ -28,7 +28,10 @@ public sealed class TargetTypedNewRoundTripScenario
         Description = description;
     }
 
-    public override string ToString() => Description;
+    public override string ToString()
+    {
+        return Description;
+    }
 }
 
 /// <summary>
@@ -49,8 +52,10 @@ public class TargetTypedNewRoundTripPropertyTests
 
     // ─── Arbitrary registration ──────────────────────────────────────────
 
-    public static Arbitrary<TargetTypedNewRoundTripScenario> ArbitraryScenario() =>
-        TargetTypedNewRoundTripGenerator.GenScenario().ToArbitrary();
+    public static Arbitrary<TargetTypedNewRoundTripScenario> ArbitraryScenario()
+    {
+        return TargetTypedNewRoundTripGenerator.GenScenario().ToArbitrary();
+    }
 
     // ─── Helpers ─────────────────────────────────────────────────────────
 
@@ -134,20 +139,28 @@ public static class TargetTypedNewRoundTripGenerator
 
     // ─── Value expression generators ────────────────────────────────────
 
-    private static Gen<string> GenIntExpr() =>
-        Gen.Choose(0, 999).Select(n => n.ToString());
+    private static Gen<string> GenIntExpr()
+    {
+        return Gen.Choose(0, 999).Select(n => n.ToString());
+    }
 
-    private static Gen<string> GenBoolExpr() =>
-        Gen.Elements("true", "false");
+    private static Gen<string> GenBoolExpr()
+    {
+        return Gen.Elements("true", "false");
+    }
 
-    private static Gen<string> GenStringExpr() =>
-        Gen.Elements("\"hello\"", "\"world\"", "\"test\"", "\"\"");
+    private static Gen<string> GenStringExpr()
+    {
+        return Gen.Elements("\"hello\"", "\"world\"", "\"test\"", "\"\"");
+    }
 
-    private static Gen<string> GenValueExpr() =>
-        Gen.OneOf(
+    private static Gen<string> GenValueExpr()
+    {
+        return Gen.OneOf(
             GenIntExpr(),
             GenBoolExpr(),
             GenStringExpr());
+    }
 
     // ─── Argument generators ────────────────────────────────────────────
 
@@ -172,9 +185,11 @@ public static class TargetTypedNewRoundTripGenerator
 
     // ─── Property assignment generators ─────────────────────────────────
 
-    private static Gen<string> GenAssignment(int index) =>
-        from value in GenValueExpr()
-        select $"{PropertyNames[index]} = {value}";
+    private static Gen<string> GenAssignment(int index)
+    {
+        return from value in GenValueExpr()
+               select $"{PropertyNames[index]} = {value}";
+    }
 
     private static Gen<string> GenAssignments(int count)
     {

@@ -59,7 +59,10 @@ public sealed class TargetTypedNewResolutionScenario
         Description = description;
     }
 
-    public override string ToString() => Description;
+    public override string ToString()
+    {
+        return Description;
+    }
 }
 
 /// <summary>
@@ -169,19 +172,25 @@ public static class TargetTypedNewResolutionGenerators
 
     // ─── Source builders ────────────────────────────────────────────────────
 
-    private static string BuildCtorParams(int argCount) => argCount switch
+    private static string BuildCtorParams(int argCount)
     {
-        1 => "int a",
-        2 => "int a, int b",
-        _ => "",
-    };
+        return argCount switch
+        {
+            1 => "int a",
+            2 => "int a, int b",
+            _ => "",
+        };
+    }
 
-    private static string BuildCtorArgs(int argCount) => argCount switch
+    private static string BuildCtorArgs(int argCount)
     {
-        1 => "1",
-        2 => "1, 2",
-        _ => "",
-    };
+        return argCount switch
+        {
+            1 => "1",
+            2 => "1, 2",
+            _ => "",
+        };
+    }
 
     private static string BuildCtorDecl(string className, int argCount)
     {
@@ -312,8 +321,10 @@ public sealed class TargetTypedNewResolutionPropertyTests : IDisposable
 
     // ─── Arbitrary registration ─────────────────────────────────────────
 
-    public static Arbitrary<TargetTypedNewResolutionScenario> ArbitraryScenario() =>
-        TargetTypedNewResolutionGenerators.GenScenario().ToArbitrary();
+    public static Arbitrary<TargetTypedNewResolutionScenario> ArbitraryScenario()
+    {
+        return TargetTypedNewResolutionGenerators.GenScenario().ToArbitrary();
+    }
 
     // ─── Helpers ────────────────────────────────────────────────────────
 

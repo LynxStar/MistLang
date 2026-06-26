@@ -104,8 +104,10 @@ public class AsyncFunctorTypePropertyTests
                    className, methodName, returnType, isTargetAsync, returnType == "void");
     }
 
-    public static Arbitrary<AsyncFunctorScenario> ArbitraryAsyncFunctorScenario() =>
-        GenAsyncFunctorScenario().ToArbitrary();
+    public static Arbitrary<AsyncFunctorScenario> ArbitraryAsyncFunctorScenario()
+    {
+        return GenAsyncFunctorScenario().ToArbitrary();
+    }
 
     // ─── AST construction ────────────────────────────────────────────────
 

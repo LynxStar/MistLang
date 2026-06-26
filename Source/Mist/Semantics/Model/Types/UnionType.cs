@@ -55,7 +55,10 @@ public sealed class UnionType : IType, IEquatable<UnionType>
         return true;
     }
 
-    public override bool Equals(object? obj) => Equals(obj as UnionType);
+    public override bool Equals(object? obj)
+    {
+        return Equals(obj as UnionType);
+    }
 
     public override int GetHashCode()
     {

@@ -92,8 +92,10 @@ public class StructInheritanceConstructorTests
         return decl;
     }
 
-    private static TypeDeclarationNode WrapStruct(StructDeclarationNode decl) =>
-        new StructTypeTypeDeclarationNode { StructDeclaration = decl };
+    private static TypeDeclarationNode WrapStruct(StructDeclarationNode decl)
+    {
+        return new StructTypeTypeDeclarationNode { StructDeclaration = decl };
+    }
 
     private static CompilationUnitNode MakeCompilationUnit(params TypeDeclarationNode[] typeDecls)
     {

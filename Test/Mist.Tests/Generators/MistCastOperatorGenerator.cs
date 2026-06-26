@@ -19,8 +19,10 @@ namespace Mist.Tests.Generators;
 /// </summary>
 public static class MistCastOperatorGenerator
 {
-    private static Storm.Runtime.Token Tok(string lexeme) =>
-        MistTypeGenerator.MakeToken(lexeme);
+    private static Storm.Runtime.Token Tok(string lexeme)
+    {
+        return MistTypeGenerator.MakeToken(lexeme);
+    }
 
     // ═══════════════════════════════════════════════════════════════════════
     // Name pools
@@ -463,6 +465,8 @@ public static class MistCastOperatorGenerator
     // ═══════════════════════════════════════════════════════════════════════
 
     /// <summary>FsCheck Arbitrary for cast operator programs.</summary>
-    public static Arbitrary<CompilationUnitNode> ArbitraryCastOperatorProgram() =>
-        GenCastOperatorProgram().ToArbitrary();
+    public static Arbitrary<CompilationUnitNode> ArbitraryCastOperatorProgram()
+    {
+        return GenCastOperatorProgram().ToArbitrary();
+    }
 }

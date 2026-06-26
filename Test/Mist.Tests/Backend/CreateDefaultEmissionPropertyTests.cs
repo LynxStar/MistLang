@@ -29,8 +29,10 @@ public sealed record NotDefaultableEmissionScenario(
     bool IsStruct,
     int FieldCount)
 {
-    public override string ToString() =>
-        $"{(IsStruct ? "struct" : "class")} {TypeName} + ctor, no default block ({FieldCount} fields) → NotDefaultable";
+    public override string ToString()
+    {
+        return $"{(IsStruct ? "struct" : "class")} {TypeName} + ctor, no default block ({FieldCount} fields) → NotDefaultable";
+    }
 }
 
 /// <summary>
@@ -43,8 +45,10 @@ public sealed record InferredDefaultableEmissionScenario(
     bool IsStruct,
     int FieldCount)
 {
-    public override string ToString() =>
-        $"{(IsStruct ? "struct" : "class")} {TypeName}, no ctor, all defaultable fields ({FieldCount} fields) → Inferred";
+    public override string ToString()
+    {
+        return $"{(IsStruct ? "struct" : "class")} {TypeName}, no ctor, all defaultable fields ({FieldCount} fields) → Inferred";
+    }
 }
 
 /// <summary>
@@ -57,8 +61,10 @@ public sealed record ExplicitDefaultableEmissionScenario(
     bool IsStruct,
     int FieldCount)
 {
-    public override string ToString() =>
-        $"{(IsStruct ? "struct" : "class")} {TypeName} + default block ({FieldCount} fields) → Explicit";
+    public override string ToString()
+    {
+        return $"{(IsStruct ? "struct" : "class")} {TypeName} + default block ({FieldCount} fields) → Explicit";
+    }
 }
 
 #pragma warning restore CA1034
@@ -333,14 +339,20 @@ public sealed class CreateDefaultEmissionPropertyTests : IDisposable
 
     // ─── Arbitrary registrations ─────────────────────────────────────────
 
-    public static Arbitrary<NotDefaultableEmissionScenario> ArbitraryNotDefaultable() =>
-        GenNotDefaultableScenario().ToArbitrary();
+    public static Arbitrary<NotDefaultableEmissionScenario> ArbitraryNotDefaultable()
+    {
+        return GenNotDefaultableScenario().ToArbitrary();
+    }
 
-    public static Arbitrary<InferredDefaultableEmissionScenario> ArbitraryInferredDefaultable() =>
-        GenInferredDefaultableScenario().ToArbitrary();
+    public static Arbitrary<InferredDefaultableEmissionScenario> ArbitraryInferredDefaultable()
+    {
+        return GenInferredDefaultableScenario().ToArbitrary();
+    }
 
-    public static Arbitrary<ExplicitDefaultableEmissionScenario> ArbitraryExplicitDefaultable() =>
-        GenExplicitDefaultableScenario().ToArbitrary();
+    public static Arbitrary<ExplicitDefaultableEmissionScenario> ArbitraryExplicitDefaultable()
+    {
+        return GenExplicitDefaultableScenario().ToArbitrary();
+    }
 
     // ═══════════════════════════════════════════════════════════════════════
     // Property 10: __CreateDefault emission is gated by defaultability

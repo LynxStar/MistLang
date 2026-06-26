@@ -40,13 +40,15 @@ public class ExplicitCastSafetyPropertyTests
 
     // ─── Helpers ─────────────────────────────────────────────────────────
 
-    private static Storm.Runtime.Token Tok(string lexeme) =>
-        new(kind: 0,
+    private static Storm.Runtime.Token Tok(string lexeme)
+    {
+        return new(kind: 0,
             span: new Storm.Runtime.SourceSpan(0, lexeme.Length),
             start: new Storm.Runtime.LinePosition(1, 1),
             end: new Storm.Runtime.LinePosition(1, 1 + lexeme.Length),
             channel: Storm.Runtime.TokenChannel.Default,
             lexeme: lexeme);
+    }
 
     private ISemanticModel BuildModel(Storm.Runtime.SyntaxNode ast)
     {
@@ -102,8 +104,10 @@ public class ExplicitCastSafetyPropertyTests
         OperatorPlacement Placement,
         CastOperatorKind Kind)
     {
-        public override string ToString() =>
-            $"({TargetTypeName}){SourceTypeName} — {Kind} operator on {Placement}";
+        public override string ToString()
+        {
+            return $"({TargetTypeName}){SourceTypeName} — {Kind} operator on {Placement}";
+        }
     }
 
     /// <summary>
@@ -113,8 +117,10 @@ public class ExplicitCastSafetyPropertyTests
         string SourceTypeName,
         string TargetTypeName)
     {
-        public override string ToString() =>
-            $"({TargetTypeName}){SourceTypeName} — no operator";
+        public override string ToString()
+        {
+            return $"({TargetTypeName}){SourceTypeName} — no operator";
+        }
     }
 
     /// <summary>
@@ -126,10 +132,12 @@ public class ExplicitCastSafetyPropertyTests
         string TargetTypeName,
         bool IsIdentity)
     {
-        public override string ToString() =>
-            IsIdentity
+        public override string ToString()
+        {
+            return IsIdentity
                 ? $"({TargetTypeName}){SourceTypeName} — identity cast"
                 : $"({TargetTypeName}){SourceTypeName} — subtype cast";
+        }
     }
 
     /// <summary>
@@ -141,9 +149,11 @@ public class ExplicitCastSafetyPropertyTests
         string DerivedTypeName,
         string TargetTypeName)
     {
-        public override string ToString() =>
-            $"({TargetTypeName})baseVar — operator only on {DerivedTypeName}, " +
+        public override string ToString()
+        {
+            return $"({TargetTypeName})baseVar — operator only on {DerivedTypeName}, " +
             $"compile-time type is {BaseTypeName}";
+        }
     }
 #pragma warning restore CA1034
 
@@ -193,17 +203,25 @@ public class ExplicitCastSafetyPropertyTests
                select new DerivedOnlyCastScenario(names[0], names[1], names[2]);
     }
 
-    public static Arbitrary<ValidExplicitCastScenario> ArbitraryValidExplicitCastScenario() =>
-        GenValidScenario().ToArbitrary();
+    public static Arbitrary<ValidExplicitCastScenario> ArbitraryValidExplicitCastScenario()
+    {
+        return GenValidScenario().ToArbitrary();
+    }
 
-    public static Arbitrary<NoCastOperatorScenario> ArbitraryNoCastOperatorScenario() =>
-        GenNoCastOperatorScenario().ToArbitrary();
+    public static Arbitrary<NoCastOperatorScenario> ArbitraryNoCastOperatorScenario()
+    {
+        return GenNoCastOperatorScenario().ToArbitrary();
+    }
 
-    public static Arbitrary<DirectlyAssignableCastScenario> ArbitraryDirectlyAssignableCastScenario() =>
-        GenDirectlyAssignableScenario().ToArbitrary();
+    public static Arbitrary<DirectlyAssignableCastScenario> ArbitraryDirectlyAssignableCastScenario()
+    {
+        return GenDirectlyAssignableScenario().ToArbitrary();
+    }
 
-    public static Arbitrary<DerivedOnlyCastScenario> ArbitraryDerivedOnlyCastScenario() =>
-        GenDerivedOnlyScenario().ToArbitrary();
+    public static Arbitrary<DerivedOnlyCastScenario> ArbitraryDerivedOnlyCastScenario()
+    {
+        return GenDerivedOnlyScenario().ToArbitrary();
+    }
 
     // ─── AST construction helpers ────────────────────────────────────────
 
@@ -258,26 +276,32 @@ public class ExplicitCastSafetyPropertyTests
         return new AssignmentFormExpressionNode { Assignment = assign };
     }
 
-    private static TypeReferenceNode MakeNamedTypeRef(string name) =>
-        new TypeReferenceNode
+    private static TypeReferenceNode MakeNamedTypeRef(string name)
+    {
+        return new TypeReferenceNode
         {
             First = new NamedSingleTypeRefSingleTypeRefNode
             {
                 Name = new QualifiedIdentifierNode { IDENTIFIER = Tok(name) },
             }
         };
+    }
 
-    private static ParameterNode MakeParameter(string typeName, string paramName) =>
-        new()
+    private static ParameterNode MakeParameter(string typeName, string paramName)
+    {
+        return new()
         {
             Type = MakeNamedTypeRef(typeName),
             Name = Tok(paramName),
         };
+    }
 
-    private static CastOperatorKindNode MakeCastKindNode(CastOperatorKind kind) =>
-        kind == CastOperatorKind.Implicit
+    private static CastOperatorKindNode MakeCastKindNode(CastOperatorKind kind)
+    {
+        return kind == CastOperatorKind.Implicit
             ? new ImplicitCastCastOperatorKindNode()
             : (CastOperatorKindNode)new ExplicitCastCastOperatorKindNode();
+    }
 
     /// <summary>
     /// Builds a cast operator declaration with exactly one parameter.
@@ -323,8 +347,9 @@ public class ExplicitCastSafetyPropertyTests
         };
     }
 
-    private static TypeDeclarationNode MakeEmptyClassDecl(string name) =>
-        new ClassTypeTypeDeclarationNode
+    private static TypeDeclarationNode MakeEmptyClassDecl(string name)
+    {
+        return new ClassTypeTypeDeclarationNode
         {
             ClassDeclaration = new ClassDeclarationNode
             {
@@ -332,10 +357,12 @@ public class ExplicitCastSafetyPropertyTests
                 Members = ImmutableArray<MemberDeclarationNode>.Empty,
             },
         };
+    }
 
     private static TypeDeclarationNode MakeClassDeclWithMembers(
-        string name, ImmutableArray<MemberDeclarationNode> members) =>
-        new ClassTypeTypeDeclarationNode
+        string name, ImmutableArray<MemberDeclarationNode> members)
+    {
+        return new ClassTypeTypeDeclarationNode
         {
             ClassDeclaration = new ClassDeclarationNode
             {
@@ -343,6 +370,7 @@ public class ExplicitCastSafetyPropertyTests
                 Members = members,
             },
         };
+    }
 
     /// <summary>
     /// Creates a class that extends a base class, with optional members.

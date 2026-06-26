@@ -308,19 +308,24 @@ public sealed class ExtensionRegistry
     /// Returns true if the type is an open generic definition (has declared type
     /// parameters but is not a ConstructedType — it's the uninstantiated definition itself).
     /// </summary>
-    private static bool IsOpenGenericDefinition(IType type) => type switch
+    private static bool IsOpenGenericDefinition(IType type)
     {
-        ClassType c => c.TypeParameters.Count > 0,
-        StructType s => s.TypeParameters.Count > 0,
-        AbstractType a => a.TypeParameters.Count > 0,
-        _ => false,
-    };
+        return type switch
+        {
+            ClassType c => c.TypeParameters.Count > 0,
+            StructType s => s.TypeParameters.Count > 0,
+            AbstractType a => a.TypeParameters.Count > 0,
+            _ => false,
+        };
+    }
 
     /// <summary>
     /// Returns true if the type is the non-generic <c>System.Collections.IEnumerable</c>.
     /// </summary>
-    private static bool IsNonGenericIEnumerable(IType type) =>
-        type is AbstractType { TypeParameters.Count: 0, DisplayName: "IEnumerable", ContainingNamespace: "System.Collections" };
+    private static bool IsNonGenericIEnumerable(IType type)
+    {
+        return type is AbstractType { TypeParameters.Count: 0, DisplayName: "IEnumerable", ContainingNamespace: "System.Collections" };
+    }
 
     /// <summary>
     /// Checks whether a generic extension receiver pattern (a ConstructedType containing

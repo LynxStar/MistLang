@@ -188,8 +188,10 @@ public class AbstractTypeRegistrationPropertyTests
     }
 
     /// <summary>FsCheck Arbitrary registration for AbstractSet.</summary>
-    public static Arbitrary<AbstractSet> ArbitraryAbstractSet() =>
-        GenAbstractSet().ToArbitrary();
+    public static Arbitrary<AbstractSet> ArbitraryAbstractSet()
+    {
+        return GenAbstractSet().ToArbitrary();
+    }
 
     // ─── Property tests ──────────────────────────────────────────────────
 

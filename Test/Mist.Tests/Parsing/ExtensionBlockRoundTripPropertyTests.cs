@@ -42,7 +42,10 @@ public class ExtensionBlockRoundTripPropertyTests
         string Description,
         string Source)
     {
-        public override string ToString() => Description;
+        public override string ToString()
+        {
+            return Description;
+        }
     }
 #pragma warning restore CA1034
 
@@ -278,8 +281,10 @@ public class ExtensionBlockRoundTripPropertyTests
 
     // ─── Arbitrary registration ──────────────────────────────────────────
 
-    public static Arbitrary<ExtensionBlockScenario> ArbitraryExtensionBlockScenario() =>
-        GenScenario().ToArbitrary();
+    public static Arbitrary<ExtensionBlockScenario> ArbitraryExtensionBlockScenario()
+    {
+        return GenScenario().ToArbitrary();
+    }
 
     // ═══════════════════════════════════════════════════════════════════════
     // Property 1: Extension Block Round-Trip

@@ -97,8 +97,10 @@ public sealed class AbstractDefaultMethodEmissionTests : IDisposable
     }
 
     /// <summary>Collapses runs of whitespace so emitted-shape assertions are robust to indentation.</summary>
-    private static string Normalize(string s) =>
-        System.Text.RegularExpressions.Regex.Replace(s, "\\s+", " ");
+    private static string Normalize(string s)
+    {
+        return System.Text.RegularExpressions.Regex.Replace(s, "\\s+", " ");
+    }
 
     // ═══════════════════════════════════════════════════════════════════════
     // 16.1 — Default method emits as a C# default interface method (DIM, body present)

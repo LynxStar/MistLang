@@ -28,8 +28,10 @@ public class DependentTypeRoundTripPropertyTests
 
     // ─── Token helper ────────────────────────────────────────────────────
 
-    private static Storm.Runtime.Token Tok(string lexeme) =>
-        MistTypeGenerator.MakeToken(lexeme);
+    private static Storm.Runtime.Token Tok(string lexeme)
+    {
+        return MistTypeGenerator.MakeToken(lexeme);
+    }
 
     // ─── Test data model ─────────────────────────────────────────────────
 
@@ -38,7 +40,10 @@ public class DependentTypeRoundTripPropertyTests
         string Description,
         CompilationUnitNode Ast)
     {
-        public override string ToString() => Description;
+        public override string ToString()
+        {
+            return Description;
+        }
     }
 #pragma warning restore CA1034
 
@@ -73,8 +78,10 @@ public class DependentTypeRoundTripPropertyTests
 
     // ─── Dependent PrimitiveType generator ───────────────────────────────
 
-    private static Gen<PrimitiveTypeNode> GenDependentPrimitiveType() =>
-        Gen.Elements(DependentPrimitiveTypeNodes);
+    private static Gen<PrimitiveTypeNode> GenDependentPrimitiveType()
+    {
+        return Gen.Elements(DependentPrimitiveTypeNodes);
+    }
 
     // ─── TypeParameter generators ────────────────────────────────────────
 
@@ -563,8 +570,10 @@ public class DependentTypeRoundTripPropertyTests
 
     // ─── Arbitrary registration ──────────────────────────────────────────
 
-    public static Arbitrary<DependentTypeRoundTripTestCase> ArbitraryDependentTypeRoundTripTestCase() =>
-        GenTestCase().ToArbitrary();
+    public static Arbitrary<DependentTypeRoundTripTestCase> ArbitraryDependentTypeRoundTripTestCase()
+    {
+        return GenTestCase().ToArbitrary();
+    }
 
     // ═══════════════════════════════════════════════════════════════════════
     // Property 1: Parse–Print Round Trip

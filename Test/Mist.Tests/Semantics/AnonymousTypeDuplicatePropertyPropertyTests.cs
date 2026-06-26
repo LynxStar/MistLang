@@ -103,7 +103,10 @@ public sealed class AnonymousTypeDuplicatePropertyPropertyTests
     /// </summary>
     public sealed record DuplicateScenario(string Source, string DuplicatedName, DuplicateKind Kind)
     {
-        public override string ToString() => $"{Kind}: duplicate '{DuplicatedName}'";
+        public override string ToString()
+        {
+            return $"{Kind}: duplicate '{DuplicatedName}'";
+        }
     }
 
 #pragma warning restore CA1034
@@ -216,8 +219,10 @@ public sealed class AnonymousTypeDuplicatePropertyPropertyTests
                };
     }
 
-    public static Arbitrary<DuplicateScenario> ArbitraryDuplicateScenario() =>
-        GenScenario().ToArbitrary();
+    public static Arbitrary<DuplicateScenario> ArbitraryDuplicateScenario()
+    {
+        return GenScenario().ToArbitrary();
+    }
 
     // ═══════════════════════════════════════════════════════════════════════
     // Property 12: Duplicate property names are rejected.

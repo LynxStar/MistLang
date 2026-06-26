@@ -94,17 +94,25 @@ public sealed class LendingTierIntegrationTests
         }
     }
 
-    private static bool HasDiagnostic(ImmutableArray<Diagnostic> diagnostics, string id) =>
-        diagnostics.Any(d => d.Id.Value == id);
+    private static bool HasDiagnostic(ImmutableArray<Diagnostic> diagnostics, string id)
+    {
+        return diagnostics.Any(d => d.Id.Value == id);
+    }
 
-    private static string Render(ImmutableArray<Diagnostic> diagnostics) =>
-        $"[{string.Join(", ", diagnostics.Select(d => $"{d.Id.Value}: {d.Message}"))}]";
+    private static string Render(ImmutableArray<Diagnostic> diagnostics)
+    {
+        return $"[{string.Join(", ", diagnostics.Select(d => $"{d.Id.Value}: {d.Message}"))}]";
+    }
 
-    private static void AssertHas(ImmutableArray<Diagnostic> diagnostics, string id) =>
+    private static void AssertHas(ImmutableArray<Diagnostic> diagnostics, string id)
+    {
         Assert.True(HasDiagnostic(diagnostics, id), $"Expected {id} but got: {Render(diagnostics)}");
+    }
 
-    private static void AssertNotHas(ImmutableArray<Diagnostic> diagnostics, string id) =>
+    private static void AssertNotHas(ImmutableArray<Diagnostic> diagnostics, string id)
+    {
         Assert.False(HasDiagnostic(diagnostics, id), $"Did not expect {id} but got: {Render(diagnostics)}");
+    }
 
     /// <summary>An owned class with a readonly getter and a mutable setter, reused by the scenarios.</summary>
     private const string WidgetDecl = """

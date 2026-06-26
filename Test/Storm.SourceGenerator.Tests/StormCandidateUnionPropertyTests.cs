@@ -13,21 +13,6 @@ namespace Storm.SourceGenerator.Tests;
 /// </summary>
 public class StormCandidateUnionPropertyTests
 {
-    // ══════════════════════════════════════════════════════════════════
-    //  Generators
-    // ══════════════════════════════════════════════════════════════════
-
-    /// <summary>
-    /// Generates a valid Storm rule name (PascalCase identifier, unique prefix to avoid clashes).
-    /// </summary>
-    private static Gen<string> GenRuleName(string prefix)
-    {
-        var lowerChars = "abcdefghijklmnopqrstuvwxyz".ToCharArray();
-
-        return Gen.Choose(2, 6).SelectMany(len =>
-            Gen.ArrayOf(Gen.Elements(lowerChars), len)
-                .Select(tail => prefix + new string(tail)));
-    }
 
     /// <summary>
     /// Configuration for a generated grammar that exercises all three candidate sources.
@@ -146,24 +131,6 @@ public class StormCandidateUnionPropertyTests
                     Source = sb.ToString(),
                 };
             }));
-    }
-
-    // ══════════════════════════════════════════════════════════════════
-    //  Helpers
-    // ══════════════════════════════════════════════════════════════════
-
-    private static GrammarIR BuildGrammarIR(string source)
-    {
-        var grammar = ValidationTestHelpers.BuildGrammar(source);
-        var lowering = GrammarIRLowering.Lower(grammar);
-
-        Assert.True(
-            lowering.Succeeded,
-            "Grammar lowering failed: " +
-                string.Join(", ", lowering.Diagnostics.Select(d => d.Message)));
-        Assert.NotNull(lowering.Grammar);
-
-        return lowering.Grammar!;
     }
 
     // ══════════════════════════════════════════════════════════════════

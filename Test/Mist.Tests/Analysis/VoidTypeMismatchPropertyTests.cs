@@ -154,23 +154,6 @@ public class VoidTypeMismatchPropertyTests
     }
 
     /// <summary>
-    /// Creates a type reference for the given non-void type kind.
-    /// </summary>
-    private static TypeReferenceNode MakeTypeRef(NonVoidKind kind)
-    {
-        PrimitiveTypeNode primitiveNode = kind switch
-        {
-            NonVoidKind.IntegerType => new IntTypePrimitiveTypeNode(),
-            NonVoidKind.BooleanType => new BoolTypePrimitiveTypeNode(),
-            NonVoidKind.StringType => new StringTypePrimitiveTypeNode(),
-            NonVoidKind.FloatingType => new FloatTypePrimitiveTypeNode(),
-            NonVoidKind.CharacterType => new CharTypePrimitiveTypeNode(),
-            _ => throw new ArgumentOutOfRangeException(nameof(kind)),
-        };
-        return new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = primitiveNode } };
-    }
-
-    /// <summary>
     /// Creates a standard Main method for the entry point.
     /// </summary>
     private static MethodDeclarationNode MakeMainMethod(ImmutableArray<StatementNode>? body = null)

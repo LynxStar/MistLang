@@ -120,15 +120,4 @@ public sealed class CSharpAmbientTypeResolver : IAmbientTypeResolver
     {
         return Array.Empty<AmbientExtensionMethodInfo>();
     }
-
-    private void RegisterType(string ns, string name, Func<(IType, ImmutableArray<ISymbol>)> factory)
-    {
-        if(!namespaceTypes.ContainsKey(ns))
-        {
-            namespaceTypes[ns] = [];
-        }
-
-        _ = namespaceTypes[ns].Add(name);
-        typeFactories[(ns, name)] = factory;
-    }
 }

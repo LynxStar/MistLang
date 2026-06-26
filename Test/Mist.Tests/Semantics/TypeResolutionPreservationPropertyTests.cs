@@ -65,10 +65,6 @@ public sealed class TypeResolutionPreservationPropertyTests : IDisposable
         ImmutableArray.Create<Mist.Analysis.Contracts.IAnalyzer>(new TypeCheckerAnalyzer()),
         ImmutableArray.Create<IBackend>(new CSharpTranspilerBackend()));
 
-    private static readonly ILexer Lexer = new MistLexer();
-    private static readonly IParser Parser = new MistParser();
-    private static readonly SemanticModelBuilder Builder = new();
-
     private readonly string outputDir;
 
     public TypeResolutionPreservationPropertyTests()
@@ -113,37 +109,6 @@ public sealed class TypeResolutionPreservationPropertyTests : IDisposable
             GlobalUsings: globalUsings);
 
         return SharedDriver.Compile(options);
-    }
-
-    /// <summary>
-    /// Builds a semantic model with stdlib for in-process-only compilation
-    /// (no ambient CLR assemblies, just Mist source + stdlib).
-    /// </summary>
-    private static (ISemanticModel Model, ImmutableArray<Diagnostic> Diagnostics)
-        BuildModelWithStdlib(string source)
-    {
-        var (stdlibUnits, stdlibAsts) = Helpers.StdlibTestHelper.LoadStdlib();
-
-        var userSourceText = new SourceText("test.mist", source);
-        var userUnit = new CompilationUnit(userSourceText);
-        var diagnostics = new DiagnosticBag();
-        var userTokens = Lexer.Lex(userSourceText, diagnostics);
-        var userParseResult = Parser.Parse(userTokens, diagnostics);
-
-        if(userParseResult.Root is null)
-        {
-            return (null!, diagnostics.ToImmutableArray());
-        }
-
-        var allUnits = stdlibUnits.Add(userUnit);
-        var allAsts = stdlibAsts.Add(userParseResult.Root);
-
-        var compilation = new MistCompilation(allUnits);
-        var model = Builder.Build(
-            compilation, allAsts, ambientTypeResolver: null,
-            namespaceRoot: "TestProject", projectFolder: "/test", diagnostics);
-
-        return (model, diagnostics.ToImmutableArray());
     }
 
     private static string FormatDiagnostics(CompilerResult result)

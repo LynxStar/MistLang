@@ -139,30 +139,6 @@ public sealed class TargetTypedNewEmissionPropertyTests
                    argCount);
     }
 
-    /// <summary>
-    /// Generates a scenario with only a property initializer block (no-args variant).
-    /// Validates: Requirements 6.2, 6.3
-    /// </summary>
-    private static Gen<EmissionEquivalenceScenario> GenNoArgsWithInitializer()
-    {
-        return from classIdx in Gen.Choose(0, ClassNames.Length - 1)
-               from propCount in Gen.Choose(1, 3)
-               let className = ClassNames[classIdx]
-               let propNames = PropNames.Take(propCount).ToImmutableArray()
-               let initBlock = BuildInitializerBlock(propNames)
-               let classDecl = BuildClassWithProps(className, propNames)
-               let targetTypedSource = classDecl + "\n" +
-                   $"class Program {{\n    void Run() {{\n        {className} x = new {{ {initBlock} }};\n    }}\n}}"
-               let fullyTypedSource = classDecl + "\n" +
-                   $"class Program {{\n    void Run() {{\n        {className} x = new {className} {{ {initBlock} }};\n    }}\n}}"
-               select new EmissionEquivalenceScenario(
-                   targetTypedSource,
-                   fullyTypedSource,
-                   $"no-args+init({propCount}): {className}",
-                   className,
-                   0);
-    }
-
     public static Arbitrary<EmissionEquivalenceScenario> ArbitraryScenario()
     {
         return Gen.OneOf(GenWithArgs(), GenWithArgsAndInitializer())
@@ -201,19 +177,6 @@ public sealed class TargetTypedNewEmissionPropertyTests
         {
             var parms = BuildCtorParams(argCount);
             _ = sb.AppendLine($"    public {className}({parms}) {{ }}");
-        }
-
-        _ = sb.AppendLine("}");
-        return sb.ToString();
-    }
-
-    private static string BuildClassWithProps(string className, ImmutableArray<string> propNames)
-    {
-        var sb = new StringBuilder();
-        _ = sb.AppendLine($"class {className} {{");
-        foreach(var prop in propNames)
-        {
-            _ = sb.AppendLine($"    public int {prop} {{ get; set; }}");
         }
 
         _ = sb.AppendLine("}");

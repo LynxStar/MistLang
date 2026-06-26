@@ -79,11 +79,6 @@ public sealed class DefiniteAssignmentEdgeCaseTests
             d.Message.Contains($"'{fieldName}'"));
     }
 
-    private static bool HasNoErrors(ImmutableArray<Diagnostic> diagnostics)
-    {
-        return !diagnostics.Any(d => d.Severity == DiagnosticSeverity.Error);
-    }
-
     private static string FormatDiagnostics(ImmutableArray<Diagnostic> diagnostics)
     {
         return string.Join("; ", diagnostics

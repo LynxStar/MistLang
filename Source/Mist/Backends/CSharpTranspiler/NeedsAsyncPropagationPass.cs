@@ -505,42 +505,4 @@ internal static class NeedsAsyncPropagationPass
 
         return null;
     }
-
-    /// <summary>
-    /// Finds the enclosing type (class or struct) for a method symbol by checking
-    /// the method's declaring scope chain.
-    /// </summary>
-    private static IType? FindEnclosingType(Symbol method, ISemanticModel model)
-    {
-        // Search all type symbols to find one whose member scope contains this method.
-        foreach(var symbol in model.AllSymbols)
-        {
-            if(symbol is not Symbol sym)
-            {
-                continue;
-            }
-
-            var memberScope = sym.DeclaredType switch
-            {
-                ClassType ct => ct.MemberScope,
-                StructType st => st.MemberScope,
-                _ => null,
-            };
-
-            if(memberScope is null)
-            {
-                continue;
-            }
-
-            foreach(var member in memberScope.Members)
-            {
-                if(ReferenceEquals(member, method))
-                {
-                    return sym.DeclaredType;
-                }
-            }
-        }
-
-        return null;
-    }
 }

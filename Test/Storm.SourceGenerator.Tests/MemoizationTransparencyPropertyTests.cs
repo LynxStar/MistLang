@@ -178,16 +178,6 @@ public class MemoizationTransparencyPropertyTests
         return (tokenStream, diagnostics);
     }
 
-    private static object? ParsePublic(
-        Assembly asm, string ns, string grammarName, string ruleName, string input)
-    {
-        var (tokenStream, diagnostics) = Lex(asm, ns, grammarName, input);
-        var parserType = asm.GetType($"{ns}.{grammarName}Parser")!;
-        var parseMethod = parserType.GetMethod(
-            "Parse" + ruleName, BindingFlags.Public | BindingFlags.Static)!;
-        return parseMethod.Invoke(null, new[] { tokenStream, diagnostics });
-    }
-
     /// <summary>
     /// Parses the input and returns both the result node and the diagnostic count.
     /// </summary>

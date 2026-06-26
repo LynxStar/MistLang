@@ -68,18 +68,6 @@ public class InvalidAbstractReferencePropertyTests
         return (model, diagnostics.ToImmutableArray());
     }
 
-    // ─── AST construction helpers ────────────────────────────────────────
-
-    private static AbstractMethodDeclarationNode MakeAbstractMethod(string name)
-    {
-        return new AbstractMethodDeclarationNode
-        {
-            Name = MakeToken(name),
-            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
-            Parameters = null,
-        };
-    }
-
     private static AbstractDeclarationNode MakeAbstractDecl(
         string name,
         ImmutableArray<AbstractMethodDeclarationNode> methods,

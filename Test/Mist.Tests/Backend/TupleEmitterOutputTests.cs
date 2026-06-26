@@ -93,11 +93,6 @@ public sealed class TupleEmitterOutputTests : IDisposable
         return new AssignmentFormExpressionNode { Assignment = assign };
     }
 
-    private static ExpressionNode MakeIdentifierExpression(string name)
-    {
-        return WrapPrimaryAsExpression(new IdentifierExpressionPrimaryNode { Name = MakeToken(name) });
-    }
-
     private static ExpressionNode MakeIntLiteralExpression(string value = "0")
     {
         return WrapPrimaryAsExpression(new IntegerLiteralExpressionPrimaryNode { IntegerLiteral = MakeToken(value) });

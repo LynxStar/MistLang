@@ -153,17 +153,6 @@ public class SubtypeAssignabilityPropertyTests
         };
     }
 
-    private static StatementNode MakeReturnStatement(ExpressionNode value)
-    {
-        return new ReturnStatementStatementNode
-        {
-            ReturnStatement = new ReturnStatementNode
-            {
-                Value = value,
-            },
-        };
-    }
-
     // ─── Class declaration builders ──────────────────────────────────────
 
     private static ClassDeclarationNode MakeClassDecl(

@@ -52,24 +52,6 @@ public sealed class VoidUnitTypeIntegrationTests : IDisposable
             lexeme: lexeme);
     }
 
-    private static ExpressionNode WrapPrimaryAsExpression(PrimaryNode primary)
-    {
-        var postfix = new PostfixNode
-        {
-            Target = primary,
-            Suffix = ImmutableArray<PostfixSuffixNode>.Empty,
-        };
-        var unary = new PostfixExpressionUnaryNode { Primary = postfix };
-        var mult = new MultiplicativeNode { Left = unary };
-        var add = new AdditiveNode { Left = mult };
-        var rel = new RelationalComparisonRelationalNode { Left = add };
-        var eq = new EqualityNode { Left = rel };
-        var logAnd = new LogicalAndNode { Left = eq };
-        var logOr = new LogicalOrNode { Left = logAnd };
-        var assign = new AssignmentNode { Target = new VoidCoalescingNode { Left = logOr } };
-        return new AssignmentFormExpressionNode { Assignment = assign };
-    }
-
     private static ExpressionNode MakeVoidDotVoidExpression()
     {
         var primary = new IdentifierExpressionPrimaryNode { Name = Tok("Void") };
@@ -130,20 +112,6 @@ public sealed class VoidUnitTypeIntegrationTests : IDisposable
         {
             VariableDeclaration = new InferredVariableDeclarationVariableDeclarationStatementNode
             {
-                Name = Tok(varName),
-                Initializer = initializer,
-            },
-        };
-    }
-
-    private static StatementNode MakeTypedVarDeclStatement(
-        TypeReferenceNode typeRef, string varName, ExpressionNode initializer)
-    {
-        return new VariableDeclarationStatementStatementNode
-        {
-            VariableDeclaration = new TypedVariableDeclarationVariableDeclarationStatementNode
-            {
-                Type = typeRef,
                 Name = Tok(varName),
                 Initializer = initializer,
             },

@@ -63,18 +63,6 @@ public static class MistTuplePositionalPatternGenerator
         return Gen.Choose(0, 99).Select(n => n.ToString());
     }
 
-    /// <summary>Generates a string constant pattern: "hello", "world".</summary>
-    private static Gen<string> GenStringConstantPattern()
-    {
-        return Gen.Elements("\"hello\"", "\"world\"", "\"test\"");
-    }
-
-    /// <summary>Generates a bool constant pattern: true, false.</summary>
-    private static Gen<string> GenBoolConstantPattern()
-    {
-        return Gen.Elements("true", "false");
-    }
-
     /// <summary>Generates a relational pattern: > 0, < 100, >= 5, <= 50.</summary>
     private static Gen<string> GenRelationalPattern()
     {

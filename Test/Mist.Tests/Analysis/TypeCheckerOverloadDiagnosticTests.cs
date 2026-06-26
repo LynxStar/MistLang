@@ -174,27 +174,6 @@ public class TypeCheckerOverloadDiagnosticTests
     }
 
     /// <summary>
-    /// Creates a method declaration with a single parameter.
-    /// </summary>
-    private static MethodDeclarationNode MakeMethod(
-        string name, string paramType, string paramName, bool isPublic = true)
-    {
-        var param = MakeParameter(paramType, paramName);
-        var modifiers = isPublic
-            ? ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode())
-            : ImmutableArray<ModifierNode>.Empty;
-
-        return new MethodDeclarationNode
-        {
-            Name = MakeToken(name),
-            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
-            Parameters = new ParameterListNode { Parameter = param },
-            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty } },
-            Modifiers = modifiers,
-        };
-    }
-
-    /// <summary>
     /// Creates a constructor declaration with a single parameter.
     /// </summary>
     private static ConstructorDeclarationNode MakeConstructor(
@@ -225,14 +204,6 @@ public class TypeCheckerOverloadDiagnosticTests
                 new PublicModifierModifierNode(),
                 new StaticModifierModifierNode()),
         };
-    }
-
-    /// <summary>
-    /// Creates a static void Main() method with an empty body.
-    /// </summary>
-    private static MethodDeclarationNode MakeEmptyStaticMain()
-    {
-        return MakeStaticMain(ImmutableArray<StatementNode>.Empty);
     }
 
     // ═══════════════════════════════════════════════════════════════════════

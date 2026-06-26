@@ -669,21 +669,6 @@ namespace Storm.SourceGenerator.Emit
             return value.Replace("\"", "\"\"");
         }
 
-        private static string EscapeCharForCSharp(char c)
-        {
-            switch(c)
-            {
-                case '\\': return "\\\\";
-                case '\'': return "\\'";
-                case '\n': return "\\n";
-                case '\r': return "\\r";
-                case '\t': return "\\t";
-                case '\0': return "\\0";
-                case '"': return "\\\"";
-                default: return c.ToString();
-            }
-        }
-
         internal static string SanitizeIdentifier(string name)
         {
             if(string.IsNullOrEmpty(name))

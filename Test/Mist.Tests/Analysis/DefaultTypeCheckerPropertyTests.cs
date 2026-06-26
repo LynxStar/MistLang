@@ -151,15 +151,6 @@ public class DefaultTypeCheckerPropertyTests
         };
     }
 
-    private static CompilationUnitNode MakeCompilationUnit(
-        params TypeDeclarationNode[] typeDecls)
-    {
-        return new CompilationUnitNode
-        {
-            Items = typeDecls.ToImmutableArray().AsTopLevelItems(),
-        };
-    }
-
     private static ClassDeclarationNode MakeClassDecl(
         string name, ImmutableArray<MemberDeclarationNode> members)
     {

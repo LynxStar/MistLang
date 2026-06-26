@@ -189,84 +189,12 @@ public class ExtensionTypeCheckerPropertyTests
         return new AssignmentFormExpressionNode { Assignment = assign };
     }
 
-    /// <summary>
-    /// Creates a member access expression: varName.memberName
-    /// </summary>
-    private static ExpressionNode MakeMemberAccessExpression(string varName, string memberName)
-    {
-        var primary = new IdentifierExpressionPrimaryNode { Name = Tok(varName) };
-        var suffix = new MemberAccessSuffixPostfixSuffixNode { Name = Tok(memberName) };
-        var postfix = new PostfixNode
-        {
-            Target = primary,
-            Suffix = ImmutableArray.Create<PostfixSuffixNode>(suffix),
-        };
-        var unary = new PostfixExpressionUnaryNode { Primary = postfix };
-        var mult = new MultiplicativeNode { Left = unary };
-        var add = new AdditiveNode { Left = mult };
-        var rel = new RelationalComparisonRelationalNode { Left = add };
-        var eq = new EqualityNode { Left = rel };
-        var logAnd = new LogicalAndNode { Left = eq };
-        var logOr = new LogicalOrNode { Left = logAnd };
-        var assign = new AssignmentNode { Target = new VoidCoalescingNode { Left = logOr } };
-        return new AssignmentFormExpressionNode { Assignment = assign };
-    }
-
     private static StatementNode MakeExpressionStatement(ExpressionNode expr)
     {
         return new ExpressionStatementStatementNode
         {
             ExpressionStatement = new ExpressionStatementNode { Expression = expr },
         };
-    }
-
-    private static StatementNode MakeTypedVarDecl(string typeName, string varName, ExpressionNode initializer)
-    {
-        return new VariableDeclarationStatementStatementNode
-        {
-            VariableDeclaration = new TypedVariableDeclarationVariableDeclarationStatementNode
-            {
-                Type = MakeReturnTypeRef(typeName),
-                Name = Tok(varName),
-                Initializer = initializer,
-            },
-        };
-    }
-
-    private static StatementNode MakeNamedTypeVarDecl(string declaredTypeName, string varName, ExpressionNode initializer)
-    {
-        return new VariableDeclarationStatementStatementNode
-        {
-            VariableDeclaration = new TypedVariableDeclarationVariableDeclarationStatementNode
-            {
-                Type = MakeNamedTypeRef(declaredTypeName),
-                Name = Tok(varName),
-                Initializer = initializer,
-            },
-        };
-    }
-
-    private static ExpressionNode MakeNewObjectExpression(string typeName)
-    {
-        var primary = new ObjectCreationExpressionPrimaryNode
-        {
-            Type = new QualifiedIdentifierNode
-            {
-                IDENTIFIER = Tok(typeName),
-                Span = new Storm.Runtime.SourceSpan(0, typeName.Length),
-            },
-            Arguments = null,
-        };
-        var postfix = new PostfixNode { Target = primary, Suffix = ImmutableArray<PostfixSuffixNode>.Empty };
-        var unary = new PostfixExpressionUnaryNode { Primary = postfix };
-        var mult = new MultiplicativeNode { Left = unary };
-        var add = new AdditiveNode { Left = mult };
-        var rel = new RelationalComparisonRelationalNode { Left = add };
-        var eq = new EqualityNode { Left = rel };
-        var logAnd = new LogicalAndNode { Left = eq };
-        var logOr = new LogicalOrNode { Left = logAnd };
-        var assign = new AssignmentNode { Target = new VoidCoalescingNode { Left = logOr } };
-        return new AssignmentFormExpressionNode { Assignment = assign };
     }
 
     private static ExtensionMemberDeclarationNode MakeExtensionMethod(

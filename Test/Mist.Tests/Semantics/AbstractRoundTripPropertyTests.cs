@@ -184,23 +184,6 @@ public class AbstractRoundTripPropertyTests
         };
     }
 
-    private static ParameterListNode MakeParameterList(params (TypeReferenceNode Type, string Name)[] parameters)
-    {
-        if(parameters.Length == 0)
-        {
-            return null!;
-        }
-
-        return new ParameterListNode
-        {
-            Parameter = new ParameterNode
-            {
-                Type = parameters[0].Type,
-                Name = Tok(parameters[0].Name),
-            },
-        };
-    }
-
     private static CompilationUnitNode MakeCompilationUnit(params TypeDeclarationNode[] typeDecls)
     {
         return new CompilationUnitNode
@@ -232,59 +215,6 @@ public class AbstractRoundTripPropertyTests
         ["DoWork", "Process", "Execute", "Run", "Calculate", "Transform"];
     private static readonly string[] ParamNames =
         ["x", "y", "value", "count", "name", "flag"];
-
-    private static Gen<TypeReferenceNode> GenReturnType()
-    {
-        return Gen.Elements(
-            new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
-            new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = new IntTypePrimitiveTypeNode() } },
-            new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = new BoolTypePrimitiveTypeNode() } },
-            new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = new StringTypePrimitiveTypeNode() } });
-    }
-
-    private static Gen<TypeReferenceNode> GenParamType()
-    {
-        return Gen.Elements(
-            new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = new IntTypePrimitiveTypeNode() } },
-            new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = new BoolTypePrimitiveTypeNode() } },
-            new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = new StringTypePrimitiveTypeNode() } });
-    }
-
-    private static Gen<ImmutableArray<ModifierNode>> GenModifiers()
-    {
-        return Gen.Elements(
-            ImmutableArray<ModifierNode>.Empty,
-            ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
-            ImmutableArray.Create<ModifierNode>(new PrivateModifierModifierNode()));
-    }
-
-    /// <summary>
-    /// Generates an abstract method declaration with a random return type and
-    /// optionally a single parameter.
-    /// </summary>
-    private static Gen<AbstractMethodDeclarationNode> GenAbstractMethod(string methodName)
-    {
-        return from retType in GenReturnType()
-               from hasParam in Gen.Elements(true, false)
-               from paramType in GenParamType()
-               from paramIdx in Gen.Choose(0, ParamNames.Length - 1)
-               let parameters = hasParam
-                   ? new ParameterListNode
-                   {
-                       Parameter = new ParameterNode
-                       {
-                           Type = paramType,
-                           Name = Tok(ParamNames[paramIdx]),
-                       },
-                   }
-                   : null
-               select new AbstractMethodDeclarationNode
-               {
-                   Name = Tok(methodName),
-                   ReturnType = retType,
-                   Parameters = parameters,
-               };
-    }
 
     /// <summary>
     /// Generates a test case with a mix of abstract, class, and struct declarations.

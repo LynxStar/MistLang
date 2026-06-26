@@ -29,12 +29,6 @@ public class StringLengthTests
             lexeme: lexeme);
     }
 
-    private static MistCompilation MakeCompilation(string source = "")
-    {
-        var sourceText = new SourceText("test.mist", source);
-        return new MistCompilation(ImmutableArray.Create(new CompilationUnit(sourceText)));
-    }
-
     private static (ISemanticModel Model, ImmutableArray<Diagnostic> Diagnostics) BuildModelWithDiagnostics(
         Storm.Runtime.SyntaxNode ast,
         IAmbientTypeResolver? ambientTypeResolver = null,
@@ -53,32 +47,6 @@ public class StringLengthTests
             Span = new Storm.Runtime.SourceSpan(0, namespaceName.Length),
         };
         return new UsingDeclarationNode { Name = qualifiedId };
-    }
-
-    private static ExpressionNode WrapPrimaryAsExpression(PrimaryNode primary)
-    {
-        var postfix = new PostfixNode
-        {
-            Target = primary,
-            Suffix = ImmutableArray<PostfixSuffixNode>.Empty,
-        };
-        var unary = new PostfixExpressionUnaryNode { Primary = postfix };
-        var mult = new MultiplicativeNode { Left = unary };
-        var add = new AdditiveNode { Left = mult };
-        var rel = new RelationalComparisonRelationalNode { Left = add };
-        var eq = new EqualityNode { Left = rel };
-        var logAnd = new LogicalAndNode { Left = eq };
-        var logOr = new LogicalOrNode { Left = logAnd };
-        var assign = new AssignmentNode { Target = new VoidCoalescingNode { Left = logOr } };
-        return new AssignmentFormExpressionNode { Assignment = assign };
-    }
-
-    private static ExpressionNode MakeIdentifierExpression(string name)
-    {
-        return WrapPrimaryAsExpression(new IdentifierExpressionPrimaryNode
-        {
-            Name = MakeToken(name),
-        });
     }
 
     /// <summary>

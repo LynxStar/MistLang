@@ -183,26 +183,6 @@ public sealed class AssociatedTypeEmissionPropertyTests : IDisposable
                    strValue: strVal);
     }
 
-    private static Gen<AssociatedTypeEmissionScenario> GenGenericFunctionWithSlotUsage()
-    {
-        return from intVal in Gen.Elements(IntValues)
-               select new AssociatedTypeEmissionScenario(
-                   AssociatedTypeEmissionKind.GenericFunctionWithSlotUsage,
-                   expectedOutput: intVal.ToString(),
-                   label: $"generic-fn val={intVal}",
-                   intValue: intVal);
-    }
-
-    private static Gen<AssociatedTypeEmissionScenario> GenConcreteTypeConstruction()
-    {
-        return from intVal in Gen.Elements(IntValues)
-               select new AssociatedTypeEmissionScenario(
-                   AssociatedTypeEmissionKind.ConcreteTypeConstruction,
-                   expectedOutput: intVal.ToString(),
-                   label: $"concrete-construct val={intVal}",
-                   intValue: intVal);
-    }
-
     private static Gen<AssociatedTypeEmissionScenario> GenScenario()
     {
         return Gen.OneOf(

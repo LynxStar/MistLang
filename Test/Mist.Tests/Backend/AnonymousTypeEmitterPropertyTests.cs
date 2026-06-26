@@ -130,11 +130,6 @@ public sealed class AnonymousTypeEmitterPropertyTests : IDisposable
                select new AnonProperty(name, PropertyKind.Explicit, val);
     }
 
-    private static Gen<AnonProperty> GenExplicitProperty(string name)
-    {
-        return Gen.OneOf(GenExplicitStringProperty(name), GenExplicitIntProperty(name));
-    }
-
     private static Gen<AnonProperty> GenProjectedVariable(string name)
     {
         return from val in GenStringValue()

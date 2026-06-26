@@ -18,44 +18,7 @@ public class AsyncFunctorOperandDiagnosticTests
 {
     private static readonly Mist.Lexing.MistLexer Lexer = new();
     private static readonly Mist.Parsing.MistParser Parser = new();
-    private static readonly SemanticModelBuilder Builder = new();
     private static readonly TypeCheckerAnalyzer Analyzer = new();
-
-    /// <summary>
-    /// Compiles source without stdlib.
-    /// </summary>
-    private static ImmutableArray<Diagnostic> CompileAndGetDiagnostics(string source)
-    {
-        var sourceText = new SourceText("test.mist", source);
-        var compilation = new MistCompilation(ImmutableArray.Create(new CompilationUnit(sourceText)));
-
-        var lexDiag = new DiagnosticBag();
-        var tokens = Lexer.Lex(sourceText, lexDiag);
-
-        var parseDiag = new DiagnosticBag();
-        var parseResult = Parser.Parse(tokens, parseDiag);
-        if(parseResult.Root is null)
-        {
-            return parseDiag.ToImmutableArray();
-        }
-
-        var buildDiag = new DiagnosticBag();
-        var model = Builder.Build(
-            compilation,
-            ImmutableArray.Create(parseResult.Root),
-            ambientTypeResolver: null,
-            namespaceRoot: "TestProject",
-            projectFolder: "/test",
-            buildDiag);
-
-        var tcDiag = new DiagnosticBag();
-        Analyzer.Analyze(model, tcDiag);
-
-        var all = new List<Diagnostic>();
-        all.AddRange(buildDiag.ToImmutableArray());
-        all.AddRange(tcDiag.ToImmutableArray());
-        return all.ToImmutableArray();
-    }
 
     /// <summary>
     /// Compiles source with stdlib loaded (for tests that need Task&lt;T&gt; resolution).

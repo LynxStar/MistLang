@@ -81,11 +81,6 @@ public static class MistContextRoundTripGenerator
         return Gen.Elements(Expressions);
     }
 
-    private static Gen<string> GenContextTypeName()
-    {
-        return Gen.Elements(ContextTypeNames);
-    }
-
     private static Gen<string> GenVarName()
     {
         return Gen.Elements(VarNames);

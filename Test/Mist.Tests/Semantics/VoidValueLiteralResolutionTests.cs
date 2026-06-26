@@ -131,15 +131,6 @@ public sealed class VoidValueLiteralResolutionTests : IDisposable
     }
 
     /// <summary>
-    /// Finds the user AST (last one in the model, after stdlib ASTs).
-    /// </summary>
-    private static Storm.Runtime.SyntaxNode GetUserAst(ISemanticModel model)
-    {
-        // The user AST is the last one (stdlib ASTs come first)
-        return model.Asts[^1];
-    }
-
-    /// <summary>
     /// Recursively finds all TypeLiteralExpressionPrimaryNode instances in the AST.
     /// </summary>
     private static List<TypeLiteralExpressionPrimaryNode> FindTypeLiterals(Storm.Runtime.SyntaxNode node)

@@ -496,19 +496,6 @@ public sealed class DropAnalyzer : IAnalyzer
     }
 
     /// <summary>
-    /// Returns <c>true</c> if the given type is declared as an owned type.
-    /// </summary>
-    private static bool IsOwnedType(IType type)
-    {
-        return type switch
-        {
-            ClassType ct => ct.IsOwnedType,
-            StructType st => st.IsOwnedType,
-            _ => false,
-        };
-    }
-
-    /// <summary>
     /// Counts the parameters declared in a parameter list node.
     /// </summary>
     private static int CountParameters(ParameterListNode? paramList)

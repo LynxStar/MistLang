@@ -187,33 +187,6 @@ public class StructInheritanceConstructorTests
     }
 
     /// <summary>
-    /// Creates a simple ArgumentListNode with an integer literal expression.
-    /// </summary>
-    private static ArgumentListNode MakeIntArgument(string value = "0")
-    {
-        var primary = new IntegerLiteralExpressionPrimaryNode
-        {
-            IntegerLiteral = MakeToken(value),
-        };
-        var postfix = new PostfixNode
-        {
-            Target = primary,
-            Suffix = ImmutableArray<PostfixSuffixNode>.Empty,
-        };
-        var unary = new PostfixExpressionUnaryNode { Primary = postfix };
-        var mult = new MultiplicativeNode { Left = unary };
-        var add = new AdditiveNode { Left = mult };
-        var rel = new RelationalComparisonRelationalNode { Left = add };
-        var eq = new EqualityNode { Left = rel };
-        var logAnd = new LogicalAndNode { Left = eq };
-        var logOr = new LogicalOrNode { Left = logAnd };
-        var assign = new AssignmentNode { Target = new VoidCoalescingNode { Left = logOr } };
-        var expr = new AssignmentFormExpressionNode { Assignment = assign };
-
-        return new ArgumentListNode { Argument = new ValueArgumentArgumentNode { Expression = expr } };
-    }
-
-    /// <summary>
     /// Creates an ArgumentListNode with two integer literal arguments.
     /// </summary>
     private static ArgumentListNode MakeTwoIntArguments(string value1 = "0", string value2 = "0")

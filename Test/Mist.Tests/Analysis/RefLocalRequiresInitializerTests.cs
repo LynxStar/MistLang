@@ -63,15 +63,6 @@ public class RefLocalRequiresInitializerTests
         return WrapPrimaryAsExpression(primary);
     }
 
-    private static ExpressionNode MakeIdentifierExpression(string name)
-    {
-        var primary = new IdentifierExpressionPrimaryNode
-        {
-            Name = Tok(name),
-        };
-        return WrapPrimaryAsExpression(primary);
-    }
-
     private static ExpressionNode WrapPrimaryAsExpression(PrimaryNode primary)
     {
         var postfix = new PostfixNode

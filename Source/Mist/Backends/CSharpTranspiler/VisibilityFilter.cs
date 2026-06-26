@@ -818,18 +818,4 @@ internal sealed class VisibilityFilter
 
         return false;
     }
-
-    /// <summary>
-    /// Gets the parameters for a method or constructor member.
-    /// Returns <c>null</c> for members that don't have parameters (fields, properties, events).
-    /// </summary>
-    private static ParameterInfo[]? GetParameters(MemberInfo member)
-    {
-        return member switch
-        {
-            MethodInfo method => method.GetParameters(),
-            ConstructorInfo ctor => ctor.GetParameters(),
-            _ => null,
-        };
-    }
 }

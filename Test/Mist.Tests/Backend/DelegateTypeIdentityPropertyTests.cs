@@ -53,25 +53,6 @@ public sealed class DelegateTypeIdentityPropertyTests
             .Select(name => (IType)new StructType(name, new Scope(null), "Standard"));
     }
 
-    private static Gen<ConstructedType> GenFuncSignature(int arity)
-    {
-        // arity = parameter count + 1 (return type)
-        // Create a Standard.Func ClassType definition with matching type parameters
-        return Gen.ArrayOf(GenSimpleType(), arity).Select(typeArgs =>
-        {
-            var funcDef = new ClassType("Func", new Scope(null), "Standard", isBackendBacked: true);
-            var tps = new IType[arity];
-            for(var i = 0; i < arity; i++)
-            {
-                tps[i] = new TypeParameterType($"T{i}", i);
-            }
-
-            funcDef.TypeParameters = tps;
-
-            return new ConstructedType(funcDef, typeArgs);
-        });
-    }
-
     private record DelegateTypeInput(
         string ClrNamespace,
         string ClrSimpleName,

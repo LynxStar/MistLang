@@ -78,7 +78,6 @@ public class HasNonPublicMembers
     public int PublicField = 1;
     internal int InternalField = 2;
     protected int ProtectedField = 3;
-    private int privateField = 4;
 
     public int PublicMethod()
     {
@@ -95,15 +94,9 @@ public class HasNonPublicMembers
         return ProtectedField;
     }
 
-    private int PrivateMethod()
-    {
-        return privateField;
-    }
-
     public int PublicProp { get; set; }
     internal int InternalProp { get; set; }
     protected int ProtectedProp { get; set; }
-    private int PrivateProp { get; set; }
 }
 
 /// <summary>

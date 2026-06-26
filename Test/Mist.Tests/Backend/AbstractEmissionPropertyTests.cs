@@ -244,9 +244,6 @@ public sealed partial class AbstractEmissionPropertyTests : IDisposable
     [GeneratedRegex(@"^\s*(?:(?:public|private|static)\s+)*struct\s+(\w+)(?:\s*:\s*(\w+))?", RegexOptions.Multiline)]
     private static partial Regex StructDeclPattern();
 
-    [GeneratedRegex(@"^\s+(\w+)\s+(\w+)\((.*?)\);", RegexOptions.Multiline)]
-    private static partial Regex AbstractMethodPattern();
-
     // ─── Test data model ─────────────────────────────────────────────────
 
     /// <summary>

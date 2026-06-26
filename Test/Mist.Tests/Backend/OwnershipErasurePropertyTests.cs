@@ -177,40 +177,6 @@ public class OwnershipErasurePropertyTests
     }
 
     /// <summary>
-    /// Generates a program with a readonly ref parameter and its equivalent without.
-    /// </summary>
-    private static Gen<ErasureScenario> GenReadonlyRefParameterScenario()
-    {
-        return from typeName in Gen.Elements(TypeNames)
-               from methodName in Gen.Elements(MethodNames)
-               from paramName in Gen.Elements(ParamNames)
-               let withOwnership = $$"""
-                   class {{typeName}} {
-                       int amount;
-                   }
-                   class Program {
-                       public static void Main() {
-                       }
-                       void {{methodName}}(readonly ref {{typeName}} {{paramName}}) {
-                       }
-                   }
-                   """
-               let withoutOwnership = $$"""
-                   class {{typeName}} {
-                       int amount;
-                   }
-                   class Program {
-                       public static void Main() {
-                       }
-                       void {{methodName}}({{typeName}} {{paramName}}) {
-                       }
-                   }
-                   """
-               select new ErasureScenario(withOwnership, withoutOwnership,
-                   $"readonly ref param: void {methodName}(readonly ref {typeName} {paramName})");
-    }
-
-    /// <summary>
     /// Generates a program with a frozen parameter and its equivalent without.
     /// </summary>
     private static Gen<ErasureScenario> GenFrozenRefParameterScenario()

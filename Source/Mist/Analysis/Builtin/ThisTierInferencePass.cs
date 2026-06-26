@@ -766,55 +766,6 @@ public sealed class ThisTierInferencePass
     }
 
     /// <summary>
-    /// Returns the containing type for a method symbol by finding the type whose
-    /// member scope matches the method's containing scope.
-    /// </summary>
-    private static IType? GetContainingType(ISymbol methodSymbol)
-    {
-        var scope = methodSymbol.ContainingScope;
-        if(scope is null)
-        {
-            return null;
-        }
-
-        // The method's ContainingScope is the type's MemberScope.
-        // Walk up to the parent scope to find the type symbol that owns this scope.
-        var parentScope = scope.Parent;
-        if(parentScope is null)
-        {
-            return null;
-        }
-
-        foreach(var member in parentScope.Members)
-        {
-            if(member.DeclaredType is not null)
-            {
-                var memberScope = GetMemberScope(member.DeclaredType);
-                if(ReferenceEquals(memberScope, scope))
-                {
-                    return member.DeclaredType;
-                }
-            }
-        }
-
-        return null;
-    }
-
-    /// <summary>
-    /// Returns the member scope of a type (class or struct).
-    /// </summary>
-    private static IScope? GetMemberScope(IType type)
-    {
-        var resolved = type is ConstructedType constructed ? constructed.GenericDefinition : type;
-        return resolved switch
-        {
-            ClassType ct => ct.MemberScope,
-            StructType st => st.MemberScope,
-            _ => null
-        };
-    }
-
-    /// <summary>
     /// Extracts the body block from a method or constructor declaration node.
     /// </summary>
     private static BlockNode? GetMethodBody(SyntaxNode declaringNode)

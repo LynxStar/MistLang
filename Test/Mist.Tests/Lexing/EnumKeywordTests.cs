@@ -29,18 +29,6 @@ public class EnumKeywordTests
             .ToList();
     }
 
-    /// <summary>
-    /// Helper: lex and parse a source string, returning the diagnostics bag.
-    /// </summary>
-    private static DiagnosticBag LexAndParse(string source)
-    {
-        var sourceText = new Mist.Common.Text.SourceText("test.mist", source);
-        var bag = new DiagnosticBag();
-        var stream = Lexer.Lex(sourceText, bag);
-        _ = Parser.Parse(stream, bag);
-        return bag;
-    }
-
     // ─── Requirement 11.1: `enum` recognized as reserved keyword token ───────
 
     [Fact]

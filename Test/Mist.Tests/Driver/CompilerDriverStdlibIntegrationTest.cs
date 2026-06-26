@@ -50,16 +50,6 @@ public sealed class CompilerDriverStdlibIntegrationTest : IDisposable
         GC.SuppressFinalize(this);
     }
 
-    private static CompilerDriver CreateRealDriver()
-    {
-        return new CompilerDriver(
-            new Mist.Lexing.MistLexer(),
-            new Mist.Parsing.MistParser(),
-            new SemanticModelBuilder(),
-            ImmutableArray.Create<IAnalyzer>(new TypeCheckerAnalyzer()),
-            ImmutableArray.Create<IBackend>(new CSharpTranspilerBackend()));
-    }
-
     /// <summary>
     /// Hook the semantic model out of the driver by using a wrapping builder
     /// that captures the constructed model before returning it to the driver.

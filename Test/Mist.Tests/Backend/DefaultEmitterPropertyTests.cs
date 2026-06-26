@@ -171,15 +171,6 @@ public sealed partial class DefaultEmitterPropertyTests : IDisposable
         return new FieldMemberMemberDeclarationNode { Field = field };
     }
 
-    private static MemberDeclarationNode MakeDefaultBlockMember(
-        ImmutableArray<DefaultFieldInitializerNode> entries)
-    {
-        return new DefaultBlockMemberMemberDeclarationNode
-        {
-            DefaultBlock = new DefaultBlockDeclarationNode { Entries = entries },
-        };
-    }
-
     private static ClassDeclarationNode MakeClassDecl(
         string name,
         ImmutableArray<MemberDeclarationNode> members)
@@ -239,14 +230,6 @@ public sealed partial class DefaultEmitterPropertyTests : IDisposable
         var logOr = new LogicalOrNode { Left = logAnd };
         var assign = new AssignmentNode { Target = new VoidCoalescingNode { Left = logOr } };
         return new AssignmentFormExpressionNode { Assignment = assign };
-    }
-
-    private static ExpressionNode MakeIntLiteralExpression(string value)
-    {
-        return WrapPrimaryAsExpression(new IntegerLiteralExpressionPrimaryNode
-        {
-            IntegerLiteral = MakeToken(value),
-        });
     }
 
     /// <summary>

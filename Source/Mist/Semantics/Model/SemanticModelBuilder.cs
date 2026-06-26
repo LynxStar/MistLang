@@ -6666,98 +6666,6 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     }
 
     /// <summary>
-    /// Resolves a set of abstract type names to <see cref="AbstractType"/> instances.
-    /// Emits diagnostics for undefined names and non-abstract types.
-    /// </summary>
-    private static List<AbstractType> ResolveAbstractNames(
-        IEnumerable<string> abstractNames,
-        IScope parentScope,
-        string declaringTypeName,
-        SymbolTable symbolTable,
-        ImmutableArray<Storm.Runtime.SyntaxNode> asts,
-        MistCompilation compilation,
-        DiagnosticBag diagnostics,
-        ISymbol findPathForSymbol)
-    {
-        var resolved = new List<AbstractType>();
-
-        foreach(var name in abstractNames)
-        {
-            var resolvedSymbol = parentScope.Lookup(name);
-
-            if(resolvedSymbol is null)
-            {
-                var sourceText = GetSourceTextForSymbol(
-                    findPathForSymbol, symbolTable);
-                var declaringNode = symbolTable.GetDeclaringNode(findPathForSymbol);
-
-                if(declaringNode is not null)
-                {
-                    diagnostics.Add(MakeDiagnosticWithLocation(
-                        "MIST_UNDEFINED_ABSTRACT",
-                        DiagnosticSeverity.Error,
-                        $"The abstract type '{name}' could not be found.",
-                        declaringNode,
-                        sourceText));
-                }
-                else
-                {
-                    var compilationUnitPath = FindCompilationUnitPathForSymbol(
-                        findPathForSymbol, symbolTable, asts, compilation);
-
-                    diagnostics.Add(new Diagnostic(
-                        new DiagnosticId("MIST_UNDEFINED_ABSTRACT"),
-                        DiagnosticSeverity.Error,
-                        PipelineStage.SemanticModelConstruction,
-                        $"The abstract type '{name}' could not be found.",
-                        Location: default,
-                        CompilationUnitPath: compilationUnitPath ?? "<unknown>",
-                        AnalyzerName: null));
-                }
-
-                continue;
-            }
-
-            if(resolvedSymbol.DeclaredType is AbstractType resolvedAbstract)
-            {
-                resolved.Add(resolvedAbstract);
-            }
-            else
-            {
-                var sourceText = GetSourceTextForSymbol(
-                    findPathForSymbol, symbolTable);
-                var declaringNode = symbolTable.GetDeclaringNode(findPathForSymbol);
-
-                if(declaringNode is not null)
-                {
-                    diagnostics.Add(MakeDiagnosticWithLocation(
-                        "MIST_NOT_AN_ABSTRACT",
-                        DiagnosticSeverity.Error,
-                        $"'{name}' is not an abstract type; only abstract types can appear in an abstract type list.",
-                        declaringNode,
-                        sourceText));
-                }
-                else
-                {
-                    var compilationUnitPath = FindCompilationUnitPathForSymbol(
-                        findPathForSymbol, symbolTable, asts, compilation);
-
-                    diagnostics.Add(new Diagnostic(
-                        new DiagnosticId("MIST_NOT_AN_ABSTRACT"),
-                        DiagnosticSeverity.Error,
-                        PipelineStage.SemanticModelConstruction,
-                        $"'{name}' is not an abstract type; only abstract types can appear in an abstract type list.",
-                        Location: default,
-                        CompilationUnitPath: compilationUnitPath ?? "<unknown>",
-                        AnalyzerName: null));
-                }
-            }
-        }
-
-        return resolved;
-    }
-
-    /// <summary>
     /// Resolves a set of <see cref="BaseTypeRefNode"/> entries to abstract types,
     /// handling type arguments to produce <see cref="ConstructedType"/> when appropriate.
     /// Emits diagnostics for undefined names and non-abstract types.
@@ -8845,25 +8753,6 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     }
 
 
-    /// <summary>
-    /// Extracts the type reference AST node from a type member's declaring node.
-    /// Used for type compatibility checking in <c>with</c> block validation.
-    /// </summary>
-    private static TypeReferenceNode? GetMemberTypeReference(
-        ISymbol member, SymbolTable symbolTable)
-    {
-        var declaringNode = symbolTable.GetDeclaringNode(member);
-        return declaringNode switch
-        {
-            FieldDeclarationNode f => f.Type,
-            MethodDeclarationNode m => m.ReturnType,
-            BlockPropertyPropertyDeclarationNode bp => bp.Type,
-            ExpressionBodiedPropertyPropertyDeclarationNode ep => ep.Type,
-            _ => null,
-        };
-    }
-
-
     // ═══════════════════════════════════════════════════════════════════════
     // Pass 1 — Resolve With Blocks (Retroactive Conformance)
     // ═══════════════════════════════════════════════════════════════════════
@@ -10646,21 +10535,6 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     }
 
     /// <summary>
-    /// Searches the implementing type's member scope (and base type chain for classes)
-    /// for a concrete type member matching the given name and arity.
-    /// A concrete type member is a <see cref="SymbolKind.TypeAlias"/> whose
-    /// <see cref="ISymbol.DeclaredType"/> is NOT an <see cref="AssociatedTypeSlotType"/>.
-    /// </summary>
-    private static bool FindConcreteTypeMember(
-        string slotName,
-        int requiredArity,
-        IScope memberScope,
-        ClassType? classType)
-    {
-        return FindConcreteTypeMemberType(slotName, requiredArity, memberScope, classType) is not null;
-    }
-
-    /// <summary>
     /// Searches a single scope for a concrete type member with the given name and arity.
     /// Returns the resolved concrete type, or <c>null</c> if not found.
     /// </summary>
@@ -10702,14 +10576,6 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         }
 
         return null;
-    }
-
-    /// <summary>
-    /// Searches a single scope for a concrete type member with the given name and arity.
-    /// </summary>
-    private static bool SearchScopeForConcreteTypeMember(string slotName, int requiredArity, IScope scope)
-    {
-        return SearchScopeForConcreteTypeMemberType(slotName, requiredArity, scope) is not null;
     }
 
     /// <summary>
@@ -11292,249 +11158,6 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
         // For non-slot type references, use the standard comparison.
         return TypeReferencesMatch(abstractRef, implRef);
-    }
-
-    /// <summary>
-    /// Compares a source type reference against a target type reference,
-    /// substituting type parameters in the target with the provided type arguments.
-    /// For example, if the abstract type member type is <c>T</c> and <c>T=int</c>, this
-    /// checks whether the source type reference matches <c>int</c>.
-    /// </summary>
-    private static bool TypeReferencesMatchWithSubstitution(
-        TypeReferenceNode sourceRef,
-        TypeReferenceNode targetRef,
-        IReadOnlyList<IType> typeParams,
-        IReadOnlyList<IType> typeArgs,
-        SourceText? targetSourceText = null,
-        ImmutableArray<Storm.Runtime.SyntaxNode>? asts = null,
-        MistCompilation? compilation = null)
-    {
-        // If the target is a named type ref that matches a type parameter name,
-        // substitute it with the corresponding type argument and compare.
-        if(targetRef.First is NamedSingleTypeRefSingleTypeRefNode namedTarget)
-        {
-            var targetName = GetNamedTypeRefName(namedTarget, targetSourceText);
-
-            // If primary source text lookup failed, try all compilation units.
-            if(string.IsNullOrEmpty(targetName) && asts.HasValue && compilation is not null)
-            {
-                targetName = GetNamedTypeRefName(namedTarget, asts.Value, compilation);
-            }
-
-            for(var i = 0; i < typeParams.Count; i++)
-            {
-                var (paramName7953, _) = GetTypeParameterNameAndOrdinal(typeParams[i]);
-                if(paramName7953 == targetName)
-                {
-                    // The target type parameter maps to typeArgs[i].
-                    // Compare the source type reference against the substituted type.
-                    return TypeReferenceMatchesSubstitutedType(sourceRef, typeArgs[i]);
-                }
-            }
-
-            // Not a type parameter — fall through to standard comparison.
-        }
-
-        // For non-type-parameter targets, use the standard comparison.
-        return TypeReferencesMatch(sourceRef, targetRef);
-    }
-
-    /// <summary>
-    /// Checks whether a source <see cref="TypeReferenceNode"/> matches a substituted
-    /// <see cref="IType"/>. This bridges AST-level type references with semantic-level
-    /// resolved types for generic type argument validation.
-    /// </summary>
-    private static bool TypeReferenceMatchesSubstitutedType(
-        TypeReferenceNode sourceRef, IType substitutedType)
-    {
-        // Unions never match a single substituted type here — the
-        // pre-restructure code matched only the non-union variants.
-        if(sourceRef.SingleTypeRefs.Length > 0)
-        {
-            return false;
-        }
-
-        return (sourceRef.First, substitutedType) switch
-        {
-            // Primitive type references match their corresponding semantic types.
-            (PrimitiveSingleTypeRefSingleTypeRefNode prim, _) =>
-                PrimitiveTypeRefMatchesType(prim, substitutedType),
-
-            // Named type references match by display name.
-            (NamedSingleTypeRefSingleTypeRefNode named, _) =>
-                named.Name.IDENTIFIER.Lexeme == substitutedType.DisplayName
-                && named.ArrayRank is null,
-
-            // Void matches void.
-            (VoidSingleTypeRefSingleTypeRefNode, _) =>
-                substitutedType.DisplayName == "Void",
-
-            _ => false,
-        };
-    }
-
-    /// <summary>
-    /// Checks whether a primitive type reference AST node matches a resolved semantic type.
-    /// </summary>
-    private static bool PrimitiveTypeRefMatchesType(
-        PrimitiveSingleTypeRefSingleTypeRefNode primRef, IType type)
-    {
-        var primName = FormatPrimitiveType(primRef.PrimitiveType);
-        // The semantic type's DisplayName may be the stdlib name (e.g., "Int32")
-        // rather than the keyword (e.g., "int"). Check both the keyword and the
-        // stdlib type name from KeywordAliases.
-        if(type.DisplayName == primName && primRef.ArrayRank is null)
-        {
-            return true;
-        }
-
-        // Check against the stdlib type name (e.g., "int" → "Standard.Int32" → "Int32").
-        if(KeywordAliases.Map.TryGetValue(primName, out var qualifiedName))
-        {
-            // qualifiedName is e.g. "Standard.Int32"; extract the simple name.
-            var dotIndex = qualifiedName.LastIndexOf('.');
-            var simpleName = dotIndex >= 0 ? qualifiedName[(dotIndex + 1)..] : qualifiedName;
-            if(type.DisplayName == simpleName && primRef.ArrayRank is null)
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    /// <summary>
-    /// Formats a member type reference with type parameter substitution applied.
-    /// For example, if the type reference is <c>T</c> and <c>T=int</c>, returns <c>"int"</c>.
-    /// </summary>
-    private static string FormatTypeReferenceWithSubstitution(
-        TypeReferenceNode typeRef,
-        IReadOnlyList<IType> typeParams,
-        IReadOnlyList<IType> typeArgs,
-        SourceText? sourceText = null,
-        ImmutableArray<Storm.Runtime.SyntaxNode>? asts = null,
-        MistCompilation? compilation = null)
-    {
-        if(typeRef.First is NamedSingleTypeRefSingleTypeRefNode namedRef)
-        {
-            var name = GetNamedTypeRefName(namedRef, sourceText);
-
-            // If primary source text lookup failed, try all compilation units.
-            if(string.IsNullOrEmpty(name) && asts.HasValue && compilation is not null)
-            {
-                name = GetNamedTypeRefName(namedRef, asts.Value, compilation);
-            }
-
-            for(var i = 0; i < typeParams.Count; i++)
-            {
-                var (paramName8045, _) = GetTypeParameterNameAndOrdinal(typeParams[i]);
-                if(paramName8045 == name)
-                {
-                    return typeArgs[i].DisplayName;
-                }
-            }
-        }
-
-        // Not a type parameter — use the standard formatting.
-        return FormatTypeReference(typeRef);
-    }
-
-    /// <summary>
-    /// Extracts the textual name from a <see cref="NamedSingleTypeRefSingleTypeRefNode"/>,
-    /// preferring <c>Name.IDENTIFIER.Lexeme</c> and falling back to slicing
-    /// the AST span out of an optional source text. Returns an empty string
-    /// when neither source is available.
-    /// <para>
-    /// Used during abstract type satisfaction where AST nodes produced by the
-    /// parser may carry an empty lexeme on <c>IDENTIFIER</c> (the parser
-    /// populates only the span in some cases).
-    /// </para>
-    /// </summary>
-    private static string GetNamedTypeRefName(
-        NamedSingleTypeRefSingleTypeRefNode named, SourceText? sourceText)
-    {
-        var lexeme = named.Name.IDENTIFIER.Lexeme;
-        if(!string.IsNullOrEmpty(lexeme))
-        {
-            return lexeme;
-        }
-
-        // Fallback 1: try the IDENTIFIER token's own span against the source text.
-        if(sourceText is not null)
-        {
-            var tokenSpan = named.Name.IDENTIFIER.Span;
-            if(tokenSpan.Length > 0 && tokenSpan.Start + tokenSpan.Length <= sourceText.Contents.Length)
-            {
-                var extracted = sourceText.Contents.Substring(tokenSpan.Start, tokenSpan.Length);
-                if(!string.IsNullOrEmpty(extracted) && char.IsLetter(extracted[0]))
-                {
-                    return extracted;
-                }
-            }
-
-            // Fallback 2: try the QualifiedIdentifier's span.
-            var span = named.Name.Span;
-            if(span.Length > 0 && span.Start + span.Length <= sourceText.Contents.Length)
-            {
-                var extracted = sourceText.Contents.Substring(span.Start, span.Length);
-                if(!string.IsNullOrEmpty(extracted) && char.IsLetter(extracted[0]))
-                {
-                    return extracted;
-                }
-            }
-        }
-
-        // Last resort: nothing resolvable.
-        return "";
-    }
-
-    /// <summary>
-    /// Variant of <see cref="GetNamedTypeRefName"/> that tries multiple source texts.
-    /// Used when the correct source text is uncertain (e.g., multi-file compilation
-    /// where span-based file identification may be unreliable).
-    /// </summary>
-    private static string GetNamedTypeRefName(
-        NamedSingleTypeRefSingleTypeRefNode named,
-        ImmutableArray<Storm.Runtime.SyntaxNode> asts,
-        MistCompilation compilation)
-    {
-        var lexeme = named.Name.IDENTIFIER.Lexeme;
-        if(!string.IsNullOrEmpty(lexeme))
-        {
-            return lexeme;
-        }
-
-        // Try each compilation unit's source text.
-        for(var i = 0; i < compilation.Units.Length; i++)
-        {
-            var src = compilation.Units[i].Source;
-            if(src is null)
-            {
-                continue;
-            }
-
-            var tokenSpan = named.Name.IDENTIFIER.Span;
-            if(tokenSpan.Length > 0 && tokenSpan.Start + tokenSpan.Length <= src.Contents.Length)
-            {
-                var extracted = src.Contents.Substring(tokenSpan.Start, tokenSpan.Length);
-                if(!string.IsNullOrEmpty(extracted) && char.IsLetter(extracted[0]))
-                {
-                    return extracted;
-                }
-            }
-
-            var span = named.Name.Span;
-            if(span.Length > 0 && span.Start + span.Length <= src.Contents.Length)
-            {
-                var extracted = src.Contents.Substring(span.Start, span.Length);
-                if(!string.IsNullOrEmpty(extracted) && char.IsLetter(extracted[0]))
-                {
-                    return extracted;
-                }
-            }
-        }
-
-        return "";
     }
 
 
@@ -26590,33 +26213,6 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         return true;
     }
 
-    // ─── Shared Utilities ────────────────────────────────────────────────
-
-    /// <summary>
-    /// Extracts all type names from a <see cref="BaseListNode"/> as a string array.
-    /// The first entry comes from <c>First</c>, and additional entries from <c>BaseTypeRefs</c>.
-    /// </summary>
-    private static string[] ExtractBaseListNames(BaseListNode baseList)
-    {
-        var names = new List<string>();
-        var firstName = baseList.First.Name.Lexeme;
-        if(!string.IsNullOrEmpty(firstName))
-        {
-            names.Add(firstName);
-        }
-
-        foreach(var rest in baseList.BaseTypeRefs)
-        {
-            var restName = rest.Name.Lexeme;
-            if(!string.IsNullOrEmpty(restName))
-            {
-                names.Add(restName);
-            }
-        }
-
-        return names.ToArray();
-    }
-
     private static string ExtractNamespaceName(
         NamespaceDeclarationNode namespaceNode,
         SourceText? sourceText)
@@ -26661,28 +26257,6 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             if(item is NamespaceTypeItemNamespaceBodyItemNode typeItem)
             {
                 builder.Add(typeItem.TypeDeclaration);
-            }
-        }
-
-        return builder.ToImmutable();
-    }
-
-    private static ImmutableArray<ExtensionBlockDeclarationNode> GetNamespaceBodyExtensions(
-        NamespaceDeclarationNode namespaceNode)
-    {
-        var bodyItems = namespaceNode switch
-        {
-            FileScopedNamespaceNamespaceDeclarationNode fileScopedNs => fileScopedNs.Body,
-            BlockNamespaceNamespaceDeclarationNode blockNs => blockNs.Body,
-            _ => ImmutableArray<NamespaceBodyItemNode>.Empty
-        };
-
-        var builder = ImmutableArray.CreateBuilder<ExtensionBlockDeclarationNode>();
-        foreach(var item in bodyItems)
-        {
-            if(item is NamespaceExtensionItemNamespaceBodyItemNode extensionItem)
-            {
-                builder.Add(extensionItem.ExtensionDeclaration);
             }
         }
 
@@ -27841,20 +27415,6 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         }
 
         return '\0';
-    }
-
-    /// <summary>
-    /// Extracts the simple type name from a <see cref="TypeReferenceNode"/>.
-    /// </summary>
-    private static string ExtractTypeReferenceName(TypeReferenceNode typeRef)
-    {
-        return typeRef.First switch
-        {
-            NamedSingleTypeRefSingleTypeRefNode named => named.Name.IDENTIFIER.Lexeme,
-            PrimitiveSingleTypeRefSingleTypeRefNode primitive => FormatPrimitiveType(primitive.PrimitiveType),
-            TupleSingleTypeRefSingleTypeRefNode tuple => FormatTupleTypeReference(tuple),
-            _ => "",
-        };
     }
 
     /// <summary>

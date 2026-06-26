@@ -60,27 +60,6 @@ public sealed class OperatorEmissionDispatchTests : IDisposable
         return builder.Build(compilation, ImmutableArray.Create<Storm.Runtime.SyntaxNode>(ast), ambientTypeResolver, namespaceRoot: "TestProject", projectFolder: "/test", diagnostics);
     }
 
-    private ISemanticModel BuildModelWithStdlib(
-        CompilationUnitNode userAst,
-        string userSource,
-        CompilationUnitNode stdlibAst,
-        string stdlibSource)
-    {
-        var userSourceText = new SourceText("test.mist", userSource);
-        var stdlibSourceText = new SourceText("stdlib.mist", stdlibSource);
-        var compilation = new MistCompilation(ImmutableArray.Create(
-            new CompilationUnit(stdlibSourceText) { IsStdlib = true },
-            new CompilationUnit(userSourceText)));
-        var diagnostics = new DiagnosticBag();
-        return builder.Build(
-            compilation,
-            ImmutableArray.Create<Storm.Runtime.SyntaxNode>(stdlibAst, userAst),
-            ambientTypeResolver: null,
-            namespaceRoot: "TestProject",
-            projectFolder: "/test",
-            diagnostics);
-    }
-
     private string EmitAndGetCsContent(ISemanticModel model)
     {
         var diagnostics = new DiagnosticBag();

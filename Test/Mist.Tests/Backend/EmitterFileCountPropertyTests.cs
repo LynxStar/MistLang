@@ -56,28 +56,6 @@ public sealed class EmitterFileCountPropertyTests : IDisposable
             lexeme: lexeme);
     }
 
-    private static ExpressionNode MakeIntLiteralExpression(string value = "0")
-    {
-        var primary = new IntegerLiteralExpressionPrimaryNode
-        {
-            IntegerLiteral = MakeToken(value),
-        };
-        var postfix = new PostfixNode
-        {
-            Target = primary,
-            Suffix = ImmutableArray<PostfixSuffixNode>.Empty,
-        };
-        var unary = new PostfixExpressionUnaryNode { Primary = postfix };
-        var mult = new MultiplicativeNode { Left = unary };
-        var add = new AdditiveNode { Left = mult };
-        var rel = new RelationalComparisonRelationalNode { Left = add };
-        var eq = new EqualityNode { Left = rel };
-        var logAnd = new LogicalAndNode { Left = eq };
-        var logOr = new LogicalOrNode { Left = logAnd };
-        var assign = new AssignmentNode { Target = new VoidCoalescingNode { Left = logOr } };
-        return new AssignmentFormExpressionNode { Assignment = assign };
-    }
-
     /// <summary>
     /// Creates a CompilationUnitNode with a class containing a static void Main().
     /// The class name is parameterized to allow unique names across files.

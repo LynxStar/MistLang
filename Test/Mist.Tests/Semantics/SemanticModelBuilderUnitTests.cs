@@ -92,28 +92,6 @@ public class SemanticModelBuilderUnitTests
         return new AssignmentFormExpressionNode { Assignment = assign };
     }
 
-    private static ExpressionNode MakeIdentifierExpression(string name)
-    {
-        var primary = new IdentifierExpressionPrimaryNode
-        {
-            Name = MakeToken(name),
-        };
-        var postfix = new PostfixNode
-        {
-            Target = primary,
-            Suffix = ImmutableArray<PostfixSuffixNode>.Empty,
-        };
-        var unary = new PostfixExpressionUnaryNode { Primary = postfix };
-        var mult = new MultiplicativeNode { Left = unary };
-        var add = new AdditiveNode { Left = mult };
-        var rel = new RelationalComparisonRelationalNode { Left = add };
-        var eq = new EqualityNode { Left = rel };
-        var logAnd = new LogicalAndNode { Left = eq };
-        var logOr = new LogicalOrNode { Left = logAnd };
-        var assign = new AssignmentNode { Target = new VoidCoalescingNode { Left = logOr } };
-        return new AssignmentFormExpressionNode { Assignment = assign };
-    }
-
     private static ExpressionNode MakeThisExpression()
     {
         var primary = new ThisExpressionPrimaryNode();
@@ -121,35 +99,6 @@ public class SemanticModelBuilderUnitTests
         {
             Target = primary,
             Suffix = ImmutableArray<PostfixSuffixNode>.Empty,
-        };
-        var unary = new PostfixExpressionUnaryNode { Primary = postfix };
-        var mult = new MultiplicativeNode { Left = unary };
-        var add = new AdditiveNode { Left = mult };
-        var rel = new RelationalComparisonRelationalNode { Left = add };
-        var eq = new EqualityNode { Left = rel };
-        var logAnd = new LogicalAndNode { Left = eq };
-        var logOr = new LogicalOrNode { Left = logAnd };
-        var assign = new AssignmentNode { Target = new VoidCoalescingNode { Left = logOr } };
-        return new AssignmentFormExpressionNode { Assignment = assign };
-    }
-
-    /// <summary>
-    /// Creates an expression with a member access suffix: target.memberName
-    /// </summary>
-    private static ExpressionNode MakeMemberAccessExpression(string target, string memberName)
-    {
-        var primary = new IdentifierExpressionPrimaryNode
-        {
-            Name = MakeToken(target),
-        };
-        var suffix = new MemberAccessSuffixPostfixSuffixNode
-        {
-            Name = MakeToken(memberName),
-        };
-        var postfix = new PostfixNode
-        {
-            Target = primary,
-            Suffix = ImmutableArray.Create<PostfixSuffixNode>(suffix),
         };
         var unary = new PostfixExpressionUnaryNode { Primary = postfix };
         var mult = new MultiplicativeNode { Left = unary };

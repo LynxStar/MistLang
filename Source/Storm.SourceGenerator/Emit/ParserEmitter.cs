@@ -423,36 +423,6 @@ namespace Storm.SourceGenerator.Emit
             writer.WriteLine("return null;");
         }
 
-        // ── Alt body emission ───────────────────────────────────────────
-
-        private static void EmitAltBody(CodeWriter writer, EmissionContext context, RuleAlternativeIR alt, string typeName, string spVar)
-        {
-            var labels = alt.FieldLabels;
-            var labelMap = new Dictionary<ExpressionIR, string>();
-            foreach(var label in labels)
-            {
-                labelMap[label.Expression] = label.Label;
-            }
-
-            var assignedProps = new List<(string PropName, string LocalVar)>();
-            EmitFullExprParse(writer, context, alt.Expression, labelMap, assignedProps, false, null);
-
-            writer.WriteBlock("if (_hasError)", () =>
-            {
-                writer.WriteLine("return null;");
-            });
-
-            writer.WriteLine($"var node = new {typeName}();");
-            foreach(var (propName, localVar) in assignedProps)
-            {
-                writer.WriteLine($"node.{propName} = {localVar};");
-            }
-
-            writer.WriteLine($"node.Span = Span({spVar});");
-            writer.WriteLine($"node = AttachHidden(node, {spVar}, _pos);");
-            writer.WriteLine("return node;");
-        }
-
         private static void EmitAltBodyWithCheck(CodeWriter writer, EmissionContext context, RuleAlternativeIR alt, string typeName, string spVar, string okVar)
         {
             var labels = alt.FieldLabels;
@@ -1785,19 +1755,6 @@ namespace Storm.SourceGenerator.Emit
             }
 
             return char.ToUpperInvariant(name[0]) + name.Substring(1);
-        }
-
-        private static string EnsureUnique(string name, HashSet<string> usedNames)
-        {
-            var result = name;
-            var counter = 2;
-            while(!usedNames.Add(result))
-            {
-                result = name + counter;
-                counter++;
-            }
-
-            return result;
         }
     }
 }

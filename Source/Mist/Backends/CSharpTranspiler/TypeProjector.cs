@@ -2418,37 +2418,6 @@ internal sealed class TypeProjector
     }
 
     /// <summary>
-    /// Projects CLR method parameters into Mist parameter symbols within the given scope.
-    /// Handles optional parameters with default values.
-    /// </summary>
-    private void ProjectParameters(
-        ParameterInfo[] parameters,
-        Scope targetScope,
-        IStdlibTypeProvider stdlib)
-    {
-        foreach(var param in parameters)
-        {
-            var paramType = ProjectMemberType(param.ParameterType, stdlib);
-
-            var paramSymbol = new Symbol(
-                param.Name ?? $"arg{param.Position}",
-                SymbolKind.Parameter,
-                SymbolOrigin.Backend,
-                targetScope,
-                paramType,
-                null);
-
-            // Mark optional parameters (those with default values)
-            if(param.HasDefaultValue)
-            {
-                paramSymbol.ReadonlyStatus = ReadonlyStatus.ExplicitReadonly;
-            }
-
-            targetScope.AddMember(paramSymbol);
-        }
-    }
-
-    /// <summary>
     /// Projects CLR method parameters into Mist parameter symbols within the given scope
     /// and returns the projected parameter symbols as a list. Used by <see cref="ProjectMethods"/>
     /// and <see cref="ProjectConstructors"/> to populate <see cref="Symbol.Parameters"/>

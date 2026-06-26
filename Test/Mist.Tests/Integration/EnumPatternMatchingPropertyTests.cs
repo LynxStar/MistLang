@@ -103,20 +103,6 @@ public sealed class EnumPatternMatchingPropertyTests : IDisposable
         ["North", "South", "East", "West", "Red", "Green", "Blue",
          "Active", "Inactive", "Pending", "High", "Low"];
 
-    // ─── FsCheck generator ──────────────────────────────────────────────
-
-    private static Gen<PatternMatchScenario> ScenarioGen =>
-        from enumName in Gen.Elements(EnumNames)
-        from memberCount in Gen.Choose(2, 5)
-        from members in Gen.Shuffle(MemberNamePool)
-            .Select(m => m.Take(memberCount).ToArray())
-        from testedIdx in Gen.Choose(0, memberCount - 1)
-        from shouldMatch in Gen.Elements(true, false)
-        let memberValues = members.Select((name, i) => (name, i)).ToArray()
-        let testedValue = memberValues[testedIdx].i
-        let scrutineeValue = shouldMatch ? testedValue : (testedValue + 1) % memberCount
-        select new PatternMatchScenario(enumName, memberValues, scrutineeValue, testedIdx);
-
     // ─── Batched program builder ─────────────────────────────────────────
 
     /// <summary>

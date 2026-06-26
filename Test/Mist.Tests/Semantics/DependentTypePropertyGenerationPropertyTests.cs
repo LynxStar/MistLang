@@ -104,16 +104,6 @@ public class DependentTypePropertyGenerationPropertyTests
             return $"class {TypeName}<{string.Join(", ", Params.Select(p => p.ToString()))}>";
         }
     }
-#pragma warning restore CA1034
-
-    // ─── Generator ───────────────────────────────────────────────────────
-
-    private static Gen<DependentParam> GenDependentParam(int index)
-    {
-        return from typeIndex in Gen.Choose(0, AllowedPrimitiveTypes.Length - 1)
-               let name = ParamNames[index % ParamNames.Length]
-               select new DependentParam(name, typeIndex);
-    }
 
     private static Gen<PropertyGenerationScenario> GenPropertyGenerationScenario()
     {

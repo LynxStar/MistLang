@@ -65,44 +65,6 @@ public class AccessModifierPropertyTests
         return bag.ToImmutableArray();
     }
 
-    // ─── Expression builders ─────────────────────────────────────────────
-
-    private static ExpressionNode MakeIntLiteralExpression(string value = "0")
-    {
-        var primary = new IntegerLiteralExpressionPrimaryNode
-        {
-            IntegerLiteral = MakeToken(value),
-        };
-        return WrapPrimaryAsExpression(primary);
-    }
-
-    private static ExpressionNode MakeIdentifierExpression(string name)
-    {
-        var primary = new IdentifierExpressionPrimaryNode
-        {
-            Name = MakeToken(name),
-        };
-        return WrapPrimaryAsExpression(primary);
-    }
-
-    private static ExpressionNode WrapPrimaryAsExpression(PrimaryNode primary)
-    {
-        var postfix = new PostfixNode
-        {
-            Target = primary,
-            Suffix = ImmutableArray<PostfixSuffixNode>.Empty,
-        };
-        var unary = new PostfixExpressionUnaryNode { Primary = postfix };
-        var mult = new MultiplicativeNode { Left = unary };
-        var add = new AdditiveNode { Left = mult };
-        var rel = new RelationalComparisonRelationalNode { Left = add };
-        var eq = new EqualityNode { Left = rel };
-        var logAnd = new LogicalAndNode { Left = eq };
-        var logOr = new LogicalOrNode { Left = logAnd };
-        var assign = new AssignmentNode { Target = new VoidCoalescingNode { Left = logOr } };
-        return new AssignmentFormExpressionNode { Assignment = assign };
-    }
-
     /// <summary>
     /// Creates an expression: target.memberName (member access).
     /// </summary>
@@ -162,23 +124,6 @@ public class AccessModifierPropertyTests
         return new AssignmentFormExpressionNode { Assignment = assign };
     }
 
-    /// <summary>
-    /// Creates a new T() expression.
-    /// </summary>
-    private static ExpressionNode MakeNewObjectExpression(string typeName)
-    {
-        var primary = new ObjectCreationExpressionPrimaryNode
-        {
-            Type = new QualifiedIdentifierNode
-            {
-                IDENTIFIER = MakeToken(typeName),
-                Span = new Storm.Runtime.SourceSpan(0, typeName.Length),
-            },
-            Arguments = null,
-        };
-        return WrapPrimaryAsExpression(primary);
-    }
-
     private static StatementNode MakeExpressionStatement(ExpressionNode expr)
     {
         return new ExpressionStatementStatementNode
@@ -186,51 +131,6 @@ public class AccessModifierPropertyTests
             ExpressionStatement = new ExpressionStatementNode
             {
                 Expression = expr,
-            },
-        };
-    }
-
-    private static StatementNode MakeIntVarDecl(string name, string value = "0")
-    {
-        return new VariableDeclarationStatementStatementNode
-        {
-            VariableDeclaration = new TypedVariableDeclarationVariableDeclarationStatementNode
-            {
-                Type = new TypeReferenceNode
-                {
-                    First = new PrimitiveSingleTypeRefSingleTypeRefNode
-                    {
-                        PrimitiveType = new IntTypePrimitiveTypeNode(),
-                    }
-                },
-                Name = MakeToken(name),
-                Initializer = MakeIntLiteralExpression(value),
-            },
-        };
-    }
-
-    /// <summary>
-    /// Creates a variable declaration: TypeName varName = new TypeName();
-    /// </summary>
-    private static StatementNode MakeTypedVarDecl(string typeName, string varName)
-    {
-        return new VariableDeclarationStatementStatementNode
-        {
-            VariableDeclaration = new TypedVariableDeclarationVariableDeclarationStatementNode
-            {
-                Type = new TypeReferenceNode
-                {
-                    First = new NamedSingleTypeRefSingleTypeRefNode
-                    {
-                        Name = new QualifiedIdentifierNode
-                        {
-                            IDENTIFIER = MakeToken(typeName),
-                            Span = new Storm.Runtime.SourceSpan(0, typeName.Length),
-                        },
-                    }
-                },
-                Name = MakeToken(varName),
-                Initializer = MakeNewObjectExpression(typeName),
             },
         };
     }

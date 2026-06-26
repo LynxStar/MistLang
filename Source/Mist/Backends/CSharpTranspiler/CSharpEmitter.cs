@@ -7365,34 +7365,6 @@ internal sealed class CSharpSourceWriter
         return false;
     }
 
-    /// <summary>
-    /// Returns true if the given type reference represents an array type
-    /// (i.e., has an ArrayRank suffix like <c>int[]</c> or <c>MyClass[]</c>).
-    /// </summary>
-    private static bool IsArrayTypeReference(TypeReferenceNode typeRef)
-    {
-        return typeRef.First switch
-        {
-            PrimitiveSingleTypeRefSingleTypeRefNode primitiveRef => primitiveRef.ArrayRank is not null,
-            NamedSingleTypeRefSingleTypeRefNode namedRef => namedRef.ArrayRank is not null,
-            _ => false,
-        };
-    }
-
-    /// <summary>
-    /// Emits the element type name for an array type reference (without the <c>[]</c> suffix).
-    /// Used to produce the type argument in <c>Array.Empty&lt;T&gt;()</c> emission.
-    /// </summary>
-    private string EmitArrayElementTypeName(TypeReferenceNode typeRef)
-    {
-        return typeRef.First switch
-        {
-            PrimitiveSingleTypeRefSingleTypeRefNode primitiveRef => EmitPrimitiveType(primitiveRef.PrimitiveType),
-            NamedSingleTypeRefSingleTypeRefNode namedRef => ExtractQualifiedName(namedRef.Name) + EmitTypeArgumentList(namedRef.TypeArgs),
-            _ => "object",
-        };
-    }
-
     private string EmitElementTypeRef(ElementTypeRefNode elementTypeRef)
     {
         return elementTypeRef switch
@@ -7403,9 +7375,6 @@ internal sealed class CSharpSourceWriter
             _ => "object"
         };
     }
-
-    /// <summary>
-
 
     private string EmitTypeReference(TypeReferenceNode typeRef, bool isValueContext = false)
     {
@@ -14688,18 +14657,6 @@ internal sealed class CSharpSourceWriter
         foreach(var rest in baseList.BaseTypeRefs)
         {
             parts.Add(EmitBaseTypeRefWithAssociatedTypes(rest, implementorScope, implementorClassType, implementorName, implementorTypeParams));
-        }
-
-        return string.Join(", ", parts);
-    }
-
-    private static string EmitBaseList(BaseListNode baseList)
-    {
-        var parts = new List<string>();
-        parts.Add(baseList.First.Name.Lexeme);
-        foreach(var rest in baseList.BaseTypeRefs)
-        {
-            parts.Add(rest.Name.Lexeme);
         }
 
         return string.Join(", ", parts);

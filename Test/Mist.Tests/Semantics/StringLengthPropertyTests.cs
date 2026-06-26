@@ -37,12 +37,6 @@ public class StringLengthPropertyTests
             lexeme: lexeme);
     }
 
-    private static MistCompilation MakeCompilation(string source = "")
-    {
-        var sourceText = new SourceText("test.mist", source);
-        return new MistCompilation(ImmutableArray.Create(new CompilationUnit(sourceText)));
-    }
-
     private static (ISemanticModel Model, ImmutableArray<Diagnostic> Diagnostics) BuildModelWithDiagnostics(
         Storm.Runtime.SyntaxNode ast,
         IAmbientTypeResolver? ambientTypeResolver = null,

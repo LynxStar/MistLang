@@ -80,19 +80,6 @@ public class VoidTypeResolutionPropertyTests
         };
     }
 
-    private static TypeReferenceNode MakePrimitiveTypeRef(string primitiveName)
-    {
-        PrimitiveTypeNode primitiveNode = primitiveName switch
-        {
-            "int" => new IntTypePrimitiveTypeNode(),
-            "string" => new StringTypePrimitiveTypeNode(),
-            "bool" => new BoolTypePrimitiveTypeNode(),
-            "float" => new FloatTypePrimitiveTypeNode(),
-            _ => new IntTypePrimitiveTypeNode(),
-        };
-        return new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = primitiveNode } };
-    }
-
     private static TypeReferenceNode MakeNamedTypeRef(string name, TypeArgumentListNode? typeArgs = null)
     {
         return new TypeReferenceNode

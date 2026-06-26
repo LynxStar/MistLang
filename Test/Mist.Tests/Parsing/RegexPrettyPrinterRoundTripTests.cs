@@ -118,14 +118,6 @@ public class RegexPrettyPrinterRoundTripTests
             "test");
     }
 
-    /// <summary>
-    /// Generates a backtick-delimited regex literal string (including the backtick delimiters).
-    /// </summary>
-    private static Gen<string> GenRegexLiteral()
-    {
-        return GenRegexPattern().Select(p => $"`{p}`");
-    }
-
     // ─── Source Program Generators ───────────────────────────────────────
 
     /// <summary>

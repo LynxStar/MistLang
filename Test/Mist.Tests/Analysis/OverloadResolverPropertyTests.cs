@@ -127,21 +127,6 @@ public class OverloadResolverPropertyTests
     }
 
     /// <summary>
-    /// Creates a parameterless method declaration node.
-    /// </summary>
-    private static MethodDeclarationNode MakeParameterlessMethod(string name)
-    {
-        return new MethodDeclarationNode
-        {
-            Name = MakeToken(name),
-            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
-            Parameters = null,
-            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty } },
-            Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
-        };
-    }
-
-    /// <summary>
     /// Builds a class with the given method declarations and returns the semantic model.
     /// </summary>
     private static ISemanticModel BuildClassWithMethods(string className, IReadOnlyList<MethodDeclarationNode> methods)

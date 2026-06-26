@@ -63,53 +63,6 @@ public sealed class VoidEmissionPropertyTests : IDisposable
             lexeme: lexeme);
     }
 
-    private static ExpressionNode WrapPrimaryAsExpression(PrimaryNode primary)
-    {
-        var postfix = new PostfixNode
-        {
-            Target = primary,
-            Suffix = ImmutableArray<PostfixSuffixNode>.Empty,
-        };
-        var unary = new PostfixExpressionUnaryNode { Primary = postfix };
-        var mult = new MultiplicativeNode { Left = unary };
-        var add = new AdditiveNode { Left = mult };
-        var rel = new RelationalComparisonRelationalNode { Left = add };
-        var eq = new EqualityNode { Left = rel };
-        var logAnd = new LogicalAndNode { Left = eq };
-        var logOr = new LogicalOrNode { Left = logAnd };
-        var assign = new AssignmentNode { Target = new VoidCoalescingNode { Left = logOr } };
-        return new AssignmentFormExpressionNode { Assignment = assign };
-    }
-
-    /// <summary>
-    /// Creates the expression <c>Void.Void</c> as an AST node.
-    /// </summary>
-    private static ExpressionNode MakeVoidDotVoidExpression()
-    {
-        var primary = new IdentifierExpressionPrimaryNode { Name = Tok("Void") };
-        var suffix = new MemberAccessSuffixPostfixSuffixNode { Name = Tok("Void") };
-        var postfix = new PostfixNode
-        {
-            Target = primary,
-            Suffix = ImmutableArray.Create<PostfixSuffixNode>(suffix),
-        };
-        var unary = new PostfixExpressionUnaryNode { Primary = postfix };
-        var mult = new MultiplicativeNode { Left = unary };
-        var add = new AdditiveNode { Left = mult };
-        var rel = new RelationalComparisonRelationalNode { Left = add };
-        var eq = new EqualityNode { Left = rel };
-        var logAnd = new LogicalAndNode { Left = eq };
-        var logOr = new LogicalOrNode { Left = logAnd };
-        var assign = new AssignmentNode { Target = new VoidCoalescingNode { Left = logOr } };
-        return new AssignmentFormExpressionNode { Assignment = assign };
-    }
-
-    private static ExpressionNode MakeIdentifierExpression(string name)
-    {
-        var primary = new IdentifierExpressionPrimaryNode { Name = Tok(name) };
-        return WrapPrimaryAsExpression(primary);
-    }
-
     /// <summary>
     /// Creates a method call expression: <c>methodName(args...)</c>
     /// </summary>
@@ -144,20 +97,6 @@ public sealed class VoidEmissionPropertyTests : IDisposable
         return new ExpressionStatementStatementNode
         {
             ExpressionStatement = new ExpressionStatementNode { Expression = expr },
-        };
-    }
-
-    private static StatementNode MakeTypedVarDeclStatement(
-        TypeReferenceNode typeRef, string varName, ExpressionNode initializer)
-    {
-        return new VariableDeclarationStatementStatementNode
-        {
-            VariableDeclaration = new TypedVariableDeclarationVariableDeclarationStatementNode
-            {
-                Type = typeRef,
-                Name = Tok(varName),
-                Initializer = initializer,
-            },
         };
     }
 
@@ -214,29 +153,6 @@ public sealed class VoidEmissionPropertyTests : IDisposable
                 File.Delete(file);
             }
         }
-    }
-
-    private static ClassDeclarationNode MakeProgramClass(ImmutableArray<MemberDeclarationNode> members)
-    {
-        var mainMethod = new MethodDeclarationNode
-        {
-            Name = Tok("Main"),
-            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
-            Parameters = null,
-            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty } },
-            Modifiers = ImmutableArray.Create<ModifierNode>(
-                new PublicModifierModifierNode(),
-                new StaticModifierModifierNode()),
-        };
-
-        var allMembers = members.Add(
-            new MethodMemberMemberDeclarationNode { Method = mainMethod });
-
-        return new ClassDeclarationNode
-        {
-            Name = Tok("Program"),
-            Members = allMembers,
-        };
     }
 
     // ─── Test data models ────────────────────────────────────────────────

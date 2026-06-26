@@ -144,15 +144,6 @@ public class ConstructedTypeMemberAccessPropertyTests
         return WrapPrimaryAsExpression(primary);
     }
 
-    private static ExpressionNode MakeIdentifierExpression(string name)
-    {
-        var primary = new IdentifierExpressionPrimaryNode
-        {
-            Name = MakeToken(name),
-        };
-        return WrapPrimaryAsExpression(primary);
-    }
-
     /// <summary>
     /// Creates an expression: identifier.fieldName (member access).
     /// </summary>
@@ -194,17 +185,6 @@ public class ConstructedTypeMemberAccessPropertyTests
                 Type = typeRef,
                 Name = MakeToken(varName),
                 Initializer = initializer,
-            },
-        };
-    }
-
-    private static StatementNode MakeExpressionStatement(ExpressionNode expr)
-    {
-        return new ExpressionStatementStatementNode
-        {
-            ExpressionStatement = new ExpressionStatementNode
-            {
-                Expression = expr,
             },
         };
     }

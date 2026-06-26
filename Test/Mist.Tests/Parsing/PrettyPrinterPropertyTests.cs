@@ -41,15 +41,6 @@ public class PrettyPrinterPropertyTests
         return WrapPrimaryInExpression(primary);
     }
 
-    private static ExpressionNode MakeStringLiteralExpression(string value = "\"hello\"")
-    {
-        var primary = new StringLiteralExpressionPrimaryNode
-        {
-            StringLiteral = MakeToken(value),
-        };
-        return WrapPrimaryInExpression(primary);
-    }
-
     private static ExpressionNode MakeIdentifierExpression(string name)
     {
         var primary = new IdentifierExpressionPrimaryNode
@@ -64,46 +55,6 @@ public class PrettyPrinterPropertyTests
         PrimaryNode primary = value
             ? new TrueLiteralExpressionPrimaryNode()
             : new FalseLiteralExpressionPrimaryNode();
-        return WrapPrimaryInExpression(primary);
-    }
-
-    private static ExpressionNode MakeThisExpression()
-    {
-        return WrapPrimaryInExpression(new ThisExpressionPrimaryNode());
-    }
-
-    private static ExpressionNode MakeNewObjectExpression(string typeName, params ExpressionNode[] args)
-    {
-        ArgumentListNode? argList = null;
-        if(args.Length > 0)
-        {
-            argList = new ArgumentListNode { Argument = new ValueArgumentArgumentNode { Expression = args[0] } };
-            // Additional args would need to be added via Arguments, but for simplicity
-            // we only support 0 or 1 args in this helper.
-        }
-
-        var primary = new ObjectCreationExpressionPrimaryNode
-        {
-            Type = new QualifiedIdentifierNode
-            {
-                IDENTIFIER = MakeToken(typeName),
-                Span = new Storm.Runtime.SourceSpan(0, typeName.Length),
-            },
-            Arguments = argList,
-        };
-        return WrapPrimaryInExpression(primary);
-    }
-
-    private static ExpressionNode MakeNewArrayExpression(string elementType, ExpressionNode size)
-    {
-        var primary = new ArrayCreationExpressionPrimaryNode
-        {
-            Type = new PrimitiveElementTypeRefElementTypeRefNode
-            {
-                PrimitiveType = new IntTypePrimitiveTypeNode(),
-            },
-            Size = size,
-        };
         return WrapPrimaryInExpression(primary);
     }
 
@@ -123,32 +74,6 @@ public class PrettyPrinterPropertyTests
         {
             Name = MakeToken(methodName),
             Arguments = argList,
-        };
-        var postfix = new PostfixNode
-        {
-            Target = primary,
-            Suffix = ImmutableArray.Create<PostfixSuffixNode>(suffix),
-        };
-        var unary = new PostfixExpressionUnaryNode { Primary = postfix };
-        var mult = new MultiplicativeNode { Left = unary };
-        var add = new AdditiveNode { Left = mult };
-        var rel = new RelationalComparisonRelationalNode { Left = add };
-        var eq = new EqualityNode { Left = rel };
-        var logAnd = new LogicalAndNode { Left = eq };
-        var logOr = new LogicalOrNode { Left = logAnd };
-        var assign = new AssignmentNode { Target = new VoidCoalescingNode { Left = logOr } };
-        return new AssignmentFormExpressionNode { Assignment = assign };
-    }
-
-    private static ExpressionNode MakeMemberAccessExpression(string target, string memberName)
-    {
-        var primary = new IdentifierExpressionPrimaryNode
-        {
-            Name = MakeToken(target),
-        };
-        var suffix = new MemberAccessSuffixPostfixSuffixNode
-        {
-            Name = MakeToken(memberName),
         };
         var postfix = new PostfixNode
         {
@@ -229,25 +154,6 @@ public class PrettyPrinterPropertyTests
             ReturnStatement = new ReturnStatementNode
             {
                 Value = value,
-            },
-        };
-    }
-
-    private static StatementNode MakeIntVarDecl(string name, string value = "0")
-    {
-        return new VariableDeclarationStatementStatementNode
-        {
-            VariableDeclaration = new TypedVariableDeclarationVariableDeclarationStatementNode
-            {
-                Type = new TypeReferenceNode
-                {
-                    First = new PrimitiveSingleTypeRefSingleTypeRefNode
-                    {
-                        PrimitiveType = new IntTypePrimitiveTypeNode(),
-                    }
-                },
-                Name = MakeToken(name),
-                Initializer = MakeIntLiteralExpression(value),
             },
         };
     }

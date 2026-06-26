@@ -53,37 +53,6 @@ public class InheritanceRoundTripPropertyTests
             return Description;
         }
     }
-#pragma warning restore CA1034
-
-    // ─── AST construction helpers ────────────────────────────────────────
-
-    private static ExpressionNode WrapPrimary(PrimaryNode primary)
-    {
-        var postfix = new PostfixNode
-        {
-            Target = primary,
-            Suffix = ImmutableArray<PostfixSuffixNode>.Empty,
-        };
-        var unary = new PostfixExpressionUnaryNode { Primary = postfix };
-        var mult = new MultiplicativeNode { Left = unary };
-        var add = new AdditiveNode { Left = mult };
-        var rel = new RelationalComparisonRelationalNode { Left = add };
-        var eq = new EqualityNode { Left = rel };
-        var logAnd = new LogicalAndNode { Left = eq };
-        var logOr = new LogicalOrNode { Left = logAnd };
-        var assign = new AssignmentNode { Target = new VoidCoalescingNode { Left = logOr } };
-        return new AssignmentFormExpressionNode { Assignment = assign };
-    }
-
-    private static ExpressionNode MakeIntLiteral(string value)
-    {
-        return WrapPrimary(new IntegerLiteralExpressionPrimaryNode { IntegerLiteral = Tok(value) });
-    }
-
-    private static ExpressionNode MakeIdentifierExpr(string name)
-    {
-        return WrapPrimary(new IdentifierExpressionPrimaryNode { Name = Tok(name) });
-    }
 
     private static FieldDeclarationNode MakeField(
         string name,
@@ -132,17 +101,6 @@ public class InheritanceRoundTripPropertyTests
         };
     }
 
-    private static BaseListNode MakeBaseList(string name)
-    {
-        var baseTypeRef = new BaseTypeRefNode { Name = Tok(name) };
-        return new BaseListNode
-        {
-            First = baseTypeRef,
-            Rest = baseTypeRef,
-            BaseTypeRefs = ImmutableArray<BaseTypeRefNode>.Empty
-        };
-    }
-
     private static ClassDeclarationNode MakeClassDecl(
         string name,
         string? baseClassName,
@@ -180,111 +138,11 @@ public class InheritanceRoundTripPropertyTests
         return new CompilationUnitNode { Items = (types).AsTopLevelItems() };
     }
 
-    // ─── Parse helper ────────────────────────────────────────────────────
-
-    private static CompilationUnitNode? ParseSource(string source)
-    {
-        var sourceText = new Mist.Common.Text.SourceText("test.mist", source);
-        var bag = new DiagnosticBag();
-        var tokens = Lexer.Lex(sourceText, bag);
-        var result = Parser.Parse(tokens, bag);
-
-        // Check for parse errors
-        if(bag.ToImmutableArray().Any(d => d.Severity == DiagnosticSeverity.Error))
-        {
-            return null;
-        }
-
-        return result.Root as CompilationUnitNode;
-    }
-
     // ─── FsCheck generators ─────────────────────────────────────────────
 
     private static readonly string[] ClassNames = ["Animal", "Dog", "Cat", "Vehicle", "Car", "Shape", "Circle"];
     private static readonly string[] FieldNames = ["x", "y", "name", "value", "count", "size"];
     private static readonly string[] MethodNames = ["DoWork", "Process", "GetValue", "Run", "Execute"];
-
-    private static Gen<TypeReferenceNode> GenPrimitiveType()
-    {
-        return Gen.Elements(
-            new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = new IntTypePrimitiveTypeNode() } },
-            new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = new BoolTypePrimitiveTypeNode() } },
-            new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = new StringTypePrimitiveTypeNode() } });
-    }
-
-    private static Gen<ImmutableArray<ModifierNode>> GenModifiers()
-    {
-        return Gen.Elements(
-            ImmutableArray<ModifierNode>.Empty,
-            ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
-            ImmutableArray.Create<ModifierNode>(new PrivateModifierModifierNode()));
-    }
-
-    private static Gen<MemberDeclarationNode> GenFieldMember()
-    {
-        return from name in Gen.Elements(FieldNames)
-               from type in GenPrimitiveType()
-               from mods in GenModifiers()
-               select (MemberDeclarationNode)new FieldMemberMemberDeclarationNode
-               {
-                   Field = MakeField(name, type, mods),
-               };
-    }
-
-    private static Gen<MemberDeclarationNode> GenMethodMember(string className)
-    {
-        return from name in Gen.Elements(MethodNames)
-               from mods in GenModifiers()
-               select (MemberDeclarationNode)new MethodMemberMemberDeclarationNode
-               {
-                   Method = MakeMethod(
-                       name,
-                       new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
-                       ImmutableArray<StatementNode>.Empty,
-                       mods),
-               };
-    }
-
-    private static Gen<MemberDeclarationNode> GenConstructorMember(
-        string className,
-        bool hasBaseClass)
-    {
-        var genChain = hasBaseClass
-            ? Gen.Elements<ConstructorChainNode?>(
-                null,
-                new BaseChainConstructorChainNode { Arguments = null },
-                new BaseChainConstructorChainNode
-                {
-                    Arguments = new ArgumentListNode { Argument = new ValueArgumentArgumentNode { Expression = MakeIntLiteral("0") } },
-                })
-            : Gen.Elements<ConstructorChainNode?>(
-                null,
-                new ThisChainConstructorChainNode { Arguments = null });
-
-        return from mods in GenModifiers()
-               from hasParam in Gen.Elements(true, false)
-               from chain in genChain
-               let parameters = hasParam
-                   ? new ParameterListNode
-                   {
-                       Parameter = new ParameterNode
-                       {
-                           Type = new TypeReferenceNode
-                           {
-                               First = new PrimitiveSingleTypeRefSingleTypeRefNode
-                               {
-                                   PrimitiveType = new IntTypePrimitiveTypeNode(),
-                               }
-                           },
-                           Name = Tok("val"),
-                       },
-                   }
-                   : null
-               select (MemberDeclarationNode)new ConstructorMemberMemberDeclarationNode
-               {
-                   Constructor = MakeConstructor(className, parameters, chain, modifiers: mods),
-               };
-    }
 
     /// <summary>
     /// Generates a random set of class declarations, some with inheritance clauses.

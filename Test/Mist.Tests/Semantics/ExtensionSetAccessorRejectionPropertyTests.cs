@@ -140,31 +140,6 @@ public class ExtensionSetAccessorRejectionPropertyTests
         };
     }
 
-    private static ExpressionNode MakeLiteralExpression(string typeName)
-    {
-        var literal = typeName switch
-        {
-            "bool" => (PrimaryNode)new TrueLiteralExpressionPrimaryNode(),
-            "string" => new StringLiteralExpressionPrimaryNode { StringLiteral = Tok("\"x\"") },
-            _ => new IntegerLiteralExpressionPrimaryNode { IntegerLiteral = Tok("0") },
-        };
-
-        var postfix = new PostfixNode
-        {
-            Target = literal,
-            Suffix = ImmutableArray<PostfixSuffixNode>.Empty,
-        };
-        var unary = new PostfixExpressionUnaryNode { Primary = postfix };
-        var mult = new MultiplicativeNode { Left = unary };
-        var add = new AdditiveNode { Left = mult };
-        var rel = new RelationalComparisonRelationalNode { Left = add };
-        var eq = new EqualityNode { Left = rel };
-        var logAnd = new LogicalAndNode { Left = eq };
-        var logOr = new LogicalOrNode { Left = logAnd };
-        var assign = new AssignmentNode { Target = new VoidCoalescingNode { Left = logOr } };
-        return new AssignmentFormExpressionNode { Assignment = assign };
-    }
-
     private static ExpressionNode MakeFieldAssignment()
     {
         var fieldPrimary = new FieldKeywordExpressionPrimaryNode();

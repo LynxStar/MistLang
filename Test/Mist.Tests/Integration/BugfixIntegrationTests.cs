@@ -88,33 +88,6 @@ public sealed class BugfixIntegrationTests : IDisposable
         });
     }
 
-    private static ExpressionNode MakeMethodCallExpression(string targetName, string methodName)
-    {
-        var primary = new IdentifierExpressionPrimaryNode
-        {
-            Name = MakeToken(targetName),
-        };
-        var methodCallSuffix = new MethodCallSuffixPostfixSuffixNode
-        {
-            Name = MakeToken(methodName),
-            Arguments = null,
-        };
-        var postfix = new PostfixNode
-        {
-            Target = primary,
-            Suffix = ImmutableArray.Create<PostfixSuffixNode>(methodCallSuffix),
-        };
-        var unary = new PostfixExpressionUnaryNode { Primary = postfix };
-        var mult = new MultiplicativeNode { Left = unary };
-        var add = new AdditiveNode { Left = mult };
-        var rel = new RelationalComparisonRelationalNode { Left = add };
-        var eq = new EqualityNode { Left = rel };
-        var logAnd = new LogicalAndNode { Left = eq };
-        var logOr = new LogicalOrNode { Left = logAnd };
-        var assign = new AssignmentNode { Target = new VoidCoalescingNode { Left = logOr } };
-        return new AssignmentFormExpressionNode { Assignment = assign };
-    }
-
     private static ExpressionNode MakeMemberAccessExpression(string targetName, string memberName)
     {
         var primary = new IdentifierExpressionPrimaryNode

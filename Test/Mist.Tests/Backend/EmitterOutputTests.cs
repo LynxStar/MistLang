@@ -59,24 +59,6 @@ public sealed class EmitterOutputTests : IDisposable
         return WrapPrimaryAsExpression(primary);
     }
 
-    private static ExpressionNode MakeStringLiteralExpression(string value = "\"hello\"")
-    {
-        var primary = new StringLiteralExpressionPrimaryNode
-        {
-            StringLiteral = MakeToken(value),
-        };
-        return WrapPrimaryAsExpression(primary);
-    }
-
-    private static ExpressionNode MakeIdentifierExpression(string name)
-    {
-        var primary = new IdentifierExpressionPrimaryNode
-        {
-            Name = MakeToken(name),
-        };
-        return WrapPrimaryAsExpression(primary);
-    }
-
     private static ExpressionNode WrapPrimaryAsExpression(PrimaryNode primary)
     {
         var postfix = new PostfixNode

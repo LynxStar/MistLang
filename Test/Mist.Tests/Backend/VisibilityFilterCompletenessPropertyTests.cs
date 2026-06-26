@@ -151,25 +151,6 @@ public sealed class VisibilityFilterCompletenessPropertyTests
         return type.IsPublic;
     }
 
-    private static bool HasOutParameters(MemberInfo member)
-    {
-        var parameters = GetParameters(member);
-        if(parameters is null)
-        {
-            return false;
-        }
-
-        foreach(var param in parameters)
-        {
-            if(param.IsOut)
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
     private static bool HasRefReadonlyReturn(MemberInfo member)
     {
         return member switch
@@ -385,15 +366,5 @@ public sealed class VisibilityFilterCompletenessPropertyTests
         }
 
         return false;
-    }
-
-    private static ParameterInfo[]? GetParameters(MemberInfo member)
-    {
-        return member switch
-        {
-            MethodInfo method => method.GetParameters(),
-            ConstructorInfo ctor => ctor.GetParameters(),
-            _ => null,
-        };
     }
 }

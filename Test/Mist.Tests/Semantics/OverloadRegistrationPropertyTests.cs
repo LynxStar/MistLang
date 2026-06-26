@@ -109,21 +109,6 @@ public class OverloadRegistrationPropertyTests
     }
 
     /// <summary>
-    /// Creates a parameterless method declaration.
-    /// </summary>
-    private static MethodDeclarationNode MakeParameterlessMethod(string name)
-    {
-        return new MethodDeclarationNode
-        {
-            Name = MakeToken(name),
-            ReturnType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
-            Parameters = null,
-            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty } },
-            Modifiers = ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()),
-        };
-    }
-
-    /// <summary>
     /// Creates a constructor declaration with a single parameter of the given type.
     /// </summary>
     private static ConstructorDeclarationNode MakeConstructor(string className, IType paramType)
@@ -133,19 +118,6 @@ public class OverloadRegistrationPropertyTests
         {
             Name = MakeToken(className),
             Parameters = new ParameterListNode { Parameter = param },
-            Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty } },
-        };
-    }
-
-    /// <summary>
-    /// Creates a parameterless constructor declaration.
-    /// </summary>
-    private static ConstructorDeclarationNode MakeParameterlessConstructor(string className)
-    {
-        return new ConstructorDeclarationNode
-        {
-            Name = MakeToken(className),
-            Parameters = null,
             Body = new MethodBlockBodyMethodBodyNode { Block = new BlockNode { Statements = ImmutableArray<StatementNode>.Empty } },
         };
     }

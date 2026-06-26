@@ -163,28 +163,6 @@ public sealed class OwnershipInferencePassTests : IDisposable
     }
 
     /// <summary>
-    /// Calls InferBindings and returns diagnostics produced during inference.
-    /// </summary>
-    private (IReadOnlyDictionary<ISymbol, InferredBinding>? Bindings, ImmutableArray<Diagnostic> InferenceDiagnostics) InferForMainWithDiagnostics(string source)
-    {
-        var (model, _) = CompileAndCapture(source);
-        if(model is null)
-        {
-            return (null, ImmutableArray<Diagnostic>.Empty);
-        }
-
-        var body = FindMainMethodBody(model);
-        if(body is null)
-        {
-            return (null, ImmutableArray<Diagnostic>.Empty);
-        }
-
-        var diagnostics = new DiagnosticBag();
-        var bindings = OwnershipInferencePass.InferBindings(body, model, diagnostics);
-        return (bindings, diagnostics.ToImmutableArray());
-    }
-
-    /// <summary>
     /// Finds an inferred binding by variable name.
     /// </summary>
     private static InferredBinding? FindByName(IReadOnlyDictionary<ISymbol, InferredBinding> bindings, string name)

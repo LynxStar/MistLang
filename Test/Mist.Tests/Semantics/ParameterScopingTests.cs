@@ -82,14 +82,6 @@ public class ParameterScopingTests
         });
     }
 
-    private static ExpressionNode MakeIntLiteralExpression(string value = "0")
-    {
-        return WrapPrimaryAsExpression(new IntegerLiteralExpressionPrimaryNode
-        {
-            IntegerLiteral = MakeToken(value),
-        });
-    }
-
     private static StatementNode MakeExpressionStatement(ExpressionNode expr)
     {
         return new ExpressionStatementStatementNode

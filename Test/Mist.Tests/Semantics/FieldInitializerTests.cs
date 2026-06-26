@@ -117,21 +117,6 @@ public class FieldInitializerTests
         };
     }
 
-    private static FieldDeclarationNode MakeFieldWithoutInitializer(
-        string fieldName,
-        PrimitiveTypeNode primitiveType,
-        params ModifierNode[] modifiers)
-    {
-        return new FieldDeclarationNode
-        {
-            Name = MakeToken(fieldName),
-            Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = primitiveType } },
-            Modifiers = modifiers.Length > 0
-                ? ImmutableArray.Create(modifiers)
-                : ImmutableArray.Create<ModifierNode>(new PrivateModifierModifierNode()),
-        };
-    }
-
     private static CompilationUnitNode MakeClassWithMembers(
         string className,
         params MemberDeclarationNode[] members)

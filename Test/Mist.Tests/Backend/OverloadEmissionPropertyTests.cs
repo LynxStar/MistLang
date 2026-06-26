@@ -132,9 +132,6 @@ public sealed partial class OverloadEmissionPropertyTests : IDisposable
     [GeneratedRegex(@"(?:(?:public|private|static)\s+)*(?:void|int|bool|double|float|char|long|string|object)\s+(\w+)\s*\(", RegexOptions.Multiline)]
     private static partial Regex MethodDeclPattern();
 
-    [GeneratedRegex(@"^\s*(?:(?:public|private|static)\s+)*(\w+)\s*\([^)]*\)(?:\s*:\s*(?:this|base)\s*\([^)]*\))?\s*$", RegexOptions.Multiline)]
-    private static partial Regex ConstructorDeclPattern();
-
     // ─── AST builders ────────────────────────────────────────────────────
 
     private static (CompilationUnitNode Ast, string Source) BuildMethodOverloadAst(

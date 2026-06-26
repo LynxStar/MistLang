@@ -17,19 +17,6 @@ namespace Storm.SourceGenerator.Tests;
 /// </summary>
 public class MultiCallerCandidatePropertyTests
 {
-    // ══════════════════════════════════════════════════════════════════
-    //  Generators
-    // ══════════════════════════════════════════════════════════════════
-
-    /// <summary>
-    /// Generates a valid PascalCase rule name from a small pool to allow
-    /// meaningful sharing between alternatives.
-    /// </summary>
-    private static Gen<string> GenRuleName(int index)
-    {
-        // Use deterministic names to avoid collisions
-        return Gen.Constant($"Rule{(char)('A' + index)}");
-    }
 
     /// <summary>
     /// Describes a grammar with multi-alternative parent rules that reference

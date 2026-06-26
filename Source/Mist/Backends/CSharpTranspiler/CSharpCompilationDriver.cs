@@ -395,6 +395,7 @@ public sealed class CSharpCompilationDriver
                 }
                 """;
         }
+
         File.WriteAllText(path, json);
     }
 }

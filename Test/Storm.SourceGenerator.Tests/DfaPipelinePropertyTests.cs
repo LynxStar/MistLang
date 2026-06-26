@@ -230,6 +230,7 @@ public class DfaPipelinePropertyTests
                     }
                 }
             }
+
             currentStates = SubsetConstructor.EpsilonClosure(nextStates, statesById);
             if(currentStates.Count == 0)
             {
@@ -245,6 +246,7 @@ public class DfaPipelinePropertyTests
                 return true;
             }
         }
+
         return false;
     }
 
@@ -290,6 +292,7 @@ public class DfaPipelinePropertyTests
                     }
                 }
             }
+
             currentStates = SubsetConstructor.EpsilonClosure(nextStates, statesById);
             if(currentStates.Count == 0)
             {
@@ -308,6 +311,7 @@ public class DfaPipelinePropertyTests
                 }
             }
         }
+
         return bestToken;
     }
 
@@ -347,6 +351,7 @@ public class DfaPipelinePropertyTests
                     break;
                 }
             }
+
             if(next == null)
             {
                 return -1;

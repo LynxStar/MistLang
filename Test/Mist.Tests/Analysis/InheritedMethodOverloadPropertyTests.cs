@@ -192,6 +192,7 @@ public class InheritedMethodOverloadPropertyTests
                         results.Add(member);
                     }
                 }
+
                 baseType = baseType.BaseType as ClassType;
             }
         }

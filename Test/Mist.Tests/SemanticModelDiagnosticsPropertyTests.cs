@@ -110,10 +110,12 @@ public class SemanticModelDiagnosticsPropertyTests
         {
             return true;
         }
+
         if(!type.IsGenericType)
         {
             return false;
         }
+
         var genericDef = type.GetGenericTypeDefinition();
         return genericDef == typeof(IList<>)
             || genericDef == typeof(List<>)
@@ -131,6 +133,7 @@ public class SemanticModelDiagnosticsPropertyTests
         {
             return false;
         }
+
         var genericDef = type.GetGenericTypeDefinition();
         return genericDef == typeof(IReadOnlyList<>)
             || genericDef == typeof(IReadOnlyCollection<>)

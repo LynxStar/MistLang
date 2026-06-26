@@ -218,6 +218,7 @@ namespace Storm.SourceGenerator.Emit
             {
                 targets[i] = -1;
             }
+
             return EncodeSignature(targets);
         }
 
@@ -237,6 +238,7 @@ namespace Storm.SourceGenerator.Emit
 
                 _ = sb.Append(targets[i]);
             }
+
             return sb.ToString();
         }
     }

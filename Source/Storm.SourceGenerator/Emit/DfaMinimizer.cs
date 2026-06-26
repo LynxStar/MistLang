@@ -63,6 +63,7 @@ namespace Storm.SourceGenerator.Emit
                     group = new List<int>();
                     groups[key] = group;
                 }
+
                 group.Add(state.Id);
             }
 
@@ -187,6 +188,7 @@ namespace Storm.SourceGenerator.Emit
                     subGroup = new List<int>();
                     subGroups[targetPartition] = subGroup;
                 }
+
                 subGroup.Add(stateId);
             }
 
@@ -195,6 +197,7 @@ namespace Storm.SourceGenerator.Emit
             {
                 result.Add(kvp.Value);
             }
+
             return result;
         }
 

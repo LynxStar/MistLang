@@ -270,6 +270,7 @@ public static class MistTuplePositionalPatternGenerator
                     break;
             }
         }
+
         return commas + 1;
     }
 

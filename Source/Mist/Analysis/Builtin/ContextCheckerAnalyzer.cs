@@ -307,6 +307,7 @@ public sealed class ContextCheckerAnalyzer : IAnalyzer
                                 CompilationUnitPath: path,
                                 AnalyzerName: "ContextChecker"));
                         }
+
                         break;
                     }
 
@@ -595,6 +596,7 @@ public sealed class ContextCheckerAnalyzer : IAnalyzer
                         }
                     }
                 }
+
                 return null;
         }
     }
@@ -639,6 +641,7 @@ public sealed class ContextCheckerAnalyzer : IAnalyzer
                 list = [];
                 methodsWithContext[sym.Name] = list;
             }
+
             list.Add(sym);
         }
 
@@ -1155,6 +1158,7 @@ public sealed class ContextCheckerAnalyzer : IAnalyzer
                 return true;
             }
         }
+
         return false;
     }
 
@@ -1174,6 +1178,7 @@ public sealed class ContextCheckerAnalyzer : IAnalyzer
         {
             type = alias.UnderlyingType;
         }
+
         return type;
     }
 
@@ -1427,6 +1432,7 @@ public sealed class ContextCheckerAnalyzer : IAnalyzer
                 return st;
             }
         }
+
         return null;
     }
 
@@ -1451,6 +1457,7 @@ public sealed class ContextCheckerAnalyzer : IAnalyzer
                 }
             }
         }
+
         return false;
     }
 
@@ -1469,6 +1476,7 @@ public sealed class ContextCheckerAnalyzer : IAnalyzer
                 return sym;
             }
         }
+
         return null;
     }
 

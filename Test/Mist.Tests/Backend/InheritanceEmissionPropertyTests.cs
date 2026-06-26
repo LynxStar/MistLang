@@ -46,6 +46,7 @@ public sealed partial class InheritanceEmissionPropertyTests : IDisposable
         {
             try { Directory.Delete(outputDir, recursive: true); } catch { /* best effort */ }
         }
+
         GC.SuppressFinalize(this);
     }
 
@@ -226,6 +227,7 @@ public sealed partial class InheritanceEmissionPropertyTests : IDisposable
                 suffix++;
                 name = baseName + suffix;
             }
+
             declaredNames.Add(name);
 
             // Determine base class: only if there's a previously declared class
@@ -308,6 +310,7 @@ public sealed partial class InheritanceEmissionPropertyTests : IDisposable
                 _ = sb.AppendLine($"class {name} {{ }}");
             }
         }
+
         _ = sb.AppendLine("class Program { public static void Main() { } }");
         return sb.ToString();
     }

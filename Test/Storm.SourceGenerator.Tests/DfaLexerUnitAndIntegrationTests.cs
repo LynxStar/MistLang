@@ -24,6 +24,7 @@ namespace Storm.SourceGenerator.Tests
                 {
                     return contents;
                 }
+
                 return null;
             };
         }
@@ -225,6 +226,7 @@ rule Start = IDENT;
                         return grammarDir;
                     }
                 }
+
                 dir = Path.GetDirectoryName(dir);
             }
 

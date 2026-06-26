@@ -353,6 +353,7 @@ public class InheritanceRoundTripPropertyTests
                 suffix++;
                 name = baseName + suffix;
             }
+
             declaredNames.Add(name);
 
             // Determine base class: only if there's a previously declared class and hasInheritance is true

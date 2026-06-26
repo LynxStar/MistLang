@@ -1193,6 +1193,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     break;
                 }
             }
+
             if(!isStatic)
             {
                 continue;
@@ -1470,6 +1471,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 // ── Local definite-assignment analysis (Requirements 2.1–2.6) ──
                 CheckLocalDefiniteAssignment(castBlock, model, diagnostics);
             }
+
             return;
         }
 
@@ -1505,6 +1507,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 // ── Local definite-assignment analysis (Requirements 2.1–2.6) ──
                 CheckLocalDefiniteAssignment(opBlock, model, diagnostics);
             }
+
             return;
         }
 
@@ -2065,11 +2068,13 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                         return false;
                     }
                 }
+
                 return true;
             }
 
             return IsConstituentOf(source, targetUnionDirect);
         }
+
         if(source is UnionType)
         {
             return false;
@@ -2136,11 +2141,13 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                         break;
                     }
                 }
+
                 if(allElementsAssignable)
                 {
                     return true;
                 }
             }
+
             return false;
         }
 
@@ -2159,6 +2166,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                         break;
                     }
                 }
+
                 if(allMatch)
                 {
                     return true;
@@ -2337,6 +2345,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             // ── Definite assignment analysis (Requirements 3.1–3.6) ──
             CheckDefiniteAssignment(ctorSymbol, ctorBlock, model, diagnostics);
         }
+
         insideConstructor = false;
     }
 
@@ -2716,6 +2725,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                         CheckThisEscapeInExpression(returnStmt.ReturnStatement.Value, state, allNonDefaultableFields, violations, (SyntaxNode)returnStmt.ReturnStatement);
                     }
                 }
+
                 state.Terminated = true;
                 break;
 
@@ -3246,6 +3256,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             {
                 AnalyzeSuffixForReads(postfix.Suffix[i], state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
             }
+
             return;
         }
 
@@ -3266,6 +3277,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 // by the pattern match and should not trigger this diagnostic.
                 Storm.Runtime.SyntaxNode? declaringNode = null;
                 try { declaringNode = model.GetDeclaringNode(symbol); } catch { /* ignore */ }
+
                 if(declaringNode is TypedVariableDeclarationVariableDeclarationStatementNode
                     or InferredVariableDeclarationVariableDeclarationStatementNode
                     or VarTupleDeconstructionVariableDeclarationStatementNode
@@ -3313,6 +3325,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                         AnalyzeExpressionForReads(ArgumentListNodeExtensions.ExtractExpression(arg), state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
                     }
                 }
+
                 break;
 
             case MethodCallSuffixPostfixSuffixNode methodCall:
@@ -3326,6 +3339,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                         AnalyzeExpressionForReads(ArgumentListNodeExtensions.ExtractExpression(arg), state, model, isConstructor, initiallyAssignedFields, violations, allNonDefaultableFields);
                     }
                 }
+
                 break;
 
             case IndexSuffixPostfixSuffixNode index:
@@ -3872,6 +3886,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     {
                         CheckThisInStaticAccessors(blockProp.Accessors, model, diagnostics);
                     }
+
                     break;
                 }
             case ExpressionBodiedPropertyPropertyDeclarationNode exprProp:
@@ -3898,6 +3913,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     {
                         CheckThisInExpression(exprProp.Body, model, diagnostics);
                     }
+
                     break;
                 }
         }
@@ -4793,6 +4809,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                             typeNode,
                             model));
                     }
+
                     continue;
                 }
 
@@ -4859,6 +4876,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                         return member;
                     }
                 }
+
                 ancestor = ancestor.BaseType as ClassType;
             }
         }
@@ -5272,6 +5290,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                             CheckAssignability(initType, declaredType, typed.Initializer, diagnostics, model);
                         }
                     }
+
                     break;
                 }
             case InferredVariableDeclarationVariableDeclarationStatementNode inferred:
@@ -5335,6 +5354,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                             inferred,
                             model));
                     }
+
                     break;
                 }
             case VarTupleDeconstructionVariableDeclarationStatementNode varTuple:
@@ -5367,6 +5387,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                             }
                         }
                     }
+
                     break;
                 }
             case TypedTupleDeconstructionVariableDeclarationStatementNode typedTuple:
@@ -5426,6 +5447,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                             }
                         }
                     }
+
                     break;
                 }
         }
@@ -5635,6 +5657,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 return false;
             }
         }
+
         return true;
     }
 
@@ -7164,6 +7187,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     }
                 }
             }
+
             return null;
         }
 
@@ -7607,6 +7631,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 return true;
             }
         }
+
         return false;
     }
 
@@ -7740,6 +7765,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                             _ = names.Add(name);
                         }
                     }
+
                     break;
                 }
         }
@@ -7816,6 +7842,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                                 model));
                             return;
                         }
+
                         break;
 
                     case SymbolKind.Method:
@@ -7829,6 +7856,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                                 model));
                             return;
                         }
+
                         break;
 
                     case SymbolKind.Property:
@@ -7842,6 +7870,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                                 model));
                             return;
                         }
+
                         break;
 
                         // Namespace, Class, Struct, Abstract, Enum, TypeAlias, Newtype,
@@ -9114,6 +9143,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     {
                         CheckPattern(isExpr.Pattern, scrutineeType, model, diagnostics);
                     }
+
                     break;
                 }
 
@@ -9332,6 +9362,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             _ = ancestors.Add(current.DisplayName);
             current = current.BaseType as ClassType;
         }
+
         return ancestors;
     }
 
@@ -9348,6 +9379,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             _ = ancestors.Add(current.DisplayName);
             current = current.BaseType as StructType;
         }
+
         return ancestors;
     }
 
@@ -9442,6 +9474,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                             notPattern,
                             model));
                     }
+
                     break;
                 }
             case DirectPatternUnaryPatternNode directPattern:
@@ -9570,6 +9603,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                             typePattern,
                             model));
                     }
+
                     break;
                 }
 
@@ -9679,6 +9713,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                             bareTypePattern,
                             model));
                     }
+
                     break;
                 }
 
@@ -9734,6 +9769,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                             }
                         }
                     }
+
                     break;
                 }
 
@@ -9780,6 +9816,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     {
                         CheckPropertySubpatternList(propertyPattern.Subpatterns, patternType, model, diagnostics);
                     }
+
                     break;
                 }
 
@@ -9803,6 +9840,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     {
                         CheckListPatternElementList(listPattern.Elements, elementType, arrayType, model, diagnostics);
                     }
+
                     break;
                 }
 
@@ -9841,6 +9879,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     {
                         CheckPattern(elementPatterns[i], tupleType.ElementTypes[i], model, diagnostics);
                     }
+
                     break;
                 }
 
@@ -10231,6 +10270,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                         patternType ??= model.GetDeclaredSymbol(typePattern)?.DeclaredType;
                         variables[name] = patternType ?? ErrorType.Instance;
                     }
+
                     break;
                 }
 
@@ -10247,6 +10287,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     {
                         variables[name] = scrutineeType;
                     }
+
                     break;
                 }
 
@@ -10275,6 +10316,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                             variables[name] = scrutineeType;
                         }
                     }
+
                     break;
                 }
 
@@ -10289,6 +10331,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                         CollectPatternVariablesFromListElementList(
                             listPattern.Elements, elementType, model, variables);
                     }
+
                     break;
                 }
 
@@ -10365,6 +10408,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                         variables[name] = new ArrayType(elementType);
                     }
                 }
+
                 break;
         }
     }
@@ -10477,6 +10521,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 return true;
             }
         }
+
         return false;
     }
 
@@ -10509,6 +10554,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 return true;
             }
         }
+
         return false;
     }
 
@@ -10534,6 +10580,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                         return true;
                     }
                 }
+
                 return false;
             default:
                 return false;
@@ -10663,6 +10710,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 {
                     model.SetTypeOf(postfix, postfixType);
                 }
+
                 break;
             case CastExpressionUnaryNode castExpr:
                 CheckUnaryNode(castExpr.Operand, model, diagnostics);
@@ -10936,12 +10984,14 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                             targetIsTypeName = false;
                             break;
                         }
+
                         var unionMethodResult = CheckUnionMemberAccess(
                             methodCall.Name.Lexeme, unionForMethodCall, methodCall, model, diagnostics);
                         currentType = unionMethodResult;
                         targetIsTypeName = false;
                         break;
                     }
+
                     CheckMethodCallArguments(methodCall, currentType, model, diagnostics);
                     CheckMemberAccessModifiers(methodCall.Name.Lexeme, currentType, targetIsTypeName, methodCall, model, diagnostics);
                     currentType = SubstituteMemberType(model.GetTypeOf(suffix), currentType);
@@ -10987,6 +11037,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                         targetIsTypeName = false;
                         break;
                     }
+
                     CheckIndexSuffix(indexSuffix, currentType, model, diagnostics);
                     currentType = model.GetTypeOf(suffix);
                     // A read through an indexer on List<unknown> yields `unknown`
@@ -11043,6 +11094,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                         // Task 5.6: Unreachable arm detection.
                         CheckSwitchUnreachableArms(switchExpr.Arms, model, diagnostics);
                     }
+
                     currentType = model.GetTypeOf(suffix) ?? currentType;
                     targetIsTypeName = false;
                     break;
@@ -11084,6 +11136,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                             targetIsTypeName = false;
                             break;
                         }
+
                         var unionMemberResult = CheckUnionMemberAccess(
                             memberAccess.Name.Lexeme, unionForMemberAccess, memberAccess, model, diagnostics);
                         currentType = unionMemberResult;
@@ -11110,6 +11163,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                         targetIsTypeName = false;
                         break;
                     }
+
                     CheckMemberAccessModifiers(memberAccess.Name.Lexeme, currentType, targetIsTypeName, memberAccess, model, diagnostics);
                     // MIST_TC_0019: Check property has accessible get accessor when read.
                     CheckPropertyReadAccess(memberAccess, currentType, model, diagnostics);
@@ -11204,6 +11258,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                                 returnType = TypeCheckerAnalyzer.SubstituteType(returnType!, sym.TypeParameters, resolvedTypeArgs);
                             }
                         }
+
                         currentType = WrapWithVoid(returnType, receiverTypeForVoidWrap);
                         model.SetTypeOf(suffix, currentType);
                         targetIsTypeName = false;
@@ -11448,6 +11503,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         {
             result.Add((arm.Pattern, arm.Guard is not null));
         }
+
         return result;
     }
 
@@ -11519,6 +11575,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                         arm,
                         model));
                 }
+
                 continue;
             }
 
@@ -11757,14 +11814,17 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         {
             return new SpanType(resultSpan.ElementType, (long)intVal, resultSpan.IsReadOnly);
         }
+
         if(literalValue is long longVal)
         {
             return new SpanType(resultSpan.ElementType, longVal, resultSpan.IsReadOnly);
         }
+
         if(literalValue is uint uintVal)
         {
             return new SpanType(resultSpan.ElementType, (long)uintVal, resultSpan.IsReadOnly);
         }
+
         if(literalValue is ulong ulongVal && ulongVal <= long.MaxValue)
         {
             return new SpanType(resultSpan.ElementType, (long)ulongVal, resultSpan.IsReadOnly);
@@ -11920,6 +11980,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                         CheckExpression(exprPart.Expression, model, diagnostics);
                     }
                 }
+
                 break;
 
             case TypeLiteralExpressionPrimaryNode:
@@ -11943,6 +12004,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                             model));
                     }
                 }
+
                 break;
 
             case FieldKeywordExpressionPrimaryNode fieldKeyword:
@@ -11960,6 +12022,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                         fieldKeyword,
                         model));
                 }
+
                 break;
 
             case DefaultExpressionPrimaryNode defaultExpr:
@@ -12150,6 +12213,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                         node,
                         model));
                 }
+
                 return;
 
             case StructType structType:
@@ -12161,6 +12225,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                         node,
                         model));
                 }
+
                 return;
 
             case EnumType enumType:
@@ -12172,6 +12237,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                         node,
                         model));
                 }
+
                 return;
 
             case UnionType unionType:
@@ -12183,6 +12249,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                         node,
                         model));
                 }
+
                 return;
 
                 // Primitive types (represented as ClassType from stdlib) and other
@@ -12798,6 +12865,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                             (SyntaxNode)methodCall,
                             model));
                     }
+
                     return;
 
                 case OverloadResolutionStatus.Success:
@@ -12854,6 +12922,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                             winnerEnclosingTypeParams = GetTypeParameters(winnerTargetCt.GenericDefinition);
                             winnerEnclosingTypeArgs = winnerTargetCt.TypeArguments;
                         }
+
                         CheckArgumentTypesWithSubstitution(methodCall.Arguments, result.BestCandidate!, model, diagnostics, methodCall,
                             winnerEnclosingTypeParams, winnerEnclosingTypeArgs,
                             winnerMethodTypeParams, winnerMethodTypeArgs);
@@ -12862,6 +12931,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     {
                         CheckArgumentTypes(methodCall.Arguments, result.BestCandidate!, model, diagnostics, methodCall);
                     }
+
                     return;
             }
         }
@@ -12895,6 +12965,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                         singleEnclosingTypeParams = GetTypeParameters(singleTargetCtExplicit.GenericDefinition);
                         singleEnclosingTypeArgs = singleTargetCtExplicit.TypeArguments;
                     }
+
                     CheckArgumentTypesWithSubstitution(methodCall.Arguments, singleCandidate, model, diagnostics, methodCall,
                         singleEnclosingTypeParams, singleEnclosingTypeArgs,
                         singleSym.TypeParameters, explicitMethodTypeArgs);
@@ -12940,6 +13011,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                             singleEnclosingTypeParams = GetTypeParameters(singleTargetCt.GenericDefinition);
                             singleEnclosingTypeArgs = singleTargetCt.TypeArguments;
                         }
+
                         CheckArgumentTypesWithSubstitution(methodCall.Arguments, singleCandidate, model, diagnostics, methodCall,
                             singleEnclosingTypeParams, singleEnclosingTypeArgs,
                             singleSym.TypeParameters, inferenceResult.InferredTypeArguments!);
@@ -13078,6 +13150,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                                 (SyntaxNode)invocation,
                                 model));
                         }
+
                         return;
 
                     case OverloadResolutionStatus.Success:
@@ -13502,6 +13575,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         {
             nodes.Add(arg);
         }
+
         return nodes;
     }
 
@@ -13765,6 +13839,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                         }
                     }
                 }
+
                 paramSymbols = [.. paramList];
             }
             else
@@ -13937,6 +14012,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                         }
                     }
                 }
+
                 paramSymbols = [.. paramList];
             }
             else
@@ -14181,6 +14257,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                         argExpr,
                         model));
                 }
+
                 continue;
             }
 
@@ -14580,6 +14657,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                                 declaredType, namedRef, model, diagnostics);
                         }
                     }
+
                     return ErrorType.Instance;
                 }
             case VoidSingleTypeRefSingleTypeRefNode:
@@ -14638,6 +14716,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     namedRef,
                     model));
             }
+
             return ErrorType.Instance;
         }
 
@@ -14900,6 +14979,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 model));
             return true;
         }
+
         return false;
     }
 
@@ -14946,8 +15026,10 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     node,
                     model));
             }
+
             return true;
         }
+
         return false;
     }
 
@@ -15521,6 +15603,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                             indexSuffix.Index,
                             model));
                     }
+
                     break;
                 }
 
@@ -15847,6 +15930,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     {
                         CheckRefCallSiteAnnotationsForSymbol(objectCreation.Arguments, result.BestCandidate!, model, diagnostics);
                     }
+
                     break;
             }
         }
@@ -16112,6 +16196,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     {
                         CheckRefCallSiteAnnotationsForSymbol(targetNew.Arguments, result.BestCandidate!, model, diagnostics);
                     }
+
                     break;
             }
         }
@@ -16519,6 +16604,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     chain,
                     model));
             }
+
             return;
         }
 
@@ -16549,6 +16635,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                             chain,
                             model));
                     }
+
                     return;
 
                 case OverloadResolutionStatus.AmbiguousCall:
@@ -16619,6 +16706,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     {
                         try { ctorNode = model.GetDeclaringNode(member); }
                         catch { continue; }
+
                         if(ctorNode is not null)
                         {
                             break;
@@ -16664,6 +16752,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     return false;
                 }
             }
+
             return true;
         }
 
@@ -16732,6 +16821,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             {
                 paramType = SubstituteType(paramType, typeParams, typeArgs);
             }
+
             if(!IsAssignable(argTypes[i], paramType))
             {
                 return false;
@@ -17370,6 +17460,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                         }
                     }
                 }
+
                 return true;
             }
             catch(ArgumentException ex)
@@ -17455,6 +17546,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                         }
                     }
                 }
+
                 return true;
             }
             catch(ArgumentException ex)
@@ -17597,6 +17689,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                         _ => null,
                     };
                 }
+
                 if(next is null)
                 {
                     next = child;
@@ -18365,6 +18458,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
             return true;
         }
+
         if(source is UnknownType)
         {
             // target is not UnknownType (checked above); reject.
@@ -18411,6 +18505,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                         return false;
                     }
                 }
+
                 return true;
             }
 
@@ -18444,8 +18539,10 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     return true;
                 }
             }
+
             return false;
         }
+
         if(source is UnionType)
         {
             // Union → non-union: rejected (must narrow first).
@@ -18585,6 +18682,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     return true;
                 }
             }
+
             return false;
         }
 
@@ -18621,6 +18719,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     return true;
                 }
             }
+
             return false;
         }
 
@@ -18690,11 +18789,13 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                         break;
                     }
                 }
+
                 if(allElementsAssignable)
                 {
                     return true;
                 }
             }
+
             return false;
         }
 
@@ -19064,6 +19165,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 return false;
             }
         }
+
         return true;
     }
 
@@ -19158,6 +19260,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 {
                     return false;
                 }
+
                 continue;
             }
 
@@ -19331,6 +19434,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                             typeArgs = sourceCt.TypeArguments;
                             break;
                     }
+
                     break;
                 }
             case ClassType classType:
@@ -19354,6 +19458,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                                 return true;
                             }
                         }
+
                         current = baseClass.BaseType;
                     }
                     else
@@ -19361,6 +19466,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                         break;
                     }
                 }
+
                 break;
             case StructType structType:
                 abstracts = structType.Abstracts;
@@ -19377,6 +19483,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                                 return true;
                             }
                         }
+
                         currentStructBase = baseStruct.BaseType;
                     }
                     else
@@ -19384,6 +19491,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                         break;
                     }
                 }
+
                 break;
             case AbstractType abstractType:
                 abstracts = abstractType.Abstracts;
@@ -19437,6 +19545,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     return i < typeArgs.Count ? typeArgs[i] : type;
                 }
             }
+
             return type;
         }
 
@@ -19452,6 +19561,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     changed = true;
                 }
             }
+
             return changed ? new ConstructedType(ct.GenericDefinition, substitutedArgs) : ct;
         }
 
@@ -19499,6 +19609,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     changed = true;
                 }
             }
+
             if(!changed)
             {
                 return unionType;
@@ -19689,6 +19800,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 return true;
             }
         }
+
         return false;
     }
 
@@ -19715,6 +19827,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 return true;
             }
         }
+
         return false;
     }
 
@@ -19742,6 +19855,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         {
             return true;
         }
+
         return false;
     }
 
@@ -19765,6 +19879,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         {
             return true;
         }
+
         return false;
     }
 
@@ -19789,6 +19904,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 return true;
             }
         }
+
         return false;
     }
 
@@ -19836,11 +19952,13 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         {
             return true;
         }
+
         if(LegacyToStdlibName.TryGetValue(b.DisplayName, out var bStdlib)
             && bStdlib == a.DisplayName)
         {
             return true;
         }
+
         return false;
     }
 
@@ -19928,6 +20046,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 return false;
             }
         }
+
         return true;
     }
 
@@ -19955,6 +20074,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 return false;
             }
         }
+
         return true;
     }
 
@@ -20198,6 +20318,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                         AddIfNotDuplicate(member);
                     }
                 }
+
                 baseType = baseType.BaseType as ClassType;
             }
         }
@@ -21203,6 +21324,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 return inner[0];
             }
         }
+
         return '\0';
     }
 
@@ -21258,6 +21380,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     return member.DeclaredType;
                 }
             }
+
             scope = scope.Parent;
         }
 
@@ -21313,6 +21436,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 return true;
             }
         }
+
         return false;
     }
 
@@ -21369,6 +21493,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 }
             }
         }
+
         return false;
     }
 
@@ -21812,6 +21937,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 return true;
             }
         }
+
         return false;
     }
 
@@ -22745,6 +22871,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                         argNode,
                         model));
                 }
+
                 return;
             }
         }

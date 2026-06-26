@@ -110,6 +110,7 @@ public sealed class OwnershipInferencePass
                                 candidates.Add(new InferenceCandidate(sym, inferred, inferred.Initializer));
                             }
                         }
+
                         break;
                     }
 
@@ -126,6 +127,7 @@ public sealed class OwnershipInferencePass
                                 candidates.Add(new InferenceCandidate(sym, typed, typed.Initializer));
                             }
                         }
+
                         break;
                     }
             }
@@ -273,6 +275,7 @@ public sealed class OwnershipInferencePass
                             candidate.Tier = null;
                             changed = true;
                         }
+
                         break; // Re-evaluate this candidate from scratch in the next iteration.
                     }
                 }
@@ -492,6 +495,7 @@ public sealed class OwnershipInferencePass
                     {
                         CollectUsesRecursive(symbol, suffix, model, uses, context);
                     }
+
                     return;
                 }
             }
@@ -524,6 +528,7 @@ public sealed class OwnershipInferencePass
                 var argCtx = CreateArgumentContext(arg, model);
                 CollectUsesRecursive(symbol, arg, model, uses, argCtx);
             }
+
             return;
         }
 
@@ -583,6 +588,7 @@ public sealed class OwnershipInferencePass
             };
             return new UseContext { Kind = kind };
         }
+
         return null;
     }
 
@@ -650,6 +656,7 @@ public sealed class OwnershipInferencePass
                         return null;
                     }
                 }
+
                 return null;
 
             case UseKind.AssignedToOther:

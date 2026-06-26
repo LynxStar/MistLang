@@ -290,6 +290,7 @@ class Program {{
             var uniqueName = $"{varNames[i]}{i}";
             lines.Add($"        void {uniqueName} = Void.Void;");
         }
+
         return string.Join("\n", lines);
     }
 }

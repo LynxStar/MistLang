@@ -44,6 +44,7 @@ public sealed partial class EmitterOriginFilterPropertyTests : IDisposable
         {
             try { Directory.Delete(outputDir, recursive: true); } catch { /* best effort */ }
         }
+
         GC.SuppressFinalize(this);
     }
 
@@ -156,6 +157,7 @@ public sealed partial class EmitterOriginFilterPropertyTests : IDisposable
         {
             source += $"    {referencedAmbientTypes[i]} field{i};\n";
         }
+
         source += "    public static void Main() { }\n}";
 
         return (ast, source);

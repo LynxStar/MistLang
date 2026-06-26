@@ -389,6 +389,7 @@ namespace Storm.SourceGenerator.Emit
                         continue;
                     }
                 }
+
                 merged.Add(r);
             }
 
@@ -402,6 +403,7 @@ namespace Storm.SourceGenerator.Emit
                 {
                     result.Add(new CharRange((char)next, (char)((int)r.Lo - 1)));
                 }
+
                 next = (int)r.Hi + 1;
             }
 

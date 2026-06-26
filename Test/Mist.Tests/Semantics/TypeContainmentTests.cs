@@ -460,6 +460,7 @@ public class TypeContainmentTests
                             .AddRange(sub);
                     }
                 }
+
                 break;
 
             default:
@@ -499,6 +500,7 @@ public class TypeContainmentTests
                         ? SubstituteAtPath(constructed.TypeArguments[i], tail)
                         : constructed.TypeArguments[i];
                 }
+
                 return new ConstructedType(constructed.GenericDefinition, newArgs);
 
             default:

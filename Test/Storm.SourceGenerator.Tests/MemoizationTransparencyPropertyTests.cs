@@ -71,6 +71,7 @@ public class MemoizationTransparencyPropertyTests
             {
                 return contents;
             }
+
             return null;
         };
     }
@@ -228,6 +229,7 @@ public class MemoizationTransparencyPropertyTests
                 _ = sb.Append(StructuralKey(child)).Append(';');
             }
         }
+
         _ = sb.Append(')');
         return sb.ToString();
     }

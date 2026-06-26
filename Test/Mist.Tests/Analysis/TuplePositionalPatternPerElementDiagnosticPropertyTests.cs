@@ -137,6 +137,7 @@ public class TuplePositionalPatternPerElementDiagnosticPropertyTests
         {
             patternElements.Add(scenario.IsIncompatible[i] ? $"\"bad{i}\"" : $"{i + 1}");
         }
+
         var patternLiteral = string.Join(", ", patternElements);
 
         return $$"""

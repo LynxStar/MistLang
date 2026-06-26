@@ -79,6 +79,7 @@ public sealed class SdkVersionSelectionPropertyTests : IDisposable
                             return list;
                         }));
                 }
+
                 return Gen.Constant(list);
             }));
     }

@@ -380,6 +380,7 @@ public sealed class EnumEmissionPropertyTests
             count++;
             index += pattern.Length;
         }
+
         return count;
     }
 }

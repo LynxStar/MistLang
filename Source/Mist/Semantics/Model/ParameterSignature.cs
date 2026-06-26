@@ -30,6 +30,7 @@ public static class ParameterSignature
                     backendTypes.Add(paramType);
                 }
             }
+
             return backendTypes;
         }
 
@@ -86,6 +87,7 @@ public static class ParameterSignature
                     backendTypes.Add(paramType);
                 }
             }
+
             return backendTypes;
         }
 
@@ -126,6 +128,7 @@ public static class ParameterSignature
                     fallbackTypes.Add(paramType);
                 }
             }
+
             return fallbackTypes;
         }
 
@@ -165,6 +168,7 @@ public static class ParameterSignature
                 {
                     backendRefKinds.Add(param is Symbol paramSym ? paramSym.RefKind : RefKind.None);
                 }
+
                 return backendRefKinds;
             }
         }
@@ -222,6 +226,7 @@ public static class ParameterSignature
             {
                 backendRefKinds.Add(param is Symbol paramSym ? paramSym.RefKind : RefKind.None);
             }
+
             return backendRefKinds;
         }
 

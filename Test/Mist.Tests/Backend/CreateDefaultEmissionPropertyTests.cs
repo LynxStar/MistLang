@@ -189,6 +189,7 @@ public sealed class CreateDefaultEmissionPropertyTests : IDisposable
         {
             _ = sb.AppendLine($"    public {fieldType} {fieldName};");
         }
+
         _ = sb.AppendLine();
         _ = sb.AppendLine($"    public {typeName}()");
         _ = sb.AppendLine("    {");
@@ -204,6 +205,7 @@ public sealed class CreateDefaultEmissionPropertyTests : IDisposable
             };
             _ = sb.AppendLine($"        this.{fieldName} = {defaultValue};");
         }
+
         _ = sb.AppendLine("    }");
         _ = sb.AppendLine("}");
         _ = sb.AppendLine();
@@ -230,6 +232,7 @@ public sealed class CreateDefaultEmissionPropertyTests : IDisposable
         {
             _ = sb.AppendLine($"    public {fieldType} {fieldName};");
         }
+
         _ = sb.AppendLine("}");
         _ = sb.AppendLine();
         _ = sb.AppendLine("public class Program");
@@ -255,6 +258,7 @@ public sealed class CreateDefaultEmissionPropertyTests : IDisposable
         {
             _ = sb.AppendLine($"    public {fieldType} {fieldName};");
         }
+
         _ = sb.AppendLine();
         _ = sb.AppendLine("    default");
         _ = sb.AppendLine("    {");
@@ -270,6 +274,7 @@ public sealed class CreateDefaultEmissionPropertyTests : IDisposable
             };
             _ = sb.AppendLine($"        {fieldName} = {defaultValue}");
         }
+
         _ = sb.AppendLine("    }");
         _ = sb.AppendLine("}");
         _ = sb.AppendLine();

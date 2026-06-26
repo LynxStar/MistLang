@@ -238,6 +238,7 @@ public class PipelineBackendPropertyTests
             {
                 Directory.Delete(tempDir1, recursive: true);
             }
+
             if(Directory.Exists(tempDir2))
             {
                 Directory.Delete(tempDir2, recursive: true);

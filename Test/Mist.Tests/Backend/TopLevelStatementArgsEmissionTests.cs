@@ -39,6 +39,7 @@ public sealed class TopLevelStatementArgsEmissionTests : IDisposable
             try { Directory.Delete(scratchDir, recursive: true); }
             catch { /* best effort */ }
         }
+
         GC.SuppressFinalize(this);
     }
 

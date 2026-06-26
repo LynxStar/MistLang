@@ -247,6 +247,7 @@ public class SemanticModelBuilderUnitTests
         {
             members.AddRange(extraMembers.Value);
         }
+
         members.Add(new MethodMemberMemberDeclarationNode { Method = methodDecl });
 
         var classDecl = new ClassDeclarationNode
@@ -333,6 +334,7 @@ public class SemanticModelBuilderUnitTests
         {
             current = current.Parent;
         }
+
         Assert.Same(model.GlobalScope, current);
     }
 

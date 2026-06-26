@@ -80,6 +80,7 @@ public class AbstractDefaultMethodClassificationPropertyTests
                         var type = parts[i].Split(' ')[0];
                         used.Add($"{type} p{i}_{name}");
                     }
+
                     return string.Join(", ", used);
                 });
         });

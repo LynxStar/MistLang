@@ -114,6 +114,7 @@ internal static class NeedsAsyncPropagationPass
                     callers = new List<Symbol>();
                     calleeToCallers[callee] = callers;
                 }
+
                 callers.Add(caller);
             }
         }

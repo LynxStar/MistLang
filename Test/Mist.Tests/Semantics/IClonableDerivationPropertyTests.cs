@@ -61,6 +61,7 @@ public sealed class IClonableDerivationPropertyTests : IDisposable
         {
             try { Directory.Delete(outputDir, recursive: true); } catch { /* best effort */ }
         }
+
         GC.SuppressFinalize(this);
     }
 
@@ -292,6 +293,7 @@ public sealed class IClonableDerivationPropertyTests : IDisposable
                     }
                 }
             }
+
             expected.Add(clonable);
         }
 

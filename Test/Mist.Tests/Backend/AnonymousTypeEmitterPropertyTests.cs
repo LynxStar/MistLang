@@ -62,6 +62,7 @@ public sealed class AnonymousTypeEmitterPropertyTests : IDisposable
         {
             try { Directory.Delete(outputDir, recursive: true); } catch { /* best effort */ }
         }
+
         GC.SuppressFinalize(this);
     }
 
@@ -272,6 +273,7 @@ public sealed class AnonymousTypeEmitterPropertyTests : IDisposable
         if(!process.WaitForExit(30_000))
         {
             try { process.Kill(entireProcessTree: true); } catch { /* best effort */ }
+
             return (-1, "", "Process timed out after 30 seconds");
         }
 

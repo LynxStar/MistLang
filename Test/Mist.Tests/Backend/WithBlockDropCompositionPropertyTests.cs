@@ -344,6 +344,7 @@ public sealed class WithBlockDropCompositionPropertyTests : IDisposable
                 return i;
             }
         }
+
         return -1;
     }
 

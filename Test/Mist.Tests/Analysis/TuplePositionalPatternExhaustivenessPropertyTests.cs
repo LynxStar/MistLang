@@ -192,6 +192,7 @@ public class TuplePositionalPatternExhaustivenessPropertyTests
                            .ToList();
                        return (IType)new TupleType(nestedElements);
                    }
+
                    return LeafTypes[ti];
                }).ToList()
                select new TupleType(elementTypes);

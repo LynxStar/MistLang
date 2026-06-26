@@ -663,6 +663,7 @@ public sealed class MistParser : IParser
                         j++; // skip DOT, continue to next segment
                         continue;
                     }
+
                     break; // end of qualified identifier
                 }
                 else if(segKind == dotKind)
@@ -681,6 +682,7 @@ public sealed class MistParser : IParser
                     break; // end of qualified identifier
                 }
             }
+
             if(needsFixup)
             {
                 break;

@@ -180,6 +180,7 @@ public class TypeUnionExhaustivenessPropertyTests
                 leaves.Add(constituent);
             }
         }
+
         return leaves;
     }
 

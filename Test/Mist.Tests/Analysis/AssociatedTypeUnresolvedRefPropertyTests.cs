@@ -159,6 +159,7 @@ public class AssociatedTypeUnresolvedRefPropertyTests
             {
                 _ = sb.AppendLine($"    type {slot};");
             }
+
             _ = sb.AppendLine("}");
             _ = sb.AppendLine();
         }

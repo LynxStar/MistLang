@@ -301,6 +301,7 @@ public sealed class DropAnalyzer : IAnalyzer
 
                     ReportIncompatibleField(typeSymbol, member, containerDiscipline, constraintDiscipline, fieldNode, model, diagnostics);
                 }
+
                 continue;
             }
 
@@ -526,6 +527,7 @@ public sealed class DropAnalyzer : IAnalyzer
                 count++;
             }
         }
+
         return count;
     }
 
@@ -769,6 +771,7 @@ public sealed class DropAnalyzer : IAnalyzer
                         ProcessExpression(childExpr, state, model, diagnostics, isDropMethod);
                     }
                 }
+
                 break;
         }
     }

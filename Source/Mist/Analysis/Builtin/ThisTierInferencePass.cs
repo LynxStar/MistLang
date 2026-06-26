@@ -242,6 +242,7 @@ public sealed class ThisTierInferencePass
                 {
                     ScanNodeForFieldAccesses(assignment.Target, memberScope, model, result, callsOnThis, isAssignmentTarget: true);
                 }
+
                 if(assignment.Value is not null)
                 {
                     ScanNodeForFieldAccesses(assignment.Value, memberScope, model, result, callsOnThis, isAssignmentTarget: false);
@@ -261,6 +262,7 @@ public sealed class ThisTierInferencePass
                         ScanNodeForFieldAccesses(child, memberScope, model, result, callsOnThis, isAssignmentTarget: false);
                     }
                 }
+
                 break;
         }
     }
@@ -300,6 +302,7 @@ public sealed class ThisTierInferencePass
                 {
                     ScanNodeForFieldAccesses(postfix.Suffix[i], memberScope, model, result, callsOnThis, isAssignmentTarget: false);
                 }
+
                 return;
             }
             else if(firstSuffix is MethodCallSuffixPostfixSuffixNode methodCall)
@@ -322,6 +325,7 @@ public sealed class ThisTierInferencePass
                 {
                     ScanNodeForFieldAccesses(postfix.Suffix[i], memberScope, model, result, callsOnThis, isAssignmentTarget: false);
                 }
+
                 return;
             }
         }
@@ -383,6 +387,7 @@ public sealed class ThisTierInferencePass
                             children.Add(child);
                         }
                     }
+
                     if(children.Count == 1)
                     {
                         return TryGetOwnedFieldOnThis(children[0], memberScope);
@@ -465,6 +470,7 @@ public sealed class ThisTierInferencePass
                         ScanNode(child, memberScope, model, ref tier, callsOnThis, isAssignmentTarget: false);
                     }
                 }
+
                 break;
         }
     }
@@ -568,6 +574,7 @@ public sealed class ThisTierInferencePass
                 {
                     ScanNode(postfix.Suffix[i], memberScope, model, ref tier, callsOnThis, isAssignmentTarget: false);
                 }
+
                 return;
             }
 
@@ -590,6 +597,7 @@ public sealed class ThisTierInferencePass
                     ScanNode(suffix, memberScope, model, ref tier, callsOnThis, isAssignmentTarget: false);
                 }
             }
+
             return;
         }
 
@@ -675,6 +683,7 @@ public sealed class ThisTierInferencePass
                             children.Add(child);
                         }
                     }
+
                     if(children.Count == 1)
                     {
                         return IsOwnedFieldOnThis(children[0], memberScope, model);
@@ -752,6 +761,7 @@ public sealed class ThisTierInferencePass
 
             result.Add(symbol);
         }
+
         return result;
     }
 

@@ -76,6 +76,7 @@ public sealed class TypeInspectorTests
                 inVisible = true;
                 continue;
             }
+
             if(line.TrimStart().StartsWith("HIDDEN:"))
             {
                 break;
@@ -140,6 +141,7 @@ public sealed class TypeInspectorTests
                     continue;
                 }
             }
+
             if(inHidden && line.Trim().Length > 0 && !line.TrimStart().StartsWith("VISIBLE:"))
             {
                 hiddenLines.Add(line);

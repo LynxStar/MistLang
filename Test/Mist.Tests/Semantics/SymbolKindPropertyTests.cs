@@ -132,6 +132,7 @@ public class SymbolKindPropertyTests
                         subset.Add(AllScenarios[i]);
                     }
                 }
+
                 return subset.ToArray();
             });
         return gen.ToArbitrary();

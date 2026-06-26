@@ -36,6 +36,7 @@ public sealed class TopLevelStatementSequentialScopeTests : IDisposable
         {
             try { Directory.Delete(scratchDir, recursive: true); } catch { /* best effort */ }
         }
+
         GC.SuppressFinalize(this);
     }
 

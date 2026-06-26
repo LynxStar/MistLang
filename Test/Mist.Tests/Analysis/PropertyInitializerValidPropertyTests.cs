@@ -122,6 +122,7 @@ public sealed class PropertyInitializerValidPropertyTests
         {
             _ = sb.AppendLine($"    public {type} {name} {{ get; set; }}");
         }
+
         _ = sb.AppendLine("}");
         return sb.ToString();
     }

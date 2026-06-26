@@ -67,6 +67,7 @@ public sealed class ConstructedType : IType
                 argParts[i] = typeArguments[i].DisplayName;
             }
         }
+
         DisplayName = $"{genericDefinition.DisplayName}<{string.Join(", ", argParts)}>";
     }
 }

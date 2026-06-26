@@ -66,6 +66,7 @@ public static partial class SdkDiscovery
                 inProcessCache = diskCached;
                 inProcessCacheInitialized = true;
             }
+
             return diskCached;
         }
 
@@ -78,6 +79,7 @@ public static partial class SdkDiscovery
                 inProcessCache = discovered;
                 inProcessCacheInitialized = true;
             }
+
             WriteDiskCache(discovered);
         }
 
@@ -208,6 +210,7 @@ public static partial class SdkDiscovery
             if(!process.WaitForExit(DotnetTimeoutMs))
             {
                 try { process.Kill(); } catch { /* best effort */ }
+
                 return null;
             }
 

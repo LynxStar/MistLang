@@ -281,6 +281,7 @@ public class CycleDetectionPropertyTests
                     // Still a cycle — chain did not terminate
                     return false;
                 }
+
                 current = current!.BaseType as ClassType;
             }
         }

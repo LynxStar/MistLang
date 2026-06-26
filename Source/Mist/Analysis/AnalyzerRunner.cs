@@ -48,6 +48,7 @@ public sealed class AnalyzerRunner
                     CompilationUnitPath: "<unknown>",
                     AnalyzerName: analyzer.AnalyzerId));
             }
+
             sw.Stop();
             timings.Add(new AnalyzerTimingEntry(analyzer.AnalyzerId, sw.Elapsed));
         }

@@ -205,6 +205,7 @@ internal class Program
                         break;
                     }
                 }
+
                 if(source.Length != reconstructed.Length)
                 {
                     Console.Error.WriteLine($"  Length mismatch: original={source.Length} reconstructed={reconstructed.Length}");
@@ -336,6 +337,7 @@ internal class Program
             {
                 Console.Error.WriteLine(DiagnosticFormatter.Format(diagnostic));
             }
+
             return 1;
         }
 
@@ -413,6 +415,7 @@ internal class Program
             {
                 Console.Error.WriteLine(DiagnosticFormatter.Format(diagnostic));
             }
+
             return 1;
         }
 
@@ -465,6 +468,7 @@ internal class Program
             {
                 Console.Error.WriteLine(DiagnosticFormatter.Format(diagnostic));
             }
+
             return 1;
         }
 
@@ -514,6 +518,7 @@ internal class Program
         {
             Console.Error.WriteLine(DiagnosticFormatter.Format(diagnostic));
         }
+
         foreach(var diagnostic in frameworkDiagnostics.ToImmutableArray())
         {
             Console.Error.WriteLine(DiagnosticFormatter.Format(diagnostic));

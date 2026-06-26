@@ -133,6 +133,7 @@ public sealed class CrossAssemblyInheritanceTests : IDisposable
                 found = true;
                 break;
             }
+
             current = current.BaseType as ClassType;
         }
 
@@ -159,6 +160,7 @@ public sealed class CrossAssemblyInheritanceTests : IDisposable
                 found = true;
                 break;
             }
+
             current = current.BaseType as ClassType;
         }
 

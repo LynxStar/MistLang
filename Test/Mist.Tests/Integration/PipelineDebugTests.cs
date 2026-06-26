@@ -48,6 +48,7 @@ public sealed class PipelineDebugTests : IDisposable
 
             dir = Directory.GetParent(dir)?.FullName;
         }
+
         throw new InvalidOperationException("Could not find repo root (Mist.slnx)");
     }
 

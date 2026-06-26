@@ -323,6 +323,7 @@ public sealed class AssociatedTypeSemanticPropertyTests : IDisposable
                 _ = sb.AppendLine($"    type {slot.Name} : {constraintList};");
             }
         }
+
         _ = sb.AppendLine("}");
 
         return sb.ToString();

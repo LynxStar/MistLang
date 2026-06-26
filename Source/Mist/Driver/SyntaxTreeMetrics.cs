@@ -19,6 +19,7 @@ internal static class SyntaxTreeMetrics
                 count += CountNodes(child);
             }
         }
+
         return count;
     }
 }

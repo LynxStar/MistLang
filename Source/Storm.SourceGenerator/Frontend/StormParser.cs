@@ -24,14 +24,17 @@ namespace Storm.SourceGenerator.Frontend
             {
                 throw new ArgumentNullException(nameof(tokens));
             }
+
             if(source == null)
             {
                 throw new ArgumentNullException(nameof(source));
             }
+
             if(diagnostics == null)
             {
                 throw new ArgumentNullException(nameof(diagnostics));
             }
+
             var state = new ParserState(tokens, source, diagnostics);
             return state.ParseFile();
         }
@@ -91,6 +94,7 @@ namespace Storm.SourceGenerator.Frontend
                     _ = Advance();
                     return true;
                 }
+
                 return false;
             }
 
@@ -233,6 +237,7 @@ namespace Storm.SourceGenerator.Frontend
                         SynchronizeToDeclaration();
                         return new StormImport(path, null, offset, line, column);
                     }
+
                     alias = Advance().Lexeme;
                 }
 
@@ -381,6 +386,7 @@ namespace Storm.SourceGenerator.Frontend
                     SynchronizeToDeclaration();
                     return new StormModeDecl(modeName, new List<StormDeclaration>(), kw.Offset, kw.Line, kw.Column);
                 }
+
                 _ = Advance(); // consume '{'
 
                 var declarations = new List<StormDeclaration>();
@@ -485,6 +491,7 @@ namespace Storm.SourceGenerator.Frontend
                 {
                     alternatives.Add(ParseNamedAlternative());
                 }
+
                 return new StormAlternationExpr(alternatives);
             }
 
@@ -614,6 +621,7 @@ namespace Storm.SourceGenerator.Frontend
                                 var memberTok = Expect(StormTokenKind.Identifier, "qualified name");
                                 return new StormQualifiedReferenceExpr(nameTok.Lexeme, memberTok.Lexeme);
                             }
+
                             return new StormReferenceExpr(nameTok.Lexeme);
                         }
 
@@ -695,6 +703,7 @@ namespace Storm.SourceGenerator.Frontend
                                 _ = sb.Append(next);
                                 break;
                         }
+
                         i++; // skip the escaped character
                     }
                     else
@@ -702,6 +711,7 @@ namespace Storm.SourceGenerator.Frontend
                         _ = sb.Append(inner[i]);
                     }
                 }
+
                 return sb.ToString();
             }
         }

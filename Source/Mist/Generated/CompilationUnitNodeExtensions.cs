@@ -29,6 +29,7 @@ public static class CompilationUnitNodeExtensions
                 return nsItem.NamespaceDeclaration;
             }
         }
+
         return null;
     }
 
@@ -46,6 +47,7 @@ public static class CompilationUnitNodeExtensions
                 builder.Add(typeItem.TypeDeclaration);
             }
         }
+
         return builder.ToImmutable();
     }
 
@@ -63,6 +65,7 @@ public static class CompilationUnitNodeExtensions
                 builder.Add(stmtItem);
             }
         }
+
         return builder.ToImmutable();
     }
 
@@ -78,6 +81,7 @@ public static class CompilationUnitNodeExtensions
                 return true;
             }
         }
+
         return false;
     }
 

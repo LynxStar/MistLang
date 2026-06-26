@@ -61,6 +61,7 @@ public sealed class MoveBoundaryClonableSourcePropertyTests : IDisposable
         {
             try { Directory.Delete(outputDir, recursive: true); } catch { /* best effort */ }
         }
+
         GC.SuppressFinalize(this);
     }
 

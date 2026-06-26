@@ -203,6 +203,7 @@ public static class PackageResolver
         {
             _ = sb.AppendLine($"    <PackageReference Include=\"{pkg.Name}\" Version=\"{pkg.Version}\" />");
         }
+
         _ = sb.AppendLine("  </ItemGroup>");
 
         if(!frameworkReferences.IsDefaultOrEmpty)
@@ -212,6 +213,7 @@ public static class PackageResolver
             {
                 _ = sb.AppendLine($"    <FrameworkReference Include=\"{fw.Name}\" />");
             }
+
             _ = sb.AppendLine("  </ItemGroup>");
         }
 
@@ -270,6 +272,7 @@ public static class PackageResolver
         if(!completed)
         {
             try { process.Kill(entireProcessTree: true); } catch { /* best effort */ }
+
             return (-1, stdoutBuilder.ToString(), "Restore timed out after 120 seconds.");
         }
 

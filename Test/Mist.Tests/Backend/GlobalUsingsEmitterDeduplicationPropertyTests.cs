@@ -53,6 +53,7 @@ public sealed class GlobalUsingsEmitterDeduplicationPropertyTests : IDisposable
         {
             try { Directory.Delete(outputDir, recursive: true); } catch { /* best effort */ }
         }
+
         GC.SuppressFinalize(this);
     }
 
@@ -137,6 +138,7 @@ public sealed class GlobalUsingsEmitterDeduplicationPropertyTests : IDisposable
                 padded.Add($"Ns{idx}_Pad");
                 idx++;
             }
+
             distinct = padded.ToArray();
         }
 

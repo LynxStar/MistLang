@@ -308,6 +308,7 @@ public class InheritedMemberResolutionPropertyTests
                     valid = false;
                     break;
                 }
+
                 fields.Add(fieldName);
             }
 
@@ -325,6 +326,7 @@ public class InheritedMemberResolutionPropertyTests
                     valid = false;
                     break;
                 }
+
                 methods.Add(methodName);
             }
 
@@ -357,6 +359,7 @@ public class InheritedMemberResolutionPropertyTests
             members.AddRange(cls.Fields);
             members.AddRange(cls.Methods);
         }
+
         return members;
     }
 
@@ -527,6 +530,7 @@ public class InheritedMemberResolutionPropertyTests
                     return true; // Found the member in the chain
                 }
             }
+
             current = current.BaseType as ClassType;
         }
 

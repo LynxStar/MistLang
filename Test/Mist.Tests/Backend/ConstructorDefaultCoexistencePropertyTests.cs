@@ -153,6 +153,7 @@ public sealed partial class ConstructorDefaultCoexistencePropertyTests
         {
             _ = sb.AppendLine($"        this.{fieldName} = {defaultValue};");
         }
+
         _ = sb.AppendLine("    }");
 
         _ = sb.AppendLine();
@@ -164,6 +165,7 @@ public sealed partial class ConstructorDefaultCoexistencePropertyTests
         {
             _ = sb.AppendLine($"        {fieldName} = {defaultValue}");
         }
+
         _ = sb.AppendLine("    }");
 
         _ = sb.AppendLine("}");

@@ -169,6 +169,7 @@ public class SubstructuralModifierRoundTripPropertyTests
 
             index = afterPos;
         }
+
         return false;
     }
 

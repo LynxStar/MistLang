@@ -413,6 +413,7 @@ public sealed class NoHiddenArrayFillPropertyTests
                         braceDepth = 1;
                     }
                 }
+
                 continue;
             }
 

@@ -70,6 +70,7 @@ public sealed class DelegateProjectionTests
                 func.TypeParameters = tps;
                 funcByArity[arity] = func;
             }
+
             return func;
         }
 

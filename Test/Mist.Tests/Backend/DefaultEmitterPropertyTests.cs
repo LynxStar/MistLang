@@ -54,6 +54,7 @@ public sealed partial class DefaultEmitterPropertyTests : IDisposable
         {
             try { Directory.Delete(outputDir, recursive: true); } catch { /* best effort */ }
         }
+
         GC.SuppressFinalize(this);
     }
 
@@ -98,6 +99,7 @@ public sealed partial class DefaultEmitterPropertyTests : IDisposable
         {
             _ = sb.AppendLine(File.ReadAllText(file));
         }
+
         return sb.ToString();
     }
 
@@ -461,6 +463,7 @@ public sealed partial class DefaultEmitterPropertyTests : IDisposable
         {
             _ = sb.AppendLine($"    {fieldType} {fieldName};");
         }
+
         _ = sb.AppendLine("}");
         _ = sb.AppendLine("class Program { public static void Main() { } }");
 
@@ -506,6 +509,7 @@ public sealed partial class DefaultEmitterPropertyTests : IDisposable
         {
             _ = sb.AppendLine($"    {fieldType} {fieldName};");
         }
+
         _ = sb.AppendLine("}");
         _ = sb.AppendLine($"class Program {{ public static void Main() {{ {scenario.TypeName} x = default({scenario.TypeName}); }} }}");
 

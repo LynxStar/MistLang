@@ -37,6 +37,7 @@ public sealed class StdlibResolutionTests : IDisposable
         {
             try { Directory.Delete(scratchDir, recursive: true); } catch { /* best effort */ }
         }
+
         GC.SuppressFinalize(this);
     }
 

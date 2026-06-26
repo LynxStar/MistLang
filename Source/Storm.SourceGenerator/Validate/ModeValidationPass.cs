@@ -186,6 +186,7 @@ public static class ModeValidationPass
                     break;
                 }
             }
+
             if(anyPushToDefault)
             {
                 break;

@@ -253,6 +253,7 @@ public sealed class TryFinallyDropWrappingTests : IDisposable
                 return i;
             }
         }
+
         return -1;
     }
 }

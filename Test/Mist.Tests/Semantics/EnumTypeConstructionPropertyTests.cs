@@ -198,6 +198,7 @@ public class EnumTypeConstructionPropertyTests
                     : null;
                 members.Add(MakeEnumMember(scenario.MemberNames[i], value));
             }
+
             memberList = MakeEnumMemberList(members);
         }
 

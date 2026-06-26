@@ -69,6 +69,7 @@ public sealed class DisposableWithBlockIntegrationTests : IDisposable
             try { Directory.Delete(outputDir, recursive: true); }
             catch { /* best effort */ }
         }
+
         GC.SuppressFinalize(this);
     }
 

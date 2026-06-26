@@ -135,6 +135,7 @@ public static class StormPrettyPrinter
 
             _ = sb.Append(PrintExpression(alt.Alternatives[i]));
         }
+
         return sb.ToString();
     }
 
@@ -150,6 +151,7 @@ public static class StormPrettyPrinter
 
             _ = sb.Append(PrintExpression(seq.Elements[i]));
         }
+
         return sb.ToString();
     }
 
@@ -178,6 +180,7 @@ public static class StormPrettyPrinter
                 default: _ = sb.Append(c); break;
             }
         }
+
         return sb.ToString();
     }
 }

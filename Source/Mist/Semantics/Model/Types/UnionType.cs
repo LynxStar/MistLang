@@ -67,6 +67,7 @@ public sealed class UnionType : IType, IEquatable<UnionType>
         {
             hash.Add(constituent.DisplayName, StringComparer.Ordinal);
         }
+
         return hash.ToHashCode();
     }
 

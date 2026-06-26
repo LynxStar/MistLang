@@ -49,6 +49,7 @@ namespace Storm.SourceGenerator.Tests
                 {
                     return contents;
                 }
+
                 return null;
             };
         }
@@ -381,6 +382,7 @@ namespace Storm.SourceGenerator.Tests
                     _ = sb.Append(StructuralKey(child)).Append(';');
                 }
             }
+
             _ = sb.Append(')');
             return sb.ToString();
         }

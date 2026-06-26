@@ -96,6 +96,7 @@ public sealed class PropertyInitializerMemberExistencePropertyTests
         {
             _ = sb.AppendLine($"    public int {prop} {{ get; set; }}");
         }
+
         _ = sb.AppendLine("}");
         return sb.ToString();
     }

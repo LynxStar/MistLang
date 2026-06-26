@@ -136,10 +136,12 @@ namespace Storm.SourceGenerator.Frontend
             {
                 throw new ArgumentNullException(nameof(source));
             }
+
             if(diagnostics == null)
             {
                 throw new ArgumentNullException(nameof(diagnostics));
             }
+
             var tokens = new List<StormToken>();
             var text = source.Contents;
             var pos = 0;
@@ -163,6 +165,7 @@ namespace Storm.SourceGenerator.Frontend
                     {
                         pos++;
                     }
+
                     continue;
                 }
 
@@ -321,6 +324,7 @@ namespace Storm.SourceGenerator.Frontend
                         {
                             pos++;
                         }
+
                         var lexeme = text.Substring(start, pos - start);
                         tokens.Add(new StormToken(StormTokenKind.Annotation, lexeme, start, line, column));
                     }
@@ -336,6 +340,7 @@ namespace Storm.SourceGenerator.Frontend
                             column));
                         tokens.Add(new StormToken(StormTokenKind.Error, "@", start, line, column));
                     }
+
                     continue;
                 }
 

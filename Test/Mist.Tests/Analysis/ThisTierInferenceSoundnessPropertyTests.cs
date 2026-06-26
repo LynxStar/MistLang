@@ -92,6 +92,7 @@ public sealed class ThisTierInferenceSoundnessPropertyTests
                 max = tier;
             }
         }
+
         return max;
     }
 

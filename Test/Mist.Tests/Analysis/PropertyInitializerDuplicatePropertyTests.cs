@@ -97,6 +97,7 @@ public sealed class PropertyInitializerDuplicatePropertyTests
         {
             _ = sb.AppendLine($"    public int {prop} {{ get; set; }}");
         }
+
         _ = sb.AppendLine("}");
         return sb.ToString();
     }

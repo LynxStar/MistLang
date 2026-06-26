@@ -48,6 +48,7 @@ namespace Storm.SourceGenerator.Emit
             {
                 _ = sb.Append(IndentUnit);
             }
+
             _ = sb.AppendLine(line);
         }
 

@@ -67,6 +67,7 @@ public class TupleTypeCheckerPropertyTests
                 return false;
             }
         }
+
         return true;
     }
 
@@ -114,6 +115,7 @@ public class TupleTypeCheckerPropertyTests
                 return false;
             }
         }
+
         return true;
     }
 
@@ -277,6 +279,7 @@ public static class TupleTypePairGenerator
                 return false;
             }
         }
+
         return true;
     }
 }

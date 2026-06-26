@@ -240,6 +240,7 @@ public class EnumTypeInferencePropertyTests
                 {
                     members.Add(MakeEnumMember(memberName));
                 }
+
                 break;
 
             case InferenceCategory.AllSameType:
@@ -254,6 +255,7 @@ public class EnumTypeInferencePropertyTests
                     };
                     members.Add(MakeEnumMember(scenario.MemberNames[i], value));
                 }
+
                 break;
 
             case InferenceCategory.MixedTypes:
@@ -266,6 +268,7 @@ public class EnumTypeInferencePropertyTests
                         : MakeStringLiteralExpression($"val{i}");
                     members.Add(MakeEnumMember(scenario.MemberNames[i], value));
                 }
+
                 break;
         }
 

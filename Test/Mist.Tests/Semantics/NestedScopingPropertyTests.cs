@@ -1256,6 +1256,7 @@ public sealed class NestedScopingPropertyTests
                 return i;
             }
         }
+
         return -1;
     }
 

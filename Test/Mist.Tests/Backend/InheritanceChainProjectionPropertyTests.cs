@@ -100,6 +100,7 @@ public sealed class InheritanceChainProjectionPropertyTests
             chain.Add(current);
             current = current.BaseType;
         }
+
         return chain;
     }
 
@@ -117,6 +118,7 @@ public sealed class InheritanceChainProjectionPropertyTests
             var name = TypeProjector.StripGenericAritySuffix(clrType.Name);
             projected[name] = (mistType, clrType);
         }
+
         return projected;
     }
 

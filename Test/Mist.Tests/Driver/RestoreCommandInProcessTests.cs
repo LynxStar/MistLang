@@ -72,6 +72,7 @@ public sealed class RestoreCommandInProcessTests
         {
             errorLines.Add(DiagnosticFormatter.Format(diag));
         }
+
         foreach(var diag in frameworkDiagnostics.ToImmutableArray())
         {
             errorLines.Add(DiagnosticFormatter.Format(diag));

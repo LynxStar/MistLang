@@ -208,6 +208,7 @@ public sealed class CompilerDriver : ICompilerDriver
                                 }
                             }
                         }
+
                         refUnits = refUnitBuilder.ToImmutable();
                     }
                     else
@@ -619,6 +620,7 @@ public sealed class CompilerDriver : ICompilerDriver
         {
             emitDetails.Add(backendResult.PrimaryArtifactPath);
         }
+
         progressReporter.ReportStageComplete("6", emitStopwatch.Elapsed, emitDetails);
 
         foreach(var d in backendBag.ToImmutableArray())
@@ -672,6 +674,7 @@ public sealed class CompilerDriver : ICompilerDriver
             var escapedValue = System.Security.SecurityElement.Escape(prop.Value) ?? prop.Value;
             _ = sb.AppendLine($"    <{prop.Key}>{escapedValue}</{prop.Key}>");
         }
+
         _ = sb.AppendLine("  </PropertyGroup>");
 
         // Insert after the first </PropertyGroup> tag.
@@ -713,6 +716,7 @@ public sealed class CompilerDriver : ICompilerDriver
             {
                 _ = sb.AppendLine($"    <PackageReference Include=\"{pkg.Name}\" Version=\"{pkg.Version}\" />");
             }
+
             _ = sb.AppendLine("  </ItemGroup>");
         }
 
@@ -723,6 +727,7 @@ public sealed class CompilerDriver : ICompilerDriver
             {
                 _ = sb.AppendLine($"    <FrameworkReference Include=\"{fw.Name}\" />");
             }
+
             _ = sb.AppendLine("  </ItemGroup>");
         }
 

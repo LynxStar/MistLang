@@ -195,6 +195,7 @@ public class IntrinsicTypeMapRecursiveSubstitutionPropertyTests
                     argGens[i] = GenAnyTypeArg(maxDepth);
                 }
             }
+
             return GenCombine(argGens);
         });
     }
@@ -279,6 +280,7 @@ public class IntrinsicTypeMapRecursiveSubstitutionPropertyTests
             var idx = i;
             acc = acc.SelectMany(arr => gens[idx].Select(t => arr.Append(t).ToArray()));
         }
+
         return acc;
     }
 

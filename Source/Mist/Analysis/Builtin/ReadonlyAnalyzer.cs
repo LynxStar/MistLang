@@ -245,6 +245,7 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
                         WalkBlockForReadonlyFieldAssignments(body, declaringTypeScope, model, diagnostics);
                     }
                 }
+
                 break;
 
             case SymbolKind.Property:
@@ -290,6 +291,7 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
                             break;
                     }
                 }
+
                 break;
 
             case ExpressionBodiedPropertyPropertyDeclarationNode exprProp:
@@ -676,6 +678,7 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
                 _ = names.Add(name);
             }
         }
+
         index++;
 
         // Remaining parameters
@@ -689,6 +692,7 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
                     _ = names.Add(name);
                 }
             }
+
             index++;
         }
 
@@ -889,6 +893,7 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
                         assignment,
                         model));
                 }
+
                 return;
             }
         }
@@ -1112,6 +1117,7 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
                             break;
                     }
                 }
+
                 break;
 
             case ExpressionBodiedPropertyPropertyDeclarationNode exprProp:
@@ -1572,6 +1578,7 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
                             }
                         }
                     }
+
                     return new AssignmentTargetInfo(AssignmentTargetKind.LocalVariable, null, IsOnThis: false);
                 }
         }
@@ -1871,6 +1878,7 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
                         WalkBlockForConstrainedTypeParamViolations(body, model, diagnostics);
                     }
                 }
+
                 break;
 
             case SymbolKind.Constructor:
@@ -1882,6 +1890,7 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
                         WalkBlockForConstrainedTypeParamViolations(ctorBody, model, diagnostics);
                     }
                 }
+
                 break;
 
             case SymbolKind.Property:
@@ -1926,6 +1935,7 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
                             break;
                     }
                 }
+
                 break;
 
             case ExpressionBodiedPropertyPropertyDeclarationNode exprProp:
@@ -2280,6 +2290,7 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
                         WalkBlockForClosedUnknownViolations(body, model, diagnostics);
                     }
                 }
+
                 break;
 
             case SymbolKind.Constructor:
@@ -2291,6 +2302,7 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
                         WalkBlockForClosedUnknownViolations(ctorBody, model, diagnostics);
                     }
                 }
+
                 break;
 
             case SymbolKind.Property:
@@ -2335,6 +2347,7 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
                             break;
                     }
                 }
+
                 break;
 
             case ExpressionBodiedPropertyPropertyDeclarationNode exprProp:
@@ -2763,6 +2776,7 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
                 return true;
             }
         }
+
         return false;
     }
 
@@ -2784,6 +2798,7 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
                 return true;
             }
         }
+
         return false;
     }
 

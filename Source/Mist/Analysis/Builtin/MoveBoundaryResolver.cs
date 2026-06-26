@@ -472,6 +472,7 @@ public sealed class MoveBoundaryResolver
             {
                 return symbol;
             }
+
             return null;
         }
 

@@ -39,6 +39,7 @@ public class MistGrammarMemoizationPlanTests
                     return grammarDir;
                 }
             }
+
             dir = Path.GetDirectoryName(dir);
         }
 

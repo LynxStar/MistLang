@@ -126,6 +126,7 @@ internal static class ExhaustivenessChecker
                     return false;
                 }
             }
+
             return true;
         }
 

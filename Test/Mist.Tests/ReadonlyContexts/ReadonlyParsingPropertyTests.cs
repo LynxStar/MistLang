@@ -356,6 +356,7 @@ public class ReadonlyParsingPropertyTests
                 return true;
             }
         }
+
         return false;
     }
 
@@ -382,6 +383,7 @@ public class ReadonlyParsingPropertyTests
                 return found;
             }
         }
+
         return null;
     }
 

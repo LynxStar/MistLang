@@ -60,6 +60,7 @@ public sealed class AnonymousType : IType
                 return false;
             }
         }
+
         return true;
     }
 }

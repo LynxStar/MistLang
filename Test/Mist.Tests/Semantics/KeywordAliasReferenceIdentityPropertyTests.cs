@@ -103,6 +103,7 @@ public class KeywordAliasReferenceIdentityPropertyTests
 
             asts.Add(parseResult.Root);
         }
+
         return (units, asts.ToImmutable());
     });
 

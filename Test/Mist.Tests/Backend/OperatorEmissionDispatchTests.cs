@@ -32,6 +32,7 @@ public sealed class OperatorEmissionDispatchTests : IDisposable
         {
             try { Directory.Delete(outputDir, recursive: true); } catch { /* best effort */ }
         }
+
         GC.SuppressFinalize(this);
     }
 
@@ -477,6 +478,7 @@ class Program {
             {
                 return add;
             }
+
             foreach(var child in node.Children())
             {
                 if(child is not null)
@@ -485,6 +487,7 @@ class Program {
                 }
             }
         }
+
         return null;
     }
 }

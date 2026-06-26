@@ -554,6 +554,7 @@ internal sealed class CSharpSourceWriter
                 {
                     _ = usings.Add(globalNs);
                 }
+
                 break;
             }
         }
@@ -609,6 +610,7 @@ internal sealed class CSharpSourceWriter
                     topLevelBlockNamespaces[nsName] = list;
                     topLevelBlockNamespaceOrder.Add(nsName);
                 }
+
                 list.Add(blockNsDecl);
             }
         }
@@ -632,6 +634,7 @@ internal sealed class CSharpSourceWriter
                                     emittedInferredNamespace = fileScopedNsName;
                                     currentNamespace = fileScopedNsName;
                                 }
+
                                 break;
                             case BlockNamespaceNamespaceDeclarationNode blockNsDecl:
                                 {
@@ -641,9 +644,11 @@ internal sealed class CSharpSourceWriter
                                     {
                                         EmitMergedTopLevelBlockNamespace(nsName, topLevelBlockNamespaces[nsName]);
                                     }
+
                                     break;
                                 }
                         }
+
                         break;
                     }
                 case TypeItemTopLevelItemNode typeItem:
@@ -660,6 +665,7 @@ internal sealed class CSharpSourceWriter
                                 // Separate namespace sections with a blank line.
                                 AppendLine();
                             }
+
                             AppendLine($"namespace {typeNamespace};");
                             AppendLine();
                             emittedInferredNamespace = typeNamespace;
@@ -691,6 +697,7 @@ internal sealed class CSharpSourceWriter
                             {
                                 AppendLine();
                             }
+
                             AppendLine($"namespace {newtypeNamespace};");
                             AppendLine();
                             emittedInferredNamespace = newtypeNamespace;
@@ -886,6 +893,7 @@ internal sealed class CSharpSourceWriter
                                     }
                                 }
                             }
+
                             break;
                     }
                 }
@@ -1065,6 +1073,7 @@ internal sealed class CSharpSourceWriter
                             }
                         }
                     }
+
                     break;
             }
         }
@@ -1176,6 +1185,7 @@ internal sealed class CSharpSourceWriter
                                 CollectVoidMethodNamesFromType(typeBodyItem.TypeDeclaration, voidMethodNames);
                             }
                         }
+
                         break;
                     }
                 case TypeItemTopLevelItemNode typeItem:
@@ -1233,6 +1243,7 @@ internal sealed class CSharpSourceWriter
                                 types.Add(typeBodyItem.TypeDeclaration);
                             }
                         }
+
                         break;
                     }
                 case TypeItemTopLevelItemNode typeItem:
@@ -1311,6 +1322,7 @@ internal sealed class CSharpSourceWriter
                         ScanExpressionForValueReturningCalls(inferred.Initializer, voidMethodNames);
                         break;
                 }
+
                 break;
 
             case ReturnStatementStatementNode returnStmt:
@@ -1318,6 +1330,7 @@ internal sealed class CSharpSourceWriter
                 {
                     ScanExpressionForValueReturningCalls(returnStmt.ReturnStatement.Value, voidMethodNames);
                 }
+
                 break;
 
             case IfStatementStatementNode ifStmt:
@@ -1327,6 +1340,7 @@ internal sealed class CSharpSourceWriter
                 {
                     ScanElseClauseForValueReturningCalls(ifStmt.IfStatement.ElseBranch, voidMethodNames);
                 }
+
                 break;
 
             case WhileStatementStatementNode whileStmt:
@@ -1571,6 +1585,7 @@ internal sealed class CSharpSourceWriter
                         {
                             ScanArgumentListForValueReturningCalls(methodCall.Arguments, voidMethodNames);
                         }
+
                         break;
                     }
                 case InvocationSuffixPostfixSuffixNode invocation:
@@ -1590,6 +1605,7 @@ internal sealed class CSharpSourceWriter
                         {
                             ScanArgumentListForValueReturningCalls(invocation.Arguments, voidMethodNames);
                         }
+
                         break;
                     }
                 case OptionalMethodCallSuffixPostfixSuffixNode optionalMethodCall:
@@ -1599,6 +1615,7 @@ internal sealed class CSharpSourceWriter
                         {
                             ScanArgumentListForValueReturningCalls(optionalMethodCall.Arguments, voidMethodNames);
                         }
+
                         break;
                     }
             }
@@ -1843,6 +1860,7 @@ internal sealed class CSharpSourceWriter
                 groupedNamespaces[fqn] = list;
                 insertionOrder.Add(fqn);
             }
+
             list.Add(nestedNsDecl);
         }
 
@@ -1935,6 +1953,7 @@ internal sealed class CSharpSourceWriter
                 groupedNamespaces[fqn] = list;
                 insertionOrder.Add(fqn);
             }
+
             list.Add(nestedNsDecl);
         }
 
@@ -2014,6 +2033,7 @@ internal sealed class CSharpSourceWriter
                     break;
             }
         }
+
         return false;
     }
 
@@ -2040,6 +2060,7 @@ internal sealed class CSharpSourceWriter
                     break;
             }
         }
+
         return false;
     }
 
@@ -2192,6 +2213,7 @@ internal sealed class CSharpSourceWriter
                 {
                     AppendLine();
                 }
+
                 EmitNewtypeMemberDeclaration(classDecl.Members[i], newtypeName);
             }
         }
@@ -2228,6 +2250,7 @@ internal sealed class CSharpSourceWriter
                 {
                     AppendLine();
                 }
+
                 EmitNewtypeMemberDeclaration(structDecl.Members[i], newtypeName);
             }
         }
@@ -2368,6 +2391,7 @@ internal sealed class CSharpSourceWriter
             var prefix = i == 0 ? "if" : "else if";
             AppendLine($"{prefix} (ReferenceEquals(this, {memberName})) return \"{memberName}\";");
         }
+
         AppendLine($"return Value.ToString();");
         indentLevel--;
         AppendLine("}");
@@ -2456,6 +2480,7 @@ internal sealed class CSharpSourceWriter
             {
                 AppendLine();
             }
+
             EmitExtensionMember(extDecl.Members[i], receiverCSharpType, receiverName, blockTypeParams);
         }
 
@@ -2653,6 +2678,7 @@ internal sealed class CSharpSourceWriter
             {
                 typeArgNames.Add(GetTypeArgNameFromTypeArgument(arg));
             }
+
             return $"{name}Of{string.Join("", typeArgNames)}";
         }
 
@@ -2730,6 +2756,7 @@ internal sealed class CSharpSourceWriter
             var linePos = sourceText.ToLinePositionSpan(new Common.Text.SourceSpan(span.Start, span.Length));
             return linePos.Start.Line;
         }
+
         return 1;
     }
 
@@ -2744,6 +2771,7 @@ internal sealed class CSharpSourceWriter
         {
             _ = sb.Append(char.IsLetterOrDigit(c) || c == '_' ? c : '_');
         }
+
         return sb.ToString();
     }
 
@@ -2805,6 +2833,7 @@ internal sealed class CSharpSourceWriter
                             new Common.Text.SourceSpan(span.Start, span.Length));
                         lineNumber = linePos.Start.Line;
                     }
+
                     break;
                 }
             }
@@ -2862,10 +2891,12 @@ internal sealed class CSharpSourceWriter
                                 return true;
                             }
                         }
+
                         break;
                     }
             }
         }
+
         return false;
     }
 
@@ -2943,6 +2974,7 @@ internal sealed class CSharpSourceWriter
         {
             EmitDependentTypeAttributes(GetTypeParametersFromType(symbol.DeclaredType));
         }
+
         AppendLine($"{modifiers}class {name}{typeParams}{baseClause}");
         // Emit constraint clauses (where T : ...) for constrained type parameters.
         if(symbol?.DeclaredType is not null)
@@ -2950,6 +2982,7 @@ internal sealed class CSharpSourceWriter
             var typeParamsForConstraints = GetTypeParametersFromType(symbol.DeclaredType);
             EmitConstraintClauses(typeParamsForConstraints);
         }
+
         AppendLine("{");
         indentLevel++;
 
@@ -3054,6 +3087,7 @@ internal sealed class CSharpSourceWriter
             currentParameterizedSlots = pSlots.Count > 0 ? pSlots : null;
             abstractTypeParamSubstitutions = subs.Count > 0 ? subs : null;
         }
+
         currentAbstractTypeParamSubs = abstractTypeParamSubstitutions;
 
         // Track dependent type parameter names declared on this type so the
@@ -3071,6 +3105,7 @@ internal sealed class CSharpSourceWriter
                     _ = depNames.Add(depParam.Name);
                 }
             }
+
             currentTypeDependentParamNames = depNames.Count > 0 ? depNames : null;
         }
 
@@ -3087,6 +3122,7 @@ internal sealed class CSharpSourceWriter
             {
                 AppendLine();
             }
+
             EmitMemberDeclaration(classDecl.Members[i]);
         }
 
@@ -3136,6 +3172,7 @@ internal sealed class CSharpSourceWriter
         {
             // _currentParameterizedSlots was already restored to previous, use the local pSlots.
         }
+
         if(symbol?.DeclaredType is ClassType classTypeForParamSlots && abstractTypeParamSubstitutions is not null)
         {
             EmitExplicitInterfaceImplsForParameterizedSlots(
@@ -3199,6 +3236,7 @@ internal sealed class CSharpSourceWriter
                     {
                         EmitDefaultFieldAssignment("this", fieldName, fieldValue);
                     }
+
                     indentLevel--;
                     AppendLine("}");
                 }
@@ -3230,6 +3268,7 @@ internal sealed class CSharpSourceWriter
             {
                 AppendLine($"this.{field.Name}.Drop();");
             }
+
             indentLevel--;
             AppendLine("}");
         }
@@ -3581,6 +3620,7 @@ internal sealed class CSharpSourceWriter
                                 break;
                         }
                     }
+
                     AppendLine($"{propType} {interfaceName}.{mapping.TargetName} {{ {string.Join(" ", accessors)} }}");
                 }
             }
@@ -3807,6 +3847,7 @@ internal sealed class CSharpSourceWriter
                 }
             }
         }
+
         if(paramSlots.Count == 0)
         {
             return;
@@ -3877,6 +3918,7 @@ internal sealed class CSharpSourceWriter
                 names.Add(param.Name.Lexeme);
             }
         }
+
         return string.Join(", ", names);
     }
 
@@ -4008,6 +4050,7 @@ internal sealed class CSharpSourceWriter
         {
             parts.Add(EmitSingleTypeArgumentWithSubstitution(arg, substitutions));
         }
+
         return $"<{string.Join(", ", parts)}>";
     }
 
@@ -4135,6 +4178,7 @@ internal sealed class CSharpSourceWriter
         {
             refPrefix = "ref ";
         }
+
         AppendLine($"{modifiers}{readonlyPrefix}{refPrefix}struct {name}{typeParams}{abstractList}");
         // Emit constraint clauses (where T : ...) for constrained type parameters.
         if(symbol?.DeclaredType is not null)
@@ -4142,6 +4186,7 @@ internal sealed class CSharpSourceWriter
             var typeParamsForConstraints = GetTypeParametersFromType(symbol.DeclaredType);
             EmitConstraintClauses(typeParamsForConstraints);
         }
+
         AppendLine("{");
         indentLevel++;
 
@@ -4212,6 +4257,7 @@ internal sealed class CSharpSourceWriter
                     {
                         AppendLine();
                     }
+
                     EmitInheritedFieldDeclaration(field);
                     hasAncestorFields = true;
                 }
@@ -4231,6 +4277,7 @@ internal sealed class CSharpSourceWriter
                     _ = depNames.Add(depParam.Name);
                 }
             }
+
             currentTypeDependentParamNames = depNames.Count > 0 ? depNames : null;
         }
 
@@ -4243,6 +4290,7 @@ internal sealed class CSharpSourceWriter
             {
                 AppendLine();
             }
+
             EmitMemberDeclaration(structDecl.Members[i]);
         }
 
@@ -4312,6 +4360,7 @@ internal sealed class CSharpSourceWriter
                     {
                         EmitDefaultFieldAssignment("this", fieldName, fieldValue);
                     }
+
                     indentLevel--;
                     AppendLine("}");
                 }
@@ -4321,6 +4370,7 @@ internal sealed class CSharpSourceWriter
                 {
                     AppendLine();
                 }
+
                 AppendLine($"public static {defaultableStruct.DisplayName} __CreateDefault()");
                 AppendLine("{");
                 indentLevel++;
@@ -4332,6 +4382,7 @@ internal sealed class CSharpSourceWriter
                 {
                     AppendLine($"var inst = new {defaultableStruct.DisplayName}();");
                 }
+
                 AppendLine("return inst;");
                 indentLevel--;
                 AppendLine("}");
@@ -4379,6 +4430,7 @@ internal sealed class CSharpSourceWriter
             {
                 AppendLine($"{field.Name} = value.{field.Name},");
             }
+
             indentLevel--;
             AppendLine("};");
             indentLevel--;
@@ -4499,6 +4551,7 @@ internal sealed class CSharpSourceWriter
                         {
                             EmitDefaultFieldAssignment(tempName, nestedFieldName, nestedValue);
                         }
+
                         AppendLine($"{instanceName}.{fieldName} = {tempName};");
                     }
                     else
@@ -4506,6 +4559,7 @@ internal sealed class CSharpSourceWriter
                         // Type binding without nested overrides — direct call.
                         AppendLine($"{instanceName}.{fieldName} = {concreteTypeName}.__CreateDefault();");
                     }
+
                     break;
                 }
 
@@ -4569,6 +4623,7 @@ internal sealed class CSharpSourceWriter
         {
             return fieldName.Substring(1, fieldName.Length - 1 - suffix.Length);
         }
+
         return fieldName;
     }
 
@@ -4608,6 +4663,7 @@ internal sealed class CSharpSourceWriter
                 _ => c.ToString(),
             });
         }
+
         return sb.ToString();
     }
 
@@ -5128,6 +5184,7 @@ internal sealed class CSharpSourceWriter
         {
             names.Add(param.Name.Lexeme);
         }
+
         return names;
     }
 
@@ -5298,6 +5355,7 @@ internal sealed class CSharpSourceWriter
                 // Also map bare slot name for substitution in type references.
                 slotSubs[entry.Slot.DisplayName] = $"T{entry.Slot.DisplayName}";
             }
+
             currentMethodSlotSubstitutions = slotSubs;
         }
 
@@ -5586,6 +5644,7 @@ internal sealed class CSharpSourceWriter
                     AppendLine($"{paramName}.Drop();");
                 }
             }
+
             indentLevel--;
             AppendLine("}");
         }
@@ -5955,6 +6014,7 @@ internal sealed class CSharpSourceWriter
         {
             return ReplaceFieldKeyword(EmitExpression(expr), backingFieldName);
         }
+
         return EmitExpression(expr);
     }
 
@@ -5968,6 +6028,7 @@ internal sealed class CSharpSourceWriter
         {
             text = ReplaceFieldKeyword(text, backingFieldName);
         }
+
         return text;
     }
 
@@ -6005,6 +6066,7 @@ internal sealed class CSharpSourceWriter
 
                         return $"return {value};";
                     }
+
                     return "return;";
                 }
             case ExpressionStatementStatementNode exprStmt:
@@ -6051,6 +6113,7 @@ internal sealed class CSharpSourceWriter
                                 return $"var {name} = {init};";
                             }
                     }
+
                     return "";
                 }
             case IfStatementStatementNode ifStmt:
@@ -6063,6 +6126,7 @@ internal sealed class CSharpSourceWriter
                         _ = sb.Append(EmitStatementToString(s));
                         _ = sb.Append(' ');
                     }
+
                     _ = sb.Append('}');
                     return sb.ToString();
                 }
@@ -6136,6 +6200,7 @@ internal sealed class CSharpSourceWriter
                     break;
             }
         }
+
         return false;
     }
 
@@ -6158,6 +6223,7 @@ internal sealed class CSharpSourceWriter
                 return true;
             }
         }
+
         return false;
     }
 
@@ -6251,6 +6317,7 @@ internal sealed class CSharpSourceWriter
         {
             parts.Add(EmitParameter(param));
         }
+
         return string.Join(", ", parts);
     }
 
@@ -6396,6 +6463,7 @@ internal sealed class CSharpSourceWriter
                                 return true;
                             }
                         }
+
                         break;
                     }
             }
@@ -6472,6 +6540,7 @@ internal sealed class CSharpSourceWriter
                 return true;
             }
         }
+
         return false;
     }
 
@@ -6513,6 +6582,7 @@ internal sealed class CSharpSourceWriter
                 }
             }
         }
+
         return false;
     }
 
@@ -6539,6 +6609,7 @@ internal sealed class CSharpSourceWriter
 
             index = afterPos;
         }
+
         return false;
     }
 
@@ -6593,6 +6664,7 @@ internal sealed class CSharpSourceWriter
                         return true;
                     }
                 }
+
                 return false;
 
             default:
@@ -6820,6 +6892,7 @@ internal sealed class CSharpSourceWriter
             var args = EmitTypeArgumentList(namedRef.TypeArgs);
             return $"{spanBase}{args}";
         }
+
         var baseName = CSharpTypeMap.GetTypeName(underlying, isValueContext);
         var args2 = EmitTypeArgumentList(namedRef.TypeArgs);
         return $"{baseName}{args2}";
@@ -6991,6 +7064,7 @@ internal sealed class CSharpSourceWriter
                             }
                         }
                     }
+
                     emittedArg = $"{refKeyword} {emittedArg}";
                 }
                 else
@@ -7002,6 +7076,7 @@ internal sealed class CSharpSourceWriter
                 emittedArg = WrapWithDelegateConstructorIfNeeded(argExprs[i], emittedArg, i, calledMethod);
                 emitted.Add(emittedArg);
             }
+
             return string.Join(", ", emitted);
         }
 
@@ -7036,6 +7111,7 @@ internal sealed class CSharpSourceWriter
                     {
                         return rawText.Replace("Void.Void", "null");
                     }
+
                     needsMistVoidStruct = true;
                     return rawText.Replace("Void.Void", "MistVoid.Instance");
                 }
@@ -7065,6 +7141,7 @@ internal sealed class CSharpSourceWriter
                 emittedArg = WrapWithDelegateConstructorIfNeeded(argExprs[i], emittedArg, i, calledMethod);
                 emitted.Add(emittedArg);
             }
+
             return string.Join(", ", emitted);
         }
     }
@@ -7083,6 +7160,7 @@ internal sealed class CSharpSourceWriter
                 return true;
             }
         }
+
         return false;
     }
 
@@ -7100,6 +7178,7 @@ internal sealed class CSharpSourceWriter
                 return true;
             }
         }
+
         return false;
     }
 
@@ -7118,6 +7197,7 @@ internal sealed class CSharpSourceWriter
                 return true;
             }
         }
+
         return false;
     }
 
@@ -7147,6 +7227,7 @@ internal sealed class CSharpSourceWriter
                 return true;
             }
         }
+
         return false;
     }
 
@@ -7173,6 +7254,7 @@ internal sealed class CSharpSourceWriter
                 return true;
             }
         }
+
         return false;
     }
 
@@ -7220,6 +7302,7 @@ internal sealed class CSharpSourceWriter
                 return true;
             }
         }
+
         return false;
     }
 
@@ -7250,6 +7333,7 @@ internal sealed class CSharpSourceWriter
                 return true;
             }
         }
+
         return false;
     }
 
@@ -7277,6 +7361,7 @@ internal sealed class CSharpSourceWriter
                 return true;
             }
         }
+
         return false;
     }
 
@@ -7345,6 +7430,7 @@ internal sealed class CSharpSourceWriter
             {
                 constituentNames.Add(GetConstituentNameForHelper(rest));
             }
+
             constituentNames.Sort(StringComparer.Ordinal);
             return "Union_" + string.Join("_", constituentNames);
         }
@@ -7366,6 +7452,7 @@ internal sealed class CSharpSourceWriter
                     {
                         return $"{keyword}?";
                     }
+
                     return keyword;
                 }
             case VoidSingleTypeRefSingleTypeRefNode:
@@ -7374,6 +7461,7 @@ internal sealed class CSharpSourceWriter
                     needsMistVoidStruct = true;
                     return "MistVoid";
                 }
+
                 return "void";
             case UnknownSingleTypeRefSingleTypeRefNode:
                 // User-facing `unknown` (Task 30.1 / Req 13.5, 15.1, 15.4):
@@ -7524,6 +7612,7 @@ internal sealed class CSharpSourceWriter
                                     s.Name == name && s.Kind == SymbolKind.Newtype
                                     && GetNewtypeContainingNamespace(s) == currentNamespace);
                             }
+
                             if(!hasConcreteTypeInCurrentNamespace)
                             {
                                 var emittedType = ResolveAliasForEmission(aliasType, namedRef, isValueContext);
@@ -7567,6 +7656,7 @@ internal sealed class CSharpSourceWriter
                             needsMistVoidStruct = true;
                             return "MistVoid";
                         }
+
                         return "void";
                     }
 
@@ -7658,6 +7748,7 @@ internal sealed class CSharpSourceWriter
                         // Reference types: emit plain T (null represents void).
                         return baseName;
                     }
+
                     return $"{name}{typeArgs}";
                 }
             case FuncSingleTypeRefSingleTypeRefNode:
@@ -7727,6 +7818,7 @@ internal sealed class CSharpSourceWriter
                         CollectTypeArgConstituentNames(namedRef.TypeArgs, typeArgNames);
                         name = $"{name}_{typeArgNames.Count}_{string.Join("_", typeArgNames)}";
                     }
+
                     return namedRef.ArrayRank is not null ? $"{name}Array" : name;
                 }
             case ParenthesizedTypeRefSingleTypeRefNode parenRef:
@@ -7760,6 +7852,7 @@ internal sealed class CSharpSourceWriter
             {
                 unionNames.Add(GetConstituentNameForHelper(rest));
             }
+
             unionNames.Sort(StringComparer.Ordinal);
             return "Union_" + string.Join("_", unionNames);
         }
@@ -7784,6 +7877,7 @@ internal sealed class CSharpSourceWriter
                         CollectTypeArgConstituentNames(namedRef.TypeArgs, typeArgNames);
                         name = $"{name}_{typeArgNames.Count}_{string.Join("_", typeArgNames)}";
                     }
+
                     return namedRef.ArrayRank is not null ? $"{name}Array" : name;
                 }
             default:
@@ -7870,6 +7964,7 @@ internal sealed class CSharpSourceWriter
         {
             parts.Add(EmitTypeReference(additional.Type));
         }
+
         return $"System.ValueTuple<{string.Join(", ", parts)}>";
     }
 
@@ -7899,6 +7994,7 @@ internal sealed class CSharpSourceWriter
                 return true;
             }
         }
+
         return false;
     }
 
@@ -7933,6 +8029,7 @@ internal sealed class CSharpSourceWriter
         {
             parts.Add(FormatElement(additional));
         }
+
         return $"({string.Join(", ", parts)})";
     }
 
@@ -7985,6 +8082,7 @@ internal sealed class CSharpSourceWriter
             {
                 AppendLine(binding);
             }
+
             pendingUnionPatternBindings.Clear();
         }
 
@@ -8139,6 +8237,7 @@ internal sealed class CSharpSourceWriter
                         : isTaskLike ? $"await {localName}" : $"{localName}.Drop()";
                     AppendLine($"if (!{flagName}) {chainedExpr};");
                 }
+
                 indentLevel--;
                 AppendLine("}");
                 _ = pendingBranchDrops.Remove(localName);
@@ -8167,6 +8266,7 @@ internal sealed class CSharpSourceWriter
                         : isTaskLike ? $"await {localName}" : $"{localName}.Drop()";
                     AppendLine($"{chainedExpr};");
                 }
+
                 indentLevel--;
                 AppendLine("}");
                 break;
@@ -8798,6 +8898,7 @@ internal sealed class CSharpSourceWriter
                 }
             }
         }
+
         return false;
     }
 
@@ -8883,6 +8984,7 @@ internal sealed class CSharpSourceWriter
                 return true;
             }
         }
+
         return false;
     }
 
@@ -9038,6 +9140,7 @@ internal sealed class CSharpSourceWriter
             {
                 kinds.Add(param is Symbol ps ? ps.RefKind : RefKind.None);
             }
+
             return kinds;
         }
 
@@ -9170,6 +9273,7 @@ internal sealed class CSharpSourceWriter
                 return true;
             }
         }
+
         return false;
     }
 
@@ -9188,6 +9292,7 @@ internal sealed class CSharpSourceWriter
                 return true;
             }
         }
+
         return false;
     }
 
@@ -9219,6 +9324,7 @@ internal sealed class CSharpSourceWriter
                 return true;
             }
         }
+
         return false;
     }
 
@@ -9236,6 +9342,7 @@ internal sealed class CSharpSourceWriter
                 return true;
             }
         }
+
         return false;
     }
 
@@ -9253,6 +9360,7 @@ internal sealed class CSharpSourceWriter
                 return true;
             }
         }
+
         return false;
     }
 
@@ -9272,6 +9380,7 @@ internal sealed class CSharpSourceWriter
                 return true;
             }
         }
+
         return false;
     }
 
@@ -9295,6 +9404,7 @@ internal sealed class CSharpSourceWriter
                 return true;
             }
         }
+
         return false;
     }
 
@@ -9339,6 +9449,7 @@ internal sealed class CSharpSourceWriter
                 return true;
             }
         }
+
         return false;
     }
 
@@ -9470,6 +9581,7 @@ internal sealed class CSharpSourceWriter
         {
             result.Add(expr);
         }
+
         return result;
     }
 
@@ -9536,6 +9648,7 @@ internal sealed class CSharpSourceWriter
                     {
                         AppendLine($"MistContext.Push<{contextTypeName}>({init});");
                     }
+
                     break;
                 }
             case WithPushStatementStatementNode withPushStmt:
@@ -9552,6 +9665,7 @@ internal sealed class CSharpSourceWriter
                     {
                         AppendLine($"MistContext.Push<{contextTypeName}>({value});");
                     }
+
                     break;
                 }
         }
@@ -9570,6 +9684,7 @@ internal sealed class CSharpSourceWriter
         {
             EmitWithBlockDropCall(dropTarget, boundType);
         }
+
         indentLevel--;
         AppendLine("}");
     }
@@ -9638,6 +9753,7 @@ internal sealed class CSharpSourceWriter
         {
             type = alias.UnderlyingType;
         }
+
         return type;
     }
 
@@ -9689,6 +9805,7 @@ internal sealed class CSharpSourceWriter
         {
             EmitWithBlockDropCall(dropTarget, type!);
         }
+
         indentLevel--;
         AppendLine("}");
     }
@@ -9722,6 +9839,7 @@ internal sealed class CSharpSourceWriter
         {
             EmitWithBlockDropCall(name, type!);
         }
+
         indentLevel--;
         AppendLine("}");
         indentLevel--;
@@ -9912,11 +10030,13 @@ internal sealed class CSharpSourceWriter
                 {
                     break;
                 }
+
                 {
                     var exprResult = EmitExpression(exprStmt.ExpressionStatement.Expression);
                     FlushPendingArrayInitStatements();
                     AppendLine($"{exprResult};");
                 }
+
                 break;
             // Task 12.5 — Readonly blocks emit as regular blocks (no C# equivalent).
             case ReadonlyBlockStatementStatementNode readonlyBlockStmt:
@@ -10067,6 +10187,7 @@ internal sealed class CSharpSourceWriter
                     {
                         AppendLine($"{refPrefix}var {name} = {refInitPrefix}{init};");
                     }
+
                     break;
                 }
             case VarTupleDeconstructionVariableDeclarationStatementNode varTuple:
@@ -10077,6 +10198,7 @@ internal sealed class CSharpSourceWriter
                     {
                         names.Add(restName.Lexeme);
                     }
+
                     var init = EmitExpression(varTuple.Initializer);
                     AppendLine($"var ({string.Join(", ", names)}) = {init};");
                     break;
@@ -10215,6 +10337,7 @@ internal sealed class CSharpSourceWriter
                     AppendLine($"{localName}.Drop();");
                 }
             }
+
             AppendLine($"{flagName} = true;");
         }
 
@@ -10238,6 +10361,7 @@ internal sealed class CSharpSourceWriter
                     {
                         EmitElseClauseWithBranchDrops(elseIf.ElseIf.ElseBranch);
                     }
+
                     break;
                 }
             case ElseBlockElseClauseNode elseBlock:
@@ -10260,6 +10384,7 @@ internal sealed class CSharpSourceWriter
                     {
                         EmitElseClause(elseIf.ElseIf.ElseBranch);
                     }
+
                     break;
                 }
             case ElseBlockElseClauseNode elseBlock:
@@ -11071,6 +11196,7 @@ internal sealed class CSharpSourceWriter
                 return UnionHelperGenerator.GetConstituentCSharpName(constituent);
             }
         }
+
         return null;
     }
 
@@ -11503,6 +11629,7 @@ internal sealed class CSharpSourceWriter
                 {
                     parts.Add($"{scrutineeExpr} == {EmitConstantLiteral(constant.Literal)}");
                 }
+
                 break;
             case PropertyPatternPrimaryPatternNode propertyPattern:
                 EmitPropertyPatternConditions(propertyPattern, scrutineeExpr, parts);
@@ -11939,6 +12066,7 @@ internal sealed class CSharpSourceWriter
                         _ = sb.Append(EmitPropertySubpatternList(propertyPattern.Subpatterns));
                         _ = sb.Append(' ');
                     }
+
                     _ = sb.Append('}');
 
                     if(propertyPattern.Name.HasValue)
@@ -12136,6 +12264,7 @@ internal sealed class CSharpSourceWriter
                             break;
                         }
                     }
+
                     return $"System.Threading.Tasks.Task.Run(() => {retExpr})";
                 }
             case AsyncHintBlockExpressionUnaryNode asyncHintBlock:
@@ -12150,6 +12279,7 @@ internal sealed class CSharpSourceWriter
                             break;
                         }
                     }
+
                     var hint = asyncHintBlock.Hint.Lexeme;
                     if(hint == "valuetask")
                     {
@@ -12160,8 +12290,10 @@ internal sealed class CSharpSourceWriter
                         {
                             typeArgName = CSharpTypeMap.GetTypeName(ct.TypeArguments[0]);
                         }
+
                         return $"new System.Threading.Tasks.ValueTask<{typeArgName}>({retExpr})";
                     }
+
                     return $"System.Threading.Tasks.Task.Run(() => {retExpr})";
                 }
             default:
@@ -12387,6 +12519,7 @@ internal sealed class CSharpSourceWriter
                 }
             }
         }
+
         return expression;
     }
 
@@ -12799,6 +12932,7 @@ internal sealed class CSharpSourceWriter
                 primaryResult = $"await {primaryResult}";
             }
         }
+
         return primaryResult;
     }
 
@@ -13087,6 +13221,7 @@ internal sealed class CSharpSourceWriter
                                         templateArgs.Add(EmitExpression(argExpr));
                                     }
                                 }
+
                                 return string.Format(instanceTemplate.Template, templateArgs.ToArray());
                             }
                         }
@@ -13164,6 +13299,7 @@ internal sealed class CSharpSourceWriter
                         {
                             return "null";
                         }
+
                         needsMistVoidStruct = true;
                         return "MistVoid.Instance";
                     }
@@ -13236,6 +13372,7 @@ internal sealed class CSharpSourceWriter
                                     {
                                         _ = sb.Append($" when {EmitVoidCoalescing(arm.Guard.Condition)}");
                                     }
+
                                     _ = sb.Append($" => {EmitExpression(arm.Result)},");
                                     return;
                                 }
@@ -13253,6 +13390,7 @@ internal sealed class CSharpSourceWriter
                                     // Combine the refinement guard with the user's guard.
                                     _ = sb.Append($" && {EmitVoidCoalescing(arm.Guard.Condition)}");
                                 }
+
                                 _ = sb.Append($" => {EmitExpression(arm.Result)},");
                                 return;
                             }
@@ -13268,6 +13406,7 @@ internal sealed class CSharpSourceWriter
                                     // Combine the regex guard with the user's guard.
                                     _ = sb.Append($" && {EmitVoidCoalescing(arm.Guard.Condition)}");
                                 }
+
                                 _ = sb.Append($" => {EmitExpression(arm.Result)},");
                                 return;
                             }
@@ -13277,6 +13416,7 @@ internal sealed class CSharpSourceWriter
                             {
                                 _ = sb.Append($" when {EmitVoidCoalescing(arm.Guard.Condition)}");
                             }
+
                             _ = sb.Append($" => {EmitExpression(arm.Result)},");
                         }
 
@@ -13348,6 +13488,7 @@ internal sealed class CSharpSourceWriter
         {
             return declaredSymbol;
         }
+
         return null;
     }
 
@@ -13432,6 +13573,7 @@ internal sealed class CSharpSourceWriter
                 types.Add(qualifiedName ?? exprType.DisplayName);
             }
         }
+
         return types;
     }
 
@@ -13592,6 +13734,7 @@ internal sealed class CSharpSourceWriter
                                 {
                                     factoryName = GetFactoryFieldName(typeParamType, matchingConstraint);
                                 }
+
                                 var args = EmitArgumentList(objCreation.Arguments);
                                 return $"{factoryName}({args})";
                             }
@@ -13692,6 +13835,7 @@ internal sealed class CSharpSourceWriter
                                 initParts.Add(EmitPropertyAssignmentEntry(assignment));
                             }
                         }
+
                         return $"new {type}{typeArgs}({argsStr}) {{ {string.Join(", ", initParts)} }}";
                     }
 
@@ -13711,6 +13855,7 @@ internal sealed class CSharpSourceWriter
                             initParts.Add(EmitPropertyAssignmentEntry(assignment));
                         }
                     }
+
                     return $"new {type}{typeArgs}() {{ {string.Join(", ", initParts)} }}";
                 }
             case TargetTypedNewExpressionPrimaryNode targetNew:
@@ -13736,8 +13881,10 @@ internal sealed class CSharpSourceWriter
                                 initParts.Add(EmitPropertyAssignmentEntry(assignment));
                             }
                         }
+
                         return $"new {typeName}({args}) {{ {string.Join(", ", initParts)} }}";
                     }
+
                     return $"new {typeName}({args})";
                 }
             case TargetTypedNewExpressionNoArgsPrimaryNode targetNewNoArgs:
@@ -13759,6 +13906,7 @@ internal sealed class CSharpSourceWriter
                             initParts.Add(EmitPropertyAssignmentEntry(assignment));
                         }
                     }
+
                     return $"new {typeName}() {{ {string.Join(", ", initParts)} }}";
                 }
             case AnonymousTypeExpressionPrimaryNode anonType:
@@ -13877,6 +14025,7 @@ internal sealed class CSharpSourceWriter
                             return mapped;
                         }
                     }
+
                     if(resolvedType is StructType st && st.IsBackendBacked && st.ContainingNamespace == "Standard")
                     {
                         var mapped = CSharpTypeMap.TryGetMappedName(identName);
@@ -14024,6 +14173,7 @@ internal sealed class CSharpSourceWriter
                     {
                         _ = sb.Append(interpolatedExpr);
                     }
+
                     _ = sb.Append('}');
                     break;
             }
@@ -14106,6 +14256,7 @@ internal sealed class CSharpSourceWriter
                 emitted = true;
             }
         }
+
         return emitted;
     }
 
@@ -14124,6 +14275,7 @@ internal sealed class CSharpSourceWriter
         {
             parts.Add(EmitSingleTypeParameterName(tp));
         }
+
         return $"<{string.Join(", ", parts)}>";
     }
 
@@ -14174,8 +14326,10 @@ internal sealed class CSharpSourceWriter
                 try { expectedKeyword = CSharpTypeMap.GetKeyword(depParam.ValueType); }
                 catch { /* ignore if type can't be mapped */ }
             }
+
             parts.Add(EmitSingleTypeArgument(allArgs[i], expectedKeyword));
         }
+
         return $"<{string.Join(", ", parts)}>";
     }
 
@@ -14199,6 +14353,7 @@ internal sealed class CSharpSourceWriter
         {
             parts.Add(CSharpTypeMap.GetTypeName(type));
         }
+
         return $"<{string.Join(", ", parts)}>";
     }
 
@@ -14222,6 +14377,7 @@ internal sealed class CSharpSourceWriter
         {
             return model.GetTypeOf(typeRefArg.Type);
         }
+
         return null;
     }
 
@@ -14357,6 +14513,7 @@ internal sealed class CSharpSourceWriter
                 : value.ToString(System.Globalization.CultureInfo.InvariantCulture);
             return $"Const_{typePrefix}_{suffix}";
         }
+
         return $"Const_{typePrefix}_{(negated ? "Neg" : "")}{lexeme}";
     }
 
@@ -14374,6 +14531,7 @@ internal sealed class CSharpSourceWriter
         {
             return $"Const_{typePrefix}_{value.ToString(System.Globalization.CultureInfo.InvariantCulture)}";
         }
+
         return $"Const_{typePrefix}_{lexeme}";
     }
 
@@ -14435,6 +14593,7 @@ internal sealed class CSharpSourceWriter
                 }
             }
         }
+
         return null;
     }
 
@@ -14477,6 +14636,7 @@ internal sealed class CSharpSourceWriter
                 : $"0x{((int)c).ToString("X2", System.Globalization.CultureInfo.InvariantCulture)}";
             return $"Const_Char_{suffix}";
         }
+
         return $"Const_Char_{lexeme}";
     }
 
@@ -14493,6 +14653,7 @@ internal sealed class CSharpSourceWriter
         {
             parts.Add(EmitBaseTypeRef(rest));
         }
+
         return string.Join(", ", parts);
     }
 
@@ -14507,6 +14668,7 @@ internal sealed class CSharpSourceWriter
         {
             parts.Add(EmitBaseTypeRef(rest));
         }
+
         return string.Join(", ", parts);
     }
 
@@ -14527,6 +14689,7 @@ internal sealed class CSharpSourceWriter
         {
             parts.Add(EmitBaseTypeRefWithAssociatedTypes(rest, implementorScope, implementorClassType, implementorName, implementorTypeParams));
         }
+
         return string.Join(", ", parts);
     }
 
@@ -14538,6 +14701,7 @@ internal sealed class CSharpSourceWriter
         {
             parts.Add(rest.Name.Lexeme);
         }
+
         return string.Join(", ", parts);
     }
 
@@ -14892,6 +15056,7 @@ internal sealed class CSharpSourceWriter
         {
             AppendLine(assignment);
         }
+
         indentLevel--;
         AppendLine("}");
     }
@@ -14948,6 +15113,7 @@ internal sealed class CSharpSourceWriter
                 parameters.Add($"Func<{typeParam.Name}> __default{typeParam.Name}");
             }
         }
+
         return parameters.Count > 0 ? string.Join(", ", parameters) : "";
     }
 
@@ -15003,6 +15169,7 @@ internal sealed class CSharpSourceWriter
                 types.Add(t);
             }
         }
+
         return types;
     }
 
@@ -15120,6 +15287,7 @@ internal sealed class CSharpSourceWriter
                 slots.Add(slotType);
             }
         }
+
         return slots;
     }
 
@@ -15134,6 +15302,7 @@ internal sealed class CSharpSourceWriter
         {
             substitutions[slot.DisplayName] = $"T{slot.DisplayName}";
         }
+
         return substitutions;
     }
 
@@ -15342,6 +15511,7 @@ internal sealed class CSharpSourceWriter
                     args.Add(CSharpTypeMap.GetTypeName(arg));
                 }
             }
+
             return $"{baseName}<{string.Join(", ", args)}>";
         }
 
@@ -15369,6 +15539,7 @@ internal sealed class CSharpSourceWriter
                 parts.Add($"{type} {paramName}");
             }
         }
+
         return string.Join(", ", parts);
     }
 
@@ -15450,6 +15621,7 @@ internal sealed class CSharpSourceWriter
                 existingArgs.Add(EmitSingleTypeArgument(argNode));
             }
         }
+
         existingArgs.AddRange(concreteTypeArgs);
 
         return $"{baseName}<{string.Join(", ", existingArgs)}>";
@@ -15472,6 +15644,7 @@ internal sealed class CSharpSourceWriter
         {
             parts.Add(EmitBaseTypeRefWithAssociatedTypes(rest, implementorScope, implementorClassType, implementorName, implementorTypeParams));
         }
+
         return string.Join(", ", parts);
     }
 
@@ -15503,6 +15676,7 @@ internal sealed class CSharpSourceWriter
                 fallback ??= symbol.DeclaredType;
             }
         }
+
         return fallback;
     }
 
@@ -15567,6 +15741,7 @@ internal sealed class CSharpSourceWriter
                 existingArgs.Add(CSharpTypeMap.GetTypeName(arg));
             }
         }
+
         existingArgs.AddRange(concreteTypeArgs);
 
         return $"{baseName}<{string.Join(", ", existingArgs)}>";
@@ -15722,6 +15897,7 @@ internal sealed class CSharpSourceWriter
             {
                 _ = sb.Append(IndentUnit);
             }
+
             _ = sb.AppendLine(text);
         }
     }

@@ -113,6 +113,7 @@ public class KeywordBypassesScopingPropertyTests
 
             asts.Add(parseResult.Root);
         }
+
         return (units, asts.ToImmutable());
     });
 

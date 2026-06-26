@@ -328,6 +328,7 @@ internal sealed class IntrinsicEmissionTable : IIntrinsicEmissionRegistry
                 return true;
             }
         }
+
         return false;
     }
 }

@@ -93,6 +93,7 @@ namespace Storm.SourceGenerator.Frontend
                     {
                         i++;
                     }
+
                     starts.Add(i + 1);
                 }
             }

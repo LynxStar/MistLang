@@ -47,6 +47,7 @@ public sealed partial class AbstractEmissionPropertyTests : IDisposable
         {
             try { Directory.Delete(outputDir, recursive: true); } catch { /* best effort */ }
         }
+
         GC.SuppressFinalize(this);
     }
 
@@ -451,6 +452,7 @@ public sealed partial class AbstractEmissionPropertyTests : IDisposable
             {
                 _ = sb.AppendLine($"    void {method}();");
             }
+
             _ = sb.AppendLine("}");
         }
 

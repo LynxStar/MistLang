@@ -90,6 +90,7 @@ public sealed class EnumPatternMatchingPropertyTests : IDisposable
         {
             try { Directory.Delete(outputDir, recursive: true); } catch { /* best effort */ }
         }
+
         GC.SuppressFinalize(this);
     }
 
@@ -149,6 +150,7 @@ public sealed class EnumPatternMatchingPropertyTests : IDisposable
                 var comma = i < members.Count - 1 ? "," : "";
                 _ = sb.AppendLine($"    {members[i].Name} = {members[i].Value}{comma}");
             }
+
             _ = sb.AppendLine("}");
             _ = sb.AppendLine();
         }
@@ -235,6 +237,7 @@ public sealed class EnumPatternMatchingPropertyTests : IDisposable
             if(!process.WaitForExit(30_000))
             {
                 try { process.Kill(entireProcessTree: true); } catch { /* best effort */ }
+
                 return (-1, "", "Process timed out after 30 seconds");
             }
 

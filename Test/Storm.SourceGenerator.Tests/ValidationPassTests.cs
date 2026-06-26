@@ -22,6 +22,7 @@ namespace Storm.SourceGenerator.Tests
                 {
                     return contents;
                 }
+
                 return null;
             };
         }

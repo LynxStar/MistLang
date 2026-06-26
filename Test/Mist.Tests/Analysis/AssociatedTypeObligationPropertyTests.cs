@@ -247,6 +247,7 @@ public class AssociatedTypeObligationPropertyTests
         {
             _ = sb.AppendLine($"    type {slot.Name} : {slot.ConstraintText};");
         }
+
         _ = sb.AppendLine("}");
         _ = sb.AppendLine();
 

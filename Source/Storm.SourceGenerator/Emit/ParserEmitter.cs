@@ -448,6 +448,7 @@ namespace Storm.SourceGenerator.Emit
             {
                 writer.WriteLine($"node.{propName} = {localVar};");
             }
+
             writer.WriteLine($"node.Span = Span({spVar});");
             writer.WriteLine($"node = AttachHidden(node, {spVar}, _pos);");
             writer.WriteLine("return node;");
@@ -472,6 +473,7 @@ namespace Storm.SourceGenerator.Emit
                 {
                     writer.WriteLine($"node.{propName} = {localVar};");
                 }
+
                 writer.WriteLine($"node.Span = Span({spVar});");
                 writer.WriteLine($"node = AttachHidden(node, {spVar}, _pos);");
                 writer.WriteLine("return node;");
@@ -502,6 +504,7 @@ namespace Storm.SourceGenerator.Emit
                     {
                         EmitFullExprParse(writer, context, elem, labelMap, assignedProps, withCheck, okVar);
                     }
+
                     break;
 
                 case TokenRefIR tokenRef:
@@ -516,6 +519,7 @@ namespace Storm.SourceGenerator.Emit
                         {
                             writer.WriteLine($"Require((int){kind});");
                         }
+
                         break;
                     }
 
@@ -532,6 +536,7 @@ namespace Storm.SourceGenerator.Emit
                         {
                             writer.WriteLine($"var {localVar} = _Parse{ruleRef.Rule.Name}();");
                         }
+
                         assignedProps.Add((propName, localVar));
                         break;
                     }
@@ -552,6 +557,7 @@ namespace Storm.SourceGenerator.Emit
                                 writer.WriteLine($"Require((int){kind});");
                             }
                         }
+
                         break;
                     }
 
@@ -602,6 +608,7 @@ namespace Storm.SourceGenerator.Emit
                                 writer.WriteLine("_diagnostics?.TruncateTo(_optSavedDiagCount);");
                             });
                         }
+
                         break;
                     }
 
@@ -666,6 +673,7 @@ namespace Storm.SourceGenerator.Emit
                             {
                                 parsedItemVar = "_parsed" + PascalCase(starRuleRef.Rule.Name);
                             }
+
                             writer.WriteLine($"var {ruleBuilderVar} = ImmutableArray.CreateBuilder<{nodeType}>();");
                         }
 
@@ -721,6 +729,7 @@ namespace Storm.SourceGenerator.Emit
                             writer.WriteLine($"var {finalVar} = {builderVar}.ToImmutable();");
                             assignedProps.Add((propName, finalVar));
                         }
+
                         break;
                     }
 
@@ -774,6 +783,7 @@ namespace Storm.SourceGenerator.Emit
                             {
                                 parsedItemVar = "_parsed" + PascalCase(plusRuleRef.Rule.Name);
                             }
+
                             writer.WriteLine($"var {ruleBuilderVar} = ImmutableArray.CreateBuilder<{nodeType}>();");
                         }
 
@@ -839,6 +849,7 @@ namespace Storm.SourceGenerator.Emit
                             writer.WriteLine($"var {finalVar} = {builderVar}.ToImmutable();");
                             assignedProps.Add((propName, finalVar));
                         }
+
                         break;
                     }
 
@@ -866,6 +877,7 @@ namespace Storm.SourceGenerator.Emit
                     {
                         CollectLabeledExprs(elem, labelMap, result);
                     }
+
                     break;
                 case OptionalIR opt:
                     CollectLabeledExprs(opt.Inner, labelMap, result);
@@ -1003,6 +1015,7 @@ namespace Storm.SourceGenerator.Emit
                     {
                         EmitFullExprParseAssignOnly(writer, context, elem, labelMap, assignedProps, withCheck, okVar);
                     }
+
                     break;
 
                 case TokenRefIR tokenRef:
@@ -1017,6 +1030,7 @@ namespace Storm.SourceGenerator.Emit
                         {
                             writer.WriteLine($"Require((int){kind});");
                         }
+
                         break;
                     }
 
@@ -1036,6 +1050,7 @@ namespace Storm.SourceGenerator.Emit
                                 writer.WriteLine($"Require((int){kind});");
                             }
                         }
+
                         break;
                     }
 
@@ -1060,6 +1075,7 @@ namespace Storm.SourceGenerator.Emit
                         {
                             writer.WriteLine($"var {parsedVar} = _Parse{ruleRef.Rule.Name}();");
                         }
+
                         break;
                     }
 
@@ -1087,6 +1103,7 @@ namespace Storm.SourceGenerator.Emit
                         {
                             writer.WriteLine($"_{varName} = Require((int){kind});");
                         }
+
                         break;
                     }
 
@@ -1104,6 +1121,7 @@ namespace Storm.SourceGenerator.Emit
                         {
                             writer.WriteLine($"_{varName} = _Parse{ruleRef.Rule.Name}();");
                         }
+
                         break;
                     }
 
@@ -1136,10 +1154,12 @@ namespace Storm.SourceGenerator.Emit
                                 }
                             }
                         }
+
                         if(withCheck)
                         {
                             writer.WriteBlock("if (!_altFound)", () => writer.WriteLine($"{okVar} = false;"));
                         }
+
                         break;
                     }
 
@@ -1160,6 +1180,7 @@ namespace Storm.SourceGenerator.Emit
                             writer.WriteLine($"_{varName} = {builderVar}.ToImmutable();");
                             writer.WriteLine("_hasError = false;");
                         }
+
                         break;
                     }
 
@@ -1187,6 +1208,7 @@ namespace Storm.SourceGenerator.Emit
                         {
                             writer.WriteLine($"var _{varName} = Require((int){kind});");
                         }
+
                         break;
                     }
 
@@ -1201,6 +1223,7 @@ namespace Storm.SourceGenerator.Emit
                         {
                             writer.WriteLine($"var _{varName} = _Parse{ruleRef.Rule.Name}();");
                         }
+
                         break;
                     }
 
@@ -1223,6 +1246,7 @@ namespace Storm.SourceGenerator.Emit
                         {
                             writer.WriteBlock($"if (_{varName}.Length == 0)", () => writer.WriteLine($"{okVar} = false;"));
                         }
+
                         break;
                     }
 
@@ -1259,6 +1283,7 @@ namespace Storm.SourceGenerator.Emit
                         {
                             writer.WriteLine($"var _{varName} = Cur(); // unresolved literal \"{LexerEmitter.EscapeStringForCSharp(lit.Value)}\"");
                         }
+
                         break;
                     }
 
@@ -1288,6 +1313,7 @@ namespace Storm.SourceGenerator.Emit
                         {
                             writer.WriteLine($"var _{varName} = Match((int){kind});");
                         }
+
                         break;
                     }
                 case RuleRefIR ruleRef:
@@ -1306,6 +1332,7 @@ namespace Storm.SourceGenerator.Emit
                         {
                             writer.WriteLine($"var _{varName} = _Parse{ruleRef.Rule.Name}();");
                         }
+
                         writer.WriteBlock($"if (_{varName} == null)", () =>
                         {
                             writer.WriteLine($"_pos = _optRuleSaved_{varName};");
@@ -1409,6 +1436,7 @@ namespace Storm.SourceGenerator.Emit
                                 }
                             });
                         }
+
                         break;
                     }
                 default:
@@ -1482,6 +1510,7 @@ namespace Storm.SourceGenerator.Emit
                     {
                         writer.WriteBlock($"if (_{varName} == null)", () => writer.WriteLine($"{okVar} = false;"));
                     }
+
                     found = true;
                 }
                 else if(elem is TokenRefIR tokenRef)
@@ -1494,6 +1523,7 @@ namespace Storm.SourceGenerator.Emit
                         {
                             writer.WriteBlock($"if (_{varName} == null)", () => writer.WriteLine($"{okVar} = false;"));
                         }
+
                         found = true;
                     }
                     else
@@ -1511,6 +1541,7 @@ namespace Storm.SourceGenerator.Emit
                     }
                 }
             }
+
             if(!found)
             {
                 writer.WriteLine($"object? _{varName} = null;");
@@ -1720,6 +1751,7 @@ namespace Storm.SourceGenerator.Emit
                     });
                 }
             }
+
             if(withCheck)
             {
                 writer.WriteBlock("if (!_altFound)", () => writer.WriteLine($"{okVar} = false;"));
@@ -1737,6 +1769,7 @@ namespace Storm.SourceGenerator.Emit
                     return token;
                 }
             }
+
             return null;
         }
 
@@ -1764,6 +1797,7 @@ namespace Storm.SourceGenerator.Emit
                 result = name + counter;
                 counter++;
             }
+
             return result;
         }
     }

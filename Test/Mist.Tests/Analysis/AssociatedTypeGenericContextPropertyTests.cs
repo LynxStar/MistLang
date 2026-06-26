@@ -204,6 +204,7 @@ public class AssociatedTypeGenericContextPropertyTests
         {
             _ = sb.AppendLine($"    type {scenario.SlotName};");
         }
+
         _ = sb.AppendLine("}");
         _ = sb.AppendLine();
 

@@ -233,6 +233,7 @@ public sealed class ConditionalMoveBranchDropTests : IDisposable
                 return i;
             }
         }
+
         return -1;
     }
 

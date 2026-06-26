@@ -37,6 +37,7 @@ public static class ArgumentListNodeExtensions
         {
             builder.Add(ExtractExpression(arg));
         }
+
         return builder.MoveToImmutable();
     }
 
@@ -51,6 +52,7 @@ public static class ArgumentListNodeExtensions
         {
             builder.Add(ExtractExpression(arg));
         }
+
         return builder.MoveToImmutable();
     }
 

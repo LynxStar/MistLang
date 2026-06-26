@@ -124,6 +124,7 @@ public sealed class MistPrettyPrinter
                     {
                         EmitNamespaceBodyItem(bodyItem);
                     }
+
                     break;
                 }
             case BlockNamespaceNamespaceDeclarationNode blockNs:
@@ -198,6 +199,7 @@ public sealed class MistPrettyPrinter
             {
                 parts.Add(EmitRefinableSingle(constituent));
             }
+
             return string.Join(" | ", parts);
         }
 
@@ -256,6 +258,7 @@ public sealed class MistPrettyPrinter
         {
             baseClause = $" : {EmitBaseList(classDecl.BaseList)}";
         }
+
         var constraints = EmitConstraintClauses(classDecl.Constraints);
         AppendLine($"{modifiers}class {name}{typeParams}{baseClause}{constraints} {{");
         indentLevel++;
@@ -276,6 +279,7 @@ public sealed class MistPrettyPrinter
         {
             abstractClause = $" : {EmitBaseList(structDecl.Abstracts)}";
         }
+
         var constraints = EmitConstraintClauses(structDecl.Constraints);
         AppendLine($"{modifiers}struct {name}{typeParams}{abstractClause}{constraints} {{");
         indentLevel++;
@@ -295,6 +299,7 @@ public sealed class MistPrettyPrinter
         {
             abstractClause = $" : {EmitBaseList(abstractDecl.Abstracts)}";
         }
+
         var constraints = EmitConstraintClauses(abstractDecl.Constraints);
         AppendLine($"abstract {name}{typeParams}{abstractClause}{constraints} {{");
         indentLevel++;
@@ -328,6 +333,7 @@ public sealed class MistPrettyPrinter
             {
                 AppendLine();
             }
+
             EmitMemberDeclaration(members[i]);
         }
     }
@@ -621,6 +627,7 @@ public sealed class MistPrettyPrinter
                     {
                         return $"return {EmitExpression(returnStmt.ReturnStatement.Value)};";
                     }
+
                     return "return;";
                 }
             case ExpressionStatementStatementNode exprStmt:
@@ -807,8 +814,10 @@ public sealed class MistPrettyPrinter
                                 var nestedValue = EmitExpression(nested.Value);
                                 overrides.Add($"{nestedFieldName} = {nestedValue}");
                             }
+
                             AppendLine($"{fieldName}: {typeName} {{ {string.Join(", ", overrides)} }}");
                         }
+
                         break;
                     }
             }
@@ -1115,6 +1124,7 @@ public sealed class MistPrettyPrinter
             {
                 parts.Add(EmitSingleTypeRef(constituent));
             }
+
             return string.Join(" | ", parts);
         }
 
@@ -1136,6 +1146,7 @@ public sealed class MistPrettyPrinter
                     {
                         return $"{keyword}[]";
                     }
+
                     return keyword;
                 }
             case VoidSingleTypeRefSingleTypeRefNode:
@@ -1154,6 +1165,7 @@ public sealed class MistPrettyPrinter
                     {
                         return $"{name}{typeArgs}[]";
                     }
+
                     return $"{name}{typeArgs}";
                 }
             case ParenthesizedTypeRefSingleTypeRefNode parenRef:
@@ -1167,6 +1179,7 @@ public sealed class MistPrettyPrinter
                     {
                         return $"({inner})[]";
                     }
+
                     return $"({inner})";
                 }
             case TupleSingleTypeRefSingleTypeRefNode tupleRef:
@@ -1257,6 +1270,7 @@ public sealed class MistPrettyPrinter
                 {
                     EmitStatement(bodyStmt);
                 }
+
                 indentLevel--;
                 AppendLine("}");
                 break;
@@ -1267,6 +1281,7 @@ public sealed class MistPrettyPrinter
                 {
                     EmitStatement(bodyStmt);
                 }
+
                 indentLevel--;
                 AppendLine("}");
                 break;
@@ -1330,6 +1345,7 @@ public sealed class MistPrettyPrinter
         {
             EmitStatement(bodyStmt);
         }
+
         indentLevel--;
         AppendLine("}");
     }
@@ -1360,6 +1376,7 @@ public sealed class MistPrettyPrinter
                     break;
             }
         }
+
         return sb.ToString();
     }
 
@@ -1394,6 +1411,7 @@ public sealed class MistPrettyPrinter
                     {
                         names.Add(restName.Lexeme);
                     }
+
                     var init = EmitExpression(varTuple.Initializer);
                     AppendLine($"{readonlyPrefix}var ({string.Join(", ", names)}) = {init};");
                     break;
@@ -1484,6 +1502,7 @@ public sealed class MistPrettyPrinter
                     {
                         AppendLine("}");
                     }
+
                     break;
                 }
             case ElseBlockElseClauseNode elseBlock:
@@ -1702,6 +1721,7 @@ public sealed class MistPrettyPrinter
             {
                 parts.Add(EmitLogicalOr(right));
             }
+
             return string.Join(" ?? ", parts);
         }
 
@@ -1802,6 +1822,7 @@ public sealed class MistPrettyPrinter
         {
             parts.Add(EmitAndPattern(part));
         }
+
         return string.Join(" or ", parts);
     }
 
@@ -1817,6 +1838,7 @@ public sealed class MistPrettyPrinter
                 {
                     parts.Add(EmitUnaryPattern(rest));
                 }
+
                 return "and " + string.Join(" and ", parts);
             default:
                 return "<unknown-refinement>";
@@ -1837,6 +1859,7 @@ public sealed class MistPrettyPrinter
         {
             parts.Add(EmitUnaryPattern(part));
         }
+
         return string.Join(" and ", parts);
     }
 
@@ -1898,6 +1921,7 @@ public sealed class MistPrettyPrinter
                         _ = sb.Append(EmitPropertySubpatternList(propertyPattern.Subpatterns));
                         _ = sb.Append(' ');
                     }
+
                     _ = sb.Append('}');
 
                     if(propertyPattern.Name.HasValue)
@@ -1926,6 +1950,7 @@ public sealed class MistPrettyPrinter
                     {
                         elements.Add(EmitPattern(additional));
                     }
+
                     return $"({string.Join(", ", elements)})";
                 }
             case ParenthesizedPatternPrimaryPatternNode parenPattern:
@@ -2105,6 +2130,7 @@ public sealed class MistPrettyPrinter
                             {
                                 _ = builder.Append($" when {EmitVoidCoalescing(arm.Guard.Condition)}");
                             }
+
                             _ = builder.Append($" => {EmitExpression(arm.Result)}");
                             _ = builder.Append(',');
                         }
@@ -2174,6 +2200,7 @@ public sealed class MistPrettyPrinter
                         var assignments = EmitPropertyAssignmentList(objCreation.Initializer);
                         return $"new {type}{typeArgs}({args}) {{ {assignments} }}";
                     }
+
                     return $"new {type}{typeArgs}({args})";
                 }
             case ObjectCreationExpressionNoArgsPrimaryNode objCreationNoArgs:
@@ -2191,6 +2218,7 @@ public sealed class MistPrettyPrinter
                         var assignments = EmitPropertyAssignmentList(targetNew.Initializer);
                         return $"new({args}) {{ {assignments} }}";
                     }
+
                     return $"new({args})";
                 }
             case TargetTypedNewExpressionNoArgsPrimaryNode targetNewNoArgs:
@@ -2367,6 +2395,7 @@ public sealed class MistPrettyPrinter
         {
             parts.Add(EmitBaseTypeRef(rest));
         }
+
         return string.Join(", ", parts);
     }
 
@@ -2395,6 +2424,7 @@ public sealed class MistPrettyPrinter
         {
             parts.Add(EmitTypeParameter(tp));
         }
+
         return $"<{string.Join(", ", parts)}>";
     }
 
@@ -2429,6 +2459,7 @@ public sealed class MistPrettyPrinter
         {
             parts.Add(EmitTypeArgument(arg));
         }
+
         return $"<{string.Join(", ", parts)}>";
     }
 
@@ -2490,6 +2521,7 @@ public sealed class MistPrettyPrinter
                 _ = sb.Append(token.Lexeme);
             }
         }
+
         return sb.ToString();
     }
 
@@ -2526,6 +2558,7 @@ public sealed class MistPrettyPrinter
                     break;
             }
         }
+
         return sb.ToString();
     }
 
@@ -2540,6 +2573,7 @@ public sealed class MistPrettyPrinter
         {
             parts.Add(EmitConstraint(constraint));
         }
+
         return string.Join(", ", parts);
     }
 
@@ -2568,12 +2602,14 @@ public sealed class MistPrettyPrinter
                     {
                         return "new()";
                     }
+
                     var paramTypes = new List<string>();
                     paramTypes.Add(EmitTypeReference(ctorConstraint.ParamTypes.TypeReference));
                     foreach(var typeRef in ctorConstraint.ParamTypes.TypeReferences)
                     {
                         paramTypes.Add(EmitTypeReference(typeRef));
                     }
+
                     return $"new({string.Join(", ", paramTypes)})";
                 }
             case TypeConstraintConstraintNode typeConstraint:
@@ -2598,6 +2634,7 @@ public sealed class MistPrettyPrinter
         {
             parts.Add(EmitSinglePropertyAssignment(assignment));
         }
+
         return string.Join(", ", parts);
     }
 
@@ -2623,6 +2660,7 @@ public sealed class MistPrettyPrinter
             {
                 _ = sb.Append(IndentUnit);
             }
+
             _ = sb.AppendLine(text);
         }
     }

@@ -330,6 +330,7 @@ internal static class CSharpTypeMap
                 argParts[i] = GetTypeName(ct.TypeArguments[i], isValueContext);
             }
         }
+
         return $"{GetTypeName(ct.GenericDefinition, isValueContext)}<{string.Join(", ", argParts)}>";
     }
 
@@ -472,6 +473,7 @@ internal static class CSharpTypeMap
                 return true;
             }
         }
+
         return false;
     }
 
@@ -527,6 +529,7 @@ internal static class CSharpTypeMap
                 ? $"{elementTypeName} {name}"
                 : elementTypeName;
         }
+
         return $"({string.Join(", ", parts)})";
     }
 

@@ -433,6 +433,7 @@ public sealed class ReadonlyInferenceEngine
                             return true;
                         }
                     }
+
                     return false;
                 }
         }
@@ -637,6 +638,7 @@ public sealed class ReadonlyInferenceEngine
                             return false;
                         }
                     }
+
                     return true;
                 }
         }
@@ -678,6 +680,7 @@ public sealed class ReadonlyInferenceEngine
                                 return member is not null && member.Kind == SymbolKind.Field;
                             }
                         }
+
                         return false;
                     }
 
@@ -695,6 +698,7 @@ public sealed class ReadonlyInferenceEngine
                                 return member is not null && member.Kind == SymbolKind.Field;
                             }
                         }
+
                         return false;
                     }
 
@@ -710,6 +714,7 @@ public sealed class ReadonlyInferenceEngine
                             return true;
                         }
                     }
+
                     return false;
                 }
         }
@@ -752,6 +757,7 @@ public sealed class ReadonlyInferenceEngine
                                 }
                             }
                         }
+
                         return false;
                     }
 
@@ -772,6 +778,7 @@ public sealed class ReadonlyInferenceEngine
                                 }
                             }
                         }
+
                         return false;
                     }
 
@@ -787,6 +794,7 @@ public sealed class ReadonlyInferenceEngine
                             return true;
                         }
                     }
+
                     return false;
                 }
         }
@@ -924,8 +932,10 @@ public sealed class ReadonlyInferenceEngine
                         return m;
                     }
                 }
+
                 current = current.BaseType as ClassType;
             }
+
             return null;
         }
 

@@ -402,6 +402,7 @@ public sealed class ManualDropFieldCompletionTests : IDisposable
             count++;
             idx += pattern.Length;
         }
+
         return count;
     }
 }

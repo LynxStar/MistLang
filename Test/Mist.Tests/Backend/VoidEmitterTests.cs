@@ -41,6 +41,7 @@ public sealed class VoidEmitterTests : IDisposable
         {
             try { Directory.Delete(outputDir, recursive: true); } catch { /* best effort */ }
         }
+
         GC.SuppressFinalize(this);
     }
 
@@ -106,6 +107,7 @@ public sealed class VoidEmitterTests : IDisposable
         {
             argList = new ArgumentListNode { Argument = new ValueArgumentArgumentNode { Expression = args[0] } };
         }
+
         var suffix = new InvocationSuffixPostfixSuffixNode { Arguments = argList };
         var postfix = new PostfixNode
         {

@@ -225,6 +225,7 @@ public sealed class MethodFlowState
                 {
                     MoveLocations[symbol] = otherSpan;
                 }
+
                 continue;
             }
 
@@ -349,6 +350,7 @@ public sealed class MethodFlowState
                         VariableStates[entry.Lender] = VariableOwnershipState.Live;
                     }
                 }
+
                 break;
 
             case OwnershipTier.ReadonlyRef:
@@ -362,6 +364,7 @@ public sealed class MethodFlowState
                     }
                     // If frozen borrows remain, stay in LentFrozen (already set).
                 }
+
                 break;
         }
     }
@@ -378,6 +381,7 @@ public sealed class MethodFlowState
                 return true;
             }
         }
+
         return false;
     }
 
@@ -393,6 +397,7 @@ public sealed class MethodFlowState
                 return true;
             }
         }
+
         return false;
     }
 
@@ -408,6 +413,7 @@ public sealed class MethodFlowState
                 return true;
             }
         }
+
         return false;
     }
 
@@ -424,6 +430,7 @@ public sealed class MethodFlowState
         {
             return state;
         }
+
         return null;
     }
 
@@ -473,6 +480,7 @@ public sealed class MethodFlowState
                 max = state;
             }
         }
+
         return max;
     }
 
@@ -509,6 +517,7 @@ public sealed class MethodFlowState
         {
             fields[field] = VariableOwnershipState.Live;
         }
+
         FieldStates[parent] = fields;
     }
 

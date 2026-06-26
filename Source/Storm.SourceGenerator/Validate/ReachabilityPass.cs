@@ -127,6 +127,7 @@ public static class ReachabilityPass
         {
             _ = result.Add(string.Join(" ", prefix));
         }
+
         return result;
     }
 
@@ -160,16 +161,19 @@ public static class ReachabilityPass
                     {
                         return new List<List<string>> { new List<string> { "tok:" + refExpr.Name } };
                     }
+
                     if(resolved is StormFragmentDecl)
                     {
                         return new List<List<string>> { new List<string> { "frag:" + refExpr.Name } };
                     }
+
                     if(resolved is StormRuleDecl ruleDecl && visited.Add(refExpr.Name))
                     {
                         var result = ComputePrefixes(ruleDecl.Body, grammar, k, visited);
                         _ = visited.Remove(refExpr.Name);
                         return result;
                     }
+
                     return new List<List<string>> { new List<string>() };
                 }
 
@@ -181,16 +185,19 @@ public static class ReachabilityPass
                     {
                         return new List<List<string>> { new List<string> { "tok:" + qualName } };
                     }
+
                     if(qualResolved is StormFragmentDecl)
                     {
                         return new List<List<string>> { new List<string> { "frag:" + qualName } };
                     }
+
                     if(qualResolved is StormRuleDecl qualRuleDecl && visited.Add(qualName))
                     {
                         var result = ComputePrefixes(qualRuleDecl.Body, grammar, k, visited);
                         _ = visited.Remove(qualName);
                         return result;
                     }
+
                     return new List<List<string>> { new List<string>() };
                 }
 
@@ -204,6 +211,7 @@ public static class ReachabilityPass
                     {
                         result.AddRange(ComputePrefixes(alt, grammar, k, visited));
                     }
+
                     return result;
                 }
 
@@ -282,6 +290,7 @@ public static class ReachabilityPass
                     {
                         combined = combined.Take(k).ToList();
                     }
+
                     next.Add(combined);
                 }
             }
@@ -329,6 +338,7 @@ public static class ReachabilityPass
                         ComputeFirst(ruleDecl.Body, grammar, result, visited);
                     }
                 }
+
                 break;
 
             case StormQualifiedReferenceExpr qualRef:
@@ -349,6 +359,7 @@ public static class ReachabilityPass
                         ComputeFirst(qualRuleDecl.Body, grammar, result, visited);
                     }
                 }
+
                 break;
 
             case StormSequenceExpr seqExpr:
@@ -360,6 +371,7 @@ public static class ReachabilityPass
                         break;
                     }
                 }
+
                 break;
 
             case StormAlternationExpr altExpr:
@@ -367,6 +379,7 @@ public static class ReachabilityPass
                 {
                     ComputeFirst(alt, grammar, result, visited);
                 }
+
                 break;
 
             case StormOptionalExpr optExpr:

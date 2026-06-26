@@ -35,6 +35,7 @@ public sealed class OverloadIntegrationTests : IDisposable
         {
             try { Directory.Delete(tempDir, recursive: true); } catch { /* best effort */ }
         }
+
         GC.SuppressFinalize(this);
     }
 

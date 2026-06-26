@@ -630,6 +630,7 @@ public static class MistPatternGenerator
                 };
             }
         }
+
         return decl;
     }
 

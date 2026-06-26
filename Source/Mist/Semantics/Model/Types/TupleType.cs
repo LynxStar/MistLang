@@ -38,6 +38,7 @@ public sealed class TupleType : IType
                 ? $"{elementTypes[i].DisplayName} {name}"
                 : elementTypes[i].DisplayName;
         }
+
         DisplayName = $"({string.Join(", ", parts)})";
     }
 

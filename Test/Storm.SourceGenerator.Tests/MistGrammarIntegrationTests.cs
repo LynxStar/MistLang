@@ -33,6 +33,7 @@ namespace Storm.SourceGenerator.Tests
                         return grammarDir;
                     }
                 }
+
                 dir = Path.GetDirectoryName(dir);
             }
 

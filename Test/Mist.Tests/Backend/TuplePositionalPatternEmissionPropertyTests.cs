@@ -500,6 +500,7 @@ public class Program
             count++;
             index += pattern.Length;
         }
+
         return count;
     }
 }

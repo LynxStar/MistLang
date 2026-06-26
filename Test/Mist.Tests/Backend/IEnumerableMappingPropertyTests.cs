@@ -190,6 +190,7 @@ public sealed class IEnumerableMappingPropertyTests
                     return def.DisplayName == "IEnumerable" &&
                            def is AbstractType { ContainingNamespace: "Standard" };
                 }
+
                 return false;
             });
 

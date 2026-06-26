@@ -259,6 +259,7 @@ public sealed class StackallocExpressionEmissionPropertyTests : IDisposable
             count++;
             idx += pattern.Length;
         }
+
         return count;
     }
 }

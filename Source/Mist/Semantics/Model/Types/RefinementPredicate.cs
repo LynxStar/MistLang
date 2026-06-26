@@ -315,6 +315,7 @@ public sealed class RefinementPredicate
                         // Lexeme is like 'a' — extract the character.
                         return c == charLit.Value.Lexeme[1];
                     }
+
                     return false;
                 }
             case TrueConstantConstantLiteralNode:
@@ -538,6 +539,7 @@ public sealed class RefinementPredicate
                     constraints.Add(new Constraint(ConstraintKind.Not, NotValue: new NotConstraint(val.Value)));
                 }
             }
+
             return;
         }
 
@@ -680,6 +682,7 @@ public sealed class RefinementPredicate
                 return false;
             }
         }
+
         return true;
     }
 
@@ -695,6 +698,7 @@ public sealed class RefinementPredicate
                 return false;
             }
         }
+
         return true;
     }
 
@@ -710,6 +714,7 @@ public sealed class RefinementPredicate
                 return false;
             }
         }
+
         return true;
     }
 

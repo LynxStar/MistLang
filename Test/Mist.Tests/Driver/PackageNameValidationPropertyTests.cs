@@ -151,6 +151,7 @@ public sealed class PackageNameValidationPropertyTests
                 return false;
             }
         }
+
         return true;
     }
 

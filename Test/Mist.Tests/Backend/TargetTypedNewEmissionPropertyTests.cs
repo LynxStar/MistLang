@@ -202,6 +202,7 @@ public sealed class TargetTypedNewEmissionPropertyTests
             var parms = BuildCtorParams(argCount);
             _ = sb.AppendLine($"    public {className}({parms}) {{ }}");
         }
+
         _ = sb.AppendLine("}");
         return sb.ToString();
     }
@@ -214,6 +215,7 @@ public sealed class TargetTypedNewEmissionPropertyTests
         {
             _ = sb.AppendLine($"    public int {prop} {{ get; set; }}");
         }
+
         _ = sb.AppendLine("}");
         return sb.ToString();
     }
@@ -228,10 +230,12 @@ public sealed class TargetTypedNewEmissionPropertyTests
             var parms = BuildCtorParams(argCount);
             _ = sb.AppendLine($"    public {className}({parms}) {{ }}");
         }
+
         foreach(var prop in propNames)
         {
             _ = sb.AppendLine($"    public int {prop} {{ get; set; }}");
         }
+
         _ = sb.AppendLine("}");
         return sb.ToString();
     }
@@ -338,6 +342,7 @@ public sealed class TargetTypedNewEmissionPropertyTests
                 return trimmed;
             }
         }
+
         return null;
     }
 

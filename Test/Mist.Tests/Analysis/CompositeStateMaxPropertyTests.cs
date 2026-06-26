@@ -68,6 +68,7 @@ public sealed class CompositeStateMaxPropertyTests
                 max = s;
             }
         }
+
         return max;
     }
 
@@ -104,6 +105,7 @@ public sealed class CompositeStateMaxPropertyTests
             scope.AddMember(field);
             fields[i] = field;
         }
+
         return fields;
     }
 

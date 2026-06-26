@@ -120,6 +120,7 @@ public sealed class MemoizationCorrectnessAndPerformanceTests
             var parseBag = new DiagnosticBag();
             _ = parser.Parse(tokens, parseBag);
         }
+
         stopwatch.Stop();
 
         var elapsed = stopwatch.Elapsed;

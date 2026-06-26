@@ -154,6 +154,7 @@ internal sealed class TypeProjector
             {
                 BaseDelegateType.Instance.MemberScope = new Scope(parent: null);
             }
+
             return (BaseDelegateType.Instance, ImmutableArray<ISymbol>.Empty);
         }
 
@@ -1360,6 +1361,7 @@ internal sealed class TypeProjector
                     return cached;
                 }
             }
+
             return ProjectGenericDefinitionReference(clrType, stdlib);
         }
 
@@ -1552,6 +1554,7 @@ internal sealed class TypeProjector
                     var projectedArg = ProjectTypeReference(clrArgs[i], stdlib);
                     funcTypeArguments[i] = intrinsicMap.SubstituteIntrinsics(projectedArg, stdlib);
                 }
+
                 funcTypeArguments[clrArgs.Length] = voidType;
             }
             else
@@ -1738,6 +1741,7 @@ internal sealed class TypeProjector
                 var projectedArg = ProjectTypeReference(clrArgs[i], stdlib);
                 projectedArgs[i] = intrinsicMap.SubstituteIntrinsics(projectedArg, stdlib);
             }
+
             typeArguments = projectedArgs;
         }
         else
@@ -2523,6 +2527,7 @@ internal sealed class TypeProjector
 
             result.Add(emitterParamSymbol);
         }
+
         return result;
     }
 

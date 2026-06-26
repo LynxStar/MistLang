@@ -130,6 +130,7 @@ public sealed class StructType : IType
             ancestors.Add(current);
             current = current.BaseType as StructType;
         }
+
         return ancestors;
     }
 

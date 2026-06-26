@@ -170,6 +170,7 @@ internal static class UnionHelperGenerator
                 {
                     CollectFromType(constituent, seen);
                 }
+
                 break;
 
             case ArrayType a:
@@ -182,6 +183,7 @@ internal static class UnionHelperGenerator
                 {
                     CollectFromType(arg, seen);
                 }
+
                 break;
 
             case TupleType tt:
@@ -189,6 +191,7 @@ internal static class UnionHelperGenerator
                 {
                     CollectFromType(elementType, seen);
                 }
+
                 break;
 
             case TypeAliasType alias:
@@ -200,6 +203,7 @@ internal static class UnionHelperGenerator
                 {
                     CollectFromType(enumType.UnderlyingType, seen);
                 }
+
                 break;
         }
     }

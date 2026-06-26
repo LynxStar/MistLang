@@ -111,6 +111,7 @@ public class SpanLengthErasingEmissionPropertyTests
                 case ',' when depth == 0: return true;
             }
         }
+
         return false;
     }
 }

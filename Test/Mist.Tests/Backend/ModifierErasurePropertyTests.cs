@@ -103,6 +103,7 @@ public sealed class ModifierErasurePropertyTests
 
             _ = sb.AppendLine(content);
         }
+
         return sb.ToString();
     }
 
@@ -124,6 +125,7 @@ public sealed class ModifierErasurePropertyTests
                 return keyword;
             }
         }
+
         return null;
     }
 

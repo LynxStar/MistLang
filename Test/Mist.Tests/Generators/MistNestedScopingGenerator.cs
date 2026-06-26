@@ -412,6 +412,7 @@ public static class MistNestedScopingGenerator
                 ? fileScopedPrefix + "." + joined
                 : joined;
         }
+
         return fqns;
     }
 
@@ -512,6 +513,7 @@ public static class MistNestedScopingGenerator
             var fieldIndent = new string(' ', (depth + 1) * 4);
             _ = sb.AppendLine($"{fieldIndent}public T{i} field{i};");
         }
+
         _ = sb.AppendLine($"{innerIndent}}}");
 
         // Close all braces in reverse order
@@ -583,6 +585,7 @@ public static class MistNestedScopingGenerator
         {
             _ = sb.AppendLine($"        {typeNames[i]} field{i};");
         }
+
         _ = sb.AppendLine($"    }}");
         _ = sb.AppendLine($"}}");
 

@@ -134,6 +134,7 @@ public static class TypeArgumentInferenceEngine
 
                 Unify(constituent, argumentType, context);
             }
+
             return;
         }
 
@@ -151,6 +152,7 @@ public static class TypeArgumentInferenceEngine
                 Unify(declaredParamType, constituent, context);
                 return;
             }
+
             return;
         }
 
@@ -203,6 +205,7 @@ public static class TypeArgumentInferenceEngine
                                 }
                             }
                         }
+
                         substitutedIfaceArgs[i] = absArg;
                     }
 
@@ -212,6 +215,7 @@ public static class TypeArgumentInferenceEngine
                     {
                         Unify(declaredIfaceCt.TypeArguments[i], substitutedIfaceArgs[i], context);
                     }
+
                     return;
                 }
             }
@@ -230,6 +234,7 @@ public static class TypeArgumentInferenceEngine
             {
                 Unify(declaredCt2.TypeArguments[i], argumentCt2.TypeArguments[i], context);
             }
+
             return;
         }
 

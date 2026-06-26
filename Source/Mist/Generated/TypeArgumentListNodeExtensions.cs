@@ -42,6 +42,7 @@ public static class TypeArgumentListNodeExtensions
         {
             builder.Add(ExtractTypeReference(arg));
         }
+
         return builder.MoveToImmutable();
     }
 

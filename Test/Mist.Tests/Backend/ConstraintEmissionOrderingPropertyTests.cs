@@ -155,6 +155,7 @@ public sealed class ConstraintEmissionOrderingPropertyTests : IDisposable
 
             lastCategory = category;
         }
+
         return true;
     }
 

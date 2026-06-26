@@ -49,6 +49,7 @@ public sealed class CrossFileTypeResolutionTests : IDisposable
             try { Directory.Delete(tempDir, recursive: true); }
             catch { /* best effort */ }
         }
+
         GC.SuppressFinalize(this);
     }
 

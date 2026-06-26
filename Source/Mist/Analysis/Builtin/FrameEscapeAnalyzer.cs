@@ -251,6 +251,7 @@ public sealed class FrameEscapeAnalyzer : IAnalyzer
             {
                 state[lhsSymbol] = StackBacking.StackBacked;
             }
+
             return;
         }
 
@@ -262,6 +263,7 @@ public sealed class FrameEscapeAnalyzer : IAnalyzer
             {
                 state[lhsSymbol] = StackBacking.StackBacked;
             }
+
             return;
         }
 
@@ -598,6 +600,7 @@ public sealed class FrameEscapeAnalyzer : IAnalyzer
             {
                 return symbol;
             }
+
             return null;
         }
 

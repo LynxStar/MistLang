@@ -282,6 +282,7 @@ public class OwnedTypeFieldRestrictionValidPropertyTests
             var fieldName = i < FieldNames.Length ? FieldNames[i] : $"f{i}";
             lines.Add($"{fieldTypes[i]} {fieldName};");
         }
+
         return string.Join("\n    ", lines);
     }
 

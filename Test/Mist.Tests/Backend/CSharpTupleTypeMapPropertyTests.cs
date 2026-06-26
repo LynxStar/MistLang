@@ -59,6 +59,7 @@ public class CSharpTupleTypeMapPropertyTests
                 return false;
             }
         }
+
         return true;
     }
 
@@ -82,6 +83,7 @@ public class CSharpTupleTypeMapPropertyTests
                 return false;
             }
         }
+
         return true;
     }
 

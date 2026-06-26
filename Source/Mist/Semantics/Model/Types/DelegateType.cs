@@ -129,6 +129,7 @@ public sealed class DelegateType : IType, IEquatable<DelegateType>
         {
             hash.Add(arg);
         }
+
         return hash.ToHashCode();
     }
 

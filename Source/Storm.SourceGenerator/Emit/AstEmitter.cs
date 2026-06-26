@@ -423,6 +423,7 @@ public static class AstEmitter
             {
                 propInfo = GetPropertyInfo(label.Expression, propName);
             }
+
             properties.Add(propInfo);
         }
 
@@ -634,12 +635,14 @@ public static class AstEmitter
                         var name = EnsureUnique(PascalCase(seqRuleRef.Rule.Name), usedNames);
                         return new PropertyInfo(name, seqRuleRef.Rule.Name + "Node?", true, true, false, "");
                     }
+
                     var seqTokenRef = seq.Elements.OfType<TokenRefIR>().LastOrDefault();
                     if(seqTokenRef != null)
                     {
                         var name = EnsureUnique(PascalCase(seqTokenRef.Token.Name), usedNames);
                         return new PropertyInfo(name, "Token?", true, false, false, "");
                     }
+
                     return null;
                 }
             default:
@@ -693,12 +696,14 @@ public static class AstEmitter
                         var elementType = seqRuleRef.Rule.Name + "Node";
                         return new PropertyInfo(name, $"ImmutableArray<{elementType}>", false, true, true, $" = ImmutableArray<{elementType}>.Empty;");
                     }
+
                     var seqTokenRef = seq.Elements.OfType<TokenRefIR>().LastOrDefault();
                     if(seqTokenRef != null)
                     {
                         var name = EnsureUnique(PascalCase(seqTokenRef.Token.Name) + "s", usedNames);
                         return new PropertyInfo(name, "ImmutableArray<Token>", false, false, true, " = ImmutableArray<Token>.Empty;");
                     }
+
                     return null;
                 }
             default:
@@ -725,6 +730,7 @@ public static class AstEmitter
                         var elementType = seqRuleRef.Rule.Name + "Node";
                         return new PropertyInfo(propName, $"ImmutableArray<{elementType}>", false, true, true, $" = ImmutableArray<{elementType}>.Empty;");
                     }
+
                     return new PropertyInfo(propName, "ImmutableArray<Token>", false, false, true, " = ImmutableArray<Token>.Empty;");
                 }
             default:

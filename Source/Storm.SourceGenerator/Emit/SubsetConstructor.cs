@@ -289,6 +289,7 @@ namespace Storm.SourceGenerator.Emit
 
                 _ = sb.Append(sorted[i]);
             }
+
             return sb.ToString();
         }
     }

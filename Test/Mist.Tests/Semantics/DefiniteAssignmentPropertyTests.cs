@@ -311,6 +311,7 @@ public sealed class DefiniteAssignmentPropertyTests
             {
                 assignments.Add($"        this.{fieldName} = svc{i};");
             }
+
             ctorParams.Add($"{abstractName} svc{i}");
         }
 

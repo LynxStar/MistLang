@@ -101,6 +101,7 @@ public class UnknownWideningPropertyTests
         {
             parameters[i] = new TypeParameterType($"T{i}", i);
         }
+
         def.TypeParameters = parameters;
         return def;
     }
@@ -114,6 +115,7 @@ public class UnknownWideningPropertyTests
         {
             parameters[i] = new TypeParameterType($"T{i}", i);
         }
+
         def.TypeParameters = parameters;
         return def;
     }
@@ -247,6 +249,7 @@ public class UnknownWideningPropertyTests
         {
             result[i] = ((mask >> i) & 1) == 1 ? (IType)UnknownType.Instance : args[i];
         }
+
         return result;
     }
 

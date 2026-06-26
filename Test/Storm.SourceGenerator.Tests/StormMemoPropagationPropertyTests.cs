@@ -54,6 +54,7 @@ public class StormMemoPropagationPropertyTests
                         unique.Add((r.name, r.isMemo));
                     }
                 }
+
                 return unique;
             }));
     }
@@ -74,6 +75,7 @@ public class StormMemoPropagationPropertyTests
             {
                 _ = sb.AppendLine($"@memo");
             }
+
             _ = sb.AppendLine($"rule {name} = Tok;");
         }
 
@@ -93,6 +95,7 @@ public class StormMemoPropagationPropertyTests
             {
                 return contents;
             }
+
             return null;
         };
     }

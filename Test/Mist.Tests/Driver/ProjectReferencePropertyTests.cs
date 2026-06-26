@@ -108,6 +108,7 @@ public sealed class ProjectReferencePropertyTests
             finally
             {
                 try { Directory.Delete(rootDir, recursive: true); } catch { }
+
                 foreach(var d in dirs)
                 {
                     try { Directory.Delete(d, recursive: true); } catch { }
@@ -184,8 +185,11 @@ public sealed class ProjectReferencePropertyTests
             finally
             {
                 try { Directory.Delete(rootDir, recursive: true); } catch { }
+
                 try { Directory.Delete(leftDir, recursive: true); } catch { }
+
                 try { Directory.Delete(rightDir, recursive: true); } catch { }
+
                 foreach(var d in sharedDirs)
                 {
                     try { Directory.Delete(d, recursive: true); } catch { }
@@ -359,6 +363,7 @@ public sealed class ProjectReferencePropertyTests
             finally
             {
                 try { Directory.Delete(rootDir, recursive: true); } catch { }
+
                 try { Directory.Delete(refDir, recursive: true); } catch { }
             }
         });
@@ -457,6 +462,7 @@ public sealed class ProjectReferencePropertyTests
             finally
             {
                 try { Directory.Delete(rootDir, recursive: true); } catch { }
+
                 foreach(var d in chainDirs)
                 {
                     try { Directory.Delete(d, recursive: true); } catch { }
@@ -534,6 +540,7 @@ public sealed class ProjectReferencePropertyTests
             finally
             {
                 try { Directory.Delete(rootDir, recursive: true); } catch { }
+
                 try { Directory.Delete(targetDir, recursive: true); } catch { }
             }
         });
@@ -618,7 +625,9 @@ public sealed class ProjectReferencePropertyTests
             finally
             {
                 try { Directory.Delete(rootDir, recursive: true); } catch { }
+
                 try { Directory.Delete(dirB, recursive: true); } catch { }
+
                 try { Directory.Delete(dirC, recursive: true); } catch { }
             }
         });

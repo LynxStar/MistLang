@@ -149,6 +149,7 @@ public sealed class ExtensionRegistry
                 return ext;
             }
         }
+
         return null;
     }
 
@@ -168,6 +169,7 @@ public sealed class ExtensionRegistry
                 return ext;
             }
         }
+
         return null;
     }
 
@@ -193,6 +195,7 @@ public sealed class ExtensionRegistry
                 return ext;
             }
         }
+
         return null;
     }
 
@@ -411,6 +414,7 @@ public sealed class ExtensionRegistry
                 return true;
             }
         }
+
         return false;
     }
 

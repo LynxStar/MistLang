@@ -127,6 +127,7 @@ public class DefaultBlockParsingPropertyTests
                         break;
                 }
             }
+
             lines.Add("    }");
         }
 

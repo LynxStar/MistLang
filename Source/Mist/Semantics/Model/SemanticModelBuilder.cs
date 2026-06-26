@@ -958,6 +958,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             csharpResolver.UpdateStdlibProvider(
                 new ScopeBasedStdlibTypeProvider(globalScope, symbolTable));
         }
+
         if(ambientTypeResolver is Backends.CSharpTranspiler.AssemblyTypeProvider)
         {
             Backends.CSharpTranspiler.AssemblyTypeProvider.UpdateStdlibProvider(
@@ -1077,6 +1078,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     AnalyzerName: null));
             }
         }
+
         extensionRegistryContext = null;
 
         // Pass 2e (Phase B): Resolve extension block method/property bodies.
@@ -1261,6 +1263,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                             // Register all body items (types, aliases, newtypes, extensions, nested namespaces).
                             RegisterNamespaceBody(nsDecl, blockScope, declaredName, globalScope, symbolTable, sourceText, diagnostics, extensionBlockScopes);
                         }
+
                         break;
                     }
                 case TypeItemTopLevelItemNode typeItem:
@@ -2242,6 +2245,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                                 var methodScope = new Scope(parent: memberScope);
                                 RegisterParameters(methodDecl.Parameters, methodScope, fileScope, symbolTable, ambientTypeResolver, sourceText, diagnostics);
                             }
+
                             break;
                         }
                     case ExtensionPropertyMemberExtensionMemberDeclarationNode propertyMember:
@@ -2389,6 +2393,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     list = new List<Backends.CSharpTranspiler.AmbientExtensionMethodInfo>();
                     byReceiverAndClass[key] = list;
                 }
+
                 list.Add(ext);
             }
 
@@ -2572,6 +2577,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                                 break;
                             }
                         }
+
                         if(!nsExists && ambientTypeResolver is not null)
                         {
                             nsExists = ambientTypeResolver.HasNamespace(usingName);
@@ -2601,6 +2607,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                                     break;
                                 }
                             }
+
                             if(!nsExists && ambientTypeResolver is not null)
                             {
                                 nsExists = ambientTypeResolver.HasNamespace(usingName);
@@ -2631,6 +2638,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                                 break;
                             }
                         }
+
                         if(!nsExists && ambientTypeResolver is not null)
                         {
                             nsExists = ambientTypeResolver.HasNamespace(globalNs);
@@ -2688,6 +2696,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                                     CheckStaticExtensionReceiverAccess(methodBlock, receiverName, sourceText, diagnostics);
                                 }
                             }
+
                             break;
                         }
                     // Properties don't have bodies that need expression resolution
@@ -2713,12 +2722,14 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                                         {
                                             CheckStaticExtensionReceiverAccess(accessor, receiverName, sourceText, diagnostics);
                                         }
+
                                         break;
                                     case ExpressionBodiedPropertyPropertyDeclarationNode ep:
                                         CheckStaticExtensionReceiverAccess(ep.Body, receiverName, sourceText, diagnostics);
                                         break;
                                 }
                             }
+
                             break;
                         }
                 }
@@ -2916,6 +2927,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         return true;
                     }
                 }
+
                 return false;
             case ExpressionBodiedPropertyPropertyDeclarationNode:
                 // Expression-bodied properties are always get-only.
@@ -3292,6 +3304,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         sourceText));
                     return;
                 }
+
                 classType.DefaultBlockNode = defaultBlockNode;
                 classType.Defaultability = DefaultabilityStatus.Explicit;
                 break;
@@ -3307,6 +3320,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         sourceText));
                     return;
                 }
+
                 structType.DefaultBlockNode = defaultBlockNode;
                 structType.Defaultability = DefaultabilityStatus.Explicit;
                 break;
@@ -3522,6 +3536,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         return bracketIdx >= 0 ? raw.Substring(0, bracketIdx).Trim() : raw.Trim();
                     }
                 }
+
                 return "";
             case PrimitiveSingleTypeRefSingleTypeRefNode primitiveRef:
                 return FormatPrimitiveType(primitiveRef.PrimitiveType);
@@ -3549,6 +3564,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 return true;
             }
         }
+
         return false;
     }
 
@@ -3561,6 +3577,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 return true;
             }
         }
+
         return false;
     }
 
@@ -3573,6 +3590,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 return true;
             }
         }
+
         return false;
     }
 
@@ -3585,6 +3603,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 return true;
             }
         }
+
         return false;
     }
 
@@ -3597,6 +3616,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 return true;
             }
         }
+
         return false;
     }
 
@@ -3609,6 +3629,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 return true;
             }
         }
+
         return false;
     }
 
@@ -3621,6 +3642,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 return true;
             }
         }
+
         return false;
     }
 
@@ -4232,6 +4254,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                             CompilationUnitPath: sourceText?.Path ?? "<unknown>",
                             AnalyzerName: null));
                     }
+
                     break;
                 }
             }
@@ -4615,6 +4638,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 return true;
             }
         }
+
         return false;
     }
 
@@ -4643,6 +4667,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 return true;
             }
         }
+
         return false;
     }
 
@@ -5304,6 +5329,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     importedNamespaces.Add(usingName);
                 }
             }
+
             foreach(var item in containingCu.Items)
             {
                 if(item is UsingItemTopLevelItemNode usingItem)
@@ -6127,6 +6153,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                                     }
                                 }
                             }
+
                             searchScope = searchScope.Parent;
                         }
                     }
@@ -6303,6 +6330,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 return i < compilation.Units.Length ? compilation.Units[i].Source?.Path : null;
             }
         }
+
         return null;
     }
 
@@ -6331,6 +6359,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                             return true;
                         }
                     }
+
                     break;
             }
         }
@@ -6685,6 +6714,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         CompilationUnitPath: compilationUnitPath ?? "<unknown>",
                         AnalyzerName: null));
                 }
+
                 continue;
             }
 
@@ -6787,6 +6817,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         CompilationUnitPath: compilationUnitPath ?? "<unknown>",
                         AnalyzerName: null));
                 }
+
                 continue;
             }
 
@@ -6893,6 +6924,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         {
             entries.Add(rest);
         }
+
         return entries;
     }
 
@@ -6976,6 +7008,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         sourceText));
                     continue;
                 }
+
                 constrainedParams[typeParamName] = true;
 
                 // Resolve the constraints in this clause.
@@ -7108,6 +7141,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                             CompilationUnitPath: "<unknown>",
                             AnalyzerName: null));
                     }
+
                     continue;
                 }
 
@@ -7150,6 +7184,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                             CompilationUnitPath: "<unknown>",
                             AnalyzerName: null));
                     }
+
                     continue;
                 }
 
@@ -7184,6 +7219,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                             CompilationUnitPath: "<unknown>",
                             AnalyzerName: null));
                     }
+
                     continue;
                 }
 
@@ -7250,6 +7286,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                             declaringNode,
                             sourceText));
                     }
+
                     continue;
                 }
 
@@ -7279,6 +7316,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                             declaringNode,
                             sourceText));
                     }
+
                     continue;
                 }
 
@@ -7300,6 +7338,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                             declaringNode,
                             sourceText));
                     }
+
                     continue;
                 }
 
@@ -7459,6 +7498,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     break;
                 }
             }
+
             if(!hasAdhocClauses)
             {
                 continue;
@@ -7527,6 +7567,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         classType = ct;
                         typeName = ct.DisplayName;
                     }
+
                     break;
 
                 case SymbolKind.Struct when symbol.DeclaredType is StructType st:
@@ -7536,6 +7577,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         memberScope = st.MemberScope;
                         typeName = st.DisplayName;
                     }
+
                     break;
             }
 
@@ -7742,6 +7784,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 return tpt;
             }
         }
+
         return null;
     }
 
@@ -7827,6 +7870,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 return dpt;
             }
         }
+
         return null;
     }
 
@@ -8192,6 +8236,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             {
                 // Fall through to legacy path.
             }
+
             return ResolveLegacyPrimitive(primitiveRef.PrimitiveType);
         }
 
@@ -8489,6 +8534,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                             return true;
                         }
                     }
+
                     break;
             }
         }
@@ -8518,6 +8564,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         return true;
                     }
                 }
+
                 return false;
             case StructTypeTypeDeclarationNode st:
                 if(ReferenceEquals(st.StructDeclaration, declaringNode))
@@ -8533,6 +8580,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         return true;
                     }
                 }
+
                 return false;
             case AbstractTypeTypeDeclarationNode it:
                 return ReferenceEquals(it.AbstractDeclaration, declaringNode);
@@ -8567,9 +8615,11 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                             return true;
                         }
                     }
+
                     break;
             }
         }
+
         return false;
     }
 
@@ -8716,6 +8766,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             {
                 // Fall through to legacy path.
             }
+
             return ResolveLegacyPrimitive(primitiveRef.PrimitiveType);
         }
 
@@ -9318,6 +9369,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 return FindCompilationUnitPathForSymbol(symbol, symbolTable, asts, compilation);
             }
         }
+
         return null;
     }
 
@@ -9338,6 +9390,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 return GetSourceTextForSymbol(symbol, symbolTable);
             }
         }
+
         return null;
     }
 
@@ -9467,6 +9520,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 }
             }
         }
+
         return null;
     }
 
@@ -9491,6 +9545,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 }
             }
         }
+
         return null;
     }
 
@@ -9665,6 +9720,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                             classType.DisplayName, classType.Abstracts, classType.MemberScope,
                             classType, symbolTable, asts, compilation, diagnostics);
                     }
+
                     break;
 
                 case SymbolKind.Struct when symbol.DeclaredType is StructType structType:
@@ -9674,6 +9730,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                             structType.DisplayName, structType.Abstracts, structType.MemberScope,
                             null, symbolTable, asts, compilation, diagnostics);
                     }
+
                     break;
             }
         }
@@ -9779,6 +9836,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                                 CompilationUnitPath: missingPath ?? "<unknown>",
                                 AnalyzerName: null));
                         }
+
                         break;
                     }
 
@@ -9816,6 +9874,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                                 CompilationUnitPath: mismatchPath ?? "<unknown>",
                                 AnalyzerName: null));
                         }
+
                         break;
                     }
 
@@ -9851,6 +9910,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                                 CompilationUnitPath: refMismatchPath ?? "<unknown>",
                                 AnalyzerName: null));
                         }
+
                         break;
                     }
             }
@@ -10345,6 +10405,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
                 ancestor = ancestor.BaseType as ClassType;
             }
+
             return false;
         }
 
@@ -10751,6 +10812,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         return member;
                     }
                 }
+
                 ancestor = ancestor.BaseType as ClassType;
             }
         }
@@ -11663,6 +11725,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 return FindCompilationUnitPathForSymbol(symbol, symbolTable, asts, compilation);
             }
         }
+
         return null;
     }
 
@@ -11683,6 +11746,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 return GetSourceTextForSymbol(symbol, symbolTable);
             }
         }
+
         return null;
     }
 
@@ -11701,6 +11765,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 return symbolTable.GetDeclaringNode(symbol);
             }
         }
+
         return null;
     }
 
@@ -11973,6 +12038,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         CompilationUnitPath: compilationUnitPath ?? "<unknown>",
                         AnalyzerName: null));
                 }
+
                 continue;
             }
 
@@ -12101,6 +12167,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         CompilationUnitPath: "<unknown>",
                         AnalyzerName: null));
                 }
+
                 continue;
             }
 
@@ -12401,6 +12468,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         break;
                     }
                 }
+
                 if(!nsExists && ambientTypeResolver is not null)
                 {
                     nsExists = ambientTypeResolver.HasNamespace(usingName);
@@ -12598,6 +12666,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         {
                             ResolveNewtypeDeclaration(newtypeDecl, sectionFileScope, symbolTable, ambientTypeResolver, sourceText, diagnostics);
                         }
+
                         break;
                     }
                 case TypeItemTopLevelItemNode typeItem:
@@ -12706,6 +12775,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 return ExtractNamespaceName(nsItem.NamespaceDeclaration, sourceText);
             }
         }
+
         return null;
     }
 
@@ -12772,14 +12842,17 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 {
                     return parentScope;
                 }
+
                 if(symbol.DeclaredType is StructType st && st.ContainingNamespace == namespaceName)
                 {
                     return parentScope;
                 }
+
                 if(symbol.DeclaredType is AbstractType it && it.ContainingNamespace == namespaceName)
                 {
                     return parentScope;
                 }
+
                 if(symbol.DeclaredType is EnumType et && et.ContainingNamespace == namespaceName)
                 {
                     return parentScope;
@@ -12923,6 +12996,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         uniqueTypes.Add(vt);
                     }
                 }
+
                 underlyingType = new UnionType(uniqueTypes);
             }
         }
@@ -13191,6 +13265,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     explicitUsingImports.Add(usingName);
                 }
             }
+
             foreach(var uItem in cu.Items)
             {
                 if(uItem is UsingItemTopLevelItemNode usingItem)
@@ -13236,6 +13311,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                             {
                                 ResolveExplicitMemberTypesForTypeDeclaration(typeDecl, sectionFileScope, symbolTable, ambientTypeResolver, sourceText, diagnostics);
                             }
+
                             break;
                         }
                     case TypeItemTopLevelItemNode typeItem:
@@ -13429,6 +13505,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                             var methodScope = new Scope(parent: interfaceFileScope);
                             RegisterParameters(methodDecl.Parameters, methodScope, interfaceFileScope, symbolTable, ambientTypeResolver, sourceText, diagnostics);
                         }
+
                         break;
                     }
                 case AbstractPropertyMemberAbstractMemberDeclarationNode propertyMember:
@@ -13516,6 +13593,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                                 {
                                     backingField.DeclaredType = propType;
                                 }
+
                                 break;
                             }
                         case ExpressionBodiedPropertyPropertyDeclarationNode exprProp:
@@ -13531,6 +13609,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                                 break;
                             }
                     }
+
                     break;
                 }
             case IndexerMemberMemberDeclarationNode indexerMember:
@@ -13668,6 +13747,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                                 forwardEntries.Add(entry);
                                 _ = nameToEntry.TryAdd(name, entry);
                             }
+
                             var nsNewtypes = GetNamespaceBodyNewtypes(nsDecl);
                             foreach(var newtypeDecl in nsNewtypes)
                             {
@@ -13682,6 +13762,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                                 forwardEntries.Add(entry);
                                 _ = nameToEntry.TryAdd(name, entry);
                             }
+
                             break;
                         }
                 }
@@ -14037,6 +14118,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         aliasDecl.Type,
                         sourceText));
                 }
+
                 aliasSymbol.DeclaredType = ErrorType.Instance;
                 return;
             }
@@ -14514,6 +14596,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             {
                 lambdaTargetType = fieldType;
             }
+
             voidLiteralTargetType = fieldType;
             targetTypedNewTargetType = fieldType;
             _ = ResolveExpression(initExpr, typeScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
@@ -14650,6 +14733,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     paramSymbols.Add(paramSym);
                 }
             }
+
             methodSymbol.Parameters = paramSymbols;
         }
     }
@@ -15114,6 +15198,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 var intrinsicIndexerScope = new Scope(parent: typeScope);
                 RegisterParameters(indexerDecl.Parameters, intrinsicIndexerScope, fileScope, symbolTable, ambientTypeResolver, sourceText, diagnostics);
             }
+
             return;
         }
 
@@ -15387,6 +15472,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                             sourceText));
                     }
                 }
+
                 break;
             case IfStatementStatementNode ifStmt:
                 ResolveIfStatement(ifStmt.IfStatement, blockScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
@@ -15420,6 +15506,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         var taskInfo = new DiscardedTaskInfo(varName, exprType, exprStmt.ExpressionStatement.Expression);
                         discardedTaskScopes.Peek().Add(taskInfo);
                     }
+
                     break;
                 }
             case BreakStatementStatementNode:
@@ -15712,6 +15799,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     {
                         firstSymbol.ReadonlyStatus = ReadonlyStatus.ExplicitReadonly;
                     }
+
                     blockScope.AddMember(firstSymbol);
                     symbolTable.Register(firstSymbol, varDecl);
 
@@ -15725,9 +15813,11 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         {
                             restSymbol.ReadonlyStatus = ReadonlyStatus.ExplicitReadonly;
                         }
+
                         blockScope.AddMember(restSymbol);
                         symbolTable.Register(restSymbol, varDecl);
                     }
+
                     break;
                 }
             case TypedTupleDeconstructionVariableDeclarationStatementNode typedTuple:
@@ -15745,6 +15835,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         {
                             sym.ReadonlyStatus = ReadonlyStatus.ExplicitReadonly;
                         }
+
                         blockScope.AddMember(sym);
                         symbolTable.Register(sym, varDecl);
                     }
@@ -15755,6 +15846,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     {
                         RegisterDeconstructionElement(additional);
                     }
+
                     break;
                 }
         }
@@ -16221,6 +16313,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                             symbolTable.Register(varSymbol, propertyPattern);
                         }
                     }
+
                     break;
                 }
 
@@ -16235,6 +16328,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     {
                         CollectFromListPatternElementList(listPattern.Elements, elementType, thenScope, symbolTable, expressionTypes, fileScope, ambientTypeResolver, sourceText, diagnostics);
                     }
+
                     break;
                 }
 
@@ -16265,6 +16359,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                             CollectFromPattern(elementPattern, ErrorType.Instance, thenScope, symbolTable, expressionTypes, fileScope, ambientTypeResolver, sourceText, diagnostics);
                         }
                     }
+
                     break;
                 }
 
@@ -16395,6 +16490,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         symbolTable.Register(varSymbol, sliceElement);
                     }
                 }
+
                 break;
         }
     }
@@ -16581,6 +16677,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         enumerableElementTypes.Add(extractedElementType);
                     }
                 }
+
                 baseClass = baseClass switch
                 {
                     ClassType bc => bc.BaseType,
@@ -16607,6 +16704,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         enumerableElementTypes.Add(extractedElementType);
                     }
                 }
+
                 baseClass = baseClass switch
                 {
                     ClassType bc => bc.BaseType,
@@ -16778,6 +16876,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             default:
                 return ErrorType.Instance;
         }
+
         var predicate = new RefinementPredicate(andPatternNode);
 
         // Validate: relational patterns require a comparable type.
@@ -17031,6 +17130,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 return true;
             }
         }
+
         return false;
     }
 
@@ -17087,6 +17187,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         return sourceText.Contents.Substring(span.Start, span.Length);
                     }
                 }
+
                 return "";
             case PrimitiveSingleTypeRefSingleTypeRefNode primitiveRef:
                 return FormatPrimitiveType(primitiveRef.PrimitiveType);
@@ -17406,6 +17507,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     {
                         primBase = ResolveLegacyPrimitive(primitiveRef.PrimitiveType);
                     }
+
                     if(primitiveRef.ArrayRank is SizedArrayRankArrayRankSuffixNode sizedRank)
                     {
                         var size = long.Parse(sizedRank.Size.Lexeme);
@@ -17422,6 +17524,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     {
                         return ApplyOptionalSuffix(primBase, primOptToken, fileScope, symbolTable, sourceText, diagnostics);
                     }
+
                     return primBase;
                 }
 
@@ -17599,6 +17702,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     {
                         return ApplyOptionalSuffix(baseType, namedOptToken, fileScope, symbolTable, sourceText, diagnostics);
                     }
+
                     return baseType;
                 }
 
@@ -17617,6 +17721,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                             ? new ArrayType(inner, nextSymbolicLengthId++)
                             : new ArrayType(inner);
                     }
+
                     return inner;
                 }
 
@@ -18125,6 +18230,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         {
             typeArgs[i] = paramTypes[i];
         }
+
         typeArgs[^1] = returnType;
 
         // Look up Standard.Func with the matching arity.
@@ -18285,6 +18391,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         {
             return ct.TypeArguments[0];
         }
+
         return type;
     }
 
@@ -18446,6 +18553,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     ResolveNewtypeDeclaration(newtypeNode, fileScope, symbolTable, ambientTypeResolver, sourceText, diagnostics);
                 }
             }
+
             return symbol.DeclaredType ?? ErrorType.Instance;
         }
 
@@ -18739,6 +18847,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
             current = current.Parent;
         }
+
         return scope; // fallback
     }
 
@@ -18758,6 +18867,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
             current = current.Parent;
         }
+
         return scope as Scope;
     }
 
@@ -18803,6 +18913,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     anyChanged = true;
                 }
             }
+
             if(anyChanged)
             {
                 return new ConstructedType(ct.GenericDefinition, substitutedArgs);
@@ -19279,6 +19390,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                                     break;
                                 }
                             }
+
                             if(userResolved)
                             {
                                 break;
@@ -19408,6 +19520,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 scope.AddMember(member);
             }
         }
+
         return scope;
     }
 
@@ -19430,8 +19543,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     }
                 }
             }
+
             current = current.Parent;
         }
+
         return namespaces;
     }
 
@@ -19679,6 +19794,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     {
                         concreteTypeArgs[i] = actualParamTypes[i];
                     }
+
                     concreteTypeArgs[^1] = inferredReturnType;
 
                     try
@@ -19741,6 +19857,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     return funcCt;
                 }
             }
+
             return funcCt;
         }
 
@@ -19884,8 +20001,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                                     break;
                                 }
                             }
+
                             returnType = allSame ? firstType : ErrorType.Instance;
                         }
+
                         break;
                     }
 
@@ -19911,6 +20030,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         {
             typeArgs[i] = paramTypes[i];
         }
+
         typeArgs[^1] = returnType;
 
         var globalScopeForFunc = FindGlobalScope(fileScope) ?? fileScope;
@@ -19959,6 +20079,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 {
                     returnTypes.Add(returnValueType);
                 }
+
                 break;
 
             case IfStatementStatementNode ifStmt:
@@ -19967,6 +20088,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 {
                     CollectReturnTypesFromElse(ifStmt.IfStatement.ElseBranch, expressionTypes, returnTypes);
                 }
+
                 break;
 
             case WhileStatementStatementNode whileStmt:
@@ -20029,6 +20151,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 {
                     CollectReturnTypesFromElse(elseIf.ElseIf.ElseBranch, expressionTypes, returnTypes);
                 }
+
                 break;
         }
     }
@@ -20119,6 +20242,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                                         // Resolution failed — fall back to the target type.
                                         paramType = i < paramTypes.Count ? paramTypes[i] : UnknownType.Instance;
                                     }
+
                                     var paramName = typed.Name.Lexeme;
                                     var paramSpan = ToMistSourceSpan(typed.Name.Span);
                                     var paramSymbol = new Symbol(paramName, SymbolKind.Parameter, SymbolOrigin.UserCode, lambdaScope, paramType, paramSpan);
@@ -20128,6 +20252,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                                 }
                         }
                     }
+
                     break;
                 }
         }
@@ -20318,6 +20443,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     {
                         returnType = bodyType;
                     }
+
                     break;
                 }
 
@@ -20358,8 +20484,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                                 break;
                             }
                         }
+
                         returnType = allSame ? firstType : null;
                     }
+
                     break;
                 }
         }
@@ -20880,6 +21008,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     {
                         ResolvePropertySubpatternList(propertyPattern.Subpatterns, patternType, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
                     }
+
                     break;
                 }
 
@@ -20895,6 +21024,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     {
                         ResolveListPatternElementList(listPattern.Elements, elementType, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
                     }
+
                     break;
                 }
 
@@ -20923,6 +21053,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                             ResolvePattern(elementPattern, ErrorType.Instance, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
                         }
                     }
+
                     break;
                 }
 
@@ -21272,6 +21403,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     {
                         resultType = ConstructTaskType(returnType, fileScope, symbolTable);
                     }
+
                     expressionTypes[node] = resultType;
                     return resultType;
                 }
@@ -21595,6 +21727,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                                     break;
                                 }
                             }
+
                             IReadOnlyList<IType> resolvedTypeArgs;
                             if(hasDependentParams)
                             {
@@ -21723,6 +21856,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                                         }
                                     }
                                 }
+
                                 if(methodSymForParams is not null)
                                 {
                                     break;
@@ -21763,6 +21897,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                                         }
                                     }
                                 }
+
                                 methodSymForParams = lambdaAmbientMatch ?? firstAmbientMatch;
                             }
                         }
@@ -21802,6 +21937,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                                             anyChanged = true;
                                         }
                                     }
+
                                     if(anyChanged)
                                     {
                                         methodParamTypes = substituted;
@@ -21833,6 +21969,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                                             anyChanged = true;
                                         }
                                     }
+
                                     if(anyChanged)
                                     {
                                         methodParamTypes = substituted;
@@ -21859,6 +21996,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                                         anyChanged = true;
                                     }
                                 }
+
                                 if(anyChanged)
                                 {
                                     methodParamTypes = substituted;
@@ -21940,6 +22078,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                                 sliceResultSpan.ElementType, sliceLiteralLength.Value, sliceResultSpan.IsReadOnly);
                         }
                     }
+
                     expressionTypes[suffix] = memberType;
                     return memberType;
                 }
@@ -21974,6 +22113,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         {
                             voidType = targetType;
                         }
+
                         expressionTypes[suffix] = voidType;
                         return voidType;
                     }
@@ -22048,6 +22188,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                                     indexerReturnType = SubstituteTypeParameters(indexerReturnType, typeParams, ict2.TypeArguments);
                                 }
                             }
+
                             expressionTypes[suffix] = indexerReturnType;
                             return indexerReturnType;
                         }
@@ -22163,6 +22304,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         {
                             ResolveArgumentList(optionalMethodCall.Arguments, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
                         }
+
                         expressionTypes[suffix] = ErrorType.Instance;
                         return ErrorType.Instance;
                     }
@@ -22186,6 +22328,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                                     break;
                                 }
                             }
+
                             IReadOnlyList<IType> resolvedTypeArgs;
                             if(hasDependentParams)
                             {
@@ -22265,6 +22408,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 }
             }
         }
+
         return false;
     }
 
@@ -22652,6 +22796,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         _ = ResolveExpression(exprPart.Expression, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
                     }
                 }
+
                 result = ResolvePrimitiveByKeyword("string", fileScope, symbolTable);
                 break;
 
@@ -22682,6 +22827,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 {
                     result = enclosingType;
                 }
+
                 break;
 
             case FieldKeywordExpressionPrimaryNode:
@@ -22840,11 +22986,13 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                                         {
                                             substituted.Add(SubstituteTypeParameters(pt, typeParams, constructedType.TypeArguments));
                                         }
+
                                         ctorParamTypes = substituted;
                                     }
                                 }
                             }
                         }
+
                         ResolveArgumentList(objCreation.Arguments, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics, ctorParamTypes);
                     }
 
@@ -22958,11 +23106,13 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                                         {
                                             substituted.Add(SubstituteTypeParameters(pt, typeParams, constructedType.TypeArguments));
                                         }
+
                                         ctorParamTypes = substituted;
                                     }
                                 }
                             }
                         }
+
                         ResolveArgumentList(targetNew.Arguments, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics, ctorParamTypes);
                     }
 
@@ -23095,6 +23245,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                                         break;
                                     }
                                 }
+
                                 if(inheritedMemberType is not null)
                                 {
                                     break;
@@ -23148,6 +23299,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                             symbolTable.RegisterUsageSite(identifier, symbol);
                         }
                     }
+
                     break;
                 }
 
@@ -23177,6 +23329,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     {
                         result = LegacyPrimitiveTypes.Type;
                     }
+
                     break;
                 }
 
@@ -23216,6 +23369,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     {
                         result = ErrorType.Instance;
                     }
+
                     break;
                 }
 
@@ -23275,6 +23429,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                                         propertyNames.Add(name);
                                         propertyTypes.Add(propType);
                                     }
+
                                     break;
                                 }
 
@@ -23327,6 +23482,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                                         propertyNames.Add(inferredName);
                                         propertyTypes.Add(projType);
                                     }
+
                                     break;
                                 }
                         }
@@ -23806,6 +23962,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     }
                     catch(StdlibMissingException) { }
                 }
+
                 return LegacyPrimitiveTypes.Int;
             }
 
@@ -24082,11 +24239,13 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                             break;
                         }
                     }
+
                     if(!isDuplicate)
                     {
                         deduplicated.Add(candidates[i]);
                     }
                 }
+
                 candidates = deduplicated;
 
                 if(candidates.Count == 1)
@@ -24624,8 +24783,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         return false;
                     }
                 }
+
                 return true;
             }
+
             return false;
         }
 
@@ -24640,8 +24801,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         return false;
                     }
                 }
+
                 return true;
             }
+
             return false;
         }
 
@@ -24656,8 +24819,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         return false;
                     }
                 }
+
                 return true;
             }
+
             return false;
         }
 
@@ -24714,6 +24879,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     return i < typeArgs.Count ? typeArgs[i] : type;
                 }
             }
+
             return type;
         }
 
@@ -24729,6 +24895,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     changed = true;
                 }
             }
+
             return changed ? new ConstructedType(ct.GenericDefinition, substitutedArgs) : ct;
         }
 
@@ -24745,6 +24912,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     changed = true;
                 }
             }
+
             return changed ? new UnionType(substitutedConstituents) : unionType;
         }
 
@@ -24778,6 +24946,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         typeArgsChanged = true;
                     }
                 }
+
                 if(typeArgsChanged)
                 {
                     substitutedTypeArgs = newTypeArgs;
@@ -24799,6 +24968,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     typeArguments: substitutedTypeArgs,
                     memberScope: delegateType.MemberScope);
             }
+
             return type;
         }
 
@@ -25569,6 +25739,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         return m;
                     }
                 }
+
                 current = current.BaseType as ClassType;
             }
         }
@@ -25640,6 +25811,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         }
                     }
                 }
+
                 if(firstMatch is not null)
                 {
                     return firstMatch;
@@ -25661,6 +25833,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         return s;
                     }
                 }
+
                 return allMembers[0];
             }
         }
@@ -25743,6 +25916,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         return s;
                     }
                 }
+
                 current = current.BaseType as ClassType;
             }
         }
@@ -25801,6 +25975,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         }
                     }
                 }
+
                 if(lambdaCompatibleMatch is not null)
                 {
                     return lambdaCompatibleMatch;
@@ -25808,6 +25983,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
                 current = current.BaseType as ClassType;
             }
+
             return firstMatch;
         }
 
@@ -25847,6 +26023,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 return true;
             }
         }
+
         return false;
     }
 
@@ -25930,6 +26107,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 result.Add(UnknownType.Instance);
             }
         }
+
         return result;
     }
 
@@ -26009,6 +26187,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                             lambdaTargetType = constituent;
                             break;
                         }
+
                         if(constituent is DelegateType)
                         {
                             lambdaTargetType = constituent;
@@ -26182,6 +26361,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 return true;
             }
         }
+
         return false;
     }
 
@@ -26287,6 +26467,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     return backingField.DeclaredType ?? ErrorType.Instance;
                 }
             }
+
             scope = scope.Parent;
         }
 
@@ -26383,6 +26564,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 _ = sb.Append(token.Lexeme);
             }
         }
+
         return sb.ToString();
     }
 
@@ -26404,6 +26586,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 return false;
             }
         }
+
         return true;
     }
 
@@ -26421,6 +26604,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         {
             names.Add(firstName);
         }
+
         foreach(var rest in baseList.BaseTypeRefs)
         {
             var restName = rest.Name.Lexeme;
@@ -26429,6 +26613,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 names.Add(restName);
             }
         }
+
         return names.ToArray();
     }
 
@@ -26478,6 +26663,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 builder.Add(typeItem.TypeDeclaration);
             }
         }
+
         return builder.ToImmutable();
     }
 
@@ -26499,6 +26685,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 builder.Add(extensionItem.ExtensionDeclaration);
             }
         }
+
         return builder.ToImmutable();
     }
 
@@ -26520,6 +26707,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 builder.Add(typeAliasItem.TypeAliasDeclaration);
             }
         }
+
         return builder.ToImmutable();
     }
 
@@ -26541,6 +26729,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 builder.Add(newtypeItem.NewtypeDeclaration);
             }
         }
+
         return builder.ToImmutable();
     }
 
@@ -26577,6 +26766,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         {
             return IntrinsicDefaultableNames.Contains(type.DisplayName);
         }
+
         return false;
     }
 
@@ -26910,6 +27100,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                             CompilationUnitPath: "<unknown>",
                             AnalyzerName: null));
                     }
+
                     return;
                 }
             }
@@ -26989,6 +27180,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                             CompilationUnitPath: "<unknown>",
                             AnalyzerName: null));
                     }
+
                     return;
                 }
             }
@@ -27342,6 +27534,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                             {
                                 concreteTypeName = ExtractTypeReferenceName(typeBinding.TypeName, null);
                             }
+
                             IType? concreteType = FindTypeByName(memberScope, concreteTypeName);
 
                             // Process nested overrides if present.
@@ -27646,6 +27839,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 };
             }
         }
+
         return '\0';
     }
 
@@ -27680,8 +27874,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     return member.DeclaredType;
                 }
             }
+
             current = current.Parent;
         }
+
         return null;
     }
 

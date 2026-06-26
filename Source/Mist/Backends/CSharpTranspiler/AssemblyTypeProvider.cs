@@ -168,6 +168,7 @@ internal sealed class AssemblyTypeProvider : IAmbientTypeResolver, IDisposable
                 return true;
             }
         }
+
         return false;
     }
 

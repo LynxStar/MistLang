@@ -109,6 +109,7 @@ public static class TypeContainment
                         return true;
                     }
                 }
+
                 return false;
 
             default:

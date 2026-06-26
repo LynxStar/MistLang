@@ -81,6 +81,7 @@ public sealed class NestedScopingUnitTests
         {
             _ = sb.AppendLine(content);
         }
+
         return sb.ToString();
     }
 
@@ -430,6 +431,7 @@ public sealed class NestedScopingUnitTests
                 return i;
             }
         }
+
         return -1;
     }
 
@@ -442,6 +444,7 @@ public sealed class NestedScopingUnitTests
             count++;
             index += pattern.Length;
         }
+
         return count;
     }
 }

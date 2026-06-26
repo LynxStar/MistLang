@@ -234,6 +234,7 @@ public static class IClonableDerivationEngine
                         return false;
                     }
                 }
+
                 return true;
 
             case ConstructedType constructed:
@@ -251,6 +252,7 @@ public static class IClonableDerivationEngine
                         return false;
                     }
                 }
+
                 return true;
 
             case TypeParameterType:
@@ -307,6 +309,7 @@ public static class IClonableDerivationEngine
                 return true;
             }
         }
+
         return false;
     }
 

@@ -996,6 +996,7 @@ public class FuncAsyncDropChainingPropertyTests
                         break;
                     }
                 }
+
                 break;
             }
         }

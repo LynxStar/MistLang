@@ -68,6 +68,7 @@ public sealed class TypeProjectorDelegateTests
                 func.TypeParameters = tps;
                 funcByArity[arity] = func;
             }
+
             return func;
         }
 

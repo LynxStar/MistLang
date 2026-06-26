@@ -139,6 +139,7 @@ public sealed class OwnershipInferencePassTests : IDisposable
                 return methodDecl.Body.GetBlock();
             }
         }
+
         return null;
     }
 
@@ -197,6 +198,7 @@ public sealed class OwnershipInferencePassTests : IDisposable
                 return binding;
             }
         }
+
         return null;
     }
 

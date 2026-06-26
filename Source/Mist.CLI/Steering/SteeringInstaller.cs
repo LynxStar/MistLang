@@ -153,6 +153,7 @@ public static class SteeringInstaller
                 {
                     return SteeringInstallResult.Failure($"Failed to remove managed steering file '{path}': {ex.Message}");
                 }
+
                 removed.Add(path);
             }
             else
@@ -174,6 +175,7 @@ public static class SteeringInstaller
             {
                 return SteeringInstallResult.Failure($"Failed to install steering file '{Path.GetFileName(source)}': {ex.Message}");
             }
+
             installed.Add(destination);
         }
 

@@ -45,6 +45,7 @@ namespace Storm.SourceGenerator.Emit
                 {
                     writer.WriteLine($"{SanitizeIdentifier(token.Name)},");
                 }
+
                 writer.WriteLine("EndOfFile,");
                 writer.WriteLine("Error,");
             });
@@ -223,6 +224,7 @@ namespace Storm.SourceGenerator.Emit
 
                     _ = sb.Append(perModeResults[m].charToClass[c]);
                 }
+
                 var key = sb.ToString();
 
                 int classIndex;
@@ -231,6 +233,7 @@ namespace Storm.SourceGenerator.Emit
                     classIndex = nextClass++;
                     signatureToClass[key] = classIndex;
                 }
+
                 charToClass[c] = classIndex;
             }
 
@@ -323,6 +326,7 @@ namespace Storm.SourceGenerator.Emit
 
                 _ = sb.Append(charToClass[i]);
             }
+
             _ = sb.Append(" };");
             writer.WriteLine(sb.ToString());
         }
@@ -352,8 +356,10 @@ namespace Storm.SourceGenerator.Emit
 
                     _ = sb.Append(transTable[s, c]);
                 }
+
                 _ = sb.Append(" }");
             }
+
             _ = sb.Append(" };");
             writer.WriteLine(sb.ToString());
         }
@@ -375,6 +381,7 @@ namespace Storm.SourceGenerator.Emit
 
                 _ = sb.Append(acceptTable[i]);
             }
+
             _ = sb.Append(" };");
             writer.WriteLine(sb.ToString());
         }
@@ -636,6 +643,7 @@ namespace Storm.SourceGenerator.Emit
             {
                 writer.WriteLine($"(int)TokenKind.{SanitizeIdentifier(token.Name)},");
             }
+
             writer.Dedent();
             writer.WriteLine("};");
         }

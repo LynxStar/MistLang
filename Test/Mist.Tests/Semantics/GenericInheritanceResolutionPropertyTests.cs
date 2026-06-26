@@ -183,6 +183,7 @@ public class GenericInheritanceResolutionPropertyTests
                 var tps = string.Join(", ", TypeParamNames);
                 return $"class {TypeName}<{tps}> : {AbstractName}<{tps}>";
             }
+
             return $"class {TypeName} : {AbstractName}<int>";
         }
     }

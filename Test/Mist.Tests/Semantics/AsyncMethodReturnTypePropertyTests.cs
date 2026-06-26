@@ -77,6 +77,7 @@ public class AsyncMethodReturnTypePropertyTests
                 modifiers.Add(mod);
             }
         }
+
         modifiers.Add(new AsyncModifierModifierNode());
 
         return new MethodDeclarationNode

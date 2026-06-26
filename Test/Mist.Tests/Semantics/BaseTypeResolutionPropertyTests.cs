@@ -208,6 +208,7 @@ public class BaseTypeResolutionPropertyTests
                 ? (names[i], undefinedBase)
                 : (names[i], null));
         }
+
         return new ClassSet(entries.ToImmutableArray());
     }
 

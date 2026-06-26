@@ -929,6 +929,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                                     state.BorrowField(ownedRecvRefSym!, ownedFieldRefSym!, declaredSymbol);
                                 }
                             }
+
                             break;
                         }
 
@@ -954,6 +955,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                                         {
                                             state.VariableStates[sourceSymbol] = VariableOwnershipState.LentReadonly;
                                         }
+
                                         state.ActiveBorrows.Add(new BorrowEntry(
                                             sourceSymbol, declaredSymbol, OwnershipTier.ReadonlyRef, state.ScopeDepth));
                                     }
@@ -1093,6 +1095,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                             PerformMove(sourceSymbol, typed.Initializer, state, model, diagnostics);
                         }
                     }
+
                     break;
                 }
             case InferredVariableDeclarationVariableDeclarationStatementNode inferred:
@@ -1352,6 +1355,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                             PerformMove(sourceSymbol, inferred.Initializer, state, model, diagnostics);
                         }
                     }
+
                     break;
                 }
         }
@@ -2191,6 +2195,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         {
             invokedSymbol = model.GetDeclaredSymbol(targetId);
         }
+
         invokedSymbol ??= model.GetDeclaredSymbol(invocation);
         if(invokedSymbol is null)
         {
@@ -2497,6 +2502,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
             {
                 return symbol;
             }
+
             return null;
         }
 
@@ -2624,6 +2630,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         {
             result.Add(ArgumentListNodeExtensions.ExtractExpression(restArg));
         }
+
         return result;
     }
 
@@ -2689,6 +2696,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                 return true;
             }
         }
+
         return false;
     }
 
@@ -2704,6 +2712,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                 return true;
             }
         }
+
         return false;
     }
 
@@ -2727,6 +2736,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                     nonNullChildren.Add(child);
                 }
             }
+
             if(nonNullChildren.Count != 1)
             {
                 return null;
@@ -2774,6 +2784,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                     nonNullChildren.Add(child);
                 }
             }
+
             if(nonNullChildren.Count != 1)
             {
                 return null;
@@ -2824,6 +2835,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                     nonNullChildren.Add(child);
                 }
             }
+
             if(nonNullChildren.Count != 1)
             {
                 return null;
@@ -2917,6 +2929,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                 return true;
             }
         }
+
         return false;
     }
 
@@ -3199,6 +3212,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                 return member;
             }
         }
+
         return null;
     }
 

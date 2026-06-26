@@ -148,11 +148,11 @@ This plan implements anonymous types for the Mist language, following C#'s seman
     - Uses batched compilation pattern (1 compile, 1 run, N output lines)
     - **Validates: Requirements 7.1, 7.2, 7.3, 7.5**
 
-- [-] 9. Checkpoint - Ensure emitter tests pass
+- [x] 9. Checkpoint - Ensure emitter tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 10. Sample application and integration
-  - [-] 10.1 Create sample project at `samples/AnonymousTypes/Program.mist`
+- [x] 10. Sample application and integration
+  - [x] 10.1 Create sample project at `samples/AnonymousTypes/Program.mist`
     - Include the proof code from Requirement 13 verbatim
     - Implement `public static void RunDemo()` entry point
     - Cover all permutations: explicit assignment, variable projection, member access projection, mixed forms, same-shape assignment, assignment to `unknown`, property pattern matching, equality comparison

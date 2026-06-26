@@ -10,7 +10,7 @@ namespace Storm.SourceGenerator.Emit
     /// </summary>
     public sealed class CodeWriter
     {
-        private StringBuilder sb = new StringBuilder();
+        private StringBuilder sb = new();
         private int indentLevel;
         private const string IndentUnit = "    "; // 4 spaces
 

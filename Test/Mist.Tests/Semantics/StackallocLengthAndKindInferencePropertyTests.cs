@@ -372,7 +372,7 @@ public sealed class StackallocLengthAndKindInferencePropertyTests : IDisposable
     public Property StackallocExpression_ElementTypeIsResolved(
         StackallocLengthInferenceScenario scenario)
     {
-        var (result, model) = CompileAndCapture(scenario.Source);
+        var (_, model) = CompileAndCapture(scenario.Source);
 
         if(model is null)
         {

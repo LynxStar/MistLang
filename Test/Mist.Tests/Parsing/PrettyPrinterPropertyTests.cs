@@ -230,7 +230,7 @@ public class PrettyPrinterPropertyTests
         };
 
         // this.x = x;
-        var thisExpr = MakeAssignmentExpression("x", MakeIdentifierExpression("x"));
+        _ = MakeAssignmentExpression("x", MakeIdentifierExpression("x"));
         // Wrap this.x as member access on this
         var thisPrimary = new ThisExpressionPrimaryNode();
         var memberSuffix = new MemberAccessSuffixPostfixSuffixNode { Name = MakeToken("x") };
@@ -933,7 +933,7 @@ public class PrettyPrinterPropertyTests
         var compilation = new MistCompilation(
             ImmutableArray.Create(new CompilationUnit(new SourceText("test.mist", ""))));
         var diagnostics = new DiagnosticBag();
-        var model = builder.Build(
+        _ = builder.Build(
             compilation,
             ImmutableArray.Create<Storm.Runtime.SyntaxNode>(ast),
             ambientTypeResolver: null,

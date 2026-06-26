@@ -219,7 +219,7 @@ public class SyncContextAutoUnwrapPropertyTests
     public Property SyncContext_AsyncMethodCall_TypeIsT_NotTaskOfT(SyncAutoUnwrapScenario scenario)
     {
         var (ast, invocationNode) = BuildAst(scenario);
-        var (model, diagnostics) = StdlibTestHelper.BuildModelWithStdlib(ast);
+        var (model, _) = StdlibTestHelper.BuildModelWithStdlib(ast);
 
         // Query the semantic model for the type of the invocation expression
         var exprType = model.GetTypeOf(invocationNode);

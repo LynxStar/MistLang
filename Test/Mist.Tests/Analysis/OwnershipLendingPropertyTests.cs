@@ -187,7 +187,7 @@ public class OwnershipLendingPropertyTests
         string varName,
         string methodName)
     {
-        var sourceSpec = TierToSpecifier(sourceTier);
+        _ = TierToSpecifier(sourceTier);
         var targetSpec = TierToSpecifier(targetTier);
 
         // For ref/readonly ref/frozen ref source tiers, the variable must be obtained

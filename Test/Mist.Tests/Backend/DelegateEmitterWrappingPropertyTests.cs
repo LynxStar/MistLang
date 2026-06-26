@@ -208,7 +208,7 @@ public sealed class DelegateEmitterWrappingPropertyTests
             var wrapped = SimulateWrapping(dt, scenario.EmittedExpression);
 
             // The emitted expression must appear inside parentheses after the type name
-            var expectedTypeName = CSharpTypeMap.GetTypeName(dt);
+            _ = CSharpTypeMap.GetTypeName(dt);
             var expectedSuffix = $"({scenario.EmittedExpression})";
             Assert.EndsWith(expectedSuffix, wrapped, StringComparison.Ordinal);
         }

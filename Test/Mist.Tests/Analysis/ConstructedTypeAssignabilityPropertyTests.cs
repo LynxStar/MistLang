@@ -319,7 +319,7 @@ public class ConstructedTypeAssignabilityPropertyTests
         var mainStatements = ImmutableArray.Create(varDeclA, varDeclB);
         typeDecls.Add(new ClassTypeTypeDeclarationNode { ClassDeclaration = MakeProgramClass(mainStatements) });
 
-        return new CompilationUnitNode { Items = (typeDecls.ToImmutableArray()).AsTopLevelItems() };
+        return new CompilationUnitNode { Items = typeDecls.ToImmutableArray().AsTopLevelItems() };
     }
 
     /// <summary>
@@ -369,7 +369,7 @@ public class ConstructedTypeAssignabilityPropertyTests
         var mainStatements = ImmutableArray.Create(varDeclD, varDeclB);
         typeDecls.Add(new ClassTypeTypeDeclarationNode { ClassDeclaration = MakeProgramClass(mainStatements) });
 
-        return new CompilationUnitNode { Items = (typeDecls.ToImmutableArray()).AsTopLevelItems() };
+        return new CompilationUnitNode { Items = typeDecls.ToImmutableArray().AsTopLevelItems() };
     }
 
     /// <summary>
@@ -419,7 +419,7 @@ public class ConstructedTypeAssignabilityPropertyTests
         var mainStatements = ImmutableArray.Create(varDeclB, varDeclI);
         typeDecls.Add(new ClassTypeTypeDeclarationNode { ClassDeclaration = MakeProgramClass(mainStatements) });
 
-        return new CompilationUnitNode { Items = (typeDecls.ToImmutableArray()).AsTopLevelItems() };
+        return new CompilationUnitNode { Items = typeDecls.ToImmutableArray().AsTopLevelItems() };
     }
 
     private static ClassDeclarationNode MakeProgramClass(ImmutableArray<StatementNode> mainStatements)

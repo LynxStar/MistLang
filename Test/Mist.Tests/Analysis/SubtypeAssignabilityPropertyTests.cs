@@ -226,8 +226,10 @@ public class SubtypeAssignabilityPropertyTests
     private static Gen<SubtypeScenario> BuildSubtypeScenario(string[] classNames, AssignmentKind kind)
     {
         // Build a linear chain: classNames[0] is root, classNames[1] : classNames[0], etc.
-        var classes = new List<(string Name, string? BaseName)>();
-        classes.Add((classNames[0], null));
+        var classes = new List<(string Name, string? BaseName)>
+        {
+            (classNames[0], null)
+        };
         for(var i = 1; i < classNames.Length; i++)
         {
             classes.Add((classNames[i], classNames[i - 1]));
@@ -299,7 +301,7 @@ public class SubtypeAssignabilityPropertyTests
 
         return new CompilationUnitNode
         {
-            Items = (typeDecls.ToImmutableArray()).AsTopLevelItems(),
+            Items = typeDecls.ToImmutableArray().AsTopLevelItems(),
         };
     }
 

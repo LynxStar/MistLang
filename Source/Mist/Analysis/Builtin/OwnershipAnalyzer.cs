@@ -1608,7 +1608,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         if(ifStmt.ElseBranch is ElseBlockElseClauseNode elseBlock)
         {
             // Fork from the pre-if state for the else branch.
-            var elseState = thenState.Fork();
+            _ = thenState.Fork();
 
             // Swap: put the then-branch result in thenState, walk else on elseState.
             // Actually, we need to walk else on the pre-if state (thenState is the fork).

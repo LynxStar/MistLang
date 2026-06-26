@@ -594,8 +594,8 @@ namespace Storm.SourceGenerator.Tests
             var unsafeRule = new RuleIR("Unsafe", new List<RuleAlternativeIR>(), isMemo: true);
             var safeRule = new RuleIR("Safe", new List<RuleAlternativeIR>
             {
-                new RuleAlternativeIR(null, Array.Empty<FieldLabelIR>(), new TokenRefIR(token)),
-                new RuleAlternativeIR(null, Array.Empty<FieldLabelIR>(), new TokenRefIR(token)),
+                new(null, Array.Empty<FieldLabelIR>(), new TokenRefIR(token)),
+                new(null, Array.Empty<FieldLabelIR>(), new TokenRefIR(token)),
             }, isMemo: true);
 
             var grammar = new GrammarIR(

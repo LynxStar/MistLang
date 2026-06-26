@@ -85,8 +85,7 @@ public class BinaryLiteralExpressionTests
 
         var root = ParseSource(source);
         Assert.NotNull(root);
-
-        var model = BuildSemanticModel(root!, source, out var diagnostics);
+        _ = BuildSemanticModel(root!, source, out var diagnostics);
         var errors = GetErrorDiagnostics(diagnostics);
 
         Assert.Empty(errors);
@@ -115,8 +114,7 @@ public class BinaryLiteralExpressionTests
 
         var root = ParseSource(source);
         Assert.NotNull(root);
-
-        var model = BuildSemanticModel(root!, source, out var diagnostics);
+        _ = BuildSemanticModel(root!, source, out var diagnostics);
         var errors = GetErrorDiagnostics(diagnostics);
 
         Assert.Empty(errors);
@@ -139,8 +137,7 @@ public class BinaryLiteralExpressionTests
 
         var root = ParseSource(source);
         Assert.NotNull(root);
-
-        var model = BuildSemanticModel(root!, source, out var diagnostics);
+        _ = BuildSemanticModel(root!, source, out var diagnostics);
         var errors = GetErrorDiagnostics(diagnostics);
 
         Assert.Empty(errors);

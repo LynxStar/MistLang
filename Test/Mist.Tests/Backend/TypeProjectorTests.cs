@@ -81,7 +81,7 @@ public class TypeProjectorTests
     [Fact]
     public void ProjectType_Enum_HasCorrectMembers()
     {
-        var (type, symbols) = projector.ProjectType(typeof(SimpleEnum), stdlib);
+        var (type, _) = projector.ProjectType(typeof(SimpleEnum), stdlib);
         var enumType = Assert.IsType<EnumType>(type);
 
         Assert.Equal(4, enumType.Members.Count);

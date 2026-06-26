@@ -136,9 +136,11 @@ public class SyntheticChainResolutionPropertyTests
         var terminal = new ParsedOrigin(input.TerminalSource);
         var outerOrigin = BuildChain(terminal, input.Reasons);
 
-        var node = new BlockNode();
-        node.Origin = outerOrigin;
-        node.Span = new Storm.Runtime.SourceSpan(input.SpanStart, input.SpanLength);
+        var node = new BlockNode
+        {
+            Origin = outerOrigin,
+            Span = new Storm.Runtime.SourceSpan(input.SpanStart, input.SpanLength)
+        };
 
         var (path, _, _) = DiagnosticHelper.ResolveLocation(node);
 
@@ -156,9 +158,11 @@ public class SyntheticChainResolutionPropertyTests
         var terminal = new ParsedOrigin(input.TerminalSource);
         var outerOrigin = BuildChain(terminal, input.Reasons);
 
-        var node = new BlockNode();
-        node.Origin = outerOrigin;
-        node.Span = new Storm.Runtime.SourceSpan(input.SpanStart, input.SpanLength);
+        var node = new BlockNode
+        {
+            Origin = outerOrigin,
+            Span = new Storm.Runtime.SourceSpan(input.SpanStart, input.SpanLength)
+        };
 
         var (_, location, _) = DiagnosticHelper.ResolveLocation(node);
 
@@ -181,9 +185,11 @@ public class SyntheticChainResolutionPropertyTests
         var terminal = new ParsedOrigin(input.TerminalSource);
         var outerOrigin = BuildChain(terminal, input.Reasons);
 
-        var node = new BlockNode();
-        node.Origin = outerOrigin;
-        node.Span = new Storm.Runtime.SourceSpan(input.SpanStart, input.SpanLength);
+        var node = new BlockNode
+        {
+            Origin = outerOrigin,
+            Span = new Storm.Runtime.SourceSpan(input.SpanStart, input.SpanLength)
+        };
 
         var (_, _, syntheticContext) = DiagnosticHelper.ResolveLocation(node);
 

@@ -99,8 +99,10 @@ public sealed class CompositeStateMaxPropertyTests
                 origin: SymbolOrigin.UserCode,
                 containingScope: scope,
                 declaredType: null,
-                declarationSpan: new SourceSpan(i * 10, 5));
-            field.IsOwnedField = true;
+                declarationSpan: new SourceSpan(i * 10, 5))
+            {
+                IsOwnedField = true
+            };
             scope.AddMember(field);
             fields[i] = field;
         }

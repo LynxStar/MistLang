@@ -232,7 +232,7 @@ public class AsyncFunctorTypePropertyTests
     public Property AsyncFunctor_ExpressionType_IsTaskOfT(AsyncFunctorScenario scenario)
     {
         var (ast, asyncExprNode) = BuildAst(scenario);
-        var (model, diagnostics) = StdlibTestHelper.BuildModelWithStdlib(ast);
+        var (model, _) = StdlibTestHelper.BuildModelWithStdlib(ast);
 
         // Query the semantic model for the type of the async expression node
         var exprType = model.GetTypeOf(asyncExprNode);

@@ -104,7 +104,7 @@ public class UndefinedTypeArgumentPropertyTests
 
     private static CompilationUnitNode MakeCompilationUnit(params TypeDeclarationNode[] typeDecls)
     {
-        return new CompilationUnitNode { Items = (typeDecls.ToImmutableArray()).AsTopLevelItems() };
+        return new CompilationUnitNode { Items = typeDecls.ToImmutableArray().AsTopLevelItems() };
     }
 
     // ─── Test data models ────────────────────────────────────────────────

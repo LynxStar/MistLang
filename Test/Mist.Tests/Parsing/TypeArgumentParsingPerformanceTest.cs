@@ -42,7 +42,7 @@ public sealed class TypeArgumentParsingPerformanceTest
 
             var sw = Stopwatch.StartNew();
             var tokens = lexer.Lex(sourceText, diagnostics);
-            var parseResult = parser.Parse(tokens, diagnostics);
+            _ = parser.Parse(tokens, diagnostics);
             sw.Stop();
 
             var elapsedMs = sw.Elapsed.TotalMilliseconds;
@@ -107,7 +107,7 @@ public sealed class TypeArgumentParsingPerformanceTest
 
             var sw = Stopwatch.StartNew();
             var tokens = lexer.Lex(sourceText, diagnostics);
-            var parseResult = parser.Parse(tokens, diagnostics);
+            _ = parser.Parse(tokens, diagnostics);
             sw.Stop();
 
             var elapsedMs = sw.Elapsed.TotalMilliseconds;

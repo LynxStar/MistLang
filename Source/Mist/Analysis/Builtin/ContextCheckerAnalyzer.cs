@@ -111,7 +111,7 @@ public sealed class ContextCheckerAnalyzer : IAnalyzer
                     if(ContextTypesMatch(typeI, typeJ))
                     {
                         // Emit on the second (duplicate) clause.
-                        var clause = sym.WithClauses[j];
+                        _ = sym.WithClauses[j];
                         SyntaxNode? declaringNode;
                         try { declaringNode = model.GetDeclaringNode(sym); }
                         catch { declaringNode = null; }

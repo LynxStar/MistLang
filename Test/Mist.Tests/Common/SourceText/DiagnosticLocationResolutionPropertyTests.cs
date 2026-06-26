@@ -84,9 +84,11 @@ public class DiagnosticLocationResolutionPropertyTests
     [Property(MaxTest = 100, Arbitrary = new[] { typeof(DiagnosticLocationResolutionPropertyTests) })]
     public bool ResolveLocation_ReturnsCorrectPath(LocationInput input)
     {
-        var node = new BlockNode();
-        node.Origin = new ParsedOrigin(input.Source);
-        node.Span = new Storm.Runtime.SourceSpan(input.SpanStart, input.SpanLength);
+        var node = new BlockNode
+        {
+            Origin = new ParsedOrigin(input.Source),
+            Span = new Storm.Runtime.SourceSpan(input.SpanStart, input.SpanLength)
+        };
 
         var (path, _, _) = DiagnosticHelper.ResolveLocation(node);
 
@@ -101,9 +103,11 @@ public class DiagnosticLocationResolutionPropertyTests
     [Property(MaxTest = 100, Arbitrary = new[] { typeof(DiagnosticLocationResolutionPropertyTests) })]
     public bool ResolveLocation_ReturnsCorrectLinePositionSpan(LocationInput input)
     {
-        var node = new BlockNode();
-        node.Origin = new ParsedOrigin(input.Source);
-        node.Span = new Storm.Runtime.SourceSpan(input.SpanStart, input.SpanLength);
+        var node = new BlockNode
+        {
+            Origin = new ParsedOrigin(input.Source),
+            Span = new Storm.Runtime.SourceSpan(input.SpanStart, input.SpanLength)
+        };
 
         var (_, location, _) = DiagnosticHelper.ResolveLocation(node);
 
@@ -123,9 +127,11 @@ public class DiagnosticLocationResolutionPropertyTests
     [Property(MaxTest = 100, Arbitrary = new[] { typeof(DiagnosticLocationResolutionPropertyTests) })]
     public bool ResolveLocation_ParsedOrigin_HasNullSyntheticContext(LocationInput input)
     {
-        var node = new BlockNode();
-        node.Origin = new ParsedOrigin(input.Source);
-        node.Span = new Storm.Runtime.SourceSpan(input.SpanStart, input.SpanLength);
+        var node = new BlockNode
+        {
+            Origin = new ParsedOrigin(input.Source),
+            Span = new Storm.Runtime.SourceSpan(input.SpanStart, input.SpanLength)
+        };
 
         var (_, _, syntheticContext) = DiagnosticHelper.ResolveLocation(node);
 

@@ -104,9 +104,10 @@ public class DefaultBlockParsingPropertyTests
         ImmutableArray<(string FieldName, EntryKind Kind, int LiteralValue, string? TypeBindingName)> entries)
     {
         var keyword = isStruct ? "struct" : "class";
-        var lines = new List<string>();
-
-        lines.Add($"public {keyword} {typeName} {{");
+        var lines = new List<string>
+        {
+            $"public {keyword} {typeName} {{"
+        };
 
         if(entries.Length == 0)
         {

@@ -285,7 +285,7 @@ public static class MistPatternGenerator
                 },
             });
 
-        var twoElements = (from a in Gen.Choose(0, 10)
+        var twoElements = from a in Gen.Choose(0, 10)
                            from b in Gen.Choose(0, 10)
                            select (PrimaryPatternNode)new ListPatternPrimaryPatternNode
                            {
@@ -316,7 +316,7 @@ public static class MistPatternGenerator
                                        },
                                        new SliceElementListPatternElementNode()),
                                },
-                           });
+                           };
 
         return Gen.OneOf(singleElement, twoElements);
     }

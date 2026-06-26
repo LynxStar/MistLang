@@ -193,8 +193,10 @@ public sealed class MistPrettyPrinter
         // Union when there are PIPE-separated continuations; otherwise a single (optionally refined) type.
         if(node.RefinableSingleTypeExprs.Length > 0)
         {
-            var parts = new List<string>();
-            parts.Add(EmitRefinableSingle(node.First));
+            var parts = new List<string>
+            {
+                EmitRefinableSingle(node.First)
+            };
             foreach(var constituent in node.RefinableSingleTypeExprs)
             {
                 parts.Add(EmitRefinableSingle(constituent));
@@ -1030,8 +1032,10 @@ public sealed class MistPrettyPrinter
             return "";
         }
 
-        var parameters = new List<string>();
-        parameters.Add(EmitParameter(paramList.Parameter));
+        var parameters = new List<string>
+        {
+            EmitParameter(paramList.Parameter)
+        };
 
         foreach(var child in paramList.Children())
         {
@@ -1078,8 +1082,10 @@ public sealed class MistPrettyPrinter
             return "";
         }
 
-        var arguments = new List<string>();
-        arguments.Add(EmitArgument(argList.Argument));
+        var arguments = new List<string>
+        {
+            EmitArgument(argList.Argument)
+        };
 
         foreach(var arg in argList.Arguments)
         {
@@ -1118,8 +1124,10 @@ public sealed class MistPrettyPrinter
         // joined by " | ". A single (non-union) type ref delegates to EmitSingleTypeRef.
         if(typeRef.SingleTypeRefs.Length > 0)
         {
-            var parts = new List<string>();
-            parts.Add(EmitSingleTypeRef(typeRef.First));
+            var parts = new List<string>
+            {
+                EmitSingleTypeRef(typeRef.First)
+            };
             foreach(var constituent in typeRef.SingleTypeRefs)
             {
                 parts.Add(EmitSingleTypeRef(constituent));
@@ -1667,8 +1675,10 @@ public sealed class MistPrettyPrinter
             return "()";
         }
 
-        var parts = new List<string>();
-        parts.Add(EmitLambdaParam(parenParams.Params.LambdaParam));
+        var parts = new List<string>
+        {
+            EmitLambdaParam(parenParams.Params.LambdaParam)
+        };
         foreach(var param in parenParams.Params.LambdaParams)
         {
             parts.Add(EmitLambdaParam(param));
@@ -1943,9 +1953,11 @@ public sealed class MistPrettyPrinter
                 }
             case TuplePositionalPatternPrimaryPatternNode tuplePattern:
                 {
-                    var elements = new List<string>();
-                    elements.Add(EmitPattern(tuplePattern.First));
-                    elements.Add(EmitPattern(tuplePattern.Rest));
+                    var elements = new List<string>
+                    {
+                        EmitPattern(tuplePattern.First),
+                        EmitPattern(tuplePattern.Rest)
+                    };
                     foreach(var additional in tuplePattern.Patterns)
                     {
                         elements.Add(EmitPattern(additional));
@@ -1977,8 +1989,10 @@ public sealed class MistPrettyPrinter
 
     private string EmitPropertySubpatternList(PropertySubpatternListNode subpatternList)
     {
-        var parts = new List<string>();
-        parts.Add(EmitPropertySubpattern(subpatternList.PropertySubpattern));
+        var parts = new List<string>
+        {
+            EmitPropertySubpattern(subpatternList.PropertySubpattern)
+        };
 
         foreach(var subpattern in subpatternList.PropertySubpatterns)
         {
@@ -1997,8 +2011,10 @@ public sealed class MistPrettyPrinter
 
     private string EmitListPatternElementList(ListPatternElementListNode elementList)
     {
-        var parts = new List<string>();
-        parts.Add(EmitListPatternElement(elementList.ListPatternElement));
+        var parts = new List<string>
+        {
+            EmitListPatternElement(elementList.ListPatternElement)
+        };
 
         foreach(var element in elementList.ListPatternElements)
         {
@@ -2389,8 +2405,10 @@ public sealed class MistPrettyPrinter
     /// </summary>
     private string EmitBaseList(BaseListNode baseList)
     {
-        var parts = new List<string>();
-        parts.Add(EmitBaseTypeRef(baseList.First));
+        var parts = new List<string>
+        {
+            EmitBaseTypeRef(baseList.First)
+        };
         foreach(var rest in baseList.BaseTypeRefs)
         {
             parts.Add(EmitBaseTypeRef(rest));
@@ -2418,8 +2436,10 @@ public sealed class MistPrettyPrinter
             return "";
         }
 
-        var parts = new List<string>();
-        parts.Add(EmitTypeParameter(typeParams.TypeParameter));
+        var parts = new List<string>
+        {
+            EmitTypeParameter(typeParams.TypeParameter)
+        };
         foreach(var tp in typeParams.TypeParameters)
         {
             parts.Add(EmitTypeParameter(tp));
@@ -2453,8 +2473,10 @@ public sealed class MistPrettyPrinter
             return "";
         }
 
-        var parts = new List<string>();
-        parts.Add(EmitTypeArgument(typeArgs.TypeArgument));
+        var parts = new List<string>
+        {
+            EmitTypeArgument(typeArgs.TypeArgument)
+        };
         foreach(var arg in typeArgs.TypeArguments)
         {
             parts.Add(EmitTypeArgument(arg));
@@ -2567,8 +2589,10 @@ public sealed class MistPrettyPrinter
     /// </summary>
     private string EmitConstraintList(ConstraintListNode constraintList)
     {
-        var parts = new List<string>();
-        parts.Add(EmitConstraint(constraintList.Constraint));
+        var parts = new List<string>
+        {
+            EmitConstraint(constraintList.Constraint)
+        };
         foreach(var constraint in constraintList.Constraints)
         {
             parts.Add(EmitConstraint(constraint));
@@ -2603,8 +2627,10 @@ public sealed class MistPrettyPrinter
                         return "new()";
                     }
 
-                    var paramTypes = new List<string>();
-                    paramTypes.Add(EmitTypeReference(ctorConstraint.ParamTypes.TypeReference));
+                    var paramTypes = new List<string>
+                    {
+                        EmitTypeReference(ctorConstraint.ParamTypes.TypeReference)
+                    };
                     foreach(var typeRef in ctorConstraint.ParamTypes.TypeReferences)
                     {
                         paramTypes.Add(EmitTypeReference(typeRef));
@@ -2628,8 +2654,10 @@ public sealed class MistPrettyPrinter
             return "";
         }
 
-        var parts = new List<string>();
-        parts.Add(EmitSinglePropertyAssignment(block.Assignments.PropertyAssignment));
+        var parts = new List<string>
+        {
+            EmitSinglePropertyAssignment(block.Assignments.PropertyAssignment)
+        };
         foreach(var assignment in block.Assignments.PropertyAssignments)
         {
             parts.Add(EmitSinglePropertyAssignment(assignment));

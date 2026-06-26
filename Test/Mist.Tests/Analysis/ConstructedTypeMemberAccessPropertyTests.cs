@@ -302,7 +302,7 @@ public class ConstructedTypeMemberAccessPropertyTests
 
         return new CompilationUnitNode
         {
-            Items = (typeDecls.ToImmutableArray()).AsTopLevelItems(),
+            Items = typeDecls.ToImmutableArray().AsTopLevelItems(),
         };
     }
 

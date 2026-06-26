@@ -89,13 +89,12 @@ public sealed class UnionSemanticEquivalencePropertyTests : IDisposable
     /// </summary>
     private static List<Scenario> GenerateScenarios()
     {
-        var scenarios = new List<Scenario>();
-
-        // Scenario 1: Assign int literal to int | string, verify it's int via pattern match
-        scenarios.Add(new Scenario
+        var scenarios = new List<Scenario>
         {
-            Description = "assign_int_verify_pattern",
-            MethodBody = """
+            // Scenario 1: Assign int literal to int | string, verify it's int via pattern match
+            new() {
+                Description = "assign_int_verify_pattern",
+                MethodBody = """
                         int | string x = 42;
                         if (x is int n) {
                             Console.WriteLine("scenario_1_ok");
@@ -103,14 +102,13 @@ public sealed class UnionSemanticEquivalencePropertyTests : IDisposable
                             Console.WriteLine("scenario_1_fail");
                         }
             """,
-            ExpectedOutput = "scenario_1_ok",
-        });
+                ExpectedOutput = "scenario_1_ok",
+            },
 
-        // Scenario 2: Assign string literal to int | string, verify it's string via pattern match
-        scenarios.Add(new Scenario
-        {
-            Description = "assign_string_verify_pattern",
-            MethodBody = """
+            // Scenario 2: Assign string literal to int | string, verify it's string via pattern match
+            new() {
+                Description = "assign_string_verify_pattern",
+                MethodBody = """
                         int | string y = "hello";
                         if (y is string s) {
                             Console.WriteLine("scenario_2_ok");
@@ -118,14 +116,13 @@ public sealed class UnionSemanticEquivalencePropertyTests : IDisposable
                             Console.WriteLine("scenario_2_fail");
                         }
             """,
-            ExpectedOutput = "scenario_2_ok",
-        });
+                ExpectedOutput = "scenario_2_ok",
+            },
 
-        // Scenario 3: Assign int, verify it's NOT string
-        scenarios.Add(new Scenario
-        {
-            Description = "assign_int_not_string",
-            MethodBody = """
+            // Scenario 3: Assign int, verify it's NOT string
+            new() {
+                Description = "assign_int_not_string",
+                MethodBody = """
                         int | string z = 100;
                         if (z is string s2) {
                             Console.WriteLine("scenario_3_fail");
@@ -133,14 +130,13 @@ public sealed class UnionSemanticEquivalencePropertyTests : IDisposable
                             Console.WriteLine("scenario_3_ok");
                         }
             """,
-            ExpectedOutput = "scenario_3_ok",
-        });
+                ExpectedOutput = "scenario_3_ok",
+            },
 
-        // Scenario 4: Assign string, verify it's NOT int
-        scenarios.Add(new Scenario
-        {
-            Description = "assign_string_not_int",
-            MethodBody = """
+            // Scenario 4: Assign string, verify it's NOT int
+            new() {
+                Description = "assign_string_not_int",
+                MethodBody = """
                         int | string w = "world";
                         if (w is int n2) {
                             Console.WriteLine("scenario_4_fail");
@@ -148,34 +144,31 @@ public sealed class UnionSemanticEquivalencePropertyTests : IDisposable
                             Console.WriteLine("scenario_4_ok");
                         }
             """,
-            ExpectedOutput = "scenario_4_ok",
-        });
+                ExpectedOutput = "scenario_4_ok",
+            },
 
-        // Scenario 5: Pass int constituent to union-typed parameter
-        scenarios.Add(new Scenario
-        {
-            Description = "pass_int_to_union_param",
-            MethodBody = """
+            // Scenario 5: Pass int constituent to union-typed parameter
+            new() {
+                Description = "pass_int_to_union_param",
+                MethodBody = """
                         Program.AcceptUnion(55);
             """,
-            ExpectedOutput = "scenario_5_ok",
-        });
+                ExpectedOutput = "scenario_5_ok",
+            },
 
-        // Scenario 6: Pass string constituent to union-typed parameter
-        scenarios.Add(new Scenario
-        {
-            Description = "pass_string_to_union_param",
-            MethodBody = """
+            // Scenario 6: Pass string constituent to union-typed parameter
+            new() {
+                Description = "pass_string_to_union_param",
+                MethodBody = """
                         Program.AcceptString("test");
             """,
-            ExpectedOutput = "scenario_6_ok",
-        });
+                ExpectedOutput = "scenario_6_ok",
+            },
 
-        // Scenario 7: Return int from union-returning method, verify via pattern match
-        scenarios.Add(new Scenario
-        {
-            Description = "return_int_from_method",
-            MethodBody = """
+            // Scenario 7: Return int from union-returning method, verify via pattern match
+            new() {
+                Description = "return_int_from_method",
+                MethodBody = """
                         int | string r1 = Program.GetUnionValue(true);
                         if (r1 is int ri) {
                             Console.WriteLine("scenario_7_ok");
@@ -183,14 +176,13 @@ public sealed class UnionSemanticEquivalencePropertyTests : IDisposable
                             Console.WriteLine("scenario_7_fail");
                         }
             """,
-            ExpectedOutput = "scenario_7_ok",
-        });
+                ExpectedOutput = "scenario_7_ok",
+            },
 
-        // Scenario 8: Return string from union-returning method, verify via pattern match
-        scenarios.Add(new Scenario
-        {
-            Description = "return_string_from_method",
-            MethodBody = """
+            // Scenario 8: Return string from union-returning method, verify via pattern match
+            new() {
+                Description = "return_string_from_method",
+                MethodBody = """
                         int | string r2 = Program.GetUnionValue(false);
                         if (r2 is string rs) {
                             Console.WriteLine("scenario_8_ok");
@@ -198,40 +190,37 @@ public sealed class UnionSemanticEquivalencePropertyTests : IDisposable
                             Console.WriteLine("scenario_8_fail");
                         }
             """,
-            ExpectedOutput = "scenario_8_ok",
-        });
+                ExpectedOutput = "scenario_8_ok",
+            },
 
-        // Scenario 9: Pattern match with is var v on int value
-        scenarios.Add(new Scenario
-        {
-            Description = "var_pattern_int",
-            MethodBody = """
+            // Scenario 9: Pattern match with is var v on int value
+            new() {
+                Description = "var_pattern_int",
+                MethodBody = """
                         int | string vi = 77;
                         if (vi is var bound1) {
                             Console.WriteLine("scenario_9_ok");
                         }
             """,
-            ExpectedOutput = "scenario_9_ok",
-        });
+                ExpectedOutput = "scenario_9_ok",
+            },
 
-        // Scenario 10: Pattern match with is var v on string value
-        scenarios.Add(new Scenario
-        {
-            Description = "var_pattern_string",
-            MethodBody = """
+            // Scenario 10: Pattern match with is var v on string value
+            new() {
+                Description = "var_pattern_string",
+                MethodBody = """
                         int | string vs = "bound";
                         if (vs is var bound2) {
                             Console.WriteLine("scenario_10_ok");
                         }
             """,
-            ExpectedOutput = "scenario_10_ok",
-        });
+                ExpectedOutput = "scenario_10_ok",
+            },
 
-        // Scenario 11: Field with union type, assign int
-        scenarios.Add(new Scenario
-        {
-            Description = "field_assign_int",
-            MethodBody = """
+            // Scenario 11: Field with union type, assign int
+            new() {
+                Description = "field_assign_int",
+                MethodBody = """
                         Holder h1 = new Holder();
                         h1.data = 123;
                         if (h1.data is int fi) {
@@ -240,14 +229,13 @@ public sealed class UnionSemanticEquivalencePropertyTests : IDisposable
                             Console.WriteLine("scenario_11_fail");
                         }
             """,
-            ExpectedOutput = "scenario_11_ok",
-        });
+                ExpectedOutput = "scenario_11_ok",
+            },
 
-        // Scenario 12: Field with union type, assign string
-        scenarios.Add(new Scenario
-        {
-            Description = "field_assign_string",
-            MethodBody = """
+            // Scenario 12: Field with union type, assign string
+            new() {
+                Description = "field_assign_string",
+                MethodBody = """
                         Holder h2 = new Holder();
                         h2.data = "stored";
                         if (h2.data is string fs) {
@@ -256,14 +244,13 @@ public sealed class UnionSemanticEquivalencePropertyTests : IDisposable
                             Console.WriteLine("scenario_12_fail");
                         }
             """,
-            ExpectedOutput = "scenario_12_ok",
-        });
+                ExpectedOutput = "scenario_12_ok",
+            },
 
-        // Scenario 13: Reassign union variable from int to string
-        scenarios.Add(new Scenario
-        {
-            Description = "reassign_int_to_string",
-            MethodBody = """
+            // Scenario 13: Reassign union variable from int to string
+            new() {
+                Description = "reassign_int_to_string",
+                MethodBody = """
                         int | string mut = 1;
                         mut = "changed";
                         if (mut is string ms) {
@@ -272,14 +259,13 @@ public sealed class UnionSemanticEquivalencePropertyTests : IDisposable
                             Console.WriteLine("scenario_13_fail");
                         }
             """,
-            ExpectedOutput = "scenario_13_ok",
-        });
+                ExpectedOutput = "scenario_13_ok",
+            },
 
-        // Scenario 14: Reassign union variable from string to int
-        scenarios.Add(new Scenario
-        {
-            Description = "reassign_string_to_int",
-            MethodBody = """
+            // Scenario 14: Reassign union variable from string to int
+            new() {
+                Description = "reassign_string_to_int",
+                MethodBody = """
                         int | string mut2 = "first";
                         mut2 = 999;
                         if (mut2 is int mi) {
@@ -288,14 +274,13 @@ public sealed class UnionSemanticEquivalencePropertyTests : IDisposable
                             Console.WriteLine("scenario_14_fail");
                         }
             """,
-            ExpectedOutput = "scenario_14_ok",
-        });
+                ExpectedOutput = "scenario_14_ok",
+            },
 
-        // Scenario 15: Pattern match extracts correct int value
-        scenarios.Add(new Scenario
-        {
-            Description = "extract_int_value",
-            MethodBody = """
+            // Scenario 15: Pattern match extracts correct int value
+            new() {
+                Description = "extract_int_value",
+                MethodBody = """
                         int | string ev = 42;
                         if (ev is int extracted) {
                             if (extracted == 42) {
@@ -307,14 +292,13 @@ public sealed class UnionSemanticEquivalencePropertyTests : IDisposable
                             Console.WriteLine("scenario_15_fail_type");
                         }
             """,
-            ExpectedOutput = "scenario_15_ok",
-        });
+                ExpectedOutput = "scenario_15_ok",
+            },
 
-        // Scenario 16: Pattern match extracts correct string value
-        scenarios.Add(new Scenario
-        {
-            Description = "extract_string_value",
-            MethodBody = """
+            // Scenario 16: Pattern match extracts correct string value
+            new() {
+                Description = "extract_string_value",
+                MethodBody = """
                         int | string sv = "extract_me";
                         if (sv is string extracted2) {
                             if (extracted2 == "extract_me") {
@@ -326,14 +310,13 @@ public sealed class UnionSemanticEquivalencePropertyTests : IDisposable
                             Console.WriteLine("scenario_16_fail_type");
                         }
             """,
-            ExpectedOutput = "scenario_16_ok",
-        });
+                ExpectedOutput = "scenario_16_ok",
+            },
 
-        // Scenario 17: Union with bool | string, assign bool
-        scenarios.Add(new Scenario
-        {
-            Description = "bool_string_assign_bool",
-            MethodBody = """
+            // Scenario 17: Union with bool | string, assign bool
+            new() {
+                Description = "bool_string_assign_bool",
+                MethodBody = """
                         bool | string bs = true;
                         if (bs is bool bv) {
                             Console.WriteLine("scenario_17_ok");
@@ -341,14 +324,13 @@ public sealed class UnionSemanticEquivalencePropertyTests : IDisposable
                             Console.WriteLine("scenario_17_fail");
                         }
             """,
-            ExpectedOutput = "scenario_17_ok",
-        });
+                ExpectedOutput = "scenario_17_ok",
+            },
 
-        // Scenario 18: Union with bool | string, assign string
-        scenarios.Add(new Scenario
-        {
-            Description = "bool_string_assign_string",
-            MethodBody = """
+            // Scenario 18: Union with bool | string, assign string
+            new() {
+                Description = "bool_string_assign_string",
+                MethodBody = """
                         bool | string bs2 = "flag";
                         if (bs2 is string bsv) {
                             Console.WriteLine("scenario_18_ok");
@@ -356,14 +338,13 @@ public sealed class UnionSemanticEquivalencePropertyTests : IDisposable
                             Console.WriteLine("scenario_18_fail");
                         }
             """,
-            ExpectedOutput = "scenario_18_ok",
-        });
+                ExpectedOutput = "scenario_18_ok",
+            },
 
-        // Scenario 19: Three-type union int | string | bool, assign int
-        scenarios.Add(new Scenario
-        {
-            Description = "three_type_union_int",
-            MethodBody = """
+            // Scenario 19: Three-type union int | string | bool, assign int
+            new() {
+                Description = "three_type_union_int",
+                MethodBody = """
                         int | string | bool tri = 7;
                         if (tri is int tv) {
                             Console.WriteLine("scenario_19_ok");
@@ -371,14 +352,13 @@ public sealed class UnionSemanticEquivalencePropertyTests : IDisposable
                             Console.WriteLine("scenario_19_fail");
                         }
             """,
-            ExpectedOutput = "scenario_19_ok",
-        });
+                ExpectedOutput = "scenario_19_ok",
+            },
 
-        // Scenario 20: Three-type union int | string | bool, assign string
-        scenarios.Add(new Scenario
-        {
-            Description = "three_type_union_string",
-            MethodBody = """
+            // Scenario 20: Three-type union int | string | bool, assign string
+            new() {
+                Description = "three_type_union_string",
+                MethodBody = """
                         int | string | bool tri2 = "three";
                         if (tri2 is string tsv) {
                             Console.WriteLine("scenario_20_ok");
@@ -386,14 +366,13 @@ public sealed class UnionSemanticEquivalencePropertyTests : IDisposable
                             Console.WriteLine("scenario_20_fail");
                         }
             """,
-            ExpectedOutput = "scenario_20_ok",
-        });
+                ExpectedOutput = "scenario_20_ok",
+            },
 
-        // Scenario 21: Three-type union int | string | bool, assign bool
-        scenarios.Add(new Scenario
-        {
-            Description = "three_type_union_bool",
-            MethodBody = """
+            // Scenario 21: Three-type union int | string | bool, assign bool
+            new() {
+                Description = "three_type_union_bool",
+                MethodBody = """
                         int | string | bool tri3 = false;
                         if (tri3 is bool tbv) {
                             Console.WriteLine("scenario_21_ok");
@@ -401,39 +380,36 @@ public sealed class UnionSemanticEquivalencePropertyTests : IDisposable
                             Console.WriteLine("scenario_21_fail");
                         }
             """,
-            ExpectedOutput = "scenario_21_ok",
-        });
+                ExpectedOutput = "scenario_21_ok",
+            },
 
-        // Scenario 22: Pass union variable to union-typed parameter
-        scenarios.Add(new Scenario
-        {
-            Description = "pass_union_var_to_param",
-            MethodBody = """
+            // Scenario 22: Pass union variable to union-typed parameter
+            new() {
+                Description = "pass_union_var_to_param",
+                MethodBody = """
                         int | string pv = 88;
                         Program.AcceptAndCheck(pv);
             """,
-            ExpectedOutput = "scenario_22_ok",
-        });
+                ExpectedOutput = "scenario_22_ok",
+            },
 
-        // Scenario 23: Return from method and immediately pattern match
-        scenarios.Add(new Scenario
-        {
-            Description = "return_and_match_inline",
-            MethodBody = """
+            // Scenario 23: Return from method and immediately pattern match
+            new() {
+                Description = "return_and_match_inline",
+                MethodBody = """
                         if (Program.GetUnionValue(true) is int iv) {
                             Console.WriteLine("scenario_23_ok");
                         } else {
                             Console.WriteLine("scenario_23_fail");
                         }
             """,
-            ExpectedOutput = "scenario_23_ok",
-        });
+                ExpectedOutput = "scenario_23_ok",
+            },
 
-        // Scenario 24: var pattern preserves value identity (int)
-        scenarios.Add(new Scenario
-        {
-            Description = "var_preserves_int",
-            MethodBody = """
+            // Scenario 24: var pattern preserves value identity (int)
+            new() {
+                Description = "var_preserves_int",
+                MethodBody = """
                         int | string vp = 55;
                         if (vp is var vbound) {
                             if (vbound is int vpn) {
@@ -443,14 +419,13 @@ public sealed class UnionSemanticEquivalencePropertyTests : IDisposable
                             }
                         }
             """,
-            ExpectedOutput = "scenario_24_ok",
-        });
+                ExpectedOutput = "scenario_24_ok",
+            },
 
-        // Scenario 25: var pattern preserves value identity (string)
-        scenarios.Add(new Scenario
-        {
-            Description = "var_preserves_string",
-            MethodBody = """
+            // Scenario 25: var pattern preserves value identity (string)
+            new() {
+                Description = "var_preserves_string",
+                MethodBody = """
                         int | string vp2 = "kept";
                         if (vp2 is var vbound2) {
                             if (vbound2 is string vps) {
@@ -460,8 +435,9 @@ public sealed class UnionSemanticEquivalencePropertyTests : IDisposable
                             }
                         }
             """,
-            ExpectedOutput = "scenario_25_ok",
-        });
+                ExpectedOutput = "scenario_25_ok",
+            }
+        };
 
         return scenarios;
     }

@@ -125,8 +125,7 @@ public class EquivalenceClassComputerTests
         s1.Transitions.Add(new DfaTransition(new CharRange('a', 'm'), 2));
         s1.Transitions.Add(new DfaTransition(new CharRange('n', 'z'), 3));
         var dfa = new Dfa(0, new List<DfaState> { s0, s1, s2, s3 });
-
-        var (charToClass, classCount) = EquivalenceClassComputer.Compute(dfa);
+        var (charToClass, _) = EquivalenceClassComputer.Compute(dfa);
 
         // a-m and n-z should be in different classes because they have
         // different transition signatures across all states

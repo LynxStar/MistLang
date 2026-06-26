@@ -251,8 +251,10 @@ public class NonAssignabilityPropertyTests
     private static Gen<IncompatibleScenario> BuildBaseToDerivedScenario(string[] names)
     {
         // Build a linear chain: names[0] is root, names[1] : names[0], etc.
-        var classes = new List<(string Name, string? BaseName)>();
-        classes.Add((names[0], null));
+        var classes = new List<(string Name, string? BaseName)>
+        {
+            (names[0], null)
+        };
         for(var i = 1; i < names.Length; i++)
         {
             classes.Add((names[i], names[i - 1]));
@@ -316,7 +318,7 @@ public class NonAssignabilityPropertyTests
 
         return new CompilationUnitNode
         {
-            Items = (typeDecls.ToImmutableArray()).AsTopLevelItems(),
+            Items = typeDecls.ToImmutableArray().AsTopLevelItems(),
         };
     }
 

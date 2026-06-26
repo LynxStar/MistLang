@@ -145,8 +145,10 @@ public class CSharpTypeMapTests
     public void GetTypeName_ConstructedType_ReturnsGenericForm()
     {
         var scope = new Scope(parent: null);
-        var boxType = new ClassType("Box", scope, containingNamespace: "MyApp");
-        boxType.TypeParameters = new[] { new TypeParameterType("T", 0) };
+        var boxType = new ClassType("Box", scope, containingNamespace: "MyApp")
+        {
+            TypeParameters = new[] { new TypeParameterType("T", 0) }
+        };
         var standardInt32 = MakeStdlibStruct("Int32");
         var constructed = new ConstructedType(boxType, new[] { standardInt32 });
         Assert.Equal("Box<int>", CSharpTypeMap.GetTypeName(constructed));

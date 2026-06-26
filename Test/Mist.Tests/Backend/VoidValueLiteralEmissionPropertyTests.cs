@@ -238,7 +238,7 @@ public sealed class VoidValueLiteralEmissionPropertyTests : IDisposable
         }
 
         // Look for the test file's emitted output
-        foreach(var (fileName, fileContent) in result.EmittedFiles)
+        foreach(var (_, fileContent) in result.EmittedFiles)
         {
             if(fileContent.Contains("namespace TestProject"))
             {

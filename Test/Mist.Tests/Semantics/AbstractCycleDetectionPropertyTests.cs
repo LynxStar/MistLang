@@ -98,7 +98,7 @@ public class AbstractCycleDetectionPropertyTests
             (TypeDeclarationNode)new AbstractTypeTypeDeclarationNode { AbstractDeclaration = i })
             .ToImmutableArray();
 
-        return new CompilationUnitNode { Items = (types).AsTopLevelItems() };
+        return new CompilationUnitNode { Items = types.AsTopLevelItems() };
     }
 
     // ─── Test data models ────────────────────────────────────────────────

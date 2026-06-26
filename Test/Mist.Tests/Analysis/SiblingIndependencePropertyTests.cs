@@ -150,8 +150,10 @@ public sealed class SiblingIndependencePropertyTests
             origin: SymbolOrigin.UserCode,
             containingScope: scope,
             declaredType: null,
-            declarationSpan: new SourceSpan(0, 6));
-        fieldA.IsOwnedField = true;
+            declarationSpan: new SourceSpan(0, 6))
+        {
+            IsOwnedField = true
+        };
         scope.AddMember(fieldA);
 
         var fieldB = new Symbol(
@@ -160,8 +162,10 @@ public sealed class SiblingIndependencePropertyTests
             origin: SymbolOrigin.UserCode,
             containingScope: scope,
             declaredType: null,
-            declarationSpan: new SourceSpan(10, 6));
-        fieldB.IsOwnedField = true;
+            declarationSpan: new SourceSpan(10, 6))
+        {
+            IsOwnedField = true
+        };
         scope.AddMember(fieldB);
 
         var classType = new ClassType("TestClass", scope, containingNamespace: "Test");

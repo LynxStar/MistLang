@@ -2672,8 +2672,10 @@ internal sealed class CSharpSourceWriter
         if(namedRef.TypeArgs is not null)
         {
             // Flatten type args into the name: List<T> → ListOfT
-            var typeArgNames = new List<string>();
-            typeArgNames.Add(GetTypeArgNameFromTypeArgument(namedRef.TypeArgs.TypeArgument));
+            var typeArgNames = new List<string>
+            {
+                GetTypeArgNameFromTypeArgument(namedRef.TypeArgs.TypeArgument)
+            };
             foreach(var arg in namedRef.TypeArgs.TypeArguments)
             {
                 typeArgNames.Add(GetTypeArgNameFromTypeArgument(arg));
@@ -3792,7 +3794,7 @@ internal sealed class CSharpSourceWriter
             if(abstractType.DisplayName == "IEnumerator")
             {
                 // Extract TElement from IEnumerator<TElement>
-                var elementType = abs is ConstructedType ctEnum
+                _ = abs is ConstructedType ctEnum
                     ? CSharpTypeMap.GetTypeName(ctEnum.TypeArguments[0])
                     : "object";
 
@@ -4043,8 +4045,10 @@ internal sealed class CSharpSourceWriter
     /// </summary>
     private string EmitTypeArgumentListWithSubstitution(TypeArgumentListNode typeArgs, Dictionary<string, string> substitutions)
     {
-        var parts = new List<string>();
-        parts.Add(EmitSingleTypeArgumentWithSubstitution(typeArgs.TypeArgument, substitutions));
+        var parts = new List<string>
+        {
+            EmitSingleTypeArgumentWithSubstitution(typeArgs.TypeArgument, substitutions)
+        };
         foreach(var arg in typeArgs.TypeArguments)
         {
             parts.Add(EmitSingleTypeArgumentWithSubstitution(arg, substitutions));
@@ -6993,8 +6997,10 @@ internal sealed class CSharpSourceWriter
         }
 
         // Collect all argument nodes (first + rest) to detect ref arguments.
-        var argNodes = new List<ArgumentNode>(1 + argList.Arguments.Length);
-        argNodes.Add(argList.Argument);
+        var argNodes = new List<ArgumentNode>(1 + argList.Arguments.Length)
+        {
+            argList.Argument
+        };
         foreach(var arg in argList.Arguments)
         {
             argNodes.Add(arg);
@@ -7391,8 +7397,10 @@ internal sealed class CSharpSourceWriter
             // Multi-constituent unions or non-void unions emit as the generated helper type name.
             // Collect constituent names matching UnionHelperGenerator.GetConstituentCSharpName,
             // sort alphabetically, and join with "_" to form "Union_{Type1}_{Type2}".
-            var constituentNames = new List<string>();
-            constituentNames.Add(GetConstituentNameForHelper(typeRef.First));
+            var constituentNames = new List<string>
+            {
+                GetConstituentNameForHelper(typeRef.First)
+            };
             foreach(var rest in typeRef.SingleTypeRefs)
             {
                 constituentNames.Add(GetConstituentNameForHelper(rest));
@@ -7813,8 +7821,10 @@ internal sealed class CSharpSourceWriter
         // helper type name as the constituent name.
         if(typeRef.SingleTypeRefs.Length > 0)
         {
-            var unionNames = new List<string>();
-            unionNames.Add(GetConstituentNameForHelper(typeRef.First));
+            var unionNames = new List<string>
+            {
+                GetConstituentNameForHelper(typeRef.First)
+            };
             foreach(var rest in typeRef.SingleTypeRefs)
             {
                 unionNames.Add(GetConstituentNameForHelper(rest));
@@ -7924,9 +7934,11 @@ internal sealed class CSharpSourceWriter
     /// </summary>
     private string EmitTupleTypePatternType(TupleSingleTypeRefSingleTypeRefNode tupleRef)
     {
-        var parts = new List<string>();
-        parts.Add(EmitTypeReference(tupleRef.First.Type));
-        parts.Add(EmitTypeReference(tupleRef.Rest.Type));
+        var parts = new List<string>
+        {
+            EmitTypeReference(tupleRef.First.Type),
+            EmitTypeReference(tupleRef.Rest.Type)
+        };
         foreach(var additional in tupleRef.TupleTypeElements)
         {
             parts.Add(EmitTypeReference(additional.Type));
@@ -7989,9 +8001,11 @@ internal sealed class CSharpSourceWriter
                 : elementType;
         }
 
-        var parts = new List<string>();
-        parts.Add(FormatElement(tupleRef.First));
-        parts.Add(FormatElement(tupleRef.Rest));
+        var parts = new List<string>
+        {
+            FormatElement(tupleRef.First),
+            FormatElement(tupleRef.Rest)
+        };
         foreach(var additional in tupleRef.TupleTypeElements)
         {
             parts.Add(FormatElement(additional));
@@ -9026,7 +9040,7 @@ internal sealed class CSharpSourceWriter
         // Fallback: search AllSymbols for the method by name and matching arg count.
         if(calledSymbol is null && target is IdentifierExpressionPrimaryNode idTarget)
         {
-            var expectedArgCount = argExprs.Count;
+            _ = argExprs.Count;
             foreach(var sym in model.AllSymbols)
             {
                 if(sym is Symbol s && s.Kind == SymbolKind.Method && s.Name == idTarget.Name.Lexeme
@@ -10575,8 +10589,10 @@ internal sealed class CSharpSourceWriter
             return "()";
         }
 
-        var parts = new List<string>();
-        parts.Add(EmitLambdaParam(parenParams.Params.LambdaParam));
+        var parts = new List<string>
+        {
+            EmitLambdaParam(parenParams.Params.LambdaParam)
+        };
         foreach(var param in parenParams.Params.LambdaParams)
         {
             parts.Add(EmitLambdaParam(param));
@@ -12093,8 +12109,10 @@ internal sealed class CSharpSourceWriter
 
     private string EmitPropertySubpatternList(PropertySubpatternListNode subpatternList)
     {
-        var parts = new List<string>();
-        parts.Add(EmitPropertySubpattern(subpatternList.PropertySubpattern));
+        var parts = new List<string>
+        {
+            EmitPropertySubpattern(subpatternList.PropertySubpattern)
+        };
 
         foreach(var subpattern in subpatternList.PropertySubpatterns)
         {
@@ -12113,8 +12131,10 @@ internal sealed class CSharpSourceWriter
 
     private string EmitListPatternElementList(ListPatternElementListNode elementList)
     {
-        var parts = new List<string>();
-        parts.Add(EmitListPatternElement(elementList.ListPatternElement));
+        var parts = new List<string>
+        {
+            EmitListPatternElement(elementList.ListPatternElement)
+        };
 
         foreach(var element in elementList.ListPatternElements)
         {
@@ -14236,8 +14256,10 @@ internal sealed class CSharpSourceWriter
             return "";
         }
 
-        var parts = new List<string>();
-        parts.Add(EmitSingleTypeParameterName(typeParams.TypeParameter));
+        var parts = new List<string>
+        {
+            EmitSingleTypeParameterName(typeParams.TypeParameter)
+        };
         foreach(var tp in typeParams.TypeParameters)
         {
             parts.Add(EmitSingleTypeParameterName(tp));
@@ -14614,8 +14636,10 @@ internal sealed class CSharpSourceWriter
 
     private string EmitBaseListWithTypeArgs(BaseListNode baseList)
     {
-        var parts = new List<string>();
-        parts.Add(EmitBaseTypeRef(baseList.First));
+        var parts = new List<string>
+        {
+            EmitBaseTypeRef(baseList.First)
+        };
         foreach(var rest in baseList.BaseTypeRefs)
         {
             parts.Add(EmitBaseTypeRef(rest));
@@ -15399,8 +15423,10 @@ internal sealed class CSharpSourceWriter
 
         // Collect slot type param names → usage args mapping.
         var slotTypeParams = slot.TypeParameters;
-        var usageArgs = new List<string>();
-        usageArgs.Add(EmitSingleTypeArgument(usageTypeArgs.TypeArgument));
+        var usageArgs = new List<string>
+        {
+            EmitSingleTypeArgument(usageTypeArgs.TypeArgument)
+        };
         foreach(var arg in usageTypeArgs.TypeArguments)
         {
             usageArgs.Add(EmitSingleTypeArgument(arg));
@@ -15593,8 +15619,10 @@ internal sealed class CSharpSourceWriter
         string implementorName,
         string implementorTypeParams)
     {
-        var parts = new List<string>();
-        parts.Add(EmitBaseTypeRefWithAssociatedTypes(baseList.First, implementorScope, implementorClassType, implementorName, implementorTypeParams));
+        var parts = new List<string>
+        {
+            EmitBaseTypeRefWithAssociatedTypes(baseList.First, implementorScope, implementorClassType, implementorName, implementorTypeParams)
+        };
         foreach(var rest in baseList.BaseTypeRefs)
         {
             parts.Add(EmitBaseTypeRefWithAssociatedTypes(rest, implementorScope, implementorClassType, implementorName, implementorTypeParams));

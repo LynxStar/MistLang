@@ -344,7 +344,7 @@ public class ExtensionTypeCheckerPropertyTests
 
     private static TopLevelItemNode MakeClassTopLevelItem(ClassDeclarationNode classDecl)
     {
-        return (new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }).AsTopLevelItem();
+        return new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl }.AsTopLevelItem();
     }
 
     private static UsingDeclarationNode MakeUsingDeclaration(string namespaceName)

@@ -1978,10 +1978,11 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             SymbolOrigin.UserCode,
             parentScope,
             declaredType: null,
-            aliasSpan);
-
-        // Store type parameters on the symbol for later resolution.
-        aliasSymbol.TypeParameters = typeParams;
+            aliasSpan)
+        {
+            // Store type parameters on the symbol for later resolution.
+            TypeParameters = typeParams
+        };
 
         parentScope.AddMember(aliasSymbol);
         symbolTable.Register(aliasSymbol, aliasDecl);
@@ -2013,10 +2014,11 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             SymbolOrigin.UserCode,
             typeScope,
             declaredType: null,
-            aliasSpan);
-
-        // Store type parameters on the symbol for later resolution.
-        aliasSymbol.TypeParameters = typeParams;
+            aliasSpan)
+        {
+            // Store type parameters on the symbol for later resolution.
+            TypeParameters = typeParams
+        };
 
         typeScope.AddMember(aliasSymbol);
         symbolTable.Register(aliasSymbol, aliasDecl);
@@ -3000,8 +3002,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             BackingField = null,
         };
 
-        var propSymbol = new Symbol(propName, SymbolKind.Property, SymbolOrigin.UserCode, typeScope, declaredType: null, propSpan);
-        propSymbol.PropertyMetadata = propertyInfo;
+        var propSymbol = new Symbol(propName, SymbolKind.Property, SymbolOrigin.UserCode, typeScope, declaredType: null, propSpan)
+        {
+            PropertyMetadata = propertyInfo
+        };
         typeScope.AddMember(propSymbol);
         symbolTable.Register(propSymbol, propertyDecl);
     }
@@ -3141,8 +3145,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             typeParameters: typeParams);
 
         // Register the slot as a symbol in the declaring type's member scope.
-        var slotSymbol = new Symbol(slotName, SymbolKind.TypeAlias, SymbolOrigin.UserCode, typeScope, slotType, slotSpan);
-        slotSymbol.TypeParameters = typeParams;
+        var slotSymbol = new Symbol(slotName, SymbolKind.TypeAlias, SymbolOrigin.UserCode, typeScope, slotType, slotSpan)
+        {
+            TypeParameters = typeParams
+        };
         typeScope.AddMember(slotSymbol);
         symbolTable.Register(slotSymbol, slotDecl);
     }
@@ -3194,8 +3200,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             typeParameters: typeParams);
 
         // Register the slot as a symbol in the declaring type's member scope.
-        var slotSymbol = new Symbol(slotName, SymbolKind.TypeAlias, SymbolOrigin.UserCode, typeScope, slotType, slotSpan);
-        slotSymbol.TypeParameters = typeParams;
+        var slotSymbol = new Symbol(slotName, SymbolKind.TypeAlias, SymbolOrigin.UserCode, typeScope, slotType, slotSpan)
+        {
+            TypeParameters = typeParams
+        };
         typeScope.AddMember(slotSymbol);
         symbolTable.Register(slotSymbol, slotDecl);
     }
@@ -4284,8 +4292,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 SymbolOrigin.UserCode,
                 typeScope,
                 declaredType: depParam.ValueType,
-                declarationSpan: null);
-            propSymbol.PropertyMetadata = propertyInfo;
+                declarationSpan: null)
+            {
+                PropertyMetadata = propertyInfo
+            };
             typeScope.AddMember(propSymbol);
         }
     }
@@ -4322,15 +4332,17 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 SymbolOrigin.UserCode,
                 methodScope,
                 declaredType: depParam.ValueType,
-                declarationSpan: null);
-            constSymbol.PropertyMetadata = new PropertyInfo
+                declarationSpan: null)
             {
-                HasGet = true,
-                HasSet = false,
-                HasInit = false,
-                IsComputed = true,
-                IsStatic = true,
-                IsExpressionBodied = true,
+                PropertyMetadata = new PropertyInfo
+                {
+                    HasGet = true,
+                    HasSet = false,
+                    HasInit = false,
+                    IsComputed = true,
+                    IsStatic = true,
+                    IsExpressionBodied = true,
+                }
             };
             methodScope.AddMember(constSymbol);
         }
@@ -4449,8 +4461,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         {
             var backingFieldName = $"_{propName}_k__BackingField";
             var backingFieldSpan = propSpan; // Use property span for the backing field.
-            backingFieldSymbol = new Symbol(backingFieldName, SymbolKind.Field, SymbolOrigin.UserCode, typeScope, declaredType: null, backingFieldSpan);
-            backingFieldSymbol.IsStatic = isStatic;
+            backingFieldSymbol = new Symbol(backingFieldName, SymbolKind.Field, SymbolOrigin.UserCode, typeScope, declaredType: null, backingFieldSpan)
+            {
+                IsStatic = isStatic
+            };
             typeScope.AddMember(backingFieldSymbol);
             symbolTable.Register(backingFieldSymbol, blockProp);
         }
@@ -4470,8 +4484,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             ReadonlyStatus = HasReadonlyModifier(blockProp.Modifiers) ? ReadonlyStatus.ExplicitReadonly : ReadonlyStatus.Unknown,
         };
 
-        var propSymbol = new Symbol(propName, SymbolKind.Property, SymbolOrigin.UserCode, typeScope, declaredType: null, propSpan);
-        propSymbol.PropertyMetadata = propertyInfo;
+        var propSymbol = new Symbol(propName, SymbolKind.Property, SymbolOrigin.UserCode, typeScope, declaredType: null, propSpan)
+        {
+            PropertyMetadata = propertyInfo
+        };
 
         if(HasReadonlyModifier(blockProp.Modifiers))
         {
@@ -4506,8 +4522,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             ReadonlyStatus = HasReadonlyModifier(exprProp.Modifiers) ? ReadonlyStatus.ExplicitReadonly : ReadonlyStatus.Unknown,
         };
 
-        var propSymbol = new Symbol(propName, SymbolKind.Property, SymbolOrigin.UserCode, typeScope, declaredType: null, propSpan);
-        propSymbol.PropertyMetadata = propertyInfo;
+        var propSymbol = new Symbol(propName, SymbolKind.Property, SymbolOrigin.UserCode, typeScope, declaredType: null, propSpan)
+        {
+            PropertyMetadata = propertyInfo
+        };
 
         if(HasReadonlyModifier(exprProp.Modifiers))
         {
@@ -4544,8 +4562,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 BackingField = null,
                 ReadonlyStatus = HasReadonlyModifier(indexerDecl.Modifiers) ? ReadonlyStatus.ExplicitReadonly : ReadonlyStatus.Unknown,
             };
-            var intrinsicSymbol = new Symbol(intrinsicName, SymbolKind.Indexer, SymbolOrigin.UserCode, typeScope, declaredType: null, intrinsicSpan);
-            intrinsicSymbol.PropertyMetadata = intrinsicPropertyInfo;
+            var intrinsicSymbol = new Symbol(intrinsicName, SymbolKind.Indexer, SymbolOrigin.UserCode, typeScope, declaredType: null, intrinsicSpan)
+            {
+                PropertyMetadata = intrinsicPropertyInfo
+            };
             if(HasReadonlyModifier(indexerDecl.Modifiers))
             {
                 intrinsicSymbol.ReadonlyStatus = ReadonlyStatus.ExplicitReadonly;
@@ -4614,8 +4634,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             ReadonlyStatus = HasReadonlyModifier(indexerDecl.Modifiers) ? ReadonlyStatus.ExplicitReadonly : ReadonlyStatus.Unknown,
         };
 
-        var indexerSymbol = new Symbol(indexerName, SymbolKind.Indexer, SymbolOrigin.UserCode, typeScope, declaredType: null, indexerSpan);
-        indexerSymbol.PropertyMetadata = propertyInfo;
+        var indexerSymbol = new Symbol(indexerName, SymbolKind.Indexer, SymbolOrigin.UserCode, typeScope, declaredType: null, indexerSpan)
+        {
+            PropertyMetadata = propertyInfo
+        };
 
         if(HasReadonlyModifier(indexerDecl.Modifiers))
         {
@@ -6449,8 +6471,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         }
 
         // Collect all BaseTypeRefNode entries from the base list.
-        var allEntries = new List<BaseTypeRefNode>();
-        allEntries.Add(classDecl.BaseList.First);
+        var allEntries = new List<BaseTypeRefNode>
+        {
+            classDecl.BaseList.First
+        };
         foreach(var rest in classDecl.BaseList.BaseTypeRefs)
         {
             allEntries.Add(rest);
@@ -6826,8 +6850,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// </summary>
     private static List<BaseTypeRefNode> ExtractBaseListEntries(BaseListNode baseList)
     {
-        var entries = new List<BaseTypeRefNode>();
-        entries.Add(baseList.First);
+        var entries = new List<BaseTypeRefNode>
+        {
+            baseList.First
+        };
         foreach(var rest in baseList.BaseTypeRefs)
         {
             entries.Add(rest);
@@ -7269,7 +7295,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         Dictionary<Storm.Runtime.SyntaxNode, IType> expressionTypes)
     {
         // Fix DependentValueArguments in expression types.
-        foreach(var (node, type) in expressionTypes)
+        foreach(var (_, type) in expressionTypes)
         {
             FixUpDependentArgsInType(type);
         }
@@ -11278,13 +11304,14 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// </summary>
     private static string FormatTupleTypeReference(TupleSingleTypeRefSingleTypeRefNode tupleRef)
     {
-        var parts = new List<string>();
+        var parts = new List<string>
+        {
+            // Format First element.
+            FormatTupleElement(tupleRef.First),
 
-        // Format First element.
-        parts.Add(FormatTupleElement(tupleRef.First));
-
-        // Format Rest element.
-        parts.Add(FormatTupleElement(tupleRef.Rest));
+            // Format Rest element.
+            FormatTupleElement(tupleRef.Rest)
+        };
 
         // Format additional elements.
         foreach(var additional in tupleRef.TupleTypeElements)
@@ -11487,7 +11514,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         }
 
                         // Cross-kind conflict (e.g. field in derived vs method in base with same name).
-                        if((ancestorMember.Kind is SymbolKind.Field or SymbolKind.Method))
+                        if(ancestorMember.Kind is SymbolKind.Field or SymbolKind.Method)
                         {
                             EmitRedeclarationDiagnostic(classType, member, ancestor, symbolTable, asts, compilation, diagnostics);
                             goto nextMember;
@@ -12639,8 +12666,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
         foreach(var memberNode in memberNodes)
         {
-            var memberInfo = new EnumMemberInfo(memberNode.Name.Lexeme);
-            memberInfo.IsDefault = memberNode.IsDefault is not null;
+            var memberInfo = new EnumMemberInfo(memberNode.Name.Lexeme)
+            {
+                IsDefault = memberNode.IsDefault is not null
+            };
 
             if(memberNode.Value is not null)
             {
@@ -14718,13 +14747,15 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // Create an accessor scope that includes the backing field symbol (if any)
         // so that 'field' keyword resolution finds the correct backing field.
         Scope accessorBaseScope;
-        if(propInfo?.BackingField is Symbol backingFieldSym)
+        if(propInfo?.BackingField is Symbol)
         {
             accessorBaseScope = new Scope(parent: typeScope);
             // Register a synthetic property symbol that points to this specific backing field,
             // so ResolveFieldKeyword finds the correct one.
-            var syntheticProp = new Symbol("__accessor_property__", SymbolKind.Property, SymbolOrigin.UserCode, accessorBaseScope, propType, declarationSpan: null);
-            syntheticProp.PropertyMetadata = propInfo;
+            var syntheticProp = new Symbol("__accessor_property__", SymbolKind.Property, SymbolOrigin.UserCode, accessorBaseScope, propType, declarationSpan: null)
+            {
+                PropertyMetadata = propInfo
+            };
             accessorBaseScope.AddMember(syntheticProp);
         }
         else
@@ -15025,8 +15056,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     var varName = uninit.Name.Lexeme;
                     var varSpan = ToMistSourceSpan(uninit.Name.Span);
                     CheckDuplicateLocal(varName, blockScope, sourceText, diagnostics);
-                    var varSymbol = new Symbol(varName, SymbolKind.LocalVariable, SymbolOrigin.UserCode, blockScope, declaredType, varSpan);
-                    varSymbol.OwnershipTier = MapOwnershipSpecifier(uninit.OwnershipSpecifier);
+                    var varSymbol = new Symbol(varName, SymbolKind.LocalVariable, SymbolOrigin.UserCode, blockScope, declaredType, varSpan)
+                    {
+                        OwnershipTier = MapOwnershipSpecifier(uninit.OwnershipSpecifier)
+                    };
                     blockScope.AddMember(varSymbol);
                     symbolTable.Register(varSymbol, uninitStmt);
                     break;
@@ -15305,7 +15338,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     // Set target type context for void value literal resolution.
                     voidLiteralTargetType = declaredType;
                     targetTypedNewTargetType = declaredType;
-                    var initType = ResolveExpression(typed.Initializer, blockScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                    _ = ResolveExpression(typed.Initializer, blockScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
                     emptyArrayTargetType = null;
                     lambdaTargetType = null;
                     voidLiteralTargetType = null;
@@ -15395,7 +15428,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             case VarTupleDeconstructionVariableDeclarationStatementNode varTuple:
                 {
                     // var (a, b, ...) = expr; — resolve initializer, defer element type inference to type checker.
-                    var initType = ResolveExpression(varTuple.Initializer, blockScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                    _ = ResolveExpression(varTuple.Initializer, blockScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
 
                     // Register first name.
                     var firstName = varTuple.FirstName.Lexeme;
@@ -15429,7 +15462,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             case TypedTupleDeconstructionVariableDeclarationStatementNode typedTuple:
                 {
                     // (Type1 a, Type2 b, ...) = expr; — resolve each element's declared type.
-                    var initType = ResolveExpression(typedTuple.Initializer, blockScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+                    _ = ResolveExpression(typedTuple.Initializer, blockScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
 
                     void RegisterDeconstructionElement(TupleDeconstructionElementNode element)
                     {
@@ -16119,7 +16152,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         if(forStmt.Initializer is ForInitializerVariableDeclarationForInitializerNode varInit)
         {
             var initType = ResolveTypeReference(varInit.VariableDeclaration, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
-            var initExprType = ResolveExpression(varInit.Initializer, forScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+            _ = ResolveExpression(varInit.Initializer, forScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
 
             var varName = varInit.Name.Lexeme;
             var varSpan = ToMistSourceSpan(varInit.Name.Span);
@@ -16963,8 +16996,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     {
         // Collect all constituent SingleTypeRefNodes: First + the PIPE-separated
         // continuations in SingleTypeRefs (never the non-nullable Rest artifact).
-        var singleTypeRefs = new List<SingleTypeRefNode>();
-        singleTypeRefs.Add(typeRef.First);
+        var singleTypeRefs = new List<SingleTypeRefNode>
+        {
+            typeRef.First
+        };
         foreach(var rest in typeRef.SingleTypeRefs)
         {
             singleTypeRefs.Add(rest);
@@ -20130,7 +20165,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             // assignment target's resolved type.
             var previousTargetNewTarget = targetTypedNewTargetType;
             targetTypedNewTargetType = targetType;
-            var valueType = ResolveExpression(assignment.Value, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+            _ = ResolveExpression(assignment.Value, currentScope, fileScope, enclosingType, isStatic, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
             targetTypedNewTargetType = previousTargetNewTarget;
             expressionTypes[assignment] = targetType;
             return targetType;
@@ -21434,7 +21469,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                             var extLookupType = targetType;
                             if(extLookupType is ConstructedType extCt)
                             {
-                                extLookupType = extCt.GenericDefinition;
+                                _ = extCt.GenericDefinition;
                             }
 
                             var extensions = extensionRegistryContext.GetApplicableExtensions(targetType);

@@ -143,28 +143,28 @@ public static class ReachabilityPass
     {
         if(k <= 0)
         {
-            return new List<List<string>> { new List<string>() };
+            return new List<List<string>> { new() };
         }
 
         switch(expr)
         {
             case StormStringLiteralExpr strLit:
-                return new List<List<string>> { new List<string> { "str:" + strLit.Value } };
+                return new List<List<string>> { new() { "str:" + strLit.Value } };
 
             case StormCharClassExpr charClass:
-                return new List<List<string>> { new List<string> { "cc:" + charClass.Text } };
+                return new List<List<string>> { new() { "cc:" + charClass.Text } };
 
             case StormReferenceExpr refExpr:
                 {
                     var resolved = grammar.LookupByName(refExpr.Name);
                     if(resolved is StormTokenDecl or StormHiddenTokenDecl)
                     {
-                        return new List<List<string>> { new List<string> { "tok:" + refExpr.Name } };
+                        return new List<List<string>> { new() { "tok:" + refExpr.Name } };
                     }
 
                     if(resolved is StormFragmentDecl)
                     {
-                        return new List<List<string>> { new List<string> { "frag:" + refExpr.Name } };
+                        return new List<List<string>> { new() { "frag:" + refExpr.Name } };
                     }
 
                     if(resolved is StormRuleDecl ruleDecl && visited.Add(refExpr.Name))
@@ -174,7 +174,7 @@ public static class ReachabilityPass
                         return result;
                     }
 
-                    return new List<List<string>> { new List<string>() };
+                    return new List<List<string>> { new() };
                 }
 
             case StormQualifiedReferenceExpr qualRef:
@@ -183,12 +183,12 @@ public static class ReachabilityPass
                     var qualResolved = grammar.LookupByName(qualName);
                     if(qualResolved is StormTokenDecl or StormHiddenTokenDecl)
                     {
-                        return new List<List<string>> { new List<string> { "tok:" + qualName } };
+                        return new List<List<string>> { new() { "tok:" + qualName } };
                     }
 
                     if(qualResolved is StormFragmentDecl)
                     {
-                        return new List<List<string>> { new List<string> { "frag:" + qualName } };
+                        return new List<List<string>> { new() { "frag:" + qualName } };
                     }
 
                     if(qualResolved is StormRuleDecl qualRuleDecl && visited.Add(qualName))
@@ -198,7 +198,7 @@ public static class ReachabilityPass
                         return result;
                     }
 
-                    return new List<List<string>> { new List<string>() };
+                    return new List<List<string>> { new() };
                 }
 
             case StormSequenceExpr seqExpr:
@@ -217,14 +217,14 @@ public static class ReachabilityPass
 
             case StormOptionalExpr optExpr:
                 {
-                    var result = new List<List<string>> { new List<string>() };
+                    var result = new List<List<string>> { new() };
                     result.AddRange(ComputePrefixes(optExpr.Inner, grammar, k, visited));
                     return result;
                 }
 
             case StormZeroOrMoreExpr zomExpr:
                 {
-                    var result = new List<List<string>> { new List<string>() };
+                    var result = new List<List<string>> { new() };
                     result.AddRange(ComputePrefixes(zomExpr.Inner, grammar, k, visited));
                     return result;
                 }
@@ -242,7 +242,7 @@ public static class ReachabilityPass
                 return ComputePrefixes(namedAlt.Expression, grammar, k, visited);
 
             default:
-                return new List<List<string>> { new List<string>() };
+                return new List<List<string>> { new() };
         }
     }
 
@@ -257,7 +257,7 @@ public static class ReachabilityPass
         HashSet<string> visited)
     {
         // Start with a single empty prefix
-        var current = new List<List<string>> { new List<string>() };
+        var current = new List<List<string>> { new() };
 
         foreach(var element in elements)
         {

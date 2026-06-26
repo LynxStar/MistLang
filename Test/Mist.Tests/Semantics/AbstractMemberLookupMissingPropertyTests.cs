@@ -541,7 +541,7 @@ public class AbstractMemberLookupMissingPropertyTests
 
         return new CompilationUnitNode
         {
-            Items = (typeDecls.ToImmutableArray()).AsTopLevelItems(),
+            Items = typeDecls.ToImmutableArray().AsTopLevelItems(),
         };
     }
 

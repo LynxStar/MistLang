@@ -46,8 +46,10 @@ public sealed class PerFieldStateTrackingTests
                 origin: SymbolOrigin.UserCode,
                 containingScope: scope,
                 declaredType: null,
-                declarationSpan: new SourceSpan(i * 10, 5));
-            field.IsOwnedField = true;
+                declarationSpan: new SourceSpan(i * 10, 5))
+            {
+                IsOwnedField = true
+            };
             scope.AddMember(field);
             fields[i] = field;
         }
@@ -460,7 +462,7 @@ public sealed class PerFieldStateTrackingTests
     [Fact]
     public void CompositeState_AllFieldsLive_ReturnsLive()
     {
-        var (type, fields) = CreateTypeWithOwnedFields("fieldA", "fieldB", "fieldC");
+        var (type, _) = CreateTypeWithOwnedFields("fieldA", "fieldB", "fieldC");
         var parent = CreateParentSymbol();
 
         var state = new MethodFlowState();
@@ -540,14 +542,18 @@ public sealed class PerFieldStateTrackingTests
 
         // One owned field
         var ownedField = new Symbol("data", SymbolKind.Field, SymbolOrigin.UserCode,
-            scope, declaredType: null, declarationSpan: new SourceSpan(0, 4));
-        ownedField.IsOwnedField = true;
+            scope, declaredType: null, declarationSpan: new SourceSpan(0, 4))
+        {
+            IsOwnedField = true
+        };
         scope.AddMember(ownedField);
 
         // One non-owned field
         var regularField = new Symbol("count", SymbolKind.Field, SymbolOrigin.UserCode,
-            scope, declaredType: null, declarationSpan: new SourceSpan(10, 5));
-        regularField.IsOwnedField = false;
+            scope, declaredType: null, declarationSpan: new SourceSpan(10, 5))
+        {
+            IsOwnedField = false
+        };
         scope.AddMember(regularField);
 
         var classType = new ClassType("Mixed", scope, containingNamespace: "Test");
@@ -569,9 +575,11 @@ public sealed class PerFieldStateTrackingTests
         var scope = new Scope(parent: null);
 
         var staticField = new Symbol("Instance", SymbolKind.Field, SymbolOrigin.UserCode,
-            scope, declaredType: null, declarationSpan: new SourceSpan(0, 8));
-        staticField.IsOwnedField = true;
-        staticField.IsStatic = true;
+            scope, declaredType: null, declarationSpan: new SourceSpan(0, 8))
+        {
+            IsOwnedField = true,
+            IsStatic = true
+        };
         scope.AddMember(staticField);
 
         var classType = new ClassType("Singleton", scope, containingNamespace: "Test");

@@ -188,14 +188,14 @@ public class AbstractRoundTripPropertyTests
     {
         return new CompilationUnitNode
         {
-            Items = (typeDecls.ToImmutableArray()).AsTopLevelItems(),
+            Items = typeDecls.ToImmutableArray().AsTopLevelItems(),
         };
     }
 
     // ─── Type reference helpers ──────────────────────────────────────────
 
-    private static readonly TypeReferenceNode VoidType = new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() };
-    private static readonly TypeReferenceNode IntType = new TypeReferenceNode
+    private static readonly TypeReferenceNode VoidType = new() { First = new VoidSingleTypeRefSingleTypeRefNode() };
+    private static readonly TypeReferenceNode IntType = new()
     {
         First = new PrimitiveSingleTypeRefSingleTypeRefNode
         {
@@ -391,7 +391,7 @@ public class AbstractRoundTripPropertyTests
 
     private static TypeReferenceNode PickReturnType(Random rng)
     {
-        return (rng.Next(4)) switch
+        return rng.Next(4) switch
         {
             0 => new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             1 => new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = new IntTypePrimitiveTypeNode() } },
@@ -402,7 +402,7 @@ public class AbstractRoundTripPropertyTests
 
     private static TypeReferenceNode PickParamType(Random rng)
     {
-        return (rng.Next(3)) switch
+        return rng.Next(3) switch
         {
             0 => new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = new IntTypePrimitiveTypeNode() } },
             1 => new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = new BoolTypePrimitiveTypeNode() } },

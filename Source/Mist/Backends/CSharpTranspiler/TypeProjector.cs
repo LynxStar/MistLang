@@ -198,9 +198,11 @@ internal sealed class TypeProjector
 
         foreach(var field in fields)
         {
-            var memberInfo = new EnumMemberInfo(field.Name);
-            memberInfo.ResolvedValue = field.GetRawConstantValue();
-            memberInfo.ValueType = underlyingMistType;
+            var memberInfo = new EnumMemberInfo(field.Name)
+            {
+                ResolvedValue = field.GetRawConstantValue(),
+                ValueType = underlyingMistType
+            };
             members.Add(memberInfo);
 
             var symbol = new Symbol(
@@ -209,8 +211,10 @@ internal sealed class TypeProjector
                 SymbolOrigin.Backend,
                 memberScope,
                 enumType,
-                null);
-            symbol.ReadonlyStatus = ReadonlyStatus.ExplicitReadonly;
+                null)
+            {
+                ReadonlyStatus = ReadonlyStatus.ExplicitReadonly
+            };
             memberScope.AddMember(symbol);
             symbols.Add(symbol);
         }
@@ -374,11 +378,12 @@ internal sealed class TypeProjector
         IStdlibTypeProvider stdlib)
     {
         var memberScope = new Scope(null);
-        var classType = new ClassType(displayName, memberScope, containingNamespace);
-
-        // Record abstract/sealed modifiers for validation (Requirements 13.4, 13.5).
-        classType.IsAbstract = clrType.IsAbstract;
-        classType.IsSealed = clrType.IsSealed;
+        var classType = new ClassType(displayName, memberScope, containingNamespace)
+        {
+            // Record abstract/sealed modifiers for validation (Requirements 13.4, 13.5).
+            IsAbstract = clrType.IsAbstract,
+            IsSealed = clrType.IsSealed
+        };
 
         // Project type parameters for generic classes
         if(clrType.IsGenericTypeDefinition)
@@ -445,8 +450,10 @@ internal sealed class TypeProjector
         for(var i = 0; i < genericArgs.Length; i++)
         {
             var clrParam = genericArgs[i];
-            var typeParam = new TypeParameterType(clrParam.Name, i);
-            typeParam.Constraints = ProjectConstraints(clrParam, stdlib);
+            var typeParam = new TypeParameterType(clrParam.Name, i)
+            {
+                Constraints = ProjectConstraints(clrParam, stdlib)
+            };
             typeParams[i] = typeParam;
         }
 
@@ -817,8 +824,10 @@ internal sealed class TypeProjector
                 SymbolOrigin.Backend,
                 memberScope,
                 slotType,
-                null);
-            slotSymbol.TypeParameters = Array.Empty<IType>();
+                null)
+            {
+                TypeParameters = Array.Empty<IType>()
+            };
 
             // Store the resolved concrete enumerator type as metadata on the slot
             // so downstream resolution can use it
@@ -1014,8 +1023,10 @@ internal sealed class TypeProjector
             SymbolOrigin.Backend,
             memberScope,
             slotType,
-            null);
-        slotSymbol.TypeParameters = Array.Empty<IType>();
+            null)
+        {
+            TypeParameters = Array.Empty<IType>()
+        };
 
         // Store the resolved concrete enumerator type as metadata on the slot
         slotType.Constraints = new TypeParameterConstraints
@@ -1800,20 +1811,26 @@ internal sealed class TypeProjector
         {
             if(clrType.IsInterface)
             {
-                var iface = new AbstractType(displayName, new Scope(null), containingNamespace);
-                iface.TypeParameters = ProjectTypeParameters(clrType, stdlib);
+                var iface = new AbstractType(displayName, new Scope(null), containingNamespace)
+                {
+                    TypeParameters = ProjectTypeParameters(clrType, stdlib)
+                };
                 return iface;
             }
 
             if(clrType.IsValueType)
             {
-                var structType = new StructType(displayName, new Scope(null), containingNamespace);
-                structType.TypeParameters = ProjectTypeParameters(clrType, stdlib);
+                var structType = new StructType(displayName, new Scope(null), containingNamespace)
+                {
+                    TypeParameters = ProjectTypeParameters(clrType, stdlib)
+                };
                 return structType;
             }
 
-            var classType = new ClassType(displayName, new Scope(null), containingNamespace);
-            classType.TypeParameters = ProjectTypeParameters(clrType, stdlib);
+            var classType = new ClassType(displayName, new Scope(null), containingNamespace)
+            {
+                TypeParameters = ProjectTypeParameters(clrType, stdlib)
+            };
             return classType;
         }
         finally
@@ -2105,11 +2122,12 @@ internal sealed class TypeProjector
                 SymbolOrigin.Backend,
                 memberScope,
                 returnType,
-                null);
-
-            // Track whether this is a static method so instance member lookup
-            // can skip it (static methods are only reachable via the type name).
-            methodSymbol.IsStatic = method.IsStatic;
+                null)
+            {
+                // Track whether this is a static method so instance member lookup
+                // can skip it (static methods are only reachable via the type name).
+                IsStatic = method.IsStatic
+            };
 
             // Mark virtual/abstract public methods for implicit override matching.
             if(method.IsVirtual || method.IsAbstract)
@@ -2199,12 +2217,13 @@ internal sealed class TypeProjector
                 SymbolOrigin.Backend,
                 memberScope,
                 returnType,
-                null);
-
-            methodSymbol.IsVirtualOrAbstract = true;
-            methodSymbol.ClrAccessModifier = method.IsFamilyOrAssembly
-                ? "protected"  // protected internal from another assembly is overridden as just "protected"
-                : "protected";
+                null)
+            {
+                IsVirtualOrAbstract = true,
+                ClrAccessModifier = method.IsFamilyOrAssembly
+                    ? "protected"  // protected internal from another assembly is overridden as just "protected"
+                    : "protected"
+            };
 
             if(isRefReturn)
             {
@@ -2323,11 +2342,12 @@ internal sealed class TypeProjector
                 SymbolOrigin.Backend,
                 memberScope,
                 fieldType,
-                null);
-
-            fieldSymbol.ReadonlyStatus = (field.IsInitOnly || field.IsLiteral)
-                ? ReadonlyStatus.ExplicitReadonly
-                : ReadonlyStatus.Mutable;
+                null)
+            {
+                ReadonlyStatus = (field.IsInitOnly || field.IsLiteral)
+                    ? ReadonlyStatus.ExplicitReadonly
+                    : ReadonlyStatus.Mutable
+            };
 
             memberScope.AddMember(fieldSymbol);
             symbols.Add(fieldSymbol);
@@ -2585,8 +2605,10 @@ internal sealed class TypeProjector
         for(var i = 0; i < genericArgs.Length; i++)
         {
             var clrParam = genericArgs[i];
-            var typeParam = new TypeParameterType(clrParam.Name, i);
-            typeParam.Constraints = ProjectConstraints(clrParam, stdlib);
+            var typeParam = new TypeParameterType(clrParam.Name, i)
+            {
+                Constraints = ProjectConstraints(clrParam, stdlib)
+            };
             typeParams[i] = typeParam;
         }
 

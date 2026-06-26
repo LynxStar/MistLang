@@ -183,9 +183,9 @@ public class DefaultValueComputationPropertyTests
         {
             Name = MakeToken(name),
             Members = members,
+            BaseClause = baseList,
+            BaseList = baseList
         };
-        classDecl.BaseClause = baseList;
-        classDecl.BaseList = baseList;
         return classDecl;
     }
 

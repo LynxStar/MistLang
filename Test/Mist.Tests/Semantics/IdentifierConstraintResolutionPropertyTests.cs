@@ -245,8 +245,7 @@ public class IdentifierConstraintResolutionPropertyTests
     {
         var predicate = baseType == "char" ? ">= 'a'" : ">= 0";
         var source = $"type MyConstraint = {baseType} {predicate};\nclass Foo<N:MyConstraint> {{ }}";
-
-        var (model, diagnostics) = BuildModel(source);
+        var (model, _) = BuildModel(source);
         Assert.NotNull(model);
 
         var depParam = FindDependentTypeParameter(model, "Foo", "N");

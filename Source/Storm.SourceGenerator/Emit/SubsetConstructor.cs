@@ -34,15 +34,19 @@ namespace Storm.SourceGenerator.Emit
             var startSet = EpsilonClosure(new HashSet<int> { nfa.StartState.Id }, nfaStatesById);
             var startKey = MakeKey(startSet);
 
-            var startDfaState = new DfaState(0);
-            startDfaState.AcceptingTokenIndex = ResolveAcceptingToken(startSet, nfaStatesById);
+            var startDfaState = new DfaState(0)
+            {
+                AcceptingTokenIndex = ResolveAcceptingToken(startSet, nfaStatesById)
+            };
             dfaStates.Add(startDfaState);
             stateSetToDfaId[startKey] = 0;
 
             var worklist = new Queue<int>();
             // Also keep the NFA state sets indexed by DFA state ID
-            var dfaIdToNfaSet = new List<HashSet<int>>();
-            dfaIdToNfaSet.Add(startSet);
+            var dfaIdToNfaSet = new List<HashSet<int>>
+            {
+                startSet
+            };
             worklist.Enqueue(0);
 
             while(worklist.Count > 0)
@@ -66,8 +70,10 @@ namespace Storm.SourceGenerator.Emit
                     if(!stateSetToDfaId.TryGetValue(key, out targetDfaId))
                     {
                         targetDfaId = dfaStates.Count;
-                        var newDfaState = new DfaState(targetDfaId);
-                        newDfaState.AcceptingTokenIndex = ResolveAcceptingToken(closedSet, nfaStatesById);
+                        var newDfaState = new DfaState(targetDfaId)
+                        {
+                            AcceptingTokenIndex = ResolveAcceptingToken(closedSet, nfaStatesById)
+                        };
                         dfaStates.Add(newDfaState);
                         stateSetToDfaId[key] = targetDfaId;
                         dfaIdToNfaSet.Add(closedSet);

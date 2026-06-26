@@ -225,7 +225,7 @@ public class AwaitUnwrapTypePropertyTests
     public Property AwaitFunctor_ExpressionType_IsT(AwaitUnwrapScenario scenario)
     {
         var (ast, awaitExprNode) = BuildAst(scenario);
-        var (model, diagnostics) = StdlibTestHelper.BuildModelWithStdlib(ast);
+        var (model, _) = StdlibTestHelper.BuildModelWithStdlib(ast);
 
         // Query the semantic model for the type of the await expression node
         var exprType = model.GetTypeOf(awaitExprNode);

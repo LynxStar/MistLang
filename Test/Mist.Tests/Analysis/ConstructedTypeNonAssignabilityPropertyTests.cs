@@ -265,7 +265,7 @@ public class ConstructedTypeNonAssignabilityPropertyTests
         };
         typeDecls.Add(new ClassTypeTypeDeclarationNode { ClassDeclaration = programClass });
 
-        return new CompilationUnitNode { Items = (typeDecls.ToImmutableArray()).AsTopLevelItems() };
+        return new CompilationUnitNode { Items = typeDecls.ToImmutableArray().AsTopLevelItems() };
     }
 
     // ─── Property tests ──────────────────────────────────────────────────

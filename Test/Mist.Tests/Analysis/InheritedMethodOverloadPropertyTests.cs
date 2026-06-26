@@ -143,7 +143,7 @@ public class InheritedMethodOverloadPropertyTests
             (TypeDeclarationNode)new ClassTypeTypeDeclarationNode { ClassDeclaration = c })
             .ToImmutableArray();
 
-        return new CompilationUnitNode { Items = (types).AsTopLevelItems() };
+        return new CompilationUnitNode { Items = types.AsTopLevelItems() };
     }
 
     /// <summary>

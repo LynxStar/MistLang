@@ -125,7 +125,7 @@ public class AdditiveOnlyConstraintPropertyTests
             (TypeDeclarationNode)new ClassTypeTypeDeclarationNode { ClassDeclaration = c })
             .ToImmutableArray();
 
-        return new CompilationUnitNode { Items = (types).AsTopLevelItems() };
+        return new CompilationUnitNode { Items = types.AsTopLevelItems() };
     }
 
     // ─── Test data models ────────────────────────────────────────────────

@@ -302,7 +302,7 @@ class Program {{
     [Property(MaxTest = 100, Arbitrary = new[] { typeof(ConstraintEmissionOrderingPropertyTests) })]
     public Property EmittedCSharp_ConstraintsAreInCorrectOrder(ConstraintEmissionOrderingScenario scenario)
     {
-        var (model, csContent) = CompileAndEmit(scenario.Source);
+        var (_, csContent) = CompileAndEmit(scenario.Source);
 
         if(string.IsNullOrEmpty(csContent))
         {

@@ -306,7 +306,7 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
         ISemanticModel model,
         DiagnosticBag diagnostics)
     {
-        if(declaringNode is not IndexerDeclarationNode { Body: BlockIndexerBodyIndexerBodyNode blockBody } blockIndexer)
+        if(declaringNode is not IndexerDeclarationNode { Body: BlockIndexerBodyIndexerBodyNode blockBody })
         {
             return;
         }
@@ -1134,7 +1134,7 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
         DiagnosticBag diagnostics,
         Stack<ContextEntry> contextStack)
     {
-        if(declaringNode is not IndexerDeclarationNode { Body: BlockIndexerBodyIndexerBodyNode blockBody } blockIndexer)
+        if(declaringNode is not IndexerDeclarationNode { Body: BlockIndexerBodyIndexerBodyNode blockBody })
         {
             return;
         }
@@ -1949,7 +1949,7 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
         ISemanticModel model,
         DiagnosticBag diagnostics)
     {
-        if(declaringNode is not IndexerDeclarationNode { Body: BlockIndexerBodyIndexerBodyNode blockBody } blockIndexer)
+        if(declaringNode is not IndexerDeclarationNode { Body: BlockIndexerBodyIndexerBodyNode blockBody })
         {
             return;
         }
@@ -2361,7 +2361,7 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
         ISemanticModel model,
         DiagnosticBag diagnostics)
     {
-        if(declaringNode is not IndexerDeclarationNode { Body: BlockIndexerBodyIndexerBodyNode blockBody } blockIndexer)
+        if(declaringNode is not IndexerDeclarationNode { Body: BlockIndexerBodyIndexerBodyNode blockBody })
         {
             return;
         }

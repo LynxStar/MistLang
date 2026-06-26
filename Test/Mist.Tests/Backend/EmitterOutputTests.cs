@@ -430,7 +430,7 @@ public sealed class EmitterOutputTests : IDisposable
             Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = new IntTypePrimitiveTypeNode() } },
             Name = MakeToken("a"),
         };
-        var paramB = new ParameterNode
+        _ = new ParameterNode
         {
             Type = new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = new IntTypePrimitiveTypeNode() } },
             Name = MakeToken("b"),

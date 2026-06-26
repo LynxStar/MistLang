@@ -149,7 +149,7 @@ public sealed class InitializerArrayConstructionPropertyTests : IDisposable
         foreach(var s in scenarios)
         {
             var arrayExpr = BuildArrayExpression(s);
-            var elemType = GetMistTypeName(s.ElementType);
+            _ = GetMistTypeName(s.ElementType);
             var varName = $"arr_{s.Index}";
 
             _ = body.AppendLine($"        var {varName} = {arrayExpr};");

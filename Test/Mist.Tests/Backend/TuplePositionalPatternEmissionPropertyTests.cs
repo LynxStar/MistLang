@@ -376,7 +376,7 @@ public class Program
 
         // Verify the pattern appears in both is-expression and switch arm contexts
         // by checking it appears at least twice (once for is, once for switch arm)
-        var occurrences = CountOccurrences(csContent, expectedPattern);
+        _ = CountOccurrences(csContent, expectedPattern);
 
         // The is-expression uses the original pattern, the switch arm may use
         // a slightly different pattern (different var names). So we verify:

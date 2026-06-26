@@ -40,7 +40,7 @@ public class OverlappingSpanResolutionPropertyTests
     {
         // Create content that is at least minLength characters
         var line = "let x = 42\n";
-        var repetitions = (minLength / line.Length) + 2;
+        var repetitions = minLength / line.Length + 2;
         return string.Concat(Enumerable.Repeat(line, repetitions));
     }
 
@@ -96,8 +96,10 @@ public class OverlappingSpanResolutionPropertyTests
             .ToArray();
 
         // Create a node with a span that overlaps across all files
-        var node = new BlockNode();
-        node.Span = new Storm.Runtime.SourceSpan(scenario.SpanStart, scenario.SpanLength);
+        var node = new BlockNode
+        {
+            Span = new Storm.Runtime.SourceSpan(scenario.SpanStart, scenario.SpanLength)
+        };
 
         // Assign the node's Origin to the target file
         var targetSource = sourceTexts[scenario.TargetFileIndex];
@@ -128,9 +130,11 @@ public class OverlappingSpanResolutionPropertyTests
         // and verify each resolves to its own file
         for(var i = 0; i < scenario.FileCount; i++)
         {
-            var node = new BlockNode();
-            node.Span = new Storm.Runtime.SourceSpan(scenario.SpanStart, scenario.SpanLength);
-            node.Origin = new ParsedOrigin(sourceTexts[i]);
+            var node = new BlockNode
+            {
+                Span = new Storm.Runtime.SourceSpan(scenario.SpanStart, scenario.SpanLength),
+                Origin = new ParsedOrigin(sourceTexts[i])
+            };
 
             var (path, _, _) = DiagnosticHelper.ResolveLocation(node);
 

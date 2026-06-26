@@ -227,7 +227,7 @@ public class ScopeExitAwaitPropertyTests
     public Property AsyncContext_DiscardedAsyncCalls_RecordsLiveTasks(ScopeExitAwaitScenario scenario)
     {
         var (ast, callerBlock) = BuildAst(scenario);
-        var (model, diagnostics) = StdlibTestHelper.BuildModelWithStdlib(ast);
+        var (model, _) = StdlibTestHelper.BuildModelWithStdlib(ast);
 
         // Query the semantic model for discarded tasks on the caller's block scope
         var liveTasks = model.GetDiscardedTasks(callerBlock);

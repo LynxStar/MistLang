@@ -102,7 +102,7 @@ public class BaseTypeResolutionPropertyTests
             (TypeDeclarationNode)new ClassTypeTypeDeclarationNode { ClassDeclaration = c })
             .ToImmutableArray();
 
-        return new CompilationUnitNode { Items = (types).AsTopLevelItems() };
+        return new CompilationUnitNode { Items = types.AsTopLevelItems() };
     }
 
     // ─── Test data model ─────────────────────────────────────────────────
@@ -155,10 +155,11 @@ public class BaseTypeResolutionPropertyTests
         // For each class (except the first), decide whether it inherits from
         // one of the classes that precede it in the logical order.
         // This guarantees no cycles.
-        var classEntries = new List<(string Name, string? BaseName)>();
-
-        // First class never has a base
-        classEntries.Add((names[0], null));
+        var classEntries = new List<(string Name, string? BaseName)>
+        {
+            // First class never has a base
+            (names[0], null)
+        };
 
         // Build a generator that decides inheritance for each subsequent class
         var gen = Gen.Constant(classEntries);

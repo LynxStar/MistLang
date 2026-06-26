@@ -101,8 +101,10 @@ public sealed class RefinementPredicate
 
     private static string BuildDescription(AndPatternNode andPattern)
     {
-        var parts = new List<string>();
-        parts.Add(DescribeUnaryPattern(andPattern.Left));
+        var parts = new List<string>
+        {
+            DescribeUnaryPattern(andPattern.Left)
+        };
 
         if(andPattern.Right is not null && !ReferenceEquals(andPattern.Right, andPattern.Left))
         {

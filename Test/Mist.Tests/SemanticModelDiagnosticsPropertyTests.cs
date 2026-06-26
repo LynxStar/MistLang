@@ -210,7 +210,7 @@ public class SemanticModelDiagnosticsPropertyTests
         // Build semantic model
         var builder = new SemanticModelBuilder();
         var semBag = new DiagnosticBag();
-        var model = builder.Build(compilation, ImmutableArray<Storm.Runtime.SyntaxNode>.Empty, null, namespaceRoot: "TestProject", projectFolder: "/test", semBag);
+        _ = builder.Build(compilation, ImmutableArray<Storm.Runtime.SyntaxNode>.Empty, null, namespaceRoot: "TestProject", projectFolder: "/test", semBag);
 
         // Collect all diagnostics
         var allDiagnostics = lexBag.ToImmutableArray()

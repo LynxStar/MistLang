@@ -415,7 +415,7 @@ class Program {{
     [Property(MaxTest = 100, Arbitrary = new[] { typeof(UnionTypeCheckerPropertyTests) })]
     public bool PatternMatch_NarrowsToConstituentType(PatternNarrowsScenario scenario)
     {
-        var (model, diagnostics) = Compile(scenario.Source);
+        var (_, diagnostics) = Compile(scenario.Source);
 
         // No MIST_TC_0074 warning (constituent IS a valid pattern type).
         if(HasDiagnostic(diagnostics, "MIST_TC_0074"))

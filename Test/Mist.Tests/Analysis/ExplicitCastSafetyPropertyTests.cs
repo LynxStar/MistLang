@@ -390,9 +390,9 @@ public class ExplicitCastSafetyPropertyTests
         {
             Name = Tok(name),
             Members = members,
+            BaseClause = baseList,
+            BaseList = baseList
         };
-        classDecl.BaseClause = baseList;
-        classDecl.BaseList = baseList;
 
         return new ClassTypeTypeDeclarationNode { ClassDeclaration = classDecl };
     }

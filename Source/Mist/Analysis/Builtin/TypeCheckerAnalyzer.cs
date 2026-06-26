@@ -3752,7 +3752,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         try { declaringNode = model.GetDeclaringNode(fieldSymbol); }
         catch { return; }
 
-        if(declaringNode is not FieldDeclarationNode fieldDecl)
+        if(declaringNode is not FieldDeclarationNode)
         {
             return;
         }
@@ -11484,8 +11484,10 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     private static IReadOnlyList<(PatternNode Pattern, bool HasGuard)> BuildSwitchArmTuples(
         SwitchArmListNode armList)
     {
-        var result = new List<(PatternNode, bool)>();
-        result.Add((armList.SwitchArm.Pattern, armList.SwitchArm.Guard is not null));
+        var result = new List<(PatternNode, bool)>
+        {
+            (armList.SwitchArm.Pattern, armList.SwitchArm.Guard is not null)
+        };
         foreach(var arm in armList.SwitchArms)
         {
             result.Add((arm.Pattern, arm.Guard is not null));
@@ -13556,8 +13558,10 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             return [];
         }
 
-        var nodes = new List<ArgumentNode>(1 + argList.Arguments.Length);
-        nodes.Add(argList.Argument);
+        var nodes = new List<ArgumentNode>(1 + argList.Arguments.Length)
+        {
+            argList.Argument
+        };
         foreach(var arg in argList.Arguments)
         {
             nodes.Add(arg);
@@ -13751,8 +13755,10 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         // Collect all ArgumentNode objects (first + rest).
-        var argNodes = new List<ArgumentNode>(1 + argList.Arguments.Length);
-        argNodes.Add(argList.Argument);
+        var argNodes = new List<ArgumentNode>(1 + argList.Arguments.Length)
+        {
+            argList.Argument
+        };
         foreach(var arg in argList.Arguments)
         {
             argNodes.Add(arg);
@@ -14506,7 +14512,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 }
             case NamedSingleTypeRefSingleTypeRefNode namedRef:
                 {
-                    var name = namedRef.Name.Children().FirstOrDefault()?.Span;
+                    _ = namedRef.Name.Children().FirstOrDefault()?.Span;
                     // Try to find the type by looking up the symbol. The semantic model
                     // keys declared symbols on the flat TypeReferenceNode, so look up via
                     // `typeRef` (not the SingleTypeRef child).
@@ -15185,8 +15191,10 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         //   (e.g., `int[] numbers = new int[3]`) and unknown-length spans. The upper
         //   bound cannot be proven statically, so it is deferred to runtime — matching
         //   C# semantics.
-        var targetConstraints = new List<ConditionConstraint>();
-        targetConstraints.Add(new ConditionConstraint(ConditionRelOp.Gte, 0));
+        var targetConstraints = new List<ConditionConstraint>
+        {
+            new(ConditionRelOp.Gte, 0)
+        };
 
         if(knownLength.HasValue)
         {
@@ -16712,7 +16720,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     private static bool IsTargetTypeName(PrimaryNode target, ISemanticModel model)
     {
-        if(target is not IdentifierExpressionPrimaryNode identifier)
+        if(target is not IdentifierExpressionPrimaryNode)
         {
             return false;
         }
@@ -19148,8 +19156,10 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 return unionType;
             }
 
-            var result = new UnionType(substitutedConstituents);
-            result.NullableProjection = unionType.NullableProjection;
+            var result = new UnionType(substitutedConstituents)
+            {
+                NullableProjection = unionType.NullableProjection
+            };
             return result;
         }
 
@@ -21073,7 +21083,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         ISemanticModel model)
     {
         // Union → non-union (Req 6.4): must narrow first.
-        if(source is UnionType sourceUnion && target is not UnionType)
+        if(source is UnionType && target is not UnionType)
         {
             diagnostics.Add(MakeDiagnostic(
                 UnionToNonUnionAssignment.Value,
@@ -21084,7 +21094,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         // Non-constituent → union (Req 6.3): source is not a constituent.
-        if(source is not UnionType && target is UnionType targetUnion)
+        if(source is not UnionType && target is UnionType)
         {
             diagnostics.Add(MakeDiagnostic(
                 UnionNonConstituentAssignment.Value,
@@ -22099,8 +22109,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         // We need a ConstructedType to get the generic definition's type parameters.
         ConstructedType? constructedType = null;
-        IReadOnlyList<IType>? typeParams = null;
-
+        IReadOnlyList<IType>? typeParams;
         if(resolvedType is ConstructedType ct)
         {
             constructedType = ct;
@@ -22194,7 +22203,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         // Determine if this is a forwarded dependent parameter or a concrete constant.
         var isForwarded = argIndex < constructedType.TypeArguments.Count
-                          && constructedType.TypeArguments[argIndex] is DependentTypeParameterType forwardedParam;
+                          && constructedType.TypeArguments[argIndex] is DependentTypeParameterType;
 
         if(isForwarded)
         {

@@ -105,9 +105,11 @@ public sealed class PropertyInitializerDuplicatePropertyTests
     private static string BuildDuplicateAssignments(
         string dupName, int firstValue, int secondValue, string[] extraProps)
     {
-        var parts = new List<string>();
-        // First occurrence of the duplicate
-        parts.Add($"{dupName} = {firstValue}");
+        var parts = new List<string>
+        {
+            // First occurrence of the duplicate
+            $"{dupName} = {firstValue}"
+        };
         // Extra valid assignments
         var extraVal = 100;
         foreach(var prop in extraProps)

@@ -394,7 +394,7 @@ public sealed partial class ClassAbstractEmissionPropertyTests : IDisposable
 
         return new CompilationUnitNode
         {
-            Items = (typeDecls.ToImmutableArray()).AsTopLevelItems(),
+            Items = typeDecls.ToImmutableArray().AsTopLevelItems(),
         };
     }
 

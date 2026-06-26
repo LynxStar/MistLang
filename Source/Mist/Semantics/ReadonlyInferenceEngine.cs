@@ -138,7 +138,7 @@ public sealed class ReadonlyInferenceEngine
         try { declaringNode = model.GetDeclaringNode(symbol); }
         catch { return ReadonlyStatus.Mutable; }
 
-        if(declaringNode is not FieldDeclarationNode fieldDecl)
+        if(declaringNode is not FieldDeclarationNode)
         {
             return ReadonlyStatus.Mutable;
         }

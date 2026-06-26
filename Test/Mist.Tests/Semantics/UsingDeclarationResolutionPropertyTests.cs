@@ -140,7 +140,10 @@ public sealed class UsingDeclarationResolutionPropertyTests
         ValidNamespaceName targetNs, ValidNamespaceName consumerNs)
     {
         // Skip if namespaces are the same — that's the same-namespace case.
-        if(targetNs.Value == consumerNs.Value) return true;
+        if(targetNs.Value == consumerNs.Value)
+        {
+            return true;
+        }
 
         var nsOffset = "namespace ".Length;
 

@@ -61,7 +61,9 @@ public sealed class CompositeStateMaxPropertyTests
         foreach(var s in fieldStates)
         {
             if(Restrictiveness(s) > Restrictiveness(max))
+            {
                 max = s;
+            }
         }
         return max;
     }

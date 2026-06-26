@@ -328,9 +328,11 @@ public class EnumNominalDistinctionPropertyTests
             d.Id.Value != "MIST_TC_0017"); // Ignore entry point diagnostic
 
         if(!hasTypeError)
+        {
             return false.ToProperty()
                 .Label($"Expected type error for assigning {scenario.EnumNameA} to {scenario.EnumNameB}, " +
                        $"got: [{string.Join("; ", combined.Where(d => d.Severity == DiagnosticSeverity.Error).Select(e => $"{e.Id.Value}: {e.Message}"))}]");
+        }
 
         return true.ToProperty()
             .Label($"Cross-assignment ({scenario.EnumNameA} → {scenario.EnumNameB}) correctly rejected");

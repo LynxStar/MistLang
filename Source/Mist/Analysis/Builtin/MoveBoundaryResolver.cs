@@ -325,11 +325,16 @@ public sealed class MoveBoundaryResolver
         foreach(var child in node.Children())
         {
             if(child is null)
+            {
                 continue;
+            }
+
             childCount++;
             singleChild = child;
             if(childCount > 1)
+            {
                 break;
+            }
         }
 
         return childCount == 1 && singleChild is not null && IsDefaultExpression(singleChild);
@@ -344,7 +349,9 @@ public sealed class MoveBoundaryResolver
     {
         // Direct match on primary nodes.
         if(node is ObjectCreationExpressionPrimaryNode)
+        {
             return true;
+        }
 
         // PostfixNode with suffixes — check for a method call or invocation returning owned.
         if(node is PostfixNode postfix)
@@ -358,9 +365,14 @@ public sealed class MoveBoundaryResolver
                 {
                     var methodSymbol = model.GetDeclaredSymbol(methodCall);
                     if(methodSymbol is Symbol methodSym && methodSym.OwnershipTier == OwnershipTier.Owned)
+                    {
                         return true;
+                    }
+
                     if(methodSymbol is Symbol returnSym && returnSym.DeclaredType is not null && IsOwnedType(returnSym.DeclaredType))
+                    {
                         return true;
+                    }
                 }
 
                 // Direct invocation: func()
@@ -368,13 +380,21 @@ public sealed class MoveBoundaryResolver
                 {
                     ISymbol? invokedSymbol = null;
                     if(postfix.Target is IdentifierExpressionPrimaryNode targetId)
+                    {
                         invokedSymbol = model.GetDeclaredSymbol(targetId);
+                    }
+
                     invokedSymbol ??= model.GetDeclaredSymbol(invocation);
 
                     if(invokedSymbol is Symbol funcSym && funcSym.OwnershipTier == OwnershipTier.Owned)
+                    {
                         return true;
+                    }
+
                     if(invokedSymbol is Symbol funcRetSym && funcRetSym.DeclaredType is not null && IsOwnedType(funcRetSym.DeclaredType))
+                    {
                         return true;
+                    }
                 }
 
                 return false;
@@ -382,7 +402,9 @@ public sealed class MoveBoundaryResolver
 
             // No suffixes — check if the target is a constructor call.
             if(postfix.Target is ObjectCreationExpressionPrimaryNode)
+            {
                 return true;
+            }
 
             return false;
         }
@@ -393,11 +415,16 @@ public sealed class MoveBoundaryResolver
         foreach(var child in node.Children())
         {
             if(child is null)
+            {
                 continue;
+            }
+
             childCount++;
             singleChild = child;
             if(childCount > 1)
+            {
                 break;
+            }
         }
 
         return childCount == 1 && singleChild is not null && IsConstructorOrOwnedCall(singleChild, model);
@@ -411,21 +438,29 @@ public sealed class MoveBoundaryResolver
     private static ISymbol? TryResolveIdentifierSymbol(SyntaxNode node, ISemanticModel model)
     {
         if(node is ExpressionNode expr)
+        {
             return expr.AsAssignmentOrNull() is { } exprAssignment
                 ? TryResolveIdentifierSymbol(exprAssignment, model)
                 : null;
+        }
 
         if(node is AssignmentNode assignment)
         {
             if(assignment.Value is not null)
+            {
                 return null;
+            }
+
             return TryResolveIdentifierSymbol(assignment.Target, model);
         }
 
         if(node is PostfixNode postfix)
         {
             if(postfix.Suffix.Length > 0)
+            {
                 return null;
+            }
+
             return TryResolveIdentifierSymbol(postfix.Target, model);
         }
 
@@ -444,11 +479,15 @@ public sealed class MoveBoundaryResolver
         foreach(var child in node.Children())
         {
             if(child is not null)
+            {
                 nonNullChildren.Add(child);
+            }
         }
 
         if(nonNullChildren.Count == 1)
+        {
             return TryResolveIdentifierSymbol(nonNullChildren[0], model);
+        }
 
         return null;
     }
@@ -472,15 +511,22 @@ public sealed class MoveBoundaryResolver
     {
         var resolved = Unwrap(type);
         if(resolved.Kind is TypeKind.Struct or TypeKind.Enum)
+        {
             return true;
+        }
 
         // String is the only reference-typed primitive.
         if(resolved is ClassType ct)
         {
             if(ct.IsBackendBacked && ct.ContainingNamespace == "Standard" && ct.DisplayName == "String")
+            {
                 return true;
+            }
+
             if(ct.DisplayName == "string")
+            {
                 return true;
+            }
         }
 
         return false;
@@ -579,20 +625,26 @@ public sealed class MoveBoundaryResolver
     {
         var span = node.Span;
         if(span.Length <= 0)
+        {
             return "<expression>";
+        }
 
         foreach(var unit in model.Units)
         {
             var source = unit.Source;
             if(source is null)
+            {
                 continue;
+            }
 
             var contents = source.Contents;
             if(span.Start >= 0 && span.Start + span.Length <= contents.Length)
             {
                 var text = contents.Substring(span.Start, span.Length).Trim();
                 if(text.Length > 0)
+                {
                     return text;
+                }
             }
         }
 

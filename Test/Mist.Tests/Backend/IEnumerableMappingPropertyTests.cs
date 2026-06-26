@@ -228,7 +228,10 @@ public sealed class IEnumerableMappingPropertyTests
             var hasNonGenericIEnumerable = interfaces.Any(iface =>
             {
                 if(iface is AbstractType { DisplayName: "IEnumerable", ContainingNamespace: "System.Collections" })
+                {
                     return true;
+                }
+
                 return false;
             });
 

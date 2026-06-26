@@ -77,8 +77,10 @@ public class UnionPrettyPrinterPropertyTests
             .ToList();
 
         if(errors.Count > 0)
+        {
             throw new InvalidOperationException(
                 $"Unexpected parse errors:\n  {string.Join("\n  ", errors.Select(e => e.Message))}\nSource:\n{source}");
+        }
 
         return result.Root as CompilationUnitNode
             ?? throw new InvalidOperationException("Parse result root is not a CompilationUnitNode");
@@ -105,8 +107,10 @@ public class UnionPrettyPrinterPropertyTests
         var lines = prettyPrinted.Split('\n');
         var fieldLine = lines.FirstOrDefault(l => l.Contains(" x;"));
         if(fieldLine is null)
+        {
             throw new InvalidOperationException(
                 $"Could not find field declaration in pretty-printed output:\n{prettyPrinted}");
+        }
 
         // Strip "    public " prefix and " x;" suffix
         var trimmed = fieldLine.Trim();
@@ -143,14 +147,20 @@ public class UnionPrettyPrinterPropertyTests
             {
                 // Must have exactly one space before
                 if(i == 0 || typeStr[i - 1] != ' ')
+                {
                     return false;
+                }
                 // Must not have double space before (i.e., char at i-2 should not be space)
                 if(i >= 2 && typeStr[i - 2] == ' ')
+                {
                     return false;
+                }
 
                 // Must have exactly one space after
                 if(i == typeStr.Length - 1 || typeStr[i + 1] != ' ')
+                {
                     return false;
+                }
                 // Must not have double space after
                 if(i + 2 < typeStr.Length && typeStr[i + 2] == ' ')
                 {
@@ -200,19 +210,27 @@ public class UnionPrettyPrinterPropertyTests
         // Check for malformed patterns:
         // "|" not preceded by space (e.g., "int|string")
         if(Regex.IsMatch(typeStr, @"[^ ]\|"))
+        {
             return false;
+        }
 
         // "|" not followed by space (e.g., "int |string")
         if(Regex.IsMatch(typeStr, @"\|[^ ]"))
+        {
             return false;
+        }
 
         // Double space before pipe (e.g., "int  | string")
         if(Regex.IsMatch(typeStr, @"  \|"))
+        {
             return false;
+        }
 
         // Double space after pipe (e.g., "int |  string")
         if(Regex.IsMatch(typeStr, @"\|  "))
+        {
             return false;
+        }
 
         return true;
     }

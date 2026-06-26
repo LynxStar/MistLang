@@ -278,11 +278,15 @@ public class ComputedPropertyPropertyTests
             .ToList();
 
         if(propSymbols.Count == 0)
+        {
             return false.ToProperty().Label("No property symbols found");
+        }
 
         var metadata = (propSymbols.First() as Symbol)?.PropertyMetadata;
         if(metadata is null)
+        {
             return false.ToProperty().Label("PropertyMetadata is null");
+        }
 
         return (metadata.IsComputed == testCase.ExpectComputed).ToProperty()
             .Label($"IsComputed mismatch for '{testCase.Description}': " +
@@ -295,7 +299,9 @@ public class ComputedPropertyPropertyTests
     public Property ComputedProperty_NoBackingFieldWhenComputed(ComputedPropertyTestCase testCase)
     {
         if(!testCase.ExpectComputed)
+        {
             return true.ToProperty(); // Only check computed properties
+        }
 
         var model = BuildSemanticModel(testCase.Ast);
 
@@ -304,11 +310,15 @@ public class ComputedPropertyPropertyTests
             .ToList();
 
         if(propSymbols.Count == 0)
+        {
             return false.ToProperty().Label("No property symbols found");
+        }
 
         var metadata = (propSymbols.First() as Symbol)?.PropertyMetadata;
         if(metadata is null)
+        {
             return false.ToProperty().Label("PropertyMetadata is null");
+        }
 
         return (metadata.BackingField is null).ToProperty()
             .Label($"Computed property '{testCase.Description}' should have no backing field");
@@ -320,7 +330,9 @@ public class ComputedPropertyPropertyTests
     public Property ComputedProperty_HasGetAccessorOnly(ComputedPropertyTestCase testCase)
     {
         if(!testCase.ExpectComputed)
+        {
             return true.ToProperty(); // Only check computed properties
+        }
 
         var model = BuildSemanticModel(testCase.Ast);
 
@@ -329,11 +341,15 @@ public class ComputedPropertyPropertyTests
             .ToList();
 
         if(propSymbols.Count == 0)
+        {
             return false.ToProperty().Label("No property symbols found");
+        }
 
         var metadata = (propSymbols.First() as Symbol)?.PropertyMetadata;
         if(metadata is null)
+        {
             return false.ToProperty().Label("PropertyMetadata is null");
+        }
 
         var hasGetOnly = metadata.HasGet && !metadata.HasSet && !metadata.HasInit;
         return hasGetOnly.ToProperty()
@@ -347,7 +363,9 @@ public class ComputedPropertyPropertyTests
     public Property ComputedProperty_NonComputedAutoPropertyHasBackingField(ComputedPropertyTestCase testCase)
     {
         if(testCase.ExpectComputed)
+        {
             return true.ToProperty(); // Only check non-computed properties
+        }
 
         var model = BuildSemanticModel(testCase.Ast);
 
@@ -356,11 +374,15 @@ public class ComputedPropertyPropertyTests
             .ToList();
 
         if(propSymbols.Count == 0)
+        {
             return false.ToProperty().Label("No property symbols found");
+        }
 
         var metadata = (propSymbols.First() as Symbol)?.PropertyMetadata;
         if(metadata is null)
+        {
             return false.ToProperty().Label("PropertyMetadata is null");
+        }
 
         // Non-computed auto-properties should have a backing field
         var hasAutoAccessor =

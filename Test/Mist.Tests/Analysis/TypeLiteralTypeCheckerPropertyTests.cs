@@ -121,11 +121,17 @@ public class TypeLiteralTypeCheckerPropertyTests
     {
         // 1. Parse the source
         var root = ParseSource(testCase.Source);
-        if(root is null) return false;
+        if(root is null)
+        {
+            return false;
+        }
 
         // 2. Build semantic model
         var (_, model) = BuildSemanticModel(root, testCase.Source);
-        if(model is null) return false;
+        if(model is null)
+        {
+            return false;
+        }
 
         // 3. Run type checker
         var diagnostics = RunTypeChecker(model);

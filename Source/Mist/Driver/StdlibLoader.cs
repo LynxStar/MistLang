@@ -42,20 +42,26 @@ public static class StdlibLoader
 
         // Fast path: return cached units if available.
         if(_cachedUnits.HasValue)
+        {
             return _cachedUnits.Value;
+        }
 
         lock(_cacheLock)
         {
             // Double-check after acquiring lock.
             if(_cachedUnits.HasValue)
+            {
                 return _cachedUnits.Value;
+            }
 
             var stdlibRoot = Path.Combine(AppContext.BaseDirectory, "Standard");
             var units = LoadFrom(stdlibRoot, diagnostics);
 
             // Only cache if loading succeeded (no errors).
             if(!diagnostics.HasErrors)
+            {
                 _cachedUnits = units;
+            }
 
             return units;
         }

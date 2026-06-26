@@ -7,8 +7,8 @@ using FsCheck.Fluent;
 using FsCheck.Xunit;
 using Mist.Analysis.Builtin;
 using Mist.Analysis.Contracts;
-using Mist.Backends.CSharpTranspiler;
 using Mist.Backends.Contracts;
+using Mist.Backends.CSharpTranspiler;
 using Mist.Common.Diagnostics;
 using Mist.Driver;
 using Mist.Driver.Contracts;
@@ -137,13 +137,24 @@ public sealed class MoveBoundaryClonableSourcePropertyTests : IDisposable
         foreach(var symbol in model.AllSymbols)
         {
             if(symbol.Origin != SymbolOrigin.UserCode)
+            {
                 continue;
+            }
+
             if(symbol.Kind != SymbolKind.LocalVariable)
+            {
                 continue;
+            }
+
             if(symbol.Name != bindingName)
+            {
                 continue;
+            }
+
             if(symbol is not Symbol varSymbol || varSymbol.OwnershipTier != OwnershipTier.Owned)
+            {
                 continue;
+            }
 
             SyntaxNode declaringNode;
             try { declaringNode = model.GetDeclaringNode(symbol); }
@@ -151,7 +162,9 @@ public sealed class MoveBoundaryClonableSourcePropertyTests : IDisposable
 
             var initializer = GetInitializerExpression(declaringNode);
             if(initializer is null)
+            {
                 return null;
+            }
 
             return (initializer, varSymbol.DeclaredType);
         }
@@ -290,11 +303,15 @@ public sealed class MoveBoundaryClonableSourcePropertyTests : IDisposable
         var model = CompileAndCapture(scenario.Source);
 
         if(model is null)
+        {
             return false.ToProperty().Label($"Semantic model was null (compilation failed early).\nSource:\n{scenario.Source}");
+        }
 
         var located = FindOwnedBindingInitializer(model, "x");
         if(located is null)
+        {
             return false.ToProperty().Label($"Could not locate owned binding 'x' or its initializer.\nSource:\n{scenario.Source}");
+        }
 
         var (initializer, destinationType) = located.Value;
 

@@ -221,15 +221,25 @@ public class AbstractTypeRegistrationPropertyTests
             var abstractSymbol = model.AllSymbols
                 .FirstOrDefault(s => s.Name == name && s.Kind == SymbolKind.Abstract);
             if(abstractSymbol is null)
+            {
                 return false;
+            }
 
             // Requirement 4.1, 4.4: An AbstractType is created with TypeKind.Abstract
             if(abstractSymbol.DeclaredType is not AbstractType abstractType)
+            {
                 return false;
+            }
+
             if(abstractType.Kind != TypeKind.Abstract)
+            {
                 return false;
+            }
+
             if(abstractType.DisplayName != name)
+            {
                 return false;
+            }
 
             // Requirement 4.3: Each abstract method is registered as SymbolKind.Method
             // in the abstract's member scope
@@ -240,13 +250,17 @@ public class AbstractTypeRegistrationPropertyTests
 
             // The count of method symbols SHALL equal the number of methods declared
             if(methodSymbols.Count != methodNames.Length)
+            {
                 return false;
+            }
 
             // Each declared method name should have a corresponding method symbol
             foreach(var methodName in methodNames)
             {
                 if(!methodSymbols.Any(m => m.Name == methodName))
+                {
                     return false;
+                }
             }
         }
 

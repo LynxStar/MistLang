@@ -115,12 +115,18 @@ public sealed class DelegateEmitterWrappingPropertyTests
         var funcDef = new ClassType("Func", new Scope(null), "Standard", isBackendBacked: true);
         var tps = new IType[totalArity];
         for(var i = 0; i < totalArity; i++)
+        {
             tps[i] = new TypeParameterType($"T{i}", i);
+        }
+
         funcDef.TypeParameters = tps;
 
         var funcTypeArgs = new IType[totalArity];
         for(var i = 0; i < scenario.TypeArguments.Length; i++)
+        {
             funcTypeArgs[i] = scenario.TypeArguments[i];
+        }
+
         funcTypeArgs[totalArity - 1] = new StructType("Boolean", new Scope(null), "Standard", isBackendBacked: true);
 
         var funcSignature = new ConstructedType(funcDef, funcTypeArgs);

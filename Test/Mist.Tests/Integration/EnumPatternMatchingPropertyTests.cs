@@ -8,8 +8,8 @@ using FsCheck;
 using FsCheck.Fluent;
 using Mist.Analysis.Builtin;
 using Mist.Analysis.Contracts;
-using Mist.Backends.CSharpTranspiler;
 using Mist.Backends.Contracts;
+using Mist.Backends.CSharpTranspiler;
 using Mist.Driver;
 using Mist.Driver.Contracts;
 using Mist.Semantics.Model;
@@ -223,7 +223,9 @@ public sealed class EnumPatternMatchingPropertyTests : IDisposable
 
             using var process = Process.Start(psi);
             if(process is null)
+            {
                 return (-1, "", "Failed to start dotnet process");
+            }
 
             var stdoutTask = process.StandardOutput.ReadToEndAsync();
             var stderrTask = process.StandardError.ReadToEndAsync();

@@ -190,40 +190,52 @@ public class TypeAliasResolutionPropertyTests
         // Build semantic models for both programs
         var modelA = BuildModelFromSource(sourceWithAlias, out var diagsA);
         if(modelA is null)
+        {
             return false.ToProperty()
                 .Label($"Failed to build model for alias program. Diagnostics: " +
                        $"{string.Join("; ", diagsA.Select(d => d.Message))}");
+        }
 
         var modelB = BuildModelFromSource(sourceWithDirect, out var diagsB);
         if(modelB is null)
+        {
             return false.ToProperty()
                 .Label($"Failed to build model for direct program. Diagnostics: " +
                        $"{string.Join("; ", diagsB.Select(d => d.Message))}");
+        }
 
         // Find the variable symbols
         var aliasVarSymbol = FindLocalVariable(modelA, "aliasVar");
         if(aliasVarSymbol is null)
+        {
             return false.ToProperty()
                 .Label($"Variable 'aliasVar' not found in alias program model. " +
                        $"All symbols: [{string.Join(", ", modelA.AllSymbols.Select(s => $"{s.Name}:{s.Kind}"))}]");
+        }
 
         var directVarSymbol = FindLocalVariable(modelB, "directVar");
         if(directVarSymbol is null)
+        {
             return false.ToProperty()
                 .Label($"Variable 'directVar' not found in direct program model. " +
                        $"All symbols: [{string.Join(", ", modelB.AllSymbols.Select(s => $"{s.Name}:{s.Kind}"))}]");
+        }
 
         // Get the declared types
         var aliasVarType = aliasVarSymbol.DeclaredType;
         var directVarType = directVarSymbol.DeclaredType;
 
         if(aliasVarType is null)
+        {
             return false.ToProperty()
                 .Label($"Variable 'aliasVar' has null DeclaredType. Scenario: {scenario}");
+        }
 
         if(directVarType is null)
+        {
             return false.ToProperty()
                 .Label($"Variable 'directVar' has null DeclaredType. Scenario: {scenario}");
+        }
 
         // The alias variable's type should be a TypeAliasType whose
         // UnderlyingType matches the direct variable's type.
@@ -246,10 +258,12 @@ public class TypeAliasResolutionPropertyTests
         var kindMatch = resolvedAliasType.Kind == directVarType.Kind;
 
         if(!displayNameMatch || !kindMatch)
+        {
             return false.ToProperty()
                 .Label($"Type mismatch. Alias resolved to: {resolvedAliasType.DisplayName} (Kind={resolvedAliasType.Kind}), " +
                        $"Direct type: {directVarType.DisplayName} (Kind={directVarType.Kind}). " +
                        $"Scenario: {scenario}");
+        }
 
         return true.ToProperty()
             .Label($"Type alias '{scenario.AliasName}' transparently resolves to '{scenario.UnderlyingTypeName}'");

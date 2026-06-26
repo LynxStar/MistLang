@@ -53,13 +53,17 @@ public sealed class ThisTierInferencePass
 
             var body = GetMethodBody(declaringNode);
             if(body is null)
+            {
                 continue;
+            }
 
             // The method's ContainingScope is the type's MemberScope, which
             // contains sibling fields and methods for lookup.
             var memberScope = methodSymbol.ContainingScope;
             if(memberScope is null)
+            {
                 continue;
+            }
 
             var tier = ThisTier.None;
             var calls = new List<ISymbol>();
@@ -79,11 +83,15 @@ public sealed class ThisTierInferencePass
         foreach(var methodSymbol in methodSymbols)
         {
             if(!bodyTiers.TryGetValue(methodSymbol, out var requiredTier))
+            {
                 requiredTier = ThisTier.None;
+            }
 
             var sym = methodSymbol as Symbol;
             if(sym is null)
+            {
                 continue;
+            }
 
             if(sym.DeclaredThisTier is { } declaredTier)
             {
@@ -137,7 +145,10 @@ public sealed class ThisTierInferencePass
     public static ThisTier GetThisTier(ISymbol methodSymbol)
     {
         if(methodSymbol is Symbol sym)
+        {
             return sym.InferredThisTier;
+        }
+
         return ThisTier.None;
     }
 
@@ -176,7 +187,9 @@ public sealed class ThisTierInferencePass
         HashSet<ISymbol> visited)
     {
         if(!visited.Add(methodSymbol))
+        {
             return; // Avoid infinite recursion from mutual calls.
+        }
 
         SyntaxNode declaringNode;
         try { declaringNode = model.GetDeclaringNode(methodSymbol); }
@@ -184,11 +197,15 @@ public sealed class ThisTierInferencePass
 
         var body = GetMethodBody(declaringNode);
         if(body is null)
+        {
             return;
+        }
 
         var memberScope = methodSymbol.ContainingScope;
         if(memberScope is null)
+        {
             return;
+        }
 
         // Scan the body for owned-field accesses and helper calls on this.
         var callsOnThis = new List<ISymbol>();
@@ -226,7 +243,10 @@ public sealed class ThisTierInferencePass
                     ScanNodeForFieldAccesses(assignment.Target, memberScope, model, result, callsOnThis, isAssignmentTarget: true);
                 }
                 if(assignment.Value is not null)
+                {
                     ScanNodeForFieldAccesses(assignment.Value, memberScope, model, result, callsOnThis, isAssignmentTarget: false);
+                }
+
                 return;
 
             case PostfixNode postfix:
@@ -237,7 +257,9 @@ public sealed class ThisTierInferencePass
                 foreach(var child in node.Children())
                 {
                     if(child is not null)
+                    {
                         ScanNodeForFieldAccesses(child, memberScope, model, result, callsOnThis, isAssignmentTarget: false);
+                    }
                 }
                 break;
         }
@@ -292,7 +314,9 @@ public sealed class ThisTierInferencePass
 
                 // Scan arguments for field accesses.
                 if(methodCall.Arguments is not null)
+                {
                     ScanNodeForFieldAccesses(methodCall.Arguments, memberScope, model, result, callsOnThis, isAssignmentTarget: false);
+                }
 
                 for(var i = 1; i < postfix.Suffix.Length; i++)
                 {
@@ -304,7 +328,9 @@ public sealed class ThisTierInferencePass
 
         // Not a this.X pattern — recurse normally.
         if(postfix.Target is not null)
+        {
             ScanNodeForFieldAccesses(postfix.Target, memberScope, model, result, callsOnThis, isAssignmentTarget: false);
+        }
 
         foreach(var suffix in postfix.Suffix)
         {
@@ -329,7 +355,9 @@ public sealed class ThisTierInferencePass
                         var memberName = memberAccess.Name.Lexeme;
                         var symbol = memberScope.Lookup(memberName);
                         if(symbol is Symbol fieldSym && fieldSym.Kind == SymbolKind.Field && fieldSym.IsOwnedField)
+                        {
                             return symbol;
+                        }
                     }
 
                     if(postfix.Suffix.Length == 0 && postfix.Target is IdentifierExpressionPrimaryNode identifier)
@@ -337,7 +365,9 @@ public sealed class ThisTierInferencePass
                         var memberName = identifier.Name.Lexeme;
                         var symbol = memberScope.Lookup(memberName);
                         if(symbol is Symbol fieldSym && fieldSym.Kind == SymbolKind.Field && fieldSym.IsOwnedField)
+                        {
                             return symbol;
+                        }
                     }
 
                     return null;
@@ -349,10 +379,15 @@ public sealed class ThisTierInferencePass
                     foreach(var child in targetNode.Children())
                     {
                         if(child is not null)
+                        {
                             children.Add(child);
+                        }
                     }
                     if(children.Count == 1)
+                    {
                         return TryGetOwnedFieldOnThis(children[0], memberScope);
+                    }
+
                     return null;
                 }
         }
@@ -366,7 +401,9 @@ public sealed class ThisTierInferencePass
         if(result.TryGetValue(field, out var existing))
         {
             if(kind > existing)
+            {
                 result[field] = kind;
+            }
         }
         else
         {
@@ -424,7 +461,9 @@ public sealed class ThisTierInferencePass
                 foreach(var child in node.Children())
                 {
                     if(child is not null)
+                    {
                         ScanNode(child, memberScope, model, ref tier, callsOnThis, isAssignmentTarget: false);
+                    }
                 }
                 break;
         }
@@ -461,7 +500,9 @@ public sealed class ThisTierInferencePass
 
         // The value side is always a read context.
         if(assignment.Value is not null)
+        {
             ScanNode(assignment.Value, memberScope, model, ref tier, callsOnThis, isAssignmentTarget: false);
+        }
     }
 
     /// <summary>
@@ -518,7 +559,9 @@ public sealed class ThisTierInferencePass
 
                 // Also scan the method arguments for owned-field reads.
                 if(methodCall.Arguments is not null)
+                {
                     ScanNode(methodCall.Arguments, memberScope, model, ref tier, callsOnThis, isAssignmentTarget: false);
+                }
 
                 // Scan any further suffixes (e.g., this.method().something).
                 for(var i = 1; i < postfix.Suffix.Length; i++)
@@ -538,7 +581,9 @@ public sealed class ThisTierInferencePass
                     // a method call on it, the access kind depends on the method.
                     // For safety, scan arguments.
                     if(nextMethodCall.Arguments is not null)
+                    {
                         ScanNode(nextMethodCall.Arguments, memberScope, model, ref tier, callsOnThis, isAssignmentTarget: false);
+                    }
                 }
                 else
                 {
@@ -550,7 +595,9 @@ public sealed class ThisTierInferencePass
 
         // Not a this.X pattern — recurse normally.
         if(postfix.Target is not null)
+        {
             ScanNode(postfix.Target, memberScope, model, ref tier, callsOnThis, isAssignmentTarget: false);
+        }
 
         foreach(var suffix in postfix.Suffix)
         {
@@ -624,10 +671,15 @@ public sealed class ThisTierInferencePass
                     foreach(var child in targetNode.Children())
                     {
                         if(child is not null)
+                        {
                             children.Add(child);
+                        }
                     }
                     if(children.Count == 1)
+                    {
                         return IsOwnedFieldOnThis(children[0], memberScope, model);
+                    }
+
                     return false;
                 }
         }
@@ -651,12 +703,16 @@ public sealed class ThisTierInferencePass
             foreach(var (method, calls) in callsOnThis)
             {
                 if(!tiers.TryGetValue(method, out var currentTier))
+                {
                     continue;
+                }
 
                 foreach(var callee in calls)
                 {
                     if(!tiers.TryGetValue(callee, out var calleeTier))
+                    {
                         continue;
+                    }
 
                     if(calleeTier > currentTier)
                     {
@@ -680,11 +736,20 @@ public sealed class ThisTierInferencePass
         foreach(var symbol in model.AllSymbols)
         {
             if(symbol.Origin != SymbolOrigin.UserCode)
+            {
                 continue;
+            }
+
             if(symbol.Kind != SymbolKind.Method)
+            {
                 continue;
+            }
+
             if(symbol is Symbol sym && sym.IsStatic)
+            {
                 continue;
+            }
+
             result.Add(symbol);
         }
         return result;
@@ -698,13 +763,17 @@ public sealed class ThisTierInferencePass
     {
         var scope = methodSymbol.ContainingScope;
         if(scope is null)
+        {
             return null;
+        }
 
         // The method's ContainingScope is the type's MemberScope.
         // Walk up to the parent scope to find the type symbol that owns this scope.
         var parentScope = scope.Parent;
         if(parentScope is null)
+        {
             return null;
+        }
 
         foreach(var member in parentScope.Members)
         {
@@ -712,7 +781,9 @@ public sealed class ThisTierInferencePass
             {
                 var memberScope = GetMemberScope(member.DeclaredType);
                 if(ReferenceEquals(memberScope, scope))
+                {
                     return member.DeclaredType;
+                }
             }
         }
 

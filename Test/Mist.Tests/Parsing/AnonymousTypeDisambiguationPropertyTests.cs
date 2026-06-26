@@ -77,7 +77,9 @@ public class AnonymousTypeDisambiguationPropertyTests
             .ToList();
 
         if(errors.Count > 0)
+        {
             return null;
+        }
 
         return result.Root as CompilationUnitNode;
     }
@@ -88,18 +90,33 @@ public class AnonymousTypeDisambiguationPropertyTests
     private static PrimaryNode? ExtractPrimaryFromFirstVar(CompilationUnitNode cu)
     {
         var typeDecl = cu.GetTypes()[0] as ClassTypeTypeDeclarationNode;
-        if(typeDecl is null) return null;
+        if(typeDecl is null)
+        {
+            return null;
+        }
 
         var methodMember = typeDecl.ClassDeclaration.Members[0] as MethodMemberMemberDeclarationNode;
-        if(methodMember is null) return null;
+        if(methodMember is null)
+        {
+            return null;
+        }
 
         var block = methodMember.Method.Body.GetBlock();
-        if(block is null) return null;
+        if(block is null)
+        {
+            return null;
+        }
 
-        if(block.Statements.Length < 1) return null;
+        if(block.Statements.Length < 1)
+        {
+            return null;
+        }
 
         var stmt = block.Statements[0] as VariableDeclarationStatementStatementNode;
-        if(stmt is null) return null;
+        if(stmt is null)
+        {
+            return null;
+        }
 
         ExpressionNode? initializer = null;
 
@@ -112,7 +129,10 @@ public class AnonymousTypeDisambiguationPropertyTests
             initializer = typed.Initializer;
         }
 
-        if(initializer is null) return null;
+        if(initializer is null)
+        {
+            return null;
+        }
 
         return UnwrapToPrimary(initializer);
     }
@@ -127,19 +147,30 @@ public class AnonymousTypeDisambiguationPropertyTests
         for(var depth = 0; depth < 20; depth++)
         {
             if(current is PrimaryNode primary)
+            {
                 return primary;
+            }
 
             Storm.Runtime.SyntaxNode? next = null;
             foreach(var child in current.Children())
             {
-                if(child is null) continue;
+                if(child is null)
+                {
+                    continue;
+                }
+
                 if(child is PrimaryNode childPrimary)
+                {
                     return childPrimary;
+                }
+
                 next ??= child;
             }
 
             if(next is null)
+            {
                 return null;
+            }
 
             current = next;
         }
@@ -164,11 +195,15 @@ public class AnonymousTypeDisambiguationPropertyTests
         var root = ParseSource(scenario.Source);
 
         if(root is null)
+        {
             return false.ToProperty().Label($"Failed to parse: {scenario.Source}");
+        }
 
         var primary = ExtractPrimaryFromFirstVar(root);
         if(primary is null)
+        {
             return false.ToProperty().Label($"Could not extract primary node from: {scenario.Source}");
+        }
 
         var isAnonymousType = primary is AnonymousTypeExpressionPrimaryNode;
 
@@ -197,11 +232,15 @@ public class AnonymousTypeDisambiguationPropertyTests
         var root = ParseSource(scenario.Source);
 
         if(root is null)
+        {
             return false.ToProperty().Label($"Failed to parse: {scenario.Source}");
+        }
 
         var primary = ExtractPrimaryFromFirstVar(root);
         if(primary is null)
+        {
             return false.ToProperty().Label($"Could not extract primary node from: {scenario.Source}");
+        }
 
         var isTargetTypedNewNoArgs = primary is TargetTypedNewExpressionNoArgsPrimaryNode;
 

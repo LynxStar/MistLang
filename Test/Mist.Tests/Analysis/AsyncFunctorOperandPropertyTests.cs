@@ -305,10 +305,12 @@ public class AsyncFunctorOperandPropertyTests
             .ToList();
 
         if(matchingDiagnostics.Count == 0)
+        {
             return false.ToProperty()
                 .Label($"Expected MIST_TC_0107 but no such diagnostic was emitted. " +
                        $"All diagnostics: [{string.Join(", ", allDiagnostics.Select(d => $"{d.Id.Value}: {d.Message}"))}]. " +
                        $"Scenario: {scenario}");
+        }
 
         // Verify the diagnostic message mentions relevant context
         var diag = matchingDiagnostics[0];
@@ -317,9 +319,11 @@ public class AsyncFunctorOperandPropertyTests
                                  diag.Message.Contains("invocation");
 
         if(!mentionsAsync || !mentionsInvocation)
+        {
             return false.ToProperty()
                 .Label($"MIST_TC_0107 emitted but message doesn't mention 'async' and 'invocation'. " +
                        $"Message: '{diag.Message}'. Scenario: {scenario}");
+        }
 
         return true.ToProperty();
     }

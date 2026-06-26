@@ -287,35 +287,53 @@ public class GenericInheritanceResolutionPropertyTests
             d.Id == DiagnosticId.MissingTypeArguments ||
             d.Id == DiagnosticId.NotGeneric).ToList();
         if(genericDiags.Count > 0)
+        {
             return false;
+        }
 
         // Find the derived class symbol
         var derivedSymbol = model.AllSymbols
             .FirstOrDefault(s => s.Name == scenario.DerivedName && s.Kind == SymbolKind.Class);
         if(derivedSymbol?.DeclaredType is not ClassType derivedType)
+        {
             return false;
+        }
 
         // BaseType should be a ConstructedType
         if(derivedType.BaseType is not ConstructedType constructedBase)
+        {
             return false;
+        }
 
         // GenericDefinition should be the base class
         if(constructedBase.GenericDefinition is not ClassType baseType)
+        {
             return false;
+        }
+
         if(baseType.DisplayName != scenario.BaseName)
+        {
             return false;
+        }
 
         // TypeArguments count should match
         if(constructedBase.TypeArguments.Count != scenario.TypeParamNames.Length)
+        {
             return false;
+        }
 
         // Each type argument should be a TypeParameterType matching the derived class's type params
         for(var i = 0; i < constructedBase.TypeArguments.Count; i++)
         {
             if(constructedBase.TypeArguments[i] is not TypeParameterType tpt)
+            {
                 return false;
+            }
+
             if(tpt.Name != scenario.TypeParamNames[i])
+            {
                 return false;
+            }
         }
 
         return true;
@@ -367,36 +385,53 @@ public class GenericInheritanceResolutionPropertyTests
             d.Id == DiagnosticId.MissingTypeArguments ||
             d.Id == DiagnosticId.NotGeneric).ToList();
         if(genericDiags.Count > 0)
+        {
             return false;
+        }
 
         // Find the derived class symbol
         var derivedSymbol = model.AllSymbols
             .FirstOrDefault(s => s.Name == scenario.DerivedName && s.Kind == SymbolKind.Class);
         if(derivedSymbol?.DeclaredType is not ClassType derivedType)
+        {
             return false;
+        }
 
         // BaseType should be a ConstructedType
         if(derivedType.BaseType is not ConstructedType constructedBase)
+        {
             return false;
+        }
 
         // GenericDefinition should be the base class
         if(constructedBase.GenericDefinition is not ClassType baseType)
+        {
             return false;
+        }
+
         if(baseType.DisplayName != scenario.BaseName)
+        {
             return false;
+        }
 
         // TypeArguments count should match
         if(constructedBase.TypeArguments.Count != scenario.ConcreteArgPrimitives.Length)
+        {
             return false;
+        }
 
         // Each type argument should be a concrete primitive type (not a TypeParameterType)
         for(var i = 0; i < constructedBase.TypeArguments.Count; i++)
         {
             if(constructedBase.TypeArguments[i] is TypeParameterType)
+            {
                 return false;
+            }
             // Verify the type argument is not null
             if(constructedBase.TypeArguments[i] is null)
+            {
                 return false;
+            }
         }
 
         return true;
@@ -472,31 +507,46 @@ public class GenericInheritanceResolutionPropertyTests
             d.Id == DiagnosticId.MissingTypeArguments ||
             d.Id == DiagnosticId.NotGeneric).ToList();
         if(genericDiags.Count > 0)
+        {
             return false;
+        }
 
         // Find the class symbol
         var classSymbol = model.AllSymbols
             .FirstOrDefault(s => s.Name == scenario.TypeName && s.Kind == SymbolKind.Class);
         if(classSymbol?.DeclaredType is not ClassType classType)
+        {
             return false;
+        }
 
         // Abstracts should contain at least one ConstructedType
         if(classType.Abstracts.Count == 0)
+        {
             return false;
+        }
 
         var constructedAbstract = classType.Abstracts[0] as ConstructedType;
         if(constructedAbstract is null)
+        {
             return false;
+        }
 
         // GenericDefinition should be the abstract type
         if(constructedAbstract.GenericDefinition is not AbstractType resolvedAbstract)
+        {
             return false;
+        }
+
         if(resolvedAbstract.DisplayName != scenario.AbstractName)
+        {
             return false;
+        }
 
         // TypeArguments count should match
         if(constructedAbstract.TypeArguments.Count != scenario.TypeParamNames.Length)
+        {
             return false;
+        }
 
         if(scenario.TypeIsGeneric)
         {
@@ -504,9 +554,14 @@ public class GenericInheritanceResolutionPropertyTests
             for(var i = 0; i < constructedAbstract.TypeArguments.Count; i++)
             {
                 if(constructedAbstract.TypeArguments[i] is not TypeParameterType tpt)
+                {
                     return false;
+                }
+
                 if(tpt.Name != scenario.TypeParamNames[i])
+                {
                     return false;
+                }
             }
         }
         else
@@ -515,7 +570,9 @@ public class GenericInheritanceResolutionPropertyTests
             for(var i = 0; i < constructedAbstract.TypeArguments.Count; i++)
             {
                 if(constructedAbstract.TypeArguments[i] is TypeParameterType)
+                {
                     return false;
+                }
             }
         }
 

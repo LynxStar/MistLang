@@ -6,8 +6,8 @@
 using System.Collections.Immutable;
 using Mist.Analysis.Builtin;
 using Mist.Analysis.Contracts;
-using Mist.Backends.CSharpTranspiler;
 using Mist.Backends.Contracts;
+using Mist.Backends.CSharpTranspiler;
 using Mist.Driver;
 using Mist.Driver.Contracts;
 using Mist.Semantics.Model;
@@ -57,7 +57,9 @@ public sealed class CloneEmissionAndStructElisionTests
             var result = SharedDriver.Compile(options);
 
             if(!result.Succeeded)
+            {
                 return null;
+            }
 
             return result.EmittedFiles;
         }
@@ -74,7 +76,9 @@ public sealed class CloneEmissionAndStructElisionTests
     {
         var files = CompileAndGetEmittedFiles(source);
         if(files is null)
+        {
             return null;
+        }
 
         var csFiles = files
             .Where(kv => kv.Key.EndsWith(".cs", StringComparison.OrdinalIgnoreCase))

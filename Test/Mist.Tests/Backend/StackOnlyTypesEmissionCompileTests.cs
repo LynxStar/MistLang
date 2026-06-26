@@ -276,7 +276,9 @@ public sealed class StackOnlyTypesEmissionCompileTests : IDisposable
             foreach(var (fileName, content) in result.EmittedFiles)
             {
                 if(!seenFileNames.Add(fileName))
+                {
                     continue; // already included from a previous program
+                }
 
                 emittedSyntaxTrees.Add(CSharpSyntaxTree.ParseText(
                     content,

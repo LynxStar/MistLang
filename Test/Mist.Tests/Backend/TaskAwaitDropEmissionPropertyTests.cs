@@ -242,12 +242,16 @@ public sealed class TaskAwaitDropEmissionPropertyTests : IDisposable
     private static string? GetEmittedCSharp(CompilerResult result)
     {
         if(result.EmittedFiles is null)
+        {
             return null;
+        }
 
         foreach(var (_, content) in result.EmittedFiles)
         {
             if(content.Contains("namespace TestProgram"))
+            {
                 return content;
+            }
         }
 
         return null;

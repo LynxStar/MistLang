@@ -197,7 +197,9 @@ public sealed partial class ClassAbstractEmissionPropertyTests : IDisposable
         if(Directory.Exists(_outputDir))
         {
             foreach(var file in Directory.GetFiles(_outputDir))
+            {
                 File.Delete(file);
+            }
         }
     }
 
@@ -242,9 +244,15 @@ public sealed partial class ClassAbstractEmissionPropertyTests : IDisposable
             {
                 var parts = ImmutableArray.CreateBuilder<string>();
                 if(BaseClassName is not null)
+                {
                     parts.Add(BaseClassName);
+                }
+
                 if(AbstractName is not null)
+                {
                     parts.Add(AbstractName);
+                }
+
                 return parts.ToImmutable();
             }
         }
@@ -405,9 +413,13 @@ public sealed partial class ClassAbstractEmissionPropertyTests : IDisposable
         // Declare test class with inheritance clause
         var parts = scenario.ExpectedInheritanceParts;
         if(parts.Length > 0)
+        {
             sb.AppendLine($"class {scenario.ClassName} : {string.Join(", ", parts)} {{ }}");
+        }
         else
+        {
             sb.AppendLine($"class {scenario.ClassName} {{ }}");
+        }
 
         sb.AppendLine("class Program { public static void Main() { } }");
         return sb.ToString();
@@ -439,7 +451,9 @@ public sealed partial class ClassAbstractEmissionPropertyTests : IDisposable
         var csContent = EmitAndGetCsContent(model);
 
         if(string.IsNullOrEmpty(csContent))
+        {
             return false;
+        }
 
         // Parse all class declarations from the emitted C#
         var matches = ClassDeclWithInheritancePattern().Matches(csContent);
@@ -453,7 +467,9 @@ public sealed partial class ClassAbstractEmissionPropertyTests : IDisposable
 
         // Verify the test class is present in the emitted output
         if(!emittedClasses.TryGetValue(scenario.ClassName, out var actualClause))
+        {
             return false;
+        }
 
         // Build the expected inheritance clause
         var expectedParts = scenario.ExpectedInheritanceParts;
@@ -466,7 +482,9 @@ public sealed partial class ClassAbstractEmissionPropertyTests : IDisposable
 
         // Requirements 2.1, 2.2, 2.4: Inheritance clause with correct order
         if(actualClause is null)
+        {
             return false;
+        }
 
         var expectedClause = string.Join(", ", expectedParts);
 

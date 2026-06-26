@@ -86,7 +86,9 @@ namespace Storm.SourceGenerator.Emit
                 var first = ParseConcatenation();
 
                 if(!HasMore || Peek() != '|')
+                {
                     return first;
+                }
 
                 var alternatives = new List<ExpressionIR> { first };
 
@@ -119,7 +121,9 @@ namespace Storm.SourceGenerator.Emit
                 }
 
                 if(elements.Count == 1)
+                {
                     return elements[0];
+                }
 
                 return new SequenceIR(elements);
             }
@@ -132,7 +136,9 @@ namespace Storm.SourceGenerator.Emit
                 var atom = ParseAtom();
 
                 if(!HasMore)
+                {
                     return atom;
+                }
 
                 switch(Peek())
                 {
@@ -156,8 +162,10 @@ namespace Storm.SourceGenerator.Emit
             private ExpressionIR ParseAtom()
             {
                 if(!HasMore)
+                {
                     throw new FormatException(
                         $"Unexpected end of regex pattern: {_pattern}");
+                }
 
                 var ch = Peek();
 
@@ -193,11 +201,15 @@ namespace Storm.SourceGenerator.Emit
 
                 // Handle negation
                 if(HasMore && Peek() == '^')
+                {
                     Advance();
+                }
 
                 // Handle ']' as first character in class (literal ']')
                 if(HasMore && Peek() == ']')
+                {
                     Advance();
+                }
 
                 // Read until closing ']'
                 while(HasMore && Peek() != ']')
@@ -214,8 +226,10 @@ namespace Storm.SourceGenerator.Emit
                 }
 
                 if(!HasMore)
+                {
                     throw new FormatException(
                         $"Unterminated character class starting at position {startPos} in regex pattern: {_pattern}");
+                }
 
                 Advance(); // consume ']'
 
@@ -233,8 +247,10 @@ namespace Storm.SourceGenerator.Emit
                 var inner = ParseExpression();
 
                 if(!HasMore || Peek() != ')')
+                {
                     throw new FormatException(
                         $"Unterminated group in regex pattern: {_pattern}");
+                }
 
                 Advance(); // consume ')'
 
@@ -251,8 +267,10 @@ namespace Storm.SourceGenerator.Emit
                 Advance(); // consume '\'
 
                 if(!HasMore)
+                {
                     throw new FormatException(
                         $"Unexpected end of regex pattern after backslash: {_pattern}");
+                }
 
                 var escaped = Advance();
 

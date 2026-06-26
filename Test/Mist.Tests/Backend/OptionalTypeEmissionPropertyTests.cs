@@ -114,7 +114,9 @@ public sealed class OptionalTypeEmissionPropertyTests
             var result = SharedDriver.Compile(options);
 
             if(!result.Succeeded)
+            {
                 return null;
+            }
 
             return result.EmittedFiles;
         }
@@ -131,7 +133,9 @@ public sealed class OptionalTypeEmissionPropertyTests
     {
         var files = CompileAndGetEmittedFiles(source);
         if(files is null)
+        {
             return null;
+        }
 
         // Concatenate all emitted file contents (excluding helper files like MistVoid.g.cs)
         return string.Join("\n", files

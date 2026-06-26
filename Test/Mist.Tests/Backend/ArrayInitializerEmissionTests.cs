@@ -50,7 +50,9 @@ public sealed class ArrayInitializerEmissionTests
         var userParseResult = Parser.Parse(userTokens, diagnostics);
 
         if(userParseResult.Root is null)
+        {
             return (false, "", $"Failed to parse source:\n{mistSource}");
+        }
 
         var allUnits = stdlibUnits.Add(userUnit);
         var allAsts = stdlibAsts.Add(userParseResult.Root);
@@ -98,11 +100,15 @@ public sealed class ArrayInitializerEmissionTests
         }
 
         if(files.TryGetValue("test.cs", out var testContent))
+        {
             return (true, testContent, "");
+        }
 
         var sb = new StringBuilder();
         foreach(var (_, content) in files)
+        {
             sb.AppendLine(content);
+        }
 
         return (true, sb.ToString(), "");
     }

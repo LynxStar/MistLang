@@ -89,7 +89,9 @@ public static class TypeContainment
         ArgumentNullException.ThrowIfNull(needle);
 
         if(TypesMatch(haystack, needle))
+        {
             return true;
+        }
 
         switch(haystack)
         {
@@ -103,7 +105,9 @@ public static class TypeContainment
                 for(var i = 0; i < constructed.TypeArguments.Count; i++)
                 {
                     if(ContainsType(constructed.TypeArguments[i], needle))
+                    {
                         return true;
+                    }
                 }
                 return false;
 
@@ -183,10 +187,14 @@ public static class TypeContainment
     private static bool TypesMatch(IType a, IType b)
     {
         if(ReferenceEquals(a, b))
+        {
             return true;
+        }
 
         if(a is TypeParameterType aTp && b is TypeParameterType bTp)
+        {
             return aTp.Name == bTp.Name && aTp.Ordinal == bTp.Ordinal;
+        }
 
         return false;
     }

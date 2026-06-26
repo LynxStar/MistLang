@@ -54,8 +54,10 @@ public class StampabilityClassificationPropertyTests
         var parseResult = SharedParser.Parse(tokens, parseBag);
 
         if(parseResult.Root is null)
+        {
             throw new InvalidOperationException(
                 $"Parse failed: {string.Join("; ", parseBag.ToImmutableArray().Select(d => d.Message))}");
+        }
 
         parseResult.Root.SetParentLinks();
 
@@ -148,8 +150,10 @@ public class StampabilityClassificationPropertyTests
         GenFields(int count)
     {
         if(count == 0)
+        {
             return Gen.Constant(
                 ImmutableArray<(string, FieldTypeKind)>.Empty);
+        }
 
         Gen<ImmutableArray<(string, FieldTypeKind)>> result =
             from kind in GenFieldKind()

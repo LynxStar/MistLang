@@ -166,10 +166,16 @@ public class AdhocRefinementInvalidNameDiagnosticsPropertyTests
         var sourceText = new SourceText("test.mist", source);
         var bag = new DiagnosticBag();
         var tokens = Lexer.Lex(sourceText, bag);
-        if(bag.HasErrors) return (null, bag.ToImmutableArray());
+        if(bag.HasErrors)
+        {
+            return (null, bag.ToImmutableArray());
+        }
 
         var result = Parser.Parse(tokens, bag);
-        if(bag.HasErrors || result.Root is null) return (null, bag.ToImmutableArray());
+        if(bag.HasErrors || result.Root is null)
+        {
+            return (null, bag.ToImmutableArray());
+        }
 
         var compilation = new MistCompilation(
             ImmutableArray.Create(new CompilationUnit(sourceText)));
@@ -198,31 +204,50 @@ public class AdhocRefinementInvalidNameDiagnosticsPropertyTests
     {
         var source = scenario.ToSource();
         var (model, diagnostics) = BuildModelFromSource(source);
-        if(model is null) return false;
+        if(model is null)
+        {
+            return false;
+        }
 
         // Verify MIST_REFINEMENT_0001 is emitted for the unknown name.
         var refinement0001 = diagnostics
             .Where(d => d.Id == SemanticModelBuilder.RefinementConstraintUnknownName)
             .ToList();
 
-        if(refinement0001.Count < 1) return false;
-        if(!refinement0001.Any(d => d.Message.Contains(scenario.UnknownName))) return false;
+        if(refinement0001.Count < 1)
+        {
+            return false;
+        }
+
+        if(!refinement0001.Any(d => d.Message.Contains(scenario.UnknownName)))
+        {
+            return false;
+        }
 
         // Verify no predicate is attached to the dependent type parameter
         // (the unknown name should not cause any predicate attachment).
         var classSymbol = model.AllSymbols
             .FirstOrDefault(s => s.Name == scenario.ClassName && s.Kind == SymbolKind.Class);
-        if(classSymbol is null) return false;
+        if(classSymbol is null)
+        {
+            return false;
+        }
 
         var classType = classSymbol.DeclaredType as ClassType;
-        if(classType is null) return false;
+        if(classType is null)
+        {
+            return false;
+        }
 
         // The dependent type parameter should still exist but have no AdhocConstraint
         // (since the constraint targeted an unknown name, not this parameter).
         var depParam = classType.TypeParameters
             .OfType<DependentTypeParameterType>()
             .FirstOrDefault(p => p.Name == scenario.DependentParamName);
-        if(depParam is null) return false;
+        if(depParam is null)
+        {
+            return false;
+        }
 
         return depParam.AdhocConstraint is null;
     }
@@ -239,15 +264,25 @@ public class AdhocRefinementInvalidNameDiagnosticsPropertyTests
     {
         var source = scenario.ToSource();
         var (model, diagnostics) = BuildModelFromSource(source);
-        if(model is null) return false;
+        if(model is null)
+        {
+            return false;
+        }
 
         // Verify MIST_REFINEMENT_0002 is emitted for the regular type parameter.
         var refinement0002 = diagnostics
             .Where(d => d.Id == SemanticModelBuilder.RefinementConstraintOnRegularTypeParam)
             .ToList();
 
-        if(refinement0002.Count < 1) return false;
-        if(!refinement0002.Any(d => d.Message.Contains(scenario.RegularTypeParamName))) return false;
+        if(refinement0002.Count < 1)
+        {
+            return false;
+        }
+
+        if(!refinement0002.Any(d => d.Message.Contains(scenario.RegularTypeParamName)))
+        {
+            return false;
+        }
 
         // Verify no parameter refinement is attached for the regular type parameter.
         // Regular type parameters don't have AdhocConstraint — they're TypeParameterType, not DependentTypeParameterType.
@@ -259,7 +294,10 @@ public class AdhocRefinementInvalidNameDiagnosticsPropertyTests
         if(paramSymbol is not null)
         {
             var refinement = model.GetParameterRefinement(paramSymbol);
-            if(refinement is not null) return false;
+            if(refinement is not null)
+            {
+                return false;
+            }
         }
 
         return true;
@@ -277,38 +315,66 @@ public class AdhocRefinementInvalidNameDiagnosticsPropertyTests
     {
         var source = scenario.ToSource();
         var (model, diagnostics) = BuildModelFromSource(source);
-        if(model is null) return false;
+        if(model is null)
+        {
+            return false;
+        }
 
         // Verify MIST_REFINEMENT_0003 is emitted for the duplicate.
         var refinement0003 = diagnostics
             .Where(d => d.Id == SemanticModelBuilder.RefinementConstraintDuplicate)
             .ToList();
 
-        if(refinement0003.Count < 1) return false;
-        if(!refinement0003.Any(d => d.Message.Contains(scenario.DependentParamName))) return false;
+        if(refinement0003.Count < 1)
+        {
+            return false;
+        }
+
+        if(!refinement0003.Any(d => d.Message.Contains(scenario.DependentParamName)))
+        {
+            return false;
+        }
 
         // Verify only the first predicate is attached (>= FirstValue), not the second (<= SecondValue).
         var classSymbol = model.AllSymbols
             .FirstOrDefault(s => s.Name == scenario.ClassName && s.Kind == SymbolKind.Class);
-        if(classSymbol is null) return false;
+        if(classSymbol is null)
+        {
+            return false;
+        }
 
         var classType = classSymbol.DeclaredType as ClassType;
-        if(classType is null) return false;
+        if(classType is null)
+        {
+            return false;
+        }
 
         var depParam = classType.TypeParameters
             .OfType<DependentTypeParameterType>()
             .FirstOrDefault(p => p.Name == scenario.DependentParamName);
-        if(depParam is null) return false;
+        if(depParam is null)
+        {
+            return false;
+        }
 
         // The first constraint should be attached.
-        if(depParam.AdhocConstraint is null) return false;
+        if(depParam.AdhocConstraint is null)
+        {
+            return false;
+        }
 
         // Verify the first constraint evaluates correctly (>= FirstValue).
         // A value equal to FirstValue should satisfy it.
-        if(!depParam.AdhocConstraint.Evaluate(scenario.FirstValue)) return false;
+        if(!depParam.AdhocConstraint.Evaluate(scenario.FirstValue))
+        {
+            return false;
+        }
 
         // A value less than FirstValue should NOT satisfy it.
-        if(scenario.FirstValue > 0 && depParam.AdhocConstraint.Evaluate(scenario.FirstValue - 1)) return false;
+        if(scenario.FirstValue > 0 && depParam.AdhocConstraint.Evaluate(scenario.FirstValue - 1))
+        {
+            return false;
+        }
 
         return true;
     }

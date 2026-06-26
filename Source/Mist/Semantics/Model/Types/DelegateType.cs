@@ -84,16 +84,33 @@ public sealed class DelegateType : IType, IEquatable<DelegateType>
     /// </summary>
     public bool Equals(DelegateType? other)
     {
-        if(other is null) return false;
-        if(ReferenceEquals(this, other)) return true;
-        if(ClrFullName != other.ClrFullName) return false;
-        if(TypeArguments.Count != other.TypeArguments.Count) return false;
+        if(other is null)
+        {
+            return false;
+        }
+
+        if(ReferenceEquals(this, other))
+        {
+            return true;
+        }
+
+        if(ClrFullName != other.ClrFullName)
+        {
+            return false;
+        }
+
+        if(TypeArguments.Count != other.TypeArguments.Count)
+        {
+            return false;
+        }
 
         for(var i = 0; i < TypeArguments.Count; i++)
         {
             if(!ReferenceEquals(TypeArguments[i], other.TypeArguments[i])
                 && TypeArguments[i] != other.TypeArguments[i])
+            {
                 return false;
+            }
         }
 
         return true;

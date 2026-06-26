@@ -494,11 +494,15 @@ public class DefaultPrettyPrinterPropertyTests
             .Any(d => d.Severity == DiagnosticSeverity.Error);
 
         if(hasStubWarning || hasErrors)
+        {
             return null;
+        }
 
         var reparsed = result.Root as CompilationUnitNode;
         if(reparsed is null || reparsed.Items.Length == 0)
+        {
             return null;
+        }
 
         return MistPrettyPrinter.Print(reparsed, source);
     }
@@ -516,7 +520,9 @@ public class DefaultPrettyPrinterPropertyTests
         // Step 1: Pretty-print the generated AST to source text
         var printed1 = MistPrettyPrinter.Print(ast);
         if(string.IsNullOrWhiteSpace(printed1))
+        {
             return false.ToProperty().Label("printed1 was empty");
+        }
 
         // Step 2: First round-trip: parse printed1 → print → printed2
         var printed2 = ParseAndPrint(printed1);
@@ -539,7 +545,10 @@ public class DefaultPrettyPrinterPropertyTests
             // is at least deterministic (parsing printed1 twice yields the same output).
             var printed2Again = ParseAndPrint(printed1);
             if(printed2Again is null)
+            {
                 return true.ToProperty(); // Parser is non-deterministic, skip
+            }
+
             return (printed2 == printed2Again).ToProperty()
                 .Label($"First round-trip not deterministic.\nPrinted2:\n{printed2}\nPrinted2Again:\n{printed2Again}");
         }

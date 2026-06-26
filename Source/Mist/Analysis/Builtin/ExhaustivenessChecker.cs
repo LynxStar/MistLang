@@ -75,10 +75,14 @@ internal static class ExhaustivenessChecker
         for(var i = 0; i < arms.Count; i++)
         {
             if(arms[i].HasGuard)
+            {
                 continue;
+            }
 
             if(IsCatchAllPattern(arms[i].Pattern))
+            {
                 return true;
+            }
         }
 
         return false;
@@ -93,22 +97,34 @@ internal static class ExhaustivenessChecker
         // Navigate the pattern hierarchy: PatternNode → OrPatternNode → AndPatternNode → UnaryPatternNode → PrimaryPatternNode
         var primary = TryGetSinglePrimaryPattern(pattern);
         if(primary is null)
+        {
             return false;
+        }
 
         if(primary is VarPatternPrimaryPatternNode or DiscardPatternPrimaryPatternNode)
+        {
             return true;
+        }
 
         // A tuple positional pattern with all catch-all elements is itself a catch-all.
         if(primary is TuplePositionalPatternPrimaryPatternNode tuplePattern)
         {
             if(!IsCatchAllPattern(tuplePattern.First))
+            {
                 return false;
+            }
+
             if(!IsCatchAllPattern(tuplePattern.Rest))
+            {
                 return false;
+            }
+
             for(var i = 0; i < tuplePattern.Patterns.Length; i++)
             {
                 if(!IsCatchAllPattern(tuplePattern.Patterns[i]))
+                {
                     return false;
+                }
             }
             return true;
         }
@@ -129,29 +145,44 @@ internal static class ExhaustivenessChecker
         for(var i = 0; i < arms.Count; i++)
         {
             if(arms[i].HasGuard)
+            {
                 continue;
+            }
 
             var primary = TryGetSinglePrimaryPattern(arms[i].Pattern);
             if(primary is null)
+            {
                 continue;
+            }
 
             if(primary is ConstantPatternPrimaryPatternNode constantPattern)
             {
                 if(constantPattern.Literal is TrueConstantConstantLiteralNode)
+                {
                     trueFound = true;
+                }
                 else if(constantPattern.Literal is FalseConstantConstantLiteralNode)
+                {
                     falseFound = true;
+                }
             }
         }
 
         if(trueFound && falseFound)
+        {
             return Array.Empty<string>();
+        }
 
         var missing = new List<string>();
         if(!trueFound)
+        {
             missing.Add("true");
+        }
+
         if(!falseFound)
+        {
             missing.Add("false");
+        }
 
         return missing;
     }
@@ -174,24 +205,34 @@ internal static class ExhaustivenessChecker
         for(var i = 0; i < arms.Count; i++)
         {
             if(arms[i].HasGuard)
+            {
                 continue;
+            }
 
             var primary = TryGetSinglePrimaryPattern(arms[i].Pattern);
             if(primary is null)
+            {
                 continue;
+            }
 
             switch(primary)
             {
                 case TypePatternPrimaryPatternNode typePattern:
                     var typeName = ExtractTypeDisplayName(typePattern.Type);
                     if(typeName is not null)
+                    {
                         coveredDisplayNames.Add(typeName);
+                    }
+
                     break;
 
                 case BareTypePatternPrimaryPatternNode bareTypePattern:
                     var bareTypeName = ExtractTypeDisplayName(bareTypePattern.Type);
                     if(bareTypeName is not null)
+                    {
                         coveredDisplayNames.Add(bareTypeName);
+                    }
+
                     break;
             }
         }
@@ -270,23 +311,31 @@ internal static class ExhaustivenessChecker
 
         // If there are multiple or-alternatives, this is not a simple pattern.
         if(orPattern.AndPatterns.Length > 0)
+        {
             return null;
+        }
 
         var andPattern = orPattern.Left;
 
         // If there are multiple and-conjuncts, this is not a simple pattern.
         if(andPattern.UnaryPatterns.Length > 0)
+        {
             return null;
+        }
 
         var unaryPattern = andPattern.Left;
 
         // Only direct patterns (not negated) can be catch-alls or simple patterns.
         if(unaryPattern is not DirectPatternUnaryPatternNode directPattern)
+        {
             return null;
+        }
 
         // Handle parenthesized patterns by recursing into the inner pattern.
         if(directPattern.Primary is ParenthesizedPatternPrimaryPatternNode parenthesized)
+        {
             return TryGetSinglePrimaryPattern(parenthesized.Inner);
+        }
 
         return directPattern.Primary;
     }

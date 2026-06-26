@@ -22,10 +22,9 @@ using Mist.Semantics.Contracts;
 using Mist.Semantics.Model;
 using Mist.Semantics.Model.Types;
 using Storm.Runtime;
-
+using DiagnosticBag = Mist.Common.Diagnostics.DiagnosticBag;
 using MistLexer = Mist.Lexing.MistLexer;
 using MistParser = Mist.Parsing.MistParser;
-using DiagnosticBag = Mist.Common.Diagnostics.DiagnosticBag;
 
 namespace Mist.Tests.Analysis;
 

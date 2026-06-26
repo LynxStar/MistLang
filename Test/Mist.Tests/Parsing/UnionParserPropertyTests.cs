@@ -76,8 +76,10 @@ public class UnionParserPropertyTests
             .ToList();
 
         if(errors.Count > 0)
+        {
             throw new InvalidOperationException(
                 $"Unexpected parse errors:\n  {string.Join("\n  ", errors.Select(e => e.Message))}\nSource:\n{source}");
+        }
 
         return result.Root as CompilationUnitNode
             ?? throw new InvalidOperationException("Parse result root is not a CompilationUnitNode");
@@ -92,7 +94,10 @@ public class UnionParserPropertyTests
         var methodMember = (MethodMemberMemberDeclarationNode)typeDecl.ClassDeclaration.Members[0];
         var block = methodMember.Method.Body.GetBlock();
         if(block is null)
+        {
             throw new InvalidOperationException("Method body block is null");
+        }
+
         var stmt = (VariableDeclarationStatementStatementNode)block.Statements[0];
         var varDecl = (TypedVariableDeclarationVariableDeclarationStatementNode)stmt.VariableDeclaration;
         return varDecl.Type;
@@ -166,14 +171,18 @@ public class UnionParserPropertyTests
         var constituents = GetAllConstituents(typeRef);
 
         if(constituents.Count != scenario.Constituents.Length)
+        {
             return false;
+        }
 
         for(var i = 0; i < scenario.Constituents.Length; i++)
         {
             var expected = scenario.Constituents[i];
             var actual = GetTypeName(constituents[i]);
             if(actual != expected)
+            {
                 return false;
+            }
         }
 
         return true;

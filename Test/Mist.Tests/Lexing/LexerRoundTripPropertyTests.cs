@@ -79,7 +79,9 @@ public class LexerRoundTripPropertyTests
     public bool LexerRoundTrip_ConcatenatedLexemesReproduceSource(string source)
     {
         if(string.IsNullOrEmpty(source))
+        {
             return true;
+        }
 
         var sourceText = new Mist.Common.Text.SourceText("test.mist", source);
         var bag = new DiagnosticBag();
@@ -115,7 +117,9 @@ public class LexerRoundTripPropertyTests
     public bool LexerProducesNonNegativeTokenCount(string source)
     {
         if(string.IsNullOrEmpty(source))
+        {
             return true;
+        }
 
         var sourceText = new Mist.Common.Text.SourceText("test.mist", source);
         var bag = new DiagnosticBag();

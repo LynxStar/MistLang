@@ -33,7 +33,9 @@ public class CSharpTupleTypeMapPropertyTests
     public bool GetTypeName_UnnamedTuple_ContainsNoColons(TupleType tuple)
     {
         if(tuple.ElementNames is not null && tuple.ElementNames.Any(n => n is not null))
+        {
             return true; // Skip named tuples for this property.
+        }
 
         var result = CSharpTypeMap.GetTypeName(tuple);
         // Unnamed tuples should not contain element names (no "type name" pairs).
@@ -53,7 +55,9 @@ public class CSharpTupleTypeMapPropertyTests
         {
             var elementTypeName = CSharpTypeMap.GetTypeName(tuple.ElementTypes[i]);
             if(!result.Contains(elementTypeName))
+            {
                 return false;
+            }
         }
         return true;
     }
@@ -66,13 +70,17 @@ public class CSharpTupleTypeMapPropertyTests
     public bool GetTypeName_NamedTuple_ContainsAllElementNames(TupleType tuple)
     {
         if(tuple.ElementNames is null)
+        {
             return true; // No names to check.
+        }
 
         var result = CSharpTypeMap.GetTypeName(tuple);
         foreach(var name in tuple.ElementNames)
         {
             if(name is not null && !result.Contains(name))
+            {
                 return false;
+            }
         }
         return true;
     }

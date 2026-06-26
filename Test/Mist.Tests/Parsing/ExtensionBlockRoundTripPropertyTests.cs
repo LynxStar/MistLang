@@ -310,21 +310,29 @@ public class ExtensionBlockRoundTripPropertyTests
             .ToList();
 
         if(errors1.Count > 0)
+        {
             return false.ToProperty()
                 .Label($"First-parse errors for {scenario}:\n  {string.Join("\n  ", errors1.Select(e => e.Message))}\nSource:\n{source}");
+        }
 
         if(result1.Root is not CompilationUnitNode ast1)
+        {
             return false.ToProperty().Label($"First-parse root was null for {scenario}\nSource:\n{source}");
+        }
 
         // Print₁
         var printed1 = MistPrettyPrinter.Print(ast1, source);
         if(string.IsNullOrWhiteSpace(printed1))
+        {
             return false.ToProperty().Label($"printed1 was empty for {scenario}");
+        }
 
         // Sanity: the printed output must contain the `extension` keyword
         if(!printed1.Contains("extension"))
+        {
             return false.ToProperty()
                 .Label($"printed1 lost the `extension` keyword for {scenario}\nSource:\n{source}\nPrinted:\n{printed1}");
+        }
 
         // Parse₂
         var sourceText2 = new Mist.Common.Text.SourceText("test.mist", printed1);
@@ -337,11 +345,15 @@ public class ExtensionBlockRoundTripPropertyTests
             .ToList();
 
         if(errors2.Count > 0)
+        {
             return false.ToProperty()
                 .Label($"Reparse errors for {scenario}:\n  {string.Join("\n  ", errors2.Select(e => e.Message))}\nPrinted:\n{printed1}");
+        }
 
         if(result2.Root is not CompilationUnitNode ast2)
+        {
             return false.ToProperty().Label($"Reparse root was null for {scenario}\nPrinted:\n{printed1}");
+        }
 
         // Print₂
         var printed2 = MistPrettyPrinter.Print(ast2, printed1);

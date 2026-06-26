@@ -65,7 +65,9 @@ public class ArrayLiteralTypeInferencePropertyTests
         var parseResult = Parser.Parse(tokens, parseBag);
 
         if(parseResult.Root is null)
+        {
             return lexBag.ToImmutableArray().AddRange(parseBag.ToImmutableArray());
+        }
 
         var compilation = new MistCompilation(
             ImmutableArray.Create(new CompilationUnit(sourceText)));

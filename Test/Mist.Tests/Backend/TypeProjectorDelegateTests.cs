@@ -61,7 +61,10 @@ public sealed class TypeProjectorDelegateTests
                 func = new ClassType("Func", new Scope(null), "Standard", isBackendBacked: true);
                 var tps = new IType[arity];
                 for(var i = 0; i < arity; i++)
+                {
                     tps[i] = new TypeParameterType($"T{i}", i);
+                }
+
                 func.TypeParameters = tps;
                 _funcByArity[arity] = func;
             }

@@ -895,7 +895,10 @@ namespace Storm.SourceGenerator.Emit
                 case AlternationIR altIR:
                     // If all alternatives are token refs, the type is Token
                     if(altIR.Alternatives.All(a => a is TokenRefIR || a is StringLiteralIR))
+                    {
                         return nullable ? "Token?" : "Token";
+                    }
+
                     return "object?";
                 case ZeroOrMoreIR zom:
                     return GetListTypeName(zom.Inner);
@@ -913,10 +916,20 @@ namespace Storm.SourceGenerator.Emit
         {
             // List types (ImmutableArray) are value types and cannot be null
             if(expr is ZeroOrMoreIR zom)
+            {
                 return GetListDefaultValue(zom.Inner);
+            }
+
             if(expr is OneOrMoreIR oom)
+            {
                 return GetListDefaultValue(oom.Inner);
-            if(nullable) return "null";
+            }
+
+            if(nullable)
+            {
+                return "null";
+            }
+
             switch(expr)
             {
                 case TokenRefIR _:
@@ -1537,7 +1550,9 @@ namespace Storm.SourceGenerator.Emit
                 {
                     var token = FindTokenForLiteral(context, lit.Value);
                     if(token != null)
+                    {
                         kindStr = TokenKindRef(token.Name);
+                    }
                 }
 
                 if(kindStr != null)
@@ -1658,7 +1673,10 @@ namespace Storm.SourceGenerator.Emit
                     return token?.Name;
                 case SequenceIR seq:
                     if(seq.Elements.Count > 0)
+                    {
                         return GetFirstTokenInExpr(seq.Elements[0], context);
+                    }
+
                     return null;
                 default:
                     return null;
@@ -1715,7 +1733,9 @@ namespace Storm.SourceGenerator.Emit
             foreach(var token in context.Grammar.Tokens)
             {
                 if(token.Expression is StringLiteralIR lit && lit.Value == value)
+                {
                     return token;
+                }
             }
             return null;
         }
@@ -1727,7 +1747,11 @@ namespace Storm.SourceGenerator.Emit
 
         private static string PascalCase(string name)
         {
-            if(string.IsNullOrEmpty(name)) return name;
+            if(string.IsNullOrEmpty(name))
+            {
+                return name;
+            }
+
             return char.ToUpperInvariant(name[0]) + name.Substring(1);
         }
 

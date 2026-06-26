@@ -297,7 +297,9 @@ public class OverloadResolverDeterminismPropertyTests
 
         // Both resolutions must agree on status.
         if(resultOriginal.Status != resultPermuted.Status)
+        {
             return false;
+        }
 
         // On Success, both must select the same symbol. ReferenceEquals is
         // appropriate: resolution returns whichever ISymbol instance is in

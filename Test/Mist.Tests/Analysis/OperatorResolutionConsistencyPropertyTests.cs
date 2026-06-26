@@ -145,7 +145,9 @@ public class OperatorResolutionConsistencyPropertyTests
         var userParseResult = Parser.Parse(userTokens, diagnostics);
 
         if(userParseResult.Root is null)
+        {
             throw new InvalidOperationException("Failed to parse user source");
+        }
 
         var allUnits = stdlibUnits.Add(userUnit);
         var allAsts = stdlibAsts.Add(userParseResult.Root);
@@ -228,7 +230,9 @@ public class OperatorResolutionConsistencyPropertyTests
             foreach(var child in node.Children())
             {
                 if(child is not null)
+                {
                     stack.Push(child);
+                }
             }
         }
 

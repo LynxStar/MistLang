@@ -232,7 +232,9 @@ public static class TypeInspector
     private static IType? ResolveProjectedTypeForInspection(AssemblyTypeProvider provider, Type clrType)
     {
         if(clrType.Namespace is null || clrType.IsGenericParameter || clrType.IsArray)
+        {
             return null;
+        }
 
         var typeName = TypeProjector.StripGenericAritySuffix(clrType.Name);
         var arity = clrType.IsGenericType ? clrType.GetGenericArguments().Length : 0;
@@ -260,7 +262,9 @@ public static class TypeInspector
             // Skip property accessors, event accessors, and operators (they are surfaced
             // via their property/event parent or as operators, not as standalone methods)
             if(method.IsSpecialName)
+            {
                 continue;
+            }
 
             members.Add(method);
         }
@@ -280,7 +284,9 @@ public static class TypeInspector
     {
         var declaringType = member.DeclaringType;
         if(declaringType is null || declaringType == inspectedType)
+        {
             return null;
+        }
 
         // Return the FQN of the declaring base type
         var name = TypeProjector.StripGenericAritySuffix(declaringType.Name);

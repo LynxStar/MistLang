@@ -7,8 +7,8 @@ using FsCheck.Fluent;
 using FsCheck.Xunit;
 using Mist.Analysis.Builtin;
 using Mist.Analysis.Contracts;
-using Mist.Backends.CSharpTranspiler;
 using Mist.Backends.Contracts;
+using Mist.Backends.CSharpTranspiler;
 using Mist.Common.Diagnostics;
 using Mist.Driver;
 using Mist.Driver.Contracts;
@@ -208,7 +208,9 @@ public sealed class IClonableDerivationPropertyTests : IDisposable
     private static Gen<List<GenType>> GenTypesRec(int index, int count, List<GenType> acc)
     {
         if(index >= count)
+        {
             return Gen.Constant(acc);
+        }
 
         return from t in GenOneType(index)
                from rest in DeferAdd(index, count, acc, t)
@@ -357,14 +359,18 @@ public sealed class IClonableDerivationPropertyTests : IDisposable
         var model = CompileAndCapture(scenario.Source);
 
         if(model is null)
+        {
             return false.ToProperty().Label($"Semantic model was null (compilation failed early).\nSource:\n{scenario.Source}");
+        }
 
         for(var i = 0; i < scenario.Expected.Count; i++)
         {
             var actual = FindImplementsIClonable(model, $"T{i}");
 
             if(!actual.HasValue)
+            {
                 return false.ToProperty().Label($"Type 'Gen.T{i}' not found in the model.\nSource:\n{scenario.Source}");
+            }
 
             if(actual.Value != scenario.Expected[i])
             {

@@ -31,11 +31,15 @@ public sealed class ReadonlyInferenceEngine
         {
             var type = typeSymbol.DeclaredType;
             if(type is null)
+            {
                 continue;
+            }
 
             var memberScope = GetMemberScope(type);
             if(memberScope is null)
+            {
                 continue;
+            }
 
             // Pass 1: classify members in declaration order.
             // If a called method in the same type hasn't been classified yet,
@@ -49,11 +53,15 @@ public sealed class ReadonlyInferenceEngine
         {
             var type = typeSymbol.DeclaredType;
             if(type is null)
+            {
                 continue;
+            }
 
             var memberScope = GetMemberScope(type);
             if(memberScope is null)
+            {
                 continue;
+            }
 
             ClassifyMembers(memberScope, model);
         }
@@ -75,16 +83,22 @@ public sealed class ReadonlyInferenceEngine
         foreach(var member in memberScope.Members)
         {
             if(member is not Symbol symbol)
+            {
                 continue;
+            }
 
             if(symbol.Kind is not (SymbolKind.Field or SymbolKind.Property
                 or SymbolKind.Indexer or SymbolKind.Method or SymbolKind.Constructor))
+            {
                 continue;
+            }
 
             // Skip members that are already classified.
             if(symbol.ReadonlyStatus is ReadonlyStatus.ExplicitReadonly
                 or ReadonlyStatus.ImplicitReadonly)
+            {
                 continue;
+            }
 
             var status = ClassifyMember(symbol, model);
             symbol.ReadonlyStatus = status;
@@ -125,7 +139,9 @@ public sealed class ReadonlyInferenceEngine
         catch { return ReadonlyStatus.Mutable; }
 
         if(declaringNode is not FieldDeclarationNode fieldDecl)
+        {
             return ReadonlyStatus.Mutable;
+        }
 
         // Fields are not inferred as readonly by the inference engine.
         // A field's readonly status is determined solely by explicit annotation.
@@ -171,11 +187,17 @@ public sealed class ReadonlyInferenceEngine
                         {
                             case BlockGetAccessorAccessorDeclarationNode blockGet:
                                 if(!IsNodeReadonlySafe(blockGet.Body, model))
+                                {
                                     return ReadonlyStatus.Mutable;
+                                }
+
                                 break;
                             case ExpressionGetAccessorAccessorDeclarationNode exprGet:
                                 if(!IsNodeReadonlySafe(exprGet.Expression, model))
+                                {
                                     return ReadonlyStatus.Mutable;
+                                }
+
                                 break;
                                 // Auto-get is trivially readonly.
                         }
@@ -217,11 +239,17 @@ public sealed class ReadonlyInferenceEngine
                         {
                             case BlockGetAccessorAccessorDeclarationNode blockGet:
                                 if(!IsNodeReadonlySafe(blockGet.Body, model))
+                                {
                                     return ReadonlyStatus.Mutable;
+                                }
+
                                 break;
                             case ExpressionGetAccessorAccessorDeclarationNode exprGet:
                                 if(!IsNodeReadonlySafe(exprGet.Expression, model))
+                                {
                                     return ReadonlyStatus.Mutable;
+                                }
+
                                 break;
                         }
                     }
@@ -252,7 +280,9 @@ public sealed class ReadonlyInferenceEngine
 
         // No body (intrinsic or abstract) — conservatively treat as mutable.
         if(body is null)
+        {
             return ReadonlyStatus.Mutable;
+        }
 
         // For constructors, check if it only assigns to its own fields
         // (constructor inference per design doc).
@@ -281,13 +311,17 @@ public sealed class ReadonlyInferenceEngine
     {
         // Check if this specific node is an unsafe operation.
         if(IsUnsafeNode(node, model))
+        {
             return false;
+        }
 
         // Recursively check all children.
         foreach(var child in node.Children())
         {
             if(child is not null && !IsNodeReadonlySafe(child, model))
+            {
                 return false;
+            }
         }
 
         return true;
@@ -356,7 +390,9 @@ public sealed class ReadonlyInferenceEngine
                             // Resolve the member to check if it's a field or property.
                             var symbol = ResolveMemberAccessSymbol(postfix, memberAccess, model);
                             if(symbol is not null)
+                            {
                                 return symbol.Kind is SymbolKind.Field or SymbolKind.Property or SymbolKind.Indexer;
+                            }
                             // If we can't resolve, conservatively treat as mutable (it's an assignment
                             // to something we can't identify — could be a field or property).
                             return true;
@@ -364,7 +400,9 @@ public sealed class ReadonlyInferenceEngine
 
                         // Index suffix — assigning to an indexed element is a setter call (mutable).
                         if(lastSuffix is IndexSuffixPostfixSuffixNode)
+                        {
                             return true;
+                        }
                     }
 
                     // Bare identifier postfix (no suffixes) — check if it's a field or property.
@@ -372,7 +410,9 @@ public sealed class ReadonlyInferenceEngine
                     {
                         var symbol = model.GetDeclaredSymbol(identifier);
                         if(symbol is not null)
+                        {
                             return symbol.Kind is SymbolKind.Field or SymbolKind.Property or SymbolKind.Indexer;
+                        }
 
                         // Unresolved identifier — likely a local variable.
                         return false;
@@ -389,7 +429,9 @@ public sealed class ReadonlyInferenceEngine
                     foreach(var child in targetNode.Children())
                     {
                         if(child is not null && IsFieldOrPropertyTarget(child, model))
+                        {
                             return true;
+                        }
                     }
                     return false;
                 }
@@ -423,7 +465,9 @@ public sealed class ReadonlyInferenceEngine
         }
 
         if(receiverType is null)
+        {
             return null;
+        }
 
         var memberName = memberAccess.Name.Lexeme;
         return LookupMemberInType(receiverType, memberName);
@@ -475,7 +519,9 @@ public sealed class ReadonlyInferenceEngine
         {
             // Fields are always safe to read.
             if(sym.Kind == SymbolKind.Field)
+            {
                 return false;
+            }
 
             // Properties: check if the property is readonly.
             if(sym.Kind is SymbolKind.Property or SymbolKind.Indexer)
@@ -500,16 +546,22 @@ public sealed class ReadonlyInferenceEngine
         // Resolve the type being constructed.
         var createdType = model.GetTypeOf(objectCreation);
         if(createdType is null)
+        {
             return true; // Can't resolve — conservatively mutable.
+        }
 
         // If the type itself is readonly, all its constructors are implicitly readonly.
         if(IsTypeReadonly(createdType))
+        {
             return false;
+        }
 
         // Look for a constructor in the created type's member scope.
         var memberScope = GetMemberScope(createdType);
         if(memberScope is null)
+        {
             return true; // Can't find scope — conservatively mutable.
+        }
 
         // Find constructors and check if any is readonly.
         foreach(var member in memberScope.Members)
@@ -517,7 +569,9 @@ public sealed class ReadonlyInferenceEngine
             if(member.Kind == SymbolKind.Constructor && member is Symbol ctorSym)
             {
                 if(IsReadonly(ctorSym.ReadonlyStatus))
+                {
                     return false; // At least one readonly constructor exists.
+                }
             }
         }
 
@@ -579,7 +633,9 @@ public sealed class ReadonlyInferenceEngine
                     foreach(var child in node.Children())
                     {
                         if(child is not null && !IsConstructorNodeSafe(child, ctorSymbol, model))
+                        {
                             return false;
+                        }
                     }
                     return true;
                 }
@@ -650,7 +706,9 @@ public sealed class ReadonlyInferenceEngine
                     foreach(var child in targetNode.Children())
                     {
                         if(child is not null && IsOwnFieldTarget(child, ctorSymbol, model))
+                        {
                             return true;
+                        }
                     }
                     return false;
                 }
@@ -689,7 +747,9 @@ public sealed class ReadonlyInferenceEngine
                             {
                                 var member = scope.Lookup(memberName);
                                 if(member is Symbol sym && sym.Kind is SymbolKind.Property or SymbolKind.Indexer)
+                                {
                                     return IsReadonly(sym.ReadonlyStatus);
+                                }
                             }
                         }
                         return false;
@@ -707,7 +767,9 @@ public sealed class ReadonlyInferenceEngine
                             {
                                 var member = scope.Lookup(memberName);
                                 if(member is Symbol sym && sym.Kind is SymbolKind.Property or SymbolKind.Indexer)
+                                {
                                     return IsReadonly(sym.ReadonlyStatus);
+                                }
                             }
                         }
                         return false;
@@ -721,7 +783,9 @@ public sealed class ReadonlyInferenceEngine
                     foreach(var child in targetNode.Children())
                     {
                         if(child is not null && IsOwnReadonlyPropertyTarget(child, ctorSymbol, model))
+                        {
                             return true;
+                        }
                     }
                     return false;
                 }
@@ -773,7 +837,9 @@ public sealed class ReadonlyInferenceEngine
                 {
                     var memberScope = GetMemberScope(member.DeclaredType);
                     if(ReferenceEquals(memberScope, scope))
+                    {
                         return member.DeclaredType;
+                    }
                 }
             }
         }
@@ -791,12 +857,16 @@ public sealed class ReadonlyInferenceEngine
     private static IType? FindTypeForScope(IScope? scope)
     {
         if(scope is null)
+        {
             return null;
+        }
 
         // Walk up to find the parent scope that contains type symbols.
         var parentScope = scope.Parent;
         if(parentScope is null)
+        {
             return null;
+        }
 
         foreach(var member in parentScope.Members)
         {
@@ -804,7 +874,9 @@ public sealed class ReadonlyInferenceEngine
             {
                 var memberScope = GetMemberScope(member.DeclaredType);
                 if(ReferenceEquals(memberScope, scope))
+                {
                     return member.DeclaredType;
+                }
             }
         }
 
@@ -818,7 +890,9 @@ public sealed class ReadonlyInferenceEngine
                 {
                     var memberScope = GetMemberScope(member.DeclaredType);
                     if(ReferenceEquals(memberScope, scope))
+                    {
                         return member.DeclaredType;
+                    }
                 }
             }
         }
@@ -834,7 +908,9 @@ public sealed class ReadonlyInferenceEngine
     {
         // For ConstructedType, look up in the generic definition.
         if(type is ConstructedType ct)
+        {
             type = ct.GenericDefinition;
+        }
 
         if(type is ClassType classType)
         {
@@ -844,7 +920,9 @@ public sealed class ReadonlyInferenceEngine
                 foreach(var m in current.MemberScope.Members)
                 {
                     if(m.Name == memberName)
+                    {
                         return m;
+                    }
                 }
                 current = current.BaseType as ClassType;
             }

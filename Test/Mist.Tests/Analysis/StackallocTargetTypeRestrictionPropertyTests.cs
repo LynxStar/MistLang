@@ -345,7 +345,9 @@ public class StackallocTargetTypeRestrictionPropertyTests
     {
         // Only test rejection scenarios.
         if(scenario.ShouldBeAccepted)
+        {
             return true.ToProperty().Label("Skipped: valid target scenario");
+        }
 
         var diagnostics = CompileAndGetDiagnostics(scenario.Source);
 

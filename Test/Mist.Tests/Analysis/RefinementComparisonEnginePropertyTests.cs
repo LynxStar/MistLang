@@ -406,10 +406,14 @@ public class RefinementComparisonEnginePropertyTests
         var orNode = new OrPatternNode { Left = BuildConstantAlternative(values[0]) };
 
         if(values.Length >= 2)
+        {
             orNode.Right = BuildConstantAlternative(values[1]);
+        }
 
         if(values.Length > 2)
+        {
             orNode.AndPatterns = values.Skip(2).Select(BuildConstantAlternative).ToImmutableArray();
+        }
 
         // Wrap in PatternNode → ParenthesizedPatternPrimaryPatternNode → DirectPatternUnaryPatternNode → AndPatternNode
         var patternNode = new PatternNode { OrPattern = orNode };
@@ -476,19 +480,25 @@ public class RefinementComparisonEnginePropertyTests
         var notIdentityTarget = BuildNotPredicate(scenario.NotValue);
         var identityResult = notPredicate.Implies(notIdentityTarget);
         if(!identityResult)
+        {
             return false;
+        }
 
         // Sub-property 2: not a implies any relational target → false
         var relationalTarget = BuildRelationalPredicate(scenario.RelationalTarget.Operator, scenario.RelationalTarget.Value);
         var relationalResult = notPredicate.Implies(relationalTarget);
         if(relationalResult)
+        {
             return false;
+        }
 
         // Sub-property 3: not a implies == b → false (for any b)
         var equalityTarget = BuildEqualityPredicate(scenario.EqualityTarget);
         var equalityResult = notPredicate.Implies(equalityTarget);
         if(equalityResult)
+        {
             return false;
+        }
 
         return true;
     }
@@ -700,7 +710,9 @@ public class RefinementComparisonEnginePropertyTests
 
         // Only check soundness when Implies returns true.
         if(!impliesResult)
+        {
             return true;
+        }
 
         // Brute-force: for every v in [-100, 100], source(v) → target(v).
         return BruteForceImplies(sourcePredicate, targetPredicate, -100, 100);
@@ -715,7 +727,9 @@ public class RefinementComparisonEnginePropertyTests
         for(var v = lo; v <= hi; v++)
         {
             if(source.Evaluate(v) && !target.Evaluate(v))
+            {
                 return false;
+            }
         }
 
         return true;

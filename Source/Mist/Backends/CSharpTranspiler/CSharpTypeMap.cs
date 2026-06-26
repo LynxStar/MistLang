@@ -86,14 +86,18 @@ internal static class CSharpTypeMap
             // Only return if the mapped name differs from the input
             // (skip identity mappings like "int" → "int").
             if(mapped != mistTypeName)
+            {
                 return mapped;
+            }
         }
 
         // Check with "Standard." prefix (e.g., "Type" → "Standard.Type" → "System.Type").
         if(BackingTypes.TryGetValue($"Standard.{mistTypeName}", out var qualifiedMapped))
         {
             if(qualifiedMapped != mistTypeName)
+            {
                 return qualifiedMapped;
+            }
         }
 
         return null;
@@ -116,11 +120,15 @@ internal static class CSharpTypeMap
         };
 
         if(qualifiedKey is not null && BackingTypes.TryGetValue(qualifiedKey, out var keyword))
+        {
             return keyword;
+        }
 
         // Fallback: legacy DisplayName lookup (tests without stdlib).
         if(BackingTypes.TryGetValue(type.DisplayName, out var legacyKeyword))
+        {
             return legacyKeyword;
+        }
 
         throw new ArgumentException($"Unknown primitive type: {type.DisplayName}");
     }
@@ -160,7 +168,9 @@ internal static class CSharpTypeMap
         // Defensive null check: type arguments in ConstructedType may be
         // null if resolution failed upstream.
         if(type is null)
+        {
             return "object";
+        }
 
         return type switch
         {
@@ -354,18 +364,26 @@ internal static class CSharpTypeMap
         {
             // Action family: drop the trailing void return type.
             if(typeArgs.Count == 1)
+            {
                 return "System.Action";
+            }
 
             var actionArgs = new string[typeArgs.Count - 1];
             for(var i = 0; i < actionArgs.Length; i++)
+            {
                 actionArgs[i] = GetTypeName(typeArgs[i], isValueContext: true);
+            }
+
             return $"System.Action<{string.Join(", ", actionArgs)}>";
         }
 
         // Func family: all type arguments, including the return type.
         var funcArgs = new string[typeArgs.Count];
         for(var i = 0; i < funcArgs.Length; i++)
+        {
             funcArgs[i] = GetTypeName(typeArgs[i], isValueContext: true);
+        }
+
         return $"System.Func<{string.Join(", ", funcArgs)}>";
     }
 
@@ -450,7 +468,9 @@ internal static class CSharpTypeMap
         foreach(var arg in ct.TypeArguments)
         {
             if(TypeContainsUnknown(arg))
+            {
                 return true;
+            }
         }
         return false;
     }
@@ -482,7 +502,10 @@ internal static class CSharpTypeMap
     private static string GetKeywordOrDisplayName(StructType s)
     {
         if(BackingTypes.TryGetValue(s.DisplayName, out var keyword))
+        {
             return keyword;
+        }
+
         return s.DisplayName;
     }
 
@@ -526,7 +549,10 @@ internal static class CSharpTypeMap
     public static IType? GetOptionalInnerType(UnionType unionType)
     {
         if(!IsOptionalUnion(unionType))
+        {
             return null;
+        }
+
         return unionType.Constituents.First(c => !c.IsVoid());
     }
 
@@ -543,14 +569,18 @@ internal static class CSharpTypeMap
     public static string? TryGetOptionalTypeName(UnionType unionType, bool isValueContext = false)
     {
         if(!IsOptionalUnion(unionType))
+        {
             return null;
+        }
 
         var innerType = GetOptionalInnerType(unionType)!;
         var innerTypeName = GetTypeName(innerType, isValueContext);
 
         // Value types (struct, enum) → Nullable<T> (emitted as T?)
         if(IsValueType(innerType))
+        {
             return $"{innerTypeName}?";
+        }
 
         // Reference types (class) → plain T (null represents void)
         return innerTypeName;

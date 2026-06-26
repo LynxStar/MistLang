@@ -31,7 +31,9 @@ public static class TypeArgumentInferenceEngine
 
             // Skip arguments whose resolved type is ErrorType, null, or UnknownType.
             if(argumentType is null or ErrorType or UnknownType)
+            {
                 continue;
+            }
 
             Unify(parameterTypes[i], argumentType, context);
         }
@@ -61,9 +63,13 @@ public static class TypeArgumentInferenceEngine
         for(var i = 0; i < typeParameters.Count; i++)
         {
             if(typeParameters[i] is TypeParameterType tpt)
+            {
                 inferredTypes[i] = context.GetBinding(tpt.Name)!;
+            }
             else
+            {
                 inferredTypes[i] = typeParameters[i];
+            }
         }
 
         return new InferenceResult(
@@ -122,7 +128,10 @@ public static class TypeArgumentInferenceEngine
             foreach(var constituent in declaredUnion.Constituents)
             {
                 if(constituent.IsVoid())
+                {
                     continue;
+                }
+
                 Unify(constituent, argumentType, context);
             }
             return;
@@ -135,7 +144,10 @@ public static class TypeArgumentInferenceEngine
             foreach(var constituent in argumentUnion.Constituents)
             {
                 if(constituent.IsVoid())
+                {
                     continue;
+                }
+
                 Unify(declaredParamType, constituent, context);
                 return;
             }

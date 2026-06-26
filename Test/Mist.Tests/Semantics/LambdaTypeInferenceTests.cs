@@ -59,7 +59,9 @@ public sealed class LambdaTypeInferenceTests
         var userParseResult = Parser.Parse(userTokens, diagnostics);
 
         if(userParseResult.Root is null)
+        {
             throw new InvalidOperationException($"Failed to parse user source:\n{source}");
+        }
 
         var allUnits = stdlibUnits.Add(userUnit);
         var allAsts = stdlibAsts.Add(userParseResult.Root);
@@ -113,7 +115,10 @@ public sealed class LambdaTypeInferenceTests
     /// </summary>
     private static bool MatchesTypeName(string actual, string expected)
     {
-        if(actual == expected) return true;
+        if(actual == expected)
+        {
+            return true;
+        }
 
         // Common keyword ↔ CLR name mappings.
         return expected switch

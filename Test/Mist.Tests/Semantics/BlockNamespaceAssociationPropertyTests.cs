@@ -117,7 +117,11 @@ public sealed class BlockNamespaceAssociationPropertyTests
         var symbol = model.AllSymbols.FirstOrDefault(
             s => s.Name == typeName &&
                  (s.Kind == SymbolKind.Class || s.Kind == SymbolKind.Struct || s.Kind == SymbolKind.Abstract));
-        if(symbol is null) return null;
+        if(symbol is null)
+        {
+            return null;
+        }
+
         return symbol.DeclaredType switch
         {
             ClassType ct => ct.ContainingNamespace,
@@ -268,7 +272,10 @@ public sealed class BlockNamespaceAssociationPropertyTests
     public bool MultipleBlockNamespaces_IndependentRegistration(
         ValidNamespaceName ns1, ValidNamespaceName ns2)
     {
-        if(ns1.Value == ns2.Value) return true; // skip trivial case
+        if(ns1.Value == ns2.Value)
+        {
+            return true; // skip trivial case
+        }
 
         var part1 = $"namespace {ns1.Value} {{ class ClassInNs1 {{ }} }} ";
         var part2 = $"namespace {ns2.Value} {{ class ClassInNs2 {{ }} }}";

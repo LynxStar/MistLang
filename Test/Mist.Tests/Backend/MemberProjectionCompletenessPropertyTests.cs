@@ -63,31 +63,45 @@ public sealed class MemberProjectionCompletenessPropertyTests
         foreach(var type in FixtureTypes)
         {
             if(filter.IsTypeExcluded(type))
+            {
                 continue;
+            }
 
             // Constructors
             foreach(var ctor in type.GetConstructors(BindingFlags.Public | BindingFlags.Instance))
             {
                 if(!filter.IsMemberExcluded(ctor))
+                {
                     result.Add((type, ctor));
+                }
             }
 
             // Methods (excluding special names like property accessors and operators)
             foreach(var method in type.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static))
             {
                 if(method.IsSpecialName)
+                {
                     continue;
+                }
+
                 if(!filter.IsMemberExcluded(method))
+                {
                     result.Add((type, method));
+                }
             }
 
             // Properties (non-indexer)
             foreach(var prop in type.GetProperties(BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static))
             {
                 if(prop.GetIndexParameters().Length > 0)
+                {
                     continue;
+                }
+
                 if(!filter.IsMemberExcluded(prop))
+                {
                     result.Add((type, prop));
+                }
             }
 
             // Fields (skip enum backing fields)
@@ -96,7 +110,9 @@ public sealed class MemberProjectionCompletenessPropertyTests
                 foreach(var field in type.GetFields(BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static))
                 {
                     if(!filter.IsMemberExcluded(field))
+                    {
                         result.Add((type, field));
+                    }
                 }
             }
 
@@ -104,9 +120,14 @@ public sealed class MemberProjectionCompletenessPropertyTests
             foreach(var prop in type.GetProperties(BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static))
             {
                 if(prop.GetIndexParameters().Length == 0)
+                {
                     continue;
+                }
+
                 if(!filter.IsMemberExcluded(prop))
+                {
                     result.Add((type, prop));
+                }
             }
         }
 
@@ -253,7 +274,9 @@ public sealed class MemberProjectionCompletenessPropertyTests
             var (declaringType, member) = VisibleMembers[memberIndex];
 
             if(member is not MethodInfo)
+            {
                 return; // Only check methods
+            }
 
             var (projectedType, _) = _projector.ProjectType(declaringType, _stdlib);
             var projectedMembers = _projector.ProjectMembers(declaringType, projectedType, _stdlib);
@@ -281,7 +304,9 @@ public sealed class MemberProjectionCompletenessPropertyTests
             var (declaringType, member) = VisibleMembers[memberIndex];
 
             if(member is not MethodInfo methodInfo)
+            {
                 return; // Only check methods
+            }
 
             var (projectedType, _) = _projector.ProjectType(declaringType, _stdlib);
             var projectedMembers = _projector.ProjectMembers(declaringType, projectedType, _stdlib);

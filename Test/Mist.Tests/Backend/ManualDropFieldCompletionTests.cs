@@ -81,7 +81,9 @@ public sealed class ManualDropFieldCompletionTests : IDisposable
         foreach(var (_, content) in result.EmittedFiles!)
         {
             if(content.Contains("namespace TestProgram"))
+            {
                 return content;
+            }
         }
 
         Assert.Fail("No emitted C# file containing 'namespace TestProgram' was found.");
@@ -351,27 +353,40 @@ public sealed class ManualDropFieldCompletionTests : IDisposable
         // Find the class
         var classIdx = emitted.IndexOf($"class {className}", StringComparison.Ordinal);
         if(classIdx < 0)
+        {
             return null;
+        }
 
         // Find the method within the class region
         var methodPattern = $"void {methodName}()";
         var searchStart = classIdx;
         var methodIdx = emitted.IndexOf(methodPattern, searchStart, StringComparison.Ordinal);
         if(methodIdx < 0)
+        {
             return null;
+        }
 
         // Find the opening brace of the method body
         var braceIdx = emitted.IndexOf('{', methodIdx);
         if(braceIdx < 0)
+        {
             return null;
+        }
 
         // Find the matching closing brace
         var depth = 1;
         var pos = braceIdx + 1;
         while(pos < emitted.Length && depth > 0)
         {
-            if(emitted[pos] == '{') depth++;
-            else if(emitted[pos] == '}') depth--;
+            if(emitted[pos] == '{')
+            {
+                depth++;
+            }
+            else if(emitted[pos] == '}')
+            {
+                depth--;
+            }
+
             pos++;
         }
 

@@ -51,7 +51,9 @@ public class ConstraintSatisfactionLatticePropertyTests
         var parseResult = Parser.Parse(tokens, parseBag);
 
         if(parseResult.Root is null)
+        {
             return lexBag.ToImmutableArray().AddRange(parseBag.ToImmutableArray());
+        }
 
         var compilation = new Mist.Driver.Contracts.MistCompilation(
             ImmutableArray.Create(new Mist.Driver.Contracts.CompilationUnit(sourceText)));

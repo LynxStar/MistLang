@@ -145,7 +145,9 @@ public sealed class NamespaceEmissionPropertyTests : IDisposable
         if(Directory.Exists(_outputDir))
         {
             foreach(var file in Directory.GetFiles(_outputDir))
+            {
                 File.Delete(file);
+            }
         }
     }
 
@@ -233,7 +235,10 @@ public sealed class NamespaceEmissionPropertyTests : IDisposable
     [Property(Arbitrary = new[] { typeof(NamespaceEmissionPropertyTests) }, MaxTest = 100)]
     public bool InferredNamespace_EmitsFileScopedCSharpNamespace(NamespaceScenario scenario)
     {
-        if(scenario.Style != NamespaceStyle.Inferred) return true;
+        if(scenario.Style != NamespaceStyle.Inferred)
+        {
+            return true;
+        }
 
         var classDecl = MakeClassDecl(scenario.ClassName);
         var ast = new CompilationUnitNode
@@ -261,7 +266,10 @@ public sealed class NamespaceEmissionPropertyTests : IDisposable
     [Property(Arbitrary = new[] { typeof(NamespaceEmissionPropertyTests) }, MaxTest = 100)]
     public bool FileScopedNamespace_EmitsFileScopedCSharpNamespace(NamespaceScenario scenario)
     {
-        if(scenario.Style != NamespaceStyle.FileScoped) return true;
+        if(scenario.Style != NamespaceStyle.FileScoped)
+        {
+            return true;
+        }
 
         var classDecl = MakeClassDecl(scenario.ClassName);
         var nsName = MakeQualifiedId(scenario.NamespaceRoot);
@@ -296,7 +304,10 @@ public sealed class NamespaceEmissionPropertyTests : IDisposable
     [Property(Arbitrary = new[] { typeof(NamespaceEmissionPropertyTests) }, MaxTest = 100)]
     public bool BlockNamespace_EmitsBlockCSharpNamespace(NamespaceScenario scenario)
     {
-        if(scenario.Style != NamespaceStyle.Block) return true;
+        if(scenario.Style != NamespaceStyle.Block)
+        {
+            return true;
+        }
 
         var classDecl = MakeClassDecl(scenario.ClassName);
         var nsName = MakeQualifiedId(scenario.NamespaceRoot);

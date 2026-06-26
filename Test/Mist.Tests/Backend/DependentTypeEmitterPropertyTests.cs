@@ -316,7 +316,9 @@ public sealed class DependentTypeEmitterPropertyTests : IDisposable
         }
 
         if(result.EmittedFiles is null || result.EmittedFiles.Count == 0)
+        {
             return (null, "No files emitted");
+        }
 
         var combined = string.Join("\n", result.EmittedFiles.Values);
         return (combined, null);

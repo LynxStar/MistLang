@@ -126,7 +126,9 @@ public class AsyncIntrinsicDiagnosticPropertyTests
         modifiers.Add(new PublicModifierModifierNode());
 
         if(scenario.IsStatic)
+        {
             modifiers.Add(new StaticModifierModifierNode());
+        }
 
         if(scenario.Order == ModifierOrder.AsyncFirst)
         {
@@ -191,23 +193,29 @@ public class AsyncIntrinsicDiagnosticPropertyTests
             .ToList();
 
         if(matchingDiagnostics.Count == 0)
+        {
             return false.ToProperty()
                 .Label($"Expected MIST_TC_0104 diagnostic but none was emitted. " +
                        $"Scenario: {scenario}. " +
                        $"All diagnostics: [{string.Join(", ", allDiagnostics.Select(d => $"{d.Id.Value}: {d.Message}"))}]");
+        }
 
         // Verify the diagnostic message contains the method name
         var diag = matchingDiagnostics[0];
         if(!diag.Message.Contains(scenario.MethodName))
+        {
             return false.ToProperty()
                 .Label($"MIST_TC_0104 message does not contain method name '{scenario.MethodName}'. " +
                        $"Message: '{diag.Message}'. Scenario: {scenario}");
+        }
 
         // Verify the diagnostic message mentions both modifiers
         if(!diag.Message.Contains("async") || !diag.Message.Contains("intrinsic"))
+        {
             return false.ToProperty()
                 .Label($"MIST_TC_0104 message does not mention both 'async' and 'intrinsic'. " +
                        $"Message: '{diag.Message}'. Scenario: {scenario}");
+        }
 
         return true.ToProperty();
     }

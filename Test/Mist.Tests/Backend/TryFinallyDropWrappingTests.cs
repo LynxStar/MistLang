@@ -88,7 +88,9 @@ public sealed class TryFinallyDropWrappingTests : IDisposable
         foreach(var (_, content) in result.EmittedFiles!)
         {
             if(content.Contains("namespace TestProgram"))
+            {
                 return content;
+            }
         }
 
         Assert.Fail("No emitted C# file containing 'namespace TestProgram' was found.");
@@ -231,11 +233,19 @@ public sealed class TryFinallyDropWrappingTests : IDisposable
         var depth = 0;
         for(var i = openBraceIndex; i < source.Length; i++)
         {
-            if(source[i] == '{') depth++;
-            else if(source[i] == '}') depth--;
+            if(source[i] == '{')
+            {
+                depth++;
+            }
+            else if(source[i] == '}')
+            {
+                depth--;
+            }
 
             if(depth == 0)
+            {
                 return i;
+            }
         }
         return -1;
     }

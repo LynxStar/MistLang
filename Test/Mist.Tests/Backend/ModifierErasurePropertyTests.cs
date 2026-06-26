@@ -10,8 +10,8 @@ using FsCheck.Fluent;
 using FsCheck.Xunit;
 using Mist.Analysis.Builtin;
 using Mist.Analysis.Contracts;
-using Mist.Backends.CSharpTranspiler;
 using Mist.Backends.Contracts;
+using Mist.Backends.CSharpTranspiler;
 using Mist.Driver;
 using Mist.Driver.Contracts;
 using Mist.Semantics.Model;
@@ -76,7 +76,9 @@ public sealed class ModifierErasurePropertyTests
             var result = SharedDriver.Compile(options);
 
             if(!result.Succeeded || result.EmittedFiles is null)
+            {
                 return null;
+            }
 
             return result.EmittedFiles;
         }
@@ -95,7 +97,10 @@ public sealed class ModifierErasurePropertyTests
         foreach(var (fileName, content) in emittedFiles)
         {
             if(fileName.EndsWith(".csproj", StringComparison.OrdinalIgnoreCase))
+            {
                 continue;
+            }
+
             sb.AppendLine(content);
         }
         return sb.ToString();
@@ -115,7 +120,9 @@ public sealed class ModifierErasurePropertyTests
         foreach(var keyword in SubstructuralKeywords)
         {
             if(Regex.IsMatch(emitted, $@"\b{Regex.Escape(keyword)}\b"))
+            {
                 return keyword;
+            }
         }
         return null;
     }

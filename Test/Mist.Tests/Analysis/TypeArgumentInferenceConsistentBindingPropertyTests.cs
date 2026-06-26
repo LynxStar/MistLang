@@ -258,7 +258,10 @@ public class TypeArgumentInferenceConsistentBindingPropertyTests
         var def = new ClassType(name, scope, containingNamespace: "TestPool");
         var tps = new TypeParameterType[arity];
         for(var i = 0; i < arity; i++)
+        {
             tps[i] = new TypeParameterType($"T{i}", i);
+        }
+
         def.TypeParameters = tps;
         return def;
     }

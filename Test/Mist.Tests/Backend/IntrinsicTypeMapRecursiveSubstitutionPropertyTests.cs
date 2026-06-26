@@ -104,7 +104,10 @@ public class IntrinsicTypeMapRecursiveSubstitutionPropertyTests
         var cls = new ClassType(displayName, scope, containingNamespace: ns);
         var typeParams = new TypeParameterType[arity];
         for(var i = 0; i < arity; i++)
+        {
             typeParams[i] = new TypeParameterType($"T{i}", i);
+        }
+
         cls.TypeParameters = typeParams;
         return cls;
     }
@@ -260,10 +263,14 @@ public class IntrinsicTypeMapRecursiveSubstitutionPropertyTests
     private static Gen<IType[]> GenCombine(Gen<IType>[] gens)
     {
         if(gens.Length == 1)
+        {
             return gens[0].Select(t => new[] { t });
+        }
 
         if(gens.Length == 2)
+        {
             return gens[0].SelectMany(t0 => gens[1].Select(t1 => new[] { t0, t1 }));
+        }
 
         // General case: fold
         Gen<IType[]> acc = gens[0].Select(t => new[] { t });
@@ -338,7 +345,11 @@ public class IntrinsicTypeMapRecursiveSubstitutionPropertyTests
     /// </summary>
     private static bool IsIntrinsicClrType(string displayName, string? ns)
     {
-        if(ns is null) return false;
+        if(ns is null)
+        {
+            return false;
+        }
+
         var qualifiedName = $"{ns}.{displayName}";
         return Map.GetMistTypeName(qualifiedName) is not null;
     }

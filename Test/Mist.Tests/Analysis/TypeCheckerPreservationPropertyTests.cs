@@ -530,7 +530,9 @@ public class TypeCheckerPreservationPropertyTests
             .ToList();
 
         if(tc0013.Count == 0)
+        {
             return false;
+        }
 
         // The error message must reference the correct type name
         return tc0013.All(d => d.Message.Contains(scenario.TypeName));
@@ -657,7 +659,9 @@ public class TypeCheckerPreservationPropertyTests
             .ToList();
 
         if(matchingDiagnostics.Count == 0)
+        {
             return false;
+        }
 
         // The message must contain the expected fragment
         return matchingDiagnostics.Any(d => d.Message.Contains(scenario.ExpectedMessageFragment));
@@ -682,7 +686,9 @@ public class TypeCheckerPreservationPropertyTests
             .ToList();
 
         if(matchingDiagnostics.Count == 0)
+        {
             return false;
+        }
 
         return matchingDiagnostics.All(d => d.AnalyzerName == "TypeChecker");
     }

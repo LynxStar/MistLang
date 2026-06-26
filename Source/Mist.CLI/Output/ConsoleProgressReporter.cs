@@ -23,7 +23,10 @@ public sealed class ConsoleProgressReporter : ICompilationProgressReporter
     public void ReportStageComplete(string stageId, TimeSpan elapsed, IReadOnlyList<string> details)
     {
         foreach(var detail in details)
+        {
             _out.WriteLine($"    {detail}");
+        }
+
         _out.WriteLine($"    Took {elapsed.TotalSeconds:F2}s");
         _out.WriteLine(); // blank separator line
     }

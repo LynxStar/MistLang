@@ -69,7 +69,10 @@ public sealed class DelegateNominalDistinctnessPropertyTests
         var funcDef = new ClassType("Func", new Scope(null), "Standard", isBackendBacked: true);
         var tps = new IType[arity];
         for(var i = 0; i < arity; i++)
+        {
             tps[i] = new TypeParameterType($"T{i}", i);
+        }
+
         funcDef.TypeParameters = tps;
         return funcDef;
     }
@@ -119,7 +122,9 @@ public sealed class DelegateNominalDistinctnessPropertyTests
         // Ensure the CLR full names are actually different
         // If by chance they collide, tweak the second name
         if(fullName1 == fullName2)
+        {
             fullName2 = $"{input.Namespace2}.{input.SimpleName2}X";
+        }
 
         var d1 = new DelegateType(
             clrFullName: fullName1,

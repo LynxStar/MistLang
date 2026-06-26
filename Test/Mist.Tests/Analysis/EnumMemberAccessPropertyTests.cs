@@ -275,21 +275,27 @@ public class EnumMemberAccessPropertyTests
             .ToList();
 
         if(errors.Count > 0)
+        {
             return false.ToProperty()
                 .Label($"Expected no errors for {scenario.EnumName}.{scenario.AccessedMemberName}, " +
                        $"got: [{string.Join("; ", errors.Select(e => $"{e.Id.Value}: {e.Message}"))}]");
+        }
 
         // Verify the member access expression resolved to the EnumType.
         var enumSymbol = model.AllSymbols
             .FirstOrDefault(s => s.Name == scenario.EnumName && s.Kind == SymbolKind.Enum);
 
         if(enumSymbol is null)
+        {
             return false.ToProperty()
                 .Label($"Enum '{scenario.EnumName}' not found in semantic model");
+        }
 
         if(enumSymbol.DeclaredType is not EnumType)
+        {
             return false.ToProperty()
                 .Label($"Enum '{scenario.EnumName}' DeclaredType is not EnumType");
+        }
 
         return true.ToProperty()
             .Label($"{scenario.EnumName}.{scenario.AccessedMemberName} resolved correctly");

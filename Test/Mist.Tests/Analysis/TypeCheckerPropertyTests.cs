@@ -366,7 +366,9 @@ public class TypeCheckerPropertyTests
         var methodModifiers = ImmutableArray.CreateBuilder<ModifierNode>();
         methodModifiers.Add(new PublicModifierModifierNode());
         if(isStatic)
+        {
             methodModifiers.Add(new StaticModifierModifierNode());
+        }
 
         var method = new MethodDeclarationNode
         {

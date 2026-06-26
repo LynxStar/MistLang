@@ -267,7 +267,9 @@ public class AbstractResolutionPropertyTests
     {
         // Ensure the abstract name and implementing type name are different
         if(scenario.AbstractName == scenario.ImplementingTypeName)
+        {
             return true; // skip degenerate case
+        }
 
         // Build the abstract declaration
         var abstractMethods = scenario.AbstractMethodNames
@@ -324,7 +326,9 @@ public class AbstractResolutionPropertyTests
         var implementingSymbol = model.AllSymbols
             .FirstOrDefault(s => s.Name == scenario.ImplementingTypeName && s.Kind == expectedKind);
         if(implementingSymbol is null)
+        {
             return false;
+        }
 
         // Get the Abstracts property from the implementing type
         IReadOnlyList<IType> resolvedAbstracts;
@@ -348,29 +352,39 @@ public class AbstractResolutionPropertyTests
         // names in the declaration (1 in our case, since Storm only captures
         // the first abstract name).
         if(resolvedAbstracts.Count != 1)
+        {
             return false;
+        }
 
         // Requirement 5.5: The resolved abstract is the correct AbstractType
         var resolved = resolvedAbstracts[0];
         if(resolved.DisplayName != scenario.AbstractName)
+        {
             return false;
+        }
 
         // Verify the resolved AbstractType has the correct kind
         if(resolved.Kind != TypeKind.Abstract)
+        {
             return false;
+        }
 
         // Requirement 5.4: For classes, the base class and abstracts are
         // stored separately. Since we're implementing an abstract (not
         // inheriting a class), BaseType should be null.
         if(implementingSymbol.DeclaredType is ClassType ct && ct.BaseType is not null)
+        {
             return false;
+        }
 
         // No error diagnostics should be emitted for valid resolution
         var errorDiagnostics = diagnostics.Where(d =>
             d.Id.Value == "MIST_UNDEFINED_ABSTRACT" ||
             d.Id.Value == "MIST_NOT_AN_ABSTRACT").ToList();
         if(errorDiagnostics.Count > 0)
+        {
             return false;
+        }
 
         return true;
     }

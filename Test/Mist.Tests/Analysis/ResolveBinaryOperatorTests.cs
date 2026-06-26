@@ -106,7 +106,9 @@ public class ResolveBinaryOperatorTests
             foreach(var child in node.Children())
             {
                 if(child is not null)
+                {
                     stack.Push(child);
+                }
             }
         }
     }

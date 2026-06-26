@@ -41,16 +41,23 @@ internal static class NeedsAsyncPropagationPass
         foreach(var symbol in model.AllSymbols)
         {
             if(symbol is not Symbol sym)
+            {
                 continue;
+            }
+
             if(sym.Kind != SymbolKind.Method)
+            {
                 continue;
+            }
 
             Storm.Runtime.SyntaxNode? declaringNode;
             try { declaringNode = model.GetDeclaringNode(sym); }
             catch { continue; }
 
             if(declaringNode is null)
+            {
                 continue;
+            }
 
             methodSymbols.Add(sym);
             symbolToNode[sym] = declaringNode;
@@ -71,7 +78,9 @@ internal static class NeedsAsyncPropagationPass
             var declaringNode = symbolToNode[method];
             var block = GetMethodBodyBlock(declaringNode);
             if(block is null)
+            {
                 continue;
+            }
 
             // Walk the method body to find await expressions, async method calls,
             // and all method invocations (for the call graph).
@@ -127,12 +136,16 @@ internal static class NeedsAsyncPropagationPass
             var callee = worklist.Dequeue();
 
             if(!calleeToCallers.TryGetValue(callee, out var callers))
+            {
                 continue;
+            }
 
             foreach(var caller in callers)
             {
                 if(caller.NeedsCSharpAsync)
+                {
                     continue;
+                }
 
                 // The caller invokes a method that needs C# async.
                 // The caller will need to emit `await` for that call, so it
@@ -205,7 +218,10 @@ internal static class NeedsAsyncPropagationPass
         foreach(var child in node.Children())
         {
             if(child is null)
+            {
                 continue;
+            }
+
             WalkMethodBody(child, model, enclosingMethod, ref needsAsync, callees);
         }
     }
@@ -335,7 +351,9 @@ internal static class NeedsAsyncPropagationPass
         }
 
         if(receiverType is null)
+        {
             return null;
+        }
 
         // Look up the method by name in the receiver type's member scope.
         return FindMethodInType(receiverType, memberName);
@@ -348,7 +366,9 @@ internal static class NeedsAsyncPropagationPass
     {
         var scope = GetMemberScope(type);
         if(scope is null)
+        {
             return null;
+        }
 
         var found = scope.Lookup(methodName);
         if(found is Symbol sym && sym.Kind == SymbolKind.Method)
@@ -409,12 +429,16 @@ internal static class NeedsAsyncPropagationPass
 
         // Need at least one preceding MemberAccessSuffix for the type name.
         if(suffixIndex < 1)
+        {
             return null;
+        }
 
         // Build the qualified name from the target identifier + member access suffixes.
         // For "AsyncDropChaining.Program.RunDemo()", we want "AsyncDropChaining.Program".
         if(postfix.Target is not IdentifierExpressionPrimaryNode targetId)
+        {
             return null;
+        }
 
         var parts = new List<string> { targetId.Name.Lexeme };
         for(var i = 0; i < suffixIndex; i++)
@@ -433,7 +457,9 @@ internal static class NeedsAsyncPropagationPass
         // The last part is the type name, everything before is the namespace.
         // E.g., ["AsyncDropChaining", "Program"] → namespace="AsyncDropChaining", type="Program"
         if(parts.Count < 2)
+        {
             return null;
+        }
 
         var typeName = parts[^1];
         var namespaceName = string.Join(".", parts.Take(parts.Count - 1));
@@ -443,25 +469,35 @@ internal static class NeedsAsyncPropagationPass
         foreach(var symbol in model.AllSymbols)
         {
             if(symbol is not Symbol sym)
+            {
                 continue;
+            }
 
             if(sym.Kind is not (SymbolKind.Class or SymbolKind.Struct))
+            {
                 continue;
+            }
 
             if(sym.Name != typeName)
+            {
                 continue;
+            }
 
             // Check if the type is in the right namespace.
             var containingNs = (sym.DeclaredType as ClassType)?.ContainingNamespace
                              ?? (sym.DeclaredType as StructType)?.ContainingNamespace;
 
             if(containingNs != namespaceName)
+            {
                 continue;
+            }
 
             // Found the type — look for the method.
             var typeForLookup = sym.DeclaredType;
             if(typeForLookup is null)
+            {
                 continue;
+            }
 
             return FindMethodInType(typeForLookup, methodName);
         }
@@ -479,7 +515,9 @@ internal static class NeedsAsyncPropagationPass
         foreach(var symbol in model.AllSymbols)
         {
             if(symbol is not Symbol sym)
+            {
                 continue;
+            }
 
             var memberScope = sym.DeclaredType switch
             {
@@ -489,12 +527,16 @@ internal static class NeedsAsyncPropagationPass
             };
 
             if(memberScope is null)
+            {
                 continue;
+            }
 
             foreach(var member in memberScope.Members)
             {
                 if(ReferenceEquals(member, method))
+                {
                     return sym.DeclaredType;
+                }
             }
         }
 

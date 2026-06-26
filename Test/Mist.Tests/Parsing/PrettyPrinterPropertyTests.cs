@@ -846,14 +846,23 @@ public class PrettyPrinterPropertyTests
         foreach(var line in lines)
         {
             var trimmed = line.TrimEnd('\r');
-            if(string.IsNullOrWhiteSpace(trimmed)) continue;
+            if(string.IsNullOrWhiteSpace(trimmed))
+            {
+                continue;
+            }
 
             // Count leading spaces
             var leadingSpaces = 0;
             foreach(var ch in trimmed)
             {
-                if(ch == ' ') leadingSpaces++;
-                else break;
+                if(ch == ' ')
+                {
+                    leadingSpaces++;
+                }
+                else
+                {
+                    break;
+                }
             }
 
             // Leading spaces should be a multiple of 4
@@ -960,7 +969,10 @@ public class PrettyPrinterPropertyTests
 
         foreach(var symbol in model.AllSymbols)
         {
-            if(symbol.Origin != SymbolOrigin.UserCode) continue;
+            if(symbol.Origin != SymbolOrigin.UserCode)
+            {
+                continue;
+            }
 
             switch(symbol.Kind)
             {

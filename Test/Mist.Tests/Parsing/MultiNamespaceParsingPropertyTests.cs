@@ -49,7 +49,9 @@ public class MultiNamespaceParsingPropertyTests
 
         // Parser should return a non-null result with a CompilationUnitNode root
         if(result.Root is not CompilationUnitNode)
+        {
             return false;
+        }
 
         // No parse errors should be reported
         var parseErrors = result.Diagnostics
@@ -72,7 +74,9 @@ public class MultiNamespaceParsingPropertyTests
         var result = ParseSource(input.Source);
 
         if(result.Root is not CompilationUnitNode)
+        {
             return false;
+        }
 
         var parseErrors = result.Diagnostics
             .Where(d => d.Severity == DiagnosticSeverity.Error)
@@ -95,12 +99,16 @@ public class MultiNamespaceParsingPropertyTests
         var result = ParseSource(input.Source);
 
         if(result.Root is not CompilationUnitNode cu)
+        {
             return true; // vacuously true if parse fails
+        }
 
         foreach(var item in cu.Items)
         {
             if(item is not (NamespaceItemTopLevelItemNode or TypeItemTopLevelItemNode))
+            {
                 return false;
+            }
         }
 
         return true;

@@ -42,7 +42,9 @@ public class AssociatedTypeUnresolvedRefPropertyTests
         var parseDiag = new DiagnosticBag();
         var parseResult = Parser.Parse(tokens, parseDiag);
         if(parseResult.Root is null)
+        {
             return lexDiag.ToImmutableArray().AddRange(parseDiag.ToImmutableArray());
+        }
 
         var (model, buildDiag) = StdlibTestHelper.BuildModelWithStdlib(
             parseResult.Root, source: source);
@@ -217,27 +219,33 @@ public class AssociatedTypeUnresolvedRefPropertyTests
         var at0004 = diagnostics.Where(d => d.Id.Value == "MIST_AT_0004").ToList();
 
         if(at0004.Count == 0)
+        {
             return false.ToProperty()
                 .Label($"Expected MIST_AT_0004 but none emitted.\n" +
                        $"Scenario: {scenario}\n" +
                        $"Source:\n{source}\n" +
                        $"All diagnostics: [{string.Join(", ", diagnostics.Select(d => $"{d.Id.Value}: {d.Message}"))}]");
+        }
 
         // Verify the diagnostic message mentions the invalid slot name
         var mentionsSlot = at0004.Any(d => d.Message.Contains(scenario.InvalidSlotName));
         if(!mentionsSlot)
+        {
             return false.ToProperty()
                 .Label($"MIST_AT_0004 emitted but does not mention '{scenario.InvalidSlotName}'.\n" +
                        $"Scenario: {scenario}\n" +
                        $"Messages: [{string.Join(", ", at0004.Select(d => d.Message))}]");
+        }
 
         // Verify the diagnostic message mentions the type parameter name
         var mentionsTypeParam = at0004.Any(d => d.Message.Contains(scenario.TypeParamName));
         if(!mentionsTypeParam)
+        {
             return false.ToProperty()
                 .Label($"MIST_AT_0004 emitted but does not mention '{scenario.TypeParamName}'.\n" +
                        $"Scenario: {scenario}\n" +
                        $"Messages: [{string.Join(", ", at0004.Select(d => d.Message))}]");
+        }
 
         return true.ToProperty();
     }

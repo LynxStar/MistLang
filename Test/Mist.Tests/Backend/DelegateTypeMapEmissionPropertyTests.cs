@@ -97,12 +97,17 @@ public sealed class DelegateTypeMapEmissionPropertyTests
         var funcDef = new ClassType("Func", new Scope(null), "Standard", isBackendBacked: true);
         var tps = new IType[totalArity];
         for(var i = 0; i < totalArity; i++)
+        {
             tps[i] = new TypeParameterType($"T{i}", i);
+        }
+
         funcDef.TypeParameters = tps;
 
         var funcTypeArgs = new IType[totalArity];
         for(var i = 0; i < input.TypeArguments.Length; i++)
+        {
             funcTypeArgs[i] = input.TypeArguments[i];
+        }
         // Return type (last position)
         funcTypeArgs[totalArity - 1] = new StructType("Boolean", new Scope(null), "Standard", isBackendBacked: true);
 

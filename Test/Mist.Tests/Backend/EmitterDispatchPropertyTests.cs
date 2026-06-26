@@ -207,12 +207,16 @@ public sealed class EmitterDispatchPropertyTests : IDisposable
     private static string? GetEmittedCSharp(CompilerResult result)
     {
         if(result.EmittedFiles is null)
+        {
             return null;
+        }
 
         foreach(var (_, content) in result.EmittedFiles)
         {
             if(content.Contains("namespace TestProgram"))
+            {
                 return content;
+            }
         }
 
         return null;
@@ -246,9 +250,11 @@ public sealed class EmitterDispatchPropertyTests : IDisposable
         };
 
         if(directFlag != scenario.IsDisposableDrop)
+        {
             return false.ToProperty().Label(
                 $"Direct flag mismatch: expected {scenario.IsDisposableDrop}, got {directFlag}. "
                 + $"Scenario: {scenario}");
+        }
 
         // Test 2: ConstructedType preserves flag from generic definition
         var constructed = new ConstructedType(
@@ -263,9 +269,11 @@ public sealed class EmitterDispatchPropertyTests : IDisposable
         };
 
         if(constructedFlag != scenario.IsDisposableDrop)
+        {
             return false.ToProperty().Label(
                 $"ConstructedType wrapper lost flag: expected {scenario.IsDisposableDrop}, got {constructedFlag}. "
                 + $"Scenario: {scenario}");
+        }
 
         // Test 3: TypeAliasType preserves flag from underlying type
         var alias = new TypeAliasType(
@@ -281,9 +289,11 @@ public sealed class EmitterDispatchPropertyTests : IDisposable
         };
 
         if(aliasFlag != scenario.IsDisposableDrop)
+        {
             return false.ToProperty().Label(
                 $"TypeAliasType wrapper lost flag: expected {scenario.IsDisposableDrop}, got {aliasFlag}. "
                 + $"Scenario: {scenario}");
+        }
 
         return true.ToProperty().Label(
             $"Flag correctly preserved through all wrappers for {scenario}");
@@ -372,14 +382,18 @@ public sealed class EmitterDispatchPropertyTests : IDisposable
         }
 
         if(actualIsDisposableDrop != scenario.ExpectDisposableDrop)
+        {
             return false.ToProperty().Label(
                 $"VIOLATION: {scenario.ClrType.Name} → IsDisposableDrop={actualIsDisposableDrop}, "
                 + $"expected {scenario.ExpectDisposableDrop}");
+        }
 
         if(actualHasDrop != scenario.ExpectHasDrop)
+        {
             return false.ToProperty().Label(
                 $"VIOLATION: {scenario.ClrType.Name} → HasDrop={actualHasDrop}, "
                 + $"expected {scenario.ExpectHasDrop}");
+        }
 
         // Verify the dispatch invariant:
         // If IsDisposableDrop=true → emitter would emit .Dispose()
@@ -450,21 +464,27 @@ public sealed class EmitterDispatchPropertyTests : IDisposable
 
         var emittedCSharp = GetEmittedCSharp(result);
         if(emittedCSharp is null)
+        {
             return false.ToProperty().Label($"No emitted C# found.\nSource:\n{source}");
+        }
 
         // Requirement 3.2: Explicit Drop type emits .Drop()
         var containsDrop = emittedCSharp.Contains(".Drop()");
         if(!containsDrop)
+        {
             return false.ToProperty().Label(
                 $"VIOLATION Req 3.2: Explicit Drop type did not emit '.Drop()'. "
                 + $"Scenario: {scenario}\nEmitted C#:\n{emittedCSharp}");
+        }
 
         // Requirement 2.3: Explicit Drop type must NOT emit .Dispose()
         var containsDispose = emittedCSharp.Contains(".Dispose()");
         if(containsDispose)
+        {
             return false.ToProperty().Label(
                 $"VIOLATION Req 2.3: Explicit Drop type incorrectly emits '.Dispose()'. "
                 + $"Scenario: {scenario}\nEmitted C#:\n{emittedCSharp}");
+        }
 
         return true.ToProperty().Label(
             $"Correct: Explicit Drop emits .Drop() for {scenario}");

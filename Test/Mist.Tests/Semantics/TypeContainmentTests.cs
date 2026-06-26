@@ -64,7 +64,10 @@ public class TypeContainmentTests
         var c = new ClassType(name, new Scope(parent: null), containingNamespace: "TestPool");
         var tps = new TypeParameterType[arity];
         for(var i = 0; i < arity; i++)
+        {
             tps[i] = new TypeParameterType($"T{i}", i);
+        }
+
         c.TypeParameters = tps;
         return c;
     }
@@ -74,7 +77,10 @@ public class TypeContainmentTests
         var s = new StructType(name, new Scope(parent: null), containingNamespace: "TestPool");
         var tps = new TypeParameterType[arity];
         for(var i = 0; i < arity; i++)
+        {
             tps[i] = new TypeParameterType($"T{i}", i);
+        }
+
         s.TypeParameters = tps;
         return s;
     }
@@ -393,7 +399,9 @@ public class TypeContainmentTests
     private static Gen<IType> GenCleanType(int depth)
     {
         if(depth <= 0)
+        {
             return Gen.Elements(CleanLeafTypes);
+        }
 
         // Branching: leaf, array-of-cleaner, List<cleaner>, Map<cleaner, cleaner>,
         // Optional<cleaner>. Each recursive case reduces depth by 1 to bound the
@@ -429,8 +437,11 @@ public class TypeContainmentTests
                 yield return ImmutableArray.Create(new PathStep(StepKind.ArrayElement, -1));
                 // Deeper substitutions inside the element.
                 foreach(var sub in EnumerateSubstitutionPaths(array.ElementType))
+                {
                     yield return ImmutableArray.Create(new PathStep(StepKind.ArrayElement, -1))
                         .AddRange(sub);
+                }
+
                 break;
 
             case ConstructedType constructed:
@@ -440,8 +451,10 @@ public class TypeContainmentTests
                     yield return ImmutableArray.Create(new PathStep(StepKind.TypeArgument, i));
                     // Deeper substitutions inside the i-th argument.
                     foreach(var sub in EnumerateSubstitutionPaths(constructed.TypeArguments[i]))
+                    {
                         yield return ImmutableArray.Create(new PathStep(StepKind.TypeArgument, i))
                             .AddRange(sub);
+                    }
                 }
                 break;
 
@@ -462,7 +475,9 @@ public class TypeContainmentTests
     private static IType SubstituteAtPath(IType t, ReadOnlySpan<PathStep> path)
     {
         if(path.Length == 0)
+        {
             return UnknownType.Instance;
+        }
 
         var head = path[0];
         var tail = path.Slice(1);

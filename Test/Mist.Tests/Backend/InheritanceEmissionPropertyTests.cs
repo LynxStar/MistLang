@@ -125,7 +125,9 @@ public sealed partial class InheritanceEmissionPropertyTests : IDisposable
         if(Directory.Exists(_outputDir))
         {
             foreach(var file in Directory.GetFiles(_outputDir))
+            {
                 File.Delete(file);
+            }
         }
     }
 
@@ -296,9 +298,13 @@ public sealed partial class InheritanceEmissionPropertyTests : IDisposable
         foreach(var (name, baseName) in scenario.Classes)
         {
             if(baseName is not null)
+            {
                 sb.AppendLine($"class {name} : {baseName} {{ }}");
+            }
             else
+            {
                 sb.AppendLine($"class {name} {{ }}");
+            }
         }
         sb.AppendLine("class Program { public static void Main() { } }");
         return sb.ToString();
@@ -329,7 +335,9 @@ public sealed partial class InheritanceEmissionPropertyTests : IDisposable
         var csContent = EmitAndGetCsContent(model);
 
         if(string.IsNullOrEmpty(csContent))
+        {
             return false;
+        }
 
         // Parse all class declarations from the emitted C#
         var matches = ClassDeclPattern().Matches(csContent);
@@ -345,27 +353,38 @@ public sealed partial class InheritanceEmissionPropertyTests : IDisposable
         foreach(var (name, expectedBase) in scenario.Classes)
         {
             if(!emittedClasses.TryGetValue(name, out var actualBase))
+            {
                 return false; // Class not found in emitted output
+            }
 
             if(expectedBase is not null)
             {
                 // Derived class: must have `: BaseName`
                 if(actualBase != expectedBase)
+                {
                     return false;
+                }
             }
             else
             {
                 // Non-derived class: must NOT have a base clause
                 if(actualBase is not null)
+                {
                     return false;
+                }
             }
         }
 
         // Also verify Program class is emitted without a base clause
         if(!emittedClasses.TryGetValue("Program", out var programBase))
+        {
             return false;
+        }
+
         if(programBase is not null)
+        {
             return false;
+        }
 
         return true;
         ;

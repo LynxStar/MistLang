@@ -35,13 +35,17 @@ public sealed class RefinementPredicate
     {
         // All parts of the AndPattern must be satisfied.
         if(!EvaluateUnaryPattern(AstNode.Left, constantValue))
+        {
             return false;
+        }
 
         // If Right is present and distinct from Left, evaluate it.
         if(AstNode.Right is not null && !ReferenceEquals(AstNode.Right, AstNode.Left))
         {
             if(!EvaluateUnaryPattern(AstNode.Right, constantValue))
+            {
                 return false;
+            }
         }
 
         // Evaluate any additional UnaryPatterns (for 3+ part and-chains).
@@ -50,7 +54,9 @@ public sealed class RefinementPredicate
             foreach(var part in AstNode.UnaryPatterns)
             {
                 if(!EvaluateUnaryPattern(part, constantValue))
+                {
                     return false;
+                }
             }
         }
 
@@ -83,7 +89,9 @@ public sealed class RefinementPredicate
             }
 
             if(!implied)
+            {
                 return false;
+            }
         }
 
         return targetConstraints.Count > 0;
@@ -205,17 +213,24 @@ public sealed class RefinementPredicate
     {
         // PatternNode → OrPatternNode → AndPatternNode
         var orPattern = pattern.OrPattern;
-        if(orPattern is null) return false;
+        if(orPattern is null)
+        {
+            return false;
+        }
 
         // Evaluate the left (first) and-pattern.
         if(EvaluateAndPattern(orPattern.Left, value))
+        {
             return true;
+        }
 
         // Evaluate any additional or-alternatives.
         if(orPattern.Right is not null && !ReferenceEquals(orPattern.Right, orPattern.Left))
         {
             if(EvaluateAndPattern(orPattern.Right, value))
+            {
                 return true;
+            }
         }
 
         if(!orPattern.AndPatterns.IsDefaultOrEmpty)
@@ -223,7 +238,9 @@ public sealed class RefinementPredicate
             foreach(var andAlt in orPattern.AndPatterns)
             {
                 if(EvaluateAndPattern(andAlt, value))
+                {
                     return true;
+                }
             }
         }
 
@@ -233,12 +250,16 @@ public sealed class RefinementPredicate
     private static bool EvaluateAndPattern(AndPatternNode andPattern, object value)
     {
         if(!EvaluateUnaryPattern(andPattern.Left, value))
+        {
             return false;
+        }
 
         if(andPattern.Right is not null && !ReferenceEquals(andPattern.Right, andPattern.Left))
         {
             if(!EvaluateUnaryPattern(andPattern.Right, value))
+            {
                 return false;
+            }
         }
 
         if(!andPattern.UnaryPatterns.IsDefaultOrEmpty)
@@ -246,7 +267,9 @@ public sealed class RefinementPredicate
             foreach(var part in andPattern.UnaryPatterns)
             {
                 if(!EvaluateUnaryPattern(part, value))
+                {
                     return false;
+                }
             }
         }
 
@@ -261,10 +284,16 @@ public sealed class RefinementPredicate
     private static int CompareToConstant(object value, VoidCoalescingNode constantExpr)
     {
         var constantLong = TryExtractLongFromVoidCoalescing(constantExpr);
-        if(!constantLong.HasValue) return int.MinValue;
+        if(!constantLong.HasValue)
+        {
+            return int.MinValue;
+        }
 
         var valueLong = ConvertToLong(value);
-        if(!valueLong.HasValue) return int.MinValue;
+        if(!valueLong.HasValue)
+        {
+            return int.MinValue;
+        }
 
         return valueLong.Value.CompareTo(constantLong.Value);
     }
@@ -296,7 +325,9 @@ public sealed class RefinementPredicate
                 {
                     // Evaluate regex against string value using full-match semantics.
                     if(value is not string strValue)
+                    {
                         return false;
+                    }
 
                     // Strip backtick delimiters and resolve escape sequences.
                     var lexeme = regexConst.Value.Lexeme;
@@ -347,7 +378,9 @@ public sealed class RefinementPredicate
         // Shape: AndPatternNode.Left is DirectPatternUnaryPatternNode containing
         // ParenthesizedPatternPrimaryPatternNode with an OrPatternNode that has multiple alternatives.
         if(TryExtractOrConstraint(predicate.AstNode, out var orConstraint))
+        {
             return orConstraint;
+        }
 
         var constraints = new List<Constraint>();
         ExtractConstraintsFromUnary(predicate.AstNode.Left, constraints);
@@ -380,41 +413,59 @@ public sealed class RefinementPredicate
 
         // The or-pattern must be the sole content of the AndPatternNode (no Right, no UnaryPatterns).
         if(andNode.Right is not null && !ReferenceEquals(andNode.Right, andNode.Left))
+        {
             return false;
+        }
 
         if(!andNode.UnaryPatterns.IsDefaultOrEmpty)
+        {
             return false;
+        }
 
         // Left must be a DirectPatternUnaryPatternNode containing a ParenthesizedPatternPrimaryPatternNode.
         if(andNode.Left is not DirectPatternUnaryPatternNode direct)
+        {
             return false;
+        }
 
         if(direct.Primary is not ParenthesizedPatternPrimaryPatternNode paren)
+        {
             return false;
+        }
 
         // The parenthesized pattern's inner must be a PatternNode with an OrPatternNode.
         var orPattern = paren.Inner?.OrPattern;
         if(orPattern is null)
+        {
             return false;
+        }
 
         // Check that the OrPatternNode actually has multiple alternatives.
         // If Right is the same reference as Left and AndPatterns is empty, it's a single alternative (not an or-pattern).
         var hasMultipleAlternatives = (orPattern.Right is not null && !ReferenceEquals(orPattern.Right, orPattern.Left))
                                      || !orPattern.AndPatterns.IsDefaultOrEmpty;
         if(!hasMultipleAlternatives)
+        {
             return false;
+        }
 
         // Extract constant values from each or-alternative.
         var values = new List<long>();
 
         if(!TryExtractConstantFromAndPattern(orPattern.Left, out var firstValue))
+        {
             return false;
+        }
+
         values.Add(firstValue);
 
         if(orPattern.Right is not null && !ReferenceEquals(orPattern.Right, orPattern.Left))
         {
             if(!TryExtractConstantFromAndPattern(orPattern.Right, out var rightValue))
+            {
                 return false;
+            }
+
             values.Add(rightValue);
         }
 
@@ -423,7 +474,10 @@ public sealed class RefinementPredicate
             foreach(var alt in orPattern.AndPatterns)
             {
                 if(!TryExtractConstantFromAndPattern(alt, out var altValue))
+                {
                     return false;
+                }
+
                 values.Add(altValue);
             }
         }
@@ -443,20 +497,30 @@ public sealed class RefinementPredicate
 
         // Must be a single unary pattern (no Right, no UnaryPatterns).
         if(andNode.Right is not null && !ReferenceEquals(andNode.Right, andNode.Left))
+        {
             return false;
+        }
 
         if(!andNode.UnaryPatterns.IsDefaultOrEmpty)
+        {
             return false;
+        }
 
         if(andNode.Left is not DirectPatternUnaryPatternNode direct)
+        {
             return false;
+        }
 
         if(direct.Primary is not ConstantPatternPrimaryPatternNode constant)
+        {
             return false;
+        }
 
         var extracted = TryExtractLongFromLiteral(constant.Literal);
         if(!extracted.HasValue)
+        {
             return false;
+        }
 
         value = extracted.Value;
         return true;
@@ -470,12 +534,17 @@ public sealed class RefinementPredicate
             {
                 var val = TryExtractLongFromLiteral(constant.Literal);
                 if(val.HasValue)
+                {
                     constraints.Add(new Constraint(ConstraintKind.Not, NotValue: new NotConstraint(val.Value)));
+                }
             }
             return;
         }
 
-        if(unary is not DirectPatternUnaryPatternNode direct) return;
+        if(unary is not DirectPatternUnaryPatternNode direct)
+        {
+            return;
+        }
 
         switch(direct.Primary)
         {
@@ -483,35 +552,50 @@ public sealed class RefinementPredicate
                 {
                     var val = TryExtractLongFromVoidCoalescing(gte.Constant);
                     if(val.HasValue)
+                    {
                         constraints.Add(new Constraint(ConstraintKind.Relational, Relational: new RelationalConstraint(RelOp.Gte, val.Value)));
+                    }
+
                     break;
                 }
             case LessThanOrEqualRelationalPatternPrimaryPatternNode lte:
                 {
                     var val = TryExtractLongFromVoidCoalescing(lte.Constant);
                     if(val.HasValue)
+                    {
                         constraints.Add(new Constraint(ConstraintKind.Relational, Relational: new RelationalConstraint(RelOp.Lte, val.Value)));
+                    }
+
                     break;
                 }
             case GreaterThanRelationalPatternPrimaryPatternNode gt:
                 {
                     var val = TryExtractLongFromVoidCoalescing(gt.Constant);
                     if(val.HasValue)
+                    {
                         constraints.Add(new Constraint(ConstraintKind.Relational, Relational: new RelationalConstraint(RelOp.Gt, val.Value)));
+                    }
+
                     break;
                 }
             case LessThanRelationalPatternPrimaryPatternNode lt:
                 {
                     var val = TryExtractLongFromVoidCoalescing(lt.Constant);
                     if(val.HasValue)
+                    {
                         constraints.Add(new Constraint(ConstraintKind.Relational, Relational: new RelationalConstraint(RelOp.Lt, val.Value)));
+                    }
+
                     break;
                 }
             case ConstantPatternPrimaryPatternNode constant:
                 {
                     var val = TryExtractLongFromLiteral(constant.Literal);
                     if(val.HasValue)
+                    {
                         constraints.Add(new Constraint(ConstraintKind.Equality, Equality: new EqualityConstraint(val.Value)));
+                    }
+
                     break;
                 }
         }
@@ -592,7 +676,9 @@ public sealed class RefinementPredicate
         foreach(var value in source)
         {
             if(!target.Contains(value))
+            {
                 return false;
+            }
         }
         return true;
     }
@@ -605,7 +691,9 @@ public sealed class RefinementPredicate
         foreach(var value in values)
         {
             if(!EqualityImpliesRelational(value, target))
+            {
                 return false;
+            }
         }
         return true;
     }
@@ -618,7 +706,9 @@ public sealed class RefinementPredicate
         foreach(var value in values)
         {
             if(value == notValue)
+            {
                 return false;
+            }
         }
         return true;
     }
@@ -703,7 +793,10 @@ public sealed class RefinementPredicate
     private static long? TryExtractLongFromLiteral(ConstantLiteralNode literal)
     {
         if(literal is IntegerConstantConstantLiteralNode intLit)
+        {
             return ParseIntegerLexeme(intLit.Value.Lexeme);
+        }
+
         return null;
     }
 
@@ -715,8 +808,15 @@ public sealed class RefinementPredicate
     {
         // Navigate: Expression → Assignment → VoidCoalescing → ... → Primary
         var assignment = expr.AsAssignmentOrNull();
-        if(assignment is null) return null; // Lambda form is not a constant integer.
-        if(assignment.Value is not null) return null;
+        if(assignment is null)
+        {
+            return null; // Lambda form is not a constant integer.
+        }
+
+        if(assignment.Value is not null)
+        {
+            return null;
+        }
 
         return TryExtractLongFromVoidCoalescing(assignment.Target);
     }
@@ -731,29 +831,60 @@ public sealed class RefinementPredicate
         // Navigate: VoidCoalescing → LogicalOr → LogicalAnd → Equality
         //         → Relational → Additive → Multiplicative → Unary → Postfix → Primary
         var logicalOr = voidCoalescing?.Left;
-        if(logicalOr?.Right is not null && !ReferenceEquals(logicalOr.Right, logicalOr.Left)) return null;
+        if(logicalOr?.Right is not null && !ReferenceEquals(logicalOr.Right, logicalOr.Left))
+        {
+            return null;
+        }
 
         var logicalAnd = logicalOr?.Left;
-        if(logicalAnd?.Right is not null && !ReferenceEquals(logicalAnd.Right, logicalAnd.Left)) return null;
+        if(logicalAnd?.Right is not null && !ReferenceEquals(logicalAnd.Right, logicalAnd.Left))
+        {
+            return null;
+        }
 
         var equality = logicalAnd?.Left;
-        if(equality?.Right is not null && !ReferenceEquals(equality.Right, equality.Left)) return null;
+        if(equality?.Right is not null && !ReferenceEquals(equality.Right, equality.Left))
+        {
+            return null;
+        }
 
-        if(equality?.Left is not RelationalComparisonRelationalNode relCmp) return null;
-        if(relCmp.Right is not null && !ReferenceEquals(relCmp.Right, relCmp.Left)) return null;
+        if(equality?.Left is not RelationalComparisonRelationalNode relCmp)
+        {
+            return null;
+        }
+
+        if(relCmp.Right is not null && !ReferenceEquals(relCmp.Right, relCmp.Left))
+        {
+            return null;
+        }
 
         var additive = relCmp.Left;
-        if(additive?.Right is not null && !ReferenceEquals(additive.Right, additive.Left)) return null;
+        if(additive?.Right is not null && !ReferenceEquals(additive.Right, additive.Left))
+        {
+            return null;
+        }
 
         var multiplicative = additive?.Left;
-        if(multiplicative?.Right is not null && !ReferenceEquals(multiplicative.Right, multiplicative.Left)) return null;
+        if(multiplicative?.Right is not null && !ReferenceEquals(multiplicative.Right, multiplicative.Left))
+        {
+            return null;
+        }
 
-        if(multiplicative?.Left is not PostfixExpressionUnaryNode postfixUnary) return null;
+        if(multiplicative?.Left is not PostfixExpressionUnaryNode postfixUnary)
+        {
+            return null;
+        }
 
         var postfix = postfixUnary.Primary;
-        if(postfix.Suffix.Length > 0) return null;
+        if(postfix.Suffix.Length > 0)
+        {
+            return null;
+        }
 
-        if(postfix.Target is not IntegerLiteralExpressionPrimaryNode intLiteral) return null;
+        if(postfix.Target is not IntegerLiteralExpressionPrimaryNode intLiteral)
+        {
+            return null;
+        }
 
         return ParseIntegerLexeme(intLiteral.IntegerLiteral.Lexeme);
     }
@@ -763,12 +894,18 @@ public sealed class RefinementPredicate
         var upper = lexeme.ToUpperInvariant();
         var numericPart = lexeme;
         if(upper.EndsWith("UL") || upper.EndsWith("LU"))
+        {
             numericPart = lexeme[..^2];
+        }
         else if(upper.EndsWith("L") || upper.EndsWith("U"))
+        {
             numericPart = lexeme[..^1];
+        }
 
         if(long.TryParse(numericPart, out var value))
+        {
             return value;
+        }
 
         return null;
     }

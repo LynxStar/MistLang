@@ -61,14 +61,18 @@ public sealed class ClrRefVisibilityPropertyTests
             foreach(var method in type.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly))
             {
                 if(method.IsSpecialName)
+                {
                     continue;
+                }
 
                 var parameters = method.GetParameters();
                 var hasRefOrIn = parameters.Any(p => p.ParameterType.IsByRef && !p.IsOut);
                 var hasOut = parameters.Any(p => p.IsOut);
 
                 if(hasRefOrIn && !hasOut)
+                {
                     result.Add(method);
+                }
             }
         }
 
@@ -84,11 +88,15 @@ public sealed class ClrRefVisibilityPropertyTests
             foreach(var method in type.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly))
             {
                 if(method.IsSpecialName)
+                {
                     continue;
+                }
 
                 var parameters = method.GetParameters();
                 if(parameters.Any(p => p.IsOut))
+                {
                     result.Add(method);
+                }
             }
         }
 
@@ -103,10 +111,14 @@ public sealed class ClrRefVisibilityPropertyTests
             BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly))
         {
             if(method.IsSpecialName)
+            {
                 continue;
+            }
 
             if(method.ReturnType.IsByRef && !IsRefReadonlyReturn(method))
+            {
                 result.Add(method);
+            }
         }
 
         return result.ToArray();
@@ -120,10 +132,14 @@ public sealed class ClrRefVisibilityPropertyTests
             BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly))
         {
             if(method.IsSpecialName)
+            {
                 continue;
+            }
 
             if(method.ReturnType.IsByRef && IsRefReadonlyReturn(method))
+            {
                 result.Add(method);
+            }
         }
 
         return result.ToArray();

@@ -45,18 +45,24 @@ public sealed class MethodTierVisibilityFilter
         // A receiver that is not an owned binding behaves exactly as today —
         // full method access (Req 2/3 decision table, last row).
         if(!receiverIsOwnedBinding)
+        {
             return MethodVisibility.Allowed;
+        }
 
         // Value-type receivers are copied on access, so a mutable method on the copy
         // cannot break the original's ownership invariants. All methods are visible
         // (consistent with Req 4 AC 3 value-copy reasoning).
         if(IsValueType(receiverType))
+        {
             return MethodVisibility.Allowed;
+        }
 
         // Owned types grant full method access — the cooperation contract guarantees
         // internal mutations maintain ownership invariants (Req 3 AC 1).
         if(IsOwnedType(receiverType))
+        {
             return MethodVisibility.Allowed;
+        }
 
         // Non-owned reference type in an owned binding: readonly methods are visible
         // (Req 2 AC 1); mutable methods are hidden (Req 2 AC 2/4).
@@ -76,7 +82,9 @@ public sealed class MethodTierVisibilityFilter
         // (or is unclassified), conservatively treat it as mutable so that mutable
         // methods are never accidentally exposed on non-owned owned-bound receivers.
         if(methodSymbol is not Symbol symbol)
+        {
             return false;
+        }
 
         return symbol.ReadonlyStatus
             is ReadonlyStatus.ExplicitReadonly

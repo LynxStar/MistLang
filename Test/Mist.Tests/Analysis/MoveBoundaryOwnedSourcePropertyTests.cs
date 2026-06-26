@@ -18,8 +18,8 @@ using FsCheck.Fluent;
 using FsCheck.Xunit;
 using Mist.Analysis.Builtin;
 using Mist.Analysis.Contracts;
-using Mist.Backends.CSharpTranspiler;
 using Mist.Backends.Contracts;
+using Mist.Backends.CSharpTranspiler;
 using Mist.Common.Diagnostics;
 using Mist.Driver;
 using Mist.Driver.Contracts;
@@ -152,7 +152,9 @@ public sealed class MoveBoundaryOwnedSourcePropertyTests : IDisposable
             foreach(var child in node.Children())
             {
                 if(child is not null)
+                {
                     Walk(child);
+                }
             }
         }
     }
@@ -334,14 +336,18 @@ public sealed class MoveBoundaryOwnedSourcePropertyTests : IDisposable
     {
         var model = CompileAndCapture(scenario.Source);
         if(model is null)
+        {
             return false;
+        }
 
         var ownedInits = FindOwnedBindingInitializers(model);
 
         // The generated program always contains at least one owned binding; if discovery
         // found none, the scenario or harness is broken.
         if(ownedInits.Count == 0)
+        {
             return false;
+        }
 
         var resolver = new MoveBoundaryResolver();
 
@@ -366,7 +372,9 @@ public sealed class MoveBoundaryOwnedSourcePropertyTests : IDisposable
                 MoveOutcome.DefaultGraph;
 
             if(!ok)
+            {
                 return false;
+            }
         }
 
         return true;

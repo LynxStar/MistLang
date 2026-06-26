@@ -242,7 +242,9 @@ public sealed partial class GenericEmissionPropertyTests : IDisposable
         if(Directory.Exists(_outputDir))
         {
             foreach(var file in Directory.GetFiles(_outputDir))
+            {
                 File.Delete(file);
+            }
         }
     }
 
@@ -768,7 +770,9 @@ public sealed partial class GenericEmissionPropertyTests : IDisposable
         var csContent = EmitAndGetCsContent(model);
 
         if(string.IsNullOrEmpty(csContent))
+        {
             return false;
+        }
 
         return scenario.Kind switch
         {

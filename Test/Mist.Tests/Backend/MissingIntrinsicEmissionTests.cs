@@ -40,7 +40,7 @@ public sealed class MissingIntrinsicEmissionTests : IDisposable
 
     private static void TryDeleteDir(string dir)
     {
-        try { if(Directory.Exists(dir)) Directory.Delete(dir, recursive: true); } catch { }
+        try { if(Directory.Exists(dir)) { Directory.Delete(dir, recursive: true); } } catch { }
     }
 
     private static Storm.Runtime.Token MakeToken(string lexeme, int start = 0)
@@ -535,18 +535,24 @@ public class Program {
         foreach(var symbol in model.AllSymbols)
         {
             if(symbol is not Symbol { IsIntrinsic: true } intrinsicSymbol)
+            {
                 continue;
+            }
 
             // Skip non-method symbols (type-level intrinsic markers are on
             // struct/class symbols, not on operator/method symbols).
             if(intrinsicSymbol.Kind != SymbolKind.Method &&
                 intrinsicSymbol.Kind != SymbolKind.Constructor)
+            {
                 continue;
+            }
 
             // Determine the declaring type's qualified name.
             var declaringType = GetDeclaringTypeQualifiedName(intrinsicSymbol);
             if(declaringType is null)
+            {
                 continue;
+            }
 
             // Skip types whose static methods are emitted via CSharpTypeMap
             // name resolution rather than IntrinsicEmissionTable templates.
@@ -562,7 +568,9 @@ public class Program {
                 or "Standard.Task" or "Standard.ValueTask"
                 or "Standard.Array" or "Standard.Span" or "Standard.ReadOnlySpan"
                 or "Enumerator")
+            {
                 continue;
+            }
 
             var name = intrinsicSymbol.Name;
 
@@ -570,7 +578,9 @@ public class Program {
             // emitted through a separate path (TryGetCastOperator), not
             // through the binary/unary/instance method tables. Skip them.
             if(name.StartsWith("operator_implicit") || name.StartsWith("operator_explicit"))
+            {
                 continue;
+            }
 
             // Determine what kind of intrinsic this is and look it up.
             IntrinsicEmissionTemplate? template;
@@ -646,7 +656,9 @@ public class Program {
             foreach(var child in node.Children())
             {
                 if(child is not null)
+                {
                     stack.Push(child);
+                }
             }
         }
         return null;
@@ -659,7 +671,9 @@ public class Program {
     {
         var memberScope = symbol.ContainingScope;
         if(memberScope?.Parent is null)
+        {
             return null;
+        }
 
         foreach(var sibling in memberScope.Parent.Members)
         {

@@ -185,7 +185,9 @@ public sealed class MethodFlowState
         var clonedFieldStates = new Dictionary<ISymbol, Dictionary<ISymbol, VariableOwnershipState>>(
             FieldStates.Count, ReferenceEqualityComparer.Instance);
         foreach(var (parent, fields) in FieldStates)
+        {
             clonedFieldStates[parent] = new Dictionary<ISymbol, VariableOwnershipState>(fields);
+        }
 
         return new MethodFlowState(
             new Dictionary<ISymbol, VariableOwnershipState>(VariableStates),
@@ -459,13 +461,17 @@ public sealed class MethodFlowState
     public VariableOwnershipState CompositeState(ISymbol parent)
     {
         if(!FieldStates.TryGetValue(parent, out var fields))
+        {
             return VariableOwnershipState.Live;
+        }
 
         var max = VariableOwnershipState.Live;
         foreach(var state in fields.Values)
         {
             if(FieldStateRestrictiveness(state) > FieldStateRestrictiveness(max))
+            {
                 max = state;
+            }
         }
         return max;
     }
@@ -511,7 +517,9 @@ public sealed class MethodFlowState
     {
         var scope = GetMemberScope(type);
         if(scope is null)
+        {
             return;
+        }
 
         var fields = new Dictionary<ISymbol, VariableOwnershipState>(ReferenceEqualityComparer.Instance);
         foreach(var member in scope.Members)
@@ -523,7 +531,9 @@ public sealed class MethodFlowState
         }
 
         if(fields.Count > 0)
+        {
             FieldStates[parent] = fields;
+        }
     }
 
     /// <summary>
@@ -547,7 +557,9 @@ public sealed class MethodFlowState
         {
             fields[field] = VariableOwnershipState.LentRef;
             if(borrower is not null)
+            {
                 ActiveFieldBorrows.Add(new FieldBorrowEntry(parent, field, borrower, OwnershipTier.Borrowed, ScopeDepth));
+            }
         }
     }
 
@@ -560,7 +572,9 @@ public sealed class MethodFlowState
         {
             fields[field] = VariableOwnershipState.LentFrozen;
             if(borrower is not null)
+            {
                 ActiveFieldBorrows.Add(new FieldBorrowEntry(parent, field, borrower, OwnershipTier.Frozen, ScopeDepth));
+            }
         }
     }
 
@@ -573,7 +587,9 @@ public sealed class MethodFlowState
         {
             fields[field] = VariableOwnershipState.LentReadonly;
             if(borrower is not null)
+            {
                 ActiveFieldBorrows.Add(new FieldBorrowEntry(parent, field, borrower, OwnershipTier.ReadonlyRef, ScopeDepth));
+            }
         }
     }
 

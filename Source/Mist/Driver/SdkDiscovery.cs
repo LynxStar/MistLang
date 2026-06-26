@@ -47,7 +47,9 @@ public static partial class SdkDiscovery
             if(_inProcessCacheInitialized)
             {
                 if(_inProcessCache is not null && Directory.Exists(_inProcessCache))
+                {
                     return _inProcessCache;
+                }
 
                 // Cached value is stale — fall through to rediscovery.
                 _inProcessCacheInitialized = false;
@@ -198,7 +200,9 @@ public static partial class SdkDiscovery
 
             using var process = Process.Start(psi);
             if(process is null)
+            {
                 return null;
+            }
 
             var output = process.StandardOutput.ReadToEnd();
             if(!process.WaitForExit(DotnetTimeoutMs))
@@ -208,7 +212,9 @@ public static partial class SdkDiscovery
             }
 
             if(process.ExitCode != 0)
+            {
                 return null;
+            }
 
             return ParseSdkListOutput(output);
         }
@@ -227,7 +233,9 @@ public static partial class SdkDiscovery
     internal static string? ParseSdkListOutput(string output)
     {
         if(string.IsNullOrWhiteSpace(output))
+        {
             return null;
+        }
 
         Version? highestVersion = null;
         string? highestPath = null;
@@ -237,7 +245,9 @@ public static partial class SdkDiscovery
             var trimmed = line.Trim();
             var match = SdkLinePattern().Match(trimmed);
             if(!match.Success)
+            {
                 continue;
+            }
 
             var versionStr = match.Groups[1].Value;
             var sdkPath = match.Groups[2].Value;
@@ -255,7 +265,9 @@ public static partial class SdkDiscovery
         }
 
         if(highestPath is null)
+        {
             return null;
+        }
 
         // The [path] in dotnet --list-sdks output is the directory containing
         // the SDK version folders (e.g., /usr/share/dotnet/sdk).
@@ -274,7 +286,9 @@ public static partial class SdkDiscovery
         foreach(var candidate in candidates)
         {
             if(Directory.Exists(candidate) && Directory.Exists(Path.Combine(candidate, "packs")))
+            {
                 return candidate;
+            }
         }
 
         return null;
@@ -321,7 +335,9 @@ public static partial class SdkDiscovery
     {
         var packsDir = Path.Combine(sdkRoot, "packs", "Microsoft.NETCore.App.Ref");
         if(!Directory.Exists(packsDir))
+        {
             return null;
+        }
 
         string[] versionDirs;
         try
@@ -343,15 +359,21 @@ public static partial class SdkDiscovery
         {
             var dirName = Path.GetFileName(versionDir);
             if(!Version.TryParse(dirName, out var version))
+            {
                 continue;
+            }
 
             // Only consider versions whose major matches the TFM major
             if(tfmMajor.HasValue && version.Major != tfmMajor.Value)
+            {
                 continue;
+            }
 
             var refPath = Path.Combine(versionDir, "ref", tfm);
             if(!Directory.Exists(refPath))
+            {
                 continue;
+            }
 
             if(highestVersion is null || version > highestVersion)
             {
@@ -375,7 +397,9 @@ public static partial class SdkDiscovery
             var numPart = tfm.AsSpan(3); // skip "net"
             var dotIndex = numPart.IndexOf('.');
             if(dotIndex > 0 && int.TryParse(numPart[..dotIndex], out var major))
+            {
                 return major;
+            }
         }
 
         return null;
@@ -386,7 +410,9 @@ public static partial class SdkDiscovery
         try
         {
             if(!File.Exists(CacheFilePath))
+            {
                 return null;
+            }
 
             var cached = File.ReadAllText(CacheFilePath).Trim();
             return string.IsNullOrEmpty(cached) ? null : cached;
@@ -403,7 +429,9 @@ public static partial class SdkDiscovery
         {
             var dir = Path.GetDirectoryName(CacheFilePath);
             if(dir is not null && !Directory.Exists(dir))
+            {
                 Directory.CreateDirectory(dir);
+            }
 
             File.WriteAllText(CacheFilePath, path);
         }

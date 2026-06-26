@@ -71,7 +71,9 @@ public sealed class TupleEmitterOutputTests : IDisposable
     private void CleanOutputDir()
     {
         foreach(var file in Directory.GetFiles(_outputDir))
+        {
             File.Delete(file);
+        }
     }
 
     private static ExpressionNode WrapPrimaryAsExpression(PrimaryNode primary)

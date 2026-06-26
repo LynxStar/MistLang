@@ -43,7 +43,9 @@ public class RegexConversionRuleTests
         var parseDiag = new DiagnosticBag();
         var parseResult = Parser.Parse(tokens, parseDiag);
         if(parseResult.Root is null)
+        {
             return parseDiag.ToImmutableArray();
+        }
 
         // Load stdlib to get Standard.Regex with its implicit/explicit operators.
         var (stdlibUnits, stdlibAsts) = StdlibTestHelper.LoadStdlib();

@@ -123,7 +123,9 @@ public sealed partial class OverloadEmissionPropertyTests : IDisposable
         if(Directory.Exists(_outputDir))
         {
             foreach(var file in Directory.GetFiles(_outputDir))
+            {
                 File.Delete(file);
+            }
         }
     }
 
@@ -273,7 +275,10 @@ public sealed partial class OverloadEmissionPropertyTests : IDisposable
         sb.AppendLine("    public static void Main() { }");
         sb.AppendLine();
         for(var i = 0; i < paramTypes.Count; i++)
+        {
             sb.AppendLine($"    public void DoWork({paramTypes[i]} p{i}) {{ }}");
+        }
+
         sb.AppendLine("}");
         return sb.ToString();
     }

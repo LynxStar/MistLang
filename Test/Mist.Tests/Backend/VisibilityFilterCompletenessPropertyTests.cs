@@ -85,26 +85,36 @@ public sealed class VisibilityFilterCompletenessPropertyTests
     {
         // Rule (a): Non-public accessibility → exclude (Requirement 6.7)
         if(!IsMemberPublic(member))
+        {
             return true;
+        }
 
         // Rule (b): Events → exclude (Requirement 5.8 / design doc)
         if(member is EventInfo)
+        {
             return true;
+        }
 
         // Rule (c): out parameters — no longer excluded (projected as ref with ClrCallingConvention.Out)
 
         // Rule (d): ref readonly return type → exclude (Requirement 4.3, 6.3)
         // Mutable ref returns now pass through (CLR Ref Interop feature)
         if(HasRefReadonlyReturn(member))
+        {
             return true;
+        }
 
         // Rule (f): Pointer types in signature → exclude (Requirement 6.4)
         if(HasPointerTypes(member))
+        {
             return true;
+        }
 
         // Rule (g): Signature references an excluded type → exclude (Requirement 6.6)
         if(ReferencesExcludedType(member))
+        {
             return true;
+        }
 
         return false;
     }
@@ -135,7 +145,10 @@ public sealed class VisibilityFilterCompletenessPropertyTests
     private static bool IsTypePublic(Type type)
     {
         if(type.IsNested)
+        {
             return type.IsNestedPublic && type.DeclaringType is not null && IsTypePublic(type.DeclaringType);
+        }
+
         return type.IsPublic;
     }
 
@@ -143,12 +156,16 @@ public sealed class VisibilityFilterCompletenessPropertyTests
     {
         var parameters = GetParameters(member);
         if(parameters is null)
+        {
             return false;
+        }
 
         foreach(var param in parameters)
         {
             if(param.IsOut)
+            {
                 return true;
+            }
         }
 
         return false;
@@ -189,7 +206,9 @@ public sealed class VisibilityFilterCompletenessPropertyTests
     private static bool ContainsPointerType(Type type)
     {
         if(type.IsPointer)
+        {
             return true;
+        }
 
         if(type.IsByRef)
         {
@@ -208,7 +227,9 @@ public sealed class VisibilityFilterCompletenessPropertyTests
             foreach(var arg in type.GetGenericArguments())
             {
                 if(ContainsPointerType(arg))
+                {
                     return true;
+                }
             }
         }
 
@@ -234,21 +255,27 @@ public sealed class VisibilityFilterCompletenessPropertyTests
         {
             var elementType = type.GetElementType();
             if(elementType is not null)
+            {
                 return IsTypeExcludedInSignature(elementType);
+            }
         }
 
         if(type.IsPointer)
         {
             var elementType = type.GetElementType();
             if(elementType is not null)
+            {
                 return IsTypeExcludedInSignature(elementType);
+            }
         }
 
         if(type.IsArray)
         {
             var elementType = type.GetElementType();
             if(elementType is not null)
+            {
                 return IsTypeExcludedInSignature(elementType);
+            }
         }
 
         if(type.IsConstructedGenericType)
@@ -256,18 +283,24 @@ public sealed class VisibilityFilterCompletenessPropertyTests
             foreach(var arg in type.GetGenericArguments())
             {
                 if(IsTypeExcludedInSignature(arg))
+                {
                     return true;
+                }
             }
 
             var genericDef = type.GetGenericTypeDefinition();
             if(IsTypeExcludedByRules(genericDef))
+            {
                 return true;
+            }
 
             return false;
         }
 
         if(type.IsGenericParameter)
+        {
             return false;
+        }
 
         return IsTypeExcludedByRules(type);
     }
@@ -275,7 +308,9 @@ public sealed class VisibilityFilterCompletenessPropertyTests
     private static bool IsTypeExcludedByRules(Type type)
     {
         if(!IsTypePublic(type))
+        {
             return true;
+        }
 
         // Ref-struct types (carry IsByRefLikeAttribute, e.g. Span<T>/ReadOnlySpan<T>) are NOT
         // excluded under csharp-interop-v2 Option A — they are projected as Mist stack-only
@@ -284,7 +319,9 @@ public sealed class VisibilityFilterCompletenessPropertyTests
         // Delegate-specific check: named delegates whose Invoke method references excluded
         // types (pointers, ref readonly return) are excluded (Requirements 5.2, 5.3, 5.4).
         if(IsDelegateWithExcludedInvokeSignature(type))
+        {
             return true;
+        }
 
         return false;
     }
@@ -297,32 +334,44 @@ public sealed class VisibilityFilterCompletenessPropertyTests
     private static bool IsDelegateWithExcludedInvokeSignature(Type type)
     {
         if(type.BaseType?.FullName != "System.MulticastDelegate")
+        {
             return false;
+        }
 
         // System.Delegate and System.MulticastDelegate themselves are never excluded.
         var fullName = type.FullName ?? "";
         if(fullName is "System.Delegate" or "System.MulticastDelegate")
+        {
             return false;
+        }
 
         // System.Func/Action families are not named delegates for this purpose.
         var name = type.Name;
         if(name.StartsWith("Func`") || name.StartsWith("Action`") || name == "Action")
+        {
             return false;
+        }
 
         var invokeMethod = type.GetMethod("Invoke");
         if(invokeMethod is null)
+        {
             return false;
+        }
 
         // Check for pointer types in Invoke parameters
         foreach(var p in invokeMethod.GetParameters())
         {
             if(ContainsPointerType(p.ParameterType))
+            {
                 return true;
+            }
         }
 
         // Check for pointer type in return
         if(ContainsPointerType(invokeMethod.ReturnType))
+        {
             return true;
+        }
 
         // Check for ref readonly return on Invoke
         if(invokeMethod.ReturnType.IsByRef)
@@ -331,7 +380,9 @@ public sealed class VisibilityFilterCompletenessPropertyTests
                 .GetCustomAttributesData()
                 .Any(a => a.AttributeType.FullName ==
                     "System.Runtime.CompilerServices.IsReadOnlyAttribute"))
+            {
                 return true;
+            }
         }
 
         return false;

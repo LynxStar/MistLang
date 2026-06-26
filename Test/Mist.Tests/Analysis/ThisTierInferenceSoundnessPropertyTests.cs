@@ -84,7 +84,10 @@ public sealed class ThisTierInferenceSoundnessPropertyTests
         foreach(var op in ops)
         {
             var tier = TierForOp(op);
-            if(tier > max) max = tier;
+            if(tier > max)
+            {
+                max = tier;
+            }
         }
         return max;
     }
@@ -112,7 +115,9 @@ public sealed class ThisTierInferenceSoundnessPropertyTests
         {
             var line = GenerateBodyLine(ops[i], fieldNames[i]);
             if(!string.IsNullOrEmpty(line))
+            {
                 bodyLines.Add(line);
+            }
         }
 
         var body = bodyLines.Count > 0
@@ -140,11 +145,17 @@ public sealed class ThisTierInferenceSoundnessPropertyTests
         var sourceText = new SourceText("test.mist", source);
         var lexBag = new DiagnosticBag();
         var tokens = Lexer.Lex(sourceText, lexBag);
-        if(lexBag.HasErrors) return null;
+        if(lexBag.HasErrors)
+        {
+            return null;
+        }
 
         var parseBag = new DiagnosticBag();
         var parseResult = Parser.Parse(tokens, parseBag);
-        if(parseBag.HasErrors || parseResult.Root is null) return null;
+        if(parseBag.HasErrors || parseResult.Root is null)
+        {
+            return null;
+        }
 
         var builder = new SemanticModelBuilder();
         var compilation = new MistCompilation(
@@ -164,7 +175,10 @@ public sealed class ThisTierInferenceSoundnessPropertyTests
         var targetMethod = model.AllSymbols
             .FirstOrDefault(s => s.Name == "Target" && s.Kind == SymbolKind.Method);
 
-        if(targetMethod is null) return null;
+        if(targetMethod is null)
+        {
+            return null;
+        }
 
         return ThisTierInferencePass.GetThisTier(targetMethod);
     }
@@ -311,7 +325,10 @@ public sealed class ThisTierInferenceSoundnessPropertyTests
     public void TransitiveComposition_CallerTierIsAtLeastCalleesTier(FieldOp helperOp, FieldOp callerOp)
     {
         var helperBody = GenerateBodyLine(helperOp, "data");
-        if(string.IsNullOrEmpty(helperBody)) helperBody = "int _h = 0;";
+        if(string.IsNullOrEmpty(helperBody))
+        {
+            helperBody = "int _h = 0;";
+        }
 
         var callerDirectBody = GenerateBodyLine(callerOp, "data");
         var callerBody = string.IsNullOrEmpty(callerDirectBody)

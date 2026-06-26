@@ -211,7 +211,9 @@ public class NoBackingTypeLeakPropertyTests
         var userParseResult = Parser.Parse(userTokens, diagnostics);
 
         if(userParseResult.Root is null)
+        {
             throw new InvalidOperationException("Failed to parse user source");
+        }
 
         var allUnits = stdlibUnits.Add(userUnit);
         var allAsts = stdlibAsts.Add(userParseResult.Root);
@@ -246,22 +248,30 @@ public class NoBackingTypeLeakPropertyTests
         // Phase B will reintroduce UnknownType as the user-facing top type, distinct from this ErrorType sentinel.
         // Void, ErrorType, TypeParameterType, ArrayType are fine
         if(type.IsVoid() || type is ErrorType or TypeParameterType or ArrayType)
+        {
             return false;
+        }
 
         string? containingNamespace = null;
         var displayName = type.DisplayName;
 
         if(type is ClassType ct)
+        {
             containingNamespace = ct.ContainingNamespace;
+        }
         else if(type is StructType st)
+        {
             containingNamespace = st.ContainingNamespace;
+        }
 
         // Check if the type's namespace starts with "System"
         if(containingNamespace is not null && containingNamespace.StartsWith("System"))
         {
             // Allow known ambient types (Console, Math, Convert)
             if(AllowedAmbientTypeNames.Contains(displayName))
+            {
                 return false;
+            }
 
             // This is a CLR type leak
             return true;
@@ -269,7 +279,9 @@ public class NoBackingTypeLeakPropertyTests
 
         // Check if the display name itself looks like a CLR type
         if(displayName.StartsWith("System."))
+        {
             return true;
+        }
 
         return false;
     }
@@ -355,7 +367,9 @@ public class NoBackingTypeLeakPropertyTests
             foreach(var child in node.Children())
             {
                 if(child is not null)
+                {
                     stack.Push(child);
+                }
             }
         }
     }
@@ -404,8 +418,14 @@ public class NoBackingTypeLeakPropertyTests
                 if(IsClrLeak(type))
                 {
                     string? ns = null;
-                    if(type is ClassType ct) ns = ct.ContainingNamespace;
-                    else if(type is StructType st) ns = st.ContainingNamespace;
+                    if(type is ClassType ct)
+                    {
+                        ns = ct.ContainingNamespace;
+                    }
+                    else if(type is StructType st)
+                    {
+                        ns = st.ContainingNamespace;
+                    }
 
                     return false.ToProperty()
                         .Label($"CLR type leak detected!\n" +

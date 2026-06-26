@@ -137,18 +137,24 @@ public sealed class InheritanceChainProjectionPropertyTests
     {
         // Check if the derived type itself matches
         if(derivedType.DisplayName == targetDisplayName)
+        {
             return true;
+        }
 
         // DelegateType is always assignable to BaseDelegateType ("Delegate") and
         // to "MulticastDelegate" (flattened hierarchy — both resolve to BaseDelegateType).
         if(derivedType is DelegateType &&
             (targetDisplayName == "Delegate" || targetDisplayName == "MulticastDelegate"))
+        {
             return true;
+        }
 
         // BaseDelegateType is assignable to "Delegate" and "MulticastDelegate" (flattened)
         if(derivedType is BaseDelegateType &&
             (targetDisplayName == "Delegate" || targetDisplayName == "MulticastDelegate"))
+        {
             return true;
+        }
 
         // Walk the base type chain via the independently projected types
         var current = derivedType;
@@ -161,10 +167,14 @@ public sealed class InheritanceChainProjectionPropertyTests
             // represents both System.Delegate and System.MulticastDelegate (flattened).
             if(baseType is BaseDelegateType &&
                 (targetDisplayName == "Delegate" || targetDisplayName == "MulticastDelegate"))
+            {
                 return true;
+            }
 
             if(baseName == targetDisplayName)
+            {
                 return true;
+            }
 
             // Move to the independently projected version of the base type
             // to continue walking the chain
@@ -203,11 +213,15 @@ public sealed class InheritanceChainProjectionPropertyTests
             // BaseDelegateType is expressed through assignability rules, not
             // through a structural BaseType chain. Skip the ClassType assertion.
             if(projectedType is DelegateType)
+            {
                 return;
+            }
 
             // BaseDelegateType is a singleton and has no base type chain.
             if(projectedType is BaseDelegateType)
+            {
                 return;
+            }
 
             // The projected type should be a ClassType with a non-null BaseType
             var classType = Assert.IsType<ClassType>(projectedType);
@@ -222,7 +236,10 @@ public sealed class InheritanceChainProjectionPropertyTests
             // type is MulticastDelegate, the expected projected name is "Delegate".
             var expectedBaseName = TypeProjector.StripGenericAritySuffix(clrType.BaseType.Name);
             if(expectedBaseName == "MulticastDelegate")
+            {
                 expectedBaseName = "Delegate";
+            }
+
             Assert.True(
                 classType.BaseType!.DisplayName == expectedBaseName,
                 $"Type {clrType.Name}: expected BaseType.DisplayName='{expectedBaseName}' " +

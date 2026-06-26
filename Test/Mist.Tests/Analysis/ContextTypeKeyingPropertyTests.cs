@@ -387,7 +387,9 @@ public sealed class ContextTypeKeyingPropertyTests
             .FirstOrDefault(s => s.Kind == SymbolKind.Method && s.Name == methodName);
 
         if(methodSymbol is null)
+        {
             return null;
+        }
 
         // Find the local variable registered for the with-clause binding.
         // It's in the method's scope (which is a child of the method symbol's
@@ -427,7 +429,10 @@ public sealed class ContextTypeKeyingPropertyTests
     private static IType ResolveForKeying(IType type)
     {
         while(type is TypeAliasType alias)
+        {
             type = alias.UnderlyingType;
+        }
+
         return type;
     }
 

@@ -115,7 +115,9 @@ public class AbstractMemberLookupPropertyTests
     {
         var modifiers = new List<ModifierNode> { new PublicModifierModifierNode() };
         if(isStatic)
+        {
             modifiers.Add(new StaticModifierModifierNode());
+        }
 
         return new MethodDeclarationNode
         {
@@ -429,7 +431,9 @@ public class AbstractMemberLookupPropertyTests
     private static Gen<int[]> GenSplitPoints(int total, int buckets)
     {
         if(buckets <= 0 || total < buckets)
+        {
             return Gen.Constant(Array.Empty<int>());
+        }
 
         // Give each bucket 1, then distribute the remainder randomly
         var remainder = total - buckets;
@@ -457,7 +461,10 @@ public class AbstractMemberLookupPropertyTests
 
                 // Fix rounding errors
                 normalized[^1] += total - distributed;
-                if(normalized[^1] < 1) normalized[^1] = 1;
+                if(normalized[^1] < 1)
+                {
+                    normalized[^1] = 1;
+                }
 
                 return normalized;
             })

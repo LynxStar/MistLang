@@ -79,7 +79,9 @@ public class StoredLocationPropertyTests
 
         // The lexer should have produced at least one diagnostic for the invalid character
         if(!stormDiagnostics.HasErrors)
+        {
             return false;
+        }
 
         // Find the diagnostic entry for our invalid character.
         // The lexer may produce multiple diagnostics if the suffix also contains
@@ -96,7 +98,9 @@ public class StoredLocationPropertyTests
         }
 
         if(targetEntry is null)
+        {
             return false;
+        }
 
         var diagnosticEntry = targetEntry.Value;
 
@@ -107,11 +111,15 @@ public class StoredLocationPropertyTests
 
         // Verify: stored line matches computed line
         if(diagnosticEntry.Line != computedPosition.Start.Line)
+        {
             return false;
+        }
 
         // Verify: stored column matches computed column
         if(diagnosticEntry.Column != computedPosition.Start.Column)
+        {
             return false;
+        }
 
         return true;
     }

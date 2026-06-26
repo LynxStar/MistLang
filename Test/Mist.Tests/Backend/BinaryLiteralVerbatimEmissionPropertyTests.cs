@@ -196,7 +196,11 @@ public sealed class BinaryLiteralVerbatimEmissionPropertyTests : IDisposable
         var sourceText = new SourceText("test.mist", source);
         var bag = new DiagnosticBag();
         var tokens = Lexer.Lex(sourceText, bag);
-        if(bag.HasErrors) return null;
+        if(bag.HasErrors)
+        {
+            return null;
+        }
+
         var result = Parser.Parse(tokens, bag);
         return result.Root as CompilationUnitNode;
     }
@@ -219,7 +223,9 @@ public sealed class BinaryLiteralVerbatimEmissionPropertyTests : IDisposable
     {
         // Clean the output directory for each emission
         foreach(var file in Directory.GetFiles(_outputDir))
+        {
             File.Delete(file);
+        }
 
         var diagnostics = new DiagnosticBag();
         CSharpEmitter.Emit(model, _outputDir, "TestProject", diagnostics);
@@ -249,8 +255,10 @@ public sealed class BinaryLiteralVerbatimEmissionPropertyTests : IDisposable
         var root = ParseSource(scenario.Source);
 
         if(root is null)
+        {
             return false.ToProperty()
                 .Label($"Parse failed for: {scenario.Source}");
+        }
 
         var printed = MistPrettyPrinter.Print(root, scenario.Source);
 
@@ -276,8 +284,10 @@ public sealed class BinaryLiteralVerbatimEmissionPropertyTests : IDisposable
         var root = ParseSource(scenario.Source);
 
         if(root is null)
+        {
             return false.ToProperty()
                 .Label($"Parse failed for: {scenario.Source}");
+        }
 
         var model = BuildSemanticModel(root, scenario.Source);
         var csContent = EmitAndGetCsContent(model);

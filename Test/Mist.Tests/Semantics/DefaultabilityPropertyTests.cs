@@ -295,7 +295,9 @@ public class DefaultabilityPropertyTests
     private static Gen<ImmutableArray<(string FieldName, string FieldType)>> GenPrimitiveFields(int count)
     {
         if(count == 0)
+        {
             return Gen.Constant(ImmutableArray<(string, string)>.Empty);
+        }
 
         Gen<ImmutableArray<(string, string)>> result =
             from fieldType in Gen.Elements(PrimitiveTypes)
@@ -456,7 +458,9 @@ public class DefaultabilityPropertyTests
             .FirstOrDefault(s => s.Name == scenario.TypeName && s.Kind == expectedKind);
 
         if(typeSymbol is null)
+        {
             return false;
+        }
 
         var status = typeSymbol.DeclaredType switch
         {
@@ -485,7 +489,9 @@ public class DefaultabilityPropertyTests
             .FirstOrDefault(s => s.Name == scenario.TypeName && s.Kind == expectedKind);
 
         if(typeSymbol is null)
+        {
             return false;
+        }
 
         var status = typeSymbol.DeclaredType switch
         {
@@ -527,7 +533,9 @@ public class DefaultabilityPropertyTests
             .FirstOrDefault(s => s.Name == scenario.TypeName && s.Kind == expectedKind);
 
         if(typeSymbol is null)
+        {
             return false;
+        }
 
         // Check defaultability status
         var status = typeSymbol.DeclaredType switch
@@ -538,7 +546,9 @@ public class DefaultabilityPropertyTests
         };
 
         if(status != DefaultabilityStatus.NotDefaultable)
+        {
             return false;
+        }
 
         // Check that MIST_DEFAULT_REQUIRES_BINDING diagnostic was emitted
         var hasRequiresBindingDiagnostic = diagnostics

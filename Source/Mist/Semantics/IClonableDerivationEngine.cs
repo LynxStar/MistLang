@@ -104,10 +104,14 @@ public static class IClonableDerivationEngine
             {
                 // Explicit declarers are fixed-true and never eliminated.
                 if(explicitDeclarers.Contains(type))
+                {
                     continue;
+                }
 
                 if(!clonable[type])
+                {
                     continue;
+                }
 
                 if(!AllFieldsClonable(type, clonable, explicitDeclarers))
                 {
@@ -146,23 +150,33 @@ public static class IClonableDerivationEngine
     {
         var memberScope = GetMemberScope(type);
         if(memberScope is null)
+        {
             return true;
+        }
 
         foreach(var member in memberScope.Members)
         {
             if(member.Kind != SymbolKind.Field)
+            {
                 continue;
+            }
 
             // Static fields are not part of the value's clonable object graph.
             if(member is Symbol symbol && symbol.IsStatic)
+            {
                 continue;
+            }
 
             var fieldType = member.DeclaredType;
             if(fieldType is null)
+            {
                 continue;
+            }
 
             if(!IsTypeClonable(fieldType, clonable, explicitDeclarers))
+            {
                 return false;
+            }
         }
 
         return true;
@@ -186,18 +200,24 @@ public static class IClonableDerivationEngine
             case StructType:
                 // Legacy-primitive fallback singletons (stdlib not loaded).
                 if(LegacyPrimitiveNames.Contains(type.DisplayName))
+                {
                     return true;
+                }
 
                 // A type that explicitly declares IClonable is always clonable.
                 if(explicitDeclarers.Contains(type))
+                {
                     return true;
+                }
 
                 // Otherwise use the current candidate assumption. A type outside
                 // the model (no entry) is conservatively treated as not clonable
                 // unless it explicitly declares the abstract type, which is checked
                 // directly here to cover types reached only through fields.
                 if(clonable.TryGetValue(type, out var isClonable))
+                {
                     return isClonable;
+                }
 
                 return DeclaresIClonableInAbstracts(type, new HashSet<IType>());
 
@@ -210,7 +230,9 @@ public static class IClonableDerivationEngine
                 foreach(var element in tuple.ElementTypes)
                 {
                     if(!IsTypeClonable(element, clonable, explicitDeclarers))
+                    {
                         return false;
+                    }
                 }
                 return true;
 
@@ -218,11 +240,16 @@ public static class IClonableDerivationEngine
                 // A constructed generic type (e.g. Box<int>) is clonable iff its
                 // generic definition is clonable and every type argument is clonable.
                 if(!IsTypeClonable(constructed.GenericDefinition, clonable, explicitDeclarers))
+                {
                     return false;
+                }
+
                 foreach(var arg in constructed.TypeArguments)
                 {
                     if(!IsTypeClonable(arg, clonable, explicitDeclarers))
+                    {
                         return false;
+                    }
                 }
                 return true;
 
@@ -247,7 +274,9 @@ public static class IClonableDerivationEngine
         type = Unwrap(type);
 
         if(!visited.Add(type))
+        {
             return false;
+        }
 
         switch(type)
         {
@@ -274,7 +303,9 @@ public static class IClonableDerivationEngine
         foreach(var abs in abstracts)
         {
             if(IsIClonableAbstract(abs))
+            {
                 return true;
+            }
         }
         return false;
     }

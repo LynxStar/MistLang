@@ -1,10 +1,10 @@
 using System.Collections.Immutable;
+using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.Emit;
 using Mist.Backends.Contracts;
 using Mist.Common.Diagnostics;
 using MistDiagnosticSeverity = Mist.Common.Diagnostics.DiagnosticSeverity;
 using RoslynApi = Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp;
-using Microsoft.CodeAnalysis.Emit;
 
 namespace Mist.Backends.CSharpTranspiler;
 
@@ -60,7 +60,9 @@ public sealed class CSharpCompilationDriver
         {
             var path = Path.Combine(runtimeDir, name);
             if(File.Exists(path))
+            {
                 refs.Add(RoslynApi.MetadataReference.CreateFromFile(path));
+            }
         }
 
         // Dynamic-dispatch supporting libraries (Task 31 revised,
@@ -78,7 +80,9 @@ public sealed class CSharpCompilationDriver
         {
             var path = Path.Combine(runtimeDir, name);
             if(File.Exists(path))
+            {
                 refs.Add(RoslynApi.MetadataReference.CreateFromFile(path));
+            }
         }
 
         return [.. refs];
@@ -96,10 +100,16 @@ public sealed class CSharpCompilationDriver
     private static string? TryResolveRefPackDir()
     {
         var dotnetRoot = GetDotnetRoot();
-        if(dotnetRoot is null) return null;
+        if(dotnetRoot is null)
+        {
+            return null;
+        }
 
         var refPackRoot = Path.Combine(dotnetRoot, "packs", "Microsoft.NETCore.App.Ref");
-        if(!Directory.Exists(refPackRoot)) return null;
+        if(!Directory.Exists(refPackRoot))
+        {
+            return null;
+        }
 
         // Pick the highest version directory matching the running
         // runtime's major.minor, then fall back to the highest overall.
@@ -111,11 +121,17 @@ public sealed class CSharpCompilationDriver
         var matched = versionDirs.FirstOrDefault(
             d => Path.GetFileName(d).StartsWith(runtimeMajorMinor, StringComparison.Ordinal));
         var selected = matched ?? versionDirs.FirstOrDefault();
-        if(selected is null) return null;
+        if(selected is null)
+        {
+            return null;
+        }
 
         // Pick the highest tfm directory under `ref/`.
         var refDir = Path.Combine(selected, "ref");
-        if(!Directory.Exists(refDir)) return null;
+        if(!Directory.Exists(refDir))
+        {
+            return null;
+        }
 
         var tfmDirs = Directory.GetDirectories(refDir)
             .OrderByDescending(d => Path.GetFileName(d), StringComparer.Ordinal)
@@ -137,7 +153,9 @@ public sealed class CSharpCompilationDriver
         {
             var dir = Path.GetDirectoryName(assemblyLocation);
             if(!string.IsNullOrEmpty(dir) && Directory.Exists(dir))
+            {
                 return dir;
+            }
         }
 
         // Single-file publish: discover the shared framework directory.
@@ -160,7 +178,9 @@ public sealed class CSharpCompilationDriver
 
                 var selectedDir = exactMatch ?? versionDirs.FirstOrDefault();
                 if(selectedDir is not null && Directory.Exists(selectedDir))
+                {
                     return selectedDir;
+                }
             }
         }
 
@@ -177,7 +197,9 @@ public sealed class CSharpCompilationDriver
         // Check DOTNET_ROOT environment variable first.
         var envRoot = Environment.GetEnvironmentVariable("DOTNET_ROOT");
         if(!string.IsNullOrEmpty(envRoot) && Directory.Exists(envRoot))
+        {
             return envRoot;
+        }
 
         // Common locations per platform.
         var candidates = OperatingSystem.IsWindows()
@@ -197,7 +219,9 @@ public sealed class CSharpCompilationDriver
         {
             if(Directory.Exists(candidate) &&
                 Directory.Exists(Path.Combine(candidate, "shared", "Microsoft.NETCore.App")))
+            {
                 return candidate;
+            }
         }
 
         return null;
@@ -213,7 +237,9 @@ public sealed class CSharpCompilationDriver
         ImmutableArray<string> additionalReferencePaths = default)
     {
         if(!Directory.Exists(binDirectory))
+        {
             Directory.CreateDirectory(binDirectory);
+        }
 
         // Collect all emitted .cs files
         var csFiles = Directory.GetFiles(projectDirectory, "*.cs", SearchOption.AllDirectories);
@@ -290,7 +316,10 @@ public sealed class CSharpCompilationDriver
         if(!result.Success)
         {
             if(File.Exists(outputPath))
+            {
                 File.Delete(outputPath);
+            }
+
             return new BackendResult(false, null, diagnostics.ToImmutableArray(), EmittedFileCount: emittedFileCount);
         }
 

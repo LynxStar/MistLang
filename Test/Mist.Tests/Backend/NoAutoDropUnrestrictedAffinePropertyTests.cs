@@ -7,8 +7,8 @@ using FsCheck.Fluent;
 using FsCheck.Xunit;
 using Mist.Analysis.Builtin;
 using Mist.Analysis.Contracts;
-using Mist.Backends.CSharpTranspiler;
 using Mist.Backends.Contracts;
+using Mist.Backends.CSharpTranspiler;
 using Mist.Driver;
 using Mist.Driver.Contracts;
 using Mist.Semantics.Model;
@@ -73,7 +73,9 @@ public class NoAutoDropUnrestrictedAffinePropertyTests
 
             var result = SharedDriver.Compile(options);
             if(!result.Succeeded || result.EmittedFiles is null)
+            {
                 return null;
+            }
 
             var csharp = result.EmittedFiles
                 .Where(kvp => !kvp.Key.EndsWith(".csproj", StringComparison.OrdinalIgnoreCase))
@@ -212,18 +214,26 @@ public class NoAutoDropUnrestrictedAffinePropertyTests
         var emitted = CompileAndGetEmittedCSharp(BuildProgram(names.Affine, names.Unrestricted, names.Linear));
 
         if(emitted is null)
+        {
             return false.Label("Compilation failed");
+        }
 
         if(ContainsScopeExitDrop(emitted, names.Affine))
+        {
             return false.Label($"Affine local '{names.Affine}' got an unexpected scope-exit Drop().");
+        }
 
         if(ContainsScopeExitDrop(emitted, names.Unrestricted))
+        {
             return false.Label($"Unrestricted local '{names.Unrestricted}' got an unexpected scope-exit Drop().");
+        }
 
         // Contrast guard: the linear local MUST get a scope-exit Drop(), otherwise the
         // absence assertions above are vacuous.
         if(!ContainsScopeExitDrop(emitted, names.Linear))
+        {
             return false.Label($"Linear local '{names.Linear}' was missing its scope-exit Drop() (contrast guard).");
+        }
 
         return true.Label("No auto-drop for affine/unrestricted; linear drops as expected.");
     }

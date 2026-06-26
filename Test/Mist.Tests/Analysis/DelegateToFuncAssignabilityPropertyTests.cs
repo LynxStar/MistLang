@@ -61,7 +61,10 @@ public sealed class DelegateToFuncAssignabilityPropertyTests
         var funcDef = new ClassType("Func", new Scope(null), "Standard", isBackendBacked: true);
         var tps = new IType[typeArgs.Length];
         for(var i = 0; i < typeArgs.Length; i++)
+        {
             tps[i] = new TypeParameterType($"T{i}", i);
+        }
+
         funcDef.TypeParameters = tps;
 
         return new ConstructedType(funcDef, typeArgs);

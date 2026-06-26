@@ -255,7 +255,9 @@ public class MemoizationTransparencyPropertyTests
             Gen.Choose(0, 3).SelectMany(argCount =>
             {
                 if(argCount == 0)
+                {
                     return Gen.Constant($"{name}()");
+                }
 
                 return Gen.ArrayOf(GenValidExpr(depth + 1), argCount)
                     .Select(args => $"{name}({string.Join(",", args)})");
@@ -285,7 +287,9 @@ public class MemoizationTransparencyPropertyTests
         return Gen.Choose(0, 6).SelectMany(count =>
         {
             if(count == 0)
+            {
                 return Gen.Constant("");
+            }
 
             return Gen.ArrayOf(tokenGen, count)
                 .Select(tokens => string.Join("", tokens));

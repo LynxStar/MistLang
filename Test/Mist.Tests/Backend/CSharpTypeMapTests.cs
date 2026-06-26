@@ -309,7 +309,10 @@ public class CSharpTypeMapTests
         var func = new ClassType("Func", new Scope(parent: null), containingNamespace: "Standard", isBackendBacked: true);
         var typeParams = new IType[arity];
         for(var i = 0; i < arity; i++)
+        {
             typeParams[i] = new TypeParameterType($"T{i}", i);
+        }
+
         func.TypeParameters = typeParams;
         return func;
     }

@@ -103,7 +103,10 @@ public class LexerTokenKindTests
     {
         var tokens = LexDefaultTokens(keyword);
 
-        if(tokens.Count == 0) return; // Skeletal lexer
+        if(tokens.Count == 0)
+        {
+            return; // Skeletal lexer
+        }
 
         Assert.Single(tokens);
         Assert.Equal((int)expectedKind, tokens[0].Kind);
@@ -124,7 +127,10 @@ public class LexerTokenKindTests
     {
         var tokens = LexDefaultTokens(keyword);
 
-        if(tokens.Count == 0) return; // Skeletal lexer
+        if(tokens.Count == 0)
+        {
+            return; // Skeletal lexer
+        }
 
         Assert.Single(tokens);
         Assert.Equal((int)expectedKind, tokens[0].Kind);
@@ -147,7 +153,10 @@ public class LexerTokenKindTests
         var source = $"int {keyword} = 0;";
         var tokens = LexDefaultTokens(source);
 
-        if(tokens.Count == 0) return; // Skeletal lexer
+        if(tokens.Count == 0)
+        {
+            return; // Skeletal lexer
+        }
 
         // tokens[0] is INT; tokens[1] must be the reserved keyword — NOT IDENTIFIER.
         Assert.True(tokens.Count >= 2,
@@ -173,7 +182,10 @@ public class LexerTokenKindTests
         // keyword prefix.
         var tokens = LexDefaultTokens(identifier);
 
-        if(tokens.Count == 0) return; // Skeletal lexer
+        if(tokens.Count == 0)
+        {
+            return; // Skeletal lexer
+        }
 
         Assert.Single(tokens);
         Assert.Equal((int)TokenKind.IDENTIFIER, tokens[0].Kind);
@@ -193,7 +205,10 @@ public class LexerTokenKindTests
     {
         var tokens = LexDefaultTokens(op);
 
-        if(tokens.Count == 0) return; // Skeletal lexer
+        if(tokens.Count == 0)
+        {
+            return; // Skeletal lexer
+        }
 
         Assert.Single(tokens);
         Assert.Equal((int)expectedKind, tokens[0].Kind);
@@ -205,7 +220,10 @@ public class LexerTokenKindTests
         // "&&" should be one LOGICAL_AND token, not two separate tokens
         var tokens = LexDefaultTokens("&&");
 
-        if(tokens.Count == 0) return; // Skeletal lexer
+        if(tokens.Count == 0)
+        {
+            return; // Skeletal lexer
+        }
 
         Assert.Single(tokens);
         Assert.Equal((int)TokenKind.LOGICAL_AND, tokens[0].Kind);
@@ -224,7 +242,10 @@ public class LexerTokenKindTests
     {
         var tokens = LexDefaultTokens(literal);
 
-        if(tokens.Count == 0) return; // Skeletal lexer
+        if(tokens.Count == 0)
+        {
+            return; // Skeletal lexer
+        }
 
         Assert.Single(tokens);
         Assert.Equal((int)expectedKind, tokens[0].Kind);
@@ -239,7 +260,10 @@ public class LexerTokenKindTests
     {
         var tokens = LexDefaultTokens(literal);
 
-        if(tokens.Count == 0) return; // Skeletal lexer
+        if(tokens.Count == 0)
+        {
+            return; // Skeletal lexer
+        }
 
         Assert.Single(tokens);
         Assert.Equal((int)expectedKind, tokens[0].Kind);
@@ -255,7 +279,10 @@ public class LexerTokenKindTests
     {
         var tokens = LexDefaultTokens(literal);
 
-        if(tokens.Count == 0) return; // Skeletal lexer
+        if(tokens.Count == 0)
+        {
+            return; // Skeletal lexer
+        }
 
         Assert.Single(tokens);
         Assert.Equal((int)expectedKind, tokens[0].Kind);
@@ -270,7 +297,10 @@ public class LexerTokenKindTests
     {
         var tokens = LexDefaultTokens(literal);
 
-        if(tokens.Count == 0) return; // Skeletal lexer
+        if(tokens.Count == 0)
+        {
+            return; // Skeletal lexer
+        }
 
         Assert.Single(tokens);
         Assert.Equal((int)expectedKind, tokens[0].Kind);
@@ -285,7 +315,10 @@ public class LexerTokenKindTests
     {
         var tokens = LexDefaultTokens(literal);
 
-        if(tokens.Count == 0) return; // Skeletal lexer
+        if(tokens.Count == 0)
+        {
+            return; // Skeletal lexer
+        }
 
         Assert.Single(tokens);
         Assert.Equal((int)expectedKind, tokens[0].Kind);
@@ -298,7 +331,10 @@ public class LexerTokenKindTests
     {
         var allTokens = LexAllTokens("   ");
 
-        if(allTokens.Count == 0) return; // Skeletal lexer
+        if(allTokens.Count == 0)
+        {
+            return; // Skeletal lexer
+        }
 
         // Whitespace should appear in AllTokens but not in DefaultChannelTokens
         var defaultTokens = LexDefaultTokens("   ");
@@ -313,7 +349,10 @@ public class LexerTokenKindTests
     {
         var allTokens = LexAllTokens("// this is a comment");
 
-        if(allTokens.Count == 0) return; // Skeletal lexer
+        if(allTokens.Count == 0)
+        {
+            return; // Skeletal lexer
+        }
 
         var defaultTokens = LexDefaultTokens("// this is a comment");
 
@@ -332,7 +371,10 @@ public class LexerTokenKindTests
         var allTokens = LexAllTokens(source);
         var defaultTokens = LexDefaultTokens(source);
 
-        if(allTokens.Count == 0) return; // Skeletal lexer
+        if(allTokens.Count == 0)
+        {
+            return; // Skeletal lexer
+        }
 
         // All tokens should include hidden tokens
         Assert.True(allTokens.Count > defaultTokens.Count,
@@ -351,7 +393,10 @@ public class LexerTokenKindTests
         // "className" should be IDENTIFIER, not CLASS
         var tokens = LexDefaultTokens("className");
 
-        if(tokens.Count == 0) return; // Skeletal lexer
+        if(tokens.Count == 0)
+        {
+            return; // Skeletal lexer
+        }
 
         Assert.Single(tokens);
         Assert.Equal((int)TokenKind.IDENTIFIER, tokens[0].Kind);
@@ -363,7 +408,10 @@ public class LexerTokenKindTests
     {
         var tokens = LexDefaultTokens("_myVar");
 
-        if(tokens.Count == 0) return; // Skeletal lexer
+        if(tokens.Count == 0)
+        {
+            return; // Skeletal lexer
+        }
 
         Assert.Single(tokens);
         Assert.Equal((int)TokenKind.IDENTIFIER, tokens[0].Kind);
@@ -378,7 +426,10 @@ public class LexerTokenKindTests
         // The interpolated string start token is "$\""
         var tokens = LexDefaultTokens("$\"");
 
-        if(tokens.Count == 0) return; // Skeletal lexer
+        if(tokens.Count == 0)
+        {
+            return; // Skeletal lexer
+        }
 
         Assert.Contains(tokens, t => t.Kind == (int)TokenKind.INTERPOLATED_STRING_START);
     }

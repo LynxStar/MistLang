@@ -315,8 +315,10 @@ public class ReadonlyParsingPropertyTests
             .ToList();
 
         if(errors.Count > 0)
+        {
             throw new InvalidOperationException(
                 $"Unexpected parse errors:\n  {string.Join("\n  ", errors.Select(e => e.Message))}\nSource:\n{source}");
+        }
 
         return result.Root as CompilationUnitNode
             ?? throw new InvalidOperationException("Parse result root is not a CompilationUnitNode");
@@ -327,11 +329,17 @@ public class ReadonlyParsingPropertyTests
     /// </summary>
     private static bool ContainsNodeOfType<T>(Storm.Runtime.SyntaxNode node) where T : Storm.Runtime.SyntaxNode
     {
-        if(node is T) return true;
+        if(node is T)
+        {
+            return true;
+        }
+
         foreach(var child in node.Children())
         {
             if(child is not null && ContainsNodeOfType<T>(child))
+            {
                 return true;
+            }
         }
         return false;
     }
@@ -341,12 +349,23 @@ public class ReadonlyParsingPropertyTests
     /// </summary>
     private static T? FindFirstNode<T>(Storm.Runtime.SyntaxNode node) where T : Storm.Runtime.SyntaxNode
     {
-        if(node is T match) return match;
+        if(node is T match)
+        {
+            return match;
+        }
+
         foreach(var child in node.Children())
         {
-            if(child is null) continue;
+            if(child is null)
+            {
+                continue;
+            }
+
             var found = FindFirstNode<T>(child);
-            if(found is not null) return found;
+            if(found is not null)
+            {
+                return found;
+            }
         }
         return null;
     }
@@ -390,8 +409,10 @@ public class ReadonlyParsingPropertyTests
         var readonlyBlockNode = FindFirstNode<ReadonlyBlockStatementStatementNode>(ast);
 
         if(readonlyBlockNode is null)
+        {
             return false.ToProperty()
                 .Label($"No ReadonlyBlockStatementStatementNode found.\nSource:\n{scenario.Source}");
+        }
 
         var actualStmtCount = readonlyBlockNode.ReadonlyBlock.Body.Statements.Length;
 
@@ -419,7 +440,9 @@ public class ReadonlyParsingPropertyTests
         var printed1 = MistPrettyPrinter.Print(ast1, scenario.Source);
 
         if(string.IsNullOrWhiteSpace(printed1))
+        {
             return false.ToProperty().Label("printed1 was empty");
+        }
 
         // Step 3: Parse printed1 → AST2
         var ast2 = ParseOrFail(printed1);

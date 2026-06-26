@@ -8,8 +8,8 @@ using FsCheck.Fluent;
 using FsCheck.Xunit;
 using Mist.Analysis.Builtin;
 using Mist.Analysis.Contracts;
-using Mist.Backends.CSharpTranspiler;
 using Mist.Backends.Contracts;
+using Mist.Backends.CSharpTranspiler;
 using Mist.Common.Diagnostics;
 using Mist.Driver;
 using Mist.Driver.Contracts;
@@ -138,7 +138,9 @@ public sealed class FieldContainmentPropertyTests : IDisposable
     {
         // Unrestricted fields are always permitted.
         if(field == FieldDisciplineKind.None)
+        {
             return false;
+        }
 
         return container switch
         {
@@ -293,8 +295,12 @@ public sealed class FieldContainmentPropertyTests : IDisposable
         var count = CountFieldNotOwned(Compile(source));
 
         if(expectError)
+        {
             Assert.Equal(1, count);
+        }
         else
+        {
             Assert.Equal(0, count);
+        }
     }
 }

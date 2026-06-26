@@ -161,7 +161,9 @@ internal class Program
             foreach(var token in tokenStream.AllTokens)
             {
                 if(token.Kind == (int)Mist.Generated.TokenKind.EndOfFile)
+                {
                     continue;
+                }
 
                 if(token.Channel == Storm.Runtime.TokenChannel.Hidden)
                 {
@@ -553,10 +555,21 @@ internal class Program
     /// </summary>
     private static void CleanDirectory(string path)
     {
-        if(!Directory.Exists(path)) return;
+        if(!Directory.Exists(path))
+        {
+            return;
+        }
+
         var di = new DirectoryInfo(path);
-        foreach(var file in di.GetFiles()) file.Delete();
-        foreach(var dir in di.GetDirectories()) dir.Delete(true);
+        foreach(var file in di.GetFiles())
+        {
+            file.Delete();
+        }
+
+        foreach(var dir in di.GetDirectories())
+        {
+            dir.Delete(true);
+        }
     }
 
     private static string Escape(char c) => c switch

@@ -4,8 +4,8 @@
 using System.Collections.Immutable;
 using Mist.Analysis.Builtin;
 using Mist.Analysis.Contracts;
-using Mist.Backends.CSharpTranspiler;
 using Mist.Backends.Contracts;
+using Mist.Backends.CSharpTranspiler;
 using Mist.Common.Diagnostics;
 using Mist.Driver;
 using Mist.Driver.Contracts;
@@ -150,15 +150,22 @@ public sealed class VoidValueLiteralResolutionTests : IDisposable
 
     private static void CollectTypeLiterals(Storm.Runtime.SyntaxNode? node, List<TypeLiteralExpressionPrimaryNode> results)
     {
-        if(node is null) return;
+        if(node is null)
+        {
+            return;
+        }
 
         if(node is TypeLiteralExpressionPrimaryNode typeLiteral)
+        {
             results.Add(typeLiteral);
+        }
 
         try
         {
             foreach(var child in node.Children())
+            {
                 CollectTypeLiterals(child, results);
+            }
         }
         catch(NullReferenceException)
         {
@@ -178,15 +185,22 @@ public sealed class VoidValueLiteralResolutionTests : IDisposable
 
     private static void CollectMemberAccessSuffixes(Storm.Runtime.SyntaxNode? node, List<MemberAccessSuffixPostfixSuffixNode> results)
     {
-        if(node is null) return;
+        if(node is null)
+        {
+            return;
+        }
 
         if(node is MemberAccessSuffixPostfixSuffixNode suffix)
+        {
             results.Add(suffix);
+        }
 
         try
         {
             foreach(var child in node.Children())
+            {
                 CollectMemberAccessSuffixes(child, results);
+            }
         }
         catch(NullReferenceException)
         {

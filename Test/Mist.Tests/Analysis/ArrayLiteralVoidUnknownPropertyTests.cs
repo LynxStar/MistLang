@@ -35,10 +35,15 @@ public sealed class VoidElementArrayScenario
     {
         var elements = new List<string>();
         for(var i = 0; i < ValidElementsBefore; i++)
+        {
             elements.Add((i + 1).ToString());
+        }
+
         elements.Add("Main()"); // void-returning method call
         for(var i = 0; i < ValidElementsAfter; i++)
+        {
             elements.Add((i + 100).ToString());
+        }
 
         var elementList = string.Join(", ", elements);
         return $$"""
@@ -73,10 +78,15 @@ public sealed class UnknownElementArrayScenario
     {
         var elements = new List<string>();
         for(var i = 0; i < ValidElementsBefore; i++)
+        {
             elements.Add((i + 1).ToString());
+        }
+
         elements.Add("u"); // unknown-typed variable
         for(var i = 0; i < ValidElementsAfter; i++)
+        {
             elements.Add((i + 100).ToString());
+        }
 
         var elementList = string.Join(", ", elements);
         return $$"""
@@ -119,7 +129,9 @@ public class ArrayLiteralVoidUnknownPropertyTests
         var parseResult = Parser.Parse(tokens, parseBag);
 
         if(parseResult.Root is null)
+        {
             return lexBag.ToImmutableArray().AddRange(parseBag.ToImmutableArray());
+        }
 
         var compilation = new MistCompilation(
             ImmutableArray.Create(new CompilationUnit(sourceText)));

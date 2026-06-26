@@ -59,7 +59,9 @@ public class IdentifierConstraintResolutionPropertyTests
         var parseResult = Parser.Parse(tokens, parseBag);
 
         if(parseResult.Root is null)
+        {
             return (null!, ImmutableArray<Diagnostic>.Empty);
+        }
 
         var compilation = new MistCompilation(
             ImmutableArray.Create(new CompilationUnit(sourceText)));

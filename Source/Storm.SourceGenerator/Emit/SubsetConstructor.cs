@@ -55,7 +55,9 @@ namespace Storm.SourceGenerator.Emit
                 {
                     var targetNfaSet = Move(nfaSet, range, nfaStatesById);
                     if(targetNfaSet.Count == 0)
+                    {
                         continue;
+                    }
 
                     var closedSet = EpsilonClosure(targetNfaSet, nfaStatesById);
                     var key = MakeKey(closedSet);
@@ -98,7 +100,9 @@ namespace Storm.SourceGenerator.Emit
                 var id = worklist.Dequeue();
                 NfaState? state;
                 if(!statesById.TryGetValue(id, out state))
+                {
                     continue;
+                }
 
                 foreach(var transition in state.Transitions)
                 {
@@ -132,7 +136,9 @@ namespace Storm.SourceGenerator.Emit
                 foreach(var transition in state.Transitions)
                 {
                     if(transition.Ranges == null)
+                    {
                         continue;
+                    }
 
                     foreach(var range in transition.Ranges)
                     {
@@ -147,7 +153,9 @@ namespace Storm.SourceGenerator.Emit
             }
 
             if(boundarySet.Count == 0)
+            {
                 return new List<CharRange>();
+            }
 
             // Convert boundary points to sorted list
             var boundaries = new List<int>(boundarySet);
@@ -201,12 +209,16 @@ namespace Storm.SourceGenerator.Emit
             {
                 NfaState? state;
                 if(!statesById.TryGetValue(id, out state))
+                {
                     continue;
+                }
 
                 foreach(var transition in state.Transitions)
                 {
                     if(transition.Ranges == null)
+                    {
                         continue;
+                    }
 
                     foreach(var tRange in transition.Ranges)
                     {
@@ -239,7 +251,9 @@ namespace Storm.SourceGenerator.Emit
             {
                 NfaState? state;
                 if(!statesById.TryGetValue(id, out state))
+                {
                     continue;
+                }
 
                 if(state.AcceptingTokenIndex >= 0)
                 {
@@ -268,7 +282,11 @@ namespace Storm.SourceGenerator.Emit
             var sb = new System.Text.StringBuilder();
             for(int i = 0; i < sorted.Count; i++)
             {
-                if(i > 0) sb.Append(',');
+                if(i > 0)
+                {
+                    sb.Append(',');
+                }
+
                 sb.Append(sorted[i]);
             }
             return sb.ToString();

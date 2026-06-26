@@ -152,7 +152,9 @@ public sealed class GlobalUsingsEmitterDeduplicationPropertyTests : IDisposable
         if(Directory.Exists(_outputDir))
         {
             foreach(var file in Directory.GetFiles(_outputDir, "*", SearchOption.AllDirectories))
+            {
                 File.Delete(file);
+            }
         }
     }
 

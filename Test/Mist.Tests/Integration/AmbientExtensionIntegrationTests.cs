@@ -4,8 +4,8 @@
 using System.Collections.Immutable;
 using System.Diagnostics;
 using Mist.Analysis.Builtin;
-using Mist.Backends.CSharpTranspiler;
 using Mist.Backends.Contracts;
+using Mist.Backends.CSharpTranspiler;
 using Mist.Common.Diagnostics;
 using Mist.Driver;
 using Mist.Driver.Contracts;
@@ -298,7 +298,9 @@ public sealed class AmbientExtensionIntegrationTests : IDisposable
         var result = SharedDriver.Compile(options);
 
         if(!result.Succeeded || result.PrimaryOutputArtifactPath is null)
+        {
             return (result, string.Empty);
+        }
 
         // Run the compiled DLL (1 process spawn)
         var psi = new ProcessStartInfo

@@ -80,7 +80,9 @@ public class RecursiveDropChainingBugConditionPropertyTests
         var userParseResult = Parser.Parse(userTokens, diagnostics);
 
         if(userParseResult.Root is null)
+        {
             return (false, "", $"Failed to parse source:\n{source}");
+        }
 
         var allUnits = stdlibUnits.Add(userUnit);
         var allAsts = stdlibAsts.Add(userParseResult.Root);
@@ -117,12 +119,16 @@ public class RecursiveDropChainingBugConditionPropertyTests
 
         // Return just the test.cs content (the user's file)
         if(files.TryGetValue("test.cs", out var testContent))
+        {
             return (true, testContent, "");
+        }
 
         // Fallback: concatenate all emitted content
         var sb = new StringBuilder();
         foreach(var (_, content) in files)
+        {
             sb.AppendLine(content);
+        }
 
         return (true, sb.ToString(), "");
     }
@@ -350,8 +356,10 @@ public class RecursiveDropChainingBugConditionPropertyTests
         var (succeeded, csContent, errorText) = BuildAndEmit(source);
 
         if(!succeeded)
+        {
             return false.ToProperty()
                 .Label($"Compilation/emission failed for scenario: {scenario}\n{errorText}");
+        }
 
         // Inspect the emitted C# for the expected chaining pattern.
         //
@@ -431,7 +439,9 @@ public class RecursiveDropChainingBugConditionPropertyTests
                 for(var j = i + 1; j < Math.Min(i + 5, lines.Length); j++)
                 {
                     if(lines[j].Contains(localName))
+                    {
                         return lines[j];
+                    }
                 }
             }
         }

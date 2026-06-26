@@ -263,7 +263,9 @@ public sealed class CompilerDriver : ICompilerDriver
             var resolutionStopwatch = Stopwatch.StartNew();
 
             if(options.VerboseResolution)
+            {
                 progressReporter.ReportStageStart("1.5", "Package Resolution");
+            }
 
             var resolutionDiagnostics = new DiagnosticBag();
 
@@ -279,15 +281,23 @@ public sealed class CompilerDriver : ICompilerDriver
             // Merge assembly paths (union, dedupe by path)
             var mergedPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             foreach(var path in packageResult.AssemblyPaths)
+            {
                 mergedPaths.Add(path);
+            }
+
             foreach(var path in frameworkResult.AssemblyPaths)
+            {
                 mergedPaths.Add(path);
+            }
+
             resolvedAssemblyPaths = [.. mergedPaths];
 
             // Add diagnostics to the shared bag (they always surface through
             // normal diagnostic printing regardless of verbose).
             foreach(var d in resolutionDiagnostics.ToImmutableArray())
+            {
                 allDiagnostics.Add(d);
+            }
 
             resolutionStopwatch.Stop();
 
@@ -312,7 +322,9 @@ public sealed class CompilerDriver : ICompilerDriver
                 foreach(var pkg in packageResult.Resolved)
                 {
                     if(pkg.AssemblyCount == 0)
+                    {
                         details.Add($"{pkg.Name} contributed no assemblies for {options.TargetFramework}");
+                    }
                 }
 
                 // Elapsed ms
@@ -362,7 +374,9 @@ public sealed class CompilerDriver : ICompilerDriver
             {
                 tokenStreams[unit] = tokenStream;
                 if(unit.IsStdlib)
+                {
                     stdlibTokensForCache?.Add(tokenStream);
+                }
             }
             // If lex errors, skip parse for this unit (R16.3)
         }
@@ -370,7 +384,10 @@ public sealed class CompilerDriver : ICompilerDriver
         lexingStopwatch.Stop();
         var totalTokens = tokenStreams.Values.Sum(ts => ts.DefaultChannelTokens.Length);
         if(cachedStdlib.HasValue)
+        {
             totalTokens += cachedStdlib.Value.Tokens.Sum(ts => ts.DefaultChannelTokens.Length);
+        }
+
         progressReporter.ReportStageComplete("2", lexingStopwatch.Elapsed, new[]
         {
             $"{totalTokens} tokens",
@@ -413,7 +430,9 @@ public sealed class CompilerDriver : ICompilerDriver
                 parseResult.Root.SetParentLinks();
                 asts.Add(parseResult.Root);
                 if(unit.IsStdlib)
+                {
                     stdlibAstsForCache?.Add(parseResult.Root);
+                }
 
                 // Detect top-level statements in the parsed AST.
                 if(parseResult.Root is CompilationUnitNode cu
@@ -632,11 +651,15 @@ public sealed class CompilerDriver : ICompilerDriver
         ImmutableArray<CsprojProperty> csprojProperties)
     {
         if(csprojProperties.IsDefaultOrEmpty)
+        {
             return;
+        }
 
         var csprojPath = Path.Combine(outputDirectory, $"{projectName}.csproj");
         if(!File.Exists(csprojPath))
+        {
             return;
+        }
 
         var content = File.ReadAllText(csprojPath);
 
@@ -674,7 +697,9 @@ public sealed class CompilerDriver : ICompilerDriver
     {
         var csprojPath = Path.Combine(outputDirectory, $"{projectName}.csproj");
         if(!File.Exists(csprojPath))
+        {
             return;
+        }
 
         var content = File.ReadAllText(csprojPath);
 

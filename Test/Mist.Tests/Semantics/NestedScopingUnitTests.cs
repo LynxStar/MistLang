@@ -90,12 +90,16 @@ public sealed class NestedScopingUnitTests
     private static string? GetUserEmittedCSharp(CompilerResult result)
     {
         if(result.EmittedFiles is null)
+        {
             return null;
+        }
 
         foreach(var (_, content) in result.EmittedFiles)
         {
             if(content.Contains("namespace TestProgram"))
+            {
                 return content;
+            }
         }
 
         return null;
@@ -412,11 +416,19 @@ public sealed class NestedScopingUnitTests
         var depth = 0;
         for(var i = openBraceIndex; i < source.Length; i++)
         {
-            if(source[i] == '{') depth++;
-            else if(source[i] == '}') depth--;
+            if(source[i] == '{')
+            {
+                depth++;
+            }
+            else if(source[i] == '}')
+            {
+                depth--;
+            }
 
             if(depth == 0)
+            {
                 return i;
+            }
         }
         return -1;
     }

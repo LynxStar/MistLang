@@ -147,11 +147,15 @@ internal sealed class IntrinsicTypeMap
         {
             substitutedArgs[i] = SubstituteIntrinsics(ct.TypeArguments[i], stdlib);
             if(!ReferenceEquals(substitutedArgs[i], ct.TypeArguments[i]))
+            {
                 anyChanged = true;
+            }
         }
 
         if(!anyChanged)
+        {
             return ct;
+        }
 
         return new ConstructedType(
             substitutedDefinition,
@@ -232,7 +236,9 @@ internal sealed class IntrinsicTypeMap
             // Only process canonical "Standard.*" entries to avoid duplicates
             // from the legacy keyword entries (e.g., "int" → "int").
             if(!mistName.StartsWith("Standard.", StringComparison.Ordinal))
+            {
                 continue;
+            }
 
             // Map the C# name (keyword or qualified) → Mist name
             reversed.TryAdd(csharpName, mistName);

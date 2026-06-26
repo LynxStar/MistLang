@@ -1012,7 +1012,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     {
                         var usingName = ExtractQualifiedName(usingDecl.Name, sourceText);
                         if(!string.IsNullOrEmpty(usingName))
+                        {
                             allImportedNamespaces.Add(usingName);
+                        }
                     }
                     // Also collect using directives that appear after a file-scoped namespace
                     // (parsed as UsingItem top-level items rather than CompilationUnit.Usings).
@@ -1022,7 +1024,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         {
                             var usingName = ExtractQualifiedName(usingItem.UsingDeclaration.Name, sourceText);
                             if(!string.IsNullOrEmpty(usingName))
+                            {
                                 allImportedNamespaces.Add(usingName);
+                            }
                         }
                     }
                 }
@@ -1032,7 +1036,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     foreach(var globalNs in compilation.Units[i].GlobalUsings)
                     {
                         if(!string.IsNullOrEmpty(globalNs))
+                        {
                             allImportedNamespaces.Add(globalNs);
+                        }
                     }
                 }
             }
@@ -1183,11 +1189,15 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     {
         var fileDir = Path.GetDirectoryName(filePath);
         if(string.IsNullOrEmpty(fileDir))
+        {
             return namespaceRoot;
+        }
 
         var relativePath = Path.GetRelativePath(projectFolder, fileDir);
         if(relativePath == "." || string.IsNullOrEmpty(relativePath))
+        {
             return namespaceRoot;
+        }
 
         var segments = relativePath
             .Replace(Path.DirectorySeparatorChar, '.')
@@ -1355,7 +1365,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // Fast path: check the namespace scope map first.
         _namespaceScopeMap ??= new Dictionary<string, Scope>();
         if(_namespaceScopeMap.TryGetValue(namespaceName, out var cached))
+        {
             return cached;
+        }
 
         // Create a new namespace scope and register the namespace symbol.
         var namespaceScope = new Scope(parent: globalScope);
@@ -1412,7 +1424,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         foreach(var item in cu.Items)
         {
             if(item is not NamespaceItemTopLevelItemNode nsItem)
+            {
                 continue;
+            }
 
             var nsDecl = nsItem.NamespaceDeclaration;
 
@@ -1486,7 +1500,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         foreach(var bodyItem in bodyItems)
         {
             if(bodyItem is not NamespaceNamespaceItemNamespaceBodyItemNode nestedNsItem)
+            {
                 continue;
+            }
 
             var nestedNsDecl = nestedNsItem.NamespaceDeclaration;
 
@@ -1609,7 +1625,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         foreach(var symbol in symbolTable.AllSymbols)
         {
             if(symbol.Kind is not (SymbolKind.Class or SymbolKind.Struct or SymbolKind.Abstract or SymbolKind.Enum))
+            {
                 continue;
+            }
 
             var memberScope = symbol.DeclaredType switch
             {
@@ -1621,7 +1639,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             };
 
             if(memberScope is not null && ReferenceEquals(memberScope, typeScope))
+            {
                 return symbol.Name;
+            }
         }
 
         return null;
@@ -1664,7 +1684,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         var classDiscipline = ResolveDiscipline(classDecl.Modifiers);
         classType.Discipline = classDiscipline;
         if(classDiscipline is SubstructuralDiscipline.Affine or SubstructuralDiscipline.Linear)
+        {
             classType.IsOwnedType = true;
+        }
 
         var classSpan = ToMistSourceSpan(classDecl.Name.Span);
         var classSymbol = new Symbol(className, SymbolKind.Class, SymbolOrigin.UserCode, parentScope, classType, classSpan);
@@ -1708,7 +1730,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         var isCanonicalSpan = namespaceName == "Standard"
             && (structName == "Span" || structName == "ReadOnlySpan");
         if(isCanonicalSpan)
+        {
             isBackendBacked = true;
+        }
 
         var structType = new StructType(structName, typeScope, namespaceName, isBackendBacked);
 
@@ -1717,7 +1741,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
         structType.IsRefStruct = HasRefModifier(structDecl.Modifiers);
         if(isCanonicalSpan)
+        {
             structType.IsRefStruct = true;
+        }
 
         structType.IsOwnedType = HasOwnedModifier(structDecl.Modifiers);
 
@@ -1729,7 +1755,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         var structDiscipline = ResolveDiscipline(structDecl.Modifiers);
         structType.Discipline = structDiscipline;
         if(structDiscipline is SubstructuralDiscipline.Affine or SubstructuralDiscipline.Linear)
+        {
             structType.IsOwnedType = true;
+        }
 
         var structSpan = ToMistSourceSpan(structDecl.Name.Span);
         var structSymbol = new Symbol(structName, SymbolKind.Struct, SymbolOrigin.UserCode, parentScope, structType, structSpan);
@@ -1907,7 +1935,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         foreach(var member in parentScope.Members)
         {
             if(member.Name != aliasName)
+            {
                 continue;
+            }
 
             // Compute the existing member's arity. Aliases registered in Pass 1 have a
             // null DeclaredType, so fall back to the symbol's TypeParameters list.
@@ -1921,7 +1951,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
             // Different arity — not a conflict (arity-based overloading).
             if(memberArity != aliasArity)
+            {
                 continue;
+            }
 
             diagnostics.Add(MakeDiagnosticWithLocation(
                 DuplicateTypeAlias.Value,
@@ -2337,7 +2369,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         foreach(var ns in importedNamespaces)
         {
             var ambientExtensions = assemblyProvider.GetExtensionMethodsInNamespace(ns);
-            if(ambientExtensions.Count == 0) continue;
+            if(ambientExtensions.Count == 0)
+            {
+                continue;
+            }
 
             // Group by (receiver CLR type, containing class) so that each ExtensionBlockInfo
             // has the correct AmbientStaticClassName for emission. Different static classes
@@ -2364,7 +2399,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
                 // Skip if receiver type projection fails (returns ErrorType or UnknownType).
                 if(receiverType is ErrorType or UnknownType)
+                {
                     continue;
+                }
 
                 var memberScope = new Scope(parent: null);
 
@@ -2375,7 +2412,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
                     // Skip if return type projection fails.
                     if(returnType is ErrorType)
+                    {
                         continue;
+                    }
 
                     var methodSymbol = new Symbol(
                         ext.MethodName,
@@ -2403,7 +2442,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
                 // Only register if at least one method was successfully projected.
                 if(memberScope.Members.Count == 0)
+                {
                     continue;
+                }
 
                 // Collect type parameters referenced in the receiver type.
                 // For generic ambient extension methods (e.g., Count<TSource>(this IEnumerable<TSource>)),
@@ -2446,7 +2487,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         {
             // Avoid duplicates (same type parameter referenced multiple times).
             if(!result.Any(existing => existing.Name == tp.Name && existing.Ordinal == tp.Ordinal))
+            {
                 result.Add(tp);
+            }
         }
         else if(type is ConstructedType ct)
         {
@@ -2502,7 +2545,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     {
                         containingUnit = compilation.Units[i];
                         if(i < asts.Length && asts[i] is CompilationUnitNode cu)
+                        {
                             containingCu = cu;
+                        }
+
                         break;
                     }
                 }
@@ -2527,9 +2573,14 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                             }
                         }
                         if(!nsExists && ambientTypeResolver is not null)
+                        {
                             nsExists = ambientTypeResolver.HasNamespace(usingName);
+                        }
+
                         if(nsExists)
+                        {
                             fileScope.AddImportedNamespace(usingName);
+                        }
                     }
                 }
                 // Also collect using directives that appear after a file-scoped namespace
@@ -2551,9 +2602,14 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                                 }
                             }
                             if(!nsExists && ambientTypeResolver is not null)
+                            {
                                 nsExists = ambientTypeResolver.HasNamespace(usingName);
+                            }
+
                             if(nsExists)
+                            {
                                 fileScope.AddImportedNamespace(usingName);
+                            }
                         }
                     }
                 }
@@ -2576,9 +2632,14 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                             }
                         }
                         if(!nsExists && ambientTypeResolver is not null)
+                        {
                             nsExists = ambientTypeResolver.HasNamespace(globalNs);
+                        }
+
                         if(nsExists)
+                        {
                             fileScope.AddImportedNamespace(globalNs);
+                        }
                     }
                 }
             }
@@ -2589,7 +2650,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
             // Skip blocks that failed receiver resolution in Phase A.
             if(receiverType is ErrorType || receiverType.IsVoid())
+            {
                 continue;
+            }
 
             // Get the receiver parameter name for static receiver access validation.
             var receiverName = extDecl.ReceiverName.Lexeme;
@@ -2709,7 +2772,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         foreach(var (receiverType, blocks) in extensionRegistry.AllGroups)
         {
             if(blocks.Count < 1)
+            {
                 continue;
+            }
 
             // Collect all member symbols across all extension blocks for this receiver type.
             // Track which block each member came from for diagnostic reporting.
@@ -2731,7 +2796,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             {
                 var groupList = group.ToList();
                 if(groupList.Count <= 1)
+                {
                     continue;
+                }
 
                 // Track which members have already been reported as duplicates.
                 var reported = new HashSet<int>();
@@ -2741,7 +2808,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     for(var j = i + 1; j < groupList.Count; j++)
                     {
                         if(reported.Contains(j))
+                        {
                             continue;
+                        }
 
                         var (symbolA, blockA) = groupList[i];
                         var (symbolB, blockB) = groupList[j];
@@ -2751,7 +2820,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         // by definition. The type projector may map different generic type
                         // parameters to the same display name, causing false positives.
                         if(blockA.IsAmbient && blockB.IsAmbient)
+                        {
                             continue;
+                        }
 
                         // For properties, same name is sufficient for a duplicate.
                         if(symbolA.Kind == SymbolKind.Property && symbolB.Kind == SymbolKind.Property)
@@ -2977,7 +3048,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         DiagnosticBag diagnostics)
     {
         if(modifiedDecl.Modifiers.Length == 0)
+        {
             return;
+        }
 
         // Point to the first modifier node.
         var firstModifier = modifiedDecl.Modifiers[0];
@@ -3181,7 +3254,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         foreach(var symbol in symbolTable.AllSymbols)
         {
             if(symbol.Kind is not (SymbolKind.Class or SymbolKind.Struct))
+            {
                 continue;
+            }
 
             var memberScope = symbol.DeclaredType switch
             {
@@ -3198,7 +3273,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         }
 
         if(containingType is null)
+        {
             return;
+        }
 
         var defaultBlockNode = defaultBlockMember.DefaultBlock;
 
@@ -3420,13 +3497,17 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             case NamedSingleTypeRefSingleTypeRefNode namedRef:
                 var lexeme = namedRef.Name.IDENTIFIER.Lexeme;
                 if(!string.IsNullOrEmpty(lexeme))
+                {
                     return lexeme;
+                }
                 // Fallback: extract from the QualifiedIdentifier's source span.
                 if(sourceText is not null)
                 {
                     var span = namedRef.Name.Span;
                     if(span.Length > 0 && span.Start + span.Length <= sourceText.Contents.Length)
+                    {
                         return sourceText.Contents.Substring(span.Start, span.Length);
+                    }
                 }
                 // Last resort: extract from the TypeReference's own span (covers
                 // cases where the QualifiedIdentifier span is zero but the
@@ -3464,7 +3545,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         foreach(var modifier in modifiers)
         {
             if(modifier is IntrinsicModifierModifierNode)
+            {
                 return true;
+            }
         }
         return false;
     }
@@ -3474,7 +3557,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         foreach(var modifier in modifiers)
         {
             if(modifier is ReadonlyModifierModifierNode)
+            {
                 return true;
+            }
         }
         return false;
     }
@@ -3484,7 +3569,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         foreach(var modifier in modifiers)
         {
             if(modifier is OwnedModifierModifierNode)
+            {
                 return true;
+            }
         }
         return false;
     }
@@ -3494,7 +3581,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         foreach(var modifier in modifiers)
         {
             if(modifier is RefModifierModifierNode)
+            {
                 return true;
+            }
         }
         return false;
     }
@@ -3504,7 +3593,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         foreach(var modifier in modifiers)
         {
             if(modifier is AffineModifierModifierNode)
+            {
                 return true;
+            }
         }
         return false;
     }
@@ -3514,7 +3605,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         foreach(var modifier in modifiers)
         {
             if(modifier is LinearModifierModifierNode)
+            {
                 return true;
+            }
         }
         return false;
     }
@@ -3524,7 +3617,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         foreach(var modifier in modifiers)
         {
             if(modifier is RelevantModifierModifierNode)
+            {
                 return true;
+            }
         }
         return false;
     }
@@ -3553,21 +3648,33 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
         // No substructural modifier — discipline is None (owned/unrestricted governed elsewhere).
         if(substructuralCount == 0)
+        {
             return SubstructuralDiscipline.None;
+        }
 
         // More than one substructural modifier is a conflict — resolve to None.
         if(substructuralCount > 1)
+        {
             return SubstructuralDiscipline.None;
+        }
 
         // affine/linear imply owned; combining with explicit owned is redundant (conflict).
         // relevant must be aliasable; combining with owned is contradictory (conflict).
         if(hasOwned)
+        {
             return SubstructuralDiscipline.None;
+        }
 
         if(hasAffine)
+        {
             return SubstructuralDiscipline.Affine;
+        }
+
         if(hasLinear)
+        {
             return SubstructuralDiscipline.Linear;
+        }
+
         return SubstructuralDiscipline.Relevant;
     }
 
@@ -3589,7 +3696,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         foreach(var symbol in symbolTable.AllSymbols)
         {
             if(symbol.Kind is not (SymbolKind.Class or SymbolKind.Struct))
+            {
                 continue;
+            }
 
             var type = symbol.DeclaredType;
             var memberScope = type switch
@@ -3600,23 +3709,31 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             };
 
             if(memberScope is null)
+            {
                 continue;
+            }
 
             foreach(var member in memberScope.Members)
             {
                 if(member.Kind != SymbolKind.Method || member.Name != "Drop")
+                {
                     continue;
+                }
 
                 // Drop() must accept zero parameters to be recognized as the type's
                 // drop method. Parameter count is taken from the declaring AST node
                 // (Mist-declared methods store parameters in the AST, not on the symbol).
                 var declaringNode = symbolTable.GetDeclaringNode(member);
                 if(declaringNode is not MethodDeclarationNode methodDecl)
+                {
                     continue;
+                }
 
                 var parameterCount = ExtractParameterTypes(methodDecl.Parameters).Count;
                 if(parameterCount != 0)
+                {
                     continue;
+                }
 
                 // Determine the Drop() return type. The developer-written return type is
                 // recorded on DeclaredReturnType; null DropReturnType means void.
@@ -3654,7 +3771,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         foreach(var symbol in symbolTable.AllSymbols)
         {
             if(symbol.Kind is not (SymbolKind.Class or SymbolKind.Struct))
+            {
                 continue;
+            }
 
             var type = symbol.DeclaredType;
             var isOwnedType = type switch
@@ -3665,7 +3784,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             };
 
             if(!isOwnedType)
+            {
                 continue;
+            }
 
             var memberScope = type switch
             {
@@ -3675,21 +3796,30 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             };
 
             if(memberScope is null)
+            {
                 continue;
+            }
 
             foreach(var member in memberScope.Members)
             {
                 if(member.Kind != SymbolKind.Field)
+                {
                     continue;
+                }
+
                 if(member is not Symbol fieldSym)
+                {
                     continue;
+                }
 
                 // Skip static fields — check via the declaring AST node since
                 // Symbol.IsStatic is not set during field registration.
                 var declaringNode = symbolTable.GetDeclaringNode(member);
                 if(declaringNode is FieldDeclarationNode fieldDecl
                     && fieldDecl.Modifiers.Any(m => m is StaticModifierModifierNode))
+                {
                     continue;
+                }
 
                 // Mark all instance fields of owned types as owned (Req 3 AC 1).
                 fieldSym.IsOwnedField = true;
@@ -3792,7 +3922,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         DiagnosticBag diagnostics)
     {
         if(typeParamList is null)
+        {
             return Array.Empty<IType>();
+        }
 
         var typeParams = new List<IType>();
         var seenNames = new HashSet<string>();
@@ -3910,7 +4042,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     {
         var typeParams = ExtractTypeParameters(typeParamList, typeName, sourceText, diagnostics);
         if(typeParams.Count == 0)
+        {
             return;
+        }
 
         // Store type parameters on the declaring type.
         switch(declaringType)
@@ -3951,13 +4085,17 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         DiagnosticBag diagnostics)
     {
         if(typeParamList is null)
+        {
             return;
+        }
 
         // For method type parameters, we don't check shadowing against the enclosing type name
         // (that's only for type-level type parameters). We only check for duplicates.
         var typeParams = ExtractTypeParameters(typeParamList, enclosingTypeName: null, sourceText, diagnostics);
         if(typeParams.Count == 0)
+        {
             return;
+        }
 
         // Store type parameters on the method symbol.
         methodSymbol.TypeParameters = typeParams;
@@ -3992,11 +4130,15 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     private static Common.Text.SourceSpan? GetTypeParameterSpan(TypeParameterListNode typeParamList, int ordinal)
     {
         if(ordinal == 0)
+        {
             return ToMistSourceSpan(typeParamList.TypeParameter.GetName().Span);
+        }
 
         var index = ordinal - 1;
         if(index < typeParamList.TypeParameters.Length)
+        {
             return ToMistSourceSpan(typeParamList.TypeParameters[index].GetName().Span);
+        }
 
         return null;
     }
@@ -4023,14 +4165,18 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         DiagnosticBag diagnostics)
     {
         if(typeParameters.Count == 0)
+        {
             return;
+        }
 
         var seenDependentNames = new HashSet<string>(StringComparer.Ordinal);
 
         foreach(var tp in typeParameters)
         {
             if(tp is not DependentTypeParameterType depParam)
+            {
                 continue;
+            }
 
             var paramName = depParam.Name;
 
@@ -4090,7 +4236,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             // When an intrinsic declaration already provides the value accessor, skip
             // generating the implicit property to avoid duplicates in the scope.
             if(hasCollision)
+            {
                 continue;
+            }
 
             // Generate the implicit property even if there's a collision
             // (the dependent parameter takes precedence per design doc).
@@ -4129,12 +4277,16 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         DiagnosticBag diagnostics)
     {
         if(typeParameters.Count == 0)
+        {
             return;
+        }
 
         foreach(var tp in typeParameters)
         {
             if(tp is not DependentTypeParameterType depParam)
+            {
                 continue;
+            }
 
             // Register the dependent parameter name as a compile-time constant
             // in the method's lexical scope so it can be resolved within the method body.
@@ -4199,11 +4351,19 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     break;
                 case BlockGetAccessorAccessorDeclarationNode blockGet:
                     getAccessor = new AccessorInfo { Kind = AccessorKind.Get, BodyKind = AccessorBodyKind.Block, Modifier = blockGet.AccessorModifier };
-                    if(ContainsFieldKeyword(blockGet.Body)) usesFieldKeyword = true;
+                    if(ContainsFieldKeyword(blockGet.Body))
+                    {
+                        usesFieldKeyword = true;
+                    }
+
                     break;
                 case ExpressionGetAccessorAccessorDeclarationNode exprGet:
                     getAccessor = new AccessorInfo { Kind = AccessorKind.Get, BodyKind = AccessorBodyKind.Expression, Modifier = exprGet.AccessorModifier };
-                    if(ContainsFieldKeywordInExpression(exprGet.Expression)) usesFieldKeyword = true;
+                    if(ContainsFieldKeywordInExpression(exprGet.Expression))
+                    {
+                        usesFieldKeyword = true;
+                    }
+
                     break;
                 case AutoSetAccessorAccessorDeclarationNode autoSet:
                     setAccessor = new AccessorInfo { Kind = AccessorKind.Set, BodyKind = AccessorBodyKind.Auto, Modifier = autoSet.AccessorModifier };
@@ -4211,11 +4371,19 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     break;
                 case BlockSetAccessorAccessorDeclarationNode blockSet:
                     setAccessor = new AccessorInfo { Kind = AccessorKind.Set, BodyKind = AccessorBodyKind.Block, Modifier = blockSet.AccessorModifier };
-                    if(ContainsFieldKeyword(blockSet.Body)) usesFieldKeyword = true;
+                    if(ContainsFieldKeyword(blockSet.Body))
+                    {
+                        usesFieldKeyword = true;
+                    }
+
                     break;
                 case ExpressionSetAccessorAccessorDeclarationNode exprSet:
                     setAccessor = new AccessorInfo { Kind = AccessorKind.Set, BodyKind = AccessorBodyKind.Expression, Modifier = exprSet.AccessorModifier };
-                    if(ContainsFieldKeywordInExpression(exprSet.Expression)) usesFieldKeyword = true;
+                    if(ContainsFieldKeywordInExpression(exprSet.Expression))
+                    {
+                        usesFieldKeyword = true;
+                    }
+
                     break;
                 case AutoInitAccessorAccessorDeclarationNode autoInit:
                     initAccessor = new AccessorInfo { Kind = AccessorKind.Init, BodyKind = AccessorBodyKind.Auto, Modifier = autoInit.AccessorModifier };
@@ -4223,11 +4391,19 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     break;
                 case BlockInitAccessorAccessorDeclarationNode blockInit:
                     initAccessor = new AccessorInfo { Kind = AccessorKind.Init, BodyKind = AccessorBodyKind.Block, Modifier = blockInit.AccessorModifier };
-                    if(ContainsFieldKeyword(blockInit.Body)) usesFieldKeyword = true;
+                    if(ContainsFieldKeyword(blockInit.Body))
+                    {
+                        usesFieldKeyword = true;
+                    }
+
                     break;
                 case ExpressionInitAccessorAccessorDeclarationNode exprInit:
                     initAccessor = new AccessorInfo { Kind = AccessorKind.Init, BodyKind = AccessorBodyKind.Expression, Modifier = exprInit.AccessorModifier };
-                    if(ContainsFieldKeywordInExpression(exprInit.Expression)) usesFieldKeyword = true;
+                    if(ContainsFieldKeywordInExpression(exprInit.Expression))
+                    {
+                        usesFieldKeyword = true;
+                    }
+
                     break;
             }
         }
@@ -4345,7 +4521,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             var intrinsicSymbol = new Symbol(intrinsicName, SymbolKind.Indexer, SymbolOrigin.UserCode, typeScope, declaredType: null, intrinsicSpan);
             intrinsicSymbol.PropertyMetadata = intrinsicPropertyInfo;
             if(HasReadonlyModifier(indexerDecl.Modifiers))
+            {
                 intrinsicSymbol.ReadonlyStatus = ReadonlyStatus.ExplicitReadonly;
+            }
+
             typeScope.AddMember(intrinsicSymbol);
             symbolTable.Register(intrinsicSymbol, indexerDecl);
             return;
@@ -4429,7 +4608,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         foreach(var child in block.Children())
         {
             if(ContainsFieldKeywordInNode(child))
+            {
                 return true;
+            }
         }
         return false;
     }
@@ -4448,12 +4629,16 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     private static bool ContainsFieldKeywordInNode(Storm.Runtime.SyntaxNode node)
     {
         if(node is FieldKeywordExpressionPrimaryNode)
+        {
             return true;
+        }
 
         foreach(var child in node.Children())
         {
             if(child is not null && ContainsFieldKeywordInNode(child))
+            {
                 return true;
+            }
         }
         return false;
     }
@@ -4499,11 +4684,15 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         foreach(var typeSymbol in symbolTable.AllSymbols)
         {
             if(typeSymbol.Kind != SymbolKind.Class && typeSymbol.Kind != SymbolKind.Struct)
+            {
                 continue;
+            }
 
             var containingType = typeSymbol.DeclaredType;
             if(containingType is null)
+            {
                 continue;
+            }
 
             var isBackendBacked = containingType switch
             {
@@ -4539,12 +4728,16 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 _ => null,
             };
             if(memberScope is null)
+            {
                 continue;
+            }
 
             foreach(var member in memberScope.Members)
             {
                 if(member is not Symbol memberSymbol || !memberSymbol.IsIntrinsic)
+                {
                     continue;
+                }
 
                 // Only validate members that can carry 'intrinsic': methods,
                 // constructors, and operators (operators are registered as
@@ -4620,7 +4813,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // span starts at 0).
         var declaringNode = symbolTable.GetDeclaringNode(typeSymbol);
         if(declaringNode is null)
+        {
             return false;
+        }
 
         for(var i = 0; i < asts.Length; i++)
         {
@@ -4699,7 +4894,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         foreach(var symbol in symbolTable.AllSymbols)
         {
             if(symbolTable.GetDeclaringNode(symbol) is not OperatorDeclarationNode opDecl)
+            {
                 continue;
+            }
 
             var sourceText = GetSourceTextFromOrigin(opDecl);
             var opLexeme = GetOperatorSymbolLexeme(opDecl.Symbol);
@@ -4760,8 +4957,15 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             var hasStatic = false;
             foreach(var modifier in opDecl.Modifiers)
             {
-                if(modifier is PublicModifierModifierNode) hasPublic = true;
-                if(modifier is StaticModifierModifierNode) hasStatic = true;
+                if(modifier is PublicModifierModifierNode)
+                {
+                    hasPublic = true;
+                }
+
+                if(modifier is StaticModifierModifierNode)
+                {
+                    hasStatic = true;
+                }
             }
 
             if(!hasPublic || !hasStatic)
@@ -4816,7 +5020,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             foreach(var typeSymbol in symbolTable.AllSymbols)
             {
                 if(typeSymbol.Kind != SymbolKind.Class && typeSymbol.Kind != SymbolKind.Struct)
+                {
                     continue;
+                }
 
                 var memberScope = typeSymbol.DeclaredType switch
                 {
@@ -4826,7 +5032,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 };
 
                 if(memberScope is not null && ReferenceEquals(memberScope, s))
+                {
                     return true;
+                }
             }
         }
 
@@ -4877,7 +5085,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         foreach(var symbol in symbolTable.AllSymbols)
         {
             if(symbolTable.GetDeclaringNode(symbol) is not CastOperatorDeclarationNode castOpDecl)
+            {
                 continue;
+            }
 
             var sourceText = GetSourceTextFromOrigin(castOpDecl);
 
@@ -4903,8 +5113,15 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             var hasStatic = false;
             foreach(var modifier in castOpDecl.Modifiers)
             {
-                if(modifier is PublicModifierModifierNode) hasPublic = true;
-                if(modifier is StaticModifierModifierNode) hasStatic = true;
+                if(modifier is PublicModifierModifierNode)
+                {
+                    hasPublic = true;
+                }
+
+                if(modifier is StaticModifierModifierNode)
+                {
+                    hasStatic = true;
+                }
             }
 
             if(!hasPublic || !hasStatic)
@@ -4989,7 +5206,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // 1. Normal scope chain lookup.
         var result = parentScope.Lookup(name);
         if(result is not null)
+        {
             return result;
+        }
 
         // 2. Find the compilation unit containing this declaration.
         CompilationUnitNode? containingCu = null;
@@ -5005,7 +5224,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         }
 
         if(containingCu is null)
+        {
             return null;
+        }
 
         // Find the source text for this compilation unit (needed for ExtractQualifiedName).
         SourceText? sourceText = containingCuIndex < compilation.Units.Length
@@ -5017,18 +5238,24 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         {
             var usingName = ExtractQualifiedName(usingDecl.Name, sourceText);
             if(string.IsNullOrEmpty(usingName))
+            {
                 continue;
+            }
 
             // Find the namespace scope for this using directive.
             var nsScope = FindExistingNamespaceScope(globalScope, symbolTable, usingName);
             if(nsScope is null)
+            {
                 continue;
+            }
 
             // Search the namespace scope for the name (non-recursive, direct members only).
             foreach(var member in nsScope.Members)
             {
                 if(member.Name == name)
+                {
                     return member;
+                }
             }
         }
         // Also search using directives that appear after a file-scoped namespace
@@ -5039,16 +5266,22 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             {
                 var usingName = ExtractQualifiedName(usingItem.UsingDeclaration.Name, sourceText);
                 if(string.IsNullOrEmpty(usingName))
+                {
                     continue;
+                }
 
                 var nsScope = FindExistingNamespaceScope(globalScope, symbolTable, usingName);
                 if(nsScope is null)
+                {
                     continue;
+                }
 
                 foreach(var member in nsScope.Members)
                 {
                     if(member.Name == name)
+                    {
                         return member;
+                    }
                 }
             }
         }
@@ -5064,7 +5297,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             {
                 var usingName = ExtractQualifiedName(usingDecl.Name, sourceText);
                 if(!string.IsNullOrEmpty(usingName))
+                {
                     importedNamespaces.Add(usingName);
+                }
             }
             foreach(var item in containingCu.Items)
             {
@@ -5072,7 +5307,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 {
                     var usingName = ExtractQualifiedName(usingItem.UsingDeclaration.Name, sourceText);
                     if(!string.IsNullOrEmpty(usingName))
+                    {
                         importedNamespaces.Add(usingName);
+                    }
                 }
             }
             // Also include global usings from the compilation unit.
@@ -5081,7 +5318,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 foreach(var globalNs in compilation.Units[containingCuIndex].GlobalUsings)
                 {
                     if(!string.IsNullOrEmpty(globalNs))
+                    {
                         importedNamespaces.Add(globalNs);
+                    }
                 }
             }
 
@@ -5260,23 +5499,33 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         foreach(var symbol in symbolTable.AllSymbols)
         {
             if(symbol.Kind != SymbolKind.Struct || symbol.DeclaredType is not StructType structType)
+            {
                 continue;
+            }
 
             var declaringNode = symbolTable.GetDeclaringNode(symbol);
             if(declaringNode is not StructDeclarationNode structDecl)
+            {
                 continue;
+            }
 
             if(structDecl.Abstracts is null)
+            {
                 continue;
+            }
 
             var entries = ExtractBaseListEntries(structDecl.Abstracts);
             if(entries.Count == 0)
+            {
                 continue;
+            }
 
             var firstEntry = entries[0];
             var firstName = firstEntry.Name.Lexeme;
             if(string.IsNullOrEmpty(firstName))
+            {
                 continue;
+            }
 
             var parentScope = symbol.ContainingScope;
             var resolvedSymbol = LookupWithUsings(
@@ -5337,10 +5586,14 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         foreach(var symbol in symbolTable.AllSymbols)
         {
             if(symbol.Kind != SymbolKind.Struct || symbol.DeclaredType is not StructType structType)
+            {
                 continue;
+            }
 
             if(structType.BaseType is null)
+            {
                 continue;
+            }
 
             // BaseType may be a StructType directly or a ConstructedType
             // wrapping a StructType (for generic struct inheritance).
@@ -5348,10 +5601,14 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 ?? (structType.BaseType as ConstructedType)?.GenericDefinition as StructType;
 
             if(baseStruct is null)
+            {
                 continue;
+            }
 
             if(structType.MemberScope is not Scope derivedScope)
+            {
                 continue;
+            }
 
             // Collect names already declared directly on the derived struct
             // so we don't overwrite them with inherited members.
@@ -5369,16 +5626,22 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 {
                     // Only inject fields, methods, and properties.
                     if(member.Kind is not (SymbolKind.Field or SymbolKind.Method or SymbolKind.Property))
+                    {
                         continue;
+                    }
 
                     // Skip members already present in the derived scope (either
                     // declared directly or inherited from a closer ancestor).
                     if(declaredNames.Contains(member.Name))
+                    {
                         continue;
+                    }
 
                     // Only inject public members.
                     if(!IsMemberPublic(member, symbolTable))
+                    {
                         continue;
+                    }
 
                     derivedScope.AddMember(member);
                     declaredNames.Add(member.Name);
@@ -5401,10 +5664,14 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     private static IType? UnwrapTypeForwards(IType? type)
     {
         while(type is TypeAliasType alias)
+        {
             type = alias.UnderlyingType;
+        }
 
         if(type is NewtypeType newtype)
+        {
             type = newtype.SourceType;
+        }
 
         return type;
     }
@@ -5571,7 +5838,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // Collect all TypeArgumentNode entries in order.
         var argNodes = new List<TypeArgumentNode> { typeArgList.TypeArgument };
         foreach(var extra in typeArgList.TypeArguments)
+        {
             argNodes.Add(extra);
+        }
 
         var resolvedTypeArgs = new List<IType>(argNodes.Count);
         List<DependentValueArgument?>? dependentArgs = null;
@@ -5643,7 +5912,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 {
                     var valueText = intLit.Literal.Lexeme;
                     if(long.TryParse(valueText, out var value))
+                    {
                         return (new DependentValueArgument(value, depParam.ValueType, valueText), null);
+                    }
+
                     return (new DependentValueArgument(0L, depParam.ValueType, valueText), null);
                 }
 
@@ -5651,7 +5923,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 {
                     var valueText = negLit.Literal.Lexeme;
                     if(long.TryParse(valueText, out var value))
+                    {
                         return (new DependentValueArgument(-value, depParam.ValueType, $"-{valueText}"), null);
+                    }
+
                     return (new DependentValueArgument(0L, depParam.ValueType, $"-{valueText}"), null);
                 }
 
@@ -5661,7 +5936,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     var hexStr = valueText.StartsWith("0x", StringComparison.OrdinalIgnoreCase)
                         ? valueText[2..] : valueText;
                     if(long.TryParse(hexStr, System.Globalization.NumberStyles.HexNumber, null, out var value))
+                    {
                         return (new DependentValueArgument(value, depParam.ValueType, valueText), null);
+                    }
+
                     return (new DependentValueArgument(0L, depParam.ValueType, valueText), null);
                 }
 
@@ -5711,7 +5989,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                             {
                                 var srcTextForArg = GetSourceTextFromOrigin(declaringNode);
                                 if(srcTextForArg is not null && span.Start + span.Length <= srcTextForArg.Contents.Length)
+                                {
                                     argName = srcTextForArg.Contents.Substring(span.Start, span.Length);
+                                }
                             }
                         }
 
@@ -5768,7 +6048,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             case PrimitiveSingleTypeRefSingleTypeRefNode primitiveRef:
                 var baseType = ResolvePrimitiveType(primitiveRef.PrimitiveType);
                 if(primitiveRef.ArrayRank is not null)
+                {
                     return new ArrayType(baseType);
+                }
+
                 return baseType;
 
             case VoidSingleTypeRefSingleTypeRefNode:
@@ -5883,7 +6166,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         }
 
                         if(namedRef.ArrayRank is not null)
+                        {
                             return new ArrayType(resolvedType);
+                        }
 
                         return resolvedType;
                     }
@@ -5911,13 +6196,19 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     elementTypes.Add(ResolveTypeArgFromTypeReference(tupleRef.First.Type, declaringType, declaringNode, asts, compilation, diagnostics));
                     var firstName = tupleRef.First.Name?.Lexeme;
                     elementNames.Add(firstName);
-                    if(firstName is not null) hasAnyName = true;
+                    if(firstName is not null)
+                    {
+                        hasAnyName = true;
+                    }
 
                     // Resolve Rest element.
                     elementTypes.Add(ResolveTypeArgFromTypeReference(tupleRef.Rest.Type, declaringType, declaringNode, asts, compilation, diagnostics));
                     var restName = tupleRef.Rest.Name?.Lexeme;
                     elementNames.Add(restName);
-                    if(restName is not null) hasAnyName = true;
+                    if(restName is not null)
+                    {
+                        hasAnyName = true;
+                    }
 
                     // Resolve additional elements.
                     foreach(var additional in tupleRef.TupleTypeElements)
@@ -5925,7 +6216,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         elementTypes.Add(ResolveTypeArgFromTypeReference(additional.Type, declaringType, declaringNode, asts, compilation, diagnostics));
                         var additionalName = additional.Name?.Lexeme;
                         elementNames.Add(additionalName);
-                        if(additionalName is not null) hasAnyName = true;
+                        if(additionalName is not null)
+                        {
+                            hasAnyName = true;
+                        }
                     }
 
                     return new TupleType(elementTypes, hasAnyName ? elementNames : null);
@@ -6020,14 +6314,19 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             {
                 case TypeItemTopLevelItemNode typeItem:
                     if(typeItem.TypeDeclaration is ClassTypeTypeDeclarationNode ct && ReferenceEquals(ct.ClassDeclaration, classDecl))
+                    {
                         return true;
+                    }
+
                     break;
                 case NamespaceItemTopLevelItemNode nsItem:
                     var namespaceTypes = GetNamespaceBodyTypes(nsItem.NamespaceDeclaration);
                     foreach(var typeDecl in namespaceTypes)
                     {
                         if(typeDecl is ClassTypeTypeDeclarationNode nsCt && ReferenceEquals(nsCt.ClassDeclaration, classDecl))
+                        {
                             return true;
+                        }
                     }
                     break;
             }
@@ -6107,11 +6406,15 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     {
         var declaringNode = symbolTable.GetDeclaringNode(classSymbol);
         if(declaringNode is not ClassDeclarationNode classDecl)
+        {
             return;
+        }
 
         // No base clause means no base class and no abstract types.
         if(classDecl.BaseList is null)
+        {
             return;
+        }
 
         // Collect all BaseTypeRefNode entries from the base list.
         var allEntries = new List<BaseTypeRefNode>();
@@ -6130,7 +6433,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             // The first name was NOT resolved as a base class. Check if it's an abstract type.
             var firstName = allEntries[0].Name.Lexeme;
             if(string.IsNullOrEmpty(firstName))
+            {
                 return;
+            }
 
             var parentScope = classSymbol.ContainingScope;
             var resolvedSymbol = LookupWithUsings(
@@ -6221,14 +6526,20 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     {
         var declaringNode = symbolTable.GetDeclaringNode(structSymbol);
         if(declaringNode is not StructDeclarationNode structDecl)
+        {
             return;
+        }
 
         if(structDecl.Abstracts is null)
+        {
             return;
+        }
 
         var entries = ExtractBaseListEntries(structDecl.Abstracts);
         if(entries.Count == 0)
+        {
             return;
+        }
 
         // If Pass1_ResolveStructBaseTypes consumed the first entry as a base struct, skip it.
         var startIndex = structType.BaseType is not null ? 1 : 0;
@@ -6239,7 +6550,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         {
             var name = entries[i].Name.Lexeme;
             if(string.IsNullOrEmpty(name))
+            {
                 continue;
+            }
 
             var resolvedSymbol = LookupWithUsings(
                 name, parentScope, structDecl, asts, globalScope, symbolTable, compilation, ambientTypeResolver);
@@ -6289,14 +6602,20 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     {
         var declaringNode = symbolTable.GetDeclaringNode(abstractSymbol);
         if(declaringNode is not AbstractDeclarationNode abstractDecl)
+        {
             return;
+        }
 
         if(abstractDecl.Abstracts is null)
+        {
             return;
+        }
 
         var entries = ExtractBaseListEntries(abstractDecl.Abstracts);
         if(entries.Count == 0)
+        {
             return;
+        }
 
         var parentScope = abstractSymbol.ContainingScope;
         var resolvedAbstracts = ResolveAbstractEntries(
@@ -6429,7 +6748,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         {
             var name = entry.Name.Lexeme;
             if(string.IsNullOrEmpty(name))
+            {
                 continue;
+            }
 
             var resolvedSymbol = LookupWithUsings(
                 name, parentScope, declaringNode, asts, globalScope, symbolTable, compilation, ambientTypeResolver);
@@ -6598,12 +6919,16 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         {
             var declaringNode = symbolTable.GetDeclaringNode(symbol);
             if(declaringNode is null)
+            {
                 continue;
+            }
 
             // Get the constraint clauses and type parameters for this declaration.
             var (constraintClauses, typeParameters) = GetConstraintClausesAndTypeParams(symbol, declaringNode);
             if(constraintClauses.IsDefaultOrEmpty || typeParameters.Count == 0)
+            {
                 continue;
+            }
 
             var sourceText = GetSourceTextForSymbol(symbol, symbolTable)
                 ?? GetSourceTextFromOrigin(declaringNode);
@@ -6618,7 +6943,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 // AdhocRefinementConstraintWhereClauseNode is processed in
                 // Pass2_ResolveAdhocRefinementConstraints after parameter symbols exist.
                 if(clause is not GenericConstraintClauseWhereClauseNode genericClause)
+                {
                     continue;
+                }
 
                 var typeParamName = genericClause.Name.Lexeme;
 
@@ -6663,11 +6990,15 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         foreach(var symbol in symbolTable.AllSymbols)
         {
             if(symbol.DeclaredType is not AssociatedTypeSlotType slotType)
+            {
                 continue;
+            }
 
             var declaringNode = symbolTable.GetDeclaringNode(symbol);
             if(declaringNode is not AssociatedTypeSlotDeclarationNode slotDecl)
+            {
                 continue;
+            }
 
             var sourceText = GetSourceTextForSymbol(symbol, symbolTable)
                 ?? GetSourceTextFromOrigin(declaringNode);
@@ -6712,14 +7043,21 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             };
 
             if(typeParameters is null || typeParameters.Count == 0)
+            {
                 continue;
+            }
 
             foreach(var tp in typeParameters)
             {
                 if(tp is not DependentTypeParameterType depType)
+                {
                     continue;
+                }
+
                 if(depType.PendingConstraintName is null)
+                {
                     continue;
+                }
 
                 var constraintName = depType.PendingConstraintName;
 
@@ -6857,18 +7195,27 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         foreach(var symbol in symbolTable.AllSymbols)
         {
             if(symbol.Kind is not (SymbolKind.Method or SymbolKind.Constructor))
+            {
                 continue;
+            }
 
             var methodTypeParams = (symbol as Symbol)?.TypeParameters;
             if(methodTypeParams is null || methodTypeParams.Count == 0)
+            {
                 continue;
+            }
 
             foreach(var tp in methodTypeParams)
             {
                 if(tp is not DependentTypeParameterType depType)
+                {
                     continue;
+                }
+
                 if(depType.PendingConstraintName is null)
+                {
                     continue;
+                }
 
                 var constraintName = depType.PendingConstraintName;
                 var containingScope = symbol.ContainingScope;
@@ -6986,16 +7333,26 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             {
                 FixUpDependentArgsInType(ct.BaseType);
                 foreach(var iface in ct.Abstracts)
+                {
                     FixUpDependentArgsInType(iface);
+                }
+
                 foreach(var member in ct.MemberScope.Members)
+                {
                     FixUpDependentArgsInType(member.DeclaredType);
+                }
             }
             else if(symbol.DeclaredType is StructType st)
             {
                 foreach(var iface in st.Abstracts)
+                {
                     FixUpDependentArgsInType(iface);
+                }
+
                 foreach(var member in st.MemberScope.Members)
+                {
                     FixUpDependentArgsInType(member.DeclaredType);
+                }
             }
         }
     }
@@ -7008,22 +7365,34 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     private static void FixUpDependentArgsInType(IType? type)
     {
         if(type is not ConstructedType ct)
+        {
             return;
+        }
+
         if(ct.DependentArguments is null)
+        {
             return;
+        }
 
         // Get the type parameters from the generic definition.
         var typeParams = GetTypeParametersForType(ct.GenericDefinition);
         if(typeParams is null)
+        {
             return;
+        }
 
         for(var i = 0; i < ct.DependentArguments.Count; i++)
         {
             var depArg = ct.DependentArguments[i];
             if(depArg is null)
+            {
                 continue;
+            }
+
             if(depArg.ValueType is not ErrorType)
+            {
                 continue;
+            }
 
             // The corresponding type parameter should now have the resolved ValueType.
             if(i < typeParams.Count && typeParams[i] is DependentTypeParameterType depParam
@@ -7063,12 +7432,16 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         {
             var declaringNode = symbolTable.GetDeclaringNode(symbol);
             if(declaringNode is null)
+            {
                 continue;
+            }
 
             // Get the constraint clauses and type parameters for this declaration.
             var (constraintClauses, typeParameters) = GetConstraintClausesAndTypeParams(symbol, declaringNode);
             if(constraintClauses.IsDefaultOrEmpty)
+            {
                 continue;
+            }
 
             // Check if there are any adhoc refinement constraints to process.
             var hasAdhocClauses = false;
@@ -7081,7 +7454,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 }
             }
             if(!hasAdhocClauses)
+            {
                 continue;
+            }
 
             var sourceText = GetSourceTextForSymbol(symbol, symbolTable)
                 ?? GetSourceTextFromOrigin(declaringNode);
@@ -7092,7 +7467,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             foreach(var clause in constraintClauses)
             {
                 if(clause is not AdhocRefinementConstraintWhereClauseNode refinementClause)
+                {
                     continue;
+                }
 
                 ResolveAdhocRefinementConstraint(
                     refinementClause, symbol, declaringNode, typeParameters,
@@ -7157,7 +7534,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             }
 
             if(abstracts is null || memberScope is null || typeName is null)
+            {
                 continue;
+            }
 
             // Collect all required methods transitively from the abstract type hierarchy.
             var requiredMethods = new List<(AbstractType Abstract, ISymbol Method)>();
@@ -7169,7 +7548,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             {
                 var requiredNode = symbolTable.GetDeclaringNode(requiredMethod);
                 if(requiredNode is not AbstractMethodDeclarationNode requiredMethodDecl)
+                {
                     continue;
+                }
 
                 // Find the matching implementation method.
                 var matchResult = FindMatchingMethod(
@@ -7177,7 +7558,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     memberScope, classType, symbolTable);
 
                 if(matchResult is not MethodMatchResult.MatchedResult matched)
+                {
                     continue;
+                }
 
                 // Validate refinement constraints for each parameter position.
                 ValidateMethodRefinementConstraints(
@@ -7208,7 +7591,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         var implNode = symbolTable.GetDeclaringNode(implMethod);
 
         if(abstractNode is null || implNode is null)
+        {
             return;
+        }
 
         ParameterListNode? abstractParams = abstractNode switch
         {
@@ -7224,21 +7609,27 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         };
 
         if(abstractParams is null || implParams is null)
+        {
             return;
+        }
 
         // Collect parameter nodes from both methods.
         var abstractParamNodes = new List<ParameterNode>();
         foreach(var child in abstractParams.Children())
         {
             if(child is ParameterNode param)
+            {
                 abstractParamNodes.Add(param);
+            }
         }
 
         var implParamNodes = new List<ParameterNode>();
         foreach(var child in implParams.Children())
         {
             if(child is ParameterNode param)
+            {
                 implParamNodes.Add(param);
+            }
         }
 
         // Validate each parameter position independently.
@@ -7249,7 +7640,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             var implParamSymbol = symbolTable.GetDeclaredSymbol(implParamNodes[i]);
 
             if(abstractParamSymbol is null || implParamSymbol is null)
+            {
                 continue;
+            }
 
             // Look up refinement predicates.
             parameterRefinements.TryGetValue(abstractParamSymbol, out var abstractPredicate);
@@ -7257,12 +7650,16 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
             // If abstract type predicate is null → skip (implementation may freely add or omit constraints).
             if(abstractPredicate is null)
+            {
                 continue;
+            }
 
             // If abstract type predicate is non-null and impl predicate is null → accept
             // (no constraint means accepts all values).
             if(implPredicate is null)
+            {
                 continue;
+            }
 
             // Both are non-null → check implication.
             if(!RefinementSolver.Implies(abstractPredicate, implPredicate))
@@ -7335,7 +7732,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         foreach(var tp in typeParameters)
         {
             if(tp is TypeParameterType tpt && tpt.Name == name)
+            {
                 return tpt;
+            }
         }
         return null;
     }
@@ -7418,7 +7817,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         foreach(var tp in typeParameters)
         {
             if(tp is DependentTypeParameterType dpt && dpt.Name == name)
+            {
                 return dpt;
+            }
         }
         return null;
     }
@@ -7444,7 +7845,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         };
 
         if(paramList is null)
+        {
             return null;
+        }
 
         // Walk the parameter list children to find the parameter by name.
         foreach(var child in paramList.Children())
@@ -7728,7 +8131,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         SourceText? sourceText)
     {
         if(ctorConstraint.ParamTypes is null)
+        {
             return Array.Empty<IType>();
+        }
 
         var paramTypes = new List<IType>();
         var scope = declaringSymbol.ContainingScope;
@@ -7773,7 +8178,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             {
                 var globalScope = FindGlobalScopeFromIScope(scope);
                 if(globalScope is not null)
+                {
                     return ResolvePrimitiveKeyword(globalScope, symbolTable, primitiveRef.PrimitiveType);
+                }
             }
             catch(StdlibMissingException)
             {
@@ -7789,7 +8196,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
             var resolvedSymbol = scope.Lookup(typeName);
             if(resolvedSymbol?.DeclaredType is not null)
+            {
                 return resolvedSymbol.DeclaredType;
+            }
 
             diagnostics.Add(MakeDiagnosticWithLocation(
                 ConstraintUnresolvableType.Value,
@@ -8033,7 +8442,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     {
         var declaringNode = symbolTable.GetDeclaringNode(symbol);
         if(declaringNode is null)
+        {
             return null;
+        }
 
         for(var i = 0; i < asts.Length; i++)
         {
@@ -8058,14 +8469,19 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             {
                 case TypeItemTopLevelItemNode typeItem:
                     if(MatchesTypeDeclaration(typeItem.TypeDeclaration, declaringNode))
+                    {
                         return true;
+                    }
+
                     break;
                 case NamespaceItemTopLevelItemNode nsItem:
                     var namespaceTypes = GetNamespaceBodyTypes(nsItem.NamespaceDeclaration);
                     foreach(var typeDecl in namespaceTypes)
                     {
                         if(MatchesTypeDeclaration(typeDecl, declaringNode))
+                        {
                             return true;
+                        }
                     }
                     break;
             }
@@ -8084,24 +8500,32 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         {
             case ClassTypeTypeDeclarationNode ct:
                 if(ReferenceEquals(ct.ClassDeclaration, declaringNode))
+                {
                     return true;
+                }
                 // Check nested types inside this class.
                 foreach(var member in ct.ClassDeclaration.Members)
                 {
                     if(member is NestedTypeMemberMemberDeclarationNode nestedType
                         && MatchesTypeDeclaration(nestedType.NestedType, declaringNode))
+                    {
                         return true;
+                    }
                 }
                 return false;
             case StructTypeTypeDeclarationNode st:
                 if(ReferenceEquals(st.StructDeclaration, declaringNode))
+                {
                     return true;
+                }
                 // Check nested types inside this struct.
                 foreach(var member in st.StructDeclaration.Members)
                 {
                     if(member is NestedTypeMemberMemberDeclarationNode nestedType
                         && MatchesTypeDeclaration(nestedType.NestedType, declaringNode))
+                    {
                         return true;
+                    }
                 }
                 return false;
             case AbstractTypeTypeDeclarationNode it:
@@ -8123,14 +8547,19 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             {
                 case TypeItemTopLevelItemNode typeItem:
                     if(MatchesTypeDeclaration(typeItem.TypeDeclaration, targetNode))
+                    {
                         return true;
+                    }
+
                     break;
                 case NamespaceItemTopLevelItemNode nsItem:
                     var namespaceTypes = GetNamespaceBodyTypes(nsItem.NamespaceDeclaration);
                     foreach(var typeDecl in namespaceTypes)
                     {
                         if(MatchesTypeDeclaration(typeDecl, targetNode))
+                        {
                             return true;
+                        }
                     }
                     break;
             }
@@ -8158,18 +8587,26 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         foreach(var symbol in symbolTable.AllSymbols)
         {
             if(symbol is not Symbol mutableSymbol)
+            {
                 continue;
+            }
 
             if(symbol.Kind != SymbolKind.Method && symbol.Kind != SymbolKind.Constructor)
+            {
                 continue;
+            }
 
             var declaringNode = symbolTable.GetDeclaringNode(symbol);
             if(declaringNode is null)
+            {
                 continue;
+            }
 
             var withClauseNodes = GetWithClauseNodes(declaringNode);
             if(withClauseNodes is null || withClauseNodes.Value.Length == 0)
+            {
                 continue;
+            }
 
             var sourceText = GetSourceTextForSymbol(symbol, symbolTable);
             var scope = symbol.ContainingScope;
@@ -8186,13 +8623,17 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
                 // Handle context binding: `with Logger log`
                 if(clause is not ContextWithClauseWithClauseNode contextClause)
+                {
                     continue;
+                }
 
                 var resolvedType = ResolveWithClauseType(
                     contextClause.Type, scope, symbolTable, declaringNode, asts, compilation, diagnostics, sourceText);
 
                 if(resolvedType is null || resolvedType is ErrorType)
+                {
                     continue;
+                }
 
                 clauses.Add(new ContextClauseInfo
                 {
@@ -8259,7 +8700,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             {
                 var globalScope = FindGlobalScopeFromIScope(scope);
                 if(globalScope is not null)
+                {
                     return ResolvePrimitiveKeyword(globalScope, symbolTable, primitiveRef.PrimitiveType);
+                }
             }
             catch(StdlibMissingException)
             {
@@ -8319,7 +8762,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     {
         var declaringNode = symbolTable.GetDeclaringNode(member);
         if(declaringNode is null)
+        {
             return false;
+        }
 
         ImmutableArray<ModifierNode>? modifiers = declaringNode switch
         {
@@ -8333,7 +8778,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         };
 
         if(modifiers is null)
+        {
             return false;
+        }
 
         return modifiers.Value.Any(m => m is PublicModifierModifierNode);
     }
@@ -8378,14 +8825,18 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         for(var i = 0; i < asts.Length; i++)
         {
             if(asts[i] is not CompilationUnitNode cu)
+            {
                 continue;
+            }
 
             var sourceText = i < compilation.Units.Length ? compilation.Units[i].Source : null;
 
             foreach(var item in cu.Items)
             {
                 if(item is not WithItemTopLevelItemNode withItem)
+                {
                     continue;
+                }
 
                 var withDecl = withItem.WithDeclaration;
                 ResolveWithDeclaration(withDecl, globalScope, symbolTable, conformanceMap, asts, compilation, sourceText, diagnostics);
@@ -8528,7 +8979,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         };
 
         if(concreteScope is null)
+        {
             return;
+        }
 
         var mappedSlotNames = new HashSet<string>();
 
@@ -8645,7 +9098,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         foreach(var member in abstractType.MemberScope.Members)
         {
             if(member.Kind is not (SymbolKind.Method or SymbolKind.Property))
+            {
                 continue;
+            }
 
             // Skip default methods — they don't need mappings.
             if(member.Kind == SymbolKind.Method &&
@@ -9057,10 +9512,14 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         foreach(var symbol in symbolTable.AllSymbols)
         {
             if(symbol.Kind != SymbolKind.Struct || symbol.DeclaredType is not StructType structType)
+            {
                 continue;
+            }
 
             if(structType.BaseType is null || verified.Contains(structType))
+            {
                 continue;
+            }
 
             // Walk the BaseType chain from this struct, tracking visited structs.
             var visited = new HashSet<StructType>();
@@ -9252,7 +9711,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         {
             var requiredNode = symbolTable.GetDeclaringNode(requiredMethod);
             if(requiredNode is not AbstractMethodDeclarationNode requiredMethodDecl)
+            {
                 continue;
+            }
 
             // Search the implementing type's member scope for a method with the same name.
             var matchResult = FindMatchingMethod(
@@ -9392,7 +9853,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         {
             var requiredPropInfo = (requiredProperty as Symbol)?.PropertyMetadata;
             if(requiredPropInfo is null)
+            {
                 continue;
+            }
 
             // Search the implementing type's member scope (and base chain) for a property with the same name.
             var implProperty = FindMatchingProperty(requiredProperty.Name, memberScope, classType);
@@ -9415,7 +9878,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
             var implPropInfo = (implProperty as Symbol)?.PropertyMetadata;
             if(implPropInfo is null)
+            {
                 continue;
+            }
 
             // Check that the implementing property has the required accessors.
             if(requiredPropInfo.HasGet && !implPropInfo.HasGet)
@@ -9477,7 +9942,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         {
             var slotName = slotSymbol.Name;
             if(substitutions.ContainsKey(slotName))
+            {
                 continue;
+            }
 
             var acceptableNames = new HashSet<string> { slotName };
 
@@ -9496,7 +9963,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         foreach(var ifaceType in abstracts)
         {
             if(ifaceType is not ConstructedType { GenericDefinition: AbstractType genericIface } constructed)
+            {
                 continue;
+            }
 
             var typeParams = genericIface.TypeParameters;
             var typeArgs = constructed.TypeArguments;
@@ -9505,15 +9974,21 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             {
                 var paramName = typeParams[i].DisplayName;
                 if(string.IsNullOrEmpty(paramName))
+                {
                     continue;
+                }
 
                 // Don't overwrite existing entries (associated type slots take precedence).
                 if(substitutions.ContainsKey(paramName))
+                {
                     continue;
+                }
 
                 var argDisplayName = typeArgs[i].DisplayName;
                 if(string.IsNullOrEmpty(argDisplayName))
+                {
                     continue;
+                }
 
                 var names = new HashSet<string> { argDisplayName };
 
@@ -9564,7 +10039,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // Search the direct member scope.
         var name = SearchScopeForConcreteTypeMemberName(slotName, requiredArity, memberScope);
         if(name is not null)
+        {
             return name;
+        }
 
         // For classes, walk the base type chain.
         if(classType is not null)
@@ -9574,7 +10051,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             {
                 name = SearchScopeForConcreteTypeMemberName(slotName, requiredArity, ancestor.MemberScope);
                 if(name is not null)
+                {
                     return name;
+                }
+
                 ancestor = ancestor.BaseType as ClassType;
             }
         }
@@ -9591,7 +10071,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         foreach(var member in scope.Members)
         {
             if(member.Name != slotName)
+            {
                 continue;
+            }
 
             // Type alias that is NOT an associated type slot (i.e., it's a concrete type alias).
             if(member.Kind == SymbolKind.TypeAlias && member.DeclaredType is not AssociatedTypeSlotType)
@@ -9601,7 +10083,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 {
                     // If it's a type alias, return the underlying type's display name.
                     if(member.DeclaredType is TypeAliasType alias)
+                    {
                         return alias.UnderlyingType.DisplayName;
+                    }
 
                     // Otherwise return the declared type's display name.
                     return member.DeclaredType?.DisplayName ?? slotName;
@@ -9713,7 +10197,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     {
         var constraints = slotType.Constraints;
         if(constraints is null)
+        {
             return;
+        }
 
         var concreteTypeName = concreteType.DisplayName;
         var abstractName = requiredAbstract.DisplayName;
@@ -9837,13 +10323,18 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         if(concreteType is ClassType classType)
         {
             if(InterfaceListContainsConstraint(abstracts, abstractConstraint))
+            {
                 return true;
+            }
 
             var ancestor = classType.BaseType as ClassType;
             while(ancestor is not null)
             {
                 if(InterfaceListContainsConstraint(ancestor.Abstracts, abstractConstraint))
+                {
                     return true;
+                }
+
                 ancestor = ancestor.BaseType as ClassType;
             }
             return false;
@@ -9864,7 +10355,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         foreach(var ifaceType in abstracts)
         {
             if(InterfaceMatchesConstraint(ifaceType, constraint))
+            {
                 return true;
+            }
 
             // Recursively check inherited abstract types.
             if(ifaceType is AbstractType iface)
@@ -9873,7 +10366,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 if(visited.Add(iface))
                 {
                     if(InterfaceListContainsConstraint(iface.Abstracts, constraint, visited))
+                    {
                         return true;
+                    }
                 }
             }
         }
@@ -9889,14 +10384,20 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     private static bool InterfaceMatchesConstraint(IType ifaceType, IType constraint)
     {
         if(ReferenceEquals(ifaceType, constraint))
+        {
             return true;
+        }
 
         if(ifaceType.DisplayName == constraint.DisplayName)
+        {
             return true;
+        }
 
         // Handle constructed type matching (e.g., IEnumerator<int> matches IEnumerator<T>).
         if(constraint is AbstractType plainConstraint && ifaceType is AbstractType plainIface)
+        {
             return ReferenceEquals(plainIface, plainConstraint) || plainIface.DisplayName == plainConstraint.DisplayName;
+        }
 
         // Handle ConstructedType vs ConstructedType: match by generic definition.
         // This covers cases like IEnumerator<bool> matching constraint IEnumerator<TElement>
@@ -9904,22 +10405,31 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         if(constraint is ConstructedType constraintCt && ifaceType is ConstructedType ifaceCt)
         {
             if(ReferenceEquals(constraintCt.GenericDefinition, ifaceCt.GenericDefinition))
+            {
                 return true;
+            }
+
             if(constraintCt.GenericDefinition.DisplayName == ifaceCt.GenericDefinition.DisplayName)
+            {
                 return true;
+            }
         }
 
         // Handle ConstructedType matching a plain abstractType constraint by generic definition.
         if(constraint is ConstructedType constraintCt2 && ifaceType is AbstractType plainIface2)
         {
             if(ReferenceEquals(constraintCt2.GenericDefinition, plainIface2))
+            {
                 return true;
+            }
         }
 
         if(constraint is AbstractType plainConstraint2 && ifaceType is ConstructedType ifaceCt2)
         {
             if(ReferenceEquals(ifaceCt2.GenericDefinition, plainConstraint2))
+            {
                 return true;
+            }
         }
 
         return false;
@@ -9935,7 +10445,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     {
         // Structs always have a parameterless constructor.
         if(concreteType.Kind == TypeKind.Struct)
+        {
             return true;
+        }
 
         // Collect constructors from the type's member scope.
         var memberScope = concreteType switch
@@ -9946,7 +10458,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         };
 
         if(memberScope is null)
+        {
             return false;
+        }
 
         var constructors = memberScope.Members
             .Where(m => m.Kind == SymbolKind.Constructor)
@@ -9954,7 +10468,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
         // If no constructors are declared, the type has an implicit public parameterless constructor.
         if(constructors.Count == 0)
+        {
             return true;
+        }
 
         // Check if any declared constructor is public and parameterless.
         foreach(var ctor in constructors)
@@ -9964,7 +10480,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             {
                 // Check if it's public.
                 if(IsMemberPublic(ctor, symbolTable))
+                {
                     return true;
+                }
             }
         }
 
@@ -9993,10 +10511,14 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             };
 
             if(iface is null)
+            {
                 continue;
+            }
 
             if(!visited.Add(iface))
+            {
                 continue;
+            }
 
             // Find all associated type slot members in this abstract type.
             foreach(var member in iface.MemberScope.Members)
@@ -10031,7 +10553,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // Search the direct member scope.
         var result = SearchScopeForConcreteTypeMemberType(slotName, requiredArity, memberScope);
         if(result is not null)
+        {
             return result;
+        }
 
         // For classes, walk the base type chain.
         if(classType is not null)
@@ -10041,7 +10565,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             {
                 result = SearchScopeForConcreteTypeMemberType(slotName, requiredArity, ancestor.MemberScope);
                 if(result is not null)
+                {
                     return result;
+                }
+
                 ancestor = ancestor.BaseType as ClassType;
             }
         }
@@ -10073,7 +10600,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         foreach(var member in scope.Members)
         {
             if(member.Name != slotName)
+            {
                 continue;
+            }
 
             // Must be a type alias that is NOT an associated type slot (i.e., it's a concrete type).
             if(member.Kind == SymbolKind.TypeAlias && member.DeclaredType is not AssociatedTypeSlotType)
@@ -10097,7 +10626,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     _ => 0
                 };
                 if(memberArity == requiredArity)
+                {
                     return member.DeclaredType;
+                }
             }
         }
 
@@ -10140,10 +10671,14 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             };
 
             if(iface is null)
+            {
                 continue;
+            }
 
             if(!visited.Add(iface))
+            {
                 continue;
+            }
 
             // Add all method and property members from this abstract type.
             // Default methods (those with bodies, recorded in DefaultMethods) are
@@ -10190,7 +10725,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         foreach(var member in memberScope.Members)
         {
             if(member.Kind == SymbolKind.Property && member.Name == propertyName)
+            {
                 return member;
+            }
         }
 
         // For classes, walk the base type chain.
@@ -10202,7 +10739,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 foreach(var member in ancestor.MemberScope.Members)
                 {
                     if(member.Kind == SymbolKind.Property && member.Name == propertyName)
+                    {
                         return member;
+                    }
                 }
                 ancestor = ancestor.BaseType as ClassType;
             }
@@ -10257,7 +10796,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // Search the direct member scope first.
         var result = SearchScopeForMethod(methodName, requiredMethodDecl, memberScope, symbolTable, associatedTypeSubstitutions);
         if(result is MethodMatchResult.MatchedResult)
+        {
             return result;
+        }
+
         if(result is MethodMatchResult.RefKindMismatchResult directRefKindMismatch)
         {
             foundAnyWithName = true;
@@ -10278,7 +10820,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             {
                 result = SearchScopeForMethod(methodName, requiredMethodDecl, ancestor.MemberScope, symbolTable, associatedTypeSubstitutions);
                 if(result is MethodMatchResult.MatchedResult)
+                {
                     return result;
+                }
+
                 if(result is MethodMatchResult.RefKindMismatchResult ancestorRefKindMismatch)
                 {
                     foundAnyWithName = true;
@@ -10299,7 +10844,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         {
             // Prefer the specific RefKind mismatch over generic signature mismatch.
             if(refKindMismatch is not null)
+            {
                 return refKindMismatch;
+            }
 
             return MethodMatchResult.Mismatch(lastMismatchExpected!, lastMismatchActual!);
         }
@@ -10328,17 +10875,23 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         foreach(var member in scope.Members)
         {
             if(member.Kind != SymbolKind.Method || member.Name != methodName)
+            {
                 continue;
+            }
 
             foundAnyWithName = true;
 
             // Found a method with the same name. Check signature.
             var memberNode = symbolTable.GetDeclaringNode(member);
             if(memberNode is not MethodDeclarationNode implMethodDecl)
+            {
                 continue;
+            }
 
             if(SignaturesMatch(requiredMethodDecl, implMethodDecl, associatedTypeSubstitutions))
+            {
                 return MethodMatchResult.Match(member);
+            }
 
             // Check if types match but RefKind values differ (for MIST_REF_0012).
             if(TypesMatchButRefKindsDiffer(requiredMethodDecl, implMethodDecl, associatedTypeSubstitutions))
@@ -10355,7 +10908,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         {
             // Prefer the specific RefKind mismatch result over generic signature mismatch.
             if(refKindMismatchImplName is not null)
+            {
                 return MethodMatchResult.RefKindMismatch(refKindMismatchImplName, refKindMismatchAbstractName!);
+            }
 
             // Name matches but no overload has a matching signature.
             var expectedSig = FormatInterfaceMethodSignature(requiredMethodDecl);
@@ -10379,24 +10934,32 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     {
         // Compare return types.
         if(!TypeReferencesMatchWithAssociatedTypes(required.ReturnType, actual.ReturnType, associatedTypeSubstitutions))
+        {
             return false;
+        }
 
         // Compare parameter types.
         var requiredParams = ExtractParameterTypes(required.Parameters);
         var actualParams = ExtractParameterTypes(actual.Parameters);
 
         if(requiredParams.Count != actualParams.Count)
+        {
             return false;
+        }
 
         for(var i = 0; i < requiredParams.Count; i++)
         {
             if(!TypeReferencesMatchWithAssociatedTypes(requiredParams[i], actualParams[i], associatedTypeSubstitutions))
+            {
                 return false;
+            }
         }
 
         // Compare parameter RefKind values (Requirement 7.5).
         if(!ParameterRefKindsMatch(required.Parameters, actual.Parameters))
+        {
             return false;
+        }
 
         return true;
     }
@@ -10413,19 +10976,25 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     {
         // Check return types match.
         if(!TypeReferencesMatchWithAssociatedTypes(required.ReturnType, actual.ReturnType, associatedTypeSubstitutions))
+        {
             return false;
+        }
 
         // Check parameter types match.
         var requiredParams = ExtractParameterTypes(required.Parameters);
         var actualParams = ExtractParameterTypes(actual.Parameters);
 
         if(requiredParams.Count != actualParams.Count)
+        {
             return false;
+        }
 
         for(var i = 0; i < requiredParams.Count; i++)
         {
             if(!TypeReferencesMatchWithAssociatedTypes(requiredParams[i], actualParams[i], associatedTypeSubstitutions))
+            {
                 return false;
+            }
         }
 
         // Types match — now check if RefKind values differ.
@@ -10444,12 +11013,16 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         var actualRefKinds = ExtractParameterRefKinds(actualParams);
 
         if(requiredRefKinds.Count != actualRefKinds.Count)
+        {
             return false;
+        }
 
         for(var i = 0; i < requiredRefKinds.Count; i++)
         {
             if(requiredRefKinds[i] != actualRefKinds[i])
+            {
                 return false;
+            }
         }
 
         return true;
@@ -10463,7 +11036,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     {
         var refKinds = new List<RefKind>();
         if(paramList is null)
+        {
             return refKinds;
+        }
 
         foreach(var child in paramList.Children())
         {
@@ -10491,7 +11066,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     {
         var types = new List<TypeReferenceNode>();
         if(paramList is null)
+        {
             return types;
+        }
 
         foreach(var child in paramList.Children())
         {
@@ -10515,7 +11092,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // here — the pre-restructure code represented them as a distinct
         // union node variant that fell through to the `_ => false` arm.
         if(a.SingleTypeRefs.Length > 0 || b.SingleTypeRefs.Length > 0)
+        {
             return false;
+        }
 
         return (a.First, b.First) switch
         {
@@ -10560,21 +11139,29 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     {
         // Check arity: both must have the same number of additional elements.
         if(a.TupleTypeElements.Length != b.TupleTypeElements.Length)
+        {
             return false;
+        }
 
         // Compare First elements.
         if(!TypeReferencesMatch(a.First.Type, b.First.Type))
+        {
             return false;
+        }
 
         // Compare Rest elements.
         if(!TypeReferencesMatch(a.Rest.Type, b.Rest.Type))
+        {
             return false;
+        }
 
         // Compare additional elements.
         for(var i = 0; i < a.TupleTypeElements.Length; i++)
         {
             if(!TypeReferencesMatch(a.TupleTypeElements[i].Type, b.TupleTypeElements[i].Type))
+            {
                 return false;
+            }
         }
 
         return true;
@@ -10593,7 +11180,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     {
         // If no substitutions are provided, fall back to standard comparison.
         if(associatedTypeSubstitutions is null || associatedTypeSubstitutions.Count == 0)
+        {
             return TypeReferencesMatch(abstractRef, implRef);
+        }
 
         // Check if the abstract type reference is a named type that matches a slot name.
         if(abstractRef.First is NamedSingleTypeRefSingleTypeRefNode namedAbstract)
@@ -10685,7 +11274,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // Unions never match a single substituted type here — the
         // pre-restructure code matched only the non-union variants.
         if(sourceRef.SingleTypeRefs.Length > 0)
+        {
             return false;
+        }
 
         return (sourceRef.First, substitutedType) switch
         {
@@ -10717,7 +11308,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // rather than the keyword (e.g., "int"). Check both the keyword and the
         // stdlib type name from KeywordAliases.
         if(type.DisplayName == primName && primRef.ArrayRank is null)
+        {
             return true;
+        }
 
         // Check against the stdlib type name (e.g., "int" → "Standard.Int32" → "Int32").
         if(KeywordAliases.Map.TryGetValue(primName, out var qualifiedName))
@@ -10726,7 +11319,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             var dotIndex = qualifiedName.LastIndexOf('.');
             var simpleName = dotIndex >= 0 ? qualifiedName[(dotIndex + 1)..] : qualifiedName;
             if(type.DisplayName == simpleName && primRef.ArrayRank is null)
+            {
                 return true;
+            }
         }
 
         return false;
@@ -10784,7 +11379,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     {
         var lexeme = named.Name.IDENTIFIER.Lexeme;
         if(!string.IsNullOrEmpty(lexeme))
+        {
             return lexeme;
+        }
 
         // Fallback 1: try the IDENTIFIER token's own span against the source text.
         if(sourceText is not null)
@@ -10794,7 +11391,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             {
                 var extracted = sourceText.Contents.Substring(tokenSpan.Start, tokenSpan.Length);
                 if(!string.IsNullOrEmpty(extracted) && char.IsLetter(extracted[0]))
+                {
                     return extracted;
+                }
             }
 
             // Fallback 2: try the QualifiedIdentifier's span.
@@ -10803,7 +11402,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             {
                 var extracted = sourceText.Contents.Substring(span.Start, span.Length);
                 if(!string.IsNullOrEmpty(extracted) && char.IsLetter(extracted[0]))
+                {
                     return extracted;
+                }
             }
         }
 
@@ -10823,20 +11424,27 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     {
         var lexeme = named.Name.IDENTIFIER.Lexeme;
         if(!string.IsNullOrEmpty(lexeme))
+        {
             return lexeme;
+        }
 
         // Try each compilation unit's source text.
         for(var i = 0; i < compilation.Units.Length; i++)
         {
             var src = compilation.Units[i].Source;
-            if(src is null) continue;
+            if(src is null)
+            {
+                continue;
+            }
 
             var tokenSpan = named.Name.IDENTIFIER.Span;
             if(tokenSpan.Length > 0 && tokenSpan.Start + tokenSpan.Length <= src.Contents.Length)
             {
                 var extracted = src.Contents.Substring(tokenSpan.Start, tokenSpan.Length);
                 if(!string.IsNullOrEmpty(extracted) && char.IsLetter(extracted[0]))
+                {
                     return extracted;
+                }
             }
 
             var span = named.Name.Span;
@@ -10844,7 +11452,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             {
                 var extracted = src.Contents.Substring(span.Start, span.Length);
                 if(!string.IsNullOrEmpty(extracted) && char.IsLetter(extracted[0]))
+                {
                     return extracted;
+                }
             }
         }
 
@@ -10907,7 +11517,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     private static string FormatParameterTypes(ParameterListNode? paramList)
     {
         if(paramList is null)
+        {
             return "";
+        }
 
         var types = new List<string>();
         foreach(var child in paramList.Children())
@@ -10933,7 +11545,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         {
             var constituents = new List<string> { FormatSingleTypeRef(typeRef.First) };
             foreach(var rest in typeRef.SingleTypeRefs)
+            {
                 constituents.Add(FormatSingleTypeRef(rest));
+            }
+
             return string.Join(" | ", constituents);
         }
 
@@ -11269,7 +11884,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 _ => null,
             };
             if(baseScope is null)
+            {
                 continue;
+            }
 
             // Find explicit constructors on the base class.
             var baseConstructors = baseScope.Members
@@ -11399,7 +12016,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 _ => null,
             };
             if(baseScope is null)
+            {
                 continue;
+            }
 
             // Find explicit constructors on the base struct.
             var baseConstructors = baseScope.Members
@@ -11549,7 +12168,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             {
                 var groupList = group.ToList();
                 if(groupList.Count <= 1)
+                {
                     continue;
+                }
 
                 CheckDuplicatePairs(
                     groupList, typeName, isConstructor: false,
@@ -11603,11 +12224,15 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             for(var j = i + 1; j < symbols.Count; j++)
             {
                 if(reported.Contains(j))
+                {
                     continue;
+                }
 
                 if(!ParameterSignature.AreEqualWithRefKind(
                     signatures[i], refKinds[i], signatures[j], refKinds[j]))
+                {
                     continue;
+                }
 
                 // Found a duplicate — emit diagnostic on the second (later) declaration.
                 reported.Add(j);
@@ -11763,9 +12388,14 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     }
                 }
                 if(!nsExists && ambientTypeResolver is not null)
+                {
                     nsExists = ambientTypeResolver.HasNamespace(usingName);
+                }
+
                 if(nsExists)
+                {
                     fileScope.AddImportedNamespace(usingName);
+                }
             }
         }
 
@@ -12034,7 +12664,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 var nsName = ExtractNamespaceName(nsItem.NamespaceDeclaration, sourceText);
                 var nsScope = FindExistingNamespaceScope(globalScope, symbolTable, nsName);
                 if(nsScope is not null)
+                {
                     return nsScope;
+                }
 
                 // Fall back to FindNamespaceScope which looks at body types.
                 return FindNamespaceScope(globalScope, symbolTable, nsItem.NamespaceDeclaration);
@@ -12108,7 +12740,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     {
         // Primary path: consult the namespace scope map (populated by GetOrCreateNamespaceScope).
         if(_namespaceScopeMap is not null && _namespaceScopeMap.TryGetValue(namespaceName, out var mapped))
+        {
             return mapped;
+        }
 
         // Fallback: walk all registered symbols to find a type in this namespace.
         // This handles edge cases where FindExistingNamespaceScope is called before
@@ -12190,7 +12824,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         DiagnosticBag diagnostics)
     {
         var enumSymbol = symbolTable.GetDeclaredSymbol(enumDecl);
-        if(enumSymbol?.DeclaredType is not EnumType enumType) return;
+        if(enumSymbol?.DeclaredType is not EnumType enumType)
+        {
+            return;
+        }
 
         // Collect all member AST nodes.
         var memberNodes = new List<EnumMemberNode>();
@@ -12393,49 +13030,97 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // Navigate: Expression → Assignment → LogicalOr → LogicalAnd → Equality
         //         → Relational → Additive → Multiplicative → Unary → Postfix → Primary
         var assignment = expr.AsAssignmentOrNull();
-        if(assignment is null) return null; // Lambda form — not a simple literal.
-        if(assignment.Value is not null) return null; // It's an assignment, not a simple literal.
+        if(assignment is null)
+        {
+            return null; // Lambda form — not a simple literal.
+        }
+
+        if(assignment.Value is not null)
+        {
+            return null; // It's an assignment, not a simple literal.
+        }
 
         var voidCoalescing = assignment.Target;
-        if(voidCoalescing?.LogicalOrs.Length > 0) return null;
+        if(voidCoalescing?.LogicalOrs.Length > 0)
+        {
+            return null;
+        }
+
         var logicalOr = voidCoalescing?.Left;
-        if(logicalOr?.Right is not null && !ReferenceEquals(logicalOr.Right, logicalOr.Left)) return null;
+        if(logicalOr?.Right is not null && !ReferenceEquals(logicalOr.Right, logicalOr.Left))
+        {
+            return null;
+        }
 
         var logicalAnd = logicalOr?.Left;
-        if(logicalAnd?.Right is not null && !ReferenceEquals(logicalAnd.Right, logicalAnd.Left)) return null;
+        if(logicalAnd?.Right is not null && !ReferenceEquals(logicalAnd.Right, logicalAnd.Left))
+        {
+            return null;
+        }
 
         var equality = logicalAnd?.Left;
-        if(equality?.Right is not null && !ReferenceEquals(equality.Right, equality.Left)) return null;
+        if(equality?.Right is not null && !ReferenceEquals(equality.Right, equality.Left))
+        {
+            return null;
+        }
 
         // Relational is a discriminated union.
-        if(equality?.Left is not RelationalComparisonRelationalNode relCmp) return null;
-        if(relCmp.Right is not null && !ReferenceEquals(relCmp.Right, relCmp.Left)) return null;
+        if(equality?.Left is not RelationalComparisonRelationalNode relCmp)
+        {
+            return null;
+        }
+
+        if(relCmp.Right is not null && !ReferenceEquals(relCmp.Right, relCmp.Left))
+        {
+            return null;
+        }
 
         var additive = relCmp.Left;
-        if(additive?.Right is not null && !ReferenceEquals(additive.Right, additive.Left)) return null;
+        if(additive?.Right is not null && !ReferenceEquals(additive.Right, additive.Left))
+        {
+            return null;
+        }
 
         var multiplicative = additive?.Left;
-        if(multiplicative?.Right is not null && !ReferenceEquals(multiplicative.Right, multiplicative.Left)) return null;
+        if(multiplicative?.Right is not null && !ReferenceEquals(multiplicative.Right, multiplicative.Left))
+        {
+            return null;
+        }
 
         // Unary is a discriminated union.
-        if(multiplicative?.Left is not PostfixExpressionUnaryNode postfixUnary) return null;
+        if(multiplicative?.Left is not PostfixExpressionUnaryNode postfixUnary)
+        {
+            return null;
+        }
 
         var postfix = postfixUnary.Primary;
-        if(postfix.Suffix.Length > 0) return null; // Has postfix suffixes (method calls, member access, etc.)
+        if(postfix.Suffix.Length > 0)
+        {
+            return null; // Has postfix suffixes (method calls, member access, etc.)
+        }
 
-        if(postfix.Target is not IntegerLiteralExpressionPrimaryNode intLiteral) return null;
+        if(postfix.Target is not IntegerLiteralExpressionPrimaryNode intLiteral)
+        {
+            return null;
+        }
 
         var lexeme = intLiteral.IntegerLiteral.Lexeme;
         // Strip suffixes for parsing.
         var upper = lexeme.ToUpperInvariant();
         var numericPart = lexeme;
         if(upper.EndsWith("UL") || upper.EndsWith("LU"))
+        {
             numericPart = lexeme[..^2];
+        }
         else if(upper.EndsWith("L") || upper.EndsWith("U"))
+        {
             numericPart = lexeme[..^1];
+        }
 
         if(long.TryParse(numericPart, out var value))
+        {
             return value;
+        }
 
         return null;
     }
@@ -12467,8 +13152,15 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     {
         for(var i = 0; i < asts.Length; i++)
         {
-            if(asts[i] is not CompilationUnitNode cu) continue;
-            if(!fileScopesByUnit.TryGetValue(cu, out var fileScope)) continue;
+            if(asts[i] is not CompilationUnitNode cu)
+            {
+                continue;
+            }
+
+            if(!fileScopesByUnit.TryGetValue(cu, out var fileScope))
+            {
+                continue;
+            }
 
             var sourceText = i < compilation.Units.Length ? compilation.Units[i].Source : null;
 
@@ -12481,7 +13173,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             {
                 var usingName = ExtractQualifiedName(usingDecl.Name, sourceText);
                 if(fileScope.ImportedNamespaces.Contains(usingName))
+                {
                     explicitUsingImports.Add(usingName);
+                }
             }
             foreach(var uItem in cu.Items)
             {
@@ -12489,7 +13183,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 {
                     var usingName = ExtractQualifiedName(usingItem.UsingDeclaration.Name, sourceText);
                     if(fileScope.ImportedNamespaces.Contains(usingName) && !explicitUsingImports.Contains(usingName))
+                    {
                         explicitUsingImports.Add(usingName);
+                    }
                 }
             }
 
@@ -12510,7 +13206,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                             {
                                 sectionFileScope = new Scope(parent: nsScope);
                                 foreach(var ns in explicitUsingImports)
+                                {
                                     sectionFileScope.AddImportedNamespace(ns);
+                                }
+
                                 sectionFileScope.AddImportedNamespace(declaredName);
                             }
                             else
@@ -12571,7 +13270,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         DiagnosticBag diagnostics)
     {
         var classSymbol = symbolTable.GetDeclaredSymbol(classDecl);
-        if(classSymbol?.DeclaredType is not ClassType classType) return;
+        if(classSymbol?.DeclaredType is not ClassType classType)
+        {
+            return;
+        }
 
         var typeScope = (Scope)classType.MemberScope;
 
@@ -12619,7 +13321,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         DiagnosticBag diagnostics)
     {
         var structSymbol = symbolTable.GetDeclaredSymbol(structDecl);
-        if(structSymbol?.DeclaredType is not StructType structType) return;
+        if(structSymbol?.DeclaredType is not StructType structType)
+        {
+            return;
+        }
 
         var typeScope = (Scope)structType.MemberScope;
 
@@ -12664,7 +13369,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         DiagnosticBag diagnostics)
     {
         var abstractSymbol = symbolTable.GetDeclaredSymbol(abstractDecl);
-        if(abstractSymbol?.DeclaredType is not AbstractType abstractType) return;
+        if(abstractSymbol?.DeclaredType is not AbstractType abstractType)
+        {
+            return;
+        }
 
         var typeScope = (Scope)abstractType.MemberScope;
         var interfaceFileScope = CreateTypeParameterScope(typeScope, fileScope);
@@ -12677,7 +13385,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     {
                         var methodDecl = methodMember.Method;
                         var methodSymbol = symbolTable.GetDeclaredSymbol(methodDecl) as Symbol;
-                        if(methodSymbol is null || methodSymbol.DeclaredType is not null) break;
+                        if(methodSymbol is null || methodSymbol.DeclaredType is not null)
+                        {
+                            break;
+                        }
 
                         var returnType = ResolveTypeReference(methodDecl.ReturnType, interfaceFileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
                         methodSymbol.DeclaredType = returnType;
@@ -12710,7 +13421,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     {
                         var propDecl = propertyMember.Property;
                         var propSymbol = symbolTable.GetDeclaredSymbol(propDecl) as Symbol;
-                        if(propSymbol is null || propSymbol.DeclaredType is not null) break;
+                        if(propSymbol is null || propSymbol.DeclaredType is not null)
+                        {
+                            break;
+                        }
 
                         var propType = ResolveTypeReference(propDecl.Type, interfaceFileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
                         propSymbol.DeclaredType = propType;
@@ -12751,7 +13465,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 {
                     var fieldDecl = fieldMember.Field;
                     var fieldSymbol = symbolTable.GetDeclaredSymbol(fieldDecl) as Symbol;
-                    if(fieldSymbol is null || fieldSymbol.DeclaredType is not null) break;
+                    if(fieldSymbol is null || fieldSymbol.DeclaredType is not null)
+                    {
+                        break;
+                    }
 
                     var fieldType = ResolveTypeReference(fieldDecl.Type, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
                     fieldSymbol.DeclaredType = fieldType;
@@ -12771,7 +13488,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         case BlockPropertyPropertyDeclarationNode blockProp:
                             {
                                 var propSymbol = symbolTable.GetDeclaredSymbol(blockProp) as Symbol;
-                                if(propSymbol is null || propSymbol.DeclaredType is not null) break;
+                                if(propSymbol is null || propSymbol.DeclaredType is not null)
+                                {
+                                    break;
+                                }
 
                                 var propType = ResolveTypeReference(blockProp.Type, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
                                 propSymbol.DeclaredType = propType;
@@ -12787,7 +13507,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         case ExpressionBodiedPropertyPropertyDeclarationNode exprProp:
                             {
                                 var propSymbol = symbolTable.GetDeclaredSymbol(exprProp) as Symbol;
-                                if(propSymbol is null || propSymbol.DeclaredType is not null) break;
+                                if(propSymbol is null || propSymbol.DeclaredType is not null)
+                                {
+                                    break;
+                                }
 
                                 var propType = ResolveTypeReference(exprProp.Type, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
                                 propSymbol.DeclaredType = propType;
@@ -12800,7 +13523,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 {
                     var indexerDecl = indexerMember.Indexer;
                     var indexerSymbol = symbolTable.GetDeclaredSymbol(indexerDecl) as Symbol;
-                    if(indexerSymbol is null || indexerSymbol.DeclaredType is not null) break;
+                    if(indexerSymbol is null || indexerSymbol.DeclaredType is not null)
+                    {
+                        break;
+                    }
 
                     var indexerType = ResolveTypeReference(indexerDecl.Type, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
                     indexerSymbol.DeclaredType = indexerType;
@@ -12810,7 +13536,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 {
                     var opDecl = operatorMember.Operator;
                     var opSymbol = symbolTable.GetDeclaredSymbol(opDecl) as Symbol;
-                    if(opSymbol is null || opSymbol.DeclaredType is not null) break;
+                    if(opSymbol is null || opSymbol.DeclaredType is not null)
+                    {
+                        break;
+                    }
 
                     var returnType = ResolveTypeReference(opDecl.ReturnType, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
                     opSymbol.DeclaredType = returnType;
@@ -12820,7 +13549,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 {
                     var castOpDecl = castOpMember.CastOperator;
                     var castOpSymbol = symbolTable.GetDeclaredSymbol(castOpDecl) as Symbol;
-                    if(castOpSymbol is null || castOpSymbol.DeclaredType is not null) break;
+                    if(castOpSymbol is null || castOpSymbol.DeclaredType is not null)
+                    {
+                        break;
+                    }
 
                     var targetType = ResolveTypeReference(castOpDecl.TargetType, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
                     castOpSymbol.DeclaredType = targetType;
@@ -12858,9 +13590,15 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
         for(var i = 0; i < asts.Length; i++)
         {
-            if(asts[i] is not CompilationUnitNode cu) continue;
+            if(asts[i] is not CompilationUnitNode cu)
+            {
+                continue;
+            }
 
-            if(!fileScopesByUnit.TryGetValue(cu, out var fileScope)) continue;
+            if(!fileScopesByUnit.TryGetValue(cu, out var fileScope))
+            {
+                continue;
+            }
 
             var sourceText = i < compilation.Units.Length ? compilation.Units[i].Source : null;
 
@@ -12873,7 +13611,11 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         {
                             var aliasDecl = typeAliasItem.TypeAliasDeclaration;
                             var symbol = symbolTable.GetDeclaredSymbol(aliasDecl) as Symbol;
-                            if(symbol is null || symbol.DeclaredType is not null) break;
+                            if(symbol is null || symbol.DeclaredType is not null)
+                            {
+                                break;
+                            }
+
                             var name = aliasDecl.Name.Lexeme;
                             var entry = new TypeForwardEntry(name, symbol, aliasDecl, null, fileScope, sourceText);
                             forwardEntries.Add(entry);
@@ -12884,7 +13626,11 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         {
                             var newtypeDecl = newtypeItem.NewtypeDeclaration;
                             var symbol = symbolTable.GetDeclaredSymbol(newtypeDecl) as Symbol;
-                            if(symbol is null || symbol.DeclaredType is not null) break;
+                            if(symbol is null || symbol.DeclaredType is not null)
+                            {
+                                break;
+                            }
+
                             var name = newtypeDecl.Name.Lexeme;
                             var entry = new TypeForwardEntry(name, symbol, null, newtypeDecl, fileScope, sourceText);
                             forwardEntries.Add(entry);
@@ -12898,7 +13644,11 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                             foreach(var aliasDecl in nsAliases)
                             {
                                 var symbol = symbolTable.GetDeclaredSymbol(aliasDecl) as Symbol;
-                                if(symbol is null || symbol.DeclaredType is not null) continue;
+                                if(symbol is null || symbol.DeclaredType is not null)
+                                {
+                                    continue;
+                                }
+
                                 var name = aliasDecl.Name.Lexeme;
                                 var entry = new TypeForwardEntry(name, symbol, aliasDecl, null, fileScope, sourceText);
                                 forwardEntries.Add(entry);
@@ -12908,7 +13658,11 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                             foreach(var newtypeDecl in nsNewtypes)
                             {
                                 var symbol = symbolTable.GetDeclaredSymbol(newtypeDecl) as Symbol;
-                                if(symbol is null || symbol.DeclaredType is not null) continue;
+                                if(symbol is null || symbol.DeclaredType is not null)
+                                {
+                                    continue;
+                                }
+
                                 var name = newtypeDecl.Name.Lexeme;
                                 var entry = new TypeForwardEntry(name, symbol, null, newtypeDecl, fileScope, sourceText);
                                 forwardEntries.Add(entry);
@@ -12920,7 +13674,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             }
         }
 
-        if(forwardEntries.Count == 0) return;
+        if(forwardEntries.Count == 0)
+        {
+            return;
+        }
 
         // Step 2: Build the dependency graph.
         // For each alias/newtype, extract the target type name and check if
@@ -12933,7 +13690,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         {
             dependsOn[entry.Name] = new List<string>();
             if(!dependedBy.ContainsKey(entry.Name))
+            {
                 dependedBy[entry.Name] = new List<string>();
+            }
+
             inDegree.TryAdd(entry.Name, 0);
         }
 
@@ -12947,7 +13707,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             {
                 dependsOn[entry.Name].Add(targetName);
                 if(!dependedBy.ContainsKey(targetName))
+                {
                     dependedBy[targetName] = new List<string>();
+                }
+
                 dependedBy[targetName].Add(entry.Name);
                 inDegree[entry.Name] = inDegree.GetValueOrDefault(entry.Name) + 1;
             }
@@ -12958,7 +13721,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         foreach(var (name, degree) in inDegree)
         {
             if(degree == 0)
+            {
                 queue.Enqueue(name);
+            }
         }
 
         var resolveOrder = new List<TypeForwardEntry>();
@@ -12966,7 +13731,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         {
             var current = queue.Dequeue();
             if(nameToEntry.TryGetValue(current, out var entry))
+            {
                 resolveOrder.Add(entry);
+            }
 
             if(dependedBy.TryGetValue(current, out var dependents))
             {
@@ -12974,7 +13741,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 {
                     inDegree[dep]--;
                     if(inDegree[dep] == 0)
+                    {
                         queue.Enqueue(dep);
+                    }
                 }
             }
         }
@@ -12984,7 +13753,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         foreach(var entry in forwardEntries)
         {
             if(!resolveOrder.Contains(entry))
+            {
                 resolveOrder.Add(entry);
+            }
         }
 
         // Step 4: Resolve in topological order.
@@ -12994,7 +13765,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         foreach(var entry in resolveOrder)
         {
             // Skip if already resolved (e.g., resolved transitively as a dependency).
-            if(entry.Symbol.DeclaredType is not null) continue;
+            if(entry.Symbol.DeclaredType is not null)
+            {
+                continue;
+            }
 
             if(entry.AliasDecl is not null)
             {
@@ -13025,11 +13799,21 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     {
         foreach(var symbol in symbolTable.AllSymbols)
         {
-            if(symbol.Kind != SymbolKind.Newtype) continue;
-            if(symbol.DeclaredType is not NewtypeType newtypeType) continue;
+            if(symbol.Kind != SymbolKind.Newtype)
+            {
+                continue;
+            }
+
+            if(symbol.DeclaredType is not NewtypeType newtypeType)
+            {
+                continue;
+            }
 
             // Skip if members have already been cloned (e.g., by a previous pass or re-entry).
-            if(newtypeType.MemberScope.Members.Count > 0) continue;
+            if(newtypeType.MemberScope.Members.Count > 0)
+            {
+                continue;
+            }
 
             var sourceType = newtypeType.SourceType;
             var name = symbol.Name;
@@ -13076,10 +13860,16 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         DiagnosticBag diagnostics)
     {
         var newtypeSymbol = symbolTable.GetDeclaredSymbol(newtypeDecl) as Symbol;
-        if(newtypeSymbol is null) return;
+        if(newtypeSymbol is null)
+        {
+            return;
+        }
 
         // If already resolved, skip.
-        if(newtypeSymbol.DeclaredType is not null) return;
+        if(newtypeSymbol.DeclaredType is not null)
+        {
+            return;
+        }
 
         var name = newtypeDecl.Name.Lexeme;
 
@@ -13166,10 +13956,16 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         DiagnosticBag diagnostics)
     {
         var aliasSymbol = symbolTable.GetDeclaredSymbol(aliasDecl) as Symbol;
-        if(aliasSymbol is null) return;
+        if(aliasSymbol is null)
+        {
+            return;
+        }
 
         // If already resolved (e.g., resolved as a dependency of another alias), skip.
-        if(aliasSymbol.DeclaredType is not null) return;
+        if(aliasSymbol.DeclaredType is not null)
+        {
+            return;
+        }
 
         var aliasName = aliasDecl.Name.Lexeme;
 
@@ -13278,10 +14074,16 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         DiagnosticBag diagnostics)
     {
         var aliasSymbol = symbolTable.GetDeclaredSymbol(aliasDecl) as Symbol;
-        if(aliasSymbol is null) return;
+        if(aliasSymbol is null)
+        {
+            return;
+        }
 
         // If already resolved, skip.
-        if(aliasSymbol.DeclaredType is not null) return;
+        if(aliasSymbol.DeclaredType is not null)
+        {
+            return;
+        }
 
         var aliasName = aliasDecl.Name.Lexeme;
 
@@ -13355,10 +14157,16 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         DiagnosticBag diagnostics)
     {
         var newtypeSymbol = symbolTable.GetDeclaredSymbol(newtypeDecl) as Symbol;
-        if(newtypeSymbol is null) return;
+        if(newtypeSymbol is null)
+        {
+            return;
+        }
 
         // If already resolved, skip.
-        if(newtypeSymbol.DeclaredType is not null) return;
+        if(newtypeSymbol.DeclaredType is not null)
+        {
+            return;
+        }
 
         var name = newtypeDecl.Name.Lexeme;
 
@@ -13427,7 +14235,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         SymbolTable symbolTable)
     {
         var sourceScope = GetMemberScope(sourceType);
-        if(sourceScope is null) return;
+        if(sourceScope is null)
+        {
+            return;
+        }
 
         var targetScope = (Scope)newtypeType.MemberScope;
 
@@ -13479,7 +14290,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         DiagnosticBag diagnostics)
     {
         var classSymbol = symbolTable.GetDeclaredSymbol(classDecl);
-        if(classSymbol?.DeclaredType is not ClassType classType) return;
+        if(classSymbol?.DeclaredType is not ClassType classType)
+        {
+            return;
+        }
 
         var typeScope = (Scope)classType.MemberScope;
 
@@ -13522,7 +14336,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         DiagnosticBag diagnostics)
     {
         var structSymbol = symbolTable.GetDeclaredSymbol(structDecl);
-        if(structSymbol?.DeclaredType is not StructType structType) return;
+        if(structSymbol?.DeclaredType is not StructType structType)
+        {
+            return;
+        }
 
         var typeScope = (Scope)structType.MemberScope;
 
@@ -13558,7 +14375,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         DiagnosticBag diagnostics)
     {
         var abstractSymbol = symbolTable.GetDeclaredSymbol(abstractDecl);
-        if(abstractSymbol?.DeclaredType is not AbstractType abstractType) return;
+        if(abstractSymbol?.DeclaredType is not AbstractType abstractType)
+        {
+            return;
+        }
 
         // Create a per-abstract-type resolution scope that layers the abstract type's
         // type parameters on top of the file scope.
@@ -13719,7 +14539,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         {
             // Skip this-tier annotations — they don't introduce local bindings.
             if(withClause is not ContextWithClauseWithClauseNode contextClause)
+            {
                 continue;
+            }
 
             var contextType = ResolveTypeReference(contextClause.Type, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
             var clauseName = contextClause.Name.Lexeme;
@@ -13746,7 +14568,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // has no statements to resolve; semantic validation of whether ; is
         // permitted on this declaration is done elsewhere.
         if(ctorDecl.Body.GetBlock() is BlockNode ctorBlock)
+        {
             ResolveBlock(ctorBlock, methodScope, fileScope, enclosingType, /* isStatic */ false, symbolTable, expressionTypes, ambientTypeResolver, sourceText, diagnostics);
+        }
     }
 
     /// <summary>
@@ -13769,7 +14593,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     {
         var methodSymbol = symbolTable.GetDeclaredSymbol(methodDecl) as Symbol;
         if(methodSymbol is null || methodSymbol.DeclaredType is not null)
+        {
             return; // Already resolved or no symbol.
+        }
 
         // Resolve the return type (diagnostics go to the real bag since this is the
         // canonical resolution point for the return type).
@@ -13911,7 +14737,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         {
             // Skip this-tier annotations — they don't introduce local bindings.
             if(withClause is not ContextWithClauseWithClauseNode contextClause)
+            {
                 continue;
+            }
 
             var contextType = ResolveTypeReference(contextClause.Type, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
             var clauseName = contextClause.Name.Lexeme;
@@ -14977,7 +15805,11 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // Expression → Assignment → LogicalOr → LogicalAnd → Equality → Relational
         // Walk through the chain to find IsExpressionRelationalNode nodes.
         var assignment = condition.AsAssignmentOrNull();
-        if(assignment is null) return; // Lambda form has no is-expression pattern variables.
+        if(assignment is null)
+        {
+            return; // Lambda form has no is-expression pattern variables.
+        }
+
         CollectFromAssignment(assignment, thenScope, symbolTable, expressionTypes, fileScope, ambientTypeResolver, sourceText, diagnostics);
     }
 
@@ -15170,7 +16002,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
                     // Discard `_` does not introduce a variable.
                     if(name == "_")
+                    {
                         break;
+                    }
 
                     var patternType = ResolveTypeReference(typePattern.Type, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
 
@@ -15229,11 +16063,21 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         for(var i = 0; i < tupleType.ElementNames.Count; i++)
                         {
                             var elementName = tupleType.ElementNames[i];
-                            if(elementName is null || elementName == "_") continue;
-                            if(i >= astElements.Count) continue;
+                            if(elementName is null || elementName == "_")
+                            {
+                                continue;
+                            }
+
+                            if(i >= astElements.Count)
+                            {
+                                continue;
+                            }
 
                             var elementAst = astElements[i];
-                            if(!elementAst.Name.HasValue) continue;
+                            if(!elementAst.Name.HasValue)
+                            {
+                                continue;
+                            }
 
                             CheckDuplicateLocal(elementName, thenScope, sourceText, diagnostics);
 
@@ -15274,11 +16118,21 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         for(var i = 0; i < bareTupleType.ElementNames.Count; i++)
                         {
                             var elementName = bareTupleType.ElementNames[i];
-                            if(elementName is null || elementName == "_") continue;
-                            if(i >= bareAstElements.Count) continue;
+                            if(elementName is null || elementName == "_")
+                            {
+                                continue;
+                            }
+
+                            if(i >= bareAstElements.Count)
+                            {
+                                continue;
+                            }
 
                             var elementAst = bareAstElements[i];
-                            if(!elementAst.Name.HasValue) continue;
+                            if(!elementAst.Name.HasValue)
+                            {
+                                continue;
+                            }
 
                             CheckDuplicateLocal(elementName, thenScope, sourceText, diagnostics);
 
@@ -15306,7 +16160,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
                     // Discard `_` does not introduce a variable.
                     if(name == "_")
+                    {
                         break;
+                    }
 
                     CheckDuplicateLocal(name, thenScope, sourceText, diagnostics);
 
@@ -15447,19 +16303,25 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         {
             var member = classType.MemberScope.Lookup(propertyName);
             if(member?.DeclaredType is not null)
+            {
                 propertyType = member.DeclaredType;
+            }
         }
         else if(patternType is StructType structType)
         {
             var member = structType.MemberScope.Lookup(propertyName);
             if(member?.DeclaredType is not null)
+            {
                 propertyType = member.DeclaredType;
+            }
         }
         else if(patternType is AbstractType abstractType)
         {
             var member = abstractType.MemberScope.Lookup(propertyName);
             if(member?.DeclaredType is not null)
+            {
                 propertyType = member.DeclaredType;
+            }
         }
 
         // Recursively collect from the subpattern's inner pattern.
@@ -15742,7 +16604,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // Requirement 18.6: When multiple IEnumerable<T> implementations exist,
         // return null to require explicit type annotation.
         if(enumerableElementTypes.Count != 1)
+        {
             return null;
+        }
 
         return enumerableElementTypes[0];
     }
@@ -15764,14 +16628,20 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // IEnumerable<TElement> is represented as a ConstructedType wrapping the
         // Standard.IEnumerable AbstractType with one type argument.
         if(ifaceType is not ConstructedType { GenericDefinition: AbstractType genericIface } constructed)
+        {
             return null;
+        }
 
         // Check if this is Standard.IEnumerable (the Mist stdlib abstract type).
         if(genericIface.DisplayName != "IEnumerable" || genericIface.ContainingNamespace != "Standard")
+        {
             return null;
+        }
 
         if(constructed.TypeArguments.Count != 1)
+        {
             return null;
+        }
 
         var extractedType = constructed.TypeArguments[0];
 
@@ -15790,7 +16660,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
         // If the element type is not a type parameter (already concrete), return it directly.
         if(extractedType is not TypeParameterType)
+        {
             return extractedType;
+        }
 
         // Type parameter couldn't be resolved — return null.
         return null;
@@ -15832,7 +16704,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
             // If any constituent is an error, propagate.
             if(constituents.Any(c => c is ErrorType))
+            {
                 return ErrorType.Instance;
+            }
 
             return new UnionType(constituents.ToImmutableArray());
         }
@@ -15860,11 +16734,15 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             singleExpr.Type, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
 
         if(baseType is ErrorType)
+        {
             return ErrorType.Instance;
+        }
 
         // If no refinement predicate, return the plain base type.
         if(singleExpr.Refinement is null)
+        {
             return baseType;
+        }
 
         // Refinement is present — validate predicate compatibility with the base type.
         AndPatternNode andPatternNode;
@@ -15952,7 +16830,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // Unwrap RefinementType to check the underlying base type.
         // e.g., ZeroOrPositiveInt (= int >= 0) should be comparable because its base type is int.
         if(type is RefinementType refinement)
+        {
             return IsComparableType(refinement.BaseType);
+        }
 
         var displayName = type.DisplayName;
         return displayName switch
@@ -15978,12 +16858,16 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     private static bool PredicateContainsRelationalPattern(AndPatternNode andPattern)
     {
         if(IsRelationalUnaryPattern(andPattern.Left))
+        {
             return true;
+        }
 
         if(andPattern.Right is not null && !ReferenceEquals(andPattern.Right, andPattern.Left))
         {
             if(IsRelationalUnaryPattern(andPattern.Right))
+            {
                 return true;
+            }
         }
 
         if(!andPattern.UnaryPatterns.IsDefaultOrEmpty)
@@ -15991,7 +16875,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             foreach(var part in andPattern.UnaryPatterns)
             {
                 if(IsRelationalUnaryPattern(part))
+                {
                     return true;
+                }
             }
         }
 
@@ -16004,7 +16890,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     private static bool IsRelationalUnaryPattern(UnaryPatternNode unary)
     {
         if(unary is not DirectPatternUnaryPatternNode direct)
+        {
             return false;
+        }
 
         return direct.Primary is GreaterThanOrEqualRelationalPatternPrimaryPatternNode
             or LessThanOrEqualRelationalPatternPrimaryPatternNode
@@ -16019,12 +16907,16 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     private static bool PredicateContainsRegexPattern(AndPatternNode andPattern)
     {
         if(IsRegexUnaryPattern(andPattern.Left))
+        {
             return true;
+        }
 
         if(andPattern.Right is not null && !ReferenceEquals(andPattern.Right, andPattern.Left))
         {
             if(IsRegexUnaryPattern(andPattern.Right))
+            {
                 return true;
+            }
         }
 
         if(!andPattern.UnaryPatterns.IsDefaultOrEmpty)
@@ -16032,7 +16924,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             foreach(var part in andPattern.UnaryPatterns)
             {
                 if(IsRegexUnaryPattern(part))
+                {
                     return true;
+                }
             }
         }
 
@@ -16045,7 +16939,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     private static bool IsRegexUnaryPattern(UnaryPatternNode unary)
     {
         if(unary is not DirectPatternUnaryPatternNode direct)
+        {
             return false;
+        }
 
         return direct.Primary is ConstantPatternPrimaryPatternNode { Literal: RegexConstantConstantLiteralNode };
     }
@@ -16066,12 +16962,18 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     private static string? ExtractRegexLexemeFromPredicate(AndPatternNode andPattern)
     {
         var lexeme = TryExtractRegexLexemeFromUnary(andPattern.Left);
-        if(lexeme is not null) return lexeme;
+        if(lexeme is not null)
+        {
+            return lexeme;
+        }
 
         if(andPattern.Right is not null && !ReferenceEquals(andPattern.Right, andPattern.Left))
         {
             lexeme = TryExtractRegexLexemeFromUnary(andPattern.Right);
-            if(lexeme is not null) return lexeme;
+            if(lexeme is not null)
+            {
+                return lexeme;
+            }
         }
 
         if(!andPattern.UnaryPatterns.IsDefaultOrEmpty)
@@ -16079,7 +16981,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             foreach(var part in andPattern.UnaryPatterns)
             {
                 lexeme = TryExtractRegexLexemeFromUnary(part);
-                if(lexeme is not null) return lexeme;
+                if(lexeme is not null)
+                {
+                    return lexeme;
+                }
             }
         }
 
@@ -16092,7 +16997,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     private static string? TryExtractRegexLexemeFromUnary(UnaryPatternNode unary)
     {
         if(unary is DirectPatternUnaryPatternNode { Primary: ConstantPatternPrimaryPatternNode { Literal: RegexConstantConstantLiteralNode regexConst } })
+        {
             return regexConst.Value.Lexeme;
+        }
+
         return null;
     }
 
@@ -16105,7 +17013,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         foreach(var constituent in unionType.Constituents)
         {
             if(constituent is RefinementType)
+            {
                 return true;
+            }
         }
         return false;
     }
@@ -16118,12 +17028,16 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     private static bool HasRefinementPredicate(RefinableTypeExpressionNode refinableExpr)
     {
         if(refinableExpr.First.Refinement is not null)
+        {
             return true;
+        }
 
         foreach(var additional in refinableExpr.RefinableSingleTypeExprs)
         {
             if(additional.Refinement is not null)
+            {
                 return true;
+            }
         }
 
         return false;
@@ -16147,12 +17061,17 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             case NamedSingleTypeRefSingleTypeRefNode namedRef:
                 var lexeme = namedRef.Name.IDENTIFIER.Lexeme;
                 if(!string.IsNullOrEmpty(lexeme))
+                {
                     return lexeme;
+                }
+
                 if(sourceText is not null)
                 {
                     var span = namedRef.Name.Span;
                     if(span.Length > 0 && span.Start + span.Length <= sourceText.Contents.Length)
+                    {
                         return sourceText.Contents.Substring(span.Start, span.Length);
+                    }
                 }
                 return "";
             case PrimitiveSingleTypeRefSingleTypeRefNode primitiveRef:
@@ -16218,7 +17137,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // Unwrap type aliases to check the underlying type.
         var effectiveType = resolvedType;
         if(effectiveType is TypeAliasType alias)
+        {
             effectiveType = alias.UnderlyingType;
+        }
 
         // Case 1: T is void itself — redundant `void?`
         if(effectiveType.IsVoid())
@@ -16293,7 +17214,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // by the non-nullable `Rest` codegen artifact. A non-union reference
         // is fully described by `First` and resolves through ResolveSingleTypeRef.
         if(typeRef.SingleTypeRefs.Length > 0)
+        {
             return ResolveUnionTypeRef(typeRef, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
+        }
 
         return ResolveSingleTypeRef(typeRef.First, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics);
     }
@@ -16415,7 +17338,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         string slotName)
     {
         if(typeParam.Constraints is null)
+        {
             return null;
+        }
 
         var constraints = typeParam.Constraints;
 
@@ -16430,7 +17355,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             {
                 var member = ifaceType.MemberScope.Lookup(slotName);
                 if(member is not null && member.DeclaredType is AssociatedTypeSlotType slotType)
+                {
                     return slotType;
+                }
             }
         }
 
@@ -16519,7 +17446,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         }
                         // Apply optional suffix if present
                         if(namedRef.Optional is { } tptOptToken)
+                        {
                             return ApplyOptionalSuffix(tpt, tptOptToken, fileScope, symbolTable, sourceText, diagnostics);
+                        }
+
                         return tpt;
                     }
 
@@ -16539,7 +17469,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         }
                         // Apply optional suffix if present
                         if(namedRef.Optional is { } dptOptToken)
+                        {
                             return ApplyOptionalSuffix(dpt, dptOptToken, fileScope, symbolTable, sourceText, diagnostics);
+                        }
+
                         return dpt;
                     }
 
@@ -16561,7 +17494,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                             {
                                 // Apply optional suffix if present
                                 if(namedRef.Optional is { } slotOptToken)
+                                {
                                     return ApplyOptionalSuffix(resolvedSlot, slotOptToken, fileScope, symbolTable, sourceText, diagnostics);
+                                }
+
                                 return resolvedSlot;
                             }
 
@@ -16601,7 +17537,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         long? spanKnownLength = null;
                         var spanArgNodes = new List<TypeArgumentNode> { spanTypeArgList.TypeArgument };
                         foreach(var extra in spanTypeArgList.TypeArguments)
+                        {
                             spanArgNodes.Add(extra);
+                        }
+
                         if(spanArgNodes.Count > 1
                             && spanArgNodes[1] is IntegerLiteralTypeArgumentTypeArgumentNode spanIntLit
                             && long.TryParse(spanIntLit.Literal.Lexeme, out var spanLen))
@@ -16614,7 +17553,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                             : new SpanType(spanElement, spanIsReadOnly);
 
                         if(namedRef.Optional is { } spanOptToken)
+                        {
                             return ApplyOptionalSuffix(spanType, spanOptToken, fileScope, symbolTable, sourceText, diagnostics);
+                        }
+
                         return spanType;
                     }
 
@@ -16674,19 +17616,28 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     elementTypes.Add(ResolveTypeReference(tupleRef.First.Type, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics));
                     var firstName = tupleRef.First.Name?.Lexeme;
                     elementNames.Add(firstName);
-                    if(firstName is not null) hasAnyName = true;
+                    if(firstName is not null)
+                    {
+                        hasAnyName = true;
+                    }
 
                     elementTypes.Add(ResolveTypeReference(tupleRef.Rest.Type, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics));
                     var restName = tupleRef.Rest.Name?.Lexeme;
                     elementNames.Add(restName);
-                    if(restName is not null) hasAnyName = true;
+                    if(restName is not null)
+                    {
+                        hasAnyName = true;
+                    }
 
                     foreach(var additional in tupleRef.TupleTypeElements)
                     {
                         elementTypes.Add(ResolveTypeReference(additional.Type, fileScope, ambientTypeResolver, symbolTable, sourceText, diagnostics));
                         var additionalName = additional.Name?.Lexeme;
                         elementNames.Add(additionalName);
-                        if(additionalName is not null) hasAnyName = true;
+                        if(additionalName is not null)
+                        {
+                            hasAnyName = true;
+                        }
                     }
 
                     return new TupleType(elementTypes, hasAnyName ? elementNames : null);
@@ -16866,7 +17817,11 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // through to an unrelated global-scope symbol).
         foreach(var member in namespaceScope.Members)
         {
-            if(member.Name != simpleName) continue;
+            if(member.Name != simpleName)
+            {
+                continue;
+            }
+
             if(member.Kind != SymbolKind.Class
                 && member.Kind != SymbolKind.Struct
                 && member.Kind != SymbolKind.Abstract)
@@ -16875,12 +17830,16 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             }
 
             if(member.DeclaredType is not IType declaredType)
+            {
                 continue;
+            }
 
             // Legacy behavior: when no specific arity is requested, return the
             // first type-kind match.
             if(typeArgumentCount < 0)
+            {
                 return declaredType;
+            }
 
             // Arity disambiguation: return the variant whose definition declares
             // exactly the requested number of type parameters (e.g., to pick the
@@ -16889,7 +17848,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             // an exact-arity match for structural type identity, so a same-named
             // member of a different arity is intentionally not returned.
             if(GetTypeParameterCount(declaredType) == typeArgumentCount)
+            {
                 return declaredType;
+            }
         }
 
         throw new StdlibMissingException(
@@ -17074,24 +18035,34 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     private static IType? TryUnwrapExpressionFunc(IType type)
     {
         if(type is not ConstructedType ct)
+        {
             return null;
+        }
 
         // Check if the generic definition is "Expression" (from System.Linq.Expressions).
         if(ct.GenericDefinition is not ClassType classDef)
+        {
             return null;
+        }
 
         if(classDef.DisplayName != "Expression")
+        {
             return null;
+        }
 
         // Expression<T> has exactly one type argument — the delegate type.
         if(ct.TypeArguments.Count != 1)
+        {
             return null;
+        }
 
         var inner = ct.TypeArguments[0];
 
         // The inner type should be a Func-like type (stdlib Func or CLR Func/Action).
         if(IsFuncType(inner))
+        {
             return inner;
+        }
 
         // Also accept CLR Func/Action projected as ClassType.
         if(inner is ConstructedType innerCt
@@ -17129,7 +18100,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // Get the method's return type (effective return type visible to callers).
         var returnType = methodSymbol.DeclaredType;
         if(returnType is null || returnType is ErrorType)
+        {
             return null;
+        }
 
         // Construct the type arguments array: [paramTypes..., returnType].
         var arity = paramTypes.Count + 1;
@@ -17210,11 +18183,15 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             var paramTypes = ParameterSignature.Extract(overload, symbolTable);
             var returnType = overload.DeclaredType;
             if(returnType is null || returnType is ErrorType)
+            {
                 continue;
+            }
 
             // Check parameter count matches.
             if(paramTypes.Count != delegateParamCount)
+            {
                 continue;
+            }
 
             // Check each parameter type matches the delegate's corresponding type.
             var compatible = true;
@@ -17229,12 +18206,16 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             }
 
             if(!compatible)
+            {
                 continue;
+            }
 
             // Check return type matches.
             var delegateReturnType = delegateFunc.TypeArguments[^1];
             if(!TypesMatch(returnType, delegateReturnType))
+            {
                 continue;
+            }
 
             compatibleOverloads.Add(overload);
         }
@@ -17311,52 +18292,78 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // a method call (postfix with invocation suffix) or an async functor expression.
         var assignment = expr.AsAssignmentOrNull();
         if(assignment is null)
+        {
             return false; // Lambda form — not a discarded async invocation.
+        }
+
         if(assignment.Value is not null)
+        {
             return false; // It's an assignment, not a discarded expression.
+        }
 
         var logicalOr = assignment.Target.Left;
         if(logicalOr.Right is not null)
+        {
             return false;
+        }
 
         var logicalAnd = logicalOr.Left;
         if(logicalAnd.Right is not null)
+        {
             return false;
+        }
 
         var equality = logicalAnd.Left;
         if(equality.Right is not null)
+        {
             return false;
+        }
 
         var relational = equality.Left;
         if(relational is not RelationalComparisonRelationalNode relComp)
+        {
             return false;
+        }
+
         if(relComp.Right is not null)
+        {
             return false;
+        }
 
         var additive = relComp.Left;
         if(additive.Right is not null)
+        {
             return false;
+        }
 
         var multiplicative = additive.Left;
         if(multiplicative.Right is not null)
+        {
             return false;
+        }
 
         var unary = multiplicative.Left;
 
         // Check if it's an async functor expression.
         if(unary is AsyncExpressionUnaryNode)
+        {
             return true;
+        }
 
         // Check if it's a postfix expression ending in an invocation.
         if(unary is PostfixExpressionUnaryNode postfix)
         {
             var suffixes = postfix.Primary.Suffix;
             if(suffixes.Length > 0 && suffixes[^1] is InvocationSuffixPostfixSuffixNode)
+            {
                 return true;
+            }
 
             // Also check for method call suffix (obj.Method()).
             if(suffixes.Length > 0 && suffixes[^1] is MethodCallSuffixPostfixSuffixNode)
+            {
                 return true;
+            }
         }
 
         return false;
@@ -17379,7 +18386,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     {
         // 1. Check well-known primitive types by name.
         var wellKnown = TryResolveWellKnownType(typeName);
-        if(wellKnown is not null) return wellKnown;
+        if(wellKnown is not null)
+        {
+            return wellKnown;
+        }
 
         // 2. Search current scope → parent scopes (local → file → namespace → global).
         //    When typeArgumentCount >= 0, use arity-aware lookup to disambiguate overloads.
@@ -17614,11 +18624,15 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         foreach(var candidate in candidates)
         {
             if(candidate.Kind is not (SymbolKind.Class or SymbolKind.Struct or SymbolKind.Abstract or SymbolKind.TypeAlias or SymbolKind.Enum or SymbolKind.Newtype))
+            {
                 continue;
+            }
 
             var candidateArity = GetSymbolTypeParameterCount(candidate);
             if(candidateArity == typeArgumentCount)
+            {
                 return candidate;
+            }
 
             // Keep the first type-kind match as fallback in case no arity match is found.
             fallback ??= candidate;
@@ -17641,16 +18655,25 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         foreach(var member in scope.Members)
         {
             if(member.Name != typeName)
+            {
                 continue;
+            }
+
             if(member.Kind is not (SymbolKind.Class or SymbolKind.Struct or SymbolKind.Abstract or SymbolKind.TypeAlias or SymbolKind.Enum or SymbolKind.Newtype))
+            {
                 continue;
+            }
 
             if(typeArgumentCount < 0)
+            {
                 return member; // Legacy: first match.
+            }
 
             var candidateArity = GetSymbolTypeParameterCount(member);
             if(candidateArity == typeArgumentCount)
+            {
                 return member;
+            }
 
             fallback ??= member;
         }
@@ -17669,7 +18692,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         {
             // Type not yet resolved (forward reference). Check the Symbol's TypeParameters list.
             if(symbol is Symbol s)
+            {
                 return s.TypeParameters.Count;
+            }
+
             return 0;
         }
 
@@ -17693,7 +18719,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         while(current is not null)
         {
             if(current is Scope s && s.Parent is null)
+            {
                 return s;
+            }
+
             current = current.Parent;
         }
         return scope; // fallback
@@ -17709,7 +18738,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         while(current is not null)
         {
             if(current is Scope s && s.Parent is null)
+            {
                 return s;
+            }
+
             current = current.Parent;
         }
         return scope as Scope;
@@ -17736,7 +18768,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 if(typeParameters[i] is TypeParameterType tp
                     && tpt.Name == tp.Name
                     && tpt.Ordinal == tp.Ordinal)
+                {
                     return i < typeArguments.Count ? typeArguments[i] : type;
+                }
             }
             // Type parameter not in the substitution list — return as-is.
             return type;
@@ -17751,10 +18785,15 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 var substituted = SubstituteTypeParameters(arg, typeParameters, typeArguments);
                 substitutedArgs.Add(substituted);
                 if(!ReferenceEquals(substituted, arg))
+                {
                     anyChanged = true;
+                }
             }
             if(anyChanged)
+            {
                 return new ConstructedType(ct.GenericDefinition, substitutedArgs);
+            }
+
             return type;
         }
 
@@ -17762,7 +18801,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         {
             var substitutedElement = SubstituteTypeParameters(arrayType.ElementType, typeParameters, typeArguments);
             if(!ReferenceEquals(substitutedElement, arrayType.ElementType))
+            {
                 return new ArrayType(substitutedElement);
+            }
+
             return type;
         }
 
@@ -17770,7 +18812,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         {
             var substitutedElement = SubstituteTypeParameters(spanType.ElementType, typeParameters, typeArguments);
             if(!ReferenceEquals(substitutedElement, spanType.ElementType))
+            {
                 return new SpanType(substitutedElement, spanType.IsReadOnly);
+            }
+
             return type;
         }
 
@@ -17797,7 +18842,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     {
         // If the resolved type is unknown, don't cascade errors.
         if(resolvedType is ErrorType)
+        {
             return resolvedType;
+        }
 
         var typeParams = GetTypeParameters(resolvedType);
         if(typeParams.Count == 0)
@@ -17935,7 +18982,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // Collect all TypeArgumentNode entries in order.
         var argNodes = new List<TypeArgumentNode> { typeArgList.TypeArgument };
         foreach(var extra in typeArgList.TypeArguments)
+        {
             argNodes.Add(extra);
+        }
 
         var resolvedTypeArgs = new List<IType>(argNodes.Count);
         List<DependentValueArgument?>? dependentArgs = null;
@@ -18002,7 +19051,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 {
                     var valueText = intLit.Literal.Lexeme;
                     if(long.TryParse(valueText, out var value))
+                    {
                         return new DependentValueArgument(value, depParam.ValueType, valueText);
+                    }
+
                     return new DependentValueArgument(0L, depParam.ValueType, valueText);
                 }
 
@@ -18010,7 +19062,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 {
                     var valueText = negLit.Literal.Lexeme;
                     if(long.TryParse(valueText, out var value))
+                    {
                         return new DependentValueArgument(-value, depParam.ValueType, $"-{valueText}");
+                    }
+
                     return new DependentValueArgument(0L, depParam.ValueType, $"-{valueText}");
                 }
 
@@ -18020,7 +19075,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     var hexStr = valueText.StartsWith("0x", StringComparison.OrdinalIgnoreCase)
                         ? valueText[2..] : valueText;
                     if(long.TryParse(hexStr, System.Globalization.NumberStyles.HexNumber, null, out var value))
+                    {
                         return new DependentValueArgument(value, depParam.ValueType, valueText);
+                    }
+
                     return new DependentValueArgument(0L, depParam.ValueType, valueText);
                 }
 
@@ -18065,7 +19123,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
                         // Don't treat well-known type names as const references.
                         if(TryResolveWellKnownType(argName) is not null)
+                        {
                             return null; // It's a type, not a const.
+                        }
 
                         // Look up in scope to disambiguate.
                         var symbol = fileScope.Lookup(argName);
@@ -18130,7 +19190,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                             foreach(var ns in importedNamespaces)
                             {
                                 if(ambientTypeResolver.ResolveType(ns, argName) is not null)
+                                {
                                     return null; // It's an ambient type.
+                                }
                             }
                         }
 
@@ -18203,7 +19265,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                                     break;
                                 }
                             }
-                            if(userResolved) break;
+                            if(userResolved)
+                            {
+                                break;
+                            }
                         }
                     }
 
@@ -18215,7 +19280,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         {
                             ambientResolved = ambientTypeResolver.ResolveType(ns, argName);
                             if(ambientResolved is not null)
+                            {
                                 break;
+                            }
                         }
                     }
 
@@ -18303,7 +19370,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         }
 
         if(!hasTypeParams && !hasNestedTypes && !hasAssociatedTypeSlots && !hasResolvedMemberTypeAliases)
+        {
             return fileScope;
+        }
 
         var scope = new Scope(parent: fileScope);
         foreach(var member in typeScope.Members)
@@ -18552,7 +19621,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             var isAsync = IsAsyncLambda(lambda);
             var previousAsyncContext = _isInAsyncContext;
             if(isAsync)
+            {
                 _isInAsyncContext = true;
+            }
 
             try
             {
@@ -18619,7 +19690,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 var funcArity = paramTypes.Count + 1;
                 var funcTypeArgs = new IType[funcArity];
                 for(var pi = 0; pi < paramTypes.Count; pi++)
+                {
                     funcTypeArgs[pi] = paramTypes[pi];
+                }
 
                 try
                 {
@@ -18692,10 +19765,14 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
         // Single implicit param (e.g., x => x + 1) cannot be inferred without a target type.
         if(paramList is null or SingleImplicitParamLambdaParameterListNode)
+        {
             return UnknownType.Instance;
+        }
 
         if(paramList is not ParenthesizedLambdaParamsLambdaParameterListNode parenParams)
+        {
             return UnknownType.Instance;
+        }
 
         // Collect all param nodes.
         var paramNodes = new List<LambdaParamNode>();
@@ -18709,7 +19786,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         foreach(var paramNode in paramNodes)
         {
             if(paramNode is not TypedLambdaParamLambdaParamNode)
+            {
                 return UnknownType.Instance;
+            }
         }
 
         // All parameters are explicitly typed — resolve their type annotations.
@@ -18734,7 +19813,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         var isAsync = IsAsyncLambda(lambda);
         var previousAsyncContext = _isInAsyncContext;
         if(isAsync)
+        {
             _isInAsyncContext = true;
+        }
 
         IType returnType;
         try
@@ -18963,7 +20044,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         };
 
         if(paramList is null)
+        {
             return;
+        }
 
         switch(paramList)
         {
@@ -19064,20 +20147,28 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         };
 
         if(paramList is not ParenthesizedLambdaParamsLambdaParameterListNode parenParams)
+        {
             return false;
+        }
 
         if(parenParams.Params is null)
+        {
             return false; // zero-parameter lambda
+        }
 
         // Check if the first param is typed.
         if(parenParams.Params.LambdaParam is not TypedLambdaParamLambdaParamNode)
+        {
             return false;
+        }
 
         // Check all remaining params are typed.
         foreach(var param in parenParams.Params.LambdaParams)
         {
             if(param is not TypedLambdaParamLambdaParamNode)
+            {
                 return false;
+            }
         }
 
         return true;
@@ -19166,19 +20257,25 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     private static bool ContainsTypeParameter(IType type)
     {
         if(type is TypeParameterType)
+        {
             return true;
+        }
 
         if(type is ConstructedType ct)
         {
             foreach(var arg in ct.TypeArguments)
             {
                 if(ContainsTypeParameter(arg))
+                {
                     return true;
+                }
             }
         }
 
         if(type is ArrayType arrayType)
+        {
             return ContainsTypeParameter(arrayType.ElementType);
+        }
 
         return false;
     }
@@ -19461,15 +20558,30 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     private static bool IsBareVoidTypeLiteral(RelationalNode? relational)
     {
         if(relational is not RelationalComparisonRelationalNode { Right: null } cmp)
+        {
             return false;
+        }
+
         if(cmp.Left is not AdditiveNode { Right: null } additive)
+        {
             return false;
+        }
+
         if(additive.Left is not MultiplicativeNode { Right: null } multiplicative)
+        {
             return false;
+        }
+
         if(multiplicative.Left is not PostfixExpressionUnaryNode postfix)
+        {
             return false;
+        }
+
         if(postfix.Primary is not PostfixNode { Suffix.Length: 0 } postfixNode)
+        {
             return false;
+        }
+
         return postfixNode.Target is TypeLiteralExpressionPrimaryNode { TypeRef: { SingleTypeRefs.Length: 0, First: VoidSingleTypeRefSingleTypeRefNode } };
     }
 
@@ -20568,7 +21680,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         {
                             var extLookupType = targetType;
                             if(extLookupType is ConstructedType extCt)
+                            {
                                 extLookupType = extCt.GenericDefinition;
+                            }
+
                             var extensions = _extensionRegistryContext.GetApplicableExtensions(targetType);
                             var argCount = methodCall.Arguments.GetAllExpressions().Length;
                             ISymbol? firstExtMatch = null;
@@ -20594,7 +21709,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                                         }
                                     }
                                 }
-                                if(methodSymForParams is not null) break;
+                                if(methodSymForParams is not null)
+                                {
+                                    break;
+                                }
                             }
                             // Fallback: use first match if no exact param count match.
                             if(methodSymForParams is null && firstExtMatch is not null)
@@ -20666,10 +21784,14 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                                     {
                                         substituted[pi] = SubstituteTypeInMember(methodParamTypes[pi], typeParams, ctForSubst.TypeArguments);
                                         if(!ReferenceEquals(substituted[pi], methodParamTypes[pi]))
+                                        {
                                             anyChanged = true;
+                                        }
                                     }
                                     if(anyChanged)
+                                    {
                                         methodParamTypes = substituted;
+                                    }
                                 }
                             }
 
@@ -20693,10 +21815,14 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                                         substituted[pi] = SubstituteTypeInMember(
                                             methodParamTypes[pi], extTypeParamsAsIType, extTargetCt.TypeArguments);
                                         if(!ReferenceEquals(substituted[pi], methodParamTypes[pi]))
+                                        {
                                             anyChanged = true;
+                                        }
                                     }
                                     if(anyChanged)
+                                    {
                                         methodParamTypes = substituted;
+                                    }
                                 }
                             }
 
@@ -20715,10 +21841,14 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                                 {
                                     substituted[pi] = SubstituteTypeInMember(methodParamTypes[pi], methodTypeParams, resolvedMethodTypeArgs);
                                     if(!ReferenceEquals(substituted[pi], methodParamTypes[pi]))
+                                    {
                                         anyChanged = true;
+                                    }
                                 }
                                 if(anyChanged)
+                                {
                                     methodParamTypes = substituted;
+                                }
                             }
                         }
 
@@ -21097,17 +22227,28 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     private static bool IsVoidOrOptionalType(IType? type)
     {
         if(type is null)
+        {
             return false;
+        }
+
         if(type.IsVoid())
+        {
             return true;
+        }
+
         if(type is TypeAliasType alias)
+        {
             type = alias.UnderlyingType;
+        }
+
         if(type is UnionType union)
         {
             foreach(var constituent in union.Constituents)
             {
                 if(constituent.IsVoid())
+                {
                     return true;
+                }
             }
         }
         return false;
@@ -21121,11 +22262,15 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     private static IType? ProjectOptionalType(IType targetType)
     {
         if(targetType is ErrorType)
+        {
             return null;
+        }
 
         // Unwrap type aliases to see the underlying union.
         if(targetType is TypeAliasType alias)
+        {
             targetType = alias.UnderlyingType;
+        }
 
         if(targetType is UnionType union)
         {
@@ -21145,13 +22290,21 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 foreach(var constituent in union.Constituents)
                 {
                     if(!constituent.IsVoid())
+                    {
                         nonVoidConstituents.Add(constituent);
+                    }
                 }
 
                 if(nonVoidConstituents.Count == 0)
+                {
                     return null;
+                }
+
                 if(nonVoidConstituents.Count == 1)
+                {
                     return nonVoidConstituents[0];
+                }
+
                 return new UnionType(nonVoidConstituents);
             }
         }
@@ -21169,10 +22322,14 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     private static IType WrapTypeWithVoid(IType type, Scope fileScope, SymbolTable symbolTable)
     {
         if(type is ErrorType)
+        {
             return ErrorType.Instance;
+        }
 
         if(type.IsVoid())
+        {
             return type;
+        }
 
         // If R is already a union containing void, return it unchanged.
         if(type is UnionType existingUnion)
@@ -21180,7 +22337,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             foreach(var constituent in existingUnion.Constituents)
             {
                 if(constituent.IsVoid())
+                {
                     return type;
+                }
             }
         }
 
@@ -21261,7 +22420,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         Dictionary<Storm.Runtime.SyntaxNode, IType> expressionTypes)
     {
         if(switchExpr.Arms is null)
+        {
             return UnknownType.Instance;
+        }
 
         // Collect all arm result expression types.
         var armTypes = new List<IType>();
@@ -21280,7 +22441,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         }
 
         if(armTypes.Count == 0)
+        {
             return UnknownType.Instance;
+        }
 
         // Check if all arms have the same type.
         var unified = armTypes[0];
@@ -21295,7 +22458,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         }
 
         if(allSame)
+        {
             return unified;
+        }
 
         // Types differ — attempt to find a common base class.
         // Walk the base type chain of the first type and check if all other
@@ -21313,9 +22478,15 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     private static bool TypesMatch(IType a, IType b)
     {
         if(ReferenceEquals(a, b))
+        {
             return true;
+        }
+
         if(a is ErrorType || b is ErrorType)
+        {
             return true; // Suppress cascading errors.
+        }
+
         return a.DisplayName == b.DisplayName;
     }
 
@@ -21328,20 +22499,29 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     private static IType? FindCommonBaseType(List<IType> types)
     {
         if(types.Count == 0)
+        {
             return null;
+        }
 
         // Skip ErrorType entries — they should not influence the result.
         var nonErrorTypes = new List<IType>();
         foreach(var t in types)
         {
             if(t is not ErrorType)
+            {
                 nonErrorTypes.Add(t);
+            }
         }
 
         if(nonErrorTypes.Count == 0)
+        {
             return ErrorType.Instance;
+        }
+
         if(nonErrorTypes.Count == 1)
+        {
             return nonErrorTypes[0];
+        }
 
         // Try to find a common base by walking the first type's ancestor chain.
         // For each candidate ancestor, check if all other types are assignable to it.
@@ -21362,7 +22542,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 }
 
                 if(allAssignable)
+                {
                     return candidate;
+                }
 
                 candidate = candidate.BaseType as ClassType;
             }
@@ -21379,9 +22561,14 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     private static bool IsSubtypeOf(IType source, ClassType target)
     {
         if(ReferenceEquals(source, target))
+        {
             return true;
+        }
+
         if(source.DisplayName == target.DisplayName)
+        {
             return true;
+        }
 
         if(source is ClassType sourceClass)
         {
@@ -21389,7 +22576,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             while(current is not null)
             {
                 if(ReferenceEquals(current, target) || current.DisplayName == target.DisplayName)
+                {
                     return true;
+                }
+
                 current = current.BaseType as ClassType;
             }
         }
@@ -21545,11 +22735,16 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         long? knownLength = null;
                         var typeArgNodes = new List<TypeArgumentNode> { typeArgList.TypeArgument };
                         foreach(var extra in typeArgList.TypeArguments)
+                        {
                             typeArgNodes.Add(extra);
+                        }
+
                         if(typeArgNodes.Count > 1 && typeArgNodes[1] is IntegerLiteralTypeArgumentTypeArgumentNode intLitArg)
                         {
                             if(long.TryParse(intLitArg.Literal.Lexeme, out var size))
+                            {
                                 knownLength = size;
+                            }
                         }
 
                         createdType = knownLength.HasValue
@@ -21887,7 +23082,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                                     }
                                 }
                                 if(inheritedMemberType is not null)
+                                {
                                     break;
+                                }
+
                                 ancestor = ancestor.BaseType as ClassType;
                             }
 
@@ -22156,7 +23354,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     {
         // Check well-known types.
         var wellKnown = TryResolveWellKnownType(name);
-        if(wellKnown is not null) return wellKnown;
+        if(wellKnown is not null)
+        {
+            return wellKnown;
+        }
 
         // Check scope chain for type symbols (local → file → namespace → global).
         var symbol = fileScope.Lookup(name);
@@ -22306,12 +23507,16 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 {
                     var member = iface.MemberScope.Lookup(memberName);
                     if(member is not null)
+                    {
                         return member.DeclaredType ?? ErrorType.Instance;
+                    }
 
                     // Also check inherited abstract types transitively.
                     var inherited = LookupInheritedInterfaceMember(iface, memberName);
                     if(inherited is not null)
+                    {
                         return inherited;
+                    }
                 }
             }
 
@@ -22324,7 +23529,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     foreach(var m in current.MemberScope.Members)
                     {
                         if(m.Name == memberName)
+                        {
                             return m.DeclaredType ?? ErrorType.Instance;
+                        }
                     }
 
                     current = current.BaseType as ClassType;
@@ -22356,12 +23563,16 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     {
                         var member = ifaceType.MemberScope.Lookup(memberName);
                         if(member is not null)
+                        {
                             return member.DeclaredType ?? ErrorType.Instance;
+                        }
 
                         // Also check inherited abstract types transitively.
                         var inherited = LookupInheritedInterfaceMember(ifaceType, memberName);
                         if(inherited is not null)
+                        {
                             return inherited;
+                        }
                     }
                 }
 
@@ -22374,7 +23585,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         foreach(var m in current.MemberScope.Members)
                         {
                             if(m.Name == memberName)
+                            {
                                 return m.DeclaredType ?? ErrorType.Instance;
+                            }
                         }
 
                         current = current.BaseType as ClassType;
@@ -22457,7 +23670,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         foreach(var m in stdlibStringClass.MemberScope.Members)
                         {
                             if(m.Name == memberName)
+                            {
                                 return m.DeclaredType ?? ErrorType.Instance;
+                            }
                         }
                     }
                 }
@@ -22478,7 +23693,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     foreach(var member in members)
                     {
                         if(member.Name == memberName)
+                        {
                             return member.DeclaredType ?? ErrorType.Instance;
+                        }
                     }
                 }
             }
@@ -22500,7 +23717,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     {
                         var int32Type = LookupQualifiedStdlibType(globalScope2, symbolTable, "Standard.Int32");
                         if(int32Type is not null)
+                        {
                             return int32Type;
+                        }
                     }
                     catch(StdlibMissingException)
                     {
@@ -22567,7 +23786,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     {
                         var int32Type = LookupQualifiedStdlibType(globalScope2, symbolTable, "Standard.Int32");
                         if(int32Type is not null)
+                        {
                             return int32Type;
+                        }
                     }
                     catch(StdlibMissingException) { }
                 }
@@ -22593,7 +23814,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     foreach(var member in members)
                     {
                         if(member.Name == memberName)
+                        {
                             return member.DeclaredType ?? ErrorType.Instance;
+                        }
                     }
                 }
             }
@@ -22689,7 +23912,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                             // not via an instance. This prevents e.g. Array.Reverse
                             // from shadowing Enumerable.Reverse<T> extension method.
                             if(m is Symbol { IsStatic: true, Kind: SymbolKind.Method })
+                            {
                                 continue;
+                            }
 
                             var memberType = m.DeclaredType ?? ErrorType.Instance;
                             return SubstituteMemberTypeIfNeeded(memberType, constructedTypeParams, constructedTypeArgs);
@@ -22790,7 +24015,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             {
                 // Namespace visibility check.
                 if(ext.ContainingNamespace is not null && !importedNamespaces.Contains(ext.ContainingNamespace))
+                {
                     continue;
+                }
 
                 // Search the extension block's member scope for a matching member.
                 var extMember = ext.MemberScope.Lookup(memberName);
@@ -22842,7 +24069,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         }
                     }
                     if(!isDuplicate)
+                    {
                         deduplicated.Add(candidates[i]);
+                    }
                 }
                 candidates = deduplicated;
 
@@ -22877,7 +24106,11 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 {
                     for(var i = 0; i < candidates.Count; i++)
                     {
-                        if(i == bestIndex) continue;
+                        if(i == bestIndex)
+                        {
+                            continue;
+                        }
+
                         var cmp = CompareReceiverSpecificity(candidates[bestIndex].ReceiverType, candidates[i].ReceiverType);
                         if(cmp >= 0)
                         {
@@ -22917,17 +24150,23 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             {
                 // Namespace visibility check.
                 if(ext.ContainingNamespace is not null && !importedNamespaces.Contains(ext.ContainingNamespace))
+                {
                     continue;
+                }
 
                 // Search the extension block's member scope for a matching member.
                 var extMember = ext.MemberScope.Lookup(memberName);
                 if(extMember is null)
+                {
                     continue;
+                }
 
                 // Filter: only consider members marked static.
                 var declaringNode = symbolTable.GetDeclaringNode(extMember);
                 if(!IsExtensionMemberStatic(declaringNode))
+                {
                     continue;
+                }
 
                 var memberType = extMember.DeclaredType ?? ErrorType.Instance;
 
@@ -22936,7 +24175,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 {
                     var bindings = TryUnifyReceiverType(ext.ReceiverType, lookupType, ext.TypeParameters);
                     if(bindings is null)
+                    {
                         continue;
+                    }
 
                     memberType = SubstituteTypeInMember(memberType, ext.TypeParameters, bindings);
                 }
@@ -22973,7 +24214,11 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 {
                     for(var i = 0; i < staticCandidates.Count; i++)
                     {
-                        if(i == bestIndex) continue;
+                        if(i == bestIndex)
+                        {
+                            continue;
+                        }
+
                         var cmp = CompareReceiverSpecificity(staticCandidates[bestIndex].ReceiverType, staticCandidates[i].ReceiverType);
                         if(cmp >= 0)
                         {
@@ -23039,27 +24284,42 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     {
         // Same type reference — equally specific.
         if(ReferenceEquals(r1, r2))
+        {
             return 0;
+        }
 
         // Special case: unknown is always less specific than any concrete type.
         var r1IsUnknown = r1 is UnknownType;
         var r2IsUnknown = r2 is UnknownType;
 
         if(r1IsUnknown && !r2IsUnknown)
+        {
             return 1; // r2 is more specific.
+        }
+
         if(r2IsUnknown && !r1IsUnknown)
+        {
             return -1; // r1 is more specific.
+        }
+
         if(r1IsUnknown && r2IsUnknown)
+        {
             return 0; // Both unknown — equally specific.
+        }
 
         // Check assignability in both directions.
         var r1AssignableToR2 = IsReceiverAssignableTo(r1, r2);
         var r2AssignableToR1 = IsReceiverAssignableTo(r2, r1);
 
         if(r1AssignableToR2 && !r2AssignableToR1)
+        {
             return -1; // r1 is more specific (it fits into r2 but not vice versa).
+        }
+
         if(r2AssignableToR1 && !r1AssignableToR2)
+        {
             return 1; // r2 is more specific.
+        }
 
         // Both assignable to each other, or neither assignable → equally specific (ambiguous).
         return 0;
@@ -23074,15 +24334,21 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     {
         // Same reference — trivially assignable.
         if(ReferenceEquals(source, target))
+        {
             return true;
+        }
 
         // Everything is assignable to unknown.
         if(target is UnknownType)
+        {
             return true;
+        }
 
         // Nothing is assignable from unknown to a concrete type.
         if(source is UnknownType)
+        {
             return false;
+        }
 
         // Check base type chain for class types.
         if(source is ClassType sourceClass)
@@ -23092,7 +24358,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             while(current is not null)
             {
                 if(ReferenceEquals(current, target))
+                {
                     return true;
+                }
+
                 current = (current as ClassType)?.BaseType;
             }
 
@@ -23100,7 +24369,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             foreach(var iface in sourceClass.Abstracts)
             {
                 if(ReferenceEquals(iface, target))
+                {
                     return true;
+                }
             }
         }
 
@@ -23110,7 +24381,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             foreach(var iface in sourceStruct.Abstracts)
             {
                 if(ReferenceEquals(iface, target))
+                {
                     return true;
+                }
             }
         }
 
@@ -23120,14 +24393,19 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         {
             // The source ConstructedType is assignable to its own generic definition.
             if(ReferenceEquals(sourceCtClass, target) || sourceCtClass.DisplayName == target.DisplayName)
+            {
                 return true;
+            }
 
             // Walk the base type chain of the generic definition.
             var current = sourceCtClass.BaseType;
             while(current is not null)
             {
                 if(ReferenceEquals(current, target) || current.DisplayName == target.DisplayName)
+                {
                     return true;
+                }
+
                 current = (current as ClassType)?.BaseType;
             }
         }
@@ -23148,7 +24426,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     private static bool AreStructurallyEquivalentReceivers(IType r1, IType r2)
     {
         if(ReferenceEquals(r1, r2))
+        {
             return true;
+        }
 
         // Both plain abstractType: compare by name + namespace.
         if(r1 is AbstractType i1 && r2 is AbstractType i2)
@@ -23206,7 +24486,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         var bindings = new Dictionary<string, IType>();
 
         if(!UnifyTypes(pattern, actual, typeParameters, bindings))
+        {
             return null;
+        }
 
         // Ensure all type parameters have been bound.
         var result = new IType[typeParameters.Count];
@@ -23214,7 +24496,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         {
             var (paramName, _) = GetTypeParameterNameAndOrdinal(typeParameters[i]);
             if(!bindings.TryGetValue(paramName, out var bound))
+            {
                 return null; // Not all type parameters could be inferred.
+            }
+
             result[i] = bound;
         }
 
@@ -23270,17 +24555,23 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             {
                 // Generic definitions must match.
                 if(!ReferenceEquals(patternConstructed.GenericDefinition, actualConstructed.GenericDefinition))
+                {
                     return false;
+                }
 
                 // Arity must match.
                 if(patternConstructed.TypeArguments.Count != actualConstructed.TypeArguments.Count)
+                {
                     return false;
+                }
 
                 // Recursively unify each type argument.
                 for(var i = 0; i < patternConstructed.TypeArguments.Count; i++)
                 {
                     if(!UnifyTypes(patternConstructed.TypeArguments[i], actualConstructed.TypeArguments[i], typeParameters, bindings))
+                    {
                         return false;
+                    }
                 }
 
                 return true;
@@ -23315,7 +24606,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 for(var i = 0; i < patternClass.TypeParameters.Count && i < actualCt.TypeArguments.Count; i++)
                 {
                     if(!UnifyTypes(patternClass.TypeParameters[i], actualCt.TypeArguments[i], typeParameters, bindings))
+                    {
                         return false;
+                    }
                 }
                 return true;
             }
@@ -23329,7 +24622,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 for(var i = 0; i < patternStruct.TypeParameters.Count && i < actualCt.TypeArguments.Count; i++)
                 {
                     if(!UnifyTypes(patternStruct.TypeParameters[i], actualCt.TypeArguments[i], typeParameters, bindings))
+                    {
                         return false;
+                    }
                 }
                 return true;
             }
@@ -23343,7 +24638,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 for(var i = 0; i < patternAbstract.TypeParameters.Count && i < actualCt.TypeArguments.Count; i++)
                 {
                     if(!UnifyTypes(patternAbstract.TypeParameters[i], actualCt.TypeArguments[i], typeParameters, bindings))
+                    {
                         return false;
+                    }
                 }
                 return true;
             }
@@ -23378,7 +24675,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         IReadOnlyList<IType>? typeArgs)
     {
         if(typeParams is null || typeArgs is null || typeParams.Count == 0)
+        {
             return memberType;
+        }
 
         return SubstituteTypeInMember(memberType, typeParams, typeArgs);
     }
@@ -23397,7 +24696,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             {
                 var (paramName, paramOrdinal) = GetTypeParameterNameAndOrdinal(typeParams[i]);
                 if(tpt.Name == paramName && tpt.Ordinal == paramOrdinal)
+                {
                     return i < typeArgs.Count ? typeArgs[i] : type;
+                }
             }
             return type;
         }
@@ -23410,7 +24711,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             {
                 substitutedArgs[i] = SubstituteTypeInMember(ct.TypeArguments[i], typeParams, typeArgs);
                 if(!ReferenceEquals(substitutedArgs[i], ct.TypeArguments[i]))
+                {
                     changed = true;
+                }
             }
             return changed ? new ConstructedType(ct.GenericDefinition, substitutedArgs) : ct;
         }
@@ -23424,7 +24727,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             {
                 substitutedConstituents[i] = SubstituteTypeInMember(unionType.Constituents[i], typeParams, typeArgs);
                 if(!ReferenceEquals(substitutedConstituents[i], unionType.Constituents[i]))
+                {
                     changed = true;
+                }
             }
             return changed ? new UnionType(substitutedConstituents) : unionType;
         }
@@ -23433,7 +24738,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         {
             var substitutedElement = SubstituteTypeInMember(arrayType.ElementType, typeParams, typeArgs);
             if(!ReferenceEquals(substitutedElement, arrayType.ElementType))
+            {
                 return new ArrayType(substitutedElement);
+            }
+
             return type;
         }
 
@@ -23452,10 +24760,14 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 {
                     newTypeArgs[i] = SubstituteTypeInMember(delegateType.TypeArguments[i], typeParams, typeArgs);
                     if(!ReferenceEquals(newTypeArgs[i], delegateType.TypeArguments[i]))
+                    {
                         typeArgsChanged = true;
+                    }
                 }
                 if(typeArgsChanged)
+                {
                     substitutedTypeArgs = newTypeArgs;
+                }
             }
 
             // Substitute in FuncSignature (a ConstructedType)
@@ -23480,7 +24792,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         {
             var substitutedElement = SubstituteTypeInMember(spanType.ElementType, typeParams, typeArgs);
             if(!ReferenceEquals(substitutedElement, spanType.ElementType))
+            {
                 return new SpanType(substitutedElement, spanType.IsReadOnly);
+            }
+
             return type;
         }
 
@@ -23509,10 +24824,14 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         foreach(var ifaceType in abstracts)
         {
             if(ifaceType is not AbstractType iface)
+            {
                 continue;
+            }
 
             if(!visited.Add(iface))
+            {
                 continue;
+            }
 
             var member = iface.MemberScope.Lookup(memberName);
             if(member is not null)
@@ -23554,10 +24873,14 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         {
             var def = absType is ConstructedType ct ? ct.GenericDefinition as AbstractType : absType as AbstractType;
             if(def is null)
+            {
                 continue;
+            }
 
             if(!visited.Add(def))
+            {
                 continue;
+            }
 
             if(def.DefaultMethods.TryGetValue(memberName, out var defaultSymbol))
             {
@@ -23566,7 +24889,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
             var inherited = LookupDefaultMethodInAbstractsCore(def.Abstracts, memberName, visited);
             if(inherited is not null)
+            {
                 return inherited;
+            }
         }
 
         return null;
@@ -23593,18 +24918,26 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         foreach(var ifaceType in abstracts)
         {
             if(ifaceType is not AbstractType iface)
+            {
                 continue;
+            }
 
             if(!visited.Add(iface))
+            {
                 continue;
+            }
 
             var member = iface.MemberScope.Lookup(memberName);
             if(member is not null)
+            {
                 return member;
+            }
 
             var inherited = LookupInheritedInterfaceMemberSymbolCore(iface.Abstracts, memberName, visited);
             if(inherited is not null)
+            {
                 return inherited;
+            }
         }
 
         return null;
@@ -23645,7 +24978,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         IReadOnlyList<string>? importedNamespaces)
     {
         if(targetType is ErrorType)
+        {
             return null;
+        }
 
         // For ConstructedType, unwrap to the generic definition for scope lookup
         // but remember the type arguments for substitution.
@@ -23670,7 +25005,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         {
             var result = SearchClassChainForMethod(classTarget, methodName, hints, constructedTypeParams, constructedTypeArgs);
             if(result is not null)
+            {
                 return result;
+            }
         }
         else
         {
@@ -23686,14 +25023,18 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             {
                 var result = SearchScopeForMethodOverload(memberScope, methodName, hints, constructedTypeParams, constructedTypeArgs);
                 if(result is not null)
+                {
                     return result;
+                }
 
                 // For abstract types, walk inherited abstracts transitively.
                 if(targetType is AbstractType abstractTarget)
                 {
                     var inheritedResult = SearchInheritedAbstractsForMethod(abstractTarget, methodName, hints, constructedTypeParams, constructedTypeArgs);
                     if(inheritedResult is not null)
+                    {
                         return inheritedResult;
+                    }
                 }
             }
         }
@@ -23718,7 +25059,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         {
             var defaultResult = SearchDefaultMethodsForOverload(abstracts, methodName, hints, constructedTypeParams, constructedTypeArgs);
             if(defaultResult is not null)
+            {
                 return defaultResult;
+            }
         }
 
         // ── Step 4: Extension registry (applicable, namespace-filtered) ─────
@@ -23737,17 +25080,23 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 // Namespace visibility check.
                 if(ext.ContainingNamespace is not null
                     && (importedNamespaces is null || !importedNamespaces.Contains(ext.ContainingNamespace)))
+                {
                     continue;
+                }
 
                 // Use LookupAll to find all overloads in the extension scope.
                 var allExtMembers = ext.MemberScope.LookupAll(methodName);
                 if(allExtMembers.Count == 0)
+                {
                     continue;
+                }
 
                 // Apply overload selection from hints.
                 var selected = SelectOverloadFromHints(allExtMembers, hints);
                 if(selected is null)
+                {
                     continue;
+                }
 
                 var memberType = selected.DeclaredType ?? ErrorType.Instance;
                 IReadOnlyList<TypeParameterType>? extensionTypeParams = null;
@@ -23757,7 +25106,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 {
                     var bindings = TryUnifyReceiverType(ext.ReceiverType, lookupType, ext.TypeParameters);
                     if(bindings is null)
+                    {
                         continue;
+                    }
 
                     memberType = SubstituteTypeInMember(memberType, ext.TypeParameters, bindings);
                     extensionTypeParams = ext.TypeParameters.OfType<TypeParameterType>().ToList();
@@ -23791,7 +25142,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         {
             var result = SearchScopeForMethodOverload(current.MemberScope, methodName, hints, constructedTypeParams, constructedTypeArgs);
             if(result is not null)
+            {
                 return result;
+            }
 
             current = current.BaseType as ClassType;
         }
@@ -23812,11 +25165,15 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     {
         var allMembers = scope.LookupAll(methodName);
         if(allMembers.Count == 0)
+        {
             return null;
+        }
 
         var selected = SelectOverloadFromHints(allMembers, hints);
         if(selected is null)
+        {
             return null;
+        }
 
         var memberType = selected.DeclaredType ?? ErrorType.Instance;
         memberType = SubstituteMemberTypeIfNeeded(memberType, constructedTypeParams, constructedTypeArgs);
@@ -23855,18 +25212,26 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         foreach(var ifaceType in abstracts)
         {
             if(ifaceType is not AbstractType iface)
+            {
                 continue;
+            }
 
             if(!visited.Add(iface))
+            {
                 continue;
+            }
 
             var result = SearchScopeForMethodOverload(iface.MemberScope, methodName, hints, constructedTypeParams, constructedTypeArgs);
             if(result is not null)
+            {
                 return result;
+            }
 
             var inherited = SearchInheritedAbstractsForMethodCore(iface.Abstracts, methodName, hints, constructedTypeParams, constructedTypeArgs, visited);
             if(inherited is not null)
+            {
                 return inherited;
+            }
         }
 
         return null;
@@ -23899,10 +25264,14 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         {
             var def = absType is ConstructedType ct ? ct.GenericDefinition as AbstractType : absType as AbstractType;
             if(def is null)
+            {
                 continue;
+            }
 
             if(!visited.Add(def))
+            {
                 continue;
+            }
 
             if(def.DefaultMethods.TryGetValue(methodName, out var defaultSymbol))
             {
@@ -23924,7 +25293,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
             var inherited = SearchDefaultMethodsForOverloadCore(def.Abstracts, methodName, hints, constructedTypeParams, constructedTypeArgs, visited);
             if(inherited is not null)
+            {
                 return inherited;
+            }
         }
 
         return null;
@@ -23937,7 +25308,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     private static ISymbol? SelectOverloadFromHints(IReadOnlyList<ISymbol> candidates, MethodResolutionHints hints)
     {
         if(candidates.Count == 0)
+        {
             return null;
+        }
 
         // If type argument arity hint is provided, prefer the overload matching exactly.
         if(hints.TypeArgCount is not null)
@@ -23948,7 +25321,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 {
                     // If we also have param count + lambda hints, verify them too.
                     if(hints.ArgumentCount is not null && s.Parameters.Count != hints.ArgumentCount.Value)
+                    {
                         continue;
+                    }
+
                     return s;
                 }
             }
@@ -23978,9 +25354,14 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             }
 
             if(lambdaCompatibleMatch is not null)
+            {
                 return lambdaCompatibleMatch;
+            }
+
             if(paramCountMatch is not null)
+            {
                 return paramCountMatch;
+            }
         }
 
         // Fallback: prefer lambda-compatible if hint is set.
@@ -23989,7 +25370,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             foreach(var candidate in candidates)
             {
                 if(candidate is Symbol s && HasLambdaCompatibleParameter(s))
+                {
                     return s;
+                }
             }
         }
 
@@ -24004,13 +25387,19 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     private static bool MatchesHints(ISymbol symbol, MethodResolutionHints hints)
     {
         if(symbol is not Symbol s)
+        {
             return true; // Non-Symbol (e.g., interface member stub) — allow by default.
+        }
 
         if(hints.TypeArgCount is not null && s.TypeParameters.Count != hints.TypeArgCount.Value)
+        {
             return false;
+        }
 
         if(hints.ArgumentCount is not null && s.Parameters.Count != hints.ArgumentCount.Value)
+        {
             return false;
+        }
 
         return true;
     }
@@ -24028,12 +25417,16 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         SymbolTable symbolTable)
     {
         if(targetType is ErrorType)
+        {
             return null;
+        }
 
         // Namespace references have no symbol-level members; return null to
         // avoid the kind-aware validation from emitting spurious errors.
         if(targetType is NamespaceReferenceType)
+        {
             return null;
+        }
 
         // ── Constrained type parameter member access (Requirements 6.1–6.4, 6.7) ──
         // When the receiver is a TypeParameterType with constraints, look up the
@@ -24049,12 +25442,16 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 {
                     var member = iface.MemberScope.Lookup(memberName);
                     if(member is not null)
+                    {
                         return member;
+                    }
 
                     // Also check inherited abstract types transitively.
                     var inherited = LookupInheritedInterfaceMemberSymbol(iface, memberName);
                     if(inherited is not null)
+                    {
                         return inherited;
+                    }
                 }
             }
 
@@ -24067,7 +25464,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     foreach(var m in current.MemberScope.Members)
                     {
                         if(m.Name == memberName)
+                        {
                             return m;
+                        }
                     }
 
                     current = current.BaseType as ClassType;
@@ -24096,11 +25495,15 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     {
                         var member = ifaceType.MemberScope.Lookup(memberName);
                         if(member is not null)
+                        {
                             return member;
+                        }
 
                         var inherited = LookupInheritedInterfaceMemberSymbol(ifaceType, memberName);
                         if(inherited is not null)
+                        {
                             return inherited;
+                        }
                     }
                 }
 
@@ -24113,7 +25516,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         foreach(var m in current.MemberScope.Members)
                         {
                             if(m.Name == memberName)
+                            {
                                 return m;
+                            }
                         }
 
                         current = current.BaseType as ClassType;
@@ -24126,7 +25531,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
         // For ConstructedType, look up in the generic definition's member scope.
         if(targetType is ConstructedType ct)
+        {
             targetType = ct.GenericDefinition;
+        }
 
         IScope? memberScope = targetType switch
         {
@@ -24144,7 +25551,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 foreach(var m in current.MemberScope.Members)
                 {
                     if(m.Name == memberName)
+                    {
                         return m;
+                    }
                 }
                 current = current.BaseType as ClassType;
             }
@@ -24153,7 +25562,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         {
             var member = memberScope.Lookup(memberName);
             if(member is not null)
+            {
                 return member;
+            }
         }
 
         return null;
@@ -24179,12 +25590,16 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         SymbolTable symbolTable)
     {
         if(targetType is ErrorType or NamespaceReferenceType)
+        {
             return null;
+        }
 
         // For ConstructedType, look up in the generic definition's member scope.
         var originalTargetType = targetType;
         if(targetType is ConstructedType ct)
+        {
             targetType = ct.GenericDefinition;
+        }
 
         IScope? memberScope = targetType switch
         {
@@ -24206,11 +25621,16 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     {
                         firstMatch ??= m;
                         if(m is Symbol s && s.TypeParameters.Count == typeArgCount)
+                        {
                             return s;
+                        }
                     }
                 }
                 if(firstMatch is not null)
+                {
                     return firstMatch;
+                }
+
                 current = current.BaseType as ClassType;
             }
         }
@@ -24223,7 +25643,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 foreach(var m in allMembers)
                 {
                     if(m is Symbol s && s.TypeParameters.Count == typeArgCount)
+                    {
                         return s;
+                    }
                 }
                 return allMembers[0];
             }
@@ -24245,7 +25667,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             foreach(var ext in applicableExtensions)
             {
                 if(ext.ContainingNamespace is not null && !importedNamespaces.Contains(ext.ContainingNamespace))
+                {
                     continue;
+                }
 
                 // Use LookupAll to find all overloads with the same name, then
                 // select the one whose type parameter arity matches. Lookup()
@@ -24256,7 +25680,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 foreach(var m in allExtMembers)
                 {
                     if(m is Symbol s && s.TypeParameters.Count == typeArgCount)
+                    {
                         return s;
+                    }
                 }
             }
         }
@@ -24279,10 +25705,14 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         SymbolTable symbolTable)
     {
         if(targetType is ErrorType or NamespaceReferenceType)
+        {
             return null;
+        }
 
         if(targetType is ConstructedType ct)
+        {
             targetType = ct.GenericDefinition;
+        }
 
         if(targetType is ClassType classTarget)
         {
@@ -24321,10 +25751,14 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         SymbolTable symbolTable)
     {
         if(targetType is ErrorType or NamespaceReferenceType)
+        {
             return null;
+        }
 
         if(targetType is ConstructedType ct)
+        {
             targetType = ct.GenericDefinition;
+        }
 
         if(targetType is ClassType classTarget)
         {
@@ -24354,7 +25788,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     }
                 }
                 if(lambdaCompatibleMatch is not null)
+                {
                     return lambdaCompatibleMatch;
+                }
+
                 current = current.BaseType as ClassType;
             }
             return firstMatch;
@@ -24375,14 +25812,20 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         foreach(var param in symbol.Parameters)
         {
             var paramType = param.DeclaredType;
-            if(paramType is null) continue;
+            if(paramType is null)
+            {
+                continue;
+            }
 
             // Unwrap nullable unions (T | void) to check the inner type.
             if(paramType is UnionType union)
             {
                 foreach(var c in union.Constituents)
                 {
-                    if(IsLambdaCompatibleType(c)) return true;
+                    if(IsLambdaCompatibleType(c))
+                    {
+                        return true;
+                    }
                 }
             }
             else if(IsLambdaCompatibleType(paramType))
@@ -24398,16 +25841,30 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// </summary>
     private static bool IsLambdaCompatibleType(IType type)
     {
-        if(IsFuncType(type)) return true;
-        if(type is DelegateType) return true;
-        if(TryUnwrapExpressionFunc(type) is not null) return true;
+        if(IsFuncType(type))
+        {
+            return true;
+        }
+
+        if(type is DelegateType)
+        {
+            return true;
+        }
+
+        if(TryUnwrapExpressionFunc(type) is not null)
+        {
+            return true;
+        }
         // CLR Action/Func projected as ClassType.
         if(type is ConstructedType ct
             && ct.GenericDefinition is ClassType { ContainingNamespace: "System" } cls
             && (cls.DisplayName.StartsWith("Action", StringComparison.Ordinal)
                 || cls.DisplayName.StartsWith("Func", StringComparison.Ordinal)
                 || cls.DisplayName == "Expression"))
+        {
             return true;
+        }
+
         return false;
     }
 
@@ -24492,7 +25949,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         {
             mutableParamTypes = new IType[parameterTypes.Count];
             for(var j = 0; j < parameterTypes.Count; j++)
+            {
                 mutableParamTypes[j] = parameterTypes[j];
+            }
         }
 
         for(var i = 0; i < argExprs.Length; i++)
@@ -24583,15 +26042,21 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 for(var k = 0; k <= i; k++)
                 {
                     if(expressionTypes.TryGetValue(argExprs[k], out var resolvedType))
+                    {
                         resolvedSoFar.Add(resolvedType);
+                    }
                     else
+                    {
                         resolvedSoFar.Add(UnknownType.Instance);
+                    }
                 }
 
                 // Attempt partial inference.
                 var partialParamTypes = new IType[resolvedSoFar.Count];
                 for(var k = 0; k < resolvedSoFar.Count; k++)
+                {
                     partialParamTypes[k] = mutableParamTypes[k];
+                }
 
                 var partialResult = TypeArgumentInferenceEngine.TryInfer(
                     methodTypeParameters, partialParamTypes, resolvedSoFar);
@@ -24617,11 +26082,19 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         var upper = lexeme.ToUpperInvariant();
 
         if(upper.EndsWith("UL") || upper.EndsWith("LU"))
+        {
             return ResolvePrimitiveByKeyword("ulong", fileScope, symbolTable);
+        }
+
         if(upper.EndsWith("L"))
+        {
             return ResolvePrimitiveByKeyword("long", fileScope, symbolTable);
+        }
+
         if(upper.EndsWith("U"))
+        {
             return ResolvePrimitiveByKeyword("uint", fileScope, symbolTable);
+        }
 
         return ResolvePrimitiveByKeyword("int", fileScope, symbolTable);
     }
@@ -24634,9 +26107,14 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         var upper = lexeme.ToUpperInvariant();
 
         if(upper.EndsWith("F"))
+        {
             return ResolvePrimitiveByKeyword("float", fileScope, symbolTable);
+        }
+
         if(upper.EndsWith("M"))
+        {
             return ResolvePrimitiveByKeyword("decimal", fileScope, symbolTable);
+        }
 
         return ResolvePrimitiveByKeyword("double", fileScope, symbolTable);
     }
@@ -24701,7 +26179,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     {
         // Unwrap refinement types to their base type.
         if(type is RefinementType refinement)
+        {
             type = refinement.BaseType;
+        }
 
         return type.DisplayName is "int" or "Int32"
             or "uint" or "UInt32"
@@ -24720,16 +26200,23 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     private static IType GetCommonNumericType(IType left, IType right)
     {
         if(left is ErrorType || right is ErrorType)
+        {
             return ErrorType.Instance;
+        }
 
         // ── refinement-types feature: arithmetic erasure (Requirement 8.1) ──
         // When a RefinementType participates in arithmetic, the result is the
         // BaseType. Unwrap before numeric ranking so the correct base type is
         // used for the result.
         if(left is RefinementType leftRefinement)
+        {
             left = leftRefinement.BaseType;
+        }
+
         if(right is RefinementType rightRefinement)
+        {
             right = rightRefinement.BaseType;
+        }
 
         // Numeric widening: decimal > double > float > ulong > long > uint > int > smaller types.
         // Use DisplayName-based ranking to handle both legacy (e.g., "int")
@@ -24803,7 +26290,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     {
         // Exact match: the name itself is a namespace.
         if(resolver.HasNamespace(name))
+        {
             return true;
+        }
 
         // Prefix match: check if any type name exists in a namespace that starts
         // with "name." — this detects namespace root identifiers like "Newtonsoft"
@@ -24857,7 +26346,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 // (only letters, digits, underscores, and dots). If not, the source
                 // text is from the wrong file (overlapping AST spans across files).
                 if(IsValidQualifiedIdentifier(extracted))
+                {
                     return extracted;
+                }
             }
         }
 
@@ -24865,7 +26356,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // QualifiedIdentifier = IDENTIFIER (DOT IDENTIFIER)* — so we need
         // to join the first IDENTIFIER with any additional IDENTIFIERs.
         if(qualifiedId.IDENTIFIERs.IsDefaultOrEmpty)
+        {
             return qualifiedId.IDENTIFIER.Lexeme;
+        }
 
         var sb = new System.Text.StringBuilder(qualifiedId.IDENTIFIER.Lexeme);
         foreach(var token in qualifiedId.IDENTIFIERs)
@@ -24886,11 +26379,16 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     private static bool IsValidQualifiedIdentifier(string text)
     {
         if(string.IsNullOrEmpty(text))
+        {
             return false;
+        }
+
         foreach(var ch in text)
         {
             if(!char.IsLetterOrDigit(ch) && ch != '_' && ch != '.')
+            {
                 return false;
+            }
         }
         return true;
     }
@@ -25077,7 +26575,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     private static bool IsTypeDefaultable(IType type)
     {
         if(IsIntrinsicallyDefaultable(type))
+        {
             return true;
+        }
 
         return type switch
         {
@@ -25109,15 +26609,22 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 {
                     // Skip intrinsically defaultable types (stdlib primitives and string).
                     if(IsIntrinsicallyDefaultable(type))
+                    {
                         continue;
+                    }
 
                     // Skip generic type definitions (types with unbound type parameters).
                     // Generic types like Optional<T> cannot be defaulted without concrete
                     // type arguments — defaultability is only meaningful for closed types.
                     if(type is ClassType ct && ct.TypeParameters.Count > 0)
+                    {
                         continue;
+                    }
+
                     if(type is StructType st && st.TypeParameters.Count > 0)
+                    {
                         continue;
+                    }
 
                     typeSymbols.Add((symbol, type));
                 }
@@ -25191,7 +26698,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         for(var i = 0; i < typeSymbols.Count; i++)
         {
             if(inDegree[i] == 0)
+            {
                 queue.Enqueue(i);
+            }
         }
 
         var processingOrder = new List<int>();
@@ -25204,7 +26713,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             {
                 inDegree[dependent]--;
                 if(inDegree[dependent] == 0)
+                {
                     queue.Enqueue(dependent);
+                }
             }
         }
 
@@ -25214,7 +26725,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         for(var i = 0; i < typeSymbols.Count; i++)
         {
             if(!processingOrder.Contains(i))
+            {
                 processingOrder.Add(i);
+            }
         }
 
         // Step 4: Process each type in topological order.
@@ -25349,7 +26862,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         foreach(var member in classType.MemberScope.Members)
         {
             if(member.Kind == SymbolKind.Field)
+            {
                 fields.Add(member);
+            }
         }
 
         // Check if all fields are defaultable (considering the explicit default block for type bindings).
@@ -25359,7 +26874,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             foreach(var field in fields)
             {
                 if(field.DeclaredType is null)
+                {
                     continue;
+                }
 
                 if(!IsTypeDefaultable(field.DeclaredType))
                 {
@@ -25424,7 +26941,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         foreach(var member in structType.MemberScope.Members)
         {
             if(member.Kind == SymbolKind.Field)
+            {
                 fields.Add(member);
+            }
         }
 
         // Check if all fields are defaultable.
@@ -25434,7 +26953,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             foreach(var field in fields)
             {
                 if(field.DeclaredType is null)
+                {
                     continue;
+                }
 
                 if(!IsTypeDefaultable(field.DeclaredType))
                 {
@@ -25481,15 +27002,21 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         foreach(var symbol in symbolTable.AllSymbols)
         {
             if(symbol.Kind != SymbolKind.Struct)
+            {
                 continue;
+            }
 
             if(symbol.DeclaredType is not StructType structType)
+            {
                 continue;
+            }
 
             // Skip generic type definitions (types with unbound type parameters).
             // Stampability is only meaningful for closed (non-generic) struct types.
             if(structType.TypeParameters.Count > 0)
+            {
                 continue;
+            }
 
             // Skip intrinsically defaultable structs — they are primitives and
             // already stampable by definition.
@@ -25515,32 +27042,45 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // Cycle detection: if we have already visited this struct in the current
         // recursion chain, return false conservatively (Requirement 3.5).
         if(!visited.Add(structType))
+        {
             return false;
+        }
 
         foreach(var member in structType.MemberScope.Members)
         {
             if(member.Kind != SymbolKind.Field)
+            {
                 continue;
+            }
 
             // Skip static fields — only instance fields contribute to the
             // struct's value representation.
             if(member is Symbol { IsStatic: true })
+            {
                 continue;
+            }
 
             var fieldType = member.DeclaredType;
             if(fieldType is null)
+            {
                 continue;
+            }
 
             switch(fieldType)
             {
                 case StructType innerStruct:
                     // Primitive structs (int, bool, char, float, etc.) are stampable.
                     if(IsIntrinsicallyDefaultable(innerStruct))
+                    {
                         continue;
+                    }
 
                     // Non-primitive struct → recurse.
                     if(!IsStructStampable(innerStruct, visited))
+                    {
                         return false;
+                    }
+
                     break;
 
                 case TypeParameterType:
@@ -25604,24 +27144,32 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         foreach(var member in memberScope.Members)
         {
             if(member.Kind != SymbolKind.Field || member.DeclaredType is null)
+            {
                 continue;
+            }
 
             // Skip fields that were inherited (already in result from base).
             if(result.ContainsKey(member.Name))
+            {
                 continue;
+            }
 
             // Skip static fields — they are not part of instance default values.
             var declaringNode = symbolTable.GetDeclaringNode(member);
             if(declaringNode is FieldDeclarationNode staticCheck
                 && staticCheck.Modifiers.Any(m => m is StaticModifierModifierNode))
+            {
                 continue;
+            }
 
             // Skip backing fields for static properties (auto-properties generate
             // backing fields named _PropertyName_k__BackingField registered against
             // the property AST node, not a FieldDeclarationNode).
             if(declaringNode is BlockPropertyPropertyDeclarationNode propCheck
                 && propCheck.Modifiers.Any(m => m is StaticModifierModifierNode))
+            {
                 continue;
+            }
 
             var fieldType = member.DeclaredType;
 
@@ -25873,7 +27421,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // Expression → UnaryExpression → ... → Primary
         var primary = UnwrapToPrimary(expression);
         if(primary is null)
+        {
             return null;
+        }
 
         return primary switch
         {
@@ -25909,7 +27459,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         for(var depth = 0; depth < 20; depth++)
         {
             if(current is PrimaryNode primary)
+            {
                 return primary;
+            }
 
             // Look for a single non-token child to follow.
             // Skip null children that may be yielded by generated AST nodes
@@ -25919,20 +27471,28 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             foreach(var child in current.Children())
             {
                 if(child is null)
+                {
                     continue;
+                }
 
                 childCount++;
                 if(child is PrimaryNode childPrimary)
+                {
                     return childPrimary;
+                }
 
                 // Follow the first (and hopefully only) syntax node child.
                 if(next is null)
+                {
                     next = child;
+                }
             }
 
             // If there are multiple children, this is not a simple literal expression.
             if(childCount > 1 || next is null)
+            {
                 return null;
+            }
 
             current = next;
         }
@@ -25952,20 +27512,31 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // Check for suffix.
         if(upper.EndsWith("UL") || upper.EndsWith("LU"))
         {
-            if(ulong.TryParse(cleaned[..^2], out var val)) return val;
+            if(ulong.TryParse(cleaned[..^2], out var val))
+            {
+                return val;
+            }
         }
         else if(upper.EndsWith("L"))
         {
-            if(long.TryParse(cleaned[..^1], out var val)) return val;
+            if(long.TryParse(cleaned[..^1], out var val))
+            {
+                return val;
+            }
         }
         else if(upper.EndsWith("U"))
         {
-            if(uint.TryParse(cleaned[..^1], out var val)) return val;
+            if(uint.TryParse(cleaned[..^1], out var val))
+            {
+                return val;
+            }
         }
         else if(upper.StartsWith("0X"))
         {
             if(long.TryParse(cleaned[2..], System.Globalization.NumberStyles.HexNumber, null, out var val))
+            {
                 return val;
+            }
         }
         else if(upper.StartsWith("0B"))
         {
@@ -25974,8 +27545,15 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         }
         else
         {
-            if(int.TryParse(cleaned, out var val)) return val;
-            if(long.TryParse(cleaned, out var lval)) return lval;
+            if(int.TryParse(cleaned, out var val))
+            {
+                return val;
+            }
+
+            if(long.TryParse(cleaned, out var lval))
+            {
+                return lval;
+            }
         }
 
         return null;
@@ -25992,17 +27570,23 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         if(upper.EndsWith("F"))
         {
             if(float.TryParse(cleaned[..^1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var val))
+            {
                 return val;
+            }
         }
         else if(upper.EndsWith("M"))
         {
             if(decimal.TryParse(cleaned[..^1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var val))
+            {
                 return val;
+            }
         }
         else
         {
             if(double.TryParse(cleaned, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var val))
+            {
                 return val;
+            }
         }
 
         return null;
@@ -26014,7 +27598,10 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     private static string ExtractStringLiteralValue(string lexeme)
     {
         if(lexeme.Length >= 2 && lexeme[0] == '"' && lexeme[^1] == '"')
+        {
             return lexeme[1..^1];
+        }
+
         return lexeme;
     }
 
@@ -26027,7 +27614,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         {
             var inner = lexeme[1..^1];
             if(inner.Length == 1)
+            {
                 return inner[0];
+            }
             // Handle escape sequences.
             if(inner.StartsWith('\\') && inner.Length >= 2)
             {

@@ -90,12 +90,16 @@ public sealed class ConditionalMoveBranchDropTests : IDisposable
             $"Compilation produced errors:\n{string.Join("\n", errors.Select(e => $"  {e.Id.Value}: {e.Message}"))}");
 
         if(result.EmittedFiles is null)
+        {
             return null;
+        }
 
         foreach(var (_, content) in result.EmittedFiles)
         {
             if(content.Contains("namespace TestProgram"))
+            {
                 return content;
+            }
         }
 
         return null;
@@ -196,10 +200,16 @@ public sealed class ConditionalMoveBranchDropTests : IDisposable
     private static string? ExtractBlockBody(string source, int searchStart)
     {
         var openBrace = source.IndexOf('{', searchStart);
-        if(openBrace < 0) return null;
+        if(openBrace < 0)
+        {
+            return null;
+        }
 
         var closeBrace = FindMatchingCloseBrace(source, openBrace);
-        if(closeBrace < 0) return null;
+        if(closeBrace < 0)
+        {
+            return null;
+        }
 
         return source.Substring(openBrace + 1, closeBrace - openBrace - 1);
     }
@@ -209,11 +219,19 @@ public sealed class ConditionalMoveBranchDropTests : IDisposable
         var depth = 0;
         for(var i = openBraceIndex; i < source.Length; i++)
         {
-            if(source[i] == '{') depth++;
-            else if(source[i] == '}') depth--;
+            if(source[i] == '{')
+            {
+                depth++;
+            }
+            else if(source[i] == '}')
+            {
+                depth--;
+            }
 
             if(depth == 0)
+            {
                 return i;
+            }
         }
         return -1;
     }

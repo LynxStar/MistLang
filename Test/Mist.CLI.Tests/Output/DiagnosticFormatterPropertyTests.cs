@@ -172,14 +172,18 @@ public class DiagnosticFormatterPropertyTests
     {
         // Only test Case 1 inputs
         if(input.Case != 1)
+        {
             return true; // skip non-Case-1 inputs (vacuously true)
+        }
 
         var diagnostic = BuildDiagnostic(input);
         var formatted = DiagnosticFormatter.Format(diagnostic);
 
         var match = Case1Pattern.Match(formatted);
         if(!match.Success)
+        {
             return false;
+        }
 
         return match.Groups["file"].Value == input.FilePath
             && match.Groups["line"].Value == input.Line.ToString()

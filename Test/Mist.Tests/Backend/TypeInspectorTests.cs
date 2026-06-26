@@ -77,9 +77,14 @@ public sealed class TypeInspectorTests
                 continue;
             }
             if(line.TrimStart().StartsWith("HIDDEN:"))
+            {
                 break;
+            }
+
             if(inVisible && line.Contains("method "))
+            {
                 methodLines.Add(line);
+            }
         }
 
         // Verify they are sorted ascending by name

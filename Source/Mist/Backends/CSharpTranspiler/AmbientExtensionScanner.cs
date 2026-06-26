@@ -65,7 +65,9 @@ internal sealed class AmbientExtensionScanner
         {
             // Only scan assemblies that contain types in the target namespace.
             if(!assembly.NamespaceIndex.ContainsKey(namespaceName))
+            {
                 continue;
+            }
 
             ScanAssemblyNamespace(assembly, namespaceName, results);
         }
@@ -100,15 +102,21 @@ internal sealed class AmbientExtensionScanner
         {
             // Only examine types in the target namespace (Requirement 11.3).
             if(type.Namespace != namespaceName)
+            {
                 continue;
+            }
 
             // Must be a static class: abstract + sealed in CLR terms.
             if(!type.IsAbstract || !type.IsSealed)
+            {
                 continue;
+            }
 
             // Must have [ExtensionAttribute] on the class.
             if(!HasExtensionAttribute(type))
+            {
                 continue;
+            }
 
             // Scan the class's public static methods for extension methods.
             ScanExtensionClass(type, namespaceName, results);
@@ -141,7 +149,9 @@ internal sealed class AmbientExtensionScanner
         {
             // Must have [ExtensionAttribute] on the method itself.
             if(!HasExtensionAttribute(method))
+            {
                 continue;
+            }
 
             ParameterInfo[] parameters;
             try
@@ -156,7 +166,9 @@ internal sealed class AmbientExtensionScanner
 
             // Must have at least 1 parameter (the receiver).
             if(parameters.Length == 0)
+            {
                 continue;
+            }
 
             var receiverParam = parameters[0];
             var remainingParams = parameters.Length > 1
@@ -196,7 +208,9 @@ internal sealed class AmbientExtensionScanner
             foreach(var attr in attributes)
             {
                 if(attr.AttributeType.FullName == ExtensionAttributeFullName)
+                {
                     return true;
+                }
             }
         }
         catch

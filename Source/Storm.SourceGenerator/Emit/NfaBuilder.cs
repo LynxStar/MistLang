@@ -283,7 +283,9 @@ namespace Storm.SourceGenerator.Emit
 
             // Strip outer [ ]
             if(text.Length < 2 || text[0] != '[')
+            {
                 return Array.Empty<CharRange>();
+            }
 
             var inner = text.Substring(1, text.Length - 2);
 
@@ -324,7 +326,10 @@ namespace Storm.SourceGenerator.Emit
         /// </summary>
         private static char ReadCharClassChar(string text, ref int i)
         {
-            if(i >= text.Length) return '\0';
+            if(i >= text.Length)
+            {
+                return '\0';
+            }
 
             if(text[i] == '\\' && i + 1 < text.Length)
             {

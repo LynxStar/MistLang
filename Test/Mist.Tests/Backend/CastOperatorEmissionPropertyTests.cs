@@ -406,8 +406,12 @@ public sealed class CastOperatorEmissionPropertyTests : IDisposable
     private void CleanOutputDir()
     {
         if(Directory.Exists(_outputDir))
+        {
             foreach(var file in Directory.GetFiles(_outputDir))
+            {
                 File.Delete(file);
+            }
+        }
     }
 
     // ─── AST builders for each scenario ──────────────────────────────────
@@ -522,7 +526,9 @@ public sealed class CastOperatorEmissionPropertyTests : IDisposable
     public Property ImplicitCastDecl_EmitsImplicitOperatorSyntax(CastDeclScenario scenario)
     {
         if(scenario.Kind != CastKind.Implicit)
+        {
             return true.ToProperty().Label("Skipped (explicit scenario)");
+        }
 
         var ast = BuildCastDeclAst(scenario);
         var model = BuildModel(ast);
@@ -545,7 +551,9 @@ public sealed class CastOperatorEmissionPropertyTests : IDisposable
     public Property ExplicitCastDecl_EmitsExplicitOperatorSyntax(CastDeclScenario scenario)
     {
         if(scenario.Kind != CastKind.Explicit)
+        {
             return true.ToProperty().Label("Skipped (implicit scenario)");
+        }
 
         var ast = BuildCastDeclAst(scenario);
         var model = BuildModel(ast);
@@ -574,7 +582,9 @@ public sealed class CastOperatorEmissionPropertyTests : IDisposable
         // If the type checker emits errors, skip — the scenario may not be valid
         // in the current implementation.
         if(diags.Any(d => d.Severity == DiagnosticSeverity.Error))
+        {
             return true.ToProperty().Label("Skipped (type checker errors)");
+        }
 
         var csOutput = EmitAndGetCsContent(model);
 
@@ -624,7 +634,9 @@ public sealed class CastOperatorEmissionPropertyTests : IDisposable
         // If the type checker emits errors, skip — the scenario may not be valid
         // in the current implementation.
         if(diags.Any(d => d.Severity == DiagnosticSeverity.Error))
+        {
             return true.ToProperty().Label("Skipped (type checker errors)");
+        }
 
         var csOutput = EmitAndGetCsContent(model);
 

@@ -391,7 +391,10 @@ public class NameResolutionPropertyTests
         // containing scope chain has the expected depth:
         // localVar → block scope → method scope → type scope → namespace scope → global scope
         var localVar = allSymbols.FirstOrDefault(s => s.Name == "localVar" && s.Kind == SymbolKind.LocalVariable);
-        if(localVar is null) return false;
+        if(localVar is null)
+        {
+            return false;
+        }
 
         // Walk up the scope chain and count depth.
         var depth = 0;

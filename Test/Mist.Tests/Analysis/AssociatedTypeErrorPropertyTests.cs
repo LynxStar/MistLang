@@ -42,7 +42,9 @@ public class AssociatedTypeErrorPropertyTests
         var parseDiag = new DiagnosticBag();
         var parseResult = Parser.Parse(tokens, parseDiag);
         if(parseResult.Root is null)
+        {
             return lexDiag.ToImmutableArray().AddRange(parseDiag.ToImmutableArray());
+        }
 
         var (model, buildDiag) = StdlibTestHelper.BuildModelWithStdlib(
             parseResult.Root, source: source);
@@ -136,9 +138,11 @@ public class AssociatedTypeErrorPropertyTests
         var matching = diagnostics.Where(d => d.Id.Value == "MIST_AT_0006").ToList();
 
         if(matching.Count == 0)
+        {
             return false.ToProperty()
                 .Label($"Expected MIST_AT_0006 but none emitted.\nSource:\n{source}\n" +
                        $"All diagnostics: [{string.Join(", ", diagnostics.Select(d => $"{d.Id.Value}: {d.Message}"))}]");
+        }
 
         return true.ToProperty();
     }
@@ -201,9 +205,11 @@ public class AssociatedTypeErrorPropertyTests
         var matching = diagnostics.Where(d => d.Id.Value == "MIST_AT_0005").ToList();
 
         if(matching.Count == 0)
+        {
             return false.ToProperty()
                 .Label($"Expected MIST_AT_0005 but none emitted.\nSource:\n{source}\n" +
                        $"All diagnostics: [{string.Join(", ", diagnostics.Select(d => $"{d.Id.Value}: {d.Message}"))}]");
+        }
 
         return true.ToProperty();
     }
@@ -281,10 +287,12 @@ public class AssociatedTypeErrorPropertyTests
         var expectedCount = scenario.DuplicateCount - 1;
 
         if(matching.Count < expectedCount)
+        {
             return false.ToProperty()
                 .Label($"Expected at least {expectedCount} MIST_AT_0001 diagnostic(s) but got {matching.Count}.\n" +
                        $"Source:\n{source}\n" +
                        $"All diagnostics: [{string.Join(", ", diagnostics.Select(d => $"{d.Id.Value}: {d.Message}"))}]");
+        }
 
         return true.ToProperty();
     }

@@ -65,17 +65,25 @@ namespace Storm.SourceGenerator.Emit
             // Build mode index map
             var modeIndexMap = new Dictionary<string, int>();
             for(int i = 0; i < modes.Count; i++)
+            {
                 modeIndexMap[modes[i]] = i;
+            }
 
             // Group tokens by mode
             var tokensByMode = new Dictionary<string, List<TokenIR>>();
             foreach(var mode in modes)
+            {
                 tokensByMode[mode] = new List<TokenIR>();
+            }
+
             foreach(var token in tokens)
             {
                 var mode = token.Mode;
                 if(!tokensByMode.ContainsKey(mode))
+                {
                     tokensByMode[mode] = new List<TokenIR>();
+                }
+
                 tokensByMode[mode].Add(token);
             }
 
@@ -192,7 +200,9 @@ namespace Storm.SourceGenerator.Emit
             }
 
             if(perModeResults.Count == 1)
+            {
                 return perModeResults[0];
+            }
 
             // Combine: two characters are in the same unified class only if they
             // are in the same class in every mode.
@@ -206,7 +216,11 @@ namespace Storm.SourceGenerator.Emit
                 sb.Clear();
                 for(int m = 0; m < perModeResults.Count; m++)
                 {
-                    if(m > 0) sb.Append(',');
+                    if(m > 0)
+                    {
+                        sb.Append(',');
+                    }
+
                     sb.Append(perModeResults[m].charToClass[c]);
                 }
                 var key = sb.ToString();
@@ -258,7 +272,9 @@ namespace Storm.SourceGenerator.Emit
                 {
                     int targetIndex;
                     if(!stateIdToIndex.TryGetValue(transition.TargetStateId, out targetIndex))
+                    {
                         continue;
+                    }
 
                     // The DFA transition covers a character range [Lo, Hi].
                     // With unified equivalence classes, this range may span multiple
@@ -300,7 +316,11 @@ namespace Storm.SourceGenerator.Emit
             sb.Append(" { ");
             for(int i = 0; i < 65536; i++)
             {
-                if(i > 0) sb.Append(", ");
+                if(i > 0)
+                {
+                    sb.Append(", ");
+                }
+
                 sb.Append(charToClass[i]);
             }
             sb.Append(" };");
@@ -317,11 +337,19 @@ namespace Storm.SourceGenerator.Emit
             sb.Append(" { ");
             for(int s = 0; s < stateCount; s++)
             {
-                if(s > 0) sb.Append(", ");
+                if(s > 0)
+                {
+                    sb.Append(", ");
+                }
+
                 sb.Append("{ ");
                 for(int c = 0; c < classCount; c++)
                 {
-                    if(c > 0) sb.Append(", ");
+                    if(c > 0)
+                    {
+                        sb.Append(", ");
+                    }
+
                     sb.Append(transTable[s, c]);
                 }
                 sb.Append(" }");
@@ -340,7 +368,11 @@ namespace Storm.SourceGenerator.Emit
             sb.Append(" { ");
             for(int i = 0; i < acceptTable.Length; i++)
             {
-                if(i > 0) sb.Append(", ");
+                if(i > 0)
+                {
+                    sb.Append(", ");
+                }
+
                 sb.Append(acceptTable[i]);
             }
             sb.Append(" };");
@@ -370,7 +402,9 @@ namespace Storm.SourceGenerator.Emit
             var modes = context.Grammar.Modes;
             var modeIndexMap = new Dictionary<string, int>();
             for(int i = 0; i < modes.Count; i++)
+            {
                 modeIndexMap[modes[i]] = i;
+            }
 
             var entries = new List<string>();
             foreach(var token in tokens)
@@ -557,7 +591,10 @@ namespace Storm.SourceGenerator.Emit
         {
             // Check if any tokens have mode actions
             var hasActions = tokens.Any(t => t.ModeAction is PushModeIR || t.ModeAction is PopModeIR);
-            if(!hasActions) return;
+            if(!hasActions)
+            {
+                return;
+            }
 
             writer.WriteBlock("switch (lastAcceptKind)", () =>
             {
@@ -642,20 +679,29 @@ namespace Storm.SourceGenerator.Emit
 
         internal static string SanitizeIdentifier(string name)
         {
-            if(string.IsNullOrEmpty(name)) return "_";
+            if(string.IsNullOrEmpty(name))
+            {
+                return "_";
+            }
 
             var sb = new StringBuilder();
             for(var i = 0; i < name.Length; i++)
             {
                 var c = name[i];
                 if(char.IsLetterOrDigit(c) || c == '_')
+                {
                     sb.Append(c);
+                }
                 else
+                {
                     sb.Append('_');
+                }
             }
 
             if(sb.Length > 0 && char.IsDigit(sb[0]))
+            {
                 sb.Insert(0, '_');
+            }
 
             return sb.Length == 0 ? "_" : sb.ToString();
         }

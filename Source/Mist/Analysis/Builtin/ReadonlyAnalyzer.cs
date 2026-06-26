@@ -74,7 +74,9 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
         foreach(var symbol in model.AllSymbols)
         {
             if(symbol.Origin != SymbolOrigin.UserCode)
+            {
                 continue;
+            }
 
             switch(symbol.Kind)
             {
@@ -92,7 +94,9 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
         foreach(var symbol in model.AllSymbols)
         {
             if(symbol.Origin != SymbolOrigin.UserCode)
+            {
                 continue;
+            }
 
             switch(symbol.Kind)
             {
@@ -109,7 +113,9 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
         foreach(var symbol in model.AllSymbols)
         {
             if(symbol.Origin != SymbolOrigin.UserCode)
+            {
                 continue;
+            }
 
             switch(symbol.Kind)
             {
@@ -126,7 +132,9 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
         foreach(var symbol in model.AllSymbols)
         {
             if(symbol.Origin != SymbolOrigin.UserCode)
+            {
                 continue;
+            }
 
             switch(symbol.Kind)
             {
@@ -146,7 +154,9 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
         foreach(var symbol in model.AllSymbols)
         {
             if(symbol.Origin != SymbolOrigin.UserCode)
+            {
                 continue;
+            }
 
             switch(symbol.Kind)
             {
@@ -171,7 +181,9 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
 
         // Only enforce readonly rules on members that are actually readonly.
         if(readonlyStatus == ReadonlyStatus.Mutable || readonlyStatus == ReadonlyStatus.Unknown)
+        {
             return;
+        }
 
         // Get the declaring AST node.
         SyntaxNode declaringNode;
@@ -229,7 +241,9 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
                 {
                     var body = methodDecl.Body.GetBlock();
                     if(body is not null)
+                    {
                         WalkBlockForReadonlyFieldAssignments(body, declaringTypeScope, model, diagnostics);
+                    }
                 }
                 break;
 
@@ -291,7 +305,9 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
         DiagnosticBag diagnostics)
     {
         if(declaringNode is not IndexerDeclarationNode { Body: BlockIndexerBodyIndexerBodyNode blockBody } blockIndexer)
+        {
             return;
+        }
 
         foreach(var accessor in blockBody.Accessors)
         {
@@ -341,12 +357,18 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
         {
             case VariableDeclarationStatementStatementNode varDecl:
                 if(varDecl.VariableDeclaration is { } vd)
+                {
                     WalkNodeForReadonlyFieldAssignments(vd, declaringTypeScope, model, diagnostics);
+                }
+
                 break;
 
             case ReturnStatementStatementNode returnStmt:
                 if(returnStmt.ReturnStatement is { } rs)
+                {
                     WalkNodeForReadonlyFieldAssignments(rs, declaringTypeScope, model, diagnostics);
+                }
+
                 break;
 
             case IfStatementStatementNode ifStmt:
@@ -411,7 +433,9 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
         foreach(var child in node.Children())
         {
             if(child is not null)
+            {
                 WalkNodeForReadonlyFieldAssignments(child, declaringTypeScope, model, diagnostics);
+            }
         }
     }
 
@@ -452,30 +476,44 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
         DiagnosticBag diagnostics)
     {
         if(targetInfo.MemberName is null)
+        {
             return;
+        }
 
         // Skip the backing field keyword — it's handled by the backing field exemption
         // and the setter can only be called from a constructor (enforced by MIST_RO_0004).
         if(targetInfo.IsBackingFieldKeyword)
+        {
             return;
+        }
 
         // Look up the field in the declaring type's scope to check its readonly status.
         if(declaringTypeScope is null)
+        {
             return;
+        }
 
         // Only check fields on `this` (the declaring type's own fields).
         if(!targetInfo.IsOnThis)
+        {
             return;
+        }
 
         var fieldSymbol = declaringTypeScope.Lookup(targetInfo.MemberName);
         if(fieldSymbol is not Symbol sym)
+        {
             return;
+        }
 
         if(sym.Kind != SymbolKind.Field)
+        {
             return;
+        }
 
         if(!IsReadonly(sym.ReadonlyStatus))
+        {
             return;
+        }
 
         // The field is readonly and we're outside a constructor — emit MIST_RO_0009.
         diagnostics.Add(MakeDiagnostic(
@@ -497,25 +535,37 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
         DiagnosticBag diagnostics)
     {
         if(targetInfo.MemberName is null)
+        {
             return;
+        }
 
         // Look up the property/indexer in the declaring type's scope to check its readonly status.
         if(declaringTypeScope is null)
+        {
             return;
+        }
 
         // Only check properties/indexers on `this` (the declaring type's own members).
         if(!targetInfo.IsOnThis)
+        {
             return;
+        }
 
         var memberSymbol = declaringTypeScope.Lookup(targetInfo.MemberName);
         if(memberSymbol is not Symbol sym)
+        {
             return;
+        }
 
         if(sym.Kind is not (SymbolKind.Property or SymbolKind.Indexer))
+        {
             return;
+        }
 
         if(!IsReadonly(sym.ReadonlyStatus))
+        {
             return;
+        }
 
         // The property/indexer is readonly and we're outside a constructor — emit MIST_RO_0004.
         diagnostics.Add(MakeDiagnostic(
@@ -545,7 +595,9 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
         // Extract readonly parameter flags and names.
         var readonlyFlags = ParameterSignature.ExtractIsReadonly(symbol, model);
         if(readonlyFlags.Count == 0)
+        {
             return;
+        }
 
         // Check if there are any readonly parameters at all.
         var hasReadonlyParam = false;
@@ -559,12 +611,16 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
         }
 
         if(!hasReadonlyParam)
+        {
             return;
+        }
 
         // Extract parameter names from the declaring node's parameter list.
         var readonlyParamNames = ExtractReadonlyParameterNames(declaringNode, readonlyFlags);
         if(readonlyParamNames.Count == 0)
+        {
             return;
+        }
 
         // Walk the body looking for operations on readonly parameters.
         switch(declaringNode)
@@ -572,13 +628,19 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
             case MethodDeclarationNode methodDecl:
                 var methodBody = methodDecl.Body.GetBlock();
                 if(methodBody is not null)
+                {
                     WalkBlockForReadonlyParamViolations(methodBody, readonlyParamNames, model, diagnostics);
+                }
+
                 break;
 
             case ConstructorDeclarationNode ctorDecl:
                 var ctorBody = ctorDecl.Body.GetBlock();
                 if(ctorBody is not null)
+                {
                     WalkBlockForReadonlyParamViolations(ctorBody, readonlyParamNames, model, diagnostics);
+                }
+
                 break;
         }
     }
@@ -599,7 +661,9 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
 
         var names = new HashSet<string>(StringComparer.Ordinal);
         if(paramList is null)
+        {
             return names;
+        }
 
         var index = 0;
 
@@ -608,7 +672,9 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
         {
             var name = paramList.Parameter.Name.Lexeme;
             if(!string.IsNullOrEmpty(name))
+            {
                 names.Add(name);
+            }
         }
         index++;
 
@@ -619,7 +685,9 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
             {
                 var name = param.Name.Lexeme;
                 if(!string.IsNullOrEmpty(name))
+                {
                     names.Add(name);
+                }
             }
             index++;
         }
@@ -649,12 +717,18 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
         {
             case VariableDeclarationStatementStatementNode varDecl:
                 if(varDecl.VariableDeclaration is { } vd)
+                {
                     WalkNodeForReadonlyParamViolations(vd, readonlyParamNames, model, diagnostics);
+                }
+
                 break;
 
             case ReturnStatementStatementNode returnStmt:
                 if(returnStmt.ReturnStatement is { } rs)
+                {
                     WalkNodeForReadonlyParamViolations(rs, readonlyParamNames, model, diagnostics);
+                }
+
                 break;
 
             case IfStatementStatementNode ifStmt:
@@ -716,7 +790,9 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
         foreach(var child in node.Children())
         {
             if(child is not null)
+            {
                 WalkNodeForReadonlyParamViolations(child, readonlyParamNames, model, diagnostics);
+            }
         }
     }
 
@@ -761,20 +837,28 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
         // The target is wrapped in expression nodes (LogicalOrNode → ... → PostfixNode).
         var postfix = FindPostfixNode(assignment.Target);
         if(postfix is null)
+        {
             return;
+        }
 
         // The receiver must be a bare identifier (the parameter name).
         var receiverName = GetReceiverParameterName(postfix);
         if(receiverName is null || !readonlyParamNames.Contains(receiverName))
+        {
             return;
+        }
 
         // Get the last suffix which is the member being assigned to.
         if(postfix.Suffix.Length == 0)
+        {
             return;
+        }
 
         var lastSuffix = postfix.Suffix[^1];
         if(lastSuffix is not MemberAccessSuffixPostfixSuffixNode memberAccess)
+        {
             return;
+        }
 
         var memberName = memberAccess.Name.Lexeme;
 
@@ -823,7 +907,9 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
     private static PostfixNode? FindPostfixNode(SyntaxNode node)
     {
         if(node is PostfixNode postfix)
+        {
             return postfix;
+        }
 
         foreach(var child in node.Children())
         {
@@ -831,7 +917,9 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
             {
                 var result = FindPostfixNode(child);
                 if(result is not null)
+                {
                     return result;
+                }
             }
         }
 
@@ -850,11 +938,15 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
     {
         // The receiver must be a bare identifier (the parameter name).
         if(postfix.Target is not IdentifierExpressionPrimaryNode identifier)
+        {
             return;
+        }
 
         var receiverName = identifier.Name.Lexeme;
         if(!readonlyParamNames.Contains(receiverName))
+        {
             return;
+        }
 
         // Check each suffix for method calls on the readonly parameter.
         for(var i = 0; i < postfix.Suffix.Length; i++)
@@ -904,17 +996,23 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
     private static string? GetReceiverParameterName(PostfixNode postfix)
     {
         if(postfix.Target is not IdentifierExpressionPrimaryNode identifier)
+        {
             return null;
+        }
 
         // Must have at least one suffix (the member being assigned to).
         if(postfix.Suffix.Length == 0)
+        {
             return null;
+        }
 
         // The first suffix must be a member access (param.member pattern).
         // For `param.member = value`, Suffix.Length == 1 and it's a MemberAccessSuffix.
         // For `param.sub.member = value`, we only care about direct member access on the param.
         if(postfix.Suffix.Length == 1 && postfix.Suffix[0] is MemberAccessSuffixPostfixSuffixNode)
+        {
             return identifier.Name.Lexeme;
+        }
 
         return null;
     }
@@ -930,11 +1028,15 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
         Stack<ContextEntry> contextStack)
     {
         if(declaringNode is not MethodDeclarationNode methodDecl)
+        {
             return;
+        }
 
         var body = methodDecl.Body.GetBlock();
         if(body is null)
+        {
             return;
+        }
 
         contextStack.Push(new ContextEntry(context, declaringTypeScope));
         WalkBlock(body, model, diagnostics, contextStack);
@@ -950,11 +1052,15 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
         Stack<ContextEntry> contextStack)
     {
         if(declaringNode is not ConstructorDeclarationNode ctorDecl)
+        {
             return;
+        }
 
         var body = ctorDecl.Body.GetBlock();
         if(body is null)
+        {
             return;
+        }
 
         contextStack.Push(new ContextEntry(context, declaringTypeScope));
         WalkBlock(body, model, diagnostics, contextStack);
@@ -1023,7 +1129,9 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
         Stack<ContextEntry> contextStack)
     {
         if(declaringNode is not IndexerDeclarationNode { Body: BlockIndexerBodyIndexerBodyNode blockBody } blockIndexer)
+        {
             return;
+        }
 
         foreach(var accessor in blockBody.Accessors)
         {
@@ -1089,12 +1197,18 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
                 // Local variable declarations are always permitted (base rule 4).
                 // But we still need to walk the initializer for violations.
                 if(varDecl.VariableDeclaration is { } vd)
+                {
                     WalkNode(vd, model, diagnostics, contextStack);
+                }
+
                 break;
 
             case ReturnStatementStatementNode returnStmt:
                 if(returnStmt.ReturnStatement is { } rs)
+                {
                     WalkNode(rs, model, diagnostics, contextStack);
+                }
+
                 break;
 
             case IfStatementStatementNode ifStmt:
@@ -1200,7 +1314,9 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
         foreach(var child in node.Children())
         {
             if(child is not null)
+            {
                 WalkNode(child, model, diagnostics, contextStack);
+            }
         }
     }
 
@@ -1214,7 +1330,9 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
     {
         var entry = contextStack.Peek();
         if(entry.Kind == ContextKind.Normal)
+        {
             return;
+        }
 
         switch(node)
         {
@@ -1263,13 +1381,17 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
                 {
                     // Check that the field belongs to the declaring type.
                     if(IsOwnMember(targetInfo.MemberName, entry.DeclaringTypeScope, SymbolKind.Field))
+                    {
                         return; // Permitted — constructor privilege.
+                    }
                 }
 
                 // Backing field exemption (exception 12): in ReadonlySetter, assignment to
                 // the backing field keyword (`field = value`) is permitted.
                 if(context == ContextKind.ReadonlySetter && targetInfo.IsBackingFieldKeyword)
+                {
                     return; // Permitted — backing field exemption.
+                }
 
                 // In ReadonlyBlock context, emit the more specific MIST_RO_0010 diagnostic
                 // indicating that constructor privilege is suspended.
@@ -1297,7 +1419,9 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
                 if(context == ContextKind.ReadonlyConstructor && targetInfo.IsOnThis)
                 {
                     if(IsOwnReadonlyPropertyOrIndexer(targetInfo.MemberName, entry.DeclaringTypeScope))
+                    {
                         return; // Permitted — constructor privilege for readonly setters.
+                    }
                 }
 
                 // In all readonly contexts, setter calls are prohibited (base rule 9).
@@ -1349,9 +1473,14 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
                         if(symbol is not null)
                         {
                             if(symbol.Kind == SymbolKind.Field)
+                            {
                                 return new AssignmentTargetInfo(AssignmentTargetKind.Field, memberName, IsOnThis: true);
+                            }
+
                             if(symbol.Kind is SymbolKind.Property or SymbolKind.Indexer)
+                            {
                                 return new AssignmentTargetInfo(AssignmentTargetKind.PropertyOrIndexerSetter, memberName, IsOnThis: true);
+                            }
                         }
 
                         // If we can't resolve via GetDeclaredSymbol, try the declaring type scope
@@ -1362,9 +1491,14 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
                             if(scopeMember is not null)
                             {
                                 if(scopeMember.Kind == SymbolKind.Field)
+                                {
                                     return new AssignmentTargetInfo(AssignmentTargetKind.Field, memberName, IsOnThis: true);
+                                }
+
                                 if(scopeMember.Kind is SymbolKind.Property or SymbolKind.Indexer)
+                                {
                                     return new AssignmentTargetInfo(AssignmentTargetKind.PropertyOrIndexerSetter, memberName, IsOnThis: true);
+                                }
                             }
                         }
 
@@ -1380,9 +1514,14 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
                         if(symbol is not null)
                         {
                             if(symbol.Kind == SymbolKind.Field)
+                            {
                                 return new AssignmentTargetInfo(AssignmentTargetKind.Field, symbol.Name, IsOnThis: true);
+                            }
+
                             if(symbol.Kind is SymbolKind.Property or SymbolKind.Indexer)
+                            {
                                 return new AssignmentTargetInfo(AssignmentTargetKind.PropertyOrIndexerSetter, symbol.Name, IsOnThis: true);
+                            }
                             // Local variable or parameter
                             return new AssignmentTargetInfo(AssignmentTargetKind.LocalVariable, null, IsOnThis: false);
                         }
@@ -1405,9 +1544,14 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
                         if(symbol is not null)
                         {
                             if(symbol.Kind == SymbolKind.Field)
+                            {
                                 return new AssignmentTargetInfo(AssignmentTargetKind.Field, symbol.Name, IsOnThis: false);
+                            }
+
                             if(symbol.Kind is SymbolKind.Property or SymbolKind.Indexer)
+                            {
                                 return new AssignmentTargetInfo(AssignmentTargetKind.PropertyOrIndexerSetter, symbol.Name, IsOnThis: false);
+                            }
                         }
                     }
 
@@ -1423,7 +1567,9 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
                         {
                             var result = ClassifyAssignmentTarget(child, model, declaringTypeScope);
                             if(result.TargetKind != AssignmentTargetKind.LocalVariable)
+                            {
                                 return result;
+                            }
                         }
                     }
                     return new AssignmentTargetInfo(AssignmentTargetKind.LocalVariable, null, IsOnThis: false);
@@ -1438,7 +1584,9 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
     private static bool IsOwnMember(string? memberName, IScope? declaringTypeScope, SymbolKind expectedKind)
     {
         if(memberName is null || declaringTypeScope is null)
+        {
             return false;
+        }
 
         var member = declaringTypeScope.Lookup(memberName);
         return member is not null && member.Kind == expectedKind;
@@ -1451,14 +1599,20 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
     private static bool IsOwnReadonlyPropertyOrIndexer(string? memberName, IScope? declaringTypeScope)
     {
         if(memberName is null || declaringTypeScope is null)
+        {
             return false;
+        }
 
         var member = declaringTypeScope.Lookup(memberName);
         if(member is not Symbol sym)
+        {
             return false;
+        }
 
         if(sym.Kind is not (SymbolKind.Property or SymbolKind.Indexer))
+        {
             return false;
+        }
 
         return IsReadonly(sym.ReadonlyStatus);
     }
@@ -1473,16 +1627,22 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
     {
         // Only enforce in readonly contexts.
         if(context == ContextKind.Normal)
+        {
             return;
+        }
 
         // Resolve the method being called.
         var symbol = model.GetDeclaredSymbol(methodCall);
         if(symbol is not Symbol sym)
+        {
             return; // Can't resolve — skip (avoid false positives).
+        }
 
         // Check if the method is readonly.
         if(IsReadonly(sym.ReadonlyStatus))
+        {
             return; // Permitted (base rule 2).
+        }
 
         // Non-readonly method call in a readonly context.
         diagnostics.Add(MakeDiagnostic(
@@ -1502,15 +1662,21 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
     {
         // Only enforce in readonly contexts.
         if(context == ContextKind.Normal)
+        {
             return;
+        }
 
         var symbol = model.GetDeclaredSymbol(memberAccess);
         if(symbol is not Symbol sym)
+        {
             return; // Can't resolve — skip.
+        }
 
         // Field reads are always permitted (base rule 1).
         if(sym.Kind == SymbolKind.Field)
+        {
             return;
+        }
 
         // Property/indexer getter access — check if readonly.
         if(sym.Kind is SymbolKind.Property or SymbolKind.Indexer)
@@ -1536,21 +1702,29 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
     {
         // Only enforce in readonly contexts.
         if(context == ContextKind.Normal)
+        {
             return;
+        }
 
         // Resolve the type being constructed.
         var createdType = model.GetTypeOf(objectCreation);
         if(createdType is null)
+        {
             return; // Can't resolve — skip.
+        }
 
         // If the type itself is readonly, all its constructors are implicitly readonly.
         if(IsTypeReadonly(createdType))
+        {
             return; // Permitted (base rule 5).
+        }
 
         // Look for a readonly constructor in the created type.
         var memberScope = GetMemberScope(createdType);
         if(memberScope is null)
+        {
             return; // Can't find scope — skip.
+        }
 
         // Check if any constructor is readonly.
         foreach(var member in memberScope.Members)
@@ -1558,7 +1732,9 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
             if(member.Kind == SymbolKind.Constructor && member is Symbol ctorSym)
             {
                 if(IsReadonly(ctorSym.ReadonlyStatus))
+                {
                     return; // At least one readonly constructor exists — permitted.
+                }
             }
         }
 
@@ -1580,7 +1756,9 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
     private static ReadonlyStatus GetReadonlyStatus(ISymbol symbol)
     {
         if(symbol is Symbol concreteSymbol)
+        {
             return concreteSymbol.ReadonlyStatus;
+        }
 
         return ReadonlyStatus.Unknown;
     }
@@ -1616,7 +1794,9 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
     {
         // For ConstructedType, look up in the generic definition.
         if(type is ConstructedType constructed)
+        {
             type = constructed.GenericDefinition;
+        }
 
         return type switch
         {
@@ -1636,12 +1816,16 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
     {
         var scope = GetMemberScope(receiverType!);
         if(scope is null)
+        {
             return null;
+        }
 
         foreach(var member in scope.Members)
         {
             if(member.Name == memberName && member is Symbol sym)
+            {
                 return sym;
+            }
         }
 
         return null;
@@ -1683,7 +1867,9 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
                 {
                     var body = methodDecl.Body.GetBlock();
                     if(body is not null)
+                    {
                         WalkBlockForConstrainedTypeParamViolations(body, model, diagnostics);
+                    }
                 }
                 break;
 
@@ -1692,7 +1878,9 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
                 {
                     var ctorBody = ctorDecl.Body.GetBlock();
                     if(ctorBody is not null)
+                    {
                         WalkBlockForConstrainedTypeParamViolations(ctorBody, model, diagnostics);
+                    }
                 }
                 break;
 
@@ -1752,7 +1940,9 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
         DiagnosticBag diagnostics)
     {
         if(declaringNode is not IndexerDeclarationNode { Body: BlockIndexerBodyIndexerBodyNode blockBody } blockIndexer)
+        {
             return;
+        }
 
         foreach(var accessor in blockBody.Accessors)
         {
@@ -1800,12 +1990,18 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
         {
             case VariableDeclarationStatementStatementNode varDecl:
                 if(varDecl.VariableDeclaration is { } vd)
+                {
                     WalkNodeForConstrainedTypeParamViolations(vd, model, diagnostics);
+                }
+
                 break;
 
             case ReturnStatementStatementNode returnStmt:
                 if(returnStmt.ReturnStatement is { } rs)
+                {
                     WalkNodeForConstrainedTypeParamViolations(rs, model, diagnostics);
+                }
+
                 break;
 
             case IfStatementStatementNode ifStmt:
@@ -1865,7 +2061,9 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
         foreach(var child in node.Children())
         {
             if(child is not null)
+            {
                 WalkNodeForConstrainedTypeParamViolations(child, model, diagnostics);
+            }
         }
     }
 
@@ -1907,7 +2105,9 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
         // Get the type of the target expression.
         var targetType = model.GetTypeOf(postfix.Target);
         if(!IsReadonlyConstrainedTypeParameter(targetType))
+        {
             return;
+        }
 
         // The target is a readonly-constrained type parameter.
         // Check each suffix for violations.
@@ -1946,7 +2146,9 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
                             {
                                 // Field reads are always permitted.
                                 if(sym.Kind == SymbolKind.Field)
+                                {
                                     break;
+                                }
 
                                 // Property/indexer getter access — check if readonly.
                                 if(sym.Kind is SymbolKind.Property or SymbolKind.Indexer)
@@ -1988,21 +2190,29 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
         // Look for pattern: value.member = expr
         var postfix = FindPostfixNode(assignment.Target);
         if(postfix is null)
+        {
             return;
+        }
 
         // The target must be a PostfixNode with at least one member access suffix.
         if(postfix.Suffix.Length == 0)
+        {
             return;
+        }
 
         // Check if the receiver's type is a readonly-constrained type parameter.
         var targetType = model.GetTypeOf(postfix.Target);
         if(!IsReadonlyConstrainedTypeParameter(targetType))
+        {
             return;
+        }
 
         // Only check direct member access on the type parameter (first suffix).
         var lastSuffix = postfix.Suffix.Length == 1 ? postfix.Suffix[0] : null;
         if(lastSuffix is not MemberAccessSuffixPostfixSuffixNode memberAccess)
+        {
             return;
+        }
 
         var memberName = memberAccess.Name.Lexeme;
 
@@ -2066,7 +2276,9 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
                 {
                     var body = methodDecl.Body.GetBlock();
                     if(body is not null)
+                    {
                         WalkBlockForClosedUnknownViolations(body, model, diagnostics);
+                    }
                 }
                 break;
 
@@ -2075,7 +2287,9 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
                 {
                     var ctorBody = ctorDecl.Body.GetBlock();
                     if(ctorBody is not null)
+                    {
                         WalkBlockForClosedUnknownViolations(ctorBody, model, diagnostics);
+                    }
                 }
                 break;
 
@@ -2135,7 +2349,9 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
         DiagnosticBag diagnostics)
     {
         if(declaringNode is not IndexerDeclarationNode { Body: BlockIndexerBodyIndexerBodyNode blockBody } blockIndexer)
+        {
             return;
+        }
 
         foreach(var accessor in blockBody.Accessors)
         {
@@ -2183,12 +2399,18 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
         {
             case VariableDeclarationStatementStatementNode varDecl:
                 if(varDecl.VariableDeclaration is { } vd)
+                {
                     WalkNodeForClosedUnknownViolations(vd, model, diagnostics);
+                }
+
                 break;
 
             case ReturnStatementStatementNode returnStmt:
                 if(returnStmt.ReturnStatement is { } rs)
+                {
                     WalkNodeForClosedUnknownViolations(rs, model, diagnostics);
+                }
+
                 break;
 
             case IfStatementStatementNode ifStmt:
@@ -2257,7 +2479,9 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
         foreach(var child in node.Children())
         {
             if(child is not null)
+            {
                 WalkNodeForClosedUnknownViolations(child, model, diagnostics);
+            }
         }
     }
 
@@ -2303,7 +2527,9 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
         // Get the type of the target expression.
         var currentType = model.GetTypeOf(postfix.Target);
         if(!IsClosedGenericWithUnknown(currentType))
+        {
             return;
+        }
 
         // Walk each suffix, tracking the current receiver type.
         for(var i = 0; i < postfix.Suffix.Length; i++)
@@ -2386,7 +2612,9 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
 
             // If the result type is no longer a Closed_Generic_With_Unknown, stop enforcing.
             if(!IsClosedGenericWithUnknown(currentType))
+            {
                 return;
+            }
         }
     }
 
@@ -2406,11 +2634,15 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
         // Look for pattern: value.member = expr or value[index] = expr
         var postfix = FindPostfixNode(assignment.Target);
         if(postfix is null)
+        {
             return;
+        }
 
         // The target must be a PostfixNode with at least one suffix.
         if(postfix.Suffix.Length == 0)
+        {
             return;
+        }
 
         // Determine the receiver type for the last suffix (the one being assigned to).
         // For a single suffix, the receiver is the target. For multiple suffixes,
@@ -2426,7 +2658,9 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
         }
 
         if(!IsClosedGenericWithUnknown(receiverType))
+        {
             return;
+        }
 
         var typeDisplayName = receiverType!.DisplayName;
         var lastSuffix = postfix.Suffix[^1];
@@ -2504,7 +2738,10 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
     internal static bool IsClosedGenericWithUnknown(IType? type)
     {
         if(type is not ConstructedType ct)
+        {
             return false;
+        }
+
         return ContainsUnknownTypeArgument(ct) && !ContainsOpenTypeParameter(ct);
     }
 
@@ -2517,9 +2754,14 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
         foreach(var arg in ct.TypeArguments)
         {
             if(arg is UnknownType)
+            {
                 return true;
+            }
+
             if(arg is ConstructedType nested && ContainsUnknownTypeArgument(nested))
+            {
                 return true;
+            }
         }
         return false;
     }
@@ -2533,9 +2775,14 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
         foreach(var arg in ct.TypeArguments)
         {
             if(arg is TypeParameterType)
+            {
                 return true;
+            }
+
             if(arg is ConstructedType nested && ContainsOpenTypeParameter(nested))
+            {
                 return true;
+            }
         }
         return false;
     }

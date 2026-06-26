@@ -128,7 +128,9 @@ public class AsyncFunctorTypePropertyTests
         var targetModifiers = ImmutableArray.CreateBuilder<ModifierNode>();
         targetModifiers.Add(new PublicModifierModifierNode());
         if(scenario.IsTargetAsync)
+        {
             targetModifiers.Add(new AsyncModifierModifierNode());
+        }
 
         var targetMethod = new MethodDeclarationNode
         {
@@ -235,38 +237,50 @@ public class AsyncFunctorTypePropertyTests
         var exprType = model.GetTypeOf(asyncExprNode);
 
         if(exprType is null)
+        {
             return false.ToProperty()
                 .Label($"GetTypeOf returned null for async expression in scenario: {scenario}");
+        }
 
         // The expression type must be a ConstructedType (Task<T>)
         if(exprType is not ConstructedType constructedType)
+        {
             return false.ToProperty()
                 .Label($"Expression type is not a ConstructedType. " +
                        $"Actual: {exprType.GetType().Name} ({exprType.DisplayName}). " +
                        $"Scenario: {scenario}");
+        }
 
         // Verify the generic definition is Standard.Task
         if(constructedType.GenericDefinition is not ClassType taskClass)
+        {
             return false.ToProperty()
                 .Label($"GenericDefinition is not a ClassType. " +
                        $"Actual: {constructedType.GenericDefinition.GetType().Name}. " +
                        $"Scenario: {scenario}");
+        }
 
         if(taskClass.DisplayName != "Task")
+        {
             return false.ToProperty()
                 .Label($"GenericDefinition DisplayName is not 'Task'. " +
                        $"Actual: '{taskClass.DisplayName}'. Scenario: {scenario}");
+        }
 
         if(taskClass.ContainingNamespace != "Standard")
+        {
             return false.ToProperty()
                 .Label($"GenericDefinition namespace is not 'Standard'. " +
                        $"Actual: '{taskClass.ContainingNamespace}'. Scenario: {scenario}");
+        }
 
         // Verify there is exactly one type argument
         if(constructedType.TypeArguments.Count != 1)
+        {
             return false.ToProperty()
                 .Label($"Expected 1 type argument, got {constructedType.TypeArguments.Count}. " +
                        $"Scenario: {scenario}");
+        }
 
         // Verify the type argument matches the declared return type of the target method.
         // For both sync and async target methods, the async functor should produce Task<T>
@@ -278,10 +292,12 @@ public class AsyncFunctorTypePropertyTests
         var expectedDisplayName = ResolvedDisplayNames[scenario.ReturnTypeName];
 
         if(typeArg.DisplayName != expectedDisplayName)
+        {
             return false.ToProperty()
                 .Label($"Type argument mismatch. Expected '{expectedDisplayName}' " +
                        $"(from return type '{scenario.ReturnTypeName}'), " +
                        $"got '{typeArg.DisplayName}'. Scenario: {scenario}");
+        }
 
         return true.ToProperty();
     }

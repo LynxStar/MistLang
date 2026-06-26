@@ -22,20 +22,28 @@ internal static class MistContextGenerator
         foreach(var symbol in model.AllSymbols)
         {
             if(symbol is not Symbol sym)
+            {
                 continue;
+            }
 
             if(sym.Kind is not (SymbolKind.Method or SymbolKind.Constructor))
+            {
                 continue;
+            }
 
             if(sym.WithClauses.Count > 0)
+            {
                 return true;
+            }
         }
 
         // Check 2: Any context declaration or block statement in the ASTs.
         foreach(var ast in model.Asts)
         {
             if(AstContainsContextUsage(ast))
+            {
                 return true;
+            }
         }
 
         return false;
@@ -98,7 +106,9 @@ internal static class MistContextGenerator
         foreach(var child in node.Children())
         {
             if(child is Storm.Runtime.SyntaxNode childNode && AstContainsContextUsage(childNode))
+            {
                 return true;
+            }
         }
 
         return false;

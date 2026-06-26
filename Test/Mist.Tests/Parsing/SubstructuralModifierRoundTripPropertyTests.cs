@@ -51,8 +51,10 @@ public class SubstructuralModifierRoundTripPropertyTests
             .ToList();
 
         if(errors.Count > 0)
+        {
             throw new InvalidOperationException(
                 $"Unexpected parse errors:\n  {string.Join("\n  ", errors.Select(e => e.Message))}\nSource:\n{source}");
+        }
 
         return result.Root as CompilationUnitNode
             ?? throw new InvalidOperationException("Parse result root is not a CompilationUnitNode");
@@ -78,7 +80,9 @@ public class SubstructuralModifierRoundTripPropertyTests
         var printed1 = MistPrettyPrinter.Print(ast1, scenario.Source);
 
         if(string.IsNullOrWhiteSpace(printed1))
+        {
             return false.ToProperty().Label("printed1 was empty");
+        }
 
         // The substructural modifier must appear as a standalone keyword in the output.
         var modifierPreserved = ContainsKeyword(printed1, scenario.Modifier);
@@ -94,7 +98,9 @@ public class SubstructuralModifierRoundTripPropertyTests
         var printed1 = MistPrettyPrinter.Print(ast1, scenario.Source);
 
         if(string.IsNullOrWhiteSpace(printed1))
+        {
             return false.ToProperty().Label("printed1 was empty");
+        }
 
         var ast2 = ParseOrFail(printed1);
         var printed2 = MistPrettyPrinter.Print(ast2, printed1);
@@ -155,7 +161,10 @@ public class SubstructuralModifierRoundTripPropertyTests
             var afterPos = index + keyword.Length;
             var after = afterPos >= text.Length || !IsIdentChar(text[afterPos]);
             if(before && after)
+            {
                 return true;
+            }
+
             index = afterPos;
         }
         return false;

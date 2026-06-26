@@ -104,9 +104,14 @@ public class PropertyAccessTypePropertyTests
     {
         var accessors = ImmutableArray.CreateBuilder<AccessorDeclarationNode>();
         if(hasGet)
+        {
             accessors.Add(new AutoGetAccessorAccessorDeclarationNode());
+        }
+
         if(hasSet)
+        {
             accessors.Add(new AutoSetAccessorAccessorDeclarationNode());
+        }
 
         var property = new BlockPropertyPropertyDeclarationNode
         {
@@ -138,9 +143,14 @@ public class PropertyAccessTypePropertyTests
     {
         var accessors = ImmutableArray.CreateBuilder<AccessorDeclarationNode>();
         if(hasGet)
+        {
             accessors.Add(new AutoGetAccessorAccessorDeclarationNode());
+        }
+
         if(hasSet)
+        {
             accessors.Add(new AutoSetAccessorAccessorDeclarationNode());
+        }
 
         var property = new BlockPropertyPropertyDeclarationNode
         {
@@ -184,7 +194,9 @@ public class PropertyAccessTypePropertyTests
 
         // Merge all diagnostics
         foreach(var d in analyzerDiagnostics.ToImmutableArray())
+        {
             semanticDiagnostics.Add(d);
+        }
 
         return (model, semanticDiagnostics);
     }
@@ -199,7 +211,9 @@ public class PropertyAccessTypePropertyTests
     public Property PropertyAccess_ValidAccessProducesNoAccessDiagnostic(PropertyAccessTestCase testCase)
     {
         if(!testCase.ExpectValid)
+        {
             return true.ToProperty();
+        }
 
         var (model, diagnostics) = BuildAndAnalyze(testCase.Ast);
 
@@ -225,13 +239,17 @@ public class PropertyAccessTypePropertyTests
             .ToList();
 
         if(propSymbols.Count == 0)
+        {
             return false.ToProperty().Label("No property symbols found");
+        }
 
         var propSymbol = propSymbols.First();
         var metadata = (propSymbol as Symbol)?.PropertyMetadata;
 
         if(metadata is null)
+        {
             return false.ToProperty().Label("PropertyMetadata is null");
+        }
 
         // Every generated property should have at least a get accessor
         return metadata.HasGet.ToProperty()

@@ -162,9 +162,13 @@ public class TypeUnionExhaustivenessPropertyTests
         foreach(var constituent in union.Constituents)
         {
             if(constituent is UnionType nested)
+            {
                 leaves.AddRange(FlattenUnion(nested));
+            }
             else
+            {
                 leaves.Add(constituent);
+            }
         }
         return leaves;
     }
@@ -175,7 +179,9 @@ public class TypeUnionExhaustivenessPropertyTests
     {
         // An unguarded catch-all makes it exhaustive
         if(arms.Any(a => a.Kind == ArmKind.CatchAll && !a.HasGuard))
+        {
             return true;
+        }
 
         // All leaf types must be covered by unguarded type patterns
         var leafTypes = FlattenUnion(scrutineeType);
@@ -184,7 +190,9 @@ public class TypeUnionExhaustivenessPropertyTests
         foreach(var arm in arms)
         {
             if(arm.HasGuard || arm.Kind != ArmKind.TypePattern)
+            {
                 continue;
+            }
 
             var typeName = TypePool[arm.TypeIndex].Type.DisplayName;
             coveredDisplayNames.Add(typeName);

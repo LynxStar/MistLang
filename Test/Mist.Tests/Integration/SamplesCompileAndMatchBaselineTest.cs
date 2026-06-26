@@ -1,8 +1,8 @@
 using System.Collections.Immutable;
 using System.Diagnostics;
 using Mist.Analysis.Builtin;
-using Mist.Backends.CSharpTranspiler;
 using Mist.Backends.Contracts;
+using Mist.Backends.CSharpTranspiler;
 using Mist.Common.Diagnostics;
 using Mist.Driver;
 using Mist.Driver.Contracts;
@@ -201,7 +201,10 @@ public sealed class SamplesCompileAndMatchBaselineTest
         while(dir is not null)
         {
             if(File.Exists(Path.Combine(dir, "Mist.slnx")))
+            {
                 return dir;
+            }
+
             dir = Directory.GetParent(dir)?.FullName;
         }
 
@@ -209,7 +212,10 @@ public sealed class SamplesCompileAndMatchBaselineTest
         while(dir is not null)
         {
             if(File.Exists(Path.Combine(dir, "Mist.slnx")))
+            {
                 return dir;
+            }
+
             dir = Directory.GetParent(dir)?.FullName;
         }
 

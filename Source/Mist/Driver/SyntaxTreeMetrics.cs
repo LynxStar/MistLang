@@ -15,7 +15,9 @@ internal static class SyntaxTreeMetrics
         foreach(var child in root.Children())
         {
             if(child is not null)
+            {
                 count += CountNodes(child);
+            }
         }
         return count;
     }

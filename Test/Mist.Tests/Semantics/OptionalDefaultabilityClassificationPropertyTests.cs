@@ -252,7 +252,9 @@ public class OptionalDefaultabilityClassificationPropertyTests
         int primitiveCount, int nonDefaultableCount, string nonDefaultableTypeName)
     {
         if(primitiveCount + nonDefaultableCount == 0)
+        {
             return Gen.Constant(ImmutableArray<(string, string, bool)>.Empty);
+        }
 
         Gen<ImmutableArray<(string, string, bool)>> result =
             Gen.Constant(ImmutableArray<(string, string, bool)>.Empty);
@@ -418,7 +420,9 @@ public class OptionalDefaultabilityClassificationPropertyTests
             .FirstOrDefault(s => s.Name == scenario.TypeName && s.Kind == expectedKind);
 
         if(typeSymbol is null)
+        {
             return false;
+        }
 
         // Check defaultability status is NotDefaultable
         var status = typeSymbol.DeclaredType switch
@@ -429,7 +433,9 @@ public class OptionalDefaultabilityClassificationPropertyTests
         };
 
         if(status != DefaultabilityStatus.NotDefaultable)
+        {
             return false;
+        }
 
         // Check that NO defaultability-related diagnostics are emitted for this type
         var hasDefaultabilityDiagnostic = diagnostics
@@ -468,7 +474,9 @@ public class OptionalDefaultabilityClassificationPropertyTests
             .FirstOrDefault(s => s.Name == scenario.TypeName && s.Kind == expectedKind);
 
         if(typeSymbol is null)
+        {
             return false;
+        }
 
         // Check defaultability status is NotDefaultable
         var status = typeSymbol.DeclaredType switch
@@ -479,7 +487,9 @@ public class OptionalDefaultabilityClassificationPropertyTests
         };
 
         if(status != DefaultabilityStatus.NotDefaultable)
+        {
             return false;
+        }
 
         // Check that MIST_DEFAULT_REQUIRES_BINDING diagnostic was emitted
         var hasRequiresBindingDiagnostic = diagnostics

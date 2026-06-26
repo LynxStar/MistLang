@@ -315,7 +315,9 @@ public sealed class TypeArgumentInferenceEmissionPropertyTests : IDisposable
     private static string GetAllEmittedCSharp(CompilerResult result)
     {
         if(result.EmittedFiles is null || result.EmittedFiles.Count == 0)
+        {
             return "";
+        }
 
         return string.Join("\n", result.EmittedFiles.Values);
     }

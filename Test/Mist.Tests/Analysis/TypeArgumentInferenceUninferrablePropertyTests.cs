@@ -95,7 +95,10 @@ public class TypeArgumentInferenceUninferrablePropertyTests
         var c = new ClassType(name, new Scope(parent: null), containingNamespace: "TestPool");
         var tps = new TypeParameterType[arity];
         for(var i = 0; i < arity; i++)
+        {
             tps[i] = new TypeParameterType($"T{i}", i);
+        }
+
         c.TypeParameters = tps;
         return c;
     }

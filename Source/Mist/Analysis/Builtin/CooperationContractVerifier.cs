@@ -54,19 +54,27 @@ public sealed class CooperationContractVerifier
         ArgumentNullException.ThrowIfNull(diagnostics);
 
         if(!IsOwnedType(ownedType))
+        {
             return;
+        }
 
         var memberScope = MemberScopeOf(ownedType);
         if(memberScope is null)
+        {
             return;
+        }
 
         foreach(var member in memberScope.Members)
         {
             if(member.Origin != SymbolOrigin.UserCode)
+            {
                 continue;
+            }
 
             if(member.Kind is not (SymbolKind.Method or SymbolKind.Constructor))
+            {
                 continue;
+            }
 
             VerifyMethodOrConstructor(member, resolver, model, diagnostics);
         }
@@ -94,7 +102,9 @@ public sealed class CooperationContractVerifier
         };
 
         if(body is null)
+        {
             return;
+        }
 
         // A fresh flow state per body. Owned parameters start Live so that
         // `this.Field = ownedParam` resolves as a valid move (Req 6 AC 3).
@@ -206,7 +216,9 @@ public sealed class CooperationContractVerifier
         foreach(var child in node.Children())
         {
             if(child is not null)
+            {
                 CollectFieldAssignments(child, model, results);
+            }
         }
     }
 
@@ -219,14 +231,19 @@ public sealed class CooperationContractVerifier
     private static ISymbol? TryResolveThisFieldTarget(SyntaxNode target, ISemanticModel model)
     {
         if(target is ExpressionNode expr)
+        {
             return expr.AsAssignmentOrNull() is { } exprAssignment
                 ? TryResolveThisFieldTarget(exprAssignment, model)
                 : null;
+        }
 
         if(target is AssignmentNode assignment)
         {
             if(assignment.Value is not null)
+            {
                 return null;
+            }
+
             return TryResolveThisFieldTarget(assignment.Target, model);
         }
 
@@ -241,13 +258,18 @@ public sealed class CooperationContractVerifier
             {
                 var receiverType = model.GetTypeOf(postfix.Target);
                 if(receiverType is null)
+                {
                     return null;
+                }
+
                 return AsInstanceField(LookupMember(receiverType, memberAccess.Name.Lexeme));
             }
 
             // Bare `Field` reference (no suffixes) resolving to a field of the type.
             if(postfix.Suffix.Length == 0)
+            {
                 return TryResolveThisFieldTarget(postfix.Target, model);
+            }
 
             return null;
         }
@@ -263,11 +285,16 @@ public sealed class CooperationContractVerifier
         foreach(var child in target.Children())
         {
             if(child is null)
+            {
                 continue;
+            }
+
             childCount++;
             singleChild = child;
             if(childCount > 1)
+            {
                 break;
+            }
         }
 
         return childCount == 1 && singleChild is not null
@@ -281,7 +308,10 @@ public sealed class CooperationContractVerifier
     private static ISymbol? AsInstanceField(ISymbol? symbol)
     {
         if(symbol is not Symbol sym || sym.Kind != SymbolKind.Field)
+        {
             return null;
+        }
+
         return sym.IsStatic ? null : sym;
     }
 
@@ -296,10 +326,14 @@ public sealed class CooperationContractVerifier
     private static bool IsStaticOrGlobalRead(SyntaxNode source, ISemanticModel model)
     {
         if(source is ExpressionNode expr)
+        {
             return expr.AsAssignmentOrNull() is { } exprAssignment && IsStaticOrGlobalRead(exprAssignment, model);
+        }
 
         if(source is AssignmentNode assignment)
+        {
             return assignment.Value is null && IsStaticOrGlobalRead(assignment.Target, model);
+        }
 
         if(source is PostfixNode postfix)
         {
@@ -313,26 +347,34 @@ public sealed class CooperationContractVerifier
                 // signal — Symbol.IsStatic is not consistently set for properties whose
                 // accessors are lowered to a backing field.
                 if(ReceiverNamesType(postfix.Target, model))
+                {
                     return true;
+                }
 
                 // Secondary signal: the resolved member is itself static. Resolve it by name
                 // in the receiver type's scope (GetDeclaredSymbol only maps declarations).
                 var receiverType = model.GetTypeOf(postfix.Target);
                 if(receiverType is not null && IsStaticMember(LookupMember(receiverType, memberAccess.Name.Lexeme)))
+                {
                     return true;
+                }
 
                 return false;
             }
 
             // Bare identifier resolving to a static field/property.
             if(postfix.Suffix.Length == 0)
+            {
                 return IsStaticOrGlobalRead(postfix.Target, model);
+            }
 
             return false;
         }
 
         if(source is IdentifierExpressionPrimaryNode identifier)
+        {
             return IsStaticMember(model.GetDeclaredSymbol(identifier));
+        }
 
         // Walk single-child wrapper chains.
         SyntaxNode? singleChild = null;
@@ -340,11 +382,16 @@ public sealed class CooperationContractVerifier
         foreach(var child in source.Children())
         {
             if(child is null)
+            {
                 continue;
+            }
+
             childCount++;
             singleChild = child;
             if(childCount > 1)
+            {
                 break;
+            }
         }
 
         return childCount == 1 && singleChild is not null && IsStaticOrGlobalRead(singleChild, model);
@@ -361,21 +408,30 @@ public sealed class CooperationContractVerifier
     {
         // Unwrap a no-suffix postfix wrapper around the primary identifier.
         if(receiver is PostfixNode { Suffix.Length: 0 } postfix)
+        {
             receiver = postfix.Target;
+        }
 
         if(receiver is not IdentifierExpressionPrimaryNode identifier)
+        {
             return false;
+        }
 
         // A value reference (local/parameter) is NOT a type name.
         var declared = model.GetDeclaredSymbol(identifier);
         if(declared is Symbol sym && sym.Kind is SymbolKind.LocalVariable or SymbolKind.Parameter)
+        {
             return false;
+        }
 
         var name = identifier.Name.Lexeme;
         foreach(var symbol in model.AllSymbols)
         {
             if(symbol.Name != name)
+            {
                 continue;
+            }
+
             if(symbol.Kind is SymbolKind.Class or SymbolKind.Struct
                 or SymbolKind.Abstract or SymbolKind.Enum)
             {
@@ -425,7 +481,9 @@ public sealed class CooperationContractVerifier
         };
 
         if(paramList is null)
+        {
             return;
+        }
 
         foreach(var child in paramList.Children())
         {
@@ -519,14 +577,20 @@ public sealed class CooperationContractVerifier
                 {
                     var baseText = RenderExpression(postfix.Target);
                     if(baseText.Length == 0)
+                    {
                         return "";
+                    }
 
                     foreach(var suffix in postfix.Suffix)
                     {
                         if(suffix is MemberAccessSuffixPostfixSuffixNode memberAccess)
+                        {
                             baseText += "." + memberAccess.Name.Lexeme;
+                        }
                         else
+                        {
                             return ""; // calls/indexers/etc. — not a simple source path
+                        }
                     }
 
                     return baseText;
@@ -539,11 +603,16 @@ public sealed class CooperationContractVerifier
         foreach(var child in node.Children())
         {
             if(child is null)
+            {
                 continue;
+            }
+
             childCount++;
             singleChild = child;
             if(childCount > 1)
+            {
                 break;
+            }
         }
 
         return childCount == 1 && singleChild is not null ? RenderExpression(singleChild) : "";

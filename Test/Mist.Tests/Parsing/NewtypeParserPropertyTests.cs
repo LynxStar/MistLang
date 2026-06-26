@@ -46,8 +46,10 @@ public class NewtypeParserPropertyTests
             .ToList();
 
         if(errors.Count > 0)
+        {
             throw new InvalidOperationException(
                 $"Unexpected parse errors:\n  {string.Join("\n  ", errors.Select(e => e.Message))}\nSource:\n{source}");
+        }
 
         return result.Root as CompilationUnitNode
             ?? throw new InvalidOperationException("Parse result root is not a CompilationUnitNode");
@@ -81,7 +83,10 @@ public class NewtypeParserPropertyTests
     {
         var span = node.Span;
         if(span.Length > 0 && span.Start + span.Length <= source.Length)
+        {
             return source.Substring(span.Start, span.Length);
+        }
+
         return "";
     }
 

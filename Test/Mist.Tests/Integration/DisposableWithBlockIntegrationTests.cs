@@ -17,8 +17,8 @@ using System.Collections.Immutable;
 using System.Diagnostics;
 using Mist.Analysis.Builtin;
 using Mist.Analysis.Contracts;
-using Mist.Backends.CSharpTranspiler;
 using Mist.Backends.Contracts;
+using Mist.Backends.CSharpTranspiler;
 using Mist.Driver;
 using Mist.Driver.Contracts;
 using Mist.Semantics.Model;
@@ -103,7 +103,9 @@ public sealed class DisposableWithBlockIntegrationTests : IDisposable
         foreach(var (_, content) in result.EmittedFiles!)
         {
             if(content.Contains("namespace TestProgram"))
+            {
                 return content;
+            }
         }
 
         Assert.Fail("No emitted C# file containing 'namespace TestProgram' was found.");

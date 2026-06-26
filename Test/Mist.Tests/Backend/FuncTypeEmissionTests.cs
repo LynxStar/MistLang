@@ -44,7 +44,10 @@ public sealed class FuncTypeEmissionTests
         var func = new ClassType("Func", new Scope(parent: null), containingNamespace: "Standard", isBackendBacked: true);
         var typeParams = new IType[arity];
         for(var i = 0; i < arity; i++)
+        {
             typeParams[i] = new TypeParameterType($"T{i}", i);
+        }
+
         func.TypeParameters = typeParams;
         return func;
     }
@@ -151,7 +154,9 @@ public sealed class FuncTypeEmissionTests
         // Build type arguments: N parameter types + 1 return type
         var typeArgs = new IType[arity];
         for(var i = 0; i < scenario.ParameterCount; i++)
+        {
             typeArgs[i] = MakeInt();
+        }
 
         typeArgs[arity - 1] = scenario.ReturnsVoid ? MakeVoid() : MakeBool();
 
@@ -161,7 +166,9 @@ public sealed class FuncTypeEmissionTests
         if(scenario.ReturnsVoid)
         {
             if(scenario.ParameterCount == 0)
+            {
                 return emitted == "System.Action";
+            }
 
             var expectedParams = string.Join(", ", Enumerable.Repeat("int", scenario.ParameterCount));
             return emitted == $"System.Action<{expectedParams}>";

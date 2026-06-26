@@ -59,10 +59,12 @@ public static class FrameworkReferenceResolver
         DiagnosticBag diagnostics)
     {
         if(frameworks.IsDefaultOrEmpty)
+        {
             return new FrameworkResolutionResult(
                 ImmutableArray<string>.Empty,
                 ImmutableArray<ResolvedFrameworkInfo>.Empty,
                 FailureCount: 0);
+        }
 
         var dotnetRoot = SdkDiscovery.FindDotnetRoot();
 
@@ -138,7 +140,9 @@ public static class FrameworkReferenceResolver
     {
         var packsDir = Path.Combine(dotnetRoot, "packs", $"{frameworkName}.Ref");
         if(!Directory.Exists(packsDir))
+        {
             return null;
+        }
 
         string[] versionDirs;
         try
@@ -161,19 +165,27 @@ public static class FrameworkReferenceResolver
         {
             var dirName = Path.GetFileName(versionDir);
             if(!Version.TryParse(dirName, out var version))
+            {
                 continue;
+            }
 
             if(tfmMajor.HasValue && version.Major != tfmMajor.Value)
+            {
                 continue;
+            }
 
             var refPath = Path.Combine(versionDir, "ref", targetFramework);
             if(!Directory.Exists(refPath))
+            {
                 continue;
+            }
 
             // Success requires at least one reference assembly in the pack.
             var dlls = Directory.GetFiles(refPath, "*.dll");
             if(dlls.Length == 0)
+            {
                 continue;
+            }
 
             if(highestVersion is null || version > highestVersion)
             {
@@ -184,7 +196,9 @@ public static class FrameworkReferenceResolver
         }
 
         if(highestVersionName is null)
+        {
             return null;
+        }
 
         return (highestAssemblies, highestVersionName);
     }

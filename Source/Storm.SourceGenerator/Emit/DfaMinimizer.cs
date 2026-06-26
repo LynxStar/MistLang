@@ -20,7 +20,9 @@ namespace Storm.SourceGenerator.Emit
         public static Dfa Minimize(Dfa dfa)
         {
             if(dfa.States.Count == 0)
+            {
                 return new Dfa(dfa.StartStateId, new List<DfaState>());
+            }
 
             // Collect all distinct CharRange values used across every transition
             // in the DFA. These are the "input symbols" for partition refinement.
@@ -136,7 +138,9 @@ namespace Storm.SourceGenerator.Emit
                     }
 
                     if(currentSplit.Count > 1)
+                    {
                         changed = true;
+                    }
 
                     newPartitions.AddRange(currentSplit);
                 }
@@ -207,7 +211,9 @@ namespace Storm.SourceGenerator.Emit
         {
             DfaState? state;
             if(!stateById.TryGetValue(stateId, out state))
+            {
                 return -1;
+            }
 
             // Find the transition matching this range.
             // Since the alphabet comes from the DFA's own transitions,

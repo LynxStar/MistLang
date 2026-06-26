@@ -413,9 +413,11 @@ public class EnumTypeReferencePropertyTests
             .ToList();
 
         if(allErrors.Count > 0)
+        {
             return false.ToProperty()
                 .Label($"Expected no errors for enum '{scenario.EnumName}' as {scenario.Position}, " +
                        $"got: [{string.Join("; ", allErrors.Select(e => $"{e.Id.Value}: {e.Message}"))}]");
+        }
 
         return true.ToProperty()
             .Label($"Enum '{scenario.EnumName}' accepted as {scenario.Position}");

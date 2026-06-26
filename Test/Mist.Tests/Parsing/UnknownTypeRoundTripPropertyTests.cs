@@ -372,7 +372,9 @@ public class UnknownTypeRoundTripPropertyTests
         // future change to the generator can't silently make the property
         // vacuous.)
         if(!scenario.MentionsUnknown)
+        {
             return false.ToProperty().Label($"scenario did not mention unknown: {scenario}");
+        }
 
         var source = scenario.ToSource();
 
@@ -385,18 +387,28 @@ public class UnknownTypeRoundTripPropertyTests
             .Where(d => d.Severity == DiagnosticSeverity.Error)
             .ToList();
         if(errors1.Count > 0)
+        {
             return false.ToProperty()
                 .Label($"first-parse errors for {scenario}: {string.Join("; ", errors1.Select(e => e.Message))}\nSource:\n{source}");
+        }
+
         if(result1.Root is not CompilationUnitNode ast1)
+        {
             return false.ToProperty().Label($"first-parse root was null for {scenario}\nSource:\n{source}");
+        }
 
         // Print₁
         var printed1 = MistPrettyPrinter.Print(ast1, source);
         if(string.IsNullOrWhiteSpace(printed1))
+        {
             return false.ToProperty().Label($"printed1 was empty for {scenario}");
+        }
+
         if(!printed1.Contains("unknown"))
+        {
             return false.ToProperty()
                 .Label($"printed1 lost the `unknown` keyword for {scenario}\nSource:\n{source}\nPrinted:\n{printed1}");
+        }
 
         // Parse₂
         var sourceText2 = new Mist.Common.Text.SourceText("test.mist", printed1);
@@ -407,10 +419,15 @@ public class UnknownTypeRoundTripPropertyTests
             .Where(d => d.Severity == DiagnosticSeverity.Error)
             .ToList();
         if(errors2.Count > 0)
+        {
             return false.ToProperty()
                 .Label($"reparse errors for {scenario}: {string.Join("; ", errors2.Select(e => e.Message))}\nPrinted:\n{printed1}");
+        }
+
         if(result2.Root is not CompilationUnitNode ast2)
+        {
             return false.ToProperty().Label($"reparse root was null for {scenario}\nPrinted:\n{printed1}");
+        }
 
         // Print₂
         var printed2 = MistPrettyPrinter.Print(ast2, printed1);

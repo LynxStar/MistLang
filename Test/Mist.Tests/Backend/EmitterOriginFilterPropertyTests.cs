@@ -198,7 +198,9 @@ public sealed partial class EmitterOriginFilterPropertyTests : IDisposable
         if(Directory.Exists(_outputDir))
         {
             foreach(var file in Directory.GetFiles(_outputDir))
+            {
                 File.Delete(file);
+            }
         }
     }
 
@@ -251,7 +253,9 @@ public sealed partial class EmitterOriginFilterPropertyTests : IDisposable
         var csContent = EmitAndGetCsContent(model);
 
         if(string.IsNullOrEmpty(csContent))
+        {
             return false;
+        }
 
         // Extract all class/struct declaration names from the emitted C#.
         var classDecls = ClassDeclRegex().Matches(csContent)
@@ -267,7 +271,9 @@ public sealed partial class EmitterOriginFilterPropertyTests : IDisposable
         foreach(var ambientType in scenario.ReferencedTypes)
         {
             if(allDecls.Contains(ambientType))
+            {
                 return false;
+            }
         }
 
         // The user-defined class "TestClass" SHOULD appear.
@@ -288,7 +294,9 @@ public sealed partial class EmitterOriginFilterPropertyTests : IDisposable
         var csContent = EmitAndGetCsContent(model);
 
         if(string.IsNullOrEmpty(csContent))
+        {
             return false;
+        }
 
         // After stdlib migration, Console/Math/Convert are emitted as fully-qualified
         // CLR names (System.Console, System.Math, System.Convert) via CSharpTypeMap.
@@ -359,7 +367,9 @@ public sealed partial class EmitterOriginFilterPropertyTests : IDisposable
         var csContent = EmitAndGetCsContent(model);
 
         if(string.IsNullOrEmpty(csContent))
+        {
             return false;
+        }
 
         // Should contain the user-defined class.
         var classDecls = ClassDeclRegex().Matches(csContent)

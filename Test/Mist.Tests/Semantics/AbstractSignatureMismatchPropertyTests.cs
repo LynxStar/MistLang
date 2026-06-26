@@ -449,13 +449,20 @@ public class AbstractSignatureMismatchPropertyTests
 
         // Exactly one signature mismatch diagnostic should be emitted
         if(mismatchDiags.Count != 1)
+        {
             return false;
+        }
 
         // The diagnostic message should reference the implementing type and method name
         if(!mismatchDiags[0].Message.Contains(scenario.ImplementingTypeName))
+        {
             return false;
+        }
+
         if(!mismatchDiags[0].Message.Contains(scenario.MethodName))
+        {
             return false;
+        }
 
         return true;
     }
@@ -516,13 +523,20 @@ public class AbstractSignatureMismatchPropertyTests
 
         // Exactly one signature mismatch diagnostic should be emitted
         if(mismatchDiags.Count != 1)
+        {
             return false;
+        }
 
         // The diagnostic message should reference the implementing type and method name
         if(!mismatchDiags[0].Message.Contains(scenario.ImplementingTypeName))
+        {
             return false;
+        }
+
         if(!mismatchDiags[0].Message.Contains(scenario.MethodName))
+        {
             return false;
+        }
 
         return true;
     }
@@ -599,13 +613,20 @@ public class AbstractSignatureMismatchPropertyTests
 
         // Exactly one signature mismatch diagnostic should be emitted
         if(mismatchDiags.Count != 1)
+        {
             return false;
+        }
 
         // The diagnostic message should reference the implementing type and method name
         if(!mismatchDiags[0].Message.Contains(scenario.ImplementingTypeName))
+        {
             return false;
+        }
+
         if(!mismatchDiags[0].Message.Contains(scenario.MethodName))
+        {
             return false;
+        }
 
         return true;
     }

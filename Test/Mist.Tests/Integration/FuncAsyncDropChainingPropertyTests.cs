@@ -59,7 +59,9 @@ public class FuncAsyncDropChainingPropertyTests
         var userParseResult = Parser.Parse(userTokens, diagnostics);
 
         if(userParseResult.Root is null)
+        {
             throw new InvalidOperationException($"Failed to parse user source:\n{source}");
+        }
 
         var allUnits = stdlibUnits.Add(userUnit);
         var allAsts = stdlibAsts.Add(userParseResult.Root);
@@ -89,7 +91,9 @@ public class FuncAsyncDropChainingPropertyTests
         var userParseResult = Parser.Parse(userTokens, diagnostics);
 
         if(userParseResult.Root is null)
+        {
             return (false, "", $"Failed to parse source:\n{source}");
+        }
 
         var allUnits = stdlibUnits.Add(userUnit);
         var allAsts = stdlibAsts.Add(userParseResult.Root);
@@ -124,11 +128,15 @@ public class FuncAsyncDropChainingPropertyTests
         }
 
         if(files.TryGetValue("test.cs", out var testContent))
+        {
             return (true, testContent, "");
+        }
 
         var sb = new StringBuilder();
         foreach(var (_, content) in files)
+        {
             sb.AppendLine(content);
+        }
 
         return (true, sb.ToString(), "");
     }
@@ -250,13 +258,17 @@ public class FuncAsyncDropChainingPropertyTests
 
         var resultSymbol = FindLocal(model, "result");
         if(resultSymbol is null)
+        {
             return false.ToProperty()
                 .Label($"Could not find local 'result' in scenario: {scenario}");
+        }
 
         var resultType = resultSymbol.DeclaredType;
         if(resultType is null)
+        {
             return false.ToProperty()
                 .Label($"result.DeclaredType is null in scenario: {scenario}");
+        }
 
         var isTaskType = IsStandardTaskType(resultType);
 
@@ -264,9 +276,11 @@ public class FuncAsyncDropChainingPropertyTests
         {
             // Defect 1 fix: async lambda in sync context should unwrap Task<T> → T
             if(isTaskType)
+            {
                 return false.ToProperty()
                     .Label($"DEFECT 1 REGRESSION: Async lambda in sync context returned Task<T>. " +
                            $"Type = {resultType.DisplayName}. Scenario: {scenario}");
+            }
 
             return true.ToProperty()
                 .Label($"Correctly unwrapped to '{resultType.DisplayName}': {scenario}");
@@ -276,9 +290,11 @@ public class FuncAsyncDropChainingPropertyTests
         {
             // Preservation 3.1: async lambda in async context stays Task<T>
             if(!isTaskType)
+            {
                 return false.ToProperty()
                     .Label($"PRESERVATION REGRESSION 3.1: Async lambda in async context did NOT return Task<T>. " +
                            $"Type = {resultType.DisplayName}. Scenario: {scenario}");
+            }
 
             return true.ToProperty()
                 .Label($"Preserved Task<T> in async context: {scenario}");
@@ -286,9 +302,11 @@ public class FuncAsyncDropChainingPropertyTests
 
         // Non-async lambda: should return direct type (never Task<T>)
         if(isTaskType)
+        {
             return false.ToProperty()
                 .Label($"PRESERVATION REGRESSION 3.3: Non-async lambda returned Task<T>. " +
                        $"Type = {resultType.DisplayName}. Scenario: {scenario}");
+        }
 
         return true.ToProperty()
             .Label($"Non-async lambda returns direct type '{resultType.DisplayName}': {scenario}");
@@ -325,10 +343,26 @@ public class FuncAsyncDropChainingPropertyTests
         public override string ToString()
         {
             var parts = new List<string>();
-            if(HasAsyncFunctor) parts.Add($"{AsyncFunctorCount} async functor(s)");
-            if(HasDirectAsyncCall) parts.Add("direct async call");
-            if(HasExplicitAwait) parts.Add("explicit await");
-            if(parts.Count == 0) parts.Add("no async seeds");
+            if(HasAsyncFunctor)
+            {
+                parts.Add($"{AsyncFunctorCount} async functor(s)");
+            }
+
+            if(HasDirectAsyncCall)
+            {
+                parts.Add("direct async call");
+            }
+
+            if(HasExplicitAwait)
+            {
+                parts.Add("explicit await");
+            }
+
+            if(parts.Count == 0)
+            {
+                parts.Add("no async seeds");
+            }
+
             return $"method with [{string.Join(", ", parts)}] returning {HelperReturnType}";
         }
     }
@@ -386,14 +420,20 @@ public class FuncAsyncDropChainingPropertyTests
         if(scenario.HasAsyncFunctor)
         {
             for(var i = 0; i < scenario.AsyncFunctorCount; i++)
+            {
                 sb.AppendLine($"        var functorTask{i} = async SyncHelper();");
+            }
         }
 
         if(scenario.HasDirectAsyncCall)
+        {
             sb.AppendLine("        var directResult = AsyncHelper();");
+        }
 
         if(scenario.HasExplicitAwait)
+        {
             sb.AppendLine("        var awaitResult = await AsyncHelper();");
+        }
 
         sb.AppendLine("    }");
         sb.AppendLine("}");
@@ -413,8 +453,10 @@ public class FuncAsyncDropChainingPropertyTests
 
         var methodSymbol = FindMethod(model, "TargetMethod");
         if(methodSymbol is null)
+        {
             return false.ToProperty()
                 .Label($"Could not find method 'TargetMethod' in scenario: {scenario}");
+        }
 
         if(methodSymbol.NeedsCSharpAsync != scenario.ExpectedNeedsCSharpAsync)
         {
@@ -628,8 +670,10 @@ public class FuncAsyncDropChainingPropertyTests
         var (succeeded, csContent, errorText) = BuildAndEmit(source);
 
         if(!succeeded)
+        {
             return false.ToProperty()
                 .Label($"Compilation/emission failed for scenario: {scenario}\n{errorText}");
+        }
 
         return scenario.Kind switch
         {
@@ -644,10 +688,12 @@ public class FuncAsyncDropChainingPropertyTests
     {
         // After fix: `await (await nested);` — the inner Task is also awaited
         if(!csContent.Contains("await (await"))
+        {
             return false.ToProperty()
                 .Label($"DEFECT 3 REGRESSION: Nested Task<Task<T>> does not emit double-await. " +
                        $"Expected 'await (await' pattern. Scenario: {scenario}\n" +
                        $"Emitted:\n{ExtractFinallyLines(csContent, "nested")}");
+        }
 
         return true.ToProperty()
             .Label($"Correctly emits double-await for nested task: {scenario}");
@@ -659,10 +705,12 @@ public class FuncAsyncDropChainingPropertyTests
         var hasAwaitedDrop = csContent.Contains("await box.Drop()")
                              || csContent.Contains("await (box.Drop()");
         if(!hasAwaitedDrop)
+        {
             return false.ToProperty()
                 .Label($"DEFECT 3 REGRESSION: Custom type Drop()->Task<T> not awaited. " +
                        $"Expected 'await box.Drop()' pattern. Scenario: {scenario}\n" +
                        $"Emitted:\n{ExtractFinallyLines(csContent, "box")}");
+        }
 
         return true.ToProperty()
             .Label($"Correctly awaits Drop() return for custom type: {scenario}");
@@ -673,16 +721,20 @@ public class FuncAsyncDropChainingPropertyTests
         // Preservation 3.8: void-returning Drop() emits single drop, no chaining
         var hasSimpleDrop = csContent.Contains("resource.Drop();");
         if(!hasSimpleDrop)
+        {
             return false.ToProperty()
                 .Label($"PRESERVATION REGRESSION 3.8: Void-returning Drop() missing 'resource.Drop();'. " +
                        $"Scenario: {scenario}");
+        }
 
         // Should NOT have await applied to the void Drop()
         var hasAwaitedDrop = csContent.Contains("await resource.Drop()");
         if(hasAwaitedDrop)
+        {
             return false.ToProperty()
                 .Label($"PRESERVATION REGRESSION 3.8: Void-returning Drop() was incorrectly awaited. " +
                        $"Scenario: {scenario}");
+        }
 
         return true.ToProperty()
             .Label($"Preserved: simple void Drop() emits single 'resource.Drop();': {scenario}");
@@ -759,26 +811,34 @@ public class FuncAsyncDropChainingPropertyTests
 
         var resultSymbol = FindLocal(model, "result");
         if(resultSymbol is null)
+        {
             return false.ToProperty()
                 .Label($"Could not find local 'result' in scenario: {scenario}");
+        }
 
         var resultType = resultSymbol.DeclaredType;
         if(resultType is null)
+        {
             return false.ToProperty()
                 .Label($"result.DeclaredType is null in scenario: {scenario}");
+        }
 
         // Preservation 3.2: direct async call unwraps
         if(IsStandardTaskType(resultType))
+        {
             return false.ToProperty()
                 .Label($"PRESERVATION REGRESSION 3.2: Direct async call in sync context returned Task<T>. " +
                        $"Type = {resultType.DisplayName}. Scenario: {scenario}");
+        }
 
         // Preservation 3.4: method gets NeedsCSharpAsync
         var callerSymbol = FindMethod(model, "Caller");
         if(callerSymbol is not null && !callerSymbol.NeedsCSharpAsync)
+        {
             return false.ToProperty()
                 .Label($"PRESERVATION REGRESSION 3.4: Method with direct async call missing NeedsCSharpAsync. " +
                        $"Scenario: {scenario}");
+        }
 
         return true.ToProperty()
             .Label($"Preserved: direct async call unwraps and seeds NeedsCSharpAsync: {scenario}");
@@ -864,8 +924,10 @@ public class FuncAsyncDropChainingPropertyTests
         var (succeeded, csContent, errorText) = BuildAndEmit(source);
 
         if(!succeeded)
+        {
             return false.ToProperty()
                 .Label($"Compilation/emission failed for scenario: {scenario}\n{errorText}");
+        }
 
         // The explicit Drop() call consumes the linear obligation.
         // There should be NO scope-exit drop for 'outer' in a finally block.
@@ -876,18 +938,26 @@ public class FuncAsyncDropChainingPropertyTests
         for(var i = 0; i < lines.Length; i++)
         {
             if(lines[i].Contains("finally"))
+            {
                 inFinally = true;
+            }
             else if(inFinally && lines[i].Trim() == "}")
+            {
                 inFinally = false;
+            }
 
             if(inFinally && lines[i].Contains("outer.Drop()"))
+            {
                 outerDropInFinally = true;
+            }
         }
 
         if(outerDropInFinally)
+        {
             return false.ToProperty()
                 .Label($"PRESERVATION REGRESSION 3.7: Explicit capture still triggered scope-exit drop " +
                        $"for 'outer' in finally block. Scenario: {scenario}");
+        }
 
         return true.ToProperty()
             .Label($"Preserved: explicit capture consumes obligation, no scope-exit drop: {scenario}");
@@ -907,7 +977,9 @@ public class FuncAsyncDropChainingPropertyTests
                 {
                     sb.AppendLine(lines[j]);
                     if(lines[j].Contains(localName))
+                    {
                         break;
+                    }
                 }
                 break;
             }

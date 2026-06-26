@@ -36,7 +36,9 @@ public class TupleRoundTripPropertyTests
             .Where(d => d.Severity == DiagnosticSeverity.Error)
             .ToList();
         if(errors.Count > 0)
+        {
             return null;
+        }
 
         return result.Root as CompilationUnitNode;
     }
@@ -44,12 +46,18 @@ public class TupleRoundTripPropertyTests
     private static bool AssertRoundTripPreserved(string source)
     {
         var ast1 = TryParse(source);
-        if(ast1 is null) return true; // Skip unparseable inputs.
+        if(ast1 is null)
+        {
+            return true; // Skip unparseable inputs.
+        }
 
         var printed1 = MistPrettyPrinter.Print(ast1, source);
 
         var ast2 = TryParse(printed1);
-        if(ast2 is null) return false; // Re-parse must succeed.
+        if(ast2 is null)
+        {
+            return false; // Re-parse must succeed.
+        }
 
         var printed2 = MistPrettyPrinter.Print(ast2, printed1);
 

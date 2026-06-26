@@ -131,7 +131,9 @@ public class ParserOriginAssignmentPropertyTests
 
         // If parsing produced no root (skeletal parser), skip this scenario
         if(result.Root is null)
+        {
             return true.ToProperty().Label("Skipped: parser returned null root (skeletal)");
+        }
 
         var allNodes = WalkAllNodes(result.Root).ToList();
 
@@ -173,12 +175,16 @@ public class ParserOriginAssignmentPropertyTests
         var result = Parser.Parse(tokens, bag);
 
         if(result.Root is null)
+        {
             return true.ToProperty().Label("Skipped: parser returned null root (skeletal)");
+        }
 
         var allNodes = WalkAllNodes(result.Root).ToList();
 
         if(allNodes.Count == 0)
+        {
             return true.ToProperty().Label("Skipped: no nodes in tree");
+        }
 
         // All nodes should share the exact same Origin instance
         var firstOrigin = allNodes[0].Origin;

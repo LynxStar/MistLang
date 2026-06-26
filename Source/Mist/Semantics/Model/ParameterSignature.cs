@@ -26,7 +26,9 @@ public static class ParameterSignature
             foreach(var param in backendSym.Parameters)
             {
                 if(param.DeclaredType is { } paramType)
+                {
                     backendTypes.Add(paramType);
+                }
             }
             return backendTypes;
         }
@@ -43,7 +45,9 @@ public static class ParameterSignature
 
         var paramList = GetParameterList(declaringNode);
         if(paramList is null)
+        {
             return Array.Empty<IType>();
+        }
 
         var types = new List<IType>();
         foreach(var child in paramList.Children())
@@ -78,18 +82,24 @@ public static class ParameterSignature
             foreach(var param in backendSym.Parameters)
             {
                 if(param.DeclaredType is { } paramType)
+                {
                     backendTypes.Add(paramType);
+                }
             }
             return backendTypes;
         }
 
         var declaringNode = symbolTable.GetDeclaringNode(symbol);
         if(declaringNode is null)
+        {
             return Array.Empty<IType>();
+        }
 
         var paramList = GetParameterList(declaringNode);
         if(paramList is null)
+        {
             return Array.Empty<IType>();
+        }
 
         var types = new List<IType>();
         foreach(var child in paramList.Children())
@@ -112,7 +122,9 @@ public static class ParameterSignature
             foreach(var param in preResolvedSym.Parameters)
             {
                 if(param.DeclaredType is { } paramType)
+                {
                     fallbackTypes.Add(paramType);
+                }
             }
             return fallbackTypes;
         }
@@ -169,7 +181,9 @@ public static class ParameterSignature
 
         var paramList = GetParameterList(node);
         if(paramList is null)
+        {
             return Array.Empty<RefKind>();
+        }
 
         var refKinds = new List<RefKind>();
         foreach(var child in paramList.Children())
@@ -213,11 +227,15 @@ public static class ParameterSignature
 
         var declaringNode = symbolTable.GetDeclaringNode(symbol);
         if(declaringNode is null)
+        {
             return Array.Empty<RefKind>();
+        }
 
         var paramList = GetParameterList(declaringNode);
         if(paramList is null)
+        {
             return Array.Empty<RefKind>();
+        }
 
         var refKinds = new List<RefKind>();
         foreach(var child in paramList.Children())
@@ -248,12 +266,16 @@ public static class ParameterSignature
     public static bool AreEqual(IReadOnlyList<IType> a, IReadOnlyList<IType> b)
     {
         if(a.Count != b.Count)
+        {
             return false;
+        }
 
         for(var i = 0; i < a.Count; i++)
         {
             if(a[i].DisplayName != b[i].DisplayName)
+            {
                 return false;
+            }
         }
 
         return true;
@@ -269,17 +291,23 @@ public static class ParameterSignature
         IReadOnlyList<IType> bTypes, IReadOnlyList<RefKind> bRefKinds)
     {
         if(aTypes.Count != bTypes.Count)
+        {
             return false;
+        }
 
         for(var i = 0; i < aTypes.Count; i++)
         {
             if(aTypes[i].DisplayName != bTypes[i].DisplayName)
+            {
                 return false;
+            }
 
             if(aRefKinds.Count > i && bRefKinds.Count > i)
             {
                 if(aRefKinds[i] != bRefKinds[i])
+                {
                     return false;
+                }
             }
         }
 
@@ -335,7 +363,9 @@ public static class ParameterSignature
     {
         var declaringNode = symbolTable.GetDeclaringNode(symbol);
         if(declaringNode is null)
+        {
             return Array.Empty<bool>();
+        }
 
         return ExtractIsReadonlyFromNode(declaringNode);
     }
@@ -347,7 +377,9 @@ public static class ParameterSignature
     {
         var paramList = GetParameterList(declaringNode);
         if(paramList is null)
+        {
             return Array.Empty<bool>();
+        }
 
         var flags = new List<bool>();
         foreach(var child in paramList.Children())

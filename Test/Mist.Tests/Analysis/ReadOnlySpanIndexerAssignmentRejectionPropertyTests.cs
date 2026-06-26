@@ -292,7 +292,9 @@ public class ReadOnlySpanIndexerAssignmentRejectionPropertyTests
     {
         // Focus on out-of-range scenarios to specifically validate independence.
         if(scenario.IsIndexInRange)
+        {
             return true.ToProperty().Label("Skipped: in-range scenario (covered by main property)");
+        }
 
         var diagnostics = CompileAndGetDiagnostics(scenario.Source);
 

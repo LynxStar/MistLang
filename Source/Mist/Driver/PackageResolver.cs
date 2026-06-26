@@ -71,10 +71,12 @@ public static class PackageResolver
         DiagnosticBag diagnostics)
     {
         if(packages.IsDefaultOrEmpty)
+        {
             return new PackageResolutionResult(
                 ImmutableArray<string>.Empty,
                 ImmutableArray<ResolvedPackageInfo>.Empty,
                 FailureCount: 0);
+        }
 
         // Validate version strings up-front (same behavior as before — invalid
         // versions produce MIST_PKG_002 without hitting the network).
@@ -168,7 +170,9 @@ public static class PackageResolver
             try
             {
                 if(Directory.Exists(tempDir))
+                {
                     Directory.Delete(tempDir, recursive: true);
+                }
             }
             catch
             {
@@ -245,12 +249,16 @@ public static class PackageResolver
         process.OutputDataReceived += (_, e) =>
         {
             if(e.Data is not null)
+            {
                 stdoutBuilder.AppendLine(e.Data);
+            }
         };
         process.ErrorDataReceived += (_, e) =>
         {
             if(e.Data is not null)
+            {
                 stderrBuilder.AppendLine(e.Data);
+            }
         };
 
         process.Start();
@@ -407,7 +415,9 @@ public static class PackageResolver
             var declaredPackageSet = new Dictionary<string, NuGetPackageReference>(
                 StringComparer.OrdinalIgnoreCase);
             foreach(var pkg in declaredPackages)
+            {
                 declaredPackageSet[pkg.Name] = pkg;
+            }
 
             var resolvedDeclaredPackages = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
@@ -446,7 +456,9 @@ public static class PackageResolver
                         // Library key format: "PackageName/Version"
                         var parts = library.Name.Split('/');
                         if(parts.Length != 2)
+                        {
                             continue;
+                        }
 
                         var packageName = parts[0];
                         var packageVersion = parts[1];
@@ -454,7 +466,9 @@ public static class PackageResolver
                         // Skip if this is a "project" type (not a package)
                         if(library.Value.TryGetProperty("type", out var typeElement)
                             && typeElement.GetString() == "project")
+                        {
                             continue;
+                        }
 
                         // Extract compile-time assemblies from "compile" property
                         string? selectedTfm = null;
@@ -468,19 +482,25 @@ public static class PackageResolver
 
                                 // Skip placeholder "_._" entries (runtime-provided packages)
                                 if(assemblyRelPath.EndsWith("_._", StringComparison.Ordinal))
+                                {
                                     continue;
+                                }
 
                                 // Extract TFM from path (e.g., "lib/net8.0/Assembly.dll")
                                 var pathParts = assemblyRelPath.Split('/');
                                 if(pathParts.Length >= 3 && pathParts[0] == "lib")
+                                {
                                     selectedTfm = pathParts[1];
+                                }
 
                                 var assemblyName = Path.GetFileNameWithoutExtension(
                                     Path.GetFileName(assemblyRelPath));
 
                                 // Deduplicate against framework-provided assemblies (issue 3)
                                 if(frameworkAssemblyNames.Contains(assemblyName))
+                                {
                                     continue;
+                                }
 
                                 // Resolve to full path in global packages folder
                                 var fullPath = Path.Combine(
@@ -506,17 +526,23 @@ public static class PackageResolver
                                 var assemblyRelPath = assembly.Name;
 
                                 if(assemblyRelPath.EndsWith("_._", StringComparison.Ordinal))
+                                {
                                     continue;
+                                }
 
                                 var pathParts = assemblyRelPath.Split('/');
                                 if(pathParts.Length >= 3 && pathParts[0] == "lib")
+                                {
                                     selectedTfm = pathParts[1];
+                                }
 
                                 var assemblyName = Path.GetFileNameWithoutExtension(
                                     Path.GetFileName(assemblyRelPath));
 
                                 if(frameworkAssemblyNames.Contains(assemblyName))
+                                {
                                     continue;
+                                }
 
                                 var fullPath = Path.Combine(
                                     GlobalPackagesFolder,
@@ -606,12 +632,16 @@ public static class PackageResolver
             foreach(var target in targets.EnumerateObject())
             {
                 if(!target.Name.Contains(targetFramework, StringComparison.OrdinalIgnoreCase))
+                {
                     continue;
+                }
 
                 foreach(var library in target.Value.EnumerateObject())
                 {
                     if(!library.Value.TryGetProperty("compile", out var compile))
+                    {
                         continue;
+                    }
 
                     var allPlaceholders = true;
                     var hasAny = false;

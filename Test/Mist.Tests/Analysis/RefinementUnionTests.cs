@@ -2,8 +2,8 @@
 
 using System.Collections.Immutable;
 using Mist.Analysis.Builtin;
-using Mist.Backends.CSharpTranspiler;
 using Mist.Backends.Contracts;
+using Mist.Backends.CSharpTranspiler;
 using Mist.Common.Diagnostics;
 using Mist.Common.Text;
 using Mist.Driver;

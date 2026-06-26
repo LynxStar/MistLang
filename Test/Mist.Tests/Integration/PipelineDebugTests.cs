@@ -1,7 +1,7 @@
 using System.Collections.Immutable;
 using Mist.Analysis.Builtin;
-using Mist.Backends.CSharpTranspiler;
 using Mist.Backends.Contracts;
+using Mist.Backends.CSharpTranspiler;
 using Mist.Common.Diagnostics;
 using Mist.Common.Text;
 using Mist.Driver;
@@ -29,7 +29,10 @@ public sealed class PipelineDebugTests : IDisposable
     public void Dispose()
     {
         if(Directory.Exists(_outputDir))
+        {
             try { Directory.Delete(_outputDir, recursive: true); } catch { }
+        }
+
         GC.SuppressFinalize(this);
     }
 
@@ -39,7 +42,10 @@ public sealed class PipelineDebugTests : IDisposable
         while(dir != null)
         {
             if(File.Exists(Path.Combine(dir, "Mist.slnx")))
+            {
                 return dir;
+            }
+
             dir = Directory.GetParent(dir)?.FullName;
         }
         throw new InvalidOperationException("Could not find repo root (Mist.slnx)");

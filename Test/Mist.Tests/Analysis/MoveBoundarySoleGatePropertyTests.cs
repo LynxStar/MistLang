@@ -48,8 +48,8 @@ using FsCheck.Fluent;
 using FsCheck.Xunit;
 using Mist.Analysis.Builtin;
 using Mist.Analysis.Contracts;
-using Mist.Backends.CSharpTranspiler;
 using Mist.Backends.Contracts;
+using Mist.Backends.CSharpTranspiler;
 using Mist.Common.Diagnostics;
 using Mist.Driver;
 using Mist.Driver.Contracts;
@@ -155,10 +155,15 @@ public sealed class MoveBoundarySoleGatePropertyTests : IDisposable
         foreach(var child in node.Children())
         {
             if(child is null)
+            {
                 continue;
+            }
+
             yield return child;
             foreach(var d in Descendants(child))
+            {
                 yield return d;
+            }
         }
     }
 
@@ -188,7 +193,9 @@ public sealed class MoveBoundarySoleGatePropertyTests : IDisposable
             {
                 var initializer = GetInitializer(node);
                 if(initializer is null)
+                {
                     continue;
+                }
 
                 if(model.GetDeclaredSymbol(node) is Symbol sym && sym.OwnershipTier == OwnershipTier.Owned)
                 {
@@ -222,7 +229,10 @@ public sealed class MoveBoundarySoleGatePropertyTests : IDisposable
     {
         var state = new MethodFlowState();
         foreach(var sym in ownedSymbols)
+        {
             state.VariableStates[sym] = VariableOwnershipState.Live;
+        }
+
         return state;
     }
 
@@ -349,7 +359,9 @@ public sealed class MoveBoundarySoleGatePropertyTests : IDisposable
         sb.Append("public class Program\n{\n    public static void Main()\n    {\n");
 
         for(var i = 0; i < kinds.Length; i++)
+        {
             EmitScenario(sb, kinds[i], i);
+        }
 
         sb.Append("    }\n}\n");
 
@@ -375,14 +387,18 @@ public sealed class MoveBoundarySoleGatePropertyTests : IDisposable
         var model = CompileAndCapture(scenario.Source);
 
         if(model is null)
+        {
             return false.ToProperty().Label($"Semantic model was null (compilation failed early).\nSource:\n{scenario.Source}");
+        }
 
         var ownedInitializers = CollectOwnedBindingInitializers(model);
 
         // No owned bindings to exercise (should not happen given the generator, but keep the
         // property well-defined): vacuously true.
         if(ownedInitializers.Count == 0)
+        {
             return true.ToProperty();
+        }
 
         var ownedSymbols = CollectOwnedLocals(model);
         var resolver = new MoveBoundaryResolver();

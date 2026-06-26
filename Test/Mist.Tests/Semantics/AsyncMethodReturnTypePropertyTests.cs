@@ -73,7 +73,9 @@ public class AsyncMethodReturnTypePropertyTests
         if(additionalModifiers is not null)
         {
             foreach(var mod in additionalModifiers.Value)
+            {
                 modifiers.Add(mod);
+            }
         }
         modifiers.Add(new AsyncModifierModifierNode());
 
@@ -198,39 +200,53 @@ public class AsyncMethodReturnTypePropertyTests
             .FirstOrDefault(s => s.Name == scenario.MethodName && s.Kind == SymbolKind.Method);
 
         if(methodSymbol is null)
+        {
             return false.ToProperty()
                 .Label($"Method symbol '{scenario.MethodName}' not found in model.");
+        }
 
         // Verify IsAsync is true
         if(!methodSymbol.IsAsync)
+        {
             return false.ToProperty()
                 .Label($"Method '{scenario.MethodName}' does not have IsAsync = true.");
+        }
 
         // Verify EffectiveReturnType is a ConstructedType
         if(methodSymbol.EffectiveReturnType is not ConstructedType constructedType)
+        {
             return false.ToProperty()
                 .Label($"EffectiveReturnType is not a ConstructedType. " +
                        $"Actual: {methodSymbol.EffectiveReturnType?.GetType().Name ?? "null"} " +
                        $"({methodSymbol.EffectiveReturnType?.DisplayName ?? "null"})");
+        }
 
         // Verify the generic definition is Standard.Task (a ClassType named "Task" in namespace "Standard")
         if(constructedType.GenericDefinition is not ClassType taskClass)
+        {
             return false.ToProperty()
                 .Label($"GenericDefinition is not a ClassType. " +
                        $"Actual: {constructedType.GenericDefinition.GetType().Name}");
+        }
 
         if(taskClass.DisplayName != "Task")
+        {
             return false.ToProperty()
                 .Label($"GenericDefinition DisplayName is not 'Task'. Actual: '{taskClass.DisplayName}'");
+        }
 
         if(taskClass.ContainingNamespace != "Standard")
+        {
             return false.ToProperty()
                 .Label($"GenericDefinition namespace is not 'Standard'. Actual: '{taskClass.ContainingNamespace}'");
+        }
 
         // Verify there is exactly one type argument
         if(constructedType.TypeArguments.Count != 1)
+        {
             return false.ToProperty()
                 .Label($"Expected 1 type argument, got {constructedType.TypeArguments.Count}.");
+        }
 
         // Verify the type argument matches the declared return type
         var typeArg = constructedType.TypeArguments[0];
@@ -238,9 +254,11 @@ public class AsyncMethodReturnTypePropertyTests
 
         // The resolved type uses the stdlib display name (e.g., "int" → "Int32")
         if(typeArg.DisplayName != expectedDisplayName)
+        {
             return false.ToProperty()
                 .Label($"Type argument mismatch. Expected '{expectedDisplayName}' " +
                        $"(from keyword '{scenario.ReturnTypeName}'), got '{typeArg.DisplayName}'.");
+        }
 
         return true.ToProperty();
     }
@@ -257,22 +275,28 @@ public class AsyncMethodReturnTypePropertyTests
             .FirstOrDefault(s => s.Name == scenario.MethodName && s.Kind == SymbolKind.Method);
 
         if(methodSymbol is null)
+        {
             return false.ToProperty()
                 .Label($"Method symbol '{scenario.MethodName}' not found in model.");
+        }
 
         // DeclaredReturnType should be the type the developer wrote (T, not Task<T>)
         if(methodSymbol.DeclaredReturnType is null)
+        {
             return false.ToProperty()
                 .Label($"DeclaredReturnType is null for method '{scenario.MethodName}'.");
+        }
 
         var expectedDisplayName = ResolvedDisplayNames[scenario.ReturnTypeName];
 
         // The resolved type uses the stdlib display name (e.g., "int" → "Int32")
         if(methodSymbol.DeclaredReturnType.DisplayName != expectedDisplayName)
+        {
             return false.ToProperty()
                 .Label($"DeclaredReturnType mismatch. Expected '{expectedDisplayName}' " +
                        $"(from keyword '{scenario.ReturnTypeName}'), " +
                        $"got '{methodSymbol.DeclaredReturnType.DisplayName}'.");
+        }
 
         return true.ToProperty();
     }

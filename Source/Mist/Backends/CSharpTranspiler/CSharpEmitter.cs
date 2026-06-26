@@ -34,7 +34,10 @@ public sealed class CSharpEmitter
             var fullPath = Path.Combine(outputDirectory, relativePath);
             var dir = Path.GetDirectoryName(fullPath);
             if(dir is not null)
+            {
                 Directory.CreateDirectory(dir);
+            }
+
             File.WriteAllText(fullPath, content);
         }
     }
@@ -107,10 +110,14 @@ public sealed class CSharpEmitter
                 // Top-level statement files are never empty — they always have statements to emit.
                 var hasTopLevelStatements = compilationUnit.Items.Any(item => item is StatementItemTopLevelItemNode);
                 if(hasTopLevelStatements || !IsEmptyEmission(csContent))
+                {
                     files[relativePath] = csContent;
+                }
 
                 if(writer.NeedsMistVoidStruct)
+                {
                     anyNeedsMistVoid = true;
+                }
             }
         }
 
@@ -155,7 +162,9 @@ public sealed class CSharpEmitter
         // An empty emission is just "namespace X;\n\n" or "namespace X\n{\n}\n".
         var trimmed = content.AsSpan().Trim();
         if(trimmed.IsEmpty)
+        {
             return true;
+        }
 
         // Check if the content contains any type declaration keywords after the namespace line.
         return !content.Contains("class ")
@@ -470,7 +479,9 @@ internal sealed class CSharpSourceWriter
             foreach(var tp in typeParams)
             {
                 if(tp is DependentTypeParameterType depParam)
+                {
                     _dependentTypeParamNames.Add(depParam.Name);
+                }
             }
 
             if(symbol is Symbol sym && sym.TypeParameters.Count > 0)
@@ -478,7 +489,9 @@ internal sealed class CSharpSourceWriter
                 foreach(var tp in sym.TypeParameters)
                 {
                     if(tp is DependentTypeParameterType depParam)
+                    {
                         _dependentTypeParamNames.Add(depParam.Name);
+                    }
                 }
             }
         }
@@ -774,7 +787,9 @@ internal sealed class CSharpSourceWriter
                 }
 
                 if(inferredNamespace is not null)
+                {
                     break;
+                }
             }
         }
 
@@ -924,7 +939,9 @@ internal sealed class CSharpSourceWriter
             .ToList();
 
         if(typeDecls.Count == 0)
+        {
             return "";
+        }
 
         // Emit using declarations.
         var usings = new HashSet<string>(StringComparer.Ordinal);
@@ -993,7 +1010,9 @@ internal sealed class CSharpSourceWriter
                 }
 
                 if(inferredNamespace is not null)
+                {
                     break;
+                }
             }
         }
 
@@ -1064,12 +1083,16 @@ internal sealed class CSharpSourceWriter
         foreach(var block in blocks)
         {
             foreach(var item in block.Body)
+            {
                 mergedBodyItems.Add(item);
+            }
         }
 
         // Omit empty namespace blocks from output (Requirement 11.4).
         if(!HasEmittableContentInList(mergedBodyItems))
+        {
             return;
+        }
 
         AppendLine($"namespace {nsName}");
         AppendLine("{");
@@ -1119,7 +1142,9 @@ internal sealed class CSharpSourceWriter
         CollectVoidMethodNames(cu, voidMethodNames);
 
         if(voidMethodNames.Count == 0)
+        {
             return;
+        }
 
         // Step 2: Walk the AST to find call sites where a void method's return value is consumed.
         FindValueReturningCallSites(cu, voidMethodNames);
@@ -1231,11 +1256,17 @@ internal sealed class CSharpSourceWriter
                 {
                     case MethodMemberMemberDeclarationNode methodMember:
                         if(methodMember.Method.Body.GetBlock() is BlockNode mb)
+                        {
                             ScanBlockForValueReturningCalls(mb, voidMethodNames);
+                        }
+
                         break;
                     case ConstructorMemberMemberDeclarationNode ctorMember:
                         if(ctorMember.Constructor.Body.GetBlock() is BlockNode cb)
+                        {
                             ScanBlockForValueReturningCalls(cb, voidMethodNames);
+                        }
+
                         break;
                 }
             }
@@ -1305,9 +1336,15 @@ internal sealed class CSharpSourceWriter
 
             case ForStatementStatementNode forStmt:
                 if(forStmt.ForStatement.Condition is not null)
+                {
                     ScanExpressionForValueReturningCalls(forStmt.ForStatement.Condition, voidMethodNames);
+                }
+
                 if(forStmt.ForStatement.Iterator is not null)
+                {
                     ScanExpressionForValueReturningCalls(forStmt.ForStatement.Iterator, voidMethodNames);
+                }
+
                 ScanBlockForValueReturningCalls(forStmt.ForStatement.Body, voidMethodNames);
                 break;
 
@@ -1355,7 +1392,10 @@ internal sealed class CSharpSourceWriter
                 ScanExpressionForValueReturningCalls(elseIf.ElseIf.Condition, voidMethodNames);
                 ScanBlockForValueReturningCalls(elseIf.ElseIf.ThenBranch, voidMethodNames);
                 if(elseIf.ElseIf.ElseBranch is not null)
+                {
                     ScanElseClauseForValueReturningCalls(elseIf.ElseIf.ElseBranch, voidMethodNames);
+                }
+
                 break;
             case ElseBlockElseClauseNode elseBlock:
                 ScanBlockForValueReturningCalls(elseBlock.ElseBlock, voidMethodNames);
@@ -1373,7 +1413,9 @@ internal sealed class CSharpSourceWriter
         // Lambda-form expressions have their own body scope; their value-returning
         // call handling is deferred to lambda emission (task 13.1).
         if(expr.AsAssignmentOrNull() is { } assignment)
+        {
             ScanAssignmentForValueReturningCalls(assignment, voidMethodNames, isValueContext: true);
+        }
     }
 
     /// <summary>
@@ -1387,7 +1429,9 @@ internal sealed class CSharpSourceWriter
         // but sub-expressions (like arguments) ARE.
         // Lambda-form expressions are handled by lambda emission (task 13.1).
         if(expr.AsAssignmentOrNull() is { } assignment)
+        {
             ScanAssignmentForValueReturningCalls(assignment, voidMethodNames, isValueContext: false);
+        }
     }
 
     private void ScanAssignmentForValueReturningCalls(AssignmentNode assignment, HashSet<string> voidMethodNames, bool isValueContext)
@@ -1415,21 +1459,27 @@ internal sealed class CSharpSourceWriter
     {
         ScanLogicalAndForValueReturningCalls(node.Left, voidMethodNames, isValueContext);
         if(node.Right is not null && !ReferenceEquals(node.Right, node.Left))
+        {
             ScanLogicalAndForValueReturningCalls(node.Right, voidMethodNames, isValueContext);
+        }
     }
 
     private void ScanLogicalAndForValueReturningCalls(LogicalAndNode node, HashSet<string> voidMethodNames, bool isValueContext)
     {
         ScanEqualityForValueReturningCalls(node.Left, voidMethodNames, isValueContext);
         if(node.Right is not null && !ReferenceEquals(node.Right, node.Left))
+        {
             ScanEqualityForValueReturningCalls(node.Right, voidMethodNames, isValueContext);
+        }
     }
 
     private void ScanEqualityForValueReturningCalls(EqualityNode node, HashSet<string> voidMethodNames, bool isValueContext)
     {
         ScanRelationalForValueReturningCalls(node.Left, voidMethodNames, isValueContext);
         if(node.Right is not null && !ReferenceEquals(node.Right, node.Left))
+        {
             ScanRelationalForValueReturningCalls(node.Right, voidMethodNames, isValueContext);
+        }
     }
 
     private void ScanRelationalForValueReturningCalls(RelationalNode node, HashSet<string> voidMethodNames, bool isValueContext)
@@ -1439,7 +1489,10 @@ internal sealed class CSharpSourceWriter
             case RelationalComparisonRelationalNode cmp:
                 ScanAdditiveForValueReturningCalls(cmp.Left, voidMethodNames, isValueContext);
                 if(cmp.Right is not null && !ReferenceEquals(cmp.Right, cmp.Left))
+                {
                     ScanAdditiveForValueReturningCalls(cmp.Right, voidMethodNames, isValueContext);
+                }
+
                 break;
 
             case IsExpressionRelationalNode isExpr:
@@ -1458,14 +1511,18 @@ internal sealed class CSharpSourceWriter
     {
         ScanMultiplicativeForValueReturningCalls(node.Left, voidMethodNames, isValueContext);
         if(node.Right is not null && !ReferenceEquals(node.Right, node.Left))
+        {
             ScanMultiplicativeForValueReturningCalls(node.Right, voidMethodNames, isValueContext);
+        }
     }
 
     private void ScanMultiplicativeForValueReturningCalls(MultiplicativeNode node, HashSet<string> voidMethodNames, bool isValueContext)
     {
         ScanUnaryForValueReturningCalls(node.Left, voidMethodNames, isValueContext);
         if(node.Right is not null && !ReferenceEquals(node.Right, node.Left))
+        {
             ScanUnaryForValueReturningCalls(node.Right, voidMethodNames, isValueContext);
+        }
     }
 
     private void ScanUnaryForValueReturningCalls(UnaryNode unary, HashSet<string> voidMethodNames, bool isValueContext)
@@ -1577,10 +1634,16 @@ internal sealed class CSharpSourceWriter
             _ => null,
         };
 
-        if(innerNode is null) return null;
+        if(innerNode is null)
+        {
+            return null;
+        }
 
         var symbol = _model.GetDeclaredSymbol(innerNode);
-        if(symbol?.DeclaredType is null) return null;
+        if(symbol?.DeclaredType is null)
+        {
+            return null;
+        }
 
         return symbol.DeclaredType switch
         {
@@ -1614,12 +1677,17 @@ internal sealed class CSharpSourceWriter
     /// </summary>
     private string? GetNewtypeContainingNamespace(ISymbol? symbol)
     {
-        if(symbol?.ContainingScope is not Scope containingScope) return null;
+        if(symbol?.ContainingScope is not Scope containingScope)
+        {
+            return null;
+        }
 
         // If the containing scope's parent is not the global scope, the newtype
         // is not in a namespace (or is nested in a way we don't handle here).
         if(containingScope.Parent is null || !ReferenceEquals(containingScope.Parent, _model.GlobalScope))
+        {
             return null;
+        }
 
         // Look at sibling symbols in the same scope to find one with a ContainingNamespace.
         foreach(var sibling in containingScope.Members)
@@ -1632,7 +1700,10 @@ internal sealed class CSharpSourceWriter
                 EnumType et => et.ContainingNamespace,
                 _ => null,
             };
-            if(ns is not null) return ns;
+            if(ns is not null)
+            {
+                return ns;
+            }
         }
 
         // Fallback: look for a namespace symbol in the global scope whose name
@@ -1699,7 +1770,9 @@ internal sealed class CSharpSourceWriter
 
                     // Check if this block namespace has any emittable content (including nested namespaces).
                     if(!HasEmittableContent(blockNs.Body))
+                    {
                         break;
+                    }
 
                     AppendLine($"namespace {name}");
                     AppendLine("{");
@@ -1751,11 +1824,15 @@ internal sealed class CSharpSourceWriter
         foreach(var bodyItem in bodyItems)
         {
             if(bodyItem is not NamespaceNamespaceItemNamespaceBodyItemNode nsItem)
+            {
                 continue;
+            }
 
             var nestedNsDecl = nsItem.NamespaceDeclaration;
             if(nestedNsDecl is not BlockNamespaceNamespaceDeclarationNode nestedBlockNs)
+            {
                 continue;
+            }
 
             var declaredName = ExtractQualifiedName(nestedBlockNs.Name);
             var fqn = parentFqn + "." + declaredName;
@@ -1781,13 +1858,17 @@ internal sealed class CSharpSourceWriter
                 if(nsDecl is BlockNamespaceNamespaceDeclarationNode blockNsDecl)
                 {
                     foreach(var item in blockNsDecl.Body)
+                    {
                         mergedBodyItems.Add(item);
+                    }
                 }
             }
 
             // Omit empty namespace blocks from output.
             if(!HasEmittableContentInList(mergedBodyItems))
+            {
                 continue;
+            }
 
             AppendLine($"namespace {fqn}");
             AppendLine("{");
@@ -1835,11 +1916,15 @@ internal sealed class CSharpSourceWriter
         foreach(var bodyItem in bodyItems)
         {
             if(bodyItem is not NamespaceNamespaceItemNamespaceBodyItemNode nsItem)
+            {
                 continue;
+            }
 
             var nestedNsDecl = nsItem.NamespaceDeclaration;
             if(nestedNsDecl is not BlockNamespaceNamespaceDeclarationNode nestedBlockNs)
+            {
                 continue;
+            }
 
             var declaredName = ExtractQualifiedName(nestedBlockNs.Name);
             var fqn = parentFqn + "." + declaredName;
@@ -1863,12 +1948,16 @@ internal sealed class CSharpSourceWriter
                 if(nsDecl is BlockNamespaceNamespaceDeclarationNode blockNsDecl)
                 {
                     foreach(var item in blockNsDecl.Body)
+                    {
                         mergedBodyItems.Add(item);
+                    }
                 }
             }
 
             if(!HasEmittableContentInList(mergedBodyItems))
+            {
                 continue;
+            }
 
             AppendLine($"namespace {fqn}");
             AppendLine("{");
@@ -1918,7 +2007,10 @@ internal sealed class CSharpSourceWriter
                 case NamespaceNamespaceItemNamespaceBodyItemNode nsItem:
                     if(nsItem.NamespaceDeclaration is BlockNamespaceNamespaceDeclarationNode nestedBlock
                         && HasEmittableContent(nestedBlock.Body))
+                    {
                         return true;
+                    }
+
                     break;
             }
         }
@@ -1941,7 +2033,10 @@ internal sealed class CSharpSourceWriter
                 case NamespaceNamespaceItemNamespaceBodyItemNode nsItem:
                     if(nsItem.NamespaceDeclaration is BlockNamespaceNamespaceDeclarationNode nestedBlock
                         && HasEmittableContent(nestedBlock.Body))
+                    {
                         return true;
+                    }
+
                     break;
             }
         }
@@ -1981,7 +2076,10 @@ internal sealed class CSharpSourceWriter
     private void EmitNewtypeDeclaration(NewtypeDeclarationNode newtypeDecl)
     {
         var symbol = _model.GetDeclaredSymbol(newtypeDecl);
-        if(symbol?.DeclaredType is not NewtypeType newtypeType) return;
+        if(symbol?.DeclaredType is not NewtypeType newtypeType)
+        {
+            return;
+        }
 
         var sourceType = newtypeType.SourceType;
         var newtypeName = newtypeType.Name;
@@ -2198,7 +2296,10 @@ internal sealed class CSharpSourceWriter
     private void EmitEnumDeclaration(EnumDeclarationNode enumDecl)
     {
         var symbol = _model.GetDeclaredSymbol(enumDecl);
-        if(symbol?.DeclaredType is not EnumType enumType) return;
+        if(symbol?.DeclaredType is not EnumType enumType)
+        {
+            return;
+        }
 
         var modifiers = EmitModifiers(enumDecl.Modifiers);
         var name = enumDecl.Name.Lexeme;
@@ -2652,8 +2753,15 @@ internal sealed class CSharpSourceWriter
     /// </summary>
     private static string CombineTypeParameters(string blockTypeParams, string methodTypeParams)
     {
-        if(blockTypeParams.Length == 0) return methodTypeParams;
-        if(methodTypeParams.Length == 0) return blockTypeParams;
+        if(blockTypeParams.Length == 0)
+        {
+            return methodTypeParams;
+        }
+
+        if(methodTypeParams.Length == 0)
+        {
+            return blockTypeParams;
+        }
 
         // Both have type params — merge: strip angle brackets and combine.
         var blockInner = blockTypeParams[1..^1]; // Remove < and >
@@ -2733,7 +2841,10 @@ internal sealed class CSharpSourceWriter
             {
                 case ExtensionItemTopLevelItemNode extItem:
                     if(ReferenceEquals(extItem.ExtensionDeclaration, targetNode))
+                    {
                         return true;
+                    }
+
                     break;
                 case NamespaceItemTopLevelItemNode nsItem:
                     {
@@ -2747,7 +2858,9 @@ internal sealed class CSharpSourceWriter
                         {
                             if(bodyItem is NamespaceExtensionItemNamespaceBodyItemNode extBodyItem &&
                                 ReferenceEquals(extBodyItem.ExtensionDeclaration, targetNode))
+                            {
                                 return true;
+                            }
                         }
                         break;
                     }
@@ -2954,7 +3067,9 @@ internal sealed class CSharpSourceWriter
             foreach(var tp in typeParamsForDep)
             {
                 if(tp is DependentTypeParameterType depParam)
+                {
                     depNames.Add(depParam.Name);
+                }
             }
             _currentTypeDependentParamNames = depNames.Count > 0 ? depNames : null;
         }
@@ -3245,7 +3360,10 @@ internal sealed class CSharpSourceWriter
         string typeParams,
         Dictionary<string, string>? abstractParamSubs)
     {
-        if(directAbstracts.Count == 0) return;
+        if(directAbstracts.Count == 0)
+        {
+            return;
+        }
 
         // Build the transitive closure of abstract types. Each entry is the IType to cast
         // to (a definition or a constructed instantiation). Defs are de-duplicated.
@@ -3255,15 +3373,27 @@ internal sealed class CSharpSourceWriter
         void Visit(IType abs)
         {
             var def = abs is ConstructedType ct ? ct.GenericDefinition as AbstractType : abs as AbstractType;
-            if(def is null) return;
-            if(!seenDefs.Add(def)) return;
+            if(def is null)
+            {
+                return;
+            }
+
+            if(!seenDefs.Add(def))
+            {
+                return;
+            }
+
             closure.Add(abs);
             foreach(var parent in def.Abstracts)
+            {
                 Visit(parent);
+            }
         }
 
         foreach(var abs in directAbstracts)
+        {
             Visit(abs);
+        }
 
         // A default is considered overridden when the concrete type declares a method with
         // the same name and parameter count. The type checker (task 3.3) guarantees that a
@@ -3274,7 +3404,9 @@ internal sealed class CSharpSourceWriter
         foreach(var member in concreteMembers)
         {
             if(member is MethodMemberMemberDeclarationNode mm)
+            {
                 concreteMethodKeys.Add($"{mm.Method.Name.Lexeme}/{CountParameters(mm.Method.Parameters)}");
+            }
         }
 
         // Track emitted (name + arity) keys so diamond inheritance does not produce duplicate
@@ -3284,20 +3416,31 @@ internal sealed class CSharpSourceWriter
         foreach(var abs in closure)
         {
             var def = abs is ConstructedType ct ? ct.GenericDefinition as AbstractType : abs as AbstractType;
-            if(def is null || def.DefaultMethods.Count == 0) continue;
+            if(def is null || def.DefaultMethods.Count == 0)
+            {
+                continue;
+            }
 
             foreach(var entry in def.DefaultMethods.OrderBy(kvp => kvp.Key, StringComparer.Ordinal))
             {
                 var methodName = entry.Key;
                 if(_model.GetDeclaringNode(entry.Value) is not MethodDeclarationNode node)
+                {
                     continue;
+                }
 
                 var key = $"{methodName}/{CountParameters(node.Parameters)}";
 
                 // Concrete type overrides this default — emit only the concrete implementation.
-                if(concreteMethodKeys.Contains(key)) continue;
+                if(concreteMethodKeys.Contains(key))
+                {
+                    continue;
+                }
                 // Already forwarded via a more-derived abstract type (diamond) — skip.
-                if(!emittedKeys.Add(key)) continue;
+                if(!emittedKeys.Add(key))
+                {
+                    continue;
+                }
 
                 // Emit the default method's full body on the concrete type. This duplicates
                 // the DIM body, ensuring the method is callable directly on the concrete type
@@ -3319,7 +3462,9 @@ internal sealed class CSharpSourceWriter
                 // force `public` since interface members are implicitly public.
                 var modifiers = EmitModifiers(node.Modifiers);
                 if(string.IsNullOrEmpty(modifiers))
+                {
                     modifiers = "public ";
+                }
 
                 AppendLine($"{modifiers}{returnType} {methodName}{methodTypeParams}({parameters})");
 
@@ -3339,11 +3484,18 @@ internal sealed class CSharpSourceWriter
     private List<string> CollectWithBlockInterfaceNames(IType? concreteType)
     {
         var result = new List<string>();
-        if(concreteType is null) return result;
+        if(concreteType is null)
+        {
+            return result;
+        }
 
         foreach(var (type, abstractType, _) in _model.ConformanceMap.All())
         {
-            if(!ReferenceEquals(type, concreteType)) continue;
+            if(!ReferenceEquals(type, concreteType))
+            {
+                continue;
+            }
+
             result.Add(CSharpTypeMap.GetTypeName(abstractType));
         }
 
@@ -3364,10 +3516,16 @@ internal sealed class CSharpSourceWriter
     {
         foreach(var (type, abstractTypeRef, mappings) in _model.ConformanceMap.All())
         {
-            if(!ReferenceEquals(type, concreteType)) continue;
+            if(!ReferenceEquals(type, concreteType))
+            {
+                continue;
+            }
 
             var abstractType = abstractTypeRef as AbstractType;
-            if(abstractType is null) continue;
+            if(abstractType is null)
+            {
+                continue;
+            }
 
             var interfaceName = CSharpTypeMap.GetTypeName(abstractTypeRef);
 
@@ -3438,7 +3596,9 @@ internal sealed class CSharpSourceWriter
                 foreach(var member in concreteMembers)
                 {
                     if(member is MethodMemberMemberDeclarationNode mm)
+                    {
                         concreteMethodKeys.Add($"{mm.Method.Name.Lexeme}/{CountParameters(mm.Method.Parameters)}");
+                    }
                 }
 
                 foreach(var entry in abstractType.DefaultMethods.OrderBy(kvp => kvp.Key, StringComparer.Ordinal))
@@ -3447,14 +3607,22 @@ internal sealed class CSharpSourceWriter
 
                     // If this default was explicitly mapped, the mapping takes precedence —
                     // the explicit interface implementation was already emitted above.
-                    if(mappedTargetNames.Contains(methodName)) continue;
+                    if(mappedTargetNames.Contains(methodName))
+                    {
+                        continue;
+                    }
 
                     // If the concrete type already has an implementation, skip.
                     if(_model.GetDeclaringNode(entry.Value) is not MethodDeclarationNode node)
+                    {
                         continue;
+                    }
 
                     var key = $"{methodName}/{CountParameters(node.Parameters)}";
-                    if(concreteMethodKeys.Contains(key)) continue;
+                    if(concreteMethodKeys.Contains(key))
+                    {
+                        continue;
+                    }
 
                     // Emit the default method body on the concrete type.
                     AppendLine();
@@ -3464,7 +3632,9 @@ internal sealed class CSharpSourceWriter
 
                     var modifiers = EmitModifiers(node.Modifiers);
                     if(string.IsNullOrEmpty(modifiers))
+                    {
                         modifiers = "public ";
+                    }
 
                     AppendLine($"{modifiers}{returnType} {methodName}{methodTypeParams}({parameters})");
 
@@ -3567,13 +3737,18 @@ internal sealed class CSharpSourceWriter
             StructType st => st.Abstracts,
             _ => null
         };
-        if(abstracts is null) return;
+        if(abstracts is null)
+        {
+            return;
+        }
 
         foreach(var abs in abstracts)
         {
             var definition = abs is ConstructedType ct2 ? ct2.GenericDefinition : abs;
             if(definition is not AbstractType abstractType || abstractType.ContainingNamespace != "Standard")
+            {
                 continue;
+            }
 
             if(abstractType.DisplayName == "IEnumerator")
             {
@@ -3619,32 +3794,58 @@ internal sealed class CSharpSourceWriter
         foreach(var abs in classType.Abstracts)
         {
             var def = abs is ConstructedType ctAbstract ? ctAbstract.GenericDefinition as AbstractType : abs as AbstractType;
-            if(def is null) continue;
+            if(def is null)
+            {
+                continue;
+            }
+
             foreach(var slot in CollectAssociatedTypeSlotsFromType(def))
             {
                 if(slot.TypeParameters.Count > 0)
+                {
                     paramSlots.Add((def, slot, abs));
+                }
             }
         }
-        if(paramSlots.Count == 0) return;
+        if(paramSlots.Count == 0)
+        {
+            return;
+        }
 
         // For each method in the class, check if its return type matches a parameterized slot.
         foreach(var member in classDecl.Members)
         {
-            if(member is not MethodMemberMemberDeclarationNode methodMember) continue;
+            if(member is not MethodMemberMemberDeclarationNode methodMember)
+            {
+                continue;
+            }
+
             var methodDecl = methodMember.Method;
             var returnTypeRef = methodDecl.ReturnType;
-            if(returnTypeRef.First is not NamedSingleTypeRefSingleTypeRefNode namedReturn) continue;
-            if(namedReturn.TypeArgs is null) continue;
+            if(returnTypeRef.First is not NamedSingleTypeRefSingleTypeRefNode namedReturn)
+            {
+                continue;
+            }
+
+            if(namedReturn.TypeArgs is null)
+            {
+                continue;
+            }
 
             var returnName = ExtractQualifiedName(namedReturn.Name);
             var matchingSlot = paramSlots.FirstOrDefault(ps => ps.Slot.DisplayName == returnName);
-            if(matchingSlot.Slot is null) continue;
+            if(matchingSlot.Slot is null)
+            {
+                continue;
+            }
 
             // This method uses a parameterized slot as its return type.
             // Emit: ErasedType AbstractName.MethodName(params) => MethodName(params);
             var erasedReturnType = EraseParameterizedSlotToConstraint(matchingSlot.Slot, namedReturn.TypeArgs, abstractParamSubs);
-            if(erasedReturnType is null) continue;
+            if(erasedReturnType is null)
+            {
+                continue;
+            }
 
             var methodName = methodDecl.Name.Lexeme;
             var abstractName = CSharpTypeMap.GetTypeName(matchingSlot.ConstructedAbstract);
@@ -3663,12 +3864,18 @@ internal sealed class CSharpSourceWriter
     /// </summary>
     private static string EmitParameterNamesOnly(ParameterListNode? paramList)
     {
-        if(paramList is null) return "";
+        if(paramList is null)
+        {
+            return "";
+        }
+
         var names = new List<string>();
         foreach(var child in paramList.Children())
         {
             if(child is ParameterNode param)
+            {
                 names.Add(param.Name.Lexeme);
+            }
         }
         return string.Join(", ", names);
     }
@@ -3681,7 +3888,9 @@ internal sealed class CSharpSourceWriter
     private string EmitTypeReferenceWithSubstitution(TypeReferenceNode typeRef, Dictionary<string, string>? substitutions)
     {
         if(substitutions is null)
+        {
             return EmitTypeReference(typeRef);
+        }
 
         // For named type references, check if the name is a type parameter that needs substitution.
         if(typeRef.First is NamedSingleTypeRefSingleTypeRefNode namedRef)
@@ -3722,7 +3931,9 @@ internal sealed class CSharpSourceWriter
 
                 // If still null after all attempts, fall back to emitting without substitution.
                 if(string.IsNullOrEmpty(name))
+                {
                     return EmitTypeReference(typeRef);
+                }
             }
 
             if(substitutions.TryGetValue(name, out var substituted))
@@ -3741,7 +3952,9 @@ internal sealed class CSharpSourceWriter
                 {
                     var erasedType = EraseParameterizedSlotToConstraint(matchingSlot, namedRef.TypeArgs, substitutions);
                     if(erasedType is not null)
+                    {
                         return namedRef.ArrayRank is not null ? $"{erasedType}[]" : erasedType;
+                    }
                 }
             }
 
@@ -3805,7 +4018,9 @@ internal sealed class CSharpSourceWriter
     private string EmitSingleTypeArgumentWithSubstitution(TypeArgumentNode arg, Dictionary<string, string> substitutions)
     {
         if(arg is TypeReferenceTypeArgumentTypeArgumentNode typeRefArg)
+        {
             return EmitTypeReferenceWithSubstitution(typeRefArg.Type, substitutions);
+        }
 
         // Literal type arguments (dependent types) — emit carrier struct name directly.
         return EmitSingleTypeArgument(arg);
@@ -3878,7 +4093,9 @@ internal sealed class CSharpSourceWriter
             }
 
             if(baseParts.Length > 0)
+            {
                 abstractList = $" : {baseParts}";
+            }
         }
         else if(symbol?.DeclaredType is StructType structType)
         {
@@ -3980,12 +4197,16 @@ internal sealed class CSharpSourceWriter
                 foreach(var field in ancestor.MemberScope.Members)
                 {
                     if(field.Kind != SymbolKind.Field)
+                    {
                         continue;
+                    }
 
                     // Only emit fields that were declared directly on this ancestor
                     // (not inherited into its scope from its own ancestors).
                     if(!ReferenceEquals(field.ContainingScope, ancestor.MemberScope))
+                    {
                         continue;
+                    }
 
                     if(hasAncestorFields || hasFactoryFields || hasDependentProperties)
                     {
@@ -4006,7 +4227,9 @@ internal sealed class CSharpSourceWriter
             foreach(var tp in typeParamsForDep)
             {
                 if(tp is DependentTypeParameterType depParam)
+                {
                     depNames.Add(depParam.Name);
+                }
             }
             _currentTypeDependentParamNames = depNames.Count > 0 ? depNames : null;
         }
@@ -4229,12 +4452,16 @@ internal sealed class CSharpSourceWriter
             // Skip inherited fields — they are initialized by the base class's
             // parameterless constructor via the constructor chain (base() call).
             if(fieldValue.ValueKind == DefaultValueKind.InheritedDefault)
+            {
                 continue;
+            }
 
             // If the emitted parameterless constructor already sets own fields,
             // skip them here (the constructor chain handles everything).
             if(skipOwnFields)
+            {
                 continue;
+            }
 
             EmitDefaultFieldAssignment("inst", fieldName, fieldValue);
         }
@@ -4450,7 +4677,9 @@ internal sealed class CSharpSourceWriter
         // here keeps the skip logic in a single place rather than threading
         // it through each per-member emission routine.
         if(IsStorageBannedMember(memberDecl))
+        {
             return;
+        }
 
         switch(memberDecl)
         {
@@ -4539,7 +4768,9 @@ internal sealed class CSharpSourceWriter
             // emit Void.Void as null instead of MistVoid.Instance.
             var previousVoidAsNull = _emitVoidAsNull;
             if(IsOptionalUnionType(fieldSymbol?.DeclaredType))
+            {
                 _emitVoidAsNull = true;
+            }
 
             // The field has an initializer expression.
             // With the bugfix, the Initializer property is now ExpressionNode? directly.
@@ -4712,11 +4943,15 @@ internal sealed class CSharpSourceWriter
         // Find the enclosing struct type.
         var ctorSymbol = _model.GetDeclaredSymbol(ctorDecl);
         if(ctorSymbol is null)
+        {
             return assignments;
+        }
 
         var enclosingType = FindEnclosingStructType(ctorSymbol);
         if(enclosingType is null || enclosingType.BaseType is not StructType baseStruct)
+        {
             return assignments;
+        }
 
         // Find constructors on the base struct.
         var baseConstructors = baseStruct.MemberScope.Members
@@ -4724,7 +4959,9 @@ internal sealed class CSharpSourceWriter
             .ToList();
 
         if(baseConstructors.Count == 0)
+        {
             return assignments;
+        }
 
         // Collect the base chain argument expressions.
         var baseArgExprs = baseChain.Arguments?.GetAllExpressions()
@@ -4739,7 +4976,9 @@ internal sealed class CSharpSourceWriter
             catch { continue; }
 
             if(baseCtorNode is not ConstructorDeclarationNode baseCtorDecl)
+            {
                 continue;
+            }
 
             var paramCount = CountParameters(baseCtorDecl.Parameters);
             if(paramCount == baseArgExprs.Length)
@@ -4750,7 +4989,9 @@ internal sealed class CSharpSourceWriter
         }
 
         if(matchingCtor is null)
+        {
             return assignments;
+        }
 
         // Get the base constructor's declaring node.
         Storm.Runtime.SyntaxNode? matchingCtorNode;
@@ -4758,7 +4999,9 @@ internal sealed class CSharpSourceWriter
         catch { return assignments; }
 
         if(matchingCtorNode is not ConstructorDeclarationNode matchingCtorDecl)
+        {
             return assignments;
+        }
 
         // Build a map from parameter name → argument index.
         var paramNames = CollectParameterNames(matchingCtorDecl.Parameters);
@@ -4769,39 +5012,56 @@ internal sealed class CSharpSourceWriter
         // argument from the derived constructor's `: base(args)`.
         var baseBody = matchingCtorDecl.Body.GetBlock();
         if(baseBody is null)
+        {
             return assignments;
+        }
 
         foreach(var stmt in baseBody.Statements)
         {
             if(stmt is not ExpressionStatementStatementNode exprStmt)
+            {
                 continue;
+            }
 
             var expr = exprStmt.ExpressionStatement.Expression;
             if(expr.AsAssignmentOrNull() is not { } assignment)
+            {
                 continue; // Lambda-form expression statement — not a field initializer.
+            }
 
             // Check if this is a simple assignment (has a Value part).
             if(assignment.Value is null)
+            {
                 continue;
+            }
 
             // The target should be a simple identifier (field name).
             var targetText = GetSimpleIdentifierFromAssignmentTarget(assignment.Target.Left);
             if(targetText is null)
+            {
                 continue;
+            }
 
             // The value should be a simple identifier matching a parameter name.
             // The RHS is now a full ExpressionNode; only the assignment form can be a
             // simple identifier reference.
             if(assignment.Value.AsAssignmentOrNull() is not { } valueAssignment)
+            {
                 continue;
+            }
+
             var valueText = GetSimpleIdentifierFromAssignmentTarget(valueAssignment.Target.Left);
             if(valueText is null)
+            {
                 continue;
+            }
 
             // Find the parameter index.
             var paramIndex = paramNames.IndexOf(valueText);
             if(paramIndex < 0 || paramIndex >= baseArgExprs.Length)
+            {
                 continue;
+            }
 
             // Emit the inlined assignment using the derived constructor's argument.
             var emittedArg = EmitExpression(baseArgExprs[paramIndex]);
@@ -4820,7 +5080,9 @@ internal sealed class CSharpSourceWriter
         var typeScope = ctorSymbol.ContainingScope;
         var parentScope = typeScope?.Parent;
         if(parentScope is null)
+        {
             return null;
+        }
 
         foreach(var member in parentScope.Members)
         {
@@ -4840,7 +5102,10 @@ internal sealed class CSharpSourceWriter
     private static int CountParameters(ParameterListNode? paramList)
     {
         if(paramList is null)
+        {
             return 0;
+        }
+
         return 1 + paramList.Parameters.Length;
     }
 
@@ -4851,7 +5116,9 @@ internal sealed class CSharpSourceWriter
     {
         var names = new List<string>();
         if(paramList is null)
+        {
             return names;
+        }
 
         names.Add(paramList.Parameter.Name.Lexeme);
         foreach(var param in paramList.Parameters)
@@ -4870,41 +5137,62 @@ internal sealed class CSharpSourceWriter
         // Walk down: LogicalOr → LogicalAnd → Equality → Relational → Additive →
         // Multiplicative → Unary → Postfix → Primary
         if(target.Right is not null && !ReferenceEquals(target.Right, target.Left))
+        {
             return null;
+        }
 
         var logicalAnd = target.Left;
         if(logicalAnd.Right is not null && !ReferenceEquals(logicalAnd.Right, logicalAnd.Left))
+        {
             return null;
+        }
 
         var equality = logicalAnd.Left;
         if(equality.Right is not null && !ReferenceEquals(equality.Right, equality.Left))
+        {
             return null;
+        }
 
         var relational = equality.Left;
         if(relational is not RelationalComparisonRelationalNode cmp)
+        {
             return null;
+        }
+
         if(cmp.Right is not null && !ReferenceEquals(cmp.Right, cmp.Left))
+        {
             return null;
+        }
 
         var additive = cmp.Left;
         if(additive.Right is not null && !ReferenceEquals(additive.Right, additive.Left))
+        {
             return null;
+        }
 
         var multiplicative = additive.Left;
         if(multiplicative.Right is not null && !ReferenceEquals(multiplicative.Right, multiplicative.Left))
+        {
             return null;
+        }
 
         var unary = multiplicative.Left;
         if(unary is not PostfixExpressionUnaryNode postfixUnary)
+        {
             return null;
+        }
 
         var postfix = postfixUnary.Primary;
         if(postfix.Suffix.Length > 0)
+        {
             return null;
+        }
 
         var primary = postfix.Target;
         if(primary is not IdentifierExpressionPrimaryNode idPrimary)
+        {
             return null;
+        }
 
         return idPrimary.Name.Lexeme;
     }
@@ -5153,9 +5441,13 @@ internal sealed class CSharpSourceWriter
         {
             // Task 14.2: If the return type is an optional union, emit null instead.
             if(IsOptionalUnionType(_currentMethodReturnType))
+            {
                 AppendLine("return null;");
+            }
             else
+            {
                 AppendLine("return MistVoid.Instance;");
+            }
         }
 
         _indentLevel--;
@@ -5187,14 +5479,20 @@ internal sealed class CSharpSourceWriter
     private List<(string Name, RefinementPredicate Predicate, string TypeName)> CollectRefinementParameterGuards(ParameterListNode? paramList)
     {
         var guards = new List<(string Name, RefinementPredicate Predicate, string TypeName)>();
-        if(paramList is null) return guards;
+        if(paramList is null)
+        {
+            return guards;
+        }
 
         foreach(var child in paramList.Children())
         {
             if(child is ParameterNode param)
             {
                 var symbol = _model.GetDeclaredSymbol(param);
-                if(symbol is null) continue;
+                if(symbol is null)
+                {
+                    continue;
+                }
 
                 // Check for named refinement type parameter.
                 if(symbol.DeclaredType is RefinementType refinementType)
@@ -5256,9 +5554,13 @@ internal sealed class CSharpSourceWriter
         {
             // Task 14.2: If the return type is an optional union, emit null instead.
             if(IsOptionalUnionType(_currentMethodReturnType))
+            {
                 AppendLine("return null;");
+            }
             else
+            {
                 AppendLine("return MistVoid.Instance;");
+            }
         }
 
         if(paramsToAutoDropAtExit.Count > 0)
@@ -5273,9 +5575,13 @@ internal sealed class CSharpSourceWriter
             {
                 var (paramName, isTaskLike) = paramsToAutoDropAtExit[i];
                 if(isTaskLike)
+                {
                     AppendLine($"await {paramName};");
+                }
                 else
+                {
                     AppendLine($"{paramName}.Drop();");
+                }
             }
             _indentLevel--;
             AppendLine("}");
@@ -5297,11 +5603,15 @@ internal sealed class CSharpSourceWriter
         var result = new List<(string Name, bool IsTaskLike)>();
 
         if(_currentMethodSymbol is null)
+        {
             return result;
+        }
 
         // Skip Drop() methods themselves — they shouldn't auto-drop their implicit 'self'.
         if(_currentMethodSymbol.Name == "Drop")
+        {
             return result;
+        }
 
         // Get the declaring node to access the parameter list.
         Storm.Runtime.SyntaxNode declaringNode;
@@ -5315,32 +5625,44 @@ internal sealed class CSharpSourceWriter
         };
 
         if(paramList is null)
+        {
             return result;
+        }
 
         foreach(var child in paramList.Children())
         {
             if(child is not ParameterNode paramNode)
+            {
                 continue;
+            }
 
             var paramSymbol = _model.GetDeclaredSymbol(paramNode) as Symbol;
             if(paramSymbol is null)
+            {
                 continue;
+            }
 
             // Only by-value parameters can be auto-dropped.
             // ref/readonly ref parameters are borrows — the caller retains drop responsibility.
             if(paramSymbol.RefKind != RefKind.None)
+            {
                 continue;
+            }
 
             var paramType = paramSymbol.DeclaredType;
             if(paramType is null || !ShouldAutoInsertScopeExitDrop(paramType))
+            {
                 continue;
+            }
 
             var paramName = paramNode.Name.Lexeme;
 
             // Check if the parameter is returned or moved within the method body.
             var disposition = AnalyzeDropDisposition(paramName, block.Statements, 0);
             if(disposition == DropDisposition.UnconditionallyMoved)
+            {
                 continue;
+            }
 
             var isTaskLike = IsTaskLikeType(paramType);
             result.Add((paramName, isTaskLike));
@@ -5356,7 +5678,9 @@ internal sealed class CSharpSourceWriter
     private void EmitWithClausePeekBindings(IReadOnlyList<ContextClauseInfo>? withClauses)
     {
         if(withClauses is null || withClauses.Count == 0)
+        {
             return;
+        }
 
         foreach(var clause in withClauses)
         {
@@ -5371,7 +5695,9 @@ internal sealed class CSharpSourceWriter
     private static bool BlockEndsWithReturn(BlockNode block)
     {
         if(block.Statements.Length == 0)
+        {
             return false;
+        }
 
         return block.Statements[^1] is ReturnStatementStatementNode;
     }
@@ -5513,7 +5839,10 @@ internal sealed class CSharpSourceWriter
 
     private static string EmitAccessorModifier(ModifierNode? modifier)
     {
-        if(modifier is null) return "";
+        if(modifier is null)
+        {
+            return "";
+        }
 
         return modifier switch
         {
@@ -5536,7 +5865,9 @@ internal sealed class CSharpSourceWriter
         List<(string Name, RefinementPredicate Predicate, string TypeName)> guards)
     {
         if(guards.Count == 0)
+        {
             return EmitAccessorDeclaration(accessor, backingFieldName, isReadonlyProperty);
+        }
 
         switch(accessor)
         {
@@ -5652,7 +5983,9 @@ internal sealed class CSharpSourceWriter
                         // emit Void.Void as null instead of MistVoid.Instance.
                         var previousVoidAsNull = _emitVoidAsNull;
                         if(IsOptionalUnionType(_currentMethodReturnType))
+                        {
                             _emitVoidAsNull = true;
+                        }
 
                         var value = EmitExpression(returnStmt.ReturnStatement.Value);
                         _emitVoidAsNull = previousVoidAsNull;
@@ -5663,7 +5996,10 @@ internal sealed class CSharpSourceWriter
                         var valueType = _model.GetTypeOf(returnStmt.ReturnStatement.Value);
                         var widened = TryEmitCovariantUnknownCast(valueType, _currentMethodReturnType, value);
                         if(widened is not null)
+                        {
                             value = widened;
+                        }
+
                         return $"return {value};";
                     }
                     return "return;";
@@ -5686,7 +6022,9 @@ internal sealed class CSharpSourceWriter
                                 // emit Void.Void as null instead of MistVoid.Instance.
                                 var previousVoidAsNull = _emitVoidAsNull;
                                 if(IsOptionalUnionType(declaredType))
+                                {
                                     _emitVoidAsNull = true;
+                                }
 
                                 var init = EmitExpression(typed.Initializer);
                                 _emitVoidAsNull = previousVoidAsNull;
@@ -5697,7 +6035,10 @@ internal sealed class CSharpSourceWriter
                                 var initType = _model.GetTypeOf(typed.Initializer);
                                 var widened = TryEmitCovariantUnknownCast(initType, declaredType, init);
                                 if(widened is not null)
+                                {
                                     init = widened;
+                                }
+
                                 return $"{type} {name} = {init};";
                             }
                         case InferredVariableDeclarationVariableDeclarationStatementNode inferred:
@@ -5749,22 +6090,46 @@ internal sealed class CSharpSourceWriter
             switch(accessor)
             {
                 case BlockGetAccessorAccessorDeclarationNode blockGet:
-                    if(ContainsFieldKeywordInBlock(blockGet.Body)) return true;
+                    if(ContainsFieldKeywordInBlock(blockGet.Body))
+                    {
+                        return true;
+                    }
+
                     break;
                 case ExpressionGetAccessorAccessorDeclarationNode exprGet:
-                    if(ContainsFieldKeywordInNode(exprGet.Expression)) return true;
+                    if(ContainsFieldKeywordInNode(exprGet.Expression))
+                    {
+                        return true;
+                    }
+
                     break;
                 case BlockSetAccessorAccessorDeclarationNode blockSet:
-                    if(ContainsFieldKeywordInBlock(blockSet.Body)) return true;
+                    if(ContainsFieldKeywordInBlock(blockSet.Body))
+                    {
+                        return true;
+                    }
+
                     break;
                 case ExpressionSetAccessorAccessorDeclarationNode exprSet:
-                    if(ContainsFieldKeywordInNode(exprSet.Expression)) return true;
+                    if(ContainsFieldKeywordInNode(exprSet.Expression))
+                    {
+                        return true;
+                    }
+
                     break;
                 case BlockInitAccessorAccessorDeclarationNode blockInit:
-                    if(ContainsFieldKeywordInBlock(blockInit.Body)) return true;
+                    if(ContainsFieldKeywordInBlock(blockInit.Body))
+                    {
+                        return true;
+                    }
+
                     break;
                 case ExpressionInitAccessorAccessorDeclarationNode exprInit:
-                    if(ContainsFieldKeywordInNode(exprInit.Expression)) return true;
+                    if(ContainsFieldKeywordInNode(exprInit.Expression))
+                    {
+                        return true;
+                    }
+
                     break;
             }
         }
@@ -5779,12 +6144,16 @@ internal sealed class CSharpSourceWriter
     private static bool ContainsFieldKeywordInNode(Storm.Runtime.SyntaxNode node)
     {
         if(node is FieldKeywordExpressionPrimaryNode)
+        {
             return true;
+        }
 
         foreach(var child in node.Children())
         {
             if(child is Storm.Runtime.SyntaxNode childNode && ContainsFieldKeywordInNode(childNode))
+            {
                 return true;
+            }
         }
         return false;
     }
@@ -5794,7 +6163,9 @@ internal sealed class CSharpSourceWriter
     private void EmitIndexerDeclaration(IndexerDeclarationNode indexerDecl)
     {
         if(indexerDecl.Body is not BlockIndexerBodyIndexerBodyNode blockBody)
+        {
             return;
+        }
 
         var modifiers = EmitModifiers(indexerDecl.Modifiers);
         var type = EmitTypeReference(indexerDecl.Type);
@@ -5821,7 +6192,10 @@ internal sealed class CSharpSourceWriter
 
     private string EmitParameterList(ParameterListNode? paramList)
     {
-        if(paramList is null) return "";
+        if(paramList is null)
+        {
+            return "";
+        }
 
         // The Storm generator only stores the first parameter as a named property;
         // additional comma-separated parameters are parsed but discarded from the AST.
@@ -5971,10 +6345,15 @@ internal sealed class CSharpSourceWriter
         var source = _sourceText.Contents;
         // Check for the `regex` keyword as a standalone word.
         if(ContainsWord(source, "regex"))
+        {
             return true;
+        }
         // Check for backtick (regex literal delimiter).
         if(source.Contains('`'))
+        {
             return true;
+        }
+
         return false;
     }
 
@@ -5992,7 +6371,10 @@ internal sealed class CSharpSourceWriter
             {
                 case TypeItemTopLevelItemNode typeItem:
                     if(TypeImplementsUnmappedStandardAbstract(typeItem.TypeDeclaration))
+                    {
                         return true;
+                    }
+
                     break;
                 case NamespaceItemTopLevelItemNode nsItem:
                     {
@@ -6040,7 +6422,9 @@ internal sealed class CSharpSourceWriter
         };
 
         if(abstracts is null)
+        {
             return false;
+        }
 
         foreach(var abs in abstracts)
         {
@@ -6078,7 +6462,10 @@ internal sealed class CSharpSourceWriter
                 }
                 // Check it's not preceded by another | (second char of ||)
                 if(i > 0 && source[i - 1] == '|')
+                {
                     continue;
+                }
+
                 return true;
             }
         }
@@ -6097,17 +6484,29 @@ internal sealed class CSharpSourceWriter
             if(source[i] == '<')
             {
                 var next = i + 1;
-                while(next < source.Length && source[next] == ' ') next++;
+                while(next < source.Length && source[next] == ' ')
+                {
+                    next++;
+                }
+
                 if(next < source.Length)
                 {
                     var c = source[next];
                     // Check for digit, minus (negated), quote (char), or true/false
                     if(char.IsDigit(c) || c == '-' || c == '\'')
+                    {
                         return true;
+                    }
+
                     if(next + 4 <= source.Length && source.Substring(next, 4) == "true")
+                    {
                         return true;
+                    }
+
                     if(next + 5 <= source.Length && source.Substring(next, 5) == "false")
+                    {
                         return true;
+                    }
                 }
             }
         }
@@ -6131,7 +6530,10 @@ internal sealed class CSharpSourceWriter
             var after = afterPos >= source.Length
                 || !IsIdentifierChar(source[afterPos]);
             if(before && after)
+            {
                 return true;
+            }
+
             index = afterPos;
         }
         return false;
@@ -6157,7 +6559,9 @@ internal sealed class CSharpSourceWriter
         // Unions (non-empty continuation list) were a distinct node variant
         // pre-restructure that fell through to `return false`; preserve that.
         if(typeRef.SingleTypeRefs.Length > 0)
+        {
             return false;
+        }
 
         switch(typeRef.First)
         {
@@ -6165,16 +6569,24 @@ internal sealed class CSharpSourceWriter
                 return true;
 
             case NamedSingleTypeRefSingleTypeRefNode named:
-                if(named.TypeArgs is null) return false;
+                if(named.TypeArgs is null)
+                {
+                    return false;
+                }
                 // Check all type arguments — only TypeReferenceTypeArgument variants
                 // can contain unknown. Literal type arguments (int, bool, char, etc.)
                 // used for dependent types can never contain unknown.
                 if(TypeArgumentContainsUnknown(named.TypeArgs.TypeArgument))
+                {
                     return true;
+                }
+
                 foreach(var arg in named.TypeArgs.TypeArguments)
                 {
                     if(TypeArgumentContainsUnknown(arg))
+                    {
                         return true;
+                    }
                 }
                 return false;
 
@@ -6203,14 +6615,21 @@ internal sealed class CSharpSourceWriter
     private bool TypeReferenceHasDependentTypeArguments(TypeReferenceNode typeRef)
     {
         if(typeRef.First is not NamedSingleTypeRefSingleTypeRefNode named)
+        {
             return false;
+        }
+
         if(named.TypeArgs is null)
+        {
             return false;
+        }
 
         // Check if any type argument is a literal (non-type-reference) dependent value.
         if(IsDependentTypeArgument(named.TypeArgs.TypeArgument)
             || named.TypeArgs.TypeArguments.Any(IsDependentTypeArgument))
+        {
             return true;
+        }
 
         // Check if the target type has dependent type parameters and any type argument
         // in a dependent position is an identifier (forwarded dependent parameter).
@@ -6220,7 +6639,9 @@ internal sealed class CSharpSourceWriter
         {
             var allArgs = new List<TypeArgumentNode> { named.TypeArgs.TypeArgument };
             foreach(var arg in named.TypeArgs.TypeArguments)
+            {
                 allArgs.Add(arg);
+            }
 
             for(var i = 0; i < allArgs.Count && i < targetTypeParams.Count; i++)
             {
@@ -6290,7 +6711,9 @@ internal sealed class CSharpSourceWriter
                 // type argument strings (resolved through EmitTypeReference).
                 var refTypeArgs = new List<TypeArgumentNode> { namedRef.TypeArgs.TypeArgument };
                 foreach(var arg in namedRef.TypeArgs.TypeArguments)
+                {
                     refTypeArgs.Add(arg);
+                }
 
                 var paramNameToEmitted = new Dictionary<string, string>(StringComparer.Ordinal);
                 for(var p = 0; p < aliasType.TypeParameters.Count && p < refTypeArgs.Count; p++)
@@ -6324,7 +6747,10 @@ internal sealed class CSharpSourceWriter
                 {
                     // Action family: drop the trailing void return type.
                     if(ct.TypeArguments.Count == 1)
+                    {
                         return "System.Action";
+                    }
+
                     var actionArgs = funcArgStrings.Take(funcArgStrings.Count - 1);
                     return $"System.Action<{string.Join(", ", actionArgs)}>";
                 }
@@ -6361,11 +6787,15 @@ internal sealed class CSharpSourceWriter
 
                 // If we can determine it's a value type, emit T?. Otherwise emit T (reference type).
                 if(argType is not null && CSharpTypeMap.IsValueType(argType))
+                {
                     return $"{emittedArg}?";
+                }
 
                 // Fallback: check if the emitted name is a known C# value type keyword.
                 if(IsKnownValueTypeKeyword(emittedArg))
+                {
                     return $"{emittedArg}?";
+                }
 
                 // Reference type — null represents void, so just emit the type name.
                 return emittedArg;
@@ -6413,7 +6843,9 @@ internal sealed class CSharpSourceWriter
             var name = ExtractQualifiedName(namedRef.Name);
             if(_model.AllSymbols.Any(s => s.Name == name && s.Kind == SymbolKind.TypeAlias
                 && !IsStdlibTypeAlias(s)))
+            {
                 return true;
+            }
         }
 
         // Lexical fallback: check if any NON-STDLIB type alias name appears in the source
@@ -6476,7 +6908,10 @@ internal sealed class CSharpSourceWriter
 
     private string EmitArgumentList(ArgumentListNode? argList, Symbol? calledMethod = null)
     {
-        if(argList is null) return "";
+        if(argList is null)
+        {
+            return "";
+        }
 
         // Collect all argument nodes (first + rest) to detect ref arguments.
         var argNodes = new List<ArgumentNode>(1 + argList.Arguments.Length);
@@ -6636,7 +7071,9 @@ internal sealed class CSharpSourceWriter
         foreach(var expr in argExprs)
         {
             if(ExpressionContainsTypeLiteral(expr))
+            {
                 return true;
+            }
         }
         return false;
     }
@@ -6651,7 +7088,9 @@ internal sealed class CSharpSourceWriter
         foreach(var expr in argExprs)
         {
             if(ExpressionContainsDependentTypeParam(expr))
+            {
                 return true;
+            }
         }
         return false;
     }
@@ -6667,7 +7106,9 @@ internal sealed class CSharpSourceWriter
         foreach(var expr in argExprs)
         {
             if(ExpressionContainsIntrinsicMemberAccess(expr))
+            {
                 return true;
+            }
         }
         return false;
     }
@@ -6685,14 +7126,18 @@ internal sealed class CSharpSourceWriter
             {
                 var qualifiedName = GetQualifiedTypeNameFromType(receiverType);
                 if(qualifiedName is not null && _intrinsicRegistry.HasInstanceMethods(qualifiedName))
+                {
                     return true;
+                }
             }
         }
 
         foreach(var child in node.Children())
         {
             if(child is not null && ExpressionContainsIntrinsicMemberAccess(child))
+            {
                 return true;
+            }
         }
         return false;
     }
@@ -6709,12 +7154,16 @@ internal sealed class CSharpSourceWriter
         // Only relevant in sync contexts where auto-await fires.
         if(_insideAsyncFunctor || _insideAsyncLambda
             || (_currentMethodSymbol is not null && _currentMethodSymbol.IsAsync))
+        {
             return false;
+        }
 
         foreach(var expr in argExprs)
         {
             if(ExpressionContainsFuncAutoAwaitCall(expr))
+            {
                 return true;
+            }
         }
         return false;
     }
@@ -6737,7 +7186,9 @@ internal sealed class CSharpSourceWriter
             {
                 var funcReturnType = SemanticModelBuilder.GetFuncReturnType(funcCt);
                 if(SemanticModelBuilder.IsStandardTaskType(funcReturnType))
+                {
                     return true;
+                }
             }
 
             // Fallback: check via declared symbol type.
@@ -6748,14 +7199,18 @@ internal sealed class CSharpSourceWriter
             {
                 var funcReturnType = SemanticModelBuilder.GetFuncReturnType(funcCtFromSym);
                 if(SemanticModelBuilder.IsStandardTaskType(funcReturnType))
+                {
                     return true;
+                }
             }
         }
 
         foreach(var child in node.Children())
         {
             if(child is not null && ExpressionContainsFuncAutoAwaitCall(child))
+            {
                 return true;
+            }
         }
         return false;
     }
@@ -6770,15 +7225,22 @@ internal sealed class CSharpSourceWriter
         {
             var resolvedType = _model.GetTypeOf(ident);
             if(resolvedType is DependentTypeParameterType)
+            {
                 return true;
+            }
+
             if(IsDependentTypeParameterName(ident.Name.Lexeme))
+            {
                 return true;
+            }
         }
 
         foreach(var child in node.Children())
         {
             if(child is not null && ExpressionContainsDependentTypeParam(child))
+            {
                 return true;
+            }
         }
         return false;
     }
@@ -6796,12 +7258,16 @@ internal sealed class CSharpSourceWriter
     private static bool ExpressionContainsTypeLiteral(Storm.Runtime.SyntaxNode node)
     {
         if(node is TypeLiteralExpressionPrimaryNode)
+        {
             return true;
+        }
 
         foreach(var child in node.Children())
         {
             if(child is not null && ExpressionContainsTypeLiteral(child))
+            {
                 return true;
+            }
         }
         return false;
     }
@@ -6934,7 +7400,9 @@ internal sealed class CSharpSourceWriter
                         {
                             var erasedType = EraseParameterizedSlotToConstraint(resolvedSlot, namedRef.TypeArgs, _currentAbstractTypeParamSubs);
                             if(erasedType is not null)
+                            {
                                 return namedRef.ArrayRank is not null ? $"{erasedType}[]" : erasedType;
+                            }
                         }
                         // Use the active method-level substitution if available.
                         if(_currentMethodSlotSubstitutions is not null
@@ -7176,7 +7644,9 @@ internal sealed class CSharpSourceWriter
                         var declaredSymbol = _model.AllSymbols
                             .FirstOrDefault(s => s.Name == name && s.Kind is SymbolKind.Struct or SymbolKind.Class or SymbolKind.Enum);
                         if(declaredSymbol?.DeclaredType is not null && CSharpTypeMap.IsValueType(declaredSymbol.DeclaredType))
+                        {
                             return $"{baseName}?";
+                        }
                         // Reference types: emit plain T (null represents void).
                         return baseName;
                     }
@@ -7335,7 +7805,9 @@ internal sealed class CSharpSourceWriter
     private string GetConstituentNameFromTypeArgument(TypeArgumentNode arg)
     {
         if(arg is TypeReferenceTypeArgumentTypeArgumentNode typeRefArg)
+        {
             return GetConstituentNameFromTypeRef(typeRefArg.Type);
+        }
 
         // Literal type arguments — use the carrier struct name as the constituent name.
         return EmitSingleTypeArgument(arg);
@@ -7402,11 +7874,22 @@ internal sealed class CSharpSourceWriter
     /// </summary>
     private static bool TupleTypeRefHasAnyElementName(TupleSingleTypeRefSingleTypeRefNode tupleRef)
     {
-        if(tupleRef.First.Name.HasValue) return true;
-        if(tupleRef.Rest.Name.HasValue) return true;
+        if(tupleRef.First.Name.HasValue)
+        {
+            return true;
+        }
+
+        if(tupleRef.Rest.Name.HasValue)
+        {
+            return true;
+        }
+
         foreach(var additional in tupleRef.TupleTypeElements)
         {
-            if(additional.Name.HasValue) return true;
+            if(additional.Name.HasValue)
+            {
+                return true;
+            }
         }
         return false;
     }
@@ -7607,7 +8090,9 @@ internal sealed class CSharpSourceWriter
         var declType = GetDeclaredTypeFromStatement(declStmt);
         var isRelevant = declType is not null && GetDisciplineForType(declType) == SubstructuralDiscipline.Relevant;
         if(isRelevant)
+        {
             disposition = DropDisposition.AlwaysLive;
+        }
 
         switch(disposition)
         {
@@ -7689,10 +8174,14 @@ internal sealed class CSharpSourceWriter
     {
         taskInfo = null;
         if(_currentBlockDiscardedTasks is null)
+        {
             return false;
+        }
 
         if(stmt is not ExpressionStatementStatementNode exprStmt)
+        {
             return false;
+        }
 
         return _currentBlockDiscardedTasks.TryGetValue(
             exprStmt.ExpressionStatement.Expression, out taskInfo);
@@ -7741,7 +8230,9 @@ internal sealed class CSharpSourceWriter
     private IType? GetDeclaredTypeFromStatement(StatementNode stmt)
     {
         if(stmt is not VariableDeclarationStatementStatementNode varDeclStmt)
+        {
             return null;
+        }
 
         return varDeclStmt.VariableDeclaration switch
         {
@@ -7782,7 +8273,9 @@ internal sealed class CSharpSourceWriter
         isTaskLike = false;
 
         if(stmt is not VariableDeclarationStatementStatementNode varDeclStmt)
+        {
             return false;
+        }
 
         // Only simple single-name declarations participate in scope-exit auto-drop.
         switch(varDeclStmt.VariableDeclaration)
@@ -7791,7 +8284,10 @@ internal sealed class CSharpSourceWriter
                 {
                     if((_model.GetDeclaredSymbol(typed) as Symbol)?.DeclaredType is not { } typedType
                         || !ShouldAutoInsertScopeExitDrop(typedType))
+                    {
                         return false;
+                    }
+
                     localName = typed.Name.Lexeme;
                     isTaskLike = IsTaskLikeType(typedType);
                     return true;
@@ -7800,7 +8296,10 @@ internal sealed class CSharpSourceWriter
                 {
                     if((_model.GetDeclaredSymbol(inferred) as Symbol)?.DeclaredType is not { } inferredType
                         || !ShouldAutoInsertScopeExitDrop(inferredType))
+                    {
                         return false;
+                    }
+
                     localName = inferred.Name.Lexeme;
                     isTaskLike = IsTaskLikeType(inferredType);
                     return true;
@@ -7858,12 +8357,16 @@ internal sealed class CSharpSourceWriter
         if(_currentMethodSymbol is null
             || _currentMethodSymbol.Name != "Drop"
             || _currentMethodSymbol.Kind != SymbolKind.Method)
+        {
             return;
+        }
 
         // Find the enclosing type. The method's ContainingScope is the type's member scope.
         var enclosingType = FindEnclosingTypeForMethod(_currentMethodSymbol);
         if(enclosingType is null)
+        {
             return;
+        }
 
         // Only process types with synthesizable droppable fields but NO SyntheticDropFields
         // (i.e., the type has a manual Drop() — SyntheticDropFields is null for these).
@@ -7874,12 +8377,16 @@ internal sealed class CSharpSourceWriter
             _ => null,
         };
         if(syntheticFields is not null)
+        {
             return; // Fully-synthesized Drop() — this body shouldn't exist.
+        }
 
         // Collect all droppable fields in declaration order.
         var droppableFields = CollectDroppableFields(enclosingType);
         if(droppableFields.Count == 0)
+        {
             return;
+        }
 
         // Determine which fields were explicitly dropped in the body.
         var explicitlyDropped = CollectExplicitlyDroppedFieldNames(block);
@@ -7889,11 +8396,15 @@ internal sealed class CSharpSourceWriter
         foreach(var field in droppableFields)
         {
             if(!explicitlyDropped.Contains(field.Name))
+            {
                 remaining.Add(field);
+            }
         }
 
         if(remaining.Count == 0)
+        {
             return;
+        }
 
         // Emit Drop() for remaining un-dropped fields in declaration order.
         // Apply recursive drop chaining (Requirement 2.3).
@@ -7906,7 +8417,9 @@ internal sealed class CSharpSourceWriter
             if(fieldType is not null)
             {
                 if(IsTaskLikeType(fieldType))
+                {
                     continue;
+                }
                 // For type parameter fields (e.g., T Value in a generic class), we cannot
                 // call .Drop() directly in C# because T has no Drop constraint. Use dynamic
                 // dispatch to call Drop at runtime.
@@ -7936,16 +8449,23 @@ internal sealed class CSharpSourceWriter
         var typeScope = methodSymbol.ContainingScope;
         var parentScope = typeScope?.Parent;
         if(parentScope is null)
+        {
             return null;
+        }
 
         foreach(var member in parentScope.Members)
         {
             if(member.Kind == SymbolKind.Class && member.DeclaredType is ClassType ct
                 && ReferenceEquals(ct.MemberScope, typeScope))
+            {
                 return ct;
+            }
+
             if(member.Kind == SymbolKind.Struct && member.DeclaredType is StructType st
                 && ReferenceEquals(st.MemberScope, typeScope))
+            {
                 return st;
+            }
         }
 
         return null;
@@ -7966,20 +8486,28 @@ internal sealed class CSharpSourceWriter
         };
 
         if(memberScope is null)
+        {
             return [];
+        }
 
         var result = new List<ISymbol>();
         foreach(var member in memberScope.Members)
         {
             if(member.Kind != SymbolKind.Field)
+            {
                 continue;
+            }
 
             var fieldType = member.DeclaredType;
             if(fieldType is null)
+            {
                 continue;
+            }
 
             if(TypeHasDrop(fieldType))
+            {
                 result.Add(member);
+            }
         }
 
         return result;
@@ -8040,7 +8568,9 @@ internal sealed class CSharpSourceWriter
         foreach(var child in node.Children())
         {
             if(child is not null)
+            {
                 CollectExplicitFieldDropsRecursive(child, fieldNames);
+            }
         }
     }
 
@@ -8081,19 +8611,27 @@ internal sealed class CSharpSourceWriter
 
             // Check for return of the variable.
             if(IsReturnOfVariable(stmt, localName))
+            {
                 return DropDisposition.UnconditionallyMoved;
+            }
 
             // Check for explicit .Drop() call on the variable (consumes it — Requirements 3.1, 3.2).
             if(IsExplicitDropOfVariable(stmt, localName))
+            {
                 return DropDisposition.UnconditionallyMoved;
+            }
 
             // Check for unconditional move (assignment to another variable or pass to owned param).
             if(IsUnconditionalMoveOfVariable(stmt, localName))
+            {
                 return DropDisposition.UnconditionallyMoved;
+            }
 
             // Check for conditional move in an if/else.
             if(IsConditionalMoveOfVariable(stmt, localName))
+            {
                 return DropDisposition.ConditionallyMoved;
+            }
         }
 
         return DropDisposition.AlwaysLive;
@@ -8106,10 +8644,14 @@ internal sealed class CSharpSourceWriter
     private static bool IsReturnOfVariable(StatementNode stmt, string localName)
     {
         if(stmt is not ReturnStatementStatementNode returnStmt)
+        {
             return false;
+        }
 
         if(returnStmt.ReturnStatement.Value is null)
+        {
             return false;
+        }
 
         var symbol = ResolveToIdentifierName(returnStmt.ReturnStatement.Value);
         return symbol is not null && symbol == localName;
@@ -8172,7 +8714,9 @@ internal sealed class CSharpSourceWriter
         foreach(var child in node.Children())
         {
             if(child is not null && ExpressionContainsDropOfVariable(child, localName))
+            {
                 return true;
+            }
         }
 
         return false;
@@ -8206,7 +8750,9 @@ internal sealed class CSharpSourceWriter
     private bool IsConditionalMoveOfVariable(StatementNode stmt, string localName)
     {
         if(stmt is not IfStatementStatementNode ifStmt)
+        {
             return false;
+        }
 
         var movedInThen = BlockMovesVariable(ifStmt.IfStatement.ThenBranch, localName);
         var movedInElse = ElseMovesVariable(ifStmt.IfStatement.ElseBranch, localName);
@@ -8225,16 +8771,23 @@ internal sealed class CSharpSourceWriter
         foreach(var stmt in block.Statements)
         {
             if(IsReturnOfVariable(stmt, localName))
+            {
                 return true;
+            }
+
             if(IsUnconditionalMoveOfVariable(stmt, localName))
+            {
                 return true;
+            }
             // Recurse into nested if-statements for unconditional moves within branches.
             if(stmt is IfStatementStatementNode nestedIf)
             {
                 var movedInThen = BlockMovesVariable(nestedIf.IfStatement.ThenBranch, localName);
                 var movedInElse = ElseMovesVariable(nestedIf.IfStatement.ElseBranch, localName);
                 if(movedInThen && movedInElse)
+                {
                     return true; // Moved in all branches of the nested if.
+                }
             }
         }
         return false;
@@ -8279,12 +8832,16 @@ internal sealed class CSharpSourceWriter
                 if(suffix is MethodCallSuffixPostfixSuffixNode methodCall)
                 {
                     if(MethodCallMovesVariable(methodCall, localName))
+                    {
                         return true;
+                    }
                 }
                 else if(suffix is InvocationSuffixPostfixSuffixNode invocation)
                 {
                     if(InvocationMovesVariable(invocation, postfix.Target, localName))
+                    {
                         return true;
+                    }
                 }
             }
 
@@ -8305,14 +8862,18 @@ internal sealed class CSharpSourceWriter
             {
                 var name = ResolveToIdentifierName(rhs.Target);
                 if(name == localName)
+                {
                     return true;
+                }
             }
         }
 
         foreach(var child in node.Children())
         {
             if(child is not null && ScanExpressionForMoveOfVariable(child, localName))
+            {
                 return true;
+            }
         }
         return false;
     }
@@ -8411,7 +8972,10 @@ internal sealed class CSharpSourceWriter
                 var paramNodes = new List<ParameterNode>();
                 foreach(var child in paramList.Children())
                 {
-                    if(child is ParameterNode pn) paramNodes.Add(pn);
+                    if(child is ParameterNode pn)
+                    {
+                        paramNodes.Add(pn);
+                    }
                 }
 
                 for(var i = 0; i < argExprs.Count; i++)
@@ -8421,7 +8985,10 @@ internal sealed class CSharpSourceWriter
                     {
                         // Check AST field directly for ref modifier.
                         if(paramNodes[i].RefModifier is not null)
+                        {
                             return false; // ref or readonly ref → lend, not move
+                        }
+
                         return true; // by-value → move
                     }
                 }
@@ -8433,7 +9000,9 @@ internal sealed class CSharpSourceWriter
         {
             var argName = ResolveToIdentifierName(argExprs[i]);
             if(argName == localName)
+            {
                 return true;
+            }
         }
 
         return false;
@@ -8449,7 +9018,9 @@ internal sealed class CSharpSourceWriter
     private IReadOnlyList<RefKind>? ResolveParameterRefKinds(Symbol? methodSymbol)
     {
         if(methodSymbol is null || methodSymbol.Kind != SymbolKind.Method)
+        {
             return null;
+        }
 
         // CLR-projected methods have Parameters populated directly.
         if(methodSymbol.Parameters.Count > 0)
@@ -8474,7 +9045,9 @@ internal sealed class CSharpSourceWriter
         };
 
         if(paramList is null)
+        {
             return null;
+        }
 
         var result = new List<RefKind>();
         foreach(var child in paramList.Children())
@@ -8511,7 +9084,9 @@ internal sealed class CSharpSourceWriter
         };
 
         if(initializer is null)
+        {
             return false;
+        }
 
         // Check if the initializer is simply the variable name (a move-via-assignment).
         var initName = ResolveToIdentifierName(initializer);
@@ -8520,7 +9095,9 @@ internal sealed class CSharpSourceWriter
             // Only counts as a move if the destination variable is of an owned type.
             var declaredSymbol = _model.GetDeclaredSymbol(varDecl);
             if(declaredSymbol?.DeclaredType is null)
+            {
                 return false;
+            }
 
             return IsOwnedType(declaredSymbol.DeclaredType);
         }
@@ -8543,22 +9120,30 @@ internal sealed class CSharpSourceWriter
     {
         var destinationType = _model.GetImplicitCloneDestination(sourceNode);
         if(destinationType is null)
+        {
             return emittedExpr;
+        }
 
         // Pure-struct optimization: value types (structs/enums) copy by value, so
         // .Clone() is redundant — elide it (Req 8 AC 8).
         if(destinationType.Kind is TypeKind.Struct or TypeKind.Enum)
+        {
             return emittedExpr;
+        }
 
         // Also check the unwrapped type for constructed generics.
         var unwrapped = destinationType is ConstructedType ct ? ct.GenericDefinition : destinationType;
         if(unwrapped.Kind is TypeKind.Struct or TypeKind.Enum)
+        {
             return emittedExpr;
+        }
 
         // Backend-backed types (Task<T>, ValueTask<T>, etc.) do not have a
         // Mist-generated .Clone() method — elide the clone call.
         if(unwrapped is ClassType { IsBackendBacked: true })
+        {
             return emittedExpr;
+        }
 
         return $"{emittedExpr}.Clone()";
     }
@@ -8573,7 +9158,9 @@ internal sealed class CSharpSourceWriter
         foreach(var expr in argExprs)
         {
             if(_model.GetImplicitCloneDestination(expr) is not null)
+            {
                 return true;
+            }
         }
         return false;
     }
@@ -8589,7 +9176,9 @@ internal sealed class CSharpSourceWriter
         foreach(var expr in argExprs)
         {
             if(ExpressionContainsOptionalInterpolation(expr))
+            {
                 return true;
+            }
         }
         return false;
     }
@@ -8608,7 +9197,9 @@ internal sealed class CSharpSourceWriter
                 {
                     var exprType = _model.GetTypeOf(exprPart.Expression);
                     if(IsOptionalUnionType(exprType))
+                    {
                         return true;
+                    }
                 }
             }
         }
@@ -8616,7 +9207,9 @@ internal sealed class CSharpSourceWriter
         foreach(var child in node.Children())
         {
             if(child is not null && ExpressionContainsOptionalInterpolation(child))
+            {
                 return true;
+            }
         }
         return false;
     }
@@ -8631,7 +9224,9 @@ internal sealed class CSharpSourceWriter
         foreach(var expr in argExprs)
         {
             if(ExpressionContainsAsyncBlock(expr))
+            {
                 return true;
+            }
         }
         return false;
     }
@@ -8639,12 +9234,16 @@ internal sealed class CSharpSourceWriter
     private static bool ExpressionContainsAsyncBlock(Storm.Runtime.SyntaxNode node)
     {
         if(node is AsyncBlockExpressionUnaryNode or AsyncHintBlockExpressionUnaryNode)
+        {
             return true;
+        }
 
         foreach(var child in node.Children())
         {
             if(child is not null && ExpressionContainsAsyncBlock(child))
+            {
                 return true;
+            }
         }
         return false;
     }
@@ -8661,7 +9260,9 @@ internal sealed class CSharpSourceWriter
         foreach(var expr in argExprs)
         {
             if(ExpressionContainsAnonymousTypeEquality(expr))
+            {
                 return true;
+            }
         }
         return false;
     }
@@ -8674,13 +9275,17 @@ internal sealed class CSharpSourceWriter
             var lhsType = _model.GetTypeOf(equality.Left);
             var rhsType = _model.GetTypeOf(equality.Right);
             if(lhsType is AnonymousType && rhsType is AnonymousType)
+            {
                 return true;
+            }
         }
 
         foreach(var child in node.Children())
         {
             if(child is not null && ExpressionContainsAnonymousTypeEquality(child))
+            {
                 return true;
+            }
         }
         return false;
     }
@@ -8695,25 +9300,36 @@ internal sealed class CSharpSourceWriter
     private bool ArgumentRequiresDelegateWrapping(List<ExpressionNode> argExprs, Symbol? calledMethod)
     {
         if(calledMethod?.Parameters is not { Count: > 0 } parameters)
+        {
             return false;
+        }
 
         for(var i = 0; i < argExprs.Count && i < parameters.Count; i++)
         {
             var paramType = parameters[i].DeclaredType;
             if(paramType is not DelegateType)
+            {
                 continue;
+            }
 
             // The parameter expects a named delegate. Check if the argument's type
             // is a func/lambda (not already a DelegateType value).
             var argType = _model.GetTypeOf(argExprs[i]);
             if(argType is DelegateType)
+            {
                 continue; // DelegateType → DelegateType: no wrapping needed (same type)
+            }
 
             // If the argument is a lambda expression or has a func type, wrapping is needed.
             if(argExprs[i] is LambdaFormExpressionNode)
+            {
                 return true;
+            }
+
             if(argType is not null && SemanticModelBuilder.IsFuncType(argType))
+            {
                 return true;
+            }
         }
         return false;
     }
@@ -8728,24 +9344,35 @@ internal sealed class CSharpSourceWriter
     private string WrapWithDelegateConstructorIfNeeded(ExpressionNode argExpr, string emittedArg, int argIndex, Symbol? calledMethod)
     {
         if(calledMethod?.Parameters is not { Count: > 0 } parameters)
+        {
             return emittedArg;
+        }
+
         if(argIndex >= parameters.Count)
+        {
             return emittedArg;
+        }
 
         var paramType = parameters[argIndex].DeclaredType;
 
         // When target is BaseDelegateType: emit as-is (C# 11+ implicit conversion).
         if(paramType is BaseDelegateType)
+        {
             return emittedArg;
+        }
 
         // When target is not a DelegateType: no wrapping needed.
         if(paramType is not DelegateType delegateType)
+        {
             return emittedArg;
+        }
 
         // When a DelegateType value is passed where DelegateType is expected: emit as-is.
         var argType = _model.GetTypeOf(argExpr);
         if(argType is DelegateType)
+        {
             return emittedArg;
+        }
 
         // When the argument is a lambda, func value, or method group and the parameter
         // type is a DelegateType: wrap with new DelegateName(argument).
@@ -8802,11 +9429,16 @@ internal sealed class CSharpSourceWriter
         foreach(var child in node.Children())
         {
             if(child is null)
+            {
                 continue;
+            }
+
             childCount++;
             onlyChild = child;
             if(childCount > 1)
+            {
                 return null;
+            }
         }
 
         return childCount == 1 && onlyChild is not null
@@ -8820,7 +9452,9 @@ internal sealed class CSharpSourceWriter
     private static IReadOnlyList<Storm.Runtime.SyntaxNode> CollectArgumentExpressionsForMoveCheck(ArgumentListNode? argList)
     {
         if(argList is null)
+        {
             return Array.Empty<Storm.Runtime.SyntaxNode>();
+        }
 
         var exprs = argList.GetAllExpressions();
         var result = new List<Storm.Runtime.SyntaxNode>(exprs.Length);
@@ -8857,7 +9491,10 @@ internal sealed class CSharpSourceWriter
                     AppendLine($"MistContext.Push<{contextTypeName}>({name});");
                     boundType = _model.GetTypeOf(decl.Initializer);
                     if(boundType is not null && TypeHasDrop(boundType))
+                    {
                         dropTarget = name;
+                    }
+
                     break;
                 }
             case WithTypedDeclarationStatementStatementNode withTypedStmt:
@@ -8870,7 +9507,10 @@ internal sealed class CSharpSourceWriter
                     AppendLine($"MistContext.Push<{contextTypeName}>({name});");
                     boundType = _model.GetTypeOf(decl.Initializer);
                     if(boundType is not null && TypeHasDrop(boundType))
+                    {
                         dropTarget = name;
+                    }
+
                     break;
                 }
             case WithDiscardDeclarationStatementStatementNode withDiscardStmt:
@@ -8945,7 +9585,9 @@ internal sealed class CSharpSourceWriter
                     // Type is the explicit type reference.
                     var type = _model.GetTypeOf(withTypedStmt.WithTypedDeclaration.Type);
                     if(type is not null)
+                    {
                         return CSharpTypeMap.GetTypeName(ResolveContextTypeForEmission(type));
+                    }
                     // Fall back to the declared symbol's type.
                     var sym = _model.GetDeclaredSymbol(withTypedStmt.WithTypedDeclaration);
                     return sym?.DeclaredType is not null
@@ -8957,7 +9599,9 @@ internal sealed class CSharpSourceWriter
                     // Type is the explicit type reference.
                     var type = _model.GetTypeOf(withDiscardStmt.WithDiscardDeclaration.Type);
                     if(type is not null)
+                    {
                         return CSharpTypeMap.GetTypeName(ResolveContextTypeForEmission(type));
+                    }
                     // Fall back to the initializer type.
                     var initType = _model.GetTypeOf(withDiscardStmt.WithDiscardDeclaration.Initializer);
                     return initType is not null
@@ -9181,7 +9825,9 @@ internal sealed class CSharpSourceWriter
             };
 
             if(rawDropReturn is null)
+            {
                 return null;
+            }
 
             // If the DropReturnType is a type parameter, substitute with the actual type argument.
             if(rawDropReturn is TypeParameterType tpt)
@@ -9207,7 +9853,9 @@ internal sealed class CSharpSourceWriter
 
                 // Fallback: use ordinal if name matching didn't work.
                 if(tpt.Ordinal < constructed.TypeArguments.Count)
+                {
                     return constructed.TypeArguments[tpt.Ordinal];
+                }
             }
 
             return rawDropReturn;
@@ -9297,7 +9945,9 @@ internal sealed class CSharpSourceWriter
                     var declaredSymbol = _model.GetDeclaredSymbol(typed) as Symbol;
                     var declaredType = declaredSymbol?.DeclaredType;
                     if(declaredType is ArrayType targetArrayType)
+                    {
                         _arrayLiteralTargetElementType = targetArrayType.ElementType;
+                    }
 
                     // Span types: the type reference may contain `unknown` (e.g.,
                     // `ReadOnlySpan<int, unknown>`), which EmitTypeReference lowers
@@ -9305,7 +9955,9 @@ internal sealed class CSharpSourceWriter
                     // resolved SpanType so the C# compiler sees System.Span<T> /
                     // System.ReadOnlySpan<T> instead of `dynamic`.
                     if(declaredType is Semantics.Model.Types.SpanType typedSpanType)
+                    {
                         type = CSharpTypeMap.GetTypeName(typedSpanType);
+                    }
 
                     // Task 14.2: When the declared type is a two-constituent T | void union,
                     // emit Void.Void as null instead of MistVoid.Instance.
@@ -9313,7 +9965,9 @@ internal sealed class CSharpSourceWriter
                     // reference resolved to a nullable type (even if ??= narrowed the symbol).
                     var previousVoidAsNull = _emitVoidAsNull;
                     if(IsOptionalUnionType(declaredType) || type.EndsWith("?"))
+                    {
                         _emitVoidAsNull = true;
+                    }
 
                     var init = EmitExpression(typed.Initializer);
                     _arrayLiteralTargetElementType = null;
@@ -9329,7 +9983,9 @@ internal sealed class CSharpSourceWriter
                     var initType = _model.GetTypeOf(typed.Initializer);
                     var widened = TryEmitCovariantUnknownCast(initType, declaredType, init);
                     if(widened is not null)
+                    {
                         init = widened;
+                    }
 
                     // Delegate-func conversion wrapping: when assigning a func value to a
                     // DelegateType variable or a DelegateType value to a func variable, emit
@@ -9338,7 +9994,9 @@ internal sealed class CSharpSourceWriter
 
                     // Anonymous types have no denotable name in C#; always emit `var`.
                     if(declaredType is AnonymousType)
+                    {
                         type = "var";
+                    }
 
                     // Emit ref / ref readonly prefix for ref locals.
                     var refPrefix = declaredSymbol?.RefKind switch
@@ -9445,7 +10103,9 @@ internal sealed class CSharpSourceWriter
             // emit Void.Void as null instead of MistVoid.Instance.
             var previousVoidAsNull = _emitVoidAsNull;
             if(IsOptionalUnionType(_currentMethodReturnType))
+            {
                 _emitVoidAsNull = true;
+            }
 
             var value = EmitExpression(returnStmt.Value);
             _emitVoidAsNull = previousVoidAsNull;
@@ -9456,7 +10116,9 @@ internal sealed class CSharpSourceWriter
             var valueType = _model.GetTypeOf(returnStmt.Value);
             var widened = TryEmitCovariantUnknownCast(valueType, _currentMethodReturnType, value);
             if(widened is not null)
+            {
                 value = widened;
+            }
 
             if(returnStmt.RefKeyword is not null)
             {
@@ -9534,9 +10196,13 @@ internal sealed class CSharpSourceWriter
             if(!BlockMovesVariable(branchBlock, localName))
             {
                 if(isTaskLike)
+                {
                     AppendLine($"await {localName};");
+                }
                 else
+                {
                     AppendLine($"{localName}.Drop();");
+                }
             }
             AppendLine($"{flagName} = true;");
         }
@@ -9611,7 +10277,10 @@ internal sealed class CSharpSourceWriter
 
     private string EmitForInitializer(ForInitializerNode? initializer)
     {
-        if(initializer is null) return "";
+        if(initializer is null)
+        {
+            return "";
+        }
 
         switch(initializer)
         {
@@ -9726,11 +10395,17 @@ internal sealed class CSharpSourceWriter
         // Build the modifier prefix.
         var prefix = "";
         if(hasStatic && hasAsync)
+        {
             prefix = "static async ";
+        }
         else if(hasStatic)
+        {
             prefix = "static ";
+        }
         else if(hasAsync)
+        {
             prefix = "async ";
+        }
 
         // Emit the parameter list.
         var parameters = EmitLambdaParameterList(paramList);
@@ -9740,10 +10415,14 @@ internal sealed class CSharpSourceWriter
         var previousAsyncLambda = _insideAsyncLambda;
 
         if(needsSyncAutoAwait)
+        {
             _insideSyncLambdaAutoAwait = true;
+        }
 
         if(hasAsync)
+        {
             _insideAsyncLambda = true;
+        }
 
         // Emit the body.
         string result;
@@ -9789,7 +10468,9 @@ internal sealed class CSharpSourceWriter
     private string EmitParenthesizedLambdaParams(ParenthesizedLambdaParamsLambdaParameterListNode parenParams)
     {
         if(parenParams.Params is null)
+        {
             return "()";
+        }
 
         var parts = new List<string>();
         parts.Add(EmitLambdaParam(parenParams.Params.LambdaParam));
@@ -9860,28 +10541,41 @@ internal sealed class CSharpSourceWriter
     {
         // If we hit a nested lambda, stop — its auto-await is independent.
         if(node is LambdaExpressionNode)
+        {
             return false;
+        }
 
         // If we hit an async functor expression, stop — the functor explicitly
         // captures the Task (either passing it through or wrapping in Task.Run),
         // so the contained call does not need auto-await.
         if(node is AsyncExpressionUnaryNode)
+        {
             return false;
+        }
 
         // If we hit an explicit await expression, stop — the user already handles
         // the async call explicitly, so it should not trigger auto-await.
         if(node is AwaitExpressionUnaryNode)
+        {
             return false;
+        }
 
         if(node is PostfixNode postfix && IsPostfixAsyncMethodCall(postfix))
+        {
             return true;
+        }
 
         foreach(var child in node.Children())
         {
             if(child is null)
+            {
                 continue;
+            }
+
             if(ContainsAutoAwaitCall(child))
+            {
                 return true;
+            }
         }
 
         return false;
@@ -9898,7 +10592,9 @@ internal sealed class CSharpSourceWriter
             var previousVoidAsNull = _emitVoidAsNull;
             var assignTargetType = _model.GetTypeOf(assignment.Target);
             if(IsOptionalUnionType(assignTargetType))
+            {
                 _emitVoidAsNull = true;
+            }
 
             var value = EmitExpression(assignment.Value);
             _emitVoidAsNull = previousVoidAsNull;
@@ -9912,7 +10608,10 @@ internal sealed class CSharpSourceWriter
             var valueType = _model.GetTypeOf(assignment.Value);
             var widened = TryEmitCovariantUnknownCast(valueType, targetType, value);
             if(widened is not null)
+            {
                 value = widened;
+            }
+
             return $"{target} = {value}";
         }
 
@@ -9930,14 +10629,20 @@ internal sealed class CSharpSourceWriter
     {
         // A lambda-form expression is never a ??= assignment.
         if(expression.AsAssignmentOrNull() is not { } assignment)
+        {
             return false;
+        }
 
         // Check if this is a ??= assignment by inspecting the operator token.
         if(assignment.Operator is not { } op || op.Kind != (int)TokenKind.QUESTION_QUESTION_EQUAL)
+        {
             return false;
+        }
 
         if(assignment.Value is null)
+        {
             return false;
+        }
 
         // Emit the target variable name.
         var target = EmitLogicalOr(assignment.Target.Left);
@@ -9964,7 +10669,9 @@ internal sealed class CSharpSourceWriter
         var left = EmitLogicalOr(node.Left);
 
         if(node.LogicalOrs.Length == 0)
+        {
             return left;
+        }
 
         // Build the expression using C#'s native ?? operator.
         // For `a ?? b ?? c`, emit `a ?? b ?? c` directly.
@@ -9985,7 +10692,9 @@ internal sealed class CSharpSourceWriter
         var left = EmitLogicalAnd(logicalOr.Left);
 
         if(logicalOr.Right is null || ReferenceEquals(logicalOr.Right, logicalOr.Left))
+        {
             return left;
+        }
 
         var right = EmitLogicalAnd(logicalOr.Right);
         return EmitBinaryOperator(logicalOr, "||", left, right);
@@ -9996,7 +10705,9 @@ internal sealed class CSharpSourceWriter
         var left = EmitEquality(logicalAnd.Left);
 
         if(logicalAnd.Right is null || ReferenceEquals(logicalAnd.Right, logicalAnd.Left))
+        {
             return left;
+        }
 
         var right = EmitEquality(logicalAnd.Right);
         return EmitBinaryOperator(logicalAnd, "&&", left, right);
@@ -10007,7 +10718,9 @@ internal sealed class CSharpSourceWriter
         var left = EmitRelational(equality.Left);
 
         if(equality.Right is null || ReferenceEquals(equality.Right, equality.Left))
+        {
             return left;
+        }
 
         var op = equality.Operator.Lexeme;
         var right = EmitRelational(equality.Right);
@@ -10037,7 +10750,9 @@ internal sealed class CSharpSourceWriter
                     var left = EmitAdditive(cmp.Left);
 
                     if(cmp.Right is null || ReferenceEquals(cmp.Right, cmp.Left))
+                    {
                         return left;
+                    }
 
                     var op = cmp.Operator.Lexeme;
                     var right = EmitAdditive(cmp.Right);
@@ -10055,7 +10770,9 @@ internal sealed class CSharpSourceWriter
                     {
                         var unionResult = TryEmitUnionPatternMatch(isExpr.Pattern, unionType, left);
                         if(unionResult is not null)
+                        {
                             return unionResult;
+                        }
                     }
 
                     // Refinement type pattern matching: emit runtime predicate check
@@ -10065,7 +10782,9 @@ internal sealed class CSharpSourceWriter
                     // the then-branch.
                     var refinementResult = TryEmitRefinementPatternMatch(isExpr.Pattern, left);
                     if(refinementResult is not null)
+                    {
                         return refinementResult;
+                    }
 
                     // Unknown scrutinee with property pattern: C# property patterns
                     // don't work against `object` because the properties aren't known
@@ -10075,20 +10794,26 @@ internal sealed class CSharpSourceWriter
                     {
                         var unknownResult = TryEmitUnknownPropertyPatternMatch(isExpr.Pattern, left);
                         if(unknownResult is not null)
+                        {
                             return unknownResult;
+                        }
                     }
 
                     // Enum member pattern matching: emit value equality check
                     // (`scrutinee == EnumName.MemberName`) instead of C#'s `is` pattern.
                     var enumResult = TryEmitEnumPatternMatch(isExpr.Pattern, left);
                     if(enumResult is not null)
+                    {
                         return enumResult;
+                    }
 
                     // Regex pattern matching: emit Regex.IsMatch(scrutinee, "^(?:pattern)$")
                     // instead of C#'s native `is` pattern (C# doesn't support regex patterns).
                     var regexResult = TryEmitRegexPatternMatch(isExpr.Pattern, left);
                     if(regexResult is not null)
+                    {
                         return regexResult;
+                    }
 
                     var pattern = EmitPattern(isExpr.Pattern, scrutineeType);
                     return $"{left} is {pattern}";
@@ -10235,21 +10960,29 @@ internal sealed class CSharpSourceWriter
         // plain T for reference types with null representing void). They do NOT use union
         // helper structs, so standard C# `is` pattern emission handles them correctly.
         if(CSharpTypeMap.IsOptionalUnion(unionType))
+        {
             return null;
+        }
 
         // Navigate the pattern chain: Pattern → OrPattern → AndPattern → UnaryPattern → PrimaryPattern
         // Only handle simple (non-compound) patterns for union emission.
         var orPattern = pattern.OrPattern;
         if(orPattern.Right is not null && !ReferenceEquals(orPattern.Right, orPattern.Left))
+        {
             return null; // or-pattern — fall through to standard emission
+        }
 
         var andPattern = orPattern.Left;
         if(andPattern.Right is not null && !ReferenceEquals(andPattern.Right, andPattern.Left))
+        {
             return null; // and-pattern — fall through to standard emission
+        }
 
         var unaryPattern = andPattern.Left;
         if(unaryPattern is not DirectPatternUnaryPatternNode directPattern)
+        {
             return null; // not-pattern — fall through to standard emission
+        }
 
         var primaryPattern = directPattern.Primary;
 
@@ -10263,12 +10996,16 @@ internal sealed class CSharpSourceWriter
                     var patternType = _model.GetTypeOf(typePattern.Type);
                     patternType ??= _model.GetDeclaredSymbol(typePattern)?.DeclaredType;
                     if(patternType is null)
+                    {
                         return null;
+                    }
 
                     // Find the constituent that matches the pattern type.
                     var constituentName = FindConstituentName(patternType, unionType);
                     if(constituentName is null)
+                    {
                         return null; // Not a constituent — emit standard (dead code per type checker warning)
+                    }
 
                     var bindingName = typePattern.Name.Lexeme;
                     var csharpTypeName = CSharpTypeMap.GetTypeName(patternType);
@@ -10352,15 +11089,21 @@ internal sealed class CSharpSourceWriter
         // Only handle simple (non-compound) patterns for union emission.
         var orPattern = pattern.OrPattern;
         if(orPattern.Right is not null && !ReferenceEquals(orPattern.Right, orPattern.Left))
+        {
             return null; // or-pattern — fall through to standard emission
+        }
 
         var andPattern = orPattern.Left;
         if(andPattern.Right is not null && !ReferenceEquals(andPattern.Right, andPattern.Left))
+        {
             return null; // and-pattern — fall through to standard emission
+        }
 
         var unaryPattern = andPattern.Left;
         if(unaryPattern is not DirectPatternUnaryPatternNode directPattern)
+        {
             return null; // not-pattern — fall through to standard emission
+        }
 
         var primaryPattern = directPattern.Primary;
 
@@ -10372,11 +11115,15 @@ internal sealed class CSharpSourceWriter
                     var patternType = _model.GetTypeOf(typePattern.Type);
                     patternType ??= _model.GetDeclaredSymbol(typePattern)?.DeclaredType;
                     if(patternType is null)
+                    {
                         return null;
+                    }
 
                     var constituentName = FindConstituentName(patternType, unionType);
                     if(constituentName is null)
+                    {
                         return null;
+                    }
 
                     var bindingName = typePattern.Name.Lexeme;
 
@@ -10395,11 +11142,15 @@ internal sealed class CSharpSourceWriter
                     // Resolve the pattern type to find the matching constituent.
                     var patternType = _model.GetTypeOf(bareTypePattern.Type);
                     if(patternType is null)
+                    {
                         return null;
+                    }
 
                     var constituentName = FindConstituentName(patternType, unionType);
                     if(constituentName is null)
+                    {
                         return null;
+                    }
 
                     // Emit property pattern: { Is{T}: true }
                     return $"{{ Is{constituentName}: true }}";
@@ -10431,21 +11182,31 @@ internal sealed class CSharpSourceWriter
         // Navigate: Pattern → OrPattern → AndPattern → UnaryPattern → PrimaryPattern
         var orPattern = pattern.OrPattern;
         if(orPattern.Right is not null && !ReferenceEquals(orPattern.Right, orPattern.Left))
+        {
             return null;
+        }
 
         var andPattern = orPattern.Left;
         if(andPattern.Right is not null && !ReferenceEquals(andPattern.Right, andPattern.Left))
+        {
             return null;
+        }
 
         var unaryPattern = andPattern.Left;
         if(unaryPattern is not DirectPatternUnaryPatternNode directPattern)
+        {
             return null;
+        }
 
         if(directPattern.Primary is not PropertyPatternPrimaryPatternNode propertyPattern)
+        {
             return null;
+        }
 
         if(propertyPattern.Subpatterns is null)
+        {
             return null;
+        }
 
         // Generate a unique dynamic variable name to avoid collisions.
         var dynVar = $"__pat_{_nextPatternId++}";
@@ -10509,15 +11270,21 @@ internal sealed class CSharpSourceWriter
         // Only handle simple (non-compound) patterns for refinement emission.
         var orPattern = pattern.OrPattern;
         if(orPattern.Right is not null && !ReferenceEquals(orPattern.Right, orPattern.Left))
+        {
             return null; // or-pattern — fall through to standard emission
+        }
 
         var andPattern = orPattern.Left;
         if(andPattern.Right is not null && !ReferenceEquals(andPattern.Right, andPattern.Left))
+        {
             return null; // and-pattern — fall through to standard emission
+        }
 
         var unaryPattern = andPattern.Left;
         if(unaryPattern is not DirectPatternUnaryPatternNode directPattern)
+        {
             return null; // not-pattern — fall through to standard emission
+        }
 
         var primaryPattern = directPattern.Primary;
 
@@ -10529,7 +11296,9 @@ internal sealed class CSharpSourceWriter
                     var patternType = _model.GetTypeOf(typePattern.Type);
                     patternType ??= _model.GetDeclaredSymbol(typePattern)?.DeclaredType;
                     if(patternType is not RefinementType refinementType)
+                    {
                         return null;
+                    }
 
                     var bindingName = typePattern.Name.Lexeme;
                     var condition = EmitRefinementPredicateCondition(refinementType.Predicate, scrutineeExpr);
@@ -10550,7 +11319,9 @@ internal sealed class CSharpSourceWriter
                     // Resolve the pattern type to check if it's a refinement type.
                     var patternType = _model.GetTypeOf(bareTypePattern.Type);
                     if(patternType is not RefinementType refinementType)
+                    {
                         return null;
+                    }
 
                     return EmitRefinementPredicateCondition(refinementType.Predicate, scrutineeExpr);
                 }
@@ -10576,15 +11347,21 @@ internal sealed class CSharpSourceWriter
         // Navigate the pattern chain: Pattern → OrPattern → AndPattern → UnaryPattern → PrimaryPattern
         var orPattern = pattern.OrPattern;
         if(orPattern.Right is not null && !ReferenceEquals(orPattern.Right, orPattern.Left))
+        {
             return null;
+        }
 
         var andPattern = orPattern.Left;
         if(andPattern.Right is not null && !ReferenceEquals(andPattern.Right, andPattern.Left))
+        {
             return null;
+        }
 
         var unaryPattern = andPattern.Left;
         if(unaryPattern is not DirectPatternUnaryPatternNode directPattern)
+        {
             return null;
+        }
 
         var primaryPattern = directPattern.Primary;
 
@@ -10595,7 +11372,9 @@ internal sealed class CSharpSourceWriter
                     var patternType = _model.GetTypeOf(typePattern.Type);
                     patternType ??= _model.GetDeclaredSymbol(typePattern)?.DeclaredType;
                     if(patternType is not RefinementType refinementType)
+                    {
                         return null;
+                    }
 
                     var bindingName = typePattern.Name.Lexeme;
                     var condition = EmitRefinementPredicateCondition(refinementType.Predicate, bindingName);
@@ -10606,7 +11385,9 @@ internal sealed class CSharpSourceWriter
                 {
                     var patternType = _model.GetTypeOf(bareTypePattern.Type);
                     if(patternType is not RefinementType refinementType)
+                    {
                         return null;
+                    }
 
                     // Use a synthetic variable name for the guard condition.
                     var condition = EmitRefinementPredicateCondition(refinementType.Predicate, scrutineeExpr);
@@ -10668,9 +11449,14 @@ internal sealed class CSharpSourceWriter
                     var innerParts = new List<string>();
                     EmitPrimaryPatternCondition(not.Operand, scrutineeExpr, innerParts);
                     if(innerParts.Count == 1)
+                    {
                         parts.Add($"!({innerParts[0]})");
+                    }
                     else
+                    {
                         parts.Add($"!({string.Join(" && ", innerParts)})");
+                    }
+
                     break;
                 }
         }
@@ -10728,7 +11514,9 @@ internal sealed class CSharpSourceWriter
     private void EmitPropertyPatternConditions(PropertyPatternPrimaryPatternNode propertyPattern, string scrutineeExpr, List<string> parts)
     {
         if(propertyPattern.Subpatterns is null)
+        {
             return;
+        }
 
         // Emit the first subpattern.
         EmitSinglePropertySubpatternCondition(propertyPattern.Subpatterns.PropertySubpattern, scrutineeExpr, parts);
@@ -10753,7 +11541,9 @@ internal sealed class CSharpSourceWriter
         // The subpattern's pattern is a full PatternNode — recursively emit it.
         var condition = EmitInnerPatternCondition(subpattern.Pattern, propertyAccess);
         if(!string.IsNullOrEmpty(condition))
+        {
             parts.Add(condition);
+        }
     }
 
     /// <summary>
@@ -10815,25 +11605,35 @@ internal sealed class CSharpSourceWriter
         // Only handle simple (non-compound) patterns for enum emission.
         var orPattern = pattern.OrPattern;
         if(orPattern.Right is not null && !ReferenceEquals(orPattern.Right, orPattern.Left))
+        {
             return null; // or-pattern — fall through to standard emission
+        }
 
         var andPattern = orPattern.Left;
         if(andPattern.Right is not null && !ReferenceEquals(andPattern.Right, andPattern.Left))
+        {
             return null; // and-pattern — fall through to standard emission
+        }
 
         var unaryPattern = andPattern.Left;
         if(unaryPattern is not DirectPatternUnaryPatternNode directPattern)
+        {
             return null; // not-pattern — fall through to standard emission
+        }
 
         var primaryPattern = directPattern.Primary;
 
         if(primaryPattern is not BareTypePatternPrimaryPatternNode bareTypePattern)
+        {
             return null;
+        }
 
         // Check if the resolved type for this pattern is an EnumType.
         var patternType = _model.GetTypeOf(bareTypePattern.Type);
         if(patternType is not EnumType)
+        {
             return null;
+        }
 
         // The type reference contains the qualified name (e.g., "Direction.North").
         // Extract it directly — this is an enum member access, not a type reference.
@@ -10859,18 +11659,26 @@ internal sealed class CSharpSourceWriter
         // Navigate the pattern chain: Pattern → OrPattern → AndPattern → UnaryPattern → PrimaryPattern
         var orPattern = pattern.OrPattern;
         if(orPattern.Right is not null && !ReferenceEquals(orPattern.Right, orPattern.Left))
+        {
             return null;
+        }
 
         var andPattern = orPattern.Left;
         if(andPattern.Right is not null && !ReferenceEquals(andPattern.Right, andPattern.Left))
+        {
             return null;
+        }
 
         var unaryPattern = andPattern.Left;
         if(unaryPattern is not DirectPatternUnaryPatternNode directPattern)
+        {
             return null;
+        }
 
         if(directPattern.Primary is not ConstantPatternPrimaryPatternNode { Literal: RegexConstantConstantLiteralNode regexConst })
+        {
             return null;
+        }
 
         var escapedPattern = ExtractRegexPatternForMatch(regexConst.Value.Lexeme);
         return $"System.Text.RegularExpressions.Regex.IsMatch({scrutineeExpr}, \"^(?:{escapedPattern})$\")";
@@ -10887,18 +11695,26 @@ internal sealed class CSharpSourceWriter
         // Navigate the pattern chain: Pattern → OrPattern → AndPattern → UnaryPattern → PrimaryPattern
         var orPattern = pattern.OrPattern;
         if(orPattern.Right is not null && !ReferenceEquals(orPattern.Right, orPattern.Left))
+        {
             return null;
+        }
 
         var andPattern = orPattern.Left;
         if(andPattern.Right is not null && !ReferenceEquals(andPattern.Right, andPattern.Left))
+        {
             return null;
+        }
 
         var unaryPattern = andPattern.Left;
         if(unaryPattern is not DirectPatternUnaryPatternNode directPattern)
+        {
             return null;
+        }
 
         if(directPattern.Primary is not ConstantPatternPrimaryPatternNode { Literal: RegexConstantConstantLiteralNode regexConst })
+        {
             return null;
+        }
 
         var escapedPattern = ExtractRegexPatternForMatch(regexConst.Value.Lexeme);
         return $"string __s when System.Text.RegularExpressions.Regex.IsMatch(__s, \"^(?:{escapedPattern})$\")";
@@ -10959,7 +11775,9 @@ internal sealed class CSharpSourceWriter
         var left = EmitAndPattern(orPattern.Left, scrutineeType);
 
         if(orPattern.Right is null || ReferenceEquals(orPattern.Right, orPattern.Left))
+        {
             return left;
+        }
 
         var right = EmitAndPattern(orPattern.Right, scrutineeType);
         return $"{left} or {right}";
@@ -10970,7 +11788,9 @@ internal sealed class CSharpSourceWriter
         var left = EmitUnaryPattern(andPattern.Left, scrutineeType);
 
         if(andPattern.Right is null || ReferenceEquals(andPattern.Right, andPattern.Left))
+        {
             return left;
+        }
 
         var right = EmitUnaryPattern(andPattern.Right, scrutineeType);
         return $"{left} and {right}";
@@ -11121,7 +11941,9 @@ internal sealed class CSharpSourceWriter
             case ListPatternPrimaryPatternNode listPattern:
                 {
                     if(listPattern.Elements is null)
+                    {
                         return "[]";
+                    }
 
                     return $"[{EmitListPatternElementList(listPattern.Elements)}]";
                 }
@@ -11206,7 +12028,10 @@ internal sealed class CSharpSourceWriter
                 {
                     // C# requires `.. var name` for slice variables (Mist uses `.. name`)
                     if(sliceElement.Name.HasValue)
+                    {
                         return $".. var {sliceElement.Name.Value.Lexeme}";
+                    }
+
                     return "..";
                 }
             default:
@@ -11219,7 +12044,9 @@ internal sealed class CSharpSourceWriter
         var left = EmitMultiplicative(additive.Left);
 
         if(additive.Right is null || ReferenceEquals(additive.Right, additive.Left))
+        {
             return left;
+        }
 
         var op = additive.Operator.Lexeme;
         var right = EmitMultiplicative(additive.Right);
@@ -11231,7 +12058,9 @@ internal sealed class CSharpSourceWriter
         var left = EmitUnary(multiplicative.Left);
 
         if(multiplicative.Right is null || ReferenceEquals(multiplicative.Right, multiplicative.Left))
+        {
             return left;
+        }
 
         var op = multiplicative.Operator.Lexeme;
         var right = EmitUnary(multiplicative.Right);
@@ -11265,7 +12094,10 @@ internal sealed class CSharpSourceWriter
                     // If async: emit the call directly (captures the Task without await).
                     // If sync: wrap in Task.Run(() => call).
                     if(IsAsyncFunctorTargetAsync(asyncExpr))
+                    {
                         return operand;
+                    }
+
                     return $"System.Threading.Tasks.Task.Run(() => {operand})";
                 }
             case AwaitExpressionUnaryNode awaitExpr:
@@ -11336,7 +12168,9 @@ internal sealed class CSharpSourceWriter
     {
         // The operand should be a PostfixExpressionUnaryNode containing the method call.
         if(asyncExpr.Operand is not PostfixExpressionUnaryNode postfixUnary)
+        {
             return false;
+        }
 
         var postfix = postfixUnary.Primary;
 
@@ -11356,12 +12190,18 @@ internal sealed class CSharpSourceWriter
             // The receiver is the type of the expression before the last suffix.
             IType? receiverType;
             if(postfix.Suffix.Length == 1)
+            {
                 receiverType = _model.GetTypeOf(postfix.Target);
+            }
             else
+            {
                 receiverType = _model.GetTypeOf(postfix.Suffix[^2]);
+            }
 
             if(receiverType is null)
+            {
                 return false;
+            }
 
             // Look up the method symbol in the receiver type.
             var methodSymbol = FindMethodInType(receiverType, memberName);
@@ -11379,15 +12219,21 @@ internal sealed class CSharpSourceWriter
     {
         var scope = GetMemberScopeForType(type);
         if(scope is null)
+        {
             return null;
+        }
 
         var found = scope.Lookup(methodName);
         if(found is Symbol { Kind: SymbolKind.Method } sym)
+        {
             return sym;
+        }
 
         // Check base type for classes.
         if(type is ClassType classType && classType.BaseType is not null)
+        {
             return FindMethodInType(classType.BaseType, methodName);
+        }
 
         return null;
     }
@@ -11415,17 +12261,23 @@ internal sealed class CSharpSourceWriter
                     match = memberSym;
                     matchCount++;
                     if(matchCount > 1)
+                    {
                         return null; // Ambiguous — multiple matches, can't determine which one.
+                    }
                 }
             }
 
             if(matchCount == 1)
+            {
                 return match;
+            }
         }
 
         // Check base type for classes.
         if(type is ClassType classType && classType.BaseType is not null)
+        {
             return ResolveMethodFromType(classType.BaseType, methodName, argCount);
+        }
 
         return null;
     }
@@ -11473,7 +12325,9 @@ internal sealed class CSharpSourceWriter
             var declaringType = GetQualifiedTypeName(intrinsicSymbol);
             var template = _intrinsicRegistry.TryGetCastOperator(declaringType, targetType);
             if(template is not null)
+            {
                 return string.Format(template.Template, operand);
+            }
 
             // Fallback to standard C# cast if no template found.
             return $"(({targetType}){operand})";
@@ -11587,7 +12441,9 @@ internal sealed class CSharpSourceWriter
         string emittedInit)
     {
         if(sourceType is null || targetType is null)
+        {
             return emittedInit;
+        }
 
         // func → DelegateType: wrap with new DelegateName(expr)
         if(targetType is DelegateType targetDelegate && SemanticModelBuilder.IsFuncType(sourceType))
@@ -11631,10 +12487,14 @@ internal sealed class CSharpSourceWriter
     {
         var effectiveType = methodSymbol.EffectiveReturnType;
         if(effectiveType is null)
+        {
             return "System.Threading.Tasks.Task";
+        }
 
         if(effectiveType is not ConstructedType ct || ct.TypeArguments.Count == 0)
+        {
             return CSharpTypeMap.GetTypeName(effectiveType);
+        }
 
         // Explicit ValueTask<T> return type: the method's EffectiveReturnType is
         // a ConstructedType whose generic definition is Standard.ValueTask. Emit
@@ -11644,7 +12504,9 @@ internal sealed class CSharpSourceWriter
         {
             var innerType = ct.TypeArguments[0];
             if(innerType.IsVoid())
+            {
                 return "System.Threading.Tasks.ValueTask";
+            }
 
             var innerTypeName = CSharpTypeMap.GetTypeName(innerType, isValueContext: true);
             return $"System.Threading.Tasks.ValueTask<{innerTypeName}>";
@@ -11691,7 +12553,9 @@ internal sealed class CSharpSourceWriter
             var declaringType = GetQualifiedTypeName(intrinsicSymbol);
             var template = _intrinsicRegistry.TryGetBinaryOperator(declaringType, op);
             if(template is not null)
+            {
                 return string.Format(template.Template, left, right);
+            }
 
             // Template not found — emit MIST_BE_0002 hard error (Requirements 5.9, 5.10).
             var memberSig = $"{declaringType}.operator{op}";
@@ -11740,7 +12604,9 @@ internal sealed class CSharpSourceWriter
             var declaringType = GetQualifiedTypeName(intrinsicSymbol);
             var template = _intrinsicRegistry.TryGetUnaryOperator(declaringType, op);
             if(template is not null)
+            {
                 return string.Format(template.Template, operand);
+            }
 
             // Template not found — emit MIST_BE_0002 hard error (Requirements 5.9, 5.10).
             var memberSig = $"{declaringType}.operator{op}";
@@ -11814,10 +12680,14 @@ internal sealed class CSharpSourceWriter
             foreach(var sibling in memberScope.Parent.Members)
             {
                 if(sibling.DeclaredType is ClassType ct && ct.MemberScope == memberScope)
+                {
                     return CSharpTypeMap.GetTypeName(ct);
+                }
 
                 if(sibling.DeclaredType is StructType st && st.MemberScope == memberScope)
+                {
                     return CSharpTypeMap.GetTypeName(st);
+                }
             }
         }
 
@@ -11907,9 +12777,13 @@ internal sealed class CSharpSourceWriter
             && IsPostfixAsyncMethodCall(postfix))
         {
             if(_insideSyncLambdaAutoAwait)
+            {
                 primaryResult = $"{primaryResult}.GetAwaiter().GetResult()";
+            }
             else
+            {
                 primaryResult = $"await {primaryResult}";
+            }
         }
         return primaryResult;
     }
@@ -11922,7 +12796,9 @@ internal sealed class CSharpSourceWriter
     private bool IsPostfixAsyncMethodCall(PostfixNode postfix)
     {
         if(postfix.Suffix.Length == 0)
+        {
             return false;
+        }
 
         // Case 1: Direct invocation — identifier(args)
         if(postfix.Suffix[^1] is InvocationSuffixPostfixSuffixNode)
@@ -11932,7 +12808,9 @@ internal sealed class CSharpSourceWriter
             // (propagated async due to transitive calls). A method with NeedsCSharpAsync
             // emits as async Task<T> in C#, so callers must await it.
             if(targetSymbol is Symbol { IsAsync: true } or Symbol { NeedsCSharpAsync: true })
+            {
                 return true;
+            }
 
             // Case 1b: Func invocation — the target is a Func variable with Task<T> return type.
             var targetType = _model.GetTypeOf(postfix.Target);
@@ -11942,7 +12820,9 @@ internal sealed class CSharpSourceWriter
             {
                 var funcReturnType = SemanticModelBuilder.GetFuncReturnType(funcCt);
                 if(SemanticModelBuilder.IsStandardTaskType(funcReturnType))
+                {
                     return true;
+                }
             }
 
             // Fallback: check the symbol's declared type (in case GetTypeOf returns
@@ -11953,7 +12833,9 @@ internal sealed class CSharpSourceWriter
             {
                 var funcReturnType = SemanticModelBuilder.GetFuncReturnType(funcCtFromSym);
                 if(SemanticModelBuilder.IsStandardTaskType(funcReturnType))
+                {
                     return true;
+                }
             }
 
             return false;
@@ -11968,16 +12850,22 @@ internal sealed class CSharpSourceWriter
             // The receiver is the type of the expression before the last suffix.
             IType? receiverType;
             if(postfix.Suffix.Length == 1)
+            {
                 receiverType = _model.GetTypeOf(postfix.Target);
+            }
             else
+            {
                 receiverType = _model.GetTypeOf(postfix.Suffix[^2]);
+            }
 
             if(receiverType is not null and not ErrorType)
             {
                 // Look up the method symbol in the receiver type.
                 var methodSymbol = FindMethodInType(receiverType, memberName);
                 if(methodSymbol is { IsAsync: true } or { NeedsCSharpAsync: true })
+                {
                     return true;
+                }
             }
 
             // Fallback: for namespace-qualified calls (Namespace.Type.Method()) where
@@ -12014,22 +12902,32 @@ internal sealed class CSharpSourceWriter
         }
 
         if(suffixIndex < 1)
+        {
             return null;
+        }
 
         if(postfix.Target is not IdentifierExpressionPrimaryNode targetId)
+        {
             return null;
+        }
 
         var parts = new List<string> { targetId.Name.Lexeme };
         for(var i = 0; i < suffixIndex; i++)
         {
             if(postfix.Suffix[i] is MemberAccessSuffixPostfixSuffixNode memberAccess)
+            {
                 parts.Add(memberAccess.Name.Lexeme);
+            }
             else
+            {
                 return null;
+            }
         }
 
         if(parts.Count < 2)
+        {
             return null;
+        }
 
         var typeName = parts[^1];
         var namespaceName = string.Join(".", parts.Take(parts.Count - 1));
@@ -12037,19 +12935,31 @@ internal sealed class CSharpSourceWriter
         foreach(var symbol in _model.AllSymbols)
         {
             if(symbol is not Symbol sym)
+            {
                 continue;
+            }
+
             if(sym.Kind is not (SymbolKind.Class or SymbolKind.Struct))
+            {
                 continue;
+            }
+
             if(sym.Name != typeName)
+            {
                 continue;
+            }
 
             var containingNs = (sym.DeclaredType as ClassType)?.ContainingNamespace
                              ?? (sym.DeclaredType as StructType)?.ContainingNamespace;
             if(containingNs != namespaceName)
+            {
                 continue;
+            }
 
             if(sym.DeclaredType is null)
+            {
                 continue;
+            }
 
             return FindMethodInType(sym.DeclaredType, methodName);
         }
@@ -12205,7 +13115,11 @@ internal sealed class CSharpSourceWriter
                                 var applicable = _model.ExtensionRegistry.GetApplicableExtensions(receiverType);
                                 foreach(var ext in applicable)
                                 {
-                                    if(ext.IsAmbient) continue;
+                                    if(ext.IsAmbient)
+                                    {
+                                        continue;
+                                    }
+
                                     if(ext.MemberScope.Lookup(name) is not null)
                                     {
                                         hasNativeExtension = true;
@@ -12279,7 +13193,10 @@ internal sealed class CSharpSourceWriter
                     sb.Append('\n');
                     // Emit opening brace at current indent level
                     for(var i = 0; i < _indentLevel; i++)
+                    {
                         sb.Append(IndentUnit);
+                    }
+
                     sb.Append('{');
                     _indentLevel++;
 
@@ -12289,7 +13206,9 @@ internal sealed class CSharpSourceWriter
                         {
                             sb.Append('\n');
                             for(var i = 0; i < _indentLevel; i++)
+                            {
                                 sb.Append(IndentUnit);
+                            }
 
                             // Union type scrutinee: emit property patterns using Is{T}/As{T}
                             // discriminator properties instead of C#'s native type patterns.
@@ -12357,7 +13276,10 @@ internal sealed class CSharpSourceWriter
                     _indentLevel--;
                     sb.Append('\n');
                     for(var i = 0; i < _indentLevel; i++)
+                    {
                         sb.Append(IndentUnit);
+                    }
+
                     sb.Append('}');
                     return sb.ToString();
                 }
@@ -12432,7 +13354,9 @@ internal sealed class CSharpSourceWriter
         };
 
         if(stdlibType is null)
+        {
             return null;
+        }
 
         // Build parameter type list for lookup.
         // For now, use "unknown" for unknown-typed parameters since that's
@@ -12445,7 +13369,9 @@ internal sealed class CSharpSourceWriter
 
         var template = _intrinsicRegistry.TryGetStaticMethod(stdlibType, methodName, paramTypes);
         if(template is null)
+        {
             return null;
+        }
 
         // Emit arguments and substitute into the template.
         if(arguments is not null)
@@ -12478,7 +13404,9 @@ internal sealed class CSharpSourceWriter
     private IReadOnlyList<string> CollectArgumentTypes(ArgumentListNode? arguments)
     {
         if(arguments is null)
+        {
             return Array.Empty<string>();
+        }
 
         var types = new List<string>();
         foreach(var expr in arguments.GetAllExpressions())
@@ -12546,18 +13474,27 @@ internal sealed class CSharpSourceWriter
                         {
                             var typeArgNodes = new List<TypeArgumentNode> { objCreation.TypeArgs.TypeArgument };
                             foreach(var extra in objCreation.TypeArgs.TypeArguments)
+                            {
                                 typeArgNodes.Add(extra);
+                            }
+
                             if(typeArgNodes.Count == 2)
                             {
                                 var elementTypeName = CSharpTypeMap.GetTypeName(initArrayType.ElementType);
                                 // Extract the size expression from the second type argument.
                                 string sizeExpr;
                                 if(typeArgNodes[1] is IntegerLiteralTypeArgumentTypeArgumentNode intLitArg)
+                                {
                                     sizeExpr = intLitArg.Literal.Lexeme;
+                                }
                                 else if(initArrayType.KnownLength.HasValue)
+                                {
                                     sizeExpr = initArrayType.KnownLength.Value.ToString();
+                                }
                                 else
+                                {
                                     sizeExpr = "0"; // Fallback — should not happen for valid code.
+                                }
 
                                 // Emit the initializer function argument.
                                 string fnExpr;
@@ -12766,7 +13703,9 @@ internal sealed class CSharpSourceWriter
                 {
                     var resolvedType = _model.GetTypeOf(targetNew);
                     if(resolvedType is null || resolvedType is ErrorType)
+                    {
                         return "default /* error: unresolved target-typed new */";
+                    }
 
                     var typeName = CSharpTypeMap.GetTypeName(resolvedType);
                     var args = EmitArgumentList(targetNew.Arguments);
@@ -12791,7 +13730,9 @@ internal sealed class CSharpSourceWriter
                 {
                     var resolvedType = _model.GetTypeOf(targetNewNoArgs);
                     if(resolvedType is null || resolvedType is ErrorType)
+                    {
                         return "default /* error: unresolved target-typed new */";
+                    }
 
                     var typeName = CSharpTypeMap.GetTypeName(resolvedType);
                     var initParts = new List<string>();
@@ -12876,7 +13817,9 @@ internal sealed class CSharpSourceWriter
                 {
                     var elements = new List<string> { EmitExpression(arrayLiteral.First) };
                     foreach(var elem in arrayLiteral.Expressions)
+                    {
                         elements.Add(EmitExpression(elem));
+                    }
 
                     // When the array literal is assigned to a variable with an explicit
                     // array type annotation, emit `new T[] { ... }` instead of `new[] { ... }`.
@@ -12916,13 +13859,17 @@ internal sealed class CSharpSourceWriter
                     {
                         var mapped = CSharpTypeMap.TryGetMappedName(identName);
                         if(mapped is not null)
+                        {
                             return mapped;
+                        }
                     }
                     if(resolvedType is StructType st && st.IsBackendBacked && st.ContainingNamespace == "Standard")
                     {
                         var mapped = CSharpTypeMap.TryGetMappedName(identName);
                         if(mapped is not null)
+                        {
                             return mapped;
+                        }
                     }
 
                     return identName;
@@ -12937,7 +13884,10 @@ internal sealed class CSharpSourceWriter
                     {
                         // Value literal context: emit the Void singleton.
                         if(_emitVoidAsNull)
+                        {
                             return "null";
+                        }
+
                         _needsMistVoidStruct = true;
                         return "MistVoid.Instance";
                     }
@@ -12950,7 +13900,9 @@ internal sealed class CSharpSourceWriter
                     // Resolve the type from the semantic model's expression type map.
                     var resolvedType = _model.GetTypeOf(defaultExpr);
                     if(resolvedType is not null)
+                    {
                         return EmitDefaultValueForType(resolvedType);
+                    }
 
                     // Fallback: emit using the type reference text directly.
                     var typeRef = EmitTypeReference(defaultExpr.Type);
@@ -12962,7 +13914,9 @@ internal sealed class CSharpSourceWriter
                     // during Pass 2 or by the type checker's inference pass.
                     var resolvedType = _model.GetTypeOf(defaultLiteral);
                     if(resolvedType is not null)
+                    {
                         return EmitDefaultValueForType(resolvedType);
+                    }
 
                     // Fallback: bare default keyword (should not normally reach here
                     // because the type checker would have emitted a diagnostic).
@@ -13004,7 +13958,9 @@ internal sealed class CSharpSourceWriter
 
             // String default in Mist is "" (not null).
             if(csharpName == "string")
+            {
                 return "\"\"";
+            }
 
             // Primitive types use C# default literal.
             return $"default({csharpName})";
@@ -13067,7 +14023,10 @@ internal sealed class CSharpSourceWriter
 
     private static string EmitModifiers(ImmutableArray<ModifierNode> modifiers)
     {
-        if(modifiers.IsEmpty) return "";
+        if(modifiers.IsEmpty)
+        {
+            return "";
+        }
 
         var parts = new List<string>();
         foreach(var mod in modifiers)
@@ -13086,7 +14045,11 @@ internal sealed class CSharpSourceWriter
             }
         }
 
-        if(parts.Count == 0) return "";
+        if(parts.Count == 0)
+        {
+            return "";
+        }
+
         return string.Join(" ", parts) + " ";
     }
 
@@ -13121,7 +14084,10 @@ internal sealed class CSharpSourceWriter
             {
                 var keyword = CSharpTypeMap.GetKeyword(depParam.ValueType);
                 if(emitted)
+                {
                     AppendLine();
+                }
+
                 AppendLine($"public static {keyword} {depParam.Name} => T{depParam.Name}.Value;");
                 emitted = true;
             }
@@ -13133,7 +14099,10 @@ internal sealed class CSharpSourceWriter
 
     private static string EmitTypeParameterList(TypeParameterListNode? typeParams)
     {
-        if(typeParams is null) return "";
+        if(typeParams is null)
+        {
+            return "";
+        }
 
         var parts = new List<string>();
         parts.Add(EmitSingleTypeParameterName(typeParams.TypeParameter));
@@ -13170,11 +14139,16 @@ internal sealed class CSharpSourceWriter
     /// </summary>
     private string EmitTypeArgumentList(TypeArgumentListNode? typeArgs, IReadOnlyList<IType>? targetTypeParams)
     {
-        if(typeArgs is null) return "";
+        if(typeArgs is null)
+        {
+            return "";
+        }
 
         var allArgs = new List<TypeArgumentNode> { typeArgs.TypeArgument };
         foreach(var arg in typeArgs.TypeArguments)
+        {
             allArgs.Add(arg);
+        }
 
         var parts = new List<string>(allArgs.Count);
         for(var i = 0; i < allArgs.Count; i++)
@@ -13202,7 +14176,9 @@ internal sealed class CSharpSourceWriter
     {
         var inferredTypes = _model.GetInferredTypeArguments(methodCall);
         if(inferredTypes is null || inferredTypes.Count == 0)
+        {
             return "";
+        }
 
         var parts = new List<string>(inferredTypes.Count);
         foreach(var type in inferredTypes)
@@ -13330,7 +14306,9 @@ internal sealed class CSharpSourceWriter
             foreach(var tp in _currentMethodSymbol.TypeParameters)
             {
                 if(tp is DependentTypeParameterType depParam && depParam.Name == name)
+                {
                     return true;
+                }
             }
         }
 
@@ -13355,7 +14333,11 @@ internal sealed class CSharpSourceWriter
         if(long.TryParse(lexeme, System.Globalization.NumberStyles.Integer,
             System.Globalization.CultureInfo.InvariantCulture, out var value))
         {
-            if(negated) value = -value;
+            if(negated)
+            {
+                value = -value;
+            }
+
             var suffix = value < 0
                 ? $"Neg{(-value).ToString(System.Globalization.CultureInfo.InvariantCulture)}"
                 : value.ToString(System.Globalization.CultureInfo.InvariantCulture);
@@ -13434,7 +14416,9 @@ internal sealed class CSharpSourceWriter
             {
                 var typeParams = GetTypeParametersFromType(symbol.DeclaredType);
                 if(typeParams.Count > 0)
+                {
                     return typeParams;
+                }
             }
         }
         return null;
@@ -13587,31 +14571,48 @@ internal sealed class CSharpSourceWriter
                 continue;
             }
 
-            if(typeParam is not TypeParameterType tpt) continue;
+            if(typeParam is not TypeParameterType tpt)
+            {
+                continue;
+            }
+
             var constraints = tpt.Constraints;
-            if(constraints is null) continue;
+            if(constraints is null)
+            {
+                continue;
+            }
 
             var parts = new List<string>();
 
             // 1. class/struct first
             if(constraints.HasClassConstraint)
+            {
                 parts.Add("class");
+            }
             else if(constraints.HasStructConstraint)
+            {
                 parts.Add("struct");
+            }
 
             // 2. Base class
             if(constraints.BaseClassConstraint is not null)
+            {
                 parts.Add(CSharpTypeMap.GetTypeName(constraints.BaseClassConstraint));
+            }
 
             // 3. Abstract types
             foreach(var abs in constraints.AbstractConstraints)
+            {
                 parts.Add(CSharpTypeMap.GetTypeName(abs));
+            }
 
             // 4. new() last (only parameterless constructor constraint)
             var hasParameterlessNew = constraints.ConstructorConstraints
                 .Any(c => c.Count == 0);
             if(hasParameterlessNew)
+            {
                 parts.Add("new()");
+            }
 
             if(parts.Count > 0)
             {
@@ -13660,21 +14661,34 @@ internal sealed class CSharpSourceWriter
                 continue;
             }
 
-            if(typeParam is not TypeParameterType tpt) continue;
+            if(typeParam is not TypeParameterType tpt)
+            {
+                continue;
+            }
+
             var constraints = tpt.Constraints;
-            if(constraints is null) continue;
+            if(constraints is null)
+            {
+                continue;
+            }
 
             var parts = new List<string>();
 
             // 1. class/struct first
             if(constraints.HasClassConstraint)
+            {
                 parts.Add("class");
+            }
             else if(constraints.HasStructConstraint)
+            {
                 parts.Add("struct");
+            }
 
             // 2. Base class
             if(constraints.BaseClassConstraint is not null)
+            {
                 parts.Add(CSharpTypeMap.GetTypeName(constraints.BaseClassConstraint));
+            }
 
             // 3. Abstract types — append synthesized type parameters for abstract types with associated type slots.
             foreach(var abs in constraints.AbstractConstraints)
@@ -13719,7 +14733,9 @@ internal sealed class CSharpSourceWriter
             var hasParameterlessNew = constraints.ConstructorConstraints
                 .Any(c => c.Count == 0);
             if(hasParameterlessNew)
+            {
                 parts.Add("new()");
+            }
 
             if(parts.Count > 0)
             {
@@ -13739,7 +14755,11 @@ internal sealed class CSharpSourceWriter
     /// </summary>
     private static IReadOnlyList<IReadOnlyList<IType>> GetParameterizedConstructorConstraints(TypeParameterConstraints? constraints)
     {
-        if(constraints is null) return Array.Empty<IReadOnlyList<IType>>();
+        if(constraints is null)
+        {
+            return Array.Empty<IReadOnlyList<IType>>();
+        }
+
         return constraints.ConstructorConstraints
             .Where(c => c.Count > 0)
             .ToList();
@@ -13792,7 +14812,11 @@ internal sealed class CSharpSourceWriter
     {
         foreach(var tp in typeParameters)
         {
-            if(tp is not TypeParameterType typeParam) continue;
+            if(tp is not TypeParameterType typeParam)
+            {
+                continue;
+            }
+
             var parameterizedConstraints = GetParameterizedConstructorConstraints(typeParam.Constraints);
             foreach(var paramTypes in parameterizedConstraints)
             {
@@ -13825,7 +14849,11 @@ internal sealed class CSharpSourceWriter
 
         foreach(var tp in typeParameters)
         {
-            if(tp is not TypeParameterType typeParam) continue;
+            if(tp is not TypeParameterType typeParam)
+            {
+                continue;
+            }
+
             var parameterizedConstraints = GetParameterizedConstructorConstraints(typeParam.Constraints);
             foreach(var paramTypes in parameterizedConstraints)
             {
@@ -13837,7 +14865,10 @@ internal sealed class CSharpSourceWriter
             }
         }
 
-        if(parameters.Count == 0) return;
+        if(parameters.Count == 0)
+        {
+            return;
+        }
 
         AppendLine();
         AppendLine($"public {typeName}({string.Join(", ", parameters)})");
@@ -13859,7 +14890,11 @@ internal sealed class CSharpSourceWriter
     {
         foreach(var tp in typeParameters)
         {
-            if(tp is not TypeParameterType typeParam) continue;
+            if(tp is not TypeParameterType typeParam)
+            {
+                continue;
+            }
+
             var parameterizedConstraints = GetParameterizedConstructorConstraints(typeParam.Constraints);
             foreach(var paramTypes in parameterizedConstraints)
             {
@@ -13879,7 +14914,11 @@ internal sealed class CSharpSourceWriter
         var parameters = new List<string>();
         foreach(var tp in typeParameters)
         {
-            if(tp is not TypeParameterType typeParam) continue;
+            if(tp is not TypeParameterType typeParam)
+            {
+                continue;
+            }
+
             var parameterizedConstraints = GetParameterizedConstructorConstraints(typeParam.Constraints);
             foreach(var paramTypes in parameterizedConstraints)
             {
@@ -13905,7 +14944,10 @@ internal sealed class CSharpSourceWriter
     private static IReadOnlyList<IType>? FindMatchingParameterizedConstraint(
         TypeParameterType typeParam, IReadOnlyList<IType> argTypes)
     {
-        if(typeParam.Constraints is null) return null;
+        if(typeParam.Constraints is null)
+        {
+            return null;
+        }
         // Find the constraint whose parameter types match the argument types by name.
         // We compare using the sanitized C# type name (same mechanism used for factory naming)
         // to ensure the correct factory delegate is selected.
@@ -13933,12 +14975,19 @@ internal sealed class CSharpSourceWriter
     /// </summary>
     private IReadOnlyList<IType> GetArgumentTypes(ArgumentListNode? argList)
     {
-        if(argList is null) return Array.Empty<IType>();
+        if(argList is null)
+        {
+            return Array.Empty<IType>();
+        }
+
         var types = new List<IType>();
         foreach(var expr in argList.GetAllExpressions())
         {
             var t = _model.GetTypeOf(expr);
-            if(t is not null) types.Add(t);
+            if(t is not null)
+            {
+                types.Add(t);
+            }
         }
         return types;
     }
@@ -13978,7 +15027,11 @@ internal sealed class CSharpSourceWriter
 
         for(var i = 0; i < typeParameters.Count; i++)
         {
-            if(typeParameters[i] is not TypeParameterType typeParam) continue;
+            if(typeParameters[i] is not TypeParameterType typeParam)
+            {
+                continue;
+            }
+
             var parameterizedConstraints = GetParameterizedConstructorConstraints(typeParam.Constraints);
 
             // Get the concrete type argument for this type parameter.
@@ -14029,7 +15082,10 @@ internal sealed class CSharpSourceWriter
     /// </summary>
     private static List<AssociatedTypeSlotType> CollectAssociatedTypeSlotsFromType(IType? type)
     {
-        if(type is null) return new List<AssociatedTypeSlotType>();
+        if(type is null)
+        {
+            return new List<AssociatedTypeSlotType>();
+        }
 
         var scope = type switch
         {
@@ -14037,7 +15093,10 @@ internal sealed class CSharpSourceWriter
             _ => null
         };
 
-        if(scope is null) return new List<AssociatedTypeSlotType>();
+        if(scope is null)
+        {
+            return new List<AssociatedTypeSlotType>();
+        }
 
         var slots = new List<AssociatedTypeSlotType>();
         foreach(var member in scope.Members)
@@ -14079,8 +15138,15 @@ internal sealed class CSharpSourceWriter
 
         foreach(var typeParam in typeParameters)
         {
-            if(typeParam is not TypeParameterType tpt) continue;
-            if(tpt.Constraints is null) continue;
+            if(typeParam is not TypeParameterType tpt)
+            {
+                continue;
+            }
+
+            if(tpt.Constraints is null)
+            {
+                continue;
+            }
 
             // Check abstract type constraints for associated type slots.
             foreach(var abstractConstraint in tpt.Constraints.AbstractConstraints)
@@ -14089,7 +15155,10 @@ internal sealed class CSharpSourceWriter
                     ? ct.GenericDefinition as AbstractType
                     : abstractConstraint as AbstractType;
 
-                if(abstractDef is null) continue;
+                if(abstractDef is null)
+                {
+                    continue;
+                }
 
                 foreach(var member in abstractDef.MemberScope.Members)
                 {
@@ -14113,29 +15182,42 @@ internal sealed class CSharpSourceWriter
         foreach(var slot in slots)
         {
             var constraints = slot.Constraints;
-            if(constraints is null) continue;
+            if(constraints is null)
+            {
+                continue;
+            }
 
             var parts = new List<string>();
 
             // 1. struct/class first (C# requires these to be first in where clause)
             if(constraints.HasStructConstraint)
+            {
                 parts.Add("struct");
+            }
             else if(constraints.HasClassConstraint)
+            {
                 parts.Add("class");
+            }
 
             // 2. Base class
             if(constraints.BaseClassConstraint is not null)
+            {
                 parts.Add(CSharpTypeMap.GetTypeName(constraints.BaseClassConstraint));
+            }
 
             // 3. Abstract types
             foreach(var abs in constraints.AbstractConstraints)
+            {
                 parts.Add(CSharpTypeMap.GetTypeName(abs));
+            }
 
             // 4. new() last
             var hasParameterlessNew = constraints.ConstructorConstraints
                 .Any(c => c.Count == 0);
             if(hasParameterlessNew)
+            {
                 parts.Add("new()");
+            }
 
             if(parts.Count > 0)
             {
@@ -14156,14 +15238,20 @@ internal sealed class CSharpSourceWriter
         Dictionary<string, string>? substitutions)
     {
         var constraints = slot.Constraints;
-        if(constraints is null) return null;
+        if(constraints is null)
+        {
+            return null;
+        }
 
         // Use the first interface constraint as the erasure target.
         IType? constraintType = constraints.AbstractConstraints.Count > 0
             ? constraints.AbstractConstraints[0]
             : null;
 
-        if(constraintType is null) return null;
+        if(constraintType is null)
+        {
+            return null;
+        }
 
         // Build the erased type by substituting type parameters in the constraint.
         // The constraint may be a ConstructedType like ITransform<TIn, TOut>.
@@ -14176,7 +15264,9 @@ internal sealed class CSharpSourceWriter
         var usageArgs = new List<string>();
         usageArgs.Add(EmitSingleTypeArgument(usageTypeArgs.TypeArgument));
         foreach(var arg in usageTypeArgs.TypeArguments)
+        {
             usageArgs.Add(EmitSingleTypeArgument(arg));
+        }
 
         // Apply substitutions to the usage args (in case they reference interface type params).
         if(substitutions is not null)
@@ -14184,7 +15274,9 @@ internal sealed class CSharpSourceWriter
             for(var i = 0; i < usageArgs.Count; i++)
             {
                 if(substitutions.TryGetValue(usageArgs[i], out var sub))
+                {
                     usageArgs[i] = sub;
+                }
             }
         }
 
@@ -14219,11 +15311,17 @@ internal sealed class CSharpSourceWriter
                 {
                     // Check slot params first, then abstract type params.
                     if(slotParamMap.TryGetValue(tpt.Name, out var slotSub))
+                    {
                         args.Add(slotSub);
+                    }
                     else if(abstractParamMap is not null && abstractParamMap.TryGetValue(tpt.Name, out var abstractSub))
+                    {
                         args.Add(abstractSub);
+                    }
                     else
+                    {
                         args.Add(tpt.Name); // Keep as-is (for CLR interface context)
+                    }
                 }
                 else
                 {
@@ -14242,7 +15340,10 @@ internal sealed class CSharpSourceWriter
     /// </summary>
     private string EmitParameterListWithSubstitution(ParameterListNode? paramList, Dictionary<string, string> substitutions)
     {
-        if(paramList is null) return "";
+        if(paramList is null)
+        {
+            return "";
+        }
 
         var parts = new List<string>();
         foreach(var child in paramList.Children())
@@ -14275,7 +15376,9 @@ internal sealed class CSharpSourceWriter
         // Resolve the base type reference to its semantic abstract type.
         var resolvedType = ResolveBaseTypeToAbstract(baseName);
         if(resolvedType is null)
+        {
             return baseName + EmitTypeArgumentList(baseTypeRef.TypeArgs);
+        }
 
         // Special case: IEnumerable and IEnumerator map directly to their CLR counterparts
         // (System.Collections.Generic.IEnumerable<T> / IEnumerator<T>) which do NOT have
@@ -14298,7 +15401,9 @@ internal sealed class CSharpSourceWriter
         // Parameterized slots are erased to their constraint interface and not appended.
         slots = slots.Where(s => s.TypeParameters.Count == 0).ToList();
         if(slots.Count == 0)
+        {
             return baseName + EmitTypeArgumentList(baseTypeRef.TypeArgs);
+        }
 
         // For each slot, find the concrete type member in the implementor's scope.
         var concreteTypeArgs = new List<string>();
@@ -14312,7 +15417,9 @@ internal sealed class CSharpSourceWriter
         }
 
         if(concreteTypeArgs.Count == 0)
+        {
             return baseName + EmitTypeArgumentList(baseTypeRef.TypeArgs);
+        }
 
         // Build the combined type argument list: existing args + concrete type args.
         var existingArgs = new List<string>();
@@ -14320,9 +15427,14 @@ internal sealed class CSharpSourceWriter
         {
             var allArgNodes = new List<TypeArgumentNode> { baseTypeRef.TypeArgs.TypeArgument };
             foreach(var arg in baseTypeRef.TypeArgs.TypeArguments)
+            {
                 allArgNodes.Add(arg);
+            }
+
             foreach(var argNode in allArgNodes)
+            {
                 existingArgs.Add(EmitSingleTypeArgument(argNode));
+            }
         }
         existingArgs.AddRange(concreteTypeArgs);
 
@@ -14369,7 +15481,9 @@ internal sealed class CSharpSourceWriter
 
                 // Prefer the match in the current namespace.
                 if(containingNs == _currentNamespace)
+                {
                     return symbol.DeclaredType;
+                }
 
                 // Keep the first match as a fallback.
                 fallback ??= symbol.DeclaredType;
@@ -14409,7 +15523,9 @@ internal sealed class CSharpSourceWriter
         var slots = CollectAssociatedTypeSlotsFromType(definition)
             .Where(s => s.TypeParameters.Count == 0).ToList();
         if(slots.Count == 0)
+        {
             return CSharpTypeMap.GetTypeName(abstractType);
+        }
 
         // For each slot, find the concrete type member in the implementor's scope.
         var concreteTypeArgs = new List<string>();
@@ -14423,7 +15539,9 @@ internal sealed class CSharpSourceWriter
         }
 
         if(concreteTypeArgs.Count == 0)
+        {
             return CSharpTypeMap.GetTypeName(abstractType);
+        }
 
         // Build the type name with additional type arguments.
         var baseName = definition.DisplayName;
@@ -14431,7 +15549,9 @@ internal sealed class CSharpSourceWriter
         if(abstractType is ConstructedType constructed)
         {
             foreach(var arg in constructed.TypeArguments)
+            {
                 existingArgs.Add(CSharpTypeMap.GetTypeName(arg));
+            }
         }
         existingArgs.AddRange(concreteTypeArgs);
 
@@ -14452,7 +15572,9 @@ internal sealed class CSharpSourceWriter
         // Search the direct member scope.
         var result = SearchScopeForConcreteType(slotName, requiredArity, memberScope);
         if(result is not null)
+        {
             return result;
+        }
 
         // For classes, walk the base type chain.
         if(classType is not null)
@@ -14462,7 +15584,10 @@ internal sealed class CSharpSourceWriter
             {
                 result = SearchScopeForConcreteType(slotName, requiredArity, ancestor.MemberScope);
                 if(result is not null)
+                {
                     return result;
+                }
+
                 ancestor = ancestor.BaseType as ClassType;
             }
         }
@@ -14479,7 +15604,9 @@ internal sealed class CSharpSourceWriter
         foreach(var member in scope.Members)
         {
             if(member.Name != slotName)
+            {
                 continue;
+            }
 
             // Accept type aliases that are NOT associated type slots (i.e., concrete type aliases).
             if(member.Kind == SymbolKind.TypeAlias && member.DeclaredType is not AssociatedTypeSlotType)
@@ -14502,7 +15629,9 @@ internal sealed class CSharpSourceWriter
                     _ => 0
                 };
                 if(memberArity == requiredArity)
+                {
                     return member.DeclaredType;
+                }
             }
         }
 
@@ -14555,10 +15684,15 @@ internal sealed class CSharpSourceWriter
     private void FlushPendingArrayInitStatements()
     {
         if(_pendingArrayInitStatements.Count == 0)
+        {
             return;
+        }
 
         foreach(var stmt in _pendingArrayInitStatements)
+        {
             AppendLine(stmt);
+        }
+
         _pendingArrayInitStatements.Clear();
     }
 
@@ -14600,7 +15734,9 @@ internal sealed class CSharpSourceWriter
             };
 
             if(effectiveClassType is null)
+            {
                 break;
+            }
 
             var isClrType = effectiveClassType.MemberScope.Members
                 .Any(m => m.Origin == SymbolOrigin.Backend);

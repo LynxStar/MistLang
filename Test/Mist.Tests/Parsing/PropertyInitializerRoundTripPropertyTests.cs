@@ -43,8 +43,10 @@ public class PropertyInitializerRoundTripPropertyTests
             .ToList();
 
         if(errors.Count > 0)
+        {
             throw new InvalidOperationException(
                 $"Unexpected parse errors:\n  {string.Join("\n  ", errors.Select(e => e.Message))}\nSource:\n{source}");
+        }
 
         return result.Root as CompilationUnitNode
             ?? throw new InvalidOperationException("Parse result root is not a CompilationUnitNode");
@@ -70,7 +72,9 @@ public class PropertyInitializerRoundTripPropertyTests
         var printed1 = MistPrettyPrinter.Print(ast1, scenario.Source);
 
         if(string.IsNullOrWhiteSpace(printed1))
+        {
             return false.ToProperty().Label("printed1 was empty");
+        }
 
         // Step 3: Parse printed1 → AST2
         var ast2 = ParseOrFail(printed1);
@@ -163,7 +167,9 @@ public static class PropertyInitializerSourceGenerator
     private static Gen<string[]> GenAssignments(int count)
     {
         if(count == 0)
+        {
             return Gen.Constant(Array.Empty<string>());
+        }
 
         // Use distinct property names by picking from the pool sequentially
         var gens = Enumerable.Range(0, count)

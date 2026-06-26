@@ -302,35 +302,53 @@ public class ConstructedTypeResolutionPropertyTests
             d.Id == DiagnosticId.MissingTypeArguments ||
             d.Id == DiagnosticId.UndefinedTypeArgument).ToList();
         if(genericDiags.Count > 0)
+        {
             return false;
+        }
 
         // Find the field symbol
         var fieldSymbol = model.AllSymbols
             .FirstOrDefault(s => s.Name == scenario.FieldName && s.Kind == SymbolKind.Field);
         if(fieldSymbol is null)
+        {
             return false;
+        }
 
         // The field's declared type should be a ConstructedType
         if(fieldSymbol.DeclaredType is not ConstructedType constructedType)
+        {
             return false;
+        }
 
         // GenericDefinition should be the generic class
         if(constructedType.GenericDefinition is not ClassType genericDef)
+        {
             return false;
+        }
+
         if(genericDef.DisplayName != scenario.GenericTypeName)
+        {
             return false;
+        }
 
         // TypeArguments count should match
         if(constructedType.TypeArguments.Count != scenario.ConcreteArgPrimitives.Length)
+        {
             return false;
+        }
 
         // Each type argument should be a concrete type (not a TypeParameterType)
         for(var i = 0; i < constructedType.TypeArguments.Count; i++)
         {
             if(constructedType.TypeArguments[i] is TypeParameterType)
+            {
                 return false;
+            }
+
             if(constructedType.TypeArguments[i] is null)
+            {
                 return false;
+            }
         }
 
         return true;
@@ -384,35 +402,53 @@ public class ConstructedTypeResolutionPropertyTests
             d.Id == DiagnosticId.MissingTypeArguments ||
             d.Id == DiagnosticId.UndefinedTypeArgument).ToList();
         if(genericDiags.Count > 0)
+        {
             return false;
+        }
 
         // Find the derived class symbol
         var derivedSymbol = model.AllSymbols
             .FirstOrDefault(s => s.Name == scenario.DerivedTypeName && s.Kind == SymbolKind.Class);
         if(derivedSymbol?.DeclaredType is not ClassType derivedType)
+        {
             return false;
+        }
 
         // BaseType should be a ConstructedType
         if(derivedType.BaseType is not ConstructedType constructedBase)
+        {
             return false;
+        }
 
         // GenericDefinition should be the generic class
         if(constructedBase.GenericDefinition is not ClassType genericDef)
+        {
             return false;
+        }
+
         if(genericDef.DisplayName != scenario.GenericTypeName)
+        {
             return false;
+        }
 
         // TypeArguments count should match
         if(constructedBase.TypeArguments.Count != scenario.TypeParamNames.Length)
+        {
             return false;
+        }
 
         // Each type argument should be a TypeParameterType matching the derived class's type params
         for(var i = 0; i < constructedBase.TypeArguments.Count; i++)
         {
             if(constructedBase.TypeArguments[i] is not TypeParameterType tpt)
+            {
                 return false;
+            }
+
             if(tpt.Name != scenario.TypeParamNames[i])
+            {
                 return false;
+            }
         }
 
         return true;
@@ -471,41 +507,63 @@ public class ConstructedTypeResolutionPropertyTests
             d.Id == DiagnosticId.MissingTypeArguments ||
             d.Id == DiagnosticId.UndefinedTypeArgument).ToList();
         if(genericDiags.Count > 0)
+        {
             return false;
+        }
 
         // Find the field symbol
         var fieldSymbol = model.AllSymbols
             .FirstOrDefault(s => s.Name == scenario.FieldName && s.Kind == SymbolKind.Field);
         if(fieldSymbol is null)
+        {
             return false;
+        }
 
         // The field's declared type should be a ConstructedType (outer)
         if(fieldSymbol.DeclaredType is not ConstructedType outerConstructed)
+        {
             return false;
+        }
 
         // Outer GenericDefinition should be the outer class
         if(outerConstructed.GenericDefinition is not ClassType outerDef)
+        {
             return false;
+        }
+
         if(outerDef.DisplayName != scenario.OuterTypeName)
+        {
             return false;
+        }
 
         // Outer should have exactly 1 type argument
         if(outerConstructed.TypeArguments.Count != 1)
+        {
             return false;
+        }
 
         // The type argument should be a ConstructedType (inner)
         if(outerConstructed.TypeArguments[0] is not ConstructedType innerConstructed)
+        {
             return false;
+        }
 
         // Inner GenericDefinition should be the inner class
         if(innerConstructed.GenericDefinition is not ClassType innerDef)
+        {
             return false;
+        }
+
         if(innerDef.DisplayName != scenario.InnerTypeName)
+        {
             return false;
+        }
 
         // The inner type argument should not be a TypeParameterType
         if(innerConstructed.TypeArguments[0] is TypeParameterType)
+        {
             return false;
+        }
 
         return true;
     }

@@ -30,7 +30,9 @@ public class AssociatedTypeInvalidRefDiagnosticTests
         var parseDiag = new DiagnosticBag();
         var parseResult = Parser.Parse(tokens, parseDiag);
         if(parseResult.Root is null)
+        {
             return lexDiag.ToImmutableArray().AddRange(parseDiag.ToImmutableArray());
+        }
 
         var (model, buildDiag) = StdlibTestHelper.BuildModelWithStdlib(
             parseResult.Root, source: source);

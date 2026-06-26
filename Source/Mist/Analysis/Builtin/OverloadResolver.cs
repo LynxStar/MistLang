@@ -83,11 +83,15 @@ public static class OverloadResolver
         // a caller bug; fall back to the null-origin path so behavior stays
         // predictable.
         if(candidateOrigin is not null && candidateOrigin.Count != candidates.Count)
+        {
             candidateOrigin = null;
+        }
 
         // Validate inference results vector length — must match candidates count.
         if(inferenceResults is not null && inferenceResults.Count != candidates.Count)
+        {
             inferenceResults = null;
+        }
 
         // Step 1: Filter to applicable candidates — parameter count must match
         // and each argument type must be assignable to the corresponding parameter type.
@@ -104,11 +108,16 @@ public static class OverloadResolver
             // A null entry means the candidate is non-generic (no inference needed)
             // and passes through unchanged.
             if(inferenceResults is not null && inferenceResults[c] is { } ir && !ir.Success)
+            {
                 continue;
+            }
+
             var paramTypes = ParameterSignature.Extract(candidate, model);
 
             if(paramTypes.Count != argumentTypes.Count)
+            {
                 continue;
+            }
 
             // When a type substitution context is provided (e.g., for
             // constructors of ConstructedType like Optional<int>),
@@ -119,8 +128,11 @@ public static class OverloadResolver
             {
                 var substituted = new IType[paramTypes.Count];
                 for(var i = 0; i < paramTypes.Count; i++)
+                {
                     substituted[i] = TypeCheckerAnalyzer.SubstituteType(
                         paramTypes[i], typeParams, typeArgs);
+                }
+
                 paramTypes = substituted;
             }
 
@@ -133,8 +145,11 @@ public static class OverloadResolver
             {
                 var substituted = new IType[paramTypes.Count];
                 for(var i = 0; i < paramTypes.Count; i++)
+                {
                     substituted[i] = TypeCheckerAnalyzer.SubstituteType(
                         paramTypes[i], candidateSymForSubst.TypeParameters, successfulInference.InferredTypeArguments!);
+                }
+
                 paramTypes = substituted;
             }
 
@@ -157,7 +172,9 @@ public static class OverloadResolver
                     }
                 }
                 if(refKindMismatch)
+                {
                     continue;
+                }
             }
 
             var allAssignable = true;
@@ -186,7 +203,9 @@ public static class OverloadResolver
             }
 
             if(allAssignable)
+            {
                 applicable.Add((candidate, paramTypes, c));
+            }
         }
 
         // Step 2: No applicable candidates.
@@ -214,7 +233,9 @@ public static class OverloadResolver
         for(var i = 1; i < applicable.Count; i++)
         {
             if(!bestIsValid)
+            {
                 break;
+            }
 
             if(MoreSpecific(applicable[i].ParamTypes, best.ParamTypes))
             {
@@ -234,7 +255,9 @@ public static class OverloadResolver
             foreach(var other in applicable)
             {
                 if(ReferenceEquals(other.Symbol, best.Symbol))
+                {
                     continue;
+                }
 
                 if(!MoreSpecific(best.ParamTypes, other.ParamTypes))
                 {
@@ -311,7 +334,9 @@ public static class OverloadResolver
         // apply delegate-specific scoring to pick the preferred overload.
         var delegateResult = TryResolveDelegatePreference(applicable, argumentTypes);
         if(delegateResult is not null)
+        {
             return delegateResult.Value;
+        }
 
         if(candidateOrigin is null)
         {
@@ -327,7 +352,9 @@ public static class OverloadResolver
         {
             var origin = candidateOrigin[entry.OriginalIndex];
             if(origin < minOrigin)
+            {
                 minOrigin = origin;
+            }
         }
 
         // Collect all candidates whose origin equals the minimum. If exactly
@@ -338,12 +365,16 @@ public static class OverloadResolver
         foreach(var entry in applicable)
         {
             if(candidateOrigin[entry.OriginalIndex] != minOrigin)
+            {
                 continue;
+            }
 
             sole = entry.Symbol;
             soleCount++;
             if(soleCount > 1)
+            {
                 break;
+            }
         }
 
         if(soleCount == 1 && sole is not null)
@@ -394,30 +425,49 @@ public static class OverloadResolver
 
             for(var candIdx = 0; candIdx < applicable.Count; candIdx++)
             {
-                if(argIdx >= applicable[candIdx].ParamTypes.Count) continue;
+                if(argIdx >= applicable[candIdx].ParamTypes.Count)
+                {
+                    continue;
+                }
+
                 var paramType = applicable[candIdx].ParamTypes[argIdx];
 
                 if(paramType is DelegateType)
+                {
                     hasDelegateParam = true;
+                }
                 else if(paramType is BaseDelegateType)
+                {
                     hasBaseDelegateParam = true;
+                }
                 else if(SemanticModelBuilder.IsFuncType(paramType))
+                {
                     hasFuncParam = true;
+                }
             }
 
             // Only apply delegate preference when candidates differ at this position
             // with delegate-related types.
             if(!hasDelegateParam && !hasBaseDelegateParam)
+            {
                 continue;
+            }
+
             if(!hasFuncParam && !hasBaseDelegateParam && !hasDelegateParam)
+            {
                 continue;
+            }
 
             hasDelegateRelevance = true;
 
             // Score each candidate based on the argument kind at this position.
             for(var candIdx = 0; candIdx < applicable.Count; candIdx++)
             {
-                if(argIdx >= applicable[candIdx].ParamTypes.Count) continue;
+                if(argIdx >= applicable[candIdx].ParamTypes.Count)
+                {
+                    continue;
+                }
+
                 var paramType = applicable[candIdx].ParamTypes[argIdx];
 
                 // Rule 1: DelegateType-typed argument → prefer exact nominal match.
@@ -474,7 +524,9 @@ public static class OverloadResolver
         }
 
         if(!hasDelegateRelevance)
+        {
             return null;
+        }
 
         // Find the candidate with the highest score.
         var bestScore = int.MinValue;
@@ -519,7 +571,9 @@ public static class OverloadResolver
     private static bool MoreSpecific(IReadOnlyList<IType> aParams, IReadOnlyList<IType> bParams)
     {
         if(aParams.Count != bParams.Count)
+        {
             return false;
+        }
 
         var allAtoB = true;
         var anyBnotToA = false;
@@ -527,10 +581,14 @@ public static class OverloadResolver
         for(var i = 0; i < aParams.Count; i++)
         {
             if(!TypeCheckerAnalyzer.IsAssignable(aParams[i], bParams[i]))
+            {
                 allAtoB = false;
+            }
 
             if(!TypeCheckerAnalyzer.IsAssignable(bParams[i], aParams[i]))
+            {
                 anyBnotToA = true;
+            }
         }
 
         return allAtoB && anyBnotToA;

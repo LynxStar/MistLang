@@ -231,7 +231,9 @@ public sealed class OwnershipAnalyzer : IAnalyzer
     private static bool IsActionPermitted(VariableOwnershipState state, AccessKind action)
     {
         if(TruthTable.TryGetValue((state, action), out var permitted))
+        {
             return permitted;
+        }
 
         // If not in the table, conservatively deny.
         return false;
@@ -323,7 +325,9 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         // The behavioral cooperation contract is subsumed by provenance on owned fields
         // (Req 8 + Req 3). Only the field-type restriction survives as a standalone check.
         foreach(var ownedType in OwnedTypes(model))
+        {
             FieldTypeRestrictionVerifier.Verify(ownedType, model, diagnostics);
+        }
 
         // Pass 3: ownership signature matching validation (abstract type satisfaction).
         // Retained unchanged from v1.
@@ -356,7 +360,9 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         foreach(var symbol in model.AllSymbols)
         {
             if(symbol.Origin != SymbolOrigin.UserCode)
+            {
                 continue;
+            }
 
             switch(symbol.Kind)
             {
@@ -377,10 +383,14 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         catch { return; }
 
         if(declaringNode is not AbstractDeclarationNode abstractDecl)
+        {
             return;
+        }
 
         if(!HasOwnedModifier(abstractDecl.Modifiers))
+        {
             return;
+        }
 
         diagnostics.Add(MakeDiagnostic(
             AbstractForbidden,
@@ -401,21 +411,33 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         foreach(var symbol in model.AllSymbols)
         {
             if(symbol.Origin != SymbolOrigin.UserCode)
+            {
                 continue;
+            }
+
             if(symbol.Kind != SymbolKind.Field)
+            {
                 continue;
+            }
+
             if(symbol is not Symbol fieldSym || !fieldSym.IsOwnedField)
+            {
                 continue;
+            }
 
             SyntaxNode declaringNode;
             try { declaringNode = model.GetDeclaringNode(symbol); }
             catch { continue; }
 
             if(declaringNode is not FieldDeclarationNode fieldDecl)
+            {
                 continue;
+            }
 
             if(!fieldDecl.Modifiers.Any(m => m is StaticModifierModifierNode))
+            {
                 continue;
+            }
 
             diagnostics.Add(MakeDiagnostic(
                 StaticFieldOwned,
@@ -443,21 +465,31 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         foreach(var symbol in model.AllSymbols)
         {
             if(symbol.Origin != SymbolOrigin.UserCode)
+            {
                 continue;
+            }
 
             if(symbol.Kind is not (SymbolKind.LocalVariable or SymbolKind.Parameter))
+            {
                 continue;
+            }
 
             if(symbol is not Symbol sym || sym.OwnershipTier != OwnershipTier.Owned)
+            {
                 continue;
+            }
 
             var declaredType = symbol.DeclaredType;
             if(declaredType is null)
+            {
                 continue;
+            }
 
             var discipline = GetDisciplineForType(declaredType);
             if(discipline is SubstructuralDiscipline.None)
+            {
                 continue;
+            }
 
             // The type is linear, affine, or relevant — reject the owned binding.
             SyntaxNode declaringNode;
@@ -501,22 +533,32 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         foreach(var symbol in model.AllSymbols)
         {
             if(symbol.Origin != SymbolOrigin.UserCode)
+            {
                 continue;
+            }
 
             if(symbol.Kind is not (SymbolKind.Class or SymbolKind.Struct))
+            {
                 continue;
+            }
 
             var declaredType = symbol.DeclaredType;
             if(declaredType is null)
+            {
                 continue;
+            }
 
             if(!IsOwnedType(declaredType))
+            {
                 continue;
+            }
 
             // Substructural types (linear/affine/relevant) inherit IsOwnedType but are
             // not subject to the cooperation contract — their own discipline governs them.
             if(IsSubstructural(declaredType))
+            {
                 continue;
+            }
 
             yield return declaredType;
         }
@@ -551,7 +593,9 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         foreach(var symbol in model.AllSymbols)
         {
             if(symbol.Origin != SymbolOrigin.UserCode)
+            {
                 continue;
+            }
 
             switch(symbol.Kind)
             {
@@ -581,7 +625,9 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         };
 
         if(body is null)
+        {
             return;
+        }
 
         var state = new MethodFlowState();
 
@@ -621,7 +667,9 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         };
 
         if(paramList is null)
+        {
             return;
+        }
 
         foreach(var child in paramList.Children())
         {
@@ -635,7 +683,9 @@ public sealed class OwnershipAnalyzer : IAnalyzer
 
                     // Initialize per-field state for owned parameters whose type has owned fields (Req 16 AC 1).
                     if(sym.DeclaredType is not null)
+                    {
                         state.InitializeFieldStates(paramSymbol, sym.DeclaredType);
+                    }
                 }
             }
         }
@@ -768,7 +818,9 @@ public sealed class OwnershipAnalyzer : IAnalyzer
 
                             // Initialize per-field state for the new binding if the moved-in type has owned fields.
                             if(declaredSymbol.DeclaredType is not null)
+                            {
                                 state.InitializeFieldStates(declaredSymbol, declaredSymbol.DeclaredType);
+                            }
 
                             // Transition the source field to Moved (Req 16 AC 2).
                             var moveSpan = new Common.Text.SourceSpan(
@@ -783,7 +835,9 @@ public sealed class OwnershipAnalyzer : IAnalyzer
 
                         // Initialize per-field state for the new owned binding if the type has owned fields (Req 16 AC 1).
                         if(sym.DeclaredType is not null)
+                        {
                             state.InitializeFieldStates(declaredSymbol, sym.DeclaredType);
+                        }
 
                         // Route the initializer through the single move boundary (Req 6 AC 9):
                         // it resolves provenance (owned move / value copy / clone / default),
@@ -1072,7 +1126,9 @@ public sealed class OwnershipAnalyzer : IAnalyzer
 
                             // Initialize per-field state for the new binding if the moved-in type has owned fields.
                             if(declaredSymbol.DeclaredType is not null)
+                            {
                                 state.InitializeFieldStates(declaredSymbol, declaredSymbol.DeclaredType);
+                            }
 
                             // Transition the source field to Moved (Req 16 AC 2).
                             var moveSpan = new Common.Text.SourceSpan(
@@ -1087,7 +1143,9 @@ public sealed class OwnershipAnalyzer : IAnalyzer
 
                         // Initialize per-field state for the new owned binding if the type has owned fields (Req 16 AC 1).
                         if(sym.DeclaredType is not null)
+                        {
                             state.InitializeFieldStates(declaredSymbol, sym.DeclaredType);
+                        }
 
                         // Route the initializer through the single move boundary (Req 6 AC 9).
                         ResolveOwnedBindingInit(inferred.Initializer, sym, state, model, diagnostics);
@@ -1123,11 +1181,16 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                                 if(state.VariableStates.TryGetValue(sourceSymbolRef, out var currentState))
                                 {
                                     if(!IsActionPermitted(currentState, AccessKind.LiveView))
+                                    {
                                         ReportTruthTableViolation(sourceSymbolRef, currentState, AccessKind.LiveView, inferred, state, model, diagnostics);
+                                    }
                                     else
                                     {
                                         if(currentState == VariableOwnershipState.Live)
+                                        {
                                             state.VariableStates[sourceSymbolRef] = VariableOwnershipState.LentReadonly;
+                                        }
+
                                         state.ActiveBorrows.Add(new BorrowEntry(
                                             sourceSymbolRef, declaredSymbol, OwnershipTier.ReadonlyRef, state.ScopeDepth));
                                     }
@@ -1143,7 +1206,9 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                                 if(state.VariableStates.TryGetValue(sourceSymbolRef, out var currentState))
                                 {
                                     if(!IsActionPermitted(currentState, AccessKind.Freeze))
+                                    {
                                         ReportTruthTableViolation(sourceSymbolRef, currentState, AccessKind.Freeze, inferred, state, model, diagnostics);
+                                    }
                                     else
                                     {
                                         state.VariableStates[sourceSymbolRef] = VariableOwnershipState.LentFrozen;
@@ -1163,7 +1228,9 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                                 if(state.VariableStates.TryGetValue(sourceSymbolRef, out var currentState))
                                 {
                                     if(!IsActionPermitted(currentState, AccessKind.Borrow))
+                                    {
                                         ReportTruthTableViolation(sourceSymbolRef, currentState, AccessKind.Borrow, inferred, state, model, diagnostics);
+                                    }
                                     else
                                     {
                                         if(HasActiveRefBorrow(sourceSymbolRef, state))
@@ -1320,7 +1387,9 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         // Lambda-form expressions introduce their own body scope; closure capture
         // ownership is handled by the type checker's capture rules, not flow analysis.
         if(expr.AsAssignmentOrNull() is { } assignment)
+        {
             AnalyzeAssignment(assignment, state, model, diagnostics, isLoop);
+        }
     }
 
     /// <summary>
@@ -1344,7 +1413,9 @@ public sealed class OwnershipAnalyzer : IAnalyzer
 
             // First, check the RHS for use-after-move.
             if(rhsAssignment is not null)
+            {
                 CheckAssignmentValueForUseAfterMove(rhsAssignment, state, model, diagnostics);
+            }
 
             // Resolve the LHS target symbol.
             var lhsSymbol = TryResolveAssignmentTarget(assignment.Target, model);
@@ -1598,13 +1669,17 @@ public sealed class OwnershipAnalyzer : IAnalyzer
             foreach(var child in forStmt.Initializer.Children())
             {
                 if(child is ExpressionNode expr)
+                {
                     CheckExpressionForUseAfterMove(expr, state, model, diagnostics);
+                }
             }
         }
 
         // Check condition for use-after-move.
         if(forStmt.Condition is not null)
+        {
             CheckExpressionForUseAfterMove(forStmt.Condition, state, model, diagnostics);
+        }
 
         // Snapshot which owned variables are Live before the loop body.
         var liveBeforeLoop = new Dictionary<ISymbol, VariableOwnershipState>();
@@ -1627,7 +1702,9 @@ public sealed class OwnershipAnalyzer : IAnalyzer
 
         // Check iterator for use-after-move.
         if(forStmt.Iterator is not null)
+        {
             CheckExpressionForUseAfterMove(forStmt.Iterator, state, model, diagnostics);
+        }
     }
 
     /// <summary>
@@ -1757,7 +1834,9 @@ public sealed class OwnershipAnalyzer : IAnalyzer
     {
         // Lambda-form expressions are handled by the type checker's capture rules.
         if(expr.AsAssignmentOrNull() is { } assignment)
+        {
             CheckAssignmentValueForUseAfterMove(assignment, state, model, diagnostics);
+        }
     }
 
     /// <summary>
@@ -1956,7 +2035,9 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                             {
                                 var fieldState = state.GetFieldState(receiverSymbol, fieldSym);
                                 if(fieldState is null || fieldState == VariableOwnershipState.Live)
+                                {
                                     continue;
+                                }
 
                                 // Map FieldAccessKind to AccessKind for truth table lookup.
                                 var requiredAction = accessKind == FieldAccessKind.Write
@@ -2019,7 +2100,9 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         // Resolve the method symbol to get parameter ownership tiers.
         var methodSymbol = model.GetDeclaredSymbol(methodCall);
         if(methodSymbol is null)
+        {
             return;
+        }
 
         // Get parameter symbols.
         SyntaxNode methodDeclNode;
@@ -2028,7 +2111,9 @@ public sealed class OwnershipAnalyzer : IAnalyzer
 
         var paramSymbols = GetParameterSymbols(methodDeclNode, model);
         if(paramSymbols is null)
+        {
             return;
+        }
 
         // Get argument expressions.
         var argExprs = CollectArgumentExpressions(methodCall.Arguments);
@@ -2041,7 +2126,9 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                 // Skip ownership checks for ref parameters — they use a different
                 // mechanism (variable-level indirection) that is orthogonal to ownership lending.
                 if(paramSym.RefKind != RefKind.None)
+                {
                     continue;
+                }
 
                 if(paramSym.OwnershipTier == OwnershipTier.Owned)
                 {
@@ -2092,7 +2179,9 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         }
         invokedSymbol ??= model.GetDeclaredSymbol(invocation);
         if(invokedSymbol is null)
+        {
             return;
+        }
 
         // Get parameter symbols.
         SyntaxNode declNode;
@@ -2101,7 +2190,9 @@ public sealed class OwnershipAnalyzer : IAnalyzer
 
         var paramSymbols = GetParameterSymbols(declNode, model);
         if(paramSymbols is null)
+        {
             return;
+        }
 
         // Get argument expressions.
         var argExprs = CollectArgumentExpressions(invocation.Arguments);
@@ -2114,7 +2205,9 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                 // Skip ownership checks for ref parameters — they use a different
                 // mechanism (variable-level indirection) that is orthogonal to ownership lending.
                 if(paramSym.RefKind != RefKind.None)
+                {
                     continue;
+                }
 
                 if(paramSym.OwnershipTier == OwnershipTier.Owned)
                 {
@@ -2151,12 +2244,16 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         DiagnosticBag diagnostics)
     {
         if(objectCreation.Arguments is null)
+        {
             return;
+        }
 
         // Resolve the type being constructed and find the matching constructor.
         var createdType = model.GetTypeOf(objectCreation);
         if(createdType is null)
+        {
             return;
+        }
 
         // Unwrap constructed types to get the definition.
         var resolvedType = createdType is ConstructedType ct ? ct.GenericDefinition : createdType;
@@ -2169,7 +2266,9 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         };
 
         if(memberScope is null)
+        {
             return;
+        }
 
         // Find constructor symbols.
         var argExprs = CollectArgumentExpressions(objectCreation.Arguments);
@@ -2179,7 +2278,9 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         foreach(var member in memberScope.Members)
         {
             if(member.Kind != SymbolKind.Constructor)
+            {
                 continue;
+            }
 
             // Get the constructor's declaring node to count parameters.
             SyntaxNode ctorDeclNode;
@@ -2195,7 +2296,9 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         }
 
         if(matchedCtor is null)
+        {
             return;
+        }
 
         // Get parameter symbols from the matched constructor.
         SyntaxNode declNode;
@@ -2204,7 +2307,9 @@ public sealed class OwnershipAnalyzer : IAnalyzer
 
         var paramSymbols = GetParameterSymbols(declNode, model);
         if(paramSymbols is null)
+        {
             return;
+        }
 
         var count = Math.Min(paramSymbols.Count, argExprs.Count);
         for(var i = 0; i < count; i++)
@@ -2212,7 +2317,9 @@ public sealed class OwnershipAnalyzer : IAnalyzer
             if(paramSymbols[i] is Symbol paramSym)
             {
                 if(paramSym.RefKind != RefKind.None)
+                {
                     continue;
+                }
 
                 if(paramSym.OwnershipTier == OwnershipTier.Owned)
                 {
@@ -2274,11 +2381,15 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         // Resolve the argument to a symbol to get its ownership tier.
         var argSymbol = TryResolveIdentifierSymbol(argExpr, model);
         if(argSymbol is not Symbol argSym)
+        {
             return;
+        }
 
         // Value types always satisfy any tier requirement.
         if(argSym.DeclaredType is not null && IsValueType(argSym.DeclaredType))
+        {
             return;
+        }
 
         var sourceTier = argSym.OwnershipTier;
 
@@ -2300,7 +2411,9 @@ public sealed class OwnershipAnalyzer : IAnalyzer
 
         // Check if the pair is permitted.
         if(PermittedLendingPairs.Contains((sourceTier, targetTier)))
+        {
             return;
+        }
 
         // Emit the appropriate diagnostic.
         if(sourceTier == OwnershipTier.Unrestricted &&
@@ -2335,14 +2448,19 @@ public sealed class OwnershipAnalyzer : IAnalyzer
     {
         // Unwrap expression chain: ExpressionNode → AssignmentNode → LogicalOrNode → ... → PostfixNode → PrimaryNode
         if(node is ExpressionNode expr)
+        {
             return expr.AsAssignmentOrNull() is { } exprAssignment
                 ? TryResolveIdentifierSymbol(exprAssignment, model)
                 : null; // Lambda form is not a simple identifier reference.
+        }
 
         if(node is AssignmentNode assignment)
         {
             if(assignment.Value is not null)
+            {
                 return null; // Chained assignment, not a simple identifier.
+            }
+
             return TryResolveIdentifierSymbol(assignment.Target, model);
         }
 
@@ -2350,7 +2468,10 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         if(node is PostfixNode postfix)
         {
             if(postfix.Suffix.Length > 0)
+            {
                 return null; // Has suffixes (member access, method call, etc.)
+            }
+
             return TryResolveIdentifierSymbol(postfix.Target, model);
         }
 
@@ -2374,11 +2495,15 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         foreach(var child in node.Children())
         {
             if(child is not null)
+            {
                 nonNullChildren.Add(child);
+            }
         }
 
         if(nonNullChildren.Count == 1)
+        {
             return TryResolveIdentifierSymbol(nonNullChildren[0], model);
+        }
 
         return null;
     }
@@ -2399,21 +2524,29 @@ public sealed class OwnershipAnalyzer : IAnalyzer
     {
         // Unwrap expression chain to find the identifier.
         if(target is ExpressionNode expr)
+        {
             return expr.AsAssignmentOrNull() is { } exprAssignment
                 ? TryResolveFieldTarget(exprAssignment, model)
                 : null; // Lambda form is not a field target.
+        }
 
         if(target is AssignmentNode assignment)
         {
             if(assignment.Value is not null)
+            {
                 return null;
+            }
+
             return TryResolveFieldTarget(assignment.Target, model);
         }
 
         if(target is PostfixNode postfix)
         {
             if(postfix.Suffix.Length > 0)
+            {
                 return null;
+            }
+
             return TryResolveFieldTarget(postfix.Target, model);
         }
 
@@ -2421,7 +2554,10 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         {
             var symbol = model.GetDeclaredSymbol(identifier);
             if(symbol is not null && symbol.Kind == SymbolKind.Field)
+            {
                 return symbol;
+            }
+
             return null;
         }
 
@@ -2430,11 +2566,15 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         foreach(var child in target.Children())
         {
             if(child is not null)
+            {
                 nonNullChildren.Add(child);
+            }
         }
 
         if(nonNullChildren.Count == 1)
+        {
             return TryResolveFieldTarget(nonNullChildren[0], model);
+        }
 
         return null;
     }
@@ -2445,7 +2585,10 @@ public sealed class OwnershipAnalyzer : IAnalyzer
     private static ISymbol? TryResolveAssignmentValueSymbol(AssignmentNode value, ISemanticModel model)
     {
         if(value.Value is not null)
+        {
             return null; // Chained assignment.
+        }
+
         return TryResolveIdentifierSymbol(value.Target, model);
     }
 
@@ -2456,7 +2599,9 @@ public sealed class OwnershipAnalyzer : IAnalyzer
     {
         var result = new List<SyntaxNode>();
         if(argList is null)
+        {
             return result;
+        }
 
         // The ArgumentListNode has Argument (first) and Arguments (rest),
         // each wrapping an ExpressionNode.
@@ -2475,9 +2620,15 @@ public sealed class OwnershipAnalyzer : IAnalyzer
     private static bool IsOwnedVariable(ISymbol symbol)
     {
         if(symbol is not Symbol sym)
+        {
             return false;
+        }
+
         if(sym.Kind is not (SymbolKind.LocalVariable or SymbolKind.Parameter))
+        {
             return false;
+        }
+
         return sym.OwnershipTier == OwnershipTier.Owned;
     }
 
@@ -2504,7 +2655,10 @@ public sealed class OwnershipAnalyzer : IAnalyzer
     private static bool IsReadonlyMember(ISymbol symbol)
     {
         if(symbol is not Symbol sym)
+        {
             return false;
+        }
+
         return sym.ReadonlyStatus is ReadonlyStatus.ExplicitReadonly or ReadonlyStatus.InferredReadonly;
     }
 
@@ -2517,7 +2671,9 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         foreach(var (_, fieldState) in fieldStates)
         {
             if(fieldState != VariableOwnershipState.Live)
+            {
                 return true;
+            }
         }
         return false;
     }
@@ -2530,7 +2686,9 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         foreach(var borrow in state.ActiveBorrows)
         {
             if(ReferenceEquals(borrow.Lender, lender) && borrow.BorrowTier == OwnershipTier.Borrowed)
+            {
                 return true;
+            }
         }
         return false;
     }
@@ -2551,10 +2709,15 @@ public sealed class OwnershipAnalyzer : IAnalyzer
             foreach(var child in current.Children())
             {
                 if(child is not null)
+                {
                     nonNullChildren.Add(child);
+                }
             }
             if(nonNullChildren.Count != 1)
+            {
                 return null;
+            }
+
             current = nonNullChildren[0];
         }
 
@@ -2593,10 +2756,15 @@ public sealed class OwnershipAnalyzer : IAnalyzer
             foreach(var child in current.Children())
             {
                 if(child is not null)
+                {
                     nonNullChildren.Add(child);
+                }
             }
             if(nonNullChildren.Count != 1)
+            {
                 return null;
+            }
+
             current = nonNullChildren[0];
         }
 
@@ -2607,10 +2775,15 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         {
             var receiverType = model.GetTypeOf(postfix.Target);
             if(receiverType is null)
+            {
                 return null;
+            }
+
             var member = LookupMemberByName(receiverType, memberAccess.Name.Lexeme);
             if(member is not null && member.Kind == SymbolKind.Field)
+            {
                 return member;
+            }
         }
 
         return null;
@@ -2633,10 +2806,15 @@ public sealed class OwnershipAnalyzer : IAnalyzer
             foreach(var child in current.Children())
             {
                 if(child is not null)
+                {
                     nonNullChildren.Add(child);
+                }
             }
             if(nonNullChildren.Count != 1)
+            {
                 return null;
+            }
+
             current = nonNullChildren[0];
         }
 
@@ -2648,11 +2826,15 @@ public sealed class OwnershipAnalyzer : IAnalyzer
             {
                 var receiverSymbol = model.GetDeclaredSymbol(receiverId);
                 if(receiverSymbol is null)
+                {
                     return null;
+                }
 
                 var receiverType = receiverSymbol.DeclaredType;
                 if(receiverType is null)
+                {
                     return null;
+                }
 
                 // Unwrap ConstructedType to get the generic definition for member lookup.
                 var lookupType = receiverType is ConstructedType constructed
@@ -2717,7 +2899,9 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         foreach(var modifier in modifiers)
         {
             if(modifier is OwnedModifierModifierNode)
+            {
                 return true;
+            }
         }
         return false;
     }
@@ -2750,13 +2934,19 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         foreach(var symbol in model.AllSymbols)
         {
             if(symbol.Origin == SymbolOrigin.Backend)
+            {
                 continue;
+            }
 
             if(symbol.Kind != SymbolKind.Method)
+            {
                 continue;
+            }
 
             if(symbol is not Symbol methodSymbol)
+            {
                 continue;
+            }
 
             // Only non-owned specifiers on return types are invalid.
             if(methodSymbol.OwnershipTier is OwnershipTier.Borrowed
@@ -2786,10 +2976,14 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         foreach(var symbol in model.AllSymbols)
         {
             if(symbol.Origin == SymbolOrigin.Backend)
+            {
                 continue;
+            }
 
             if(symbol.Kind is not (SymbolKind.Class or SymbolKind.Struct))
+            {
                 continue;
+            }
 
             var type = symbol.DeclaredType;
             IReadOnlyList<IType>? abstracts = type switch
@@ -2800,7 +2994,9 @@ public sealed class OwnershipAnalyzer : IAnalyzer
             };
 
             if(abstracts is null || abstracts.Count == 0)
+            {
                 continue;
+            }
 
             IScope? memberScope = type switch
             {
@@ -2810,7 +3006,9 @@ public sealed class OwnershipAnalyzer : IAnalyzer
             };
 
             if(memberScope is null)
+            {
                 continue;
+            }
 
             var visited = new HashSet<AbstractType>(ReferenceEqualityComparer.Instance);
             CheckAbstractOwnershipContracts(symbol, abstracts, memberScope, model, diagnostics, visited);
@@ -2831,20 +3029,28 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         foreach(var abstractType in abstracts)
         {
             if(abstractType is not AbstractType abs)
+            {
                 continue;
+            }
 
             if(!visited.Add(abs))
+            {
                 continue;
+            }
 
             foreach(var absMember in abs.MemberScope.Members)
             {
                 if(absMember.Kind != SymbolKind.Method)
+                {
                     continue;
+                }
 
                 // Find the implementing method in the type's member scope.
                 var implMember = FindMethodInScope(absMember.Name, memberScope);
                 if(implMember is null)
+                {
                     continue; // Missing implementation is reported by the type checker.
+                }
 
                 CheckMethodOwnershipMatch(
                     typeSymbol, absMember, implMember, abs.DisplayName, model, diagnostics);
@@ -2904,7 +3110,9 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         var implParams = GetParameterSymbols(implNode, model);
 
         if(contractParams is null || implParams is null)
+        {
             return;
+        }
 
         var count = Math.Min(contractParams.Count, implParams.Count);
         for(var i = 0; i < count; i++)
@@ -2913,7 +3121,9 @@ public sealed class OwnershipAnalyzer : IAnalyzer
             var implParam = implParams[i] as Symbol;
 
             if(contractParam is null || implParam is null)
+            {
                 continue;
+            }
 
             if(contractParam.OwnershipTier != implParam.OwnershipTier)
             {
@@ -2943,7 +3153,9 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         };
 
         if(paramList is null)
+        {
             return null;
+        }
 
         var result = new List<ISymbol>();
         foreach(var child in paramList.Children())
@@ -2952,7 +3164,9 @@ public sealed class OwnershipAnalyzer : IAnalyzer
             {
                 var paramSymbol = model.GetDeclaredSymbol(paramNode);
                 if(paramSymbol is not null)
+                {
                     result.Add(paramSymbol);
+                }
             }
         }
 
@@ -2967,7 +3181,9 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         foreach(var member in scope.Members)
         {
             if(member.Name == name && member.Kind == SymbolKind.Method)
+            {
                 return member;
+            }
         }
         return null;
     }
@@ -3048,14 +3264,20 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         foreach(var symbol in model.AllSymbols)
         {
             if(symbol.Origin != SymbolOrigin.UserCode)
+            {
                 continue;
+            }
 
             // Only check field declarations.
             if(symbol.Kind != SymbolKind.Field)
+            {
                 continue;
+            }
 
             if(symbol is not Symbol fieldSymbol)
+            {
                 continue;
+            }
 
             // If the field has a non-storable ownership tier, emit MIST_OWN_NOT_STORABLE.
             if(fieldSymbol.OwnershipTier is OwnershipTier.Borrowed
@@ -3135,19 +3357,27 @@ public sealed class OwnershipAnalyzer : IAnalyzer
 
         var receiver = TryResolveFieldAccessReceiver(node, model);
         if(receiver is null)
+        {
             return false;
+        }
 
         // Try both resolution strategies: TryResolveFieldTarget works for assignment
         // targets (LHS); TryResolveFieldAccessField works for read expressions (RHS/initializers).
         var field = TryResolveFieldTarget(node, model) ?? TryResolveFieldAccessField(node, model);
         if(field is null || field.Kind != SymbolKind.Field)
+        {
             return false;
+        }
 
         if(field is not Symbol fieldSym || !fieldSym.IsOwnedField)
+        {
             return false;
+        }
 
         if(!state.BindingKinds.TryGetValue(receiver, out var parentKind) || parentKind != BindingKind.Owned)
+        {
             return false;
+        }
 
         fieldSymbol = field;
         receiverSymbol = receiver;
@@ -3171,20 +3401,28 @@ public sealed class OwnershipAnalyzer : IAnalyzer
 
         var receiver = TryResolveFieldAccessReceiver(node, model);
         if(receiver is null)
+        {
             return false;
+        }
 
         // Try both resolution strategies: TryResolveFieldTarget works for assignment
         // targets (LHS); TryResolveFieldAccessField works for read expressions (RHS/initializers).
         var field = TryResolveFieldTarget(node, model) ?? TryResolveFieldAccessField(node, model);
         if(field is null || field.Kind != SymbolKind.Field)
+        {
             return false;
+        }
 
         if(field is not Symbol fieldSym || !fieldSym.IsOwnedField)
+        {
             return false;
+        }
 
         // The parent is "shared" if it's not an owned binding (unrestricted or not tracked).
         if(state.BindingKinds.TryGetValue(receiver, out var parentKind) && parentKind == BindingKind.Owned)
+        {
             return false;
+        }
 
         fieldSymbol = field;
         receiverSymbol = receiver;

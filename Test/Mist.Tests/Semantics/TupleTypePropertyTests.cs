@@ -83,7 +83,9 @@ public class TupleTypePropertyTests
                 : elementDisplay;
 
             if(!tuple.DisplayName.Contains(expectedPart))
+            {
                 return false;
+            }
         }
 
         return true;

@@ -47,7 +47,9 @@ public class RegexPatternMatchingTypeTests
         var parseDiag = new DiagnosticBag();
         var parseResult = Parser.Parse(tokens, parseDiag);
         if(parseResult.Root is null)
+        {
             return parseDiag.ToImmutableArray();
+        }
 
         var buildDiag = new DiagnosticBag();
         var model = Builder.Build(
@@ -218,7 +220,9 @@ public class RegexPatternMatchingTypeTests
             scenario.Patterns.Select((p, i) => $"`{p}` => \"match{i}\","));
 
         if(scenario.HasCatchAll)
+        {
             arms += "\n            var _ => \"other\",";
+        }
 
         return $$"""
             class Program {

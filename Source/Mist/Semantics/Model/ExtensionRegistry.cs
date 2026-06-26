@@ -54,7 +54,9 @@ public sealed class ExtensionRegistry
         {
             // Skip universal extensions (already added above).
             if(receiverType is UnknownType)
+            {
                 continue;
+            }
 
             if(IsApplicable(receiverType, valueType))
             {
@@ -81,7 +83,9 @@ public sealed class ExtensionRegistry
         {
             // Skip universal extensions (already added above).
             if(receiverType is UnknownType)
+            {
                 continue;
+            }
 
             // An extension is applicable to the union only if it is applicable
             // to every constituent type.
@@ -179,7 +183,9 @@ public sealed class ExtensionRegistry
         foreach(var ext in applicable)
         {
             if(!ext.IsAmbient)
+            {
                 continue;
+            }
 
             var member = ext.MemberScope.Lookup(methodName);
             if(member is not null && member.Kind == SymbolKind.Method)
@@ -209,21 +215,27 @@ public sealed class ExtensionRegistry
     {
         // ── 1. Reference equality (covers all interned types) ───────────────
         if(ReferenceEquals(extensionReceiverType, valueType))
+        {
             return true;
+        }
 
         // ── 2. Open generic type definitions ────────────────────────────────
         // An extension declared on an uninstantiated generic type (e.g., the
         // ClassType for List<T> with TypeParameters.Count > 0) is potentially
         // applicable to any value — type inference narrows later.
         if(IsOpenGenericDefinition(extensionReceiverType))
+        {
             return true;
+        }
 
         // ── 3. Generic pattern (ConstructedType with type parameters) ───────
         // An extension receiver like IEnumerable<T> (a ConstructedType whose
         // type arguments include TypeParameterType) is a pattern that may match
         // any value type satisfying the shape.
         if(extensionReceiverType is ConstructedType ctPattern && ContainsTypeParameter(ctPattern))
+        {
             return IsPatternApplicable(ctPattern, valueType);
+        }
 
         // ── 4. ConstructedType value → generic definition match ─────────────
         // If the value is a concrete constructed type (e.g., List<int>), the
@@ -231,13 +243,17 @@ public sealed class ExtensionRegistry
         if(valueType is ConstructedType ctValue)
         {
             if(ReferenceEquals(extensionReceiverType, ctValue.GenericDefinition))
+            {
                 return true;
+            }
         }
 
         // ── 5. ArrayType structural match ───────────────────────────────────
         // Two ArrayType instances for the same element type are applicable.
         if(extensionReceiverType is ArrayType extArray && valueType is ArrayType valArray)
+        {
             return TypesEqual(extArray.ElementType, valArray.ElementType);
+        }
 
         // ── 6. Non-generic System.Collections.IEnumerable ───────────────────
         // This interface is intentionally excluded from projected Abstracts lists,
@@ -255,7 +271,9 @@ public sealed class ExtensionRegistry
         if(valueType is ClassType classValue && classValue.BaseType is not null)
         {
             if(IsApplicable(extensionReceiverType, classValue.BaseType))
+            {
                 return true;
+            }
         }
 
         // ── 8. Inheritance: implemented abstracts ───────────────────────────
@@ -278,7 +296,9 @@ public sealed class ExtensionRegistry
         if(implementedAbstracts is { Count: > 0 })
         {
             if(ImplementsAbstract(implementedAbstracts, extensionReceiverType))
+            {
                 return true;
+            }
         }
 
         return false;
@@ -320,7 +340,9 @@ public sealed class ExtensionRegistry
         if(valueType is ConstructedType ctValue)
         {
             if(ReferenceEquals(receiverPattern.GenericDefinition, ctValue.GenericDefinition))
+            {
                 return true;
+            }
 
             // Also check if the value type's generic definition implements the
             // receiver pattern's generic definition (e.g., List<int> implements
@@ -333,7 +355,9 @@ public sealed class ExtensionRegistry
                 _ => null
             };
             if(valueAbstracts is not null && ImplementsAbstract(valueAbstracts, receiverPattern.GenericDefinition))
+            {
                 return true;
+            }
 
             return false;
         }
@@ -350,11 +374,15 @@ public sealed class ExtensionRegistry
 
         if(implementedAbstracts is not null
             && ImplementsAbstract(implementedAbstracts, receiverPattern.GenericDefinition))
+        {
             return true;
+        }
 
         // Walk base class chain for classes.
         if(valueType is ClassType classVal && classVal.BaseType is not null)
+        {
             return IsPatternApplicable(receiverPattern, classVal.BaseType);
+        }
 
         return false;
     }
@@ -369,9 +397,14 @@ public sealed class ExtensionRegistry
         foreach(var arg in constructedType.TypeArguments)
         {
             if(arg is TypeParameterType)
+            {
                 return true;
+            }
+
             if(arg is ConstructedType nested && ContainsTypeParameter(nested))
+            {
                 return true;
+            }
         }
         return false;
     }
@@ -393,14 +426,18 @@ public sealed class ExtensionRegistry
             // Reference equality covers interned AbstractType and same-instance
             // ConstructedType (e.g., when the same object appears in both lists).
             if(ReferenceEquals(abs, extensionReceiverType))
+            {
                 return true;
+            }
 
             // ConstructedType structural match: two IEnumerable<int> instances
             // from different projection sites are logically the same type.
             if(abs is ConstructedType absCt && extensionReceiverType is ConstructedType targetCt)
             {
                 if(ConstructedTypesEqual(absCt, targetCt))
+                {
                     return true;
+                }
             }
 
             // An extension targeting a generic definition (e.g., IEnumerable<T> with
@@ -408,18 +445,24 @@ public sealed class ExtensionRegistry
             // in the implements list.
             if(abs is ConstructedType absCtForDef
                 && ReferenceEquals(absCtForDef.GenericDefinition, extensionReceiverType))
+            {
                 return true;
+            }
 
             // Conversely, if the extension receiver is a ConstructedType pattern and
             // the abstract in the list is its generic definition.
             if(extensionReceiverType is ConstructedType extCt
                 && ReferenceEquals(abs, extCt.GenericDefinition))
+            {
                 return true;
+            }
 
             // Recursively check inherited abstracts.
             visited ??= new HashSet<IType>(ReferenceEqualityComparer.Instance);
             if(!visited.Add(abs))
+            {
                 continue;
+            }
 
             var inheritedAbstracts = abs switch
             {
@@ -429,7 +472,9 @@ public sealed class ExtensionRegistry
             };
 
             if(inheritedAbstracts is not null && ImplementsAbstract(inheritedAbstracts, extensionReceiverType, visited))
+            {
                 return true;
+            }
         }
 
         return false;
@@ -444,15 +489,21 @@ public sealed class ExtensionRegistry
     private static bool ConstructedTypesEqual(ConstructedType a, ConstructedType b)
     {
         if(!ReferenceEquals(a.GenericDefinition, b.GenericDefinition))
+        {
             return false;
+        }
 
         if(a.TypeArguments.Count != b.TypeArguments.Count)
+        {
             return false;
+        }
 
         for(var i = 0; i < a.TypeArguments.Count; i++)
         {
             if(!TypesEqual(a.TypeArguments[i], b.TypeArguments[i]))
+            {
                 return false;
+            }
         }
 
         return true;
@@ -466,7 +517,9 @@ public sealed class ExtensionRegistry
     private static bool TypesEqual(IType a, IType b)
     {
         if(ReferenceEquals(a, b))
+        {
             return true;
+        }
 
         return (a, b) switch
         {

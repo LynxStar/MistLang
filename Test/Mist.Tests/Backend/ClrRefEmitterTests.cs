@@ -65,7 +65,9 @@ public sealed class ClrRefEmitterTests : IDisposable
         // path (which enables proper global usings and assembly loading).
         var tomlPath = Path.Combine(_outputDir, "mist.toml");
         if(!File.Exists(tomlPath))
+        {
             File.WriteAllText(tomlPath, $"name = \"{namespaceName}\"\n");
+        }
 
         var options = new CompilerOptions(
             ProjectFolder: _outputDir,
@@ -88,12 +90,16 @@ public sealed class ClrRefEmitterTests : IDisposable
     private static string? GetEmittedCSharp(CompilerResult result, string namespaceName = "TestProgram")
     {
         if(result.EmittedFiles is null)
+        {
             return null;
+        }
 
         foreach(var (_, content) in result.EmittedFiles)
         {
             if(content.Contains($"namespace {namespaceName}"))
+            {
                 return content;
+            }
         }
 
         return null;

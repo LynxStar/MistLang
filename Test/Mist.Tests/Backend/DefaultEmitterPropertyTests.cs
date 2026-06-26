@@ -106,7 +106,9 @@ public sealed partial class DefaultEmitterPropertyTests : IDisposable
         if(Directory.Exists(_outputDir))
         {
             foreach(var file in Directory.GetFiles(_outputDir))
+            {
                 File.Delete(file);
+            }
         }
     }
 
@@ -393,7 +395,9 @@ public sealed partial class DefaultEmitterPropertyTests : IDisposable
     private static Gen<ImmutableArray<(string FieldName, string FieldType)>> GenPrimitiveFields(int count)
     {
         if(count == 0)
+        {
             return Gen.Constant(ImmutableArray<(string, string)>.Empty);
+        }
 
         Gen<ImmutableArray<(string, string)>> result =
             from fieldType in Gen.Elements(PrimitiveTypes)
@@ -524,7 +528,9 @@ public sealed partial class DefaultEmitterPropertyTests : IDisposable
         var csContent = EmitAndGetCsContent(model);
 
         if(string.IsNullOrEmpty(csContent))
+        {
             return false;
+        }
 
         // 1. Verify __CreateDefault() method declaration exists for the type
         var methodMatches = CreateDefaultMethodPattern().Matches(csContent);
@@ -533,7 +539,9 @@ public sealed partial class DefaultEmitterPropertyTests : IDisposable
             .Any(m => m.Groups[1].Value == scenario.TypeName);
 
         if(!hasFactoryMethod)
+        {
             return false;
+        }
 
         // 2. Verify the factory method body creates a new instance
         var newInstanceMatches = NewInstancePattern().Matches(csContent);
@@ -542,7 +550,9 @@ public sealed partial class DefaultEmitterPropertyTests : IDisposable
             .Any(m => m.Groups[1].Value == scenario.TypeName);
 
         if(!hasNewInstance)
+        {
             return false;
+        }
 
         // 3. Verify each field is assigned somewhere in the emitted C# code.
         //    For structs, field assignments appear in __CreateDefault() as inst.field = value.
@@ -559,7 +569,9 @@ public sealed partial class DefaultEmitterPropertyTests : IDisposable
         foreach(var (fieldName, _) in scenario.Fields)
         {
             if(!assignedFields.Contains(fieldName))
+            {
                 return false;
+            }
         }
 
         return true;
@@ -588,7 +600,9 @@ public sealed partial class DefaultEmitterPropertyTests : IDisposable
         var csContent = EmitAndGetCsContent(model);
 
         if(string.IsNullOrEmpty(csContent))
+        {
             return false;
+        }
 
         // 1. Verify __CreateDefault() factory method declaration exists
         var methodMatches = CreateDefaultMethodPattern().Matches(csContent);
@@ -597,7 +611,9 @@ public sealed partial class DefaultEmitterPropertyTests : IDisposable
             .Any(m => m.Groups[1].Value == scenario.TypeName);
 
         if(!hasFactoryMethod)
+        {
             return false;
+        }
 
         // 2. Verify the default expression was emitted as TypeName.__CreateDefault()
         var callMatches = CreateDefaultCallPattern().Matches(csContent);

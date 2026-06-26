@@ -49,7 +49,9 @@ public class TuplePositionalPatternVariablePropertyTests
         var parseResult = Parser.Parse(tokens, parseDiag);
 
         if(parseResult.Root is null)
+        {
             throw new InvalidOperationException("Parse produced no root node.");
+        }
 
         var buildDiag = new DiagnosticBag();
         return Builder.Build(

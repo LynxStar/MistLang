@@ -3,8 +3,8 @@
 using System.Collections.Immutable;
 using Mist.Analysis.Builtin;
 using Mist.Analysis.Contracts;
-using Mist.Backends.CSharpTranspiler;
 using Mist.Backends.Contracts;
+using Mist.Backends.CSharpTranspiler;
 using Mist.Common.Diagnostics;
 using Mist.Driver;
 using Mist.Driver.Contracts;
@@ -224,7 +224,9 @@ public class OwnershipTruthTablePropertyTests
         foreach(var ((state, action), permitted) in ExpectedTruthTable)
         {
             if(permitted)
+            {
                 yield return new object[] { state, action };
+            }
         }
     }
 
@@ -236,7 +238,9 @@ public class OwnershipTruthTablePropertyTests
         foreach(var ((state, action), permitted) in ExpectedTruthTable)
         {
             if(!permitted)
+            {
                 yield return new object[] { state, action };
+            }
         }
     }
 

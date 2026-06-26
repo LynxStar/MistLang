@@ -51,7 +51,9 @@ public class PatternMatchingRoundTripPropertyTests
         // Step 1: Pretty-print the generated AST to source text
         var printed1 = MistPrettyPrinter.Print(ast);
         if(string.IsNullOrWhiteSpace(printed1))
+        {
             return false.ToProperty().Label("printed1 was empty");
+        }
 
         // Step 2: Parse the printed source text back to an AST
         var sourceText = new Mist.Common.Text.SourceText("test.mist", printed1);
@@ -76,12 +78,16 @@ public class PatternMatchingRoundTripPropertyTests
         }
 
         if(errors.Count > 0)
+        {
             return false.ToProperty()
                 .Label($"Parse errors: {string.Join("; ", errors.Select(e => e.Message))}\nSource:\n{printed1}");
+        }
 
         var reparsed = result.Root as CompilationUnitNode;
         if(reparsed is null)
+        {
             return false.ToProperty().Label($"Reparsed root was null.\nSource:\n{printed1}");
+        }
 
         // Step 3: Pretty-print the reparsed AST
         var printed2Full = MistPrettyPrinter.Print(reparsed, printed1);

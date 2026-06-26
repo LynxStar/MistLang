@@ -262,12 +262,16 @@ public sealed class WithBlockDropCompositionPropertyTests : IDisposable
     private static string? GetEmittedCSharp(CompilerResult result)
     {
         if(result.EmittedFiles is null)
+        {
             return null;
+        }
 
         foreach(var (_, content) in result.EmittedFiles)
         {
             if(content.Contains("namespace TestProgram"))
+            {
                 return content;
+            }
         }
 
         return null;
@@ -283,24 +287,32 @@ public sealed class WithBlockDropCompositionPropertyTests : IDisposable
         var popPattern = $"MistContext.Pop<{typeName}>();";
         var popIndex = emittedCSharp.IndexOf(popPattern, StringComparison.Ordinal);
         if(popIndex < 0)
+        {
             return null;
+        }
 
         // Walk backwards from the pop to find the enclosing finally { ... }
         // Look for the nearest `finally` keyword before the pop
         var searchRegion = emittedCSharp[..popIndex];
         var finallyIndex = searchRegion.LastIndexOf("finally", StringComparison.Ordinal);
         if(finallyIndex < 0)
+        {
             return null;
+        }
 
         // Find the opening brace after `finally`
         var openBrace = emittedCSharp.IndexOf('{', finallyIndex);
         if(openBrace < 0)
+        {
             return null;
+        }
 
         // Find the matching closing brace
         var closeBrace = FindMatchingCloseBrace(emittedCSharp, openBrace);
         if(closeBrace < 0)
+        {
             return null;
+        }
 
         return emittedCSharp.Substring(openBrace + 1, closeBrace - openBrace - 1);
     }
@@ -310,11 +322,19 @@ public sealed class WithBlockDropCompositionPropertyTests : IDisposable
         var depth = 0;
         for(var i = openBraceIndex; i < source.Length; i++)
         {
-            if(source[i] == '{') depth++;
-            else if(source[i] == '}') depth--;
+            if(source[i] == '{')
+            {
+                depth++;
+            }
+            else if(source[i] == '}')
+            {
+                depth--;
+            }
 
             if(depth == 0)
+            {
                 return i;
+            }
         }
         return -1;
     }

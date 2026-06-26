@@ -215,7 +215,9 @@ public class AbstractAssignabilityPropertyTests
     {
         var modifiers = new List<ModifierNode> { new PublicModifierModifierNode() };
         if(isStatic)
+        {
             modifiers.Add(new StaticModifierModifierNode());
+        }
 
         return new MethodDeclarationNode
         {

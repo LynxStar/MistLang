@@ -133,13 +133,18 @@ public class DuplicateTypeParameterPropertyTests
         foreach(var other in otherNames)
         {
             if(names.Count >= totalCount)
+            {
                 break;
+            }
+
             names.Add(other);
         }
 
         // Ensure we have exactly totalCount names
         while(names.Count < totalCount)
+        {
             names.Add(duplicateName);
+        }
 
         return names.ToImmutableArray();
     }

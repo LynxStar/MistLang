@@ -208,7 +208,9 @@ public sealed class VoidEmissionPropertyTests : IDisposable
         if(Directory.Exists(_outputDir))
         {
             foreach(var file in Directory.GetFiles(_outputDir))
+            {
                 File.Delete(file);
+            }
         }
     }
 
@@ -397,7 +399,9 @@ public sealed class VoidEmissionPropertyTests : IDisposable
     public bool ValueConsumedVoidMethod_EmitsMistVoid(VoidEmissionScenario scenario)
     {
         if(scenario.Context != VoidUsageContext.ValueConsumed)
+        {
             return true; // skip non-matching scenarios
+        }
 
         CleanOutputDir();
 
@@ -406,7 +410,9 @@ public sealed class VoidEmissionPropertyTests : IDisposable
         var csContent = EmitAndGetCsContent(model);
 
         if(string.IsNullOrEmpty(csContent))
+        {
             return false;
+        }
 
         // Req 10.3: The void method whose return value is consumed should have MistVoid return type
         var methodSignaturePattern = new Regex(
@@ -435,7 +441,9 @@ public sealed class VoidEmissionPropertyTests : IDisposable
     public bool FireAndForgetVoidMethod_EmitsCSharpVoid(VoidEmissionScenario scenario)
     {
         if(scenario.Context != VoidUsageContext.FireAndForget)
+        {
             return true; // skip non-matching scenarios
+        }
 
         CleanOutputDir();
 
@@ -444,7 +452,9 @@ public sealed class VoidEmissionPropertyTests : IDisposable
         var csContent = EmitAndGetCsContent(model);
 
         if(string.IsNullOrEmpty(csContent))
+        {
             return false;
+        }
 
         // Req 10.4: The void method should have standard C# void return type
         var methodSignaturePattern = new Regex(

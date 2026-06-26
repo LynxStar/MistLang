@@ -51,12 +51,16 @@ public sealed class NestedScopingDiagnosticTests
         var lexBag = new DiagnosticBag();
         var tokens = Lexer.Lex(sourceText, lexBag);
         if(lexBag.HasErrors)
+        {
             return lexBag.ToImmutableArray();
+        }
 
         var parseBag = new DiagnosticBag();
         var parseResult = Parser.Parse(tokens, parseBag);
         if(parseResult.Root is null)
+        {
             return parseBag.ToImmutableArray();
+        }
 
         var compilation = new MistCompilation(
             ImmutableArray.Create(new CompilationUnit(sourceText)));

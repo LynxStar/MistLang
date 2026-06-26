@@ -107,7 +107,10 @@ public sealed class TaskVoidLoweringPropertyTests
         var targetModifiers = ImmutableArray.CreateBuilder<ModifierNode>();
         targetModifiers.Add(new PublicModifierModifierNode());
         if(scenario.IsStatic)
+        {
             targetModifiers.Add(new StaticModifierModifierNode());
+        }
+
         targetModifiers.Add(new AsyncModifierModifierNode());
 
         var targetMethod = new MethodDeclarationNode
@@ -216,7 +219,9 @@ public sealed class TaskVoidLoweringPropertyTests
         // Concatenate all emitted .cs content
         var sb = new StringBuilder();
         foreach(var (_, content) in files)
+        {
             sb.AppendLine(content);
+        }
 
         return (true, sb.ToString(), "");
     }

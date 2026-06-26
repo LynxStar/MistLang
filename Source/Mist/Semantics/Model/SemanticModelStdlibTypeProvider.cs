@@ -45,26 +45,39 @@ internal sealed class SemanticModelStdlibTypeProvider : IStdlibTypeProvider
             }
 
             if(symbol.Name != simpleName)
+            {
                 continue;
+            }
 
             if(symbol.DeclaredType is ClassType ct && ct.ContainingNamespace == "Standard")
             {
                 if(typeArgumentCount < 0 || ct.TypeParameters.Count == typeArgumentCount)
+                {
                     return ct;
+                }
+
                 classFallback ??= ct;
             }
             else if(symbol.DeclaredType is StructType st && st.ContainingNamespace == "Standard")
             {
                 if(typeArgumentCount < 0 || st.TypeParameters.Count == typeArgumentCount)
+                {
                     return st;
+                }
+
                 structFallback ??= st;
             }
         }
 
         if(classFallback is not null)
+        {
             return classFallback;
+        }
+
         if(structFallback is not null)
+        {
             return structFallback;
+        }
 
         // Fallback to legacy singletons when stdlib is not loaded.
         return FallbackStdlibTypeProvider.Instance.LookupStandardType(simpleName, typeArgumentCount);

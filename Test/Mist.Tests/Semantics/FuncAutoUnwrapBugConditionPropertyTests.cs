@@ -73,7 +73,9 @@ public class FuncAutoUnwrapBugConditionPropertyTests
         var userParseResult = Parser.Parse(userTokens, diagnostics);
 
         if(userParseResult.Root is null)
+        {
             throw new InvalidOperationException($"Failed to parse user source:\n{source}");
+        }
 
         var allUnits = stdlibUnits.Add(userUnit);
         var allAsts = stdlibAsts.Add(userParseResult.Root);
@@ -202,14 +204,18 @@ public class FuncAutoUnwrapBugConditionPropertyTests
         var resultSymbol = FindLocal(model, "result");
 
         if(resultSymbol is null)
+        {
             return false.ToProperty()
                 .Label($"Could not find local 'result' in scenario: {scenario}");
+        }
 
         var resultType = resultSymbol.DeclaredType;
 
         if(resultType is null)
+        {
             return false.ToProperty()
                 .Label($"result.DeclaredType is null in scenario: {scenario}");
+        }
 
         // The EXPECTED behavior (after fix): result type should NOT be Task<T>.
         // It should be the unwrapped inner type T.

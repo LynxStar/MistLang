@@ -213,7 +213,11 @@ public sealed class UnknownIsPatternAndStorageSkipTests : IDisposable
     private static string ErrorReport(string stage, ImmutableArray<Diagnostic> bag)
     {
         var errors = bag.Where(d => d.Severity == DiagnosticSeverity.Error).ToImmutableArray();
-        if(errors.IsEmpty) return "";
+        if(errors.IsEmpty)
+        {
+            return "";
+        }
+
         return $"Unexpected errors during {stage}:\n" + string.Join(
             "\n",
             errors.Select(d => $"  [{d.Id.Value}] {d.Message}"));

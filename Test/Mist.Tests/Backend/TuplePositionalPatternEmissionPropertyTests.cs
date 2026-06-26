@@ -255,7 +255,10 @@ public class Program
         {
             // For var patterns, use different names to avoid conflicts
             if(e.Kind == SubpatternKind.VarPattern)
+            {
                 return $"var s{VarNames[idx % VarNames.Length]}";
+            }
+
             return e.MistSource;
         });
         return $"({string.Join(", ", elements)})";
@@ -298,17 +301,23 @@ public class Program
             var result = SharedDriver.Compile(options);
 
             if(!result.Succeeded || result.EmittedFiles is null)
+            {
                 return null;
+            }
 
             // Find the Program.cs file in the emitted files dictionary
             if(result.EmittedFiles.TryGetValue("Program.cs", out var programContent))
+            {
                 return programContent;
+            }
 
             // Fallback: look for any file containing our namespace
             foreach(var (_, content) in result.EmittedFiles)
             {
                 if(content.Contains("namespace TestEmission"))
+                {
                     return content;
+                }
             }
 
             return null;
@@ -409,7 +418,10 @@ public class Program
         var elements = scenario.Elements.Select((e, idx) =>
         {
             if(e.Kind == SubpatternKind.VarPattern)
+            {
                 return $"var s{VarNames[idx % VarNames.Length]}";
+            }
+
             return e.ExpectedEmission;
         });
         return $"({string.Join(", ", elements)})";
@@ -421,7 +433,9 @@ public class Program
     private static bool ValidatePositionalPatternFormat(string pattern, int expectedArity)
     {
         if(!pattern.StartsWith('(') || !pattern.EndsWith(')'))
+        {
             return false;
+        }
 
         // Remove outer parens
         var inner = pattern[1..^1];
@@ -459,7 +473,9 @@ public class Program
         }
 
         if(start < inner.Length)
+        {
             elements.Add(inner[start..].Trim());
+        }
 
         return elements;
     }

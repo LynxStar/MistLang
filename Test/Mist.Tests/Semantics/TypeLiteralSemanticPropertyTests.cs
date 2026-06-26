@@ -104,15 +104,22 @@ public class TypeLiteralSemanticPropertyTests
 
     private static void CollectTypeLiterals(Storm.Runtime.SyntaxNode? node, List<TypeLiteralExpressionPrimaryNode> results)
     {
-        if(node is null) return;
+        if(node is null)
+        {
+            return;
+        }
 
         if(node is TypeLiteralExpressionPrimaryNode typeLiteral)
+        {
             results.Add(typeLiteral);
+        }
 
         try
         {
             foreach(var child in node.Children())
+            {
                 CollectTypeLiterals(child, results);
+            }
         }
         catch(NullReferenceException)
         {
@@ -135,15 +142,22 @@ public class TypeLiteralSemanticPropertyTests
         Storm.Runtime.SyntaxNode? node,
         List<InferredVariableDeclarationVariableDeclarationStatementNode> results)
     {
-        if(node is null) return;
+        if(node is null)
+        {
+            return;
+        }
 
         if(node is InferredVariableDeclarationVariableDeclarationStatementNode varDecl)
+        {
             results.Add(varDecl);
+        }
 
         try
         {
             foreach(var child in node.Children())
+            {
                 CollectVarDeclarations(child, results);
+            }
         }
         catch(NullReferenceException)
         {
@@ -169,19 +183,28 @@ public class TypeLiteralSemanticPropertyTests
         TypeLiteralSemanticTestCase testCase)
     {
         var root = ParseSource(testCase.Source);
-        if(root is null) return false;
+        if(root is null)
+        {
+            return false;
+        }
 
         var model = BuildSemanticModel(root, testCase.Source);
 
         // Find all TypeLiteralExpression nodes in the AST
         var typeLiterals = FindTypeLiterals(root);
-        if(typeLiterals.Count == 0) return false;
+        if(typeLiterals.Count == 0)
+        {
+            return false;
+        }
 
         // Every TypeLiteralExpression must have TypeType as its expression type
         foreach(var typeLiteral in typeLiterals)
         {
             var exprType = model.GetTypeOf(typeLiteral);
-            if(exprType is null || !exprType.IsTypeType()) return false;
+            if(exprType is null || !exprType.IsTypeType())
+            {
+                return false;
+            }
         }
 
         return true;
@@ -194,20 +217,33 @@ public class TypeLiteralSemanticPropertyTests
         TypeLiteralSemanticTestCase testCase)
     {
         var root = ParseSource(testCase.Source);
-        if(root is null) return false;
+        if(root is null)
+        {
+            return false;
+        }
 
         var model = BuildSemanticModel(root, testCase.Source);
 
         // Find var declarations — the variable should have TypeType as its declared type
         var varDecls = FindVarDeclarations(root);
-        if(varDecls.Count == 0) return false;
+        if(varDecls.Count == 0)
+        {
+            return false;
+        }
 
         foreach(var varDecl in varDecls)
         {
             // The symbol for this var declaration should have TypeType as its declared type
             var symbol = model.GetDeclaredSymbol(varDecl);
-            if(symbol is null) return false;
-            if(symbol.DeclaredType is null || !symbol.DeclaredType.IsTypeType()) return false;
+            if(symbol is null)
+            {
+                return false;
+            }
+
+            if(symbol.DeclaredType is null || !symbol.DeclaredType.IsTypeType())
+            {
+                return false;
+            }
         }
 
         return true;
@@ -335,17 +371,26 @@ public class TypeLiteralSemanticPropertyTests
     {
         // Parse: class TypeName {} class Program { static void Main() { int TypeName = 42; var x = TypeName; } }
         var root = ParseSource(testCase.Source);
-        if(root is null) return false;
+        if(root is null)
+        {
+            return false;
+        }
 
         var model = BuildSemanticModel(root, testCase.Source);
 
         // Find the "var x = TypeName;" declaration — x should have the variable's
         // primitive type, NOT TypeType, because the local variable shadows the class name.
         var xDecl = FindInferredVarDeclByName(root, "x");
-        if(xDecl is null) return false;
+        if(xDecl is null)
+        {
+            return false;
+        }
 
         var xSymbol = model.GetDeclaredSymbol(xDecl);
-        if(xSymbol is null) return false;
+        if(xSymbol is null)
+        {
+            return false;
+        }
 
         // The inferred type of x must be the primitive type of the shadowing variable,
         // not TypeType (which would mean it resolved as a type literal).
@@ -353,7 +398,10 @@ public class TypeLiteralSemanticPropertyTests
         // stdlib StructType instances whose DisplayName differs from the
         // keyword form. Compare by DisplayName to handle both cases.
         var expectedType = ExpectedPrimitiveType(testCase.VariableType);
-        if(expectedType is null || xSymbol.DeclaredType is null) return false;
+        if(expectedType is null || xSymbol.DeclaredType is null)
+        {
+            return false;
+        }
 
         return xSymbol.DeclaredType.DisplayName == expectedType.DisplayName;
     }
@@ -366,18 +414,27 @@ public class TypeLiteralSemanticPropertyTests
     {
         // Parse the program where a local variable shadows a user-defined type name.
         var root = ParseSource(testCase.Source);
-        if(root is null) return false;
+        if(root is null)
+        {
+            return false;
+        }
 
         var model = BuildSemanticModel(root, testCase.Source);
 
         // Find the "var x = TypeName;" declaration and check the initializer expression type.
         var xDecl = FindInferredVarDeclByName(root, "x");
-        if(xDecl is null) return false;
+        if(xDecl is null)
+        {
+            return false;
+        }
 
         // The initializer expression (the IdentifierExpression for "TypeName") should
         // resolve to the variable's type, not TypeType.
         var initExprType = model.GetTypeOf(xDecl.Initializer);
-        if(initExprType is not null && initExprType.IsTypeType()) return false;
+        if(initExprType is not null && initExprType.IsTypeType())
+        {
+            return false;
+        }
 
         // It should be the primitive type of the shadowing variable.
         // After Task 32's compat shim, PrimitiveType.* accessors may return
@@ -386,7 +443,11 @@ public class TypeLiteralSemanticPropertyTests
         // without stdlib) still uses legacy PrimitiveType singletons. Compare
         // by DisplayName to handle both cases.
         var expectedType = ExpectedPrimitiveType(testCase.VariableType);
-        if(expectedType is null || initExprType is null) return false;
+        if(expectedType is null || initExprType is null)
+        {
+            return false;
+        }
+
         return initExprType.DisplayName == expectedType.DisplayName;
     }
 

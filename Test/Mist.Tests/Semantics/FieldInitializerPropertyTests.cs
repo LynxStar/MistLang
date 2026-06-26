@@ -218,15 +218,21 @@ public class FieldInitializerPropertyTests
 
         // The class type should be registered in the semantic model
         if(!model.AllSymbols.Any(s => s.Name == "TestClass" && s.Kind == SymbolKind.Class))
+        {
             return false;
+        }
 
         // The field symbol should exist
         if(!model.AllSymbols.Any(s => s.Name == scenario.FieldName && s.Kind == SymbolKind.Field))
+        {
             return false;
+        }
 
         // No MIST_SEMANTIC_ERROR diagnostics from the field initializer
         if(diagnostics.Any(d => d.Id.Value == "MIST_SEMANTIC_ERROR"))
+        {
             return false;
+        }
 
         return true;
     }
@@ -256,15 +262,21 @@ public class FieldInitializerPropertyTests
 
         // The class type should be registered in the semantic model
         if(!model.AllSymbols.Any(s => s.Name == "TestClass" && s.Kind == SymbolKind.Class))
+        {
             return false;
+        }
 
         // The field symbol should exist
         if(!model.AllSymbols.Any(s => s.Name == scenario.FieldName && s.Kind == SymbolKind.Field))
+        {
             return false;
+        }
 
         // No MIST_SEMANTIC_ERROR diagnostics
         if(diagnostics.Any(d => d.Id.Value == "MIST_SEMANTIC_ERROR"))
+        {
             return false;
+        }
 
         return true;
     }

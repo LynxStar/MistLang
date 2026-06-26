@@ -112,11 +112,15 @@ public class ScopeChainTraversalPropertyTests
 
         // Assert: total count matches sum across all levels
         if(results.Count != scenario.TotalExpected)
+        {
             return false;
+        }
 
         // Assert: every returned symbol has the correct name
         if(results.Any(s => s.Name != scenario.TargetName))
+        {
             return false;
+        }
 
         // Assert: every expected symbol is present in the results
         return allExpectedSymbols.All(expected => results.Contains(expected));
@@ -167,11 +171,15 @@ public class ScopeChainTraversalPropertyTests
 
         // Assert: count matches only the even-level symbols
         if(results.Count != expectedCount)
+        {
             return false;
+        }
 
         // Assert: every returned symbol has the correct name
         if(results.Any(s => s.Name != scenario.TargetName))
+        {
             return false;
+        }
 
         // Assert: every expected symbol is present
         return allExpectedSymbols.All(expected => results.Contains(expected));

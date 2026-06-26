@@ -417,15 +417,21 @@ public class StringLengthPropertyTests
 
         // No crash (MIST_SEMANTIC_ERROR)
         if(diagnostics.Any(d => d.Id.Value == "MIST_SEMANTIC_ERROR"))
+        {
             return false;
+        }
 
         // No undefined member for the method
         if(diagnostics.Any(d => d.Id.Value == "MIST_UNDEFINED_MEMBER" && d.Message.Contains(scenario.MethodName)))
+        {
             return false;
+        }
 
         // The class type should still be registered (AST not dropped)
         if(!model.AllSymbols.Any(s => s.Name == "TestClass" && s.Kind == SymbolKind.Class))
+        {
             return false;
+        }
 
         return true;
     }
@@ -452,15 +458,21 @@ public class StringLengthPropertyTests
 
             // No crash
             if(diagnostics.Any(d => d.Id.Value == "MIST_SEMANTIC_ERROR"))
+            {
                 return false;
+            }
 
             // No undefined member
             if(diagnostics.Any(d => d.Id.Value == "MIST_UNDEFINED_MEMBER" && d.Message.Contains(scenario.MethodName)))
+            {
                 return false;
+            }
 
             // Class still registered
             if(!model.AllSymbols.Any(s => s.Name == "TestClass" && s.Kind == SymbolKind.Class))
+            {
                 return false;
+            }
 
             return true;
         }
@@ -486,15 +498,21 @@ public class StringLengthPropertyTests
 
             // No crash
             if(diagnostics.Any(d => d.Id.Value == "MIST_SEMANTIC_ERROR"))
+            {
                 return false;
+            }
 
             // No undefined member
             if(diagnostics.Any(d => d.Id.Value == "MIST_UNDEFINED_MEMBER" && d.Message.Contains(scenario.MethodName)))
+            {
                 return false;
+            }
 
             // Class still registered
             if(!model.AllSymbols.Any(s => s.Name == "TestClass" && s.Kind == SymbolKind.Class))
+            {
                 return false;
+            }
 
             return true;
         }

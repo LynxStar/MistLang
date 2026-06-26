@@ -196,7 +196,9 @@ public sealed partial class AbstractEmissionPropertyTests : IDisposable
         if(Directory.Exists(_outputDir))
         {
             foreach(var file in Directory.GetFiles(_outputDir))
+            {
                 File.Delete(file);
+            }
         }
     }
 
@@ -353,7 +355,9 @@ public sealed partial class AbstractEmissionPropertyTests : IDisposable
         int count)
     {
         if(count == 0 || abstracts.Length == 0)
+        {
             return Gen.Constant(ImmutableArray<ImplementorInfo>.Empty);
+        }
 
         var gen = Gen.Constant(ImmutableArray.CreateBuilder<ImplementorInfo>());
 
@@ -484,7 +488,9 @@ public sealed partial class AbstractEmissionPropertyTests : IDisposable
         var csContent = EmitAndGetCsContent(model);
 
         if(string.IsNullOrEmpty(csContent))
+        {
             return false;
+        }
 
         // ── Requirement 9.1: Each abstract declaration emitted as C# interface ──
         var interfaceMatches = InterfaceDeclPattern().Matches(csContent);
@@ -500,19 +506,25 @@ public sealed partial class AbstractEmissionPropertyTests : IDisposable
         {
             // Verify the abstract declaration exists in emitted C#
             if(!emittedAbstracts.ContainsKey(abs.Name))
+            {
                 return false;
+            }
 
             // ── Requirement 9.6: Abstract inheritance emitted correctly ──
             if(abs.ParentAbstractName is not null)
             {
                 if(emittedAbstracts[abs.Name] != abs.ParentAbstractName)
+                {
                     return false;
+                }
             }
             else
             {
                 // No parent abstract: should not have an inheritance clause
                 if(emittedAbstracts[abs.Name] is not null)
+                {
                     return false;
+                }
             }
         }
 
@@ -524,7 +536,9 @@ public sealed partial class AbstractEmissionPropertyTests : IDisposable
                 // Verify the method signature appears in the emitted C#
                 // Pattern: "void MethodName();" (with possible indentation)
                 if(!csContent.Contains($"void {methodName}("))
+                {
                     return false;
+                }
             }
         }
 
@@ -543,10 +557,14 @@ public sealed partial class AbstractEmissionPropertyTests : IDisposable
             if(impl.Kind == EmissionTypeKind.ClassWithAbstract)
             {
                 if(!emittedClasses.TryGetValue(impl.Name, out var actualBase))
+                {
                     return false;
+                }
                 // The class should have `: AbstractName` in its declaration
                 if(actualBase != impl.AbstractName)
+                {
                     return false;
+                }
             }
         }
 
@@ -565,10 +583,14 @@ public sealed partial class AbstractEmissionPropertyTests : IDisposable
             if(impl.Kind == EmissionTypeKind.StructWithAbstract)
             {
                 if(!emittedStructs.TryGetValue(impl.Name, out var actualAbstract))
+                {
                     return false;
+                }
                 // The struct should have `: AbstractName` in its declaration
                 if(actualAbstract != impl.AbstractName)
+                {
                     return false;
+                }
             }
         }
 

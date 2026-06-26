@@ -56,7 +56,10 @@ public sealed class DelegateOverloadResolutionPropertyTests
         var funcDef = new ClassType("Func", new Scope(null), "Standard", isBackendBacked: true);
         var tps = new IType[arity];
         for(var i = 0; i < arity; i++)
+        {
             tps[i] = new TypeParameterType($"T{i}", i);
+        }
+
         funcDef.TypeParameters = tps;
         return funcDef;
     }

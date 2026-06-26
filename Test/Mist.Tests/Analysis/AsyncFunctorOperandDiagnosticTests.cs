@@ -37,7 +37,9 @@ public class AsyncFunctorOperandDiagnosticTests
         var parseDiag = new DiagnosticBag();
         var parseResult = Parser.Parse(tokens, parseDiag);
         if(parseResult.Root is null)
+        {
             return parseDiag.ToImmutableArray();
+        }
 
         var buildDiag = new DiagnosticBag();
         var model = Builder.Build(
@@ -70,7 +72,9 @@ public class AsyncFunctorOperandDiagnosticTests
         var parseDiag = new DiagnosticBag();
         var parseResult = Parser.Parse(tokens, parseDiag);
         if(parseResult.Root is null)
+        {
             return parseDiag.ToImmutableArray();
+        }
 
         var (model, buildDiag) = StdlibTestHelper.BuildModelWithStdlib(
             parseResult.Root, source: source);

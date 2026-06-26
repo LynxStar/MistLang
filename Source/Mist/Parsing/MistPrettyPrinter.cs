@@ -207,7 +207,11 @@ public sealed class MistPrettyPrinter
     private string EmitRefinableSingle(RefinableSingleTypeExprNode expr)
     {
         var type = EmitSingleTypeRef(expr.Type);
-        if(expr.Refinement is null) return type;
+        if(expr.Refinement is null)
+        {
+            return type;
+        }
+
         var predicate = EmitRefinementPredicate(expr.Refinement);
         return $"{type} {predicate}";
     }
@@ -569,7 +573,10 @@ public sealed class MistPrettyPrinter
 
     private static string EmitAccessorModifier(ModifierNode? modifier)
     {
-        if(modifier is null) return "";
+        if(modifier is null)
+        {
+            return "";
+        }
 
         return modifier switch
         {
@@ -980,7 +987,11 @@ public sealed class MistPrettyPrinter
 
         for(var i = 0; i < extDecl.Members.Length; i++)
         {
-            if(i > 0) AppendLine();
+            if(i > 0)
+            {
+                AppendLine();
+            }
+
             EmitExtensionMemberDeclaration(extDecl.Members[i]);
         }
 
@@ -1005,7 +1016,10 @@ public sealed class MistPrettyPrinter
 
     private string EmitParameterList(ParameterListNode? paramList)
     {
-        if(paramList is null) return "";
+        if(paramList is null)
+        {
+            return "";
+        }
 
         var parameters = new List<string>();
         parameters.Add(EmitParameter(paramList.Parameter));
@@ -1025,7 +1039,10 @@ public sealed class MistPrettyPrinter
     {
         var prefix = param.Modifier is not null ? "readonly " : "";
         if(param.RefModifier is not null)
+        {
             prefix += "ref ";
+        }
+
         prefix += EmitOwnershipSpecifier(param.OwnershipSpecifier);
         var type = EmitTypeReference(param.Type);
         var name = param.Name.Lexeme;
@@ -1047,7 +1064,10 @@ public sealed class MistPrettyPrinter
 
     private string EmitArgumentList(ArgumentListNode? argList)
     {
-        if(argList is null) return "";
+        if(argList is null)
+        {
+            return "";
+        }
 
         var arguments = new List<string>();
         arguments.Add(EmitArgument(argList.Argument));
@@ -1318,7 +1338,10 @@ public sealed class MistPrettyPrinter
 
     private string EmitWithClauses(ImmutableArray<WithClauseNode> withClauses)
     {
-        if(withClauses.IsDefaultOrEmpty) return "";
+        if(withClauses.IsDefaultOrEmpty)
+        {
+            return "";
+        }
 
         var sb = new StringBuilder();
         foreach(var clause in withClauses)
@@ -1515,7 +1538,10 @@ public sealed class MistPrettyPrinter
 
     private string EmitForInitializer(ForInitializerNode? initializer)
     {
-        if(initializer is null) return "";
+        if(initializer is null)
+        {
+            return "";
+        }
 
         switch(initializer)
         {
@@ -1585,7 +1611,10 @@ public sealed class MistPrettyPrinter
 
     private static string EmitLambdaModifiers(ImmutableArray<LambdaModifierNode> modifiers)
     {
-        if(modifiers.IsDefaultOrEmpty) return "";
+        if(modifiers.IsDefaultOrEmpty)
+        {
+            return "";
+        }
 
         var parts = new List<string>();
         foreach(var modifier in modifiers)
@@ -1764,7 +1793,9 @@ public sealed class MistPrettyPrinter
         var left = EmitAndPattern(orPattern.Left);
 
         if(orPattern.AndPatterns.IsDefaultOrEmpty)
+        {
             return left;
+        }
 
         var parts = new List<string> { left };
         foreach(var part in orPattern.AndPatterns)
@@ -1797,7 +1828,9 @@ public sealed class MistPrettyPrinter
         var left = EmitUnaryPattern(andPattern.Left);
 
         if(andPattern.UnaryPatterns.IsDefaultOrEmpty)
+        {
             return left;
+        }
 
         var parts = new List<string> { left };
         foreach(var part in andPattern.UnaryPatterns)
@@ -1878,7 +1911,9 @@ public sealed class MistPrettyPrinter
             case ListPatternPrimaryPatternNode listPattern:
                 {
                     if(listPattern.Elements is null)
+                    {
                         return "[]";
+                    }
 
                     return $"[{EmitListPatternElementList(listPattern.Elements)}]";
                 }
@@ -1957,7 +1992,10 @@ public sealed class MistPrettyPrinter
             case SliceElementListPatternElementNode sliceElement:
                 {
                     if(sliceElement.Name.HasValue)
+                    {
                         return $".. {sliceElement.Name.Value.Lexeme}";
+                    }
+
                     return "..";
                 }
             default:
@@ -2225,7 +2263,10 @@ public sealed class MistPrettyPrinter
                 {
                     var elements = new List<string> { EmitExpression(arrayLiteral.First) };
                     foreach(var elem in arrayLiteral.Expressions)
+                    {
                         elements.Add(EmitExpression(elem));
+                    }
+
                     return $"[{string.Join(", ", elements)}]";
                 }
             case EmptyArrayLiteralExpressionPrimaryNode:
@@ -2263,7 +2304,10 @@ public sealed class MistPrettyPrinter
 
     private static string EmitModifiers(ImmutableArray<ModifierNode> modifiers)
     {
-        if(modifiers.IsEmpty) return "";
+        if(modifiers.IsEmpty)
+        {
+            return "";
+        }
 
         var parts = new List<string>();
         foreach(var mod in modifiers)
@@ -2340,7 +2384,10 @@ public sealed class MistPrettyPrinter
     /// </summary>
     private static string EmitTypeParameterList(TypeParameterListNode? typeParams)
     {
-        if(typeParams is null) return "";
+        if(typeParams is null)
+        {
+            return "";
+        }
 
         var parts = new List<string>();
         parts.Add(EmitTypeParameter(typeParams.TypeParameter));
@@ -2371,7 +2418,10 @@ public sealed class MistPrettyPrinter
     /// </summary>
     private string EmitTypeArgumentList(TypeArgumentListNode? typeArgs)
     {
-        if(typeArgs is null) return "";
+        if(typeArgs is null)
+        {
+            return "";
+        }
 
         var parts = new List<string>();
         parts.Add(EmitTypeArgument(typeArgs.TypeArgument));
@@ -2452,7 +2502,10 @@ public sealed class MistPrettyPrinter
     /// </summary>
     private string EmitConstraintClauses(ImmutableArray<WhereClauseNode> constraints)
     {
-        if(constraints.IsDefaultOrEmpty) return "";
+        if(constraints.IsDefaultOrEmpty)
+        {
+            return "";
+        }
 
         var sb = new StringBuilder();
         foreach(var clause in constraints)
@@ -2535,7 +2588,9 @@ public sealed class MistPrettyPrinter
     private string EmitPropertyAssignmentList(PropertyInitializerBlockNode block)
     {
         if(block.Assignments is null)
+        {
             return "";
+        }
 
         var parts = new List<string>();
         parts.Add(EmitSinglePropertyAssignment(block.Assignments.PropertyAssignment));

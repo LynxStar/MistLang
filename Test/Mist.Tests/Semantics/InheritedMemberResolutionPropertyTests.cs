@@ -311,7 +311,10 @@ public class InheritedMemberResolutionPropertyTests
                 fields.Add(fieldName);
             }
 
-            if(!valid) break;
+            if(!valid)
+            {
+                break;
+            }
 
             var methods = new List<string>();
             for(var m = 0; m < methodCounts[i] && methodIdx < shuffledMethods.Length; m++)
@@ -325,7 +328,10 @@ public class InheritedMemberResolutionPropertyTests
                 methods.Add(methodName);
             }
 
-            if(!valid) break;
+            if(!valid)
+            {
+                break;
+            }
 
             var baseName = i > 0 ? classNames[i - 1] : null;
             classes.Add(new ClassInfo(
@@ -336,7 +342,9 @@ public class InheritedMemberResolutionPropertyTests
         }
 
         if(!valid || classes.Count != classNames.Length)
+        {
             return ImmutableArray<ClassInfo>.Empty;
+        }
 
         return classes.ToImmutableArray();
     }
@@ -422,7 +430,9 @@ public class InheritedMemberResolutionPropertyTests
     public bool InheritedMember_ResolvesWithoutUndefinedDiagnostic(MemberAccessScenario scenario)
     {
         if(!scenario.ShouldResolve)
+        {
             return true; // Skip unresolvable scenarios for this property
+        }
 
         var ast = BuildAst(scenario);
         var (_, diagnostics) = BuildModelWithDiagnostics(ast);
@@ -448,7 +458,9 @@ public class InheritedMemberResolutionPropertyTests
     public bool UndefinedMember_ProducesUndefinedMemberDiagnostic(MemberAccessScenario scenario)
     {
         if(scenario.ShouldResolve)
+        {
             return true; // Skip resolvable scenarios for this property
+        }
 
         var ast = BuildAst(scenario);
         var (_, diagnostics) = BuildModelWithDiagnostics(ast);
@@ -473,7 +485,9 @@ public class InheritedMemberResolutionPropertyTests
     public bool InheritedMember_ResolvesToConcreteType(MemberAccessScenario scenario)
     {
         if(!scenario.ShouldResolve)
+        {
             return true; // Skip unresolvable scenarios for this property
+        }
 
         var ast = BuildAst(scenario);
         var (model, diagnostics) = BuildModelWithDiagnostics(ast);
@@ -484,7 +498,9 @@ public class InheritedMemberResolutionPropertyTests
             && d.Message.Contains(scenario.AccessedMemberName));
 
         if(hasUndefined)
+        {
             return false;
+        }
 
         // Verify the member access expression was resolved to a non-unknown type.
         // We check that no MIST_UNDEFINED_MEMBER diagnostic was emitted for the leaf class
@@ -494,7 +510,9 @@ public class InheritedMemberResolutionPropertyTests
             .FirstOrDefault(s => s.Name == scenario.LeafClassName && s.Kind == SymbolKind.Class);
 
         if(leafSymbol?.DeclaredType is not ClassType leafType)
+        {
             return false;
+        }
 
         // Walk the chain to verify the member exists somewhere
         var current = leafType;
@@ -503,7 +521,9 @@ public class InheritedMemberResolutionPropertyTests
             foreach(var member in current.MemberScope.Members)
             {
                 if(member.Name == scenario.AccessedMemberName)
+                {
                     return true; // Found the member in the chain
+                }
             }
             current = current.BaseType as ClassType;
         }

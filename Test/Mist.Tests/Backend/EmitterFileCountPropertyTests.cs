@@ -162,7 +162,9 @@ public sealed class EmitterFileCountPropertyTests : IDisposable
         if(Directory.Exists(_outputDir))
         {
             foreach(var file in Directory.GetFiles(_outputDir))
+            {
                 File.Delete(file);
+            }
         }
     }
 
@@ -230,12 +232,16 @@ public sealed class EmitterFileCountPropertyTests : IDisposable
             .ToList();
 
         if(csFileNames.Count != expectedNames.Count)
+        {
             return false;
+        }
 
         for(var i = 0; i < csFileNames.Count; i++)
         {
             if(csFileNames[i] != expectedNames[i])
+            {
                 return false;
+            }
         }
 
         return true;

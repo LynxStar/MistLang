@@ -29,14 +29,27 @@ public sealed class UnionType : IType, IEquatable<UnionType>
 
     public bool Equals(UnionType? other)
     {
-        if(other is null) return false;
-        if(ReferenceEquals(this, other)) return true;
-        if(Constituents.Count != other.Constituents.Count) return false;
+        if(other is null)
+        {
+            return false;
+        }
+
+        if(ReferenceEquals(this, other))
+        {
+            return true;
+        }
+
+        if(Constituents.Count != other.Constituents.Count)
+        {
+            return false;
+        }
 
         for(var i = 0; i < Constituents.Count; i++)
         {
             if(Constituents[i].DisplayName != other.Constituents[i].DisplayName)
+            {
                 return false;
+            }
         }
 
         return true;

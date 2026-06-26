@@ -98,9 +98,15 @@ public sealed class PackageNameValidationPropertyTests
     private static bool IsValidPackageName(string name)
     {
         if(string.IsNullOrEmpty(name))
+        {
             return false;
+        }
+
         if(name.Length > 128)
+        {
             return false;
+        }
+
         return ValidPackageNameRegex.IsMatch(name);
     }
 
@@ -125,10 +131,25 @@ public sealed class PackageNameValidationPropertyTests
     {
         foreach(var c in value)
         {
-            if(c < 0x09) return false;
-            if(c == 0x0B || c == 0x0C) return false;
-            if(c >= 0x0E && c <= 0x1F) return false;
-            if(c == 0x7F) return false;
+            if(c < 0x09)
+            {
+                return false;
+            }
+
+            if(c == 0x0B || c == 0x0C)
+            {
+                return false;
+            }
+
+            if(c >= 0x0E && c <= 0x1F)
+            {
+                return false;
+            }
+
+            if(c == 0x7F)
+            {
+                return false;
+            }
         }
         return true;
     }
@@ -140,11 +161,15 @@ public sealed class PackageNameValidationPropertyTests
     private static bool VerifyPackageNameValidation(string candidateName)
     {
         if(candidateName is null)
+        {
             return true;
+        }
 
         // Skip strings that cannot be represented in TOML (control characters)
         if(!CanRepresentInToml(candidateName))
+        {
             return true;
+        }
 
         var expectedValid = IsValidPackageName(candidateName);
 
@@ -167,7 +192,9 @@ public sealed class PackageNameValidationPropertyTests
             {
                 // Should parse successfully with no package-name errors
                 if(result is null)
+                {
                     return false;
+                }
 
                 var hasNameError = diags.Any(d =>
                     d.Id.Value == "MIST_PKG_INVALID_NAME");

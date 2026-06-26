@@ -164,7 +164,9 @@ internal sealed class AssemblyTypeProvider : IAmbientTypeResolver, IDisposable
         foreach(var ns in _namespaceIndex.Keys)
         {
             if(ns.StartsWith(prefix, StringComparison.Ordinal))
+            {
                 return true;
+            }
         }
         return false;
     }
@@ -195,7 +197,9 @@ internal sealed class AssemblyTypeProvider : IAmbientTypeResolver, IDisposable
             : (namespaceName, typeName);
 
         if(_cache.TryGetValue(cacheKey, out var cached))
+        {
             return cached.Type;
+        }
 
         // Cross-key lookup: when arity is unspecified (-1), also check the arity-0 key.
         // This ensures that a non-generic type projected via the internal arity-aware path
@@ -206,7 +210,9 @@ internal sealed class AssemblyTypeProvider : IAmbientTypeResolver, IDisposable
         {
             var arityZeroKey = (namespaceName, $"{typeName}`0");
             if(_cache.TryGetValue(arityZeroKey, out var arityZeroCached))
+            {
                 return arityZeroCached.Type;
+            }
         }
 
         // Find the CLR type in loaded assemblies.
@@ -214,7 +220,9 @@ internal sealed class AssemblyTypeProvider : IAmbientTypeResolver, IDisposable
             ? FindClrTypeByArity(namespaceName, typeName, typeArgumentCount)
             : FindClrType(namespaceName, typeName);
         if(clrType is null)
+        {
             return null;
+        }
 
         // Skip non-public types: VisibilityFilter.IsTypeExcluded excludes types that are not
         // publicly accessible, so they resolve to null rather than a projected type. Ref-struct
@@ -222,7 +230,9 @@ internal sealed class AssemblyTypeProvider : IAmbientTypeResolver, IDisposable
         // are projected as Mist stack-only structs (Requirement 9), so this guard does not null
         // them out.
         if(_filter.IsTypeExcluded(clrType))
+        {
             return null;
+        }
 
         // Project the type lazily on first access (Requirement 3.3).
         var stdlib = Stdlib;
@@ -235,7 +245,9 @@ internal sealed class AssemblyTypeProvider : IAmbientTypeResolver, IDisposable
         // the race to project this key, discard our work and return the cached instance so
         // reference equality is preserved (Requirement 3.4).
         if(!_cache.TryAdd(cacheKey, (projectedType, ImmutableArray<ISymbol>.Empty)))
+        {
             return _cache[cacheKey].Type;
+        }
 
         // Project members (methods, properties, fields, constructors, indexers).
         var projectedMembers = _projector.ProjectMembers(clrType, projectedType, stdlib);
@@ -291,7 +303,9 @@ internal sealed class AssemblyTypeProvider : IAmbientTypeResolver, IDisposable
     private IType? ResolveProjectedType(Type clrType)
     {
         if(clrType.Namespace is null || clrType.IsGenericParameter || clrType.IsArray)
+        {
             return null;
+        }
 
         var typeName = TypeProjector.StripGenericAritySuffix(clrType.Name);
         var arity = clrType.IsGenericType ? clrType.GetGenericArguments().Length : 0;
@@ -307,7 +321,9 @@ internal sealed class AssemblyTypeProvider : IAmbientTypeResolver, IDisposable
     private IType? ResolveProjectedTypeCacheOnly(Type clrType)
     {
         if(clrType.Namespace is null || clrType.IsGenericParameter || clrType.IsArray)
+        {
             return null;
+        }
 
         var typeName = TypeProjector.StripGenericAritySuffix(clrType.Name);
         var arity = clrType.IsGenericType ? clrType.GetGenericArguments().Length : 0;
@@ -317,14 +333,18 @@ internal sealed class AssemblyTypeProvider : IAmbientTypeResolver, IDisposable
             : (clrType.Namespace, typeName);
 
         if(_cache.TryGetValue(cacheKey, out var cached))
+        {
             return cached.Type;
+        }
 
         // Also try without arity suffix for non-generic types (arity == 0).
         if(arity == 0)
         {
             var altKey = (clrType.Namespace, typeName);
             if(_cache.TryGetValue(altKey, out var altCached))
+            {
                 return altCached.Type;
+            }
         }
 
         return null;
@@ -338,7 +358,9 @@ internal sealed class AssemblyTypeProvider : IAmbientTypeResolver, IDisposable
         foreach(var entry in _cache.Values)
         {
             if(ReferenceEquals(entry.Type, type))
+            {
                 return entry.Members;
+            }
         }
 
         return ImmutableArray<ISymbol>.Empty;
@@ -348,7 +370,9 @@ internal sealed class AssemblyTypeProvider : IAmbientTypeResolver, IDisposable
     public ImmutableArray<string> GetTypeNamesInNamespace(string namespaceName)
     {
         if(!_namespaceIndex.TryGetValue(namespaceName, out var typeNames))
+        {
             return ImmutableArray<string>.Empty;
+        }
 
         return typeNames.ToImmutableArray();
     }
@@ -453,7 +477,9 @@ internal sealed class AssemblyTypeProvider : IAmbientTypeResolver, IDisposable
         foreach(var assemblyInfo in _loadedAssemblies)
         {
             if(!assemblyInfo.NamespaceIndex.TryGetValue(namespaceName, out var typeNames))
+            {
                 continue;
+            }
 
             // Try exact match first (non-generic types or types with arity suffix already).
             if(typeNames.Contains(typeName))
@@ -463,7 +489,9 @@ internal sealed class AssemblyTypeProvider : IAmbientTypeResolver, IDisposable
                 {
                     var type = assemblyInfo.MetadataAssembly.GetType(fullName);
                     if(type is not null && !_filter.IsTypeExcluded(type))
+                    {
                         return type;
+                    }
                 }
                 catch
                 {
@@ -482,7 +510,9 @@ internal sealed class AssemblyTypeProvider : IAmbientTypeResolver, IDisposable
                     {
                         var type = assemblyInfo.MetadataAssembly.GetType(fullName);
                         if(type is not null && !_filter.IsTypeExcluded(type))
+                        {
                             return type;
+                        }
                     }
                     catch
                     {
@@ -507,7 +537,9 @@ internal sealed class AssemblyTypeProvider : IAmbientTypeResolver, IDisposable
         foreach(var assemblyInfo in _loadedAssemblies)
         {
             if(!assemblyInfo.NamespaceIndex.TryGetValue(namespaceName, out var typeNames))
+            {
                 continue;
+            }
 
             if(typeArgumentCount == 0)
             {
@@ -519,7 +551,9 @@ internal sealed class AssemblyTypeProvider : IAmbientTypeResolver, IDisposable
                     {
                         var type = assemblyInfo.MetadataAssembly.GetType(fullName);
                         if(type is not null && !_filter.IsTypeExcluded(type) && !type.IsGenericTypeDefinition)
+                        {
                             return type;
+                        }
                     }
                     catch
                     {
@@ -538,7 +572,9 @@ internal sealed class AssemblyTypeProvider : IAmbientTypeResolver, IDisposable
                     {
                         var type = assemblyInfo.MetadataAssembly.GetType(fullName);
                         if(type is not null && !_filter.IsTypeExcluded(type))
+                        {
                             return type;
+                        }
                     }
                     catch
                     {

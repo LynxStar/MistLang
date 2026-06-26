@@ -230,30 +230,40 @@ public class RegexPrettyPrinterRoundTripTests
         var (root1, errors1) = ParseSource(scenario.Source);
 
         if(errors1.Count > 0)
+        {
             return false.ToProperty()
                 .Label($"Initial parse errors: {string.Join("; ", errors1.Select(e => e.Message))}\nSource:\n{scenario.Source}");
+        }
 
         if(root1 is null)
+        {
             return false.ToProperty()
                 .Label($"Initial parse root was null.\nSource:\n{scenario.Source}");
+        }
 
         // Step 2: Pretty-print the parsed AST (with source text for span-based name extraction)
         var printed1 = MistPrettyPrinter.Print(root1, scenario.Source);
 
         if(string.IsNullOrWhiteSpace(printed1))
+        {
             return false.ToProperty()
                 .Label($"printed1 was empty.\nSource:\n{scenario.Source}");
+        }
 
         // Step 3: Parse the pretty-printed output
         var (root2, errors2) = ParseSource(printed1);
 
         if(errors2.Count > 0)
+        {
             return false.ToProperty()
                 .Label($"Re-parse errors: {string.Join("; ", errors2.Select(e => e.Message))}\nPrinted:\n{printed1}");
+        }
 
         if(root2 is null)
+        {
             return false.ToProperty()
                 .Label($"Re-parsed root was null.\nPrinted:\n{printed1}");
+        }
 
         // Step 4: Pretty-print the re-parsed AST (with printed1 as source text)
         var printed2 = MistPrettyPrinter.Print(root2, printed1);

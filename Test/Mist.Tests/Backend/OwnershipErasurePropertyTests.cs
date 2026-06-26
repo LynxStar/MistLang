@@ -5,8 +5,8 @@ using FsCheck;
 using FsCheck.Fluent;
 using FsCheck.Xunit;
 using Mist.Analysis.Builtin;
-using Mist.Backends.CSharpTranspiler;
 using Mist.Backends.Contracts;
+using Mist.Backends.CSharpTranspiler;
 using Mist.Common.Diagnostics;
 using Mist.Driver;
 using Mist.Driver.Contracts;
@@ -62,7 +62,9 @@ public class OwnershipErasurePropertyTests
             var result = SharedDriver.Compile(options);
 
             if(!result.Succeeded)
+            {
                 return null;
+            }
 
             return result.EmittedFiles;
         }
@@ -501,7 +503,9 @@ public class OwnershipErasurePropertyTests
         var emittedFiles = CompileAndGetEmittedFiles(scenario.WithOwnership);
 
         if(emittedFiles is null)
+        {
             return false.Label("Compilation failed");
+        }
 
         // Check that no emitted file contains ownership runtime artifacts
         var forbiddenPatterns = new[]
@@ -520,7 +524,9 @@ public class OwnershipErasurePropertyTests
         {
             // Skip .csproj files
             if(fileName.EndsWith(".csproj", StringComparison.OrdinalIgnoreCase))
+            {
                 continue;
+            }
 
             foreach(var pattern in forbiddenPatterns)
             {
@@ -548,7 +554,9 @@ public class OwnershipErasurePropertyTests
         var emittedFiles = CompileAndGetEmittedFiles(scenario.WithOwnership);
 
         if(emittedFiles is null)
+        {
             return false.Label("Compilation failed");
+        }
 
         // Ownership keywords that must not appear in emitted C#.
         // Note: "ref" is a valid C# keyword so we check for the Mist-specific
@@ -564,7 +572,9 @@ public class OwnershipErasurePropertyTests
         foreach(var (fileName, content) in emittedFiles)
         {
             if(fileName.EndsWith(".csproj", StringComparison.OrdinalIgnoreCase))
+            {
                 continue;
+            }
 
             foreach(var keyword in forbiddenKeywords)
             {

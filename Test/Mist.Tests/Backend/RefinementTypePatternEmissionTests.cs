@@ -4,8 +4,8 @@
 using System.Collections.Immutable;
 using System.Text;
 using Mist.Analysis.Builtin;
-using Mist.Backends.CSharpTranspiler;
 using Mist.Backends.Contracts;
+using Mist.Backends.CSharpTranspiler;
 using Mist.Common.Diagnostics;
 using Mist.Common.Text;
 using Mist.Driver;
@@ -86,7 +86,9 @@ public sealed class RefinementTypePatternEmissionTests
 
         var sb = new StringBuilder();
         foreach(var (_, content) in files)
+        {
             sb.AppendLine(content);
+        }
 
         return sb.ToString();
     }

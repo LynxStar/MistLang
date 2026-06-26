@@ -133,7 +133,9 @@ public sealed class OperatorProjectionPropertyTests
     private static string GetExpectedMistOperatorName(MethodInfo method)
     {
         if(BinaryAndUnaryOperatorMap.TryGetValue(method.Name, out var mistName))
+        {
             return mistName;
+        }
 
         // Cast operators: operator_{kind}_{targetTypeName}
         if(method.Name is "op_Implicit" or "op_Explicit")
@@ -163,7 +165,9 @@ public sealed class OperatorProjectionPropertyTests
         };
 
         if(memberScope is null)
+        {
             return ImmutableArray<ISymbol>.Empty;
+        }
 
         return _projector.ProjectOperators(clrType, memberScope, _stdlib);
     }
@@ -220,7 +224,9 @@ public sealed class OperatorProjectionPropertyTests
             .FirstOrDefault(m => m.Name == expectedName && m.Kind == SymbolKind.Method);
 
         if(operatorSymbol is null)
+        {
             return false.ToProperty().Label($"Operator symbol '{expectedName}' not found");
+        }
 
         // The DeclaredType on the operator symbol is the return type
         var actualReturnType = operatorSymbol.DeclaredType;
@@ -246,7 +252,9 @@ public sealed class OperatorProjectionPropertyTests
             .FirstOrDefault(m => m.Name == expectedName && m.Kind == SymbolKind.Method);
 
         if(operatorSymbol is null)
+        {
             return false.ToProperty().Label($"Operator symbol '{expectedName}' not found");
+        }
 
         return (operatorSymbol.Origin == SymbolOrigin.Backend).ToProperty()
             .Label($"Expected SymbolOrigin.Backend, got {operatorSymbol.Origin}");
@@ -270,7 +278,9 @@ public sealed class OperatorProjectionPropertyTests
         };
 
         if(memberScope is null)
+        {
             return false.ToProperty().Label("Could not get member scope");
+        }
 
         _projector.ProjectOperators(scenario.DeclaringType, memberScope, _stdlib);
 

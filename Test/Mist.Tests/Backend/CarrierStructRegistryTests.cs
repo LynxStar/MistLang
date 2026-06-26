@@ -66,7 +66,9 @@ public sealed class CarrierStructRegistryTests
         var registry = CarrierStructRegistry.CollectFromModel(model);
 
         if(usedKeywords.Count == 0 && registry.Entries.Count == 0)
+        {
             return null;
+        }
 
         return DependentTypeHelpersGenerator.GenerateHelpersFile(usedKeywords, registry);
     }

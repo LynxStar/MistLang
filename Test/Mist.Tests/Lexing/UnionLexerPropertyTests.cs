@@ -121,7 +121,9 @@ public class UnionLexerPropertyTests
 
                 // Count must match
                 if(pipeTokens.Count != expected.Count)
+                {
                     return false;
+                }
 
                 // Each token must have the correct kind
                 for(var i = 0; i < expected.Count; i++)
@@ -131,7 +133,9 @@ public class UnionLexerPropertyTests
                         : (int)TokenKind.PIPE;
 
                     if(pipeTokens[i].Kind != expectedKind)
+                    {
                         return false;
+                    }
                 }
 
                 return true;
@@ -199,10 +203,14 @@ public class UnionLexerPropertyTests
                 foreach(var token in tokens)
                 {
                     if(token.Kind == (int)TokenKind.PIPE && token.Lexeme != "|")
+                    {
                         return false;
+                    }
 
                     if(token.Kind == (int)TokenKind.LOGICAL_OR && token.Lexeme != "||")
+                    {
                         return false;
+                    }
                 }
 
                 return true;

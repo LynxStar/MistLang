@@ -221,7 +221,10 @@ public sealed class SameNamespaceResolutionPropertyTests
     public bool DifferentNamespace_FailsWithoutUsing(ValidNamespaceName ns1, ValidNamespaceName ns2)
     {
         // Skip if namespaces are the same — that's the same-namespace case.
-        if(ns1.Value == ns2.Value) return true;
+        if(ns1.Value == ns2.Value)
+        {
+            return true;
+        }
 
         var nsOffset = "namespace ".Length;
 

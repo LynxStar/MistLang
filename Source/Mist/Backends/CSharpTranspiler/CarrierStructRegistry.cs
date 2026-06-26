@@ -69,10 +69,14 @@ internal sealed class CarrierStructRegistry
     public string? RegisterByKeyword(string keyword, object value)
     {
         if(!KeywordToCapitalized.TryGetValue(keyword, out var capitalized))
+        {
             return null;
+        }
 
         if(value is string)
+        {
             return null;
+        }
 
         var valueSuffix = FormatValueSuffix(value, keyword);
         var structName = $"Const_{capitalized}_{valueSuffix}";
@@ -93,11 +97,15 @@ internal sealed class CarrierStructRegistry
     {
         var keyword = CSharpTypeMap.GetKeyword(depArg.ValueType);
         if(!KeywordToCapitalized.TryGetValue(keyword, out var capitalized))
+        {
             return null;
+        }
 
         // Open/forwarded parameters have a string value (the parameter name) — skip them.
         if(depArg.Value is string)
+        {
             return null;
+        }
 
         var valueSuffix = FormatValueSuffix(depArg.Value, keyword);
         var structName = $"Const_{capitalized}_{valueSuffix}";
@@ -116,11 +124,15 @@ internal sealed class CarrierStructRegistry
     {
         var keyword = CSharpTypeMap.GetKeyword(depArg.ValueType);
         if(!KeywordToCapitalized.TryGetValue(keyword, out var capitalized))
+        {
             return null;
+        }
 
         // Open/forwarded parameters have a string value (the parameter name) — skip them.
         if(depArg.Value is string)
+        {
             return null;
+        }
 
         var valueSuffix = FormatValueSuffix(depArg.Value, keyword);
         return $"Const_{capitalized}_{valueSuffix}";
@@ -145,23 +157,38 @@ internal sealed class CarrierStructRegistry
             {
                 CollectFromType(ct.BaseType, registry);
                 foreach(var iface in ct.Abstracts)
+                {
                     CollectFromType(iface, registry);
+                }
+
                 foreach(var member in ct.MemberScope.Members)
+                {
                     CollectFromType(member.DeclaredType, registry);
+                }
             }
             else if(symbol.DeclaredType is StructType st)
             {
                 foreach(var iface in st.Abstracts)
+                {
                     CollectFromType(iface, registry);
+                }
+
                 foreach(var member in st.MemberScope.Members)
+                {
                     CollectFromType(member.DeclaredType, registry);
+                }
             }
             else if(symbol.DeclaredType is AbstractType it)
             {
                 foreach(var iface in it.Abstracts)
+                {
                     CollectFromType(iface, registry);
+                }
+
                 foreach(var member in it.MemberScope.Members)
+                {
                     CollectFromType(member.DeclaredType, registry);
+                }
             }
         }
 
@@ -180,7 +207,9 @@ internal sealed class CarrierStructRegistry
             foreach(var ast in concreteModel.Asts)
             {
                 if(ast is not null)
+                {
                     CollectFromAst(ast, registry);
+                }
             }
         }
 
@@ -232,7 +261,9 @@ internal sealed class CarrierStructRegistry
         foreach(var child in node.Children())
         {
             if(child is not null)
+            {
                 CollectFromAst(child, registry);
+            }
         }
     }
 
@@ -243,12 +274,17 @@ internal sealed class CarrierStructRegistry
     /// </summary>
     private static void RegisterMethodCallLiterals(MethodCallSuffixPostfixSuffixNode methodCall, CarrierStructRegistry registry)
     {
-        if(methodCall.TypeArgs is null) return;
+        if(methodCall.TypeArgs is null)
+        {
+            return;
+        }
 
         // Collect all type argument nodes.
         var argNodes = new List<TypeArgumentNode> { methodCall.TypeArgs.TypeArgument };
         foreach(var extra in methodCall.TypeArgs.TypeArguments)
+        {
             argNodes.Add(extra);
+        }
 
         // For method calls, we default to "int" for integer literals since we don't
         // have easy access to the method's type parameters from the AST alone.
@@ -280,7 +316,11 @@ internal sealed class CarrierStructRegistry
     {
         if(long.TryParse(lexeme, NumberStyles.Integer, CultureInfo.InvariantCulture, out var value))
         {
-            if(negated) value = -value;
+            if(negated)
+            {
+                value = -value;
+            }
+
             registry.RegisterByKeyword("int", value);
         }
     }
@@ -332,7 +372,9 @@ internal sealed class CarrierStructRegistry
             var inner = lexeme[1..^1];
             char c;
             if(inner.Length == 1)
+            {
                 c = inner[0];
+            }
             else if(inner.StartsWith('\\'))
             {
                 c = inner switch
@@ -349,7 +391,9 @@ internal sealed class CarrierStructRegistry
                 };
             }
             else
+            {
                 c = '?';
+            }
 
             registry.RegisterByKeyword("char", c);
         }
@@ -394,7 +438,10 @@ internal sealed class CarrierStructRegistry
     private static string FormatCharSuffix(char c)
     {
         if(char.IsLetterOrDigit(c))
+        {
             return c.ToString();
+        }
+
         return $"0x{((int)c).ToString("X2", CultureInfo.InvariantCulture)}";
     }
 
@@ -447,7 +494,9 @@ internal sealed class CarrierStructRegistry
     public string GenerateCarrierStructs()
     {
         if(_entries.Count == 0)
+        {
             return string.Empty;
+        }
 
         var sb = new StringBuilder();
 

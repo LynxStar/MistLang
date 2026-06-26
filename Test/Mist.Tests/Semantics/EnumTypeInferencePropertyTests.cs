@@ -311,17 +311,23 @@ public class EnumTypeInferencePropertyTests
             .FirstOrDefault(s => s.Name == scenario.EnumName && s.Kind == SymbolKind.Enum);
 
         if(enumSymbol is null)
+        {
             return false.ToProperty()
                 .Label($"Enum '{scenario.EnumName}' not found in semantic model. " +
                        $"All symbols: [{string.Join(", ", model.AllSymbols.Select(s => $"{s.Name}:{s.Kind}"))}]");
+        }
 
         if(enumSymbol.DeclaredType is not EnumType enumType)
+        {
             return false.ToProperty()
                 .Label($"Enum '{scenario.EnumName}' DeclaredType is not EnumType, got: {enumSymbol.DeclaredType?.GetType().Name ?? "null"}");
+        }
 
         if(enumType.UnderlyingType is null)
+        {
             return false.ToProperty()
                 .Label($"UnderlyingType is null for enum '{scenario.EnumName}'");
+        }
 
         // Verify the underlying type matches the expected type based on category.
         var actualDisplayName = enumType.UnderlyingType.DisplayName;
@@ -330,15 +336,19 @@ public class EnumTypeInferencePropertyTests
         {
             // For mixed types, the underlying type should be a UnionType.
             if(enumType.UnderlyingType is not UnionType)
+            {
                 return false.ToProperty()
                     .Label($"Expected UnionType for mixed-type enum, got {enumType.UnderlyingType.GetType().Name} " +
                            $"with DisplayName '{actualDisplayName}'. Scenario: {scenario}");
+            }
         }
 
         if(actualDisplayName != scenario.ExpectedUnderlyingDisplayName)
+        {
             return false.ToProperty()
                 .Label($"Expected underlying type '{scenario.ExpectedUnderlyingDisplayName}', " +
                        $"got '{actualDisplayName}'. Category: {scenario.Category}. Scenario: {scenario}");
+        }
 
         return true.ToProperty()
             .Label($"Enum '{scenario.EnumName}' correctly inferred underlying type '{actualDisplayName}' " +

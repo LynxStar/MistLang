@@ -90,7 +90,9 @@ public class AssociatedTypeDisambiguationPropertyTests
             .ToList();
 
         if(errors.Count > 0)
+        {
             return null;
+        }
 
         return result.Root as CompilationUnitNode;
     }
@@ -117,10 +119,16 @@ public class AssociatedTypeDisambiguationPropertyTests
     private static AbstractMemberDeclarationNode? ExtractAbstractMember(CompilationUnitNode cu)
     {
         var typeItem = cu.Items.FirstOrDefault() as TypeItemTopLevelItemNode;
-        if(typeItem is null) return null;
+        if(typeItem is null)
+        {
+            return null;
+        }
 
         var abstractDecl = typeItem.TypeDeclaration as AbstractTypeTypeDeclarationNode;
-        if(abstractDecl is null) return null;
+        if(abstractDecl is null)
+        {
+            return null;
+        }
 
         return abstractDecl.AbstractDeclaration.Members.FirstOrDefault();
     }
@@ -153,11 +161,15 @@ public class AssociatedTypeDisambiguationPropertyTests
         var root = ParseSource(source);
 
         if(root is null)
+        {
             return false.ToProperty().Label($"Failed to parse: {source}");
+        }
 
         var member = ExtractAbstractMember(root);
         if(member is null)
+        {
             return false.ToProperty().Label($"Could not extract abstract member from: {source}");
+        }
 
         var isAssociatedTypeSlot = member is AbstractAssociatedTypeMemberAbstractMemberDeclarationNode;
 
@@ -182,7 +194,9 @@ public class AssociatedTypeDisambiguationPropertyTests
         var root = ParseSource(source);
 
         if(root is null)
+        {
             return false.ToProperty().Label($"Failed to parse: {source}");
+        }
 
         var aliasDecl = ExtractTypeAlias(root);
 
@@ -212,22 +226,33 @@ public class AssociatedTypeDisambiguationPropertyTests
         var aliasRoot = ParseSource(aliasSource);
 
         if(slotRoot is null)
+        {
             return false.ToProperty().Label($"Failed to parse slot source: {slotSource}");
+        }
+
         if(aliasRoot is null)
+        {
             return false.ToProperty().Label($"Failed to parse alias source: {aliasSource}");
+        }
 
         var member = ExtractAbstractMember(slotRoot);
         if(member is null)
+        {
             return false.ToProperty().Label($"Could not extract abstract member from: {slotSource}");
+        }
 
         var aliasDecl = ExtractTypeAlias(aliasRoot);
         if(aliasDecl is null)
+        {
             return false.ToProperty().Label($"Could not extract type alias from: {aliasSource}");
+        }
 
         // Extract the inner declaration node from the abstract member
         var slotMember = member as AbstractAssociatedTypeMemberAbstractMemberDeclarationNode;
         if(slotMember is null)
+        {
             return false.ToProperty().Label($"Abstract member is not an associated type slot: {member.GetType().Name}");
+        }
 
         var slotDeclType = slotMember.AssociatedType.GetType();
         var aliasDeclType = aliasDecl.GetType();

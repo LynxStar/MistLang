@@ -183,11 +183,15 @@ public class DependentTypePropertyGenerationPropertyTests
         // Find the class symbol in the model
         var classSymbol = model.AllSymbols.FirstOrDefault(s => s.Name == scenario.TypeName && s.Kind == SymbolKind.Class);
         if(classSymbol is null)
+        {
             return false;
+        }
 
         var classType = classSymbol.DeclaredType as ClassType;
         if(classType is null)
+        {
             return false;
+        }
 
         // Get all property members from the type's member scope
         var propertyMembers = classType.MemberScope.Members
@@ -196,35 +200,51 @@ public class DependentTypePropertyGenerationPropertyTests
 
         // Verify exactly N properties are generated (one per dependent parameter)
         if(propertyMembers.Count != scenario.Params.Count)
+        {
             return false;
+        }
 
         // Verify each dependent parameter has a corresponding property with correct name and type
         foreach(var param in scenario.Params)
         {
             var prop = propertyMembers.FirstOrDefault(m => m.Name == param.Name);
             if(prop is null)
+            {
                 return false;
+            }
 
             // Verify the property has the correct value type (matching the annotation)
             if(prop.DeclaredType is null)
+            {
                 return false;
+            }
 
             if(prop.DeclaredType.DisplayName != param.TypeKeyword)
+            {
                 return false;
+            }
 
             // Verify the property is static and get-only via PropertyMetadata
             var symbol = prop as Symbol;
             if(symbol?.PropertyMetadata is null)
+            {
                 return false;
+            }
 
             if(!symbol.PropertyMetadata.HasGet)
+            {
                 return false;
+            }
 
             if(symbol.PropertyMetadata.HasSet || symbol.PropertyMetadata.HasInit)
+            {
                 return false;
+            }
 
             if(!symbol.PropertyMetadata.IsStatic)
+            {
                 return false;
+            }
         }
 
         return true;

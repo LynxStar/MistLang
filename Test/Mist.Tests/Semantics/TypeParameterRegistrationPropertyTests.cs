@@ -224,7 +224,9 @@ public class TypeParameterRegistrationPropertyTests
         var typeSymbol = model.AllSymbols
             .FirstOrDefault(s => s.Name == decl.Name && s.Kind == expectedKind);
         if(typeSymbol is null)
+        {
             return false;
+        }
 
         // Get the TypeParameters from the declaring type
         IReadOnlyList<IType> typeParams = decl.Kind switch
@@ -237,19 +239,32 @@ public class TypeParameterRegistrationPropertyTests
 
         // Requirement 6.3: Exactly N TypeParameterType instances
         if(typeParams.Count != decl.TypeParamNames.Length)
+        {
             return false;
+        }
 
         // Verify correct names and ordinals (0 through N-1)
         for(var i = 0; i < typeParams.Count; i++)
         {
             if(typeParams[i] is not TypeParameterType tpCheck)
+            {
                 return false;
+            }
+
             if(tpCheck.Name != decl.TypeParamNames[i])
+            {
                 return false;
+            }
+
             if(tpCheck.Ordinal != i)
+            {
                 return false;
+            }
+
             if(tpCheck.DisplayName != decl.TypeParamNames[i])
+            {
                 return false;
+            }
         }
 
         // Requirement 6.4: Each type parameter is registered in the declaring scope
@@ -265,17 +280,27 @@ public class TypeParameterRegistrationPropertyTests
         foreach(var tp in typeParams)
         {
             if(tp is not TypeParameterType tpCast2)
+            {
                 return false;
+            }
+
             var tpSymbol = memberScope.Members
                 .FirstOrDefault(m => m.Name == tpCast2.Name && m.DeclaredType is TypeParameterType);
             if(tpSymbol is null)
+            {
                 return false;
+            }
 
             // The symbol's DeclaredType should be the TypeParameterType
             if(tpSymbol.DeclaredType is not TypeParameterType resolvedTp)
+            {
                 return false;
+            }
+
             if(resolvedTp.Ordinal != tpCast2.Ordinal)
+            {
                 return false;
+            }
         }
 
         return true;
@@ -309,7 +334,9 @@ public class TypeParameterRegistrationPropertyTests
         var methodSymbol = model.AllSymbols
             .FirstOrDefault(s => s.Name == decl.MethodName && s.Kind == SymbolKind.Method);
         if(methodSymbol is null)
+        {
             return false;
+        }
 
         // Get TypeParameters from the method symbol
         var methodSym = (Symbol)methodSymbol;
@@ -317,15 +344,22 @@ public class TypeParameterRegistrationPropertyTests
 
         // Exactly M TypeParameterType instances
         if(typeParams.Count != decl.TypeParamNames.Length)
+        {
             return false;
+        }
 
         // Verify correct names and ordinals
         for(var i = 0; i < typeParams.Count; i++)
         {
             if(typeParams[i].DisplayName != decl.TypeParamNames[i])
+            {
                 return false;
+            }
+
             if(typeParams[i] is TypeParameterType tpOrd && tpOrd.Ordinal != i)
+            {
                 return false;
+            }
         }
 
         // Each type parameter should be registered in the type scope
@@ -333,7 +367,9 @@ public class TypeParameterRegistrationPropertyTests
         var classSymbol = model.AllSymbols
             .FirstOrDefault(s => s.Name == decl.ClassName && s.Kind == SymbolKind.Class);
         if(classSymbol is null)
+        {
             return false;
+        }
 
         var classType = (ClassType)classSymbol.DeclaredType!;
         var memberScope = classType.MemberScope;
@@ -343,7 +379,9 @@ public class TypeParameterRegistrationPropertyTests
             var tpSymbol = memberScope.Members
                 .FirstOrDefault(m => m.Name == tp.DisplayName && m.DeclaredType is TypeParameterType);
             if(tpSymbol is null)
+            {
                 return false;
+            }
         }
 
         return true;

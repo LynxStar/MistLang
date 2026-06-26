@@ -228,13 +228,17 @@ public sealed class VoidValueLiteralEmissionPropertyTests : IDisposable
     private static string? GetEmittedCSharp(CompilerResult result)
     {
         if(result.EmittedFiles is null)
+        {
             return null;
+        }
 
         // Look for the test file's emitted output
         foreach(var (fileName, fileContent) in result.EmittedFiles)
         {
             if(fileContent.Contains("namespace TestProject"))
+            {
                 return fileContent;
+            }
         }
 
         // Fallback: return the first non-helper .cs file
@@ -243,7 +247,9 @@ public sealed class VoidValueLiteralEmissionPropertyTests : IDisposable
             if(fileName.EndsWith(".cs", StringComparison.Ordinal)
                 && !fileName.EndsWith(".g.cs", StringComparison.Ordinal)
                 && !fileName.EndsWith(".csproj", StringComparison.Ordinal))
+            {
                 return fileContent;
+            }
         }
 
         return null;

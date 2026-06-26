@@ -76,15 +76,21 @@ public class NamespaceRoundTripPropertyTests
             .ToList();
 
         if(errors1.Count > 0)
+        {
             return true.ToProperty().Label("Skipped: source had parse errors");
+        }
 
         if(result1.Root is not CompilationUnitNode cu1)
+        {
             return true.ToProperty().Label("Skipped: root was not CompilationUnitNode");
+        }
 
         // Step 2: Pretty-print the parsed AST (with source text for span-based name extraction)
         var printed1 = MistPrettyPrinter.Print(cu1, source);
         if(string.IsNullOrWhiteSpace(printed1) && cu1.Items.Length == 0 && cu1.Usings.Length == 0)
+        {
             return true.ToProperty().Label("Skipped: empty source");
+        }
 
         // Step 3: Parse the pretty-printed output
         var result2 = ParseSource(printed1);
@@ -94,11 +100,15 @@ public class NamespaceRoundTripPropertyTests
             .ToList();
 
         if(errors2.Count > 0)
+        {
             return false.ToProperty()
                 .Label($"Re-parse errors: {string.Join("; ", errors2.Select(e => e.Message))}\nPrinted:\n{printed1}");
+        }
 
         if(result2.Root is not CompilationUnitNode cu2)
+        {
             return false.ToProperty().Label($"Re-parsed root was null.\nPrinted:\n{printed1}");
+        }
 
         // Step 4: Pretty-print the re-parsed AST (with printed1 as source text)
         var printed2 = MistPrettyPrinter.Print(cu2, printed1);

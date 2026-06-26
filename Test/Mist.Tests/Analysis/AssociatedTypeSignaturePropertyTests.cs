@@ -7,8 +7,8 @@ using FsCheck.Fluent;
 using FsCheck.Xunit;
 using Mist.Analysis.Builtin;
 using Mist.Analysis.Contracts;
-using Mist.Backends.CSharpTranspiler;
 using Mist.Backends.Contracts;
+using Mist.Backends.CSharpTranspiler;
 using Mist.Common.Diagnostics;
 using Mist.Driver;
 using Mist.Driver.Contracts;
@@ -267,10 +267,12 @@ class Program {{
             d.Message.Contains(scenario.MethodName)).ToList();
 
         if(signatureMismatch.Count > 0)
+        {
             return false.ToProperty()
                 .Label($"Expected no MIST_SM_0022 for method '{scenario.MethodName}' but got {signatureMismatch.Count}.\n" +
                        $"Source:\n{source}\n" +
                        $"Diagnostics: [{string.Join(", ", signatureMismatch.Select(d => $"{d.Id.Value}: {d.Message}"))}]");
+        }
 
         return true.ToProperty();
     }
@@ -299,10 +301,12 @@ class Program {{
             d.Message.Contains(scenario.MethodName)).ToList();
 
         if(signatureMismatch.Count == 0)
+        {
             return false.ToProperty()
                 .Label($"Expected MIST_SM_0022 for method '{scenario.MethodName}' but none emitted.\n" +
                        $"Source:\n{source}\n" +
                        $"All diagnostics: [{string.Join(", ", diagnostics.Select(d => $"{d.Id.Value}: {d.Message}"))}]");
+        }
 
         return true.ToProperty();
     }

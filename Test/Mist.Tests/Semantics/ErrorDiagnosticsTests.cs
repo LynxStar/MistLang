@@ -126,7 +126,10 @@ public sealed class ErrorDiagnosticsTests
         public void RegisterType(string namespaceName, string typeName, IType type)
         {
             if(!_namespaceTypes.ContainsKey(namespaceName))
+            {
                 _namespaceTypes[namespaceName] = new HashSet<string>();
+            }
+
             _namespaceTypes[namespaceName].Add(typeName);
             _types[(namespaceName, typeName)] = type;
         }
@@ -143,7 +146,10 @@ public sealed class ErrorDiagnosticsTests
         public ImmutableArray<string> GetTypeNamesInNamespace(string namespaceName)
         {
             if(_namespaceTypes.TryGetValue(namespaceName, out var types))
+            {
                 return types.ToImmutableArray();
+            }
+
             return ImmutableArray<string>.Empty;
         }
 

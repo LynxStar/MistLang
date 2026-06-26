@@ -49,7 +49,9 @@ public sealed class FuncTypeAliasInteractionTests
         var userParseResult = Parser.Parse(userTokens, diagnostics);
 
         if(userParseResult.Root is null)
+        {
             throw new InvalidOperationException($"Failed to parse user source:\n{source}");
+        }
 
         var allUnits = stdlibUnits.Add(userUnit);
         var allAsts = stdlibAsts.Add(userParseResult.Root);
@@ -99,7 +101,11 @@ public sealed class FuncTypeAliasInteractionTests
 
     private static bool MatchesTypeName(string actual, string expected)
     {
-        if(actual == expected) return true;
+        if(actual == expected)
+        {
+            return true;
+        }
+
         return expected switch
         {
             "int" => actual is "Int32" or "int",

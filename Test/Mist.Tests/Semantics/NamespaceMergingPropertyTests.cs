@@ -128,7 +128,11 @@ public sealed class NamespaceMergingPropertyTests
         var symbol = model.AllSymbols.FirstOrDefault(
             s => s.Name == typeName &&
                  (s.Kind == SymbolKind.Class || s.Kind == SymbolKind.Struct || s.Kind == SymbolKind.Abstract));
-        if(symbol is null) return null;
+        if(symbol is null)
+        {
+            return null;
+        }
+
         return symbol.DeclaredType switch
         {
             ClassType ct => ct.ContainingNamespace,

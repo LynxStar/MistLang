@@ -445,9 +445,13 @@ public class ExplicitCastSafetyPropertyTests
             scenario.Kind, scenario.TargetTypeName, scenario.SourceTypeName);
 
         if(scenario.Placement == OperatorPlacement.OnSourceType)
+        {
             sourceMembers.Add(castMember);
+        }
         else
+        {
             targetMembers.Add(castMember);
+        }
 
         var mainStatements = ImmutableArray.Create<StatementNode>(
             MakeTypedVarDecl(scenario.SourceTypeName, "src", scenario.SourceTypeName),

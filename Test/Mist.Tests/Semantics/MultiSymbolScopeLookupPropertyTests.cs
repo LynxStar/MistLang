@@ -103,11 +103,15 @@ public class MultiSymbolScopeLookupPropertyTests
 
         // Assert: exactly N symbols returned
         if(results.Count != scenario.TargetCount)
+        {
             return false;
+        }
 
         // Assert: every returned symbol has the correct name
         if(results.Any(s => s.Name != scenario.TargetName))
+        {
             return false;
+        }
 
         // Assert: every expected symbol is present in the results
         return expectedSymbols.All(expected => results.Contains(expected));

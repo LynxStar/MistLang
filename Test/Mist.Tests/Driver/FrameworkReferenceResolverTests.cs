@@ -47,11 +47,15 @@ public sealed class FrameworkReferenceResolverTests
     {
         var dotnetRoot = SdkDiscovery.FindDotnetRoot();
         if(dotnetRoot is null)
+        {
             return (false, null);
+        }
 
         var packsDir = Path.Combine(dotnetRoot, "packs", $"{frameworkName}.Ref");
         if(!Directory.Exists(packsDir))
+        {
             return (false, null);
+        }
 
         var tfmMajor = SdkDiscovery.ExtractTfmMajorVersion(tfm);
 
@@ -62,17 +66,25 @@ public sealed class FrameworkReferenceResolverTests
         {
             var dirName = Path.GetFileName(versionDir);
             if(!Version.TryParse(dirName, out var version))
+            {
                 continue;
+            }
 
             if(tfmMajor.HasValue && version.Major != tfmMajor.Value)
+            {
                 continue;
+            }
 
             var refPath = Path.Combine(versionDir, "ref", tfm);
             if(!Directory.Exists(refPath))
+            {
                 continue;
+            }
 
             if(Directory.GetFiles(refPath, "*.dll").Length == 0)
+            {
                 continue;
+            }
 
             if(highest is null || version > highest)
             {
@@ -184,7 +196,9 @@ public sealed class FrameworkReferenceResolverTests
         // absent — there is nothing to select. The dedicated MIST_FWREF_001 test
         // covers the not-installed behavior.
         if(!installed)
+        {
             return;
+        }
 
         var diagnostics = new DiagnosticBag();
         var result = FrameworkReferenceResolver.Resolve(

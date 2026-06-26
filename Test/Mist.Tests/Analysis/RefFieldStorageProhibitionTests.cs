@@ -155,7 +155,9 @@ public class RefFieldStorageProhibitionTests
     private static ParameterListNode MakeParameterList(params ParameterNode[] parameters)
     {
         if(parameters.Length == 0)
+        {
             return new ParameterListNode();
+        }
 
         var first = parameters[0];
         var rest = parameters.Length > 1

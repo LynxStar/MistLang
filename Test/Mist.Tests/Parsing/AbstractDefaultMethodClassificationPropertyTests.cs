@@ -58,7 +58,9 @@ public class AbstractDefaultMethodClassificationPropertyTests
         return Gen.Choose(0, 3).SelectMany(count =>
         {
             if(count == 0)
+            {
                 return Gen.Constant("");
+            }
 
             return Gen.ArrayOf(
                     from t in Gen.Elements(ParamTypes)
@@ -109,13 +111,20 @@ public class AbstractDefaultMethodClassificationPropertyTests
         var diagnostics = bag.ToImmutableArray();
 
         if(result.Root is not CompilationUnitNode cu)
+        {
             return (null, diagnostics);
+        }
 
         var types = cu.GetTypes();
         if(types.IsEmpty)
+        {
             return (null, diagnostics);
+        }
+
         if(types[0] is not AbstractTypeTypeDeclarationNode abstractType)
+        {
             return (null, diagnostics);
+        }
 
         var members = abstractType.AbstractDeclaration.Members;
         return (members.Length == 1 ? members[0] : null, diagnostics);
@@ -128,11 +137,15 @@ public class AbstractDefaultMethodClassificationPropertyTests
 
         var errors = diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error).ToList();
         if(errors.Count > 0)
+        {
             return false.ToProperty().Label(
                 $"Unexpected parse errors for [{scenario.Source}]:\n  {string.Join("\n  ", errors.Select(e => e.Message))}");
+        }
 
         if(member is null)
+        {
             return false.ToProperty().Label($"Could not extract a single member from: {scenario.Source}");
+        }
 
         if(scenario.HasBody)
         {

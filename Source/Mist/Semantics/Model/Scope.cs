@@ -49,11 +49,15 @@ public sealed class Scope : IScope
         foreach(var member in _members)
         {
             if(member.Name == name)
+            {
                 results.Add(member);
+            }
         }
 
         if(Parent is Scope parentScope)
+        {
             parentScope.CollectAll(name, results);
+        }
         else if(Parent is not null)
         {
             var parentResults = Parent.LookupAll(name);

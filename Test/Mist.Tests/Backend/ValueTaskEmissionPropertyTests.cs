@@ -14,12 +14,12 @@ using Mist.Common.Diagnostics;
 using Mist.Driver;
 using Mist.Driver.Contracts;
 using Mist.Generated;
-using MistLexer = Mist.Lexing.MistLexer;
-using MistParser = Mist.Parsing.MistParser;
 using Mist.Semantics.Contracts;
 using Mist.Semantics.Model;
 using Mist.Semantics.Model.Types;
 using Mist.Tests.Helpers;
+using MistLexer = Mist.Lexing.MistLexer;
+using MistParser = Mist.Parsing.MistParser;
 
 namespace Mist.Tests.Backend;
 
@@ -154,7 +154,10 @@ public sealed class ValueTaskEmissionPropertyTests : IDisposable
         var modifiers = ImmutableArray.CreateBuilder<ModifierNode>();
         modifiers.Add(new PublicModifierModifierNode());
         if(scenario.IsStatic)
+        {
             modifiers.Add(new StaticModifierModifierNode());
+        }
+
         modifiers.Add(new AsyncModifierModifierNode());
 
         var asyncMethod = new MethodDeclarationNode
@@ -256,7 +259,9 @@ public sealed class ValueTaskEmissionPropertyTests : IDisposable
             .Where(d => d.Severity == DiagnosticSeverity.Error)
             .ToList();
         if(buildErrors.Count > 0)
+        {
             return (false, "", FormatDiagnostics(buildErrors));
+        }
 
         // Run type checker (ignore entry point diagnostic — test programs don't need Main)
         var tcBag = new DiagnosticBag();
@@ -266,19 +271,25 @@ public sealed class ValueTaskEmissionPropertyTests : IDisposable
             .Where(d => d.Severity == DiagnosticSeverity.Error && d.Id.Value != "MIST_TC_0017")
             .ToList();
         if(tcErrors.Count > 0)
+        {
             return (false, "", FormatDiagnostics(tcErrors));
+        }
 
         // Emit in-memory (no disk I/O)
         var emitBag = new DiagnosticBag();
         var files = CSharpEmitter.EmitToMemory(model, "TestProgram", emitBag);
 
         if(emitBag.HasErrors)
+        {
             return (false, "", FormatEmitDiagnostics(emitBag));
+        }
 
         // Concatenate all emitted .cs content
         var sb = new StringBuilder();
         foreach(var (_, content) in files)
+        {
             sb.AppendLine(content);
+        }
 
         return (true, sb.ToString(), "");
     }
@@ -308,12 +319,16 @@ public sealed class ValueTaskEmissionPropertyTests : IDisposable
     private static string? GetEmittedCSharp(CompilerResult result)
     {
         if(result.EmittedFiles is null)
+        {
             return null;
+        }
 
         foreach(var (_, content) in result.EmittedFiles)
         {
             if(content.Contains("namespace TestProgram"))
+            {
                 return content;
+            }
         }
 
         return null;

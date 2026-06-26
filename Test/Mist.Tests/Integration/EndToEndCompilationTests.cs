@@ -1,7 +1,7 @@
 using System.Collections.Immutable;
 using Mist.Analysis.Builtin;
-using Mist.Backends.CSharpTranspiler;
 using Mist.Backends.Contracts;
+using Mist.Backends.CSharpTranspiler;
 using Mist.Common.Diagnostics;
 using Mist.Common.Text;
 using Mist.Driver;
@@ -1470,7 +1470,10 @@ public sealed class EndToEndCompilationTests : IDisposable
         while(dir is not null)
         {
             if(File.Exists(Path.Combine(dir, "Mist.slnx")))
+            {
                 return dir;
+            }
+
             dir = Directory.GetParent(dir)?.FullName;
         }
 
@@ -1479,7 +1482,10 @@ public sealed class EndToEndCompilationTests : IDisposable
         while(dir is not null)
         {
             if(File.Exists(Path.Combine(dir, "Mist.slnx")))
+            {
                 return dir;
+            }
+
             dir = Directory.GetParent(dir)?.FullName;
         }
 

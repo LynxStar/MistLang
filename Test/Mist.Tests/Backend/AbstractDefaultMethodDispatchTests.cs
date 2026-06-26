@@ -10,9 +10,9 @@ using Mist.Backends.Contracts;
 using Mist.Backends.CSharpTranspiler;
 using Mist.Driver;
 using Mist.Driver.Contracts;
+using Mist.Semantics.Model;
 using MistLexer = Mist.Lexing.MistLexer;
 using MistParser = Mist.Parsing.MistParser;
-using Mist.Semantics.Model;
 
 namespace Mist.Tests.Backend;
 
@@ -109,7 +109,9 @@ public sealed class AbstractDefaultMethodDispatchTests : IDisposable
 
             using var process = Process.Start(psi);
             if(process is null)
+            {
                 return (-1, "", "Failed to start dotnet process");
+            }
 
             var stdoutTask = process.StandardOutput.ReadToEndAsync();
             var stderrTask = process.StandardError.ReadToEndAsync();

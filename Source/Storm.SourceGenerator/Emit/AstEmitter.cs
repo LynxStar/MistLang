@@ -449,11 +449,17 @@ public static class AstEmitter
         {
             case SequenceIR seq:
                 foreach(var elem in seq.Elements)
+                {
                     CollectTokensInsideRepetition(elem, insideRep, result);
+                }
+
                 break;
             case AlternationIR alt:
                 foreach(var a in alt.Alternatives)
+                {
                     CollectTokensInsideRepetition(a, insideRep, result);
+                }
+
                 break;
             case OptionalIR opt:
                 CollectTokensInsideRepetition(opt.Inner, insideRep, result);
@@ -485,11 +491,17 @@ public static class AstEmitter
         {
             case SequenceIR seq:
                 foreach(var elem in seq.Elements)
+                {
                     CollectExpressionsInsideOptional(elem, insideOpt, result);
+                }
+
                 break;
             case AlternationIR alt:
                 foreach(var a in alt.Alternatives)
+                {
                     CollectExpressionsInsideOptional(a, insideOpt, result);
+                }
+
                 break;
             case OptionalIR opt:
                 CollectExpressionsInsideOptional(opt.Inner, true, result);
@@ -650,7 +662,10 @@ public static class AstEmitter
     {
         var seqRuleRef = seq.Elements.OfType<RuleRefIR>().FirstOrDefault();
         if(seqRuleRef != null)
+        {
             return new PropertyInfo(propName, seqRuleRef.Rule.Name + "Node?", true, true, false, "");
+        }
+
         return new PropertyInfo(propName, "Token?", true, false, false, "");
     }
 

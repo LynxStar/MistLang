@@ -317,16 +317,22 @@ public class InvalidAbstractReferencePropertyTests
             .ToList();
 
         if(matchingDiagnostics.Count != 1)
+        {
             return false;
+        }
 
         // Verify the diagnostic message references the invalid name
         var diag = matchingDiagnostics[0];
         if(!diag.Message.Contains(scenario.ReferencedName))
+        {
             return false;
+        }
 
         // Verify the diagnostic severity is Error
         if(diag.Severity != DiagnosticSeverity.Error)
+        {
             return false;
+        }
 
         // Verify the implementing type's Abstracts list does NOT contain
         // the invalid reference (it should be skipped)
@@ -340,7 +346,9 @@ public class InvalidAbstractReferencePropertyTests
         var referencingSymbol = model.AllSymbols
             .FirstOrDefault(s => s.Name == scenario.ReferencingTypeName && s.Kind == expectedKind);
         if(referencingSymbol is null)
+        {
             return false;
+        }
 
         IReadOnlyList<IType> resolvedAbstracts = referencingSymbol.DeclaredType switch
         {
@@ -351,7 +359,9 @@ public class InvalidAbstractReferencePropertyTests
 
         // The invalid reference should not appear in the resolved abstracts
         if(resolvedAbstracts.Any(i => i.DisplayName == scenario.ReferencedName))
+        {
             return false;
+        }
 
         return true;
     }

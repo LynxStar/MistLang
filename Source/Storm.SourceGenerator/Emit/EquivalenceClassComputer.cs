@@ -135,7 +135,9 @@ namespace Storm.SourceGenerator.Emit
             }
 
             if(boundarySet.Count == 0)
+            {
                 return new List<CharRange>();
+            }
 
             var boundaries = new List<int>(boundarySet);
             var result = new List<CharRange>();
@@ -188,7 +190,9 @@ namespace Storm.SourceGenerator.Emit
                 var state = dfa.States[i];
                 int stateIndex;
                 if(!stateIdToIndex.TryGetValue(state.Id, out stateIndex))
+                {
                     continue;
+                }
 
                 foreach(var transition in state.Transitions)
                 {
@@ -226,7 +230,11 @@ namespace Storm.SourceGenerator.Emit
             var sb = new System.Text.StringBuilder();
             for(int i = 0; i < targets.Length; i++)
             {
-                if(i > 0) sb.Append(',');
+                if(i > 0)
+                {
+                    sb.Append(',');
+                }
+
                 sb.Append(targets[i]);
             }
             return sb.ToString();

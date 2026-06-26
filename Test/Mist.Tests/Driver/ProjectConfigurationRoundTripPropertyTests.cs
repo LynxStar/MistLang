@@ -192,20 +192,28 @@ public sealed class ProjectConfigurationRoundTripPropertyTests
 
             // Assert structural equality
             if(parsed.Name != original.Name)
+            {
                 return false;
+            }
 
             if(parsed.NamespaceRoot != original.NamespaceRoot)
+            {
                 return false;
+            }
 
             // References: compare Name and Path
             if(parsed.References.Length != original.References.Length)
+            {
                 return false;
+            }
 
             for(var i = 0; i < original.References.Length; i++)
             {
                 // Compare Name field (should round-trip exactly)
                 if(parsed.References[i].Name != original.References[i].Name)
+                {
                     return false;
+                }
 
                 // The parser normalizes relative paths to absolute using the project folder.
                 // Since we write absolute paths in serialization, they should round-trip.
@@ -221,17 +229,23 @@ public sealed class ProjectConfigurationRoundTripPropertyTests
                         : Path.Combine(tempDir, originalPath));
 
                 if(parsedPath != expectedNormalized)
+                {
                     return false;
+                }
             }
 
             // GlobalUsings: order-sensitive comparison
             if(parsed.GlobalUsings.Length != original.GlobalUsings.Length)
+            {
                 return false;
+            }
 
             for(var i = 0; i < original.GlobalUsings.Length; i++)
             {
                 if(parsed.GlobalUsings[i] != original.GlobalUsings[i])
+                {
                     return false;
+                }
             }
 
             return true;

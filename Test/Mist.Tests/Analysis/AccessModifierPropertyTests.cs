@@ -307,9 +307,13 @@ public class AccessModifierPropertyTests
         {
             // Access via type name: ClassA.DoWork() or ClassA.Value
             if(isMemberMethod)
+            {
                 mainStatements.Add(MakeExpressionStatement(MakeMethodCallExpression("ClassA", "DoWork")));
+            }
             else
+            {
                 mainStatements.Add(MakeExpressionStatement(MakeMemberAccessExpression("ClassA", "Value")));
+            }
         }
         else
         {
@@ -317,9 +321,13 @@ public class AccessModifierPropertyTests
             // We use type-name access for cross-class tests since the type checker
             // resolves both local variables and type names to ClassType.
             if(isMemberMethod)
+            {
                 mainStatements.Add(MakeExpressionStatement(MakeMethodCallExpression("ClassA", "DoWork")));
+            }
             else
+            {
                 mainStatements.Add(MakeExpressionStatement(MakeMemberAccessExpression("ClassA", "Value")));
+            }
         }
 
         var mainMethod = new MethodDeclarationNode

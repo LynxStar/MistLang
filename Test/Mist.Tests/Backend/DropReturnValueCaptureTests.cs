@@ -217,10 +217,14 @@ public sealed class DropReturnValueCaptureTests : IDisposable
             .ToList();
 
         if(errors.Count > 0)
+        {
             return (null, string.Join("\n", errors.Select(d => $"{d.Id.Value}: {d.Message}")));
+        }
 
         if(result.EmittedFiles is null || result.EmittedFiles.Count == 0)
+        {
             return (null, "No emitted files produced.");
+        }
 
         var allContent = result.EmittedFiles
             .Where(kvp => !kvp.Key.EndsWith(".csproj", StringComparison.OrdinalIgnoreCase))

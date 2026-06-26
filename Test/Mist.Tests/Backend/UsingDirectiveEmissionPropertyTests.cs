@@ -118,7 +118,9 @@ public sealed class UsingDirectiveEmissionPropertyTests : IDisposable
         if(Directory.Exists(_outputDir))
         {
             foreach(var file in Directory.GetFiles(_outputDir))
+            {
                 File.Delete(file);
+            }
         }
     }
 
@@ -190,7 +192,9 @@ public sealed class UsingDirectiveEmissionPropertyTests : IDisposable
         foreach(var ns in scenario.UsingNamespaces)
         {
             if(!csContent.Contains($"using {ns};"))
+            {
                 return false;
+            }
         }
 
         return true;
@@ -236,7 +240,9 @@ public sealed class UsingDirectiveEmissionPropertyTests : IDisposable
             var directive = $"using {ns};";
             var count = emittedUsings.Count(u => u == directive);
             if(count != 1)
+            {
                 return false;
+            }
         }
 
         return true;

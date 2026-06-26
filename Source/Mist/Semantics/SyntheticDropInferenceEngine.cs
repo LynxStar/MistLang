@@ -60,16 +60,22 @@ public static class SyntheticDropInferenceEngine
         foreach(var symbol in model.AllSymbols)
         {
             if(symbol.Kind is not (SymbolKind.Class or SymbolKind.Struct))
+            {
                 continue;
+            }
 
             var type = symbol.DeclaredType;
             if(type is not (ClassType or StructType))
+            {
                 continue;
+            }
 
             declaredTypes.Add(type);
 
             if(HasDrop(type))
+            {
                 explicitDrop.Add(type);
+            }
         }
 
         var stateMap = new Dictionary<IType, InferenceState>();
@@ -77,7 +83,9 @@ public static class SyntheticDropInferenceEngine
         foreach(var type in declaredTypes)
         {
             if(!stateMap.ContainsKey(type))
+            {
                 Resolve(type, explicitDrop, stateMap);
+            }
         }
     }
 
@@ -126,14 +134,20 @@ public static class SyntheticDropInferenceEngine
         foreach(var member in memberScope.Members)
         {
             if(member.Kind != SymbolKind.Field)
+            {
                 continue;
+            }
 
             var fieldType = member.DeclaredType;
             if(fieldType is null)
+            {
                 continue;
+            }
 
             if(IsDroppable(fieldType, explicitDrop, stateMap))
+            {
                 droppableFields.Add(member);
+            }
         }
 
         // Synthesize a void Drop() when droppable fields exist (Req 10.1, 10.2, 10.3).

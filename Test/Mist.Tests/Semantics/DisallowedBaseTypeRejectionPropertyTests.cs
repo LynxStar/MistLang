@@ -47,7 +47,9 @@ public class DisallowedBaseTypeRejectionPropertyTests
         var parseResult = Parser.Parse(tokens, parseBag);
 
         if(parseResult.Root is null)
+        {
             return parseBag.ToImmutableArray();
+        }
 
         var compilation = new MistCompilation(
             ImmutableArray.Create(new CompilationUnit(sourceText)));

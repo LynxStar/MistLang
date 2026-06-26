@@ -288,7 +288,9 @@ class Program {
     private static string? GetEmittedCSharp(CompilerResult result)
     {
         if(result.EmittedFiles is null)
+        {
             return null;
+        }
 
         // Find the user file by looking for the one containing "namespace TestProject"
         foreach(var (_, content) in result.EmittedFiles)

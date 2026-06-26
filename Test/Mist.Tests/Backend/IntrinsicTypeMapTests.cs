@@ -33,7 +33,10 @@ public class IntrinsicTypeMapTests
         var cls = new ClassType(displayName, scope, containingNamespace: ns);
         var typeParams = new TypeParameterType[arity];
         for(var i = 0; i < arity; i++)
+        {
             typeParams[i] = new TypeParameterType($"T{i}", i);
+        }
+
         cls.TypeParameters = typeParams;
         return cls;
     }

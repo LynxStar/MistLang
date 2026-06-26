@@ -186,7 +186,10 @@ public static class ModeValidationPass
                     break;
                 }
             }
-            if(anyPushToDefault) break;
+            if(anyPushToDefault)
+            {
+                break;
+            }
         }
 
         if(anyPushToDefault)

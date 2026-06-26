@@ -182,7 +182,9 @@ public class AbstractRoundTripPropertyTests
     private static ParameterListNode MakeParameterList(params (TypeReferenceNode Type, string Name)[] parameters)
     {
         if(parameters.Length == 0)
+        {
             return null!;
+        }
 
         return new ParameterListNode
         {
@@ -313,7 +315,10 @@ public class AbstractRoundTripPropertyTests
             var abstractName = AbstractNames[i % AbstractNames.Length];
             // Ensure unique names
             if(declaredAbstractNames.Contains(abstractName))
+            {
                 abstractName = abstractName + (i + 1);
+            }
+
             declaredAbstractNames.Add(abstractName);
 
             // Decide method count (0-3)
@@ -325,7 +330,9 @@ public class AbstractRoundTripPropertyTests
             {
                 var methodName = MethodNames[m % MethodNames.Length];
                 if(!usedMethodNames.Add(methodName))
+                {
                     continue;
+                }
 
                 var retType = PickReturnType(rng);
                 ParameterListNode? parameters = null;
@@ -492,7 +499,9 @@ public class AbstractRoundTripPropertyTests
         // Step 1: Pretty-print the generated AST to source text
         var printed1 = MistPrettyPrinter.Print(testCase.Ast);
         if(string.IsNullOrWhiteSpace(printed1))
+        {
             return false.ToProperty().Label("printed1 was empty");
+        }
 
         // Step 2: Parse the printed source text back to an AST
         var sourceText = new Mist.Common.Text.SourceText("test.mist", printed1);
@@ -505,12 +514,16 @@ public class AbstractRoundTripPropertyTests
             .ToList();
 
         if(errors.Count > 0)
+        {
             return false.ToProperty()
                 .Label($"Parse errors: {string.Join("; ", errors.Select(e => e.Message))}\nSource:\n{printed1}");
+        }
 
         var reparsed = result.Root as CompilationUnitNode;
         if(reparsed is null)
+        {
             return false.ToProperty().Label($"Reparsed root was null.\nSource:\n{printed1}");
+        }
 
         // Step 3: Pretty-print the reparsed AST
         var printed2 = MistPrettyPrinter.Print(reparsed);

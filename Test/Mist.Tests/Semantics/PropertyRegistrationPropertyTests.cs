@@ -85,11 +85,15 @@ public class PropertyRegistrationPropertyTests
         var propSymbol = GetPropertySymbols(model).FirstOrDefault();
 
         if(propSymbol is null)
+        {
             return false.ToProperty().Label("No property symbol found");
+        }
 
         var metadata = (propSymbol as Symbol)?.PropertyMetadata;
         if(metadata is null)
+        {
             return false.ToProperty().Label("PropertyMetadata is null");
+        }
 
         // Verify accessor presence matches the declaration
         switch(propDecl)
@@ -140,11 +144,15 @@ public class PropertyRegistrationPropertyTests
         var propSymbol = GetPropertySymbols(model).FirstOrDefault();
 
         if(propSymbol is null)
+        {
             return false.ToProperty().Label("No property symbol found");
+        }
 
         var metadata = (propSymbol as Symbol)?.PropertyMetadata;
         if(metadata is null)
+        {
             return false.ToProperty().Label("PropertyMetadata is null");
+        }
 
         var expectedStatic = propDecl switch
         {
@@ -167,11 +175,15 @@ public class PropertyRegistrationPropertyTests
         var propSymbol = GetPropertySymbols(model).FirstOrDefault();
 
         if(propSymbol is null)
+        {
             return false.ToProperty().Label("No property symbol found");
+        }
 
         var metadata = (propSymbol as Symbol)?.PropertyMetadata;
         if(metadata is null)
+        {
             return false.ToProperty().Label("PropertyMetadata is null");
+        }
 
         if(metadata.IsComputed)
         {

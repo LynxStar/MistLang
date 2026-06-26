@@ -187,11 +187,15 @@ public class FieldKeywordPropertyTests
             .ToList();
 
         if(propSymbols.Count == 0)
+        {
             return false.ToProperty().Label("No property symbols found");
+        }
 
         var metadata = (propSymbols.First() as Symbol)?.PropertyMetadata;
         if(metadata is null)
+        {
             return false.ToProperty().Label("PropertyMetadata is null");
+        }
 
         if(testCase.ExpectBackingField)
         {
@@ -211,7 +215,9 @@ public class FieldKeywordPropertyTests
     public Property FieldKeyword_BackingFieldNameFollowsConvention(FieldKeywordTestCase testCase)
     {
         if(!testCase.ExpectBackingField)
+        {
             return true.ToProperty(); // Skip for computed properties
+        }
 
         var model = BuildSemanticModel(testCase.Ast);
 
@@ -220,13 +226,17 @@ public class FieldKeywordPropertyTests
             .ToList();
 
         if(propSymbols.Count == 0)
+        {
             return false.ToProperty().Label("No property symbols found");
+        }
 
         var propSymbol = propSymbols.First();
         var metadata = (propSymbol as Symbol)?.PropertyMetadata;
 
         if(metadata?.BackingField is null)
+        {
             return false.ToProperty().Label("Backing field is null");
+        }
 
         var expectedName = $"_{propSymbol.Name}_k__BackingField";
         return (metadata.BackingField.Name == expectedName).ToProperty()
@@ -245,11 +255,15 @@ public class FieldKeywordPropertyTests
             .ToList();
 
         if(propSymbols.Count == 0)
+        {
             return false.ToProperty().Label("No property symbols found");
+        }
 
         var metadata = (propSymbols.First() as Symbol)?.PropertyMetadata;
         if(metadata is null)
+        {
             return false.ToProperty().Label("PropertyMetadata is null");
+        }
 
         if(!testCase.ExpectBackingField)
         {

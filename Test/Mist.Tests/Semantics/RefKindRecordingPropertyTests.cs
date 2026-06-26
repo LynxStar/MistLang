@@ -334,7 +334,9 @@ public class RefKindRecordingPropertyTests
             .FirstOrDefault(s => s.Name == scenario.ParamName && s.Kind == SymbolKind.Parameter);
 
         if(paramSymbol is null)
+        {
             return false;
+        }
 
         // Assert: RefKind matches expected
         return paramSymbol.RefKind == scenario.ExpectedRefKind;
@@ -364,7 +366,9 @@ public class RefKindRecordingPropertyTests
             .FirstOrDefault(s => s.Name == scenario.MethodName && s.Kind == SymbolKind.Method);
 
         if(methodSymbol is null)
+        {
             return false;
+        }
 
         // Assert: ReturnRefKind matches expected
         return methodSymbol.ReturnRefKind == scenario.ExpectedReturnRefKind;
@@ -411,7 +415,9 @@ public class RefKindRecordingPropertyTests
             .FirstOrDefault(s => s.Name == scenario.VarName && s.Kind == SymbolKind.LocalVariable);
 
         if(localSymbol is null)
+        {
             return false;
+        }
 
         // Assert: RefKind matches expected
         return localSymbol.RefKind == scenario.ExpectedRefKind;
@@ -454,7 +460,9 @@ public class RefKindRecordingPropertyTests
             .FirstOrDefault(s => s.Name == scenario.ParamName && s.Kind == SymbolKind.Parameter);
 
         if(paramSymbol is null)
+        {
             return false;
+        }
 
         // Assert: RefKind is None
         return paramSymbol.RefKind == RefKind.None;

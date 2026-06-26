@@ -59,14 +59,19 @@ public sealed class ClrRefStructProjectionPropertyTests
     /// </summary>
     private static bool IsNonSpanRefStruct(Type t)
     {
-        if(!t.IsByRefLike) return false;
+        if(!t.IsByRefLike)
+        {
+            return false;
+        }
 
         // Exclude System.Span<> and System.ReadOnlySpan<> (they project to SpanType)
         if(t.IsConstructedGenericType)
         {
             var genericDef = t.GetGenericTypeDefinition();
             if(genericDef == typeof(Span<>) || genericDef == typeof(ReadOnlySpan<>))
+            {
                 return false;
+            }
         }
 
         // Also exclude the open generic definitions themselves
@@ -74,7 +79,9 @@ public sealed class ClrRefStructProjectionPropertyTests
         {
             var fullName = t.FullName;
             if(fullName == "System.Span`1" || fullName == "System.ReadOnlySpan`1")
+            {
                 return false;
+            }
         }
 
         return true;

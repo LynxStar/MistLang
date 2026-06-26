@@ -8,9 +8,9 @@ using Mist.Backends.Contracts;
 using Mist.Backends.CSharpTranspiler;
 using Mist.Driver;
 using Mist.Driver.Contracts;
+using Mist.Semantics.Model;
 using MistLexer = Mist.Lexing.MistLexer;
 using MistParser = Mist.Parsing.MistParser;
-using Mist.Semantics.Model;
 
 namespace Mist.Tests.Backend;
 

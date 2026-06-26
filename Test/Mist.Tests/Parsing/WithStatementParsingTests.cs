@@ -29,13 +29,29 @@ public class WithStatementParsingTests
     /// </summary>
     private static StatementNode? GetFirstStatement(ParseResult result)
     {
-        if(result.Root is not CompilationUnitNode cu) return null;
+        if(result.Root is not CompilationUnitNode cu)
+        {
+            return null;
+        }
+
         var typeDecl = cu.GetTypes()[0] as ClassTypeTypeDeclarationNode;
-        if(typeDecl is null) return null;
+        if(typeDecl is null)
+        {
+            return null;
+        }
+
         var methodMember = typeDecl.ClassDeclaration.Members[0] as MethodMemberMemberDeclarationNode;
-        if(methodMember is null) return null;
+        if(methodMember is null)
+        {
+            return null;
+        }
+
         var block = methodMember.Method.Body.GetBlock();
-        if(block is null || block.Statements.Length == 0) return null;
+        if(block is null || block.Statements.Length == 0)
+        {
+            return null;
+        }
+
         return block.Statements[0];
     }
 

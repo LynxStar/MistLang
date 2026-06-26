@@ -322,7 +322,9 @@ public class SpanIndexRefinementParityPropertyTests
     {
         // All unknown-length scenarios have non-negative index by construction.
         if(scenario.IsKnownLength)
+        {
             return true.ToProperty().Label("Skipped: not an unknown-length scenario");
+        }
 
         var spanSource = BuildSpanProgram(scenario);
         var arraySource = BuildArrayProgram(scenario);

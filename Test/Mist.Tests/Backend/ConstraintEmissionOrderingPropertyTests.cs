@@ -7,6 +7,7 @@ using System.Text.RegularExpressions;
 using FsCheck;
 using FsCheck.Fluent;
 using FsCheck.Xunit;
+using Mist.Backends.CSharpTranspiler;
 using Mist.Common.Diagnostics;
 using Mist.Common.Text;
 using Mist.Driver.Contracts;
@@ -14,7 +15,6 @@ using Mist.Lexing.Contracts;
 using Mist.Parsing.Contracts;
 using Mist.Semantics.Contracts;
 using Mist.Semantics.Model;
-using Mist.Backends.CSharpTranspiler;
 
 namespace Mist.Tests.Backend;
 
@@ -85,7 +85,9 @@ public sealed class ConstraintEmissionOrderingPropertyTests : IDisposable
         var parseResult = Parser.Parse(tokens, parseBag);
 
         if(parseResult.Root is null)
+        {
             return (null, "");
+        }
 
         var compilation = new MistCompilation(
             ImmutableArray.Create(new CompilationUnit(sourceText)));
@@ -100,7 +102,9 @@ public sealed class ConstraintEmissionOrderingPropertyTests : IDisposable
 
         // Clean output dir
         foreach(var file in Directory.GetFiles(_outputDir))
+        {
             File.Delete(file);
+        }
 
         var emitBag = new DiagnosticBag();
         CSharpEmitter.Emit(model, _outputDir, "TestProject", emitBag);
@@ -129,7 +133,10 @@ public sealed class ConstraintEmissionOrderingPropertyTests : IDisposable
     {
         // Parse the constraint list into individual constraints
         var constraints = constraintList.Split(',').Select(c => c.Trim()).ToList();
-        if(constraints.Count == 0) return false;
+        if(constraints.Count == 0)
+        {
+            return false;
+        }
 
         // Determine the category of each constraint
         var categories = constraints.Select(CategorizeConstraint).ToList();
@@ -139,7 +146,10 @@ public sealed class ConstraintEmissionOrderingPropertyTests : IDisposable
         foreach(var category in categories)
         {
             if(category < lastCategory)
+            {
                 return false;
+            }
+
             lastCategory = category;
         }
         return true;
@@ -152,13 +162,20 @@ public sealed class ConstraintEmissionOrderingPropertyTests : IDisposable
     private static int CategorizeConstraint(string constraint)
     {
         if(constraint == "class" || constraint == "struct")
+        {
             return 0;
+        }
+
         if(constraint == "new()")
+        {
             return 3;
+        }
         // Base classes start with uppercase and are not interfaces (no I prefix convention)
         // For our test scenarios, base classes are Animal, Vehicle, Shape
         if(BaseClassNames.Any(bc => constraint.StartsWith(bc)))
+        {
             return 1;
+        }
         // Everything else is an abstract type
         return 2;
     }
@@ -282,11 +299,15 @@ class Program {{
         var (model, csContent) = CompileAndEmit(scenario.Source);
 
         if(string.IsNullOrEmpty(csContent))
+        {
             return false.ToProperty().Label($"No C# output for: {scenario.Description}");
+        }
 
         var whereClause = ExtractWhereClause(csContent, scenario.TypeParamName);
         if(whereClause is null)
+        {
             return false.ToProperty().Label($"No where clause found for {scenario.TypeParamName}");
+        }
 
         var isCorrectOrder = VerifyConstraintOrder(whereClause);
         return isCorrectOrder.ToProperty()

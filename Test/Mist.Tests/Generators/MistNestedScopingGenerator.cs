@@ -37,9 +37,21 @@ public record ModifierSubset(bool IsPublic, bool IsPrivate, bool IsStatic)
     public override string ToString()
     {
         var parts = new List<string>();
-        if(IsPublic) parts.Add("public");
-        if(IsPrivate) parts.Add("private");
-        if(IsStatic) parts.Add("static");
+        if(IsPublic)
+        {
+            parts.Add("public");
+        }
+
+        if(IsPrivate)
+        {
+            parts.Add("private");
+        }
+
+        if(IsStatic)
+        {
+            parts.Add("static");
+        }
+
         return parts.Count == 0 ? "(none)" : string.Join(" ", parts);
     }
 }
@@ -155,9 +167,21 @@ public static class MistNestedScopingGenerator
     public static string ModifierSetToSource(ModifierSubset mods)
     {
         var parts = new List<string>();
-        if(mods.IsPublic) parts.Add("public");
-        if(mods.IsPrivate) parts.Add("private");
-        if(mods.IsStatic) parts.Add("static");
+        if(mods.IsPublic)
+        {
+            parts.Add("public");
+        }
+
+        if(mods.IsPrivate)
+        {
+            parts.Add("private");
+        }
+
+        if(mods.IsStatic)
+        {
+            parts.Add("static");
+        }
+
         return parts.Count == 0 ? "" : string.Join(" ", parts) + " ";
     }
 
@@ -167,9 +191,21 @@ public static class MistNestedScopingGenerator
     public static int ModifierCount(ModifierSubset mods)
     {
         var count = 0;
-        if(mods.IsPublic) count++;
-        if(mods.IsPrivate) count++;
-        if(mods.IsStatic) count++;
+        if(mods.IsPublic)
+        {
+            count++;
+        }
+
+        if(mods.IsPrivate)
+        {
+            count++;
+        }
+
+        if(mods.IsStatic)
+        {
+            count++;
+        }
+
         return count;
     }
 
@@ -179,9 +215,21 @@ public static class MistNestedScopingGenerator
     public static HashSet<Type> ExpectedModifierNodeTypes(ModifierSubset mods)
     {
         var types = new HashSet<Type>();
-        if(mods.IsPublic) types.Add(typeof(Mist.Generated.PublicModifierModifierNode));
-        if(mods.IsPrivate) types.Add(typeof(Mist.Generated.PrivateModifierModifierNode));
-        if(mods.IsStatic) types.Add(typeof(Mist.Generated.StaticModifierModifierNode));
+        if(mods.IsPublic)
+        {
+            types.Add(typeof(Mist.Generated.PublicModifierModifierNode));
+        }
+
+        if(mods.IsPrivate)
+        {
+            types.Add(typeof(Mist.Generated.PrivateModifierModifierNode));
+        }
+
+        if(mods.IsStatic)
+        {
+            types.Add(typeof(Mist.Generated.StaticModifierModifierNode));
+        }
+
         return types;
     }
 

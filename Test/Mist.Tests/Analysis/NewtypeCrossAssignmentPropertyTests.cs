@@ -61,7 +61,9 @@ public sealed class NewtypeCrossAssignmentPropertyTests
         var parseDiag = new DiagnosticBag();
         var parseResult = Parser.Parse(tokens, parseDiag);
         if(parseResult.Root is null)
+        {
             return lexDiag.ToImmutableArray().AddRange(parseDiag.ToImmutableArray());
+        }
 
         var allUnits = stdlibUnits.Add(userUnit);
         var allAsts = stdlibAsts.Add(parseResult.Root);

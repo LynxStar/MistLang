@@ -527,7 +527,9 @@ public class DependentTypeRoundTripPropertyTests
     private static Gen<ImmutableArray<MemberDeclarationNode>> GenFieldMembers(int count)
     {
         if(count == 0)
+        {
             return Gen.Constant(ImmutableArray<MemberDeclarationNode>.Empty);
+        }
 
         var fieldGen = from fieldName in Gen.Elements(FieldNames)
                        from type in MistTypeGenerator.GenPrimitiveTypeRef()
@@ -583,7 +585,9 @@ public class DependentTypeRoundTripPropertyTests
         // Step 1: Pretty-print the generated AST to source text
         var printed1 = MistPrettyPrinter.Print(testCase.Ast);
         if(string.IsNullOrWhiteSpace(printed1))
+        {
             return false.ToProperty().Label("printed1 was empty");
+        }
 
         // Step 2: Parse the printed source text back to an AST
         var sourceText = new Mist.Common.Text.SourceText("test.mist", printed1);
@@ -596,12 +600,16 @@ public class DependentTypeRoundTripPropertyTests
             .ToList();
 
         if(errors.Count > 0)
+        {
             return false.ToProperty()
                 .Label($"Parse errors: {string.Join("; ", errors.Select(e => e.Message))}\nSource:\n{printed1}");
+        }
 
         var reparsed = result.Root as CompilationUnitNode;
         if(reparsed is null)
+        {
             return false.ToProperty().Label($"Reparsed root was null.\nSource:\n{printed1}");
+        }
 
         // Step 3: Pretty-print the reparsed AST
         var printed2 = MistPrettyPrinter.Print(reparsed, printed1);

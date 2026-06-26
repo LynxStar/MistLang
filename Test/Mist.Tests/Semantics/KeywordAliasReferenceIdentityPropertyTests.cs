@@ -74,9 +74,12 @@ public class KeywordAliasReferenceIdentityPropertyTests
         var diagnostics = new DiagnosticBag();
         var units = StdlibLoader.LoadFrom(stdlibRoot, diagnostics);
         if(diagnostics.ToImmutableArray().Any(d => d.Severity == DiagnosticSeverity.Error))
+        {
             throw new InvalidOperationException(
                 "Failed to load stdlib: " +
                 string.Join("; ", diagnostics.ToImmutableArray().Select(d => d.Message)));
+        }
+
         return units;
     });
 
@@ -94,7 +97,10 @@ public class KeywordAliasReferenceIdentityPropertyTests
             var tokens = Lexer.Lex(unit.Source, diagnostics);
             var parseResult = Parser.Parse(tokens, diagnostics);
             if(parseResult.Root is null)
+            {
                 throw new InvalidOperationException($"Failed to parse stdlib unit: {unit.Source.Path}");
+            }
+
             asts.Add(parseResult.Root);
         }
         return (units, asts.ToImmutable());
@@ -111,7 +117,10 @@ public class KeywordAliasReferenceIdentityPropertyTests
         while(dir is not null)
         {
             if(File.Exists(Path.Combine(dir, "Mist.slnx")))
+            {
                 return Path.Combine(dir, "Source", "Standard");
+            }
+
             dir = Directory.GetParent(dir)?.FullName;
         }
 
@@ -119,7 +128,9 @@ public class KeywordAliasReferenceIdentityPropertyTests
         // (via the MSBuild Content item in Mist.Tests.csproj).
         var localStdlib = Path.Combine(AppContext.BaseDirectory, "Standard");
         if(Directory.Exists(localStdlib))
+        {
             return localStdlib;
+        }
 
         throw new InvalidOperationException(
             "Could not find stdlib root (Source/Standard/) from AppContext.BaseDirectory.");
@@ -215,7 +226,9 @@ public class KeywordAliasReferenceIdentityPropertyTests
         var userParseResult = Parser.Parse(userTokens, diagnostics);
 
         if(userParseResult.Root is null)
+        {
             throw new InvalidOperationException("Failed to parse user source");
+        }
 
         // Combine stdlib + user units.
         var allUnits = stdlibUnits.Add(userUnit);
@@ -241,7 +254,9 @@ public class KeywordAliasReferenceIdentityPropertyTests
     private static IType? LookupStdlibTypeForKeyword(ISemanticModel model, string keyword)
     {
         if(!KeywordAliases.Map.TryGetValue(keyword, out var qualifiedName))
+        {
             return null;
+        }
 
         var lastDot = qualifiedName.LastIndexOf('.');
         var namespaceName = qualifiedName.Substring(0, lastDot);
@@ -272,7 +287,9 @@ public class KeywordAliasReferenceIdentityPropertyTests
             && s.Kind == SymbolKind.Class);
 
         if(testClassSymbol?.DeclaredType is not ClassType testClass)
+        {
             return Array.Empty<(string, IType?)>();
+        }
 
         var members = testClass.MemberScope.Members.ToList();
         var results = new List<(string Keyword, IType? ResolvedType)>();

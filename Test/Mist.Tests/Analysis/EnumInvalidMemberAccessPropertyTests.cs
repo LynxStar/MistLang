@@ -282,9 +282,11 @@ public class EnumInvalidMemberAccessPropertyTests
             d.Severity == DiagnosticSeverity.Error);
 
         if(!hasExpectedError)
+        {
             return false.ToProperty()
                 .Label($"Expected MIST_SB_0082 for {scenario.EnumName}.{scenario.InvalidMemberName}, " +
                        $"got: [{string.Join("; ", combined.Select(e => $"{e.Id.Value}: {e.Message}"))}]");
+        }
 
         return true.ToProperty()
             .Label($"{scenario.EnumName}.{scenario.InvalidMemberName} correctly produced MIST_SB_0082");

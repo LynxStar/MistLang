@@ -301,7 +301,9 @@ internal sealed class IntrinsicEmissionTable : IIntrinsicEmissionRegistry
         // Try implicit first, then explicit.
         var implicitKey = $"{declaringType}:implicit({targetType})";
         if(CastOperators.TryGetValue(implicitKey, out var implicitTemplate))
+        {
             return implicitTemplate;
+        }
 
         var explicitKey = $"{declaringType}:explicit({targetType})";
         return CastOperators.TryGetValue(explicitKey, out var explicitTemplate) ? explicitTemplate : null;
@@ -322,7 +324,9 @@ internal sealed class IntrinsicEmissionTable : IIntrinsicEmissionRegistry
         foreach(var key in InstanceMethods.Keys)
         {
             if(key.StartsWith(prefix, StringComparison.Ordinal))
+            {
                 return true;
+            }
         }
         return false;
     }

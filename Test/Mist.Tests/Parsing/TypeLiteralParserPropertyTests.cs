@@ -129,7 +129,9 @@ public class TypeLiteralParserPropertyTests
     private static void CollectTypeLiterals(Storm.Runtime.SyntaxNode? node, List<TypeLiteralExpressionPrimaryNode> results)
     {
         if(node is null)
+        {
             return;
+        }
 
         if(node is TypeLiteralExpressionPrimaryNode typeLiteral)
         {
@@ -170,14 +172,18 @@ public class TypeLiteralParserPropertyTests
 
         // Parser must produce a non-null root
         if(root is null)
+        {
             return false;
+        }
 
         // Find TypeLiteralExpression nodes in the AST
         var typeLiterals = FindTypeLiterals(root);
 
         // There should be at least one TypeLiteralExpression
         if(typeLiterals.Count == 0)
+        {
             return false;
+        }
 
         // Find the type literal that matches our keyword's expected PrimitiveTypeNode
         var expectedNodeType = KeywordToNodeType[testCase.Keyword];
@@ -187,7 +193,9 @@ public class TypeLiteralParserPropertyTests
             primitiveRef.PrimitiveType.GetType() == expectedNodeType);
 
         if(matchingLiteral is null)
+        {
             return false;
+        }
 
         // Verify the TypeRef is a PrimitiveTypeRef with the correct PrimitiveTypeNode
         var typeRef = matchingLiteral.TypeRef.First as PrimitiveSingleTypeRefSingleTypeRefNode;
@@ -266,14 +274,18 @@ public class TypeLiteralParserPropertyTests
 
         // Parser must produce a non-null root
         if(root is null)
+        {
             return false;
+        }
 
         // Find TypeLiteralExpression nodes in the AST
         var typeLiterals = FindTypeLiterals(root);
 
         // There should be at least one TypeLiteralExpression
         if(typeLiterals.Count == 0)
+        {
             return false;
+        }
 
         // Find the type literal that matches our keyword's expected PrimitiveTypeNode AND has array rank
         var expectedNodeType = KeywordToNodeType[testCase.Keyword];
@@ -359,7 +371,9 @@ public class TypeLiteralParserPropertyTests
 
         // Parser must produce a non-null root
         if(root is null)
+        {
             return false;
+        }
 
         // The AST should NOT contain any TypeLiteralExpression for the type
         // in annotation position. The type keyword should be parsed as a

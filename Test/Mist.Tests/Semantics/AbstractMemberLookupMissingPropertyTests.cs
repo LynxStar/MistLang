@@ -114,7 +114,9 @@ public class AbstractMemberLookupMissingPropertyTests
     {
         var modifiers = new List<ModifierNode> { new PublicModifierModifierNode() };
         if(isStatic)
+        {
             modifiers.Add(new StaticModifierModifierNode());
+        }
 
         return new MethodDeclarationNode
         {
@@ -434,7 +436,9 @@ public class AbstractMemberLookupMissingPropertyTests
     private static Gen<int[]> GenSplitPoints(int total, int buckets)
     {
         if(buckets <= 0 || total < buckets)
+        {
             return Gen.Constant(Array.Empty<int>());
+        }
 
         var remainder = total - buckets;
         return Gen.ArrayOf(Gen.Choose(0, Math.Max(remainder, 0)), buckets)
@@ -458,7 +462,10 @@ public class AbstractMemberLookupMissingPropertyTests
                 }
 
                 normalized[^1] += total - distributed;
-                if(normalized[^1] < 1) normalized[^1] = 1;
+                if(normalized[^1] < 1)
+                {
+                    normalized[^1] = 1;
+                }
 
                 return normalized;
             })

@@ -17,8 +17,8 @@ using System.Text;
 using FsCheck;
 using FsCheck.Fluent;
 using Mist.Analysis.Builtin;
-using Mist.Backends.CSharpTranspiler;
 using Mist.Backends.Contracts;
+using Mist.Backends.CSharpTranspiler;
 using Mist.Common.Diagnostics;
 using Mist.Driver;
 using Mist.Driver.Contracts;
@@ -199,7 +199,9 @@ public sealed class BootstrapNumericOperatorPropertyTests : IDisposable
 
             using var process = Process.Start(psi);
             if(process is null)
+            {
                 return (-1, "", "Failed to start dotnet process");
+            }
 
             var stdoutTask = process.StandardOutput.ReadToEndAsync();
             var stderrTask = process.StandardError.ReadToEndAsync();

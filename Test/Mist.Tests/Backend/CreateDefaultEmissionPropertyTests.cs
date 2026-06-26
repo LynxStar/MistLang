@@ -131,12 +131,16 @@ public sealed class CreateDefaultEmissionPropertyTests : IDisposable
     private static string? GetEmittedCSharp(CompilerResult result)
     {
         if(result.EmittedFiles is null)
+        {
             return null;
+        }
 
         foreach(var (_, content) in result.EmittedFiles)
         {
             if(content.Contains("namespace TestProgram"))
+            {
                 return content;
+            }
         }
 
         return null;
@@ -278,7 +282,9 @@ public sealed class CreateDefaultEmissionPropertyTests : IDisposable
     private static Gen<ImmutableArray<(string FieldName, string FieldType)>> GenFields(int count)
     {
         if(count == 0)
+        {
             return Gen.Constant(ImmutableArray<(string, string)>.Empty);
+        }
 
         Gen<ImmutableArray<(string, string)>> result =
             from fieldType in Gen.Elements(PrimitiveTypes)

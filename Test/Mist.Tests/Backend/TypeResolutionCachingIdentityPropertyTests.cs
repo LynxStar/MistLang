@@ -63,11 +63,15 @@ public sealed class TypeResolutionCachingIdentityPropertyTests : IDisposable
         foreach(var type in fixtureAssembly.GetExportedTypes())
         {
             if(filter.IsTypeExcluded(type))
+            {
                 continue;
+            }
 
             var ns = type.Namespace;
             if(ns is null)
+            {
                 continue;
+            }
 
             // Use the name as the provider would see it (with generic arity suffix stripped)
             var name = TypeProjector.StripGenericAritySuffix(type.Name);
@@ -90,11 +94,15 @@ public sealed class TypeResolutionCachingIdentityPropertyTests : IDisposable
         foreach(var type in runtimeTypes)
         {
             if(filter.IsTypeExcluded(type))
+            {
                 continue;
+            }
 
             var ns = type.Namespace;
             if(ns is null)
+            {
                 continue;
+            }
 
             var name = TypeProjector.StripGenericAritySuffix(type.Name);
             results.Add((ns, name));
@@ -166,7 +174,9 @@ public sealed class TypeResolutionCachingIdentityPropertyTests : IDisposable
 
             // Skip types that don't resolve (e.g., intrinsic types that get substituted)
             if(firstResult is null)
+            {
                 return;
+            }
 
             // Resolve the same type multiple times and verify reference equality
             for(var i = 1; i < resolutionCount; i++)

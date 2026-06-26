@@ -140,10 +140,14 @@ public sealed class EntryPointAnalyzer : IAnalyzer
             }
 
             if(unitIndex < 0 || unitIndex >= model.Asts.Length)
+            {
                 continue;
+            }
 
             if(model.Asts[unitIndex] is not CompilationUnitNode cu)
+            {
                 continue;
+            }
 
             foreach(var item in cu.Items)
             {
@@ -174,7 +178,9 @@ public sealed class EntryPointAnalyzer : IAnalyzer
         foreach(var unit in model.Units)
         {
             if(unit.OriginProjectPath is not null)
+            {
                 referencedSourcePaths.Add(unit.Source.Path);
+            }
         }
 
         var classNames = new List<string>();
@@ -182,10 +188,14 @@ public sealed class EntryPointAnalyzer : IAnalyzer
         foreach(var symbol in model.AllSymbols)
         {
             if(symbol.Origin == SymbolOrigin.Backend)
+            {
                 continue;
+            }
 
             if(symbol.Kind != SymbolKind.Method || symbol.Name != "Main")
+            {
                 continue;
+            }
 
             // Get the declaring AST node to inspect modifiers and return type.
             Storm.Runtime.SyntaxNode declaringNode;
@@ -193,11 +203,15 @@ public sealed class EntryPointAnalyzer : IAnalyzer
             catch { continue; }
 
             if(declaringNode is not MethodDeclarationNode methodDecl)
+            {
                 continue;
+            }
 
             // Must be static.
             if(!methodDecl.Modifiers.Any(m => m is StaticModifierModifierNode))
+            {
                 continue;
+            }
 
             // Valid entry point return types:
             // - void (standard entry point)
@@ -210,11 +224,15 @@ public sealed class EntryPointAnalyzer : IAnalyzer
                 && primitiveRef.ArrayRank is null;
 
             if(!isVoidReturn && !isIntReturn)
+            {
                 continue;
+            }
 
             // int return type is only valid with the async modifier (Requirement 11.4).
             if(isIntReturn && !methodDecl.Modifiers.Any(m => m is AsyncModifierModifierNode))
+            {
                 continue;
+            }
 
             // Must have either no parameters or a single string[] parameter.
             if(methodDecl.Parameters is not null)
@@ -223,21 +241,29 @@ public sealed class EntryPointAnalyzer : IAnalyzer
                 foreach(var child in methodDecl.Parameters.Children())
                 {
                     if(child is ParameterNode param)
+                    {
                         parameters.Add(param);
+                    }
                 }
 
                 if(parameters.Count != 1 || !IsStringArrayTypeRef(parameters[0].Type))
+                {
                     continue;
+                }
             }
 
             // Skip methods from referenced projects.
             if(IsFromReferencedProject(symbol, model, referencedSourcePaths))
+            {
                 continue;
+            }
 
             // Find the containing class name.
             var className = FindContainingClassName(symbol, model);
             if(className is not null)
+            {
                 classNames.Add(className);
+            }
         }
 
         return classNames;
@@ -268,7 +294,9 @@ public sealed class EntryPointAnalyzer : IAnalyzer
         HashSet<string> referencedSourcePaths)
     {
         if(referencedSourcePaths.Count == 0)
+        {
             return false;
+        }
 
         // Find the declaring node and walk up to the root.
         Storm.Runtime.SyntaxNode declaringNode;
@@ -277,13 +305,17 @@ public sealed class EntryPointAnalyzer : IAnalyzer
 
         var node = declaringNode;
         while(node.Parent is not null)
+        {
             node = node.Parent;
+        }
 
         // Match the root node against the model's AST array to find its unit index.
         for(var i = 0; i < model.Asts.Length && i < model.Units.Count; i++)
         {
             if(ReferenceEquals(model.Asts[i], node))
+            {
                 return referencedSourcePaths.Contains(model.Units[i].Source.Path);
+            }
         }
 
         return false;
@@ -299,12 +331,16 @@ public sealed class EntryPointAnalyzer : IAnalyzer
         var typeScope = methodSymbol.ContainingScope;
         var parentScope = typeScope?.Parent;
         if(parentScope is null)
+        {
             return null;
+        }
 
         foreach(var member in parentScope.Members)
         {
             if(member.Kind is not (SymbolKind.Class or SymbolKind.Struct))
+            {
                 continue;
+            }
 
             var memberScope = member.DeclaredType switch
             {

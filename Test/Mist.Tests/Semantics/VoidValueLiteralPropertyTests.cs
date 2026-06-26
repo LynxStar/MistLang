@@ -415,7 +415,10 @@ public sealed class VoidValueLiteralPropertyTests : IDisposable
 
     private static void CollectVoidTypeLiterals(Storm.Runtime.SyntaxNode? node, List<TypeLiteralExpressionPrimaryNode> results)
     {
-        if(node is null) return;
+        if(node is null)
+        {
+            return;
+        }
 
         if(node is TypeLiteralExpressionPrimaryNode typeLiteral
             && typeLiteral.TypeRef is { SingleTypeRefs.Length: 0, First: VoidSingleTypeRefSingleTypeRefNode })
@@ -426,7 +429,9 @@ public sealed class VoidValueLiteralPropertyTests : IDisposable
         try
         {
             foreach(var child in node.Children())
+            {
                 CollectVoidTypeLiterals(child, results);
+            }
         }
         catch(NullReferenceException)
         {

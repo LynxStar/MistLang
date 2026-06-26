@@ -84,7 +84,9 @@ public sealed class EmitterDisposableDispatchTests : IDisposable
         foreach(var (_, content) in result.EmittedFiles!)
         {
             if(content.Contains("namespace TestProgram"))
+            {
                 return content;
+            }
         }
 
         Assert.Fail("No emitted C# file containing 'namespace TestProgram' was found.");

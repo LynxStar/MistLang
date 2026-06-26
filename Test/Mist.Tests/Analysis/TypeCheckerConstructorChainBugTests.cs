@@ -461,7 +461,9 @@ public class TypeCheckerConstructorChainBugTests
 
         // If there are no type checker diagnostics, the property trivially holds
         if(tcDiagnostics.Count == 0)
+        {
             return true;
+        }
 
         return tcDiagnostics.All(d => d.CompilationUnitPath != "<unknown>");
     }
@@ -501,7 +503,9 @@ public class TypeCheckerConstructorChainBugTests
             .ToList();
 
         if(tcDiagnostics.Count == 0)
+        {
             return true;
+        }
 
         return tcDiagnostics.All(d => d.Location.Start.Line >= 1);
     }

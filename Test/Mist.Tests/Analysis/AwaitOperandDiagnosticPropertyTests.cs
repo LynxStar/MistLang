@@ -46,7 +46,9 @@ public class AwaitOperandDiagnosticPropertyTests
         var parseDiag = new DiagnosticBag();
         var parseResult = Parser.Parse(tokens, parseDiag);
         if(parseResult.Root is null)
+        {
             return parseDiag.ToImmutableArray();
+        }
 
         var buildDiag = new DiagnosticBag();
         var model = Builder.Build(
@@ -196,8 +198,10 @@ public class AwaitOperandDiagnosticPropertyTests
             .FirstOrDefault(d => d.Id.Value == "MIST_TC_0105");
 
         if(matchingDiagnostic is null)
+        {
             return false.ToProperty()
                 .Label($"No MIST_TC_0105 diagnostic found for await on {scenario.OperandKind}.");
+        }
 
         // The diagnostic message should mention the actual type of the operand
         var messageIncludesType = matchingDiagnostic.Message.Contains(

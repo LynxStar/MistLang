@@ -234,30 +234,40 @@ public class EnumTypeConstructionPropertyTests
             .FirstOrDefault(s => s.Name == scenario.EnumName && s.Kind == SymbolKind.Enum);
 
         if(enumSymbol is null)
+        {
             return false.ToProperty()
                 .Label($"Enum '{scenario.EnumName}' not found with SymbolKind.Enum. " +
                        $"All symbols: [{string.Join(", ", model.AllSymbols.Select(s => $"{s.Name}:{s.Kind}"))}]");
+        }
 
         // Requirement 2.1: EnumType implements IType
         if(enumSymbol.DeclaredType is not EnumType enumType)
+        {
             return false.ToProperty()
                 .Label($"Enum '{scenario.EnumName}' DeclaredType is not EnumType, got: {enumSymbol.DeclaredType?.GetType().Name ?? "null"}");
+        }
 
         // Requirement 2.3: Kind == TypeKind.Enum
         if(enumType.Kind != TypeKind.Enum)
+        {
             return false.ToProperty()
                 .Label($"Expected TypeKind.Enum, got {enumType.Kind}");
+        }
 
         // Requirement 2.2: Non-null UnderlyingType
         if(enumType.UnderlyingType is null)
+        {
             return false.ToProperty()
                 .Label($"UnderlyingType is null for enum '{scenario.EnumName}'");
+        }
 
         // Requirement 2.2: Members.Count equals declared member count
         if(enumType.Members.Count != scenario.MemberNames.Count)
+        {
             return false.ToProperty()
                 .Label($"Expected {scenario.MemberNames.Count} members, got {enumType.Members.Count}. " +
                        $"Scenario: {scenario}");
+        }
 
         return true.ToProperty()
             .Label($"Enum '{scenario.EnumName}' correctly constructed with {scenario.MemberNames.Count} members");

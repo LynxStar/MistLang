@@ -25,7 +25,9 @@ public static class CompilationUnitNodeExtensions
         foreach(var item in cu.Items)
         {
             if(item is NamespaceItemTopLevelItemNode nsItem)
+            {
                 return nsItem.NamespaceDeclaration;
+            }
         }
         return null;
     }
@@ -40,7 +42,9 @@ public static class CompilationUnitNodeExtensions
         foreach(var item in cu.Items)
         {
             if(item is TypeItemTopLevelItemNode typeItem)
+            {
                 builder.Add(typeItem.TypeDeclaration);
+            }
         }
         return builder.ToImmutable();
     }
@@ -55,7 +59,9 @@ public static class CompilationUnitNodeExtensions
         foreach(var item in cu.Items)
         {
             if(item is StatementItemTopLevelItemNode stmtItem)
+            {
                 builder.Add(stmtItem);
+            }
         }
         return builder.ToImmutable();
     }
@@ -68,7 +74,9 @@ public static class CompilationUnitNodeExtensions
         foreach(var item in cu.Items)
         {
             if(item is StatementItemTopLevelItemNode)
+            {
                 return true;
+            }
         }
         return false;
     }
@@ -96,7 +104,10 @@ public static class CompilationUnitNodeExtensions
     {
         var builder = ImmutableArray.CreateBuilder<TopLevelItemNode>(types.Length);
         foreach(var t in types)
+        {
             builder.Add(t.AsTopLevelItem());
+        }
+
         return builder.MoveToImmutable();
     }
 
@@ -111,12 +122,16 @@ public static class CompilationUnitNodeExtensions
         var items = ImmutableArray.CreateBuilder<TopLevelItemNode>();
 
         if(ns is not null)
+        {
             items.Add(ns.AsTopLevelItem());
+        }
 
         if(types is not null)
         {
             foreach(var t in types.Value)
+            {
                 items.Add(t.AsTopLevelItem());
+            }
         }
 
         return new CompilationUnitNode
@@ -142,7 +157,10 @@ public static class CompilationUnitNodeExtensions
     {
         var builder = ImmutableArray.CreateBuilder<NamespaceBodyItemNode>(types.Length);
         foreach(var t in types)
+        {
             builder.Add(t.AsNamespaceBodyItem());
+        }
+
         return builder.MoveToImmutable();
     }
 }

@@ -323,17 +323,23 @@ public class EnumSequentialValuePropertyTests
             .FirstOrDefault(s => s.Name == scenario.EnumName && s.Kind == SymbolKind.Enum);
 
         if(enumSymbol is null)
+        {
             return false.ToProperty()
                 .Label($"Enum '{scenario.EnumName}' not found in semantic model. " +
                        $"All symbols: [{string.Join(", ", model.AllSymbols.Select(s => $"{s.Name}:{s.Kind}"))}]");
+        }
 
         if(enumSymbol.DeclaredType is not EnumType enumType)
+        {
             return false.ToProperty()
                 .Label($"Enum '{scenario.EnumName}' DeclaredType is not EnumType, got: {enumSymbol.DeclaredType?.GetType().Name ?? "null"}");
+        }
 
         if(enumType.Members.Count != scenario.Members.Count)
+        {
             return false.ToProperty()
                 .Label($"Expected {scenario.Members.Count} members, got {enumType.Members.Count}");
+        }
 
         // Verify each member's resolved value matches the expected sequential value.
         for(var i = 0; i < scenario.Members.Count; i++)
@@ -342,15 +348,19 @@ public class EnumSequentialValuePropertyTests
             var expectedValue = scenario.ExpectedValues[i];
 
             if(member.ResolvedValue is not long actualValue)
+            {
                 return false.ToProperty()
                     .Label($"Member '{member.Name}' at index {i}: ResolvedValue is not a long. " +
                            $"Got: {member.ResolvedValue?.GetType().Name ?? "null"} = {member.ResolvedValue}. " +
                            $"Scenario: {scenario}");
+            }
 
             if(actualValue != expectedValue)
+            {
                 return false.ToProperty()
                     .Label($"Member '{member.Name}' at index {i}: expected value {expectedValue}, " +
                            $"got {actualValue}. Scenario: {scenario}");
+            }
         }
 
         return true.ToProperty()

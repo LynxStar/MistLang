@@ -59,11 +59,15 @@ internal static class UnionHelperGenerator
             // Skip two-constituent void unions — these use Nullable<T> or null
             // instead of a generated helper struct (Requirement 7.1, 7.8).
             if(CSharpTypeMap.IsOptionalUnion(unionType))
+            {
                 continue;
+            }
 
             var helperName = GetHelperTypeName(unionType);
             if(emitted.ContainsKey(helperName))
+            {
                 continue;
+            }
 
             emitted[helperName] = true;
             GenerateHelperStruct(sb, unionType, helperName);

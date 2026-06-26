@@ -258,18 +258,26 @@ public class AdditiveOnlyConstraintPropertyTests
             if(i == ancestorLevel)
             {
                 if(ancestorKind == MemberKind.Field)
+                {
                     fields.Add(redeclaredName);
+                }
                 else
+                {
                     methods.Add(redeclaredName);
+                }
             }
 
             // Add the redeclared member at the derived level (this is the redeclaration)
             if(i == redeclLevel)
             {
                 if(derivedKind == MemberKind.Field)
+                {
                     fields.Add(redeclaredName);
+                }
                 else
+                {
                     methods.Add(redeclaredName);
+                }
             }
 
             // Add 0-1 unique fields at this level
@@ -352,7 +360,11 @@ public class AdditiveOnlyConstraintPropertyTests
 
             // Add 1-2 unique fields at this level
             var fieldCount = Math.Min(2, shuffledFields.Length - fieldIdx);
-            if(fieldCount > 0) fieldCount = 1; // Keep it simple: 1 field per level
+            if(fieldCount > 0)
+            {
+                fieldCount = 1; // Keep it simple: 1 field per level
+            }
+
             for(var f = 0; f < fieldCount; f++)
             {
                 while(fieldIdx < shuffledFields.Length)

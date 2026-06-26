@@ -165,7 +165,11 @@ public class DigitSeparatorTypeInvariancePropertyTests
         var sourceText = new SourceText("test.mist", source);
         var bag = new DiagnosticBag();
         var tokens = Lexer.Lex(sourceText, bag);
-        if(bag.HasErrors) return null;
+        if(bag.HasErrors)
+        {
+            return null;
+        }
+
         var result = Parser.Parse(tokens, bag);
         return result.Root as CompilationUnitNode;
     }
@@ -200,15 +204,22 @@ public class DigitSeparatorTypeInvariancePropertyTests
         Storm.Runtime.SyntaxNode? node,
         List<InferredVariableDeclarationVariableDeclarationStatementNode> results)
     {
-        if(node is null) return;
+        if(node is null)
+        {
+            return;
+        }
 
         if(node is InferredVariableDeclarationVariableDeclarationStatementNode varDecl)
+        {
             results.Add(varDecl);
+        }
 
         try
         {
             foreach(var child in node.Children())
+            {
                 CollectVarDeclarations(child, results);
+            }
         }
         catch(NullReferenceException)
         {
@@ -225,15 +236,24 @@ public class DigitSeparatorTypeInvariancePropertyTests
         var source = $"class C {{ public static void Main() {{ var x = {literal}; }} }}";
 
         var root = ParseSource(source);
-        if(root is null) return null;
+        if(root is null)
+        {
+            return null;
+        }
 
         var model = BuildSemanticModel(root, source);
 
         var varDecls = FindVarDeclarations(root);
-        if(varDecls.Count == 0) return null;
+        if(varDecls.Count == 0)
+        {
+            return null;
+        }
 
         var xDecl = varDecls.FirstOrDefault(v => v.Name.Lexeme == "x");
-        if(xDecl is null) return null;
+        if(xDecl is null)
+        {
+            return null;
+        }
 
         var symbol = model.GetDeclaredSymbol(xDecl);
         return symbol?.DeclaredType?.DisplayName;
@@ -257,7 +277,10 @@ public class DigitSeparatorTypeInvariancePropertyTests
         var typeWithoutSep = ResolveVarType(scenario.LiteralWithoutSeparators);
 
         // Both must resolve successfully
-        if(typeWithSep is null || typeWithoutSep is null) return false;
+        if(typeWithSep is null || typeWithoutSep is null)
+        {
+            return false;
+        }
 
         // Types must be identical
         return typeWithSep == typeWithoutSep;

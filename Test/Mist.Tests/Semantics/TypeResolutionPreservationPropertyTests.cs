@@ -130,7 +130,9 @@ public sealed class TypeResolutionPreservationPropertyTests : IDisposable
         var userParseResult = Parser.Parse(userTokens, diagnostics);
 
         if(userParseResult.Root is null)
+        {
             return (null!, diagnostics.ToImmutableArray());
+        }
 
         var allUnits = stdlibUnits.Add(userUnit);
         var allAsts = stdlibAsts.Add(userParseResult.Root);

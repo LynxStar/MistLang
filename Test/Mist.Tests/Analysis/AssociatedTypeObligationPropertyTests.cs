@@ -41,7 +41,9 @@ public class AssociatedTypeObligationPropertyTests
         var parseDiag = new DiagnosticBag();
         var parseResult = Parser.Parse(tokens, parseDiag);
         if(parseResult.Root is null)
+        {
             return lexDiag.ToImmutableArray().AddRange(parseDiag.ToImmutableArray());
+        }
 
         var (model, buildDiag) = StdlibTestHelper.BuildModelWithStdlib(
             parseResult.Root, source: source);
@@ -196,7 +198,9 @@ public class AssociatedTypeObligationPropertyTests
     private static Gen<SlotDef[]> GenSlotDefs(string[] names)
     {
         if(names.Length == 0)
+        {
             return Gen.Constant(Array.Empty<SlotDef>());
+        }
 
         Gen<SlotDef[]> result = GenSlotDef(names[0]).Select(s => new[] { s });
         for(var i = 1; i < names.Length; i++)
@@ -233,7 +237,9 @@ public class AssociatedTypeObligationPropertyTests
         }
 
         if(referencedAbstracts.Count > 0)
+        {
             sb.AppendLine();
+        }
 
         // Emit the abstract type with associated type slots
         sb.AppendLine($"abstract {scenario.AbstractName} {{");
@@ -253,7 +259,9 @@ public class AssociatedTypeObligationPropertyTests
             var satisfaction = scenario.Satisfactions[i];
 
             if(satisfaction == SatisfactionKind.Missing)
+            {
                 continue;
+            }
 
             // Provide a concrete type member (nested type) for this slot
             if(satisfaction == SatisfactionKind.Satisfied)

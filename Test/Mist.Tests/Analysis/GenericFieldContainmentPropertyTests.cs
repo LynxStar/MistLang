@@ -7,8 +7,8 @@ using FsCheck.Fluent;
 using FsCheck.Xunit;
 using Mist.Analysis.Builtin;
 using Mist.Analysis.Contracts;
-using Mist.Backends.CSharpTranspiler;
 using Mist.Backends.Contracts;
+using Mist.Backends.CSharpTranspiler;
 using Mist.Common.Diagnostics;
 using Mist.Driver;
 using Mist.Driver.Contracts;
@@ -133,7 +133,9 @@ public class GenericFieldContainmentPropertyTests
             get
             {
                 if(Constraint == TypeParamConstraint.None)
+                {
                     return false; // Not applicable — unconstrained path takes over.
+                }
 
                 var fieldDiscipline = Constraint switch
                 {
@@ -163,11 +165,15 @@ public class GenericFieldContainmentPropertyTests
             {
                 // Unrestricted container with unconstrained T → no unconstrained-TP diagnostic.
                 if(Container == ContainerDiscipline.Unrestricted && Constraint == TypeParamConstraint.None)
+                {
                     return true;
+                }
 
                 // Substructural container with unconstrained T → diagnostic.
                 if(ExpectsUnconstrainedDiagnostic)
+                {
                     return false;
+                }
 
                 // Constrained T → matrix decides.
                 return IsMatrixPermitted;

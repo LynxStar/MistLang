@@ -78,9 +78,21 @@ public sealed class TypeKindProjectionPropertyTests
     /// </summary>
     private static Type ExpectedMistTypeKind(Type clrType)
     {
-        if(clrType.IsEnum) return typeof(EnumType);
-        if(clrType.IsInterface) return typeof(AbstractType);
-        if(clrType.IsValueType) return typeof(StructType);
+        if(clrType.IsEnum)
+        {
+            return typeof(EnumType);
+        }
+
+        if(clrType.IsInterface)
+        {
+            return typeof(AbstractType);
+        }
+
+        if(clrType.IsValueType)
+        {
+            return typeof(StructType);
+        }
+
         return typeof(ClassType);
     }
 

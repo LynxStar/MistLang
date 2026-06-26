@@ -42,7 +42,9 @@ public class AssociatedTypeGenericContextPropertyTests
         var parseDiag = new DiagnosticBag();
         var parseResult = Parser.Parse(tokens, parseDiag);
         if(parseResult.Root is null)
+        {
             return lexDiag.ToImmutableArray().AddRange(parseDiag.ToImmutableArray());
+        }
 
         var (model, buildDiag) = StdlibTestHelper.BuildModelWithStdlib(
             parseResult.Root, source: source);
@@ -294,7 +296,9 @@ public class AssociatedTypeGenericContextPropertyTests
         // Only test scenarios that have a slot constraint — member access is
         // only meaningful when the slot has a constraint abstract type.
         if(!scenario.HasSlotConstraint)
+        {
             return true.ToProperty().Label("Skipped: no slot constraint");
+        }
 
         var source = BuildSourceWithMemberAccess(scenario);
         var diagnostics = CompileAndGetAllDiagnostics(source);

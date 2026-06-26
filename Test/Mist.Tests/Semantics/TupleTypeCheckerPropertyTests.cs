@@ -63,7 +63,9 @@ public class TupleTypeCheckerPropertyTests
             var memberName = $"Item{i + 1}";
             var resolved = ResolveTupleMemberType(tuple, memberName);
             if(resolved is null || resolved.DisplayName != tuple.ElementTypes[i].DisplayName)
+            {
                 return false;
+            }
         }
         return true;
     }
@@ -77,7 +79,9 @@ public class TupleTypeCheckerPropertyTests
     public bool NamedAccess_ResolvesToSameTypeAsPositional(TupleType tuple)
     {
         if(tuple.ElementNames is null)
+        {
             return true; // No names to check.
+        }
 
         // Track which names we've already checked to handle duplicates.
         var checkedNames = new HashSet<string>();
@@ -85,20 +89,30 @@ public class TupleTypeCheckerPropertyTests
         for(var i = 0; i < tuple.ElementNames.Count; i++)
         {
             var name = tuple.ElementNames[i];
-            if(name is null) continue;
+            if(name is null)
+            {
+                continue;
+            }
 
             // Only check the first occurrence of each name.
-            if(!checkedNames.Add(name)) continue;
+            if(!checkedNames.Add(name))
+            {
+                continue;
+            }
 
             var namedResolved = ResolveTupleMemberType(tuple, name);
             var positionalResolved = ResolveTupleMemberType(tuple, $"Item{i + 1}");
 
             if(namedResolved is null || positionalResolved is null)
+            {
                 return false;
+            }
             // The named access resolves to the first element with that name,
             // which is at position i (since we skip duplicates).
             if(namedResolved.DisplayName != tuple.ElementTypes[i].DisplayName)
+            {
                 return false;
+            }
         }
         return true;
     }
@@ -140,7 +154,9 @@ public class TupleTypeCheckerPropertyTests
             for(var i = 0; i < tuple.ElementNames.Count; i++)
             {
                 if(tuple.ElementNames[i] == memberName)
+                {
                     return tuple.ElementTypes[i];
+                }
             }
         }
 
@@ -241,11 +257,17 @@ public static class TupleTypePairGenerator
 
     private static bool TypeArraysEqual(IType[] a, IType[] b)
     {
-        if(a.Length != b.Length) return false;
+        if(a.Length != b.Length)
+        {
+            return false;
+        }
+
         for(var i = 0; i < a.Length; i++)
         {
             if(a[i].DisplayName != b[i].DisplayName)
+            {
                 return false;
+            }
         }
         return true;
     }
@@ -285,7 +307,9 @@ public static class TupleTypeAndInvalidNameGenerator
             for(var i = 0; i < tuple.ElementNames.Count; i++)
             {
                 if(tuple.ElementNames[i] == name)
+                {
                     return true;
+                }
             }
         }
 

@@ -240,11 +240,15 @@ rule Start = IDENT;
                 var fsPath = path.Replace('/', Path.DirectorySeparatorChar);
 
                 if(Path.IsPathRooted(fsPath) && File.Exists(fsPath))
+                {
                     return File.ReadAllText(fsPath);
+                }
 
                 var fullPath = Path.GetFullPath(Path.Combine(grammarDir, fsPath));
                 if(File.Exists(fullPath))
+                {
                     return File.ReadAllText(fullPath);
+                }
 
                 return null;
             };

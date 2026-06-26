@@ -284,9 +284,11 @@ public class CastOperatorRegistrationPropertyTests
                 .FirstOrDefault(s => s.Name == expectedName && s.Kind == SymbolKind.Method);
 
             if(symbol is null)
+            {
                 return false.ToProperty()
                     .Label($"No SymbolKind.Method symbol named '{expectedName}' found. " +
                            $"All symbols: [{string.Join(", ", model.AllSymbols.Select(s => $"{s.Name}:{s.Kind}"))}]");
+            }
         }
 
         return true.ToProperty()
@@ -317,8 +319,10 @@ public class CastOperatorRegistrationPropertyTests
                                  s.Kind == (isStruct ? SymbolKind.Struct : SymbolKind.Class));
 
         if(typeSymbol is null)
+        {
             return false.ToProperty()
                 .Label($"Enclosing type '{enclosingName}' not found in model");
+        }
 
         // Get the member scope from the type
         IScope? memberScope = typeSymbol.DeclaredType switch
@@ -329,8 +333,10 @@ public class CastOperatorRegistrationPropertyTests
         };
 
         if(memberScope is null)
+        {
             return false.ToProperty()
                 .Label($"Could not get MemberScope from type '{enclosingName}'");
+        }
 
         foreach(var scenario in scenarios)
         {
@@ -339,9 +345,11 @@ public class CastOperatorRegistrationPropertyTests
                 .FirstOrDefault(m => m.Name == expectedName && m.Kind == SymbolKind.Method);
 
             if(member is null)
+            {
                 return false.ToProperty()
                     .Label($"Symbol '{expectedName}' not found in {enclosingName}'s member scope. " +
                            $"Members: [{string.Join(", ", memberScope.Members.Select(m => $"{m.Name}:{m.Kind}"))}]");
+            }
         }
 
         return true.ToProperty()
@@ -370,20 +378,26 @@ public class CastOperatorRegistrationPropertyTests
                 .FirstOrDefault(s => s.Name == expectedName && s.Kind == SymbolKind.Method);
 
             if(symbol is null)
+            {
                 return false.ToProperty()
                     .Label($"Symbol '{expectedName}' not found");
+            }
 
             // Verify the name encodes the cast kind
             var expectedPrefix = $"operator_{scenario.CastKind}_";
             if(!symbol.Name.StartsWith(expectedPrefix))
+            {
                 return false.ToProperty()
                     .Label($"Symbol name '{symbol.Name}' does not start with '{expectedPrefix}'");
+            }
 
             // Verify the name encodes the target type
             var encodedTarget = symbol.Name.Substring(expectedPrefix.Length);
             if(encodedTarget != scenario.TargetTypeName)
+            {
                 return false.ToProperty()
                     .Label($"Encoded target type '{encodedTarget}' does not match expected '{scenario.TargetTypeName}'");
+            }
         }
 
         return true.ToProperty()
@@ -413,19 +427,25 @@ public class CastOperatorRegistrationPropertyTests
                 .FirstOrDefault(s => s.Name == expectedName && s.Kind == SymbolKind.Method);
 
             if(symbol is null)
+            {
                 return false.ToProperty()
                     .Label($"Symbol '{expectedName}' not found");
+            }
 
             if(symbol.IsIntrinsic != scenario.IsIntrinsic)
+            {
                 return false.ToProperty()
                     .Label($"Symbol '{expectedName}' has IsIntrinsic={symbol.IsIntrinsic}, " +
                            $"expected {scenario.IsIntrinsic}");
+            }
 
             // HasBody should be the inverse of IsIntrinsic
             if(symbol.HasBody == scenario.IsIntrinsic)
+            {
                 return false.ToProperty()
                     .Label($"Symbol '{expectedName}' has HasBody={symbol.HasBody}, " +
                            $"expected {!scenario.IsIntrinsic}");
+            }
         }
 
         return true.ToProperty()

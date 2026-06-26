@@ -53,7 +53,9 @@ public sealed class RefStructUsagePropertyTests
         var parseDiag = new DiagnosticBag();
         var parseResult = SharedParser.Parse(tokens, parseDiag);
         if(parseResult.Root is null)
+        {
             return parseDiag.ToImmutableArray();
+        }
 
         var (model, buildDiag) = StdlibTestHelper.BuildModelWithStdlib(
             parseResult.Root, source: source);

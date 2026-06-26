@@ -18,7 +18,10 @@ public class StormRegexLiteralIRPropertyTests
         {
             var normalized = StormImportResolver.CanonicalizePath(path);
             if(files.TryGetValue(normalized, out var contents))
+            {
                 return contents;
+            }
+
             return null;
         };
     }

@@ -185,7 +185,11 @@ public static class TargetTypedNewResolutionGenerators
 
     private static string BuildCtorDecl(string className, int argCount)
     {
-        if(argCount == 0) return "";
+        if(argCount == 0)
+        {
+            return "";
+        }
+
         var parms = BuildCtorParams(argCount);
         return "    public " + className + "(" + parms + ") { }\n";
     }
@@ -353,7 +357,10 @@ public sealed class TargetTypedNewResolutionPropertyTests : IDisposable
 
     private static void CollectTargetTypedNewNodes(Storm.Runtime.SyntaxNode? node, List<TargetTypedNewExpressionPrimaryNode> results)
     {
-        if(node is null) return;
+        if(node is null)
+        {
+            return;
+        }
 
         if(node is TargetTypedNewExpressionPrimaryNode targetNew)
         {
@@ -363,7 +370,9 @@ public sealed class TargetTypedNewResolutionPropertyTests : IDisposable
         try
         {
             foreach(var child in node.Children())
+            {
                 CollectTargetTypedNewNodes(child, results);
+            }
         }
         catch(NullReferenceException)
         {

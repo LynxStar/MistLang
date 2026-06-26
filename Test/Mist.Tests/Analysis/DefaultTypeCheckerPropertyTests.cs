@@ -513,7 +513,9 @@ public class DefaultTypeCheckerPropertyTests
     private static Gen<ImmutableArray<(string FieldName, string FieldType)>> GenPrimitiveFields(int count)
     {
         if(count == 0)
+        {
             return Gen.Constant(ImmutableArray<(string, string)>.Empty);
+        }
 
         Gen<ImmutableArray<(string, string)>> result =
             from fieldType in Gen.Elements(PrimitiveTypes)
@@ -737,7 +739,9 @@ public class DefaultTypeCheckerPropertyTests
             .ToList();
 
         if(defaultErrors.Count > 0)
+        {
             return false;
+        }
 
         // Verify the type was resolved on the semantic model: look up the type
         // symbol and confirm it is defaultable
@@ -746,7 +750,9 @@ public class DefaultTypeCheckerPropertyTests
             .FirstOrDefault(s => s.Name == scenario.TypeName && s.Kind == expectedKind);
 
         if(typeSymbol is null)
+        {
             return false;
+        }
 
         var defaultability = typeSymbol.DeclaredType switch
         {
@@ -875,7 +881,9 @@ public class DefaultTypeCheckerPropertyTests
             .FirstOrDefault(d => d.Id == DiagnosticId.DefaultRedundantBlock);
 
         if(redundantDiag is null)
+        {
             return false;
+        }
 
         // The diagnostic must have Info severity (not Warning or Error)
         return redundantDiag.Severity == DiagnosticSeverity.Info;

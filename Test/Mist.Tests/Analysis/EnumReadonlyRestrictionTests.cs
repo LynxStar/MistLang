@@ -59,7 +59,10 @@ public sealed class EnumReadonlyRestrictionTests
         while(dir is not null)
         {
             if(File.Exists(Path.Combine(dir, "Mist.slnx")))
+            {
                 return dir;
+            }
+
             dir = Directory.GetParent(dir)?.FullName;
         }
 
@@ -80,9 +83,11 @@ public sealed class EnumReadonlyRestrictionTests
         var units = StdlibLoader.LoadFrom(stdlibRoot, loaderDiagnostics);
 
         if(loaderDiagnostics.HasErrors)
+        {
             throw new InvalidOperationException(
                 "Failed to load stdlib: " +
                 string.Join("; ", loaderDiagnostics.ToImmutableArray().Select(d => d.Message)));
+        }
 
         var pipelineDiagnostics = new DiagnosticBag();
         var asts = ImmutableArray.CreateBuilder<Storm.Runtime.SyntaxNode>(units.Length);
@@ -92,7 +97,9 @@ public sealed class EnumReadonlyRestrictionTests
             var tokens = Lexer.Lex(unit.Source, pipelineDiagnostics);
             var parseResult = Parser.Parse(tokens, pipelineDiagnostics);
             if(parseResult.Root is not null)
+            {
                 asts.Add(parseResult.Root);
+            }
         }
 
         var compilation = new MistCompilation(units);
@@ -171,7 +178,9 @@ public sealed class EnumReadonlyRestrictionTests
                     s.Kind is SymbolKind.Struct or SymbolKind.Class);
 
             if(symbol is null)
+            {
                 missingTypes.Add(typeName);
+            }
         }
 
         Assert.True(

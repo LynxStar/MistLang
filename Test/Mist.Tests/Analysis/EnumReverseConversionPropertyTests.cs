@@ -263,9 +263,11 @@ public class EnumReverseConversionPropertyTests
             (d.Id.Value == "MIST_SB_0083" || d.Id.Value == "MIST_TC_0001"));
 
         if(!hasReverseConversionError)
+        {
             return false.ToProperty()
                 .Label($"Expected type error for assigning int to {scenario.EnumName}, " +
                        $"got: [{string.Join("; ", combined.Where(d => d.Severity == DiagnosticSeverity.Error).Select(e => $"{e.Id.Value}: {e.Message}"))}]");
+        }
 
         return true.ToProperty()
             .Label($"Reverse conversion (int → {scenario.EnumName}) correctly rejected");

@@ -69,7 +69,9 @@ public sealed class NoHiddenArrayFillPropertyTests
         var userParseResult = Parser.Parse(userTokens, diagnostics);
 
         if(userParseResult.Root is null)
+        {
             return (false, "", $"Failed to parse source:\n{mistSource}");
+        }
 
         var allUnits = stdlibUnits.Add(userUnit);
         var allAsts = stdlibAsts.Add(userParseResult.Root);
@@ -117,12 +119,16 @@ public sealed class NoHiddenArrayFillPropertyTests
         }
 
         if(files.TryGetValue("test.cs", out var testContent))
+        {
             return (true, testContent, "");
+        }
 
         // Fallback: concatenate all emitted files
         var sb = new StringBuilder();
         foreach(var (_, content) in files)
+        {
             sb.AppendLine(content);
+        }
 
         return (true, sb.ToString(), "");
     }
@@ -399,7 +405,9 @@ public sealed class NoHiddenArrayFillPropertyTests
                     inMain = true;
                     // The opening brace may be on this line or the next
                     if(line.Contains('{'))
+                    {
                         braceDepth = 1;
+                    }
                 }
                 continue;
             }
@@ -407,12 +415,20 @@ public sealed class NoHiddenArrayFillPropertyTests
             // Count braces to track when we exit Main
             foreach(var ch in line)
             {
-                if(ch == '{') braceDepth++;
-                else if(ch == '}') braceDepth--;
+                if(ch == '{')
+                {
+                    braceDepth++;
+                }
+                else if(ch == '}')
+                {
+                    braceDepth--;
+                }
             }
 
             if(braceDepth <= 0)
+            {
                 break;
+            }
 
             bodyLines.AppendLine(line);
         }

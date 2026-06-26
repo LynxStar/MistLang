@@ -69,7 +69,9 @@ public class AutoAwaitPreservationPropertyTests
         var userParseResult = Parser.Parse(userTokens, diagnostics);
 
         if(userParseResult.Root is null)
+        {
             throw new InvalidOperationException($"Failed to parse user source:\n{source}");
+        }
 
         var allUnits = stdlibUnits.Add(userUnit);
         var allAsts = stdlibAsts.Add(userParseResult.Root);
@@ -185,20 +187,26 @@ public class AutoAwaitPreservationPropertyTests
 
         var resultSymbol = FindLocal(model, "result");
         if(resultSymbol is null)
+        {
             return false.ToProperty()
                 .Label($"Could not find local 'result' in scenario: {scenario}");
+        }
 
         var resultType = resultSymbol.DeclaredType;
         if(resultType is null)
+        {
             return false.ToProperty()
                 .Label($"result.DeclaredType is null in scenario: {scenario}");
+        }
 
         // PRESERVATION: Direct async call in sync context should unwrap Task<T> → T.
         // This is the existing auto-await behavior that must not regress.
         if(IsStandardTaskType(resultType))
+        {
             return false.ToProperty()
                 .Label($"REGRESSION: Direct async call in sync context returned Task<T> instead of " +
                        $"unwrapped type. result type = {resultType.DisplayName}. Scenario: {scenario}");
+        }
 
         return true.ToProperty()
             .Label($"Preserved: direct async call unwraps to '{resultType.DisplayName}' for: {scenario}");
@@ -265,20 +273,26 @@ public class AutoAwaitPreservationPropertyTests
 
         var resultSymbol = FindLocal(model, "result");
         if(resultSymbol is null)
+        {
             return false.ToProperty()
                 .Label($"Could not find local 'result' in scenario: {scenario}");
+        }
 
         var resultType = resultSymbol.DeclaredType;
         if(resultType is null)
+        {
             return false.ToProperty()
                 .Label($"result.DeclaredType is null in scenario: {scenario}");
+        }
 
         // PRESERVATION: In an async context, Func invocations should NOT unwrap.
         // The result should remain Task<T>.
         if(!IsStandardTaskType(resultType))
+        {
             return false.ToProperty()
                 .Label($"REGRESSION: Func invocation in async context did NOT return Task<T>. " +
                        $"result type = {resultType.DisplayName}. Expected Task<T>. Scenario: {scenario}");
+        }
 
         return true.ToProperty()
             .Label($"Preserved: Func in async context returns Task<T> ('{resultType.DisplayName}') for: {scenario}");
@@ -347,20 +361,26 @@ public class AutoAwaitPreservationPropertyTests
 
         var resultSymbol = FindLocal(model, "result");
         if(resultSymbol is null)
+        {
             return false.ToProperty()
                 .Label($"Could not find local 'result' in scenario: {scenario}");
+        }
 
         var resultType = resultSymbol.DeclaredType;
         if(resultType is null)
+        {
             return false.ToProperty()
                 .Label($"result.DeclaredType is null in scenario: {scenario}");
+        }
 
         // PRESERVATION: Non-Task Func return type should be returned directly.
         // No unwrapping should occur since the return type is not Task<T>.
         if(IsStandardTaskType(resultType))
+        {
             return false.ToProperty()
                 .Label($"REGRESSION: Non-Task Func invocation returned Task<T>. " +
                        $"result type = {resultType.DisplayName}. Scenario: {scenario}");
+        }
 
         return true.ToProperty()
             .Label($"Preserved: non-Task Func returns '{resultType.DisplayName}' for: {scenario}");
@@ -424,15 +444,19 @@ public class AutoAwaitPreservationPropertyTests
 
         var methodSymbol = FindMethod(model, scenario.CallerName);
         if(methodSymbol is null)
+        {
             return false.ToProperty()
                 .Label($"Could not find method '{scenario.CallerName}' in scenario: {scenario}");
+        }
 
         // PRESERVATION: Sync methods that directly call async methods should
         // be marked NeedsCSharpAsync = true via seed rule 2 of NeedsAsyncPropagationPass.
         if(!methodSymbol.NeedsCSharpAsync)
+        {
             return false.ToProperty()
                 .Label($"REGRESSION: Method '{scenario.CallerName}' directly calls an async method " +
                        $"but NeedsCSharpAsync is false. Scenario: {scenario}");
+        }
 
         return true.ToProperty()
             .Label($"Preserved: '{scenario.CallerName}' has NeedsCSharpAsync = true for: {scenario}");

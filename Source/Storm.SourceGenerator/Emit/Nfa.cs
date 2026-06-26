@@ -41,7 +41,9 @@ namespace Storm.SourceGenerator.Emit
                 var state = worklist.Pop();
 
                 if(!visited.Add(state.Id))
+                {
                     continue;
+                }
 
                 result.Add(state);
 

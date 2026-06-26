@@ -139,13 +139,17 @@ public sealed class TypeAliasEmissionPropertyTests
         var lexBag = new DiagnosticBag();
         var tokens = Lexer.Lex(sourceText, lexBag);
         if(lexBag.HasErrors)
+        {
             return (false, "", FormatDiagnostics(lexBag));
+        }
 
         // Parse
         var parseBag = new DiagnosticBag();
         var parseResult = Parser.Parse(tokens, parseBag);
         if(parseBag.HasErrors || parseResult.Root is null)
+        {
             return (false, "", FormatDiagnostics(parseBag));
+        }
 
         // Semantic model
         var semBag = new DiagnosticBag();
@@ -158,13 +162,17 @@ public sealed class TypeAliasEmissionPropertyTests
             semBag);
 
         if(semBag.HasErrors)
+        {
             return (false, "", FormatDiagnostics(semBag));
+        }
 
         // Type checker
         var tcBag = new DiagnosticBag();
         TypeChecker.Analyze(model, tcBag);
         if(tcBag.ToImmutableArray().Any(d => d.Severity == DiagnosticSeverity.Error))
+        {
             return (false, "", FormatDiagnostics(tcBag));
+        }
 
         // Emit — use CSharpEmitter directly with a temp directory
         var emitBag = new DiagnosticBag();
@@ -175,13 +183,17 @@ public sealed class TypeAliasEmissionPropertyTests
             CSharpEmitter.Emit(model, tempDir, "TestProgram", emitBag);
 
             if(emitBag.HasErrors)
+            {
                 return (false, "", FormatDiagnostics(emitBag));
+            }
 
             // Read back emitted .cs files
             var csFiles = Directory.GetFiles(tempDir, "*.cs");
             var sb = new StringBuilder();
             foreach(var f in csFiles)
+            {
                 sb.AppendLine(File.ReadAllText(f));
+            }
 
             return (true, sb.ToString(), "");
         }

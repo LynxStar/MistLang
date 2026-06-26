@@ -178,7 +178,9 @@ public sealed class RefStructEmissionPropertyTests : IDisposable
     private static Gen<string[]> GenMethods(int count)
     {
         if(count == 0)
+        {
             return Gen.Constant(Array.Empty<string>());
+        }
 
         return Gen.Shuffle(MethodNames)
             .Select(shuffled =>
@@ -190,7 +192,9 @@ public sealed class RefStructEmissionPropertyTests : IDisposable
     private static Gen<string[]> GenProperties(int count)
     {
         if(count == 0)
+        {
             return Gen.Constant(Array.Empty<string>());
+        }
 
         return Gen.Shuffle(PropertyNames)
             .Select(shuffled =>
@@ -235,7 +239,9 @@ public sealed class RefStructEmissionPropertyTests : IDisposable
     private static string? GetEmittedCSharp(CompilerResult result)
     {
         if(result.EmittedFiles is null)
+        {
             return null;
+        }
 
         // Find the user file by looking for the one containing "namespace TestProgram"
         foreach(var (_, content) in result.EmittedFiles)

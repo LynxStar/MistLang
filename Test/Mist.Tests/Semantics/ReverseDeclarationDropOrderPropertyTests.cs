@@ -79,12 +79,16 @@ public sealed class ReverseDeclarationDropOrderPropertyTests
     private static string? GetEmittedCSharp(CompilerResult result)
     {
         if(result.EmittedFiles is null)
+        {
             return null;
+        }
 
         foreach(var (_, content) in result.EmittedFiles)
         {
             if(content.Contains("namespace TestProgram"))
+            {
                 return content;
+            }
         }
 
         return null;
@@ -171,7 +175,9 @@ public sealed class ReverseDeclarationDropOrderPropertyTests
             var marker = $"{LocalNames[i]}.Drop()";
             var pos = emitted.IndexOf(marker, StringComparison.Ordinal);
             if(pos >= 0)
+            {
                 positions.Add((pos, i));
+            }
         }
 
         return positions
@@ -213,7 +219,9 @@ public sealed class ReverseDeclarationDropOrderPropertyTests
 
         var emitted = GetEmittedCSharp(result);
         if(emitted is null)
+        {
             return false.ToProperty().Label($"No emitted C# produced for N={n}.\nSource:\n{source}");
+        }
 
         var order = GetDropEmissionOrder(emitted, n);
 

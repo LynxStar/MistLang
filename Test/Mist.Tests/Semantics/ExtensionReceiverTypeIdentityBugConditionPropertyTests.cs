@@ -157,7 +157,9 @@ public sealed class ExtensionReceiverTypeIdentityBugConditionPropertyTests : IDi
         var userParseResult = Parser.Parse(userTokens, diagnostics);
 
         if(userParseResult.Root is null)
+        {
             throw new InvalidOperationException($"Failed to parse source with using {importedNamespace}");
+        }
 
         var allUnits = stdlibUnits.Add(userUnit);
         var allAsts = stdlibAsts.Add(userParseResult.Root);
@@ -196,9 +198,11 @@ public sealed class ExtensionReceiverTypeIdentityBugConditionPropertyTests : IDi
         var canonicalType = _provider.ResolveType(scenario.InterfaceNamespace, scenario.InterfaceName);
 
         if(canonicalType is null)
+        {
             return false.ToProperty()
                 .Label($"AssemblyTypeProvider.ResolveType returned null for " +
                        $"{scenario.InterfaceNamespace}.{scenario.InterfaceName}");
+        }
 
         // Find the extension block whose receiver type represents this interface.
         // Iterate all registered extension groups to find one that structurally
@@ -220,9 +224,11 @@ public sealed class ExtensionReceiverTypeIdentityBugConditionPropertyTests : IDi
         }
 
         if(matchingBlock is null || extensionReceiverType is null)
+        {
             return false.ToProperty()
                 .Label($"No extension block found for {scenario.InterfaceNamespace}.{scenario.InterfaceName}. " +
                        $"Extension registry has {model.ExtensionRegistry.AllGroups.Count()} groups.");
+        }
 
         // THE KEY ASSERTION: Verify reference equality between the extension's
         // receiver type and the canonical type from the provider.

@@ -6,8 +6,8 @@ using FsCheck;
 using FsCheck.Fluent;
 using FsCheck.Xunit;
 using Mist.Analysis.Builtin;
-using Mist.Backends.CSharpTranspiler;
 using Mist.Backends.Contracts;
+using Mist.Backends.CSharpTranspiler;
 using Mist.Common.Diagnostics;
 using Mist.Driver;
 using Mist.Driver.Contracts;
@@ -257,7 +257,9 @@ public sealed class IteratorEmissionPropertyTests : IDisposable
     private static string? GetEmittedCSharp(CompilerResult result)
     {
         if(result.EmittedFiles is null)
+        {
             return null;
+        }
 
         // Find the user file — the one containing our test class (not the stdlib files).
         // Since we put our test code in the Standard namespace, look for the file
@@ -266,7 +268,9 @@ public sealed class IteratorEmissionPropertyTests : IDisposable
         {
             // Skip the .csproj file
             if(fileName.EndsWith(".csproj", StringComparison.OrdinalIgnoreCase))
+            {
                 continue;
+            }
 
             // The user file will contain "class Program" (our test entry point)
             if(content.Contains("class Program"))
@@ -481,22 +485,36 @@ public sealed class IteratorEmissionPropertyTests : IDisposable
         // Find the Main method and extract its body
         var mainIndex = emittedCSharp.IndexOf("static void Main(", StringComparison.Ordinal);
         if(mainIndex < 0)
+        {
             mainIndex = emittedCSharp.IndexOf("void Main(", StringComparison.Ordinal);
+        }
+
         if(mainIndex < 0)
+        {
             return null;
+        }
 
         // Find the opening brace of Main
         var braceStart = emittedCSharp.IndexOf('{', mainIndex);
         if(braceStart < 0)
+        {
             return null;
+        }
 
         // Find the matching closing brace (simple brace counting)
         var depth = 1;
         var pos = braceStart + 1;
         while(pos < emittedCSharp.Length && depth > 0)
         {
-            if(emittedCSharp[pos] == '{') depth++;
-            else if(emittedCSharp[pos] == '}') depth--;
+            if(emittedCSharp[pos] == '{')
+            {
+                depth++;
+            }
+            else if(emittedCSharp[pos] == '}')
+            {
+                depth--;
+            }
+
             pos++;
         }
 

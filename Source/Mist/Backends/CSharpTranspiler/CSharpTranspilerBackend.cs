@@ -58,12 +58,16 @@ public sealed class CSharpTranspilerBackend : IBackend
         // by file path (case-insensitive).
         var mergedSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach(var path in sdkPaths)
+        {
             mergedSet.Add(path);
+        }
 
         if(!additionalAssemblyPaths.IsDefaultOrEmpty)
         {
             foreach(var path in additionalAssemblyPaths)
+            {
                 mergedSet.Add(path);
+            }
         }
 
         var mergedPaths = mergedSet.ToImmutableArray();
@@ -189,7 +193,9 @@ public sealed class CSharpTranspilerBackend : IBackend
             .Any(u => !u.IsStdlib && u.OriginProjectPath is null && u.HasTopLevelStatements);
 
         if(hasRootTls)
+        {
             return null;
+        }
 
         // Check if any referenced project has a Main method. If so, we need to
         // specify the root project's Main class to avoid CS0017.
@@ -199,9 +205,14 @@ public sealed class CSharpTranspilerBackend : IBackend
         foreach(var symbol in model.AllSymbols)
         {
             if(symbol.Origin == SymbolOrigin.Backend)
+            {
                 continue;
+            }
+
             if(symbol.Kind != SymbolKind.Method || symbol.Name != "Main")
+            {
                 continue;
+            }
 
             // Find which unit this symbol belongs to.
             Storm.Runtime.SyntaxNode? declaringNode = null;
@@ -209,11 +220,15 @@ public sealed class CSharpTranspilerBackend : IBackend
             catch { continue; }
 
             if(declaringNode is not MethodDeclarationNode methodDecl)
+            {
                 continue;
+            }
 
             // Must be static.
             if(!methodDecl.Modifiers.Any(m => m is StaticModifierModifierNode))
+            {
                 continue;
+            }
 
             // Valid entry point return types:
             // - void (standard or async entry point)
@@ -226,18 +241,25 @@ public sealed class CSharpTranspilerBackend : IBackend
                 && primitiveRef.ArrayRank is null;
 
             if(!isVoidReturn && !isIntReturn)
+            {
                 continue;
+            }
 
             // int return type is only valid with the async modifier.
             if(isIntReturn && !methodDecl.Modifiers.Any(m => m is AsyncModifierModifierNode))
+            {
                 continue;
+            }
 
             // Determine if this is from a referenced project or the root project.
             var isFromReference = false;
             for(var i = 0; i < model.Asts.Length && i < model.Units.Count; i++)
             {
                 if(model.Units[i].OriginProjectPath is null)
+                {
                     continue;
+                }
+
                 if(IsNodeInAst(declaringNode, model.Asts[i]))
                 {
                     isFromReference = true;
@@ -259,7 +281,9 @@ public sealed class CSharpTranspilerBackend : IBackend
                     foreach(var member in parentScope.Members)
                     {
                         if(member.Kind is not (SymbolKind.Class or SymbolKind.Struct))
+                        {
                             continue;
+                        }
 
                         var memberScope = member.DeclaredType switch
                         {
@@ -290,7 +314,9 @@ public sealed class CSharpTranspilerBackend : IBackend
         // Only specify mainTypeName if there are multiple Main methods
         // (one in root + one or more in referenced projects).
         if(hasReferencedMain && rootMainClass is not null)
+        {
             return rootMainClass;
+        }
 
         return null;
     }
@@ -301,7 +327,9 @@ public sealed class CSharpTranspilerBackend : IBackend
         // Parent links are set during parsing (SetParentLinks), so this is always valid.
         var current = target;
         while(current.Parent is not null)
+        {
             current = current.Parent;
+        }
 
         return ReferenceEquals(current, root);
     }
@@ -318,7 +346,9 @@ public sealed class CSharpTranspilerBackend : IBackend
             if(Directory.Exists(outputDirectory))
             {
                 foreach(var file in Directory.GetFiles(outputDirectory))
+                {
                     File.Delete(file);
+                }
             }
         }
         catch

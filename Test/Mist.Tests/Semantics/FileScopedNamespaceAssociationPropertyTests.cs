@@ -120,7 +120,11 @@ public sealed class FileScopedNamespaceAssociationPropertyTests
         var symbol = model.AllSymbols.FirstOrDefault(
             s => s.Name == typeName &&
                  (s.Kind == SymbolKind.Class || s.Kind == SymbolKind.Struct || s.Kind == SymbolKind.Abstract));
-        if(symbol is null) return null;
+        if(symbol is null)
+        {
+            return null;
+        }
+
         return symbol.DeclaredType switch
         {
             ClassType ct => ct.ContainingNamespace,
@@ -178,7 +182,10 @@ public sealed class FileScopedNamespaceAssociationPropertyTests
     public bool SecondFileScopedNamespace_OverridesFirst(
         ValidNamespaceName ns1, ValidNamespaceName ns2)
     {
-        if(ns1.Value == ns2.Value) return true; // skip trivial case
+        if(ns1.Value == ns2.Value)
+        {
+            return true; // skip trivial case
+        }
 
         // Build source: "namespace <ns1>; class ClassA { } namespace <ns2>; class ClassB { }"
         var part1 = $"namespace {ns1.Value}; class ClassA {{ }} ";

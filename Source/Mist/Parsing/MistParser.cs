@@ -641,7 +641,9 @@ public sealed class MistParser : IParser
         {
             var kind = tokens[i].Kind;
             if(kind != usingKind && kind != namespaceKind)
+            {
                 continue;
+            }
 
             // Check segments: (DOT segment)* pattern after the first segment.
             var j = i + 1;
@@ -675,11 +677,16 @@ public sealed class MistParser : IParser
                     break; // end of qualified identifier
                 }
             }
-            if(needsFixup) break;
+            if(needsFixup)
+            {
+                break;
+            }
         }
 
         if(!needsFixup)
+        {
             return tokens;
+        }
 
         // Build a new token array with reclassified tokens.
         var builder = ImmutableArray.CreateBuilder<Storm.Runtime.Token>(tokens.Length);
@@ -692,7 +699,9 @@ public sealed class MistParser : IParser
         {
             var kind = builder[i].Kind;
             if(kind != usingKind && kind != namespaceKind)
+            {
                 continue;
+            }
 
             // Reclassify keyword tokens in the qualified identifier that follows.
             // The qualified identifier is: segment (DOT segment)* where segment is

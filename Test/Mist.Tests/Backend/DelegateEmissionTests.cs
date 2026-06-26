@@ -72,7 +72,9 @@ public sealed class DelegateEmissionTests : IDisposable
         // path (which enables proper assembly loading for System.Collections.Generic, etc.).
         var tomlPath = Path.Combine(_outputDir, "mist.toml");
         if(!File.Exists(tomlPath))
+        {
             File.WriteAllText(tomlPath, "name = \"TestProgram\"\n");
+        }
 
         var options = new CompilerOptions(
             ProjectFolder: _outputDir,
@@ -95,12 +97,16 @@ public sealed class DelegateEmissionTests : IDisposable
     private static string? GetEmittedCSharp(CompilerResult result)
     {
         if(result.EmittedFiles is null)
+        {
             return null;
+        }
 
         foreach(var (_, content) in result.EmittedFiles)
         {
             if(content.Contains("namespace TestProgram"))
+            {
                 return content;
+            }
         }
 
         return null;

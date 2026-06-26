@@ -8,8 +8,8 @@ using FsCheck.Fluent;
 using FsCheck.Xunit;
 using Mist.Analysis.Builtin;
 using Mist.Analysis.Contracts;
-using Mist.Backends.CSharpTranspiler;
 using Mist.Backends.Contracts;
+using Mist.Backends.CSharpTranspiler;
 using Mist.Common.Diagnostics;
 using Mist.Driver;
 using Mist.Driver.Contracts;
@@ -127,7 +127,9 @@ public sealed class DisciplineCompatibilityMatrixPropertyTests
     private static bool MatrixExpectsError(ContainerDisciplineKind container, FieldDisciplineKind field)
     {
         if(field == FieldDisciplineKind.Unrestricted)
+        {
             return false;
+        }
 
         return container switch
         {

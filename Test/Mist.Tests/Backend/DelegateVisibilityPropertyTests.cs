@@ -268,12 +268,16 @@ public sealed class DelegateVisibilityPropertyTests
     private static bool ContainsPointerInSignature(MethodInfo method)
     {
         if(ContainsPointerType(method.ReturnType))
+        {
             return true;
+        }
 
         foreach(var param in method.GetParameters())
         {
             if(ContainsPointerType(param.ParameterType))
+            {
                 return true;
+            }
         }
 
         return false;
@@ -282,20 +286,26 @@ public sealed class DelegateVisibilityPropertyTests
     private static bool ContainsPointerType(Type type)
     {
         if(type.IsPointer)
+        {
             return true;
+        }
 
         if(type.IsByRef)
         {
             var element = type.GetElementType();
             if(element is not null)
+            {
                 return ContainsPointerType(element);
+            }
         }
 
         if(type.IsArray)
         {
             var element = type.GetElementType();
             if(element is not null)
+            {
                 return ContainsPointerType(element);
+            }
         }
 
         if(type.IsConstructedGenericType)
@@ -303,7 +313,9 @@ public sealed class DelegateVisibilityPropertyTests
             foreach(var arg in type.GetGenericArguments())
             {
                 if(ContainsPointerType(arg))
+                {
                     return true;
+                }
             }
         }
 

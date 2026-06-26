@@ -451,9 +451,13 @@ public class ImplicitCastResolutionPropertyTests
         // Place the implicit cast operator on the appropriate type
         var castMember = MakeCastOperatorMember(scenario.TargetTypeName, scenario.SourceTypeName);
         if(scenario.Location == OperatorLocation.OnSourceType)
+        {
             sourceMembers.Add(castMember);
+        }
         else
+        {
             targetMembers.Add(castMember);
+        }
 
         // Build the Program class with a Main method exercising the conversion site
         var programMembers = new List<MemberDeclarationNode>();

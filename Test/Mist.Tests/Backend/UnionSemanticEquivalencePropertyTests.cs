@@ -581,7 +581,9 @@ public sealed class UnionSemanticEquivalencePropertyTests : IDisposable
 
             using var process = Process.Start(psi);
             if(process is null)
+            {
                 return (-1, "", "Failed to start dotnet process");
+            }
 
             var stdoutTask = process.StandardOutput.ReadToEndAsync();
             var stderrTask = process.StandardError.ReadToEndAsync();

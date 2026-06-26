@@ -166,7 +166,9 @@ public class InheritedMethodOverloadPropertyTests
     {
         var results = new List<ISymbol>();
         if(targetType is null)
+        {
             return results;
+        }
 
         // Collect from the target type's own member scope.
         if(targetType is ClassType ct)
@@ -174,7 +176,9 @@ public class InheritedMethodOverloadPropertyTests
             foreach(var member in ct.MemberScope.Members)
             {
                 if(member.Kind == SymbolKind.Method && member.Name == methodName)
+                {
                     results.Add(member);
+                }
             }
 
             // Walk the base type chain to collect inherited methods.
@@ -184,7 +188,9 @@ public class InheritedMethodOverloadPropertyTests
                 foreach(var member in baseType.MemberScope.Members)
                 {
                     if(member.Kind == SymbolKind.Method && member.Name == methodName)
+                    {
                         results.Add(member);
+                    }
                 }
                 baseType = baseType.BaseType as ClassType;
             }
@@ -283,14 +289,18 @@ public class InheritedMethodOverloadPropertyTests
         // Find the Derived class type
         var derivedType = FindClassType(model, "Derived");
         if(derivedType is null)
+        {
             return false;
+        }
 
         // Collect the full overload set from Derived (including inherited from Base)
         var candidates = CollectMethodOverloads(derivedType, "M");
 
         // We expect 2 candidates: one from Derived, one from Base
         if(candidates.Count != 2)
+        {
             return false;
+        }
 
         // Resolve with argument type matching the base class's parameter type
         var argTypes = new IType[] { scenario.BaseParamType };
@@ -298,10 +308,14 @@ public class InheritedMethodOverloadPropertyTests
 
         // Assert: resolution succeeds
         if(result.Status != OverloadResolutionStatus.Success)
+        {
             return false;
+        }
 
         if(result.BestCandidate is null)
+        {
             return false;
+        }
 
         // Assert: the selected candidate has the base class's parameter type
         var selectedSig = ParameterSignature.Extract(result.BestCandidate, model);

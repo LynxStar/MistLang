@@ -76,7 +76,9 @@ public class AsyncFunctorNeedsAsyncBugConditionPropertyTests
         var userParseResult = Parser.Parse(userTokens, diagnostics);
 
         if(userParseResult.Root is null)
+        {
             throw new InvalidOperationException($"Failed to parse user source:\n{source}");
+        }
 
         var allUnits = stdlibUnits.Add(userUnit);
         var allAsts = stdlibAsts.Add(userParseResult.Root);
@@ -214,13 +216,17 @@ public class AsyncFunctorNeedsAsyncBugConditionPropertyTests
         var methodSymbol = FindMethod(model, scenario.MethodName);
 
         if(methodSymbol is null)
+        {
             return false.ToProperty()
                 .Label($"Could not find method '{scenario.MethodName}' in scenario: {scenario}");
+        }
 
         // Verify preconditions: the method is NOT declared async.
         if(methodSymbol.IsAsync)
+        {
             return false.ToProperty()
                 .Label($"Method '{scenario.MethodName}' should be sync but is declared async: {scenario}");
+        }
 
         // The EXPECTED behavior (after fix): NeedsCSharpAsync should be true.
         // The async functor expression produces a Task<T> local that needs

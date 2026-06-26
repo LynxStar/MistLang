@@ -223,13 +223,17 @@ public class ParameterScopingPropertyTests
             paramNames.Any(name => d.Message.Contains($"'{name}'")));
 
         if(hasUndefinedParam)
+        {
             return false;
+        }
 
         // Assert: all parameters are registered as symbols
         foreach(var name in paramNames)
         {
             if(!model.AllSymbols.Any(s => s.Name == name && s.Kind == SymbolKind.Parameter))
+            {
                 return false;
+            }
         }
 
         return true;
@@ -296,11 +300,15 @@ public class ParameterScopingPropertyTests
             d.Message.Contains($"'{scenario.ParamName}'"));
 
         if(hasUndefined)
+        {
             return false;
+        }
 
         // Parameter is registered as a symbol
         if(!model.AllSymbols.Any(s => s.Name == scenario.ParamName && s.Kind == SymbolKind.Parameter))
+        {
             return false;
+        }
 
         return true;
     }

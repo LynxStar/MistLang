@@ -7,8 +7,8 @@ using FsCheck.Fluent;
 using FsCheck.Xunit;
 using Mist.Analysis.Builtin;
 using Mist.Analysis.Contracts;
-using Mist.Backends.CSharpTranspiler;
 using Mist.Backends.Contracts;
+using Mist.Backends.CSharpTranspiler;
 using Mist.Common.Diagnostics;
 using Mist.Driver;
 using Mist.Driver.Contracts;
@@ -46,10 +46,26 @@ public sealed class SlotSpec
     public override string ToString()
     {
         var parts = new List<string>();
-        if(ExpectStruct) parts.Add("struct");
-        if(ExpectClass) parts.Add("class");
-        foreach(var abs in ExpectAbstractConstraints) parts.Add(abs);
-        if(ExpectConstructorConstraint) parts.Add("new()");
+        if(ExpectStruct)
+        {
+            parts.Add("struct");
+        }
+
+        if(ExpectClass)
+        {
+            parts.Add("class");
+        }
+
+        foreach(var abs in ExpectAbstractConstraints)
+        {
+            parts.Add(abs);
+        }
+
+        if(ExpectConstructorConstraint)
+        {
+            parts.Add("new()");
+        }
+
         return $"{Name} : {(parts.Count > 0 ? string.Join(", ", parts) : "(unconstrained)")}";
     }
 }
@@ -212,10 +228,26 @@ public sealed class AssociatedTypeSemanticPropertyTests : IDisposable
     private static string BuildConstraintList(SlotSpec slot)
     {
         var parts = new List<string>();
-        if(slot.ExpectStruct) parts.Add("struct");
-        if(slot.ExpectClass) parts.Add("class");
-        foreach(var abs in slot.ExpectAbstractConstraints) parts.Add(abs);
-        if(slot.ExpectConstructorConstraint) parts.Add("new()");
+        if(slot.ExpectStruct)
+        {
+            parts.Add("struct");
+        }
+
+        if(slot.ExpectClass)
+        {
+            parts.Add("class");
+        }
+
+        foreach(var abs in slot.ExpectAbstractConstraints)
+        {
+            parts.Add(abs);
+        }
+
+        if(slot.ExpectConstructorConstraint)
+        {
+            parts.Add("new()");
+        }
+
         return string.Join(", ", parts);
     }
 
@@ -236,7 +268,9 @@ public sealed class AssociatedTypeSemanticPropertyTests : IDisposable
     private static Gen<SlotSpec[]> GenSlotSpecs(string[] names)
     {
         if(names.Length == 0)
+        {
             return Gen.Constant(Array.Empty<SlotSpec>());
+        }
 
         Gen<SlotSpec[]> result = GenSlotSpec(names[0]).Select(s => new[] { s });
         for(var i = 1; i < names.Length; i++)
@@ -271,7 +305,9 @@ public sealed class AssociatedTypeSemanticPropertyTests : IDisposable
         }
 
         if(referencedAbstracts.Count > 0)
+        {
             sb.AppendLine();
+        }
 
         // Emit the main abstract type with associated type slots
         sb.AppendLine($"abstract {abstractName} {{");
@@ -360,12 +396,16 @@ public sealed class AssociatedTypeSemanticPropertyTests : IDisposable
             .FirstOrDefault(s => s.Name == scenario.AbstractName && s.Kind == SymbolKind.Abstract);
 
         if(abstractSymbol is null)
+        {
             return false.ToProperty()
                 .Label($"Abstract type '{scenario.AbstractName}' not found in semantic model.\nSource:\n{scenario.Source}");
+        }
 
         if(abstractSymbol.DeclaredType is not AbstractType abstractType)
+        {
             return false.ToProperty()
                 .Label($"Abstract type '{scenario.AbstractName}' DeclaredType is not AbstractType (got {abstractSymbol.DeclaredType?.GetType().Name ?? "null"}).\nSource:\n{scenario.Source}");
+        }
 
         // Verify each slot is discoverable and has correct constraints
         foreach(var expectedSlot in scenario.Slots)
@@ -373,24 +413,32 @@ public sealed class AssociatedTypeSemanticPropertyTests : IDisposable
             // Look up the slot in the abstract type's member scope
             var slotSymbol = abstractType.MemberScope.Lookup(expectedSlot.Name);
             if(slotSymbol is null)
+            {
                 return false.ToProperty()
                     .Label($"Slot '{expectedSlot.Name}' not found in abstract type '{scenario.AbstractName}' member scope.\nSource:\n{scenario.Source}");
+            }
 
             if(slotSymbol.DeclaredType is not AssociatedTypeSlotType slotType)
+            {
                 return false.ToProperty()
                     .Label($"Slot '{expectedSlot.Name}' DeclaredType is not AssociatedTypeSlotType (got {slotSymbol.DeclaredType?.GetType().Name ?? "null"}).\nSource:\n{scenario.Source}");
+            }
 
             var constraints = slotType.Constraints;
 
             // Verify struct constraint
             if(constraints.HasStructConstraint != expectedSlot.ExpectStruct)
+            {
                 return false.ToProperty()
                     .Label($"Slot '{expectedSlot.Name}': HasStructConstraint={constraints.HasStructConstraint}, expected={expectedSlot.ExpectStruct}.\nSource:\n{scenario.Source}");
+            }
 
             // Verify class constraint
             if(constraints.HasClassConstraint != expectedSlot.ExpectClass)
+            {
                 return false.ToProperty()
                     .Label($"Slot '{expectedSlot.Name}': HasClassConstraint={constraints.HasClassConstraint}, expected={expectedSlot.ExpectClass}.\nSource:\n{scenario.Source}");
+            }
 
             // Verify abstract type constraints
             var actualAbstractNames = constraints.AbstractConstraints
@@ -402,14 +450,18 @@ public sealed class AssociatedTypeSemanticPropertyTests : IDisposable
                 .ToList();
 
             if(!actualAbstractNames.SequenceEqual(expectedAbstractNames))
+            {
                 return false.ToProperty()
                     .Label($"Slot '{expectedSlot.Name}': AbstractConstraints=[{string.Join(", ", actualAbstractNames)}], expected=[{string.Join(", ", expectedAbstractNames)}].\nSource:\n{scenario.Source}");
+            }
 
             // Verify constructor constraint
             var hasConstructorConstraint = constraints.ConstructorConstraints.Count > 0;
             if(hasConstructorConstraint != expectedSlot.ExpectConstructorConstraint)
+            {
                 return false.ToProperty()
                     .Label($"Slot '{expectedSlot.Name}': HasConstructorConstraint={hasConstructorConstraint}, expected={expectedSlot.ExpectConstructorConstraint}.\nSource:\n{scenario.Source}");
+            }
         }
 
         return true.ToProperty();

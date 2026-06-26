@@ -103,19 +103,27 @@ public class SemanticModelBuilderLocationPropertyTests
 
         // Location must be non-null (span length is always > 0 from generator)
         if(diagnostic.Location == default)
+        {
             return false;
+        }
 
         // Location must match the computed LinePositionSpan
         if(diagnostic.Location != expectedLinePositionSpan)
+        {
             return false;
+        }
 
         // CompilationUnitPath must match sourceText.Path
         if(diagnostic.CompilationUnitPath != data.Path)
+        {
             return false;
+        }
 
         // Start positions must be 1-based
         if(diagnostic.Location.Start.Line < 1 || diagnostic.Location.Start.Column < 1)
+        {
             return false;
+        }
 
         return true;
     }
@@ -136,16 +144,22 @@ public class SemanticModelBuilderLocationPropertyTests
 
         // End must also be 1-based
         if(linePositionSpan.End.Line < 1 || linePositionSpan.End.Column < 1)
+        {
             return false;
+        }
 
         // End line must be >= Start line
         if(linePositionSpan.End.Line < linePositionSpan.Start.Line)
+        {
             return false;
+        }
 
         // If on the same line, End column must be >= Start column
         if(linePositionSpan.End.Line == linePositionSpan.Start.Line
             && linePositionSpan.End.Column < linePositionSpan.Start.Column)
+        {
             return false;
+        }
 
         return true;
     }

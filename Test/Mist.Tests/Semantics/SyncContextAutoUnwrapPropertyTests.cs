@@ -224,8 +224,10 @@ public class SyncContextAutoUnwrapPropertyTests
         var exprType = model.GetTypeOf(invocationNode);
 
         if(exprType is null)
+        {
             return false.ToProperty()
                 .Label($"GetTypeOf returned null for invocation in scenario: {scenario}");
+        }
 
         // The expression type must NOT be a Task<T> (ConstructedType with Standard.Task)
         if(exprType is ConstructedType constructedType
@@ -242,10 +244,12 @@ public class SyncContextAutoUnwrapPropertyTests
         var expectedDisplayName = ResolvedDisplayNames[scenario.ReturnTypeName];
 
         if(exprType.DisplayName != expectedDisplayName)
+        {
             return false.ToProperty()
                 .Label($"Expression type mismatch. Expected '{expectedDisplayName}' " +
                        $"(from declared return type '{scenario.ReturnTypeName}'), " +
                        $"got '{exprType.DisplayName}'. Scenario: {scenario}");
+        }
 
         return true.ToProperty();
     }

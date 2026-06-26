@@ -357,7 +357,10 @@ public class ExtensionTypeCheckerPropertyTests
     private static MemberDeclarationNode MakeClassMethod(string name, string returnType = "void", bool isStatic = false)
     {
         var modifiers = new List<ModifierNode> { new PublicModifierModifierNode() };
-        if(isStatic) modifiers.Add(new StaticModifierModifierNode());
+        if(isStatic)
+        {
+            modifiers.Add(new StaticModifierModifierNode());
+        }
 
         BlockNode body = returnType == "void"
             ? new BlockNode { Statements = ImmutableArray<StatementNode>.Empty }
@@ -741,13 +744,17 @@ public class ExtensionTypeCheckerPropertyTests
         var hasRegistrationErrors = diagnostics.Any(d =>
             d.Id.Value == "MIST_SB_0070" || d.Id.Value == "MIST_SB_0074");
         if(hasRegistrationErrors)
+        {
             return false;
+        }
 
         // Find the generic class type
         var genericClassSymbol = model.AllSymbols
             .FirstOrDefault(s => s.Name == scenario.GenericClassName && s.Kind == SymbolKind.Class);
         if(genericClassSymbol?.DeclaredType is not ClassType genericClassType)
+        {
             return false;
+        }
 
         // Verify the extension is registered with type parameters
         // For generic extensions, the receiver type is a ConstructedType whose
@@ -758,15 +765,21 @@ public class ExtensionTypeCheckerPropertyTests
             ext.MemberScope.Lookup(scenario.MethodName) is not null);
 
         if(genericExtension is null)
+        {
             return false;
+        }
 
         // Verify the extension has the correct type parameter count
         if(genericExtension.TypeParameters.Count != 1)
+        {
             return false;
+        }
 
         // Verify the receiver type is a ConstructedType based on the generic class
         if(genericExtension.ReceiverType is not ConstructedType constructedReceiver)
+        {
             return false;
+        }
 
         // The generic definition of the constructed receiver should be our generic class
         return ReferenceEquals(constructedReceiver.GenericDefinition, genericClassType);
@@ -1093,7 +1106,9 @@ public class ExtensionTypeCheckerPropertyTests
             .FirstOrDefault(s => s.Name == scenario.ClassB && s.Kind == SymbolKind.Class)?.DeclaredType;
 
         if(typeA is null || typeB is null)
+        {
             return true; // Skip if types not found (shouldn't happen)
+        }
 
         // Query the extension registry for the union
         var unionExtensions = model.ExtensionRegistry.GetApplicableExtensionsForUnion(

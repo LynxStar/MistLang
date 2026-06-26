@@ -69,7 +69,9 @@ public sealed class AdhocRefinementGuardEmissionTests
 
         var sb = new StringBuilder();
         foreach(var (_, content) in files)
+        {
             sb.AppendLine(content);
+        }
 
         return sb.ToString();
     }
@@ -82,11 +84,17 @@ public sealed class AdhocRefinementGuardEmissionTests
 
         var lexBag = new DiagnosticBag();
         var tokens = Lexer.Lex(sourceText, lexBag);
-        if(lexBag.HasErrors) return lexBag.ToImmutableArray();
+        if(lexBag.HasErrors)
+        {
+            return lexBag.ToImmutableArray();
+        }
 
         var parseBag = new DiagnosticBag();
         var parseResult = Parser.Parse(tokens, parseBag);
-        if(parseBag.HasErrors) return parseBag.ToImmutableArray();
+        if(parseBag.HasErrors)
+        {
+            return parseBag.ToImmutableArray();
+        }
 
         var semBag = new DiagnosticBag();
         var model = ModelBuilder.Build(
@@ -96,7 +104,10 @@ public sealed class AdhocRefinementGuardEmissionTests
             namespaceRoot: "TestProgram",
             projectFolder: "/test",
             semBag);
-        if(semBag.HasErrors) return semBag.ToImmutableArray();
+        if(semBag.HasErrors)
+        {
+            return semBag.ToImmutableArray();
+        }
 
         var tcBag = new DiagnosticBag();
         TypeChecker.Analyze(model, tcBag);

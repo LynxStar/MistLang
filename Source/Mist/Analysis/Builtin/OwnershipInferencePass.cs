@@ -33,7 +33,9 @@ public sealed class OwnershipInferencePass
         var candidates = CollectVarDeclarations(functionBody, model);
 
         if(candidates.Count == 0)
+        {
             return new Dictionary<ISymbol, InferredBinding>();
+        }
 
         // Initialize candidates optimistically.
         InitializeCandidates(candidates, functionBody, model);
@@ -133,7 +135,9 @@ public sealed class OwnershipInferencePass
         foreach(var child in node.Children())
         {
             if(child is not null)
+            {
                 CollectVarDeclarationsRecursive(child, model, candidates);
+            }
         }
     }
 
@@ -183,7 +187,9 @@ public sealed class OwnershipInferencePass
         var usesCache = new Dictionary<ISymbol, List<VariableUse>>(
             candidates.Count, ReferenceEqualityComparer.Instance);
         foreach(var candidate in candidates)
+        {
             usesCache[candidate.Symbol] = CollectUses(candidate.Symbol, functionBody, model);
+        }
 
         // Early-out: candidates that have uses but ALL of them are Read will always
         // converge to Unrestricted. Remove them from the fixed-point loop entirely.
@@ -221,7 +227,9 @@ public sealed class OwnershipInferencePass
         var symbolToCandidateMap = new Dictionary<ISymbol, InferenceCandidate>(
             ReferenceEqualityComparer.Instance);
         foreach(var c in candidates)
+        {
             symbolToCandidateMap[c.Symbol] = c;
+        }
 
         // Maximum iterations to prevent infinite loops. With 5 possible tiers per candidate,
         // at most candidates.Count * 4 downgrades can occur before everything reaches Shared.
@@ -233,14 +241,18 @@ public sealed class OwnershipInferencePass
             foreach(var candidate in activeCandidate)
             {
                 if(candidate.Tier is null || candidate.Tier == OwnershipTier.Unrestricted)
+                {
                     continue; // Already at shared (ultimate fallback) — cannot conflict.
+                }
 
                 var uses = usesCache[candidate.Symbol];
                 foreach(var use in uses)
                 {
                     var requiredTier = DetermineRequiredTier(use, candidate.Symbol, symbolToCandidateMap, model);
                     if(requiredTier is null)
+                    {
                         continue; // No ownership requirement for this use.
+                    }
 
                     if(Conflicts(candidate.Tier.Value, requiredTier.Value))
                     {
@@ -267,7 +279,9 @@ public sealed class OwnershipInferencePass
             }
 
             if(!changed)
+            {
                 break; // Fixed-point reached.
+            }
         }
 
         // Enforce minimum tier requirements from MethodReceiver uses.
@@ -309,7 +323,9 @@ public sealed class OwnershipInferencePass
                                         // Check if this method is actually called in this use context.
                                         // For safety, take the max of all methods with a tier requirement.
                                         if((int)ms.InferredThisTier > (int)effectiveTier)
+                                        {
                                             effectiveTier = ms.InferredThisTier;
+                                        }
                                     }
                                 }
                             }
@@ -326,7 +342,9 @@ public sealed class OwnershipInferencePass
                                 _ => OwnershipTier.Unrestricted,
                             };
                             if((int)requiredOwnershipTier > (int)minimumTier)
+                            {
                                 minimumTier = requiredOwnershipTier;
+                            }
                         }
                     }
                 }
@@ -513,7 +531,9 @@ public sealed class OwnershipInferencePass
         foreach(var child in node.Children())
         {
             if(child is not null)
+            {
                 CollectUsesRecursive(symbol, child, model, uses, context);
+            }
         }
     }
 
@@ -658,7 +678,9 @@ public sealed class OwnershipInferencePass
     {
         // Direct match on primary nodes.
         if(node is ObjectCreationExpressionPrimaryNode)
+        {
             return true;
+        }
 
         // PostfixNode with suffixes — check for a method call returning owned.
         if(node is PostfixNode postfix)
@@ -671,25 +693,34 @@ public sealed class OwnershipInferencePass
                 {
                     var methodSymbol = model.GetDeclaredSymbol(methodCall);
                     if(methodSymbol is Symbol methodSym && methodSym.OwnershipTier == OwnershipTier.Owned)
+                    {
                         return true;
+                    }
                 }
 
                 if(lastSuffix is InvocationSuffixPostfixSuffixNode invocation)
                 {
                     ISymbol? invokedSymbol = null;
                     if(postfix.Target is IdentifierExpressionPrimaryNode targetId)
+                    {
                         invokedSymbol = model.GetDeclaredSymbol(targetId);
+                    }
+
                     invokedSymbol ??= model.GetDeclaredSymbol(invocation);
 
                     if(invokedSymbol is Symbol funcSym && funcSym.OwnershipTier == OwnershipTier.Owned)
+                    {
                         return true;
+                    }
                 }
 
                 return false;
             }
 
             if(postfix.Target is ObjectCreationExpressionPrimaryNode)
+            {
                 return true;
+            }
 
             return false;
         }
@@ -699,10 +730,17 @@ public sealed class OwnershipInferencePass
         var childCount = 0;
         foreach(var child in node.Children())
         {
-            if(child is null) continue;
+            if(child is null)
+            {
+                continue;
+            }
+
             childCount++;
             singleChild = child;
-            if(childCount > 1) break;
+            if(childCount > 1)
+            {
+                break;
+            }
         }
 
         return childCount == 1 && singleChild is not null && IsConstructorOrOwnedCall(singleChild, model);

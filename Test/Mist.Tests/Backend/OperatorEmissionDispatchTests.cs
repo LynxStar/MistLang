@@ -95,7 +95,9 @@ public sealed class OperatorEmissionDispatchTests : IDisposable
         if(Directory.Exists(_outputDir))
         {
             foreach(var file in Directory.GetFiles(_outputDir))
+            {
                 File.Delete(file);
+            }
         }
     }
 
@@ -478,7 +480,9 @@ class Program {
             foreach(var child in node.Children())
             {
                 if(child is not null)
+                {
                     stack.Push(child);
+                }
             }
         }
         return null;

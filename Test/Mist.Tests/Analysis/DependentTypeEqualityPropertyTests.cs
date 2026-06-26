@@ -67,17 +67,23 @@ public class DependentTypeEqualityPropertyTests
     {
         // Same generic definition
         if(!ReferenceEquals(a.GenericDefinition, b.GenericDefinition))
+        {
             return false;
+        }
 
         // Same type argument count
         if(a.TypeArguments.Count != b.TypeArguments.Count)
+        {
             return false;
+        }
 
         // Same type arguments (by display name since we use separate instances)
         for(var i = 0; i < a.TypeArguments.Count; i++)
         {
             if(a.TypeArguments[i].DisplayName != b.TypeArguments[i].DisplayName)
+            {
                 return false;
+            }
         }
 
         // Same dependent value arguments (Requirements 8.1, 8.2)
@@ -85,22 +91,38 @@ public class DependentTypeEqualityPropertyTests
         var depsB = b.DependentArguments;
 
         if(depsA is null && depsB is null)
+        {
             return true;
+        }
+
         if(depsA is null || depsB is null)
+        {
             return false;
+        }
+
         if(depsA.Count != depsB.Count)
+        {
             return false;
+        }
 
         for(var i = 0; i < depsA.Count; i++)
         {
             var argA = depsA[i];
             var argB = depsB[i];
             if(argA is null && argB is null)
+            {
                 continue;
+            }
+
             if(argA is null || argB is null)
+            {
                 return false;
+            }
+
             if(!Equals(argA.Value, argB.Value))
+            {
                 return false;
+            }
         }
 
         return true;

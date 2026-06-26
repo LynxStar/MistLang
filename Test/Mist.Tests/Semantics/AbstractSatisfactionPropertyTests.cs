@@ -503,20 +503,26 @@ public class AbstractSatisfactionPropertyTests
 
         // Exactly one diagnostic per missing method
         if(missingMethodDiags.Count != scenario.MissingMethodNames.Length)
+        {
             return false;
+        }
 
         // Each missing method name should appear in a diagnostic message
         foreach(var missingName in scenario.MissingMethodNames)
         {
             if(!missingMethodDiags.Any(d => d.Message.Contains(missingName)))
+            {
                 return false;
+            }
         }
 
         // Each diagnostic should reference the implementing type name
         foreach(var diag in missingMethodDiags)
         {
             if(!diag.Message.Contains(scenario.ImplementingTypeName))
+            {
                 return false;
+            }
         }
 
         return true;

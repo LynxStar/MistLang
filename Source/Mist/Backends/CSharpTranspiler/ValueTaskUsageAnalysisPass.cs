@@ -92,7 +92,9 @@ internal static class ValueTaskUsageAnalysisPass
     internal static bool HasExplicitValueTaskReturnType(Symbol methodSymbol)
     {
         if(methodSymbol.EffectiveReturnType is not ConstructedType ct || ct.TypeArguments.Count == 0)
+        {
             return false;
+        }
 
         return ct.GenericDefinition is ClassType { DisplayName: "ValueTask", ContainingNamespace: "Standard" };
     }

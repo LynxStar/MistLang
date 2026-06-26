@@ -247,13 +247,17 @@ public sealed class TargetTypedNewEmissionPropertyTests
         var lexBag = new DiagnosticBag();
         var tokens = Lexer.Lex(sourceText, lexBag);
         if(lexBag.HasErrors)
+        {
             return (false, "", FormatDiagnostics(lexBag));
+        }
 
         // Parse
         var parseBag = new DiagnosticBag();
         var parseResult = Parser.Parse(tokens, parseBag);
         if(parseBag.HasErrors || parseResult.Root is null)
+        {
             return (false, "", FormatDiagnostics(parseBag));
+        }
 
         // Semantic model
         var semBag = new DiagnosticBag();
@@ -266,7 +270,9 @@ public sealed class TargetTypedNewEmissionPropertyTests
             semBag);
 
         if(semBag.HasErrors)
+        {
             return (false, "", FormatDiagnostics(semBag));
+        }
 
         // Type checker — filter out MIST_TC_0017 (entry point not found) since we're
         // testing emission equivalence, not program structure.
@@ -276,19 +282,25 @@ public sealed class TargetTypedNewEmissionPropertyTests
             .Where(d => d.Severity == DiagnosticSeverity.Error && d.Id.Value != "MIST_TC_0017")
             .ToList();
         if(tcErrors.Count > 0)
+        {
             return (false, "", string.Join("\n", tcErrors.Select(d => $"  {d.Id.Value}: {d.Message}")));
+        }
 
         // Emit in-memory (no disk I/O)
         var emitBag = new DiagnosticBag();
         var files = CSharpEmitter.EmitToMemory(model, "TestProgram", emitBag);
 
         if(emitBag.HasErrors)
+        {
             return (false, "", FormatDiagnostics(emitBag));
+        }
 
         // Concatenate all emitted .cs content
         var sb = new StringBuilder();
         foreach(var (_, content) in files)
+        {
             sb.AppendLine(content);
+        }
 
         return (true, sb.ToString(), "");
     }
@@ -311,7 +323,9 @@ public sealed class TargetTypedNewEmissionPropertyTests
         {
             var trimmed = line.Trim();
             if(trimmed.Contains($"new {typeName}(") || trimmed.Contains($"new {typeName}()"))
+            {
                 return trimmed;
+            }
         }
         return null;
     }

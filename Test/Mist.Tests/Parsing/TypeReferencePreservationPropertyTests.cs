@@ -132,8 +132,10 @@ public sealed class TypeReferencePreservationPropertyTests
             .ToList();
 
         if(errors.Count > 0)
+        {
             throw new InvalidOperationException(
                 $"Unexpected parse errors:\n  {string.Join("\n  ", errors.Select(e => e.Message))}\nSource:\n{source}");
+        }
 
         return result.Root as CompilationUnitNode
             ?? throw new InvalidOperationException("Parse result root is not a CompilationUnitNode");
@@ -198,28 +200,40 @@ public sealed class TypeReferencePreservationPropertyTests
         {
             case TypeRefKind.Union:
                 if(!IsUnion(typeRef))
+                {
                     return (false, $"expected a union (SingleTypeRefs non-empty), got single {typeRef.First.GetType().Name}");
+                }
+
                 var uCount = UnionConstituentCount(typeRef);
                 return (uCount == scenario.ExpectedCount,
                     $"union constituents: expected {scenario.ExpectedCount}, got {uCount}");
 
             case TypeRefKind.Named:
                 if(typeRef.First is not NamedSingleTypeRefSingleTypeRefNode named)
+                {
                     return (false, $"expected NamedSingleTypeRefSingleTypeRefNode, got {typeRef.First.GetType().Name}");
+                }
+
                 var aCount = TypeArgumentCount(named);
                 return (aCount == scenario.ExpectedCount,
                     $"type arguments: expected {scenario.ExpectedCount}, got {aCount}");
 
             case TypeRefKind.Primitive:
                 if(typeRef.First is not PrimitiveSingleTypeRefSingleTypeRefNode prim)
+                {
                     return (false, $"expected PrimitiveSingleTypeRefSingleTypeRefNode, got {typeRef.First.GetType().Name}");
+                }
+
                 var hasRank = prim.ArrayRank is not null;
                 return (hasRank == scenario.ExpectArrayRank,
                     $"array rank present: expected {scenario.ExpectArrayRank}, got {hasRank}");
 
             case TypeRefKind.Tuple:
                 if(typeRef.First is not TupleSingleTypeRefSingleTypeRefNode tuple)
+                {
                     return (false, $"expected TupleSingleTypeRefSingleTypeRefNode, got {typeRef.First.GetType().Name}");
+                }
+
                 var tCount = TupleElementCount(tuple);
                 return (tCount == scenario.ExpectedCount,
                     $"tuple elements: expected {scenario.ExpectedCount}, got {tCount}");

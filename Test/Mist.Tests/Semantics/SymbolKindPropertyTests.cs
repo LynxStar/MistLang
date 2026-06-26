@@ -125,7 +125,9 @@ public class SymbolKindPropertyTests
                 for(var i = 0; i < AllScenarios.Length; i++)
                 {
                     if((mask & (1 << i)) != 0)
+                    {
                         subset.Add(AllScenarios[i]);
+                    }
                 }
                 return subset.ToArray();
             });

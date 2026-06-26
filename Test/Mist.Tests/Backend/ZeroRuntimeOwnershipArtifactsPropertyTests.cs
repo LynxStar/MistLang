@@ -6,8 +6,8 @@ using FsCheck;
 using FsCheck.Fluent;
 using FsCheck.Xunit;
 using Mist.Analysis.Builtin;
-using Mist.Backends.CSharpTranspiler;
 using Mist.Backends.Contracts;
+using Mist.Backends.CSharpTranspiler;
 using Mist.Common.Diagnostics;
 using Mist.Driver;
 using Mist.Driver.Contracts;
@@ -76,7 +76,9 @@ public sealed class ZeroRuntimeOwnershipArtifactsPropertyTests : IDisposable
         var result = SharedDriver.Compile(options);
 
         if(!result.Succeeded)
+        {
             return null;
+        }
 
         return result.EmittedFiles;
     }
@@ -341,13 +343,17 @@ public sealed class ZeroRuntimeOwnershipArtifactsPropertyTests : IDisposable
         var emittedFiles = CompileAndGetEmittedFiles(program.Source);
 
         if(emittedFiles is null)
+        {
             return false.ToProperty().Label($"Compilation failed for: {program.Label}");
+        }
 
         foreach(var (fileName, content) in emittedFiles)
         {
             // Skip .csproj files — they aren't emitted code
             if(fileName.EndsWith(".csproj", StringComparison.OrdinalIgnoreCase))
+            {
                 continue;
+            }
 
             foreach(var pattern in ForbiddenPatterns)
             {
@@ -379,7 +385,10 @@ public sealed class ZeroRuntimeOwnershipArtifactsPropertyTests : IDisposable
             // For non-clone scenarios, just verify compilation succeeds and no artifacts
             var files = CompileAndGetEmittedFiles(program.Source);
             if(files is null)
+            {
                 return false.ToProperty().Label($"Compilation failed for: {program.Label}");
+            }
+
             return true.ToProperty().Label("No clone expected — compilation succeeded");
         }
 
@@ -387,13 +396,17 @@ public sealed class ZeroRuntimeOwnershipArtifactsPropertyTests : IDisposable
         var emittedFiles = CompileAndGetEmittedFiles(program.Source);
 
         if(emittedFiles is null)
+        {
             return false.ToProperty().Label($"Compilation failed for: {program.Label}");
+        }
 
         var hasCloneCall = false;
         foreach(var (fileName, content) in emittedFiles)
         {
             if(fileName.EndsWith(".csproj", StringComparison.OrdinalIgnoreCase))
+            {
                 continue;
+            }
 
             if(content.Contains(".Clone()", StringComparison.Ordinal))
             {
@@ -413,7 +426,10 @@ public sealed class ZeroRuntimeOwnershipArtifactsPropertyTests : IDisposable
     private static string GetContextAround(string content, string pattern)
     {
         var idx = content.IndexOf(pattern, StringComparison.Ordinal);
-        if(idx < 0) return "(not found)";
+        if(idx < 0)
+        {
+            return "(not found)";
+        }
 
         var start = Math.Max(0, idx - 40);
         var end = Math.Min(content.Length, idx + pattern.Length + 40);

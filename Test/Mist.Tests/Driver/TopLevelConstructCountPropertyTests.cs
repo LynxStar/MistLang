@@ -47,7 +47,10 @@ public class TopLevelConstructCountPropertyTests
         foreach(var (kind, origin) in pairs)
         {
             if(origin != SymbolOrigin.UserCode)
+            {
                 continue;
+            }
+
             if(kind == SymbolKind.Class || kind == SymbolKind.Struct ||
                 kind == SymbolKind.Abstract)
             {

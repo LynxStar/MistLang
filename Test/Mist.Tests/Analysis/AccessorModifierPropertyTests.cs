@@ -116,7 +116,9 @@ public class AccessorModifierPropertyTests
 
         // Merge all diagnostics
         foreach(var d in analyzerDiagnostics.ToImmutableArray())
+        {
             semanticDiagnostics.Add(d);
+        }
 
         return (model, semanticDiagnostics);
     }
@@ -159,7 +161,9 @@ public class AccessorModifierPropertyTests
     public Property AccessorModifier_ValidCombinationsProduceNoDiagnostic(AccessorModifierTestCase testCase)
     {
         if(!testCase.ExpectValid)
+        {
             return true.ToProperty(); // Skip invalid cases in this test
+        }
 
         var ast = MakePropertyWithModifiers(testCase.PropertyModifiers, testCase.AccessorModifier);
         var (model, diagnostics) = BuildAndAnalyze(ast);
@@ -179,7 +183,9 @@ public class AccessorModifierPropertyTests
     public Property AccessorModifier_InvalidCombinationsProduceDiagnostic(AccessorModifierTestCase testCase)
     {
         if(testCase.ExpectValid)
+        {
             return true.ToProperty(); // Skip valid cases in this test
+        }
 
         var ast = MakePropertyWithModifiers(testCase.PropertyModifiers, testCase.AccessorModifier);
         var (model, diagnostics) = BuildAndAnalyze(ast);

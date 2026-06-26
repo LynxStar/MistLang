@@ -59,11 +59,17 @@ public sealed class OwnershipInferenceSoundnessPropertyTests
         var sourceText = new SourceText("test.mist", source);
         var lexBag = new DiagnosticBag();
         var tokens = Lexer.Lex(sourceText, lexBag);
-        if(lexBag.HasErrors) return null;
+        if(lexBag.HasErrors)
+        {
+            return null;
+        }
 
         var parseBag = new DiagnosticBag();
         var parseResult = Parser.Parse(tokens, parseBag);
-        if(parseBag.HasErrors || parseResult.Root is null) return null;
+        if(parseBag.HasErrors || parseResult.Root is null)
+        {
+            return null;
+        }
 
         var builder = new SemanticModelBuilder();
         var compilation = new MistCompilation(
@@ -85,9 +91,20 @@ public sealed class OwnershipInferenceSoundnessPropertyTests
         SyntaxNode? mainBody = null;
         foreach(var symbol in model.AllSymbols)
         {
-            if(symbol.Origin != SymbolOrigin.UserCode) continue;
-            if(symbol.Kind != SymbolKind.Method) continue;
-            if(symbol.Name != "Main") continue;
+            if(symbol.Origin != SymbolOrigin.UserCode)
+            {
+                continue;
+            }
+
+            if(symbol.Kind != SymbolKind.Method)
+            {
+                continue;
+            }
+
+            if(symbol.Name != "Main")
+            {
+                continue;
+            }
 
             SyntaxNode declaringNode;
             try { declaringNode = model.GetDeclaringNode(symbol); }
@@ -100,7 +117,10 @@ public sealed class OwnershipInferenceSoundnessPropertyTests
             }
         }
 
-        if(mainBody is null) return null;
+        if(mainBody is null)
+        {
+            return null;
+        }
 
         var infBag = new DiagnosticBag();
         var bindings = OwnershipInferencePass.InferBindings(mainBody, model, infBag);
@@ -108,7 +128,9 @@ public sealed class OwnershipInferenceSoundnessPropertyTests
         foreach(var (symbol, binding) in bindings)
         {
             if(symbol.Name == variableName)
+            {
                 return binding;
+            }
         }
 
         return null;
@@ -128,7 +150,9 @@ public sealed class OwnershipInferenceSoundnessPropertyTests
         var parseResult = Parser.Parse(tokens, parseBag);
 
         if(parseResult.Root is null)
+        {
             return lexBag.ToImmutableArray().AddRange(parseBag.ToImmutableArray());
+        }
 
         var builder = new SemanticModelBuilder();
         var compilation = new MistCompilation(

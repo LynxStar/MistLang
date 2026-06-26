@@ -93,7 +93,9 @@ public class AnonymousTypeConstructionPropertyTests
         {
             var entry = $"{anon.PropertyNames[i]}: {anon.PropertyTypes[i].DisplayName}";
             if(!anon.DisplayName.Contains(entry))
+            {
                 return false;
+            }
         }
 
         return true;
@@ -131,7 +133,10 @@ public class AnonymousTypeConstructionPropertyTests
     {
         var parts = new string[propertyNames.Count];
         for(var i = 0; i < propertyNames.Count; i++)
+        {
             parts[i] = $"{propertyNames[i]}: {propertyTypes[i].DisplayName}";
+        }
+
         return $"{{ {string.Join(", ", parts)} }}";
     }
 }

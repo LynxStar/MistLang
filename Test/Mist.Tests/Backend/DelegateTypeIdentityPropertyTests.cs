@@ -62,7 +62,10 @@ public sealed class DelegateTypeIdentityPropertyTests
             var funcDef = new ClassType("Func", new Scope(null), "Standard", isBackendBacked: true);
             var tps = new IType[arity];
             for(var i = 0; i < arity; i++)
+            {
                 tps[i] = new TypeParameterType($"T{i}", i);
+            }
+
             funcDef.TypeParameters = tps;
 
             return new ConstructedType(funcDef, typeArgs);
@@ -92,7 +95,10 @@ public sealed class DelegateTypeIdentityPropertyTests
         var funcDef = new ClassType("Func", new Scope(null), "Standard", isBackendBacked: true);
         var tps = new IType[input.FuncArity];
         for(var i = 0; i < input.FuncArity; i++)
+        {
             tps[i] = new TypeParameterType($"T{i}", i);
+        }
+
         funcDef.TypeParameters = tps;
 
         var funcSignature = new ConstructedType(funcDef, input.FuncTypeArgs);

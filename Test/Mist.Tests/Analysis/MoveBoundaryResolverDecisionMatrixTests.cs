@@ -22,8 +22,8 @@
 using System.Collections.Immutable;
 using Mist.Analysis.Builtin;
 using Mist.Analysis.Contracts;
-using Mist.Backends.CSharpTranspiler;
 using Mist.Backends.Contracts;
+using Mist.Backends.CSharpTranspiler;
 using Mist.Common.Diagnostics;
 using Mist.Driver;
 using Mist.Driver.Contracts;
@@ -148,13 +148,24 @@ public sealed class MoveBoundaryResolverDecisionMatrixTests : IDisposable
         foreach(var symbol in model.AllSymbols)
         {
             if(symbol.Origin != SymbolOrigin.UserCode)
+            {
                 continue;
+            }
+
             if(symbol.Kind != SymbolKind.LocalVariable)
+            {
                 continue;
+            }
+
             if(symbol.Name != bindingName)
+            {
                 continue;
+            }
+
             if(symbol is not Symbol varSymbol || varSymbol.OwnershipTier != OwnershipTier.Owned)
+            {
                 continue;
+            }
 
             SyntaxNode declaringNode;
             try { declaringNode = model.GetDeclaringNode(symbol); }
@@ -162,7 +173,9 @@ public sealed class MoveBoundaryResolverDecisionMatrixTests : IDisposable
 
             var initializer = GetInitializerExpression(declaringNode);
             if(initializer is null)
+            {
                 continue;
+            }
 
             return (initializer, varSymbol.DeclaredType);
         }

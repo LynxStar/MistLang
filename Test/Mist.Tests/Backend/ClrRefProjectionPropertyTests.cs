@@ -65,12 +65,16 @@ public sealed class ClrRefProjectionPropertyTests
             foreach(var method in type.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly))
             {
                 if(method.IsSpecialName)
+                {
                     continue;
+                }
 
                 foreach(var param in method.GetParameters())
                 {
                     if(param.ParameterType.IsByRef && !param.IsOut)
+                    {
                         result.Add((method, param));
+                    }
                 }
             }
         }
@@ -103,10 +107,14 @@ public sealed class ClrRefProjectionPropertyTests
             BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly))
         {
             if(method.IsSpecialName)
+            {
                 continue;
+            }
 
             if(method.ReturnType.IsByRef && !IsRefReadonlyReturn(method))
+            {
                 result.Add(method);
+            }
         }
 
         return result.ToArray();

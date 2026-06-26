@@ -266,7 +266,9 @@ public class VoidTypeResolutionPropertyTests
         var methodSymbol = model.AllSymbols
             .FirstOrDefault(s => s.Name == scenario.MethodName && s.Kind == SymbolKind.Method);
         if(methodSymbol is null)
+        {
             return false;
+        }
 
         return methodSymbol.DeclaredType?.IsVoid() == true;
     }
@@ -322,7 +324,9 @@ public class VoidTypeResolutionPropertyTests
         var varSymbol = model.AllSymbols
             .FirstOrDefault(s => s.Name == scenario.VarName && s.Kind == SymbolKind.LocalVariable);
         if(varSymbol is null)
+        {
             return false;
+        }
 
         return varSymbol.DeclaredType?.IsVoid() == true;
     }
@@ -380,7 +384,9 @@ public class VoidTypeResolutionPropertyTests
         var paramSymbol = model.AllSymbols
             .FirstOrDefault(s => s.Name == scenario.ParamName && s.Kind == SymbolKind.Parameter);
         if(paramSymbol is null)
+        {
             return false;
+        }
 
         return paramSymbol.DeclaredType?.IsVoid() == true;
     }
@@ -434,13 +440,19 @@ public class VoidTypeResolutionPropertyTests
         var fieldSymbol = model.AllSymbols
             .FirstOrDefault(s => s.Name == "voidField" && s.Kind == SymbolKind.Field);
         if(fieldSymbol is null)
+        {
             return false;
+        }
 
         if(fieldSymbol.DeclaredType is not ConstructedType constructedType)
+        {
             return false;
+        }
 
         if(constructedType.TypeArguments.Count != 1)
+        {
             return false;
+        }
 
         return constructedType.TypeArguments[0].IsVoid();
     }

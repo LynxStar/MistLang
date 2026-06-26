@@ -208,7 +208,9 @@ public class ExtensionRegistrationPropertyTests
     private static Gen<List<T>> GenCombine<T>(List<Gen<T>> gens)
     {
         if(gens.Count == 0)
+        {
             return Gen.Constant(new List<T>());
+        }
 
         return gens.Aggregate(
             Gen.Constant(new List<T>()),
@@ -375,14 +377,18 @@ public class ExtensionRegistrationPropertyTests
             .FirstOrDefault(s => s.Name == scenario.ReceiverTypeName && s.Kind == SymbolKind.Class);
 
         if(receiverTypeSymbol is null)
+        {
             return false.ToProperty()
                 .Label($"Receiver type '{scenario.ReceiverTypeName}' not found in model. " +
                        $"All symbols: [{string.Join(", ", model.AllSymbols.Select(s => $"{s.Name}:{s.Kind}"))}]");
+        }
 
         var receiverType = receiverTypeSymbol.DeclaredType;
         if(receiverType is null)
+        {
             return false.ToProperty()
                 .Label($"Receiver type '{scenario.ReceiverTypeName}' has null DeclaredType");
+        }
 
         // Query the ExtensionRegistry for exact extensions on this type
         var extensions = model.ExtensionRegistry.GetExactExtensions(receiverType);
@@ -412,13 +418,17 @@ public class ExtensionRegistrationPropertyTests
             .FirstOrDefault(s => s.Name == scenario.ReceiverTypeName && s.Kind == SymbolKind.Class);
 
         if(receiverTypeSymbol is null)
+        {
             return false.ToProperty()
                 .Label($"Receiver type '{scenario.ReceiverTypeName}' not found in model");
+        }
 
         var receiverType = receiverTypeSymbol.DeclaredType;
         if(receiverType is null)
+        {
             return false.ToProperty()
                 .Label($"Receiver type '{scenario.ReceiverTypeName}' has null DeclaredType");
+        }
 
         // Query the ExtensionRegistry for exact extensions on this type
         var extensions = model.ExtensionRegistry.GetExactExtensions(receiverType);
@@ -442,9 +452,11 @@ public class ExtensionRegistrationPropertyTests
         foreach(var (name, kind) in allExpectedMembers)
         {
             if(!registeredMembers.Contains((name, kind)))
+            {
                 return false.ToProperty()
                     .Label($"Expected member '{name}' ({kind}) not found in extension registry. " +
                            $"Registered members: [{string.Join(", ", registeredMembers.Select(m => $"{m.Name}:{m.Kind}"))}]");
+            }
         }
 
         // Also verify the total count matches (no extra members)
@@ -477,22 +489,28 @@ public class ExtensionRegistrationPropertyTests
             .FirstOrDefault(s => s.Name == scenario.ReceiverTypeName && s.Kind == SymbolKind.Class);
 
         if(receiverTypeSymbol is null)
+        {
             return false.ToProperty()
                 .Label($"Receiver type '{scenario.ReceiverTypeName}' not found in model");
+        }
 
         var receiverType = receiverTypeSymbol.DeclaredType;
         if(receiverType is null)
+        {
             return false.ToProperty()
                 .Label($"Receiver type '{scenario.ReceiverTypeName}' has null DeclaredType");
+        }
 
         var extensions = model.ExtensionRegistry.GetExactExtensions(receiverType);
 
         foreach(var ext in extensions)
         {
             if(ext.ReceiverParameterName != scenario.ReceiverParamName)
+            {
                 return false.ToProperty()
                     .Label($"Expected receiver parameter name '{scenario.ReceiverParamName}', " +
                            $"got '{ext.ReceiverParameterName}'");
+            }
         }
 
         return true.ToProperty()

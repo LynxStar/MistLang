@@ -108,7 +108,9 @@ public class BoolExhaustivenessPropertyTests
     {
         var hasUnguardedCatchAll = arms.Any(a => a.Kind == ArmKind.CatchAll && !a.HasGuard);
         if(hasUnguardedCatchAll)
+        {
             return true;
+        }
 
         var hasUnguardedTrue = arms.Any(a => a.Kind == ArmKind.TrueConstant && !a.HasGuard);
         var hasUnguardedFalse = arms.Any(a => a.Kind == ArmKind.FalseConstant && !a.HasGuard);

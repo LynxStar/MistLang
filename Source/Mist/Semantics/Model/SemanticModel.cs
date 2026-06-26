@@ -96,7 +96,9 @@ public sealed class SemanticModel : ISemanticModel
             {
                 var refinedType = TryGetRefinedTypeForLocalVariable(node);
                 if(refinedType is not null)
+                {
                     return refinedType;
+                }
             }
 
             // When the cached expression type is a UnionType, the type checker may have
@@ -106,7 +108,9 @@ public sealed class SemanticModel : ISemanticModel
             {
                 var refinedType = TryGetRefinedTypeForLocalVariable(node);
                 if(refinedType is not null)
+                {
                     return refinedType;
+                }
             }
 
             // When the cached type is a non-union concrete type but the local variable's
@@ -117,7 +121,9 @@ public sealed class SemanticModel : ISemanticModel
             {
                 var refinedType = TryGetRefinedTypeForLocalVariable(node);
                 if(refinedType is UnionType)
+                {
                     return refinedType;
+                }
             }
 
             return type;
@@ -191,12 +197,23 @@ public sealed class SemanticModel : ISemanticModel
         if(node is ExpressionNode expr)
         {
             var assignment = expr.AsAssignmentOrNull();
-            if(assignment is null) return null; // Lambda form has no refined identifier.
-            if(assignment.Value is not null) return null;
+            if(assignment is null)
+            {
+                return null; // Lambda form has no refined identifier.
+            }
+
+            if(assignment.Value is not null)
+            {
+                return null;
+            }
 
             // Navigate through VoidCoalescing to the underlying LogicalOr.
             var voidCoalescing = assignment.Target;
-            if(voidCoalescing.LogicalOrs.Length > 0) return null;
+            if(voidCoalescing.LogicalOrs.Length > 0)
+            {
+                return null;
+            }
+
             return TryGetRefinedTypeFromLogicalOr(voidCoalescing.Left);
         }
 
@@ -205,26 +222,51 @@ public sealed class SemanticModel : ISemanticModel
 
     private IType? TryGetRefinedTypeFromLogicalOr(LogicalOrNode logicalOr)
     {
-        if(logicalOr.Right is not null) return null;
+        if(logicalOr.Right is not null)
+        {
+            return null;
+        }
 
         var logicalAnd = logicalOr.Left;
-        if(logicalAnd.Right is not null) return null;
+        if(logicalAnd.Right is not null)
+        {
+            return null;
+        }
 
         var equality = logicalAnd.Left;
-        if(equality.Right is not null) return null;
+        if(equality.Right is not null)
+        {
+            return null;
+        }
 
         var relational = equality.Left;
-        if(relational is not RelationalComparisonRelationalNode cmp) return null;
-        if(cmp.Right is not null) return null;
+        if(relational is not RelationalComparisonRelationalNode cmp)
+        {
+            return null;
+        }
+
+        if(cmp.Right is not null)
+        {
+            return null;
+        }
 
         var additive = cmp.Left;
-        if(additive.Right is not null) return null;
+        if(additive.Right is not null)
+        {
+            return null;
+        }
 
         var multiplicative = additive.Left;
-        if(multiplicative.Right is not null) return null;
+        if(multiplicative.Right is not null)
+        {
+            return null;
+        }
 
         var unary = multiplicative.Left;
-        if(unary is not PostfixExpressionUnaryNode postfixExpr) return null;
+        if(unary is not PostfixExpressionUnaryNode postfixExpr)
+        {
+            return null;
+        }
 
         var postfix = postfixExpr.Primary;
 

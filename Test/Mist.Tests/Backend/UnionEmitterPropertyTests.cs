@@ -199,13 +199,17 @@ public sealed class UnionEmitterPropertyTests : IDisposable
         // First order: as given
         var (ok1, helpers1, diag1) = CompileAndGetHelpers(scenario);
         if(!ok1)
+        {
             return (null, null, diag1);
+        }
 
         // Second order: reversed
         var reversed = new UnionScenario(scenario.TypeIndices.Reverse().ToImmutableArray());
         var (ok2, helpers2, diag2) = CompileAndGetHelpers(reversed);
         if(!ok2)
+        {
             return (null, null, diag2);
+        }
 
         return (helpers1, helpers2, "");
     }
@@ -282,7 +286,9 @@ public sealed class UnionEmitterPropertyTests : IDisposable
         var (succeeded, content, diagnosticText) = CompileAndGetHelpers(scenario);
 
         if(!succeeded || content is null)
+        {
             return false.ToProperty().Label($"Compilation failed: {diagnosticText}");
+        }
 
         var n = scenario.TypeIndices.Length;
         var isPropertyCount = Regex.Matches(content, @"public bool Is\w+ =>").Count;
@@ -306,7 +312,9 @@ public sealed class UnionEmitterPropertyTests : IDisposable
         var (succeeded, content, diagnosticText) = CompileAndGetHelpers(scenario);
 
         if(!succeeded || content is null)
+        {
             return false.ToProperty().Label($"Compilation failed: {diagnosticText}");
+        }
 
         var n = scenario.TypeIndices.Length;
         var asPropertyCount = Regex.Matches(content, @"public \w+ As\w+ =>").Count;
@@ -330,7 +338,9 @@ public sealed class UnionEmitterPropertyTests : IDisposable
         var (succeeded, content, diagnosticText) = CompileAndGetHelpers(scenario);
 
         if(!succeeded || content is null)
+        {
             return false.ToProperty().Label($"Compilation failed: {diagnosticText}");
+        }
 
         var n = scenario.TypeIndices.Length;
         var helperName = GetExpectedHelperName(scenario);
@@ -353,7 +363,9 @@ public sealed class UnionEmitterPropertyTests : IDisposable
         var (succeeded, content, diagnosticText) = CompileAndGetHelpers(scenario);
 
         if(!succeeded || content is null)
+        {
             return false.ToProperty().Label($"Compilation failed: {diagnosticText}");
+        }
 
         var expectedName = GetExpectedHelperName(scenario);
         var containsStructDecl = content.Contains($"public struct {expectedName}");
@@ -374,7 +386,9 @@ public sealed class UnionEmitterPropertyTests : IDisposable
         var (helpers1, helpers2, diagnosticText) = CompileWithReorderedUnion(scenario);
 
         if(helpers1 is null || helpers2 is null)
+        {
             return false.ToProperty().Label($"Compilation failed: {diagnosticText}");
+        }
 
         var expectedName = GetExpectedHelperName(scenario);
 

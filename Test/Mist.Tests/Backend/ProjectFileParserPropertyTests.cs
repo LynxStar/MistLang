@@ -102,7 +102,9 @@ public sealed class ProjectFileParserPropertyTests
                 {
                     var expected = Path.GetFullPath(Path.Combine(projectDir, paths[i]));
                     if(!Path.GetFileName(expected).Equals("mist.toml", StringComparison.Ordinal))
+                    {
                         expected = Path.Combine(expected, "mist.toml");
+                    }
 
                     Assert.Equal(expected, result.References[i].Path);
                 }
@@ -179,7 +181,10 @@ public sealed class ProjectFileParserPropertyTests
                     var safeKey = "extra_" + key;
                     // Skip duplicate keys (TOML rejects them)
                     if(!seenKeys.Add(safeKey))
+                    {
                         continue;
+                    }
+
                     toml += $"{safeKey} = \"{value}\"\n";
                 }
 
@@ -197,7 +202,9 @@ public sealed class ProjectFileParserPropertyTests
                 // The path should be preserved (after normalization)
                 var expected = Path.GetFullPath(Path.Combine(projectDir, path));
                 if(!Path.GetFileName(expected).Equals("mist.toml", StringComparison.Ordinal))
+                {
                     expected = Path.Combine(expected, "mist.toml");
+                }
 
                 Assert.Equal(expected, result.References[0].Path);
             }

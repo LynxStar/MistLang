@@ -63,7 +63,9 @@ public sealed class ConstraintEmissionTests : IDisposable
         var parseResult = Parser.Parse(tokens, parseBag);
 
         if(parseResult.Root is null)
+        {
             return "";
+        }
 
         var compilation = new MistCompilation(
             ImmutableArray.Create(new CompilationUnit(sourceText)));
@@ -78,7 +80,9 @@ public sealed class ConstraintEmissionTests : IDisposable
 
         // Clean output dir
         foreach(var file in Directory.GetFiles(_outputDir))
+        {
             File.Delete(file);
+        }
 
         var emitBag = new DiagnosticBag();
         CSharpEmitter.Emit(model, _outputDir, "TestProject", emitBag);

@@ -254,7 +254,9 @@ public class OverloadRegistrationPropertyTests
 
         // Assert: exactly N method symbols registered
         if(methodSymbols.Count != scenario.ParamTypes.Count)
+        {
             return false;
+        }
 
         // Assert: each registered symbol has a distinct parameter signature
         var signatures = methodSymbols
@@ -266,7 +268,9 @@ public class OverloadRegistrationPropertyTests
             for(var j = i + 1; j < signatures.Count; j++)
             {
                 if(ParameterSignature.AreEqual(signatures[i], signatures[j]))
+                {
                     return false; // Found duplicate signatures — should not happen
+                }
             }
         }
 
@@ -313,7 +317,9 @@ public class OverloadRegistrationPropertyTests
 
         // Assert: exactly N constructor symbols registered
         if(ctorSymbols.Count != scenario.ParamTypes.Count)
+        {
             return false;
+        }
 
         // Assert: each registered constructor has a distinct parameter signature
         var signatures = ctorSymbols
@@ -325,7 +331,9 @@ public class OverloadRegistrationPropertyTests
             for(var j = i + 1; j < signatures.Count; j++)
             {
                 if(ParameterSignature.AreEqual(signatures[i], signatures[j]))
+                {
                     return false; // Found duplicate signatures — should not happen
+                }
             }
         }
 

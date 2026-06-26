@@ -46,7 +46,9 @@ public class NewtypeMissingSemicolonPropertyTests
     {
         var lastSemicolon = source.LastIndexOf(';');
         if(lastSemicolon < 0)
+        {
             return source;
+        }
 
         return source[..lastSemicolon] + source[(lastSemicolon + 1)..];
     }

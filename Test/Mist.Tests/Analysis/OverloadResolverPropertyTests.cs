@@ -210,7 +210,9 @@ public class OverloadResolverPropertyTests
     private static bool ArePrimitiveEquivalent(IType a, IType b)
     {
         if(a.DisplayName == b.DisplayName)
+        {
             return true;
+        }
 
         // Map legacy display names to stdlib names and vice versa.
         var map = new Dictionary<string, string>
@@ -456,7 +458,9 @@ public class OverloadResolverPropertyTests
 
         // Verify we got the expected number of candidates
         if(candidates.Count != scenario.OverloadParamTypes.Count)
+        {
             return false;
+        }
 
         // Act: call with the exact type of the matching overload
         var argTypes = new IType[] { scenario.OverloadParamTypes[scenario.MatchingIndex] };
@@ -464,11 +468,15 @@ public class OverloadResolverPropertyTests
 
         // Assert: resolution succeeds
         if(result.Status != OverloadResolutionStatus.Success)
+        {
             return false;
+        }
 
         // Assert: the selected candidate has the expected parameter type
         if(result.BestCandidate is null)
+        {
             return false;
+        }
 
         var selectedSig = ParameterSignature.Extract(result.BestCandidate, model);
         return selectedSig.Count == 1
@@ -497,7 +505,9 @@ public class OverloadResolverPropertyTests
         var candidates = GetMethodCandidates(model, "M");
 
         if(candidates.Count != 2)
+        {
             return false;
+        }
 
         // Act: call with the specific type as argument
         var argTypes = new IType[] { scenario.ArgumentType };
@@ -505,10 +515,14 @@ public class OverloadResolverPropertyTests
 
         // Assert: resolution succeeds and picks the specific overload
         if(result.Status != OverloadResolutionStatus.Success)
+        {
             return false;
+        }
 
         if(result.BestCandidate is null)
+        {
             return false;
+        }
 
         var selectedSig = ParameterSignature.Extract(result.BestCandidate, model);
         return selectedSig.Count == 1
@@ -539,18 +553,24 @@ public class OverloadResolverPropertyTests
         var candidates = GetMethodCandidates(model, "M");
 
         if(candidates.Count != scenario.OverloadParamTypes.Count)
+        {
             return false;
+        }
 
         // Act
         var result = OverloadResolver.Resolve(candidates, scenario.ArgumentTypes, model);
 
         // Assert: no applicable candidate
         if(result.Status != OverloadResolutionStatus.NoApplicableCandidate)
+        {
             return false;
+        }
 
         // Assert: no best candidate selected
         if(result.BestCandidate is not null)
+        {
             return false;
+        }
 
         return true;
     }
@@ -580,7 +600,9 @@ public class OverloadResolverPropertyTests
         var candidates = GetMethodCandidates(model, "M");
 
         if(candidates.Count != 2)
+        {
             return false;
+        }
 
         // Look up the actual stdlib type for the argument so that
         // TryFindImplicitCast can find the implicit cast operators
@@ -591,15 +613,21 @@ public class OverloadResolverPropertyTests
 
         // Assert: ambiguous call
         if(result.Status != OverloadResolutionStatus.AmbiguousCall)
+        {
             return false;
+        }
 
         // Assert: no single best candidate
         if(result.BestCandidate is not null)
+        {
             return false;
+        }
 
         // Assert: ambiguous candidates list is populated with at least 2 candidates
         if(result.AmbiguousCandidates is null || result.AmbiguousCandidates.Count < 2)
+        {
             return false;
+        }
 
         return true;
     }

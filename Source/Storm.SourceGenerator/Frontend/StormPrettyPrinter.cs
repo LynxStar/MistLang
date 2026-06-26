@@ -21,7 +21,9 @@ public static class StormPrettyPrinter
         {
             sb.AppendLine($"grammar {file.GrammarDeclaration.Name};");
             if(file.Imports.Count > 0 || file.Declarations.Count > 0)
+            {
                 sb.AppendLine();
+            }
         }
 
         // Imports
@@ -29,19 +31,28 @@ public static class StormPrettyPrinter
         {
             var imp = file.Imports[i];
             if(imp.Alias is not null)
+            {
                 sb.AppendLine($"import \"{EscapeString(imp.Path)}\" as {imp.Alias};");
+            }
             else
+            {
                 sb.AppendLine($"import \"{EscapeString(imp.Path)}\";");
+            }
         }
 
         if(file.Imports.Count > 0 && file.Declarations.Count > 0)
+        {
             sb.AppendLine();
+        }
 
         // Declarations
         for(var i = 0; i < file.Declarations.Count; i++)
         {
             if(i > 0)
+            {
                 sb.AppendLine();
+            }
+
             sb.Append(PrintDeclaration(file.Declarations[i], indent: ""));
         }
 
@@ -118,7 +129,10 @@ public static class StormPrettyPrinter
         for(var i = 0; i < alt.Alternatives.Count; i++)
         {
             if(i > 0)
+            {
                 sb.Append(" | ");
+            }
+
             sb.Append(PrintExpression(alt.Alternatives[i]));
         }
         return sb.ToString();
@@ -130,7 +144,10 @@ public static class StormPrettyPrinter
         for(var i = 0; i < seq.Elements.Count; i++)
         {
             if(i > 0)
+            {
                 sb.Append(' ');
+            }
+
             sb.Append(PrintExpression(seq.Elements[i]));
         }
         return sb.ToString();

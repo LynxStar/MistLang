@@ -175,13 +175,17 @@ public sealed class NewtypeTranspilationCategoryPropertyTests
         var lexBag = new DiagnosticBag();
         var tokens = Lexer.Lex(sourceText, lexBag);
         if(lexBag.HasErrors)
+        {
             return (false, "", FormatDiagnostics(lexBag));
+        }
 
         // Parse
         var parseBag = new DiagnosticBag();
         var parseResult = Parser.Parse(tokens, parseBag);
         if(parseBag.HasErrors || parseResult.Root is null)
+        {
             return (false, "", FormatDiagnostics(parseBag));
+        }
 
         // Semantic model
         var semBag = new DiagnosticBag();
@@ -194,26 +198,34 @@ public sealed class NewtypeTranspilationCategoryPropertyTests
             semBag);
 
         if(semBag.HasErrors)
+        {
             return (false, "", FormatDiagnostics(semBag));
+        }
 
         // Type checker (ignore entry point diagnostic — test programs don't need Main)
         var tcBag = new DiagnosticBag();
         TypeChecker.Analyze(model, tcBag);
         if(tcBag.ToImmutableArray().Any(d =>
             d.Severity == DiagnosticSeverity.Error && d.Id.Value != "MIST_TC_0017"))
+        {
             return (false, "", FormatDiagnostics(tcBag));
+        }
 
         // Emit in-memory (no disk I/O)
         var emitBag = new DiagnosticBag();
         var files = CSharpEmitter.EmitToMemory(model, "TestProgram", emitBag);
 
         if(emitBag.HasErrors)
+        {
             return (false, "", FormatDiagnostics(emitBag));
+        }
 
         // Concatenate all emitted .cs content
         var sb = new StringBuilder();
         foreach(var (_, content) in files)
+        {
             sb.AppendLine(content);
+        }
 
         return (true, sb.ToString(), "");
     }

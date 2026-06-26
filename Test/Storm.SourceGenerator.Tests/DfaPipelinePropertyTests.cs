@@ -24,7 +24,9 @@ public class DfaPipelinePropertyTests
     private static Gen<ExpressionIR> GenExpressionIR(int maxDepth = 3)
     {
         if(maxDepth <= 0)
+        {
             return GenLeafExpression();
+        }
 
         return Gen.Frequency<ExpressionIR>(
             (3, GenLeafExpression()),
@@ -139,7 +141,10 @@ public class DfaPipelinePropertyTests
             case CharClassIR cc:
                 var ranges = NfaBuilder.ParseCharClassRanges(cc.Text);
                 if(ranges.Length == 0)
+                {
                     return Gen.Constant("a");
+                }
+
                 return Gen.Elements(ranges).Select(r =>
                 {
                     var c = (char)((r.Lo + r.Hi) / 2);
@@ -147,11 +152,17 @@ public class DfaPipelinePropertyTests
                 });
             case SequenceIR seq:
                 if(seq.Elements.Count == 0)
+                {
                     return Gen.Constant("");
+                }
                 // Generate matching string for first element only (keep it simple)
                 return GenMatchingString(seq.Elements[0]).SelectMany(first =>
                 {
-                    if(seq.Elements.Count == 1) return Gen.Constant(first);
+                    if(seq.Elements.Count == 1)
+                    {
+                        return Gen.Constant(first);
+                    }
+
                     return GenMatchingString(seq.Elements[1]).Select(second => first + second);
                 });
             case AlternationIR alt:
@@ -185,7 +196,9 @@ public class DfaPipelinePropertyTests
     {
         var statesById = new Dictionary<int, NfaState>();
         foreach(var state in nfa.States)
+        {
             statesById[state.Id] = state;
+        }
 
         var currentStates = SubsetConstructor.EpsilonClosure(
             new HashSet<int> { nfa.StartState.Id }, statesById);
@@ -196,10 +209,17 @@ public class DfaPipelinePropertyTests
             foreach(var stateId in currentStates)
             {
                 if(!statesById.TryGetValue(stateId, out var state))
+                {
                     continue;
+                }
+
                 foreach(var transition in state.Transitions)
                 {
-                    if(transition.Ranges == null) continue; // skip epsilon
+                    if(transition.Ranges == null)
+                    {
+                        continue; // skip epsilon
+                    }
+
                     foreach(var range in transition.Ranges)
                     {
                         if(range.Contains(ch))
@@ -212,14 +232,18 @@ public class DfaPipelinePropertyTests
             }
             currentStates = SubsetConstructor.EpsilonClosure(nextStates, statesById);
             if(currentStates.Count == 0)
+            {
                 return false;
+            }
         }
 
         // Check if any current state is accepting
         foreach(var stateId in currentStates)
         {
             if(statesById.TryGetValue(stateId, out var state) && state.AcceptingTokenIndex >= 0)
+            {
                 return true;
+            }
         }
         return false;
     }
@@ -232,7 +256,9 @@ public class DfaPipelinePropertyTests
     {
         var statesById = new Dictionary<int, NfaState>();
         foreach(var state in nfa.States)
+        {
             statesById[state.Id] = state;
+        }
 
         var currentStates = SubsetConstructor.EpsilonClosure(
             new HashSet<int> { nfa.StartState.Id }, statesById);
@@ -243,10 +269,17 @@ public class DfaPipelinePropertyTests
             foreach(var stateId in currentStates)
             {
                 if(!statesById.TryGetValue(stateId, out var state))
+                {
                     continue;
+                }
+
                 foreach(var transition in state.Transitions)
                 {
-                    if(transition.Ranges == null) continue;
+                    if(transition.Ranges == null)
+                    {
+                        continue;
+                    }
+
                     foreach(var range in transition.Ranges)
                     {
                         if(range.Contains(ch))
@@ -259,7 +292,9 @@ public class DfaPipelinePropertyTests
             }
             currentStates = SubsetConstructor.EpsilonClosure(nextStates, statesById);
             if(currentStates.Count == 0)
+            {
                 return -1;
+            }
         }
 
         int bestToken = -1;
@@ -268,7 +303,9 @@ public class DfaPipelinePropertyTests
             if(statesById.TryGetValue(stateId, out var state) && state.AcceptingTokenIndex >= 0)
             {
                 if(bestToken < 0 || state.AcceptingTokenIndex < bestToken)
+                {
                     bestToken = state.AcceptingTokenIndex;
+                }
             }
         }
         return bestToken;
@@ -290,10 +327,14 @@ public class DfaPipelinePropertyTests
     {
         var stateById = new Dictionary<int, DfaState>();
         foreach(var state in dfa.States)
+        {
             stateById[state.Id] = state;
+        }
 
         if(!stateById.TryGetValue(dfa.StartStateId, out var current))
+        {
             return -1;
+        }
 
         foreach(var ch in input)
         {
@@ -307,7 +348,10 @@ public class DfaPipelinePropertyTests
                 }
             }
             if(next == null)
+            {
                 return -1;
+            }
+
             current = next;
         }
 
@@ -590,14 +634,20 @@ public class DfaPipelinePropertyTests
         // Build transition and accepting tables
         var stateIdToIndex = new Dictionary<int, int>();
         for(int i = 0; i < minimized.States.Count; i++)
+        {
             stateIdToIndex[minimized.States[i].Id] = i;
+        }
 
         var transTable = new short[minimized.States.Count, classCount];
         var acceptTable = new short[minimized.States.Count];
 
         for(int s = 0; s < minimized.States.Count; s++)
+        {
             for(int c = 0; c < classCount; c++)
+            {
                 transTable[s, c] = -1;
+            }
+        }
 
         for(int i = 0; i < minimized.States.Count; i++)
         {
@@ -608,13 +658,18 @@ public class DfaPipelinePropertyTests
             foreach(var trans in state.Transitions)
             {
                 if(!stateIdToIndex.TryGetValue(trans.TargetStateId, out var ti))
+                {
                     continue;
+                }
+
                 var seenClasses = new HashSet<int>();
                 for(int c = trans.Range.Lo; c <= trans.Range.Hi; c++)
                 {
                     int eqClass = charToClass[c];
                     if(seenClasses.Add(eqClass))
+                    {
                         transTable[si, eqClass] = (short)ti;
+                    }
                 }
             }
         }
@@ -652,7 +707,11 @@ public class DfaPipelinePropertyTests
                     var ch = input[scanPos];
                     var cls = charToClass[(int)ch];
                     var next = transTable[state, cls];
-                    if(next < 0) break;
+                    if(next < 0)
+                    {
+                        break;
+                    }
+
                     state = next;
                     scanPos++;
                     if(acceptTable[state] >= 0)

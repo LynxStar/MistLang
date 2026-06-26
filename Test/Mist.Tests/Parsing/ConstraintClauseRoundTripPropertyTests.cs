@@ -73,7 +73,9 @@ public class ConstraintClauseRoundTripPropertyTests
         return Gen.Choose(0, 3).SelectMany(paramCount =>
         {
             if(paramCount == 0)
+            {
                 return Gen.Constant("new()");
+            }
 
             return Gen.ArrayOf(Gen.Elements(PrimitiveTypes), paramCount)
                 .Select(types => $"new({string.Join(", ", types)})");
@@ -113,7 +115,9 @@ public class ConstraintClauseRoundTripPropertyTests
         return Gen.Choose(0, maxClauses).SelectMany(clauseCount =>
         {
             if(clauseCount == 0)
+            {
                 return Gen.Constant("");
+            }
 
             // Build a generator that produces all clauses for the selected type params
             var selectedParams = availableTypeParams.Take(clauseCount).ToArray();
@@ -233,8 +237,10 @@ public class ConstraintClauseRoundTripPropertyTests
             .ToList();
 
         if(errors.Count > 0)
+        {
             throw new InvalidOperationException(
                 $"Unexpected parse errors:\n  {string.Join("\n  ", errors.Select(e => e.Message))}\nSource:\n{source}");
+        }
 
         return result.Root as CompilationUnitNode
             ?? throw new InvalidOperationException("Parse result root is not a CompilationUnitNode");
@@ -260,7 +266,9 @@ public class ConstraintClauseRoundTripPropertyTests
         var printed1 = MistPrettyPrinter.Print(ast1, scenario.Source);
 
         if(string.IsNullOrWhiteSpace(printed1))
+        {
             return false.ToProperty().Label("printed1 was empty");
+        }
 
         // Step 3: Parse printed1 → AST2
         var ast2 = ParseOrFail(printed1);

@@ -263,12 +263,16 @@ public sealed class StackallocLengthAndKindInferencePropertyTests : IDisposable
         void Walk(SyntaxNode node)
         {
             if(node is StackallocExpressionPrimaryNode stackallocNode)
+            {
                 result.Add(stackallocNode);
+            }
 
             foreach(var child in node.Children())
             {
                 if(child is not null)
+                {
                     Walk(child);
+                }
             }
         }
     }

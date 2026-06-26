@@ -33,7 +33,10 @@ public sealed class StdlibPublishLayoutTest
         while(dir is not null)
         {
             if(File.Exists(Path.Combine(dir, "Mist.slnx")))
+            {
                 return dir;
+            }
+
             dir = Directory.GetParent(dir)?.FullName;
         }
 

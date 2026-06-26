@@ -61,7 +61,9 @@ public sealed class FrameEscapeAnalyzer : IAnalyzer
         foreach(var symbol in model.AllSymbols)
         {
             if(symbol.Origin != SymbolOrigin.UserCode)
+            {
                 continue;
+            }
 
             switch(symbol.Kind)
             {
@@ -89,7 +91,9 @@ public sealed class FrameEscapeAnalyzer : IAnalyzer
         };
 
         if(body is null)
+        {
             return;
+        }
 
         // The backing state maps local symbols to their stack-backing provenance.
         var backingState = new Dictionary<ISymbol, StackBacking>();
@@ -177,12 +181,16 @@ public sealed class FrameEscapeAnalyzer : IAnalyzer
         }
 
         if(declaredSymbol is null || initializer is null)
+        {
             return;
+        }
 
         // Only track span-typed bindings.
         var declaredType = declaredSymbol.DeclaredType;
         if(!IsSpanType(declaredType))
+        {
             return;
+        }
 
         // Determine the backing of the initializer.
         var backing = DetermineExpressionBacking(initializer, state, model);
@@ -217,16 +225,22 @@ public sealed class FrameEscapeAnalyzer : IAnalyzer
         DiagnosticBag diagnostics)
     {
         if(assignment.Value is null)
+        {
             return;
+        }
 
         var rhsAssignment = assignment.Value.AsAssignmentOrNull();
         if(rhsAssignment is null)
+        {
             return;
+        }
 
         // Determine the backing of the RHS.
         var rhsBacking = DetermineAssignmentValueBacking(rhsAssignment, state, model);
         if(rhsBacking != StackBacking.StackBacked)
+        {
             return; // NotStackBacked never triggers frame-escape (R9.4).
+        }
 
         // Check if the LHS is a frame-local span binding (propagation within frame is fine).
         var lhsSymbol = TryResolveLocalSymbol(assignment.Target, model);
@@ -270,12 +284,16 @@ public sealed class FrameEscapeAnalyzer : IAnalyzer
         DiagnosticBag diagnostics)
     {
         if(returnStmt.Value is null)
+        {
             return;
+        }
 
         // Only check span-typed return values.
         var returnType = model.GetTypeOf(returnStmt.Value);
         if(!IsSpanType(returnType))
+        {
             return;
+        }
 
         var backing = DetermineExpressionBacking(returnStmt.Value, state, model);
         if(backing == StackBacking.StackBacked)
@@ -301,9 +319,13 @@ public sealed class FrameEscapeAnalyzer : IAnalyzer
 
         // Walk the else block if present.
         if(ifStmt.ElseBranch is ElseBlockElseClauseNode elseBlock)
+        {
             WalkBlock(elseBlock.ElseBlock, state, model, diagnostics);
+        }
         else if(ifStmt.ElseBranch is ElseIfElseClauseNode elseIf)
+        {
             AnalyzeIfStatement(elseIf.ElseIf, state, model, diagnostics);
+        }
     }
 
     private static void AnalyzeWhileStatement(
@@ -313,7 +335,9 @@ public sealed class FrameEscapeAnalyzer : IAnalyzer
         DiagnosticBag diagnostics)
     {
         if(whileStmt.Body is not null)
+        {
             WalkBlock(whileStmt.Body, state, model, diagnostics);
+        }
     }
 
     private static void AnalyzeForStatement(
@@ -323,7 +347,9 @@ public sealed class FrameEscapeAnalyzer : IAnalyzer
         DiagnosticBag diagnostics)
     {
         if(forStmt.Body is not null)
+        {
             WalkBlock(forStmt.Body, state, model, diagnostics);
+        }
     }
 
     private static void AnalyzeForeachStatement(
@@ -334,7 +360,9 @@ public sealed class FrameEscapeAnalyzer : IAnalyzer
     {
         // foreach over a span is a safe in-frame use (R8.6).
         if(foreachStmt.Body is not null)
+        {
             WalkBlock(foreachStmt.Body, state, model, diagnostics);
+        }
     }
 
     // ── Expression backing determination ─────────────────────────────────
@@ -352,12 +380,17 @@ public sealed class FrameEscapeAnalyzer : IAnalyzer
         {
             var assignment = exprNode.AsAssignmentOrNull();
             if(assignment is not null)
+            {
                 return DetermineAssignmentValueBacking(assignment, state, model);
+            }
+
             return StackBacking.NotStackBacked;
         }
 
         if(node is AssignmentNode assignNode)
+        {
             return DetermineAssignmentValueBacking(assignNode, state, model);
+        }
 
         return StackBacking.NotStackBacked;
     }
@@ -376,7 +409,10 @@ public sealed class FrameEscapeAnalyzer : IAnalyzer
             // Chained assignment: recurse into the value.
             var innerAssignment = assignment.Value.AsAssignmentOrNull();
             if(innerAssignment is not null)
+            {
                 return DetermineAssignmentValueBacking(innerAssignment, state, model);
+            }
+
             return StackBacking.NotStackBacked;
         }
 
@@ -395,14 +431,18 @@ public sealed class FrameEscapeAnalyzer : IAnalyzer
     {
         // Check for a stackalloc expression.
         if(target is StackallocExpressionPrimaryNode)
+        {
             return StackBacking.StackBacked;
+        }
 
         // Check for an identifier referencing a tracked local.
         if(target is IdentifierExpressionPrimaryNode identifier)
         {
             var symbol = model.GetDeclaredSymbol(identifier);
             if(symbol is not null && state.TryGetValue(symbol, out var backing))
+            {
                 return backing;
+            }
             // Parameters default to NotStackBacked (they cannot be stackalloc-backed
             // because a stackalloc cannot escape a frame to become a parameter value).
             return StackBacking.NotStackBacked;
@@ -437,7 +477,10 @@ public sealed class FrameEscapeAnalyzer : IAnalyzer
                     // is a span type, treat as StackBacked when receiver is StackBacked.
                     var callResultType = model.GetTypeOf(postfix);
                     if(IsSpanType(callResultType) && receiverBacking == StackBacking.StackBacked)
+                    {
                         return StackBacking.StackBacked;
+                    }
+
                     return StackBacking.NotStackBacked;
                 }
 
@@ -448,7 +491,10 @@ public sealed class FrameEscapeAnalyzer : IAnalyzer
                     // (containing ref struct field, R8.5).
                     var resultType = model.GetTypeOf(postfix);
                     if(IsSpanType(resultType) && receiverBacking == StackBacking.StackBacked)
+                    {
                         return StackBacking.StackBacked;
+                    }
+
                     return StackBacking.NotStackBacked;
                 }
 
@@ -458,7 +504,10 @@ public sealed class FrameEscapeAnalyzer : IAnalyzer
                     // Unless the element type is itself a span (unlikely but conservative).
                     var resultType = model.GetTypeOf(postfix);
                     if(IsSpanType(resultType) && receiverBacking == StackBacking.StackBacked)
+                    {
                         return StackBacking.StackBacked;
+                    }
+
                     return StackBacking.NotStackBacked;
                 }
             }
@@ -471,17 +520,23 @@ public sealed class FrameEscapeAnalyzer : IAnalyzer
         foreach(var child in target.Children())
         {
             if(child is not null)
+            {
                 children.Add(child);
+            }
         }
 
         if(children.Count == 1)
+        {
             return DetermineTargetBacking(children[0], state, model);
+        }
 
         // Conservative: if we cannot determine the backing, and the expression type
         // is a span type, treat as StackBacked (no false-accept, R8.4).
         var exprType = model.GetTypeOf(target);
         if(IsSpanType(exprType))
+        {
             return StackBacking.StackBacked;
+        }
 
         return StackBacking.NotStackBacked;
     }
@@ -493,7 +548,10 @@ public sealed class FrameEscapeAnalyzer : IAnalyzer
         // A Slice call looks like: .Slice(start, length)
         // The method name is accessed via Name.Lexeme on the generated node.
         if(methodCall.Name.Lexeme == "Slice")
+        {
             return true;
+        }
+
         return false;
     }
 
@@ -505,21 +563,30 @@ public sealed class FrameEscapeAnalyzer : IAnalyzer
         {
             var assignment = expr.AsAssignmentOrNull();
             if(assignment is not null)
+            {
                 return TryResolveLocalSymbol(assignment.Target, model);
+            }
+
             return null;
         }
 
         if(node is AssignmentNode assignNode)
         {
             if(assignNode.Value is not null)
+            {
                 return null;
+            }
+
             return TryResolveLocalSymbol(assignNode.Target, model);
         }
 
         if(node is PostfixNode postfix)
         {
             if(postfix.Suffix.Length > 0)
+            {
                 return null; // Has suffixes — not a simple local.
+            }
+
             return TryResolveLocalSymbol(postfix.Target, model);
         }
 
@@ -539,11 +606,15 @@ public sealed class FrameEscapeAnalyzer : IAnalyzer
         foreach(var child in node.Children())
         {
             if(child is not null)
+            {
                 children.Add(child);
+            }
         }
 
         if(children.Count == 1)
+        {
             return TryResolveLocalSymbol(children[0], model);
+        }
 
         return null;
     }

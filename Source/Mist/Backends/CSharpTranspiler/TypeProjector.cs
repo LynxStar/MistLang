@@ -478,7 +478,9 @@ internal sealed class TypeProjector
         {
             // Skip System.ValueType which is the implicit base for struct constraint
             if(constraint == typeof(ValueType))
+            {
                 continue;
+            }
 
             var projectedConstraint = ProjectTypeReference(constraint, stdlib);
 
@@ -532,7 +534,9 @@ internal sealed class TypeProjector
     {
         var interfaces = clrType.GetInterfaces();
         if(interfaces.Length == 0)
+        {
             return Array.Empty<IType>();
+        }
 
         // Get interfaces declared by parent to exclude inherited ones
         var parentInterfaces = new HashSet<ClrType>();
@@ -560,18 +564,24 @@ internal sealed class TypeProjector
         {
             // Skip interfaces inherited from base type
             if(parentInterfaces.Contains(iface))
+            {
                 continue;
+            }
 
             // Skip the non-generic System.Collections.IEnumerable (Requirement 18.1)
             if(IsNonGenericIEnumerable(iface))
+            {
                 continue;
+            }
 
             // Skip excluded interfaces
             var ifaceToCheck = iface.IsConstructedGenericType
                 ? iface.GetGenericTypeDefinition()
                 : iface;
             if(_filter.IsTypeExcluded(ifaceToCheck))
+            {
                 continue;
+            }
 
             // Resolve the interface through the type-reference resolver so a cross-assembly
             // interface connects to the cached, fully-projected instance rather than a shell
@@ -582,13 +592,20 @@ internal sealed class TypeProjector
             var resolved = ResolveInheritanceReference(
                 iface, stdlib, InheritanceRelationshipKind.Abstract, StripGenericAritySuffix(clrType.Name));
             if(resolved is null)
+            {
                 continue;
+            }
 
             // Each resolved interface exactly once (Requirement 6.2).
             if(!seenIdentity.Add(resolved))
+            {
                 continue;
+            }
+
             if(!seenStructural.Add(BuildInterfaceIdentityKey(resolved)))
+            {
                 continue;
+            }
 
             result.Add(resolved);
         }
@@ -729,7 +746,9 @@ internal sealed class TypeProjector
     {
         var enumerableImpls = GetGenericIEnumerableImplementations(clrType);
         if(enumerableImpls.Count == 0)
+        {
             return;
+        }
 
         // Extract the member scope and namespace from the concrete projected type
         var (memberScope, containingNamespace) = projectedType switch
@@ -741,13 +760,17 @@ internal sealed class TypeProjector
         };
 
         if(memberScope is null)
+        {
             return;
+        }
 
         foreach(var enumerableImpl in enumerableImpls)
         {
             var enumeratorType = ResolveEnumeratorType(clrType, enumerableImpl, stdlib);
             if(enumeratorType is null)
+            {
                 continue;
+            }
 
             // Create the AssociatedTypeSlotType for the Enumerator slot
             var elementTypeArg = enumerableImpl.GetGenericArguments()[0];
@@ -844,7 +867,9 @@ internal sealed class TypeProjector
         // Only applies if the type does NOT already implement IEnumerable<T>
         var enumerableImpls = GetGenericIEnumerableImplementations(clrType);
         if(enumerableImpls.Count > 0)
+        {
             return;
+        }
 
         // Guard against double-synthesis: if the Mist type already has IEnumerable
         // in its interface list (from a previous call), skip.
@@ -857,7 +882,9 @@ internal sealed class TypeProjector
         if(existingInterfaces.Any(i => i is ConstructedType ci
             && ci.GenericDefinition is AbstractType iface
             && iface.DisplayName == "IEnumerable"))
+        {
             return;
+        }
 
         // Look for a public parameterless GetEnumerator() method
         var getEnumeratorMethod = clrType.GetMethod(
@@ -868,7 +895,9 @@ internal sealed class TypeProjector
             null);
 
         if(getEnumeratorMethod is null)
+        {
             return;
+        }
 
         var enumeratorClrType = getEnumeratorMethod.ReturnType;
 
@@ -881,7 +910,9 @@ internal sealed class TypeProjector
             null);
 
         if(moveNextMethod is null || moveNextMethod.ReturnType.FullName != "System.Boolean")
+        {
             return;
+        }
 
         // Verify the enumerator type has a public Current property
         var currentProperty = enumeratorClrType.GetProperty(
@@ -889,13 +920,18 @@ internal sealed class TypeProjector
             BindingFlags.Public | BindingFlags.Instance);
 
         if(currentProperty is null)
+        {
             return;
+        }
 
         // Resolve TElement from Current's return type
         // Unwrap by-ref wrapper (e.g., Span<T>.Enumerator.Current returns T&)
         var elementClrType = currentProperty.PropertyType;
         if(elementClrType.IsByRef)
+        {
             elementClrType = elementClrType.GetElementType()!;
+        }
+
         var projectedElementType = ProjectTypeReference(elementClrType, stdlib);
         projectedElementType = _intrinsicMap.SubstituteIntrinsics(projectedElementType, stdlib);
 
@@ -937,7 +973,9 @@ internal sealed class TypeProjector
         };
 
         if(memberScope is null)
+        {
             return;
+        }
 
         // Resolve the enumerator type for the slot
         var projectedEnumeratorType = ProjectTypeReference(enumeratorClrType, stdlib);
@@ -1132,15 +1170,21 @@ internal sealed class TypeProjector
         foreach(var method in methods)
         {
             if(!method.IsSpecialName)
+            {
                 continue;
+            }
 
             // Skip operators excluded by the visibility filter
             if(_filter.IsMemberExcluded(method))
+            {
                 continue;
+            }
 
             var mistOpName = MapClrOperatorName(method);
             if(mistOpName is null)
+            {
                 continue;
+            }
 
             // Project the return type through intrinsic substitution
             var returnType = ProjectTypeReference(method.ReturnType, stdlib);
@@ -1192,7 +1236,9 @@ internal sealed class TypeProjector
         // Comparison operators (Requirement 12.2)
         // Unary operators (Requirement 12.4)
         if(BinaryAndUnaryOperatorMap.TryGetValue(clrName, out var mistSymbol))
+        {
             return "operator" + mistSymbol;
+        }
 
         // Cast/conversion operators (Requirement 12.3)
         if(clrName is "op_Implicit" or "op_Explicit")
@@ -1310,7 +1356,9 @@ internal sealed class TypeProjector
             {
                 var cached = _typeReferenceResolverCacheOnly(clrType);
                 if(cached is not null)
+                {
                     return cached;
+                }
             }
             return ProjectGenericDefinitionReference(clrType, stdlib);
         }
@@ -1403,7 +1451,9 @@ internal sealed class TypeProjector
         spanType = null!;
 
         if(!clrType.IsConstructedGenericType)
+        {
             return false;
+        }
 
         var genericDefName = clrType.GetGenericTypeDefinition().FullName;
         bool isReadOnly;
@@ -1463,7 +1513,9 @@ internal sealed class TypeProjector
         funcType = null!;
 
         if(clrType.Namespace != "System")
+        {
             return false;
+        }
 
         // The Func type arguments, in Mist order (parameter types followed by the
         // return type). For Action, the synthesized return type is Void.
@@ -1490,7 +1542,9 @@ internal sealed class TypeProjector
                 // System.Action<T1, ..., TN> → Standard.Func<T1, ..., TN, Void>.
                 // Append Void as the trailing return type.
                 if(!TryLookupVoid(stdlib, out var voidType))
+                {
                     return false;
+                }
 
                 funcTypeArguments = new IType[clrArgs.Length + 1];
                 for(var i = 0; i < clrArgs.Length; i++)
@@ -1509,7 +1563,9 @@ internal sealed class TypeProjector
         {
             // System.Action (non-generic) → Standard.Func<Void>.
             if(!TryLookupVoid(stdlib, out var voidType))
+            {
                 return false;
+            }
 
             funcTypeArguments = new[] { voidType };
         }
@@ -1536,7 +1592,9 @@ internal sealed class TypeProjector
         // (e.g., the fallback provider has no Func and would not reach here, but a
         // wrong-arity fallback would produce a structurally incorrect type).
         if(funcDefinition is not ClassType { DisplayName: "Func", ContainingNamespace: "Standard" })
+        {
             return false;
+        }
 
         funcType = new ConstructedType(funcDefinition, funcTypeArguments);
         return true;
@@ -1590,12 +1648,16 @@ internal sealed class TypeProjector
 
         // All delegates inherit from System.MulticastDelegate.
         if(clrType.BaseType?.FullName != "System.MulticastDelegate")
+        {
             return false;
+        }
 
         // Get the Invoke method that defines the delegate's signature.
         var invokeMethod = clrType.GetMethod("Invoke");
         if(invokeMethod is null)
+        {
             return false;
+        }
 
         var parameters = invokeMethod.GetParameters();
         var returnType = invokeMethod.ReturnType;
@@ -1618,7 +1680,9 @@ internal sealed class TypeProjector
 
         // Guard: ensure we resolved the real Standard.Func family.
         if(funcDefinition is not ClassType { DisplayName: "Func", ContainingNamespace: "Standard" })
+        {
             return false;
+        }
 
         // Build the type arguments: parameter types followed by return type (or Void).
         var funcTypeArguments = new IType[arity];
@@ -1631,7 +1695,10 @@ internal sealed class TypeProjector
         if(isVoidReturn)
         {
             if(!TryLookupVoid(stdlib, out var voidType))
+            {
                 return false;
+            }
+
             funcTypeArguments[parameters.Length] = voidType;
         }
         else
@@ -1713,9 +1780,15 @@ internal sealed class TypeProjector
         {
             // Already projecting this type — return a minimal shell to break the cycle.
             if(clrType.IsInterface)
+            {
                 return new AbstractType(displayName, new Scope(null), containingNamespace);
+            }
+
             if(clrType.IsValueType)
+            {
                 return new StructType(displayName, new Scope(null), containingNamespace);
+            }
+
             return new ClassType(displayName, new Scope(null), containingNamespace);
         }
 
@@ -1823,11 +1896,15 @@ internal sealed class TypeProjector
     {
         // Generic type parameters are handled separately — don't wrap them
         if(clrType.IsGenericParameter)
+        {
             return false;
+        }
 
         // Arrays are always reference types
         if(clrType.IsArray)
+        {
             return true;
+        }
 
         // Classes (including string, delegates) and interfaces are reference types.
         // Value types (structs, enums) are not.
@@ -1909,7 +1986,9 @@ internal sealed class TypeProjector
 
         var memberScope = GetMemberScope(projectedMistType);
         if(memberScope is null)
+        {
             return symbols.ToImmutable();
+        }
 
         // Project constructors
         ProjectConstructors(clrType, projectedMistType, memberScope, stdlib, symbols);
@@ -1949,7 +2028,9 @@ internal sealed class TypeProjector
         foreach(var ctor in constructors)
         {
             if(_filter.IsMemberExcluded(ctor))
+            {
                 continue;
+            }
 
             var ctorScope = new Scope(memberScope);
             var ctorSymbol = new Symbol(
@@ -1990,10 +2071,14 @@ internal sealed class TypeProjector
         {
             // Skip property accessors, event accessors, and operators
             if(method.IsSpecialName)
+            {
                 continue;
+            }
 
             if(_filter.IsMemberExcluded(method))
+            {
                 continue;
+            }
 
             // Project return type — unwrap by-ref returns to get the element type.
             IType returnType;
@@ -2061,15 +2146,21 @@ internal sealed class TypeProjector
         {
             // Only project virtual/abstract methods (override slots).
             if(!method.IsVirtual && !method.IsAbstract)
+            {
                 continue;
+            }
 
             // Only project protected and protected internal methods.
             if(!method.IsFamily && !method.IsFamilyOrAssembly)
+            {
                 continue;
+            }
 
             // Skip property accessors, event accessors, and operators.
             if(method.IsSpecialName)
+            {
                 continue;
+            }
 
             // Note: We do NOT call _filter.IsMemberExcluded() here because that filter
             // rejects non-public members. We've already verified accessibility above.
@@ -2079,7 +2170,9 @@ internal sealed class TypeProjector
             // Skip if a public method with the same name already exists (the public
             // projection already covers it).
             if(memberScope.Lookup(method.Name) is not null)
+            {
                 continue;
+            }
 
             // Project return type.
             IType returnType;
@@ -2150,10 +2243,14 @@ internal sealed class TypeProjector
         {
             // Skip indexers — they are projected separately
             if(property.GetIndexParameters().Length > 0)
+            {
                 continue;
+            }
 
             if(_filter.IsMemberExcluded(property))
+            {
                 continue;
+            }
 
             var propertyType = ProjectMemberType(property.PropertyType, stdlib);
 
@@ -2205,10 +2302,14 @@ internal sealed class TypeProjector
         {
             // Skip enum backing fields (already handled in ProjectEnum)
             if(clrType.IsEnum)
+            {
                 continue;
+            }
 
             if(_filter.IsMemberExcluded(field))
+            {
                 continue;
+            }
 
             var fieldType = ProjectMemberType(field.FieldType, stdlib);
 
@@ -2247,10 +2348,14 @@ internal sealed class TypeProjector
         {
             var indexParams = property.GetIndexParameters();
             if(indexParams.Length == 0)
+            {
                 continue;
+            }
 
             if(_filter.IsMemberExcluded(property))
+            {
                 continue;
+            }
 
             // Unwrap by-ref property types (e.g., Span<T>.this[int] returns T&).
             var isRefReturn = property.PropertyType.IsByRef;

@@ -202,7 +202,9 @@ public class RefinementImplicationPropertyTests
             {
                 sourceHasAnySatisfyingValue = true;
                 if(!target.Evaluate(v))
+                {
                     return false;
+                }
             }
         }
 
@@ -221,7 +223,9 @@ public class RefinementImplicationPropertyTests
         for(var v = rangeMin; v <= rangeMax; v++)
         {
             if(predicate.Evaluate(v))
+            {
                 return true;
+            }
         }
 
         return false;
@@ -250,14 +254,18 @@ public class RefinementImplicationPropertyTests
         var impliesResult = source.Implies(target);
 
         if(!impliesResult)
+        {
             return true; // Not testing the false case here
+        }
 
         // If Implies returns true, verify with brute force:
         // every value satisfying source must also satisfy target.
         for(var v = RangeMin; v <= RangeMax; v++)
         {
             if(source.Evaluate(v) && !target.Evaluate(v))
+            {
                 return false; // Found a counterexample — Implies is wrong
+            }
         }
 
         return true;
@@ -280,12 +288,16 @@ public class RefinementImplicationPropertyTests
 
         // Only test when source has satisfying values (non-vacuous case)
         if(!HasSatisfyingValues(source, RangeMin, RangeMax))
+        {
             return true; // Skip vacuous cases
+        }
 
         var bruteForceResult = BruteForceImplies(source, target, RangeMin, RangeMax);
 
         if(!bruteForceResult)
+        {
             return true; // Not testing the "doesn't imply" case here
+        }
 
         // Brute force says implication holds — solver should agree
         var impliesResult = source.Implies(target);

@@ -247,7 +247,9 @@ public class InheritanceDefaultabilityPropertyTests
         int count)
     {
         if(count == 0)
+        {
             return Gen.Constant(ImmutableArray<(string, string)>.Empty);
+        }
 
         Gen<ImmutableArray<(string, string)>> result =
             Gen.Constant(ImmutableArray<(string, string)>.Empty);
@@ -394,12 +396,16 @@ public class InheritanceDefaultabilityPropertyTests
             .FirstOrDefault(s => s.Name == scenario.DerivedTypeName && s.Kind == SymbolKind.Class);
 
         if(derivedSymbol is null)
+        {
             return false;
+        }
 
         // The derived type should be NotDefaultable
         var status = (derivedSymbol.DeclaredType as ClassType)?.Defaultability;
         if(status != DefaultabilityStatus.NotDefaultable)
+        {
             return false;
+        }
 
         // No MIST_DEFAULT_BASE_NOT_DEFAULTABLE diagnostic should be emitted
         var hasBaseNotDefaultableDiagnostic = diagnostics
@@ -437,12 +443,16 @@ public class InheritanceDefaultabilityPropertyTests
             .FirstOrDefault(s => s.Name == scenario.DerivedTypeName && s.Kind == SymbolKind.Class);
 
         if(derivedSymbol is null)
+        {
             return false;
+        }
 
         // The derived type should be NotDefaultable
         var status = (derivedSymbol.DeclaredType as ClassType)?.Defaultability;
         if(status != DefaultabilityStatus.NotDefaultable)
+        {
             return false;
+        }
 
         // MIST_DEFAULT_BASE_NOT_DEFAULTABLE diagnostic SHOULD be emitted
         var hasBaseNotDefaultableDiagnostic = diagnostics

@@ -116,18 +116,28 @@ public sealed class OwnershipInferencePassTests : IDisposable
         foreach(var symbol in model.AllSymbols)
         {
             if(symbol.Origin != SymbolOrigin.UserCode)
+            {
                 continue;
+            }
+
             if(symbol.Kind != SymbolKind.Method)
+            {
                 continue;
+            }
+
             if(symbol.Name != "Main")
+            {
                 continue;
+            }
 
             SyntaxNode declaringNode;
             try { declaringNode = model.GetDeclaringNode(symbol); }
             catch { continue; }
 
             if(declaringNode is MethodDeclarationNode methodDecl)
+            {
                 return methodDecl.Body.GetBlock();
+            }
         }
         return null;
     }
@@ -138,10 +148,16 @@ public sealed class OwnershipInferencePassTests : IDisposable
     private IReadOnlyDictionary<ISymbol, InferredBinding>? InferForMain(string source)
     {
         var (model, _) = CompileAndCapture(source);
-        if(model is null) return null;
+        if(model is null)
+        {
+            return null;
+        }
 
         var body = FindMainMethodBody(model);
-        if(body is null) return null;
+        if(body is null)
+        {
+            return null;
+        }
 
         var diagnostics = new DiagnosticBag();
         return OwnershipInferencePass.InferBindings(body, model, diagnostics);
@@ -153,10 +169,16 @@ public sealed class OwnershipInferencePassTests : IDisposable
     private (IReadOnlyDictionary<ISymbol, InferredBinding>? Bindings, ImmutableArray<Diagnostic> InferenceDiagnostics) InferForMainWithDiagnostics(string source)
     {
         var (model, _) = CompileAndCapture(source);
-        if(model is null) return (null, ImmutableArray<Diagnostic>.Empty);
+        if(model is null)
+        {
+            return (null, ImmutableArray<Diagnostic>.Empty);
+        }
 
         var body = FindMainMethodBody(model);
-        if(body is null) return (null, ImmutableArray<Diagnostic>.Empty);
+        if(body is null)
+        {
+            return (null, ImmutableArray<Diagnostic>.Empty);
+        }
 
         var diagnostics = new DiagnosticBag();
         var bindings = OwnershipInferencePass.InferBindings(body, model, diagnostics);
@@ -171,7 +193,9 @@ public sealed class OwnershipInferencePassTests : IDisposable
         foreach(var (symbol, binding) in bindings)
         {
             if(symbol.Name == name)
+            {
                 return binding;
+            }
         }
         return null;
     }

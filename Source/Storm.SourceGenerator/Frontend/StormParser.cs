@@ -72,7 +72,10 @@ namespace Storm.SourceGenerator.Frontend
             {
                 var tok = Current;
                 if(_pos < _tokens.Count - 1) // don't advance past EOF
+                {
                     _pos++;
+                }
+
                 return tok;
             }
 

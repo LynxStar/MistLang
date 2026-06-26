@@ -303,7 +303,10 @@ class Program
 
     private static void CollectTargetTypedNewNodes(Storm.Runtime.SyntaxNode? node, List<TargetTypedNewExpressionPrimaryNode> results)
     {
-        if(node is null) return;
+        if(node is null)
+        {
+            return;
+        }
 
         if(node is TargetTypedNewExpressionPrimaryNode targetNew)
         {
@@ -313,7 +316,9 @@ class Program
         try
         {
             foreach(var child in node.Children())
+            {
                 CollectTargetTypedNewNodes(child, results);
+            }
         }
         catch(NullReferenceException)
         {

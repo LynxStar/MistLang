@@ -7,8 +7,8 @@ using FsCheck.Fluent;
 using FsCheck.Xunit;
 using Mist.Analysis.Builtin;
 using Mist.Analysis.Contracts;
-using Mist.Backends.CSharpTranspiler;
 using Mist.Backends.Contracts;
+using Mist.Backends.CSharpTranspiler;
 using Mist.Common.Diagnostics;
 using Mist.Driver;
 using Mist.Driver.Contracts;
@@ -215,7 +215,9 @@ public sealed class SubstructuralOwnershipPropertyTests : IDisposable
     private static string BuildFields(string[] fieldTypes)
     {
         if(fieldTypes.Length == 0)
+        {
             return "";
+        }
 
         var lines = new List<string>();
         for(var i = 0; i < fieldTypes.Length; i++)
@@ -243,11 +245,15 @@ public sealed class SubstructuralOwnershipPropertyTests : IDisposable
         var model = CompileAndCapture(scenario.Source);
 
         if(model is null)
+        {
             return false.ToProperty().Label("Semantic model was null (compilation failed early)");
+        }
 
         var isOwned = FindIsOwnedType(model, scenario.TypeName);
         if(isOwned is null)
+        {
             return false.ToProperty().Label($"Type '{scenario.TypeName}' not found in model.\nSource:\n{scenario.Source}");
+        }
 
         return (isOwned.Value == scenario.ExpectedOwned).ToProperty()
             .Label($"Expected IsOwnedType={scenario.ExpectedOwned} for {scenario.Discipline} type "

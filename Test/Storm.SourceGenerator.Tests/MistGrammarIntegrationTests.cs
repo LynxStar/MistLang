@@ -197,9 +197,14 @@ namespace Storm.SourceGenerator.Tests
             // Find the end of the class (next "public sealed class" or "public abstract class")
             var fieldNodeEnd = output.IndexOf("public sealed class", fieldNodeStart + 1);
             if(fieldNodeEnd < 0)
+            {
                 fieldNodeEnd = output.IndexOf("public abstract class", fieldNodeStart + 1);
+            }
+
             if(fieldNodeEnd < 0)
+            {
                 fieldNodeEnd = output.Length;
+            }
 
             var fieldNodeSection = output.Substring(fieldNodeStart, fieldNodeEnd - fieldNodeStart);
 
@@ -219,9 +224,14 @@ namespace Storm.SourceGenerator.Tests
 
             var fieldNodeEnd = output.IndexOf("public sealed class", fieldNodeStart + 1);
             if(fieldNodeEnd < 0)
+            {
                 fieldNodeEnd = output.IndexOf("public abstract class", fieldNodeStart + 1);
+            }
+
             if(fieldNodeEnd < 0)
+            {
                 fieldNodeEnd = output.Length;
+            }
 
             var fieldNodeSection = output.Substring(fieldNodeStart, fieldNodeEnd - fieldNodeStart);
 

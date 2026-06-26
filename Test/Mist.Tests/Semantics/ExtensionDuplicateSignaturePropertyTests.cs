@@ -176,7 +176,9 @@ public class ExtensionDuplicateSignaturePropertyTests
     private static ParameterListNode? MakeParameterList(int parameterCount)
     {
         if(parameterCount == 0)
+        {
             return null;
+        }
 
         var first = MakeParameter("p0", ParameterTypes[0]);
         var rest = Enumerable.Range(1, parameterCount - 1)

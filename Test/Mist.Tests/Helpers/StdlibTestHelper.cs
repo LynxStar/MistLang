@@ -26,7 +26,10 @@ internal static class StdlibTestHelper
         while(dir is not null)
         {
             if(File.Exists(Path.Combine(dir, "Mist.slnx")))
+            {
                 return dir;
+            }
+
             dir = Directory.GetParent(dir)?.FullName;
         }
 
@@ -42,7 +45,9 @@ internal static class StdlibTestHelper
     public static (ImmutableArray<CompilationUnit> Units, ImmutableArray<Storm.Runtime.SyntaxNode> Asts) LoadStdlib()
     {
         if(_cachedUnits.HasValue)
+        {
             return (_cachedUnits.Value, _cachedAsts!.Value);
+        }
 
         var repoRoot = FindRepoRoot();
         var stdlibRoot = Path.Combine(repoRoot, "Source", "Standard");
@@ -60,7 +65,9 @@ internal static class StdlibTestHelper
             var tokens = lexer.Lex(unit.Source, parseDiag);
             var parseResult = parser.Parse(tokens, parseDiag);
             if(parseResult.Root is not null)
+            {
                 asts.Add(parseResult.Root);
+            }
         }
 
         _cachedUnits = units;

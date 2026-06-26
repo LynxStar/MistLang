@@ -627,7 +627,7 @@ public sealed class FrameEscapeAnalyzer : IAnalyzer
     private static SyntaxNode GetStoreLocationNode(AssignmentNode assignment)
     {
         // The offending node is the assignment target (the escaping store site).
-        return (SyntaxNode)assignment.Target ?? (SyntaxNode)assignment;
+        return (SyntaxNode)assignment.Target ?? assignment;
     }
 
     // ── Helper: type predicates ──────────────────────────────────────────

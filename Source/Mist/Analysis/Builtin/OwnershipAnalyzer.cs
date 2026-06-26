@@ -3144,10 +3144,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         var count = Math.Min(contractParams.Count, implParams.Count);
         for(var i = 0; i < count; i++)
         {
-            var contractParam = contractParams[i] as Symbol;
-            var implParam = implParams[i] as Symbol;
-
-            if(contractParam is null || implParam is null)
+            if(contractParams[i] is not Symbol contractParam || implParams[i] is not Symbol implParam)
             {
                 continue;
             }

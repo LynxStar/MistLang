@@ -250,8 +250,7 @@ public class SubstructuralConstraintParsingPropertyTests
         }
 
         // Get the TypeParameterType from the class's TypeParameters.
-        var classType = classSymbol.DeclaredType as ClassType;
-        if(classType is null)
+        if(classSymbol.DeclaredType is not ClassType classType)
         {
             return false.ToProperty()
                 .Label($"Class symbol '{scenario.ClassName}' does not have a ClassType DeclaredType.\n" +

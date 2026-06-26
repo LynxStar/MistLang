@@ -1549,7 +1549,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 foreach(var member in parentScope.Members)
                 {
                     if(member.Name == nestedTypeName
-                        && member.DeclaredType is Types.TypeParameterType or Types.DependentTypeParameterType)
+                        && member.DeclaredType is TypeParameterType or DependentTypeParameterType)
                     {
                         var parent = parentTypeName ?? "<unknown>";
                         diagnostics.Add(MakeDiagnosticWithLocation(
@@ -1567,7 +1567,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 {
                     if(member.Name == nestedTypeName
                         && member.Kind is SymbolKind.Class or SymbolKind.Struct or SymbolKind.Abstract or SymbolKind.Enum
-                        && member.DeclaredType is not Types.TypeParameterType and not Types.DependentTypeParameterType)
+                        && member.DeclaredType is not TypeParameterType and not DependentTypeParameterType)
                     {
                         var parent = parentTypeName ?? "<unknown>";
                         diagnostics.Add(MakeDiagnosticWithLocation(
@@ -2261,7 +2261,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                                     "Extension properties cannot declare a 'set' or 'init' accessor; extension properties are read-only.",
                                     propertyDecl switch
                                     {
-                                        BlockPropertyPropertyDeclarationNode bp => (Storm.Runtime.SyntaxNode)bp,
+                                        BlockPropertyPropertyDeclarationNode bp => bp,
                                         ExpressionBodiedPropertyPropertyDeclarationNode ep => ep,
                                         _ => member
                                     },
@@ -2281,7 +2281,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                             memberScope.AddMember(propSymbol);
                             symbolTable.Register(propSymbol, propertyDecl switch
                             {
-                                BlockPropertyPropertyDeclarationNode bp => (Storm.Runtime.SyntaxNode)bp,
+                                BlockPropertyPropertyDeclarationNode bp => bp,
                                 ExpressionBodiedPropertyPropertyDeclarationNode ep => ep,
                                 _ => member
                             });
@@ -2295,7 +2295,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                                     $"Extension property '{propName}' shadows the receiver parameter name '{receiverName}'.",
                                     propertyDecl switch
                                     {
-                                        BlockPropertyPropertyDeclarationNode bp => (Storm.Runtime.SyntaxNode)bp,
+                                        BlockPropertyPropertyDeclarationNode bp => bp,
                                         ExpressionBodiedPropertyPropertyDeclarationNode ep => ep,
                                         _ => member
                                     },
@@ -8894,7 +8894,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         {
             ClassType ct => ct.Abstracts,
             StructType st => st.Abstracts,
-            _ => (IReadOnlyList<IType>)Array.Empty<IType>()
+            _ => Array.Empty<IType>()
         };
 
         foreach(var existingAbstract in typeAbstracts)
@@ -10273,7 +10273,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         {
             ClassType ct => ct.Abstracts,
             StructType st => st.Abstracts,
-            _ => Array.Empty<IType>() as IReadOnlyList<IType>,
+            _ => Array.Empty<IType>(),
         };
 
         // Walk the class base type chain for classes.
@@ -13097,8 +13097,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 case AbstractMethodMemberAbstractMemberDeclarationNode methodMember:
                     {
                         var methodDecl = methodMember.Method;
-                        var methodSymbol = symbolTable.GetDeclaredSymbol(methodDecl) as Symbol;
-                        if(methodSymbol is null || methodSymbol.DeclaredType is not null)
+                        if(symbolTable.GetDeclaredSymbol(methodDecl) is not Symbol methodSymbol || methodSymbol.DeclaredType is not null)
                         {
                             break;
                         }
@@ -13134,8 +13133,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 case AbstractPropertyMemberAbstractMemberDeclarationNode propertyMember:
                     {
                         var propDecl = propertyMember.Property;
-                        var propSymbol = symbolTable.GetDeclaredSymbol(propDecl) as Symbol;
-                        if(propSymbol is null || propSymbol.DeclaredType is not null)
+                        if(symbolTable.GetDeclaredSymbol(propDecl) is not Symbol propSymbol || propSymbol.DeclaredType is not null)
                         {
                             break;
                         }
@@ -13178,8 +13176,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             case FieldMemberMemberDeclarationNode fieldMember:
                 {
                     var fieldDecl = fieldMember.Field;
-                    var fieldSymbol = symbolTable.GetDeclaredSymbol(fieldDecl) as Symbol;
-                    if(fieldSymbol is null || fieldSymbol.DeclaredType is not null)
+                    if(symbolTable.GetDeclaredSymbol(fieldDecl) is not Symbol fieldSymbol || fieldSymbol.DeclaredType is not null)
                     {
                         break;
                     }
@@ -13201,8 +13198,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     {
                         case BlockPropertyPropertyDeclarationNode blockProp:
                             {
-                                var propSymbol = symbolTable.GetDeclaredSymbol(blockProp) as Symbol;
-                                if(propSymbol is null || propSymbol.DeclaredType is not null)
+                                if(symbolTable.GetDeclaredSymbol(blockProp) is not Symbol propSymbol || propSymbol.DeclaredType is not null)
                                 {
                                     break;
                                 }
@@ -13221,8 +13217,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                             }
                         case ExpressionBodiedPropertyPropertyDeclarationNode exprProp:
                             {
-                                var propSymbol = symbolTable.GetDeclaredSymbol(exprProp) as Symbol;
-                                if(propSymbol is null || propSymbol.DeclaredType is not null)
+                                if(symbolTable.GetDeclaredSymbol(exprProp) is not Symbol propSymbol || propSymbol.DeclaredType is not null)
                                 {
                                     break;
                                 }
@@ -13238,8 +13233,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             case IndexerMemberMemberDeclarationNode indexerMember:
                 {
                     var indexerDecl = indexerMember.Indexer;
-                    var indexerSymbol = symbolTable.GetDeclaredSymbol(indexerDecl) as Symbol;
-                    if(indexerSymbol is null || indexerSymbol.DeclaredType is not null)
+                    if(symbolTable.GetDeclaredSymbol(indexerDecl) is not Symbol indexerSymbol || indexerSymbol.DeclaredType is not null)
                     {
                         break;
                     }
@@ -13251,8 +13245,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             case OperatorMemberMemberDeclarationNode operatorMember:
                 {
                     var opDecl = operatorMember.Operator;
-                    var opSymbol = symbolTable.GetDeclaredSymbol(opDecl) as Symbol;
-                    if(opSymbol is null || opSymbol.DeclaredType is not null)
+                    if(symbolTable.GetDeclaredSymbol(opDecl) is not Symbol opSymbol || opSymbol.DeclaredType is not null)
                     {
                         break;
                     }
@@ -13264,8 +13257,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             case CastOperatorMemberMemberDeclarationNode castOpMember:
                 {
                     var castOpDecl = castOpMember.CastOperator;
-                    var castOpSymbol = symbolTable.GetDeclaredSymbol(castOpDecl) as Symbol;
-                    if(castOpSymbol is null || castOpSymbol.DeclaredType is not null)
+                    if(symbolTable.GetDeclaredSymbol(castOpDecl) is not Symbol castOpSymbol || castOpSymbol.DeclaredType is not null)
                     {
                         break;
                     }
@@ -13326,8 +13318,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     case TypeAliasItemTopLevelItemNode typeAliasItem:
                         {
                             var aliasDecl = typeAliasItem.TypeAliasDeclaration;
-                            var symbol = symbolTable.GetDeclaredSymbol(aliasDecl) as Symbol;
-                            if(symbol is null || symbol.DeclaredType is not null)
+                            if(symbolTable.GetDeclaredSymbol(aliasDecl) is not Symbol symbol || symbol.DeclaredType is not null)
                             {
                                 break;
                             }
@@ -13341,8 +13332,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     case NewtypeItemTopLevelItemNode newtypeItem:
                         {
                             var newtypeDecl = newtypeItem.NewtypeDeclaration;
-                            var symbol = symbolTable.GetDeclaredSymbol(newtypeDecl) as Symbol;
-                            if(symbol is null || symbol.DeclaredType is not null)
+                            if(symbolTable.GetDeclaredSymbol(newtypeDecl) is not Symbol symbol || symbol.DeclaredType is not null)
                             {
                                 break;
                             }
@@ -13359,8 +13349,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                             var nsAliases = GetNamespaceBodyTypeAliases(nsDecl);
                             foreach(var aliasDecl in nsAliases)
                             {
-                                var symbol = symbolTable.GetDeclaredSymbol(aliasDecl) as Symbol;
-                                if(symbol is null || symbol.DeclaredType is not null)
+                                if(symbolTable.GetDeclaredSymbol(aliasDecl) is not Symbol symbol || symbol.DeclaredType is not null)
                                 {
                                     continue;
                                 }
@@ -13374,8 +13363,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                             var nsNewtypes = GetNamespaceBodyNewtypes(nsDecl);
                             foreach(var newtypeDecl in nsNewtypes)
                             {
-                                var symbol = symbolTable.GetDeclaredSymbol(newtypeDecl) as Symbol;
-                                if(symbol is null || symbol.DeclaredType is not null)
+                                if(symbolTable.GetDeclaredSymbol(newtypeDecl) is not Symbol symbol || symbol.DeclaredType is not null)
                                 {
                                     continue;
                                 }
@@ -13577,8 +13565,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         SourceText? sourceText,
         DiagnosticBag diagnostics)
     {
-        var newtypeSymbol = symbolTable.GetDeclaredSymbol(newtypeDecl) as Symbol;
-        if(newtypeSymbol is null)
+        if(symbolTable.GetDeclaredSymbol(newtypeDecl) is not Symbol newtypeSymbol)
         {
             return;
         }
@@ -13673,8 +13660,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         SourceText? sourceText,
         DiagnosticBag diagnostics)
     {
-        var aliasSymbol = symbolTable.GetDeclaredSymbol(aliasDecl) as Symbol;
-        if(aliasSymbol is null)
+        if(symbolTable.GetDeclaredSymbol(aliasDecl) is not Symbol aliasSymbol)
         {
             return;
         }
@@ -13792,8 +13778,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         SourceText? sourceText,
         DiagnosticBag diagnostics)
     {
-        var aliasSymbol = symbolTable.GetDeclaredSymbol(aliasDecl) as Symbol;
-        if(aliasSymbol is null)
+        if(symbolTable.GetDeclaredSymbol(aliasDecl) is not Symbol aliasSymbol)
         {
             return;
         }
@@ -13875,8 +13860,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         SourceText? sourceText,
         DiagnosticBag diagnostics)
     {
-        var newtypeSymbol = symbolTable.GetDeclaredSymbol(newtypeDecl) as Symbol;
-        if(newtypeSymbol is null)
+        if(symbolTable.GetDeclaredSymbol(newtypeDecl) is not Symbol newtypeSymbol)
         {
             return;
         }
@@ -14311,8 +14295,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         SourceText? sourceText,
         DiagnosticBag diagnostics)
     {
-        var methodSymbol = symbolTable.GetDeclaredSymbol(methodDecl) as Symbol;
-        if(methodSymbol is null || methodSymbol.DeclaredType is not null)
+        if(symbolTable.GetDeclaredSymbol(methodDecl) is not Symbol methodSymbol || methodSymbol.DeclaredType is not null)
         {
             return; // Already resolved or no symbol.
         }
@@ -16290,7 +16273,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 {
                     ClassType bc => bc.Abstracts,
                     ConstructedType bct when bct.GenericDefinition is ClassType bcc => bcc.Abstracts,
-                    _ => Array.Empty<IType>() as IReadOnlyList<IType>,
+                    _ => Array.Empty<IType>(),
                 };
                 foreach(var iface in baseAbstracts)
                 {
@@ -16317,7 +16300,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 {
                     ClassType bc => bc.Abstracts,
                     ConstructedType bct when bct.GenericDefinition is ClassType bcc => bcc.Abstracts,
-                    _ => Array.Empty<IType>() as IReadOnlyList<IType>,
+                    _ => Array.Empty<IType>(),
                 };
                 foreach(var iface in baseAbstracts)
                 {
@@ -23775,7 +23758,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             // for the extension registry query. If the original was a
             // ConstructedType, reconstruct it; otherwise use targetType as-is.
             var lookupType = (constructedTypeParams is not null && constructedTypeArgs is not null)
-                ? (IType)new ConstructedType(targetType, constructedTypeArgs)
+                ? new ConstructedType(targetType, constructedTypeArgs)
                 : targetType;
 
             // Task 7.7: When the static type is `unknown`, only search universal extensions.

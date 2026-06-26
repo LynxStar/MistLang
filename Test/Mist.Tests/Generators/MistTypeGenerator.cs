@@ -81,7 +81,7 @@ public static class MistTypeGenerator
     public static Gen<TypeReferenceNode> GenPrimitiveTypeRef()
     {
         return GenPrimitiveTypeNode().Select(pt =>
-            (TypeReferenceNode)new TypeReferenceNode
+            new TypeReferenceNode
             {
                 First = new PrimitiveSingleTypeRefSingleTypeRefNode
                 {
@@ -94,7 +94,7 @@ public static class MistTypeGenerator
     public static Gen<TypeReferenceNode> GenNumericTypeRef()
     {
         return GenNumericPrimitiveTypeNode().Select(pt =>
-            (TypeReferenceNode)new TypeReferenceNode
+            new TypeReferenceNode
             {
                 First = new PrimitiveSingleTypeRefSingleTypeRefNode
                 {
@@ -106,13 +106,13 @@ public static class MistTypeGenerator
     /// <summary>Generates a void type reference.</summary>
     public static Gen<TypeReferenceNode> GenVoidTypeRef()
     {
-        return Gen.Constant((TypeReferenceNode)new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() });
+        return Gen.Constant(new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() });
     }
 
     /// <summary>Generates an int type reference.</summary>
     public static Gen<TypeReferenceNode> GenIntTypeRef()
     {
-        return Gen.Constant((TypeReferenceNode)new TypeReferenceNode
+        return Gen.Constant(new TypeReferenceNode
         {
             First = new PrimitiveSingleTypeRefSingleTypeRefNode
             {
@@ -124,7 +124,7 @@ public static class MistTypeGenerator
     /// <summary>Generates a bool type reference.</summary>
     public static Gen<TypeReferenceNode> GenBoolTypeRef()
     {
-        return Gen.Constant((TypeReferenceNode)new TypeReferenceNode
+        return Gen.Constant(new TypeReferenceNode
         {
             First = new PrimitiveSingleTypeRefSingleTypeRefNode
             {
@@ -136,7 +136,7 @@ public static class MistTypeGenerator
     /// <summary>Generates a string type reference.</summary>
     public static Gen<TypeReferenceNode> GenStringTypeRef()
     {
-        return Gen.Constant((TypeReferenceNode)new TypeReferenceNode
+        return Gen.Constant(new TypeReferenceNode
         {
             First = new PrimitiveSingleTypeRefSingleTypeRefNode
             {

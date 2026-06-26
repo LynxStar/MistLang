@@ -82,7 +82,7 @@ public static class MistPropertyGenerator
     public static ExpressionNode MakeBoolLiteral(bool value)
     {
         return MistAstGenerator.WrapPrimary(value
-            ? (PrimaryNode)new TrueLiteralExpressionPrimaryNode()
+            ? new TrueLiteralExpressionPrimaryNode()
             : new FalseLiteralExpressionPrimaryNode());
     }
 
@@ -408,7 +408,7 @@ public static class MistPropertyGenerator
                from paramName in Gen.Elements(IndexerParamNames)
                from paramType in MistTypeGenerator.GenPrimitiveTypeRef()
                from accessors in GenAccessorList(type)
-               select (IndexerDeclarationNode)new IndexerDeclarationNode
+               select (new IndexerDeclarationNode
                {
                    Modifiers = mods,
                    Type = type,
@@ -425,7 +425,7 @@ public static class MistPropertyGenerator
                    {
                        Accessors = accessors,
                    },
-               };
+               });
     }
 
     /// <summary>

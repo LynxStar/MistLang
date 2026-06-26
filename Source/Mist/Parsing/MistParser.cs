@@ -29,7 +29,7 @@ public sealed class MistParser : IParser
         Storm.Runtime.SyntaxNode? root = null;
         try
         {
-            root = Mist.Generated.MistParser.ParseCompilationUnit(stormTokenStream, stormDiagnostics);
+            root = Generated.MistParser.ParseCompilationUnit(stormTokenStream, stormDiagnostics);
         }
         catch(NotImplementedException)
         {
@@ -99,10 +99,10 @@ public sealed class MistParser : IParser
             // Completeness check: verify the parser consumed all default-channel tokens.
             // The CompilationUnit rule does not consume the EOF sentinel, so we exclude it
             // from the comparison — only flag genuinely unconsumed content tokens.
-            var lastPos = Mist.Generated.MistParser.LastPosition;
+            var lastPos = Generated.MistParser.LastPosition;
             var defaultTokens = tokens.DefaultChannelTokens;
             var contentTokenCount = defaultTokens.Length > 0
-                && defaultTokens[^1].Kind == (int)Mist.Generated.TokenKind.EndOfFile
+                && defaultTokens[^1].Kind == (int)Generated.TokenKind.EndOfFile
                 ? defaultTokens.Length - 1
                 : defaultTokens.Length;
 
@@ -151,7 +151,7 @@ public sealed class MistParser : IParser
         var defaultTokens = tokens.DefaultChannelTokens;
         for(var i = 0; i < defaultTokens.Length; i++)
         {
-            if(defaultTokens[i].Kind != (int)Mist.Generated.TokenKind.STACKALLOC)
+            if(defaultTokens[i].Kind != (int)Generated.TokenKind.STACKALLOC)
             {
                 continue;
             }
@@ -167,7 +167,7 @@ public sealed class MistParser : IParser
 
             var pos = afterType.Value;
             var hasOpenBracket = pos < defaultTokens.Length
-                && defaultTokens[pos].Kind == (int)Mist.Generated.TokenKind.LEFT_BRACKET;
+                && defaultTokens[pos].Kind == (int)Generated.TokenKind.LEFT_BRACKET;
 
             if(!hasOpenBracket)
             {
@@ -177,7 +177,7 @@ public sealed class MistParser : IParser
             }
 
             var isEmptyBrackets = pos + 1 < defaultTokens.Length
-                && defaultTokens[pos + 1].Kind == (int)Mist.Generated.TokenKind.RIGHT_BRACKET;
+                && defaultTokens[pos + 1].Kind == (int)Generated.TokenKind.RIGHT_BRACKET;
 
             if(isEmptyBrackets)
             {
@@ -221,7 +221,7 @@ public sealed class MistParser : IParser
     private static void DetectRemovedInterfaceKeyword(TokenStream tokens, DiagnosticBag diagnostics)
     {
         var defaultTokens = tokens.DefaultChannelTokens;
-        var identifierKind = (int)Mist.Generated.TokenKind.IDENTIFIER;
+        var identifierKind = (int)Generated.TokenKind.IDENTIFIER;
 
         for(var i = 0; i < defaultTokens.Length; i++)
         {
@@ -260,7 +260,7 @@ public sealed class MistParser : IParser
     private static void DetectRemovedTraitKeyword(TokenStream tokens, DiagnosticBag diagnostics)
     {
         var defaultTokens = tokens.DefaultChannelTokens;
-        var identifierKind = (int)Mist.Generated.TokenKind.IDENTIFIER;
+        var identifierKind = (int)Generated.TokenKind.IDENTIFIER;
 
         for(var i = 0; i < defaultTokens.Length; i++)
         {
@@ -311,10 +311,10 @@ public sealed class MistParser : IParser
     private static void DetectPropertyDefaultInAbstract(TokenStream tokens, DiagnosticBag diagnostics)
     {
         var defaultTokens = tokens.DefaultChannelTokens;
-        var abstractKind = (int)Mist.Generated.TokenKind.ABSTRACT;
-        var leftBraceKind = (int)Mist.Generated.TokenKind.LEFT_BRACE;
-        var semicolonKind = (int)Mist.Generated.TokenKind.SEMICOLON;
-        var eofKind = (int)Mist.Generated.TokenKind.EndOfFile;
+        var abstractKind = (int)Generated.TokenKind.ABSTRACT;
+        var leftBraceKind = (int)Generated.TokenKind.LEFT_BRACE;
+        var semicolonKind = (int)Generated.TokenKind.SEMICOLON;
+        var eofKind = (int)Generated.TokenKind.EndOfFile;
 
         for(var i = 0; i < defaultTokens.Length; i++)
         {
@@ -355,11 +355,11 @@ public sealed class MistParser : IParser
         string sourcePath,
         DiagnosticBag diagnostics)
     {
-        var leftBraceKind = (int)Mist.Generated.TokenKind.LEFT_BRACE;
-        var rightBraceKind = (int)Mist.Generated.TokenKind.RIGHT_BRACE;
-        var leftParenKind = (int)Mist.Generated.TokenKind.LEFT_PARENTHESIS;
-        var semicolonKind = (int)Mist.Generated.TokenKind.SEMICOLON;
-        var suchThatKind = (int)Mist.Generated.TokenKind.SUCH_THAT;
+        var leftBraceKind = (int)Generated.TokenKind.LEFT_BRACE;
+        var rightBraceKind = (int)Generated.TokenKind.RIGHT_BRACE;
+        var leftParenKind = (int)Generated.TokenKind.LEFT_PARENTHESIS;
+        var semicolonKind = (int)Generated.TokenKind.SEMICOLON;
+        var suchThatKind = (int)Generated.TokenKind.SUCH_THAT;
 
         var depth = 0;
 
@@ -436,9 +436,9 @@ public sealed class MistParser : IParser
         ImmutableArray<Storm.Runtime.Token> tokens,
         int braceIndex)
     {
-        var leftBraceKind = (int)Mist.Generated.TokenKind.LEFT_BRACE;
-        var rightBraceKind = (int)Mist.Generated.TokenKind.RIGHT_BRACE;
-        var suchThatKind = (int)Mist.Generated.TokenKind.SUCH_THAT;
+        var leftBraceKind = (int)Generated.TokenKind.LEFT_BRACE;
+        var rightBraceKind = (int)Generated.TokenKind.RIGHT_BRACE;
+        var suchThatKind = (int)Generated.TokenKind.SUCH_THAT;
 
         var depth = 0;
         for(var i = braceIndex; i < tokens.Length; i++)
@@ -475,10 +475,10 @@ public sealed class MistParser : IParser
 
     private static bool IsTypeDeclarationKeyword(int kind)
     {
-        return kind is ((int)Mist.Generated.TokenKind.CLASS)
-        or ((int)Mist.Generated.TokenKind.STRUCT)
-        or ((int)Mist.Generated.TokenKind.ABSTRACT)
-        or ((int)Mist.Generated.TokenKind.ENUM);
+        return kind is ((int)Generated.TokenKind.CLASS)
+        or ((int)Generated.TokenKind.STRUCT)
+        or ((int)Generated.TokenKind.ABSTRACT)
+        or ((int)Generated.TokenKind.ENUM);
     }
 
     private static void AddPropertyDefaultDiagnostic(
@@ -518,25 +518,25 @@ public sealed class MistParser : IParser
 
         var kind = tokens[start].Kind;
 
-        if(IsPrimitiveTypeKind(kind) || kind == (int)Mist.Generated.TokenKind.UNKNOWN)
+        if(IsPrimitiveTypeKind(kind) || kind == (int)Generated.TokenKind.UNKNOWN)
         {
             return start + 1;
         }
 
-        if(kind == (int)Mist.Generated.TokenKind.IDENTIFIER)
+        if(kind == (int)Generated.TokenKind.IDENTIFIER)
         {
             var pos = start + 1;
 
             // QualifiedIdentifier: IDENTIFIER (DOT IDENTIFIER)*
             while(pos + 1 < tokens.Length
-                && tokens[pos].Kind == (int)Mist.Generated.TokenKind.DOT
-                && tokens[pos + 1].Kind == (int)Mist.Generated.TokenKind.IDENTIFIER)
+                && tokens[pos].Kind == (int)Generated.TokenKind.DOT
+                && tokens[pos + 1].Kind == (int)Generated.TokenKind.IDENTIFIER)
             {
                 pos += 2;
             }
 
             // Optional TypeArgumentList: LESS_THAN ... GREATER_THAN (balanced).
-            if(pos < tokens.Length && tokens[pos].Kind == (int)Mist.Generated.TokenKind.LESS_THAN)
+            if(pos < tokens.Length && tokens[pos].Kind == (int)Generated.TokenKind.LESS_THAN)
             {
                 return SkipBalancedAngles(tokens, pos);
             }
@@ -560,11 +560,11 @@ public sealed class MistParser : IParser
         for(var pos = openAngle; pos < tokens.Length; pos++)
         {
             var kind = tokens[pos].Kind;
-            if(kind == (int)Mist.Generated.TokenKind.LESS_THAN)
+            if(kind == (int)Generated.TokenKind.LESS_THAN)
             {
                 depth++;
             }
-            else if(kind == (int)Mist.Generated.TokenKind.GREATER_THAN)
+            else if(kind == (int)Generated.TokenKind.GREATER_THAN)
             {
                 depth--;
                 if(depth == 0)
@@ -572,10 +572,10 @@ public sealed class MistParser : IParser
                     return pos + 1;
                 }
             }
-            else if(kind is ((int)Mist.Generated.TokenKind.SEMICOLON)
-                or ((int)Mist.Generated.TokenKind.LEFT_BRACE)
-                or ((int)Mist.Generated.TokenKind.RIGHT_BRACE)
-                or ((int)Mist.Generated.TokenKind.EndOfFile))
+            else if(kind is ((int)Generated.TokenKind.SEMICOLON)
+                or ((int)Generated.TokenKind.LEFT_BRACE)
+                or ((int)Generated.TokenKind.RIGHT_BRACE)
+                or ((int)Generated.TokenKind.EndOfFile))
             {
                 // Malformed type argument list; bail rather than guessing.
                 return null;
@@ -587,21 +587,21 @@ public sealed class MistParser : IParser
 
     private static bool IsPrimitiveTypeKind(int kind)
     {
-        return kind is ((int)Mist.Generated.TokenKind.INT)
-        or ((int)Mist.Generated.TokenKind.UINT)
-        or ((int)Mist.Generated.TokenKind.LONG)
-        or ((int)Mist.Generated.TokenKind.ULONG)
-        or ((int)Mist.Generated.TokenKind.SHORT)
-        or ((int)Mist.Generated.TokenKind.USHORT)
-        or ((int)Mist.Generated.TokenKind.BYTE)
-        or ((int)Mist.Generated.TokenKind.SBYTE)
-        or ((int)Mist.Generated.TokenKind.FLOAT)
-        or ((int)Mist.Generated.TokenKind.DOUBLE)
-        or ((int)Mist.Generated.TokenKind.DECIMAL)
-        or ((int)Mist.Generated.TokenKind.BOOL)
-        or ((int)Mist.Generated.TokenKind.CHAR)
-        or ((int)Mist.Generated.TokenKind.STRING)
-        or ((int)Mist.Generated.TokenKind.REGEX);
+        return kind is ((int)Generated.TokenKind.INT)
+        or ((int)Generated.TokenKind.UINT)
+        or ((int)Generated.TokenKind.LONG)
+        or ((int)Generated.TokenKind.ULONG)
+        or ((int)Generated.TokenKind.SHORT)
+        or ((int)Generated.TokenKind.USHORT)
+        or ((int)Generated.TokenKind.BYTE)
+        or ((int)Generated.TokenKind.SBYTE)
+        or ((int)Generated.TokenKind.FLOAT)
+        or ((int)Generated.TokenKind.DOUBLE)
+        or ((int)Generated.TokenKind.DECIMAL)
+        or ((int)Generated.TokenKind.BOOL)
+        or ((int)Generated.TokenKind.CHAR)
+        or ((int)Generated.TokenKind.STRING)
+        or ((int)Generated.TokenKind.REGEX);
     }
 
     private static void AssignOrigin(Storm.Runtime.SyntaxNode node, ParsedOrigin origin)
@@ -630,10 +630,10 @@ public sealed class MistParser : IParser
     private static ImmutableArray<Storm.Runtime.Token> ReclassifyKeywordsInQualifiedNames(
         ImmutableArray<Storm.Runtime.Token> tokens)
     {
-        var identifierKind = (int)Mist.Generated.TokenKind.IDENTIFIER;
-        var usingKind = (int)Mist.Generated.TokenKind.USING;
-        var namespaceKind = (int)Mist.Generated.TokenKind.NAMESPACE;
-        var dotKind = (int)Mist.Generated.TokenKind.DOT;
+        var identifierKind = (int)Generated.TokenKind.IDENTIFIER;
+        var usingKind = (int)Generated.TokenKind.USING;
+        var namespaceKind = (int)Generated.TokenKind.NAMESPACE;
+        var dotKind = (int)Generated.TokenKind.DOT;
 
         // Quick scan: check if any reclassification is needed.
         // A qualified identifier following USING or NAMESPACE is a sequence of
@@ -754,28 +754,28 @@ public sealed class MistParser : IParser
     {
         // All keyword token kinds that have identifier-like lexemes.
         // Excludes punctuation, operators, and structural tokens.
-        return kind is not ((int)Mist.Generated.TokenKind.IDENTIFIER)
-            and not ((int)Mist.Generated.TokenKind.DOT)
-            and not ((int)Mist.Generated.TokenKind.SEMICOLON)
-            and not ((int)Mist.Generated.TokenKind.LEFT_BRACE)
-            and not ((int)Mist.Generated.TokenKind.RIGHT_BRACE)
-            and not ((int)Mist.Generated.TokenKind.LEFT_PARENTHESIS)
-            and not ((int)Mist.Generated.TokenKind.RIGHT_PARENTHESIS)
-            and not ((int)Mist.Generated.TokenKind.LEFT_BRACKET)
-            and not ((int)Mist.Generated.TokenKind.RIGHT_BRACKET)
-            and not ((int)Mist.Generated.TokenKind.LESS_THAN)
-            and not ((int)Mist.Generated.TokenKind.GREATER_THAN)
-            and not ((int)Mist.Generated.TokenKind.EndOfFile)
-            and not ((int)Mist.Generated.TokenKind.COMMA)
-            and not ((int)Mist.Generated.TokenKind.COLON)
-            and not ((int)Mist.Generated.TokenKind.EQUAL)
-            and not ((int)Mist.Generated.TokenKind.STAR)
-            and not ((int)Mist.Generated.TokenKind.PLUS)
-            and not ((int)Mist.Generated.TokenKind.MINUS)
-            and not ((int)Mist.Generated.TokenKind.SLASH)
-            and not ((int)Mist.Generated.TokenKind.MODULO)
-            and not ((int)Mist.Generated.TokenKind.EXCLAMATION)
-            and not ((int)Mist.Generated.TokenKind.QUESTION)
-            and not ((int)Mist.Generated.TokenKind.PIPE);
+        return kind is not ((int)Generated.TokenKind.IDENTIFIER)
+            and not ((int)Generated.TokenKind.DOT)
+            and not ((int)Generated.TokenKind.SEMICOLON)
+            and not ((int)Generated.TokenKind.LEFT_BRACE)
+            and not ((int)Generated.TokenKind.RIGHT_BRACE)
+            and not ((int)Generated.TokenKind.LEFT_PARENTHESIS)
+            and not ((int)Generated.TokenKind.RIGHT_PARENTHESIS)
+            and not ((int)Generated.TokenKind.LEFT_BRACKET)
+            and not ((int)Generated.TokenKind.RIGHT_BRACKET)
+            and not ((int)Generated.TokenKind.LESS_THAN)
+            and not ((int)Generated.TokenKind.GREATER_THAN)
+            and not ((int)Generated.TokenKind.EndOfFile)
+            and not ((int)Generated.TokenKind.COMMA)
+            and not ((int)Generated.TokenKind.COLON)
+            and not ((int)Generated.TokenKind.EQUAL)
+            and not ((int)Generated.TokenKind.STAR)
+            and not ((int)Generated.TokenKind.PLUS)
+            and not ((int)Generated.TokenKind.MINUS)
+            and not ((int)Generated.TokenKind.SLASH)
+            and not ((int)Generated.TokenKind.MODULO)
+            and not ((int)Generated.TokenKind.EXCLAMATION)
+            and not ((int)Generated.TokenKind.QUESTION)
+            and not ((int)Generated.TokenKind.PIPE);
     }
 }

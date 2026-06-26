@@ -300,7 +300,7 @@ public class ExplicitCastSafetyPropertyTests
     {
         return kind == CastOperatorKind.Implicit
             ? new ImplicitCastCastOperatorKindNode()
-            : (CastOperatorKindNode)new ExplicitCastCastOperatorKindNode();
+            : new ExplicitCastCastOperatorKindNode();
     }
 
     /// <summary>

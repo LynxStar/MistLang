@@ -2709,7 +2709,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     // this-escape: returning `this` from a constructor while fields are unassigned (Req 1.8).
                     if(isConstructor && allNonDefaultableFields is not null)
                     {
-                        CheckThisEscapeInExpression(returnStmt.ReturnStatement.Value, state, allNonDefaultableFields, violations, (SyntaxNode)returnStmt.ReturnStatement);
+                        CheckThisEscapeInExpression(returnStmt.ReturnStatement.Value, state, allNonDefaultableFields, violations, returnStmt.ReturnStatement);
                     }
                 }
 
@@ -3220,7 +3220,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     && initiallyAssignedFields is not null
                     && !initiallyAssignedFields.Contains(fieldName))
                 {
-                    violations.Add(new ReadViolation(ReadViolationKind.Field, fieldName, null, (SyntaxNode)postfix));
+                    violations.Add(new ReadViolation(ReadViolationKind.Field, fieldName, null, postfix));
                 }
             }
             else if(firstSuffix is MethodCallSuffixPostfixSuffixNode)
@@ -3232,7 +3232,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     {
                         if(!state.AssignedFields.Contains(field))
                         {
-                            violations.Add(new ReadViolation(ReadViolationKind.Field, field, null, (SyntaxNode)postfix));
+                            violations.Add(new ReadViolation(ReadViolationKind.Field, field, null, postfix));
                         }
                     }
                 }
@@ -3274,7 +3274,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     or ForInitializerVarDeclarationForInitializerNode
                     or ForeachStatementNode)
                 {
-                    violations.Add(new ReadViolation(ReadViolationKind.Local, symbol.Name, symbol, (SyntaxNode)identifier));
+                    violations.Add(new ReadViolation(ReadViolationKind.Local, symbol.Name, symbol, identifier));
                 }
             }
         }
@@ -3476,11 +3476,11 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             if(relational.Left.Left.Left is PostfixExpressionUnaryNode postfixExpr
                 && postfixExpr.Primary?.Target is ThisExpressionPrimaryNode thisNode)
             {
-                return (SyntaxNode)thisNode;
+                return thisNode;
             }
         }
 
-        return (SyntaxNode)expr;
+        return expr;
     }
 
     /// <summary>
@@ -10595,7 +10595,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // of any other identifier. We only need the substring replacement
         // to be consistent; the exact placeholder is for documentation
         // purposes only.
-        return type.DisplayName.Replace("unknown", "T", System.StringComparison.Ordinal);
+        return type.DisplayName.Replace("unknown", "T", StringComparison.Ordinal);
     }
 
     private void CheckAdditiveNode(AdditiveNode node, ISemanticModel model, DiagnosticBag diagnostics)
@@ -11242,7 +11242,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                             var resolvedTypeArgs = ResolveTypeArgumentsFromAst(optionalMethodCall.TypeArgs, model);
                             if(resolvedTypeArgs.Count == sym.TypeParameters.Count)
                             {
-                                returnType = TypeCheckerAnalyzer.SubstituteType(returnType!, sym.TypeParameters, resolvedTypeArgs);
+                                returnType = SubstituteType(returnType!, sym.TypeParameters, resolvedTypeArgs);
                             }
                         }
 
@@ -11809,7 +11809,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         if(literalValue is uint uintVal)
         {
-            return new SpanType(resultSpan.ElementType, (long)uintVal, resultSpan.IsReadOnly);
+            return new SpanType(resultSpan.ElementType, uintVal, resultSpan.IsReadOnly);
         }
 
         if(literalValue is ulong ulongVal && ulongVal <= long.MaxValue)
@@ -12710,7 +12710,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 {
                     if(methodTypeParams[i] is TypeParameterType methodTP)
                     {
-                        CheckConstraintSatisfaction(methodTypeArgs[i], methodTP, (SyntaxNode)methodCall, sym.Name, model, diagnostics);
+                        CheckConstraintSatisfaction(methodTypeArgs[i], methodTP, methodCall, sym.Name, model, diagnostics);
                     }
                 }
             }
@@ -12729,14 +12729,14 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     methodTypeArgs = inferenceResult.InferredTypeArguments!;
 
                     // Record inferred type arguments for the emitter.
-                    model.RecordInferredTypeArguments((SyntaxNode)methodCall, methodTypeArgs);
+                    model.RecordInferredTypeArguments(methodCall, methodTypeArgs);
 
                     // Check constraints (same path as explicit type args).
                     for(var i = 0; i < methodTypeParams.Count && i < methodTypeArgs.Count; i++)
                     {
                         if(methodTypeParams[i] is TypeParameterType methodTP)
                         {
-                            CheckConstraintSatisfaction(methodTypeArgs[i], methodTP, (SyntaxNode)methodCall, inferSym.Name, model, diagnostics);
+                            CheckConstraintSatisfaction(methodTypeArgs[i], methodTP, methodCall, inferSym.Name, model, diagnostics);
                         }
                     }
                 }
@@ -12826,7 +12826,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     diagnostics.Add(MakeDiagnostic(
                         "MIST_TC_0031",
                         $"No overload for '{methodName}' matches argument types ({argTypeNames})",
-                        (SyntaxNode)methodCall,
+                        methodCall,
                         model));
                     return;
 
@@ -12839,7 +12839,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                         diagnostics.Add(MakeDiagnostic(
                             DelegateOverloadAmbiguity.Value,
                             $"Ambiguous call: argument is compatible with both '{delegateNames.Item1}' and '{delegateNames.Item2}'",
-                            (SyntaxNode)methodCall,
+                            methodCall,
                             model));
                     }
                     else
@@ -12849,7 +12849,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                         diagnostics.Add(MakeDiagnostic(
                             "MIST_TC_0032",
                             $"Call to '{methodName}' is ambiguous between: {string.Join(" and ", sigs)}",
-                            (SyntaxNode)methodCall,
+                            methodCall,
                             model));
                     }
 
@@ -12873,17 +12873,17 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
                         if(winnerIndex >= 0 && inferenceResults[winnerIndex] is { Success: true } winnerInference)
                         {
-                            model.RecordInferredTypeArguments((SyntaxNode)methodCall, winnerInference.InferredTypeArguments!);
+                            model.RecordInferredTypeArguments(methodCall, winnerInference.InferredTypeArguments!);
                             winnerMethodTypeParams = winnerSym.TypeParameters;
                             winnerMethodTypeArgs = winnerInference.InferredTypeArguments!;
 
                             // Substitute inferred type arguments into the return type so that
                             // downstream type checking sees the concrete return type.
-                            var currentReturnType = model.GetTypeOf((SyntaxNode)methodCall);
+                            var currentReturnType = model.GetTypeOf(methodCall);
                             if(currentReturnType is not null)
                             {
                                 var substitutedReturnType = SubstituteType(currentReturnType, winnerSym.TypeParameters, winnerInference.InferredTypeArguments!);
-                                model.SetTypeOf((SyntaxNode)methodCall, substitutedReturnType);
+                                model.SetTypeOf(methodCall, substitutedReturnType);
                             }
 
                             // Check constraints for the inferred type arguments.
@@ -12892,7 +12892,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                                 if(winnerSym.TypeParameters[i] is TypeParameterType methodTP)
                                 {
                                     CheckConstraintSatisfaction(winnerInference.InferredTypeArguments[i], methodTP,
-                                        (SyntaxNode)methodCall, winnerSym.Name, model, diagnostics);
+                                        methodCall, winnerSym.Name, model, diagnostics);
                                 }
                             }
                         }
@@ -12940,7 +12940,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                         if(singleSym.TypeParameters[i] is TypeParameterType methodTP)
                         {
                             CheckConstraintSatisfaction(explicitMethodTypeArgs[i], methodTP,
-                                (SyntaxNode)methodCall, singleSym.Name, model, diagnostics);
+                                methodCall, singleSym.Name, model, diagnostics);
                         }
                     }
 
@@ -12969,15 +12969,15 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     if(inferenceResult.Success)
                     {
                         // Record inferred type arguments for the emitter.
-                        model.RecordInferredTypeArguments((SyntaxNode)methodCall, inferenceResult.InferredTypeArguments!);
+                        model.RecordInferredTypeArguments(methodCall, inferenceResult.InferredTypeArguments!);
 
                         // Substitute inferred type arguments into the return type so that
                         // downstream type checking sees the concrete return type.
-                        var currentReturnType = model.GetTypeOf((SyntaxNode)methodCall);
+                        var currentReturnType = model.GetTypeOf(methodCall);
                         if(currentReturnType is not null)
                         {
                             var substitutedReturnType = SubstituteType(currentReturnType, singleSym.TypeParameters, inferenceResult.InferredTypeArguments!);
-                            model.SetTypeOf((SyntaxNode)methodCall, substitutedReturnType);
+                            model.SetTypeOf(methodCall, substitutedReturnType);
                         }
 
                         // Check constraints for the inferred type arguments.
@@ -12986,7 +12986,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                             if(singleSym.TypeParameters[i] is TypeParameterType methodTP)
                             {
                                 CheckConstraintSatisfaction(inferenceResult.InferredTypeArguments[i], methodTP,
-                                    (SyntaxNode)methodCall, singleSym.Name, model, diagnostics);
+                                    methodCall, singleSym.Name, model, diagnostics);
                             }
                         }
 
@@ -13074,7 +13074,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             diagnostics.Add(MakeDiagnostic(
                 BaseDelegateNotInvocable.Value,
                 "Cannot invoke a value of type 'System.Delegate' directly: cast to a specific delegate type or func<...> first",
-                (SyntaxNode)invocation,
+                invocation,
                 model));
             return;
         }
@@ -13113,7 +13113,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                         diagnostics.Add(MakeDiagnostic(
                             "MIST_TC_0031",
                             $"No overload for '{methodName}' matches argument types ({argTypeNames})",
-                            (SyntaxNode)invocation,
+                            invocation,
                             model));
                         return;
 
@@ -13124,7 +13124,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                             diagnostics.Add(MakeDiagnostic(
                                 DelegateOverloadAmbiguity.Value,
                                 $"Ambiguous call: argument is compatible with both '{delegateNames.Item1}' and '{delegateNames.Item2}'",
-                                (SyntaxNode)invocation,
+                                invocation,
                                 model));
                         }
                         else
@@ -13134,7 +13134,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                             diagnostics.Add(MakeDiagnostic(
                                 "MIST_TC_0032",
                                 $"Call to '{methodName}' is ambiguous between: {string.Join(" and ", sigs)}",
-                                (SyntaxNode)invocation,
+                                invocation,
                                 model));
                         }
 
@@ -13197,7 +13197,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             diagnostics.Add(MakeDiagnostic(
                 FuncInvocationArgumentCountMismatch.Value,
                 $"Func invocation expects {expectedParamCount} argument(s) but was given {actualArgCount}",
-                (SyntaxNode)invocation,
+                invocation,
                 model));
             return;
         }
@@ -13219,7 +13219,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 diagnostics.Add(MakeDiagnostic(
                     FuncInvocationArgumentTypeMismatch.Value,
                     $"Argument {i + 1} of type '{argType.DisplayName}' is not assignable to Func parameter type '{paramType.DisplayName}'",
-                    (SyntaxNode)invocation,
+                    invocation,
                     model));
             }
         }
@@ -13382,7 +13382,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         diagnostics.Add(MakeDiagnostic(
             "MIST_REF_0001",
             $"A ref argument must be an assignable variable, field, or array element; '{description}' is not a valid storage location",
-            (SyntaxNode)refArg,
+            refArg,
             model));
     }
 
@@ -13429,7 +13429,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         diagnostics.Add(MakeDiagnostic(
             "MIST_READONLY_LOCAL_0001",
             $"Cannot pass readonly local variable '{concreteSymbol.Name}' by mutable reference",
-            (SyntaxNode)refArg,
+            refArg,
             model));
         return true;
     }
@@ -13776,7 +13776,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 diagnostics.Add(MakeDiagnostic(
                     "MIST_REF_0002",
                     $"Argument for ref parameter '{concreteParam.Name}' must be prefixed with the 'ref' keyword",
-                    (SyntaxNode)argNode,
+                    argNode,
                     model));
             }
             else if(concreteParam.RefKind == RefKind.None && argNode is RefArgumentArgumentNode)
@@ -13785,7 +13785,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 diagnostics.Add(MakeDiagnostic(
                     "MIST_REF_0003",
                     $"Parameter '{concreteParam.Name}' is not declared as ref; remove the 'ref' keyword from the argument",
-                    (SyntaxNode)argNode,
+                    argNode,
                     model));
             }
         }
@@ -13870,7 +13870,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                         diagnostics.Add(MakeDiagnostic(
                             "MIST_REF_0007",
                             $"Ref argument type '{argType.DisplayName}' must match parameter type '{paramType.DisplayName}' exactly; no implicit conversions are allowed for ref arguments",
-                            (SyntaxNode)refArgNode,
+                            refArgNode,
                             model));
                     }
 
@@ -14055,7 +14055,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                         diagnostics.Add(MakeDiagnostic(
                             "MIST_REF_0007",
                             $"Ref argument type '{argType.DisplayName}' must match parameter type '{paramType.DisplayName}' exactly; no implicit conversions are allowed for ref arguments",
-                            (SyntaxNode)refArgNode,
+                            refArgNode,
                             model));
                     }
 
@@ -15203,9 +15203,9 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         {
             var longVal = constantValue switch
             {
-                int i => (long)i,
+                int i => i,
                 long l => l,
-                uint u => (long)u,
+                uint u => u,
                 ulong ul => (long)ul,
                 _ => (long?)null
             };
@@ -21428,7 +21428,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             diagnostics.Add(MakeDiagnostic(
                 "MIST_TC_0081",
                 $"Type parameter '{conflict.TypeParameter}' of method '{methodName}' has conflicting inferred types: '{conflict.First.DisplayName}' and '{conflict.Second.DisplayName}'. Provide explicit type arguments.",
-                (SyntaxNode)methodCall,
+                methodCall,
                 model));
         }
         else if(inferenceResult.UninferrableTypeParameters is { Count: > 0 })
@@ -21437,7 +21437,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             diagnostics.Add(MakeDiagnostic(
                 "MIST_TC_0080",
                 $"Type parameter {names} of method '{methodName}' cannot be inferred from the arguments. Provide explicit type arguments.",
-                (SyntaxNode)methodCall,
+                methodCall,
                 model));
         }
     }

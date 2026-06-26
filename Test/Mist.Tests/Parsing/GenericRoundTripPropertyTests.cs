@@ -534,8 +534,7 @@ public class GenericRoundTripPropertyTests
                 .Label($"Parse errors: {string.Join("; ", errors.Select(e => e.Message))}\nSource:\n{printed1}");
         }
 
-        var reparsed = result.Root as CompilationUnitNode;
-        if(reparsed is null)
+        if(result.Root is not CompilationUnitNode reparsed)
         {
             return false.ToProperty().Label($"Reparsed root was null.\nSource:\n{printed1}");
         }

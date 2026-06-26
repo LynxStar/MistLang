@@ -98,8 +98,8 @@ public class AnonymousTypeStructuralEqualityPropertyTests
         {
             var a = new AnonymousType(pair.names, pair.types);
             var b = new AnonymousType(
-                (IReadOnlyList<string>)pair.names.ToArray(),
-                (IReadOnlyList<IType>)pair.types.ToArray());
+                pair.names.ToArray(),
+                pair.types.ToArray());
 
             return a.StructurallyEquals(b);
         });
@@ -123,8 +123,8 @@ public class AnonymousTypeStructuralEqualityPropertyTests
         {
             var a = new AnonymousType(pair.names, pair.types);
             var b = new AnonymousType(
-                (IReadOnlyList<string>)pair.names.ToArray(),
-                (IReadOnlyList<IType>)pair.types.ToArray());
+                pair.names.ToArray(),
+                pair.types.ToArray());
 
             return a.StructurallyEquals(b) && b.StructurallyEquals(a);
         });

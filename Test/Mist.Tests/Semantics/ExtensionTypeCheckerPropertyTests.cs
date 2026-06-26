@@ -619,7 +619,7 @@ public class ExtensionTypeCheckerPropertyTests
         var classDecl = MakeClass(scenario.ClassName,
             ImmutableArray.Create(
                 MakeClassMethod(scenario.MethodName, scenario.OwnReturnType),
-                (MemberDeclarationNode)new MethodMemberMemberDeclarationNode { Method = probeMethod }));
+                new MethodMemberMemberDeclarationNode { Method = probeMethod }));
 
         var extBlock = MakeExtensionBlock(
             MakeNamedTypeRef(scenario.ClassName), "self",

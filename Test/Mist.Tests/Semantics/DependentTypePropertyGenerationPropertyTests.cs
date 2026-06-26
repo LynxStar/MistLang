@@ -184,8 +184,7 @@ public class DependentTypePropertyGenerationPropertyTests
             return false;
         }
 
-        var classType = classSymbol.DeclaredType as ClassType;
-        if(classType is null)
+        if(classSymbol.DeclaredType is not ClassType classType)
         {
             return false;
         }

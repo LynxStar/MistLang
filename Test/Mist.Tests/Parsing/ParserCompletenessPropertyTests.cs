@@ -159,7 +159,7 @@ public class ParserCompletenessPropertyTests
 
         // (4) Location must reference the correct line (Requirement 3.4)
         // Determine the expected line by finding the first unconsumed token in the stream.
-        var lastPos = Mist.Generated.MistParser.LastPosition;
+        var lastPos = Generated.MistParser.LastPosition;
         var defaultTokens = tokens.DefaultChannelTokens;
         var expectedLine = lastPos < defaultTokens.Length
             ? defaultTokens[lastPos].Start.Line

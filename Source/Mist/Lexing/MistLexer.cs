@@ -18,7 +18,7 @@ public sealed class MistLexer : ILexer
         var stormSource = new Storm.Runtime.SourceText(source.Path, source.Contents);
         var stormDiagnostics = new Storm.Runtime.DiagnosticBag();
 
-        var stormTokenStream = Mist.Generated.MistLexer.Lex(stormSource, stormDiagnostics);
+        var stormTokenStream = Generated.MistLexer.Lex(stormSource, stormDiagnostics);
 
         // Map Storm diagnostics to Mist diagnostics
         foreach(var entry in stormDiagnostics.Entries)

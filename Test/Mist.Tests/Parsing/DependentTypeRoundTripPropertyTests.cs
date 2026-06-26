@@ -210,7 +210,7 @@ public class DependentTypeRoundTripPropertyTests
     private static Gen<TypeArgumentNode> GenBooleanLiteralTypeArgument()
     {
         return Gen.Elements(
-            (TypeArgumentNode)new TrueLiteralTypeArgumentTypeArgumentNode(),
+            new TrueLiteralTypeArgumentTypeArgumentNode(),
             (TypeArgumentNode)new FalseLiteralTypeArgumentTypeArgumentNode());
     }
 
@@ -422,7 +422,7 @@ public class DependentTypeRoundTripPropertyTests
         string fieldName)
     {
         // Build a NamedTypeRef with type arguments: Buffer<5>
-        var fieldType = (TypeReferenceNode)new TypeReferenceNode
+        var fieldType = new TypeReferenceNode
         {
             First = new NamedSingleTypeRefSingleTypeRefNode
             {
@@ -491,7 +491,7 @@ public class DependentTypeRoundTripPropertyTests
         };
 
         // Usage: class Client { FixedBuffer<5> data; }
-        var fieldType = (TypeReferenceNode)new TypeReferenceNode
+        var fieldType = new TypeReferenceNode
         {
             First = new NamedSingleTypeRefSingleTypeRefNode
             {
@@ -614,8 +614,7 @@ public class DependentTypeRoundTripPropertyTests
                 .Label($"Parse errors: {string.Join("; ", errors.Select(e => e.Message))}\nSource:\n{printed1}");
         }
 
-        var reparsed = result.Root as CompilationUnitNode;
-        if(reparsed is null)
+        if(result.Root is not CompilationUnitNode reparsed)
         {
             return false.ToProperty().Label($"Reparsed root was null.\nSource:\n{printed1}");
         }

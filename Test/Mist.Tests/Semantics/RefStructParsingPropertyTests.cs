@@ -126,9 +126,9 @@ public sealed class RefStructParsingPropertyTests
                where fieldCount + methodCount + propertyCount > 0
                select new RefStructScenario(
                    structName,
-                   (IReadOnlyList<string>)fields,
-                   (IReadOnlyList<string>)methods,
-                   (IReadOnlyList<string>)properties);
+                   fields,
+                   methods,
+                   properties);
     }
 
     public static Arbitrary<RefStructScenario> ArbitraryRefStructScenario()

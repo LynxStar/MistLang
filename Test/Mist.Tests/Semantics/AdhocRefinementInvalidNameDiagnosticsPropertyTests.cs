@@ -253,8 +253,7 @@ public class AdhocRefinementInvalidNameDiagnosticsPropertyTests
             return false;
         }
 
-        var classType = classSymbol.DeclaredType as ClassType;
-        if(classType is null)
+        if(classSymbol.DeclaredType is not ClassType classType)
         {
             return false;
         }
@@ -363,8 +362,7 @@ public class AdhocRefinementInvalidNameDiagnosticsPropertyTests
             return false;
         }
 
-        var classType = classSymbol.DeclaredType as ClassType;
-        if(classType is null)
+        if(classSymbol.DeclaredType is not ClassType classType)
         {
             return false;
         }

@@ -246,7 +246,7 @@ public class UnknownWideningPropertyTests
         var result = new IType[args.Count];
         for(var i = 0; i < args.Count; i++)
         {
-            result[i] = ((mask >> i) & 1) == 1 ? (IType)UnknownType.Instance : args[i];
+            result[i] = ((mask >> i) & 1) == 1 ? UnknownType.Instance : args[i];
         }
 
         return result;

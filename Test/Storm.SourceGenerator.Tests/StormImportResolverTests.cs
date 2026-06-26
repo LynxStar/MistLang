@@ -500,7 +500,7 @@ namespace Storm.SourceGenerator.Tests
 
             Assert.False(grammar.Succeeded);
             Assert.Contains(grammar.Diagnostics, d =>
-                d.Id == Storm.SourceGenerator.Diagnostics.StormDiagnosticIds.STORM_NO_ROOT_GRAMMAR);
+                d.Id == StormDiagnosticIds.STORM_NO_ROOT_GRAMMAR);
         }
 
         [Fact]
@@ -516,7 +516,7 @@ namespace Storm.SourceGenerator.Tests
 
             Assert.False(grammar.Succeeded);
             Assert.Contains(grammar.Diagnostics, d =>
-                d.Id == Storm.SourceGenerator.Diagnostics.StormDiagnosticIds.STORM_MULTIPLE_ROOT_GRAMMARS);
+                d.Id == StormDiagnosticIds.STORM_MULTIPLE_ROOT_GRAMMARS);
         }
 
         [Fact]

@@ -120,7 +120,7 @@ public static class MistCastOperatorGenerator
     public static Gen<TypeReferenceNode> GenNamedTypeRef()
     {
         return Gen.Elements(ClassNames).Select(name =>
-            (TypeReferenceNode)new TypeReferenceNode
+            new TypeReferenceNode
             {
                 First = new NamedSingleTypeRefSingleTypeRefNode
                 {

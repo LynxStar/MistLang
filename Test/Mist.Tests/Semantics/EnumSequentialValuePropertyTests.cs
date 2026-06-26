@@ -177,7 +177,7 @@ public class EnumSequentialValuePropertyTests
                from explicitValue in Gen.Choose(0, 100)
                let members = memberNames.Select((n, i) =>
                    i == 0
-                       ? (Name: n, ExplicitValue: (long?)explicitValue)
+                       ? (Name: n, ExplicitValue: explicitValue)
                        : (Name: n, ExplicitValue: (long?)null))
                    .ToList()
                let expected = ComputeExpectedValues(members)

@@ -260,7 +260,7 @@ public sealed class CSharpCompilationDriver
         var syntaxTrees = csFiles
             .Select(path => CSharpSyntaxTree.ParseText(
                 File.ReadAllText(path),
-                CSharpParseOptions.Default.WithLanguageVersion(RoslynApi.CSharp.LanguageVersion.Preview),
+                CSharpParseOptions.Default.WithLanguageVersion(LanguageVersion.Preview),
                 path: path))
             .ToList();
 

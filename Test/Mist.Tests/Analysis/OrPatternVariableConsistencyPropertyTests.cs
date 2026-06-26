@@ -177,7 +177,7 @@ public class OrPatternVariableConsistencyPropertyTests
 
         var statements = ImmutableArray.Create(
             scrutineeDecl,
-            (StatementNode)ifStatement);
+            ifStatement);
 
         return MistProgramGenerator.MakeProgram(statements);
     }

@@ -96,7 +96,7 @@ public sealed class OperatorRoundTripPropertyTests : IDisposable
     private static Gen<Int64RoundTripScenario> Int64ScenarioGen =>
         from a in Gen.Choose(-10000, 10000)
         from b in Gen.Choose(-10000, 10000)
-        select new Int64RoundTripScenario((long)a, (long)b);
+        select new Int64RoundTripScenario(a, b);
 
     // ─── Helpers ─────────────────────────────────────────────────────────
 

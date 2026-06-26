@@ -119,12 +119,12 @@ public sealed class OperatorProjectionPropertyTests
 
     private static Gen<OperatorMethodScenario> GenOperatorScenario()
     {
-        return FsCheck.Fluent.Gen.Elements(AllOperatorScenarios);
+        return Gen.Elements(AllOperatorScenarios);
     }
 
     public static Arbitrary<OperatorMethodScenario> ArbOperatorScenario()
     {
-        return FsCheck.Fluent.Arb.From(GenOperatorScenario());
+        return Arb.From(GenOperatorScenario());
     }
 
     // ═══════════════════════════════════════════════════════════════════════

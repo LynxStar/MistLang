@@ -95,14 +95,12 @@ public class AnonymousTypeDisambiguationPropertyTests
     /// </summary>
     private static PrimaryNode? ExtractPrimaryFromFirstVar(CompilationUnitNode cu)
     {
-        var typeDecl = cu.GetTypes()[0] as ClassTypeTypeDeclarationNode;
-        if(typeDecl is null)
+        if(cu.GetTypes()[0] is not ClassTypeTypeDeclarationNode typeDecl)
         {
             return null;
         }
 
-        var methodMember = typeDecl.ClassDeclaration.Members[0] as MethodMemberMemberDeclarationNode;
-        if(methodMember is null)
+        if(typeDecl.ClassDeclaration.Members[0] is not MethodMemberMemberDeclarationNode methodMember)
         {
             return null;
         }
@@ -118,8 +116,7 @@ public class AnonymousTypeDisambiguationPropertyTests
             return null;
         }
 
-        var stmt = block.Statements[0] as VariableDeclarationStatementStatementNode;
-        if(stmt is null)
+        if(block.Statements[0] is not VariableDeclarationStatementStatementNode stmt)
         {
             return null;
         }

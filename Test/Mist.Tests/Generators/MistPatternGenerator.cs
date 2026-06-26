@@ -164,7 +164,7 @@ public static class MistPatternGenerator
             (PrimaryPatternNode)new ConstantPatternPrimaryPatternNode
             {
                 Literal = b
-                    ? (ConstantLiteralNode)new TrueConstantConstantLiteralNode()
+                    ? new TrueConstantConstantLiteralNode()
                     : new FalseConstantConstantLiteralNode(),
             });
 
@@ -553,7 +553,7 @@ public static class MistPatternGenerator
 
         var statements = ImmutableArray.Create(
             sp.Declaration,
-            (StatementNode)ifStatement);
+            ifStatement);
 
         return MistProgramGenerator.MakeProgram(statements);
     }
@@ -604,8 +604,8 @@ public static class MistPatternGenerator
         var statements = ImmutableArray.Create(
             sp1.Declaration,
             decl2,
-            (StatementNode)ifStmt1,
-            (StatementNode)ifStmt2);
+            ifStmt1,
+            ifStmt2);
 
         return MistProgramGenerator.MakeProgram(statements);
     }

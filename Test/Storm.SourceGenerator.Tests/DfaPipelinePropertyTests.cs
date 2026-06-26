@@ -710,7 +710,7 @@ public class DfaPipelinePropertyTests
                 while(scanPos < input.Length)
                 {
                     var ch = input[scanPos];
-                    var cls = charToClass[(int)ch];
+                    var cls = charToClass[ch];
                     var next = transTable[state, cls];
                     if(next < 0)
                     {

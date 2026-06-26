@@ -92,14 +92,12 @@ public class ArrayLiteralElementCountPropertyTests
     /// </summary>
     private static ArrayLiteralExpressionPrimaryNode? ExtractArrayLiteral(CompilationUnitNode cu)
     {
-        var typeDecl = cu.GetTypes()[0] as ClassTypeTypeDeclarationNode;
-        if(typeDecl is null)
+        if(cu.GetTypes()[0] is not ClassTypeTypeDeclarationNode typeDecl)
         {
             return null;
         }
 
-        var methodMember = typeDecl.ClassDeclaration.Members[0] as MethodMemberMemberDeclarationNode;
-        if(methodMember is null)
+        if(typeDecl.ClassDeclaration.Members[0] is not MethodMemberMemberDeclarationNode methodMember)
         {
             return null;
         }
@@ -110,14 +108,12 @@ public class ArrayLiteralElementCountPropertyTests
             return null;
         }
 
-        var stmt = block.Statements[0] as VariableDeclarationStatementStatementNode;
-        if(stmt is null)
+        if(block.Statements[0] is not VariableDeclarationStatementStatementNode stmt)
         {
             return null;
         }
 
-        var varDecl = stmt.VariableDeclaration as InferredVariableDeclarationVariableDeclarationStatementNode;
-        if(varDecl is null)
+        if(stmt.VariableDeclaration is not InferredVariableDeclarationVariableDeclarationStatementNode varDecl)
         {
             return null;
         }

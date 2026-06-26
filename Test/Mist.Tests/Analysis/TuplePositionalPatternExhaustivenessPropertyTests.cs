@@ -190,7 +190,7 @@ public class TuplePositionalPatternExhaustivenessPropertyTests
                        var nestedElements = nestedTypeIndices
                            .Select(nti => LeafTypes[nti])
                            .ToList();
-                       return (IType)new TupleType(nestedElements);
+                       return new TupleType(nestedElements);
                    }
 
                    return LeafTypes[ti];

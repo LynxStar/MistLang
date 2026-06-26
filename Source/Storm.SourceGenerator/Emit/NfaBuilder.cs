@@ -382,7 +382,7 @@ namespace Storm.SourceGenerator.Emit
                 {
                     var last = merged[merged.Count - 1];
                     // Adjacent or overlapping: last.Hi + 1 >= r.Lo
-                    if(last.Hi >= r.Lo || (int)last.Hi + 1 >= (int)r.Lo)
+                    if(last.Hi >= r.Lo || last.Hi + 1 >= r.Lo)
                     {
                         merged[merged.Count - 1] = new CharRange(
                             last.Lo, (char)Math.Max(last.Hi, r.Hi));
@@ -399,12 +399,12 @@ namespace Storm.SourceGenerator.Emit
 
             foreach(var r in merged)
             {
-                if(next < (int)r.Lo)
+                if(next < r.Lo)
                 {
-                    result.Add(new CharRange((char)next, (char)((int)r.Lo - 1)));
+                    result.Add(new CharRange((char)next, (char)(r.Lo - 1)));
                 }
 
-                next = (int)r.Hi + 1;
+                next = r.Hi + 1;
             }
 
             if(next <= 0xFFFF)

@@ -242,7 +242,7 @@ public class ExtensionSetAccessorRejectionPropertyTests
 
         // Build a block property with get + set/init accessor
         var accessors = ImmutableArray.Create(
-            (AccessorDeclarationNode)new AutoGetAccessorAccessorDeclarationNode(),
+            new AutoGetAccessorAccessorDeclarationNode(),
             MakeSetOrInitAccessor(scenario.Kind));
 
         var property = new BlockPropertyPropertyDeclarationNode

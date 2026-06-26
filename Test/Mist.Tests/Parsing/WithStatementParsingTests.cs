@@ -34,14 +34,12 @@ public class WithStatementParsingTests
             return null;
         }
 
-        var typeDecl = cu.GetTypes()[0] as ClassTypeTypeDeclarationNode;
-        if(typeDecl is null)
+        if(cu.GetTypes()[0] is not ClassTypeTypeDeclarationNode typeDecl)
         {
             return null;
         }
 
-        var methodMember = typeDecl.ClassDeclaration.Members[0] as MethodMemberMemberDeclarationNode;
-        if(methodMember is null)
+        if(typeDecl.ClassDeclaration.Members[0] is not MethodMemberMemberDeclarationNode methodMember)
         {
             return null;
         }

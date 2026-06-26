@@ -167,7 +167,7 @@ public class CastOperatorRegistrationPropertyTests
     {
         return kind == "implicit"
             ? new ImplicitCastCastOperatorKindNode()
-            : (CastOperatorKindNode)new ExplicitCastCastOperatorKindNode();
+            : new ExplicitCastCastOperatorKindNode();
     }
 
     private static TypeReferenceNode MakeNamedTypeRef(string name)

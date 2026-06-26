@@ -283,7 +283,7 @@ public sealed class StackOnlyTypesEmissionCompileTests : IDisposable
                 emittedSyntaxTrees.Add(CSharpSyntaxTree.ParseText(
                     content,
                     CSharpParseOptions.Default.WithLanguageVersion(
-                        Microsoft.CodeAnalysis.CSharp.LanguageVersion.Preview),
+                        LanguageVersion.Preview),
                     path: $"{name}/{fileName}"));
             }
         }

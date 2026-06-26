@@ -97,7 +97,7 @@ public class LexerRoundTripPropertyTests
         // of all token lexemes (including hidden tokens like whitespace and comments)
         // must reproduce the original source exactly.
         if(tokenStream.AllTokens.Length <= 1 &&
-            tokenStream.AllTokens.All(t => t.Kind == (int)Mist.Generated.TokenKind.EndOfFile))
+            tokenStream.AllTokens.All(t => t.Kind == (int)Generated.TokenKind.EndOfFile))
         {
             // Skeletal lexer: only EOF token present. The round-trip property
             // is trivially satisfied for the stub. When the full lexer is

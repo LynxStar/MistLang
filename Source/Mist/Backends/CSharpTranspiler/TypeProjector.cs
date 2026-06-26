@@ -757,7 +757,7 @@ internal sealed class TypeProjector
             ClassType ct => (ct.MemberScope as Scope, ct.ContainingNamespace),
             StructType st => (st.MemberScope as Scope, st.ContainingNamespace),
             AbstractType it => (it.MemberScope as Scope, it.ContainingNamespace),
-            _ => (null, (string?)null),
+            _ => (null, null),
         };
 
         if(memberScope is null)
@@ -878,7 +878,7 @@ internal sealed class TypeProjector
         {
             StructType st => st.Abstracts,
             ClassType ct => ct.Abstracts,
-            _ => (IReadOnlyList<IType>)Array.Empty<IType>(),
+            _ => Array.Empty<IType>(),
         };
         if(existingInterfaces.Any(i => i is ConstructedType ci
             && ci.GenericDefinition is AbstractType iface
@@ -970,7 +970,7 @@ internal sealed class TypeProjector
         {
             ClassType ct => (ct.MemberScope as Scope, ct.ContainingNamespace),
             StructType st => (st.MemberScope as Scope, st.ContainingNamespace),
-            _ => (null, (string?)null),
+            _ => (null, null),
         };
 
         if(memberScope is null)

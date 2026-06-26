@@ -120,14 +120,12 @@ public class AssociatedTypeDisambiguationPropertyTests
     /// </summary>
     private static AbstractMemberDeclarationNode? ExtractAbstractMember(CompilationUnitNode cu)
     {
-        var typeItem = cu.Items.FirstOrDefault() as TypeItemTopLevelItemNode;
-        if(typeItem is null)
+        if(cu.Items.FirstOrDefault() is not TypeItemTopLevelItemNode typeItem)
         {
             return null;
         }
 
-        var abstractDecl = typeItem.TypeDeclaration as AbstractTypeTypeDeclarationNode;
-        if(abstractDecl is null)
+        if(typeItem.TypeDeclaration is not AbstractTypeTypeDeclarationNode abstractDecl)
         {
             return null;
         }
@@ -250,8 +248,7 @@ public class AssociatedTypeDisambiguationPropertyTests
         }
 
         // Extract the inner declaration node from the abstract member
-        var slotMember = member as AbstractAssociatedTypeMemberAbstractMemberDeclarationNode;
-        if(slotMember is null)
+        if(member is not AbstractAssociatedTypeMemberAbstractMemberDeclarationNode slotMember)
         {
             return false.ToProperty().Label($"Abstract member is not an associated type slot: {member.GetType().Name}");
         }

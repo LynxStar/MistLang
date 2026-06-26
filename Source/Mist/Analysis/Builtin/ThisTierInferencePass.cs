@@ -87,8 +87,7 @@ public sealed class ThisTierInferencePass
                 requiredTier = ThisTier.None;
             }
 
-            var sym = methodSymbol as Symbol;
-            if(sym is null)
+            if(methodSymbol is not Symbol sym)
             {
                 continue;
             }

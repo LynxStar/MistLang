@@ -42,7 +42,7 @@ public static class MistAsExpressionGenerator
     public static Gen<TypeReferenceNode> GenNamedTypeRef()
     {
         return Gen.Elements(TypeNames).Select(name =>
-            (TypeReferenceNode)new TypeReferenceNode
+            new TypeReferenceNode
             {
                 First = new NamedSingleTypeRefSingleTypeRefNode
                 {

@@ -354,7 +354,7 @@ public class SemanticModelBuilderUnitTests
 
         var statements = ImmutableArray.Create(
             MakeIntVarDecl("a", "1"),
-            (StatementNode)innerBlock);
+            innerBlock);
 
         var ast = WrapInClassMethod("C", "M", statements);
         var model = BuildModel(ast);
@@ -888,7 +888,7 @@ public class SemanticModelBuilderUnitTests
 
         var statements = ImmutableArray.Create(
             MakeIntVarDecl("x", "1"),
-            (StatementNode)innerBlock);
+            innerBlock);
 
         var ast = WrapInClassMethod("C", "M", statements);
         var (_, diagnostics) = BuildModelWithDiagnostics(ast);

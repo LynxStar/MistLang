@@ -262,7 +262,7 @@ public sealed class PatternEmissionPropertyTests : IDisposable
 
         var statements = ImmutableArray.Create(
             scrutineeDecl,
-            (StatementNode)ifStatement);
+            ifStatement);
 
         return MistProgramGenerator.MakeProgram(statements);
     }

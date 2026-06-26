@@ -363,7 +363,7 @@ public class VoidTypeCheckerTests
             Name = Tok("Program"),
             Members = ImmutableArray.Create(
                 fieldMember,
-                new MethodMemberMemberDeclarationNode { Method = mainMethod } as MemberDeclarationNode),
+                new MethodMemberMemberDeclarationNode { Method = mainMethod }),
         };
 
         var ast = new CompilationUnitNode

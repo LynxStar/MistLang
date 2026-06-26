@@ -73,7 +73,7 @@ public static class MistAstGenerator
     {
         return Gen.Elements(true, false).Select(b =>
             WrapPrimary(b
-                ? (PrimaryNode)new TrueLiteralExpressionPrimaryNode()
+                ? new TrueLiteralExpressionPrimaryNode()
                 : new FalseLiteralExpressionPrimaryNode()));
     }
 

@@ -367,7 +367,7 @@ public class DefaultPrettyPrinterPropertyTests
                                    Name = Tok(className),
                                    Members = fields
                                        .Append(defaultBlock)
-                                       .Append((MemberDeclarationNode)new MethodMemberMemberDeclarationNode
+                                       .Append(new MethodMemberMemberDeclarationNode
                                        {
                                            Method = new MethodDeclarationNode
                                            {
@@ -502,8 +502,7 @@ public class DefaultPrettyPrinterPropertyTests
             return null;
         }
 
-        var reparsed = result.Root as CompilationUnitNode;
-        if(reparsed is null || reparsed.Items.Length == 0)
+        if(result.Root is not CompilationUnitNode reparsed || reparsed.Items.Length == 0)
         {
             return null;
         }

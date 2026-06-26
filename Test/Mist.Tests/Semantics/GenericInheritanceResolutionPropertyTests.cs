@@ -532,8 +532,7 @@ public class GenericInheritanceResolutionPropertyTests
             return false;
         }
 
-        var constructedAbstract = classType.Abstracts[0] as ConstructedType;
-        if(constructedAbstract is null)
+        if(classType.Abstracts[0] is not ConstructedType constructedAbstract)
         {
             return false;
         }

@@ -267,7 +267,7 @@ public class NameResolutionPropertyTests
 
         var statements = ImmutableArray.Create(
             MakeIntVarDecl(outerVarName, scenario.OuterValue.ToString()),
-            (StatementNode)innerBlock);
+            innerBlock);
 
         var ast = WrapInClassMethod("TestClass", "TestMethod", statements);
         var model = BuildModel(ast);
@@ -320,7 +320,7 @@ public class NameResolutionPropertyTests
 
         var statements = ImmutableArray.Create(
             MakeIntVarDecl(varName, scenario.OuterValue.ToString()),
-            (StatementNode)innerBlock);
+            innerBlock);
 
         var ast = WrapInClassMethod("TestClass", "TestMethod", statements);
         var (model, diagnostics) = BuildModelWithDiagnostics(ast);
@@ -515,7 +515,7 @@ public class NameResolutionPropertyTests
 
         var statements = ImmutableArray.Create(
             MakeIntVarDecl("val", "1"),
-            (StatementNode)innerBlock);
+            innerBlock);
 
         var ast = WrapInClassMethod("TestClass", "TestMethod", statements);
         var model = BuildModel(ast);
@@ -552,7 +552,7 @@ public class NameResolutionPropertyTests
 
         var statements = ImmutableArray.Create(
             MakeIntVarDecl("outer", "1"),
-            (StatementNode)innerBlock);
+            innerBlock);
 
         var ast = WrapInClassMethod("TestClass", "TestMethod", statements);
         var (model, diagnostics) = BuildModelWithDiagnostics(ast);

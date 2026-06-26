@@ -79,7 +79,7 @@ public class BoolExhaustivenessPropertyTests
         PrimaryPatternNode primary = new ConstantPatternPrimaryPatternNode
         {
             Literal = value
-                ? (ConstantLiteralNode)new TrueConstantConstantLiteralNode()
+                ? new TrueConstantConstantLiteralNode()
                 : new FalseConstantConstantLiteralNode(),
         };
         var unary = new DirectPatternUnaryPatternNode { Primary = primary };

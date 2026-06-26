@@ -1175,7 +1175,7 @@ internal sealed class CSharpSourceWriter
                         {
                             FileScopedNamespaceNamespaceDeclarationNode fileScopedNs => fileScopedNs.Body,
                             BlockNamespaceNamespaceDeclarationNode blockNs => blockNs.Body,
-                            _ => System.Collections.Immutable.ImmutableArray<NamespaceBodyItemNode>.Empty,
+                            _ => ImmutableArray<NamespaceBodyItemNode>.Empty,
                         };
 
                         foreach(var bodyItem in bodyItems)
@@ -1201,7 +1201,7 @@ internal sealed class CSharpSourceWriter
         {
             ClassTypeTypeDeclarationNode classType => classType.ClassDeclaration.Members,
             StructTypeTypeDeclarationNode structType => structType.StructDeclaration.Members,
-            _ => System.Collections.Immutable.ImmutableArray<MemberDeclarationNode>.Empty,
+            _ => ImmutableArray<MemberDeclarationNode>.Empty,
         };
 
         foreach(var member in members)
@@ -1234,7 +1234,7 @@ internal sealed class CSharpSourceWriter
                         {
                             FileScopedNamespaceNamespaceDeclarationNode fileScopedNs => fileScopedNs.Body,
                             BlockNamespaceNamespaceDeclarationNode blockNs => blockNs.Body,
-                            _ => System.Collections.Immutable.ImmutableArray<NamespaceBodyItemNode>.Empty,
+                            _ => ImmutableArray<NamespaceBodyItemNode>.Empty,
                         };
                         foreach(var bodyItem in bodyItems)
                         {
@@ -1258,7 +1258,7 @@ internal sealed class CSharpSourceWriter
             {
                 ClassTypeTypeDeclarationNode classType => classType.ClassDeclaration.Members,
                 StructTypeTypeDeclarationNode structType => structType.StructDeclaration.Members,
-                _ => System.Collections.Immutable.ImmutableArray<MemberDeclarationNode>.Empty,
+                _ => ImmutableArray<MemberDeclarationNode>.Empty,
             };
 
             foreach(var member in members)
@@ -2881,7 +2881,7 @@ internal sealed class CSharpSourceWriter
                         {
                             FileScopedNamespaceNamespaceDeclarationNode fileScopedNs => fileScopedNs.Body,
                             BlockNamespaceNamespaceDeclarationNode blockNs => blockNs.Body,
-                            _ => System.Collections.Immutable.ImmutableArray<NamespaceBodyItemNode>.Empty,
+                            _ => ImmutableArray<NamespaceBodyItemNode>.Empty,
                         };
                         foreach(var bodyItem in bodyItems)
                         {
@@ -3560,8 +3560,7 @@ internal sealed class CSharpSourceWriter
                 continue;
             }
 
-            var abstractType = abstractTypeRef as AbstractType;
-            if(abstractType is null)
+            if(abstractTypeRef is not AbstractType abstractType)
             {
                 continue;
             }
@@ -3701,7 +3700,7 @@ internal sealed class CSharpSourceWriter
         // For generic abstract type methods with parameterized constructor constraints,
         // append factory delegate parameters.
         var methodSymbol = model.GetDeclaredSymbol(methodDecl) as Symbol;
-        var methodTypeParams = methodSymbol?.TypeParameters ?? (IReadOnlyList<IType>)Array.Empty<IType>();
+        var methodTypeParams = methodSymbol?.TypeParameters ?? Array.Empty<IType>();
         var factoryParams = GetFactoryDelegateMethodParams(methodTypeParams);
         if(factoryParams.Length > 0)
         {
@@ -5336,7 +5335,7 @@ internal sealed class CSharpSourceWriter
         // and set up substitutions so T.SlotName references resolve to the synthesized name.
         // This must be set up BEFORE emitting return type and parameters so that
         // T.SlotName references in those positions are correctly substituted.
-        var methodTypeParams = methodSymbol?.TypeParameters ?? (IReadOnlyList<IType>)Array.Empty<IType>();
+        var methodTypeParams = methodSymbol?.TypeParameters ?? Array.Empty<IType>();
         var methodAssociatedSlots = CollectAssociatedTypeSlotsFromMethodTypeParams(methodTypeParams);
         var previousSlotSubstitutions = currentMethodSlotSubstitutions;
         if(methodAssociatedSlots.Count > 0)
@@ -5698,8 +5697,7 @@ internal sealed class CSharpSourceWriter
                 continue;
             }
 
-            var paramSymbol = model.GetDeclaredSymbol(paramNode) as Symbol;
-            if(paramSymbol is null)
+            if(model.GetDeclaredSymbol(paramNode) is not Symbol paramSymbol)
             {
                 continue;
             }
@@ -6452,7 +6450,7 @@ internal sealed class CSharpSourceWriter
                         {
                             FileScopedNamespaceNamespaceDeclarationNode fileScopedNs => fileScopedNs.Body,
                             BlockNamespaceNamespaceDeclarationNode blockNs => blockNs.Body,
-                            _ => System.Collections.Immutable.ImmutableArray<NamespaceBodyItemNode>.Empty,
+                            _ => ImmutableArray<NamespaceBodyItemNode>.Empty,
                         };
 
                         foreach(var bodyItem in bodyItems)

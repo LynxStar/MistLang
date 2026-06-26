@@ -234,7 +234,7 @@ public class IsExpressionBoolTypePropertyTests
 
         var statements = ImmutableArray.Create(
             scrutineeDecl,
-            (StatementNode)ifStatement);
+            ifStatement);
 
         var ast = MistProgramGenerator.MakeProgram(statements);
         return (ast, isNode);

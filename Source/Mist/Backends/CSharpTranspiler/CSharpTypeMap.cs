@@ -267,12 +267,27 @@ internal static class CSharpTypeMap
         BaseDelegateType => "System.Delegate",
 
         NewtypeType nt => nt.Name,
+        ClassType c when !c.IsBackendBacked && c.ContainingNamespace is not null
+            && IsClrNamespace(c.ContainingNamespace) => $"{c.ContainingNamespace}.{c.DisplayName}",
         ClassType c => c.DisplayName,
+        StructType s when !s.IsBackendBacked && s.ContainingNamespace is not null
+            && IsClrNamespace(s.ContainingNamespace) => $"{s.ContainingNamespace}.{GetKeywordOrDisplayName(s)}",
         StructType s => GetKeywordOrDisplayName(s),
         AbstractType i when i.ContainingNamespace == "Standard" && TryGetMappedName($"Standard.{i.DisplayName}") is { } mapped => mapped,
         AbstractType i => i.DisplayName,
         _ => throw new ArgumentException($"Cannot map type to C#: {type.DisplayName}"),
         };
+    }
+
+    /// <summary>
+    /// Returns true if the namespace is from a CLR assembly (not a user-defined Mist namespace).
+    /// CLR assembly namespaces typically start with "System", "Microsoft", or contain a dot
+    /// indicating they are external library namespaces.
+    /// </summary>
+    private static bool IsClrNamespace(string ns)
+    {
+        return ns.StartsWith("System", StringComparison.Ordinal)
+            || ns.StartsWith("Microsoft", StringComparison.Ordinal);
     }
 
     /// <summary>

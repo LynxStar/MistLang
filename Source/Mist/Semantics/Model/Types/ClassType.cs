@@ -82,6 +82,13 @@ public sealed class ClassType : IType
     public IType? DropReturnType { get; internal set; }
 
     /// <summary>
+    /// Indicates that this type's droppability originates from implementing
+    /// System.IDisposable (CLR interop) rather than an explicit Mist Drop() method.
+    /// When true, the emitter emits .Dispose() instead of .Drop() at drop emission sites.
+    /// </summary>
+    public bool IsDisposableDrop { get; internal set; }
+
+    /// <summary>
     /// For types whose <c>Drop()</c> was SYNTHESIZED by <c>SyntheticDropInferenceEngine</c>
     /// (drop-semantics Stage 4d), the ordered list of droppable field symbols whose
     /// <c>Drop()</c> the synthesized method must call, in declaration order (Req 10.2).

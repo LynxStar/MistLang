@@ -512,4 +512,111 @@ public class TypeProjectorTests
     {
         Assert.Equal(expected, TypeProjector.StripGenericAritySuffix(input));
     }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // IDisposable Detection (Requirements 1.1, 1.2, 1.3, 1.4, 1.5, 6.1, 6.2)
+    // ═══════════════════════════════════════════════════════════════════════
+
+    [Fact]
+    public void ProjectType_IDisposableClass_HasDropTrue()
+    {
+        // MemoryStream implements IDisposable → HasDrop should be true
+        var (type, _) = _projector.ProjectType(typeof(System.IO.MemoryStream), _stdlib);
+        var classType = Assert.IsType<ClassType>(type);
+
+        Assert.True(classType.HasDrop);
+    }
+
+    [Fact]
+    public void ProjectType_IDisposableClass_IsDisposableDropTrue()
+    {
+        // MemoryStream implements IDisposable, no explicit Drop() → IsDisposableDrop should be true
+        var (type, _) = _projector.ProjectType(typeof(System.IO.MemoryStream), _stdlib);
+        var classType = Assert.IsType<ClassType>(type);
+
+        Assert.True(classType.IsDisposableDrop);
+    }
+
+    [Fact]
+    public void ProjectType_NonDisposableClass_HasDropFalse()
+    {
+        // System.String does NOT implement IDisposable → HasDrop should be false
+        var (type, _) = _projector.ProjectType(typeof(string), _stdlib);
+        var classType = Assert.IsType<ClassType>(type);
+
+        Assert.False(classType.HasDrop);
+    }
+
+    [Fact]
+    public void ProjectType_NonDisposableClass_IsDisposableDropFalse()
+    {
+        // System.String does NOT implement IDisposable → IsDisposableDrop should be false
+        var (type, _) = _projector.ProjectType(typeof(string), _stdlib);
+        var classType = Assert.IsType<ClassType>(type);
+
+        Assert.False(classType.IsDisposableDrop);
+    }
+
+    [Fact]
+    public void ProjectType_TransitiveIDisposable_HasDropTrue()
+    {
+        // System.IO.Stream is abstract and implements IDisposable transitively
+        var (type, _) = _projector.ProjectType(typeof(System.IO.Stream), _stdlib);
+        var classType = Assert.IsType<ClassType>(type);
+
+        Assert.True(classType.HasDrop);
+    }
+
+    [Fact]
+    public void ProjectType_TransitiveIDisposable_IsDisposableDropTrue()
+    {
+        // System.IO.Stream implements IDisposable transitively → IsDisposableDrop = true
+        var (type, _) = _projector.ProjectType(typeof(System.IO.Stream), _stdlib);
+        var classType = Assert.IsType<ClassType>(type);
+
+        Assert.True(classType.IsDisposableDrop);
+    }
+
+    [Fact]
+    public void ProjectType_GenericIDisposable_FlagsSetOnDefinition()
+    {
+        // GenericDisposable<T> implements IDisposable → flags set on generic definition
+        var (type, _) = _projector.ProjectType(typeof(GenericDisposable<>), _stdlib);
+        var classType = Assert.IsType<ClassType>(type);
+
+        Assert.True(classType.HasDrop);
+        Assert.True(classType.IsDisposableDrop);
+    }
+
+    [Fact]
+    public void ProjectType_AsyncDisposableOnly_HasDropFalse()
+    {
+        // AsyncOnlyDisposable implements only IAsyncDisposable → HasDrop should be false
+        var (type, _) = _projector.ProjectType(typeof(AsyncOnlyDisposable), _stdlib);
+        var classType = Assert.IsType<ClassType>(type);
+
+        Assert.False(classType.HasDrop);
+    }
+
+    [Fact]
+    public void ProjectType_AsyncDisposableOnly_IsDisposableDropFalse()
+    {
+        // AsyncOnlyDisposable implements only IAsyncDisposable → IsDisposableDrop should be false
+        var (type, _) = _projector.ProjectType(typeof(AsyncOnlyDisposable), _stdlib);
+        var classType = Assert.IsType<ClassType>(type);
+
+        Assert.False(classType.IsDisposableDrop);
+    }
+
+    [Fact]
+    public void ProjectType_BothDisposables_RecognizedViaIDisposable()
+    {
+        // BothDisposables implements both IDisposable and IAsyncDisposable
+        // → recognized via IDisposable (HasDrop=true, IsDisposableDrop=true)
+        var (type, _) = _projector.ProjectType(typeof(BothDisposables), _stdlib);
+        var classType = Assert.IsType<ClassType>(type);
+
+        Assert.True(classType.HasDrop);
+        Assert.True(classType.IsDisposableDrop);
+    }
 }

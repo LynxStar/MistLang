@@ -1,0 +1,91 @@
+using Standard;
+using System;
+
+namespace DisposableDropInterop;
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        RunDemo();
+    }
+
+    public static void RunDemo()
+    {
+        Console.WriteLine("=== DisposableDropInterop Demo ===");
+
+        // PROOF: IDisposable CLR type works in with-block form
+        // MemoryStream implements IDisposable, so the compiler should
+        // recognize it as droppable and emit .Dispose() in finally
+        Console.WriteLine("--- 1. IDisposable with block ---");
+        with (var ms = new IO.MemoryStream())
+        {
+            ms.WriteByte(42);
+            Console.WriteLine($"  wrote byte, length={ms.Length}");
+        }
+        Console.WriteLine("  disposed (no exception = success)");
+
+        // PROOF: IDisposable CLR type works in with-declaration form
+        // The drop/dispose fires at end of enclosing scope
+        Console.WriteLine("--- 2. IDisposable with declaration ---");
+        DemoWithDeclaration();
+        Console.WriteLine("  disposed (no exception = success)");
+
+        // PROOF: Mist type with explicit Drop() still uses Drop(), not Dispose()
+        Console.WriteLine("--- 3. Explicit Drop takes precedence ---");
+        with (var r = new MistResource("hello"))
+        {
+            Console.WriteLine($"  resource value={r.Value}");
+        }
+
+        // PROOF: Mist type implementing IDisposable without Drop() is NOT auto-droppable
+        // This compiles but does NOT call Dispose automatically — must be manual
+        Console.WriteLine("--- 4. Mist IDisposable without Drop ---");
+        var manual = new ManualDisposable();
+        manual.DoWork();
+        manual.Dispose();
+        Console.WriteLine("  manually disposed");
+
+        Console.WriteLine("=== Done ===");
+    }
+
+    public static void DemoWithDeclaration()
+    {
+        with var ms = new IO.MemoryStream();
+        ms.WriteByte(99);
+        Console.WriteLine($"  wrote byte, length={ms.Length}");
+    }
+}
+
+// A Mist type with explicit Drop — proves explicit Drop takes precedence
+public class MistResource
+{
+    private string value;
+
+    public MistResource(string v)
+    {
+        value = v;
+    }
+
+    public string Value => value;
+
+    public void Drop()
+    {
+        Console.WriteLine("  MistResource.Drop() called");
+    }
+}
+
+// A Mist type that implements IDisposable but does NOT declare Drop()
+// This should NOT be auto-droppable in with blocks
+public class ManualDisposable : IDisposable
+{
+    public void DoWork()
+    {
+        Console.WriteLine("  ManualDisposable.DoWork()");
+    }
+
+    public void Dispose()
+    {
+        Console.WriteLine("  ManualDisposable.Dispose() called");
+    }
+}

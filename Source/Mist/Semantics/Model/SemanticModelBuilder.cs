@@ -17552,6 +17552,32 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         }
                     }
                 }
+
+                // 3d. Relative namespace resolution: if the dotted typeName's prefix is not
+                // a fully-qualified namespace, try combining each imported namespace with the
+                // prefix. This handles cases like "IO.MemoryStream" resolving to
+                // "System.IO.MemoryStream" when "using System;" is present.
+                for (var dotIdx = typeName.LastIndexOf('.'); dotIdx > 0; dotIdx = typeName.LastIndexOf('.', dotIdx - 1))
+                {
+                    var candidateNsSuffix = typeName.Substring(0, dotIdx);
+                    var candidateType = typeName.Substring(dotIdx + 1);
+
+                    foreach (var importedNs in importedNamespaces)
+                    {
+                        var combinedNs = importedNs + "." + candidateNsSuffix;
+                        if (ambientTypeResolver.HasNamespace(combinedNs))
+                        {
+                            var resolved = typeArgumentCount >= 0
+                                ? ambientTypeResolver.ResolveType(combinedNs, candidateType, typeArgumentCount)
+                                : ambientTypeResolver.ResolveType(combinedNs, candidateType);
+                            if (resolved is not null)
+                            {
+                                RegisterAmbientTypeInScope(resolved, candidateType, combinedNs, fileScope, ambientTypeResolver, symbolTable);
+                                return resolved;
+                            }
+                        }
+                    }
+                }
             }
         }
 

@@ -64,3 +64,4 @@ DependentTypeRefinementConstraints = { path = "../DependentTypeRefinementConstra
 TargetTypedNew = { path = "../TargetTypedNew" }
 AsOperator = { path = "../AsOperator" }
 AnonymousTypes = { path = "../AnonymousTypes" }
+DisposableDropInterop = { path = "../DisposableDropInterop" }

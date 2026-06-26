@@ -136,6 +136,52 @@ Drop semantics build on the existing ownership system:
 
 Linear and affine types are always owned — the substructural modifier implies `owned`. You don't need to write `owned linear class` — just `linear class`.
 
+## IDisposable Interop
+
+.NET has its own cleanup pattern — `System.IDisposable` with a `Dispose()` method. Mist bridges this automatically: CLR types that implement `IDisposable` are recognized as droppable and work in `with` blocks without any wrapper code.
+
+### Automatic Recognition
+
+When the compiler projects a CLR type from a .NET assembly, it checks whether the type implements `System.IDisposable` (directly or transitively through an interface chain). If it does, the type is marked as droppable — you can use it in `with` blocks just like a Mist type with `Drop()`.
+
+{{#tabs }}
+{{#tab name="Mist" }}
+```mist
+{{#include ../../snippets/advanced/drop-semantics/idisposable-with-block.mist}}
+```
+{{#endtab }}
+{{#tab name="Emitted C#" }}
+```csharp
+{{#include ../../snippets/advanced/drop-semantics/idisposable-with-block.cs}}
+```
+{{#endtab }}
+{{#endtabs }}
+
+The emitter generates `.Dispose()` — not `.Drop()` — in the `finally` block. This means .NET resource cleanup happens through the standard IDisposable path, exactly as C#'s `using` statement would.
+
+### Explicit Drop Takes Precedence
+
+If a type has both an explicit `Drop()` method and implements `IDisposable`, the explicit `Drop()` wins. The emitter emits `.Drop()` in this case, not `.Dispose()`. This gives you full control when wrapping CLR types with custom cleanup logic.
+
+{{#tabs }}
+{{#tab name="Mist" }}
+```mist
+{{#include ../../snippets/advanced/drop-semantics/idisposable-explicit-drop.mist}}
+```
+{{#endtab }}
+{{#tab name="Emitted C#" }}
+```csharp
+{{#include ../../snippets/advanced/drop-semantics/idisposable-explicit-drop.cs}}
+```
+{{#endtab }}
+{{#endtabs }}
+
+### Mist Types Are Not Auto-Droppable
+
+This automatic recognition applies only to CLR types imported from .NET assemblies. Mist types that implement `IDisposable` are **not** automatically droppable — you must declare an explicit `Drop()` method to make them usable in `with` blocks.
+
+This is intentional. Mist's drop semantics are more expressive than IDisposable (supporting return values, chaining, and substructural disciplines). Automatically conflating `Dispose()` with `Drop()` for Mist types would bypass these design choices. If you want a Mist type to be droppable, declare `Drop()` explicitly — call `Dispose()` from within it if you need both patterns.
+
 ## Discipline Summary
 
 | Feature | Linear | Relevant | Affine | Unrestricted |

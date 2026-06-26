@@ -177,6 +177,12 @@ public static class SyntheticDropInferenceEngine
                 // A generic instantiation is droppable iff its definition is.
                 return IsDroppable(constructed.GenericDefinition, explicitDrop, stateMap);
 
+            case ClassType ct when ct.IsDisposableDrop:
+                return false;
+
+            case StructType st when st.IsDisposableDrop:
+                return false;
+
             case ClassType or StructType:
                 // Recurse so the field's type is synthesized before the container is decided.
                 return Resolve(type, explicitDrop, stateMap);

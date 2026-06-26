@@ -1,0 +1,32 @@
+using Standard;
+
+namespace Snippets;
+
+// A type with explicit Drop() — Drop() is emitted
+// instead of Dispose(), even if the type also implements IDisposable
+public class Resource
+{
+    string Name;
+
+    public Resource(string name)
+    {
+        this.Name = name;
+    }
+
+    public void Drop()
+    {
+        Console.WriteLine($"Resource({Name}).Drop()");
+    }
+}
+
+public class Program
+{
+    public static void Main()
+    {
+        with (var r = new Resource("db-conn"))
+        {
+            Console.WriteLine($"using {r.Name}");
+        }
+        // Drop() is called, not Dispose()
+    }
+}

@@ -7638,6 +7638,9 @@ internal sealed class CSharpSourceWriter
                 // Guard: only drop if the variable wasn't already moved/dropped in a branch.
                 // Apply recursive drop chaining (Requirement 2.3).
                 {
+                    // The fallback $"{localName}.Drop()" path only fires when declType is null,
+                    // which cannot happen for properly-projected CLR types (they always resolve
+                    // to a ClassType/StructType). IDisposable dispatch is therefore not needed here.
                     var chainedExpr = declType is not null
                         ? EmitChainedDropExpression(declType, localName)
                         : isTaskLike ? $"await {localName}" : $"{localName}.Drop()";
@@ -7663,6 +7666,9 @@ internal sealed class CSharpSourceWriter
                 AppendLine("{");
                 _indentLevel++;
                 {
+                    // The fallback $"{localName}.Drop()" path only fires when declType is null,
+                    // which cannot happen for properly-projected CLR types (they always resolve
+                    // to a ClassType/StructType). IDisposable dispatch is therefore not needed here.
                     var chainedExpr = declType is not null
                         ? EmitChainedDropExpression(declType, localName)
                         : isTaskLike ? $"await {localName}" : $"{localName}.Drop()";
@@ -9099,6 +9105,21 @@ internal sealed class CSharpSourceWriter
     /// go through the variable declaration path and get their own scope-exit drop (Requirement 3.7).
     /// </para>
     /// </summary>
+    /// <summary>
+    /// Determines whether a type's droppability originates from implementing
+    /// <c>System.IDisposable</c> (CLR interop) rather than an explicit Mist <c>Drop()</c> method.
+    /// Resolves through <see cref="ConstructedType"/> and <see cref="TypeAliasType"/> to check
+    /// the flag on the underlying definition.
+    /// </summary>
+    private static bool IsDisposableDrop(IType type) => type switch
+    {
+        ConstructedType ct => IsDisposableDrop(ct.GenericDefinition),
+        TypeAliasType alias => IsDisposableDrop(alias.UnderlyingType),
+        ClassType c => c.IsDisposableDrop,
+        StructType s => s.IsDisposableDrop,
+        _ => false,
+    };
+
     private static string EmitChainedDropExpression(IType type, string baseExpr)
     {
         // Determine the first drop action based on the type itself.
@@ -9114,8 +9135,10 @@ internal sealed class CSharpSourceWriter
         }
         else
         {
-            // Non-task droppable: drop action is .Drop().
-            currentExpr = $"{baseExpr}.Drop()";
+            // Non-task droppable: drop action is .Drop() or .Dispose() for IDisposable CLR types.
+            currentExpr = IsDisposableDrop(type)
+                ? $"{baseExpr}.Dispose()"
+                : $"{baseExpr}.Drop()";
             dropResultType = ResolveDropReturnType(type);
         }
 
@@ -9129,7 +9152,9 @@ internal sealed class CSharpSourceWriter
             }
             else
             {
-                currentExpr = $"({currentExpr}).Drop()";
+                currentExpr = IsDisposableDrop(dropResultType)
+                    ? $"({currentExpr}).Dispose()"
+                    : $"({currentExpr}).Drop()";
                 dropResultType = ResolveDropReturnType(dropResultType);
             }
         }
@@ -12566,6 +12591,24 @@ internal sealed class CSharpSourceWriter
                 }
 
                 var type = ExtractQualifiedName(objCreation.Type);
+
+                // When the source uses a relative namespace-qualified name (e.g., "IO.MemoryStream"),
+                // resolve to the fully-qualified CLR type name so the emitted C# is valid.
+                if (type.Contains('.'))
+                {
+                    var resolvedExprType = _model.GetTypeOf(objCreation);
+                    if (resolvedExprType is ClassType resolvedCt && resolvedCt.ContainingNamespace is not null
+                        && !resolvedCt.IsBackendBacked)
+                    {
+                        type = $"{resolvedCt.ContainingNamespace}.{resolvedCt.DisplayName}";
+                    }
+                    else if (resolvedExprType is StructType resolvedSt && resolvedSt.ContainingNamespace is not null
+                        && !resolvedSt.IsBackendBacked)
+                    {
+                        type = $"{resolvedSt.ContainingNamespace}.{resolvedSt.DisplayName}";
+                    }
+                }
+
                 // Look up the type's parameters to correctly emit carrier struct names
                 // for non-int dependent type arguments (uint, long, etc.).
                 var typeSymbol = _model.AllSymbols

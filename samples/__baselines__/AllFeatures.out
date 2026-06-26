@@ -1625,4 +1625,19 @@ X=10 Y=20
 a==b: True
 a==c: False
 Done!
+=== DisposableDropInterop Demo ===
+--- 1. IDisposable with block ---
+  wrote byte, length=1
+  disposed (no exception = success)
+--- 2. IDisposable with declaration ---
+  wrote byte, length=1
+  disposed (no exception = success)
+--- 3. Explicit Drop takes precedence ---
+  resource value=hello
+  MistResource.Drop() called
+--- 4. Mist IDisposable without Drop ---
+  ManualDisposable.DoWork()
+  ManualDisposable.Dispose() called
+  manually disposed
+=== Done ===
 === Done! ===

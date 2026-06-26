@@ -285,6 +285,22 @@ internal sealed class TypeProjector
         // Synthesize Enumerator associated type slots for IEnumerable<T> implementations
         SynthesizeEnumeratorSlots(clrType, structType, stdlib);
 
+        // IDisposable detection: recognize CLR types implementing System.IDisposable as droppable.
+        // An explicit Drop() method takes precedence over IDisposable-based synthetic drop.
+        if (ImplementsIDisposable(clrType))
+        {
+            if (HasExplicitDropMethod(clrType))
+            {
+                structType.HasDrop = true;
+                structType.IsDisposableDrop = false;
+            }
+            else
+            {
+                structType.HasDrop = true;
+                structType.IsDisposableDrop = true;
+            }
+        }
+
         return (structType, ImmutableArray<ISymbol>.Empty);
     }
 
@@ -303,6 +319,43 @@ internal sealed class TypeProjector
             return type.GetCustomAttributesData()
                 .Any(a => a.AttributeType.FullName ==
                     "System.Runtime.CompilerServices.IsByRefLikeAttribute");
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Determines whether the given CLR type implements <see cref="System.IDisposable"/>.
+    /// Uses <see cref="Type.GetInterfaces()"/> which returns all transitively implemented
+    /// interfaces, covering both direct implementation and inheritance through intermediate interfaces.
+    /// </summary>
+    private static bool ImplementsIDisposable(Type clrType)
+    {
+        try
+        {
+            return clrType.GetInterfaces()
+                .Any(i => i.FullName == "System.IDisposable");
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Determines whether the CLR type declares a public parameterless instance method
+    /// named "Drop". Used to establish precedence: an explicit Drop method wins over
+    /// IDisposable-based synthetic drop recognition.
+    /// </summary>
+    private static bool HasExplicitDropMethod(Type clrType)
+    {
+        try
+        {
+            return clrType
+                .GetMethods(BindingFlags.Public | BindingFlags.Instance)
+                .Any(m => m.Name == "Drop" && m.GetParameters().Length == 0);
         }
         catch
         {
@@ -359,6 +412,22 @@ internal sealed class TypeProjector
 
         // Synthesize Enumerator associated type slots for IEnumerable<T> implementations
         SynthesizeEnumeratorSlots(clrType, classType, stdlib);
+
+        // IDisposable detection: recognize CLR types implementing System.IDisposable as droppable.
+        // An explicit Drop() method takes precedence over IDisposable-based synthetic drop.
+        if (ImplementsIDisposable(clrType))
+        {
+            if (HasExplicitDropMethod(clrType))
+            {
+                classType.HasDrop = true;
+                classType.IsDisposableDrop = false;
+            }
+            else
+            {
+                classType.HasDrop = true;
+                classType.IsDisposableDrop = true;
+            }
+        }
 
         return (classType, ImmutableArray<ISymbol>.Empty);
     }

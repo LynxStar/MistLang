@@ -1,0 +1,18 @@
+using Standard;
+using System.IO;
+
+namespace Snippets;
+
+public class Program
+{
+    public static void Main()
+    {
+        // MemoryStream implements IDisposable — the compiler
+        // recognizes it as droppable and emits .Dispose() in finally
+        with (var ms = new MemoryStream())
+        {
+            ms.WriteByte(42);
+            Console.WriteLine($"length={ms.Length}");
+        }
+    }
+}

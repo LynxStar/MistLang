@@ -196,6 +196,14 @@ dotnet_naming_rule.public_member_should_be_pascal_case.severity = error
 dotnet_naming_rule.public_member_should_be_pascal_case.symbols = public_member
 dotnet_naming_rule.public_member_should_be_pascal_case.style = pascal_case
 
+dotnet_naming_rule.static_readonly_should_be_pascal_case.severity = error
+dotnet_naming_rule.static_readonly_should_be_pascal_case.symbols = static_readonly_field
+dotnet_naming_rule.static_readonly_should_be_pascal_case.style = pascal_case
+
+dotnet_naming_rule.private_const_should_be_pascal_case.severity = error
+dotnet_naming_rule.private_const_should_be_pascal_case.symbols = private_const_field
+dotnet_naming_rule.private_const_should_be_pascal_case.style = pascal_case
+
 dotnet_naming_rule.dependency_should_be__depcase.severity = error
 dotnet_naming_rule.dependency_should_be__depcase.symbols = dependency
 dotnet_naming_rule.dependency_should_be__depcase.style = camelcase
@@ -233,6 +241,14 @@ dotnet_naming_symbols.public_member.required_modifiers =
 dotnet_naming_symbols.dependency.applicable_kinds = field
 dotnet_naming_symbols.dependency.applicable_accessibilities = private
 dotnet_naming_symbols.dependency.required_modifiers = readonly
+
+dotnet_naming_symbols.static_readonly_field.applicable_kinds = field
+dotnet_naming_symbols.static_readonly_field.applicable_accessibilities = private, internal, private_protected
+dotnet_naming_symbols.static_readonly_field.required_modifiers = static, readonly
+
+dotnet_naming_symbols.private_const_field.applicable_kinds = field
+dotnet_naming_symbols.private_const_field.applicable_accessibilities = private, internal, private_protected
+dotnet_naming_symbols.private_const_field.required_modifiers = const
 
 dotnet_naming_symbols.variables.applicable_kinds = parameter, local, local_function
 dotnet_naming_symbols.variables.applicable_accessibilities = local

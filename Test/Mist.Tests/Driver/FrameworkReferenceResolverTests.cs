@@ -216,6 +216,11 @@ public sealed class FrameworkReferenceResolverTests
     public void KnownFramework_NotInstalledForTfm_EmitsSingleMistFwref001()
     {
         const string unavailableTfm = "net5.0";
+
+        // Environment-adaptive: probe whether net5.0 packs are actually installed
+        // on this machine. Some Windows installations retain old ref packs.
+        var (installed, _) = ProbeHighestMatchingPack(AspNetCore, unavailableTfm);
+
         var diagnostics = new DiagnosticBag();
 
         var result = FrameworkReferenceResolver.Resolve(
@@ -223,17 +228,27 @@ public sealed class FrameworkReferenceResolverTests
             unavailableTfm,
             diagnostics);
 
-        Assert.Empty(result.Resolved);
-        Assert.Empty(result.AssemblyPaths);
-        Assert.Equal(1, result.FailureCount);
+        if (installed)
+        {
+            // Pack IS installed for net5.0 on this machine — resolution succeeds.
+            Assert.NotEmpty(result.Resolved);
+            Assert.NotEmpty(result.AssemblyPaths);
+            Assert.Equal(0, result.FailureCount);
+            Assert.False(diagnostics.HasErrors);
+        }
+        else
+        {
+            Assert.Empty(result.Resolved);
+            Assert.Empty(result.AssemblyPaths);
+            Assert.Equal(1, result.FailureCount);
 
-        var diag = Assert.Single(diagnostics.ToImmutableArray());
-        Assert.Equal("MIST_FWREF_001", diag.Id.Value);
-        Assert.Equal(DiagnosticSeverity.Error, diag.Severity);
-        // Names the framework, the target framework, and the searched pack path.
-        Assert.Contains(AspNetCore, diag.Message);
-        Assert.Contains(unavailableTfm, diag.Message);
-        Assert.Contains($"{AspNetCore}.Ref", diag.Message);
+            var diag = Assert.Single(diagnostics.ToImmutableArray());
+            Assert.Equal("MIST_FWREF_001", diag.Id.Value);
+            Assert.Equal(DiagnosticSeverity.Error, diag.Severity);
+            Assert.Contains(AspNetCore, diag.Message);
+            Assert.Contains(unavailableTfm, diag.Message);
+            Assert.Contains($"{AspNetCore}.Ref", diag.Message);
+        }
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -273,6 +288,10 @@ public sealed class FrameworkReferenceResolverTests
     {
         const string unknown = "Totally.Unknown.Framework";
         const string unavailableTfm = "net5.0";
+
+        // Environment-adaptive: probe whether net5.0 packs are actually installed.
+        var (aspNetInstalled, _) = ProbeHighestMatchingPack(AspNetCore, unavailableTfm);
+
         var diagnostics = new DiagnosticBag();
 
         var result = FrameworkReferenceResolver.Resolve(
@@ -283,13 +302,25 @@ public sealed class FrameworkReferenceResolverTests
             unavailableTfm,
             diagnostics);
 
-        Assert.Empty(result.Resolved);
-        Assert.Empty(result.AssemblyPaths);
-        Assert.Equal(2, result.FailureCount);
-
+        // The unknown framework always fails with MIST_FWREF_002.
         var diags = diagnostics.ToImmutableArray();
-        Assert.Equal(2, diags.Length);
         Assert.Contains(diags, d => d.Id.Value == "MIST_FWREF_002" && d.Message.Contains(unknown, StringComparison.Ordinal));
-        Assert.Contains(diags, d => d.Id.Value == "MIST_FWREF_001" && d.Message.Contains(AspNetCore, StringComparison.Ordinal));
+
+        if (aspNetInstalled)
+        {
+            // AspNetCore pack IS installed for net5.0 — it resolves successfully.
+            Assert.NotEmpty(result.Resolved);
+            Assert.Equal(1, result.FailureCount); // only the unknown framework fails
+            Assert.Single(diags); // only MIST_FWREF_002
+        }
+        else
+        {
+            // AspNetCore pack is NOT installed for net5.0 — both fail.
+            Assert.Empty(result.Resolved);
+            Assert.Empty(result.AssemblyPaths);
+            Assert.Equal(2, result.FailureCount);
+            Assert.Equal(2, diags.Length);
+            Assert.Contains(diags, d => d.Id.Value == "MIST_FWREF_001" && d.Message.Contains(AspNetCore, StringComparison.Ordinal));
+        }
     }
 }

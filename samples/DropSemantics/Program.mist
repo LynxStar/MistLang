@@ -95,7 +95,7 @@ public affine class AuthToken
     // PROOF: Drop() consumes the value when called
     public void Drop()
     {
-        Console.WriteLine($"  AuthToken({Token}).Drop() called — consumed");
+        Console.WriteLine($"  AuthToken({Token}).Drop() called - consumed");
     }
 
     public string GetToken()

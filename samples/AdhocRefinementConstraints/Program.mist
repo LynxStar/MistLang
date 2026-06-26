@@ -289,7 +289,7 @@ public class Program
         Console.WriteLine($"  (Wrapper's N >= 0 implies FixedArray's Size >= 0)");
 
         // 15. Abstract type with parameter refinement — same constraint (Liskov)
-        Console.WriteLine("--- 15. Abstract type refinement — same constraint (Liskov) ---");
+        Console.WriteLine("--- 15. Abstract type refinement - same constraint (Liskov) ---");
         IValidator strictVal = new StrictValidator();
         var result15 = strictVal.Validate(42);
         Console.WriteLine($"  {result15}");
@@ -297,7 +297,7 @@ public class Program
         Console.WriteLine($"  {result15b}");
 
         // 16. Abstract type with parameter refinement — no constraint (Liskov)
-        Console.WriteLine("--- 16. Abstract type refinement — no constraint (Liskov) ---");
+        Console.WriteLine("--- 16. Abstract type refinement - no constraint (Liskov) ---");
         IValidator lenientVal = new LenientValidator();
         var result16 = lenientVal.Validate(99);
         Console.WriteLine($"  {result16}");
@@ -305,7 +305,7 @@ public class Program
         Console.WriteLine($"  {result16b}");
 
         // 17. Abstract type with parameter refinement — weaker constraint (Liskov)
-        Console.WriteLine("--- 17. Abstract type refinement — weaker constraint (Liskov) ---");
+        Console.WriteLine("--- 17. Abstract type refinement - weaker constraint (Liskov) ---");
         IStrictProcessor weakerProc = new WeakerProcessor();
         var result17 = weakerProc.Process(50);
         Console.WriteLine($"  {result17}");

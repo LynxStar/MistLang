@@ -42,6 +42,6 @@ public class Program
         var demoArgs = ["demo", "arg"];
         Program.Main(demoArgs);
 
-        Console.WriteLine("  Disambiguation complete — Main is callable but not the entry point");
+        Console.WriteLine("  Disambiguation complete - Main is callable but not the entry point");
     }
 }

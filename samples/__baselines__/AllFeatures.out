@@ -1,4 +1,4 @@
-=== AllFeatures Mist Sample ===
+﻿=== AllFeatures Mist Sample ===
 === FirstClassFunctions Sample ===
 --- Expression Lambda ---
 doubler(5)=10
@@ -878,13 +878,13 @@ Done!
 --- 14. Forwarding dependent parameter with implication ---
   Wrapper<5> : FixedArray<string, 5> constructed successfully
   (Wrapper's N >= 0 implies FixedArray's Size >= 0)
---- 15. Abstract type refinement — same constraint (Liskov) ---
+--- 15. Abstract type refinement - same constraint (Liskov) ---
   StrictValidator.Validate(42) accepted (same constraint >= 0)
   StrictValidator.Validate(0) accepted (same constraint >= 0)
---- 16. Abstract type refinement — no constraint (Liskov) ---
+--- 16. Abstract type refinement - no constraint (Liskov) ---
   LenientValidator.Validate(99) accepted (no constraint)
   LenientValidator.Validate(0) accepted (no constraint)
---- 17. Abstract type refinement — weaker constraint (Liskov) ---
+--- 17. Abstract type refinement - weaker constraint (Liskov) ---
   WeakerProcessor.Process(50) accepted (weaker constraint >= 0)
   WeakerProcessor.Process(10) accepted (weaker constraint >= 0)
 === Adhoc Refinement Constraints Done ===
@@ -1008,7 +1008,7 @@ Done!
   Calling Main explicitly to prove it is just a normal static method:
   Main called explicitly (not as entry point)
   Main args.Length: 2
-  Disambiguation complete — Main is callable but not the entry point
+  Disambiguation complete - Main is callable but not the entry point
 === GlobalUsings Demo ===
 [Global using only] LOG: hello from services
 [Redundant explicit using] Product(Widget, $42)
@@ -1334,7 +1334,7 @@ absent ?? 42: 42
   SharedResource(conn-1).Drop() no-op
 --- 7. Affine: only drops in with block ---
   Inside with-block
-  AuthToken(abc-123).Drop() called — consumed
+  AuthToken(abc-123).Drop() called - consumed
 --- 8. Affine: no auto-drop outside with ---
   AuthToken(xyz-789) falls out of scope
 --- 9. Synthetic drop on containing type ---

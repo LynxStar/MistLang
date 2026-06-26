@@ -83,7 +83,7 @@ public sealed class DropSemanticsIntegrationTests
         "  SharedResource(conn-1).Drop() no-op",
         "--- 7. Affine: only drops in with block ---",
         "  Inside with-block",
-        "  AuthToken(abc-123).Drop() called \u2014 consumed",
+        "  AuthToken(abc-123).Drop() called - consumed",
         "--- 8. Affine: no auto-drop outside with ---",
         "  AuthToken(xyz-789) falls out of scope",
         "--- 9. Synthetic drop on containing type ---",

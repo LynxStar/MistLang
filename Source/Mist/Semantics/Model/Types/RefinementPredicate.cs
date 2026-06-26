@@ -665,11 +665,11 @@ public sealed class RefinementPredicate
     {
         // >= a implies >= b when a >= b
         // >= a implies > b when a > b
-        // > a implies >= b when a >= b (since x > a means x >= a+1, so if a >= b then x >= b)
+        // > a implies >= b when a + 1 >= b (since x > a means x >= a+1)
         // > a implies > b when a >= b
         // <= a implies <= b when a <= b
         // <= a implies < b when a < b
-        // < a implies <= b when a <= b (since x < a means x <= a-1, so if a <= b then x <= b)
+        // < a implies <= b when a - 1 <= b (since x < a means x <= a-1)
         // < a implies < b when a <= b
 
         return (source.Op, target.Op) switch
@@ -678,16 +678,16 @@ public sealed class RefinementPredicate
             (RelOp.Gte, RelOp.Gte) => source.Value >= target.Value,
             (RelOp.Gte, RelOp.Gt) => source.Value > target.Value,
 
-            // Source: > a
-            (RelOp.Gt, RelOp.Gte) => source.Value >= target.Value,
+            // Source: > a (x > a means x >= a+1)
+            (RelOp.Gt, RelOp.Gte) => source.Value + 1 >= target.Value,
             (RelOp.Gt, RelOp.Gt) => source.Value >= target.Value,
 
             // Source: <= a
             (RelOp.Lte, RelOp.Lte) => source.Value <= target.Value,
             (RelOp.Lte, RelOp.Lt) => source.Value < target.Value,
 
-            // Source: < a
-            (RelOp.Lt, RelOp.Lte) => source.Value <= target.Value,
+            // Source: < a (x < a means x <= a-1)
+            (RelOp.Lt, RelOp.Lte) => source.Value - 1 <= target.Value,
             (RelOp.Lt, RelOp.Lt) => source.Value <= target.Value,
 
             _ => false

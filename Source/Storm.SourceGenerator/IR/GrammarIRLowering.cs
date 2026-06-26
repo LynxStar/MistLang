@@ -359,7 +359,7 @@ public static class GrammarIRLowering
     /// </summary>
     private static ModeActionIR ConvertModeAction(StormDeclaration decl)
     {
-        StormModeAction? action = decl switch
+        var action = decl switch
         {
             StormTokenDecl tokenDecl => tokenDecl.Action,
             StormHiddenTokenDecl hiddenDecl => hiddenDecl.Action,

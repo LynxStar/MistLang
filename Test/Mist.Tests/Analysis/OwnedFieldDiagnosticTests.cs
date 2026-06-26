@@ -22,11 +22,8 @@ using Mist.Common.Text;
 using Mist.Driver;
 using Mist.Driver.Contracts;
 using Mist.Generated;
-using Mist.Lexing.Contracts;
-using Mist.Parsing.Contracts;
 using Mist.Semantics.Contracts;
 using Mist.Semantics.Model;
-using Xunit;
 
 namespace Mist.Tests.Analysis;
 
@@ -197,7 +194,7 @@ public sealed class OwnedFieldDiagnosticTests
 
         // Build semantic model directly and set DeclaredThisTier to simulate
         // the parsed `with frozen` annotation.
-        var sourceText = new Mist.Common.Text.SourceText("test.mist", source);
+        var sourceText = new SourceText("test.mist", source);
         var lexBag = new DiagnosticBag();
         var tokens = new Mist.Lexing.MistLexer().Lex(sourceText, lexBag);
         Assert.False(lexBag.HasErrors);
@@ -207,8 +204,8 @@ public sealed class OwnedFieldDiagnosticTests
         Assert.False(parseBag.HasErrors, $"Parse errors: {string.Join(", ", parseBag.ToImmutableArray().Select(d => d.Message))}");
         Assert.NotNull(parseResult.Root);
 
-        var compilation = new Mist.Driver.Contracts.MistCompilation(
-            ImmutableArray.Create(new Mist.Driver.Contracts.CompilationUnit(sourceText)));
+        var compilation = new MistCompilation(
+            ImmutableArray.Create(new CompilationUnit(sourceText)));
         var semBag = new DiagnosticBag();
         var model = new SemanticModelBuilder().Build(
             compilation,

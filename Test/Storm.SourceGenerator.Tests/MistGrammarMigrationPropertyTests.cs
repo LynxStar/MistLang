@@ -324,7 +324,7 @@ namespace Mist.Common.Text
                 $"Original ({originalTokens.Count}): {FormatTokens(originalTokens)}\n" +
                 $"Migrated ({migratedTokens.Count}): {FormatTokens(migratedTokens)}");
 
-            for(int i = 0; i < originalTokens.Count; i++)
+            for(var i = 0; i < originalTokens.Count; i++)
             {
                 Assert.True(originalTokens[i].kind == migratedTokens[i].kind,
                     $"Token kind mismatch at index {i} for input: [{Escape(input)}]\n" +

@@ -222,7 +222,7 @@ public class AbstractCycleDetectionPropertyTests
         var entries = new List<(string Name, string? ParentName)>();
         for(var i = 0; i < names.Length; i++)
         {
-            string? parentName = i < names.Length - 1 ? names[i + 1] : null;
+            var parentName = i < names.Length - 1 ? names[i + 1] : null;
             entries.Add((names[i], parentName));
         }
 

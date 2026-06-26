@@ -10,7 +10,6 @@
 // **Validates: Requirements 7.1, 7.2, 8.5, 12.8**
 
 using System.Collections.Immutable;
-using System.Linq;
 using System.Runtime.CompilerServices;
 using FsCheck;
 using FsCheck.Fluent;

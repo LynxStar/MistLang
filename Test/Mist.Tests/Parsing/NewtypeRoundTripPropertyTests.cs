@@ -1,7 +1,6 @@
 // Feature: newtypes, Property 8: Pretty-printer round-trip
 // **Validates: Requirements 4.1, 4.2**
 
-using System.Collections.Immutable;
 using FsCheck;
 using FsCheck.Fluent;
 using FsCheck.Xunit;

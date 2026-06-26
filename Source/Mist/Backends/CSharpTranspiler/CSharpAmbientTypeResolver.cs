@@ -59,7 +59,7 @@ public sealed class CSharpAmbientTypeResolver : IAmbientTypeResolver
 
     /// <summary>
     /// Upgrades the stdlib type provider used by lazy type factories.
-    /// Called by <see cref="Mist.Semantics.Model.SemanticModelBuilder"/>
+    /// Called by <see cref="SemanticModelBuilder"/>
     /// after Pass 1 registers all stdlib types so that ambient-type member
     /// signatures (e.g., <c>Math.Abs</c> returning <c>Int32</c>) reference
     /// the real stdlib <see cref="IType"/> instances instead of the

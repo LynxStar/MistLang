@@ -1,7 +1,6 @@
 // Feature: stack-only-types, Property 3: Stackalloc missing/empty size is rejected and recovered
 // **Validates: Requirements 3.4, 3.5**
 
-using System.Collections.Immutable;
 using FsCheck;
 using FsCheck.Fluent;
 using FsCheck.Xunit;

@@ -520,7 +520,7 @@ public class DefaultTypeCheckerPropertyTests
             return Gen.Constant(ImmutableArray<(string, string)>.Empty);
         }
 
-        Gen<ImmutableArray<(string, string)>> result =
+        var result =
             from fieldType in Gen.Elements(PrimitiveTypes)
             select ImmutableArray.Create<(string, string)>((FieldNames[0], fieldType));
 
@@ -574,7 +574,7 @@ public class DefaultTypeCheckerPropertyTests
             .Select(f => MakeFieldMember(MakeField(f.FieldName, MakePrimitiveTypeRef(f.FieldType))))
             .ToImmutableArray();
 
-        TypeDeclarationNode typeDecl = scenario.IsStruct
+        var typeDecl = scenario.IsStruct
             ? WrapStruct(MakeStructDecl(scenario.TypeName, members))
             : WrapClass(MakeClassDecl(scenario.TypeName, members));
 
@@ -648,7 +648,7 @@ public class DefaultTypeCheckerPropertyTests
 
         var allMembers = fieldMembers.Add(MakeDefaultBlockMember(entries));
 
-        TypeDeclarationNode typeDecl = scenario.IsStruct
+        var typeDecl = scenario.IsStruct
             ? WrapStruct(MakeStructDecl(scenario.TypeName, allMembers))
             : WrapClass(MakeClassDecl(scenario.TypeName, allMembers));
 
@@ -710,7 +710,7 @@ public class DefaultTypeCheckerPropertyTests
 
         var allMembers = fieldMembers.Add(emptyDefaultBlock);
 
-        TypeDeclarationNode typeDecl = scenario.IsStruct
+        var typeDecl = scenario.IsStruct
             ? WrapStruct(MakeStructDecl(scenario.TypeName, allMembers))
             : WrapClass(MakeClassDecl(scenario.TypeName, allMembers));
 

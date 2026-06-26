@@ -12,7 +12,6 @@ using Mist.Backends.CSharpTranspiler;
 using Mist.Common.Diagnostics;
 using Mist.Driver;
 using Mist.Driver.Contracts;
-using Mist.Semantics;
 using Mist.Semantics.Contracts;
 using Mist.Semantics.Model;
 using Mist.Semantics.Model.Types;

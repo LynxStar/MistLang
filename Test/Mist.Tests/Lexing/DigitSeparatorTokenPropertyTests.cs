@@ -4,7 +4,6 @@ using FsCheck.Fluent;
 using FsCheck.Xunit;
 using Mist.Common.Diagnostics;
 using Mist.Generated;
-using Mist.Lexing.Contracts;
 
 namespace Mist.Tests.Lexing;
 

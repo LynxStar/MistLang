@@ -75,8 +75,8 @@ public class TopLevelConstructCountPropertyTests
         var kinds = Enum.GetValues<SymbolKind>();
         var origins = Enum.GetValues<SymbolOrigin>();
 
-        var genKind = Gen.Elements<SymbolKind>(kinds);
-        var genOrigin = Gen.Elements<SymbolOrigin>(origins);
+        var genKind = Gen.Elements(kinds);
+        var genOrigin = Gen.Elements(origins);
 
         return genKind.SelectMany(k => genOrigin.Select(o => (k, o)));
     }

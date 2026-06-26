@@ -1,5 +1,3 @@
-using System;
-
 namespace Mist.Tests.InteropFixtures;
 
 /// <summary>

@@ -1,7 +1,6 @@
 // Feature: first-class-functions, Property 10: Lambda is reachable from every value position
 // **Validates: Requirements 7.1, 7.2, 7.3, 12.3**
 
-using System.Collections.Immutable;
 using FsCheck;
 using FsCheck.Fluent;
 using FsCheck.Xunit;

@@ -1610,7 +1610,7 @@ public sealed class MistPrettyPrinter
         {
             AssignmentFormExpressionNode assignmentForm => EmitAssignment(assignmentForm.Assignment),
             LambdaFormExpressionNode lambdaForm => EmitLambda(lambdaForm.Lambda),
-            _ => throw new System.InvalidOperationException(
+            _ => throw new InvalidOperationException(
                 $"Unknown ExpressionNode variant: {expr.GetType().Name}"),
         };
     }
@@ -1623,7 +1623,7 @@ public sealed class MistPrettyPrinter
                 $"{EmitLambdaModifiers(exprLambda.Modifiers)}{EmitLambdaParameterList(exprLambda.Params)} => {EmitExpression(exprLambda.Body)}",
             BlockLambdaLambdaExpressionNode blockLambda =>
                 $"{EmitLambdaModifiers(blockLambda.Modifiers)}{EmitLambdaParameterList(blockLambda.Params)} => {EmitBlockBody(blockLambda.Body)}",
-            _ => throw new System.InvalidOperationException(
+            _ => throw new InvalidOperationException(
                 $"Unknown LambdaExpressionNode variant: {lambda.GetType().Name}"),
         };
     }
@@ -1655,7 +1655,7 @@ public sealed class MistPrettyPrinter
         {
             SingleImplicitParamLambdaParameterListNode singleParam => singleParam.Name.Lexeme,
             ParenthesizedLambdaParamsLambdaParameterListNode parenParams => EmitParenthesizedLambdaParams(parenParams),
-            _ => throw new System.InvalidOperationException(
+            _ => throw new InvalidOperationException(
                 $"Unknown LambdaParameterListNode variant: {paramList.GetType().Name}"),
         };
     }
@@ -1683,7 +1683,7 @@ public sealed class MistPrettyPrinter
         {
             TypedLambdaParamLambdaParamNode typed => $"{EmitTypeReference(typed.Type)} {typed.Name.Lexeme}",
             UntypedLambdaParamLambdaParamNode untyped => untyped.Name.Lexeme,
-            _ => throw new System.InvalidOperationException(
+            _ => throw new InvalidOperationException(
                 $"Unknown LambdaParamNode variant: {param.GetType().Name}"),
         };
     }

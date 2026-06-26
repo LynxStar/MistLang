@@ -1,7 +1,6 @@
 // Feature: drop-semantics, Property 21: Parsing round-trip
 // **Validates: Requirements 1.1, 1.2**
 
-using System.Collections.Immutable;
 using FsCheck;
 using FsCheck.Fluent;
 using FsCheck.Xunit;
@@ -11,7 +10,6 @@ using Mist.Lexing.Contracts;
 using Mist.Parsing;
 using Mist.Parsing.Contracts;
 using Mist.Tests.Generators;
-using Xunit;
 
 namespace Mist.Tests.Parsing;
 

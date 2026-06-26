@@ -9,7 +9,6 @@ using Mist.Driver.Contracts;
 using Mist.Lexing;
 using Mist.Parsing;
 using Mist.Semantics.Model;
-using Xunit;
 
 namespace Mist.Tests.Analysis;
 

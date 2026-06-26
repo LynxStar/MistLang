@@ -13,7 +13,7 @@ namespace Storm.SourceGenerator.Tests
         /// <summary>
         /// Creates a file reader delegate backed by an in-memory dictionary.
         /// </summary>
-        public static System.Func<string, string?> InMemoryFileReader(Dictionary<string, string> files)
+        public static Func<string, string?> InMemoryFileReader(Dictionary<string, string> files)
         {
             return path =>
             {

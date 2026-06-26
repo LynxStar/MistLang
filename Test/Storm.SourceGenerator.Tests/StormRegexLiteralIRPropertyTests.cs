@@ -1,6 +1,5 @@
 using FsCheck;
 using FsCheck.Fluent;
-using Storm.SourceGenerator.Frontend;
 using Storm.SourceGenerator.IR;
 using Storm.SourceGenerator.Resolve;
 

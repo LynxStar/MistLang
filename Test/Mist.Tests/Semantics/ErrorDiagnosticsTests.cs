@@ -217,7 +217,7 @@ public sealed class ErrorDiagnosticsTests
             var diagnostics = new DiagnosticBag();
 
             // Include runtime assemblies + InteropFixtures + corrupted file.
-            var fixtureAssemblyPath = typeof(Mist.Tests.InteropFixtures.SimpleClass).Assembly.Location;
+            var fixtureAssemblyPath = typeof(InteropFixtures.SimpleClass).Assembly.Location;
             var runtimePaths = GetRuntimeAssemblyPaths();
             var assemblyPaths = runtimePaths.Add(fixtureAssemblyPath).Add(tempFile);
 

@@ -118,7 +118,7 @@ public class ValueParameterPropertyTests
         {
             Body = new BlockNode
             {
-                Statements = ImmutableArray.Create<StatementNode>(
+                Statements = ImmutableArray.Create(
                     MistAstGenerator.MakeExpressionStatement(
                         MakeFieldAssignment())),
             },
@@ -144,7 +144,7 @@ public class ValueParameterPropertyTests
         {
             Body = new BlockNode
             {
-                Statements = ImmutableArray.Create<StatementNode>(
+                Statements = ImmutableArray.Create(
                     MistAstGenerator.MakeExpressionStatement(
                         MakeFieldAssignment())),
             },

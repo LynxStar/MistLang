@@ -380,7 +380,7 @@ public sealed partial class ClassAbstractEmissionPropertyTests : IDisposable
 
         // 3. Declare the test class
         // The AST's BaseClassName is set to the first name in the inheritance clause.
-        string? astBaseClassName = scenario.Kind switch
+        var astBaseClassName = scenario.Kind switch
         {
             ClassScenarioKind.BaseClassOnly => scenario.BaseClassName,
             ClassScenarioKind.AbstractOnly => scenario.AbstractName,

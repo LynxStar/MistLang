@@ -222,7 +222,7 @@ public sealed class NewtypeMemberCloningPropertyTests
 
         // Get the source type's member scope.
         var sourceType = sourceSymbol.DeclaredType;
-        IScope? sourceMemberScope = sourceType switch
+        var sourceMemberScope = sourceType switch
         {
             ClassType ct => ct.MemberScope,
             StructType st => st.MemberScope,

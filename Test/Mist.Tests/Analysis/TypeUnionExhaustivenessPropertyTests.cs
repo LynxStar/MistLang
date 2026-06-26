@@ -1,7 +1,6 @@
 // Feature: switch-expressions, Property 3: Type Union Exhaustiveness
 // **Validates: Requirements 6.1, 6.3, 6.5, 6.7, 6.8, 16.1, 16.2, 16.3, 16.4**
 
-using System.Collections.Immutable;
 using FsCheck;
 using FsCheck.Fluent;
 using FsCheck.Xunit;

@@ -63,10 +63,10 @@ public static class ExpressionNodeExtensions
         return node switch
         {
             AssignmentFormExpressionNode assignmentForm => assignmentForm.Assignment,
-            LambdaFormExpressionNode => throw new System.NotSupportedException(
+            LambdaFormExpressionNode => throw new NotSupportedException(
                 "Lambda expressions are not yet supported at this stage of the compiler pipeline. "
                 + "Lambda resolution, emission, and inference are implemented by later first-class-functions tasks."),
-            _ => throw new System.InvalidOperationException(
+            _ => throw new InvalidOperationException(
                 $"Unknown ExpressionNode variant: {node.GetType().Name}"),
         };
     }

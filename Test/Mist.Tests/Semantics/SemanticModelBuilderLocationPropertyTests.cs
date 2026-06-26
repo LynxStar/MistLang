@@ -34,7 +34,7 @@ public class SemanticModelBuilderLocationPropertyTests
         var gen =
             from path in Gen.Elements("test.mist", "src/main.mist", "lib/utils.mist", "foo/bar.mist")
             from contentParts in Gen.ListOf(
-                Gen.Frequency<string>(
+                Gen.Frequency(
                     (5, Gen.Elements("a", "bb", "ccc", "x", "123", " ", "\t")),
                     (2, Gen.Constant("\n")),
                     (1, Gen.Constant("\r\n"))))
@@ -85,7 +85,7 @@ public class SemanticModelBuilderLocationPropertyTests
         // Replicate MakeDiagnosticWithLocation logic:
         // if sourceText is not null and span.Length > 0, set Location
         LinePositionSpan location = default;
-        string compilationUnitPath = sourceText.Path;
+        var compilationUnitPath = sourceText.Path;
 
         if(span.Length > 0)
         {

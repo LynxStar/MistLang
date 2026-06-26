@@ -9,7 +9,6 @@ using FsCheck.Xunit;
 using Mist.Backends.CSharpTranspiler;
 using Mist.Common.Diagnostics;
 using Mist.Generated;
-using Mist.Semantics.Contracts;
 using Mist.Tests.Helpers;
 
 namespace Mist.Tests.Backend;

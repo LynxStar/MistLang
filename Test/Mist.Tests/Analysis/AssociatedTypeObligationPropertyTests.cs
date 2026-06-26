@@ -202,7 +202,7 @@ public class AssociatedTypeObligationPropertyTests
             return Gen.Constant(Array.Empty<SlotDef>());
         }
 
-        Gen<SlotDef[]> result = GenSlotDef(names[0]).Select(s => new[] { s });
+        var result = GenSlotDef(names[0]).Select(s => new[] { s });
         for(var i = 1; i < names.Length; i++)
         {
             var name = names[i];

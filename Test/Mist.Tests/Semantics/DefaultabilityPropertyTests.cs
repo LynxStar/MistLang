@@ -302,7 +302,7 @@ public class DefaultabilityPropertyTests
             return Gen.Constant(ImmutableArray<(string, string)>.Empty);
         }
 
-        Gen<ImmutableArray<(string, string)>> result =
+        var result =
             from fieldType in Gen.Elements(PrimitiveTypes)
             select ImmutableArray.Create<(string, string)>((FieldNames[0], fieldType));
 
@@ -346,7 +346,7 @@ public class DefaultabilityPropertyTests
             .Select(f => MakeFieldMember(MakePrimitiveField(f.FieldName, f.FieldType)))
             .ToImmutableArray();
 
-        TypeDeclarationNode typeDecl = scenario.IsStruct
+        var typeDecl = scenario.IsStruct
             ? WrapStruct(MakeStructDecl(scenario.TypeName, members))
             : WrapClass(MakeClassDecl(scenario.TypeName, members));
 
@@ -378,7 +378,7 @@ public class DefaultabilityPropertyTests
             .Append(MakeDefaultBlockMember(entries))
             .ToImmutableArray();
 
-        TypeDeclarationNode typeDecl = scenario.IsStruct
+        var typeDecl = scenario.IsStruct
             ? WrapStruct(MakeStructDecl(scenario.TypeName, allMembers))
             : WrapClass(MakeClassDecl(scenario.TypeName, allMembers));
 
@@ -394,14 +394,14 @@ public class DefaultabilityPropertyTests
         var members = scenario.Fields
             .Select(f =>
             {
-                FieldDeclarationNode field = f.IsAbstractType
+                var field = f.IsAbstractType
                     ? MakeNamedTypeField(f.FieldName, f.FieldType)
                     : MakePrimitiveField(f.FieldName, f.FieldType);
                 return MakeFieldMember(field);
             })
             .ToImmutableArray();
 
-        TypeDeclarationNode typeDecl = scenario.IsStruct
+        var typeDecl = scenario.IsStruct
             ? WrapStruct(MakeStructDecl(scenario.TypeName, members))
             : WrapClass(MakeClassDecl(scenario.TypeName, members));
 

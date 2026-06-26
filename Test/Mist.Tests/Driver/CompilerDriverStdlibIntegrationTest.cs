@@ -1,5 +1,4 @@
 using System.Collections.Immutable;
-using System.Linq;
 using Mist.Analysis.Builtin;
 using Mist.Analysis.Contracts;
 using Mist.Backends.Contracts;

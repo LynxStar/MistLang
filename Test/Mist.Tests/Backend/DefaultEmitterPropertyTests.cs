@@ -14,7 +14,6 @@ using Mist.Driver.Contracts;
 using Mist.Generated;
 using Mist.Semantics.Contracts;
 using Mist.Semantics.Model;
-using Mist.Semantics.Model.Types;
 
 namespace Mist.Tests.Backend;
 
@@ -404,7 +403,7 @@ public sealed partial class DefaultEmitterPropertyTests : IDisposable
             return Gen.Constant(ImmutableArray<(string, string)>.Empty);
         }
 
-        Gen<ImmutableArray<(string, string)>> result =
+        var result =
             from fieldType in Gen.Elements(PrimitiveTypes)
             select ImmutableArray.Create<(string, string)>((FieldNames[0], fieldType));
 
@@ -444,7 +443,7 @@ public sealed partial class DefaultEmitterPropertyTests : IDisposable
             .Select(f => MakeFieldMember(MakeField(f.FieldName, MakePrimitiveTypeRef(f.FieldType))))
             .ToImmutableArray();
 
-        TypeDeclarationNode typeDecl = scenario.IsStruct
+        var typeDecl = scenario.IsStruct
             ? WrapStruct(MakeStructDecl(scenario.TypeName, members))
             : WrapClass(MakeClassDecl(scenario.TypeName, members));
 
@@ -481,7 +480,7 @@ public sealed partial class DefaultEmitterPropertyTests : IDisposable
             .Select(f => MakeFieldMember(MakeField(f.FieldName, MakePrimitiveTypeRef(f.FieldType))))
             .ToImmutableArray();
 
-        TypeDeclarationNode typeDecl = scenario.IsStruct
+        var typeDecl = scenario.IsStruct
             ? WrapStruct(MakeStructDecl(scenario.TypeName, members))
             : WrapClass(MakeClassDecl(scenario.TypeName, members));
 

@@ -149,7 +149,7 @@ public sealed class ValueTaskEmissionPropertyTests : IDisposable
     private static CompilationUnitNode BuildAst(InferredReturnScenario scenario)
     {
         // Build the async method
-        TypeReferenceNode returnTypeRef = scenario.IsVoid
+        var returnTypeRef = scenario.IsVoid
             ? new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() }
             : MakePrimitiveTypeRef(scenario.ReturnTypeName);
 

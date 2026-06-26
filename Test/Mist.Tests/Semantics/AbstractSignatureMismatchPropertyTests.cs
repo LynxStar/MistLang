@@ -11,7 +11,6 @@ using Mist.Driver.Contracts;
 using Mist.Generated;
 using Mist.Semantics.Contracts;
 using Mist.Semantics.Model;
-using Mist.Semantics.Model.Types;
 
 namespace Mist.Tests.Semantics;
 
@@ -447,7 +446,7 @@ public class AbstractSignatureMismatchPropertyTests
         var implMethod = MakeMethodDecl(
             scenario.MethodName,
             returnType: scenario.ImplReturnType);
-        var implMembers = ImmutableArray.Create<MemberDeclarationNode>(WrapMethod(implMethod));
+        var implMembers = ImmutableArray.Create(WrapMethod(implMethod));
 
         TypeDeclarationNode implTypeDecl;
         switch(scenario.TypeKind)
@@ -521,7 +520,7 @@ public class AbstractSignatureMismatchPropertyTests
             scenario.MethodName,
             returnType: MakeVoidTypeRef(),
             parameters: implParamList);
-        var implMembers = ImmutableArray.Create<MemberDeclarationNode>(WrapMethod(implMethod));
+        var implMembers = ImmutableArray.Create(WrapMethod(implMethod));
 
         TypeDeclarationNode implTypeDecl;
         switch(scenario.TypeKind)
@@ -611,7 +610,7 @@ public class AbstractSignatureMismatchPropertyTests
             scenario.AbstractName,
             ImmutableArray.Create(abstractMethod));
 
-        var implMembers = ImmutableArray.Create<MemberDeclarationNode>(WrapMethod(implMethod));
+        var implMembers = ImmutableArray.Create(WrapMethod(implMethod));
 
         TypeDeclarationNode implTypeDecl;
         switch(scenario.TypeKind)
@@ -665,7 +664,7 @@ public class AbstractSignatureMismatchPropertyTests
         var abstractDecl = MakeAbstractDecl("IWorker", ImmutableArray.Create(abstractMethod));
 
         var classMethod = MakeMethodDecl("DoWork", returnType: MakeIntTypeRef());
-        var classMembers = ImmutableArray.Create<MemberDeclarationNode>(WrapMethod(classMethod));
+        var classMembers = ImmutableArray.Create(WrapMethod(classMethod));
         var classDecl = MakeClassDecl("Worker", "IWorker", classMembers);
 
         var ast = MakeCompilationUnit(WrapAbstract(abstractDecl), WrapClass(classDecl));
@@ -688,7 +687,7 @@ public class AbstractSignatureMismatchPropertyTests
         var abstractDecl = MakeAbstractDecl("ICalculator", ImmutableArray.Create(abstractMethod));
 
         var classMethod = MakeMethodDecl("Calculate", returnType: MakeStringTypeRef());
-        var classMembers = ImmutableArray.Create<MemberDeclarationNode>(WrapMethod(classMethod));
+        var classMembers = ImmutableArray.Create(WrapMethod(classMethod));
         var classDecl = MakeClassDecl("Calculator", "ICalculator", classMembers);
 
         var ast = MakeCompilationUnit(WrapAbstract(abstractDecl), WrapClass(classDecl));
@@ -712,7 +711,7 @@ public class AbstractSignatureMismatchPropertyTests
 
         var implParamList = MakeParameterList(MakeParameter("x", MakeStringTypeRef()));
         var classMethod = MakeMethodDecl("Process", returnType: MakeVoidTypeRef(), parameters: implParamList);
-        var classMembers = ImmutableArray.Create<MemberDeclarationNode>(WrapMethod(classMethod));
+        var classMembers = ImmutableArray.Create(WrapMethod(classMethod));
         var classDecl = MakeClassDecl("Processor", "IProcessor", classMembers);
 
         var ast = MakeCompilationUnit(WrapAbstract(abstractDecl), WrapClass(classDecl));
@@ -735,7 +734,7 @@ public class AbstractSignatureMismatchPropertyTests
 
         var implParamList = MakeParameterList(MakeParameter("x", MakeIntTypeRef()));
         var classMethod = MakeMethodDecl("Run", returnType: MakeVoidTypeRef(), parameters: implParamList);
-        var classMembers = ImmutableArray.Create<MemberDeclarationNode>(WrapMethod(classMethod));
+        var classMembers = ImmutableArray.Create(WrapMethod(classMethod));
         var classDecl = MakeClassDecl("Runner", "IRunner", classMembers);
 
         var ast = MakeCompilationUnit(WrapAbstract(abstractDecl), WrapClass(classDecl));
@@ -757,7 +756,7 @@ public class AbstractSignatureMismatchPropertyTests
         var abstractDecl = MakeAbstractDecl("IValueProvider", ImmutableArray.Create(abstractMethod));
 
         var structMethod = MakeMethodDecl("GetValue", returnType: MakeStringTypeRef());
-        var structMembers = ImmutableArray.Create<MemberDeclarationNode>(WrapMethod(structMethod));
+        var structMembers = ImmutableArray.Create(WrapMethod(structMethod));
         var structDecl = MakeStructDecl("ValueHolder", "IValueProvider", structMembers);
 
         var ast = MakeCompilationUnit(WrapAbstract(abstractDecl), WrapStruct(structDecl));

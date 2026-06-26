@@ -4,7 +4,6 @@ using Mist.Common.Diagnostics;
 using Mist.Driver;
 using Mist.Generated;
 using Mist.Semantics.Contracts;
-using Mist.Semantics.Model;
 using Mist.Semantics.Model.Types;
 
 namespace Mist.Backends.CSharpTranspiler;

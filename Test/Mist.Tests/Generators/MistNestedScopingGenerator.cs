@@ -232,17 +232,17 @@ public static class MistNestedScopingGenerator
         var types = new HashSet<Type>();
         if(mods.IsPublic)
         {
-            _ = types.Add(typeof(Mist.Generated.PublicModifierModifierNode));
+            _ = types.Add(typeof(Generated.PublicModifierModifierNode));
         }
 
         if(mods.IsPrivate)
         {
-            _ = types.Add(typeof(Mist.Generated.PrivateModifierModifierNode));
+            _ = types.Add(typeof(Generated.PrivateModifierModifierNode));
         }
 
         if(mods.IsStatic)
         {
-            _ = types.Add(typeof(Mist.Generated.StaticModifierModifierNode));
+            _ = types.Add(typeof(Generated.StaticModifierModifierNode));
         }
 
         return types;
@@ -340,7 +340,7 @@ public static class MistNestedScopingGenerator
     public static Gen<NamespaceChainSource> GenNamespaceChainBlockOnly()
     {
         return from segmentCount in Gen.Choose(2, 5)
-               from names in Gen.ArrayOf<string>(GenIdentifier(), segmentCount)
+               from names in Gen.ArrayOf(GenIdentifier(), segmentCount)
                let distinctNames = names.Select((n, i) => n + i).ToArray()
                let source = BuildNestedBlockNamespaceSource(distinctNames, fileScopedPrefix: null)
                let expectedFqns = ComputeExpectedFqns(distinctNames, fileScopedPrefix: null)
@@ -354,7 +354,7 @@ public static class MistNestedScopingGenerator
     {
         return from fileScopedName in GenIdentifier()
                from segmentCount in Gen.Choose(1, 4)
-               from names in Gen.ArrayOf<string>(GenIdentifier(), segmentCount)
+               from names in Gen.ArrayOf(GenIdentifier(), segmentCount)
                let distinctNames = names.Select((n, i) => n + i).ToArray()
                let source = BuildNestedBlockNamespaceSource(distinctNames, fileScopedPrefix: fileScopedName)
                let expectedFqns = ComputeExpectedFqns(distinctNames, fileScopedPrefix: fileScopedName)

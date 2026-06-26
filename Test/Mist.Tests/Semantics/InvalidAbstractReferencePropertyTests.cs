@@ -358,7 +358,7 @@ public class InvalidAbstractReferencePropertyTests
             return false;
         }
 
-        IReadOnlyList<IType> resolvedAbstracts = referencingSymbol.DeclaredType switch
+        var resolvedAbstracts = referencingSymbol.DeclaredType switch
         {
             StructType structType => structType.Abstracts,
             AbstractType abstractType => abstractType.Abstracts,

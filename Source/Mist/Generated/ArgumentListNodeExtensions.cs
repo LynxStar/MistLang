@@ -9,7 +9,6 @@
 // code can work with minimal changes until it is updated to handle ref arguments.
 
 using System.Collections.Immutable;
-using Storm.Runtime;
 
 namespace Mist.Generated;
 
@@ -67,7 +66,7 @@ public static class ArgumentListNodeExtensions
         {
             RefArgumentArgumentNode refArg => refArg.Expression,
             ValueArgumentArgumentNode valueArg => valueArg.Expression,
-            _ => throw new System.InvalidOperationException(
+            _ => throw new InvalidOperationException(
                 $"Unknown ArgumentNode variant: {arg.GetType().Name}"),
         };
     }

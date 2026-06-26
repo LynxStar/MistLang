@@ -112,7 +112,7 @@ public class FieldKeywordPropertyTests
         {
             Body = new BlockNode
             {
-                Statements = ImmutableArray.Create<StatementNode>(
+                Statements = ImmutableArray.Create(
                     MistAstGenerator.MakeExpressionStatement(MakeFieldAssignment())),
             },
         };

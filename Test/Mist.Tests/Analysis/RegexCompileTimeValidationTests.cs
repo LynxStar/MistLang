@@ -13,7 +13,6 @@ using Mist.Driver.Contracts;
 using Mist.Lexing;
 using Mist.Parsing;
 using Mist.Semantics;
-using Mist.Semantics.Contracts;
 using Mist.Semantics.Model;
 
 namespace Mist.Tests.Analysis;
@@ -63,7 +62,7 @@ public class RegexCompileTimeValidationTests
         var buildDiag = new DiagnosticBag();
         var model = Builder.Build(
             compilation,
-            ImmutableArray.Create<Storm.Runtime.SyntaxNode>(parseResult.Root),
+            ImmutableArray.Create(parseResult.Root),
             ambientTypeResolver: null,
             namespaceRoot: "TestProject",
             projectFolder: "/test",

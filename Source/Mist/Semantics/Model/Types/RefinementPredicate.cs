@@ -341,7 +341,7 @@ public sealed class RefinementPredicate
                         var fullMatchPattern = $"^(?:{pattern})$";
                         return System.Text.RegularExpressions.Regex.IsMatch(strValue, fullMatchPattern);
                     }
-                    catch(System.ArgumentException)
+                    catch(ArgumentException)
                     {
                         // Invalid regex pattern — cannot evaluate, treat as non-matching.
                         return false;

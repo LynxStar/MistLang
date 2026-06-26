@@ -1,4 +1,3 @@
-using System.Collections.Immutable;
 using Mist.Analysis.Contracts;
 using Mist.Common.Diagnostics;
 using Mist.Generated;
@@ -263,7 +262,7 @@ public sealed class ContextCheckerAnalyzer : IAnalyzer
             try { declaringNode = model.GetDeclaringNode(sym); }
             catch { continue; }
 
-            BlockNode? body = declaringNode switch
+            var body = declaringNode switch
             {
                 MethodDeclarationNode m => m.Body.GetBlock(),
                 ConstructorDeclarationNode c => c.Body.GetBlock(),
@@ -436,7 +435,7 @@ public sealed class ContextCheckerAnalyzer : IAnalyzer
             try { declaringNode = model.GetDeclaringNode(sym); }
             catch { continue; }
 
-            BlockNode? body = declaringNode switch
+            var body = declaringNode switch
             {
                 MethodDeclarationNode m => m.Body.GetBlock(),
                 ConstructorDeclarationNode c => c.Body.GetBlock(),
@@ -672,7 +671,7 @@ public sealed class ContextCheckerAnalyzer : IAnalyzer
             try { declaringNode = model.GetDeclaringNode(sym); }
             catch { continue; }
 
-            BlockNode? body = declaringNode switch
+            var body = declaringNode switch
             {
                 MethodDeclarationNode m => m.Body.GetBlock(),
                 ConstructorDeclarationNode c => c.Body.GetBlock(),
@@ -874,7 +873,7 @@ public sealed class ContextCheckerAnalyzer : IAnalyzer
         WalkNodeForCallSites(postfix.Target, availableContextTypes, enclosingMethod, model, methodsWithContext, diagnostics);
 
         // Track the receiver type as we walk through suffixes.
-        IType? currentType = model.GetTypeOf(postfix.Target);
+        var currentType = model.GetTypeOf(postfix.Target);
 
         for(var i = 0; i < postfix.Suffix.Length; i++)
         {
@@ -1364,7 +1363,7 @@ public sealed class ContextCheckerAnalyzer : IAnalyzer
             }
 
             var type = typeSym.DeclaredType;
-            IReadOnlyList<IType>? abstracts = type switch
+            var abstracts = type switch
             {
                 ClassType ct => ct.Abstracts,
                 StructType st => st.Abstracts,
@@ -1376,7 +1375,7 @@ public sealed class ContextCheckerAnalyzer : IAnalyzer
                 continue;
             }
 
-            IScope? memberScope = type switch
+            var memberScope = type switch
             {
                 ClassType ct => ct.MemberScope,
                 StructType st => st.MemberScope,

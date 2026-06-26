@@ -1,5 +1,4 @@
 using System.Collections.Immutable;
-using System.Linq;
 using Mist.Analysis.Builtin;
 using Mist.Analysis.Contracts;
 using Mist.Backends.Contracts;
@@ -10,7 +9,6 @@ using Mist.Driver;
 using Mist.Driver.Contracts;
 using Mist.Lexing.Contracts;
 using Mist.Parsing.Contracts;
-using Mist.Semantics.Contracts;
 using Mist.Semantics.Model;
 
 namespace Mist.Tests.Semantics;

@@ -10,7 +10,6 @@ using Mist.Common.Diagnostics;
 using Mist.Common.Text;
 using Mist.Driver.Contracts;
 using Mist.Semantics;
-using Mist.Semantics.Contracts;
 using Mist.Semantics.Model;
 
 namespace Mist.Tests.Analysis;
@@ -54,7 +53,7 @@ public class RegexPatternMatchingTypeTests
         var buildDiag = new DiagnosticBag();
         var model = Builder.Build(
             compilation,
-            ImmutableArray.Create<Storm.Runtime.SyntaxNode>(parseResult.Root),
+            ImmutableArray.Create(parseResult.Root),
             ambientTypeResolver: null,
             namespaceRoot: "TestProject",
             projectFolder: "/test",

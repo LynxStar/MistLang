@@ -1,6 +1,5 @@
 using Mist.Common.Text;
 using Mist.Semantics.Contracts;
-using Mist.Semantics.Model.Types;
 
 namespace Mist.Semantics.Model;
 
@@ -89,39 +88,39 @@ public sealed class Symbol : ISymbol
 
     /// <summary>
     /// Tracks the readonly classification of this symbol. Applies to fields, properties,
-    /// indexers, methods, constructors, and parameters. Defaults to <see cref="Model.ReadonlyStatus.Unknown"/>
+    /// indexers, methods, constructors, and parameters. Defaults to <see cref="ReadonlyStatus.Unknown"/>
     /// until the semantic model builder or inference engine classifies it.
     /// </summary>
     public ReadonlyStatus ReadonlyStatus { get; internal set; } = ReadonlyStatus.Unknown;
 
     /// <summary>
     /// The ownership tier declared on this symbol (variable, parameter, field).
-    /// Defaults to <see cref="Model.OwnershipTier.Unrestricted"/> when no ownership
+    /// Defaults to <see cref="OwnershipTier.Unrestricted"/> when no ownership
     /// specifier is present.
     /// </summary>
     public OwnershipTier OwnershipTier { get; internal set; } = OwnershipTier.Unrestricted;
 
     /// <summary>
     /// The ref kind of this symbol. Applies to parameters and local variables.
-    /// A value of <see cref="Model.RefKind.Ref"/> means the symbol is a mutable
-    /// reference to a storage location; <see cref="Model.RefKind.RefReadonly"/>
-    /// means a readonly reference. Defaults to <see cref="Model.RefKind.None"/>
+    /// A value of <see cref="RefKind.Ref"/> means the symbol is a mutable
+    /// reference to a storage location; <see cref="RefKind.RefReadonly"/>
+    /// means a readonly reference. Defaults to <see cref="RefKind.None"/>
     /// (standard pass-by-value).
     /// </summary>
     public RefKind RefKind { get; internal set; } = RefKind.None;
 
     /// <summary>
     /// The original CLR calling convention for this parameter, when it was projected
-    /// from a CLR assembly. Only meaningful for parameters with <see cref="Model.RefKind.Ref"/>
+    /// from a CLR assembly. Only meaningful for parameters with <see cref="RefKind.Ref"/>
     /// that originated from the backend. Null for Mist-native parameters.
     /// </summary>
     public ClrCallingConvention? ClrCallingConvention { get; internal set; }
 
     /// <summary>
     /// The ref kind of this method's return type. Applies only to method symbols.
-    /// A value of <see cref="Model.RefKind.Ref"/> means the method returns a mutable
-    /// reference; <see cref="Model.RefKind.RefReadonly"/> means it returns a readonly
-    /// reference. Defaults to <see cref="Model.RefKind.None"/> (standard return-by-value).
+    /// A value of <see cref="RefKind.Ref"/> means the method returns a mutable
+    /// reference; <see cref="RefKind.RefReadonly"/> means it returns a readonly
+    /// reference. Defaults to <see cref="RefKind.None"/> (standard return-by-value).
     /// </summary>
     public RefKind ReturnRefKind { get; internal set; } = RefKind.None;
 

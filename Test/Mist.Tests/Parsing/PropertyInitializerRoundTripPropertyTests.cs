@@ -1,7 +1,6 @@
 // Feature: property-initializers, Property 1: Pretty-printer round trip
 // **Validates: Requirements 9.4**
 
-using System.Collections.Immutable;
 using FsCheck;
 using FsCheck.Fluent;
 using FsCheck.Xunit;

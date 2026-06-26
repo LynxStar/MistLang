@@ -14,10 +14,8 @@ using Mist.Common.Diagnostics;
 using Mist.Driver;
 using Mist.Driver.Contracts;
 using Mist.Generated;
-using Mist.Semantics;
 using Mist.Semantics.Contracts;
 using Mist.Semantics.Model;
-using Xunit;
 using SyntaxNode = Storm.Runtime.SyntaxNode;
 
 namespace Mist.Tests.Analysis;

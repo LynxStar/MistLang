@@ -26,7 +26,6 @@ using Mist.Driver;
 using Mist.Driver.Contracts;
 using Mist.Lexing;
 using Mist.Parsing;
-using Mist.Semantics;
 using Mist.Semantics.Contracts;
 using Mist.Semantics.Model;
 using Mist.Semantics.Model.Types;

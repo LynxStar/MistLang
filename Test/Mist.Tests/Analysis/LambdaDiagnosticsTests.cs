@@ -8,7 +8,6 @@ using Mist.Common.Text;
 using Mist.Driver.Contracts;
 using Mist.Lexing;
 using Mist.Parsing;
-using Mist.Semantics.Contracts;
 using Mist.Semantics.Model;
 
 namespace Mist.Tests.Analysis;

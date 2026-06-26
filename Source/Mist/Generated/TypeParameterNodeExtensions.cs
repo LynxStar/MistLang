@@ -30,7 +30,7 @@ public static class TypeParameterNodeExtensions
             DependentTypeParameterTypeParameterNode dep => dep.Name,
             NamedConstraintDependentTypeParameterTypeParameterNode named => named.Name,
             RegularTypeParameterTypeParameterNode reg => reg.Name,
-            _ => throw new System.InvalidOperationException(
+            _ => throw new InvalidOperationException(
                 $"Unknown TypeParameterNode variant: {node.GetType().Name}"),
         };
     }

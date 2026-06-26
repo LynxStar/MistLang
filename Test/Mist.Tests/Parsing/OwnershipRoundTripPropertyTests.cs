@@ -1,7 +1,6 @@
 // Feature: ownership-system, Property 1: Ownership-annotated round-trip parsing
 // **Validates: Requirements 20.1, 20.2, 20.3, 2.1, 2.2, 2.3, 2.4, 2.5**
 
-using System.Collections.Immutable;
 using FsCheck;
 using FsCheck.Fluent;
 using FsCheck.Xunit;

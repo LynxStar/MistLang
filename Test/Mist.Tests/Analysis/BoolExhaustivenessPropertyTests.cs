@@ -1,7 +1,6 @@
 // Feature: switch-expressions, Property 2: Bool Exhaustiveness
 // **Validates: Requirements 6.1, 6.2, 6.5, 6.7, 6.8, 15.1, 15.2, 15.3**
 
-using System.Collections.Immutable;
 using FsCheck;
 using FsCheck.Fluent;
 using FsCheck.Xunit;

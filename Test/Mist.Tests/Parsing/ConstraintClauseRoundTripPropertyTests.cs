@@ -1,6 +1,5 @@
 // Feature: generic-constraints, Property 1: Constraint Clause Round-Trip
 
-using System.Collections.Immutable;
 using FsCheck;
 using FsCheck.Fluent;
 using FsCheck.Xunit;
@@ -126,7 +125,7 @@ public class ConstraintClauseRoundTripPropertyTests
             var selectedParams = availableTypeParams.Take(clauseCount).ToArray();
 
             // Chain generators for each type param
-            Gen<string> result = Gen.Constant("");
+            var result = Gen.Constant("");
             for(var i = 0; i < selectedParams.Length; i++)
             {
                 var tp = selectedParams[i];

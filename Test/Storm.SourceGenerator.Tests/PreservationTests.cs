@@ -17,7 +17,7 @@ namespace Storm.SourceGenerator.Tests
         //  Helpers
         // ---------------------------------------------------------------
 
-        private static System.Func<string, string?> InMemoryFileReader(Dictionary<string, string> files)
+        private static Func<string, string?> InMemoryFileReader(Dictionary<string, string> files)
         {
             return path =>
             {

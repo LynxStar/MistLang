@@ -1,4 +1,3 @@
-using System;
 using Mist.Backends.CSharpTranspiler;
 using Mist.Semantics.Contracts;
 using Mist.Semantics.Model;

@@ -6,9 +6,6 @@ using Mist.Analysis.Builtin;
 using Mist.Common.Diagnostics;
 using Mist.Common.Text;
 using Mist.Driver.Contracts;
-using Mist.Generated;
-using Mist.Lexing;
-using Mist.Parsing;
 using Mist.Semantics.Contracts;
 using Mist.Semantics.Model;
 
@@ -40,7 +37,7 @@ public class TupleTypeCheckerDiagnosticTests
         var buildDiag = new DiagnosticBag();
         var model = Builder.Build(
             compilation,
-            ImmutableArray.Create<Storm.Runtime.SyntaxNode>(ast),
+            ImmutableArray.Create(ast),
             ambientTypeResolver: null,
             namespaceRoot: "TestProject",
             projectFolder: "/test",

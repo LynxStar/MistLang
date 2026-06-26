@@ -1,7 +1,6 @@
 // Feature: optional-defaultability, Property 3: Default constraint round-trip
 // **Validates: Requirements 5.8**
 
-using System.Collections.Immutable;
 using FsCheck;
 using FsCheck.Fluent;
 using FsCheck.Xunit;
@@ -113,7 +112,7 @@ public class DefaultConstraintRoundTripPropertyTests
             // At least one clause must have 'default'; pick which one
             return Gen.Choose(0, selectedParams.Length - 1).SelectMany(defaultClauseIdx =>
             {
-                Gen<string> result = Gen.Constant("");
+                var result = Gen.Constant("");
 
                 for(var i = 0; i < selectedParams.Length; i++)
                 {

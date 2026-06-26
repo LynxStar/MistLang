@@ -10,7 +10,6 @@
 // and verify that the emitted C# output contains the expected explicit type arguments.
 
 using System.Collections.Immutable;
-using System.Text.RegularExpressions;
 using FsCheck;
 using FsCheck.Fluent;
 using FsCheck.Xunit;

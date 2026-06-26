@@ -1,6 +1,5 @@
 using Mist.Common.Diagnostics;
 using Mist.Generated;
-using Mist.Semantics;
 using Mist.Semantics.Contracts;
 using Mist.Semantics.Model;
 using Mist.Semantics.Model.Types;
@@ -305,7 +304,7 @@ public sealed class OwnershipInferencePass
                     {
                         // Try to resolve the method's this-tier either from the use's TargetMethod
                         // or by looking up the method on the candidate's declared type.
-                        ThisTier effectiveTier = ThisTier.None;
+                        var effectiveTier = ThisTier.None;
 
                         if(use.TargetMethod is Symbol methodSym)
                         {

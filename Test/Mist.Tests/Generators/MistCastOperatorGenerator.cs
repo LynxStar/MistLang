@@ -62,7 +62,7 @@ public static class MistCastOperatorGenerator
                {
                    Block = new BlockNode
                    {
-                       Statements = ImmutableArray.Create<StatementNode>(
+                       Statements = ImmutableArray.Create(
                            MistAstGenerator.MakeReturnStatement(
                                MistAstGenerator.MakeIdentifierExpr(paramName))),
                    },
@@ -352,7 +352,7 @@ public static class MistCastOperatorGenerator
                                    Name = Tok(className),
                                    Modifiers = ImmutableArray.Create<ModifierNode>(
                                        new PublicModifierModifierNode()),
-                                   Members = ImmutableArray.Create<MemberDeclarationNode>(
+                                   Members = ImmutableArray.Create(
                                        castOp,
                                        new MethodMemberMemberDeclarationNode
                                        {

@@ -308,7 +308,7 @@ rule Start = Number;";
             this.text = text;
         }
 
-        public override SourceText? GetText(System.Threading.CancellationToken cancellationToken = default)
+        public override SourceText? GetText(CancellationToken cancellationToken = default)
         {
             return SourceText.From(text);
         }

@@ -272,7 +272,7 @@ public sealed class AssociatedTypeSemanticPropertyTests : IDisposable
             return Gen.Constant(Array.Empty<SlotSpec>());
         }
 
-        Gen<SlotSpec[]> result = GenSlotSpec(names[0]).Select(s => new[] { s });
+        var result = GenSlotSpec(names[0]).Select(s => new[] { s });
         for(var i = 1; i < names.Length; i++)
         {
             var name = names[i];

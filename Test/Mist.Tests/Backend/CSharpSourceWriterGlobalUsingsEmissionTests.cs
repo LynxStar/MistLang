@@ -71,7 +71,7 @@ public sealed class CSharpSourceWriterGlobalUsingsEmissionTests : IDisposable
         var semanticBag = new DiagnosticBag();
         var model = builder.Build(
             compilation,
-            ImmutableArray.Create<Storm.Runtime.SyntaxNode>(parseResult.Root),
+            ImmutableArray.Create(parseResult.Root),
             ambientTypeResolver: null,
             namespaceRoot: "TestProject",
             projectFolder: "/test",

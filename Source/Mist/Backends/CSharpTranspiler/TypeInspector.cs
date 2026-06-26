@@ -1,8 +1,6 @@
 using System.Collections.Immutable;
 using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
-using Mist.Common.Diagnostics;
-using Mist.Driver;
 using Mist.Semantics.Contracts;
 using Mist.Semantics.Model;
 using ReflectionPropertyInfo = System.Reflection.PropertyInfo;

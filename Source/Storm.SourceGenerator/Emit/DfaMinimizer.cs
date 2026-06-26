@@ -52,10 +52,10 @@ namespace Storm.SourceGenerator.Emit
             // Key -1 = non-accepting states.
             var groups = new Dictionary<int, List<int>>();
 
-            for(int i = 0; i < dfa.States.Count; i++)
+            for(var i = 0; i < dfa.States.Count; i++)
             {
                 var state = dfa.States[i];
-                int key = state.AcceptingTokenIndex;
+                var key = state.AcceptingTokenIndex;
 
                 List<int>? group;
                 if(!groups.TryGetValue(key, out group))
@@ -98,7 +98,7 @@ namespace Storm.SourceGenerator.Emit
                 stateById[state.Id] = state;
             }
 
-            bool changed = true;
+            var changed = true;
             while(changed)
             {
                 changed = false;
@@ -165,7 +165,7 @@ namespace Storm.SourceGenerator.Emit
         {
             // Build a lookup from state ID to partition index for fast access
             var stateToPartition = new Dictionary<int, int>();
-            for(int p = 0; p < partitions.Count; p++)
+            for(var p = 0; p < partitions.Count; p++)
             {
                 foreach(var sid in partitions[p])
                 {
@@ -179,7 +179,7 @@ namespace Storm.SourceGenerator.Emit
 
             foreach(var stateId in group)
             {
-                int targetPartition = GetTargetPartition(
+                var targetPartition = GetTargetPartition(
                     stateId, range, stateById, stateToPartition);
 
                 List<int>? subGroup;
@@ -223,7 +223,7 @@ namespace Storm.SourceGenerator.Emit
             // we check if the range matches any transition's range exactly
             // or if the range's representative character falls within a
             // transition's range.
-            char representative = range.Lo;
+            var representative = range.Lo;
             foreach(var transition in state.Transitions)
             {
                 if(transition.Range.Contains(representative))
@@ -256,7 +256,7 @@ namespace Storm.SourceGenerator.Emit
         {
             // Build a lookup: old state ID -> partition index (new state ID)
             var stateToPartition = new Dictionary<int, int>();
-            for(int p = 0; p < partitions.Count; p++)
+            for(var p = 0; p < partitions.Count; p++)
             {
                 foreach(var sid in partitions[p])
                 {
@@ -273,14 +273,14 @@ namespace Storm.SourceGenerator.Emit
 
             // Create new DFA states, one per partition
             var newStates = new List<DfaState>();
-            for(int p = 0; p < partitions.Count; p++)
+            for(var p = 0; p < partitions.Count; p++)
             {
                 var newState = new DfaState(p);
 
                 // Use the first state in the partition as the representative.
                 // All states in the partition have the same accepting token
                 // index (guaranteed by the initial partition).
-                int representativeId = partitions[p][0];
+                var representativeId = partitions[p][0];
                 DfaState? representative;
                 if(stateById.TryGetValue(representativeId, out representative))
                 {
@@ -297,7 +297,7 @@ namespace Storm.SourceGenerator.Emit
                         {
                             // Avoid duplicate transitions (multiple old transitions
                             // could map to the same new target with the same range)
-                            string key = transition.Range.Lo + "-" + transition.Range.Hi + "->" + targetPartition;
+                            var key = transition.Range.Lo + "-" + transition.Range.Hi + "->" + targetPartition;
                             if(seenTargets.Add(key))
                             {
                                 newState.Transitions.Add(

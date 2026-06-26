@@ -6,7 +6,7 @@ namespace Mist.Backends.CSharpTranspiler.Diagnostics;
 
 /// <summary>
 /// Parses MSBuild-format diagnostic lines and converts them to
-/// <see cref="Mist.Common.Diagnostics.Diagnostic"/> instances.
+/// <see cref="Diagnostic"/> instances.
 /// Format: <c>file(line,col): severity code: message</c>
 /// </summary>
 public sealed partial class RoslynDiagnosticMapper

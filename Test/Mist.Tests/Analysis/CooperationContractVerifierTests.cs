@@ -33,7 +33,6 @@ using Mist.Common.Diagnostics;
 using Mist.Driver;
 using Mist.Driver.Contracts;
 using Mist.Semantics.Model;
-using Xunit;
 
 namespace Mist.Tests.Analysis;
 

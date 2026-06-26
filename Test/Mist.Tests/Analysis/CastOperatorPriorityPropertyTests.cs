@@ -361,7 +361,7 @@ public class CastOperatorPriorityPropertyTests
             MakeTypedVarDeclFromIdentifierWithInitializer(
                 scenario.BaseTypeName, "b", "d");
 
-        var mainStatements = ImmutableArray.Create<StatementNode>(
+        var mainStatements = ImmutableArray.Create(
             MakeTypedVarDecl(scenario.DerivedTypeName, "d", scenario.DerivedTypeName),
             assignStmt);
 
@@ -417,7 +417,7 @@ public class CastOperatorPriorityPropertyTests
             MakeTypedVarDeclFromIdentifierWithInitializer(
                 scenario.TypeName, "b", "a");
 
-        var mainStatements = ImmutableArray.Create<StatementNode>(
+        var mainStatements = ImmutableArray.Create(
             MakeTypedVarDecl(scenario.TypeName, "a", scenario.TypeName),
             assignStmt);
 

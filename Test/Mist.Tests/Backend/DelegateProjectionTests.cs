@@ -1,4 +1,3 @@
-using System;
 using Mist.Backends.CSharpTranspiler;
 using Mist.Semantics.Contracts;
 using Mist.Semantics.Model;
@@ -47,7 +46,7 @@ public sealed class DelegateProjectionTests
         // One cached Func ClassType per arity (1..17), so projected types of the
         // same arity are reference-equal — matching real stdlib behavior, which
         // is what ConstructedType structural equality relies on.
-        private readonly System.Collections.Generic.Dictionary<int, ClassType> funcByArity = new();
+        private readonly Dictionary<int, ClassType> funcByArity = new();
 
         private static readonly StructType VoidType =
             new("Void", new Scope(null), "Standard", isBackendBacked: true);

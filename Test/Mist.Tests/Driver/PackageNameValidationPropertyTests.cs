@@ -5,11 +5,9 @@
 // if and only if it matches the regex [a-zA-Z0-9\-_\.]+  and does not exceed 128
 // characters. All other strings SHALL produce an Error diagnostic.
 
-using System.Collections.Immutable;
 using System.Text.RegularExpressions;
 using FsCheck;
 using FsCheck.Fluent;
-using FsCheck.Xunit;
 using Mist.Common.Diagnostics;
 using Mist.Driver;
 

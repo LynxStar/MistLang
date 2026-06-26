@@ -1,7 +1,6 @@
 // Feature: type-aliases, Property 1: Parsing produces correct AST structure
 // **Validates: Requirements 2.1, 2.2, 2.3**
 
-using System.Collections.Immutable;
 using FsCheck;
 using FsCheck.Fluent;
 using FsCheck.Xunit;

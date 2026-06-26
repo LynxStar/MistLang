@@ -12,7 +12,6 @@
 // - Task<T> local from direct async call emits `await localName;` (Req 3.5, 3.6)
 // - Explicit capture `var x = v.Drop()` does NOT chain (Req 3.7)
 
-using System.Collections.Immutable;
 using System.Text;
 using FsCheck;
 using FsCheck.Fluent;
@@ -20,13 +19,11 @@ using FsCheck.Xunit;
 using Mist.Backends.CSharpTranspiler;
 using Mist.Common.Diagnostics;
 using Mist.Common.Text;
-using Mist.Driver;
 using Mist.Driver.Contracts;
 using Mist.Lexing;
 using Mist.Lexing.Contracts;
 using Mist.Parsing;
 using Mist.Parsing.Contracts;
-using Mist.Semantics.Contracts;
 using Mist.Semantics.Model;
 
 namespace Mist.Tests.Backend;

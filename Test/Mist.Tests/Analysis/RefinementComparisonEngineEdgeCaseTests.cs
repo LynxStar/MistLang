@@ -1,7 +1,6 @@
 // Feature: refinement-comparison-engine, Unit tests for unsupported pattern rejection and edge cases
 // **Validates: Requirements 4.1, 4.2, 4.3, 7.7**
 
-using System.Collections.Immutable;
 using Mist.Generated;
 using Mist.Semantics.Model.Types;
 using Mist.Tests.Generators;

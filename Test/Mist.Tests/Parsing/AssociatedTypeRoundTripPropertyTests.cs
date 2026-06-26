@@ -1,7 +1,6 @@
 // Feature: associated-types, Property 1: Pretty-print round-trip preserves structure
 // **Validates: Requirements 1.1, 1.2, 1.3, 1.5, 1.7, 7.1, 7.2, 7.3, 7.4**
 
-using System.Collections.Immutable;
 using FsCheck;
 using FsCheck.Fluent;
 using FsCheck.Xunit;
@@ -124,7 +123,7 @@ public class AssociatedTypeRoundTripPropertyTests
 
             var selectedParams = availableTypeParams.Take(clauseCount).ToArray();
 
-            Gen<string> result = Gen.Constant("");
+            var result = Gen.Constant("");
             for(var i = 0; i < selectedParams.Length; i++)
             {
                 var tp = selectedParams[i];

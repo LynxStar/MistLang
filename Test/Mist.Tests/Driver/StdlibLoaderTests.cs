@@ -1,8 +1,5 @@
-using System.Collections.Immutable;
-using System.Linq;
 using Mist.Common.Diagnostics;
 using Mist.Driver;
-using Mist.Driver.Contracts;
 
 namespace Mist.Tests.Driver;
 
@@ -54,7 +51,7 @@ public sealed class StdlibLoaderTests
         File.WriteAllText(Path.Combine(temp.Path, "README.md"), "ignored");
 
         var diagnostics = new DiagnosticBag();
-        ImmutableArray<CompilationUnit> units = StdlibLoader.LoadFrom(temp.Path, diagnostics);
+        var units = StdlibLoader.LoadFrom(temp.Path, diagnostics);
 
         Assert.Empty(diagnostics.ToImmutableArray());
         Assert.Equal(2, units.Length);
@@ -78,7 +75,7 @@ public sealed class StdlibLoaderTests
         Assert.False(Directory.Exists(missing), "Precondition: directory must not exist.");
 
         var diagnostics = new DiagnosticBag();
-        ImmutableArray<CompilationUnit> units = StdlibLoader.LoadFrom(missing, diagnostics);
+        var units = StdlibLoader.LoadFrom(missing, diagnostics);
 
         Assert.Empty(units);
         var diags = diagnostics.ToImmutableArray();

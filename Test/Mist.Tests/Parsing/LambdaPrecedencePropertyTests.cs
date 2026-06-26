@@ -1,7 +1,6 @@
 // Feature: first-class-functions, Property 9: Lambda is lowest-precedence and right-associative
 // **Validates: Requirements 12.5, 4.1**
 
-using System.Collections.Immutable;
 using FsCheck;
 using FsCheck.Fluent;
 using FsCheck.Xunit;

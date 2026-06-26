@@ -83,7 +83,7 @@ public sealed class FrameEscapeAnalyzer : IAnalyzer
         try { declaringNode = model.GetDeclaringNode(methodSymbol); }
         catch { return; }
 
-        BlockNode? body = declaringNode switch
+        var body = declaringNode switch
         {
             MethodDeclarationNode methodDecl => methodDecl.Body.GetBlock(),
             ConstructorDeclarationNode ctorDecl => ctorDecl.Body.GetBlock(),

@@ -96,7 +96,7 @@ public class PatternDiscardNonBindingPropertyTests
 
     private static StatementNode MakeScrutineeDecl(string typeName, string name)
     {
-        ExpressionNode initializer = typeName switch
+        var initializer = typeName switch
         {
             "int" => MistAstGenerator.WrapPrimary(
                 new IntegerLiteralExpressionPrimaryNode { IntegerLiteral = Tok("42") }),

@@ -405,7 +405,7 @@ public class DefaultValueComputationPropertyTests
     {
         // Build fields one at a time, then ensure at least one has an initializer
         // and at least one does not.
-        Gen<ImmutableArray<FieldSpec>> result =
+        var result =
             from ft in Gen.Elements(PrimitiveTypes)
             from hasInit in Gen.Elements(true, false)
             select ImmutableArray.Create(new FieldSpec(FieldNames[0], ft, hasInit));
@@ -459,7 +459,7 @@ public class DefaultValueComputationPropertyTests
 
     private static Gen<ImmutableArray<FieldSpec>> GenIntFieldSpecs(int count)
     {
-        Gen<ImmutableArray<FieldSpec>> result =
+        var result =
             from hasInit in Gen.Elements(true, false)
             select ImmutableArray.Create(new FieldSpec(FieldNames[0], "int", hasInit));
 
@@ -521,7 +521,7 @@ public class DefaultValueComputationPropertyTests
     private static Gen<ImmutableArray<FieldSpec>> GenPrimitiveFieldSpecs(
         int count, string[] namePool)
     {
-        Gen<ImmutableArray<FieldSpec>> result =
+        var result =
             from ft in Gen.Elements(PrimitiveTypes)
             from hasInit in Gen.Elements(true, false)
             select ImmutableArray.Create(new FieldSpec(namePool[0], ft, hasInit));
@@ -572,14 +572,14 @@ public class DefaultValueComputationPropertyTests
             .Select(f =>
             {
                 var typeRef = MakePrimitiveTypeRef(f.FieldType);
-                ExpressionNode? initializer = f.HasInitializer
+                var initializer = f.HasInitializer
                     ? MakeIntLiteralExpression("0") // Placeholder; ConstantValue extraction is limited
                     : null;
                 return MakeFieldMember(MakeField(f.FieldName, typeRef, initializer));
             })
             .ToImmutableArray();
 
-        TypeDeclarationNode typeDecl = scenario.IsStruct
+        var typeDecl = scenario.IsStruct
             ? WrapStruct(MakeStructDecl(scenario.TypeName, members))
             : WrapClass(MakeClassDecl(scenario.TypeName, members));
 
@@ -596,7 +596,7 @@ public class DefaultValueComputationPropertyTests
             .Select(f =>
             {
                 var typeRef = MakePrimitiveTypeRef(f.FieldType);
-                ExpressionNode? initializer = f.HasInitializer
+                var initializer = f.HasInitializer
                     ? MakeIntLiteralExpression("0")
                     : null;
                 return MakeFieldMember(MakeField(f.FieldName, typeRef, initializer));
@@ -617,7 +617,7 @@ public class DefaultValueComputationPropertyTests
             .Append(MakeDefaultBlockMember(entries))
             .ToImmutableArray();
 
-        TypeDeclarationNode typeDecl = scenario.IsStruct
+        var typeDecl = scenario.IsStruct
             ? WrapStruct(MakeStructDecl(scenario.TypeName, allMembers))
             : WrapClass(MakeClassDecl(scenario.TypeName, allMembers));
 
@@ -687,7 +687,7 @@ public class DefaultValueComputationPropertyTests
             .Select(f =>
             {
                 var typeRef = MakePrimitiveTypeRef(f.FieldType);
-                ExpressionNode? initializer = f.HasInitializer
+                var initializer = f.HasInitializer
                     ? MakeIntLiteralExpression("0")
                     : null;
                 return MakeFieldMember(MakeField(f.FieldName, typeRef, initializer));
@@ -701,7 +701,7 @@ public class DefaultValueComputationPropertyTests
             .Select(f =>
             {
                 var typeRef = MakePrimitiveTypeRef(f.FieldType);
-                ExpressionNode? initializer = f.HasInitializer
+                var initializer = f.HasInitializer
                     ? MakeIntLiteralExpression("0")
                     : null;
                 return MakeFieldMember(MakeField(f.FieldName, typeRef, initializer));

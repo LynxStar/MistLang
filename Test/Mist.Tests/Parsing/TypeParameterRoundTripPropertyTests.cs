@@ -325,7 +325,7 @@ public class TypeParameterRoundTripPropertyTests
                 continue;
             }
 
-            TypeParameterListNode? typeParams = typeItem.TypeDeclaration switch
+            var typeParams = typeItem.TypeDeclaration switch
             {
                 ClassTypeTypeDeclarationNode classType => classType.ClassDeclaration.TypeParams,
                 StructTypeTypeDeclarationNode structType => structType.StructDeclaration.TypeParams,

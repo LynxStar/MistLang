@@ -107,7 +107,7 @@ public class NullableProjectionTests
     public void ProjectNullableType_ClassType_ReturnsUnionWithReferenceTypeOrigin()
     {
         // Use a non-intrinsic class type from the fixture assembly
-        var clrType = typeof(Mist.Tests.InteropFixtures.SimpleClass);
+        var clrType = typeof(InteropFixtures.SimpleClass);
 
         var result = projector.ProjectNullableType(clrType, stdlib);
 
@@ -119,7 +119,7 @@ public class NullableProjectionTests
     [Fact]
     public void ProjectNullableType_Interface_ReturnsUnionWithReferenceTypeOrigin()
     {
-        var clrType = typeof(Mist.Tests.InteropFixtures.ISimpleInterface);
+        var clrType = typeof(InteropFixtures.ISimpleInterface);
 
         var result = projector.ProjectNullableType(clrType, stdlib);
 
@@ -143,7 +143,7 @@ public class NullableProjectionTests
     [Fact]
     public void ProjectNullableType_ReferenceType_InnerTypeMatchesProjectedType()
     {
-        var clrType = typeof(Mist.Tests.InteropFixtures.SimpleClass);
+        var clrType = typeof(InteropFixtures.SimpleClass);
 
         var result = projector.ProjectNullableType(clrType, stdlib);
 
@@ -188,7 +188,7 @@ public class NullableProjectionTests
     [Fact]
     public void ProjectNullableType_PlainStruct_ReturnsNonUnionType()
     {
-        var clrType = typeof(Mist.Tests.InteropFixtures.SimpleStruct);
+        var clrType = typeof(InteropFixtures.SimpleStruct);
 
         var result = projector.ProjectNullableType(clrType, stdlib);
 
@@ -199,7 +199,7 @@ public class NullableProjectionTests
     [Fact]
     public void ProjectNullableType_Enum_ReturnsNonUnionType()
     {
-        var clrType = typeof(Mist.Tests.InteropFixtures.SimpleEnum);
+        var clrType = typeof(InteropFixtures.SimpleEnum);
 
         var result = projector.ProjectNullableType(clrType, stdlib);
 

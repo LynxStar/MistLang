@@ -1,10 +1,6 @@
 // Feature: first-class-functions, Property 8: Switch-arm guard never captures a trailing lambda
 // **Validates: Requirements 12.5**
 
-using System;
-using System.Collections.Generic;
-using System.Collections.Immutable;
-using System.Linq;
 using FsCheck;
 using FsCheck.Fluent;
 using FsCheck.Xunit;

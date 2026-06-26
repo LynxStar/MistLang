@@ -11,7 +11,6 @@
 // All work runs in-process — no external process is spawned per iteration
 // (in keeping with the workspace test-process-spawning policy).
 
-using System.Collections.Immutable;
 using FsCheck;
 using FsCheck.Fluent;
 using FsCheck.Xunit;

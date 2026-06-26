@@ -7,11 +7,7 @@ using FsCheck.Fluent;
 using FsCheck.Xunit;
 using Mist.Analysis.Builtin;
 using Mist.Common.Diagnostics;
-using Mist.Common.Text;
-using Mist.Driver.Contracts;
 using Mist.Generated;
-using Mist.Semantics.Contracts;
-using Mist.Semantics.Model;
 using Mist.Tests.Generators;
 using Mist.Tests.Helpers;
 

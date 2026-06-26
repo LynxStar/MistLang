@@ -69,7 +69,7 @@ public class UnknownTypeTests
         // Note: System.Reflection.PropertyInfo is fully qualified to avoid a
         // name collision with Mist.Semantics.Contracts.PropertyInfo, which is
         // the compiler's semantic model record for a Mist property.
-        System.Reflection.PropertyInfo? memberScope = typeof(UnknownType).GetProperty(
+        var memberScope = typeof(UnknownType).GetProperty(
             "MemberScope",
             System.Reflection.BindingFlags.Public
                 | System.Reflection.BindingFlags.Instance
@@ -98,7 +98,7 @@ public class UnknownTypeTests
         // construct an independent instance that is !ReferenceEquals to
         // UnknownType.Instance, breaking every identity check elsewhere in the
         // compiler.
-        System.Reflection.ConstructorInfo[] publicCtors = typeof(UnknownType).GetConstructors(
+        var publicCtors = typeof(UnknownType).GetConstructors(
             System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
 
         Assert.Empty(publicCtors);

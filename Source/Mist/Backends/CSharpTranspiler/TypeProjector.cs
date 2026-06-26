@@ -84,7 +84,7 @@ internal sealed class TypeProjector
     /// has a constraint referencing <c>IComparable&lt;T&gt;</c>).
     /// </summary>
     [ThreadStatic]
-    private static HashSet<Type>? projectionStack;
+    private static HashSet<ClrType>? projectionStack;
 
     /// <summary>
     /// Creates a new <see cref="TypeProjector"/>.
@@ -123,7 +123,7 @@ internal sealed class TypeProjector
     /// separately by the member projection phase (Task 4.4).
     /// </returns>
     public (IType Type, ImmutableArray<ISymbol> Members) ProjectType(
-        Type clrType,
+        ClrType clrType,
         IStdlibTypeProvider stdlib)
     {
         var displayName = StripGenericAritySuffix(clrType.Name);
@@ -178,7 +178,7 @@ internal sealed class TypeProjector
     [UnconditionalSuppressMessage("Trimming", "IL2070",
         Justification = "Types are loaded via MetadataLoadContext for metadata inspection only; trimming cannot affect them.")]
     private (IType Type, ImmutableArray<ISymbol> Members) ProjectEnum(
-        Type clrType,
+        ClrType clrType,
         string displayName,
         string? containingNamespace,
         IStdlibTypeProvider stdlib)
@@ -224,7 +224,7 @@ internal sealed class TypeProjector
     /// Projects a CLR interface into a Mist <see cref="AbstractType"/>.
     /// </summary>
     private (IType Type, ImmutableArray<ISymbol> Members) ProjectAbstract(
-        Type clrType,
+        ClrType clrType,
         string displayName,
         string? containingNamespace,
         IStdlibTypeProvider stdlib)
@@ -251,7 +251,7 @@ internal sealed class TypeProjector
     /// Projects a CLR struct (value type) into a Mist <see cref="StructType"/>.
     /// </summary>
     private (IType Type, ImmutableArray<ISymbol> Members) ProjectStruct(
-        Type clrType,
+        ClrType clrType,
         string displayName,
         string? containingNamespace,
         IStdlibTypeProvider stdlib)
@@ -310,10 +310,10 @@ internal sealed class TypeProjector
     /// <c>System.Runtime.CompilerServices.IsByRefLikeAttribute</c>), e.g. <c>Span&lt;T&gt;</c>
     /// or <c>ReadOnlySpan&lt;T&gt;</c>. Mirrors <c>VisibilityFilter.IsRefStruct</c>: detection
     /// reads custom-attribute metadata by <c>FullName</c> rather than relying on
-    /// <see cref="Type.IsByRefLike"/>, which is not guaranteed reliable under a
+    /// <see cref="ClrType.IsByRefLike"/>, which is not guaranteed reliable under a
     /// <c>MetadataLoadContext</c>. Defaults to <c>false</c> if metadata cannot be loaded.
     /// </summary>
-    private static bool IsRefStruct(Type type)
+    private static bool IsRefStruct(ClrType type)
     {
         try
         {
@@ -328,11 +328,11 @@ internal sealed class TypeProjector
     }
 
     /// <summary>
-    /// Determines whether the given CLR type implements <see cref="System.IDisposable"/>.
-    /// Uses <see cref="Type.GetInterfaces()"/> which returns all transitively implemented
+    /// Determines whether the given CLR type implements <see cref="IDisposable"/>.
+    /// Uses <see cref="ClrType.GetInterfaces()"/> which returns all transitively implemented
     /// interfaces, covering both direct implementation and inheritance through intermediate interfaces.
     /// </summary>
-    private static bool ImplementsIDisposable(Type clrType)
+    private static bool ImplementsIDisposable(ClrType clrType)
     {
         try
         {
@@ -350,7 +350,7 @@ internal sealed class TypeProjector
     /// named "Drop". Used to establish precedence: an explicit Drop method wins over
     /// IDisposable-based synthetic drop recognition.
     /// </summary>
-    private static bool HasExplicitDropMethod(Type clrType)
+    private static bool HasExplicitDropMethod(ClrType clrType)
     {
         try
         {
@@ -368,7 +368,7 @@ internal sealed class TypeProjector
     /// Projects a CLR class into a Mist <see cref="ClassType"/>.
     /// </summary>
     private (IType Type, ImmutableArray<ISymbol> Members) ProjectClass(
-        Type clrType,
+        ClrType clrType,
         string displayName,
         string? containingNamespace,
         IStdlibTypeProvider stdlib)
@@ -437,7 +437,7 @@ internal sealed class TypeProjector
     /// Projects the generic type parameters of a CLR generic type definition
     /// into Mist <see cref="TypeParameterType"/> instances with constraints.
     /// </summary>
-    private IReadOnlyList<IType> ProjectTypeParameters(Type clrType, IStdlibTypeProvider stdlib)
+    private IReadOnlyList<IType> ProjectTypeParameters(ClrType clrType, IStdlibTypeProvider stdlib)
     {
         var genericArgs = clrType.GetGenericArguments();
         var typeParams = new IType[genericArgs.Length];
@@ -463,7 +463,7 @@ internal sealed class TypeProjector
     /// </list>
     /// Constraints with no Mist equivalent are omitted.
     /// </summary>
-    private TypeParameterConstraints? ProjectConstraints(Type clrParam, IStdlibTypeProvider stdlib)
+    private TypeParameterConstraints? ProjectConstraints(ClrType clrParam, IStdlibTypeProvider stdlib)
     {
         var attributes = clrParam.GenericParameterAttributes;
 
@@ -712,7 +712,7 @@ internal sealed class TypeProjector
     /// Returns <c>true</c> if the given CLR type is the non-generic
     /// <c>System.Collections.IEnumerable</c> interface.
     /// </summary>
-    private static bool IsNonGenericIEnumerable(Type type)
+    private static bool IsNonGenericIEnumerable(ClrType type)
     {
         return type.Namespace == "System.Collections"
             && type.Name == "IEnumerable"
@@ -741,7 +741,7 @@ internal sealed class TypeProjector
     /// <param name="projectedType">The already-projected Mist type whose member scope will receive the slot.</param>
     /// <param name="stdlib">The stdlib type provider for resolving Standard Library types.</param>
     internal void SynthesizeEnumeratorSlots(
-        Type clrType,
+        ClrType clrType,
         IType projectedType,
         IStdlibTypeProvider stdlib)
     {
@@ -861,7 +861,7 @@ internal sealed class TypeProjector
     [UnconditionalSuppressMessage("Trimming", "IL2075",
         Justification = "Types are loaded via MetadataLoadContext for metadata inspection only; trimming cannot affect them.")]
     internal void SynthesizeDuckTypedIEnumerable(
-        Type clrType,
+        ClrType clrType,
         IType projectedType,
         IStdlibTypeProvider stdlib)
     {
@@ -892,7 +892,7 @@ internal sealed class TypeProjector
             "GetEnumerator",
             BindingFlags.Public | BindingFlags.Instance,
             null,
-            Type.EmptyTypes,
+            ClrType.EmptyTypes,
             null);
 
         if(getEnumeratorMethod is null)
@@ -907,7 +907,7 @@ internal sealed class TypeProjector
             "MoveNext",
             BindingFlags.Public | BindingFlags.Instance,
             null,
-            Type.EmptyTypes,
+            ClrType.EmptyTypes,
             null);
 
         if(moveNextMethod is null || moveNextMethod.ReturnType.FullName != "System.Boolean")
@@ -1036,9 +1036,9 @@ internal sealed class TypeProjector
     /// </summary>
     [UnconditionalSuppressMessage("Trimming", "IL2070",
         Justification = "Types are loaded via MetadataLoadContext for metadata inspection only; trimming cannot affect them.")]
-    private static List<Type> GetGenericIEnumerableImplementations(Type clrType)
+    private static List<ClrType> GetGenericIEnumerableImplementations(ClrType clrType)
     {
-        var result = new List<Type>();
+        var result = new List<ClrType>();
         foreach(var iface in clrType.GetInterfaces())
         {
             if(iface.IsConstructedGenericType
@@ -1064,8 +1064,8 @@ internal sealed class TypeProjector
     [UnconditionalSuppressMessage("Trimming", "IL2070",
         Justification = "Types are loaded via MetadataLoadContext for metadata inspection only; trimming cannot affect them.")]
     private IType? ResolveEnumeratorType(
-        Type clrType,
-        Type enumerableImpl,
+        ClrType clrType,
+        ClrType enumerableImpl,
         IStdlibTypeProvider stdlib)
     {
         var elementClrType = enumerableImpl.GetGenericArguments()[0];
@@ -1075,7 +1075,7 @@ internal sealed class TypeProjector
             "GetEnumerator",
             BindingFlags.Public | BindingFlags.Instance,
             null,
-            Type.EmptyTypes,
+            ClrType.EmptyTypes,
             null);
 
         if(getEnumeratorMethod is null)
@@ -1104,7 +1104,7 @@ internal sealed class TypeProjector
     /// for the given CLR element type. Returns null if the stdlib doesn't have
     /// IEnumerator yet (fallback provider before Pass 1 completes).
     /// </summary>
-    private IType? BuildStandardIEnumeratorType(Type elementClrType, IStdlibTypeProvider stdlib)
+    private IType? BuildStandardIEnumeratorType(ClrType elementClrType, IStdlibTypeProvider stdlib)
     {
         var projectedElement = ProjectTypeReference(elementClrType, stdlib);
         projectedElement = intrinsicMap.SubstituteIntrinsics(projectedElement, stdlib);
@@ -1283,7 +1283,7 @@ internal sealed class TypeProjector
     /// into a Mist <see cref="IType"/>. Handles generic constructed types, generic parameters,
     /// and applies intrinsic substitution.
     /// </summary>
-    internal IType ProjectTypeReference(Type clrType, IStdlibTypeProvider stdlib)
+    internal IType ProjectTypeReference(ClrType clrType, IStdlibTypeProvider stdlib)
     {
         // Handle generic type parameters (T, TKey, etc.)
         if(clrType.IsGenericParameter)
@@ -1406,7 +1406,7 @@ internal sealed class TypeProjector
     /// Projects a constructed generic type (e.g., <c>List&lt;int&gt;</c>) into a Mist
     /// <see cref="ConstructedType"/> with recursively projected type arguments.
     /// </summary>
-    private IType ProjectConstructedGenericType(Type clrType, IStdlibTypeProvider stdlib)
+    private IType ProjectConstructedGenericType(ClrType clrType, IStdlibTypeProvider stdlib)
     {
         var genericDef = clrType.GetGenericTypeDefinition();
         var projectedDef = ProjectTypeReference(genericDef, stdlib);
@@ -1448,7 +1448,7 @@ internal sealed class TypeProjector
     /// <param name="stdlib">The stdlib type provider used to project the element type.</param>
     /// <param name="spanType">The projected unknown-length <see cref="SpanType"/>, when matched.</param>
     /// <returns><c>true</c> when <paramref name="clrType"/> is a CLR span; otherwise <c>false</c>.</returns>
-    private bool TryProjectClrSpan(Type clrType, IStdlibTypeProvider stdlib, out IType spanType)
+    private bool TryProjectClrSpan(ClrType clrType, IStdlibTypeProvider stdlib, out IType spanType)
     {
         spanType = null!;
 
@@ -1508,7 +1508,7 @@ internal sealed class TypeProjector
     /// <param name="funcType">The projected <c>Standard.Func</c> constructed type, when matched.</param>
     /// <returns><c>true</c> when <paramref name="clrType"/> is a projectable delegate; otherwise <c>false</c>.</returns>
     private bool TryProjectStandardFuncDelegate(
-        Type clrType,
+        ClrType clrType,
         IStdlibTypeProvider stdlib,
         out IType funcType)
     {
@@ -1643,7 +1643,7 @@ internal sealed class TypeProjector
     [UnconditionalSuppressMessage("Trimming", "IL2070",
         Justification = "Types are loaded via MetadataLoadContext for metadata inspection only; trimming cannot affect them.")]
     private bool TryProjectNamedDelegate(
-        Type clrType,
+        ClrType clrType,
         IStdlibTypeProvider stdlib,
         out IType delegateType)
     {
@@ -1772,14 +1772,14 @@ internal sealed class TypeProjector
     /// Projects a generic type definition used as a type reference (not a full projection).
     /// Creates a minimal type shell with the correct display name and namespace.
     /// </summary>
-    private IType ProjectGenericDefinitionReference(Type clrType, IStdlibTypeProvider stdlib)
+    private IType ProjectGenericDefinitionReference(ClrType clrType, IStdlibTypeProvider stdlib)
     {
         var displayName = StripGenericAritySuffix(clrType.Name);
         var containingNamespace = clrType.Namespace;
 
         // Cycle detection: if we're already projecting this type's constraints,
         // return a minimal shell without type parameters to break the recursion.
-        var stack = projectionStack ??= new HashSet<Type>(ReferenceEqualityComparer.Instance);
+        var stack = projectionStack ??= new HashSet<ClrType>(ReferenceEqualityComparer.Instance);
         if(!stack.Add(clrType))
         {
             // Already projecting this type — return a minimal shell to break the cycle.
@@ -1826,7 +1826,7 @@ internal sealed class TypeProjector
     /// Projects a simple (non-generic, non-array) CLR type reference into a Mist type.
     /// Creates a minimal type shell with the correct display name and namespace.
     /// </summary>
-    private static IType ProjectSimpleTypeReference(Type clrType, IStdlibTypeProvider stdlib)
+    private static IType ProjectSimpleTypeReference(ClrType clrType, IStdlibTypeProvider stdlib)
     {
         var displayName = clrType.Name;
         var containingNamespace = clrType.Namespace;
@@ -1869,7 +1869,7 @@ internal sealed class TypeProjector
     /// The projected Mist type, wrapped in a <c>T | void</c> union for nullable value types
     /// and reference types, or the plain projected type for non-nullable value types.
     /// </returns>
-    internal IType ProjectNullableType(Type clrType, IStdlibTypeProvider stdlib)
+    internal IType ProjectNullableType(ClrType clrType, IStdlibTypeProvider stdlib)
     {
         // Case 1: Nullable<T> (e.g., int?, bool?)
         var underlyingNullable = NullableReflection.GetUnderlyingType(clrType);
@@ -1896,7 +1896,7 @@ internal sealed class TypeProjector
     /// Generic type parameters are NOT treated as reference types here (they have their own
     /// constraint-based handling).
     /// </summary>
-    private static bool IsReferenceType(Type clrType)
+    private static bool IsReferenceType(ClrType clrType)
     {
         // Generic type parameters are handled separately — don't wrap them
         if(clrType.IsGenericParameter)
@@ -1982,7 +1982,7 @@ internal sealed class TypeProjector
     /// <param name="stdlib">The stdlib type provider for resolving Standard Library types.</param>
     /// <returns>An array of projected member symbols.</returns>
     public ImmutableArray<ISymbol> ProjectMembers(
-        Type clrType,
+        ClrType clrType,
         IType projectedMistType,
         IStdlibTypeProvider stdlib)
     {
@@ -2021,7 +2021,7 @@ internal sealed class TypeProjector
     [UnconditionalSuppressMessage("Trimming", "IL2070",
         Justification = "Types are loaded via MetadataLoadContext for metadata inspection only; trimming cannot affect them.")]
     private void ProjectConstructors(
-        Type clrType,
+        ClrType clrType,
         IType declaringType,
         Scope memberScope,
         IStdlibTypeProvider stdlib,
@@ -2064,7 +2064,7 @@ internal sealed class TypeProjector
     [UnconditionalSuppressMessage("Trimming", "IL2070",
         Justification = "Types are loaded via MetadataLoadContext for metadata inspection only; trimming cannot affect them.")]
     private void ProjectMethods(
-        Type clrType,
+        ClrType clrType,
         Scope memberScope,
         IStdlibTypeProvider stdlib,
         ImmutableArray<ISymbol>.Builder symbols)
@@ -2236,7 +2236,7 @@ internal sealed class TypeProjector
     [UnconditionalSuppressMessage("Trimming", "IL2070",
         Justification = "Types are loaded via MetadataLoadContext for metadata inspection only; trimming cannot affect them.")]
     private void ProjectProperties(
-        Type clrType,
+        ClrType clrType,
         Scope memberScope,
         IStdlibTypeProvider stdlib,
         ImmutableArray<ISymbol>.Builder symbols)
@@ -2295,7 +2295,7 @@ internal sealed class TypeProjector
     [UnconditionalSuppressMessage("Trimming", "IL2070",
         Justification = "Types are loaded via MetadataLoadContext for metadata inspection only; trimming cannot affect them.")]
     private void ProjectFields(
-        Type clrType,
+        ClrType clrType,
         Scope memberScope,
         IStdlibTypeProvider stdlib,
         ImmutableArray<ISymbol>.Builder symbols)
@@ -2341,7 +2341,7 @@ internal sealed class TypeProjector
     [UnconditionalSuppressMessage("Trimming", "IL2070",
         Justification = "Types are loaded via MetadataLoadContext for metadata inspection only; trimming cannot affect them.")]
     private void ProjectIndexers(
-        Type clrType,
+        ClrType clrType,
         Scope memberScope,
         IStdlibTypeProvider stdlib,
         ImmutableArray<ISymbol>.Builder symbols)
@@ -2536,7 +2536,7 @@ internal sealed class TypeProjector
     /// property type, field type) with intrinsic substitution applied.
     /// This is the entry point for all member signature type projection.
     /// </summary>
-    internal IType ProjectMemberType(Type clrType, IStdlibTypeProvider stdlib)
+    internal IType ProjectMemberType(ClrType clrType, IStdlibTypeProvider stdlib)
     {
         var projected = ProjectTypeReference(clrType, stdlib);
         projected = intrinsicMap.SubstituteIntrinsics(projected, stdlib);

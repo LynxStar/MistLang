@@ -744,7 +744,7 @@ public class AbstractSatisfactionPropertyTests
         var abstractDecl = MakeAbstractDecl("IWorker",
             ImmutableArray.Create(MakeAbstractMethod("DoWork"), MakeAbstractMethod("Process")));
 
-        var classMembers = ImmutableArray.Create<MemberDeclarationNode>(
+        var classMembers = ImmutableArray.Create(
             WrapMethod(MakeMethodDecl("DoWork")),
             WrapMethod(MakeMethodDecl("Process")));
         var classDecl = MakeClassDecl("Worker", "IWorker", classMembers);
@@ -761,7 +761,7 @@ public class AbstractSatisfactionPropertyTests
         var abstractDecl = MakeAbstractDecl("IWorker",
             ImmutableArray.Create(MakeAbstractMethod("DoWork"), MakeAbstractMethod("Process")));
 
-        var classMembers = ImmutableArray.Create<MemberDeclarationNode>(
+        var classMembers = ImmutableArray.Create(
             WrapMethod(MakeMethodDecl("DoWork")));
         var classDecl = MakeClassDecl("Worker", "IWorker", classMembers);
 
@@ -805,7 +805,7 @@ public class AbstractSatisfactionPropertyTests
         var abstractDecl = MakeAbstractDecl("IComparable",
             ImmutableArray.Create(MakeAbstractMethod("CompareTo")));
 
-        var structMembers = ImmutableArray.Create<MemberDeclarationNode>(
+        var structMembers = ImmutableArray.Create(
             WrapMethod(MakeMethodDecl("CompareTo")));
         var structDecl = MakeStructDecl("Point", "IComparable", structMembers);
 
@@ -849,7 +849,7 @@ public class AbstractSatisfactionPropertyTests
         var abstractDecl = MakeAbstractDecl("IWorker",
             ImmutableArray.Create(MakeAbstractMethod("DoWork")));
 
-        var baseMembers = ImmutableArray.Create<MemberDeclarationNode>(
+        var baseMembers = ImmutableArray.Create(
             WrapMethod(MakeMethodDecl("DoWork")));
         var baseClassDecl = MakeClassDecl("BaseWorker", "IWorker", baseMembers);
 
@@ -887,7 +887,7 @@ public class AbstractSatisfactionPropertyTests
             ImmutableArray.Create(MakeAbstractMethod("DerivedMethod")),
             "IBase");
 
-        var classMembers = ImmutableArray.Create<MemberDeclarationNode>(
+        var classMembers = ImmutableArray.Create(
             WrapMethod(MakeMethodDecl("BaseMethod")),
             WrapMethod(MakeMethodDecl("DerivedMethod")));
         var classDecl = MakeClassDecl("MyClass", "IDerived", classMembers);
@@ -912,7 +912,7 @@ public class AbstractSatisfactionPropertyTests
             ImmutableArray.Create(MakeAbstractMethod("DerivedMethod")),
             "IBase");
 
-        var classMembers = ImmutableArray.Create<MemberDeclarationNode>(
+        var classMembers = ImmutableArray.Create(
             WrapMethod(MakeMethodDecl("DerivedMethod")));
         var classDecl = MakeClassDecl("MyClass", "IDerived", classMembers);
 

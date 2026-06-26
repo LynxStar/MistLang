@@ -1,7 +1,6 @@
 // Feature: tuple-pattern-matching, Property 1: Pretty-print round-trip
 // **Validates: Requirements 1.1, 1.3, 1.4, 5.1, 6.1, 6.2, 6.3**
 
-using System.Collections.Immutable;
 using FsCheck;
 using FsCheck.Fluent;
 using FsCheck.Xunit;

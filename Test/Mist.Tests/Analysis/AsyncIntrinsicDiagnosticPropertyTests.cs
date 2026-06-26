@@ -9,7 +9,6 @@ using Mist.Analysis.Builtin;
 using Mist.Common.Diagnostics;
 using Mist.Generated;
 using Mist.Semantics.Contracts;
-using Mist.Semantics.Model;
 using Mist.Tests.Generators;
 using Mist.Tests.Helpers;
 
@@ -121,7 +120,7 @@ public class AsyncIntrinsicDiagnosticPropertyTests
 
     private static CompilationUnitNode BuildAst(AsyncIntrinsicScenario scenario)
     {
-        TypeReferenceNode returnTypeRef = scenario.ReturnTypeName == "void"
+        var returnTypeRef = scenario.ReturnTypeName == "void"
             ? new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() }
             : MakePrimitiveTypeRef(scenario.ReturnTypeName);
 

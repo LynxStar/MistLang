@@ -350,7 +350,7 @@ public sealed class MistParser : IParser
     /// for each. See <see cref="DetectPropertyDefaultInAbstract"/> for the rationale.
     /// </summary>
     private static void ScanAbstractBodyForPropertyDefaults(
-        System.Collections.Immutable.ImmutableArray<Storm.Runtime.Token> tokens,
+        ImmutableArray<Storm.Runtime.Token> tokens,
         int bodyOpenIndex,
         string sourcePath,
         DiagnosticBag diagnostics)
@@ -433,7 +433,7 @@ public sealed class MistParser : IParser
     /// <c>false</c>.
     /// </summary>
     private static bool AccessorBlockHasBody(
-        System.Collections.Immutable.ImmutableArray<Storm.Runtime.Token> tokens,
+        ImmutableArray<Storm.Runtime.Token> tokens,
         int braceIndex)
     {
         var leftBraceKind = (int)Mist.Generated.TokenKind.LEFT_BRACE;
@@ -508,7 +508,7 @@ public sealed class MistParser : IParser
     /// following it, or <c>null</c> if no element type is recognized.
     /// </summary>
     private static int? SkipElementType(
-        System.Collections.Immutable.ImmutableArray<Storm.Runtime.Token> tokens,
+        ImmutableArray<Storm.Runtime.Token> tokens,
         int start)
     {
         if(start >= tokens.Length)
@@ -553,7 +553,7 @@ public sealed class MistParser : IParser
     /// structural terminator is reached first.
     /// </summary>
     private static int? SkipBalancedAngles(
-        System.Collections.Immutable.ImmutableArray<Storm.Runtime.Token> tokens,
+        ImmutableArray<Storm.Runtime.Token> tokens,
         int openAngle)
     {
         var depth = 0;

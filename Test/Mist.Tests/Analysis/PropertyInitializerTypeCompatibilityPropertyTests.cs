@@ -2,7 +2,6 @@
 // **Validates: Requirements 4.1, 4.2**
 
 using System.Collections.Immutable;
-using System.Text;
 using FsCheck;
 using FsCheck.Fluent;
 using FsCheck.Xunit;

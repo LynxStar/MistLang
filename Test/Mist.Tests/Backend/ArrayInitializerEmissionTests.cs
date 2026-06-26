@@ -2,10 +2,8 @@
 // Task 5.3: Emit the per-index initialization loop in CSharpEmitter
 // Validates: Requirements 5.3, 6.2
 
-using System.Collections.Immutable;
 using System.Text;
 using Mist.Analysis.Builtin;
-using Mist.Analysis.Contracts;
 using Mist.Backends.CSharpTranspiler;
 using Mist.Common.Diagnostics;
 using Mist.Common.Text;
@@ -14,7 +12,6 @@ using Mist.Lexing;
 using Mist.Lexing.Contracts;
 using Mist.Parsing;
 using Mist.Parsing.Contracts;
-using Mist.Semantics.Contracts;
 using Mist.Semantics.Model;
 using Mist.Tests.Helpers;
 

@@ -51,7 +51,7 @@ public class UnresolvedConstraintRejectionPropertyTests
         var buildDiag = new DiagnosticBag();
         _ = Builder.Build(
             compilation,
-            ImmutableArray.Create<Storm.Runtime.SyntaxNode>(parseResult.Root),
+            ImmutableArray.Create(parseResult.Root),
             ambientTypeResolver: null,
             namespaceRoot: "TestProject",
             projectFolder: "/test",

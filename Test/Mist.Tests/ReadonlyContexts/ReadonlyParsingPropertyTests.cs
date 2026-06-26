@@ -2,7 +2,6 @@
 // Feature: readonly-contexts, Property 2: Readonly Block Parsing
 // Feature: readonly-contexts, Property 19: Round-Trip Parsing
 
-using System.Collections.Immutable;
 using FsCheck;
 using FsCheck.Fluent;
 using FsCheck.Xunit;

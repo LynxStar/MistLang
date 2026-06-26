@@ -243,7 +243,7 @@ public sealed class MoveBoundaryNotClonablePropertyTests : IDisposable
     {
         // A reference-typed class with a non-clonable field cannot auto-derive
         // IClonable<T>. The source binding 'srcVar' is a plain (non-owned) local.
-        string source = kind switch
+        var source = kind switch
         {
             NonClonableKind.ArrayField => $$"""
                 namespace Gen;

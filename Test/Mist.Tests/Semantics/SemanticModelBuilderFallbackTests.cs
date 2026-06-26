@@ -33,7 +33,7 @@ public class SemanticModelBuilderFallbackTests
         int spanLength)
     {
         LinePositionSpan location = default;
-        string compilationUnitPath = sourceText?.Path ?? "<unknown>";
+        var compilationUnitPath = sourceText?.Path ?? "<unknown>";
 
         if(sourceText is not null && spanLength > 0)
         {

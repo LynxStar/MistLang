@@ -8,9 +8,7 @@
 // These extensions provide the old TypeReference/TypeReferences accessors so existing
 // code can work with minimal changes until it is updated to handle dependent type arguments.
 
-using System;
 using System.Collections.Immutable;
-using Storm.Runtime;
 
 namespace Mist.Generated;
 

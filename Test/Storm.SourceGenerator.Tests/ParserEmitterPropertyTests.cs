@@ -1,7 +1,6 @@
 using System.Text.RegularExpressions;
 using FsCheck;
 using FsCheck.Fluent;
-using FsCheck.Xunit;
 using Storm.SourceGenerator.Emit;
 using Storm.SourceGenerator.IR;
 
@@ -57,7 +56,7 @@ public class ParserEmitterPropertyTests
                 .Select(i => GenNamedAlternative(altNames[i]))
                 .ToArray();
 
-            Gen<List<RuleAlternativeIR>> combined = Gen.Constant(new List<RuleAlternativeIR>());
+            var combined = Gen.Constant(new List<RuleAlternativeIR>());
             foreach(var g in gens)
             {
                 combined = combined.SelectMany(list =>

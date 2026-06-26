@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -65,7 +64,7 @@ namespace Storm.SourceGenerator.Emit
 
             // Build mode index map
             var modeIndexMap = new Dictionary<string, int>();
-            for(int i = 0; i < modes.Count; i++)
+            for(var i = 0; i < modes.Count; i++)
             {
                 modeIndexMap[modes[i]] = i;
             }
@@ -209,13 +208,13 @@ namespace Storm.SourceGenerator.Emit
             // are in the same class in every mode.
             var charToClass = new int[65536];
             var signatureToClass = new Dictionary<string, int>();
-            int nextClass = 0;
+            var nextClass = 0;
 
             var sb = new StringBuilder();
-            for(int c = 0; c < 65536; c++)
+            for(var c = 0; c < 65536; c++)
             {
                 _ = sb.Clear();
-                for(int m = 0; m < perModeResults.Count; m++)
+                for(var m = 0; m < perModeResults.Count; m++)
                 {
                     if(m > 0)
                     {
@@ -245,14 +244,14 @@ namespace Storm.SourceGenerator.Emit
         private static (short[,] transTable, short[] acceptTable) BuildModeTables(
             Dfa dfa, int[] charToClass, int classCount)
         {
-            int stateCount = dfa.States.Count;
+            var stateCount = dfa.States.Count;
             var transTable = new short[stateCount, classCount];
             var acceptTable = new short[stateCount];
 
             // Initialize all transitions to -1 (no transition)
-            for(int s = 0; s < stateCount; s++)
+            for(var s = 0; s < stateCount; s++)
             {
-                for(int c = 0; c < classCount; c++)
+                for(var c = 0; c < classCount; c++)
                 {
                     transTable[s, c] = -1;
                 }
@@ -260,16 +259,16 @@ namespace Storm.SourceGenerator.Emit
 
             // Build state ID to index mapping (states may not be contiguous)
             var stateIdToIndex = new Dictionary<int, int>();
-            for(int i = 0; i < dfa.States.Count; i++)
+            for(var i = 0; i < dfa.States.Count; i++)
             {
                 stateIdToIndex[dfa.States[i].Id] = i;
             }
 
             // Fill transition table
-            for(int i = 0; i < dfa.States.Count; i++)
+            for(var i = 0; i < dfa.States.Count; i++)
             {
                 var state = dfa.States[i];
-                int stateIndex = stateIdToIndex[state.Id];
+                var stateIndex = stateIdToIndex[state.Id];
 
                 foreach(var transition in state.Transitions)
                 {
@@ -287,7 +286,7 @@ namespace Storm.SourceGenerator.Emit
                     var seenClasses = new HashSet<int>();
                     for(int c = transition.Range.Lo; c <= transition.Range.Hi; c++)
                     {
-                        int eqClass = charToClass[c];
+                        var eqClass = charToClass[c];
                         if(seenClasses.Add(eqClass))
                         {
                             transTable[stateIndex, eqClass] = (short)targetIndex;
@@ -297,10 +296,10 @@ namespace Storm.SourceGenerator.Emit
             }
 
             // Fill accepting table
-            for(int i = 0; i < dfa.States.Count; i++)
+            for(var i = 0; i < dfa.States.Count; i++)
             {
                 var state = dfa.States[i];
-                int stateIndex = stateIdToIndex[state.Id];
+                var stateIndex = stateIdToIndex[state.Id];
                 acceptTable[stateIndex] = (short)state.AcceptingTokenIndex;
             }
 
@@ -317,7 +316,7 @@ namespace Storm.SourceGenerator.Emit
             var sb = new StringBuilder();
             _ = sb.Append("private static readonly int[] _charClass = new int[]");
             _ = sb.Append(" { ");
-            for(int i = 0; i < 65536; i++)
+            for(var i = 0; i < 65536; i++)
             {
                 if(i > 0)
                 {
@@ -339,7 +338,7 @@ namespace Storm.SourceGenerator.Emit
             var sb = new StringBuilder();
             _ = sb.Append($"private static readonly short[,] _trans_{modeName} = new short[,]");
             _ = sb.Append(" { ");
-            for(int s = 0; s < stateCount; s++)
+            for(var s = 0; s < stateCount; s++)
             {
                 if(s > 0)
                 {
@@ -347,7 +346,7 @@ namespace Storm.SourceGenerator.Emit
                 }
 
                 _ = sb.Append("{ ");
-                for(int c = 0; c < classCount; c++)
+                for(var c = 0; c < classCount; c++)
                 {
                     if(c > 0)
                     {
@@ -372,7 +371,7 @@ namespace Storm.SourceGenerator.Emit
             var sb = new StringBuilder();
             _ = sb.Append($"private static readonly short[] _accept_{modeName} = new short[]");
             _ = sb.Append(" { ");
-            for(int i = 0; i < acceptTable.Length; i++)
+            for(var i = 0; i < acceptTable.Length; i++)
             {
                 if(i > 0)
                 {
@@ -394,7 +393,7 @@ namespace Storm.SourceGenerator.Emit
         private static void EmitModeConstants(CodeWriter writer, EmissionContext context)
         {
             var modes = context.Grammar.Modes;
-            for(int i = 0; i < modes.Count; i++)
+            for(var i = 0; i < modes.Count; i++)
             {
                 var modeName = SanitizeIdentifier(modes[i]);
                 writer.WriteLine($"private const int Mode_{modeName} = {i};");
@@ -408,7 +407,7 @@ namespace Storm.SourceGenerator.Emit
         {
             var modes = context.Grammar.Modes;
             var modeIndexMap = new Dictionary<string, int>();
-            for(int i = 0; i < modes.Count; i++)
+            for(var i = 0; i < modes.Count; i++)
             {
                 modeIndexMap[modes[i]] = i;
             }
@@ -576,7 +575,7 @@ namespace Storm.SourceGenerator.Emit
             writer.WriteLine("var currentMode = modeStack.Peek();");
             writer.WriteBlock("switch (currentMode)", () =>
             {
-                for(int i = 0; i < modes.Count; i++)
+                for(var i = 0; i < modes.Count; i++)
                 {
                     var modeName = SanitizeIdentifier(modes[i]);
                     writer.WriteBlock($"case Mode_{modeName}:", () =>
@@ -605,7 +604,7 @@ namespace Storm.SourceGenerator.Emit
 
             writer.WriteBlock("switch (lastAcceptKind)", () =>
             {
-                for(int i = 0; i < tokens.Count; i++)
+                for(var i = 0; i < tokens.Count; i++)
                 {
                     var token = tokens[i];
                     if(token.ModeAction is PushModeIR push)

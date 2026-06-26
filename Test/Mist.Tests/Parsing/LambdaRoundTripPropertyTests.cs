@@ -1,7 +1,6 @@
 // Feature: first-class-functions, Property 6: Pretty-print round-trip
 // **Validates: Requirements 13.7, 13.8**
 
-using System.Collections.Immutable;
 using FsCheck;
 using FsCheck.Fluent;
 using FsCheck.Xunit;

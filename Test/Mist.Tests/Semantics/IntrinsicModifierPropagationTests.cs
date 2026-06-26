@@ -1,9 +1,7 @@
 using System.Collections.Immutable;
-using System.Linq;
 using Mist.Common.Diagnostics;
 using Mist.Common.Text;
 using Mist.Driver.Contracts;
-using Mist.Generated;
 using Mist.Lexing.Contracts;
 using Mist.Parsing.Contracts;
 using Mist.Semantics.Contracts;

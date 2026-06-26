@@ -13,7 +13,7 @@ namespace Storm.SourceGenerator.Tests
         /// Creates a file reader delegate backed by an in-memory dictionary.
         /// Keys should use forward-slash paths matching the canonical form.
         /// </summary>
-        private static System.Func<string, string?> InMemoryFileReader(Dictionary<string, string> files)
+        private static Func<string, string?> InMemoryFileReader(Dictionary<string, string> files)
         {
             return path =>
             {
@@ -201,7 +201,7 @@ namespace Storm.SourceGenerator.Tests
         //  Helpers
         // ---------------------------------------------------------------
 
-        private static System.Func<string, string?> InMemoryFileReader(Dictionary<string, string> files)
+        private static Func<string, string?> InMemoryFileReader(Dictionary<string, string> files)
         {
             return path =>
             {

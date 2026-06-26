@@ -16,7 +16,6 @@ using Mist.Common.Diagnostics;
 using Mist.Common.Text;
 using Mist.Driver.Contracts;
 using Mist.Generated;
-using Mist.Semantics.Contracts;
 using Mist.Semantics.Model;
 
 namespace Mist.Tests.Analysis;
@@ -155,7 +154,7 @@ public class TypeCheckerPreservationPropertyTests
         // Default constructor with chain:
         // If chainMatches: TypeName() : this(0) { }  — matches TypeName(int)
         // If !chainMatches: TypeName() : this(true) { } — bool doesn't match int
-        ExpressionNode chainArg = chainMatches
+        var chainArg = chainMatches
             ? MakeIntLiteralExpression("0")
             : WrapPrimaryAsExpression(new TrueLiteralExpressionPrimaryNode());
 
@@ -446,7 +445,7 @@ public class TypeCheckerPreservationPropertyTests
             {
                 Block = new BlockNode
                 {
-                    Statements = ImmutableArray.Create<StatementNode>(
+                    Statements = ImmutableArray.Create(
                     varA, varB,
                     MakeExpressionStatement(addExpr)),
                 }

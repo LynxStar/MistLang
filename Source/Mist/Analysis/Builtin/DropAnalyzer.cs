@@ -2,7 +2,6 @@ using System.Collections.Immutable;
 using Mist.Analysis.Contracts;
 using Mist.Common.Diagnostics;
 using Mist.Generated;
-using Mist.Semantics;
 using Mist.Semantics.Contracts;
 using Mist.Semantics.Model;
 using Mist.Semantics.Model.Types;
@@ -623,7 +622,7 @@ public sealed class DropAnalyzer : IAnalyzer
         try { declaringNode = model.GetDeclaringNode(methodSymbol); }
         catch { return; }
 
-        BlockNode? body = declaringNode switch
+        var body = declaringNode switch
         {
             MethodDeclarationNode methodDecl => methodDecl.Body.GetBlock(),
             ConstructorDeclarationNode ctorDecl => ctorDecl.Body.GetBlock(),
@@ -655,7 +654,7 @@ public sealed class DropAnalyzer : IAnalyzer
     /// </summary>
     private static void RegisterDroppableParameters(SyntaxNode declaringNode, ISemanticModel model, MethodFlowState state)
     {
-        ParameterListNode? paramList = declaringNode switch
+        var paramList = declaringNode switch
         {
             MethodDeclarationNode m => m.Parameters,
             ConstructorDeclarationNode c => c.Parameters,
@@ -789,7 +788,7 @@ public sealed class DropAnalyzer : IAnalyzer
         DiagnosticBag diagnostics,
         bool isDropMethod)
     {
-        ExpressionNode? initializer = varDecl switch
+        var initializer = varDecl switch
         {
             TypedVariableDeclarationVariableDeclarationStatementNode typed => typed.Initializer,
             InferredVariableDeclarationVariableDeclarationStatementNode inferred => inferred.Initializer,
@@ -1231,7 +1230,7 @@ public sealed class DropAnalyzer : IAnalyzer
     /// </summary>
     private static int CountMethodParameters(SyntaxNode declaringNode)
     {
-        ParameterListNode? paramList = declaringNode switch
+        var paramList = declaringNode switch
         {
             MethodDeclarationNode m => m.Parameters,
             ConstructorDeclarationNode c => c.Parameters,

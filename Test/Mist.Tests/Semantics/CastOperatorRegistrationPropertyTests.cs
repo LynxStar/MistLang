@@ -337,7 +337,7 @@ public class CastOperatorRegistrationPropertyTests
         }
 
         // Get the member scope from the type
-        IScope? memberScope = typeSymbol.DeclaredType switch
+        var memberScope = typeSymbol.DeclaredType switch
         {
             ClassType ct => ct.MemberScope,
             StructType st => st.MemberScope,

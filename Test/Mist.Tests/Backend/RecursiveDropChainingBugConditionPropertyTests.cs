@@ -14,7 +14,6 @@
 // Expected behavior after fix: chained drop emission — e.g., `await (await nested);`
 // for Task<Task<T>>, or `await localName.Drop();` for custom type returning Task.
 
-using System.Collections.Immutable;
 using System.Text;
 using FsCheck;
 using FsCheck.Fluent;
@@ -22,13 +21,11 @@ using FsCheck.Xunit;
 using Mist.Backends.CSharpTranspiler;
 using Mist.Common.Diagnostics;
 using Mist.Common.Text;
-using Mist.Driver;
 using Mist.Driver.Contracts;
 using Mist.Lexing;
 using Mist.Lexing.Contracts;
 using Mist.Parsing;
 using Mist.Parsing.Contracts;
-using Mist.Semantics.Contracts;
 using Mist.Semantics.Model;
 
 namespace Mist.Tests.Backend;

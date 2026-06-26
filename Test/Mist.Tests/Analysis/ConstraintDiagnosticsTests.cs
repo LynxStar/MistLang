@@ -9,7 +9,6 @@ using Mist.Common.Text;
 using Mist.Driver.Contracts;
 using Mist.Lexing.Contracts;
 using Mist.Parsing.Contracts;
-using Mist.Semantics.Contracts;
 using Mist.Semantics.Model;
 
 namespace Mist.Tests.Analysis;

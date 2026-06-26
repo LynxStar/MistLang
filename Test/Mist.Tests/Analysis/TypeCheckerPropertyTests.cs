@@ -12,7 +12,6 @@ using Mist.Driver.Contracts;
 using Mist.Generated;
 using Mist.Semantics.Contracts;
 using Mist.Semantics.Model;
-using Mist.Semantics.Model.Types;
 
 namespace Mist.Tests.Analysis;
 
@@ -435,7 +434,7 @@ public class TypeCheckerPropertyTests
     // verify that these operations succeed when stdlib is loaded.
     private static readonly WellTypedScenario[] WellTypedScenarios =
     [
-        new("BoolCondition_If", () => MakeWellTypedProgram(ImmutableArray.Create<StatementNode>(
+        new("BoolCondition_If", () => MakeWellTypedProgram(ImmutableArray.Create(
             MakeBoolVarDecl("cond", true),
             new IfStatementStatementNode
             {
@@ -449,7 +448,7 @@ public class TypeCheckerPropertyTests
                 },
             }))),
 
-        new("BoolCondition_While", () => MakeWellTypedProgram(ImmutableArray.Create<StatementNode>(
+        new("BoolCondition_While", () => MakeWellTypedProgram(ImmutableArray.Create(
             MakeBoolVarDecl("running", false),
             new WhileStatementStatementNode
             {
@@ -515,7 +514,7 @@ public class TypeCheckerPropertyTests
     [Fact]
     public void WellTyped_BoolCondition_NoErrors()
     {
-        var ast = MakeWellTypedProgram(ImmutableArray.Create<StatementNode>(
+        var ast = MakeWellTypedProgram(ImmutableArray.Create(
             MakeBoolVarDecl("cond", true),
             new IfStatementStatementNode
             {
@@ -602,7 +601,7 @@ public class TypeCheckerPropertyTests
             "MIST_TC_0004"),
 
         // Non-bool condition in if statement
-        new("NonBoolCondition_If", () => MakeWellTypedProgram(ImmutableArray.Create<StatementNode>(
+        new("NonBoolCondition_If", () => MakeWellTypedProgram(ImmutableArray.Create(
             MakeIntVarDecl("x", "1"),
             new IfStatementStatementNode
             {
@@ -615,7 +614,7 @@ public class TypeCheckerPropertyTests
             "MIST_TC_0007"),
 
         // Non-bool condition in while statement
-        new("NonBoolCondition_While", () => MakeWellTypedProgram(ImmutableArray.Create<StatementNode>(
+        new("NonBoolCondition_While", () => MakeWellTypedProgram(ImmutableArray.Create(
             MakeIntVarDecl("x", "1"),
             new WhileStatementStatementNode
             {
@@ -707,7 +706,7 @@ public class TypeCheckerPropertyTests
     [Fact]
     public void TypeError_NonBoolCondition_ProducesDiagnostic()
     {
-        var ast = MakeWellTypedProgram(ImmutableArray.Create<StatementNode>(
+        var ast = MakeWellTypedProgram(ImmutableArray.Create(
             MakeIntVarDecl("x", "1"),
             new IfStatementStatementNode
             {

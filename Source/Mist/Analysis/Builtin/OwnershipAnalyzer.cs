@@ -631,7 +631,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         try { declaringNode = model.GetDeclaringNode(methodSymbol); }
         catch { return; }
 
-        BlockNode? body = declaringNode switch
+        var body = declaringNode switch
         {
             MethodDeclarationNode methodDecl => methodDecl.Body.GetBlock(),
             ConstructorDeclarationNode ctorDecl => ctorDecl.Body.GetBlock(),
@@ -673,7 +673,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
     /// </summary>
     private static void RegisterOwnedParameters(SyntaxNode declaringNode, ISemanticModel model, MethodFlowState state)
     {
-        ParameterListNode? paramList = declaringNode switch
+        var paramList = declaringNode switch
         {
             MethodDeclarationNode m => m.Parameters,
             ConstructorDeclarationNode c => c.Parameters,
@@ -2277,7 +2277,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
         // Unwrap constructed types to get the definition.
         var resolvedType = createdType is ConstructedType ct ? ct.GenericDefinition : createdType;
 
-        IScope? memberScope = resolvedType switch
+        var memberScope = resolvedType switch
         {
             ClassType cct => cct.MemberScope,
             StructType sst => sst.MemberScope,
@@ -2659,7 +2659,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
     /// </summary>
     private static ISymbol? LookupMemberByName(IType type, string name)
     {
-        IScope? memberScope = type switch
+        var memberScope = type switch
         {
             ClassType ct => ct.MemberScope,
             StructType st => st.MemberScope,
@@ -3013,7 +3013,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
             }
 
             var type = symbol.DeclaredType;
-            IReadOnlyList<IType>? abstracts = type switch
+            var abstracts = type switch
             {
                 ClassType ct => ct.Abstracts,
                 StructType st => st.Abstracts,
@@ -3025,7 +3025,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                 continue;
             }
 
-            IScope? memberScope = type switch
+            var memberScope = type switch
             {
                 ClassType ct => ct.MemberScope,
                 StructType st => st.MemberScope,
@@ -3171,7 +3171,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
     private static IReadOnlyList<ISymbol>? GetParameterSymbols(SyntaxNode methodNode, ISemanticModel model)
     {
         // Get the parameter list node from the method declaration.
-        ParameterListNode? paramList = methodNode switch
+        var paramList = methodNode switch
         {
             MethodDeclarationNode m => m.Parameters,
             AbstractMethodDeclarationNode im => im.Parameters,

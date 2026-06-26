@@ -386,7 +386,7 @@ public class ExtensionTypeCheckerPropertyTests
             modifiers.Add(new StaticModifierModifierNode());
         }
 
-        BlockNode body = returnType == "void"
+        var body = returnType == "void"
             ? new BlockNode { Statements = ImmutableArray<StatementNode>.Empty }
             : new BlockNode
             {
@@ -1022,7 +1022,7 @@ public class ExtensionTypeCheckerPropertyTests
 
         var ast = new CompilationUnitNode
         {
-            Items = ImmutableArray.Create<TopLevelItemNode>(
+            Items = ImmutableArray.Create(
                 new NamespaceItemTopLevelItemNode { NamespaceDeclaration = nsDecl },
                 MakeClassTopLevelItem(callerClass)),
         };
@@ -1075,7 +1075,7 @@ public class ExtensionTypeCheckerPropertyTests
         var ast = new CompilationUnitNode
         {
             Usings = ImmutableArray.Create(MakeUsingDeclaration(scenario.NamespaceName)),
-            Items = ImmutableArray.Create<TopLevelItemNode>(
+            Items = ImmutableArray.Create(
                 new NamespaceItemTopLevelItemNode { NamespaceDeclaration = nsDecl },
                 MakeClassTopLevelItem(callerClass)),
         };

@@ -534,21 +534,21 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
     /// <summary>
     /// Emitted when a compile-time constant value is assigned to a
-    /// <see cref="Mist.Semantics.Model.Types.RefinementType"/> variable and
+    /// <see cref="RefinementType"/> variable and
     /// the value does not satisfy the refinement predicate (Requirement 5.2).
     /// </summary>
     internal static readonly DiagnosticId RefinementLiteralViolation = new("MIST_TC_0097");
 
     /// <summary>
     /// Emitted when a non-constant expression of the base type is assigned
-    /// to a <see cref="Mist.Semantics.Model.Types.RefinementType"/> variable
+    /// to a <see cref="RefinementType"/> variable
     /// without proving the refinement via pattern matching (Requirement 6.1).
     /// </summary>
     internal static readonly DiagnosticId RefinementNonConstantAssignment = new("MIST_TC_0098");
 
     /// <summary>
-    /// Emitted when a value of one <see cref="Mist.Semantics.Model.Types.RefinementType"/>
-    /// is assigned to a variable of a different <see cref="Mist.Semantics.Model.Types.RefinementType"/>
+    /// Emitted when a value of one <see cref="RefinementType"/>
+    /// is assigned to a variable of a different <see cref="RefinementType"/>
     /// with the same base type, but the compiler cannot prove that the source
     /// predicate logically implies the target predicate (Requirement 9.3, 11.5).
     /// </summary>
@@ -2437,7 +2437,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             }
 
             // Check if the field has an initializer.
-            bool hasInitializer = false;
+            var hasInitializer = false;
             try
             {
                 var fieldNode = model.GetDeclaringNode(member);
@@ -3275,7 +3275,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 // by the dataflow (typed/inferred/for/foreach/tuple deconstructions).
                 // Pattern variables (is T name, var name, switch arms) are implicitly assigned
                 // by the pattern match and should not trigger this diagnostic.
-                Storm.Runtime.SyntaxNode? declaringNode = null;
+                SyntaxNode? declaringNode = null;
                 try { declaringNode = model.GetDeclaringNode(symbol); } catch { /* ignore */ }
 
                 if(declaringNode is TypedVariableDeclarationVariableDeclarationStatementNode
@@ -4176,7 +4176,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             return;
         }
 
-        IScope? memberScope = declaringType switch
+        var memberScope = declaringType switch
         {
             ClassType ct => ct.MemberScope,
             StructType st => st.MemberScope,
@@ -4375,7 +4375,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     private static PropertyInfo? GetPropertyMetadata(ISymbol symbol)
     {
-        if(symbol is Mist.Semantics.Model.Symbol concreteSymbol)
+        if(symbol is Symbol concreteSymbol)
         {
             return concreteSymbol.PropertyMetadata;
         }
@@ -4727,7 +4727,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             }
 
             var type = symbol.DeclaredType;
-            IReadOnlyList<IType>? abstracts = type switch
+            var abstracts = type switch
             {
                 ClassType ct => ct.Abstracts,
                 StructType st => st.Abstracts,
@@ -4739,7 +4739,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 continue;
             }
 
-            IScope? memberScope = type switch
+            var memberScope = type switch
             {
                 ClassType ct => ct.MemberScope,
                 StructType st => st.MemberScope,
@@ -4913,14 +4913,14 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             var type = symbol.DeclaredType;
 
             // Check abstract contracts.
-            IReadOnlyList<IType>? abstracts = type switch
+            var abstracts = type switch
             {
                 ClassType ct => ct.Abstracts,
                 StructType st => st.Abstracts,
                 _ => null,
             };
 
-            IScope? memberScope = type switch
+            var memberScope = type switch
             {
                 ClassType ct => ct.MemberScope,
                 StructType st => st.MemberScope,
@@ -6707,20 +6707,20 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// because TryCheckRefinementAssignment checks the narrowing context directly.
     /// Returns an empty list for API compatibility with RestoreNarrowedArguments.
     /// </summary>
-    private static List<(Storm.Runtime.SyntaxNode Node, IType OriginalType)> ApplyNarrowingToArguments(
+    private static List<(SyntaxNode Node, IType OriginalType)> ApplyNarrowingToArguments(
         ArgumentListNode? argList,
         ISemanticModel model)
     {
         _ = argList;
         _ = model;
-        return new List<(Storm.Runtime.SyntaxNode, IType)>();
+        return new List<(SyntaxNode, IType)>();
     }
 
     /// <summary>
     /// Restores original types for argument expressions that were temporarily narrowed.
     /// </summary>
     private static void RestoreNarrowedArguments(
-        List<(Storm.Runtime.SyntaxNode Node, IType OriginalType)> narrowedArgs,
+        List<(SyntaxNode Node, IType OriginalType)> narrowedArgs,
         ISemanticModel model)
     {
         foreach(var (node, originalType) in narrowedArgs)
@@ -7352,7 +7352,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 typeArgs = new IType[] { bridgeArray.ElementType, new ArrayType(bridgeArray.ElementType) };
             }
         }
-        else if(type is Semantics.Model.Types.SpanType bridgeSpan)
+        else if(type is SpanType bridgeSpan)
         {
             var name = bridgeSpan.IsReadOnly ? "ReadOnlySpan" : "Span";
             var registeredStruct = FindRegisteredStructType(name, "Standard", model);
@@ -7361,7 +7361,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 abstracts = registeredStruct.Abstracts;
                 typeParams = registeredStruct.TypeParameters;
                 // Span<T, Length> → [elementType, unknownLength]
-                typeArgs = new IType[] { bridgeSpan.ElementType, new Semantics.Model.Types.SpanType(bridgeSpan.ElementType, bridgeSpan.IsReadOnly) };
+                typeArgs = new IType[] { bridgeSpan.ElementType, new SpanType(bridgeSpan.ElementType, bridgeSpan.IsReadOnly) };
             }
         }
 
@@ -8408,7 +8408,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         // Determine the receiver type (the expression before the index suffix).
-        IType? receiverType = postfix.Suffix.Length > 1
+        var receiverType = postfix.Suffix.Length > 1
             ? model.GetTypeOf(postfix.Suffix[^2])
             : model.GetTypeOf(postfix.Target);
 
@@ -8777,7 +8777,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             targetType = ct.GenericDefinition;
         }
 
-        IScope? memberScope = targetType switch
+        var memberScope = targetType switch
         {
             ClassType ct2 => ct2.MemberScope,
             StructType st => st.MemberScope,
@@ -11582,7 +11582,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             // Rule 3: Duplicate unguarded type patterns for the same type.
             if(!hasGuard)
             {
-                string? typeName = primary switch
+                var typeName = primary switch
                 {
                     TypePatternPrimaryPatternNode typePattern =>
                         ExtractTypeDisplayNameFromRef(typePattern.Type),
@@ -11995,7 +11995,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 // annotation and no error is needed.
                 {
                     var resolvedType = model.GetTypeOf(emptyArrayLiteral);
-                    if(resolvedType is Mist.Semantics.Model.Types.ErrorType)
+                    if(resolvedType is ErrorType)
                     {
                         diagnostics.Add(MakeDiagnostic(
                             "MIST_TC_0096",
@@ -13714,7 +13714,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         try { methodNode = model.GetDeclaringNode(methodSymbol); }
         catch { return; }
 
-        ParameterListNode? parameters = methodNode switch
+        var parameters = methodNode switch
         {
             MethodDeclarationNode method => method.Parameters,
             ConstructorDeclarationNode ctor => ctor.Parameters,
@@ -14281,7 +14281,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     {
         var paramList = new List<ISymbol>();
 
-        ParameterListNode? parameters = declaringNode switch
+        var parameters = declaringNode switch
         {
             MethodDeclarationNode method => method.Parameters,
             ConstructorDeclarationNode ctor => ctor.Parameters,
@@ -14515,7 +14515,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     private static string GetParameterName(ISymbol methodSymbol, int index, ISemanticModel model)
     {
-        Storm.Runtime.SyntaxNode declaringNode;
+        SyntaxNode declaringNode;
         try { declaringNode = model.GetDeclaringNode(methodSymbol); }
         catch { return $"param{index}"; }
 
@@ -15184,7 +15184,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         if(targetType is not null && targetType is not ArrayType)
         {
             var indexerLookupType = targetType is ConstructedType ict ? ict.GenericDefinition : targetType;
-            IScope? indexerScope = indexerLookupType switch
+            var indexerScope = indexerLookupType switch
             {
                 ClassType ct => ct.MemberScope,
                 StructType st => st.MemberScope,
@@ -15852,7 +15852,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         }
 
         // Find constructors on the type.
-        IScope? memberScope = createdType switch
+        var memberScope = createdType switch
         {
             ClassType ct => ct.MemberScope,
             StructType st => st.MemberScope,
@@ -16378,7 +16378,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // For ConstructedType, look up members on the generic definition.
         var memberLookupType = lookupType is ConstructedType cst ? cst.GenericDefinition : lookupType;
 
-        IScope? memberScope = memberLookupType switch
+        var memberScope = memberLookupType switch
         {
             ClassType ct => ct.MemberScope,
             StructType st => st.MemberScope,
@@ -16556,7 +16556,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         // For `: base(...)` chains, resolve the base type and search its constructors.
         // For `: this(...)` chains, search the declaring type's own constructors.
-        IType targetType = enclosingType;
+        var targetType = enclosingType;
         if(chain is BaseChainConstructorChainNode && enclosingType is ClassType ct && ct.BaseType is not null)
         {
             targetType = ct.BaseType;
@@ -16566,7 +16566,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             targetType = st.BaseType;
         }
 
-        IScope? memberScope = targetType switch
+        var memberScope = targetType switch
         {
             ClassType classType => classType.MemberScope,
             StructType st2 => st2.MemberScope,
@@ -16787,7 +16787,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             typeParams = GetTypeParameters(ct.GenericDefinition);
             typeArgs = ct.TypeArguments;
         }
-        else if(createdType is Semantics.Model.Types.SpanType spanCreated)
+        else if(createdType is SpanType spanCreated)
         {
             // Bridge: SpanType is a dedicated IType without a GenericDefinition.
             // The constructor lives on the registered StructType (Span or ReadOnlySpan)
@@ -16974,7 +16974,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             targetType = ct.GenericDefinition;
         }
 
-        IScope? memberScope = targetType switch
+        var memberScope = targetType switch
         {
             ClassType ct2 => ct2.MemberScope,
             StructType st => st.MemberScope,
@@ -17521,7 +17521,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // Try to find a string literal in the assignment target.
         // Navigate through the single-child chain (same approach as
         // TryExtractLiteralConstantFromAssignmentTarget).
-        StringLiteralExpressionPrimaryNode? stringLiteral = FindStringLiteralInAssignment(assignmentValue);
+        var stringLiteral = FindStringLiteralInAssignment(assignmentValue);
 
         if(stringLiteral is not null)
         {
@@ -17583,7 +17583,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             return null; // Chained assignment.
         }
 
-        Storm.Runtime.SyntaxNode current = assignment.Target;
+        SyntaxNode current = assignment.Target;
         for(var depth = 0; depth < 20; depth++)
         {
             if(current is StringLiteralExpressionPrimaryNode strLit)
@@ -17596,7 +17596,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 return null; // Found a primary but it's not a string literal.
             }
 
-            Storm.Runtime.SyntaxNode? next = null;
+            SyntaxNode? next = null;
             var childCount = 0;
             foreach(var child in current.Children())
             {
@@ -17647,7 +17647,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             return null; // Chained assignment — not a simple literal.
         }
 
-        Storm.Runtime.SyntaxNode current = assignment.Target;
+        SyntaxNode current = assignment.Target;
         for(var depth = 0; depth < 20; depth++)
         {
             if(current is PrimaryNode primary)
@@ -17665,7 +17665,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                 };
             }
 
-            Storm.Runtime.SyntaxNode? next = null;
+            SyntaxNode? next = null;
             var childCount = 0;
             foreach(var child in current.Children())
             {
@@ -20380,7 +20380,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         IScope? memberScope;
 
-        if(lookupType is Semantics.Model.Types.SpanType spanLookup && model is not null)
+        if(lookupType is SpanType spanLookup && model is not null)
         {
             // Bridge: SpanType is a dedicated IType without a member scope.
             // Look up the corresponding registered StructType in the Standard namespace
@@ -21101,7 +21101,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     private static PrimaryNode? UnwrapExpressionToPrimary(ExpressionNode expression)
     {
-        Storm.Runtime.SyntaxNode current = expression;
+        SyntaxNode current = expression;
 
         for(var depth = 0; depth < 20; depth++)
         {
@@ -21113,7 +21113,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             // Look for a single non-token child to follow.
             // Skip null children that may be yielded by generated AST nodes
             // whose optional properties are typed as non-nullable.
-            Storm.Runtime.SyntaxNode? next = null;
+            SyntaxNode? next = null;
             var childCount = 0;
             foreach(var child in current.Children())
             {
@@ -22434,7 +22434,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             }
         }
 
-        if(type is Semantics.Model.Types.SpanType spanType)
+        if(type is SpanType spanType)
         {
             var name = spanType.IsReadOnly ? "ReadOnlySpan" : "Span";
             var registeredStruct = FindRegisteredStructType(name, "Standard", model);
@@ -23465,7 +23465,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     private static IEnumerable<SyntaxNode>? GetParameterNodes(SyntaxNode declaringNode)
     {
-        ParameterListNode? paramList = declaringNode switch
+        var paramList = declaringNode switch
         {
             MethodDeclarationNode methodDecl => methodDecl.Parameters,
             ConstructorDeclarationNode ctorDecl => ctorDecl.Parameters,

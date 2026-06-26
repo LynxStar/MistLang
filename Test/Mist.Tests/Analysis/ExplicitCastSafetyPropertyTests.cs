@@ -481,7 +481,7 @@ public class ExplicitCastSafetyPropertyTests
             targetMembers.Add(castMember);
         }
 
-        var mainStatements = ImmutableArray.Create<StatementNode>(
+        var mainStatements = ImmutableArray.Create(
             MakeTypedVarDecl(scenario.SourceTypeName, "src", scenario.SourceTypeName),
             MakeCastExpressionVarDecl(scenario.TargetTypeName, "src"));
 
@@ -519,7 +519,7 @@ public class ExplicitCastSafetyPropertyTests
     /// </summary>
     private static CompilationUnitNode BuildNoCastOperatorAst(NoCastOperatorScenario scenario)
     {
-        var mainStatements = ImmutableArray.Create<StatementNode>(
+        var mainStatements = ImmutableArray.Create(
             MakeTypedVarDecl(scenario.SourceTypeName, "src", scenario.SourceTypeName),
             MakeCastExpressionVarDecl(scenario.TargetTypeName, "src"));
 
@@ -558,7 +558,7 @@ public class ExplicitCastSafetyPropertyTests
     private static CompilationUnitNode BuildDirectlyAssignableCastAst(
         DirectlyAssignableCastScenario scenario)
     {
-        var mainStatements = ImmutableArray.Create<StatementNode>(
+        var mainStatements = ImmutableArray.Create(
             MakeTypedVarDecl(scenario.SourceTypeName, "src", scenario.SourceTypeName),
             MakeCastExpressionVarDecl(scenario.TargetTypeName, "src"));
 
@@ -619,7 +619,7 @@ public class ExplicitCastSafetyPropertyTests
             MakeCastOperatorMember(
                 CastOperatorKind.Explicit, scenario.TargetTypeName, scenario.DerivedTypeName));
 
-        var mainStatements = ImmutableArray.Create<StatementNode>(
+        var mainStatements = ImmutableArray.Create(
             // BaseType b = new DerivedType();
             MakeTypedVarDecl(scenario.BaseTypeName, "b", scenario.DerivedTypeName),
             // TargetType result = (TargetType)b;  ← compile-time type of b is BaseType

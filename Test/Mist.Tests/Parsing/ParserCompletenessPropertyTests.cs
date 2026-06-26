@@ -1,7 +1,6 @@
 // Feature: dependent-type-refinement-constraints, Property 5: Parser Completeness Invariant
 // **Validates: Requirements 3.1, 3.3, 3.4**
 
-using System.Collections.Immutable;
 using FsCheck;
 using FsCheck.Fluent;
 using FsCheck.Xunit;

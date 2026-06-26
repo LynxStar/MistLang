@@ -1,7 +1,6 @@
 // Feature: optional-types, Properties 1, 3, 4, 5: Optional type suffix parsing
 // **Validates: Requirements 1.1, 1.2, 1.4, 1.6, 1.7**
 
-using System.Collections.Immutable;
 using FsCheck;
 using FsCheck.Fluent;
 using FsCheck.Xunit;

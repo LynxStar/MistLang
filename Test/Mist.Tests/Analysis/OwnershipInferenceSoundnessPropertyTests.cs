@@ -21,7 +21,6 @@ using Mist.Driver.Contracts;
 using Mist.Generated;
 using Mist.Lexing.Contracts;
 using Mist.Parsing.Contracts;
-using Mist.Semantics;
 using Mist.Semantics.Contracts;
 using Mist.Semantics.Model;
 using SyntaxNode = Storm.Runtime.SyntaxNode;

@@ -1,7 +1,6 @@
 // Feature: newtypes, Property 1: Parsing produces correct AST structure
 // **Validates: Requirements 1.1**
 
-using System.Collections.Immutable;
 using FsCheck;
 using FsCheck.Fluent;
 using FsCheck.Xunit;

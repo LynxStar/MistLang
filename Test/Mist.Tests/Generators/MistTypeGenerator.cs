@@ -1,7 +1,6 @@
 // Generators for Mist type reference AST nodes.
 // Used by property-based tests to produce random but structurally valid type references.
 
-using System.Collections.Immutable;
 using FsCheck;
 using FsCheck.Fluent;
 using Mist.Generated;

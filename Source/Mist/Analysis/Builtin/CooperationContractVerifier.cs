@@ -94,7 +94,7 @@ public sealed class CooperationContractVerifier
         try { declaringNode = model.GetDeclaringNode(methodSymbol); }
         catch { return; }
 
-        BlockNode? body = declaringNode switch
+        var body = declaringNode switch
         {
             MethodDeclarationNode methodDecl => methodDecl.Body.GetBlock(),
             ConstructorDeclarationNode ctorDecl => ctorDecl.Body.GetBlock(),
@@ -473,7 +473,7 @@ public sealed class CooperationContractVerifier
     /// </summary>
     private static void RegisterOwnedParameters(SyntaxNode declaringNode, ISemanticModel model, MethodFlowState state)
     {
-        ParameterListNode? paramList = declaringNode switch
+        var paramList = declaringNode switch
         {
             MethodDeclarationNode m => m.Parameters,
             ConstructorDeclarationNode c => c.Parameters,

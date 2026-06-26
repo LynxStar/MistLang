@@ -1,7 +1,6 @@
 // Feature: pattern-matching, Property 1: Pattern Matching Round-Trip
 // **Validates: Requirements 2.8, 3.3, 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 4.7, 4.8, 4.9, 4.10, 4.11, 4.12**
 
-using System.Collections.Immutable;
 using FsCheck;
 using FsCheck.Fluent;
 using FsCheck.Xunit;

@@ -23,7 +23,6 @@
 // is spawned, per the workspace test-process-spawning policy.
 
 using System.Collections.Immutable;
-using System.Linq;
 using Mist.Analysis.Builtin;
 using Mist.Common.Diagnostics;
 using Mist.Common.Text;

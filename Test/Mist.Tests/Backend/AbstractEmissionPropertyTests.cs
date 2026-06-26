@@ -623,7 +623,7 @@ public sealed partial class AbstractEmissionPropertyTests : IDisposable
 
         var ast = new CompilationUnitNode
         {
-            Items = ImmutableArray.Create<TopLevelItemNode>(
+            Items = ImmutableArray.Create(
                 WrapAbstract(abstractDecl).AsTopLevelItem(),
                 WrapClass(MakeProgramClass()).AsTopLevelItem()),
         };
@@ -652,7 +652,7 @@ public sealed partial class AbstractEmissionPropertyTests : IDisposable
 
         var ast = new CompilationUnitNode
         {
-            Items = ImmutableArray.Create<TopLevelItemNode>(
+            Items = ImmutableArray.Create(
                 WrapAbstract(baseAbstract).AsTopLevelItem(),
                 WrapAbstract(derivedAbstract).AsTopLevelItem(),
                 WrapClass(MakeProgramClass()).AsTopLevelItem()),
@@ -679,7 +679,7 @@ public sealed partial class AbstractEmissionPropertyTests : IDisposable
 
         var ast = new CompilationUnitNode
         {
-            Items = ImmutableArray.Create<TopLevelItemNode>(
+            Items = ImmutableArray.Create(
                 WrapAbstract(abstractDecl).AsTopLevelItem(),
                 WrapClass(classDecl).AsTopLevelItem(),
                 WrapClass(MakeProgramClass()).AsTopLevelItem()),
@@ -705,7 +705,7 @@ public sealed partial class AbstractEmissionPropertyTests : IDisposable
 
         var ast = new CompilationUnitNode
         {
-            Items = ImmutableArray.Create<TopLevelItemNode>(
+            Items = ImmutableArray.Create(
                 WrapAbstract(abstractDecl).AsTopLevelItem(),
                 WrapStruct(structDecl).AsTopLevelItem(),
                 WrapClass(MakeProgramClass()).AsTopLevelItem()),
@@ -731,7 +731,7 @@ public sealed partial class AbstractEmissionPropertyTests : IDisposable
 
         var ast = new CompilationUnitNode
         {
-            Items = ImmutableArray.Create<TopLevelItemNode>(
+            Items = ImmutableArray.Create(
                 WrapAbstract(abstractDecl).AsTopLevelItem(),
                 WrapClass(MakeProgramClass()).AsTopLevelItem()),
         };
@@ -765,7 +765,7 @@ public sealed partial class AbstractEmissionPropertyTests : IDisposable
 
         var ast = new CompilationUnitNode
         {
-            Items = ImmutableArray.Create<TopLevelItemNode>(
+            Items = ImmutableArray.Create(
                 WrapAbstract(abstractDecl).AsTopLevelItem(),
                 WrapClass(MakeProgramClass()).AsTopLevelItem()),
         };

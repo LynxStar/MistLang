@@ -16,8 +16,6 @@ using Mist.Backends.CSharpTranspiler;
 using Mist.Common.Diagnostics;
 using Mist.Driver;
 using Mist.Driver.Contracts;
-using Mist.Lexing;
-using Mist.Parsing;
 using Mist.Semantics.Contracts;
 using Mist.Semantics.Model;
 using Mist.Semantics.Model.Types;
@@ -240,7 +238,7 @@ public sealed class SpanSliceLengthInferencePropertyTests
         public ISemanticModel? CapturedModel { get; private set; }
 
         public ISemanticModel Build(
-            Mist.Driver.Contracts.MistCompilation compilation,
+            MistCompilation compilation,
             ImmutableArray<SyntaxNode> asts,
             IAmbientTypeResolver? ambientTypeResolver,
             string namespaceRoot,

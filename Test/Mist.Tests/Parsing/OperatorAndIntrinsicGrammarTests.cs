@@ -1,5 +1,3 @@
-using System.Collections.Immutable;
-using System.Linq;
 using Mist.Common.Diagnostics;
 using Mist.Generated;
 using Mist.Lexing.Contracts;
@@ -199,7 +197,7 @@ public class OperatorAndIntrinsicGrammarTests
     [InlineData("&&", typeof(LogicalAndOpOperatorSymbolNode))]
     [InlineData("||", typeof(LogicalOrOpOperatorSymbolNode))]
     [InlineData("!", typeof(ExclamationOpOperatorSymbolNode))]
-    public void Task3_1_AllFourteenOperatorSymbols_ParseToCorrectVariant(string opText, System.Type expectedVariant)
+    public void Task3_1_AllFourteenOperatorSymbols_ParseToCorrectVariant(string opText, Type expectedVariant)
     {
         // Requirements 4.3, 4.4, 4.5: all 14 operator symbols are grammar-accepted
         // and produce the corresponding OperatorSymbol variant node.

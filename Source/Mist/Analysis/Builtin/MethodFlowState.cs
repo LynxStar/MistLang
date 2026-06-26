@@ -610,11 +610,11 @@ public sealed class MethodFlowState
     /// </summary>
     private static IScope? GetMemberScope(IType type)
     {
-        var resolved = type is Mist.Semantics.Model.Types.ConstructedType ct ? ct.GenericDefinition : type;
+        var resolved = type is Semantics.Model.Types.ConstructedType ct ? ct.GenericDefinition : type;
         return resolved switch
         {
-            Mist.Semantics.Model.Types.ClassType classType => classType.MemberScope,
-            Mist.Semantics.Model.Types.StructType structType => structType.MemberScope,
+            Semantics.Model.Types.ClassType classType => classType.MemberScope,
+            Semantics.Model.Types.StructType structType => structType.MemberScope,
             _ => null,
         };
     }

@@ -271,7 +271,7 @@ public sealed class ReadonlyInferenceEngine
         try { declaringNode = model.GetDeclaringNode(symbol); }
         catch { return ReadonlyStatus.Mutable; }
 
-        BlockNode? body = declaringNode switch
+        var body = declaringNode switch
         {
             MethodDeclarationNode m => m.Body.GetBlock(),
             ConstructorDeclarationNode c => c.Body.GetBlock(),
@@ -922,7 +922,7 @@ public sealed class ReadonlyInferenceEngine
 
         if(type is ClassType classType)
         {
-            ClassType? current = classType;
+            var current = classType;
             while(current is not null)
             {
                 foreach(var m in current.MemberScope.Members)

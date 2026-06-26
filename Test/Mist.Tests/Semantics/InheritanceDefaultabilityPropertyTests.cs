@@ -254,7 +254,7 @@ public class InheritanceDefaultabilityPropertyTests
             return Gen.Constant(ImmutableArray<(string, string)>.Empty);
         }
 
-        Gen<ImmutableArray<(string, string)>> result =
+        var result =
             Gen.Constant(ImmutableArray<(string, string)>.Empty);
 
         for(var i = 0; i < count; i++)

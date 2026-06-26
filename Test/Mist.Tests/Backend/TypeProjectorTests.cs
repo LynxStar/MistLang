@@ -521,7 +521,7 @@ public class TypeProjectorTests
     public void ProjectType_IDisposableClass_HasDropTrue()
     {
         // MemoryStream implements IDisposable → HasDrop should be true
-        var (type, _) = projector.ProjectType(typeof(System.IO.MemoryStream), stdlib);
+        var (type, _) = projector.ProjectType(typeof(MemoryStream), stdlib);
         var classType = Assert.IsType<ClassType>(type);
 
         Assert.True(classType.HasDrop);
@@ -531,7 +531,7 @@ public class TypeProjectorTests
     public void ProjectType_IDisposableClass_IsDisposableDropTrue()
     {
         // MemoryStream implements IDisposable, no explicit Drop() → IsDisposableDrop should be true
-        var (type, _) = projector.ProjectType(typeof(System.IO.MemoryStream), stdlib);
+        var (type, _) = projector.ProjectType(typeof(MemoryStream), stdlib);
         var classType = Assert.IsType<ClassType>(type);
 
         Assert.True(classType.IsDisposableDrop);
@@ -561,7 +561,7 @@ public class TypeProjectorTests
     public void ProjectType_TransitiveIDisposable_HasDropTrue()
     {
         // System.IO.Stream is abstract and implements IDisposable transitively
-        var (type, _) = projector.ProjectType(typeof(System.IO.Stream), stdlib);
+        var (type, _) = projector.ProjectType(typeof(Stream), stdlib);
         var classType = Assert.IsType<ClassType>(type);
 
         Assert.True(classType.HasDrop);
@@ -571,7 +571,7 @@ public class TypeProjectorTests
     public void ProjectType_TransitiveIDisposable_IsDisposableDropTrue()
     {
         // System.IO.Stream implements IDisposable transitively → IsDisposableDrop = true
-        var (type, _) = projector.ProjectType(typeof(System.IO.Stream), stdlib);
+        var (type, _) = projector.ProjectType(typeof(Stream), stdlib);
         var classType = Assert.IsType<ClassType>(type);
 
         Assert.True(classType.IsDisposableDrop);

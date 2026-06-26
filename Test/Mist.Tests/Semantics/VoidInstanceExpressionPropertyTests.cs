@@ -11,7 +11,6 @@ using Mist.Driver.Contracts;
 using Mist.Generated;
 using Mist.Semantics.Contracts;
 using Mist.Semantics.Model;
-using Mist.Tests.Generators;
 
 namespace Mist.Tests.Semantics;
 

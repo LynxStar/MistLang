@@ -233,7 +233,7 @@ public class TypeParameterRegistrationPropertyTests
         }
 
         // Get the TypeParameters from the declaring type
-        IReadOnlyList<IType> typeParams = decl.Kind switch
+        var typeParams = decl.Kind switch
         {
             GenericDeclKind.Class => ((ClassType)typeSymbol.DeclaredType!).TypeParameters,
             GenericDeclKind.Struct => ((StructType)typeSymbol.DeclaredType!).TypeParameters,
@@ -273,7 +273,7 @@ public class TypeParameterRegistrationPropertyTests
 
         // Requirement 6.4: Each type parameter is registered in the declaring scope
         // and resolvable as a type
-        IScope memberScope = decl.Kind switch
+        var memberScope = decl.Kind switch
         {
             GenericDeclKind.Class => ((ClassType)typeSymbol.DeclaredType!).MemberScope,
             GenericDeclKind.Struct => ((StructType)typeSymbol.DeclaredType!).MemberScope,

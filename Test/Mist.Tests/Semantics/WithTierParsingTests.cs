@@ -9,7 +9,6 @@
 // Validates: Requirements 17.8, 17.9
 
 using System.Collections.Immutable;
-using Mist.Analysis.Builtin;
 using Mist.Common.Diagnostics;
 using Mist.Common.Text;
 using Mist.Driver.Contracts;

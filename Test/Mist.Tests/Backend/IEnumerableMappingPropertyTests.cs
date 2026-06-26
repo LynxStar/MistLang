@@ -8,7 +8,6 @@
 // The Enumerator associated type slot SHALL be synthesized from the
 // GetEnumerator() return type.
 
-using System.Collections.Immutable;
 using FsCheck;
 using FsCheck.Fluent;
 using Mist.Backends.CSharpTranspiler;

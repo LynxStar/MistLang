@@ -13,11 +13,9 @@
 using System.Collections.Immutable;
 using Mist.Common.Diagnostics;
 using Mist.Driver;
-using Mist.Driver.Contracts;
 using Mist.Lexing.Contracts;
 using Mist.Parsing.Contracts;
 using Mist.Semantics.Contracts;
-using Mist.Semantics.Model;
 using Mist.Semantics.Model.Types;
 
 namespace Mist.Tests.Driver;

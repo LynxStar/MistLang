@@ -1,5 +1,4 @@
 using Mist.Backends.CSharpTranspiler;
-using Mist.Semantics.Contracts;
 using Mist.Semantics.Model.Types;
 
 namespace Mist.Tests.Semantics;

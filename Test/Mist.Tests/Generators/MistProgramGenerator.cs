@@ -143,7 +143,7 @@ public static class MistProgramGenerator
     public static Gen<CompilationUnitNode> GenWellTypedIfStatement()
     {
         return Gen.Elements(true, false).Select(cond =>
-            MakeProgram(ImmutableArray.Create<StatementNode>(
+            MakeProgram(ImmutableArray.Create(
                 MistAstGenerator.MakeBoolVarDecl("cond", cond),
                 MistAstGenerator.MakeIfStatement(
                     MistAstGenerator.MakeIdentifierExpr("cond"),
@@ -157,7 +157,7 @@ public static class MistProgramGenerator
     public static Gen<CompilationUnitNode> GenWellTypedWhileStatement()
     {
         return Gen.Constant(
-            MakeProgram(ImmutableArray.Create<StatementNode>(
+            MakeProgram(ImmutableArray.Create(
                 MistAstGenerator.MakeBoolVarDecl("running", false),
                 MistAstGenerator.MakeWhileStatement(
                     MistAstGenerator.MakeIdentifierExpr("running"),
@@ -320,7 +320,7 @@ public static class MistProgramGenerator
     public static Gen<CompilationUnitNode> GenIllTypedNonBoolConditionIf()
     {
         return Gen.Choose(0, 100).Select(n =>
-            MakeProgram(ImmutableArray.Create<StatementNode>(
+            MakeProgram(ImmutableArray.Create(
                 MistAstGenerator.MakeIntVarDecl("x", n.ToString()),
                 MistAstGenerator.MakeIfStatement(
                     MistAstGenerator.MakeIdentifierExpr("x"),
@@ -334,7 +334,7 @@ public static class MistProgramGenerator
     public static Gen<CompilationUnitNode> GenIllTypedNonBoolConditionWhile()
     {
         return Gen.Choose(0, 100).Select(n =>
-            MakeProgram(ImmutableArray.Create<StatementNode>(
+            MakeProgram(ImmutableArray.Create(
                 MistAstGenerator.MakeIntVarDecl("x", n.ToString()),
                 MistAstGenerator.MakeWhileStatement(
                     MistAstGenerator.MakeIdentifierExpr("x"),

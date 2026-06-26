@@ -297,7 +297,7 @@ public class ExtensionSetAccessorRejectionPropertyTests
 
         return new CompilationUnitNode
         {
-            Items = ImmutableArray.Create<TopLevelItemNode>(
+            Items = ImmutableArray.Create(
                 classTypeDecl.AsTopLevelItem(),
                 extItem),
         };

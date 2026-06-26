@@ -7,7 +7,6 @@ using FsCheck;
 using FsCheck.Fluent;
 using FsCheck.Xunit;
 using Mist.Analysis.Builtin;
-using Mist.Analysis.Contracts;
 using Mist.Backends.CSharpTranspiler;
 using Mist.Common.Diagnostics;
 using Mist.Common.Text;
@@ -16,7 +15,6 @@ using Mist.Lexing;
 using Mist.Lexing.Contracts;
 using Mist.Parsing;
 using Mist.Parsing.Contracts;
-using Mist.Semantics.Contracts;
 using Mist.Semantics.Model;
 
 namespace Mist.Tests.Backend;

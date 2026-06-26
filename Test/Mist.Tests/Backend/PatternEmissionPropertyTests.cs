@@ -10,7 +10,6 @@ using Mist.Common.Diagnostics;
 using Mist.Common.Text;
 using Mist.Driver.Contracts;
 using Mist.Generated;
-using Mist.Parsing;
 using Mist.Semantics.Contracts;
 using Mist.Semantics.Model;
 using Mist.Tests.Generators;

@@ -222,7 +222,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// declared type is <see cref="UnknownType"/> directly, or transitively
     /// contains it through <see cref="ArrayType"/> / <see cref="ConstructedType"/>
     /// arguments (Requirements 7.5, 7.6). Detection is performed via
-    /// <see cref="Types.TypeContainment.IsStorageBanned"/> in
+    /// <see cref="TypeContainment.IsStorageBanned"/> in
     /// <see cref="ResolveFieldDeclaration"/>, immediately after the field
     /// type is resolved in Pass 2. The diagnostic message names the
     /// declaring type and the field (Requirement 16.1).
@@ -257,7 +257,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// type whose substituted type contains <see cref="UnknownType"/> at one
     /// or more positions — e.g., <c>new List&lt;unknown&gt;()</c> or
     /// <c>new Map&lt;unknown, int&gt;()</c> (Requirement 5.7). The
-    /// constructed type satisfies <see cref="Types.TypeContainment.IsStorageBanned"/>
+    /// constructed type satisfies <see cref="TypeContainment.IsStorageBanned"/>
     /// because each constructor stores its parameters into T-typed slots,
     /// which would require persisting an <c>unknown</c>-typed value. The
     /// diagnostic message names the generic type and the position(s) where
@@ -342,7 +342,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// <summary>
     /// A type alias forms a cycle (e.g., <c>type A = B; type B = A;</c>).
     /// Detected during Pass 2 resolution using a visited-set. The alias is
-    /// assigned <see cref="Types.ErrorType"/> to prevent infinite loops.
+    /// assigned <see cref="ErrorType"/> to prevent infinite loops.
     /// </summary>
     internal static readonly DiagnosticId CyclicTypeAlias = new("MIST_SB_0060");
 
@@ -545,7 +545,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// <summary>
     /// A type annotation used as a dependent type parameter is not in the
     /// allowed set {int, uint, long, ulong, short, ushort, byte, sbyte, bool, char}.
-    /// The parameter is still registered with <see cref="Types.ErrorType"/> as its
+    /// The parameter is still registered with <see cref="ErrorType"/> as its
     /// value type to allow downstream analysis to continue without cascading errors.
     /// </summary>
     internal static readonly DiagnosticId DependentTypeDisallowedAnnotation = new("MIST_DT_0001");
@@ -2273,7 +2273,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                             {
                                 BlockPropertyPropertyDeclarationNode bp => (bp.Name.Lexeme, ToMistSourceSpan(bp.Name.Span)),
                                 ExpressionBodiedPropertyPropertyDeclarationNode ep => (ep.Name.Lexeme, ToMistSourceSpan(ep.Name.Span)),
-                                _ => ("?", (Common.Text.SourceSpan?)null)
+                                _ => ("?", (SourceSpan?)null)
                             };
                             var propSymbol = new Symbol(
                                 propName, SymbolKind.Property, SymbolOrigin.UserCode,
@@ -4152,7 +4152,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// <summary>
     /// Gets the source span for a type parameter at the given ordinal in a <see cref="TypeParameterListNode"/>.
     /// </summary>
-    private static Common.Text.SourceSpan? GetTypeParameterSpan(TypeParameterListNode typeParamList, int ordinal)
+    private static SourceSpan? GetTypeParameterSpan(TypeParameterListNode typeParamList, int ordinal)
     {
         if(ordinal == 0)
         {
@@ -5240,7 +5240,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
         // 2. Find the compilation unit containing this declaration.
         CompilationUnitNode? containingCu = null;
-        int containingCuIndex = -1;
+        var containingCuIndex = -1;
         for(var i = 0; i < asts.Length; i++)
         {
             if(asts[i] is CompilationUnitNode cu && ContainsNodeByReference(cu, declaringNode))
@@ -5257,7 +5257,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         }
 
         // Find the source text for this compilation unit (needed for ExtractQualifiedName).
-        SourceText? sourceText = containingCuIndex < compilation.Units.Length
+        var sourceText = containingCuIndex < compilation.Units.Length
             ? compilation.Units[containingCuIndex].Source
             : null;
 
@@ -6110,7 +6110,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
                     // First, look up in the declaring type's member scope (for type parameters).
                     var memberScope = GetMemberScope(declaringType);
-                    ISymbol? resolvedSymbol = memberScope?.Lookup(argName);
+                    var resolvedSymbol = memberScope?.Lookup(argName);
 
                     if(resolvedSymbol is not null && resolvedSymbol.DeclaredType is TypeParameterType tpt)
                     {
@@ -6138,7 +6138,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         && resolvedSymbol.Kind is not (SymbolKind.Class or SymbolKind.Struct or SymbolKind.Abstract or SymbolKind.TypeAlias or SymbolKind.Enum))
                     {
                         // Walk up the scope chain manually to find a type symbol.
-                        IScope? searchScope = memberScope?.Parent?.Parent;
+                        var searchScope = memberScope?.Parent?.Parent;
                         resolvedSymbol = null;
                         while(searchScope is not null && resolvedSymbol is null)
                         {
@@ -6702,7 +6702,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 }
                 else
                 {
-                    string? compilationUnitPath = FindCompilationUnitPathForSymbol(
+                    var compilationUnitPath = FindCompilationUnitPathForSymbol(
                         findPathForSymbol, symbolTable, asts, compilation);
 
                     diagnostics.Add(new Diagnostic(
@@ -6739,7 +6739,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 }
                 else
                 {
-                    string? compilationUnitPath = FindCompilationUnitPathForSymbol(
+                    var compilationUnitPath = FindCompilationUnitPathForSymbol(
                         findPathForSymbol, symbolTable, asts, compilation);
 
                     diagnostics.Add(new Diagnostic(
@@ -6805,7 +6805,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 }
                 else
                 {
-                    string? compilationUnitPath = FindCompilationUnitPathForSymbol(
+                    var compilationUnitPath = FindCompilationUnitPathForSymbol(
                         findPathForSymbol, symbolTable, asts, compilation);
 
                     diagnostics.Add(new Diagnostic(
@@ -6864,7 +6864,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 }
                 else
                 {
-                    string? compilationUnitPath = FindCompilationUnitPathForSymbol(
+                    var compilationUnitPath = FindCompilationUnitPathForSymbol(
                         findPathForSymbol, symbolTable, asts, compilation);
 
                     diagnostics.Add(new Diagnostic(
@@ -6895,7 +6895,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 }
                 else
                 {
-                    string? compilationUnitPath = FindCompilationUnitPathForSymbol(
+                    var compilationUnitPath = FindCompilationUnitPathForSymbol(
                         findPathForSymbol, symbolTable, asts, compilation);
 
                     diagnostics.Add(new Diagnostic(
@@ -7070,7 +7070,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         foreach(var symbol in symbolTable.AllSymbols)
         {
             // Get type parameters from the symbol's declared type.
-            IReadOnlyList<IType>? typeParameters = symbol.DeclaredType switch
+            var typeParameters = symbol.DeclaredType switch
             {
                 ClassType ct => ct.TypeParameters,
                 StructType st => st.TypeParameters,
@@ -7643,14 +7643,14 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             return;
         }
 
-        ParameterListNode? abstractParams = abstractNode switch
+        var abstractParams = abstractNode switch
         {
             AbstractMethodDeclarationNode ifaceMethodDecl => ifaceMethodDecl.Parameters,
             MethodDeclarationNode methodDecl => methodDecl.Parameters,
             _ => null,
         };
 
-        ParameterListNode? implParams = implNode switch
+        var implParams = implNode switch
         {
             MethodDeclarationNode methodDecl => methodDecl.Parameters,
             _ => null,
@@ -7885,7 +7885,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         SymbolTable symbolTable)
     {
         // Get the parameter list node from the declaration.
-        ParameterListNode? paramList = declaringNode switch
+        var paramList = declaringNode switch
         {
             MethodDeclarationNode methodDecl => methodDecl.Parameters,
             ConstructorDeclarationNode ctorDecl => ctorDecl.Parameters,
@@ -9312,7 +9312,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             }
             else
             {
-                string? compilationUnitPath = FindCompilationUnitPathForAbstractType(
+                var compilationUnitPath = FindCompilationUnitPathForAbstractType(
                     closingAbstract, symbolTable, asts, compilation);
 
                 diagnostics.Add(new Diagnostic(
@@ -9467,7 +9467,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     }
                     else
                     {
-                        string? compilationUnitPath = FindCompilationUnitPathForClass(closingClass, symbolTable, asts, compilation);
+                        var compilationUnitPath = FindCompilationUnitPathForClass(closingClass, symbolTable, asts, compilation);
 
                         diagnostics.Add(new Diagnostic(
                             new DiagnosticId("MIST_CIRCULAR_INHERITANCE"),
@@ -9824,7 +9824,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         }
                         else
                         {
-                            string? missingPath = FindCompilationUnitPathForType(
+                            var missingPath = FindCompilationUnitPathForType(
                                 typeName, symbolTable, asts, compilation);
 
                             diagnostics.Add(new Diagnostic(
@@ -9862,7 +9862,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         }
                         else
                         {
-                            string? mismatchPath = FindCompilationUnitPathForType(
+                            var mismatchPath = FindCompilationUnitPathForType(
                                 typeName, symbolTable, asts, compilation);
 
                             diagnostics.Add(new Diagnostic(
@@ -9898,7 +9898,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         }
                         else
                         {
-                            string? refMismatchPath = FindCompilationUnitPathForType(
+                            var refMismatchPath = FindCompilationUnitPathForType(
                                 typeName, symbolTable, asts, compilation);
 
                             diagnostics.Add(new Diagnostic(
@@ -9930,7 +9930,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
             if(implProperty is null)
             {
-                string? missingPath = FindCompilationUnitPathForType(
+                var missingPath = FindCompilationUnitPathForType(
                     typeName, symbolTable, asts, compilation);
 
                 diagnostics.Add(new Diagnostic(
@@ -9953,7 +9953,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             // Check that the implementing property has the required accessors.
             if(requiredPropInfo.HasGet && !implPropInfo.HasGet)
             {
-                string? path = FindCompilationUnitPathForType(typeName, symbolTable, asts, compilation);
+                var path = FindCompilationUnitPathForType(typeName, symbolTable, asts, compilation);
                 diagnostics.Add(new Diagnostic(
                     new DiagnosticId("MIST_MISSING_ABSTRACT_PROPERTY_ACCESSOR"),
                     DiagnosticSeverity.Error,
@@ -9966,7 +9966,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
             if(requiredPropInfo.HasSet && !implPropInfo.HasSet && !implPropInfo.HasInit)
             {
-                string? path = FindCompilationUnitPathForType(typeName, symbolTable, asts, compilation);
+                var path = FindCompilationUnitPathForType(typeName, symbolTable, asts, compilation);
                 diagnostics.Add(new Diagnostic(
                     new DiagnosticId("MIST_MISSING_ABSTRACT_PROPERTY_ACCESSOR"),
                     DiagnosticSeverity.Error,
@@ -10226,7 +10226,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 }
                 else
                 {
-                    string? path = FindCompilationUnitPathForType(typeName, symbolTable, asts, compilation);
+                    var path = FindCompilationUnitPathForType(typeName, symbolTable, asts, compilation);
 
                     diagnostics.Add(new Diagnostic(
                         DiagnosticId.MissingAssociatedTypeMember,
@@ -10361,7 +10361,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         }
         else
         {
-            string? path = FindCompilationUnitPathForType(implementorTypeName, symbolTable, asts, compilation);
+            var path = FindCompilationUnitPathForType(implementorTypeName, symbolTable, asts, compilation);
 
             diagnostics.Add(new Diagnostic(
                 DiagnosticId.UnsatisfiedAssociatedTypeConstraint,
@@ -10572,7 +10572,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         {
             // Unwrap ConstructedType to get the underlying AbstractType for generic
             // abstracts (e.g., IEnumerable<int> is a ConstructedType wrapping AbstractType).
-            AbstractType? iface = ifaceType switch
+            var iface = ifaceType switch
             {
                 AbstractType directIface => directIface,
                 ConstructedType { GenericDefinition: AbstractType genericIface } => genericIface,
@@ -10732,7 +10732,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         {
             // Unwrap ConstructedType to get the underlying AbstractType for generic
             // abstracts (e.g., IEnumerator<int> is a ConstructedType wrapping AbstractType).
-            AbstractType? iface = ifaceType switch
+            var iface = ifaceType switch
             {
                 AbstractType directIface => directIface,
                 ConstructedType { GenericDefinition: AbstractType genericIface } => genericIface,
@@ -11907,7 +11907,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         }
         else
         {
-            string? compilationUnitPath = FindCompilationUnitPathForClass(
+            var compilationUnitPath = FindCompilationUnitPathForClass(
                 classType, symbolTable, asts, compilation);
 
             diagnostics.Add(new Diagnostic(
@@ -11956,7 +11956,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             var baseType = classType.BaseType;
 
             // Get the member scope from the base type.
-            IScope? baseScope = baseType switch
+            var baseScope = baseType switch
             {
                 ClassType ct => ct.MemberScope,
                 ConstructedType cst => cst.MemberScope,
@@ -12026,7 +12026,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 }
                 else
                 {
-                    string? compilationUnitPath = FindCompilationUnitPathForClass(
+                    var compilationUnitPath = FindCompilationUnitPathForClass(
                         classType, symbolTable, asts, compilation);
 
                     diagnostics.Add(new Diagnostic(
@@ -12089,7 +12089,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             var baseType = structType.BaseType;
 
             // Get the member scope from the base struct type.
-            IScope? baseScope = baseType switch
+            var baseScope = baseType switch
             {
                 StructType bst => bst.MemberScope,
                 ConstructedType cst => cst.MemberScope,
@@ -12401,7 +12401,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // The scope chain is: local → file → namespace → global.
         // For files with no explicit namespace, the inferred namespace scope is used.
         // For files with explicit namespaces, each namespace section gets its own scope.
-        Scope primaryNamespaceScope = inferredNamespaceScope ?? globalScope;
+        var primaryNamespaceScope = inferredNamespaceScope ?? globalScope;
 
         // Create a file-level scope to hold using imports. This scope sits between
         // the namespace scope and the type scopes.
@@ -15430,7 +15430,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 {
                     // Set lambda target type from the enclosing method's return type
                     // so that implicit-param lambdas in return statements can infer types.
-                    IType? previousLambdaTarget = lambdaTargetType;
+                    var previousLambdaTarget = lambdaTargetType;
                     if(currentMethodReturnType is not null && IsFuncType(currentMethodReturnType))
                     {
                         lambdaTargetType = currentMethodReturnType;
@@ -16786,9 +16786,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// Resolves a <see cref="RefinableTypeExpressionNode"/> to an <see cref="IType"/>.
     /// For single types without refinements, delegates to <see cref="ResolveSingleTypeRef"/>.
     /// For single types with refinements, validates predicate compatibility and constructs
-    /// a <see cref="Types.RefinementType"/>.
+    /// a <see cref="RefinementType"/>.
     /// For union types, builds a <see cref="UnionType"/> from the constituents (each of which
-    /// may be a <see cref="Types.RefinementType"/> if it has a refinement predicate).
+    /// may be a <see cref="RefinementType"/> if it has a refinement predicate).
     /// </summary>
     private static IType ResolveRefinableTypeExpression(
         RefinableTypeExpressionNode refinableExpr,
@@ -16830,7 +16830,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// <summary>
     /// Resolves a single refinable type expression (base type + optional refinement predicate).
     /// When a refinement is present, validates predicate compatibility and constructs a
-    /// <see cref="Types.RefinementType"/>. When no refinement is present, resolves the
+    /// <see cref="RefinementType"/>. When no refinement is present, resolves the
     /// base <see cref="SingleTypeRefNode"/> directly.
     /// </summary>
     private static IType ResolveRefinableSingleTypeExpr(
@@ -16915,7 +16915,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 {
                     _ = new System.Text.RegularExpressions.Regex(pattern, System.Text.RegularExpressions.RegexOptions.None);
                 }
-                catch(System.ArgumentException ex)
+                catch(ArgumentException ex)
                 {
                     var offset = ex is System.Text.RegularExpressions.RegexParseException parseEx ? parseEx.Offset : 0;
                     diagnostics.Add(MakeDiagnosticWithLocation(
@@ -17119,7 +17119,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
     /// <summary>
     /// Checks whether a <see cref="UnionType"/> has at least one constituent that is a
-    /// <see cref="Types.RefinementType"/>.
+    /// <see cref="RefinementType"/>.
     /// </summary>
     private static bool HasRefinementConstituent(UnionType unionType)
     {
@@ -18857,7 +18857,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
     /// </summary>
     private static Scope? FindGlobalScopeFromIScope(IScope scope)
     {
-        IScope? current = scope;
+        var current = scope;
         while(current is not null)
         {
             if(current is Scope s && s.Parent is null)
@@ -19616,7 +19616,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         SourceText? sourceText,
         DiagnosticBag diagnostics)
     {
-        ExpressionNode valueExpr = assignment switch
+        var valueExpr = assignment switch
         {
             NamedPropertyAssignmentPropertyAssignmentNode named => named.Value,
             CollectionElementAssignmentPropertyAssignmentNode element => element.Value,
@@ -19661,7 +19661,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 break;
 
             default:
-                throw new System.InvalidOperationException(
+                throw new InvalidOperationException(
                     $"Unknown ExpressionNode variant: {expr.GetType().Name}");
         }
 
@@ -21075,7 +21075,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         SymbolTable symbolTable,
         Dictionary<Storm.Runtime.SyntaxNode, IType> expressionTypes)
     {
-        IType type = literal switch
+        var type = literal switch
         {
             IntegerConstantConstantLiteralNode intConst =>
                 ResolveIntegerLiteralType(intConst.Value.Lexeme, fileScope, symbolTable),
@@ -21523,7 +21523,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             if(suffix is InvocationSuffixPostfixSuffixNode invocationSuffix
                 && invocationSuffix.Arguments is not null)
             {
-                IReadOnlyList<IType>? methodParamTypes = primaryParamTypes;
+                var methodParamTypes = primaryParamTypes;
 
                 // If primaryParamTypes wasn't pre-computed, try to look up the
                 // method symbol from an identifier target.
@@ -21708,7 +21708,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         // LookupGenericMemberSymbol only when unified resolution
                         // did not find the method (e.g., non-method cases).
                         var providedArity = CountTypeArgs(methodCall.TypeArgs);
-                        ISymbol? methodSymbol = unifiedResult?.Symbol;
+                        var methodSymbol = unifiedResult?.Symbol;
                         if(methodSymbol is null)
                         {
                             methodSymbol = LookupGenericMemberSymbol(targetType, memberName, providedArity, ambientTypeResolver, fileScope, symbolTable);
@@ -22064,7 +22064,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     // When a Slice call is made on a SpanType receiver with a literal
                     // length argument, refine the result to a known-length SpanType so
                     // the inferred variable type carries the correct length.
-                    if(memberType is Semantics.Model.Types.SpanType sliceResultSpan
+                    if(memberType is SpanType sliceResultSpan
                         && memberName == "Slice"
                         && methodCall.Arguments is not null
                         && methodCall.Arguments.Arguments.Length >= 1)
@@ -22074,7 +22074,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         var sliceLiteralLength = TryExtractIntegerLiteral(sliceLengthExpr);
                         if(sliceLiteralLength.HasValue)
                         {
-                            memberType = new Semantics.Model.Types.SpanType(
+                            memberType = new SpanType(
                                 sliceResultSpan.ElementType, sliceLiteralLength.Value, sliceResultSpan.IsReadOnly);
                         }
                     }
@@ -22157,7 +22157,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     // Check for custom indexer on the target type (e.g., Dictionary<TKey, TValue>).
                     // Look up an indexer symbol ("this[]") in the target type's member scope.
                     var indexerLookupType = targetType is ConstructedType ict ? ict.GenericDefinition : targetType;
-                    IScope? indexerMemberScope = indexerLookupType switch
+                    var indexerMemberScope = indexerLookupType switch
                     {
                         ClassType ct2 => ct2.MemberScope,
                         StructType st2 => st2.MemberScope,
@@ -22962,7 +22962,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         // target-type threading (e.g., new Result<void>(void, true)).
                         IReadOnlyList<IType>? ctorParamTypes = null;
                         var ctorLookupType = createdType is ConstructedType ict ? ict.GenericDefinition : createdType;
-                        IScope? ctorMemberScope = ctorLookupType switch
+                        var ctorMemberScope = ctorLookupType switch
                         {
                             ClassType ct => ct.MemberScope,
                             StructType st => st.MemberScope,
@@ -23082,7 +23082,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     {
                         IReadOnlyList<IType>? ctorParamTypes = null;
                         var ctorLookupType = targetType is ConstructedType ict ? ict.GenericDefinition : targetType;
-                        IScope? ctorMemberScope = ctorLookupType switch
+                        var ctorMemberScope = ctorLookupType switch
                         {
                             ClassType ct => ct.MemberScope,
                             StructType st => st.MemberScope,
@@ -23693,7 +23693,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             // Check base class constraint (including inherited members).
             if(constraints.BaseClassConstraint is ClassType baseClass)
             {
-                ClassType? current = baseClass;
+                var current = baseClass;
                 while(current is not null)
                 {
                     foreach(var m in current.MemberScope.Members)
@@ -23749,7 +23749,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 // Check base class constraint (including inherited members).
                 if(slotConstraints.BaseClassConstraint is ClassType slotBaseClass)
                 {
-                    ClassType? current = slotBaseClass;
+                    var current = slotBaseClass;
                     while(current is not null)
                     {
                         foreach(var m in current.MemberScope.Members)
@@ -23811,7 +23811,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         }
 
         // Get the member scope from the target type.
-        IScope? memberScope = targetType switch
+        var memberScope = targetType switch
         {
             ClassType ct => ct.MemberScope,
             StructType st => st.MemberScope,
@@ -23905,7 +23905,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             // directly here to avoid the ambient extension scanner complexity.
             if(memberName == "AsSpan")
             {
-                return new Semantics.Model.Types.SpanType(arrayTargetForMember.ElementType, isReadOnly: false);
+                return new SpanType(arrayTargetForMember.ElementType, isReadOnly: false);
             }
 
             var globalScope = FindGlobalScope(fileScope);
@@ -23945,7 +23945,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // Span member access: mirrors the Array member lookup above.
         // SpanType is a dedicated IType (no member scope), so .Length and .Slice
         // are resolved directly here — exactly as Array resolves .Length above.
-        if(targetType is Semantics.Model.Types.SpanType spanMemberTarget)
+        if(targetType is SpanType spanMemberTarget)
         {
             if(memberName == "Length")
             {
@@ -23971,7 +23971,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 // Slice returns a SpanType of the same kind with unknown length.
                 // The TypeCheckerAnalyzer infers the precise length from the call
                 // site arguments (literal → known, else unknown).
-                return new Semantics.Model.Types.SpanType(spanMemberTarget.ElementType, spanMemberTarget.IsReadOnly);
+                return new SpanType(spanMemberTarget.ElementType, spanMemberTarget.IsReadOnly);
             }
 
             // Fall through to ambient resolver for other members (e.g., GetEnumerator).
@@ -24057,7 +24057,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // Search the type's member scope, walking the BaseType chain for class types.
         if(targetType is ClassType classTarget)
         {
-            ClassType? current = classTarget;
+            var current = classTarget;
             while(current is not null)
             {
                 // Search only the direct members of this class's scope.
@@ -25195,7 +25195,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         }
         else
         {
-            IScope? memberScope = targetType switch
+            var memberScope = targetType switch
             {
                 StructType st => st.MemberScope,
                 AbstractType at => at.MemberScope,
@@ -25232,7 +25232,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // handled via the extension path below.
 
         // ── Step 3: Default methods on abstracts ────────────────────────────
-        IReadOnlyList<IType>? abstracts = targetType switch
+        var abstracts = targetType switch
         {
             ClassType ct => ct.Abstracts,
             StructType st => st.Abstracts,
@@ -25321,7 +25321,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         IReadOnlyList<IType>? constructedTypeParams,
         IReadOnlyList<IType>? constructedTypeArgs)
     {
-        ClassType? current = classTarget;
+        var current = classTarget;
         while(current is not null)
         {
             var result = SearchScopeForMethodOverload(current.MemberScope, methodName, hints, constructedTypeParams, constructedTypeArgs);
@@ -25642,7 +25642,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             // Check base class constraint (including inherited members).
             if(constraints.BaseClassConstraint is ClassType baseClass)
             {
-                ClassType? current = baseClass;
+                var current = baseClass;
                 while(current is not null)
                 {
                     foreach(var m in current.MemberScope.Members)
@@ -25694,7 +25694,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 // Check base class constraint (including inherited members).
                 if(slotConstraints.BaseClassConstraint is ClassType slotBaseClass)
                 {
-                    ClassType? current = slotBaseClass;
+                    var current = slotBaseClass;
                     while(current is not null)
                     {
                         foreach(var m in current.MemberScope.Members)
@@ -25719,7 +25719,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             targetType = ct.GenericDefinition;
         }
 
-        IScope? memberScope = targetType switch
+        var memberScope = targetType switch
         {
             ClassType classType => classType.MemberScope,
             StructType structType => structType.MemberScope,
@@ -25729,7 +25729,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
         if(targetType is ClassType classTarget)
         {
-            ClassType? current = classTarget;
+            var current = classTarget;
             while(current is not null)
             {
                 foreach(var m in current.MemberScope.Members)
@@ -25786,7 +25786,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             targetType = ct.GenericDefinition;
         }
 
-        IScope? memberScope = targetType switch
+        var memberScope = targetType switch
         {
             ClassType classType => classType.MemberScope,
             StructType structType => structType.MemberScope,
@@ -25796,7 +25796,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
         if(targetType is ClassType classTarget)
         {
-            ClassType? current = classTarget;
+            var current = classTarget;
             while(current is not null)
             {
                 ISymbol? firstMatch = null;
@@ -25903,7 +25903,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
         if(targetType is ClassType classTarget)
         {
-            ClassType? current = classTarget;
+            var current = classTarget;
             while(current is not null)
             {
                 foreach(var m in current.MemberScope.Members)
@@ -25950,7 +25950,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
         if(targetType is ClassType classTarget)
         {
-            ClassType? current = classTarget;
+            var current = classTarget;
             ISymbol? firstMatch = null;
             ISymbol? lambdaCompatibleMatch = null;
             while(current is not null)
@@ -26155,7 +26155,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
             // Set lambda target type if the corresponding parameter is a Func type.
             // Also handles nullable Func types (UnionType containing a Func constituent).
-            IType? previousLambdaTarget = lambdaTargetType;
+            var previousLambdaTarget = lambdaTargetType;
             var previousVoidTarget = voidLiteralTargetType;
             var previousTargetNewTarget = targetTypedNewTargetType;
             if(effectiveParamTypes is not null && i < effectiveParamTypes.Count)
@@ -26621,7 +26621,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         NamespaceDeclarationNode namespaceNode,
         SourceText? sourceText)
     {
-        QualifiedIdentifierNode? qualifiedId = namespaceNode switch
+        var qualifiedId = namespaceNode switch
         {
             FileScopedNamespaceNamespaceDeclarationNode fileScopedNs => fileScopedNs.Name,
             BlockNamespaceNamespaceDeclarationNode blockNs => blockNs.Name,
@@ -27535,7 +27535,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                                 concreteTypeName = ExtractTypeReferenceName(typeBinding.TypeName, null);
                             }
 
-                            IType? concreteType = FindTypeByName(memberScope, concreteTypeName);
+                            var concreteType = FindTypeByName(memberScope, concreteTypeName);
 
                             // Process nested overrides if present.
                             Dictionary<string, DefaultFieldValue>? nestedOverrides = null;
@@ -27889,7 +27889,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         SourceText? sourceText)
     {
         LinePositionSpan location = default;
-        string compilationUnitPath = sourceText?.Path ?? "<unknown>";
+        var compilationUnitPath = sourceText?.Path ?? "<unknown>";
 
         if(sourceText is not null && node.Span.Length > 0)
         {
@@ -27931,9 +27931,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         return null;
     }
 
-    private static Common.Text.SourceSpan ToMistSourceSpan(Storm.Runtime.SourceSpan span)
+    private static SourceSpan ToMistSourceSpan(Storm.Runtime.SourceSpan span)
     {
-        return new Common.Text.SourceSpan(span.Start, span.Length);
+        return new SourceSpan(span.Start, span.Length);
     }
 
     private static Diagnostic MakeDiagnosticWithTokenLocation(
@@ -27944,7 +27944,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         SourceText? sourceText)
     {
         LinePositionSpan location = default;
-        string compilationUnitPath = sourceText?.Path ?? "<unknown>";
+        var compilationUnitPath = sourceText?.Path ?? "<unknown>";
 
         if(sourceText is not null && token.Span.Length > 0)
         {

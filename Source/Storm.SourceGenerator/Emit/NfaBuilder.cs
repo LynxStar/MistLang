@@ -278,7 +278,7 @@ namespace Storm.SourceGenerator.Emit
         /// </summary>
         internal static CharRange[] ParseCharClassRanges(string text)
         {
-            bool negated = false;
+            var negated = false;
             var ranges = new List<CharRange>();
 
             // Strip outer [ ]
@@ -395,7 +395,7 @@ namespace Storm.SourceGenerator.Emit
 
             // Build complement
             var result = new List<CharRange>();
-            int next = 0; // next char to potentially include
+            var next = 0; // next char to potentially include
 
             foreach(var r in merged)
             {

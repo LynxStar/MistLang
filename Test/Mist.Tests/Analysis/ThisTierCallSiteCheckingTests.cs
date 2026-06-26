@@ -16,13 +16,9 @@ using Mist.Analysis.Contracts;
 using Mist.Backends.Contracts;
 using Mist.Backends.CSharpTranspiler;
 using Mist.Common.Diagnostics;
-using Mist.Common.Text;
 using Mist.Driver;
 using Mist.Driver.Contracts;
-using Mist.Generated;
-using Mist.Semantics.Contracts;
 using Mist.Semantics.Model;
-using Xunit;
 
 namespace Mist.Tests.Analysis;
 
@@ -377,19 +373,19 @@ public sealed class ThisTierCallSiteCheckingTests
 
         // Build semantic model and manually set DeclaredThisTier on Close().
         var sourceText = new Mist.Common.Text.SourceText("test.mist", source);
-        var lexBag = new Mist.Common.Diagnostics.DiagnosticBag();
+        var lexBag = new DiagnosticBag();
         var tokens = new Mist.Lexing.MistLexer().Lex(sourceText, lexBag);
         Assert.False(lexBag.HasErrors);
 
-        var parseBag = new Mist.Common.Diagnostics.DiagnosticBag();
+        var parseBag = new DiagnosticBag();
         var parseResult = new Mist.Parsing.MistParser().Parse(tokens, parseBag);
         Assert.False(parseBag.HasErrors,
             $"Parse errors: {string.Join(", ", parseBag.ToImmutableArray().Select(d => d.Message))}");
         Assert.NotNull(parseResult.Root);
 
-        var compilation = new Mist.Driver.Contracts.MistCompilation(
-            ImmutableArray.Create(new Mist.Driver.Contracts.CompilationUnit(sourceText)));
-        var semBag = new Mist.Common.Diagnostics.DiagnosticBag();
+        var compilation = new MistCompilation(
+            ImmutableArray.Create(new CompilationUnit(sourceText)));
+        var semBag = new DiagnosticBag();
         var model = new SemanticModelBuilder().Build(
             compilation,
             ImmutableArray.Create(parseResult.Root!),
@@ -400,12 +396,12 @@ public sealed class ThisTierCallSiteCheckingTests
 
         // Set DeclaredThisTier = Owned on the Close() method to simulate
         // the parsed `with owned` annotation.
-        var closeMethod = (Mist.Semantics.Model.Symbol)model.AllSymbols
+        var closeMethod = (Symbol)model.AllSymbols
             .First(s => s.Name == "Close" && s.Kind == Mist.Semantics.Contracts.SymbolKind.Method);
         closeMethod.DeclaredThisTier = ThisTier.Owned;
 
         // Run the full analysis pipeline on the model.
-        var analysisBag = new Mist.Common.Diagnostics.DiagnosticBag();
+        var analysisBag = new DiagnosticBag();
         var analyzer = new OwnershipAnalyzer();
         analyzer.Analyze(model, analysisBag);
 

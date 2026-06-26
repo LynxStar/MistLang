@@ -5,9 +5,6 @@ using System.Collections.Immutable;
 using FsCheck;
 using FsCheck.Fluent;
 using FsCheck.Xunit;
-using Mist.Common.Diagnostics;
-using Mist.Common.Text;
-using Mist.Driver.Contracts;
 using Mist.Generated;
 using Mist.Semantics.Contracts;
 using Mist.Semantics.Model;
@@ -160,7 +157,7 @@ public class AsyncMethodReturnTypePropertyTests
 
     private static CompilationUnitNode BuildAst(AsyncMethodScenario scenario)
     {
-        TypeReferenceNode returnTypeRef = scenario.IsVoid
+        var returnTypeRef = scenario.IsVoid
             ? new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() }
             : MakePrimitiveTypeRef(scenario.ReturnTypeName);
 

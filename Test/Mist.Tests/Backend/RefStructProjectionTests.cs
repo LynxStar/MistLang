@@ -16,9 +16,7 @@
 //   - Ref-struct types ARE projected: ResolveType(Span<T>/ReadOnlySpan<T>) is non-null
 //     and IsTypeExcluded(Span<>/ReadOnlySpan<>) is false (9.1, 9.5).
 
-using System;
 using System.Collections.Immutable;
-using System.Linq;
 using System.Net.Sockets;
 using System.Reflection;
 using System.Text;

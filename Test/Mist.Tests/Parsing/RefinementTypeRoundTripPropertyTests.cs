@@ -1,7 +1,6 @@
 // Feature: refinement-types, Property 2: Pretty-print round-trip
 // **Validates: Requirements 2.1, 2.2, 2.3, 2.4**
 
-using System.Collections.Immutable;
 using FsCheck;
 using FsCheck.Fluent;
 using FsCheck.Xunit;

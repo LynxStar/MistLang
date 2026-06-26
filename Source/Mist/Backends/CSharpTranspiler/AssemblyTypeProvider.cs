@@ -107,7 +107,7 @@ internal sealed class AssemblyTypeProvider : IAmbientTypeResolver, IDisposable
 
     /// <summary>
     /// Upgrades the stdlib type provider used by lazy type projection.
-    /// Called by <see cref="Mist.Semantics.Model.SemanticModelBuilder"/>
+    /// Called by <see cref="SemanticModelBuilder"/>
     /// after Pass 1 registers all stdlib types so that projected member
     /// signatures reference the real stdlib <see cref="IType"/> instances.
     /// Sets the thread-local provider so parallel compilations don't

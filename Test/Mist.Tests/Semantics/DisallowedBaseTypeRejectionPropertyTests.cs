@@ -1,7 +1,6 @@
 // Feature: dependent-type-refinement-constraints, Property 3: Disallowed Base Type Rejection
 
 using System.Collections.Immutable;
-using System.Linq;
 using FsCheck;
 using FsCheck.Fluent;
 using FsCheck.Xunit;

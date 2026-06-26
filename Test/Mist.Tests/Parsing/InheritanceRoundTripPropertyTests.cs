@@ -206,7 +206,7 @@ public class InheritanceRoundTripPropertyTests
 
     private static Gen<TypeReferenceNode> GenPrimitiveType()
     {
-        return Gen.Elements<TypeReferenceNode>(
+        return Gen.Elements(
             new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = new IntTypePrimitiveTypeNode() } },
             new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = new BoolTypePrimitiveTypeNode() } },
             new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = new StringTypePrimitiveTypeNode() } });

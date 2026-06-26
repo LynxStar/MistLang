@@ -9,7 +9,6 @@
 // relationship fallback is accessible.
 
 using System.Collections.Immutable;
-using System.Linq;
 using System.Reflection;
 using Mist.Backends.CSharpTranspiler;
 using Mist.Common.Diagnostics;

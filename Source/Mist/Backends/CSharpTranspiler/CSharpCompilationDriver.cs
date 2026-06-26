@@ -247,7 +247,7 @@ public sealed class CSharpCompilationDriver
         {
             diagnostics.Add(new Diagnostic(
                 new DiagnosticId("MIST_BUILD_ERROR"),
-                DiagnosticSeverity.Error,
+                MistDiagnosticSeverity.Error,
                 PipelineStage.Backend,
                 "No C# source files found to compile.",
                 Location: default,

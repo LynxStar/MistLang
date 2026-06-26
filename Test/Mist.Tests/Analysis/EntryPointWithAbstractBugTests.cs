@@ -6,11 +6,8 @@ using System.Collections.Immutable;
 using Mist.Analysis.Builtin;
 using Mist.Backends.Contracts;
 using Mist.Backends.CSharpTranspiler;
-using Mist.Common.Diagnostics;
-using Mist.Common.Text;
 using Mist.Driver;
 using Mist.Driver.Contracts;
-using Mist.Semantics.Contracts;
 using Mist.Semantics.Model;
 
 namespace Mist.Tests.Analysis;
@@ -132,8 +129,8 @@ public sealed class EntryPointWithAbstractBugTests : IDisposable
         var builder = new SemanticModelBuilder();
 
         var sourceText = new Mist.Common.Text.SourceText(filePath, source);
-        var compilation = new Mist.Driver.Contracts.MistCompilation(
-            ImmutableArray.Create(new Mist.Driver.Contracts.CompilationUnit(sourceText)));
+        var compilation = new MistCompilation(
+            ImmutableArray.Create(new CompilationUnit(sourceText)));
 
         var lexBag = new Mist.Common.Diagnostics.DiagnosticBag();
         var tokenStream = lexer.Lex(sourceText, lexBag);
@@ -154,11 +151,11 @@ public sealed class EntryPointWithAbstractBugTests : IDisposable
             semanticBag);
 
         // Check that the parser correctly puts types in the namespace body
-        var cu = parseResult.Root as Mist.Generated.CompilationUnitNode;
+        var cu = parseResult.Root as Generated.CompilationUnitNode;
         Assert.NotNull(cu);
-        var nsItem = cu.Items.OfType<Mist.Generated.NamespaceItemTopLevelItemNode>().FirstOrDefault();
+        var nsItem = cu.Items.OfType<Generated.NamespaceItemTopLevelItemNode>().FirstOrDefault();
         Assert.NotNull(nsItem);
-        var nsDecl = nsItem.NamespaceDeclaration as Mist.Generated.FileScopedNamespaceNamespaceDeclarationNode;
+        var nsDecl = nsItem.NamespaceDeclaration as Generated.FileScopedNamespaceNamespaceDeclarationNode;
         Assert.NotNull(nsDecl);
         Assert.Equal(2, nsDecl.Body.Length);
 

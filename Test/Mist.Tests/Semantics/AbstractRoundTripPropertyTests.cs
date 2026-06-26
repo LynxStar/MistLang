@@ -235,7 +235,7 @@ public class AbstractRoundTripPropertyTests
 
     private static Gen<TypeReferenceNode> GenReturnType()
     {
-        return Gen.Elements<TypeReferenceNode>(
+        return Gen.Elements(
             new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() },
             new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = new IntTypePrimitiveTypeNode() } },
             new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = new BoolTypePrimitiveTypeNode() } },
@@ -244,7 +244,7 @@ public class AbstractRoundTripPropertyTests
 
     private static Gen<TypeReferenceNode> GenParamType()
     {
-        return Gen.Elements<TypeReferenceNode>(
+        return Gen.Elements(
             new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = new IntTypePrimitiveTypeNode() } },
             new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = new BoolTypePrimitiveTypeNode() } },
             new TypeReferenceNode { First = new PrimitiveSingleTypeRefSingleTypeRefNode { PrimitiveType = new StringTypePrimitiveTypeNode() } });

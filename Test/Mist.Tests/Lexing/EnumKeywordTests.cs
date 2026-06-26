@@ -122,7 +122,7 @@ class Foo {
         // causing the class to not be fully parsed.
         var hasErrors = bag.HasErrors;
         var rootIsNull = result.Root == null;
-        var rootHasNoItems = result.Root is Mist.Generated.CompilationUnitNode cu
+        var rootHasNoItems = result.Root is CompilationUnitNode cu
             && cu.Items.Length == 0;
 
         Assert.True(hasErrors || rootIsNull || rootHasNoItems,

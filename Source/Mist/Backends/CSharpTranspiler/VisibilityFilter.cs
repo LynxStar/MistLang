@@ -87,7 +87,7 @@ internal sealed record MemberClassification(
 /// <para>
 /// CLR <c>ref</c> parameters, <c>in</c> parameters, <c>out</c> parameters, and mutable
 /// <c>ref</c> returns are now supported and pass through the filter. <c>out</c> parameters
-/// are projected as <c>ref</c> with <see cref="Mist.Semantics.Model.ClrCallingConvention.Out"/>.
+/// are projected as <c>ref</c> with <see cref="Semantics.Model.ClrCallingConvention.Out"/>.
 /// Only <c>ref readonly</c> returns remain excluded.
 /// Requirements: 6.1, 6.2, 6.3, 6.4, 6.5, 6.6, 6.7.
 /// </para>
@@ -328,7 +328,7 @@ internal sealed class VisibilityFilter
 
     /// <summary>
     /// Previously excluded methods with CLR <c>out</c> parameters. CLR <c>out</c> parameters
-    /// are now projected as <c>ref</c> with <see cref="Mist.Semantics.Model.ClrCallingConvention.Out"/>,
+    /// are now projected as <c>ref</c> with <see cref="Semantics.Model.ClrCallingConvention.Out"/>,
     /// so this method unconditionally returns <c>false</c>.
     /// </summary>
     private static bool HasOutParameters(MemberInfo member)
@@ -522,7 +522,7 @@ internal sealed class VisibilityFilter
     /// </list>
     /// </para>
     /// <para>
-    /// This method runs under <see cref="System.Reflection.MetadataLoadContext"/> so uses
+    /// This method runs under <see cref="MetadataLoadContext"/> so uses
     /// attribute-based detection for <c>ref readonly</c> returns and <c>IsByRefLikeAttribute</c>
     /// for ref structs.
     /// </para>

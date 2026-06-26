@@ -1,7 +1,6 @@
 // Feature: enums, Property 1: Enum declaration round-trip
 // **Validates: Requirements 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 12.1**
 
-using System.Collections.Immutable;
 using FsCheck;
 using FsCheck.Fluent;
 using FsCheck.Xunit;

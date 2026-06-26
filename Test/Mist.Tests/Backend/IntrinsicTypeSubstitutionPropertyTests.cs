@@ -3,7 +3,6 @@
 
 using FsCheck;
 using FsCheck.Fluent;
-using FsCheck.Xunit;
 using Mist.Backends.CSharpTranspiler;
 using Mist.Semantics.Contracts;
 using Mist.Semantics.Model;

@@ -8,7 +8,6 @@ using Mist.Analysis.Contracts;
 using Mist.Backends.Contracts;
 using Mist.Backends.CSharpTranspiler;
 using Mist.Common.Diagnostics;
-using Mist.Common.Text;
 using Mist.Driver;
 using Mist.Driver.Contracts;
 using Mist.Lexing;

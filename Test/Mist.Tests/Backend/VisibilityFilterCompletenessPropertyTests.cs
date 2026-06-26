@@ -1,4 +1,3 @@
-using System.Linq;
 using System.Reflection;
 using FsCheck;
 using FsCheck.Fluent;
@@ -34,7 +33,7 @@ public sealed class VisibilityFilterCompletenessPropertyTests
 
     private static MemberInfo[] LoadAllMembers()
     {
-        var assembly = typeof(Mist.Tests.InteropFixtures.SimpleClass).Assembly;
+        var assembly = typeof(InteropFixtures.SimpleClass).Assembly;
         var members = new List<MemberInfo>();
 
         foreach(var type in assembly.GetTypes())

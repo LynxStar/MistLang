@@ -2,7 +2,6 @@
 // **Validates: Requirements 12.1, 12.2, 12.3, 12.4, 12.5, 12.6, 12.7, 12.8**
 
 using System.Collections.Immutable;
-using System.Text.RegularExpressions;
 using FsCheck;
 using FsCheck.Fluent;
 using FsCheck.Xunit;

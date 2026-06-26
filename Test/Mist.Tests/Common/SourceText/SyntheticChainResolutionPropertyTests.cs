@@ -7,7 +7,6 @@ using FsCheck.Xunit;
 using Mist.Common.Diagnostics;
 using Mist.Common.Text;
 using Mist.Generated;
-using Storm.Runtime;
 
 namespace Mist.Tests.Common.SourceText;
 
@@ -163,7 +162,7 @@ public class SyntheticChainResolutionPropertyTests
 
         var (_, location, _) = DiagnosticHelper.ResolveLocation(node);
 
-        var expectedSpan = new Mist.Common.Text.SourceSpan(input.SpanStart, input.SpanLength);
+        var expectedSpan = new SourceSpan(input.SpanStart, input.SpanLength);
         var expectedLocation = input.TerminalSource.ToLinePositionSpan(expectedSpan);
 
         return location.Start.Line == expectedLocation.Start.Line

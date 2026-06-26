@@ -15,7 +15,6 @@ using Mist.Common.Text;
 using Mist.Semantics;
 using Mist.Semantics.Contracts;
 using Mist.Semantics.Model;
-using Mist.Semantics.Model.Types;
 
 namespace Mist.Tests.Analysis;
 

@@ -353,7 +353,7 @@ namespace Storm.SourceGenerator.Frontend
                 }
 
                 // --- Single-character operators ---
-                StormTokenKind? opKind = ClassifyOperator(c);
+                var opKind = ClassifyOperator(c);
                 if(opKind != null)
                 {
                     tokens.Add(new StormToken(opKind.Value, c.ToString(), pos, line, column));

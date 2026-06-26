@@ -6,7 +6,6 @@ using FsCheck;
 using FsCheck.Fluent;
 using FsCheck.Xunit;
 using Mist.Generated;
-using Mist.Semantics.Contracts;
 using Mist.Semantics.Model.Types;
 using Mist.Tests.Helpers;
 
@@ -123,7 +122,7 @@ public class AwaitUnwrapTypePropertyTests
         AwaitUnwrapScenario scenario)
     {
         // Build the target method (sync, with the specified return type)
-        TypeReferenceNode returnTypeRef = scenario.IsVoid
+        var returnTypeRef = scenario.IsVoid
             ? new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() }
             : MakePrimitiveTypeRef(scenario.ReturnTypeName);
 

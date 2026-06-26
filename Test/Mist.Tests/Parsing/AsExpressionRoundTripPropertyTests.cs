@@ -1,7 +1,6 @@
 // Feature: as-operator, Property 1: As expression round-trip
 // **Validates: Requirements 1.1, 1.2, 1.3**
 
-using System.Collections.Immutable;
 using FsCheck;
 using FsCheck.Fluent;
 using FsCheck.Xunit;

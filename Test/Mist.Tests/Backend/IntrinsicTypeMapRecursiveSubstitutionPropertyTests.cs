@@ -274,7 +274,7 @@ public class IntrinsicTypeMapRecursiveSubstitutionPropertyTests
         }
 
         // General case: fold
-        Gen<IType[]> acc = gens[0].Select(t => new[] { t });
+        var acc = gens[0].Select(t => new[] { t });
         for(var i = 1; i < gens.Length; i++)
         {
             var idx = i;

@@ -4,7 +4,6 @@
 using Mist.Common.Diagnostics;
 using Mist.Generated;
 using Mist.Lexing.Contracts;
-using Mist.Parsing;
 using Mist.Parsing.Contracts;
 
 namespace Mist.Tests.Parsing;

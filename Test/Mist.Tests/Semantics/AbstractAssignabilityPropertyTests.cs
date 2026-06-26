@@ -12,7 +12,6 @@ using Mist.Driver.Contracts;
 using Mist.Generated;
 using Mist.Semantics.Contracts;
 using Mist.Semantics.Model;
-using Mist.Semantics.Model.Types;
 
 namespace Mist.Tests.Semantics;
 
@@ -642,7 +641,7 @@ public class AbstractAssignabilityPropertyTests
             bodyStatements: mainStatements,
             isStatic: true);
         var programClass = MakeClassDecl("Program",
-            members: ImmutableArray.Create<MemberDeclarationNode>(WrapMethod(mainMethod)));
+            members: ImmutableArray.Create(WrapMethod(mainMethod)));
         typeDecls.Add(WrapClass(programClass));
 
         return new CompilationUnitNode

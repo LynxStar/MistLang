@@ -132,7 +132,7 @@ public sealed class StormGrammar
         // Scan for grammar declarations across all files
         string? grammarName = null;
         string? grammarDeclFilePath = null;
-        Frontend.StormGrammarDecl? firstGrammarDecl = null;
+        StormGrammarDecl? firstGrammarDecl = null;
 
         foreach(var kv in resolution.OrderedFiles)
         {

@@ -300,7 +300,7 @@ public class ExtensionDuplicateSignaturePropertyTests
 
         return new CompilationUnitNode
         {
-            Items = ImmutableArray.Create<TopLevelItemNode>(
+            Items = ImmutableArray.Create(
                 classTypeDecl.AsTopLevelItem(),
                 extItem1,
                 extItem2),

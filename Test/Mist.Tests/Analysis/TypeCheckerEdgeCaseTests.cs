@@ -6,7 +6,6 @@ using Mist.Driver.Contracts;
 using Mist.Generated;
 using Mist.Semantics.Contracts;
 using Mist.Semantics.Model;
-using Mist.Semantics.Model.Types;
 using Mist.Tests.Helpers;
 
 namespace Mist.Tests.Analysis;
@@ -466,7 +465,7 @@ public class TypeCheckerEdgeCaseTests
     public void MIST_TC_0007_NonBoolCondition()
     {
         // if (1) { }
-        var ast = MakeProgram(ImmutableArray.Create<StatementNode>(
+        var ast = MakeProgram(ImmutableArray.Create(
             MakeIntVarDecl("x", "1"),
             new IfStatementStatementNode
             {

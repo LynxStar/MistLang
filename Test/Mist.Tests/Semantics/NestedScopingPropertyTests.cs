@@ -115,7 +115,7 @@ public sealed class NestedScopingPropertyTests
         }
 
         var topLevelItem = cu.Items[0];
-        TypeDeclarationNode? typeDecl = topLevelItem switch
+        var typeDecl = topLevelItem switch
         {
             TypeItemTopLevelItemNode typeItem => typeItem.TypeDeclaration,
             _ => null,

@@ -297,7 +297,7 @@ public sealed class CreateDefaultEmissionPropertyTests : IDisposable
             return Gen.Constant(ImmutableArray<(string, string)>.Empty);
         }
 
-        Gen<ImmutableArray<(string, string)>> result =
+        var result =
             from fieldType in Gen.Elements(PrimitiveTypes)
             select ImmutableArray.Create<(string, string)>((FieldNames[0], fieldType));
 

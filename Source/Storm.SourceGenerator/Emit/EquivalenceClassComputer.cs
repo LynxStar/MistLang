@@ -45,11 +45,11 @@ namespace Storm.SourceGenerator.Emit
             // Task 6.2: For each interval, compute its transition signature
             // across all DFA states, then group intervals with identical
             // signatures into the same equivalence class.
-            int stateCount = dfa.States.Count;
+            var stateCount = dfa.States.Count;
 
             // Build a fast lookup: state ID -> index in States list
             var stateIdToIndex = new Dictionary<int, int>();
-            for(int i = 0; i < dfa.States.Count; i++)
+            for(var i = 0; i < dfa.States.Count; i++)
             {
                 stateIdToIndex[dfa.States[i].Id] = i;
             }
@@ -58,12 +58,12 @@ namespace Storm.SourceGenerator.Emit
             // list of target state IDs (one per DFA state) for a representative
             // character from the interval. -1 means no transition.
             var signatureToClass = new Dictionary<string, int>();
-            int nextClass = 0;
+            var nextClass = 0;
 
             // Track which class each interval gets assigned to
             var intervalClasses = new int[intervals.Count];
 
-            for(int i = 0; i < intervals.Count; i++)
+            for(var i = 0; i < intervals.Count; i++)
             {
                 var signature = ComputeSignature(
                     intervals[i].Lo, dfa, stateIdToIndex, stateCount);
@@ -91,18 +91,18 @@ namespace Storm.SourceGenerator.Emit
 
             // Fill the charToClass array. Start by setting everything to the
             // default class, then overwrite the intervals.
-            for(int c = 0; c < 65536; c++)
+            for(var c = 0; c < 65536; c++)
             {
                 charToClass[c] = defaultClass;
             }
 
-            for(int i = 0; i < intervals.Count; i++)
+            for(var i = 0; i < intervals.Count; i++)
             {
                 int lo = intervals[i].Lo;
                 int hi = intervals[i].Hi;
-                int cls = intervalClasses[i];
+                var cls = intervalClasses[i];
 
-                for(int c = lo; c <= hi; c++)
+                for(var c = lo; c <= hi; c++)
                 {
                     charToClass[c] = cls;
                 }
@@ -142,9 +142,9 @@ namespace Storm.SourceGenerator.Emit
             var boundaries = new List<int>(boundarySet);
             var result = new List<CharRange>();
 
-            for(int i = 0; i < boundaries.Count; i++)
+            for(var i = 0; i < boundaries.Count; i++)
             {
-                int lo = boundaries[i];
+                var lo = boundaries[i];
                 int hi;
 
                 if(i + 1 < boundaries.Count)
@@ -180,12 +180,12 @@ namespace Storm.SourceGenerator.Emit
             // ordered by state index. Using a pre-allocated array avoids
             // repeated allocations.
             var targets = new int[stateCount];
-            for(int i = 0; i < stateCount; i++)
+            for(var i = 0; i < stateCount; i++)
             {
                 targets[i] = -1;
             }
 
-            for(int i = 0; i < dfa.States.Count; i++)
+            for(var i = 0; i < dfa.States.Count; i++)
             {
                 var state = dfa.States[i];
                 int stateIndex;
@@ -214,7 +214,7 @@ namespace Storm.SourceGenerator.Emit
         private static string ComputeDefaultSignature(int stateCount)
         {
             var targets = new int[stateCount];
-            for(int i = 0; i < stateCount; i++)
+            for(var i = 0; i < stateCount; i++)
             {
                 targets[i] = -1;
             }
@@ -229,7 +229,7 @@ namespace Storm.SourceGenerator.Emit
         private static string EncodeSignature(int[] targets)
         {
             var sb = new System.Text.StringBuilder();
-            for(int i = 0; i < targets.Length; i++)
+            for(var i = 0; i < targets.Length; i++)
             {
                 if(i > 0)
                 {

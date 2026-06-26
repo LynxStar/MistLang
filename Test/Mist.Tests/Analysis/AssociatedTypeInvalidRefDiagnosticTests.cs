@@ -6,7 +6,6 @@ using Mist.Analysis.Builtin;
 using Mist.Common.Diagnostics;
 using Mist.Common.Text;
 using Mist.Tests.Helpers;
-using Xunit;
 
 namespace Mist.Tests.Analysis;
 

@@ -87,8 +87,8 @@ public sealed class NullableProjectionPropertyTests
         typeof(ulong?),
         typeof(ushort?),
         typeof(sbyte?),
-        typeof(Mist.Tests.InteropFixtures.SimpleEnum?),
-        typeof(Mist.Tests.InteropFixtures.SimpleStruct?),
+        typeof(InteropFixtures.SimpleEnum?),
+        typeof(InteropFixtures.SimpleStruct?),
     ];
 
     /// <summary>
@@ -101,16 +101,16 @@ public sealed class NullableProjectionPropertyTests
         typeof(object),
         typeof(int[]),
         typeof(string[]),
-        typeof(Mist.Tests.InteropFixtures.SimpleClass),
-        typeof(Mist.Tests.InteropFixtures.ISimpleInterface),
-        typeof(System.Collections.Generic.List<int>),
-        typeof(System.Collections.Generic.Dictionary<string, int>),
-        typeof(System.IComparable),
-        typeof(System.Action),
-        typeof(System.Func<int>),
-        typeof(System.EventHandler),
+        typeof(InteropFixtures.SimpleClass),
+        typeof(InteropFixtures.ISimpleInterface),
+        typeof(List<int>),
+        typeof(Dictionary<string, int>),
+        typeof(IComparable),
+        typeof(Action),
+        typeof(Func<int>),
+        typeof(EventHandler),
         typeof(Exception),
-        typeof(System.IO.Stream),
+        typeof(Stream),
     ];
 
     /// <summary>
@@ -132,11 +132,11 @@ public sealed class NullableProjectionPropertyTests
         typeof(ulong),
         typeof(ushort),
         typeof(sbyte),
-        typeof(Mist.Tests.InteropFixtures.SimpleStruct),
-        typeof(Mist.Tests.InteropFixtures.SimpleEnum),
-        typeof(System.DateTime),
-        typeof(System.Guid),
-        typeof(System.TimeSpan),
+        typeof(InteropFixtures.SimpleStruct),
+        typeof(InteropFixtures.SimpleEnum),
+        typeof(DateTime),
+        typeof(Guid),
+        typeof(TimeSpan),
     ];
 
     // ─── FsCheck generator ──────────────────────────────────────────────

@@ -187,7 +187,7 @@ public static class MistPropertyGenerator
                    AccessorModifier = mod,
                    Body = new BlockNode
                    {
-                       Statements = ImmutableArray.Create<StatementNode>(
+                       Statements = ImmutableArray.Create(
                            MistAstGenerator.MakeExpressionStatement(
                                MakeFieldAssignment())),
                    },
@@ -224,7 +224,7 @@ public static class MistPropertyGenerator
                    AccessorModifier = mod,
                    Body = new BlockNode
                    {
-                       Statements = ImmutableArray.Create<StatementNode>(
+                       Statements = ImmutableArray.Create(
                            MistAstGenerator.MakeExpressionStatement(
                                MakeFieldAssignment())),
                    },

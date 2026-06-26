@@ -429,7 +429,7 @@ public class ImplicitCastResolutionPropertyTests
     private static MemberDeclarationNode MakeReturnMethod(
         string returnTypeName, string sourceTypeName)
     {
-        var statements = ImmutableArray.Create<StatementNode>(
+        var statements = ImmutableArray.Create(
             MakeTypedVarDecl(sourceTypeName, "s", sourceTypeName),
             new ReturnStatementStatementNode
             {
@@ -553,7 +553,7 @@ public class ImplicitCastResolutionPropertyTests
     /// </summary>
     private static CompilationUnitNode BuildNoImplicitCastAst(NoImplicitCastScenario scenario)
     {
-        var mainStatements = ImmutableArray.Create<StatementNode>(
+        var mainStatements = ImmutableArray.Create(
             MakeTypedVarDecl(scenario.SourceTypeName, "src", scenario.SourceTypeName),
             MakeTypedVarDeclFromIdentifier(scenario.TargetTypeName, "tgt", "src"));
 
@@ -600,7 +600,7 @@ public class ImplicitCastResolutionPropertyTests
         var targetMembers = ImmutableArray.Create(
             MakeCastOperatorMember(scenario.TargetTypeName, scenario.SourceTypeName));
 
-        var mainStatements = ImmutableArray.Create<StatementNode>(
+        var mainStatements = ImmutableArray.Create(
             MakeTypedVarDecl(scenario.SourceTypeName, "src", scenario.SourceTypeName),
             MakeTypedVarDeclFromIdentifier(scenario.TargetTypeName, "tgt", "src"));
 

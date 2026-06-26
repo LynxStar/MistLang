@@ -19,7 +19,6 @@ using Mist.Lexing;
 using Mist.Lexing.Contracts;
 using Mist.Parsing;
 using Mist.Parsing.Contracts;
-using Mist.Semantics.Contracts;
 using Mist.Semantics.Model;
 
 namespace Mist.Tests.Backend;
@@ -98,7 +97,7 @@ public sealed partial class ConstructorDefaultCoexistencePropertyTests
     private static Gen<ImmutableArray<(string FieldName, string FieldType, string DefaultValue)>> GenFields(
         int count)
     {
-        Gen<ImmutableArray<(string, string, string)>> result =
+        var result =
             Gen.Constant(ImmutableArray<(string, string, string)>.Empty);
 
         for(var i = 0; i < count; i++)

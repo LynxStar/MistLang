@@ -1,5 +1,3 @@
-using System.Linq;
-
 namespace Mist.Tests.Driver;
 
 /// <summary>

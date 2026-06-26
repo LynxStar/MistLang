@@ -81,7 +81,7 @@ public sealed class CompilerDriver : ICompilerDriver
             try
             {
                 var contents = File.ReadAllText(path);
-                var sourceText = new Common.Text.SourceText(path, contents);
+                var sourceText = new SourceText(path, contents);
                 userUnits.Add(new CompilationUnit(sourceText));
             }
             catch(Exception ex)

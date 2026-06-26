@@ -8,9 +8,7 @@
 //
 // **Validates: Requirements 12.5, 12.8**
 
-using System.Collections.Generic;
 using System.Collections.Immutable;
-using System.Linq;
 using FsCheck;
 using FsCheck.Fluent;
 using FsCheck.Xunit;
@@ -18,7 +16,6 @@ using Mist.Analysis.Builtin;
 using Mist.Common.Diagnostics;
 using Mist.Common.Text;
 using Mist.Driver.Contracts;
-using Mist.Generated;
 using Mist.Lexing.Contracts;
 using Mist.Parsing.Contracts;
 using Mist.Semantics.Contracts;

@@ -176,8 +176,8 @@ public sealed class MoveBoundarySoleGatePropertyTests : IDisposable
     {
         return node switch
         {
-            Mist.Generated.TypedVariableDeclarationVariableDeclarationStatementNode typed => typed.Initializer,
-            Mist.Generated.InferredVariableDeclarationVariableDeclarationStatementNode inferred => inferred.Initializer,
+            Generated.TypedVariableDeclarationVariableDeclarationStatementNode typed => typed.Initializer,
+            Generated.InferredVariableDeclarationVariableDeclarationStatementNode inferred => inferred.Initializer,
             _ => null,
         };
     }

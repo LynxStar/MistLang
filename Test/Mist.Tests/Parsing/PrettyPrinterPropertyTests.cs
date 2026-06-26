@@ -2,7 +2,6 @@
 // Feature: mist-language-v1, Property 3: Pretty printer semantic preservation
 
 using System.Collections.Immutable;
-using Mist.Backends.CSharpTranspiler;
 using Mist.Common.Diagnostics;
 using Mist.Common.Text;
 using Mist.Driver.Contracts;
@@ -10,7 +9,6 @@ using Mist.Generated;
 using Mist.Parsing;
 using Mist.Semantics.Contracts;
 using Mist.Semantics.Model;
-using Mist.Semantics.Model.Types;
 
 namespace Mist.Tests.Parsing;
 
@@ -615,7 +613,7 @@ public class PrettyPrinterPropertyTests
             {
                 Block = new BlockNode
                 {
-                    Statements = ImmutableArray.Create<StatementNode>(
+                    Statements = ImmutableArray.Create(
                     varDecl,
                     yDecl,
                     callStmt,

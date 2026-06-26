@@ -1,7 +1,6 @@
 // Feature: properties, Property 1: Parse–Print–Parse Round Trip
 // **Validates: Requirements 15.8**
 
-using System.Collections.Immutable;
 using FsCheck;
 using FsCheck.Fluent;
 using FsCheck.Xunit;

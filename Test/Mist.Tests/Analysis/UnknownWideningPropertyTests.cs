@@ -29,7 +29,6 @@
 // incurred.
 
 using System.Collections.Immutable;
-using System.Linq;
 using FsCheck;
 using FsCheck.Fluent;
 using FsCheck.Xunit;

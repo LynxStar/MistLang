@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using Storm.SourceGenerator.Emit;
 
 namespace Storm.SourceGenerator.Tests;
@@ -30,7 +29,7 @@ public class EquivalenceClassComputerTests
         var (charToClass, classCount) = EquivalenceClassComputer.Compute(dfa);
 
         Assert.Equal(1, classCount);
-        for(int c = 0; c < 65536; c++)
+        for(var c = 0; c < 65536; c++)
         {
             Assert.Equal(0, charToClass[c]);
         }
@@ -51,8 +50,8 @@ public class EquivalenceClassComputerTests
 
         Assert.Equal(2, classCount);
         // 'a' should be in a different class than other characters
-        int classA = charToClass['a'];
-        int classOther = charToClass['b'];
+        var classA = charToClass['a'];
+        var classOther = charToClass['b'];
         Assert.NotEqual(classA, classOther);
         // All non-'a' characters should be in the same class
         Assert.Equal(charToClass['b'], charToClass['z']);
@@ -74,8 +73,8 @@ public class EquivalenceClassComputerTests
 
         Assert.Equal(2, classCount);
         // All chars in [a-z] should be in the same class
-        int classAZ = charToClass['a'];
-        for(char c = 'b'; c <= 'z'; c++)
+        var classAZ = charToClass['a'];
+        for(var c = 'b'; c <= 'z'; c++)
         {
             Assert.Equal(classAZ, charToClass[c]);
         }
@@ -101,9 +100,9 @@ public class EquivalenceClassComputerTests
 
         // Should have 3 classes: [a-z], [0-9], and everything else
         Assert.Equal(3, classCount);
-        int classAZ = charToClass['a'];
-        int classDigit = charToClass['0'];
-        int classOther = charToClass['!'];
+        var classAZ = charToClass['a'];
+        var classDigit = charToClass['0'];
+        var classOther = charToClass['!'];
         Assert.NotEqual(classAZ, classDigit);
         Assert.NotEqual(classAZ, classOther);
         Assert.NotEqual(classDigit, classOther);
@@ -131,8 +130,8 @@ public class EquivalenceClassComputerTests
 
         // a-m and n-z should be in different classes because they have
         // different transition signatures across all states
-        int classAM = charToClass['a'];
-        int classNZ = charToClass['n'];
+        var classAM = charToClass['a'];
+        var classNZ = charToClass['n'];
         Assert.NotEqual(classAM, classNZ);
         // Characters within each sub-range should share a class
         Assert.Equal(classAM, charToClass['m']);
@@ -168,13 +167,13 @@ public class EquivalenceClassComputerTests
         var (charToClass, classCount) = EquivalenceClassComputer.Compute(dfa);
 
         var usedClasses = new HashSet<int>();
-        for(int c = 0; c < 65536; c++)
+        for(var c = 0; c < 65536; c++)
         {
             _ = usedClasses.Add(charToClass[c]);
         }
 
         Assert.Equal(classCount, usedClasses.Count);
-        for(int i = 0; i < classCount; i++)
+        for(var i = 0; i < classCount; i++)
         {
             Assert.Contains(i, usedClasses);
         }
@@ -195,7 +194,7 @@ public class EquivalenceClassComputerTests
         var (charToClass, classCount) = EquivalenceClassComputer.Compute(dfa);
 
         Assert.Equal(2, classCount);
-        int classHigh = charToClass[0xFF00];
+        var classHigh = charToClass[0xFF00];
         Assert.Equal(classHigh, charToClass[0xFFFF]);
         Assert.NotEqual(classHigh, charToClass[0]);
         Assert.NotEqual(classHigh, charToClass['a']);

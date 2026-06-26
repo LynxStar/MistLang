@@ -11,7 +11,6 @@
 // test-process-spawning policy). The lexer/parser are reused across tests.
 
 using System.Collections.Immutable;
-using System.Linq;
 using Mist.Common.Diagnostics;
 using Mist.Common.Text;
 using Mist.Driver.Contracts;

@@ -14,7 +14,6 @@ using Mist.Analysis.Builtin;
 using Mist.Semantics.Contracts;
 using Mist.Semantics.Model;
 using Mist.Semantics.Model.Types;
-using Xunit;
 
 namespace Mist.Tests.Analysis;
 

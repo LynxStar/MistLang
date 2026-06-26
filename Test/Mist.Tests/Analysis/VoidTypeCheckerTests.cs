@@ -6,7 +6,6 @@ using Mist.Driver.Contracts;
 using Mist.Generated;
 using Mist.Semantics.Contracts;
 using Mist.Semantics.Model;
-using Mist.Semantics.Model.Types;
 
 namespace Mist.Tests.Analysis;
 
@@ -228,7 +227,7 @@ public class VoidTypeCheckerTests
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new MethodMemberMemberDeclarationNode
                 {
-                    Method = MakeMainMethod(ImmutableArray.Create<StatementNode>(stmt)),
+                    Method = MakeMainMethod(ImmutableArray.Create(stmt)),
                 }),
         };
 
@@ -263,7 +262,7 @@ public class VoidTypeCheckerTests
             Members = ImmutableArray.Create<MemberDeclarationNode>(
                 new MethodMemberMemberDeclarationNode
                 {
-                    Method = MakeMainMethod(ImmutableArray.Create<StatementNode>(stmt)),
+                    Method = MakeMainMethod(ImmutableArray.Create(stmt)),
                 }),
         };
 
@@ -314,7 +313,7 @@ public class VoidTypeCheckerTests
         var callExpr = MakeStaticMethodCall("Program", "Target", MakeVoidDotVoidExpression());
         var callStmt = MakeExpressionStatement(callExpr);
 
-        var mainMethod = MakeMainMethod(ImmutableArray.Create<StatementNode>(callStmt));
+        var mainMethod = MakeMainMethod(ImmutableArray.Create(callStmt));
 
         var classDecl = new ClassDeclarationNode
         {

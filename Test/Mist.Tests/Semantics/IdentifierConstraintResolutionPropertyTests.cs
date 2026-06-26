@@ -85,7 +85,7 @@ public class IdentifierConstraintResolutionPropertyTests
         ISemanticModel model, string typeName, string paramName)
     {
         var typeSymbol = model.AllSymbols.FirstOrDefault(s => s.Name == typeName);
-        IReadOnlyList<IType>? typeParams = typeSymbol?.DeclaredType switch
+        var typeParams = typeSymbol?.DeclaredType switch
         {
             ClassType ct => ct.TypeParameters,
             StructType st => st.TypeParameters,

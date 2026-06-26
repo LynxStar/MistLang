@@ -2,7 +2,6 @@
 // **Validates: Requirements 1.1, 1.3, 1.4, 1.5, 1.6, 2.1, 2.2, 2.3, 2.4, 2.5, 2.6,
 //              3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 10.1, 10.2, 10.5**
 
-using System.Collections.Immutable;
 using FsCheck;
 using FsCheck.Fluent;
 using FsCheck.Xunit;

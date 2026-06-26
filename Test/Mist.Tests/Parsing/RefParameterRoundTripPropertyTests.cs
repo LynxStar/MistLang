@@ -1,7 +1,6 @@
 // Feature: ref-parameters, Property 1: Pretty Printer Round-Trip
 // **Validates: Requirements 11.1, 11.2, 11.3, 11.4, 11.5, 11.6**
 
-using System.Collections.Immutable;
 using FsCheck;
 using FsCheck.Fluent;
 using FsCheck.Xunit;

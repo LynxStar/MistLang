@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using System.Linq;
 using Storm.SourceGenerator.IR;
@@ -397,7 +396,7 @@ namespace Storm.SourceGenerator.Emit
             writer.WriteLine("var savedError = _hasError;");
             writer.WriteLine("var savedDiagCount = _diagnostics?.Count ?? 0;");
 
-            for(int i = 0; i < rule.Alternatives.Count; i++)
+            for(var i = 0; i < rule.Alternatives.Count; i++)
             {
                 var alt = rule.Alternatives[i];
                 var altName = alt.AlternativeName ?? $"Alt{i}";

@@ -1,7 +1,6 @@
 // Feature: stack-only-types, Property 2: Stackalloc parsing structure and round-trip
 // **Validates: Requirements 3.2, 3.6**
 
-using System.Collections.Immutable;
 using FsCheck;
 using FsCheck.Fluent;
 using FsCheck.Xunit;

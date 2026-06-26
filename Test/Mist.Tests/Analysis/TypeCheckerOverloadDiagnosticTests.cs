@@ -6,7 +6,6 @@ using Mist.Driver.Contracts;
 using Mist.Generated;
 using Mist.Semantics.Contracts;
 using Mist.Semantics.Model;
-using Mist.Semantics.Model.Types;
 using Mist.Tests.Helpers;
 
 namespace Mist.Tests.Analysis;

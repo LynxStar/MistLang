@@ -81,7 +81,7 @@ public class OverloadRegistrationPropertyTests
 
     private static ParameterNode MakeParameter(string typeName, string paramName)
     {
-        PrimitiveTypeNode primitiveType = PrimitiveTypeNodeFactory.TryGetValue(typeName, out var factory)
+        var primitiveType = PrimitiveTypeNodeFactory.TryGetValue(typeName, out var factory)
             ? factory()
             : new IntTypePrimitiveTypeNode();
 

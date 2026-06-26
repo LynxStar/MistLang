@@ -132,7 +132,7 @@ public sealed class MoveBoundaryClonableSourcePropertyTests : IDisposable
     /// declaring node's initializer expression plus the binding's declared type, or
     /// <c>null</c> if the binding (or its initializer) cannot be located.
     /// </summary>
-    private static (SyntaxNode Initializer, Mist.Semantics.Contracts.IType? DestinationType)? FindOwnedBindingInitializer(
+    private static (SyntaxNode Initializer, IType? DestinationType)? FindOwnedBindingInitializer(
         ISemanticModel model, string bindingName)
     {
         foreach(var symbol in model.AllSymbols)

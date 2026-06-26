@@ -26,7 +26,6 @@
 // keeping with the workspace test-process-spawning policy).
 
 using System.Collections.Immutable;
-using System.Linq;
 using Mist.Common.Diagnostics;
 using Mist.Common.Text;
 using Mist.Driver.Contracts;
@@ -48,7 +47,7 @@ namespace Mist.Tests.Semantics;
 /// Every case is <i>unreachable from parsed source</i> because the
 /// grammar rejects the form before the semantic model builder runs.
 /// These tests therefore assert the parse-time behavior — mirroring the
-/// negative pattern in <see cref="Mist.Tests.Parsing.UnknownTypeParserTests"/>
+/// negative pattern in <see cref="Parsing.UnknownTypeParserTests"/>
 /// (see <c>Rejects_Class_Named_Unknown</c> and friends). Each invalid
 /// source is paired with the analogous valid source (substituting a
 /// legal identifier for <c>unknown</c>) so the test documents the

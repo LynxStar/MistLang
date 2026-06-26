@@ -6,7 +6,6 @@ using FsCheck;
 using FsCheck.Fluent;
 using FsCheck.Xunit;
 using Mist.Generated;
-using Mist.Semantics.Contracts;
 using Mist.Semantics.Model.Types;
 using Mist.Tests.Helpers;
 
@@ -120,7 +119,7 @@ public class SyncContextAutoUnwrapPropertyTests
         SyncAutoUnwrapScenario scenario)
     {
         // Build the async target method
-        TypeReferenceNode returnTypeRef = scenario.IsVoid
+        var returnTypeRef = scenario.IsVoid
             ? new TypeReferenceNode { First = new VoidSingleTypeRefSingleTypeRefNode() }
             : MakePrimitiveTypeRef(scenario.ReturnTypeName);
 

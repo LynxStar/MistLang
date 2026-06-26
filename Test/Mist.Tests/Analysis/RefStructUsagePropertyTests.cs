@@ -9,11 +9,8 @@ using FsCheck.Xunit;
 using Mist.Analysis.Builtin;
 using Mist.Common.Diagnostics;
 using Mist.Common.Text;
-using Mist.Driver.Contracts;
 using Mist.Lexing;
 using Mist.Parsing;
-using Mist.Semantics.Contracts;
-using Mist.Semantics.Model;
 using Mist.Tests.Helpers;
 
 namespace Mist.Tests.Analysis;

@@ -7,7 +7,6 @@ using Mist.Generated;
 using Mist.Semantics.Contracts;
 using Mist.Semantics.Model;
 using Mist.Semantics.Model.Types;
-using Mist.Tests.Helpers;
 
 namespace Mist.Tests.Backend;
 
@@ -1063,7 +1062,7 @@ public sealed class EmitterOutputTests : IDisposable
         var semanticBag = new DiagnosticBag();
         var model = builder.Build(
             compilation,
-            ImmutableArray.Create<Storm.Runtime.SyntaxNode>(parseResult.Root),
+            ImmutableArray.Create(parseResult.Root),
             ambientTypeResolver: null,
             namespaceRoot: "TestProject",
             projectFolder: "/test",

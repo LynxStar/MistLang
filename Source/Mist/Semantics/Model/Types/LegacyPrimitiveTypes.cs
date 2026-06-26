@@ -1,5 +1,3 @@
-using Mist.Semantics.Contracts;
-
 namespace Mist.Semantics.Model.Types;
 
 /// <summary>

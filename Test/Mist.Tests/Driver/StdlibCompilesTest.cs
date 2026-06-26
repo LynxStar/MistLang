@@ -1,5 +1,4 @@
 using System.Collections.Immutable;
-using System.Linq;
 using Mist.Common.Diagnostics;
 using Mist.Driver;
 using Mist.Driver.Contracts;
@@ -64,7 +63,7 @@ public sealed class StdlibCompilesTest
         //           IsStdlib=true (exactly what StdlibLoader.LoadFor would do
         //           at runtime).
         var loaderDiagnostics = new DiagnosticBag();
-        ImmutableArray<CompilationUnit> units =
+        var units =
             StdlibLoader.LoadFrom(stdlibRoot, loaderDiagnostics);
         Assert.Empty(loaderDiagnostics.ToImmutableArray());
         Assert.NotEmpty(units);

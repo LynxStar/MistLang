@@ -163,9 +163,9 @@ namespace Storm.SourceGenerator.Emit
             // Create non-overlapping intervals from consecutive boundary points
             var result = new List<CharRange>();
 
-            for(int i = 0; i < boundaries.Count; i++)
+            for(var i = 0; i < boundaries.Count; i++)
             {
-                int lo = boundaries[i];
+                var lo = boundaries[i];
                 int hi;
 
                 if(i + 1 < boundaries.Count)
@@ -203,7 +203,7 @@ namespace Storm.SourceGenerator.Emit
         {
             var result = new HashSet<int>();
             // Use a representative character from the range to test membership
-            char representative = range.Lo;
+            var representative = range.Lo;
 
             foreach(var id in stateIds)
             {
@@ -245,7 +245,7 @@ namespace Storm.SourceGenerator.Emit
             HashSet<int> stateIds,
             Dictionary<int, NfaState> statesById)
         {
-            int bestIndex = -1;
+            var bestIndex = -1;
 
             foreach(var id in stateIds)
             {
@@ -280,7 +280,7 @@ namespace Storm.SourceGenerator.Emit
 
             // Use a compact representation
             var sb = new System.Text.StringBuilder();
-            for(int i = 0; i < sorted.Count; i++)
+            for(var i = 0; i < sorted.Count; i++)
             {
                 if(i > 0)
                 {

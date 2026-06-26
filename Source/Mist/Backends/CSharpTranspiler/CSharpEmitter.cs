@@ -2814,7 +2814,7 @@ internal sealed class CSharpSourceWriter
         var receiverTypeName = GetReceiverTypeNameFromIType(extBlock.ReceiverType);
 
         // Find the source file containing this extension block.
-        string fileName = "Unknown";
+        var fileName = "Unknown";
         var lineNumber = 1;
 
         for(var i = 0; i < model.Units.Count; i++)
@@ -4792,7 +4792,7 @@ internal sealed class CSharpSourceWriter
     /// </remarks>
     private bool IsStorageBannedMember(MemberDeclarationNode member)
     {
-        IType? declaredType = member switch
+        var declaredType = member switch
         {
             FieldMemberMemberDeclarationNode fm =>
                 model.GetDeclaredSymbol(fm.Field)?.DeclaredType,
@@ -5680,7 +5680,7 @@ internal sealed class CSharpSourceWriter
         try { declaringNode = model.GetDeclaringNode(currentMethodSymbol); }
         catch { return result; }
 
-        ParameterListNode? paramList = declaringNode switch
+        var paramList = declaringNode switch
         {
             MethodDeclarationNode m => m.Parameters,
             _ => null,
@@ -6485,7 +6485,7 @@ internal sealed class CSharpSourceWriter
             _ => null,
         };
 
-        IReadOnlyList<IType>? abstracts = symbol?.DeclaredType switch
+        var abstracts = symbol?.DeclaredType switch
         {
             ClassType ct => ct.Abstracts,
             StructType st => st.Abstracts,
@@ -8781,7 +8781,7 @@ internal sealed class CSharpSourceWriter
         // Check variable declaration: `T result = varName.Drop();`
         if(stmt is VariableDeclarationStatementStatementNode varDeclStmt)
         {
-            ExpressionNode? initializer = varDeclStmt.VariableDeclaration switch
+            var initializer = varDeclStmt.VariableDeclaration switch
             {
                 TypedVariableDeclarationVariableDeclarationStatementNode typed => typed.Initializer,
                 InferredVariableDeclarationVariableDeclarationStatementNode inferred => inferred.Initializer,
@@ -9149,7 +9149,7 @@ internal sealed class CSharpSourceWriter
         try { declaringNode = model.GetDeclaringNode(methodSymbol); }
         catch { return null; }
 
-        ParameterListNode? paramList = declaringNode switch
+        var paramList = declaringNode switch
         {
             MethodDeclarationNode m => m.Parameters,
             _ => null,
@@ -9187,7 +9187,7 @@ internal sealed class CSharpSourceWriter
     /// </summary>
     private bool VariableDeclarationMovesVariable(VariableDeclarationStatementNode varDecl, string localName)
     {
-        ExpressionNode? initializer = varDecl switch
+        var initializer = varDecl switch
         {
             TypedVariableDeclarationVariableDeclarationStatementNode typed => typed.Initializer,
             InferredVariableDeclarationVariableDeclarationStatementNode inferred => inferred.Initializer,
@@ -10085,7 +10085,7 @@ internal sealed class CSharpSourceWriter
                     // to `dynamic`. Override with the proper CLR type name from the
                     // resolved SpanType so the C# compiler sees System.Span<T> /
                     // System.ReadOnlySpan<T> instead of `dynamic`.
-                    if(declaredType is Semantics.Model.Types.SpanType typedSpanType)
+                    if(declaredType is SpanType typedSpanType)
                     {
                         type = CSharpTypeMap.GetTypeName(typedSpanType);
                     }
@@ -10178,7 +10178,7 @@ internal sealed class CSharpSourceWriter
                     // (which requires an unsafe context). The declared type on the
                     // symbol is a SpanType set during semantic model construction.
                     var inferredDeclaredType = inferredSymbol?.DeclaredType;
-                    if(inferredDeclaredType is Semantics.Model.Types.SpanType inferredSpanType)
+                    if(inferredDeclaredType is SpanType inferredSpanType)
                     {
                         var spanTypeName = CSharpTypeMap.GetTypeName(inferredSpanType);
                         AppendLine($"{refPrefix}{spanTypeName} {name} = {refInitPrefix}{init};");
@@ -10477,7 +10477,7 @@ internal sealed class CSharpSourceWriter
         {
             AssignmentFormExpressionNode assignmentForm => EmitAssignment(assignmentForm.Assignment),
             LambdaFormExpressionNode lambdaForm => EmitLambda(lambdaForm.Lambda),
-            _ => throw new System.InvalidOperationException(
+            _ => throw new InvalidOperationException(
                 $"Unknown ExpressionNode variant: {expr.GetType().Name}"),
         };
     }
@@ -10571,7 +10571,7 @@ internal sealed class CSharpSourceWriter
                 result = $"{prefix}{parameters} => {EmitLambdaBlockBody(blockLambda.Body)}";
                 break;
             default:
-                throw new System.InvalidOperationException(
+                throw new InvalidOperationException(
                     $"Unknown LambdaExpressionNode variant: {lambda.GetType().Name}");
         }
 
@@ -10593,7 +10593,7 @@ internal sealed class CSharpSourceWriter
         {
             SingleImplicitParamLambdaParameterListNode singleParam => singleParam.Name.Lexeme,
             ParenthesizedLambdaParamsLambdaParameterListNode parenParams => EmitParenthesizedLambdaParams(parenParams),
-            _ => throw new System.InvalidOperationException(
+            _ => throw new InvalidOperationException(
                 $"Unknown LambdaParameterListNode variant: {paramList.GetType().Name}"),
         };
     }
@@ -10628,7 +10628,7 @@ internal sealed class CSharpSourceWriter
         {
             TypedLambdaParamLambdaParamNode typed => $"{EmitTypeReference(typed.Type)} {typed.Name.Lexeme}",
             UntypedLambdaParamLambdaParamNode untyped => untyped.Name.Lexeme,
-            _ => throw new System.InvalidOperationException(
+            _ => throw new InvalidOperationException(
                 $"Unknown LambdaParamNode variant: {param.GetType().Name}"),
         };
     }
@@ -12878,7 +12878,7 @@ internal sealed class CSharpSourceWriter
         {
             var result = EmitTypeReference(typeLiteral.TypeRef, isValueContext: true);
 
-            IType? receiverType = model.GetTypeOf(postfix.Target);
+            var receiverType = model.GetTypeOf(postfix.Target);
 
             for(var i = 0; i < postfix.Suffix.Length; i++)
             {
@@ -12895,7 +12895,7 @@ internal sealed class CSharpSourceWriter
         // Track the receiver type through the suffix chain for extension property rewriting.
         // The receiver type for the first suffix is the type of the primary target.
         // For subsequent suffixes, it's the result type of the previous suffix.
-        IType? primaryReceiverType = model.GetTypeOf(postfix.Target);
+        var primaryReceiverType = model.GetTypeOf(postfix.Target);
 
         for(var i = 0; i < postfix.Suffix.Length; i++)
         {
@@ -15427,7 +15427,7 @@ internal sealed class CSharpSourceWriter
         }
 
         // Use the first interface constraint as the erasure target.
-        IType? constraintType = constraints.AbstractConstraints.Count > 0
+        var constraintType = constraints.AbstractConstraints.Count > 0
             ? constraints.AbstractConstraints[0]
             : null;
 

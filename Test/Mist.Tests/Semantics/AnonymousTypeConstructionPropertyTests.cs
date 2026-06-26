@@ -2,7 +2,6 @@
 // **Validates: Requirements 2.1, 2.2**
 
 using FsCheck;
-using FsCheck.Fluent;
 using FsCheck.Xunit;
 using Mist.Semantics.Contracts;
 using Mist.Semantics.Model.Types;

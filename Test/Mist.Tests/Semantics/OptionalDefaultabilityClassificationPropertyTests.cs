@@ -259,7 +259,7 @@ public class OptionalDefaultabilityClassificationPropertyTests
             return Gen.Constant(ImmutableArray<(string, string, bool)>.Empty);
         }
 
-        Gen<ImmutableArray<(string, string, bool)>> result =
+        var result =
             Gen.Constant(ImmutableArray<(string, string, bool)>.Empty);
 
         for(var i = 0; i < primitiveCount; i++)
@@ -340,7 +340,7 @@ public class OptionalDefaultabilityClassificationPropertyTests
         var members = scenario.Fields
             .Select(f =>
             {
-                FieldDeclarationNode field = f.IsNonDefaultable
+                var field = f.IsNonDefaultable
                     ? MakeNamedTypeField(f.FieldName, f.FieldType)
                     : MakePrimitiveField(f.FieldName, f.FieldType);
                 return MakeFieldMember(field);
@@ -348,7 +348,7 @@ public class OptionalDefaultabilityClassificationPropertyTests
             .Append(MakeConstructorMember(scenario.TypeName))
             .ToImmutableArray();
 
-        TypeDeclarationNode typeDecl = scenario.IsStruct
+        var typeDecl = scenario.IsStruct
             ? WrapStruct(MakeStructDecl(scenario.TypeName, members))
             : WrapClass(MakeClassDecl(scenario.TypeName, members));
 
@@ -377,19 +377,19 @@ public class OptionalDefaultabilityClassificationPropertyTests
         var members = scenario.Fields
             .Select(f =>
             {
-                FieldDeclarationNode field = f.IsNonDefaultable
+                var field = f.IsNonDefaultable
                     ? MakeNamedTypeField(f.FieldName, f.FieldType)
                     : MakePrimitiveField(f.FieldName, f.FieldType);
                 return MakeFieldMember(field);
             })
             .ToImmutableArray();
 
-        TypeDeclarationNode typeDecl = scenario.IsStruct
+        var typeDecl = scenario.IsStruct
             ? WrapStruct(MakeStructDecl(scenario.TypeName, members))
             : WrapClass(MakeClassDecl(scenario.TypeName, members));
 
         // Declare the non-defaultable type
-        TypeDeclarationNode nonDefaultableDecl = WrapAbstractType(new AbstractDeclarationNode
+        var nonDefaultableDecl = WrapAbstractType(new AbstractDeclarationNode
         {
             Name = MakeToken(scenario.NonDefaultableTypeName),
             Members = ImmutableArray<AbstractMemberDeclarationNode>.Empty,

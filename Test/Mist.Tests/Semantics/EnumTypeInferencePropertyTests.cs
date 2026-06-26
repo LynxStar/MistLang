@@ -247,7 +247,7 @@ public class EnumTypeInferencePropertyTests
                 // All members have values of the same type.
                 for(var i = 0; i < scenario.MemberNames.Count; i++)
                 {
-                    ExpressionNode value = scenario.ExpectedUnderlyingDisplayName switch
+                    var value = scenario.ExpectedUnderlyingDisplayName switch
                     {
                         "int" => MakeIntLiteralExpression(i * 10),
                         "string" => MakeStringLiteralExpression($"val{i}"),
@@ -263,7 +263,7 @@ public class EnumTypeInferencePropertyTests
                 // remaining alternate between int and string.
                 for(var i = 0; i < scenario.MemberNames.Count; i++)
                 {
-                    ExpressionNode value = i % 2 == 0
+                    var value = i % 2 == 0
                         ? MakeIntLiteralExpression(i * 10)
                         : MakeStringLiteralExpression($"val{i}");
                     members.Add(MakeEnumMember(scenario.MemberNames[i], value));

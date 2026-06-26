@@ -5,8 +5,6 @@ using Mist.Analysis.Builtin;
 using Mist.Common.Diagnostics;
 using Mist.Common.Text;
 using Mist.Driver.Contracts;
-using Mist.Generated;
-using Mist.Semantics.Contracts;
 using Mist.Semantics.Model;
 using Mist.Tests.Helpers;
 
@@ -73,7 +71,7 @@ public class AsyncExplicitTaskReturnTypeDiagnosticTests
         var builder = new SemanticModelBuilder();
         var model = builder.Build(
             compilation,
-            ImmutableArray.Create<Storm.Runtime.SyntaxNode>(parseResult.Root),
+            ImmutableArray.Create(parseResult.Root),
             ambientTypeResolver: null,
             namespaceRoot: "TestProject",
             projectFolder: "/test",

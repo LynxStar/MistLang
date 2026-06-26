@@ -10,14 +10,12 @@
 // **Validates: Requirements 6.1, 6.2, 6.3, 6.7, 6.8, 6.9, 12.8**
 
 using System.Collections.Immutable;
-using System.Linq;
 using FsCheck;
 using FsCheck.Fluent;
 using FsCheck.Xunit;
 using Mist.Analysis.Builtin;
 using Mist.Common.Diagnostics;
 using Mist.Common.Text;
-using Mist.Driver;
 using Mist.Driver.Contracts;
 using Mist.Lexing;
 using Mist.Lexing.Contracts;

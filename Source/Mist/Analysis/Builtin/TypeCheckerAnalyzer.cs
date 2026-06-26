@@ -9901,11 +9901,23 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                         break;
                     }
                     // Task 6.2: union type method call validation (Req 7.1, 7.2, 7.3).
-                    // If the receiver is a UnionType, check that the method exists
-                    // on ALL constituent types. If it does, compute the result type
-                    // as the union of return types; otherwise emit MIST_TC_0073.
+                    // If the receiver is a UnionType containing void, direct `.` access
+                    // is invalid — the user must use `?.` to safely unwrap the optional.
+                    // For non-void unions (e.g., int | string), check that the method
+                    // exists on ALL constituents.
                     if (currentType is UnionType unionForMethodCall)
                     {
+                        if (unionForMethodCall.Constituents.Any(c => c.IsVoid()))
+                        {
+                            diagnostics.Add(MakeDiagnostic(
+                                UnionMemberNotOnAllConstituents.Value,
+                                $"Cannot access member '{methodCall.Name.Lexeme}' on a value of type '{unionForMethodCall.DisplayName}'. Use '?.' to safely access members on an optional type, or narrow with an 'is' pattern.",
+                                methodCall,
+                                model));
+                            currentType = ErrorType.Instance;
+                            targetIsTypeName = false;
+                            break;
+                        }
                         var unionMethodResult = CheckUnionMemberAccess(
                             methodCall.Name.Lexeme, unionForMethodCall, methodCall, model, diagnostics);
                         currentType = unionMethodResult;
@@ -10037,11 +10049,23 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                         break;
                     }
                     // Task 6.2: union type member access validation (Req 7.1, 7.2).
-                    // If the receiver is a UnionType, check that the member exists
-                    // on ALL constituent types. If it does, compute the result type
-                    // as the union of member types; otherwise emit MIST_TC_0073.
+                    // If the receiver is a UnionType containing void, direct `.` access
+                    // is invalid — the user must use `?.` to safely unwrap the optional.
+                    // For non-void unions (e.g., int | string), check that the member
+                    // exists on ALL constituents.
                     if (currentType is UnionType unionForMemberAccess)
                     {
+                        if (unionForMemberAccess.Constituents.Any(c => c.IsVoid()))
+                        {
+                            diagnostics.Add(MakeDiagnostic(
+                                UnionMemberNotOnAllConstituents.Value,
+                                $"Cannot access member '{memberAccess.Name.Lexeme}' on a value of type '{unionForMemberAccess.DisplayName}'. Use '?.' to safely access members on an optional type, or narrow with an 'is' pattern.",
+                                memberAccess,
+                                model));
+                            currentType = ErrorType.Instance;
+                            targetIsTypeName = false;
+                            break;
+                        }
                         var unionMemberResult = CheckUnionMemberAccess(
                             memberAccess.Name.Lexeme, unionForMemberAccess, memberAccess, model, diagnostics);
                         currentType = unionMemberResult;
@@ -19392,11 +19416,6 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
 
         foreach (var constituent in unionType.Constituents)
         {
-            // Skip void constituents — member access on T | void projects to T
-            // (same semantics as ?. but without explicit short-circuit syntax).
-            if (constituent.IsVoid())
-                continue;
-
             var memberSymbol = FindMemberSymbol(constituent, memberName, model);
             if (memberSymbol is null)
             {

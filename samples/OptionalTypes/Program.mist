@@ -50,7 +50,7 @@ public class Program
 
         // PROOF: T? syntax works for named types
         Inner? maybeInner = new Inner(10);
-        Console.WriteLine($"maybeInner={maybeInner.GetValue()}");
+        Console.WriteLine($"maybeInner={maybeInner?.GetValue()}");
 
         // PROOF: Optional<T> is equivalent to T? — cross-assignment works
         Optional<int> optInt = 99;

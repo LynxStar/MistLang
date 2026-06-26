@@ -134,12 +134,12 @@ public sealed class PackageNameValidationPropertyTests
                 return false;
             }
 
-            if(c == 0x0B || c == 0x0C)
+            if(c is (char)0x0B or (char)0x0C)
             {
                 return false;
             }
 
-            if(c >= 0x0E && c <= 0x1F)
+            if(c is >= (char)0x0E and <= (char)0x1F)
             {
                 return false;
             }

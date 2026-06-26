@@ -423,7 +423,7 @@ public class OwnedTypeConstraintPropertyTests
         // No ownership-related errors should be reported — owned types are usable
         // in any binding context after the semantic shift.
         return !diagnostics.Any(d =>
-            d.Id.Value == "MIST_OWN_TYPE_REQUIRES_OWNED" ||
-            d.Id.Value == "MIST_OWN_FIELD_NOT_OWNED");
+            d.Id.Value is "MIST_OWN_TYPE_REQUIRES_OWNED" or
+            "MIST_OWN_FIELD_NOT_OWNED");
     }
 }

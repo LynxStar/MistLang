@@ -541,8 +541,8 @@ public class Program {
 
             // Skip non-method symbols (type-level intrinsic markers are on
             // struct/class symbols, not on operator/method symbols).
-            if(intrinsicSymbol.Kind != SymbolKind.Method &&
-                intrinsicSymbol.Kind != SymbolKind.Constructor)
+            if(intrinsicSymbol.Kind is not SymbolKind.Method and
+                not SymbolKind.Constructor)
             {
                 continue;
             }

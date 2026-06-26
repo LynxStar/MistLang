@@ -180,7 +180,7 @@ public sealed class ReadonlyAnalyzer : IAnalyzer
         var readonlyStatus = GetReadonlyStatus(symbol);
 
         // Only enforce readonly rules on members that are actually readonly.
-        if(readonlyStatus == ReadonlyStatus.Mutable || readonlyStatus == ReadonlyStatus.Unknown)
+        if(readonlyStatus is ReadonlyStatus.Mutable or ReadonlyStatus.Unknown)
         {
             return;
         }

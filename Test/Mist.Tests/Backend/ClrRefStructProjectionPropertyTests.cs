@@ -78,7 +78,7 @@ public sealed class ClrRefStructProjectionPropertyTests
         if(t.IsGenericTypeDefinition)
         {
             var fullName = t.FullName;
-            if(fullName == "System.Span`1" || fullName == "System.ReadOnlySpan`1")
+            if(fullName is "System.Span`1" or "System.ReadOnlySpan`1")
             {
                 return false;
             }

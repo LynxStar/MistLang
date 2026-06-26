@@ -234,8 +234,8 @@ public class StringLengthTests
         // PrimitiveTypeRegistry may be in different states, so we check
         // the display name rather than reference equality.
         Assert.True(
-            resultSymbol.DeclaredType!.DisplayName == "int" ||
-            resultSymbol.DeclaredType!.DisplayName == "Int32",
+            resultSymbol.DeclaredType!.DisplayName is "int" or
+            "Int32",
             $"Expected result type to be int/Int32, got '{resultSymbol.DeclaredType.DisplayName}'");
     }
 

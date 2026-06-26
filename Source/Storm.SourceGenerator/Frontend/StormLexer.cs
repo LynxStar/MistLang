@@ -383,7 +383,7 @@ namespace Storm.SourceGenerator.Frontend
 
         private static bool IsIdentStart(char c)
         {
-            return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_';
+            return c is >= 'a' and <= 'z' or >= 'A' and <= 'Z' or '_';
         }
 
         private static bool IsIdentPart(char c)

@@ -478,7 +478,7 @@ public static class MistPropertyGenerator
     {
         return from className in Gen.Elements(ClassNames)
                from props in GenPropertyMember().ListOf()
-                   .Where(list => list.Count > 0 && list.Count <= 3)
+                   .Where(list => list.Count is > 0 and <= 3)
                select MakeClassWithMembers(className, props.ToImmutableArray());
     }
 
@@ -499,7 +499,7 @@ public static class MistPropertyGenerator
     {
         return from name in Gen.Elements("IReadable", "IWritable", "IConfigurable", "IEntity")
                from props in GenAbstractPropertyDeclaration().ListOf()
-                   .Where(list => list.Count > 0 && list.Count <= 2)
+                   .Where(list => list.Count is > 0 and <= 2)
                select MakeAbstractUnit(name, props.ToImmutableArray());
     }
 

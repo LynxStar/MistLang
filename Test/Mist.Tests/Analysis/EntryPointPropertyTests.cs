@@ -258,7 +258,7 @@ public class EntryPointPropertyTests
         {
             // No entry point error expected
             return !diagnostics.Any(d =>
-                d.Id.Value == "MIST_TC_0017" || d.Id.Value == "MIST_TC_0018");
+                d.Id.Value is "MIST_TC_0017" or "MIST_TC_0018");
         }
         else
         {
@@ -283,7 +283,7 @@ public class EntryPointPropertyTests
         var diagnostics = RunTypeChecker(model);
 
         Assert.DoesNotContain(diagnostics, d =>
-            d.Id.Value == "MIST_TC_0017" || d.Id.Value == "MIST_TC_0018");
+            d.Id.Value is "MIST_TC_0017" or "MIST_TC_0018");
     }
 
     [Fact]
@@ -301,7 +301,7 @@ public class EntryPointPropertyTests
         var diagnostics = RunTypeChecker(model);
 
         Assert.DoesNotContain(diagnostics, d =>
-            d.Id.Value == "MIST_TC_0017" || d.Id.Value == "MIST_TC_0018");
+            d.Id.Value is "MIST_TC_0017" or "MIST_TC_0018");
     }
 
     [Fact]

@@ -905,7 +905,7 @@ namespace Storm.SourceGenerator.Emit
                     return nullable ? ruleRef.Rule.Name + "Node?" : ruleRef.Rule.Name + "Node";
                 case AlternationIR altIR:
                     // If all alternatives are token refs, the type is Token
-                    if(altIR.Alternatives.All(a => a is TokenRefIR || a is StringLiteralIR))
+                    if(altIR.Alternatives.All(a => a is TokenRefIR or StringLiteralIR))
                     {
                         return nullable ? "Token?" : "Token";
                     }
@@ -945,7 +945,7 @@ namespace Storm.SourceGenerator.Emit
             {
                 case TokenRefIR _:
                     return "default";
-                case AlternationIR altIR when altIR.Alternatives.All(a => a is TokenRefIR || a is StringLiteralIR):
+                case AlternationIR altIR when altIR.Alternatives.All(a => a is TokenRefIR or StringLiteralIR):
                     return "default";
                 case RuleRefIR _:
                     return "null!";

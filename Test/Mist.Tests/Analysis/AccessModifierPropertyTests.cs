@@ -525,7 +525,7 @@ public class AccessModifierPropertyTests
         else
         {
             return !diagnostics.Any(d =>
-                d.Id.Value == "MIST_TC_0015" || d.Id.Value == "MIST_TC_0016");
+                d.Id.Value is "MIST_TC_0015" or "MIST_TC_0016");
         }
     }
 
@@ -544,7 +544,7 @@ public class AccessModifierPropertyTests
         var diagnostics = RunTypeChecker(model);
 
         Assert.DoesNotContain(diagnostics, d =>
-            d.Id.Value == "MIST_TC_0015" || d.Id.Value == "MIST_TC_0016");
+            d.Id.Value is "MIST_TC_0015" or "MIST_TC_0016");
     }
 
     [Fact]
@@ -573,7 +573,7 @@ public class AccessModifierPropertyTests
         var diagnostics = RunTypeChecker(model);
 
         Assert.DoesNotContain(diagnostics, d =>
-            d.Id.Value == "MIST_TC_0015" || d.Id.Value == "MIST_TC_0016");
+            d.Id.Value is "MIST_TC_0015" or "MIST_TC_0016");
     }
 
     [Fact]

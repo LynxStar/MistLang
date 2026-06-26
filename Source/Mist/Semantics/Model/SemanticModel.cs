@@ -117,7 +117,7 @@ public sealed class SemanticModel : ISemanticModel
             // DeclaredType has been widened to a union (e.g., by a non-provable `as`
             // expression producing T | void), prefer the widened type. This ensures
             // downstream member access sees the union and requires `?.` to unwrap.
-            if(type is not UnionType && type is not TypeParameterType)
+            if(type is not UnionType and not TypeParameterType)
             {
                 var refinedType = TryGetRefinedTypeForLocalVariable(node);
                 if(refinedType is UnionType)

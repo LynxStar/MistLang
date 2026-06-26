@@ -373,9 +373,9 @@ public class OwnershipMovePropertyTests
         var diagnostics = CompileAndGetDiagnostics(scenario.Source);
 
         var hasMoveDiagnostic = diagnostics.Any(d =>
-            d.Id.Value == "MIST_OWN_USE_AFTER_MOVE" ||
-            d.Id.Value == "MIST_OWN_CONDITIONAL_MOVE" ||
-            d.Id.Value == "MIST_OWN_LOOP_MOVE");
+            d.Id.Value is "MIST_OWN_USE_AFTER_MOVE" or
+            "MIST_OWN_CONDITIONAL_MOVE" or
+            "MIST_OWN_LOOP_MOVE");
 
         return (!hasMoveDiagnostic).ToProperty()
             .Label($"Scenario: {scenario.Label}")
@@ -397,8 +397,8 @@ public class OwnershipMovePropertyTests
         // After a conditional move, the conservative merge marks the variable as Moved.
         // Subsequent access produces MIST_OWN_USE_AFTER_MOVE.
         var hasMoveError = diagnostics.Any(d =>
-            d.Id.Value == "MIST_OWN_USE_AFTER_MOVE" ||
-            d.Id.Value == "MIST_OWN_CONDITIONAL_MOVE");
+            d.Id.Value is "MIST_OWN_USE_AFTER_MOVE" or
+            "MIST_OWN_CONDITIONAL_MOVE");
 
         return hasMoveError.ToProperty()
             .Label($"Scenario: {scenario.Label}")
@@ -438,9 +438,9 @@ public class OwnershipMovePropertyTests
         var diagnostics = CompileAndGetDiagnostics(scenario.Source);
 
         var hasMoveDiagnostic = diagnostics.Any(d =>
-            d.Id.Value == "MIST_OWN_USE_AFTER_MOVE" ||
-            d.Id.Value == "MIST_OWN_CONDITIONAL_MOVE" ||
-            d.Id.Value == "MIST_OWN_LOOP_MOVE");
+            d.Id.Value is "MIST_OWN_USE_AFTER_MOVE" or
+            "MIST_OWN_CONDITIONAL_MOVE" or
+            "MIST_OWN_LOOP_MOVE");
 
         return (!hasMoveDiagnostic).ToProperty()
             .Label($"Scenario: {scenario.Label}")

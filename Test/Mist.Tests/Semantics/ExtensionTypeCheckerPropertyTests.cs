@@ -819,7 +819,7 @@ public class ExtensionTypeCheckerPropertyTests
 
         // Verify no errors during registration
         var hasRegistrationErrors = diagnostics.Any(d =>
-            d.Id.Value == "MIST_SB_0070" || d.Id.Value == "MIST_SB_0074");
+            d.Id.Value is "MIST_SB_0070" or "MIST_SB_0074");
         if(hasRegistrationErrors)
         {
             return false;

@@ -54,7 +54,7 @@ public class DfaPipelinePropertyTests
         // Printable ASCII chars (space through tilde), excluding problematic chars
         var printableChars = Enumerable.Range(0x21, 0x7E - 0x21 + 1)
             .Select(i => (char)i)
-            .Where(c => c != '\\' && c != '"')
+            .Where(c => c is not '\\' and not '"')
             .ToArray();
 
         return Gen.Choose(1, 4).SelectMany(len =>

@@ -146,7 +146,7 @@ internal sealed class TypeProjector
 
         // Project System.Delegate / System.MulticastDelegate as BaseDelegateType singleton
         // (Requirement 3.1). Must appear before the named delegate and generic class checks.
-        if(clrType.FullName == "System.Delegate" || clrType.FullName == "System.MulticastDelegate")
+        if(clrType.FullName is "System.Delegate" or "System.MulticastDelegate")
         {
             // Initialize the MemberScope if this is the first time we project System.Delegate.
             // The scope will be populated by the member projection phase in AssemblyTypeProvider.
@@ -1301,7 +1301,7 @@ internal sealed class TypeProjector
         // Project System.Delegate / System.MulticastDelegate as BaseDelegateType (Requirement 3.1).
         // This must appear before the standard func/named delegate dispatch so that the
         // hierarchy root types are caught early and returned as the singleton.
-        if(clrType.FullName == "System.Delegate" || clrType.FullName == "System.MulticastDelegate")
+        if(clrType.FullName is "System.Delegate" or "System.MulticastDelegate")
         {
             return BaseDelegateType.Instance;
         }

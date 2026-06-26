@@ -5317,7 +5317,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     if(varSymbol is not null && varSymbol.DeclaredType is TypeParameterType)
                     {
                         var refinedType = GetRefinedInitializerType(inferred.Initializer, model);
-                        if(refinedType is not null && refinedType is not TypeParameterType)
+                        if(refinedType is not null and not TypeParameterType)
                         {
                             varSymbol.DeclaredType = refinedType;
                         }
@@ -5334,7 +5334,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                         if(asExprNode is not null)
                         {
                             var asRefinedType = model.GetTypeOf(asExprNode);
-                            if(asRefinedType is not null && asRefinedType is not ErrorType)
+                            if(asRefinedType is not null and not ErrorType)
                             {
                                 varSymbol.DeclaredType = asRefinedType;
                             }
@@ -5363,7 +5363,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     CheckExpression(varTuple.Initializer, model, diagnostics);
 
                     var initType = model.GetTypeOf(varTuple.Initializer);
-                    if(initType is not null && initType is not ErrorType)
+                    if(initType is not null and not ErrorType)
                     {
                         if(initType is not TupleType tupleType)
                         {
@@ -5396,7 +5396,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                     CheckExpression(typedTuple.Initializer, model, diagnostics);
 
                     var initType = model.GetTypeOf(typedTuple.Initializer);
-                    if(initType is not null && initType is not ErrorType)
+                    if(initType is not null and not ErrorType)
                     {
                         if(initType is not TupleType tupleType)
                         {
@@ -11059,7 +11059,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                         // Task 3.4: Validate switch arm patterns against the scrutinee type.
                         // The scrutinee type is `currentType` (the type of the expression
                         // before the switch suffix was applied).
-                        if(currentType is not null && currentType is not ErrorType)
+                        if(currentType is not null and not ErrorType)
                         {
                             CheckPattern(switchExpr.Arms.SwitchArm.Pattern, currentType, model, diagnostics);
                             foreach(var arm in switchExpr.Arms.SwitchArms)
@@ -11076,7 +11076,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                         // Task 5.5: Exhaustiveness checking.
                         // The scrutinee type is `currentType` at this point (the type
                         // of the expression before the switch suffix was applied).
-                        if(currentType is not null && currentType is not ErrorType)
+                        if(currentType is not null and not ErrorType)
                         {
                             var armTuples = BuildSwitchArmTuples(switchExpr.Arms);
                             var missingCases = ExhaustivenessChecker.CheckExhaustiveness(currentType, armTuples);
@@ -11298,7 +11298,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         ISemanticModel model,
         DiagnosticBag diagnostics)
     {
-        if(currentType is null || currentType is ErrorType)
+        if(currentType is null or ErrorType)
         {
             return null;
         }
@@ -11372,7 +11372,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     /// </summary>
     private static IType WrapWithVoid(IType? type, IType? receiverType = null)
     {
-        if(type is null || type is ErrorType)
+        if(type is null or ErrorType)
         {
             return ErrorType.Instance;
         }
@@ -14610,7 +14610,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     {
         // Try the expression type map first (may be populated for some nodes).
         var resolved = model.GetTypeOf(typeRef);
-        if(resolved is not null && resolved is not ErrorType)
+        if(resolved is not null and not ErrorType)
         {
             // Transparently unwrap type aliases (Requirement 5.1).
             if(resolved is TypeAliasType aliasFromMap)
@@ -15181,7 +15181,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
         // If the target type has a custom indexer (e.g., Dictionary<TKey, TValue>),
         // validate the index type against the indexer's parameter type instead of
         // requiring int.
-        if(targetType is not null && targetType is not ArrayType)
+        if(targetType is not null and not ArrayType)
         {
             var indexerLookupType = targetType is ConstructedType ict ? ict.GenericDefinition : targetType;
             var indexerScope = indexerLookupType switch
@@ -17192,7 +17192,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             }
 
             // Non-constant expression assigned to union-of-refinements: require pattern matching.
-            if(sourceType is not UnionType && sourceType is not RefinementType)
+            if(sourceType is not UnionType and not RefinementType)
             {
                 var isBaseOfAnyConstituent = targetUnion.Constituents
                     .OfType<RefinementType>()
@@ -18017,7 +18017,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
             }
 
             var underlyingType = enumType.UnderlyingType;
-            if(underlyingType is null || underlyingType is ErrorType)
+            if(underlyingType is null or ErrorType)
             {
                 continue;
             }
@@ -19843,7 +19843,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     private static bool IsBoolLike(IType type)
     {
         var name = type.DisplayName;
-        if(name == "bool" || name == "Boolean")
+        if(name is "bool" or "Boolean")
         {
             return true;
         }
@@ -19867,7 +19867,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     private static bool IsIntLike(IType type)
     {
         var name = type.DisplayName;
-        if(name == "int" || name == "Int32")
+        if(name is "int" or "Int32")
         {
             return true;
         }
@@ -22621,7 +22621,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
     {
         // Resolve the type that this type argument list belongs to.
         var resolvedType = model.GetTypeOf(ownerNode);
-        if(resolvedType is null || resolvedType is ErrorType)
+        if(resolvedType is null or ErrorType)
         {
             return;
         }
@@ -23013,7 +23013,7 @@ public sealed class TypeCheckerAnalyzer : IAnalyzer
                         // If the symbol wasn't found via GetDeclaredSymbol, check the type map.
                         // If the type reference resolved to a type, it's not a constant.
                         var resolvedType = model.GetTypeOf(typeRefArg.Type);
-                        if(resolvedType is not null && resolvedType is not ErrorType)
+                        if(resolvedType is not null and not ErrorType)
                         {
                             // If it resolved to a DependentTypeParameterType, it's a forwarded param.
                             if(resolvedType is DependentTypeParameterType)

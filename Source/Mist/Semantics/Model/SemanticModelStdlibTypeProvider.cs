@@ -37,9 +37,9 @@ internal sealed class SemanticModelStdlibTypeProvider : IStdlibTypeProvider
 
         foreach(var symbol in model.AllSymbols)
         {
-            if(symbol.Kind != SymbolKind.Class
-                && symbol.Kind != SymbolKind.Struct
-                && symbol.Kind != SymbolKind.Abstract)
+            if(symbol.Kind is not SymbolKind.Class
+                and not SymbolKind.Struct
+                and not SymbolKind.Abstract)
             {
                 continue;
             }

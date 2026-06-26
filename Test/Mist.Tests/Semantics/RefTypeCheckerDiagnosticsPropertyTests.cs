@@ -634,8 +634,8 @@ public class RefTypeCheckerDiagnosticsPropertyTests
 
         // Should NOT have a duplicate signature diagnostic
         var hasDuplicateSignature = diagnostics.Any(d =>
-            d.Id.Value == "MIST_DUPLICATE_SIGNATURE" ||
-            d.Id.Value == "MIST_SB_0002");
+            d.Id.Value is "MIST_DUPLICATE_SIGNATURE" or
+            "MIST_SB_0002");
 
         return (!hasDuplicateSignature).ToProperty()
             .Label($"Unexpected duplicate signature diagnostic for {scenario.Label}. " +

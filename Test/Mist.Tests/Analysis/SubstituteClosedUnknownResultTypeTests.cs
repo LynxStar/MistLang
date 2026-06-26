@@ -219,7 +219,7 @@ public class SubstituteClosedUnknownResultTypeTests
         // (unknown-to-non-unknown assignment). Either confirms the substitution
         // correctly reports the result as `unknown`.
         var relevantDiags = diagnostics
-            .Where(d => d.Id.Value == "MIST_TC_0001" || d.Id.Value == "MIST_TC_0060")
+            .Where(d => d.Id.Value is "MIST_TC_0001" or "MIST_TC_0060")
             .ToList();
         Assert.NotEmpty(relevantDiags);
     }

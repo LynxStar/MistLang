@@ -115,7 +115,7 @@ public class UnionLexerPropertyTests
 
                 // Extract only PIPE and LOGICAL_OR tokens from the lexer output
                 var pipeTokens = tokens
-                    .Where(t => t.Kind == (int)TokenKind.PIPE || t.Kind == (int)TokenKind.LOGICAL_OR)
+                    .Where(t => t.Kind is ((int)TokenKind.PIPE) or ((int)TokenKind.LOGICAL_OR))
                     .ToList();
 
                 // Count must match

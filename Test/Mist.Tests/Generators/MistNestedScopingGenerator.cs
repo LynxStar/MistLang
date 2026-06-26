@@ -328,9 +328,9 @@ public static class MistNestedScopingGenerator
                from len in Gen.Choose(2, 5)
                from rest in Gen.ArrayOf(Gen.Elements('a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z'), len)
                let name = upper + new string(rest)
-               where name != "Class" && name != "Struct" && name != "Abstract"
-                  && name != "Enum" && name != "Namespace" && name != "Public" && name != "Private"
-                  && name != "Static" && name != "True" && name != "False" && name != "Null"
+               where name is not "Class" and not "Struct" and not "Abstract"
+                  and not "Enum" and not "Namespace" and not "Public" and not "Private"
+                  and not "Static" and not "True" and not "False" and not "Null"
                select name;
     }
 

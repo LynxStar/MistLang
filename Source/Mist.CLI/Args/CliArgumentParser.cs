@@ -88,11 +88,11 @@ public static class CliArgumentParser
                     }
                 }
             }
-            else if(arg == "--quiet" || arg == "-q")
+            else if(arg is "--quiet" or "-q")
             {
                 quiet = true;
             }
-            else if(arg == "--verbose" || arg == "-v")
+            else if(arg is "--verbose" or "-v")
             {
                 verbose = true;
             }

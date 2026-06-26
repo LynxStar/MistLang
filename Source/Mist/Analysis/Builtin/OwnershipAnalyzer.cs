@@ -818,7 +818,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                         if(IsOwnedFieldAccessOnOwnedParent(typed.Initializer, state, model, out var ownedFieldSym, out var ownedRecvSym))
                         {
                             var fieldState = state.GetFieldState(ownedRecvSym!, ownedFieldSym!);
-                            if(fieldState is not null && fieldState != VariableOwnershipState.Live)
+                            if(fieldState is not null and not VariableOwnershipState.Live)
                             {
                                 // Field is not Live — report appropriate violation.
                                 ReportFieldStateViolation(ownedRecvSym!, ownedFieldSym!, fieldState.Value,
@@ -1130,7 +1130,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                         if(IsOwnedFieldAccessOnOwnedParent(inferred.Initializer, state, model, out var ownedFieldSym, out var ownedRecvSym))
                         {
                             var fieldState = state.GetFieldState(ownedRecvSym!, ownedFieldSym!);
-                            if(fieldState is not null && fieldState != VariableOwnershipState.Live)
+                            if(fieldState is not null and not VariableOwnershipState.Live)
                             {
                                 ReportFieldStateViolation(ownedRecvSym!, ownedFieldSym!, fieldState.Value,
                                     AccessKind.Move, inferred, state, model, diagnostics);
@@ -1541,8 +1541,8 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                     // methods/types) — these are processed during monomorphization and don't need
                     // provenance enforcement at the generic definition level.
                     var sourceType = model.GetTypeOf(assignment.Value);
-                    if(sourceType is not null && sourceType is not ErrorType
-                        && sourceType is not TypeParameterType)
+                    if(sourceType is not null and not ErrorType
+                        and not TypeParameterType)
                     {
                         _ = resolver.Resolve(
                             assignment.Value,
@@ -2052,7 +2052,7 @@ public sealed class OwnershipAnalyzer : IAnalyzer
                             foreach(var (fieldSym, accessKind) in accessedFields)
                             {
                                 var fieldState = state.GetFieldState(receiverSymbol, fieldSym);
-                                if(fieldState is null || fieldState == VariableOwnershipState.Live)
+                                if(fieldState is null or VariableOwnershipState.Live)
                                 {
                                     continue;
                                 }

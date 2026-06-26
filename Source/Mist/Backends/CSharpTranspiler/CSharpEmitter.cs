@@ -3949,7 +3949,7 @@ internal sealed class CSharpSourceWriter
             if(string.IsNullOrEmpty(name))
             {
                 var span = namedRef.Name.Span;
-                if(span.Length > 0 && span.Length <= 128)
+                if(span.Length is > 0 and <= 128)
                 {
                     foreach(var unit in model.Units)
                     {
@@ -4005,7 +4005,7 @@ internal sealed class CSharpSourceWriter
             // during explicit interface implementation emission). Try to find
             // the name from the correct compilation unit's source text.
             var nameSpan = namedRef.Name.Span;
-            if(nameSpan.Length > 0 && nameSpan.Length <= 128)
+            if(nameSpan.Length is > 0 and <= 128)
             {
                 foreach(var unit in model.Units)
                 {
@@ -7757,7 +7757,7 @@ internal sealed class CSharpSourceWriter
                     // in the semantic model. Use the resolved type to emit via CSharpTypeMap,
                     // which handles the Func→System.Func / Action→System.Action mapping.
                     var resolvedFuncType = model.GetTypeOf(typeRef);
-                    if(resolvedFuncType is not null && resolvedFuncType is not ErrorType)
+                    if(resolvedFuncType is not null and not ErrorType)
                     {
                         return CSharpTypeMap.GetTypeName(resolvedFuncType, isValueContext);
                     }
@@ -13861,7 +13861,7 @@ internal sealed class CSharpSourceWriter
             case TargetTypedNewExpressionPrimaryNode targetNew:
                 {
                     var resolvedType = model.GetTypeOf(targetNew);
-                    if(resolvedType is null || resolvedType is ErrorType)
+                    if(resolvedType is null or ErrorType)
                     {
                         return "default /* error: unresolved target-typed new */";
                     }
@@ -13890,7 +13890,7 @@ internal sealed class CSharpSourceWriter
             case TargetTypedNewExpressionNoArgsPrimaryNode targetNewNoArgs:
                 {
                     var resolvedType = model.GetTypeOf(targetNewNoArgs);
-                    if(resolvedType is null || resolvedType is ErrorType)
+                    if(resolvedType is null or ErrorType)
                     {
                         return "default /* error: unresolved target-typed new */";
                     }

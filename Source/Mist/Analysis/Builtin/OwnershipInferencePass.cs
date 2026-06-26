@@ -241,7 +241,7 @@ public sealed class OwnershipInferencePass
 
             foreach(var candidate in activeCandidate)
             {
-                if(candidate.Tier is null || candidate.Tier == OwnershipTier.Unrestricted)
+                if(candidate.Tier is null or OwnershipTier.Unrestricted)
                 {
                     continue; // Already at shared (ultimate fallback) — cannot conflict.
                 }
@@ -293,7 +293,7 @@ public sealed class OwnershipInferencePass
         // upgrade back to the minimum tier (Req 17 AC 15, Req 18 AC 1).
         foreach(var candidate in candidates)
         {
-            if(candidate.Tier is null || candidate.Tier == OwnershipTier.Unrestricted)
+            if(candidate.Tier is null or OwnershipTier.Unrestricted)
             {
                 // Reuse the pre-computed uses cache instead of re-walking the tree.
                 var uses = usesCache[candidate.Symbol];

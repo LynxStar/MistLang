@@ -387,8 +387,8 @@ public class AbstractResolutionPropertyTests
 
         // No error diagnostics should be emitted for valid resolution
         var errorDiagnostics = diagnostics.Where(d =>
-            d.Id.Value == "MIST_UNDEFINED_ABSTRACT" ||
-            d.Id.Value == "MIST_NOT_AN_ABSTRACT").ToList();
+            d.Id.Value is "MIST_UNDEFINED_ABSTRACT" or
+            "MIST_NOT_AN_ABSTRACT").ToList();
         if(errorDiagnostics.Count > 0)
         {
             return false;

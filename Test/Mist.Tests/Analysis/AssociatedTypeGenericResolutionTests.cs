@@ -64,8 +64,8 @@ class TestClass {
         var diagnostics = CompileAndGetAllDiagnostics(source);
 
         var typeErrors = diagnostics.Where(d =>
-            d.Id.Value == "MIST_UNDEFINED_TYPE" ||
-            d.Id.Value == "MIST_AT_0004").ToList();
+            d.Id.Value is "MIST_UNDEFINED_TYPE" or
+            "MIST_AT_0004").ToList();
 
         Assert.Empty(typeErrors);
     }
@@ -87,8 +87,8 @@ class TestClass {
         var diagnostics = CompileAndGetAllDiagnostics(source);
 
         var typeErrors = diagnostics.Where(d =>
-            d.Id.Value == "MIST_UNDEFINED_TYPE" ||
-            d.Id.Value == "MIST_AT_0004").ToList();
+            d.Id.Value is "MIST_UNDEFINED_TYPE" or
+            "MIST_AT_0004").ToList();
 
         Assert.Empty(typeErrors);
     }
@@ -111,8 +111,8 @@ class TestClass {
         var diagnostics = CompileAndGetAllDiagnostics(source);
 
         var typeErrors = diagnostics.Where(d =>
-            d.Id.Value == "MIST_UNDEFINED_TYPE" ||
-            d.Id.Value == "MIST_AT_0004").ToList();
+            d.Id.Value is "MIST_UNDEFINED_TYPE" or
+            "MIST_AT_0004").ToList();
 
         Assert.Empty(typeErrors);
     }

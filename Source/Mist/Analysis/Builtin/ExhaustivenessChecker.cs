@@ -348,6 +348,6 @@ internal static class ExhaustivenessChecker
     private static bool IsBoolType(IType type)
     {
         var name = type.DisplayName;
-        return name == "bool" || name == "Boolean";
+        return name is "bool" or "Boolean";
     }
 }

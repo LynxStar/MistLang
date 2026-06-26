@@ -104,7 +104,7 @@ public class DefaultPrettyPrinterPropertyTests
         return from fieldName in Gen.Elements(FieldNames)
                from typeName in Gen.Elements(TypeBindingTypeNames)
                from nestedOverrides in genNestedOverride.ListOf()
-                   .Where(list => list.Count >= 1 && list.Count <= 3)
+                   .Where(list => list.Count is >= 1 and <= 3)
                select (DefaultFieldInitializerNode)new DefaultTypeBindingDefaultFieldInitializerNode
                {
                    FieldName = Tok(fieldName),
@@ -137,7 +137,7 @@ public class DefaultPrettyPrinterPropertyTests
     private static Gen<DefaultBlockDeclarationNode> GenDefaultBlock()
     {
         return from entries in GenDefaultEntry().ListOf()
-                   .Where(list => list.Count >= 0 && list.Count <= 5)
+                   .Where(list => list.Count is >= 0 and <= 5)
                select new DefaultBlockDeclarationNode
                {
                    Entries = entries.ToImmutableArray(),
@@ -296,7 +296,7 @@ public class DefaultPrettyPrinterPropertyTests
 
         return from className in Gen.Elements(ClassNames)
                from stmts in genDefaultStmt.ListOf()
-                   .Where(list => list.Count >= 1 && list.Count <= 4)
+                   .Where(list => list.Count is >= 1 and <= 4)
                select new CompilationUnitNode
                {
                    Items = ImmutableArray.Create<TopLevelItemNode>(
@@ -354,7 +354,7 @@ public class DefaultPrettyPrinterPropertyTests
                from fields in genField.ListOf().Where(list => list.Count <= 2)
                from defaultBlock in GenDefaultBlockMember()
                from stmts in genDefaultStmt.ListOf()
-                   .Where(list => list.Count >= 1 && list.Count <= 3)
+                   .Where(list => list.Count is >= 1 and <= 3)
                select new CompilationUnitNode
                {
                    Items = ImmutableArray.Create<TopLevelItemNode>(
@@ -424,7 +424,7 @@ public class DefaultPrettyPrinterPropertyTests
 
         return from className in Gen.Elements(ClassNames)
                from stmts in Gen.OneOf(genTypedVarDecl, genExplicitDefaultVarDecl)
-                   .ListOf().Where(list => list.Count >= 1 && list.Count <= 4)
+                   .ListOf().Where(list => list.Count is >= 1 and <= 4)
                select new CompilationUnitNode
                {
                    Items = ImmutableArray.Create<TopLevelItemNode>(

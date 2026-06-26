@@ -41,7 +41,7 @@ public class StormRegexLiteralIRPropertyTests
     {
         var safeChars = Enumerable.Range(0x20, 0x7E - 0x20 + 1)
             .Select(i => (char)i)
-            .Where(c => c != '`' && c != '\\')
+            .Where(c => c is not '`' and not '\\')
             .ToArray();
 
         var safeCharGen = Gen.Elements(safeChars);

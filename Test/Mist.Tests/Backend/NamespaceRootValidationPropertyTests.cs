@@ -191,8 +191,8 @@ public sealed class NamespaceRootValidationPropertyTests
             // Should be rejected with either INVALID_NAMESPACE_ROOT or EMPTY_NAMESPACE_ROOT
             // (if the string happens to be whitespace-only after escaping)
             return result is null
-                && diags.Any(d => d.Id.Value == "MIST_PROJECT_INVALID_NAMESPACE_ROOT"
-                               || d.Id.Value == "MIST_PROJECT_EMPTY_NAMESPACE_ROOT");
+                && diags.Any(d => d.Id.Value is "MIST_PROJECT_INVALID_NAMESPACE_ROOT"
+                               or "MIST_PROJECT_EMPTY_NAMESPACE_ROOT");
         }
         finally
         {

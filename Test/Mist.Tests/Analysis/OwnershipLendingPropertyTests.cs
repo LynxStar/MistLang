@@ -345,8 +345,8 @@ public class OwnershipLendingPropertyTests
         var diagnostics = CompileAndGetDiagnostics(scenario.Source);
 
         var hasLendingError = diagnostics.Any(d =>
-            d.Id.Value == "MIST_OWN_INCOMPATIBLE_LEND" ||
-            d.Id.Value == "MIST_OWN_UNRESTRICTED_TO_REF");
+            d.Id.Value is "MIST_OWN_INCOMPATIBLE_LEND" or
+            "MIST_OWN_UNRESTRICTED_TO_REF");
 
         var result = scenario.IsPermitted
             ? !hasLendingError
@@ -372,8 +372,8 @@ public class OwnershipLendingPropertyTests
         var diagnostics = CompileAndGetDiagnostics(scenario.Source);
 
         var hasLendingError = diagnostics.Any(d =>
-            d.Id.Value == "MIST_OWN_INCOMPATIBLE_LEND" ||
-            d.Id.Value == "MIST_OWN_UNRESTRICTED_TO_REF");
+            d.Id.Value is "MIST_OWN_INCOMPATIBLE_LEND" or
+            "MIST_OWN_UNRESTRICTED_TO_REF");
 
         return (!hasLendingError).ToProperty()
             .Label($"Scenario: {scenario.Label}")

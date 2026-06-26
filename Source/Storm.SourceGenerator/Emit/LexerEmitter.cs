@@ -596,7 +596,7 @@ namespace Storm.SourceGenerator.Emit
         private static void EmitModeActions(CodeWriter writer, List<TokenIR> tokens)
         {
             // Check if any tokens have mode actions
-            var hasActions = tokens.Any(t => t.ModeAction is PushModeIR || t.ModeAction is PopModeIR);
+            var hasActions = tokens.Any(t => t.ModeAction is PushModeIR or PopModeIR);
             if(!hasActions)
             {
                 return;

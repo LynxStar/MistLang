@@ -370,7 +370,7 @@ namespace Storm.SourceGenerator.Frontend
 
                 // Accept either an Identifier or the 'default' keyword as the mode name.
                 string modeName;
-                if(Current.Kind == StormTokenKind.Identifier || Current.Kind == StormTokenKind.DefaultKeyword)
+                if(Current.Kind is StormTokenKind.Identifier or StormTokenKind.DefaultKeyword)
                 {
                     modeName = Advance().Lexeme;
                 }
@@ -390,7 +390,7 @@ namespace Storm.SourceGenerator.Frontend
                 _ = Advance(); // consume '{'
 
                 var declarations = new List<StormDeclaration>();
-                while(Current.Kind != StormTokenKind.RightBrace && Current.Kind != StormTokenKind.EndOfFile)
+                while(Current.Kind is not StormTokenKind.RightBrace and not StormTokenKind.EndOfFile)
                 {
                     var decl = ParseDeclaration();
                     if(decl != null)
@@ -433,7 +433,7 @@ namespace Storm.SourceGenerator.Frontend
                     _ = Advance(); // consume 'push'
 
                     // Accept Identifier or 'default' keyword as the mode name.
-                    if(Current.Kind == StormTokenKind.Identifier || Current.Kind == StormTokenKind.DefaultKeyword)
+                    if(Current.Kind is StormTokenKind.Identifier or StormTokenKind.DefaultKeyword)
                     {
                         var modeNameTok = Advance();
                         return new StormPushAction(modeNameTok.Lexeme);

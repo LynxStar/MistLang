@@ -356,7 +356,7 @@ public sealed class OptionalTypeSuffixPropertyTests
         // The token stream should contain the type name token followed by
         // QUESTION_QUESTION (a single token), not two separate QUESTION tokens
         var questionTokens = tokens.DefaultChannelTokens
-            .Where(t => t.Lexeme == "??" || t.Lexeme == "?")
+            .Where(t => t.Lexeme is "??" or "?")
             .ToList();
         Assert.Contains(questionTokens, t => t.Lexeme == "??");
         Assert.DoesNotContain(questionTokens, t => t.Lexeme == "?");

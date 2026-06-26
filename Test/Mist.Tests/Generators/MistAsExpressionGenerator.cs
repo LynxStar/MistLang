@@ -189,7 +189,7 @@ public static class MistAsExpressionGenerator
     public static Gen<CompilationUnitNode> GenMultipleAsExpressionProgram()
     {
         return from stmts in GenAsExpressionStatement().ListOf()
-                   .Where(list => list.Count >= 2 && list.Count <= 4)
+                   .Where(list => list.Count is >= 2 and <= 4)
                select MistProgramGenerator.MakeProgram(stmts.ToImmutableArray());
     }
 

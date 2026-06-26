@@ -180,7 +180,7 @@ public sealed class RelevantDropNotConsumedTests : IDisposable
 
         Assert.DoesNotContain(
             diagnostics,
-            d => d.Id.Value == UseAfterMoveId || d.Id.Value == UseAfterDropId);
+            d => d.Id.Value is UseAfterMoveId or UseAfterDropId);
 
         // Label is included for failure readability via the xUnit data theory name.
         _ = label;

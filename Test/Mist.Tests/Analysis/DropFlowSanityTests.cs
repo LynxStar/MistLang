@@ -105,6 +105,6 @@ public sealed class DropFlowSanityTests
             }
             """;
         var diags = Compile(src);
-        Assert.DoesNotContain(diags, d => d.Id.Value == "MIST_DROP_USE_AFTER_MOVE" || d.Id.Value == "MIST_DROP_USE_AFTER_DROP");
+        Assert.DoesNotContain(diags, d => d.Id.Value is "MIST_DROP_USE_AFTER_MOVE" or "MIST_DROP_USE_AFTER_DROP");
     }
 }

@@ -113,7 +113,7 @@ public class CompletenessSilencePropertyTests
                from fields in (from name in Gen.Elements(FieldNames)
                                from typ in Gen.Elements(PrimitiveTypes)
                                select $"    {typ} {name};").ListOf()
-                   .Where(list => list.Count >= 1 && list.Count <= 3)
+                   .Where(list => list.Count is >= 1 and <= 3)
                let fieldBlock = string.Join("\n", fields.Distinct())
                select new ValidSourceScenario(
                    $"class {cls} with {fields.Count} fields",
@@ -171,7 +171,7 @@ public class CompletenessSilencePropertyTests
     {
         return from ns in Gen.Elements(Namespaces)
                from classes in Gen.Elements(ClassNames).ListOf()
-                   .Where(list => list.Count >= 2 && list.Count <= 3)
+                   .Where(list => list.Count is >= 2 and <= 3)
                let distinctClasses = classes.Distinct().ToArray()
                where distinctClasses.Length >= 2
                let classDecls = string.Join("\n", distinctClasses.Select(c => $"class {c} {{ }}"))

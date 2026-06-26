@@ -165,7 +165,7 @@ public sealed class ConstraintEmissionOrderingPropertyTests : IDisposable
     /// </summary>
     private static int CategorizeConstraint(string constraint)
     {
-        if(constraint == "class" || constraint == "struct")
+        if(constraint is "class" or "struct")
         {
             return 0;
         }

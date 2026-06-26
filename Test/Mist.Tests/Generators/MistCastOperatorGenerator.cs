@@ -312,7 +312,7 @@ public static class MistCastOperatorGenerator
     {
         return from className in Gen.Elements(ClassNames)
                from castOps in GenCastOperatorMember().ListOf()
-                   .Where(list => list.Count >= 2 && list.Count <= 4)
+                   .Where(list => list.Count is >= 2 and <= 4)
                select new CompilationUnitNode
                {
                    Items = ImmutableArray.Create<TopLevelItemNode>(
@@ -410,7 +410,7 @@ public static class MistCastOperatorGenerator
     {
         return from className in Gen.Elements(ClassNames)
                from castExprStmts in GenCastExpressionStatement().ListOf()
-                   .Where(list => list.Count >= 1 && list.Count <= 3)
+                   .Where(list => list.Count is >= 1 and <= 3)
                select new CompilationUnitNode
                {
                    Items = ImmutableArray.Create<TopLevelItemNode>(

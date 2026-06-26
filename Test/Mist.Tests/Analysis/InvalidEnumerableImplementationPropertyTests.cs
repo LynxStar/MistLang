@@ -354,8 +354,8 @@ public sealed class InvalidEnumerableImplementationPropertyTests : IDisposable
         // - MIST_SM_0022 (MissingAbstractOverload) for missing methods
         // - MIST_MISSING_ABSTRACT_PROPERTY for missing properties (e.g., Current)
         var abstractDiagnostics = result.Diagnostics
-            .Where(d => d.Id.Value == "MIST_SM_0022"
-                     || d.Id.Value == "MIST_MISSING_ABSTRACT_PROPERTY")
+            .Where(d => d.Id.Value is "MIST_SM_0022"
+                     or "MIST_MISSING_ABSTRACT_PROPERTY")
             .ToList();
 
         var hasDiagnostic = abstractDiagnostics.Count > 0;

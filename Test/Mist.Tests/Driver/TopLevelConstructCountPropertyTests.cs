@@ -53,8 +53,8 @@ public class TopLevelConstructCountPropertyTests
                 continue;
             }
 
-            if(kind == SymbolKind.Class || kind == SymbolKind.Struct ||
-                kind == SymbolKind.Abstract)
+            if(kind is SymbolKind.Class or SymbolKind.Struct or
+                SymbolKind.Abstract)
             {
                 count++;
             }

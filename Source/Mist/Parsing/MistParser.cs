@@ -475,10 +475,10 @@ public sealed class MistParser : IParser
 
     private static bool IsTypeDeclarationKeyword(int kind)
     {
-        return kind == (int)Mist.Generated.TokenKind.CLASS
-        || kind == (int)Mist.Generated.TokenKind.STRUCT
-        || kind == (int)Mist.Generated.TokenKind.ABSTRACT
-        || kind == (int)Mist.Generated.TokenKind.ENUM;
+        return kind is ((int)Mist.Generated.TokenKind.CLASS)
+        or ((int)Mist.Generated.TokenKind.STRUCT)
+        or ((int)Mist.Generated.TokenKind.ABSTRACT)
+        or ((int)Mist.Generated.TokenKind.ENUM);
     }
 
     private static void AddPropertyDefaultDiagnostic(
@@ -572,10 +572,10 @@ public sealed class MistParser : IParser
                     return pos + 1;
                 }
             }
-            else if(kind == (int)Mist.Generated.TokenKind.SEMICOLON
-                || kind == (int)Mist.Generated.TokenKind.LEFT_BRACE
-                || kind == (int)Mist.Generated.TokenKind.RIGHT_BRACE
-                || kind == (int)Mist.Generated.TokenKind.EndOfFile)
+            else if(kind is ((int)Mist.Generated.TokenKind.SEMICOLON)
+                or ((int)Mist.Generated.TokenKind.LEFT_BRACE)
+                or ((int)Mist.Generated.TokenKind.RIGHT_BRACE)
+                or ((int)Mist.Generated.TokenKind.EndOfFile))
             {
                 // Malformed type argument list; bail rather than guessing.
                 return null;
@@ -587,21 +587,21 @@ public sealed class MistParser : IParser
 
     private static bool IsPrimitiveTypeKind(int kind)
     {
-        return kind == (int)Mist.Generated.TokenKind.INT
-        || kind == (int)Mist.Generated.TokenKind.UINT
-        || kind == (int)Mist.Generated.TokenKind.LONG
-        || kind == (int)Mist.Generated.TokenKind.ULONG
-        || kind == (int)Mist.Generated.TokenKind.SHORT
-        || kind == (int)Mist.Generated.TokenKind.USHORT
-        || kind == (int)Mist.Generated.TokenKind.BYTE
-        || kind == (int)Mist.Generated.TokenKind.SBYTE
-        || kind == (int)Mist.Generated.TokenKind.FLOAT
-        || kind == (int)Mist.Generated.TokenKind.DOUBLE
-        || kind == (int)Mist.Generated.TokenKind.DECIMAL
-        || kind == (int)Mist.Generated.TokenKind.BOOL
-        || kind == (int)Mist.Generated.TokenKind.CHAR
-        || kind == (int)Mist.Generated.TokenKind.STRING
-        || kind == (int)Mist.Generated.TokenKind.REGEX;
+        return kind is ((int)Mist.Generated.TokenKind.INT)
+        or ((int)Mist.Generated.TokenKind.UINT)
+        or ((int)Mist.Generated.TokenKind.LONG)
+        or ((int)Mist.Generated.TokenKind.ULONG)
+        or ((int)Mist.Generated.TokenKind.SHORT)
+        or ((int)Mist.Generated.TokenKind.USHORT)
+        or ((int)Mist.Generated.TokenKind.BYTE)
+        or ((int)Mist.Generated.TokenKind.SBYTE)
+        or ((int)Mist.Generated.TokenKind.FLOAT)
+        or ((int)Mist.Generated.TokenKind.DOUBLE)
+        or ((int)Mist.Generated.TokenKind.DECIMAL)
+        or ((int)Mist.Generated.TokenKind.BOOL)
+        or ((int)Mist.Generated.TokenKind.CHAR)
+        or ((int)Mist.Generated.TokenKind.STRING)
+        or ((int)Mist.Generated.TokenKind.REGEX);
     }
 
     private static void AssignOrigin(Storm.Runtime.SyntaxNode node, ParsedOrigin origin)
@@ -754,28 +754,28 @@ public sealed class MistParser : IParser
     {
         // All keyword token kinds that have identifier-like lexemes.
         // Excludes punctuation, operators, and structural tokens.
-        return kind != (int)Mist.Generated.TokenKind.IDENTIFIER
-            && kind != (int)Mist.Generated.TokenKind.DOT
-            && kind != (int)Mist.Generated.TokenKind.SEMICOLON
-            && kind != (int)Mist.Generated.TokenKind.LEFT_BRACE
-            && kind != (int)Mist.Generated.TokenKind.RIGHT_BRACE
-            && kind != (int)Mist.Generated.TokenKind.LEFT_PARENTHESIS
-            && kind != (int)Mist.Generated.TokenKind.RIGHT_PARENTHESIS
-            && kind != (int)Mist.Generated.TokenKind.LEFT_BRACKET
-            && kind != (int)Mist.Generated.TokenKind.RIGHT_BRACKET
-            && kind != (int)Mist.Generated.TokenKind.LESS_THAN
-            && kind != (int)Mist.Generated.TokenKind.GREATER_THAN
-            && kind != (int)Mist.Generated.TokenKind.EndOfFile
-            && kind != (int)Mist.Generated.TokenKind.COMMA
-            && kind != (int)Mist.Generated.TokenKind.COLON
-            && kind != (int)Mist.Generated.TokenKind.EQUAL
-            && kind != (int)Mist.Generated.TokenKind.STAR
-            && kind != (int)Mist.Generated.TokenKind.PLUS
-            && kind != (int)Mist.Generated.TokenKind.MINUS
-            && kind != (int)Mist.Generated.TokenKind.SLASH
-            && kind != (int)Mist.Generated.TokenKind.MODULO
-            && kind != (int)Mist.Generated.TokenKind.EXCLAMATION
-            && kind != (int)Mist.Generated.TokenKind.QUESTION
-            && kind != (int)Mist.Generated.TokenKind.PIPE;
+        return kind is not ((int)Mist.Generated.TokenKind.IDENTIFIER)
+            and not ((int)Mist.Generated.TokenKind.DOT)
+            and not ((int)Mist.Generated.TokenKind.SEMICOLON)
+            and not ((int)Mist.Generated.TokenKind.LEFT_BRACE)
+            and not ((int)Mist.Generated.TokenKind.RIGHT_BRACE)
+            and not ((int)Mist.Generated.TokenKind.LEFT_PARENTHESIS)
+            and not ((int)Mist.Generated.TokenKind.RIGHT_PARENTHESIS)
+            and not ((int)Mist.Generated.TokenKind.LEFT_BRACKET)
+            and not ((int)Mist.Generated.TokenKind.RIGHT_BRACKET)
+            and not ((int)Mist.Generated.TokenKind.LESS_THAN)
+            and not ((int)Mist.Generated.TokenKind.GREATER_THAN)
+            and not ((int)Mist.Generated.TokenKind.EndOfFile)
+            and not ((int)Mist.Generated.TokenKind.COMMA)
+            and not ((int)Mist.Generated.TokenKind.COLON)
+            and not ((int)Mist.Generated.TokenKind.EQUAL)
+            and not ((int)Mist.Generated.TokenKind.STAR)
+            and not ((int)Mist.Generated.TokenKind.PLUS)
+            and not ((int)Mist.Generated.TokenKind.MINUS)
+            and not ((int)Mist.Generated.TokenKind.SLASH)
+            and not ((int)Mist.Generated.TokenKind.MODULO)
+            and not ((int)Mist.Generated.TokenKind.EXCLAMATION)
+            and not ((int)Mist.Generated.TokenKind.QUESTION)
+            and not ((int)Mist.Generated.TokenKind.PIPE);
     }
 }

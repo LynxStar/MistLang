@@ -728,7 +728,7 @@ public class ImplicitCastResolutionPropertyTests
         // MIST_TC_0001 (type mismatch, because ambiguity causes IsAssignable
         // to return false).
         var rejectionDiags = diagnostics
-            .Where(d => d.Id.Value == AmbiguousImplicitCastId || d.Id.Value == TypeMismatchId)
+            .Where(d => d.Id.Value is AmbiguousImplicitCastId or TypeMismatchId)
             .ToArray();
 
         return (rejectionDiags.Length > 0)

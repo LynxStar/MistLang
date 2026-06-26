@@ -31,7 +31,7 @@ public class ConsoleProgressReporterPropertyTests
     private static readonly char[] PrintableChars =
         Enumerable.Range(32, 95) // ASCII 32–126 (printable, no control chars)
             .Select(i => (char)i)
-            .Where(c => c != '\n' && c != '\r') // extra safety: exclude newlines
+            .Where(c => c is not '\n' and not '\r') // extra safety: exclude newlines
             .ToArray();
 
     /// <summary>

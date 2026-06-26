@@ -148,8 +148,8 @@ public class PatternVariableScopingPropertyTests_Switch
 
         // No undefined identifier errors means the variable is accessible
         var hasUndefinedId = diagnostics.Any(d =>
-            d.Id.Value == "MIST_SM_0001" || // undefined identifier
-            d.Id.Value == "MIST_TC_0001");   // type mismatch
+            d.Id.Value is "MIST_SM_0001" or // undefined identifier
+            "MIST_TC_0001");   // type mismatch
 
         return (!hasUndefinedId).ToProperty()
             .Label($"Pattern variable not accessible in guard/result. Scenario: {scenario.Label}. " +
@@ -169,8 +169,8 @@ public class PatternVariableScopingPropertyTests_Switch
 
         // No undefined identifier errors means the variable is accessible
         var hasUndefinedId = diagnostics.Any(d =>
-            d.Id.Value == "MIST_SM_0001" || // undefined identifier
-            d.Id.Value == "MIST_TC_0001");   // type mismatch
+            d.Id.Value is "MIST_SM_0001" or // undefined identifier
+            "MIST_TC_0001");   // type mismatch
 
         return (!hasUndefinedId).ToProperty()
             .Label($"Pattern variable not accessible in result. Scenario: {scenario.Label}. " +

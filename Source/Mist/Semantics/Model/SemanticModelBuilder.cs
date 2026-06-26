@@ -4711,7 +4711,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // scope to check each member-level intrinsic marker.
         foreach(var typeSymbol in symbolTable.AllSymbols)
         {
-            if(typeSymbol.Kind != SymbolKind.Class && typeSymbol.Kind != SymbolKind.Struct)
+            if(typeSymbol.Kind is not SymbolKind.Class and not SymbolKind.Struct)
             {
                 continue;
             }
@@ -4770,8 +4770,8 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 // Only validate members that can carry 'intrinsic': methods,
                 // constructors, and operators (operators are registered as
                 // SymbolKind.Method with a mangled "operator<sym>" name).
-                if(memberSymbol.Kind != SymbolKind.Method
-                    && memberSymbol.Kind != SymbolKind.Constructor)
+                if(memberSymbol.Kind is not SymbolKind.Method
+                    and not SymbolKind.Constructor)
                 {
                     continue;
                 }
@@ -5047,7 +5047,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         {
             foreach(var typeSymbol in symbolTable.AllSymbols)
             {
-                if(typeSymbol.Kind != SymbolKind.Class && typeSymbol.Kind != SymbolKind.Struct)
+                if(typeSymbol.Kind is not SymbolKind.Class and not SymbolKind.Struct)
                 {
                     continue;
                 }
@@ -8002,7 +8002,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         var resolvedType = ResolveConstraintTypeReference(
                             typeConstraint, declaringSymbol, declaringNode, asts, compilation, diagnostics, sourceText);
 
-                        if(resolvedType is null || resolvedType is ErrorType)
+                        if(resolvedType is null or ErrorType)
                         {
                             // Already emitted MIST_CONSTRAINT_0008 in ResolveConstraintTypeReference.
                             break;
@@ -8133,7 +8133,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         var resolvedType = ResolveConstraintTypeReference(
                             typeConstraint, declaringSymbol, declaringNode, asts, compilation, diagnostics, sourceText);
 
-                        if(resolvedType is null || resolvedType is ErrorType)
+                        if(resolvedType is null or ErrorType)
                         {
                             // Already emitted diagnostic in ResolveConstraintTypeReference.
                             break;
@@ -8647,7 +8647,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 continue;
             }
 
-            if(symbol.Kind != SymbolKind.Method && symbol.Kind != SymbolKind.Constructor)
+            if(symbol.Kind is not SymbolKind.Method and not SymbolKind.Constructor)
             {
                 continue;
             }
@@ -8686,7 +8686,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 var resolvedType = ResolveWithClauseType(
                     contextClause.Type, scope, symbolTable, declaringNode, asts, compilation, diagnostics, sourceText);
 
-                if(resolvedType is null || resolvedType is ErrorType)
+                if(resolvedType is null or ErrorType)
                 {
                     continue;
                 }
@@ -11805,7 +11805,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             {
                 // Only check fields and methods (not constructors, parameters, etc.)
                 // Constructors don't inherit, so they are never redeclarations.
-                if(member.Kind != SymbolKind.Field && member.Kind != SymbolKind.Method)
+                if(member.Kind is not SymbolKind.Field and not SymbolKind.Method)
                 {
                     continue;
                 }
@@ -11864,7 +11864,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         }
 
                         // Cross-kind conflict (e.g. field in derived vs method in base with same name).
-                        if((ancestorMember.Kind == SymbolKind.Field || ancestorMember.Kind == SymbolKind.Method))
+                        if((ancestorMember.Kind is SymbolKind.Field or SymbolKind.Method))
                         {
                             EmitRedeclarationDiagnostic(classType, member, ancestor, symbolTable, asts, compilation, diagnostics);
                             goto nextMember;
@@ -16169,7 +16169,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         for(var i = 0; i < tupleType.ElementNames.Count; i++)
                         {
                             var elementName = tupleType.ElementNames[i];
-                            if(elementName is null || elementName == "_")
+                            if(elementName is null or "_")
                             {
                                 continue;
                             }
@@ -16224,7 +16224,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                         for(var i = 0; i < bareTupleType.ElementNames.Count; i++)
                         {
                             var elementName = bareTupleType.ElementNames[i];
-                            if(elementName is null || elementName == "_")
+                            if(elementName is null or "_")
                             {
                                 continue;
                             }
@@ -17941,9 +17941,9 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                 continue;
             }
 
-            if(member.Kind != SymbolKind.Class
-                && member.Kind != SymbolKind.Struct
-                && member.Kind != SymbolKind.Abstract)
+            if(member.Kind is not SymbolKind.Class
+                and not SymbolKind.Struct
+                and not SymbolKind.Abstract)
             {
                 continue;
             }
@@ -18218,7 +18218,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
 
         // Get the method's return type (effective return type visible to callers).
         var returnType = methodSymbol.DeclaredType;
-        if(returnType is null || returnType is ErrorType)
+        if(returnType is null or ErrorType)
         {
             return null;
         }
@@ -18302,7 +18302,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         {
             var paramTypes = ParameterSignature.Extract(overload, symbolTable);
             var returnType = overload.DeclaredType;
-            if(returnType is null || returnType is ErrorType)
+            if(returnType is null or ErrorType)
             {
                 continue;
             }
@@ -19478,7 +19478,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             {
                 hasTypeParams = true;
             }
-            else if(member.Kind == SymbolKind.Class || member.Kind == SymbolKind.Struct || member.Kind == SymbolKind.Abstract || member.Kind == SymbolKind.Enum)
+            else if(member.Kind is SymbolKind.Class or SymbolKind.Struct or SymbolKind.Abstract or SymbolKind.Enum)
             {
                 hasNestedTypes = true;
             }
@@ -19507,7 +19507,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             {
                 scope.AddMember(member);
             }
-            else if(member.Kind == SymbolKind.Class || member.Kind == SymbolKind.Struct || member.Kind == SymbolKind.Abstract || member.Kind == SymbolKind.Enum)
+            else if(member.Kind is SymbolKind.Class or SymbolKind.Struct or SymbolKind.Abstract or SymbolKind.Enum)
             {
                 scope.AddMember(member);
             }
@@ -19694,7 +19694,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
         // When the target type is a DelegateType, extract its FuncSignature for inference.
         // The lambda's parameter types come from the FuncSignature's type arguments.
         ConstructedType? funcCt = null;
-        if(targetType is not null && targetType is DelegateType delegateTarget)
+        if(targetType is not null and DelegateType delegateTarget)
         {
             funcCt = delegateTarget.FuncSignature;
         }
@@ -19779,7 +19779,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             if(ContainsTypeParameter(returnType) || hasExplicitlyTypedParams)
             {
                 var inferredReturnType = InferLambdaBodyReturnType(lambda, expressionTypes, fileScope, symbolTable, isAsync);
-                if(inferredReturnType is not null && inferredReturnType is not ErrorType && inferredReturnType is not UnknownType)
+                if(inferredReturnType is not null and not ErrorType and not UnknownType)
                 {
                     // When explicitly-typed params are present, use the resolved param
                     // types from the lambda scope instead of the target delegate's types.
@@ -19838,7 +19838,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     {
                         // CLR Func: infer return type from lambda body.
                         var inferredReturn = InferLambdaBodyReturnType(lambda, expressionTypes, fileScope, symbolTable, false);
-                        if(inferredReturn is not null && inferredReturn is not ErrorType && inferredReturn is not UnknownType)
+                        if(inferredReturn is not null and not ErrorType and not UnknownType)
                         {
                             funcTypeArgs[^1] = inferredReturn;
                         }
@@ -22279,7 +22279,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     // Type validation is deferred to the type checker; here we resolve
                     // the member type for downstream consumers.
                     var projectedType = ProjectOptionalType(targetType);
-                    if(projectedType is null || projectedType is ErrorType)
+                    if(projectedType is null or ErrorType)
                     {
                         expressionTypes[suffix] = ErrorType.Instance;
                         return ErrorType.Instance;
@@ -22297,7 +22297,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
                     // The receiver must be a UnionType containing void. Project to T
                     // (remove void), resolve the method on T, and wrap result as R | void.
                     var projectedType = ProjectOptionalType(targetType);
-                    if(projectedType is null || projectedType is ErrorType)
+                    if(projectedType is null or ErrorType)
                     {
                         // Still resolve arguments to avoid cascading errors.
                         if(optionalMethodCall.Arguments is not null)
@@ -23054,7 +23054,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             case TargetTypedNewExpressionPrimaryNode targetNew:
                 {
                     var targetType = targetTypedNewTargetType;
-                    if(targetType is null || targetType is ErrorType)
+                    if(targetType is null or ErrorType)
                     {
                         // No target type available — resolve arguments for IDE support
                         // but record ErrorType. The type checker will emit the diagnostic.
@@ -23134,7 +23134,7 @@ public sealed class SemanticModelBuilder : ISemanticModelBuilder
             case TargetTypedNewExpressionNoArgsPrimaryNode targetNewNoArgs:
                 {
                     var targetType = targetTypedNewTargetType;
-                    if(targetType is null || targetType is ErrorType)
+                    if(targetType is null or ErrorType)
                     {
                         // No target type available — resolve initializer for IDE support
                         // but record ErrorType. The type checker will emit the diagnostic.

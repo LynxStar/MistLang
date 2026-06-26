@@ -321,8 +321,8 @@ public class OwnershipStorabilityPropertyTests
         var diagnostics = CompileAndGetDiagnostics(scenario.Source);
 
         return !diagnostics.Any(d =>
-            d.Id.Value == "MIST_OWN_NOT_STORABLE" ||
-            d.Id.Value == "MIST_OWN_REF_ESCAPE" ||
-            d.Id.Value == "MIST_OWN_INVALID_RETURN_SPEC");
+            d.Id.Value is "MIST_OWN_NOT_STORABLE" or
+            "MIST_OWN_REF_ESCAPE" or
+            "MIST_OWN_INVALID_RETURN_SPEC");
     }
 }

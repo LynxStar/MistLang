@@ -292,7 +292,7 @@ public class RefinementComparisonEnginePropertyTests
     private static Gen<OrPatternSourceScenario> GenOrPatternSourceScenario()
     {
         return from values in Gen.Choose(-50, 50).ListOf()
-                   .Where(list => list.Count >= 2 && list.Count <= 5)
+                   .Where(list => list.Count is >= 2 and <= 5)
                from target in GenRelationalTarget()
                select new OrPatternSourceScenario(values.ToImmutableArray(), target);
     }
@@ -305,9 +305,9 @@ public class RefinementComparisonEnginePropertyTests
     private static Gen<OrPatternSubsetScenario> GenOrPatternSubsetScenario()
     {
         return from aValues in Gen.Choose(-50, 50).ListOf()
-                   .Where(list => list.Count >= 2 && list.Count <= 3)
+                   .Where(list => list.Count is >= 2 and <= 3)
                from bValues in Gen.Choose(-50, 50).ListOf()
-                   .Where(list => list.Count >= 2 && list.Count <= 5)
+                   .Where(list => list.Count is >= 2 and <= 5)
                select new OrPatternSubsetScenario(aValues.ToImmutableArray(), bValues.ToImmutableArray());
     }
 
@@ -320,7 +320,7 @@ public class RefinementComparisonEnginePropertyTests
     {
         return from eqValue in Gen.Choose(-50, 50)
                from setValues in Gen.Choose(-50, 50).ListOf()
-                   .Where(list => list.Count >= 2 && list.Count <= 5)
+                   .Where(list => list.Count is >= 2 and <= 5)
                select new OrPatternTargetScenario(eqValue, setValues.ToImmutableArray());
     }
 
@@ -342,7 +342,7 @@ public class RefinementComparisonEnginePropertyTests
                      select AnyPredicate.Not(value);
 
         var genOr = from values in Gen.Choose(-50, 50).ListOf()
-                        .Where(list => list.Count >= 2 && list.Count <= 5)
+                        .Where(list => list.Count is >= 2 and <= 5)
                     select AnyPredicate.Or(values.ToImmutableArray());
 
         return Gen.OneOf(genRelational, genEquality, genNot, genOr);

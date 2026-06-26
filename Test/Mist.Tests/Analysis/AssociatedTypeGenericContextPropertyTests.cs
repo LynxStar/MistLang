@@ -270,8 +270,8 @@ public class AssociatedTypeGenericContextPropertyTests
 
         // Filter for diagnostics that indicate the T.SlotName reference was rejected
         var typeErrors = diagnostics.Where(d =>
-            d.Id.Value == "MIST_AT_0004" ||
-            d.Id.Value == "MIST_UNDEFINED_TYPE").ToList();
+            d.Id.Value is "MIST_AT_0004" or
+            "MIST_UNDEFINED_TYPE").ToList();
 
         if(typeErrors.Count > 0)
         {
@@ -310,9 +310,9 @@ public class AssociatedTypeGenericContextPropertyTests
 
         // Filter for diagnostics that indicate the member access was rejected
         var typeErrors = diagnostics.Where(d =>
-            d.Id.Value == "MIST_AT_0004" ||
-            d.Id.Value == "MIST_UNDEFINED_TYPE" ||
-            d.Id.Value == "MIST_SM_0009").ToList();
+            d.Id.Value is "MIST_AT_0004" or
+            "MIST_UNDEFINED_TYPE" or
+            "MIST_SM_0009").ToList();
 
         if(typeErrors.Count > 0)
         {

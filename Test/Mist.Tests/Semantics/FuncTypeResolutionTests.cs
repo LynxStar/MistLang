@@ -237,8 +237,8 @@ public sealed class FuncTypeResolutionTests
 
         // The declared type of `result` should be string.
         Assert.True(
-            result.DeclaredType!.DisplayName == "string" ||
-            result.DeclaredType!.DisplayName == "String",
+            result.DeclaredType!.DisplayName is "string" or
+            "String",
             $"Expected result type to be string/String, got '{result.DeclaredType.DisplayName}'");
     }
 
@@ -268,8 +268,8 @@ public sealed class FuncTypeResolutionTests
         Assert.NotNull(result!.DeclaredType);
 
         Assert.True(
-            result.DeclaredType!.DisplayName == "string" ||
-            result.DeclaredType!.DisplayName == "String",
+            result.DeclaredType!.DisplayName is "string" or
+            "String",
             $"Expected result type to be string/String, got '{result.DeclaredType.DisplayName}'");
     }
 
@@ -385,8 +385,8 @@ public sealed class FuncTypeResolutionTests
         // Single type argument: the return type (bool).
         var singleArg = Assert.Single(funcType.TypeArguments);
         Assert.True(
-            singleArg.DisplayName == "bool" ||
-            singleArg.DisplayName == "Boolean",
+            singleArg.DisplayName is "bool" or
+            "Boolean",
             $"Expected return type bool/Boolean, got '{singleArg.DisplayName}'");
     }
 
@@ -417,7 +417,7 @@ public sealed class FuncTypeResolutionTests
         foreach(var typeArg in funcType.TypeArguments)
         {
             Assert.True(
-                typeArg.DisplayName == "int" || typeArg.DisplayName == "Int32",
+                typeArg.DisplayName is "int" or "Int32",
                 $"Expected int/Int32, got '{typeArg.DisplayName}'");
         }
     }
@@ -477,8 +477,8 @@ public sealed class FuncTypeResolutionTests
         Assert.NotNull(result!.DeclaredType);
 
         Assert.True(
-            result.DeclaredType!.DisplayName == "bool" ||
-            result.DeclaredType!.DisplayName == "Boolean",
+            result.DeclaredType!.DisplayName is "bool" or
+            "Boolean",
             $"Expected result type bool/Boolean, got '{result.DeclaredType.DisplayName}'");
     }
 
@@ -508,8 +508,8 @@ public sealed class FuncTypeResolutionTests
         Assert.NotNull(result!.DeclaredType);
 
         Assert.True(
-            result.DeclaredType!.DisplayName == "int" ||
-            result.DeclaredType!.DisplayName == "Int32",
+            result.DeclaredType!.DisplayName is "int" or
+            "Int32",
             $"Expected result type int/Int32, got '{result.DeclaredType.DisplayName}'");
     }
 
